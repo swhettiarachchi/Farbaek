@@ -11,6 +11,8 @@ import {
   type Task,
   type Transition,
   type WorkspaceReader,
+  ProposalRowSchema,
+  proposalFromRow,
 } from "./types";
 
 /**
@@ -195,6 +197,20 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
       const Row = z.object({ path: z.string(), revision: z.number().int(), size_bytes: z.number().int(), sha256: z.string(), content: z.string(), updated_at: z.string() });
       const row = z.array(Row).parse(data)[0];
       return row ? { path: row.path, revision: row.revision, sizeBytes: row.size_bytes, sha256: row.sha256, content: row.content, updatedAt: row.updated_at } : null;
+    },
+
+    async getLatestProposal(orgId, taskId) {
+      if (!z.uuid().safeParse(taskId).success) return null;
+      const { data, error } = await client
+        .from("change_proposals")
+        .select("id, task_id, project_id, status, contract_version, plan, changes, dropped, violations, sha256, model, created_at, decided_at, applied_sha256")
+        .eq("org_id", orgId)
+        .eq("task_id", taskId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) fail("change proposal", error);
+      return data ? proposalFromRow(ProposalRowSchema.parse(data)) : null;
     },
 
     async listFileRevisions(orgId, projectId, path) {

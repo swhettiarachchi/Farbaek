@@ -122,3 +122,19 @@ describe("verification guards", () => {
     expect(attempt("mark_failed", { checks: [{ name: "test", command: "pnpm test", exitCode: 2 }] })).toMatchObject({ ok: true });
   });
 });
+
+describe("discarding a proposed change", () => {
+  const approved = () => run(newTask("t1", "o1"), "assemble_context", "draft_contract", "approve_contract");
+
+  it("returns to the approved contract from approval or a block, so the task can try again", () => {
+    const pending = run(approved(), "propose_plan", "evaluate_policy", "require_approval");
+    expect(run(pending, "discard_plan").state).toBe("CONTRACT_APPROVED");
+    const blocked = run(approved(), "propose_plan", "evaluate_policy", "block");
+    expect(run(blocked, "discard_plan").state).toBe("CONTRACT_APPROVED");
+  });
+
+  it("can't discard once execution is authorized", () => {
+    const authorized = run(approved(), "propose_plan", "evaluate_policy", "require_approval", "grant_approval");
+    expect(transition(authorized, ev("discard_plan"), authorized.version)).toMatchObject({ ok: false, code: "INVALID_TRANSITION" });
+  });
+});

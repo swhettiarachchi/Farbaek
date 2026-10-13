@@ -1,10 +1,12 @@
-import { ArrowLeftIcon, ClockCounterClockwiseIcon, InfoIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, ClockCounterClockwiseIcon, GitPullRequestIcon, InfoIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ApproveContractControl, ContractEditor, ReviseContract } from "@/components/app/contract-editor";
 import { ContractView, contractIntact } from "@/components/app/contract-view";
 import { CancelTaskControl } from "@/components/app/forms";
+import { ProposeChange } from "@/components/proposals/propose-change";
+import { ProposalReview } from "@/components/proposals/proposal-review";
 import { Card, TaskStateBadge } from "@/components/app/primitives";
 import { ProofThread } from "@/components/proof/proof-thread";
 import { LocalTime } from "@/components/ui/local-time";
@@ -27,7 +29,21 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
   const found = await ctx.reader.getTask(ctx.current.id, taskId);
   if (!found) notFound();
   const { task, history } = found;
-  const [contract, ai] = await Promise.all([ctx.reader.getContract(ctx.current.id, task.id), loadAiAvailability(ctx, ctx.current)]);
+  const orgId = ctx.current.id;
+  const [contract, ai, proposal] = await Promise.all([ctx.reader.getContract(orgId, task.id), loadAiAvailability(ctx, ctx.current), ctx.reader.getLatestProposal(orgId, task.id)]);
+  const canPropose = task.state === "CONTRACT_APPROVED";
+  const showProposal = proposal !== null && (proposal.status !== "discarded" || !canPropose);
+  const [proposeAi, projectFiles, bases] = await Promise.all([
+    canPropose ? loadAiAvailability(ctx, ctx.current, "change_proposal") : Promise.resolve(null),
+    canPropose ? ctx.reader.listFiles(orgId, task.projectId) : Promise.resolve([]),
+    showProposal
+      ? Promise.all(
+          proposal!.changes
+            .filter((c) => c.kind === "edit")
+            .map(async (c) => [c.path, (await ctx.reader.getFileRevision(orgId, task.projectId, c.path, c.baseRevision)) ?? ""] as const),
+        ).then((entries) => Object.fromEntries(entries))
+      : Promise.resolve({} as Record<string, string>),
+  ]);
   const intact = contract ? await contractIntact(contract) : true;
   const writeReason = ctx.writes.enabled ? null : ctx.writes.reason;
 
@@ -99,6 +115,34 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
         </div>
       </Card>
 
+      {canPropose || showProposal ? (
+        <Card>
+          <h2 className="flex items-center gap-2 text-lg font-medium">
+            <GitPullRequestIcon size={20} className="text-ink-3" aria-hidden /> Change
+          </h2>
+          <p className="mt-1 text-sm text-ink-2">
+            The agent proposes targeted edits under the approved contract. You review every file as a diff, and nothing is applied until you approve the exact content.
+          </p>
+          <div className="mt-6 grid gap-8">
+            {showProposal ? (
+              <ProposalReview
+                projectId={task.projectId}
+                proposal={proposal!}
+                bases={bases}
+                invariants={contract?.body.protectedInvariants.map((i) => i.statement) ?? []}
+                disabledReason={writeReason}
+              />
+            ) : null}
+            {canPropose && proposeAi ? (
+              <div className={showProposal ? "border-t border-line pt-6" : ""}>
+                {showProposal ? <h3 className="mb-4 text-base font-medium">Propose another change</h3> : null}
+                <ProposeChange taskId={task.id} projectId={task.projectId} files={projectFiles.map((f) => ({ path: f.path, sizeBytes: f.sizeBytes }))} ai={proposeAi} />
+              </div>
+            ) : null}
+          </div>
+        </Card>
+      ) : null}
+
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start">
         <Card>
           <h2 className="flex items-center gap-2 text-lg font-medium">
@@ -136,7 +180,17 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
               {CAN_START_CONTRACT.has(task.state) || task.state === "CONTRACT_DRAFTED"
                 ? "Write the intent contract, or draft it with AI and review it, then approve the exact version. Planning the change arrives with Farbaek Agent later in Stage 2."
                 : task.state === "CONTRACT_APPROVED"
-                  ? "The contract is approved. Plans, policy checks and execution arrive with Farbaek Agent later in Stage 2; until then the task waits here."
+                  ? "The contract is approved. Choose the files the change needs and ask the agent for a proposal, or edit the files yourself."
+                  : task.state === "APPROVAL_PENDING"
+                  ? showProposal
+                    ? "A proposed change is waiting for your review. Accept or reject each chunk, then approve the exact content, or discard it."
+                    : "This task's plan is waiting for a person's approval."
+                  : task.state === "BLOCKED"
+                  ? showProposal
+                    ? "The last proposal broke the contract. Revise the contract, or discard the proposal and try again."
+                    : "A check blocked this task's plan. Revise the contract to continue."
+                  : task.state === "VERIFYING"
+                  ? "The change is applied. Verification needs an isolated runner to run the checks, and none is connected yet, so the task waits here. It is not marked verified."
                   : finished
                   ? "This task is finished. Its history stays as a record."
                   : "This task moves forward only through the lifecycle: each step is checked by the state machine and recorded above."}

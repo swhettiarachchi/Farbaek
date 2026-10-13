@@ -48,6 +48,7 @@ ESLint forbids `src/core` from importing React, Next, Motion or UI code, so ever
 | Evaluation metering (idempotent, per org, period boundaries) | In-memory reference only, unit-tested | `usage.test.ts` |
 | AI credit ledger (reserve, settle, refund; trial or monthly period) | Implemented, tested, applied to the hosted project (migration 4) | `tests/db/ai-credits.test.ts`, `ai-drafting.test.ts` |
 | Project files: import with secret screening, versioned storage, tree, search, CodeMirror editor with diff review | Implemented, tested, applied to the hosted project (migration 5, ADR 0010) | `tests/db/project-files.test.ts`, `src/core/workspace/` |
+| Change proposals: agent-proposed targeted edits, contract checks, per-chunk diff review, hash-bound approval, apply as revisions (Review Only, not verified) | Implemented and tested (migration 6, ADR 0011). **Migration 6 not yet applied to the hosted project.** Needs `ANTHROPIC_API_KEY` to run live. | `tests/db/change-proposals.test.ts`, `src/server/workspace/proposals.ts` |
 | Draft an intent contract with AI (Claude, structured output, refusal fallbacks) | Implemented and unit-tested with a fake drafter. Needs `ANTHROPIC_API_KEY` to run live. | `src/server/ai/`, ADR 0009 |
 | RealityLoop task state machine (evidence guards, optimistic concurrency, idempotent events) | Implemented, unit-tested | `task-machine.test.ts` |
 | Intent contract schema (Zod) and deterministic action checks | Implemented, unit-tested | `contract.test.ts` |
@@ -67,7 +68,7 @@ ESLint forbids `src/core` from importing React, Next, Motion or UI code, so ever
 
 ## 3. Data model and auth boundaries
 
-Postgres on Supabase with Row Level Security on every table. The browser can only read. Every write goes through a server action, then the TypeScript rules in `src/server/workspace/`, then a service-role-only `app_*` function that re-checks membership, limits and versions. Tables: organizations, members, trials, billing accounts, evaluation events, projects, project files and file revisions, tasks, task transitions, intent contracts, AI credit ledger, audit events.
+Postgres on Supabase with Row Level Security on every table. The browser can only read. Every write goes through a server action, then the TypeScript rules in `src/server/workspace/`, then a service-role-only `app_*` function that re-checks membership, limits and versions. Tables: organizations, members, trials, billing accounts, evaluation events, projects, project files and file revisions, change proposals, tasks, task transitions, intent contracts, AI credit ledger, audit events.
 
 ## 4. Design system and logo
 

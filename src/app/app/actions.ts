@@ -15,7 +15,8 @@ import { approveContract, cancelTask, createProject, createTask, saveContract, t
 import { draftContractWithAi, type AiCreditDeps } from "@/server/workspace/ai-drafting";
 import { deleteProjectFile, importProjectFiles, saveProjectFile, type FileDeps, type ImportSummary } from "@/server/workspace/files";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
-import { createAnthropicContractDrafter } from "@/server/ai/anthropic";
+import { createAnthropicChangeProposer, createAnthropicContractDrafter } from "@/server/ai/anthropic";
+import { MAX_CONTEXT_FILES, applyProposal, discardProposal, proposeChange, type ProposalDeps } from "@/server/workspace/proposals";
 import { hasAnthropicKey } from "@/server/ai/config";
 
 export type FormState = { status: "idle" } | { status: "error"; message: string; values?: Record<string, string> } | { status: "done"; message: string };
@@ -35,7 +36,7 @@ async function requireContext(): Promise<AppContext> {
 }
 
 /** Resolves write dependencies, or the honest reason writes are unavailable. */
-async function writeDeps(ctx: AppContext): Promise<{ deps: WriteDeps & AiCreditDeps & FileDeps; orgId: string } | { error: string }> {
+async function writeDeps(ctx: AppContext): Promise<{ deps: WriteDeps & AiCreditDeps & FileDeps & ProposalDeps; orgId: string } | { error: string }> {
   if (!ctx.writes.enabled) return { error: ctx.writes.reason };
   if (!ctx.current) return { error: "Create a workspace first." };
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
@@ -285,6 +286,71 @@ export async function deleteFileAction(_previous: FormState, form: FormData): Pr
   if (!result.ok) return { status: "error", message: result.message };
   revalidatePath(`/app/projects/${project.id}`, "layout");
   redirect(`/app/projects/${project.id}/files`);
+}
+
+export type ProposeState = { status: "error"; message: string } | { status: "done"; proposalId: string; outcome: "pending" | "blocked" };
+
+/** Asks the agent for a change under the approved contract. Nothing is applied until a person approves it. */
+export async function proposeChangeAction(input: { taskId: string; contextPaths: string[]; notes: string }): Promise<ProposeState> {
+  const parsed = z
+    .object({ taskId: z.uuid(), contextPaths: z.array(z.string().max(1000)).max(MAX_CONTEXT_FILES * 2), notes: z.string().max(4000) })
+    .safeParse(input);
+  if (!parsed.success) return { status: "error", message: "Choose up to 20 files and keep the notes under 4,000 characters." };
+
+  const ctx = await requireContext();
+  const w = await writeDeps(ctx);
+  if ("error" in w) return { status: "error", message: w.error };
+  if (!hasAnthropicKey()) return { status: "error", message: "AI isn't connected on this server yet. You can still edit the files yourself." };
+  const found = await ctx.reader.getTask(w.orgId, parsed.data.taskId);
+  if (!found) return { status: "error", message: "That task doesn't exist or isn't in this workspace." };
+  const project = await ctx.reader.getProject(w.orgId, found.task.projectId);
+
+  const result = await proposeChange(w.deps, createAnthropicChangeProposer(), {
+    orgId: w.orgId,
+    userId: ctx.user.id,
+    taskId: found.task.id,
+    contextPaths: parsed.data.contextPaths,
+    notes: parsed.data.notes,
+    taskTitle: found.task.title,
+    projectName: project?.name ?? "Project",
+  });
+  if (!result.ok) return { status: "error", message: result.message };
+  revalidatePath("/app", "layout");
+  return { status: "done", proposalId: result.value.proposalId, outcome: result.value.status };
+}
+
+export type ApplyState = { status: "error"; message: string } | { status: "done"; written: number };
+
+/** Applies the exact content the person accepted in the review, as new file revisions. */
+export async function applyProposalAction(input: { proposalId: string; reviewedSha256: string; files: { path: string; content: string }[] }): Promise<ApplyState> {
+  const parsed = z
+    .object({
+      proposalId: z.uuid(),
+      reviewedSha256: z.string().regex(/^[0-9a-f]{64}$/),
+      files: z.array(z.object({ path: z.string().max(1000), content: z.string().max(WORKSPACE_LIMITS.maxFileBytes * 4) })).min(1).max(30),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { status: "error", message: "Reload the page and review the proposal again." };
+
+  const ctx = await requireContext();
+  const w = await writeDeps(ctx);
+  if ("error" in w) return { status: "error", message: w.error };
+  const result = await applyProposal(w.deps, { orgId: w.orgId, userId: ctx.user.id, ...parsed.data });
+  if (!result.ok) return { status: "error", message: result.message };
+  revalidatePath("/app", "layout");
+  return { status: "done", written: result.value.written };
+}
+
+export async function discardProposalAction(input: { proposalId: string }): Promise<ApplyState> {
+  const parsed = z.object({ proposalId: z.uuid() }).safeParse(input);
+  if (!parsed.success) return { status: "error", message: "Reload the page and try again." };
+  const ctx = await requireContext();
+  const w = await writeDeps(ctx);
+  if ("error" in w) return { status: "error", message: w.error };
+  const result = await discardProposal(w.deps, { orgId: w.orgId, userId: ctx.user.id, proposalId: parsed.data.proposalId });
+  if (!result.ok) return { status: "error", message: result.message };
+  revalidatePath("/app", "layout");
+  return { status: "done", written: 0 };
 }
 
 export async function renameWorkspaceAction(_previous: FormState, form: FormData): Promise<FormState> {

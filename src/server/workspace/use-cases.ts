@@ -35,6 +35,13 @@ export type WriteErrorCode =
   | "FILE_CHANGED"
   | "NOTHING_TO_IMPORT"
   | "SECRET_IN_CONTENT"
+  | "NO_CONTEXT"
+  | "CONTEXT_TOO_LARGE"
+  | "NO_APPLICABLE_CHANGES"
+  | "INVALID_PROPOSAL"
+  | "PROPOSAL_CLOSED"
+  | "PROPOSAL_CHANGED"
+  | "NOTHING_TO_APPLY"
   | "AI_UNAVAILABLE"
   | "AI_REFUSED"
   | "AI_INCOMPLETE"
@@ -51,6 +58,9 @@ export interface TransitionStep {
   event_type: TaskEventType;
   from: TaskState;
   to: TaskState;
+  /** Who decided the step. The database records user steps as the signed-in actor. */
+  actor_kind?: "user" | "agent" | "system";
+  actor_id?: string;
 }
 
 export interface WriteDeps {
@@ -112,7 +122,14 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   FILE_CHANGED: "Someone changed this file while you were looking at it. Reload to see the latest version.",
   NOTHING_TO_IMPORT: "None of the selected files can be imported.",
   SECRET_IN_CONTENT: "This looks like it contains a secret, such as a private key or an API token. Remove it and try again. Keep secrets in environment variables.",
-  AI_UNAVAILABLE: "AI drafting isn't available right now. You can still write the contract yourself.",
+  NO_CONTEXT: "Choose the files the change needs, up to 20.",
+  CONTEXT_TOO_LARGE: "The chosen files are too large to send together. Choose fewer or smaller files, up to 300 KB in total.",
+  NO_APPLICABLE_CHANGES: "The proposal had no changes that could be applied safely.",
+  INVALID_PROPOSAL: "The proposal isn't valid, so nothing was changed.",
+  PROPOSAL_CLOSED: "This proposal was already applied or discarded. Reload to see the latest state.",
+  PROPOSAL_CHANGED: "The proposal changed since you reviewed it. Reload and review it again.",
+  NOTHING_TO_APPLY: "Every change was rejected, so there's nothing to apply. Discard the proposal instead.",
+  AI_UNAVAILABLE: "AI isn't available right now.",
   AI_REFUSED: "The model declined to draft this contract. Write it yourself, or reword the task and try again.",
   AI_INCOMPLETE: "The draft came back incomplete. Try again, or write the contract yourself.",
   AI_BUSY: "The AI provider is busy. Try again in a minute.",
@@ -138,6 +155,9 @@ export function codeFromDatabaseError(message: string): WriteErrorCode {
     "IMPORT_TOO_LARGE",
     "PROJECT_TOO_LARGE",
     "FILE_CHANGED",
+    "INVALID_PROPOSAL",
+    "PROPOSAL_CLOSED",
+    "NOTHING_TO_APPLY",
   ] as const) {
     if (message.includes(code)) return code;
   }
@@ -239,7 +259,7 @@ export async function cancelTask(
 }
 
 /** Runs events through the shared state machine, collecting the steps to store. */
-function planSteps(
+export function planSteps(
   deps: WriteDeps,
   start: { id: string; orgId: string; state: TaskState; version: number },
   userId: string,

@@ -133,4 +133,29 @@ Targeted AI patches: the agent proposes a change to specific files, the person r
 
 Targeted AI patches on top of this: the agent proposes edits to named files under an approved contract, the person reviews each file in the diff view, and accepted changes become revisions linked to the task.
 
+## 2026-10-13: change proposals
+
+### Done
+
+- Migration `20261015150000_change_proposals.sql` (tested, **not applied yet**): `change_proposals` with RLS; service-role-only `app_create_proposal` (base revisions must be current, each hash must match its content, the contract version must be the approved one, and the final task state must match pending or blocked), `app_apply_proposal` (all or nothing, refuses stale files, writes revisions linked to the proposal) and `app_discard_proposal`. `private.apply_transitions` now records agent and system steps under their own actor. The AI credit ledger accepts `change_proposal`. ADR 0011.
+- `src/core/realityloop/change-proposal.ts`: anchored find/replace edits (exactly one match or the edit is dropped), screening, contract checks (operations, record limit, path scope), proposal and applied-content hashes. New state machine event `discard_plan` (from APPROVAL_PENDING or BLOCKED back to CONTRACT_APPROVED).
+- Claude proposer (streamed structured output, refusal fallbacks), 3 credits per proposal with refunds when nothing usable comes back. The shared credit logic moved to `ai-credits.ts`.
+- Use cases `proposeChange`, `applyProposal` and `discardProposal`; Supabase reads and writes.
+- Task page: a Change card. With an approved contract, choose up to 20 files (filter, live size counter), add notes and propose. For a proposal: the plan, flagged risks, the contract check, word-only invariants listed for a person, dropped changes with reasons, and each file as a diff with accept and reject per chunk. Approve and apply the exact content, or discard. After applying, the screen says plainly that it is not verified because no isolated runner is connected.
+- The contract drafter now writes code contracts with path resources and `files.*` operations.
+- Demo: two code tasks. One has an approved contract (shows the propose form). The other has a sample proposal built from the sample files with the live rules, labelled "sample (no model call)".
+
+### Verified
+
+- 382 tests (28 files): 7 new database tests, 10 for the proposal rules, 9 use-case tests with a labelled fake proposer, 2 state-machine tests and a demo test that runs the sample through the live rules. Typecheck, lint and build pass.
+- Browser, demo mode, narrow pane (473px): the review shows status, hash, plan, risks, a passing contract check, the invariant to check by hand and two wrapped diffs. Approve and Discard are disabled with the demo reason. The propose form selects files with a live counter. No horizontal scroll.
+
+### Not verified
+
+- A real proposal from Claude and applying it on the hosted project: needs migration 6 applied, the Anthropic key in the env file and a signed-in session.
+
+### Next
+
+Apply migration 6 (owner approval). Then project-level checkpoints and the sandbox runner decision (ADR 0003), so VERIFYING tasks can run their checks.
+
 Note on dates: entries above were first written with later dates (2026-10-14 and 2026-10-15). Everything here happened on 2026-10-13. Migration filenames (`20261014…`, `20261015…`) are ordering versions only and stay as they are, because migrations 2 to 4 are already applied under those names.

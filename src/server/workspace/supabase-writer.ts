@@ -5,14 +5,19 @@ import { ORGANIZATION_SELECT, billingSnapshotFromRow } from "./organizations";
 import { ORG_ROLES } from "./types";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
 import type { AiCreditDeps } from "./ai-drafting";
+import { IntentContractSchema } from "@/core/realityloop/contract";
 import type { FileDeps } from "./files";
+import type { ProposalDeps } from "./proposals";
+import { createSupabaseReader } from "./supabase-reader";
+import { ProposalRowSchema, proposalFromRow } from "./types";
 import type { RpcResult, WriteDeps } from "./use-cases";
 
 /**
  * WriteDeps backed by Supabase. Reads use the signed-in user's client (Row
  * Level Security applies); writes call the service-role-only app_* functions.
  */
-export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseClient, userId: string): WriteDeps & AiCreditDeps & FileDeps {
+export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseClient, userId: string): WriteDeps & AiCreditDeps & FileDeps & ProposalDeps {
+  const reader = createSupabaseReader(user);
   async function rpc<T>(fn: string, args: Record<string, unknown>, schema: z.ZodType<T>): Promise<RpcResult<T>> {
     const { data, error } = await admin.rpc(fn, args);
     if (error) return { ok: false, error: error.message };
@@ -179,6 +184,89 @@ export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseCli
       rpc(
         "app_delete_file",
         { p_project: i.projectId, p_actor: i.actor, p_path: i.path, p_expected_revision: i.expectedRevision },
+        z.null().or(z.literal("")).transform(() => null),
+      ),
+
+    async approvedContract(orgId, taskId) {
+      const { data, error } = await user
+        .from("intent_contracts")
+        .select("version, sha256, body")
+        .eq("org_id", orgId)
+        .eq("task_id", taskId)
+        .eq("status", "approved")
+        .order("version", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw new Error(`Couldn't load the contract: ${error.message}`);
+      if (!data) return null;
+      const row = z.object({ version: z.number().int(), sha256: z.string(), body: IntentContractSchema }).parse(data);
+      return { version: row.version, sha256: row.sha256, body: row.body };
+    },
+
+    projectFiles: async (orgId, projectId) => (await reader.listFiles(orgId, projectId)).map((f) => ({ path: f.path, revision: f.revision, sizeBytes: f.sizeBytes })),
+
+    async fileContent(orgId, projectId, path) {
+      const f = await reader.getFile(orgId, projectId, path);
+      return f ? { revision: f.revision, sha256: f.sha256, content: f.content } : null;
+    },
+
+    createProposal: (i) =>
+      rpc(
+        "app_create_proposal",
+        {
+          p_task: i.taskId,
+          p_actor: i.actor,
+          p_contract_version: i.contractVersion,
+          p_plan: i.plan,
+          p_changes: i.changes.map((c) => ({ path: c.path, kind: c.kind, base_revision: c.baseRevision, content: c.content, sha256: c.sha256, reason: c.reason })),
+          p_dropped: i.dropped,
+          p_violations: i.violations,
+          p_sha256: i.sha256,
+          p_model: i.usage.model.slice(0, 100) || null,
+          p_input_tokens: i.usage.inputTokens,
+          p_output_tokens: i.usage.outputTokens,
+          p_expected_task_version: i.expectedTaskVersion,
+          p_steps: i.steps,
+        },
+        z.string(),
+      ),
+
+    async loadProposal(orgId, proposalId) {
+      if (!z.uuid().safeParse(proposalId).success) return null;
+      const { data, error } = await user
+        .from("change_proposals")
+        .select("id, task_id, project_id, status, contract_version, plan, changes, dropped, violations, sha256, model, created_at, decided_at, applied_sha256")
+        .eq("org_id", orgId)
+        .eq("id", proposalId)
+        .maybeSingle();
+      if (error) throw new Error(`Couldn't load the proposal: ${error.message}`);
+      if (!data) return null;
+      const row = ProposalRowSchema.parse(data);
+      const record = proposalFromRow(row);
+      return { id: row.id, taskId: row.task_id, projectId: row.project_id, status: row.status, sha256: row.sha256, changes: record.changes };
+    },
+
+    applyProposal: (i) =>
+      rpc(
+        "app_apply_proposal",
+        {
+          p_proposal: i.proposalId,
+          p_actor: i.actor,
+          p_files: i.files,
+          p_applied_sha256: i.appliedSha256,
+          p_expected_task_version: i.expectedTaskVersion,
+          p_steps: i.steps,
+          p_max_file_bytes: WORKSPACE_LIMITS.maxFileBytes,
+          p_max_project_bytes: WORKSPACE_LIMITS.maxProjectBytes,
+          p_max_files: WORKSPACE_LIMITS.maxProjectFiles,
+        },
+        z.number().int(),
+      ),
+
+    discardProposal: (i) =>
+      rpc(
+        "app_discard_proposal",
+        { p_proposal: i.proposalId, p_actor: i.actor, p_expected_task_version: i.expectedTaskVersion, p_steps: i.steps },
         z.null().or(z.literal("")).transform(() => null),
       ),
 

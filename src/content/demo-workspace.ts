@@ -3,6 +3,7 @@
  * tenant. Used when FARBAEK_DEMO_APP=1 and Supabase is NOT configured, so it
  * can never be mixed with real data. Every screen shows a "Demo" ribbon.
  */
+import type { ProposalOutput } from "@/core/realityloop/change-proposal";
 import type { TaskState } from "@/core/realityloop/task-machine";
 
 export const DEMO_USER = { id: "demo-user", email: "you@demo.farbaek" } as const;
@@ -18,6 +19,8 @@ export interface DemoTask {
   /** The lifecycle path this task has taken, in order (excluding RECEIVED). */
   path: TaskState[];
   createdHoursAgo: number;
+  /** A code task: its contract is about project files (paths and files.* operations). */
+  code?: boolean;
 }
 
 export const DEMO_PROJECTS = [
@@ -74,6 +77,22 @@ export const DEMO_TASKS: DemoTask[] = [
     createdHoursAgo: 2,
   },
   {
+    id: "00000000-0000-4000-8000-00000000b007",
+    projectId: P[0].id,
+    title: "Reject fractional quantities in the cart",
+    path: HAPPY_TO_APPROVAL,
+    createdHoursAgo: 4,
+    code: true,
+  },
+  {
+    id: "00000000-0000-4000-8000-00000000b008",
+    projectId: P[0].id,
+    title: "Show stock levels on product cards",
+    path: ["CONTEXT_ASSEMBLED", "CONTRACT_DRAFTED", "CONTRACT_APPROVED"],
+    createdHoursAgo: 3,
+    code: true,
+  },
+  {
     id: "00000000-0000-4000-8000-00000000b006",
     projectId: P[0].id,
     title: "Remove the legacy coupon system",
@@ -102,6 +121,59 @@ export function demoEventType(from: TaskState, to: TaskState): string {
   if (from === "APPROVAL_PENDING" && to === "EXECUTION_AUTHORIZED") return "grant_approval";
   return EVENT_FOR[to] ?? "update";
 }
+
+/** Contract fields for demo code tasks. Sample data. */
+export const DEMO_CODE_CONTRACT = {
+  resources: ["src/lib", "src/components"],
+  allowedOperations: ["files.edit", "files.create"],
+  forbiddenOperations: ["files.delete"],
+  protectedFields: [],
+  protectedInvariants: [{ id: "inv-1", statement: "Prices and stock values are unchanged." }],
+  assumptions: ["Quantities come from the cart UI as numbers."],
+  openQuestions: [],
+  acceptanceCriteria: [
+    { id: "ac-1", statement: "Adding a fractional quantity throws a clear error.", verification: "test" as const },
+    { id: "ac-2", statement: "Existing cart tests still pass.", verification: "test" as const },
+  ],
+  approvals: [{ gate: "before_execution", role: "contributor" }],
+  limits: { maxRecords: 5 },
+  requiredChecks: ["pnpm test"],
+  recovery: "Restore the previous file revisions from history.",
+};
+
+/** The sample model output behind the demo's pending proposal (task b007). Sample data, not a real model call. */
+export const DEMO_PROPOSAL_TASK_ID = "00000000-0000-4000-8000-00000000b007";
+export const DEMO_PROPOSAL_OUTPUT: ProposalOutput = {
+  summary: "addToCart accepts fractional quantities today. Reject anything that isn't a whole number and cover it with a test.",
+  steps: ["Check the quantity is a whole number in addToCart.", "Add a test for a fractional quantity."],
+  risks: ["Callers that pass a quantity as a string will now get an error; the cart UI already sends numbers."],
+  checks: ["pnpm test"],
+  changes: [
+    {
+      path: "src/lib/cart.ts",
+      kind: "edit",
+      edits: [{ find: 'if (quantity < 1) throw new Error("Quantity must be at least 1");', replace: 'if (!Number.isInteger(quantity) || quantity < 1) throw new Error("Quantity must be a whole number of at least 1");' }],
+      content: "",
+      reason: "Reject fractional quantities where items are added.",
+    },
+    {
+      path: "src/lib/cart.test.ts",
+      kind: "edit",
+      edits: [
+        {
+          find: '  it("merges repeat additions into one line", () => {',
+          replace: `  it("rejects fractional quantities", () => {
+    expect(() => addToCart([], mug, 1.5)).toThrow("whole number");
+  });
+
+  it("merges repeat additions into one line", () => {`,
+        },
+      ],
+      content: "",
+      reason: "Cover the new rule.",
+    },
+  ],
+};
 
 export const DEMO_TRIAL_STARTED_DAYS_AGO = 5;
 export const DEMO_EVALUATIONS_THIS_PERIOD = 318;

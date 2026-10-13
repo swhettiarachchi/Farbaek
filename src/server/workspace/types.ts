@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Dropped, ProposedChange, Violation } from "@/core/realityloop/change-proposal";
 import type { IntentContract } from "@/core/realityloop/contract";
 import { TASK_STATES } from "@/core/realityloop/task-machine";
 import type { WorkspaceSummary } from "./organizations";
@@ -74,6 +75,58 @@ export interface ContractRecord {
   approvedAt: string | null;
 }
 
+export interface ProposalRecord {
+  id: string;
+  status: "pending" | "blocked" | "applied" | "discarded";
+  contractVersion: number;
+  plan: { summary: string; steps: string[]; risks: string[]; checks: string[] };
+  changes: ProposedChange[];
+  dropped: Dropped[];
+  violations: Violation[];
+  sha256: string;
+  model: string | null;
+  createdAt: string;
+  decidedAt: string | null;
+  appliedSha256: string | null;
+}
+
+/** Shape of change_proposals rows; changes are stored with snake_case keys. */
+export const ProposalRowSchema = z.object({
+  id: z.string(),
+  task_id: z.string(),
+  project_id: z.string(),
+  status: z.enum(["pending", "blocked", "applied", "discarded"]),
+  contract_version: z.number().int(),
+  plan: z.object({ summary: z.string(), steps: z.array(z.string()), risks: z.array(z.string()), checks: z.array(z.string()) }),
+  changes: z.array(
+    z.object({ path: z.string(), kind: z.enum(["create", "edit"]), base_revision: z.number().int(), content: z.string(), sha256: z.string(), reason: z.string() }),
+  ),
+  dropped: z.array(z.object({ path: z.string(), reason: z.string() })),
+  violations: z.array(z.object({ kind: z.string(), detail: z.string() })),
+  sha256: z.string(),
+  model: z.string().nullable(),
+  created_at: z.string(),
+  decided_at: z.string().nullable(),
+  applied_sha256: z.string().nullable(),
+});
+
+export function proposalFromRow(row: z.infer<typeof ProposalRowSchema>): ProposalRecord {
+  return {
+    id: row.id,
+    status: row.status,
+    contractVersion: row.contract_version,
+    plan: row.plan,
+    changes: row.changes.map((c) => ({ path: c.path, kind: c.kind, baseRevision: c.base_revision, content: c.content, sha256: c.sha256, reason: c.reason })),
+    dropped: row.dropped as Dropped[],
+    violations: row.violations as Violation[],
+    sha256: row.sha256,
+    model: row.model,
+    createdAt: row.created_at,
+    decidedAt: row.decided_at,
+    appliedSha256: row.applied_sha256,
+  };
+}
+
 export interface ProjectFile {
   path: string;
   revision: number;
@@ -120,6 +173,8 @@ export interface WorkspaceReader {
   getFileRevision(orgId: string, projectId: string, path: string, revision: number): Promise<string | null>;
   /** Case-insensitive plain-text search; at most 200 matching lines. */
   searchFiles(orgId: string, projectId: string, query: string): Promise<SearchHit[]>;
+  /** The most recent change proposal for a task, or null. */
+  getLatestProposal(orgId: string, taskId: string): Promise<ProposalRecord | null>;
   /** The latest contract version for a task, or null when none has been written. */
   getContract(orgId: string, taskId: string): Promise<ContractRecord | null>;
 }

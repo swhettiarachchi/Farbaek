@@ -41,6 +41,7 @@ export type TaskEventType =
   | "approve_contract"
   | "reject"
   | "propose_plan"
+  | "discard_plan"
   | "evaluate_policy"
   | "require_approval"
   | "authorize"
@@ -66,7 +67,8 @@ const TRANSITIONS: Partial<Record<TaskState, Partial<Record<TaskEventType, TaskS
   CONTRACT_APPROVED: { propose_plan: "PLAN_PROPOSED", revise_contract: "CONTRACT_DRAFTED" },
   PLAN_PROPOSED: { evaluate_policy: "POLICY_EVALUATED" },
   POLICY_EVALUATED: { require_approval: "APPROVAL_PENDING", authorize: "EXECUTION_AUTHORIZED", block: "BLOCKED" },
-  APPROVAL_PENDING: { grant_approval: "EXECUTION_AUTHORIZED", reject: "REJECTED", expire: "EXPIRED" },
+  // discard_plan drops a proposed change and returns to the approved contract, so one bad proposal doesn't end the task.
+  APPROVAL_PENDING: { grant_approval: "EXECUTION_AUTHORIZED", reject: "REJECTED", expire: "EXPIRED", discard_plan: "CONTRACT_APPROVED" },
   EXECUTION_AUTHORIZED: { start_execution: "EXECUTING" },
   EXECUTING: { begin_verification: "VERIFYING", mark_failed: "FAILED", interrupt: "INTERRUPTED", escalate: "REQUIRES_HUMAN_INTERVENTION" },
   VERIFYING: {
@@ -77,7 +79,7 @@ const TRANSITIONS: Partial<Record<TaskState, Partial<Record<TaskEventType, TaskS
     interrupt: "INTERRUPTED",
     escalate: "REQUIRES_HUMAN_INTERVENTION",
   },
-  BLOCKED: { revise_contract: "CONTRACT_DRAFTED" },
+  BLOCKED: { revise_contract: "CONTRACT_DRAFTED", discard_plan: "CONTRACT_APPROVED" },
   FAILED: { plan_recovery: "RECOVERY_PENDING" },
   INTERRUPTED: { plan_recovery: "RECOVERY_PENDING", escalate: "REQUIRES_HUMAN_INTERVENTION" },
   RECOVERY_PENDING: { recover: "RECOVERED", escalate: "REQUIRES_HUMAN_INTERVENTION" },

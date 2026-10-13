@@ -5,6 +5,8 @@ import type { TaskState } from "@/core/realityloop/task-machine";
 import { sha256Hex } from "@/core/trust/canonical-json";
 import { SAMPLE_CONTRACT } from "@/content/samples";
 import { DEMO_FILES, DEMO_FILES_PROJECT_ID } from "@/content/demo-files";
+import { buildChanges, checkProposal, planFrom, proposalHash } from "@/core/realityloop/change-proposal";
+import { WORKSPACE_LIMITS } from "@/config/workspace";
 import {
   DEMO_EVALUATIONS_THIS_PERIOD,
   DEMO_MEMBERS,
@@ -14,9 +16,12 @@ import {
   DEMO_TIME,
   DEMO_TRIAL_STARTED_DAYS_AGO,
   DEMO_USER,
+  DEMO_CODE_CONTRACT,
+  DEMO_PROPOSAL_OUTPUT,
+  DEMO_PROPOSAL_TASK_ID,
   demoEventType,
 } from "@/content/demo-workspace";
-import type { ContractRecord, FileRevision, Project, ProjectFileContent, Task, Transition, WorkspaceReader } from "./types";
+import type { ContractRecord, FileRevision, Project, ProjectFileContent, ProposalRecord, Task, Transition, WorkspaceReader } from "./types";
 
 /**
  * Read-only sample workspace. Timestamps are relative to "now" so the trial
@@ -82,6 +87,37 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
   });
   const tasks = built.map((b) => b.task).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
+  async function demoContract(taskId: string): Promise<ContractRecord | null> {
+    const found = built.find((b) => b.task.id === taskId);
+    const drafted = found?.history.find((h) => h.to === "CONTRACT_DRAFTED");
+    if (!found || !drafted) return null;
+    const approved = found.history.find((h) => h.to === "CONTRACT_APPROVED");
+    const code = DEMO_TASKS.find((t) => t.id === taskId)?.code;
+    const body: IntentContract = code
+      ? {
+          ...SAMPLE_CONTRACT,
+          ...DEMO_CODE_CONTRACT,
+          version: 1,
+          outcome: found.task.title,
+          scope: { organizationId: DEMO_ORG_ID, projectId: found.task.projectId, resources: DEMO_CODE_CONTRACT.resources },
+        }
+      : {
+          ...SAMPLE_CONTRACT,
+          version: 1,
+          outcome: found.task.title,
+          scope: { organizationId: DEMO_ORG_ID, projectId: found.task.projectId, resources: SAMPLE_CONTRACT.scope.resources },
+        };
+    const record: ContractRecord = {
+      version: 1,
+      status: approved ? "approved" : "draft",
+      sha256: await contractHash(body),
+      body,
+      createdAt: drafted.at,
+      approvedAt: approved?.at ?? null,
+    };
+    return record;
+  }
+
   return {
     mode: "demo",
 
@@ -126,6 +162,32 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
       return (await demoFiles(projectId)).find((f) => f.path === path) ?? null;
     },
 
+    async getLatestProposal(_orgId, taskId) {
+      if (taskId !== DEMO_PROPOSAL_TASK_ID) return null;
+      const found = built.find((b) => b.task.id === taskId);
+      const contract = await demoContract(taskId);
+      const proposed = found?.history.find((h) => h.to === "PLAN_PROPOSED");
+      if (!found || !contract || !proposed) return null;
+      // Built from the sample files with the same rules as a live proposal.
+      const files = await demoFiles(found.task.projectId);
+      const { changes, dropped } = await buildChanges(DEMO_PROPOSAL_OUTPUT, files, new Set(files.map((f) => f.path)), WORKSPACE_LIMITS.maxFileBytes);
+      const record: ProposalRecord = {
+        id: "00000000-0000-4000-8000-0000000c0001",
+        status: "pending",
+        contractVersion: contract.version,
+        plan: planFrom(DEMO_PROPOSAL_OUTPUT),
+        changes,
+        dropped,
+        violations: checkProposal(contract.body, changes),
+        sha256: await proposalHash({ taskId, contractVersion: contract.version, contractSha256: contract.sha256, changes }),
+        model: "sample (no model call)",
+        createdAt: proposed.at,
+        decidedAt: null,
+        appliedSha256: null,
+      };
+      return record;
+    },
+
     async listFileRevisions(_orgId, projectId, path) {
       const f = projectId === DEMO_FILES_PROJECT_ID ? DEMO_FILES.find((d) => d.path === path) : undefined;
       if (!f) return [];
@@ -158,27 +220,7 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
       return hits.slice(0, 200);
     },
 
-    async getContract(_orgId, taskId) {
-      const found = built.find((b) => b.task.id === taskId);
-      const drafted = found?.history.find((h) => h.to === "CONTRACT_DRAFTED");
-      if (!found || !drafted) return null;
-      const approved = found.history.find((h) => h.to === "CONTRACT_APPROVED");
-      const body: IntentContract = {
-        ...SAMPLE_CONTRACT,
-        version: 1,
-        outcome: found.task.title,
-        scope: { organizationId: DEMO_ORG_ID, projectId: found.task.projectId, resources: SAMPLE_CONTRACT.scope.resources },
-      };
-      const record: ContractRecord = {
-        version: 1,
-        status: approved ? "approved" : "draft",
-        sha256: await contractHash(body),
-        body,
-        createdAt: drafted.at,
-        approvedAt: approved?.at ?? null,
-      };
-      return record;
-    },
+    getContract: (_orgId, taskId) => demoContract(taskId),
 
     async countEvaluations() {
       return Math.min(DEMO_EVALUATIONS_THIS_PERIOD, TRIAL.limits.evaluationsTotal);

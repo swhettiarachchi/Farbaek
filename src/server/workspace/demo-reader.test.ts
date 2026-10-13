@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEMO_TASKS, demoEventType } from "@/content/demo-workspace";
+import { DEMO_PROPOSAL_TASK_ID, DEMO_TASKS, demoEventType } from "@/content/demo-workspace";
 import { newTask, transition, type TaskEventType } from "@/core/realityloop/task-machine";
 import { DEMO_FILES_PROJECT_ID } from "@/content/demo-files";
 import { sha256Hex } from "@/core/trust/canonical-json";
@@ -53,5 +53,19 @@ describe("demo workspace", () => {
     const hits = await reader.searchFiles("demo", project, "ADDTOCART");
     expect(hits.length).toBeGreaterThan(0);
     expect(await reader.listFiles("demo", "another-project")).toEqual([]);
+  });
+
+  it("builds the sample proposal from the sample files with the live rules: nothing dropped, inside the contract", async () => {
+    const reader = createDemoReader(new Date("2026-10-14T12:00:00Z"));
+    const proposal = await reader.getLatestProposal("demo", DEMO_PROPOSAL_TASK_ID);
+    expect(proposal).toMatchObject({ status: "pending", dropped: [], violations: [] });
+    expect(proposal!.changes.map((c) => [c.path, c.kind])).toEqual([
+      ["src/lib/cart.ts", "edit"],
+      ["src/lib/cart.test.ts", "edit"],
+    ]);
+    expect(proposal!.changes[0]!.content).toContain("Number.isInteger(quantity)");
+    const task = await reader.getTask("demo", DEMO_PROPOSAL_TASK_ID);
+    expect(task?.task.state).toBe("APPROVAL_PENDING");
+    expect(await reader.getLatestProposal("demo", "00000000-0000-4000-8000-00000000b001")).toBeNull();
   });
 });

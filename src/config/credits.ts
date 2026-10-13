@@ -6,10 +6,13 @@
 export const CREDIT_COSTS = {
   /** One model call that drafts an intent contract from a task. */
   contract_draft: 1,
+  /** One model call that plans and proposes targeted changes to a project's files. */
+  change_proposal: 3,
 } as const;
 
 export type CreditOperation = keyof typeof CREDIT_COSTS;
 
 export const CREDIT_OPERATION_LABELS: Record<CreditOperation, string> = {
   contract_draft: "Draft an intent contract",
+  change_proposal: "Propose a change to project files",
 };
