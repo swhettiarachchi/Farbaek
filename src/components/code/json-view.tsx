@@ -2,7 +2,7 @@ import { Fragment } from "react";
 
 const TOKEN = /("(?:\\.|[^"\\])*")(\s*:)?|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|\b(true|false|null)\b/g;
 
-/** Pretty-printed JSON with restrained syntax tint, rendered on the server. */
+/** Pretty-printed JSON for dark media panels, with restrained syntax tint. Rendered on the server. */
 export function JsonView({ value, label }: { value: unknown; label: string }) {
   const text = JSON.stringify(value, null, 2);
   const parts: React.ReactNode[] = [];
@@ -14,14 +14,14 @@ export function JsonView({ value, label }: { value: unknown; label: string }) {
     if (str && colon) {
       parts.push(
         <Fragment key={index}>
-          <span className="text-ink">{str}</span>
+          <span className="text-media-ink">{str}</span>
           {colon}
         </Fragment>,
       );
     } else if (str) {
-      parts.push(<span key={index} className="text-gold-ink">{str}</span>);
+      parts.push(<span key={index} className="text-media-cyan">{str}</span>);
     } else if (num || literal) {
-      parts.push(<span key={index} className="font-medium text-ink">{whole}</span>);
+      parts.push(<span key={index} className="text-media-accent">{whole}</span>);
     }
     last = index + whole.length;
   }
@@ -31,7 +31,7 @@ export function JsonView({ value, label }: { value: unknown; label: string }) {
     <pre
       tabIndex={0}
       aria-label={label}
-      className="ledger max-h-[440px] overflow-auto px-4 py-3 font-mono text-[12.5px] leading-[1.6] text-ink-2"
+      className="ledger max-h-[460px] overflow-auto px-5 py-4 font-mono text-[12.5px] leading-[1.6] text-media-ink-3"
     >
       <code>{parts}</code>
     </pre>

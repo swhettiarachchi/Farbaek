@@ -52,7 +52,7 @@ const HOME_FAQ: FaqItem[] = [
 
 export function HomeFaq() {
   return (
-    <section aria-labelledby="faq-title" className="border-t border-line py-20 lg:py-28">
+    <section aria-labelledby="faq-title" className="py-20 lg:py-28">
       <Container className="grid gap-10 lg:grid-cols-[1fr_1.6fr] lg:gap-16">
         <SectionHeading id="faq-title" title="Questions, answered plainly." />
         <FaqList items={HOME_FAQ} />

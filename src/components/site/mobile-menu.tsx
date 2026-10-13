@@ -31,7 +31,7 @@ export function MobileMenu() {
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex size-11 items-center justify-center rounded-sm text-ink hover:bg-surface-sunken"
+        className="inline-flex size-11 items-center justify-center rounded-full text-ink hover:bg-surface-raised"
       >
         {open ? <XIcon size={22} aria-hidden /> : <ListIcon size={22} aria-hidden />}
         <span className="sr-only">{open ? "Close menu" : "Open menu"}</span>
@@ -40,11 +40,11 @@ export function MobileMenu() {
       <div
         id={panelId}
         hidden={!open}
-        className="absolute inset-x-0 top-16 border-b border-line bg-canvas px-4 pb-6 pt-2 shadow-e2"
+        className="absolute inset-x-0 top-16 border-b border-line bg-surface px-4 pb-6 pt-2 shadow-e2"
       >
         <nav aria-label="Mobile">
           <ul className="divide-y divide-line">
-            {NAV_LINKS.map((link) => (
+            {[...NAV_LINKS, { href: "/sign-in", label: "Sign in" }].map((link) => (
               <li key={link.href}>
                 <Link href={link.href} onClick={() => setOpen(false)} className="flex h-12 items-center text-base text-ink">
                   {link.label}

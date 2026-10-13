@@ -24,8 +24,8 @@ export function EvidenceTabs({ tabs }: { tabs: EvidenceTab[] }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-md border border-line bg-surface">
-      <div role="tablist" aria-label="Evidence samples" className="flex border-b border-line">
+    <div className="overflow-hidden rounded-[28px] bg-media shadow-e3">
+      <div role="tablist" aria-label="Evidence samples" className="flex border-b border-white/[0.07] px-2">
         {tabs.map((tab, i) => (
           <button
             key={tab.id}
@@ -41,11 +41,11 @@ export function EvidenceTabs({ tabs }: { tabs: EvidenceTab[] }) {
             onClick={() => setActive(i)}
             onKeyDown={onKeyDown}
             className={`relative h-11 px-4 font-mono text-[13px] transition-colors duration-[140ms] ${
-              active === i ? "text-ink" : "text-ink-3 hover:text-ink-2"
+              active === i ? "text-media-ink" : "text-media-ink-3 hover:text-media-ink-2"
             }`}
           >
             {tab.label}
-            {active === i ? <span aria-hidden className="absolute inset-x-4 -bottom-px h-[1.5px] bg-gold" /> : null}
+            {active === i ? <span aria-hidden className="absolute inset-x-4 -bottom-px h-[2px] rounded-full bg-media-accent" /> : null}
           </button>
         ))}
       </div>

@@ -88,7 +88,7 @@ export function ApprovalDemo() {
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_1.05fr] lg:gap-6">
       {/* Proposed action */}
-      <section aria-labelledby="demo-action" className="rounded-md border border-line bg-surface p-5 sm:p-6">
+      <section aria-labelledby="demo-action" className="rounded-md border border-line bg-surface p-5 shadow-e2 sm:p-6">
         <h3 id="demo-action" className="text-[17px] font-medium">
           Proposed action
         </h3>
@@ -132,7 +132,7 @@ export function ApprovalDemo() {
               type="checkbox"
               checked={raisePrices}
               onChange={(e) => setRaisePrices(e.target.checked)}
-              className="mt-0.5 size-5 shrink-0 accent-[var(--gold)]"
+              className="mt-0.5 size-5 shrink-0 accent-[var(--accent)]"
             />
             <label htmlFor={ids.price} className="text-sm">
               Also raise prices by 5%
@@ -143,24 +143,24 @@ export function ApprovalDemo() {
 
         <div className="mt-6">
           <p className="font-mono text-xs text-ink-3">{"// canonical payload (RFC 8785)"}</p>
-          <pre className="mt-2 max-h-40 overflow-auto rounded-sm bg-surface-sunken px-3 py-2.5 font-mono text-[12px] leading-[1.6] text-ink-2 whitespace-pre-wrap break-all">
+          <pre className="mt-2 max-h-40 overflow-auto rounded-sm bg-surface-raised px-3 py-2.5 font-mono text-[12px] leading-[1.6] text-ink-2 whitespace-pre-wrap break-all">
             <code>{canonical}</code>
           </pre>
         </div>
       </section>
 
       {/* Approval */}
-      <section aria-labelledby="demo-approval" className="flex flex-col rounded-md border border-line bg-surface p-5 sm:p-6">
+      <section aria-labelledby="demo-approval" className="flex flex-col rounded-md border border-line bg-surface p-5 shadow-e2 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="font-mono text-xs text-ink-3">
             contract v{SAMPLE_VERSIONS.contractVersion} / policy v{SAMPLE_VERSIONS.policyVersion}
           </p>
           {blocked ? (
-            <span className="inline-flex h-6 items-center gap-1.5 rounded-xs border border-failed/40 px-2 text-xs font-medium text-failed">
+            <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-failed/40 px-2 text-xs font-medium text-failed">
               <ProhibitIcon size={14} weight="bold" aria-hidden /> BLOCK
             </span>
           ) : (
-            <span className="inline-flex h-6 items-center gap-1.5 rounded-xs border border-approval/40 px-2 text-xs font-medium text-approval">
+            <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-approval/40 px-2 text-xs font-medium text-approval">
               <HourglassMediumIcon size={14} weight="bold" aria-hidden /> REQUIRE_APPROVAL
             </span>
           )}

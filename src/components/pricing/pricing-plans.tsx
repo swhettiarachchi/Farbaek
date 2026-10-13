@@ -89,13 +89,13 @@ export function PricingPlans() {
           <li
             key={plan.id}
             className={`flex w-[84%] max-w-[340px] shrink-0 snap-start flex-col rounded-md border bg-surface p-6 sm:w-[46%] lg:w-auto lg:max-w-none ${
-              plan.recommendedFor ? "border-gold/60" : "border-line"
+              plan.recommendedFor ? "border-accent/50" : "border-line"
             }`}
           >
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-lg font-medium">{plan.name}</h2>
               {plan.recommendedFor ? (
-                <span className="rounded-xs border border-gold/50 px-2 py-0.5 text-xs font-medium text-gold-ink">
+                <span className="rounded-full border border-accent/40 bg-accent/[0.06] px-2.5 py-0.5 text-xs font-medium text-accent">
                   Recommended for {plan.recommendedFor}
                 </span>
               ) : null}

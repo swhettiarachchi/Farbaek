@@ -1,10 +1,4 @@
-import {
-  ArrowsLeftRightIcon,
-  DeviceMobileIcon,
-  FingerprintIcon,
-  RobotIcon,
-  RocketLaunchIcon,
-} from "@phosphor-icons/react/ssr";
+import { ArrowsLeftRightIcon, DeviceMobileIcon, FingerprintIcon, RobotIcon, RocketLaunchIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { DiffView } from "@/components/code/diff-view";
 import { Container } from "@/components/ui/container";
@@ -12,11 +6,29 @@ import { SAMPLE_CHANGED_FILE, SAMPLE_DIFF } from "@/content/samples";
 import { POLICY_OUTCOMES } from "@/core/billing/usage";
 import { SectionHeading } from "./section-heading";
 
-function Cell({ title, body, icon: CellIcon, className = "", children }: { title: string; body: string; icon?: Icon; className?: string; children?: React.ReactNode }) {
+function Cell({
+  title,
+  body,
+  icon: CellIcon,
+  className = "",
+  children,
+}: {
+  title: string;
+  body: string;
+  icon?: Icon;
+  className?: string;
+  children?: React.ReactNode;
+}) {
   return (
-    <li className={`flex flex-col rounded-md border border-line p-5 sm:p-6 ${className}`}>
-      {CellIcon ? <CellIcon size={22} className="text-gold" aria-hidden /> : null}
-      <h3 className={`text-[17px] font-medium ${CellIcon ? "mt-4" : ""}`}>{title}</h3>
+    <li
+      className={`relative flex flex-col overflow-hidden rounded-md border border-line p-5 shadow-e1 transition-[transform,box-shadow] duration-300 ease-enter hover:-translate-y-0.5 hover:shadow-e2 sm:p-6 ${className}`}
+    >
+      {CellIcon ? (
+        <span className="flex size-10 items-center justify-center rounded-full bg-accent/[0.08] text-accent">
+          <CellIcon size={20} aria-hidden />
+        </span>
+      ) : null}
+      <h3 className={`text-[17px] font-medium tracking-[-0.01em] ${CellIcon ? "mt-4" : ""}`}>{title}</h3>
       <p className="mt-1.5 text-[15px] leading-relaxed text-ink-2">{body}</p>
       {children}
     </li>
@@ -27,7 +39,7 @@ const LIFECYCLE = ["RECEIVED", "CONTRACT_APPROVED", "EXECUTING", "VERIFYING", "V
 
 export function ModulesBento() {
   return (
-    <section id="modules" aria-labelledby="modules-title" className="border-t border-line py-20 lg:py-28">
+    <section id="modules" aria-labelledby="modules-title" className="py-20 lg:py-28">
       <Container>
         <SectionHeading id="modules-title" title="Eight parts, one shared core.">
           Studio, Agent, Mesh and LaunchOS all call the same policy, evidence and entitlement services. Nothing is built twice.
@@ -48,11 +60,12 @@ export function ModulesBento() {
           <Cell
             title="Trust"
             body="Policy, approvals, permission leases and audit, enforced on the server. A prompt is never a security boundary."
-            className="ledger bg-surface-sunken md:col-span-2"
+            className="bg-canvas-2 md:col-span-2"
           >
-            <ul className="mt-5 flex flex-wrap gap-2" aria-label="Policy outcomes">
+            <div aria-hidden className="dot-grid pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_bottom,transparent,black)]" />
+            <ul className="relative mt-5 flex flex-wrap gap-2" aria-label="Policy outcomes">
               {POLICY_OUTCOMES.map((outcome) => (
-                <li key={outcome} className="rounded-xs border border-line-strong/40 bg-canvas px-2 py-1 font-mono text-[11.5px] text-ink-2">
+                <li key={outcome} className="rounded-full border border-line bg-surface px-3 py-1 font-mono text-[11.5px] text-ink-2 shadow-e1">
                   {outcome}
                 </li>
               ))}
@@ -63,7 +76,7 @@ export function ModulesBento() {
             title="Agent"
             body="Farbaek's own runtime. The model proposes; Farbaek validates and authorizes every tool call."
             icon={RobotIcon}
-            className="border-gold/30 bg-gold/[0.07]"
+            className="border-accent/20 bg-[linear-gradient(150deg,rgb(36_80_240/0.09),rgb(10_110_133/0.06)_60%,transparent)]"
           />
 
           <Cell title="RealityLoop" body="Intent contracts, context readiness and outcome tracking for every task." className="bg-surface">

@@ -5,9 +5,25 @@ import { shortHash } from "@/core/trust/canonical-json";
  * The engraved Seal for a verified ProofPack, generated from its SHA-256
  * digest. Only render it for verified evidence or a clearly labelled sample.
  */
-export function ProofPackSeal({ hash, caption, size = 240, className = "" }: { hash: string; caption: string; size?: number; className?: string }) {
+export function ProofPackSeal({
+  hash,
+  caption,
+  size = 240,
+  className = "",
+  tone = "page",
+  idSuffix = "",
+}: {
+  hash: string;
+  caption: string;
+  size?: number;
+  className?: string;
+  /** "media" for dark media panels such as the concept film. */
+  tone?: "page" | "media";
+  /** Keeps SVG ids unique when the same digest is drawn twice on a page. */
+  idSuffix?: string;
+}) {
   const g = sealGeometry(hash, size);
-  const pathId = `seal-ring-${hash.slice(0, 12)}`;
+  const pathId = `seal-ring-${hash.slice(0, 12)}${idSuffix}`;
   const r = g.textRadius;
   const c = g.center;
   const ringText = `${caption}  ${shortHash(hash, 8, 6)}`.toUpperCase();
@@ -17,7 +33,7 @@ export function ProofPackSeal({ hash, caption, size = 240, className = "" }: { h
       viewBox={`0 0 ${size} ${size}`}
       role="img"
       aria-label={`${caption}. Seal generated from ${shortHash(hash, 8, 6)}.`}
-      className={`text-seal ${className}`}
+      className={`${tone === "media" ? "text-media-ink-2" : "text-seal"} ${className}`}
     >
       <defs>
         <path id={pathId} d={`M ${c - r} ${c} a ${r} ${r} 0 1 1 ${2 * r} 0 a ${r} ${r} 0 1 1 ${-2 * r} 0`} />

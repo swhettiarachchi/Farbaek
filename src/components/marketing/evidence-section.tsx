@@ -20,7 +20,7 @@ export async function EvidenceSection() {
   const digest = await canonicalHash(proofPack);
 
   return (
-    <section id="evidence" aria-labelledby="evidence-title" className="border-t border-line py-20 lg:py-28">
+    <section id="evidence" aria-labelledby="evidence-title" className="py-20 lg:py-28">
       <Container>
         <SectionHeading id="evidence-title" title="Evidence you can check, not just read.">
           A ProofPack is an in-toto attestation of what changed, what ran and what that does and doesn&apos;t prove.

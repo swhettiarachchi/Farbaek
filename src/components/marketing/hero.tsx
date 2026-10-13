@@ -1,23 +1,30 @@
 import { ArrowRightIcon } from "@phosphor-icons/react/ssr";
-import Image from "next/image";
-import { LOGO, PLATE_BACKGROUND } from "@/components/brand/brand-logo";
+import Link from "next/link";
 import { Reveal } from "@/components/motion/reveal";
+import { HeroVisual } from "@/components/three/hero-visual";
 import { ButtonLink } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
 
 export function Hero() {
   return (
-    <section aria-labelledby="hero-title" className="relative">
-      <Container className="grid items-center gap-10 pb-16 pt-10 sm:pt-14 lg:min-h-[calc(100dvh-4rem)] lg:grid-cols-12 lg:gap-8 lg:py-16">
-        <Reveal className="lg:col-span-7">
-          <p className="font-mono text-[13px] text-ink-3">{"// now in development"}</p>
+    <section aria-labelledby="hero-title" className="relative overflow-hidden">
+      <div aria-hidden className="dot-grid pointer-events-none absolute inset-0" />
+      <Container className="relative grid items-center gap-8 pb-16 pt-10 sm:pt-14 lg:min-h-[calc(100dvh-4rem)] lg:grid-cols-12 lg:gap-6 lg:py-12">
+        <Reveal className="relative z-10 lg:col-span-7">
+          <Link
+            href="#status"
+            className="inline-flex items-center gap-2 rounded-full border border-line bg-surface py-1.5 pl-3 pr-2.5 text-[13px] text-ink-2 shadow-e1 transition-colors hover:text-ink"
+          >
+            In development. See what works today
+            <ArrowRightIcon size={13} weight="bold" aria-hidden />
+          </Link>
           <h1
             id="hero-title"
-            className="mt-5 max-w-[14ch] pb-1 text-[2.6rem] font-medium leading-[1.1] tracking-[-0.025em] sm:text-6xl lg:text-[4.25rem]"
+            className="mt-7 max-w-[12ch] text-balance text-[2.9rem] font-medium leading-[1.02] tracking-[-0.045em] sm:text-[4.2rem] lg:text-[5.2rem]"
           >
-            From idea to <em className="font-serif font-normal tracking-[-0.01em]">verified</em> software.
+            From idea to verified software.
           </h1>
-          <p className="mt-6 max-w-[34rem] text-lg leading-relaxed text-ink-2">
+          <p className="mt-6 max-w-[34rem] text-lg leading-relaxed text-ink-2 sm:text-xl">
             Farbaek plans each change, runs the real checks, keeps the evidence and waits for your approval before anything ships.
           </p>
           <div className="mt-9 flex flex-wrap gap-3">
@@ -30,21 +37,8 @@ export function Hero() {
           </div>
         </Reveal>
 
-        <Reveal className="lg:col-span-5" delay={0.08}>
-          <div
-            className="relative mx-auto aspect-[4/5] w-full max-w-[400px] overflow-hidden rounded-xl border border-line lg:max-w-none"
-            style={{ background: PLATE_BACKGROUND }}
-          >
-            <span aria-hidden className="pointer-events-none absolute inset-3 rounded-[18px] border border-gold/30" />
-            <Image
-              src={LOGO.src}
-              alt="Farbaek"
-              fill
-              preload
-              sizes="(min-width: 1024px) 40vw, (min-width: 640px) 400px, 90vw"
-              className="object-contain p-8 sm:p-10"
-            />
-          </div>
+        <Reveal className="lg:col-span-5" delay={0.1}>
+          <HeroVisual />
         </Reveal>
       </Container>
     </section>

@@ -5,19 +5,19 @@ import { NAV_LINKS } from "./nav-links";
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-line">
-      <Container className="grid gap-10 py-14 md:grid-cols-[1.4fr_1fr] md:items-start">
+    <footer className="relative overflow-hidden border-t border-line bg-surface">
+      <Container className="grid gap-10 pb-10 pt-16 md:grid-cols-[1.4fr_1fr] md:items-start">
         <div className="flex items-start gap-4">
           <BrandLogo height={56} />
           <div>
-            <p className="text-[17px] font-semibold tracking-[-0.01em]">Farbaek</p>
+            <p className="text-[17px] font-semibold tracking-[-0.02em]">Farbaek</p>
             <p className="mt-1 max-w-[38ch] text-sm text-ink-2">From idea to verified software, with control at every step.</p>
-            <p className="mt-4 text-sm text-ink-3">Farbaek is in development. Accounts and payments are not open yet.</p>
+            <p className="mt-4 text-sm text-ink-3">Farbaek is in development. Payments are not open yet.</p>
           </div>
         </div>
         <nav aria-label="Footer" className="md:justify-self-end">
           <ul className="grid grid-cols-2 gap-x-10 gap-y-3 text-sm">
-            {NAV_LINKS.map((link) => (
+            {[...NAV_LINKS, { href: "/sign-in", label: "Sign in" }].map((link) => (
               <li key={link.href}>
                 <Link href={link.href} className="text-ink-2 hover:text-ink">
                   {link.label}
@@ -27,6 +27,14 @@ export function SiteFooter() {
           </ul>
         </nav>
       </Container>
+
+      {/* Oversized wordmark, cropped by the footer edge. Decorative: the name is already above. */}
+      <p
+        aria-hidden
+        className="pointer-events-none select-none px-4 text-center text-[22vw] font-semibold leading-[0.78] tracking-[-0.06em] text-surface-raised sm:text-[19vw]"
+      >
+        Farbaek
+      </p>
     </footer>
   );
 }

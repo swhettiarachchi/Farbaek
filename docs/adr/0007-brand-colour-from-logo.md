@@ -1,6 +1,6 @@
 # 0007. Brand accent taken from the logo
 
-- Status: accepted
+- Status: superseded by 0008 (White Signal) on 2026-10-13
 - Date: 2026-10-13
 
 ## Context

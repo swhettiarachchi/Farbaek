@@ -1,20 +1,21 @@
 import Link from "next/link";
 import type { ComponentProps } from "react";
 
-type Variant = "primary" | "secondary" | "ghost";
+type Variant = "primary" | "accent" | "secondary" | "ghost";
 type Size = "md" | "sm";
 
 const base =
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-sm font-medium transition-[background-color,border-color,color,transform] duration-[140ms] ease-standard active:translate-y-px disabled:cursor-not-allowed disabled:opacity-55 disabled:active:translate-y-0";
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium transition-[background-color,border-color,color,transform,box-shadow] duration-[160ms] ease-standard active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-primary text-on-primary hover:bg-primary/88",
-  secondary: "border border-line-strong text-ink hover:bg-surface-sunken",
-  ghost: "text-ink-2 hover:bg-surface-sunken hover:text-ink",
+  primary: "bg-primary text-on-primary shadow-e1 hover:bg-primary/85",
+  accent: "bg-accent text-on-accent shadow-e1 hover:brightness-110",
+  secondary: "border border-line bg-surface text-ink shadow-e1 hover:border-line-strong/50 hover:bg-canvas-2",
+  ghost: "text-ink-2 hover:bg-surface-raised hover:text-ink",
 };
 
 const sizes: Record<Size, string> = {
-  md: "h-11 px-5 text-[15px]",
+  md: "h-12 px-6 text-[15px]",
   sm: "h-10 px-4 text-sm",
 };
 

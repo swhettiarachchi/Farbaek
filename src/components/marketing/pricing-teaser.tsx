@@ -8,7 +8,7 @@ const number = new Intl.NumberFormat("en-US");
 
 export function PricingTeaser() {
   return (
-    <section aria-labelledby="pricing-teaser-title" className="border-t border-line py-20 lg:py-28">
+    <section aria-labelledby="pricing-teaser-title" className="py-20 lg:py-28">
       <Container>
         <SectionHeading id="pricing-teaser-title" title="Predictable plans and a real free tier.">
           Every new organization gets a {TRIAL.lengthDays}-day Team trial with no card. When it ends you move to Free, and nothing is
@@ -35,7 +35,7 @@ export function PricingTeaser() {
           ))}
         </dl>
 
-        <Link href="/pricing" className="mt-6 inline-flex items-center gap-2 rounded-sm text-[15px] font-medium text-gold-ink hover:underline">
+        <Link href="/pricing" className="mt-6 inline-flex items-center gap-2 rounded-sm text-[15px] font-medium text-accent hover:underline">
           Compare plans <ArrowRightIcon size={16} weight="bold" aria-hidden />
         </Link>
       </Container>

@@ -13,7 +13,7 @@ export function SignInForm({ linkError }: { linkError: boolean }) {
   if (state.status === "sent") {
     return (
       <div role="status" className="rounded-md border border-line bg-surface p-6">
-        <EnvelopeSimpleIcon size={28} className="text-gold" aria-hidden />
+        <EnvelopeSimpleIcon size={28} className="text-accent" aria-hidden />
         <h2 className="mt-4 text-xl font-medium">Check your inbox</h2>
         <p className="mt-2 text-[15px] leading-relaxed text-ink-2">
           If <span className="font-medium text-ink">{state.email}</span> can receive mail, a sign-in link is on its way. The link works

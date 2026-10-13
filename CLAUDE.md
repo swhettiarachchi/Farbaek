@@ -19,7 +19,7 @@ The dev PC has 3.8 GB of RAM. Run checks one at a time, and stop any dev or prev
 
 ## Architecture map
 
-- `src/app/`: routes (`/`, `/pricing`). Server Components by default.
+- `src/app/`: routes (`/`, `/pricing`, `/sign-in`, `/auth/callback`, `/app`). Server Components by default.
 - `src/components/<area>/`: UI. Anything using Motion, state or effects is a `"use client"` leaf.
 - `src/core/<domain>/`: framework-free domain logic shared by server, browser and the future native apps. ESLint blocks React, Next, Motion and UI imports here.
   - `billing/`: plan catalog (the one pricing source), trial lifecycle, entitlements, usage metering.
@@ -27,7 +27,8 @@ The dev PC has 3.8 GB of RAM. Run checks one at a time, and stop any dev or prev
   - `realityloop/`: task state machine, intent contract schema and checks.
   - `proof/`: Seal geometry from a digest.
 - `src/content/samples.ts`: sample data for the public site. Always label it "sample" where it's shown.
-- `src/styles/tokens.css`: colour tokens. `tests/design/contrast.test.ts` enforces WCAG AA in both themes.
+- `src/styles/tokens.css`: colour tokens. `tests/design/contrast.test.ts` enforces WCAG AA for every pair.
+- `src/components/three/`: the hero 3D scene. `src/components/film/`: the concept film.
 - `docs/adr/`: one ADR per significant decision. Add one when you change a decision.
 
 ## Non-negotiables (full list in spec section 0)
@@ -40,16 +41,18 @@ The dev PC has 3.8 GB of RAM. Run checks one at a time, and stop any dev or prev
 - Don't claim "first", "guaranteed", "complete protection", certifications or compliance.
 - Pin exact dependency versions, avoid releases that are only days old, and keep lifecycle scripts off by default.
 
-## Design rules (Proof Atelier)
+## Design rules (White Signal, ADR 0008)
 
-- Colours come from tokens only. The accent is gold measured from the logo (ADR 0007). One accent, no gradients.
-- Shape lock: buttons and inputs 6px (`rounded-sm`), cards 10px (`rounded-md`), sheets 16px, marketing panels 24px. Pills only for the segmented control.
-- Fonts: Instrument Sans (UI), Instrument Serif italic (rare accents only), JetBrains Mono (code, data, `//` labels).
-- Logo: `public/brand/farbaek-logo.webp`, used unaltered through `BrandLogo` or `LOGO`. On dark surfaces it sits on the lit plate.
-- Motion only for live state, hierarchy or feedback; always honour `prefers-reduced-motion`. The Proof Thread moves only on real events in the product.
+- One light theme. Colours come from tokens only. One accent: signal blue (`accent`); signal cyan (`accent-2`) only in the aurora, orbit and syntax tint. No gold.
+- Dark `media` tokens are for media frames only (concept film, evidence terminal), never for whole sections.
+- Shape lock: buttons, chips and segmented controls are pills; inputs 12px (`rounded-sm`); cards 20px (`rounded-md`); large panels 28px.
+- Fonts: Geist (UI and display, weight 500 headlines, tight tracking) and Geist Mono (code, data, `//` labels). No serif.
+- Logo: `public/brand/farbaek-logo.webp`, used unaltered through `BrandLogo` or `LOGO`, directly on the page: no plate, frame or filter.
+- 3D and film load lazily, pause off-screen, and fall back to static under reduced motion, Save-Data or weak hardware. Film content is labelled sample data.
+- Motion only for live state, hierarchy, storytelling or feedback; always honour `prefers-reduced-motion`.
 - Status never relies on colour alone: icon, label and pattern.
 - Copy: plain sentences, no em dashes in UI text, no filler verbs.
-- Mobile first: 16px inputs, 44px targets, no horizontal page scroll (check at 375px).
+- Mobile first: 16px inputs, 44px targets, no horizontal page scroll (check at 375px). A button's own `inline-flex` overrides `hidden`: control visibility with a wrapper.
 
 ## Workflow
 

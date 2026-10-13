@@ -60,7 +60,7 @@ export default function PricingPage() {
 
           <p className="mx-auto mt-8 flex max-w-[40rem] items-start gap-2.5 rounded-sm border border-info/30 bg-info/[0.06] px-4 py-3 text-sm text-ink">
             <InfoIcon size={18} weight="bold" className="mt-px shrink-0 text-info" aria-hidden />
-            Accounts and payments aren&apos;t open yet. These are the planned launch plans, and nothing can be bought today.
+            Payments aren&apos;t open yet. These are the planned launch plans, and nothing can be bought today.
           </p>
 
           <div className="mt-12">

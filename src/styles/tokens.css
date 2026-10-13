@@ -1,81 +1,56 @@
 /*
- * Proof Atelier design tokens. Source of truth for colour.
+ * Farbaek "White Signal" design tokens (ADR 0008). Source of truth for colour.
+ * A single light theme by brand decision: white tech, developer-first.
  * tests/design/contrast.test.ts parses this file and enforces WCAG 2.2 AA
- * contrast for every text and UI pair, in both themes.
+ * for every text and UI pair, including the dark media panels.
  *
- * Accent: the spec's ink indigo was replaced by gold measured from the
- * supplied logo (mean trim colour #D5A76E), because the logo wins over the
- * default accent. See docs/adr/0007-brand-colour-from-logo.md.
+ * One accent family: signal blue, with signal cyan only inside the aurora and
+ * the Proof Thread gradient. No gold in the UI (the logo keeps its own colours).
  */
 
 :root {
   color-scheme: light;
 
-  --canvas: #f6f6f3;
-  --surface: #fdfdfc;
-  --surface-sunken: #eeeeea;
-  --line: #e2e2dd;
-  --line-strong: #84847d;
+  --canvas: #fbfbfc;
+  --canvas-2: #f5f6f8;
+  --surface: #ffffff;
+  --surface-raised: #f2f4f7;
+  --surface-sunken: #eceff3;
+  --line: #e4e7ec;
+  --line-strong: #7d828c;
 
-  --ink: #141518;
-  --ink-2: #4e5158;
-  --ink-3: #686b72;
+  --ink: #121317;
+  --ink-2: #474c56;
+  --ink-3: #636975;
 
-  --gold: #a87b3d;
-  --gold-ink: #7a5622;
-  --seal: #a87b3d;
+  --accent: #2450f0;
+  --accent-2: #0a6e85;
+  --on-accent: #ffffff;
+  --seal: #5a616e;
 
-  --primary: #141518;
-  --on-primary: #f6f6f3;
+  --primary: #121317;
+  --on-primary: #fbfbfc;
 
-  --verified: #18794e;
-  --approval: #a35200;
+  --verified: #137347;
+  --approval: #9a4d00;
   --failed: #b42318;
   --info: #1f4fd6;
-  --unverified: #63666e;
+  --unverified: #5f636b;
   --simulated: #6941c6;
 
-  --plate-center: #fdfdfc;
-  --plate-edge: #e9e9e4;
+  /* Media panels (concept film, terminal): dark frames inside the white page,
+     the way a video player is. Not a second theme. */
+  --media: #0b0c10;
+  --media-ink: #f2f3f5;
+  --media-ink-2: #a3a9b4;
+  --media-ink-3: #7f8590;
+  --media-accent: #7f9cff;
+  --media-cyan: #5fd3e8;
+  --media-green: #4ade80;
+  --media-amber: #fbbf24;
+  --media-red: #f97066;
 
-  --elev-1: 0 1px 2px rgb(20 21 24 / 0.04);
-  --elev-2: 0 8px 24px -12px rgb(20 21 24 / 0.18);
-  --elev-3: 0 24px 64px -24px rgb(20 21 24 / 0.28);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-
-    --canvas: #0b0c0e;
-    --surface: #131418;
-    --surface-sunken: #08090a;
-    --line: #26282e;
-    --line-strong: #6a6d76;
-
-    --ink: #ededea;
-    --ink-2: #a6a8af;
-    --ink-3: #8c8f97;
-
-    --gold: #d5a76e;
-    --gold-ink: #ddb57e;
-    --seal: #d5a76e;
-
-    --primary: #ededea;
-    --on-primary: #0b0c0e;
-
-    --verified: #4ade80;
-    --approval: #fbbf24;
-    --failed: #f97066;
-    --info: #93b4ff;
-    --unverified: #8b8e96;
-    --simulated: #b692f6;
-
-    --plate-center: #3a3b42;
-    --plate-edge: #141519;
-
-    --elev-1: 0 0 0 transparent;
-    --elev-2: 0 0 0 transparent;
-    --elev-3: 0 24px 64px -24px rgb(0 0 0 / 0.6);
-  }
+  --elev-1: 0 1px 2px rgb(18 19 23 / 0.04), 0 0 0 1px rgb(18 19 23 / 0.04);
+  --elev-2: 0 1px 2px rgb(18 19 23 / 0.04), 0 12px 32px -12px rgb(36 80 240 / 0.12), 0 0 0 1px rgb(18 19 23 / 0.05);
+  --elev-3: 0 2px 4px rgb(18 19 23 / 0.04), 0 32px 80px -24px rgb(36 80 240 / 0.22), 0 0 0 1px rgb(18 19 23 / 0.05);
 }

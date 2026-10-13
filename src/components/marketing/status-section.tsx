@@ -54,7 +54,7 @@ const GROUPS: Group[] = [
 
 export function StatusSection() {
   return (
-    <section id="status" aria-labelledby="status-title" className="border-t border-line py-20 lg:py-28">
+    <section id="status" aria-labelledby="status-title" className="py-20 lg:py-28">
       <Container>
         <SectionHeading id="status-title" title="What works today, and what doesn't yet.">
           No account can be created yet. Here is the honest state of the build.

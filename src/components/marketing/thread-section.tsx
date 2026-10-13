@@ -12,7 +12,7 @@ const STAGES: ThreadStage[] = [
 ];
 
 const LEGEND = [
-  { label: "Verified", className: "border-solid border-gold" },
+  { label: "Verified", className: "border-solid border-accent" },
   { label: "Awaiting approval", className: "border-solid border-approval" },
   { label: "Not verified yet", className: "border-dashed border-unverified" },
   { label: "Failed", className: "border-solid border-failed" },
@@ -20,7 +20,7 @@ const LEGEND = [
 
 export function ThreadSection() {
   return (
-    <section id="how-it-works" aria-labelledby="thread-title" className="border-t border-line py-20 lg:py-28">
+    <section id="how-it-works" aria-labelledby="thread-title" className="py-20 lg:py-28">
       <Container>
         <SectionHeading id="thread-title" title="Every change follows one thread.">
           A stage only turns solid when the evidence behind it is real. Here is one task, paused at approval.

@@ -20,7 +20,7 @@ const STATUS_TEXT: Record<ThreadStatus, string> = {
 };
 
 const SEGMENT: Record<ThreadStatus, string> = {
-  verified: "border-solid border-gold",
+  verified: "border-solid border-accent",
   approval: "border-solid border-approval",
   unverified: "border-dashed border-unverified",
   failed: "border-solid border-failed",
@@ -31,7 +31,7 @@ function Node({ status }: { status: ThreadStatus }) {
   switch (status) {
     case "verified":
       return (
-        <span className={`${common} bg-gold text-canvas`}>
+        <span className={`${common} bg-accent text-on-accent`}>
           <CheckIcon size={15} weight="bold" aria-hidden />
         </span>
       );
@@ -59,7 +59,7 @@ const lineY: Variants = { hidden: { scaleY: 0 }, shown: { scaleY: 1, transition:
 
 /**
  * The Proof Thread. Segment style follows the status of the stage it leads to:
- * solid gold when verified, amber while awaiting approval, dashed while
+ * solid blue when verified, amber while awaiting approval, dashed while
  * unverified, red when failed. Horizontal from lg up, vertical below.
  */
 export function ProofThread({ stages, label }: { stages: ThreadStage[]; label: string }) {
