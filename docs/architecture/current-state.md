@@ -48,14 +48,14 @@ ESLint forbids `src/core` from importing React, Next, Motion or UI code, so ever
 | Evaluation metering (idempotent, per org, period boundaries) | In-memory reference only, unit-tested | `usage.test.ts` |
 | AI credit ledger (reserve, settle, refund; trial or monthly period) | Implemented, tested, applied to the hosted project (migration 4) | `tests/db/ai-credits.test.ts`, `ai-drafting.test.ts` |
 | Project files: import with secret screening, versioned storage, tree, search, CodeMirror editor with diff review | Implemented, tested, applied to the hosted project (migration 5, ADR 0010) | `tests/db/project-files.test.ts`, `src/core/workspace/` |
-| Change proposals: agent-proposed targeted edits, contract checks, per-chunk diff review, hash-bound approval, apply as revisions (Review Only, not verified) | Implemented and tested (migration 6, ADR 0011). **Migration 6 not yet applied to the hosted project.** Needs `ANTHROPIC_API_KEY` to run live. | `tests/db/change-proposals.test.ts`, `src/server/workspace/proposals.ts` |
+| Change proposals: agent-proposed targeted edits, contract checks, per-chunk diff review, hash-bound approval, apply as revisions (Review Only, not verified) | Implemented, tested, applied to the hosted project (migration 6, ADR 0011). Needs `ANTHROPIC_API_KEY` to run live. | `tests/db/change-proposals.test.ts`, `src/server/workspace/proposals.ts` |
 | Draft an intent contract with AI (Claude, structured output, refusal fallbacks) | Implemented and unit-tested with a fake drafter. Needs `ANTHROPIC_API_KEY` to run live. | `src/server/ai/`, ADR 0009 |
 | RealityLoop task state machine (evidence guards, optimistic concurrency, idempotent events) | Implemented, unit-tested | `task-machine.test.ts` |
 | Intent contract schema (Zod) and deterministic action checks | Implemented, unit-tested | `contract.test.ts` |
 | Approval binding (RFC 8785 + SHA-256) | Implemented, unit-tested, used live in the demo | `canonical-json.test.ts`, `approval.test.ts` |
 | ProofPack Seal from digest | Implemented, unit-tested | `seal.test.ts` |
 | Marketing site and pricing page | Implemented, built, checked at 375px and 1440px, light and dark | Manual browser check, see `docs/stages/stage-0.md` |
-| Accounts, organizations, database | All five migrations applied to the hosted project (core schema, projects and server-only writes, intent contracts, AI credit ledger, project files) | `tests/db/`, `docs/stages/` |
+| Accounts, organizations, database | All six migrations applied to the hosted project (core schema, projects and server-only writes, intent contracts, AI credit ledger, project files, change proposals) | `tests/db/`, `docs/stages/` |
 | Signed-in app: Mission Control, projects, tasks, intent contracts, approvals, billing, settings | Built; verified in the demo workspace; live use needs `.env.local` (run `pnpm setup:env`) | `src/app/app/`, `src/server/workspace/` |
 | Studio, Agent, Mesh, LaunchOS, Mobile | **Not started** | Roadmap |
 | Payments | **Not connected.** `BILLING_MODE=not_connected` | Spec section 23 |

@@ -137,7 +137,7 @@ Targeted AI patches on top of this: the agent proposes edits to named files unde
 
 ### Done
 
-- Migration `20261015150000_change_proposals.sql` (tested, **not applied yet**): `change_proposals` with RLS; service-role-only `app_create_proposal` (base revisions must be current, each hash must match its content, the contract version must be the approved one, and the final task state must match pending or blocked), `app_apply_proposal` (all or nothing, refuses stale files, writes revisions linked to the proposal) and `app_discard_proposal`. `private.apply_transitions` now records agent and system steps under their own actor. The AI credit ledger accepts `change_proposal`. ADR 0011.
+- Migration `20261015150000_change_proposals.sql` (tested; **applied to the hosted project 2026-10-13**, see below): `change_proposals` with RLS; service-role-only `app_create_proposal` (base revisions must be current, each hash must match its content, the contract version must be the approved one, and the final task state must match pending or blocked), `app_apply_proposal` (all or nothing, refuses stale files, writes revisions linked to the proposal) and `app_discard_proposal`. `private.apply_transitions` now records agent and system steps under their own actor. The AI credit ledger accepts `change_proposal`. ADR 0011.
 - `src/core/realityloop/change-proposal.ts`: anchored find/replace edits (exactly one match or the edit is dropped), screening, contract checks (operations, record limit, path scope), proposal and applied-content hashes. New state machine event `discard_plan` (from APPROVAL_PENDING or BLOCKED back to CONTRACT_APPROVED).
 - Claude proposer (streamed structured output, refusal fallbacks), 3 credits per proposal with refunds when nothing usable comes back. The shared credit logic moved to `ai-credits.ts`.
 - Use cases `proposeChange`, `applyProposal` and `discardProposal`; Supabase reads and writes.
@@ -152,10 +152,17 @@ Targeted AI patches on top of this: the agent proposes edits to named files unde
 
 ### Not verified
 
-- A real proposal from Claude and applying it on the hosted project: needs migration 6 applied, the Anthropic key in the env file and a signed-in session.
+- A real proposal from Claude and applying it on the hosted project: needs the Anthropic key in the env file and a signed-in session.
 
 ### Next
 
-Apply migration 6 (owner approval). Then project-level checkpoints and the sandbox runner decision (ADR 0003), so VERIFYING tasks can run their checks.
+Project-level checkpoints and the sandbox runner decision (ADR 0003), so VERIFYING tasks can run their checks.
+
+## 2026-10-13: migration 6 applied
+
+- Owner-approved ("you have access to set up everything"), via Claude in Chrome. The SQL Editor contents were hashed in the page and matched the tested file (14,663 bytes, `sha256 ef7ebd11…d241`). Supabase showed no warning this time. Result: success.
+- Read-only check afterwards: `change_proposals` has RLS, the policy "members read change proposals", select-only for authenticated and nothing for anon. `app_create_proposal`, `app_apply_proposal` and `app_discard_proposal` are security definer and executable by service_role only. `ai_credit_ledger_operation_check` allows `contract_draft` and `change_proposal`. `project_file_revisions.proposal_id` exists. `private.apply_transitions` reads `actor_kind`.
+- The hosted project now has all six migrations:
+  `supabase migration repair --status applied 20261013120000 20261014090000 20261014120000 20261015090000 20261015120000 20261015150000`
 
 Note on dates: entries above were first written with later dates (2026-10-14 and 2026-10-15). Everything here happened on 2026-10-13. Migration filenames (`20261014…`, `20261015…`) are ordering versions only and stay as they are, because migrations 2 to 4 are already applied under those names.
