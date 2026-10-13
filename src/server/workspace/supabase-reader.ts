@@ -203,7 +203,7 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
       if (!z.uuid().safeParse(taskId).success) return null;
       const { data, error } = await client
         .from("change_proposals")
-        .select("id, task_id, project_id, status, contract_version, plan, changes, dropped, violations, sha256, model, created_at, decided_at, applied_sha256")
+        .select("id, task_id, project_id, status, contract_version, plan, changes, dropped, violations, sha256, model, created_at, decided_at, applied_sha256, policy")
         .eq("org_id", orgId)
         .eq("task_id", taskId)
         .order("created_at", { ascending: false })

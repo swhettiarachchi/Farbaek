@@ -6,6 +6,7 @@ import { sha256Hex } from "@/core/trust/canonical-json";
 import { SAMPLE_CONTRACT } from "@/content/samples";
 import { DEMO_FILES, DEMO_FILES_PROJECT_ID } from "@/content/demo-files";
 import { buildChanges, checkProposal, planFrom, proposalHash } from "@/core/realityloop/change-proposal";
+import { evaluateChangePolicy } from "@/core/trust/policy";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
 import {
   DEMO_EVALUATIONS_THIS_PERIOD,
@@ -171,6 +172,8 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
       // Built from the sample files with the same rules as a live proposal.
       const files = await demoFiles(found.task.projectId);
       const { changes, dropped } = await buildChanges(DEMO_PROPOSAL_OUTPUT, files, new Set(files.map((f) => f.path)), WORKSPACE_LIMITS.maxFileBytes);
+      const violations = checkProposal(contract.body, changes);
+      const decision = await evaluateChangePolicy({ files: changes, contractViolations: violations });
       const record: ProposalRecord = {
         id: "00000000-0000-4000-8000-0000000c0001",
         status: "pending",
@@ -178,12 +181,13 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
         plan: planFrom(DEMO_PROPOSAL_OUTPUT),
         changes,
         dropped,
-        violations: checkProposal(contract.body, changes),
+        violations,
         sha256: await proposalHash({ taskId, contractVersion: contract.version, contractSha256: contract.sha256, changes }),
         model: "sample (no model call)",
         createdAt: proposed.at,
         decidedAt: null,
         appliedSha256: null,
+        policy: { outcome: decision.outcome, version: decision.policyVersion, findings: decision.findings },
       };
       return record;
     },

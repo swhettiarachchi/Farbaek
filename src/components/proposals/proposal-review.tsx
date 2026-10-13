@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, FingerprintIcon, HourglassMediumIcon, ProhibitIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, FingerprintIcon, HourglassMediumIcon, ProhibitIcon, ScalesIcon, ShieldWarningIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -8,6 +8,8 @@ import { useState, useTransition } from "react";
 import { applyProposalAction, discardProposalAction } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
 import { DROP_LABELS } from "@/core/realityloop/change-proposal";
+import { OUTCOME_LABELS } from "@/core/trust/policy";
+import type { PolicyOutcome } from "@/core/billing/usage";
 import type { ProposalRecord } from "@/server/workspace/types";
 
 const Surface = dynamic(() => import("@/components/files/codemirror"), {
@@ -41,6 +43,7 @@ export function ProposalReview({
   invariants,
   disabledReason,
   executionReason,
+  canApproveEscalated,
 }: {
   projectId: string;
   proposal: ProposalRecord;
@@ -51,6 +54,8 @@ export function ProposalReview({
   disabledReason: string | null;
   /** Why checks can't run here (Review Only), or null when a sandbox is connected. */
   executionReason: string | null;
+  /** True when the viewer is an owner or admin. Escalated changes need one; the server enforces it too. */
+  canApproveEscalated: boolean;
 }) {
   const router = useRouter();
   const [finals, setFinals] = useState<Record<string, string>>(() => Object.fromEntries(proposal.changes.map((c) => [c.path, c.content])));
@@ -59,6 +64,8 @@ export function ProposalReview({
   const open = proposal.status === "pending";
   const status = STATUS[proposal.status];
 
+  const escalated = proposal.policy?.outcome === "ESCALATE";
+  const approveReason = disabledReason ?? (escalated && !canApproveEscalated ? "The policy escalated this change, so an owner or admin has to approve it." : null);
   const kept = proposal.changes.filter((c) => (c.kind === "create" ? finals[c.path] !== "" : finals[c.path] !== bases[c.path]));
 
   function approve() {
@@ -146,6 +153,29 @@ export function ProposalReview({
         ) : null}
       </div>
 
+      {proposal.policy ? (
+        <div className="grid gap-2 rounded-sm border border-line bg-surface-raised/50 p-4 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="flex items-center gap-2 font-medium">
+              {escalated ? <ShieldWarningIcon size={16} className="text-approval" aria-hidden /> : <ScalesIcon size={16} className="text-ink-3" aria-hidden />}
+              Policy: {OUTCOME_LABELS[proposal.policy.outcome as PolicyOutcome] ?? proposal.policy.outcome}
+            </p>
+            <span className="font-mono text-xs text-ink-3">rules {short(proposal.policy.version)}</span>
+          </div>
+          {proposal.policy.findings.filter((f) => f.rule !== "contract").length ? (
+            <ul className="grid gap-1 text-ink-2">
+              {proposal.policy.findings
+                .filter((f) => f.rule !== "contract")
+                .map((f, i) => (
+                  <li key={i}>{f.detail}</li>
+                ))}
+            </ul>
+          ) : (
+            <p className="text-ink-2">Autonomy level 0: every change needs a person&apos;s approval. Nothing sensitive was found.</p>
+          )}
+        </div>
+      ) : null}
+
       {proposal.dropped.length ? (
         <details className="rounded-sm border border-line px-4 py-3 text-sm">
           <summary className="cursor-pointer font-medium">
@@ -231,7 +261,7 @@ export function ProposalReview({
           ) : null}
           <div className="flex flex-wrap items-center gap-3">
             {open ? (
-              <button type="button" onClick={approve} disabled={pending || kept.length === 0 || Boolean(disabledReason)} className={buttonClasses("primary", "sm")}>
+              <button type="button" onClick={approve} disabled={pending || kept.length === 0 || Boolean(approveReason)} className={buttonClasses("primary", "sm")}>
                 <FingerprintIcon size={16} weight="bold" aria-hidden />
                 {pending ? "Applying…" : `Approve and apply ${kept.length} ${kept.length === 1 ? "file" : "files"}`}
               </button>
@@ -239,7 +269,7 @@ export function ProposalReview({
             <button type="button" onClick={discard} disabled={pending || Boolean(disabledReason)} className={buttonClasses(open ? "ghost" : "secondary", "sm")}>
               Discard proposal
             </button>
-            {disabledReason ? <p className="text-sm text-ink-3">{disabledReason}</p> : null}
+            {approveReason ? <p className="text-sm text-ink-3">{approveReason}</p> : null}
             {open && kept.length === 0 ? <p className="text-sm text-ink-3">Every change is rejected. Discard the proposal instead.</p> : null}
           </div>
         </div>

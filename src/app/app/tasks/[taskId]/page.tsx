@@ -16,6 +16,7 @@ import { EMPTY_CONTRACT_FORM, formFromContract } from "@/core/realityloop/contra
 import { TASK_STATE_LABELS, lifecycleProgress } from "@/core/realityloop/progress";
 import { TERMINAL_STATES, type TaskState } from "@/core/realityloop/task-machine";
 import { loadAppContext } from "@/server/workspace/context";
+import { MANAGER_ROLES } from "@/server/workspace/types";
 import { loadAiAvailability } from "@/server/workspace/usage-summary";
 
 export const metadata: Metadata = { title: "Task" };
@@ -136,6 +137,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
                 invariants={contract?.body.protectedInvariants.map((i) => i.statement) ?? []}
                 disabledReason={writeReason}
                 executionReason={execution.mode === "review_only" ? execution.reason : null}
+                canApproveEscalated={ctx.role !== null && MANAGER_ROLES.includes(ctx.role)}
               />
             ) : null}
             {canPropose && proposeAi ? (

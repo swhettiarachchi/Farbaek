@@ -88,6 +88,8 @@ export interface ProposalRecord {
   createdAt: string;
   decidedAt: string | null;
   appliedSha256: string | null;
+  /** The policy decision that governed it; null for proposals made before policies were recorded. */
+  policy: { outcome: string; version: string; findings: { rule: string; outcome: string; detail: string }[] } | null;
 }
 
 /** Shape of change_proposals rows; changes are stored with snake_case keys. */
@@ -108,6 +110,10 @@ export const ProposalRowSchema = z.object({
   created_at: z.string(),
   decided_at: z.string().nullable(),
   applied_sha256: z.string().nullable(),
+  policy: z
+    .object({ outcome: z.string(), version: z.string(), findings: z.array(z.object({ rule: z.string(), outcome: z.string(), detail: z.string() })) })
+    .nullable()
+    .optional(),
 });
 
 export function proposalFromRow(row: z.infer<typeof ProposalRowSchema>): ProposalRecord {
@@ -124,6 +130,7 @@ export function proposalFromRow(row: z.infer<typeof ProposalRowSchema>): Proposa
     createdAt: row.created_at,
     decidedAt: row.decided_at,
     appliedSha256: row.applied_sha256,
+    policy: row.policy ?? null,
   };
 }
 

@@ -7,6 +7,7 @@ import { sha256Hex } from "@/core/trust/canonical-json";
 import type { ChangeProposer, ProposalOutcome } from "@/server/ai/change-proposer";
 import type { AiCreditDeps } from "./ai-credits";
 import { applyProposal, discardProposal, proposeChange, type ProposalDeps, type StoredProposal } from "./proposals";
+import type { OrgRole } from "./types";
 import type { WriteDeps } from "./use-cases";
 
 const fake = (...parts: string[]) => parts.join("");
@@ -49,12 +50,14 @@ function fakeProposer(result: ProposalOutcome | Error) {
   return p satisfies ChangeProposer & { briefs: unknown[] };
 }
 
-function fakeDeps(over: { state?: TaskState; proposal?: Partial<StoredProposal> | null; createError?: string; applyError?: string; billing?: BillingSnapshot } = {}) {
+function fakeDeps(
+  over: { state?: TaskState; proposal?: Partial<StoredProposal> | null; createError?: string; applyError?: string; billing?: BillingSnapshot; evaluations?: number; role?: OrgRole } = {},
+) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the spy records inputs of several shapes
   const calls: { name: string; input: any }[] = [];
   let n = 0;
   const deps: WriteDeps & AiCreditDeps & ProposalDeps = {
-    role: async () => "member",
+    role: async () => over.role ?? "member",
     billing: async () => over.billing ?? { state: "free" },
     countActiveProjects: async () => 0,
     loadTask: async () => ({ id: "t1", projectId: "p1", state: over.state ?? "CONTRACT_APPROVED", version: 4, eventIds: [] }),
@@ -67,6 +70,7 @@ function fakeDeps(over: { state?: TaskState; proposal?: Partial<StoredProposal> 
     reserveAiCredits: async (input) => (calls.push({ name: "reserve", input }), { ok: true, value: "entry-1" }),
     settleAiCredits: async (input) => (calls.push({ name: "settle", input }), { ok: true, value: null }),
     approvedContract: async () => ({ version: 1, sha256: "c".repeat(64), body: contract }),
+    countEvaluations: async () => over.evaluations ?? 0,
     projectFiles: async () => Object.entries(FILES).map(([path, f]) => ({ path, revision: f.revision, sizeBytes: f.content.length })),
     fileContent: async (_o, _p, path) => {
       const f = FILES[path as keyof typeof FILES];
@@ -86,6 +90,7 @@ function fakeDeps(over: { state?: TaskState; proposal?: Partial<StoredProposal> 
               { path: "src/lib/cart.ts", kind: "edit", baseRevision: 3, content: "x", sha256: "b".repeat(64), reason: "" },
               { path: "src/lib/new.ts", kind: "create", baseRevision: 0, content: "y", sha256: "d".repeat(64), reason: "" },
             ] as ProposedChange[],
+            policyOutcome: "REQUIRE_APPROVAL",
             ...over.proposal,
           },
     applyProposal: async (input) => (calls.push({ name: "apply", input }), over.applyError ? { ok: false, error: over.applyError } : { ok: true, value: input.files.length }),
@@ -103,7 +108,10 @@ describe("proposeChange", () => {
   it("spends 3 credits, shows the model only the chosen files, and records who decided each step", async () => {
     const { deps, calls } = fakeDeps();
     const proposer = fakeProposer({ ok: true, output: GOOD, usage: USAGE });
-    expect(await propose(deps, proposer)).toEqual({ ok: true, value: { proposalId: "prop-1", status: "pending", dropped: [], violations: [] } });
+    expect(await propose(deps, proposer)).toMatchObject({
+      ok: true,
+      value: { proposalId: "prop-1", status: "pending", dropped: [], violations: [], policy: { outcome: "REQUIRE_APPROVAL" } },
+    });
     expect((proposer.briefs[0] as { files: { path: string }[] }).files.map((f) => f.path)).toEqual(["src/lib/cart.ts"]);
     expect(calls.map((c) => c.name)).toEqual(["reserve", "create", "settle"]);
     expect(calls[0]!.input).toMatchObject({ operation: "change_proposal", credits: 3 });
@@ -196,5 +204,32 @@ describe("discardProposal", () => {
     expect(calls[0]!.input.steps).toMatchObject([{ event_type: "discard_plan", from: "APPROVAL_PENDING", to: "CONTRACT_APPROVED" }]);
     expect(await discardProposal(fakeDeps({ state: "BLOCKED", proposal: { status: "blocked" } }).deps, { orgId: "o1", userId: "u1", proposalId: "prop-1" })).toMatchObject({ ok: true });
     expect(await discardProposal(fakeDeps({ proposal: { status: "discarded" } }).deps, { orgId: "o1", userId: "u1", proposalId: "prop-1" })).toMatchObject({ code: "PROPOSAL_CLOSED" });
+  });
+});
+
+describe("policy and metering", () => {
+  it("records the policy decision and the evaluation allowance with the proposal", async () => {
+    const { deps, calls } = fakeDeps();
+    const pkg = output([{ path: "src/lib/cart.ts", kind: "edit", edits: [{ find: "q < 1", replace: "q < 2" }], content: "", reason: "r" }]);
+    await propose(deps, fakeProposer({ ok: true, output: pkg, usage: USAGE }));
+    const create = calls.find((c) => c.name === "create")!.input;
+    expect(create.policy).toMatchObject({ outcome: "REQUIRE_APPROVAL", policyVersion: expect.stringMatching(/^[0-9a-f]{64}$/) });
+    expect(create.evaluationLimit).toBe(2_000);
+  });
+
+  it("refuses a proposal when the evaluation allowance is used up, before spending credits", async () => {
+    const proposer = fakeProposer({ ok: true, output: GOOD, usage: USAGE });
+    const { deps, calls } = fakeDeps({ evaluations: 2_000 });
+    expect(await propose(deps, proposer)).toMatchObject({ ok: false, code: "EVALUATION_LIMIT" });
+    expect(calls).toEqual([]);
+    expect(proposer.briefs).toHaveLength(0);
+  });
+
+  it("lets only an owner or admin apply an escalated proposal", async () => {
+    const files = [{ path: "src/lib/cart.ts", content: "accepted" }];
+    const apply = (role: OrgRole) =>
+      applyProposal(fakeDeps({ state: "APPROVAL_PENDING", role, proposal: { policyOutcome: "ESCALATE" } }).deps, { orgId: "o1", userId: "u1", proposalId: "prop-1", reviewedSha256: "a".repeat(64), files });
+    expect(await apply("member")).toMatchObject({ code: "APPROVER_ROLE_REQUIRED" });
+    expect(await apply("admin")).toMatchObject({ ok: true });
   });
 });

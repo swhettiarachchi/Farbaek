@@ -203,6 +203,8 @@ export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseCli
       return { version: row.version, sha256: row.sha256, body: row.body };
     },
 
+    countEvaluations: (orgId, period) => reader.countEvaluations(orgId, period.start, period.end),
+
     projectFiles: async (orgId, projectId) => (await reader.listFiles(orgId, projectId)).map((f) => ({ path: f.path, revision: f.revision, sizeBytes: f.sizeBytes })),
 
     async fileContent(orgId, projectId, path) {
@@ -227,6 +229,10 @@ export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseCli
           p_output_tokens: i.usage.outputTokens,
           p_expected_task_version: i.expectedTaskVersion,
           p_steps: i.steps,
+          p_policy: { outcome: i.policy.outcome, version: i.policy.policyVersion, findings: i.policy.findings },
+          p_evaluation_limit: i.evaluationLimit,
+          p_period_start: i.period.start.toISOString(),
+          p_period_end: i.period.end.toISOString(),
         },
         z.string(),
       ),
@@ -235,7 +241,7 @@ export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseCli
       if (!z.uuid().safeParse(proposalId).success) return null;
       const { data, error } = await user
         .from("change_proposals")
-        .select("id, task_id, project_id, status, contract_version, plan, changes, dropped, violations, sha256, model, created_at, decided_at, applied_sha256")
+        .select("id, task_id, project_id, status, contract_version, plan, changes, dropped, violations, sha256, model, created_at, decided_at, applied_sha256, policy")
         .eq("org_id", orgId)
         .eq("id", proposalId)
         .maybeSingle();
@@ -243,7 +249,7 @@ export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseCli
       if (!data) return null;
       const row = ProposalRowSchema.parse(data);
       const record = proposalFromRow(row);
-      return { id: row.id, taskId: row.task_id, projectId: row.project_id, status: row.status, sha256: row.sha256, changes: record.changes };
+      return { id: row.id, taskId: row.task_id, projectId: row.project_id, status: row.status, sha256: row.sha256, changes: record.changes, policyOutcome: record.policy?.outcome ?? null };
     },
 
     applyProposal: (i) =>

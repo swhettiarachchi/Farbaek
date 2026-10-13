@@ -42,6 +42,8 @@ export type WriteErrorCode =
   | "PROPOSAL_CLOSED"
   | "PROPOSAL_CHANGED"
   | "NOTHING_TO_APPLY"
+  | "EVALUATION_LIMIT"
+  | "APPROVER_ROLE_REQUIRED"
   | "AI_UNAVAILABLE"
   | "AI_REFUSED"
   | "AI_INCOMPLETE"
@@ -129,6 +131,8 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   PROPOSAL_CLOSED: "This proposal was already applied or discarded. Reload to see the latest state.",
   PROPOSAL_CHANGED: "The proposal changed since you reviewed it. Reload and review it again.",
   NOTHING_TO_APPLY: "Every change was rejected, so there's nothing to apply. Discard the proposal instead.",
+  EVALUATION_LIMIT: "This workspace has used its governed evaluations for the period, so new proposals are paused until it resets or the plan changes.",
+  APPROVER_ROLE_REQUIRED: "The policy escalated this change, so an owner or admin has to approve it.",
   AI_UNAVAILABLE: "AI isn't available right now.",
   AI_REFUSED: "The model declined to draft this contract. Write it yourself, or reword the task and try again.",
   AI_INCOMPLETE: "The draft came back incomplete. Try again, or write the contract yourself.",
@@ -158,6 +162,8 @@ export function codeFromDatabaseError(message: string): WriteErrorCode {
     "INVALID_PROPOSAL",
     "PROPOSAL_CLOSED",
     "NOTHING_TO_APPLY",
+    "EVALUATION_LIMIT",
+    "APPROVER_ROLE_REQUIRED",
   ] as const) {
     if (message.includes(code)) return code;
   }

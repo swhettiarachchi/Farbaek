@@ -22,6 +22,11 @@ import {
   type Violation,
 } from "@/core/realityloop/change-proposal";
 import type { IntentContract } from "@/core/realityloop/contract";
+import { checkQuota } from "@/core/billing/entitlements";
+import { resolveEffectivePlan } from "@/core/billing/trial";
+import { usagePeriod, type BillingPeriod } from "@/core/billing/usage";
+import { evaluateChangePolicy, type PolicyDecision } from "@/core/trust/policy";
+import { MANAGER_ROLES } from "./types";
 import type { TaskEventType, TaskState } from "@/core/realityloop/task-machine";
 import { sha256Hex } from "@/core/trust/canonical-json";
 import { screenFile } from "@/core/workspace/files";
@@ -40,11 +45,13 @@ export interface StoredProposal {
   status: "pending" | "blocked" | "applied" | "discarded";
   sha256: string;
   changes: ProposedChange[];
+  policyOutcome: string | null;
 }
 
 export interface ProposalDeps {
   approvedContract(orgId: string, taskId: string): Promise<{ version: number; sha256: string; body: IntentContract } | null>;
   projectFiles(orgId: string, projectId: string): Promise<{ path: string; revision: number; sizeBytes: number }[]>;
+  countEvaluations(orgId: string, period: BillingPeriod): Promise<number>;
   fileContent(orgId: string, projectId: string, path: string): Promise<{ revision: number; sha256: string; content: string } | null>;
   createProposal(input: {
     taskId: string;
@@ -58,6 +65,9 @@ export interface ProposalDeps {
     usage: { model: string; inputTokens: number; outputTokens: number };
     expectedTaskVersion: number;
     steps: TransitionStep[];
+    policy: PolicyDecision;
+    evaluationLimit: number | null;
+    period: BillingPeriod;
   }): Promise<RpcResult<string>>;
   loadProposal(orgId: string, proposalId: string): Promise<StoredProposal | null>;
   applyProposal(input: { proposalId: string; actor: string; files: { path: string; content: string }[]; appliedSha256: string; expectedTaskVersion: number; steps: TransitionStep[] }): Promise<RpcResult<number>>;
@@ -81,6 +91,7 @@ export interface ProposeResult {
   status: "pending" | "blocked";
   dropped: Dropped[];
   violations: Violation[];
+  policy: PolicyDecision;
 }
 
 export async function proposeChange(
@@ -110,6 +121,16 @@ export async function proposeChange(
     context.push({ path, ...f });
   }
 
+  // A proposal is a governed evaluation: check the allowance before spending AI credits.
+  const now = deps.now();
+  const snapshot = await deps.billing(input.orgId);
+  const plan = snapshot ? resolveEffectivePlan(snapshot, now) : null;
+  const period = usagePeriod(plan?.source === "trial" ? snapshot?.trial : undefined, null, now);
+  const evaluations = checkQuota(plan, "evaluations", { used: await deps.countEvaluations(input.orgId, period) });
+  if (!evaluations.allowed) {
+    return evaluations.code === "QUOTA_EXCEEDED" || evaluations.code === "TRIAL_CAP_REACHED" ? fail("EVALUATION_LIMIT") : fail(evaluations.code, evaluations.message);
+  }
+
   const reserved = await reserveCredits(deps, { orgId: input.orgId, userId: input.userId, taskId: task.id, operation: "change_proposal", manual: MANUAL });
   if (!reserved.ok) return reserved;
   const { entryId } = reserved.value;
@@ -135,11 +156,13 @@ export async function proposeChange(
     return refundAndFail(deps, { orgId: input.orgId, entryId, usage: outcome.usage }, { code: "NO_APPLICABLE_CHANGES", message: `${MESSAGES.NO_APPLICABLE_CHANGES}${why}` });
   }
   const violations = checkProposal(contract.body, changes);
+  const policy = await evaluateChangePolicy({ files: changes, contractViolations: violations });
+  const blocked = policy.outcome === "BLOCK";
   const sha256 = await proposalHash({ taskId: task.id, contractVersion: contract.version, contractSha256: contract.sha256, changes });
   const planned = steps(deps, task, input.orgId, input.userId, [
     { type: "propose_plan", actor: "agent" },
     { type: "evaluate_policy", actor: "system" },
-    { type: violations.length ? "block" : "require_approval", actor: "system" },
+    { type: blocked ? "block" : "require_approval", actor: "system" },
   ]);
   if (!planned.ok) return refundAndFail(deps, { orgId: input.orgId, entryId, usage: outcome.usage }, { code: planned.code, message: MESSAGES[planned.code] });
 
@@ -155,6 +178,9 @@ export async function proposeChange(
     usage: outcome.usage,
     expectedTaskVersion: task.version,
     steps: planned.steps,
+    policy,
+    evaluationLimit: plan?.limits.evaluationsPerMonth ?? null,
+    period,
   });
   if (!created.ok) {
     const code = codeFromDatabaseError(created.error);
@@ -163,7 +189,7 @@ export async function proposeChange(
   }
 
   await settleCredits(deps, { orgId: input.orgId, entryId, status: "settled", usage: outcome.usage });
-  return { ok: true, value: { proposalId: created.value, status: violations.length ? "blocked" : "pending", dropped, violations } };
+  return { ok: true, value: { proposalId: created.value, status: blocked ? "blocked" : "pending", dropped, violations, policy } };
 }
 
 export async function applyProposal(
@@ -176,6 +202,7 @@ export async function applyProposal(
   if (!proposal) return fail("NOT_FOUND");
   if (proposal.status !== "pending") return fail("PROPOSAL_CLOSED");
   if (proposal.sha256 !== input.reviewedSha256) return fail("PROPOSAL_CHANGED");
+  if (proposal.policyOutcome === "ESCALATE" && !MANAGER_ROLES.includes(role.value)) return fail("APPROVER_ROLE_REQUIRED");
   const task = await deps.loadTask(input.orgId, proposal.taskId);
   if (!task) return fail("NOT_FOUND");
   if (task.state !== "APPROVAL_PENDING") return fail("INVALID_TRANSITION", "This task isn't waiting for approval.");
