@@ -34,7 +34,7 @@ Already correct, so left unchanged: sign-ups allowed, email confirmation require
 
 Sign in once end to end, then: the app shell (sidebar and bottom tabs), Mission Control, server-side task transitions through the RealityLoop machine with optimistic concurrency, the trial reminder job (pg_cron is available on the project), Billing in not-connected mode, and Playwright plus axe.
 
-## 2026-10-14: the signed-in app
+## 2026-10-13: the signed-in app
 
 ### Done
 
@@ -59,10 +59,10 @@ Sign in once end to end, then: the app shell (sidebar and bottom tabs), Mission 
 
 ### Owner actions
 
-1. ~~Approve applying migration 2 to the hosted project.~~ Done 2026-10-14 (see below).
+1. ~~Approve applying migration 2 to the hosted project.~~ Done 2026-10-13 (see below).
 2. Add `SUPABASE_SECRET_KEY` (Project Settings > API Keys > Secret keys) to `.env.local` alongside the URL and publishable key. Never commit it.
 
-## 2026-10-14: migration 2 applied, env setup script
+## 2026-10-13: migration 2 applied, env setup script
 
 - Owner-approved, via Claude in Chrome. Read-only pre-check first: 0 tasks, 0 organizations, no projects table. The SQL Editor contents were hashed in the page and matched the tested file (`sha256 99327579…6bfc`). Supabase warned about destructive operations; these were the planned policy drop and the revoke of browser task inserts, with no data affected. Result: success.
 - Read-only check afterwards: `projects` and `tasks` have RLS and no browser insert; `app_create_project`, `app_create_task` and `app_apply_task_transition` are executable by service_role only.

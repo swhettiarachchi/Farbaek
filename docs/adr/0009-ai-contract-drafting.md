@@ -1,7 +1,7 @@
 # 0009. AI contract drafting with Claude
 
 - Status: accepted
-- Date: 2026-10-15
+- Date: 2026-10-13
 
 ## Context
 

@@ -1,7 +1,7 @@
 # 0010. Project files as revisions in Postgres
 
 - Status: accepted
-- Date: 2026-10-15
+- Date: 2026-10-13
 
 ## Context
 
