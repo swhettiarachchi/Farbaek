@@ -1,6 +1,6 @@
 # 0005. Auth and database
 
-- Status: proposed (blocked on credentials)
+- Status: accepted. Schema applied to the hosted project on 2026-10-13 (see docs/stages/stage-1.md)
 - Date: 2026-10-13
 
 ## Context

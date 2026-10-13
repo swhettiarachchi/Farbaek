@@ -7,7 +7,7 @@
 --   * Browser roles (anon, authenticated) get explicit, minimal grants.
 --     Writes to billing, trial, usage, task state and audit happen only through
 --     security-definer functions or the server's secret key.
---   * Helper functions live in the `private` schema, which the Data API does
+--   * Helper functions live in the private schema, which the Data API does
 --     not expose.
 --
 -- The trial length (14 days) and the plan catalog version must match

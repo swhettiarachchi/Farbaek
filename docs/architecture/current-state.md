@@ -51,7 +51,7 @@ ESLint forbids `src/core` from importing React, Next, Motion or UI code, so ever
 | Approval binding (RFC 8785 + SHA-256) | Implemented, unit-tested, used live in the demo | `canonical-json.test.ts`, `approval.test.ts` |
 | ProofPack Seal from digest | Implemented, unit-tested | `seal.test.ts` |
 | Marketing site and pricing page | Implemented, built, checked at 375px and 1440px, light and dark | Manual browser check, see `docs/stages/stage-0.md` |
-| Accounts, organizations, database | **Not started.** Blocked on Supabase credentials | ADR 0005 |
+| Accounts, organizations, database | Schema with RLS applied to the hosted Supabase project; email-link sign-in and workspace creation built. End-to-end sign-in not yet run (needs `.env.local`) | `tests/db/schema.test.ts`, `docs/stages/stage-1.md` |
 | Studio, Agent, Mesh, LaunchOS, Mobile | **Not started** | Roadmap |
 | Payments | **Not connected.** `BILLING_MODE=not_connected` | Spec section 23 |
 

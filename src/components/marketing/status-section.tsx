@@ -27,6 +27,7 @@ const GROUPS: Group[] = [
       "Task lifecycle state machine with evidence guards",
       "Approval binding with RFC 8785 and SHA-256",
       "Intent contract schema and checks",
+      "Organizations with row-level tenant isolation",
     ],
   },
   {
@@ -35,7 +36,7 @@ const GROUPS: Group[] = [
     icon: HourglassMediumIcon,
     iconClass: "text-approval",
     items: [
-      "Accounts, organizations and tenant isolation",
+      "Accounts and sign-in, opened to customers",
       "Projects, tasks and contracts with real storage",
       "Studio editor and diff review",
       "Sandboxed builds and test runs",
