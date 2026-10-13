@@ -1,0 +1,81 @@
+/*
+ * Proof Atelier design tokens. Source of truth for colour.
+ * tests/design/contrast.test.ts parses this file and enforces WCAG 2.2 AA
+ * contrast for every text and UI pair, in both themes.
+ *
+ * Accent: the spec's ink indigo was replaced by gold measured from the
+ * supplied logo (mean trim colour #D5A76E), because the logo wins over the
+ * default accent. See docs/adr/0007-brand-colour-from-logo.md.
+ */
+
+:root {
+  color-scheme: light;
+
+  --canvas: #f6f6f3;
+  --surface: #fdfdfc;
+  --surface-sunken: #eeeeea;
+  --line: #e2e2dd;
+  --line-strong: #84847d;
+
+  --ink: #141518;
+  --ink-2: #4e5158;
+  --ink-3: #686b72;
+
+  --gold: #a87b3d;
+  --gold-ink: #7a5622;
+  --seal: #a87b3d;
+
+  --primary: #141518;
+  --on-primary: #f6f6f3;
+
+  --verified: #18794e;
+  --approval: #a35200;
+  --failed: #b42318;
+  --info: #1f4fd6;
+  --unverified: #63666e;
+  --simulated: #6941c6;
+
+  --plate-center: #fdfdfc;
+  --plate-edge: #e9e9e4;
+
+  --elev-1: 0 1px 2px rgb(20 21 24 / 0.04);
+  --elev-2: 0 8px 24px -12px rgb(20 21 24 / 0.18);
+  --elev-3: 0 24px 64px -24px rgb(20 21 24 / 0.28);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --canvas: #0b0c0e;
+    --surface: #131418;
+    --surface-sunken: #08090a;
+    --line: #26282e;
+    --line-strong: #6a6d76;
+
+    --ink: #ededea;
+    --ink-2: #a6a8af;
+    --ink-3: #8c8f97;
+
+    --gold: #d5a76e;
+    --gold-ink: #ddb57e;
+    --seal: #d5a76e;
+
+    --primary: #ededea;
+    --on-primary: #0b0c0e;
+
+    --verified: #4ade80;
+    --approval: #fbbf24;
+    --failed: #f97066;
+    --info: #93b4ff;
+    --unverified: #8b8e96;
+    --simulated: #b692f6;
+
+    --plate-center: #3a3b42;
+    --plate-edge: #141519;
+
+    --elev-1: 0 0 0 transparent;
+    --elev-2: 0 0 0 transparent;
+    --elev-3: 0 24px 64px -24px rgb(0 0 0 / 0.6);
+  }
+}

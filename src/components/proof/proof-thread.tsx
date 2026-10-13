@@ -1,0 +1,111 @@
+"use client";
+
+import { CheckIcon, HourglassMediumIcon, XIcon } from "@phosphor-icons/react";
+import { motion, useReducedMotion, type Variants } from "motion/react";
+
+export type ThreadStatus = "verified" | "approval" | "unverified" | "failed";
+
+export interface ThreadStage {
+  key: string;
+  label: string;
+  body: string;
+  status: ThreadStatus;
+}
+
+const STATUS_TEXT: Record<ThreadStatus, string> = {
+  verified: "verified",
+  approval: "awaiting approval",
+  unverified: "not verified yet",
+  failed: "failed",
+};
+
+const SEGMENT: Record<ThreadStatus, string> = {
+  verified: "border-solid border-gold",
+  approval: "border-solid border-approval",
+  unverified: "border-dashed border-unverified",
+  failed: "border-solid border-failed",
+};
+
+function Node({ status }: { status: ThreadStatus }) {
+  const common = "relative z-10 flex size-7 shrink-0 items-center justify-center rounded-full";
+  switch (status) {
+    case "verified":
+      return (
+        <span className={`${common} bg-gold text-canvas`}>
+          <CheckIcon size={15} weight="bold" aria-hidden />
+        </span>
+      );
+    case "approval":
+      return (
+        <span className={`${common} border-[1.5px] border-approval bg-canvas text-approval`}>
+          <HourglassMediumIcon size={15} weight="bold" aria-hidden />
+        </span>
+      );
+    case "failed":
+      return (
+        <span className={`${common} bg-failed text-canvas`}>
+          <XIcon size={15} weight="bold" aria-hidden />
+        </span>
+      );
+    case "unverified":
+      return <span className={`${common} border-[1.5px] border-dashed border-unverified bg-canvas`} aria-hidden />;
+  }
+}
+
+const list: Variants = { hidden: {}, shown: { transition: { staggerChildren: 0.14 } } };
+const item: Variants = { hidden: { opacity: 0 }, shown: { opacity: 1, transition: { duration: 0.22 } } };
+const lineX: Variants = { hidden: { scaleX: 0 }, shown: { scaleX: 1, transition: { duration: 0.36, ease: [0.2, 0, 0, 1] } } };
+const lineY: Variants = { hidden: { scaleY: 0 }, shown: { scaleY: 1, transition: { duration: 0.36, ease: [0.2, 0, 0, 1] } } };
+
+/**
+ * The Proof Thread. Segment style follows the status of the stage it leads to:
+ * solid gold when verified, amber while awaiting approval, dashed while
+ * unverified, red when failed. Horizontal from lg up, vertical below.
+ */
+export function ProofThread({ stages, label }: { stages: ThreadStage[]; label: string }) {
+  const reduce = useReducedMotion();
+
+  return (
+    <motion.ol
+      aria-label={label}
+      className="grid gap-0 lg:grid-cols-6 lg:gap-0"
+      variants={list}
+      initial={reduce ? false : "hidden"}
+      whileInView="shown"
+      viewport={{ once: true, amount: 0.3 }}
+    >
+      {stages.map((stage, i) => {
+        const next = stages[i + 1];
+        return (
+          <motion.li key={stage.key} variants={item} className="grid grid-cols-[28px_1fr] gap-x-4 lg:flex lg:flex-col lg:gap-0">
+            {/* Node and connector */}
+            <div className="flex flex-col items-center lg:flex-row lg:items-center">
+              <Node status={stage.status} />
+              {next ? (
+                <>
+                  <motion.span
+                    aria-hidden
+                    variants={lineY}
+                    className={`my-1 w-0 flex-1 origin-top border-l-[1.5px] lg:hidden ${SEGMENT[next.status]}`}
+                  />
+                  <motion.span
+                    aria-hidden
+                    variants={lineX}
+                    className={`mx-2 hidden h-0 flex-1 origin-left border-t-[1.5px] lg:block ${SEGMENT[next.status]}`}
+                  />
+                </>
+              ) : null}
+            </div>
+            <div className="pb-8 lg:pb-0 lg:pr-6 lg:pt-5">
+              <p className="flex items-baseline gap-2">
+                <span className="text-[17px] font-medium">{stage.label}</span>
+                <span className="font-mono text-xs text-ink-3">{STATUS_TEXT[stage.status]}</span>
+              </p>
+              <p className="mt-1.5 text-[15px] leading-relaxed text-ink-2">{stage.body}</p>
+            </div>
+          </motion.li>
+        );
+      })}
+    </motion.ol>
+  );
+}
