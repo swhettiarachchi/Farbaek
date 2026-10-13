@@ -163,6 +163,15 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
       return (await demoFiles(projectId)).find((f) => f.path === path) ?? null;
     },
 
+    async listProofPacks() {
+      // The demo has no applied changes, so it has no evidence records.
+      return [];
+    },
+
+    async getProofPack() {
+      return null;
+    },
+
     async getLatestProposal(_orgId, taskId) {
       if (taskId !== DEMO_PROPOSAL_TASK_ID) return null;
       const found = built.find((b) => b.task.id === taskId);

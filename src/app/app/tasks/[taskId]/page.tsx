@@ -7,6 +7,7 @@ import { ContractView, contractIntact } from "@/components/app/contract-view";
 import { CancelTaskControl } from "@/components/app/forms";
 import { ChecksList, ExecutionModeBadge } from "@/components/app/execution";
 import { ProposeChange } from "@/components/proposals/propose-change";
+import { ProofPackCard } from "@/components/proof/proofpack-card";
 import { currentExecutionMode } from "@/server/execution/sandbox";
 import { ProposalReview } from "@/components/proposals/proposal-review";
 import { Card, TaskStateBadge } from "@/components/app/primitives";
@@ -33,7 +34,12 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
   if (!found) notFound();
   const { task, history } = found;
   const orgId = ctx.current.id;
-  const [contract, ai, proposal] = await Promise.all([ctx.reader.getContract(orgId, task.id), loadAiAvailability(ctx, ctx.current), ctx.reader.getLatestProposal(orgId, task.id)]);
+  const [contract, ai, proposal, proofPacks] = await Promise.all([
+    ctx.reader.getContract(orgId, task.id),
+    loadAiAvailability(ctx, ctx.current),
+    ctx.reader.getLatestProposal(orgId, task.id),
+    ctx.reader.listProofPacks(orgId, task.id),
+  ]);
   const canPropose = task.state === "CONTRACT_APPROVED";
   const execution = currentExecutionMode();
   const showVerification = task.state === "VERIFYING" || (proposal?.status === "applied" && !TERMINAL_STATES.has(task.state));
@@ -163,6 +169,22 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
           </p>
           <div className="mt-4">
             <ChecksList checks={contract?.body.requiredChecks ?? []} mode={execution} />
+          </div>
+        </Card>
+      ) : null}
+
+      {proofPacks.length ? (
+        <Card>
+          <h2 className="text-lg font-medium">Evidence</h2>
+          <p className="mt-1 text-sm text-ink-2">
+            Each applied change is recorded as a ProofPack: an in-toto attestation of what was approved and applied, and what it does and doesn&apos;t prove.
+          </p>
+          <div className="mt-5 grid gap-6 divide-y divide-line">
+            {proofPacks.map((p) => (
+              <div key={p.digest} className="pt-6 first:pt-0">
+                <ProofPackCard pack={p} />
+              </div>
+            ))}
           </div>
         </Card>
       ) : null}

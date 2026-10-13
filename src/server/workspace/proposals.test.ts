@@ -12,6 +12,7 @@ import type { WriteDeps } from "./use-cases";
 
 const fake = (...parts: string[]) => parts.join("");
 const USAGE = { model: "claude-opus-5-5", inputTokens: 4000, outputTokens: 900 };
+const REVIEW_ONLY = { mode: "review_only" as const, reason: "No isolated sandbox is connected yet." };
 
 const contract: IntentContract = {
   schema: INTENT_CONTRACT_SCHEMA,
@@ -91,9 +92,13 @@ function fakeDeps(
               { path: "src/lib/new.ts", kind: "create", baseRevision: 0, content: "y", sha256: "d".repeat(64), reason: "" },
             ] as ProposedChange[],
             policyOutcome: "REQUIRE_APPROVAL",
+            contractVersion: 1,
+            model: "claude-opus-5-5",
+            policy: { outcome: "REQUIRE_APPROVAL", version: "e".repeat(64), findings: [] },
             ...over.proposal,
           },
     applyProposal: async (input) => (calls.push({ name: "apply", input }), over.applyError ? { ok: false, error: over.applyError } : { ok: true, value: input.files.length }),
+    latestProofPackDigest: async () => "9".repeat(64),
     discardProposal: async (input) => (calls.push({ name: "discard", input }), { ok: true, value: null }),
     newEventId: () => `e${++n}`,
     now: () => new Date("2026-10-13T10:00:00Z"),
@@ -164,7 +169,7 @@ describe("proposeChange", () => {
 
 describe("applyProposal", () => {
   const apply = (deps: Parameters<typeof applyProposal>[0], files: { path: string; content: string }[], reviewedSha256 = "a".repeat(64)) =>
-    applyProposal(deps, { orgId: "o1", userId: "u1", proposalId: "prop-1", reviewedSha256, files });
+    applyProposal(deps, { orgId: "o1", userId: "u1", proposalId: "prop-1", reviewedSha256, files, execution: REVIEW_ONLY });
 
   it("applies the accepted content, skips rejected new files, and binds the approval to a hash", async () => {
     const { deps, calls } = fakeDeps({ state: "APPROVAL_PENDING" });
@@ -228,8 +233,44 @@ describe("policy and metering", () => {
   it("lets only an owner or admin apply an escalated proposal", async () => {
     const files = [{ path: "src/lib/cart.ts", content: "accepted" }];
     const apply = (role: OrgRole) =>
-      applyProposal(fakeDeps({ state: "APPROVAL_PENDING", role, proposal: { policyOutcome: "ESCALATE" } }).deps, { orgId: "o1", userId: "u1", proposalId: "prop-1", reviewedSha256: "a".repeat(64), files });
+      applyProposal(fakeDeps({ state: "APPROVAL_PENDING", role, proposal: { policyOutcome: "ESCALATE" } }).deps, { orgId: "o1", userId: "u1", proposalId: "prop-1", reviewedSha256: "a".repeat(64), files, execution: REVIEW_ONLY });
     expect(await apply("member")).toMatchObject({ code: "APPROVER_ROLE_REQUIRED" });
     expect(await apply("admin")).toMatchObject({ ok: true });
+  });
+});
+
+describe("ProofPack on apply", () => {
+  it("records an unverified, chained ProofPack bound to this proposal and approval", async () => {
+    const { deps, calls } = fakeDeps({ state: "APPROVAL_PENDING" });
+    const result = await applyProposal(deps, {
+      orgId: "o1",
+      userId: "u1",
+      proposalId: "prop-1",
+      reviewedSha256: "a".repeat(64),
+      files: [{ path: "src/lib/cart.ts", content: "accepted" }],
+      execution: REVIEW_ONLY,
+    });
+    expect(result).toMatchObject({ ok: true, value: { proofPackDigest: expect.stringMatching(/^[0-9a-f]{64}$/) } });
+    const sent = calls.find((c) => c.name === "apply")!.input;
+    expect(sent.proofpackStatus).toBe("unverified");
+    expect(sent.proofpack).toMatchObject({
+      _type: "https://in-toto.io/Statement/v1",
+      subject: [{ name: "src/lib/cart.ts" }],
+      predicate: {
+        status: "unverified",
+        proposal: { id: "prop-1", sha256: "a".repeat(64) },
+        approval: { approvedBy: "u1", appliedSha256: result.ok ? result.value.appliedSha256 : "" },
+        contract: { version: 1, sha256: "c".repeat(64) },
+        previous: "9".repeat(64),
+        execution: REVIEW_ONLY,
+      },
+    });
+    expect(sent.proofpackDigest).toBe(result.ok ? result.value.proofPackDigest : "");
+  });
+
+  it("refuses to apply when the approved contract changed since the proposal", async () => {
+    const { deps } = fakeDeps({ state: "APPROVAL_PENDING", proposal: { contractVersion: 7 } });
+    const r = await applyProposal(deps, { orgId: "o1", userId: "u1", proposalId: "prop-1", reviewedSha256: "a".repeat(64), files: [{ path: "src/lib/cart.ts", content: "x" }], execution: REVIEW_ONLY });
+    expect(r).toMatchObject({ ok: false, code: "CONTRACT_CHANGED" });
   });
 });

@@ -44,6 +44,8 @@ export type WriteErrorCode =
   | "NOTHING_TO_APPLY"
   | "EVALUATION_LIMIT"
   | "APPROVER_ROLE_REQUIRED"
+  | "PROOFPACK_CHAIN"
+  | "INVALID_PROOFPACK"
   | "AI_UNAVAILABLE"
   | "AI_REFUSED"
   | "AI_INCOMPLETE"
@@ -133,6 +135,8 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   NOTHING_TO_APPLY: "Every change was rejected, so there's nothing to apply. Discard the proposal instead.",
   EVALUATION_LIMIT: "This workspace has used its governed evaluations for the period, so new proposals are paused until it resets or the plan changes.",
   APPROVER_ROLE_REQUIRED: "The policy escalated this change, so an owner or admin has to approve it.",
+  PROOFPACK_CHAIN: "Another change in this project was recorded at the same moment. Reload and approve again.",
+  INVALID_PROOFPACK: "The evidence record for this change didn't match it, so nothing was applied.",
   AI_UNAVAILABLE: "AI isn't available right now.",
   AI_REFUSED: "The model declined to draft this contract. Write it yourself, or reword the task and try again.",
   AI_INCOMPLETE: "The draft came back incomplete. Try again, or write the contract yourself.",
@@ -164,6 +168,8 @@ export function codeFromDatabaseError(message: string): WriteErrorCode {
     "NOTHING_TO_APPLY",
     "EVALUATION_LIMIT",
     "APPROVER_ROLE_REQUIRED",
+    "PROOFPACK_CHAIN",
+    "INVALID_PROOFPACK",
   ] as const) {
     if (message.includes(code)) return code;
   }

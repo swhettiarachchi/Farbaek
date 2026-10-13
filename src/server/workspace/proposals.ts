@@ -26,6 +26,8 @@ import { checkQuota } from "@/core/billing/entitlements";
 import { resolveEffectivePlan } from "@/core/billing/trial";
 import { usagePeriod, type BillingPeriod } from "@/core/billing/usage";
 import { evaluateChangePolicy, type PolicyDecision } from "@/core/trust/policy";
+import type { ExecutionMode } from "@/core/execution/sandbox";
+import { buildProofPack, proofPackDigest } from "@/core/proof/proofpack";
 import { MANAGER_ROLES } from "./types";
 import type { TaskEventType, TaskState } from "@/core/realityloop/task-machine";
 import { sha256Hex } from "@/core/trust/canonical-json";
@@ -46,6 +48,9 @@ export interface StoredProposal {
   sha256: string;
   changes: ProposedChange[];
   policyOutcome: string | null;
+  contractVersion: number;
+  model: string | null;
+  policy: { outcome: string; version: string; findings: { rule: string; outcome: string; detail: string }[] } | null;
 }
 
 export interface ProposalDeps {
@@ -70,7 +75,19 @@ export interface ProposalDeps {
     period: BillingPeriod;
   }): Promise<RpcResult<string>>;
   loadProposal(orgId: string, proposalId: string): Promise<StoredProposal | null>;
-  applyProposal(input: { proposalId: string; actor: string; files: { path: string; content: string }[]; appliedSha256: string; expectedTaskVersion: number; steps: TransitionStep[] }): Promise<RpcResult<number>>;
+  applyProposal(input: {
+    proposalId: string;
+    actor: string;
+    files: { path: string; content: string }[];
+    appliedSha256: string;
+    expectedTaskVersion: number;
+    steps: TransitionStep[];
+    proofpack: object;
+    proofpackDigest: string;
+    proofpackStatus: string;
+  }): Promise<RpcResult<number>>;
+  /** Digest of the project's latest ProofPack, or null for the first. */
+  latestProofPackDigest(orgId: string, projectId: string): Promise<string | null>;
   discardProposal(input: { proposalId: string; actor: string; expectedTaskVersion: number; steps: TransitionStep[] }): Promise<RpcResult<null>>;
 }
 
@@ -194,8 +211,8 @@ export async function proposeChange(
 
 export async function applyProposal(
   deps: Deps,
-  input: { orgId: string; userId: string; proposalId: string; reviewedSha256: string; files: { path: string; content: string }[] },
-): Promise<WriteResult<{ written: number; appliedSha256: string }>> {
+  input: { orgId: string; userId: string; proposalId: string; reviewedSha256: string; files: { path: string; content: string }[]; execution: ExecutionMode },
+): Promise<WriteResult<{ written: number; appliedSha256: string; proofPackDigest: string }>> {
   const role = await requireContributor(deps, input.orgId);
   if (!role.ok) return role;
   const proposal = await deps.loadProposal(input.orgId, input.proposalId);
@@ -228,6 +245,27 @@ export async function applyProposal(
   ]);
   if (!planned.ok) return fail(planned.code);
 
+  // The evidence record for exactly this application. Checks haven't run at
+  // this point (they need a sandbox), so the ProofPack starts unverified.
+  const contract = await deps.approvedContract(input.orgId, task.id);
+  if (!contract || contract.version !== proposal.contractVersion) return fail("CONTRACT_CHANGED");
+  const statement = buildProofPack({
+    task: { id: task.id, organizationId: input.orgId, projectId: proposal.projectId },
+    contract: { version: contract.version, sha256: contract.sha256 },
+    proposal: { id: proposal.id, sha256: proposal.sha256, model: proposal.model },
+    policy: proposal.policy,
+    approval: { approvedBy: input.userId, approvedAt: deps.now().toISOString(), appliedSha256 },
+    files: files.map((f) => {
+      const change = byPath.get(f.path)!;
+      return { path: f.path, kind: change.kind, baseRevision: change.baseRevision, sha256: f.sha256 };
+    }),
+    checks: contract.body.requiredChecks.map((c) => ({ name: c, command: c, exitCode: null })),
+    execution: input.execution,
+    createdAt: deps.now().toISOString(),
+    previous: await deps.latestProofPackDigest(input.orgId, proposal.projectId),
+  });
+  const digest = await proofPackDigest(statement);
+
   const result = await deps.applyProposal({
     proposalId: proposal.id,
     actor: input.userId,
@@ -235,12 +273,15 @@ export async function applyProposal(
     appliedSha256,
     expectedTaskVersion: task.version,
     steps: planned.steps,
+    proofpack: statement,
+    proofpackDigest: digest,
+    proofpackStatus: statement.predicate.status,
   });
   if (!result.ok) {
     const code = codeFromDatabaseError(result.error);
     return fail(code, code === "FILE_CHANGED" ? "A file changed after this proposal was made. Discard it and propose again." : MESSAGES[code]);
   }
-  return { ok: true, value: { written: result.value, appliedSha256 } };
+  return { ok: true, value: { written: result.value, appliedSha256, proofPackDigest: digest } };
 }
 
 export async function discardProposal(deps: Deps, input: { orgId: string; userId: string; proposalId: string }): Promise<WriteResult<null>> {

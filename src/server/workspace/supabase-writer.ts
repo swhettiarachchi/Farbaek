@@ -249,7 +249,18 @@ export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseCli
       if (!data) return null;
       const row = ProposalRowSchema.parse(data);
       const record = proposalFromRow(row);
-      return { id: row.id, taskId: row.task_id, projectId: row.project_id, status: row.status, sha256: row.sha256, changes: record.changes, policyOutcome: record.policy?.outcome ?? null };
+      return {
+        id: row.id,
+        taskId: row.task_id,
+        projectId: row.project_id,
+        status: row.status,
+        sha256: row.sha256,
+        changes: record.changes,
+        policyOutcome: record.policy?.outcome ?? null,
+        contractVersion: record.contractVersion,
+        model: record.model,
+        policy: record.policy,
+      };
     },
 
     applyProposal: (i) =>
@@ -265,9 +276,18 @@ export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseCli
           p_max_file_bytes: WORKSPACE_LIMITS.maxFileBytes,
           p_max_project_bytes: WORKSPACE_LIMITS.maxProjectBytes,
           p_max_files: WORKSPACE_LIMITS.maxProjectFiles,
+          p_proofpack: i.proofpack,
+          p_proofpack_digest: i.proofpackDigest,
+          p_proofpack_status: i.proofpackStatus,
         },
         z.number().int(),
       ),
+
+    async latestProofPackDigest(orgId, projectId) {
+      const { data, error } = await user.from("proofpacks").select("digest").eq("org_id", orgId).eq("project_id", projectId).order("seq", { ascending: false }).limit(1).maybeSingle();
+      if (error) throw new Error(`Couldn't read the latest ProofPack: ${error.message}`);
+      return data ? z.object({ digest: z.string() }).parse(data).digest : null;
+    },
 
     discardProposal: (i) =>
       rpc(

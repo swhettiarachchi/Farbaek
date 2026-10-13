@@ -199,6 +199,33 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
       return row ? { path: row.path, revision: row.revision, sizeBytes: row.size_bytes, sha256: row.sha256, content: row.content, updatedAt: row.updated_at } : null;
     },
 
+    async listProofPacks(orgId, taskId) {
+      if (!z.uuid().safeParse(taskId).success) return [];
+      const { data, error } = await client
+        .from("proofpacks")
+        .select("digest, status, statement, previous, created_at")
+        .eq("org_id", orgId)
+        .eq("task_id", taskId)
+        .order("seq", { ascending: false })
+        .limit(20);
+      if (error) fail("ProofPacks", error);
+      return z
+        .array(z.object({ digest: z.string(), status: z.enum(["unverified", "partially_verified", "verified", "failed"]), statement: z.unknown(), previous: z.string().nullable(), created_at: z.string() }))
+        .parse(data)
+        .map((r) => ({ digest: r.digest, status: r.status, statement: r.statement, previous: r.previous, createdAt: r.created_at }));
+    },
+
+    async getProofPack(orgId, digest) {
+      if (!/^[0-9a-f]{64}$/.test(digest)) return null;
+      const { data, error } = await client.from("proofpacks").select("digest, status, statement, previous, created_at").eq("org_id", orgId).eq("digest", digest).maybeSingle();
+      if (error) fail("ProofPack", error);
+      if (!data) return null;
+      const r = z
+        .object({ digest: z.string(), status: z.enum(["unverified", "partially_verified", "verified", "failed"]), statement: z.unknown(), previous: z.string().nullable(), created_at: z.string() })
+        .parse(data);
+      return { digest: r.digest, status: r.status, statement: r.statement, previous: r.previous, createdAt: r.created_at };
+    },
+
     async getLatestProposal(orgId, taskId) {
       if (!z.uuid().safeParse(taskId).success) return null;
       const { data, error } = await client

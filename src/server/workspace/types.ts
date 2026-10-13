@@ -134,6 +134,14 @@ export function proposalFromRow(row: z.infer<typeof ProposalRowSchema>): Proposa
   };
 }
 
+export interface ProofPackRecord {
+  digest: string;
+  status: "unverified" | "partially_verified" | "verified" | "failed";
+  statement: unknown;
+  previous: string | null;
+  createdAt: string;
+}
+
 export interface ProjectFile {
   path: string;
   revision: number;
@@ -180,6 +188,9 @@ export interface WorkspaceReader {
   getFileRevision(orgId: string, projectId: string, path: string, revision: number): Promise<string | null>;
   /** Case-insensitive plain-text search; at most 200 matching lines. */
   searchFiles(orgId: string, projectId: string, query: string): Promise<SearchHit[]>;
+  /** ProofPacks recorded for a task, newest first. */
+  listProofPacks(orgId: string, taskId: string): Promise<ProofPackRecord[]>;
+  getProofPack(orgId: string, digest: string): Promise<ProofPackRecord | null>;
   /** The most recent change proposal for a task, or null. */
   getLatestProposal(orgId: string, taskId: string): Promise<ProposalRecord | null>;
   /** The latest contract version for a task, or null when none has been written. */

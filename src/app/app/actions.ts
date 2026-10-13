@@ -18,6 +18,7 @@ import { WORKSPACE_LIMITS } from "@/config/workspace";
 import { createAnthropicChangeProposer, createAnthropicContractDrafter } from "@/server/ai/anthropic";
 import { MAX_CONTEXT_FILES, applyProposal, discardProposal, proposeChange, type ProposalDeps } from "@/server/workspace/proposals";
 import { hasAnthropicKey } from "@/server/ai/config";
+import { currentExecutionMode } from "@/server/execution/sandbox";
 
 export type FormState = { status: "idle" } | { status: "error"; message: string; values?: Record<string, string> } | { status: "done"; message: string };
 
@@ -335,7 +336,7 @@ export async function applyProposalAction(input: { proposalId: string; reviewedS
   const ctx = await requireContext();
   const w = await writeDeps(ctx);
   if ("error" in w) return { status: "error", message: w.error };
-  const result = await applyProposal(w.deps, { orgId: w.orgId, userId: ctx.user.id, ...parsed.data });
+  const result = await applyProposal(w.deps, { orgId: w.orgId, userId: ctx.user.id, ...parsed.data, execution: currentExecutionMode() });
   if (!result.ok) return { status: "error", message: result.message };
   revalidatePath("/app", "layout");
   return { status: "done", written: result.value.written };

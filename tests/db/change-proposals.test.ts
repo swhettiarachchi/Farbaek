@@ -90,9 +90,50 @@ async function propose(
   return rows[0]!.id;
 }
 
-async function apply(proposal: string, task: string, files: { path: string; content: string }[], actor: string = USERS.alice) {
+async function latestProofPack(): Promise<string | null> {
+  return (await q<{ digest: string }>("select digest from public.proofpacks where project_id = $1 order by seq desc limit 1", [project]))[0]?.digest ?? null;
+}
+
+/** A minimal statement that satisfies the database's consistency checks. */
+async function statementFor(proposal: string, files: { path: string; content: string }[], over: { previous?: string | null; proposalId?: string; status?: string } = {}) {
+  const statement = {
+    _type: "https://in-toto.io/Statement/v1",
+    subject: files.map((f) => ({ name: f.path, digest: { sha256: sha(f.content) } })),
+    predicateType: "https://farbaek.dev/proofpack/v1",
+    predicate: {
+      status: over.status ?? "unverified",
+      proposal: { id: over.proposalId ?? proposal },
+      approval: { appliedSha256: H("a") },
+      previous: over.previous === undefined ? await latestProofPack() : over.previous,
+      nonce: ++seq,
+    },
+  };
+  return { statement, digest: sha(JSON.stringify(statement)) };
+}
+
+async function apply(
+  proposal: string,
+  task: string,
+  files: { path: string; content: string }[],
+  actor: string = USERS.alice,
+  pack?: { statement: object; digest: string; status?: string },
+) {
   const { version } = await taskState(task);
-  return (await q<{ n: number }>("select public.app_apply_proposal($1, $2, $3, $4, $5, $6, $7, $8, $9) as n", [proposal, actor, JSON.stringify(files), H("a"), version, JSON.stringify(APPLY()), ...LIMITS]))[0]!.n;
+  const p: { statement: object; digest: string; status?: string } = pack ?? (await statementFor(proposal, files));
+  return (
+    await q<{ n: number }>("select public.app_apply_proposal($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) as n", [
+      proposal,
+      actor,
+      JSON.stringify(files),
+      H("a"),
+      version,
+      JSON.stringify(APPLY()),
+      ...LIMITS,
+      JSON.stringify(p.statement),
+      p.digest,
+      p.status ?? "unverified",
+    ])
+  )[0]!.n;
 }
 
 async function discard(proposal: string, task: string, from = "APPROVAL_PENDING") {
@@ -234,6 +275,49 @@ describe("policy and metering (migration 7)", () => {
     expect(await apply(id, task, [{ path: "package.json", content: "{}\n" }], USERS.alice)).toBe(1);
     // Keep Bob outside Alice's organization for the isolation tests that follow.
     await q("delete from public.organization_members where org_id = $1 and user_id = $2", [org, USERS.bob]);
+  });
+});
+
+describe("ProofPacks (migration 8)", () => {
+  it("records the ProofPack with the application, chained to the project's previous one", async () => {
+    const task = await approvedTask("Evidence");
+    const id = await propose(task, [change("src/evidence.ts", "export const e = 1;\n", 0)]);
+    const before = await latestProofPack();
+    const files = [{ path: "src/evidence.ts", content: "export const e = 1;\n" }];
+    const pack = await statementFor(id, files);
+    expect(await apply(id, task, files, USERS.alice, pack)).toBe(1);
+    const [row] = await q<{ digest: string; status: string; previous: string | null; task_id: string }>(
+      "select digest, status, previous, task_id from public.proofpacks where proposal_id = $1",
+      [id],
+    );
+    expect(row).toEqual({ digest: pack.digest, status: "unverified", previous: before, task_id: task });
+    expect((await asUser(USERS.alice, () => db.query("select digest from public.proofpacks where digest = $1", [pack.digest]))).rows).toHaveLength(1);
+    expect((await asUser(USERS.bob, () => db.query("select digest from public.proofpacks where digest = $1", [pack.digest]))).rows).toHaveLength(0);
+  });
+
+  it("refuses a broken chain, a statement for another proposal, or a status mismatch, applying nothing", async () => {
+    const task = await approvedTask("Bad evidence");
+    const id = await propose(task, [change("src/bad-evidence.ts", "x\n", 0)]);
+    const files = [{ path: "src/bad-evidence.ts", content: "x\n" }];
+    await expect(apply(id, task, files, USERS.alice, await statementFor(id, files, { previous: H("9") }))).rejects.toThrow(/PROOFPACK_CHAIN/);
+    await expect(apply(id, task, files, USERS.alice, await statementFor(id, files, { proposalId: "someone-else" }))).rejects.toThrow(/INVALID_PROOFPACK/);
+    await expect(apply(id, task, files, USERS.alice, { ...(await statementFor(id, files)), status: "verified" })).rejects.toThrow(/INVALID_PROOFPACK/);
+    expect((await taskState(task)).state).toBe("APPROVAL_PENDING");
+    expect(await fileRevision("src/bad-evidence.ts")).toBe(0);
+  });
+
+  it("never lets a ProofPack change, even for the server", async () => {
+    const [row] = await q<{ digest: string }>("select digest from public.proofpacks limit 1");
+    await expect(q("update public.proofpacks set status = 'verified' where digest = $1", [row!.digest])).rejects.toThrow(/PROOFPACK_IMMUTABLE/);
+    await expect(asUser(USERS.alice, () => db.query("update public.proofpacks set status = 'verified'"))).rejects.toThrow(/permission denied/);
+  });
+
+  it("goes away with its task, without tripping the no-update rule", async () => {
+    const task = await approvedTask("Removable");
+    const id = await propose(task, [change("src/removable.ts", "r\n", 0)]);
+    await apply(id, task, [{ path: "src/removable.ts", content: "r\n" }]);
+    await q("delete from public.tasks where id = $1", [task]);
+    expect(await q("select digest from public.proofpacks where task_id = $1", [task])).toEqual([]);
   });
 });
 
