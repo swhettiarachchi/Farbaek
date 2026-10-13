@@ -45,8 +45,8 @@ export default async function MissionControl() {
     {
       label: "Approve an intent contract",
       done: tasks.some((t) => PAST_CONTRACT.has(t.state)),
-      href: null,
-      locked: "Opens with Studio in Stage 2.",
+      href: tasks.find((t) => ["RECEIVED", "CONTEXT_ASSEMBLED", "CONTRACT_DRAFTED"].includes(t.state)) ? `/app/tasks/${tasks.find((t) => ["RECEIVED", "CONTEXT_ASSEMBLED", "CONTRACT_DRAFTED"].includes(t.state))!.id}` : "/app/tasks",
+      locked: null,
     },
     { label: "Get your first verified ProofPack", done: tasks.some((t) => t.state === "VERIFIED"), href: null, locked: "Opens with Trust in Stage 3." },
   ];

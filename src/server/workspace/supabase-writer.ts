@@ -43,13 +43,14 @@ export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseCli
     async loadTask(orgId, taskId) {
       if (!z.uuid().safeParse(taskId).success) return null;
       const [{ data: task }, { data: history }] = await Promise.all([
-        user.from("tasks").select("id, state, version").eq("org_id", orgId).eq("id", taskId).maybeSingle(),
+        user.from("tasks").select("id, project_id, state, version").eq("org_id", orgId).eq("id", taskId).maybeSingle(),
         user.from("task_transitions").select("event_id").eq("org_id", orgId).eq("task_id", taskId),
       ]);
-      const parsed = z.object({ id: z.string(), state: z.enum(TASK_STATES), version: z.number().int() }).safeParse(task);
+      const parsed = z.object({ id: z.string(), project_id: z.string(), state: z.enum(TASK_STATES), version: z.number().int() }).safeParse(task);
       if (!parsed.success) return null;
       const eventIds = z.array(z.object({ event_id: z.string() })).catch([]).parse(history).map((h) => h.event_id);
-      return { ...parsed.data, eventIds };
+      const { project_id, ...rest } = parsed.data;
+      return { ...rest, projectId: project_id, eventIds };
     },
 
     createProject: (i) =>
@@ -72,6 +73,35 @@ export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseCli
           p_expected_version: i.expectedVersion,
         },
         z.number().int(),
+      ),
+
+    saveContract: (i) =>
+      rpc(
+        "app_save_contract",
+        {
+          p_task: i.taskId,
+          p_actor: i.actor,
+          p_body: i.body,
+          p_sha256: i.sha256,
+          p_based_on: i.basedOn,
+          p_expected_task_version: i.expectedTaskVersion,
+          p_steps: i.steps,
+        },
+        z.number().int(),
+      ),
+
+    approveContract: (i) =>
+      rpc(
+        "app_approve_contract",
+        {
+          p_task: i.taskId,
+          p_actor: i.actor,
+          p_version: i.version,
+          p_sha256: i.sha256,
+          p_expected_task_version: i.expectedTaskVersion,
+          p_steps: i.steps,
+        },
+        z.null().or(z.literal("")).transform(() => null),
       ),
 
     newEventId: () => crypto.randomUUID(),

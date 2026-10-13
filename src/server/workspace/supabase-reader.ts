@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { IntentContractSchema } from "@/core/realityloop/contract";
 import { ORGANIZATION_SELECT, summarizeOrganizations } from "./organizations";
 import {
   MemberRow,
@@ -124,6 +125,31 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
           at: t.occurred_at,
         }));
       return { task: toTask(TaskWithProject.parse(row)), history };
+    },
+
+    async getContract(orgId, taskId) {
+      if (!z.uuid().safeParse(taskId).success) return null;
+      const { data, error } = await client
+        .from("intent_contracts")
+        .select("version, status, sha256, body, created_at, approved_at")
+        .eq("org_id", orgId)
+        .eq("task_id", taskId)
+        .order("version", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) fail("the contract", error);
+      if (!data) return null;
+      const row = z
+        .object({
+          version: z.number().int(),
+          status: z.enum(["draft", "approved", "superseded"]),
+          sha256: z.string(),
+          body: IntentContractSchema,
+          created_at: z.string(),
+          approved_at: z.string().nullable(),
+        })
+        .parse(data);
+      return { version: row.version, status: row.status, sha256: row.sha256, body: row.body, createdAt: row.created_at, approvedAt: row.approved_at };
     },
 
     async countEvaluations(orgId, from, to) {

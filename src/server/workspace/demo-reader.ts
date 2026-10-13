@@ -1,6 +1,8 @@
 import { TRIAL } from "@/core/billing/catalog";
 import { resolveEffectivePlan, trialPhase, trialWindow } from "@/core/billing/trial";
+import { contractHash, type IntentContract } from "@/core/realityloop/contract";
 import type { TaskState } from "@/core/realityloop/task-machine";
+import { SAMPLE_CONTRACT } from "@/content/samples";
 import {
   DEMO_EVALUATIONS_THIS_PERIOD,
   DEMO_MEMBERS,
@@ -12,7 +14,7 @@ import {
   DEMO_USER,
   demoEventType,
 } from "@/content/demo-workspace";
-import type { Project, Task, Transition, WorkspaceReader } from "./types";
+import type { ContractRecord, Project, Task, Transition, WorkspaceReader } from "./types";
 
 /**
  * Read-only sample workspace. Timestamps are relative to "now" so the trial
@@ -96,6 +98,28 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
 
     async getTask(_orgId, taskId) {
       return built.find((b) => b.task.id === taskId) ?? null;
+    },
+
+    async getContract(_orgId, taskId) {
+      const found = built.find((b) => b.task.id === taskId);
+      const drafted = found?.history.find((h) => h.to === "CONTRACT_DRAFTED");
+      if (!found || !drafted) return null;
+      const approved = found.history.find((h) => h.to === "CONTRACT_APPROVED");
+      const body: IntentContract = {
+        ...SAMPLE_CONTRACT,
+        version: 1,
+        outcome: found.task.title,
+        scope: { organizationId: DEMO_ORG_ID, projectId: found.task.projectId, resources: SAMPLE_CONTRACT.scope.resources },
+      };
+      const record: ContractRecord = {
+        version: 1,
+        status: approved ? "approved" : "draft",
+        sha256: await contractHash(body),
+        body,
+        createdAt: drafted.at,
+        approvedAt: approved?.at ?? null,
+      };
+      return record;
     },
 
     async countEvaluations() {

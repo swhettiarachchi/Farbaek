@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { IntentContract } from "@/core/realityloop/contract";
 import { TASK_STATES } from "@/core/realityloop/task-machine";
 import type { WorkspaceSummary } from "./organizations";
 
@@ -62,6 +63,17 @@ export type Transition = {
   at: string;
 };
 
+export type ContractStatus = "draft" | "approved" | "superseded";
+
+export interface ContractRecord {
+  version: number;
+  status: ContractStatus;
+  sha256: string;
+  body: IntentContract;
+  createdAt: string;
+  approvedAt: string | null;
+}
+
 export interface WorkspaceReader {
   mode: "live" | "demo";
   listWorkspaces(): Promise<WorkspaceSummary[]>;
@@ -71,4 +83,6 @@ export interface WorkspaceReader {
   listTasks(orgId: string, options?: { projectId?: string; limit?: number }): Promise<Task[]>;
   getTask(orgId: string, taskId: string): Promise<{ task: Task; history: Transition[] } | null>;
   countEvaluations(orgId: string, from: Date, to: Date): Promise<number>;
+  /** The latest contract version for a task, or null when none has been written. */
+  getContract(orgId: string, taskId: string): Promise<ContractRecord | null>;
 }

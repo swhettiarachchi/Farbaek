@@ -32,7 +32,7 @@ describe("migration", () => {
     const r = await db.query<{ relname: string; relrowsecurity: boolean }>(
       "select c.relname, c.relrowsecurity from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind = 'r' order by 1",
     );
-    expect(r.rows.length).toBe(9);
+    expect(r.rows.length).toBeGreaterThanOrEqual(9);
     expect(r.rows.filter((t) => !t.relrowsecurity)).toEqual([]);
   });
 

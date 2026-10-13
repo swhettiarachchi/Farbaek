@@ -10,7 +10,8 @@ import { WORKSPACE_COOKIE, isDemoMode, loadAppContext, type AppContext } from "@
 import { mapCreateOrganizationError } from "@/server/workspace/organizations";
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
 import { MANAGER_ROLES } from "@/server/workspace/types";
-import { cancelTask, createProject, createTask, type WriteDeps } from "@/server/workspace/use-cases";
+import { EMPTY_CONTRACT_FORM, type ContractFormValues } from "@/core/realityloop/contract-form";
+import { approveContract, cancelTask, createProject, createTask, saveContract, type WriteDeps } from "@/server/workspace/use-cases";
 
 export type FormState = { status: "idle" } | { status: "error"; message: string; values?: Record<string, string> } | { status: "done"; message: string };
 
@@ -104,6 +105,48 @@ export async function cancelTaskAction(_previous: FormState, form: FormData): Pr
   if (!result.ok) return { status: "error", message: result.message };
   revalidatePath("/app", "layout");
   return { status: "done", message: "Task cancelled." };
+}
+
+function contractValues(form: FormData): ContractFormValues {
+  const values = { ...EMPTY_CONTRACT_FORM };
+  for (const key of Object.keys(values) as (keyof ContractFormValues)[]) values[key] = String(form.get(key) ?? "").slice(0, 4000);
+  return values;
+}
+
+export async function saveContractAction(_previous: FormState, form: FormData): Promise<FormState> {
+  const values = contractValues(form);
+  const taskId = String(form.get("taskId") ?? "");
+  const expectedTaskVersion = Number(form.get("expectedTaskVersion"));
+  const basedOn = Number(form.get("basedOn"));
+  if (![expectedTaskVersion, basedOn].every((n) => Number.isInteger(n) && n >= 0)) {
+    return { status: "error", message: "Reload the page and try again.", values: { ...values } };
+  }
+
+  const ctx = await requireContext();
+  const w = await writeDeps(ctx);
+  if ("error" in w) return { status: "error", message: w.error, values: { ...values } };
+
+  const result = await saveContract(w.deps, { orgId: w.orgId, userId: ctx.user.id, taskId, expectedTaskVersion, basedOn, form: values });
+  if (!result.ok) return { status: "error", message: result.message, values: { ...values } };
+  revalidatePath("/app", "layout");
+  return { status: "done", message: `Contract version ${result.value} saved. Review it, then approve this exact version.` };
+}
+
+export async function approveContractAction(_previous: FormState, form: FormData): Promise<FormState> {
+  const taskId = String(form.get("taskId") ?? "");
+  const expectedTaskVersion = Number(form.get("expectedTaskVersion"));
+  const version = Number(form.get("version"));
+  const sha256 = String(form.get("sha256") ?? "");
+  if (![expectedTaskVersion, version].every((n) => Number.isInteger(n) && n >= 0)) return { status: "error", message: "Reload the page and try again." };
+
+  const ctx = await requireContext();
+  const w = await writeDeps(ctx);
+  if ("error" in w) return { status: "error", message: w.error };
+
+  const result = await approveContract(w.deps, { orgId: w.orgId, userId: ctx.user.id, taskId, expectedTaskVersion, version, sha256 });
+  if (!result.ok) return { status: "error", message: result.message };
+  revalidatePath("/app", "layout");
+  return { status: "done", message: "Contract approved." };
 }
 
 export async function renameWorkspaceAction(_previous: FormState, form: FormData): Promise<FormState> {

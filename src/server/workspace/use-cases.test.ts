@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { trialWindow, type BillingSnapshot } from "@/core/billing/trial";
 import type { TaskState } from "@/core/realityloop/task-machine";
 import type { OrgRole } from "./types";
-import { cancelTask, codeFromDatabaseError, createProject, createTask, type WriteDeps } from "./use-cases";
+import { EMPTY_CONTRACT_FORM, type ContractFormValues } from "@/core/realityloop/contract-form";
+import { approveContract, cancelTask, codeFromDatabaseError, createProject, createTask, saveContract, type WriteDeps } from "./use-cases";
 
 const NOW = new Date("2026-10-14T10:00:00.000Z");
 
@@ -10,7 +11,7 @@ function fakeDeps(over: {
   role?: OrgRole | null;
   billing?: BillingSnapshot | null;
   projects?: number;
-  task?: { id: string; state: TaskState; version: number; eventIds: string[] } | null;
+  task?: { id: string; projectId?: string; state: TaskState; version: number; eventIds: string[] } | null;
   rpcError?: string;
 } = {}) {
   const calls: { name: string; input: unknown }[] = [];
@@ -18,11 +19,17 @@ function fakeDeps(over: {
     role: async () => (over.role === undefined ? "owner" : over.role),
     billing: async () => (over.billing === undefined ? { state: "free" } : over.billing),
     countActiveProjects: async () => over.projects ?? 0,
-    loadTask: async () => (over.task === undefined ? { id: "t1", state: "RECEIVED", version: 0, eventIds: [] } : over.task),
+    loadTask: async () =>
+      over.task === undefined ? { id: "t1", projectId: "p1", state: "RECEIVED", version: 0, eventIds: [] } : over.task && { projectId: "p1", ...over.task },
     createProject: async (input) => (calls.push({ name: "createProject", input }), over.rpcError ? { ok: false, error: over.rpcError } : { ok: true, value: "p1" }),
     createTask: async (input) => (calls.push({ name: "createTask", input }), over.rpcError ? { ok: false, error: over.rpcError } : { ok: true, value: "t1" }),
     applyTransition: async (input) => (calls.push({ name: "applyTransition", input }), over.rpcError ? { ok: false, error: over.rpcError } : { ok: true, value: 1 }),
-    newEventId: () => "evt-1",
+    saveContract: async (input) => (calls.push({ name: "saveContract", input }), over.rpcError ? { ok: false, error: over.rpcError } : { ok: true, value: input.basedOn + 1 }),
+    approveContract: async (input) => (calls.push({ name: "approveContract", input }), over.rpcError ? { ok: false, error: over.rpcError } : { ok: true, value: null }),
+    newEventId: (() => {
+      let n = 0;
+      return () => `evt-${++n}`;
+    })(),
     now: () => NOW,
   };
   return { deps, calls };
@@ -123,5 +130,75 @@ describe("codeFromDatabaseError", () => {
     expect(codeFromDatabaseError("QUOTA_EXCEEDED")).toBe("QUOTA_EXCEEDED");
     expect(codeFromDatabaseError("VERSION_CONFLICT")).toBe("VERSION_CONFLICT");
     expect(codeFromDatabaseError("connection reset")).toBe("UNKNOWN");
+  });
+});
+
+const FORM: ContractFormValues = {
+  ...EMPTY_CONTRACT_FORM,
+  outcome: "Rewrite 100 product descriptions.",
+  resources: "products",
+  allowed: "products.update",
+  protectedFields: "price",
+  acceptance: "Descriptions are under 160 characters.",
+  recovery: "Restore from the snapshot.",
+};
+
+describe("saveContract", () => {
+  it("drafts the first contract from Received, through the state machine", async () => {
+    const { deps, calls } = fakeDeps();
+    expect(await saveContract(deps, { orgId: "o1", userId: "u1", taskId: "t1", expectedTaskVersion: 0, basedOn: 0, form: FORM })).toEqual({ ok: true, value: 1 });
+    const input = calls[0]?.input as { steps: { event_type: string; from: string; to: string }[]; body: { version: number; scope: { projectId: string } }; sha256: string };
+    expect(input.steps.map((s) => [s.event_type, s.from, s.to])).toEqual([
+      ["assemble_context", "RECEIVED", "CONTEXT_ASSEMBLED"],
+      ["draft_contract", "CONTEXT_ASSEMBLED", "CONTRACT_DRAFTED"],
+    ]);
+    expect(input.body.version).toBe(1);
+    expect(input.body.scope.projectId).toBe("p1");
+    expect(input.sha256).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("revises an approved contract back to drafted", async () => {
+    const { deps, calls } = fakeDeps({ task: { id: "t1", state: "CONTRACT_APPROVED", version: 3, eventIds: [] } });
+    expect(await saveContract(deps, { orgId: "o1", userId: "u1", taskId: "t1", expectedTaskVersion: 3, basedOn: 1, form: FORM })).toEqual({ ok: true, value: 2 });
+    const input = calls[0]?.input as { steps: { event_type: string; to: string }[] };
+    expect(input.steps).toMatchObject([{ event_type: "revise_contract", to: "CONTRACT_DRAFTED" }]);
+  });
+
+  it("refuses once the task is past planning", async () => {
+    const { deps, calls } = fakeDeps({ task: { id: "t1", state: "EXECUTING", version: 9, eventIds: [] } });
+    expect(await saveContract(deps, { orgId: "o1", userId: "u1", taskId: "t1", expectedTaskVersion: 9, basedOn: 1, form: FORM })).toMatchObject({ code: "INVALID_TRANSITION" });
+    expect(calls).toEqual([]);
+  });
+
+  it("explains an incomplete contract without calling the database", async () => {
+    const { deps, calls } = fakeDeps();
+    const result = await saveContract(deps, { orgId: "o1", userId: "u1", taskId: "t1", expectedTaskVersion: 0, basedOn: 0, form: { ...FORM, recovery: "" } });
+    expect(result).toMatchObject({ ok: false, code: "INVALID_CONTRACT", message: "Recovery is required." });
+    expect(calls).toEqual([]);
+  });
+
+  it("rejects a stale page and viewers", async () => {
+    expect(await saveContract(fakeDeps().deps, { orgId: "o1", userId: "u1", taskId: "t1", expectedTaskVersion: 4, basedOn: 0, form: FORM })).toMatchObject({ code: "VERSION_CONFLICT" });
+    expect(await saveContract(fakeDeps({ role: "viewer" }).deps, { orgId: "o1", userId: "u1", taskId: "t1", expectedTaskVersion: 0, basedOn: 0, form: FORM })).toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("maps a concurrent edit to CONTRACT_CHANGED", async () => {
+    const { deps } = fakeDeps({ rpcError: "CONTRACT_CHANGED" });
+    expect(await saveContract(deps, { orgId: "o1", userId: "u1", taskId: "t1", expectedTaskVersion: 0, basedOn: 0, form: FORM })).toMatchObject({ code: "CONTRACT_CHANGED" });
+  });
+});
+
+describe("approveContract", () => {
+  const sha = "a".repeat(64);
+
+  it("approves the exact hash from Contract drafted", async () => {
+    const { deps, calls } = fakeDeps({ task: { id: "t1", state: "CONTRACT_DRAFTED", version: 2, eventIds: [] } });
+    expect(await approveContract(deps, { orgId: "o1", userId: "u1", taskId: "t1", expectedTaskVersion: 2, version: 1, sha256: sha })).toEqual({ ok: true, value: null });
+    expect(calls[0]?.input).toMatchObject({ version: 1, sha256: sha, expectedTaskVersion: 2, steps: [{ event_type: "approve_contract", from: "CONTRACT_DRAFTED", to: "CONTRACT_APPROVED" }] });
+  });
+
+  it("refuses when there's no draft to approve or the hash is malformed", async () => {
+    expect(await approveContract(fakeDeps().deps, { orgId: "o1", userId: "u1", taskId: "t1", expectedTaskVersion: 0, version: 1, sha256: sha })).toMatchObject({ code: "INVALID_TRANSITION" });
+    expect(await approveContract(fakeDeps().deps, { orgId: "o1", userId: "u1", taskId: "t1", expectedTaskVersion: 0, version: 1, sha256: "nope" })).toMatchObject({ code: "CONTRACT_CHANGED" });
   });
 });

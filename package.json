@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "pnpm typecheck && pnpm lint && pnpm test",
-    "start:demo": "node scripts/start-demo.mjs"
+    "start:demo": "node scripts/start-demo.mjs",
+    "setup:env": "node scripts/setup-env.mjs"
   },
   "dependencies": {
     "@phosphor-icons/react": "2.1.10",

@@ -2,17 +2,22 @@ import { ArrowLeftIcon, ClockCounterClockwiseIcon, InfoIcon } from "@phosphor-ic
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ApproveContractControl, ContractEditor, ReviseContract } from "@/components/app/contract-editor";
+import { ContractView, contractIntact } from "@/components/app/contract-view";
 import { CancelTaskControl } from "@/components/app/forms";
 import { Card, TaskStateBadge } from "@/components/app/primitives";
 import { ProofThread } from "@/components/proof/proof-thread";
 import { LocalTime } from "@/components/ui/local-time";
+import { EMPTY_CONTRACT_FORM, formFromContract } from "@/core/realityloop/contract-form";
 import { TASK_STATE_LABELS, lifecycleProgress } from "@/core/realityloop/progress";
-import { TERMINAL_STATES } from "@/core/realityloop/task-machine";
+import { TERMINAL_STATES, type TaskState } from "@/core/realityloop/task-machine";
 import { loadAppContext } from "@/server/workspace/context";
 
 export const metadata: Metadata = { title: "Task" };
 
 const ACTOR: Record<"user" | "agent" | "system", string> = { user: "Person", agent: "Agent", system: "Farbaek" };
+const CAN_START_CONTRACT: ReadonlySet<TaskState> = new Set(["RECEIVED", "CONTEXT_ASSEMBLED"]);
+const CAN_REVISE: ReadonlySet<TaskState> = new Set(["CONTRACT_DRAFTED", "CONTRACT_APPROVED", "BLOCKED"]);
 
 export default async function TaskPage({ params }: { params: Promise<{ taskId: string }> }) {
   const { taskId } = await params;
@@ -21,6 +26,9 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
   const found = await ctx.reader.getTask(ctx.current.id, taskId);
   if (!found) notFound();
   const { task, history } = found;
+  const contract = await ctx.reader.getContract(ctx.current.id, task.id);
+  const intact = contract ? await contractIntact(contract) : true;
+  const writeReason = ctx.writes.enabled ? null : ctx.writes.reason;
 
   const stages = lifecycleProgress(task.state, history);
   const finished = TERMINAL_STATES.has(task.state);
@@ -49,6 +57,43 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
             label="Task lifecycle"
             stages={stages.map((s) => ({ key: s.key, label: s.label, body: "", status: s.status, statusText: s.note }))}
           />
+        </div>
+      </Card>
+
+      <Card>
+        <h2 className="text-lg font-medium">Intent contract</h2>
+        <p className="mt-1 text-sm text-ink-2">
+          The agreement this task works against. Each version is validated, hashed and kept. Approval covers one exact version.
+        </p>
+        <div className="mt-6">
+          {contract ? (
+            <div className="grid gap-6">
+              <ContractView record={contract} />
+              {contract.status === "draft" && task.state === "CONTRACT_DRAFTED" ? (
+                <ApproveContractControl
+                  taskId={task.id}
+                  taskVersion={task.version}
+                  version={contract.version}
+                  sha256={contract.sha256}
+                  disabledReason={writeReason ?? (intact ? null : "The stored hash doesn't match, so this version can't be approved.")}
+                />
+              ) : null}
+              {CAN_REVISE.has(task.state) ? (
+                <ReviseContract taskId={task.id} taskVersion={task.version} basedOn={contract.version} initial={formFromContract(contract.body)} disabledReason={writeReason} />
+              ) : null}
+            </div>
+          ) : CAN_START_CONTRACT.has(task.state) ? (
+            <ContractEditor
+              taskId={task.id}
+              taskVersion={task.version}
+              basedOn={0}
+              initial={{ ...EMPTY_CONTRACT_FORM, outcome: task.title }}
+              disabledReason={writeReason}
+              submitLabel="Save contract version 1"
+            />
+          ) : (
+            <p className="text-sm text-ink-3">No contract was recorded for this task.</p>
+          )}
         </div>
       </Card>
 
@@ -86,9 +131,11 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
               <InfoIcon size={20} className="text-info" aria-hidden /> What happens next
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-ink-2">
-              {task.state === "RECEIVED"
-                ? "Context, the intent contract and the plan come from Farbaek Agent, which arrives with Studio in Stage 2. Until then this task stays at Received."
-                : finished
+              {CAN_START_CONTRACT.has(task.state) || task.state === "CONTRACT_DRAFTED"
+                ? "Write the intent contract, then approve the exact version. Drafting it with AI and planning the change arrive with Farbaek Agent later in Stage 2."
+                : task.state === "CONTRACT_APPROVED"
+                  ? "The contract is approved. Plans, policy checks and execution arrive with Farbaek Agent later in Stage 2; until then the task waits here."
+                  : finished
                   ? "This task is finished. Its history stays as a record."
                   : "This task moves forward only through the lifecycle: each step is checked by the state machine and recorded above."}
             </p>
