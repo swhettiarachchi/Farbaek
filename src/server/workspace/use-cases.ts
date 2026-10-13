@@ -9,6 +9,8 @@ import { resolveEffectivePlan, type BillingSnapshot } from "@/core/billing/trial
 import { contractHash, type IntentContract } from "@/core/realityloop/contract";
 import { contractFromForm, type ContractFormValues } from "@/core/realityloop/contract-form";
 import { transition, type TaskEventType, type TaskSnapshot, type TaskState } from "@/core/realityloop/task-machine";
+import { WORKSPACE_LIMITS } from "@/config/workspace";
+import { formatBytes } from "@/core/workspace/files";
 import { CONTRIBUTOR_ROLES, type OrgRole } from "./types";
 
 export type WriteErrorCode =
@@ -26,6 +28,13 @@ export type WriteErrorCode =
   | "INVALID_TRANSITION"
   | "INVALID_CONTRACT"
   | "CONTRACT_CHANGED"
+  | "INVALID_PATH"
+  | "FILE_TOO_LARGE"
+  | "IMPORT_TOO_LARGE"
+  | "PROJECT_TOO_LARGE"
+  | "FILE_CHANGED"
+  | "NOTHING_TO_IMPORT"
+  | "SECRET_IN_CONTENT"
   | "AI_UNAVAILABLE"
   | "AI_REFUSED"
   | "AI_INCOMPLETE"
@@ -96,6 +105,13 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   INVALID_TRANSITION: "This task can't make that change from its current state.",
   INVALID_CONTRACT: "The contract isn't complete.",
   CONTRACT_CHANGED: "The contract changed since you opened it. Reload to see the latest version, then try again.",
+  INVALID_PATH: `That file path isn't allowed. Use a path inside the project, without "." or ".." folders.`,
+  FILE_TOO_LARGE: `Files can be up to ${formatBytes(WORKSPACE_LIMITS.maxFileBytes)}.`,
+  IMPORT_TOO_LARGE: `One import can hold up to ${formatBytes(WORKSPACE_LIMITS.maxImportBytes)} of text. Import a smaller folder, for example src.`,
+  PROJECT_TOO_LARGE: `A project can hold up to ${formatBytes(WORKSPACE_LIMITS.maxProjectBytes)} in ${WORKSPACE_LIMITS.maxProjectFiles.toLocaleString("en-US")} files. Nothing was changed.`,
+  FILE_CHANGED: "Someone changed this file while you were looking at it. Reload to see the latest version.",
+  NOTHING_TO_IMPORT: "None of the selected files can be imported.",
+  SECRET_IN_CONTENT: "This looks like it contains a secret, such as a private key or an API token. Remove it and try again. Keep secrets in environment variables.",
   AI_UNAVAILABLE: "AI drafting isn't available right now. You can still write the contract yourself.",
   AI_REFUSED: "The model declined to draft this contract. Write it yourself, or reword the task and try again.",
   AI_INCOMPLETE: "The draft came back incomplete. Try again, or write the contract yourself.",
@@ -107,7 +123,22 @@ export const fail = <T>(code: WriteErrorCode, message = MESSAGES[code]): WriteRe
 
 /** Maps an error raised by an app_* database function to a result code. */
 export function codeFromDatabaseError(message: string): WriteErrorCode {
-  for (const code of ["FORBIDDEN", "INVALID_NAME", "INVALID_TITLE", "DUPLICATE_NAME", "NOT_FOUND", "QUOTA_EXCEEDED", "VERSION_CONFLICT", "CONTRACT_CHANGED", "INVALID_CONTRACT"] as const) {
+  for (const code of [
+    "FORBIDDEN",
+    "INVALID_NAME",
+    "INVALID_TITLE",
+    "DUPLICATE_NAME",
+    "NOT_FOUND",
+    "QUOTA_EXCEEDED",
+    "VERSION_CONFLICT",
+    "CONTRACT_CHANGED",
+    "INVALID_CONTRACT",
+    "INVALID_PATH",
+    "FILE_TOO_LARGE",
+    "IMPORT_TOO_LARGE",
+    "PROJECT_TOO_LARGE",
+    "FILE_CHANGED",
+  ] as const) {
     if (message.includes(code)) return code;
   }
   return "UNKNOWN";

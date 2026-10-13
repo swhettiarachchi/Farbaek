@@ -13,6 +13,8 @@ import { MANAGER_ROLES } from "@/server/workspace/types";
 import { EMPTY_CONTRACT_FORM, type ContractFormValues } from "@/core/realityloop/contract-form";
 import { approveContract, cancelTask, createProject, createTask, saveContract, type WriteDeps } from "@/server/workspace/use-cases";
 import { draftContractWithAi, type AiCreditDeps } from "@/server/workspace/ai-drafting";
+import { deleteProjectFile, importProjectFiles, type FileDeps, type ImportSummary } from "@/server/workspace/files";
+import { WORKSPACE_LIMITS } from "@/config/workspace";
 import { createAnthropicContractDrafter } from "@/server/ai/anthropic";
 import { hasAnthropicKey } from "@/server/ai/config";
 
@@ -33,7 +35,7 @@ async function requireContext(): Promise<AppContext> {
 }
 
 /** Resolves write dependencies, or the honest reason writes are unavailable. */
-async function writeDeps(ctx: AppContext): Promise<{ deps: WriteDeps & AiCreditDeps; orgId: string } | { error: string }> {
+async function writeDeps(ctx: AppContext): Promise<{ deps: WriteDeps & AiCreditDeps & FileDeps; orgId: string } | { error: string }> {
   if (!ctx.writes.enabled) return { error: ctx.writes.reason };
   if (!ctx.current) return { error: "Create a workspace first." };
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
@@ -183,6 +185,52 @@ export async function draftContractWithAiAction(form: FormData): Promise<AiDraft
   if (!result.ok) return { status: "error", message: result.message };
   revalidatePath("/app", "layout");
   return { status: "done", values: result.value.form, model: result.value.model, credits: result.value.credits };
+}
+
+export type ImportState = { status: "error"; message: string } | { status: "done"; summary: ImportSummary };
+
+const ImportInput = z.object({
+  projectId: z.uuid(),
+  files: z
+    .array(z.object({ path: z.string().max(1000), content: z.string() }))
+    .min(1)
+    .max(WORKSPACE_LIMITS.maxProjectFiles),
+});
+
+/** Imports text files into a project. The browser's preview is advisory; the server screens again. */
+export async function importFilesAction(input: { projectId: string; files: { path: string; content: string }[] }): Promise<ImportState> {
+  const parsed = ImportInput.safeParse(input);
+  if (!parsed.success) return { status: "error", message: "The selected files couldn't be read. Try again with fewer files." };
+
+  const ctx = await requireContext();
+  const w = await writeDeps(ctx);
+  if ("error" in w) return { status: "error", message: w.error };
+  // Read through Row Level Security: the project must be in the current workspace.
+  const project = await ctx.reader.getProject(w.orgId, parsed.data.projectId);
+  if (!project) return { status: "error", message: "That project doesn't exist or isn't in this workspace." };
+
+  const result = await importProjectFiles(w.deps, { orgId: w.orgId, userId: ctx.user.id, projectId: project.id, files: parsed.data.files });
+  if (!result.ok) return { status: "error", message: result.message };
+  revalidatePath(`/app/projects/${project.id}`, "layout");
+  return { status: "done", summary: result.value };
+}
+
+export async function deleteFileAction(_previous: FormState, form: FormData): Promise<FormState> {
+  const projectId = String(form.get("projectId") ?? "");
+  const path = String(form.get("path") ?? "");
+  const expectedRevision = Number(form.get("expectedRevision"));
+  if (!Number.isInteger(expectedRevision) || expectedRevision < 1) return { status: "error", message: "Reload the page and try again." };
+
+  const ctx = await requireContext();
+  const w = await writeDeps(ctx);
+  if ("error" in w) return { status: "error", message: w.error };
+  const project = await ctx.reader.getProject(w.orgId, projectId);
+  if (!project) return { status: "error", message: "That project doesn't exist or isn't in this workspace." };
+
+  const result = await deleteProjectFile(w.deps, { orgId: w.orgId, userId: ctx.user.id, projectId: project.id, path, expectedRevision });
+  if (!result.ok) return { status: "error", message: result.message };
+  revalidatePath(`/app/projects/${project.id}`, "layout");
+  redirect(`/app/projects/${project.id}/files`);
 }
 
 export async function renameWorkspaceAction(_previous: FormState, form: FormData): Promise<FormState> {

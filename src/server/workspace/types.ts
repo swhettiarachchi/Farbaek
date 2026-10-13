@@ -74,6 +74,24 @@ export interface ContractRecord {
   approvedAt: string | null;
 }
 
+export interface ProjectFile {
+  path: string;
+  revision: number;
+  sizeBytes: number;
+  sha256: string;
+  updatedAt: string;
+}
+
+export interface ProjectFileContent extends ProjectFile {
+  content: string;
+}
+
+export interface SearchHit {
+  path: string;
+  line: number;
+  text: string;
+}
+
 export interface WorkspaceReader {
   mode: "live" | "demo";
   listWorkspaces(): Promise<WorkspaceSummary[]>;
@@ -85,6 +103,11 @@ export interface WorkspaceReader {
   countEvaluations(orgId: string, from: Date, to: Date): Promise<number>;
   /** AI credits reserved or settled in the window (refunds excluded). */
   countAiCredits(orgId: string, from: Date, to: Date): Promise<number>;
+  /** Current files in a project, sorted by path. */
+  listFiles(orgId: string, projectId: string): Promise<ProjectFile[]>;
+  getFile(orgId: string, projectId: string, path: string): Promise<ProjectFileContent | null>;
+  /** Case-insensitive plain-text search; at most 200 matching lines. */
+  searchFiles(orgId: string, projectId: string, query: string): Promise<SearchHit[]>;
   /** The latest contract version for a task, or null when none has been written. */
   getContract(orgId: string, taskId: string): Promise<ContractRecord | null>;
 }

@@ -1,10 +1,12 @@
-import { ArrowLeftIcon, ListChecksIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, ArrowRightIcon, FolderOpenIcon, ListChecksIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CreateTaskForm } from "@/components/app/forms";
 import { Card, EmptyState, PageHeader } from "@/components/app/primitives";
 import { TaskList } from "@/components/app/task-list";
+import { ButtonLink } from "@/components/ui/button";
+import { formatBytes } from "@/core/workspace/files";
 import { loadAppContext } from "@/server/workspace/context";
 
 export const metadata: Metadata = { title: "Project" };
@@ -15,7 +17,8 @@ export default async function ProjectPage({ params }: { params: Promise<{ projec
   if (!ctx?.current) notFound();
   const project = await ctx.reader.getProject(ctx.current.id, projectId);
   if (!project) notFound();
-  const tasks = await ctx.reader.listTasks(ctx.current.id, { projectId: project.id });
+  const [tasks, files] = await Promise.all([ctx.reader.listTasks(ctx.current.id, { projectId: project.id }), ctx.reader.listFiles(ctx.current.id, project.id)]);
+  const filesBytes = files.reduce((n, f) => n + f.sizeBytes, 0);
 
   return (
     <div className="grid gap-8">
@@ -35,19 +38,47 @@ export default async function ProjectPage({ params }: { params: Promise<{ projec
           </h2>
           {tasks.length === 0 ? (
             <EmptyState icon={ListChecksIcon} title="No tasks in this project">
-              Describe one outcome. The task starts at Received; contracts and plans arrive with Studio in Stage 2.
+              Describe one outcome. The task starts at Received, then you agree an intent contract before any change is planned.
             </EmptyState>
           ) : (
             <TaskList tasks={tasks} showProject={false} />
           )}
         </section>
 
+        <div className="grid gap-6">
+        <Card>
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="flex items-center gap-2 text-lg font-medium">
+              <FolderOpenIcon size={20} className="text-ink-3" aria-hidden /> Files
+            </h2>
+            {files.length > 0 ? (
+              <Link href={`/app/projects/${project.id}/files`} className="inline-flex items-center gap-1 text-sm text-accent hover:underline">
+                Open <ArrowRightIcon size={14} aria-hidden />
+              </Link>
+            ) : null}
+          </div>
+          {files.length > 0 ? (
+            <p className="mt-2 text-sm text-ink-2">
+              <span className="tabular">{files.length.toLocaleString("en-US")}</span> {files.length === 1 ? "file" : "files"} · <span className="tabular">{formatBytes(filesBytes)}</span>
+            </p>
+          ) : (
+            <>
+              <p className="mt-2 text-sm text-ink-2">Import the project&apos;s source so tasks can work against real files.</p>
+              <div className="mt-4">
+                <ButtonLink href={`/app/projects/${project.id}/files`} size="sm" variant="secondary">
+                  Import files
+                </ButtonLink>
+              </div>
+            </>
+          )}
+        </Card>
         <Card>
           <h2 className="text-lg font-medium">New task</h2>
           <div className="mt-4">
             <CreateTaskForm projectId={project.id} disabledReason={ctx.writes.enabled ? null : ctx.writes.reason} />
           </div>
         </Card>
+        </div>
       </div>
     </div>
   );

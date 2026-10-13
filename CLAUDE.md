@@ -30,6 +30,7 @@ The dev PC has 3.8 GB of RAM. Run checks one at a time, and stop any dev or prev
   - `trust/`: RFC 8785 canonical JSON, SHA-256, approval binding.
   - `realityloop/`: task state machine, intent contract schema and checks.
   - `proof/`: Seal geometry from a digest.
+  - `workspace/`: project file path rules, import screening (secrets, binaries, build folders), file tree.
 - `src/content/samples.ts`: sample data for the public site. Always label it "sample" where it's shown.
 - `src/styles/tokens.css`: colour tokens. `tests/design/contrast.test.ts` enforces WCAG AA for every pair.
 - `src/components/three/`: the hero 3D scene. `src/components/film/`: the concept film.

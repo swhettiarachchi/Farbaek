@@ -62,3 +62,26 @@ Verify one live draft, then GitHub import and the file workspace.
 - Read-only check afterwards: `ai_credit_ledger` has RLS, the policy "members read AI credit usage", select-only for authenticated and nothing for anon. `ai_credits_used` runs as the caller (authenticated and service_role). `app_reserve_ai_credits` and `app_settle_ai_credits` are security definer and executable by service_role only.
 - The hosted project now has all four migrations. When the Supabase CLI is linked, record them so they aren't re-run:
   `supabase migration repair --status applied 20261013120000 20261014090000 20261014120000 20261015090000`
+
+## 2026-10-15: project files
+
+### Done
+
+- Migration `20261015120000_project_files.sql` (tested, **not applied yet**): immutable `project_file_revisions` (import, edit, delete) and `project_files` pointing at each path's current revision. The database computes hashes and sizes and re-checks paths and limits. Service-role-only `app_import_files` (all or nothing), `app_save_file` and `app_delete_file` with a project lock and per-file optimistic concurrency. `get_project_file` and `search_project_files` run as the caller under RLS. ADR 0010.
+- `src/core/workspace/files.ts`: path rules, import screening (dependency and build folders, credentials files, content matching credential formats, binary, size), the file tree and language labels. `src/config/workspace.ts`: 512 KB per file, 4 MB per import, 25 MB and 3,000 files per project.
+- Use cases `importProjectFiles`, `saveProjectFile` (secret check included) and `deleteProjectFile`; Supabase writer and reader (paged listing past PostgREST's 1,000-row limit).
+- Files page (`/app/projects/[id]/files`): a tree that works without JavaScript, a read-only code view with linkable lines, project-wide search with marked matches, two-step delete, and folder or file import. The browser previews the import, including what will be skipped and why, before anything is uploaded. The project page shows a Files card.
+- Demo workspace: seven sample files in the Storefront project, labelled as sample.
+
+### Verified
+
+- 350 tests (25 files): 14 database tests (including SQL and TypeScript path-rule parity), 22 for the file rules and 7 for the use cases. Typecheck, lint and build pass.
+- Browser, demo mode: tree, file view with `#L8` highlighted, search results, and import and delete disabled with the demo reason, at 689px and 375px with no horizontal scroll.
+
+### Not verified
+
+- Importing into the hosted project: needs migration 5 applied, the env file and a signed-in session.
+
+### Next
+
+The CodeMirror editor (needs a dependency install), then targeted patches, diff review and checkpoints on top of the revisions.

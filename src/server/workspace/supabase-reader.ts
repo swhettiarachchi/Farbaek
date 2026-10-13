@@ -163,6 +163,51 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
       return count ?? 0;
     },
 
+    async listFiles(orgId, projectId) {
+      if (!z.uuid().safeParse(projectId).success) return [];
+      const Row = z.object({ path: z.string(), revision: z.number().int(), size_bytes: z.number().int(), sha256: z.string(), updated_at: z.string() });
+      // PostgREST returns at most 1,000 rows per request, so read in pages.
+      const PAGE = 1000;
+      const rows: z.infer<typeof Row>[] = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await client
+          .from("project_files")
+          .select("path, revision, size_bytes, sha256, updated_at")
+          .eq("org_id", orgId)
+          .eq("project_id", projectId)
+          .order("path")
+          .range(from, from + PAGE - 1);
+        if (error) fail("files", error);
+        const page = z.array(Row).parse(data);
+        rows.push(...page);
+        if (page.length < PAGE) break;
+      }
+      return rows.map((r) => ({ path: r.path, revision: r.revision, sizeBytes: r.size_bytes, sha256: r.sha256, updatedAt: r.updated_at }));
+    },
+
+    async getFile(orgId, projectId, path) {
+      if (!z.uuid().safeParse(projectId).success) return null;
+      const project = await client.from("projects").select("id").eq("org_id", orgId).eq("id", projectId).maybeSingle();
+      if (project.error) fail("project", project.error);
+      if (!project.data) return null;
+      const { data, error } = await client.rpc("get_project_file", { p_project: projectId, p_path: path });
+      if (error) fail("file", error);
+      const Row = z.object({ path: z.string(), revision: z.number().int(), size_bytes: z.number().int(), sha256: z.string(), content: z.string(), updated_at: z.string() });
+      const row = z.array(Row).parse(data)[0];
+      return row ? { path: row.path, revision: row.revision, sizeBytes: row.size_bytes, sha256: row.sha256, content: row.content, updatedAt: row.updated_at } : null;
+    },
+
+    async searchFiles(orgId, projectId, query) {
+      const q = query.trim();
+      if (!q || q.length > 200 || !z.uuid().safeParse(projectId).success) return [];
+      const project = await client.from("projects").select("id").eq("org_id", orgId).eq("id", projectId).maybeSingle();
+      if (project.error) fail("project", project.error);
+      if (!project.data) return [];
+      const { data, error } = await client.rpc("search_project_files", { p_project: projectId, p_query: q });
+      if (error) fail("search results", error);
+      return z.array(z.object({ path: z.string(), line: z.number().int(), text: z.string() })).parse(data);
+    },
+
     async countAiCredits(orgId, from, to) {
       const { data, error } = await client.rpc("ai_credits_used", { p_org: orgId, p_from: from.toISOString(), p_to: to.toISOString() });
       if (error) fail("AI credit usage", error);

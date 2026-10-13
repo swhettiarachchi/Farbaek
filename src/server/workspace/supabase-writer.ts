@@ -3,14 +3,16 @@ import { z } from "zod";
 import { TASK_STATES } from "@/core/realityloop/task-machine";
 import { ORGANIZATION_SELECT, billingSnapshotFromRow } from "./organizations";
 import { ORG_ROLES } from "./types";
+import { WORKSPACE_LIMITS } from "@/config/workspace";
 import type { AiCreditDeps } from "./ai-drafting";
+import type { FileDeps } from "./files";
 import type { RpcResult, WriteDeps } from "./use-cases";
 
 /**
  * WriteDeps backed by Supabase. Reads use the signed-in user's client (Row
  * Level Security applies); writes call the service-role-only app_* functions.
  */
-export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseClient, userId: string): WriteDeps & AiCreditDeps {
+export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseClient, userId: string): WriteDeps & AiCreditDeps & FileDeps {
   async function rpc<T>(fn: string, args: Record<string, unknown>, schema: z.ZodType<T>): Promise<RpcResult<T>> {
     const { data, error } = await admin.rpc(fn, args);
     if (error) return { ok: false, error: error.message };
@@ -139,6 +141,44 @@ export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseCli
           p_input_tokens: i.usage?.inputTokens ?? null,
           p_output_tokens: i.usage?.outputTokens ?? null,
         },
+        z.null().or(z.literal("")).transform(() => null),
+      ),
+
+    importFiles: (i) =>
+      rpc(
+        "app_import_files",
+        {
+          p_project: i.projectId,
+          p_actor: i.actor,
+          p_files: i.files,
+          p_max_file_bytes: WORKSPACE_LIMITS.maxFileBytes,
+          p_max_import_bytes: WORKSPACE_LIMITS.maxImportBytes,
+          p_max_project_bytes: WORKSPACE_LIMITS.maxProjectBytes,
+          p_max_files: WORKSPACE_LIMITS.maxProjectFiles,
+        },
+        z.object({ created: z.number().int(), updated: z.number().int(), unchanged: z.number().int() }),
+      ),
+
+    saveFile: (i) =>
+      rpc(
+        "app_save_file",
+        {
+          p_project: i.projectId,
+          p_actor: i.actor,
+          p_path: i.path,
+          p_content: i.content,
+          p_expected_revision: i.expectedRevision,
+          p_max_file_bytes: WORKSPACE_LIMITS.maxFileBytes,
+          p_max_project_bytes: WORKSPACE_LIMITS.maxProjectBytes,
+          p_max_files: WORKSPACE_LIMITS.maxProjectFiles,
+        },
+        z.number().int(),
+      ),
+
+    deleteFile: (i) =>
+      rpc(
+        "app_delete_file",
+        { p_project: i.projectId, p_actor: i.actor, p_path: i.path, p_expected_revision: i.expectedRevision },
         z.null().or(z.literal("")).transform(() => null),
       ),
 

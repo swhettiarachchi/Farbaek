@@ -2,7 +2,9 @@ import { TRIAL } from "@/core/billing/catalog";
 import { resolveEffectivePlan, trialPhase, trialWindow } from "@/core/billing/trial";
 import { contractHash, type IntentContract } from "@/core/realityloop/contract";
 import type { TaskState } from "@/core/realityloop/task-machine";
+import { sha256Hex } from "@/core/trust/canonical-json";
 import { SAMPLE_CONTRACT } from "@/content/samples";
+import { DEMO_FILES, DEMO_FILES_PROJECT_ID } from "@/content/demo-files";
 import {
   DEMO_EVALUATIONS_THIS_PERIOD,
   DEMO_MEMBERS,
@@ -14,7 +16,7 @@ import {
   DEMO_USER,
   demoEventType,
 } from "@/content/demo-workspace";
-import type { ContractRecord, Project, Task, Transition, WorkspaceReader } from "./types";
+import type { ContractRecord, Project, ProjectFileContent, Task, Transition, WorkspaceReader } from "./types";
 
 /**
  * Read-only sample workspace. Timestamps are relative to "now" so the trial
@@ -22,6 +24,22 @@ import type { ContractRecord, Project, Task, Transition, WorkspaceReader } from 
  */
 export function createDemoReader(now: Date = new Date()): WorkspaceReader {
   const ago = (ms: number) => new Date(now.getTime() - ms).toISOString();
+
+  let files: Promise<ProjectFileContent[]> | null = null;
+  const demoFiles = (projectId: string): Promise<ProjectFileContent[]> => {
+    if (projectId !== DEMO_FILES_PROJECT_ID) return Promise.resolve([]);
+    files ??= Promise.all(
+      DEMO_FILES.map(async (f) => ({
+        path: f.path,
+        revision: 1,
+        sizeBytes: new TextEncoder().encode(f.content).length,
+        sha256: await sha256Hex(f.content),
+        content: f.content,
+        updatedAt: ago(f.updatedHoursAgo * DEMO_TIME.HOUR),
+      })),
+    ).then((list) => list.sort((a, b) => a.path.localeCompare(b.path)));
+    return files;
+  };
   const trialStart = new Date(now.getTime() - DEMO_TRIAL_STARTED_DAYS_AGO * DEMO_TIME.DAY);
   const window = trialWindow(trialStart);
 
@@ -98,6 +116,23 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
 
     async getTask(_orgId, taskId) {
       return built.find((b) => b.task.id === taskId) ?? null;
+    },
+
+    async listFiles(_orgId, projectId) {
+      return (await demoFiles(projectId)).map((f) => ({ path: f.path, revision: f.revision, sizeBytes: f.sizeBytes, sha256: f.sha256, updatedAt: f.updatedAt }));
+    },
+
+    async getFile(_orgId, projectId, path) {
+      return (await demoFiles(projectId)).find((f) => f.path === path) ?? null;
+    },
+
+    async searchFiles(_orgId, projectId, query) {
+      const q = query.trim().toLowerCase();
+      if (!q || q.length > 200) return [];
+      const hits = (await demoFiles(projectId)).flatMap((f) =>
+        f.content.split("\n").flatMap((text, i) => (text.toLowerCase().includes(q) ? [{ path: f.path, line: i + 1, text: text.slice(0, 300) }] : [])),
+      );
+      return hits.slice(0, 200);
     },
 
     async getContract(_orgId, taskId) {
