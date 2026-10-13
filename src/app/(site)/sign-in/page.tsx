@@ -23,7 +23,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
         <p className="font-mono text-[13px] text-ink-3">{"// early access"}</p>
         <h1 className="mt-4 text-3xl font-medium tracking-[-0.02em]">Sign in to Farbaek</h1>
         <p className="mt-3 text-[15px] leading-relaxed text-ink-2">
-          No password. We email you a one-time link. Accounts are limited to the Farbaek team while the product is in development.
+          No password. We email you a one-time link. Farbaek is in early development, so expect rough edges.
         </p>
         <div className="mt-8">
           {supabase ? (
