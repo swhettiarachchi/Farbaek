@@ -3,13 +3,14 @@ import { z } from "zod";
 import { TASK_STATES } from "@/core/realityloop/task-machine";
 import { ORGANIZATION_SELECT, billingSnapshotFromRow } from "./organizations";
 import { ORG_ROLES } from "./types";
+import type { AiCreditDeps } from "./ai-drafting";
 import type { RpcResult, WriteDeps } from "./use-cases";
 
 /**
  * WriteDeps backed by Supabase. Reads use the signed-in user's client (Row
  * Level Security applies); writes call the service-role-only app_* functions.
  */
-export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseClient, userId: string): WriteDeps {
+export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseClient, userId: string): WriteDeps & AiCreditDeps {
   async function rpc<T>(fn: string, args: Record<string, unknown>, schema: z.ZodType<T>): Promise<RpcResult<T>> {
     const { data, error } = await admin.rpc(fn, args);
     if (error) return { ok: false, error: error.message };
@@ -100,6 +101,43 @@ export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseCli
           p_sha256: i.sha256,
           p_expected_task_version: i.expectedTaskVersion,
           p_steps: i.steps,
+        },
+        z.null().or(z.literal("")).transform(() => null),
+      ),
+
+    async countAiCredits(orgId, period) {
+      const { data, error } = await user.rpc("ai_credits_used", { p_org: orgId, p_from: period.start.toISOString(), p_to: period.end.toISOString() });
+      if (error) throw new Error(`Couldn't count AI credits: ${error.message}`);
+      return z.number().int().nonnegative().parse(data);
+    },
+
+    reserveAiCredits: (i) =>
+      rpc(
+        "app_reserve_ai_credits",
+        {
+          p_org: i.orgId,
+          p_actor: i.actor,
+          p_key: i.key,
+          p_operation: i.operation,
+          p_task: i.taskId,
+          p_credits: i.credits,
+          p_limit: i.limit,
+          p_period_start: i.period.start.toISOString(),
+          p_period_end: i.period.end.toISOString(),
+        },
+        z.string(),
+      ),
+
+    settleAiCredits: (i) =>
+      rpc(
+        "app_settle_ai_credits",
+        {
+          p_org: i.orgId,
+          p_entry: i.entryId,
+          p_status: i.status,
+          p_model: i.usage?.model.slice(0, 100) || null,
+          p_input_tokens: i.usage?.inputTokens ?? null,
+          p_output_tokens: i.usage?.outputTokens ?? null,
         },
         z.null().or(z.literal("")).transform(() => null),
       ),

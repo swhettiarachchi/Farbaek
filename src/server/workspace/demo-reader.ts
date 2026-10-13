@@ -73,7 +73,7 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
           id: DEMO_ORG_ID,
           name: "Harbour Lane Studio",
           plan: resolveEffectivePlan({ state: "trialing", trial: window }, now),
-          trial: { endsAt: window.endsAt.toISOString(), phase: trialPhase(window, now) },
+          trial: { startedAt: window.startedAt.toISOString(), endsAt: window.endsAt.toISOString(), phase: trialPhase(window, now) },
           billingUnknown: false,
         },
       ];
@@ -124,6 +124,11 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
 
     async countEvaluations() {
       return Math.min(DEMO_EVALUATIONS_THIS_PERIOD, TRIAL.limits.evaluationsTotal);
+    },
+
+    async countAiCredits() {
+      // The demo never calls a model, so it has no AI usage.
+      return 0;
     },
   };
 }

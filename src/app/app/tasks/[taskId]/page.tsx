@@ -12,6 +12,7 @@ import { EMPTY_CONTRACT_FORM, formFromContract } from "@/core/realityloop/contra
 import { TASK_STATE_LABELS, lifecycleProgress } from "@/core/realityloop/progress";
 import { TERMINAL_STATES, type TaskState } from "@/core/realityloop/task-machine";
 import { loadAppContext } from "@/server/workspace/context";
+import { loadAiAvailability } from "@/server/workspace/usage-summary";
 
 export const metadata: Metadata = { title: "Task" };
 
@@ -26,7 +27,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
   const found = await ctx.reader.getTask(ctx.current.id, taskId);
   if (!found) notFound();
   const { task, history } = found;
-  const contract = await ctx.reader.getContract(ctx.current.id, task.id);
+  const [contract, ai] = await Promise.all([ctx.reader.getContract(ctx.current.id, task.id), loadAiAvailability(ctx, ctx.current)]);
   const intact = contract ? await contractIntact(contract) : true;
   const writeReason = ctx.writes.enabled ? null : ctx.writes.reason;
 
@@ -79,7 +80,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
                 />
               ) : null}
               {CAN_REVISE.has(task.state) ? (
-                <ReviseContract taskId={task.id} taskVersion={task.version} basedOn={contract.version} initial={formFromContract(contract.body)} disabledReason={writeReason} />
+                <ReviseContract taskId={task.id} taskVersion={task.version} basedOn={contract.version} initial={formFromContract(contract.body)} disabledReason={writeReason} ai={ai} />
               ) : null}
             </div>
           ) : CAN_START_CONTRACT.has(task.state) ? (
@@ -89,6 +90,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
               basedOn={0}
               initial={{ ...EMPTY_CONTRACT_FORM, outcome: task.title }}
               disabledReason={writeReason}
+              ai={ai}
               submitLabel="Save contract version 1"
             />
           ) : (
@@ -132,7 +134,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-ink-2">
               {CAN_START_CONTRACT.has(task.state) || task.state === "CONTRACT_DRAFTED"
-                ? "Write the intent contract, then approve the exact version. Drafting it with AI and planning the change arrive with Farbaek Agent later in Stage 2."
+                ? "Write the intent contract, or draft it with AI and review it, then approve the exact version. Planning the change arrives with Farbaek Agent later in Stage 2."
                 : task.state === "CONTRACT_APPROVED"
                   ? "The contract is approved. Plans, policy checks and execution arrive with Farbaek Agent later in Stage 2; until then the task waits here."
                   : finished

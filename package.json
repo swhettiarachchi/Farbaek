@@ -19,6 +19,7 @@
     "setup:env": "node scripts/setup-env.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "0.128.0",
     "@phosphor-icons/react": "2.1.10",
     "@react-three/fiber": "9.8.1",
     "@supabase/ssr": "0.12.7",

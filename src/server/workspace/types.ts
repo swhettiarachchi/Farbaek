@@ -83,6 +83,8 @@ export interface WorkspaceReader {
   listTasks(orgId: string, options?: { projectId?: string; limit?: number }): Promise<Task[]>;
   getTask(orgId: string, taskId: string): Promise<{ task: Task; history: Transition[] } | null>;
   countEvaluations(orgId: string, from: Date, to: Date): Promise<number>;
+  /** AI credits reserved or settled in the window (refunds excluded). */
+  countAiCredits(orgId: string, from: Date, to: Date): Promise<number>;
   /** The latest contract version for a task, or null when none has been written. */
   getContract(orgId: string, taskId: string): Promise<ContractRecord | null>;
 }

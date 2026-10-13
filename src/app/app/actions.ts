@@ -12,6 +12,9 @@ import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
 import { MANAGER_ROLES } from "@/server/workspace/types";
 import { EMPTY_CONTRACT_FORM, type ContractFormValues } from "@/core/realityloop/contract-form";
 import { approveContract, cancelTask, createProject, createTask, saveContract, type WriteDeps } from "@/server/workspace/use-cases";
+import { draftContractWithAi, type AiCreditDeps } from "@/server/workspace/ai-drafting";
+import { createAnthropicContractDrafter } from "@/server/ai/anthropic";
+import { hasAnthropicKey } from "@/server/ai/config";
 
 export type FormState = { status: "idle" } | { status: "error"; message: string; values?: Record<string, string> } | { status: "done"; message: string };
 
@@ -30,7 +33,7 @@ async function requireContext(): Promise<AppContext> {
 }
 
 /** Resolves write dependencies, or the honest reason writes are unavailable. */
-async function writeDeps(ctx: AppContext): Promise<{ deps: WriteDeps; orgId: string } | { error: string }> {
+async function writeDeps(ctx: AppContext): Promise<{ deps: WriteDeps & AiCreditDeps; orgId: string } | { error: string }> {
   if (!ctx.writes.enabled) return { error: ctx.writes.reason };
   if (!ctx.current) return { error: "Create a workspace first." };
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
@@ -147,6 +150,39 @@ export async function approveContractAction(_previous: FormState, form: FormData
   if (!result.ok) return { status: "error", message: result.message };
   revalidatePath("/app", "layout");
   return { status: "done", message: "Contract approved." };
+}
+
+export type AiDraftState =
+  | { status: "error"; message: string }
+  | { status: "done"; values: ContractFormValues; model: string; credits: { used: number; limit: number | null } };
+
+/**
+ * Drafts contract fields with AI for the person to review. Nothing is saved:
+ * the editor is prefilled and the normal save and approval steps still apply.
+ */
+export async function draftContractWithAiAction(form: FormData): Promise<AiDraftState> {
+  const taskId = String(form.get("taskId") ?? "");
+  const notes = Object.fromEntries(Object.entries(contractValues(form)).filter(([, v]) => v.trim() !== ""));
+
+  const ctx = await requireContext();
+  const w = await writeDeps(ctx);
+  if ("error" in w) return { status: "error", message: w.error };
+  if (!hasAnthropicKey()) return { status: "error", message: "AI drafting isn't connected on this server yet. You can still write the contract yourself." };
+
+  // Read through Row Level Security: the task and project must be visible to this user.
+  const found = await ctx.reader.getTask(w.orgId, taskId);
+  if (!found) return { status: "error", message: "That task doesn't exist or isn't in this workspace." };
+  const project = await ctx.reader.getProject(w.orgId, found.task.projectId);
+
+  const result = await draftContractWithAi(w.deps, createAnthropicContractDrafter(), {
+    orgId: w.orgId,
+    userId: ctx.user.id,
+    taskId: found.task.id,
+    brief: { taskTitle: found.task.title, projectName: project?.name ?? "Project", projectDescription: project?.description ?? null, notes },
+  });
+  if (!result.ok) return { status: "error", message: result.message };
+  revalidatePath("/app", "layout");
+  return { status: "done", values: result.value.form, model: result.value.model, credits: result.value.credits };
 }
 
 export async function renameWorkspaceAction(_previous: FormState, form: FormData): Promise<FormState> {

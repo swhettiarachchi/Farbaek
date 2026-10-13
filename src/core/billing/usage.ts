@@ -87,3 +87,18 @@ export function billingPeriod(anchor: Date | null, now: Date): BillingPeriod {
   if (addMonthsFromAnchor(anchor, offset).getTime() > now.getTime()) offset -= 1;
   return { start: addMonthsFromAnchor(anchor, offset), end: addMonthsFromAnchor(anchor, offset + 1) };
 }
+
+/**
+ * The window a plan's usage limits apply to right now: the whole trial while
+ * it runs (trial caps are totals), otherwise the period from billingPeriod.
+ */
+export function usagePeriod(
+  trial: { startedAt: Date; endsAt: Date } | undefined,
+  anchor: Date | null,
+  now: Date,
+): BillingPeriod & { kind: "trial" | "month" } {
+  if (trial && now.getTime() >= trial.startedAt.getTime() && now.getTime() < trial.endsAt.getTime()) {
+    return { start: trial.startedAt, end: trial.endsAt, kind: "trial" };
+  }
+  return { ...billingPeriod(anchor, now), kind: "month" };
+}

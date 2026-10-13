@@ -27,7 +27,7 @@ export interface WorkspaceSummary {
   id: string;
   name: string;
   plan: EffectivePlan;
-  trial: { endsAt: string; phase: TrialPhase } | null;
+  trial: { startedAt: string; endsAt: string; phase: TrialPhase } | null;
   /** True when billing state is missing, so entitlements fail closed. */
   billingUnknown: boolean;
 }
@@ -65,7 +65,7 @@ export function summarizeOrganizations(rows: unknown, now: Date): WorkspaceSumma
         id: row.id,
         name: row.name,
         plan: resolveEffectivePlan(snapshot, now),
-        trial: window ? { endsAt: window.endsAt.toISOString(), phase: trialPhase(window, now) } : null,
+        trial: window ? { startedAt: window.startedAt.toISOString(), endsAt: window.endsAt.toISOString(), phase: trialPhase(window, now) } : null,
         billingUnknown: !billing,
       };
     });

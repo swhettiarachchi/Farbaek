@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { InMemoryUsageLedger, billingPeriod, type EvaluationRequest } from "./usage";
+import { InMemoryUsageLedger, billingPeriod, usagePeriod, type EvaluationRequest } from "./usage";
 
 const t = new Date("2026-10-13T10:00:00.000Z");
 const req = (over: Partial<EvaluationRequest> = {}): EvaluationRequest => ({
@@ -78,5 +78,19 @@ describe("billing periods", () => {
 
   it("refuses a time before the anchor", () => {
     expect(() => billingPeriod(new Date("2026-10-13T00:00:00Z"), new Date("2026-10-12T00:00:00Z"))).toThrow();
+  });
+});
+
+describe("usagePeriod", () => {
+  const trial = { startedAt: new Date("2026-10-10T00:00:00Z"), endsAt: new Date("2026-10-24T00:00:00Z") };
+
+  it("uses the whole trial window while the trial runs", () => {
+    expect(usagePeriod(trial, null, new Date("2026-10-13T00:00:00Z"))).toEqual({ start: trial.startedAt, end: trial.endsAt, kind: "trial" });
+  });
+
+  it("falls back to the monthly period after the trial or without one", () => {
+    const after = usagePeriod(trial, null, new Date("2026-10-30T00:00:00Z"));
+    expect([after.kind, after.start.toISOString()]).toEqual(["month", "2026-10-01T00:00:00.000Z"]);
+    expect(usagePeriod(undefined, null, new Date("2026-10-13T00:00:00Z")).kind).toBe("month");
   });
 });

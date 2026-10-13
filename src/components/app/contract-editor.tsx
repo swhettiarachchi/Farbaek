@@ -1,10 +1,11 @@
 "use client";
 
-import { FingerprintIcon } from "@phosphor-icons/react";
-import { useActionState, useId, useState } from "react";
-import { approveContractAction, saveContractAction, type FormState } from "@/app/app/actions";
+import { FingerprintIcon, InfoIcon, SparkleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { useActionState, useId, useRef, useState, useTransition } from "react";
+import { approveContractAction, draftContractWithAiAction, saveContractAction, type AiDraftState, type FormState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
 import type { ContractFormValues } from "@/core/realityloop/contract-form";
+import type { AiAvailability } from "@/server/workspace/ai-drafting";
 
 const IDLE: FormState = { status: "idle" };
 
@@ -36,6 +37,7 @@ export function ContractEditor({
   basedOn,
   initial,
   disabledReason,
+  ai,
   submitLabel,
   onCancel,
 }: {
@@ -44,12 +46,27 @@ export function ContractEditor({
   basedOn: number;
   initial: ContractFormValues;
   disabledReason: string | null;
+  ai: AiAvailability;
   submitLabel: string;
   onCancel?: () => void;
 }) {
   const [state, action, pending] = useActionState(saveContractAction, IDLE);
   const base = useId();
-  const values = (state.status === "error" ? state.values : undefined) ?? initial;
+  const formRef = useRef<HTMLFormElement>(null);
+  const [aiPending, startAi] = useTransition();
+  // `after` is the save state when the draft arrived: a later save error shows what was submitted instead.
+  const [aiDraft, setAiDraft] = useState<{ result: AiDraftState; after: FormState; key: number } | null>(null);
+  const drafted = aiDraft?.result.status === "done" && aiDraft.after === state ? aiDraft.result : null;
+  const values = drafted?.values ?? (state.status === "error" ? state.values : undefined) ?? initial;
+
+  function draftWithAi() {
+    if (!formRef.current) return;
+    const data = new FormData(formRef.current);
+    startAi(async () => {
+      const result = await draftContractWithAiAction(data);
+      setAiDraft((prev) => ({ result, after: state, key: (prev?.key ?? 0) + (result.status === "done" ? 1 : 0) }));
+    });
+  }
 
   if (state.status === "done") {
     return (
@@ -60,10 +77,11 @@ export function ContractEditor({
   }
 
   return (
-    <form action={action} className="grid gap-5">
+    <form ref={formRef} key={aiDraft?.key ?? 0} action={action} className="grid gap-5">
       <input type="hidden" name="taskId" value={taskId} />
       <input type="hidden" name="expectedTaskVersion" value={taskVersion} />
       <input type="hidden" name="basedOn" value={basedOn} />
+      <AiDraftPanel ai={ai} pending={aiPending} disabled={pending || Boolean(disabledReason)} formReason={disabledReason} result={aiDraft?.result ?? null} onDraft={draftWithAi} />
       <div className="grid gap-5 md:grid-cols-2">
         {FIELDS.map((f) => {
           const id = `${base}-${f.name}`;
@@ -103,7 +121,7 @@ export function ContractEditor({
         </p>
       ) : null}
       <div className="flex flex-wrap items-center gap-3">
-        <button type="submit" disabled={pending || Boolean(disabledReason)} className={buttonClasses("primary")}>
+        <button type="submit" disabled={pending || aiPending || Boolean(disabledReason)} className={buttonClasses("primary")}>
           {pending ? "Saving…" : submitLabel}
         </button>
         {onCancel ? (
@@ -117,14 +135,90 @@ export function ContractEditor({
   );
 }
 
-/** Revise button that reveals the editor prefilled with the current version. */
+const PERIOD_TEXT = { trial: "in the trial", month: "this month" } as const;
+
+function AiDraftPanel({
+  ai,
+  pending,
+  disabled,
+  formReason,
+  result,
+  onDraft,
+}: {
+  ai: AiAvailability;
+  pending: boolean;
+  disabled: boolean;
+  /** Already shown under the form, so not repeated here. */
+  formReason: string | null;
+  result: AiDraftState | null;
+  onDraft: () => void;
+}) {
+  const credits = result?.status === "done" ? result.credits : { used: ai.used, limit: ai.limit };
+  const left = credits.used !== null && credits.limit !== null ? Math.max(credits.limit - credits.used, 0) : null;
+  const outOfCredits = left !== null && left < ai.cost;
+  const reason = ai.disabledReason ?? (outOfCredits ? "You've used the AI credits for this period. You can still write the contract yourself." : null);
+  return (
+    <div className="grid gap-3 rounded-sm border border-line bg-surface-raised/60 p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="flex items-center gap-2 text-sm font-medium">
+            <SparkleIcon size={16} weight="fill" className="text-accent" aria-hidden /> Draft with AI
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-ink-3">
+            Claude reads the task, the project and anything you&apos;ve typed below, then fills in the fields. Uses {ai.cost} AI credit
+            {left !== null && credits.limit !== null ? (
+              <>
+                {" "}
+                · <span className="tabular">{left}</span> of <span className="tabular">{credits.limit}</span> left {PERIOD_TEXT[ai.period]}
+              </>
+            ) : null}
+            .
+          </p>
+        </div>
+        <span className="shrink-0">
+          <button type="button" onClick={onDraft} disabled={pending || disabled || Boolean(reason)} className={buttonClasses("secondary", "sm")}>
+            <SparkleIcon size={16} aria-hidden />
+            {pending ? "Drafting…" : result?.status === "done" ? "Draft again" : "Draft with AI"}
+          </button>
+        </span>
+      </div>
+      <div aria-live="polite" className="empty:hidden">
+        {pending ? <p className="text-xs text-ink-2">Drafting. This can take up to a minute.</p> : null}
+        {!pending && result?.status === "done" ? (
+          <p role="status" className="flex items-start gap-2 text-sm text-ink-2">
+            <InfoIcon size={16} className="mt-0.5 shrink-0 text-info" aria-hidden />
+            <span>
+              Drafted by <span className="font-mono text-xs">{result.model}</span>. Nothing is saved yet: check every field, fix what&apos;s wrong, then save.
+            </span>
+          </p>
+        ) : null}
+        {!pending && result?.status === "error" ? (
+          <p role="alert" className="flex items-start gap-2 text-sm text-failed">
+            <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
+            <span>{result.message}</span>
+          </p>
+        ) : null}
+        {reason && reason !== formReason && !pending && result?.status !== "error" ? <p className="text-xs text-ink-2">{reason}</p> : null}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Revise button that reveals the editor prefilled with the current version.
+ * It opens even when changes aren't allowed, so the editor can be seen; its
+ * fields and buttons are then disabled with the reason.
+ */
 export function ReviseContract(props: Omit<Parameters<typeof ContractEditor>[0], "submitLabel" | "onCancel">) {
   const [open, setOpen] = useState(false);
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)} disabled={Boolean(props.disabledReason)} className={buttonClasses("secondary", "sm")}>
-        Revise contract
-      </button>
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="button" onClick={() => setOpen(true)} className={buttonClasses("secondary", "sm")}>
+          {props.disabledReason ? "View the editor" : "Revise contract"}
+        </button>
+        {props.disabledReason ? <p className="text-sm text-ink-3">{props.disabledReason}</p> : null}
+      </div>
     );
   }
   return <ContractEditor {...props} submitLabel={`Save as version ${props.basedOn + 1}`} onCancel={() => setOpen(false)} />;

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Card, Notice, PageHeader, UsageMeter } from "@/components/app/primitives";
 import { LocalTime } from "@/components/ui/local-time";
+import { CREDIT_COSTS } from "@/config/credits";
 import { FEATURE_LABELS, SELF_SERVE_PLANS, TRIAL, formatUsd, getPlan } from "@/core/billing/catalog";
 import { loadAppContext } from "@/server/workspace/context";
 import { loadUsageSummary } from "@/server/workspace/usage-summary";
@@ -72,7 +73,23 @@ export default async function BillingPage() {
             <UsageMeter label="Governed evaluations" used={usage.evaluations} limit={limits.evaluationsPerMonth} detail="Blocked actions count. Retries with the same key count once." reached="Limit reached. New governed actions pause until the next period or an upgrade; exports, billing and emergency pause keep working." />
             <UsageMeter label="Projects" used={usage.projects.length} limit={limits.workspaces} detail="Active projects in this workspace." reached="Project limit reached. Archive a project or choose a bigger plan to add another." />
             <UsageMeter label="Seats" used={usage.members} limit={limits.seats} detail="People in this workspace." reached="Seat limit reached. Adding people needs a bigger plan." />
-            <UsageMeter label="AI credits" used={0} limit={limits.aiCreditsPerMonth} detail="No AI usage yet. Model work arrives with Studio in Stage 2." />
+            {usage.aiCredits === null ? (
+              <div>
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="text-sm font-medium">AI credits</p>
+                  <p className="text-sm text-ink-3">Unavailable</p>
+                </div>
+                <p className="mt-1.5 text-xs text-ink-3">AI credit usage couldn&apos;t be read, so AI drafting is paused until it can be.</p>
+              </div>
+            ) : (
+              <UsageMeter
+                label="AI credits"
+                used={usage.aiCredits}
+                limit={limits.aiCreditsPerMonth}
+                detail={`Drafting a contract with AI uses ${CREDIT_COSTS.contract_draft} credit. Calls that return no draft are refunded.`}
+                reached="AI credits used up. AI drafting pauses until the allowance resets or you upgrade. Writing contracts yourself keeps working."
+              />
+            )}
             <UsageMeter label="Registered agents" used={0} limit={limits.agents} detail="Agents arrive in Stage 4." />
             <UsageMeter label="Integrations" used={0} limit={limits.integrations} detail="GitHub arrives with Studio in Stage 2." />
           </div>

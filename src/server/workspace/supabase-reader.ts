@@ -162,5 +162,11 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
       if (error) fail("usage", error);
       return count ?? 0;
     },
+
+    async countAiCredits(orgId, from, to) {
+      const { data, error } = await client.rpc("ai_credits_used", { p_org: orgId, p_from: from.toISOString(), p_to: to.toISOString() });
+      if (error) fail("AI credit usage", error);
+      return z.number().int().nonnegative().parse(data);
+    },
   };
 }

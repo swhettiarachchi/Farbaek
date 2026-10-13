@@ -26,6 +26,10 @@ export type WriteErrorCode =
   | "INVALID_TRANSITION"
   | "INVALID_CONTRACT"
   | "CONTRACT_CHANGED"
+  | "AI_UNAVAILABLE"
+  | "AI_REFUSED"
+  | "AI_INCOMPLETE"
+  | "AI_BUSY"
   | "UNKNOWN";
 
 export type WriteResult<T> = { ok: true; value: T } | { ok: false; code: WriteErrorCode; message: string };
@@ -77,7 +81,7 @@ export interface WriteDeps {
   now(): Date;
 }
 
-const MESSAGES: Record<WriteErrorCode, string> = {
+export const MESSAGES: Record<WriteErrorCode, string> = {
   FORBIDDEN: "Your role in this workspace can't make this change.",
   INVALID_NAME: "Use a name between 1 and 80 characters.",
   INVALID_TITLE: "Use a title between 1 and 200 characters.",
@@ -92,10 +96,14 @@ const MESSAGES: Record<WriteErrorCode, string> = {
   INVALID_TRANSITION: "This task can't make that change from its current state.",
   INVALID_CONTRACT: "The contract isn't complete.",
   CONTRACT_CHANGED: "The contract changed since you opened it. Reload to see the latest version, then try again.",
+  AI_UNAVAILABLE: "AI drafting isn't available right now. You can still write the contract yourself.",
+  AI_REFUSED: "The model declined to draft this contract. Write it yourself, or reword the task and try again.",
+  AI_INCOMPLETE: "The draft came back incomplete. Try again, or write the contract yourself.",
+  AI_BUSY: "The AI provider is busy. Try again in a minute.",
   UNKNOWN: "Something went wrong and nothing was changed. Try again in a moment.",
 };
 
-const fail = <T>(code: WriteErrorCode, message = MESSAGES[code]): WriteResult<T> => ({ ok: false, code, message });
+export const fail = <T>(code: WriteErrorCode, message = MESSAGES[code]): WriteResult<T> => ({ ok: false, code, message });
 
 /** Maps an error raised by an app_* database function to a result code. */
 export function codeFromDatabaseError(message: string): WriteErrorCode {
@@ -105,7 +113,7 @@ export function codeFromDatabaseError(message: string): WriteErrorCode {
   return "UNKNOWN";
 }
 
-async function requireContributor(deps: WriteDeps, orgId: string): Promise<WriteResult<OrgRole>> {
+export async function requireContributor(deps: WriteDeps, orgId: string): Promise<WriteResult<OrgRole>> {
   const role = await deps.role(orgId);
   if (!role) return fail("NOT_FOUND");
   if (!CONTRIBUTOR_ROLES.includes(role)) return fail("FORBIDDEN");
@@ -218,8 +226,8 @@ function planSteps(
   return { ok: true, steps };
 }
 
-/** The events that bring a task to CONTRACT_DRAFTED from where it is now. */
-function draftingEvents(state: TaskState): TaskEventType[] | null {
+/** The events that bring a task to CONTRACT_DRAFTED from where it is now, or null once the contract is fixed. */
+export function draftingEvents(state: TaskState): TaskEventType[] | null {
   switch (state) {
     case "RECEIVED":
       return ["assemble_context", "draft_contract"];

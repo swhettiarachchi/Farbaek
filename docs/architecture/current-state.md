@@ -46,23 +46,27 @@ ESLint forbids `src/core` from importing React, Next, Motion or UI code, so ever
 | 14-day trial: eligibility, window, reminders, expiry to Free | Implemented as pure logic, unit-tested | `trial.test.ts` |
 | Entitlement checks (fail closed, typed errors, always-available ops) | Implemented, unit-tested | `entitlements.test.ts` |
 | Evaluation metering (idempotent, per org, period boundaries) | In-memory reference only, unit-tested | `usage.test.ts` |
+| AI credit ledger (reserve, settle, refund; trial or monthly period) | Implemented and tested (migration 4). **Not yet applied to the hosted project.** | `tests/db/ai-credits.test.ts`, `ai-drafting.test.ts` |
+| Draft an intent contract with AI (Claude, structured output, refusal fallbacks) | Implemented and unit-tested with a fake drafter. Needs `ANTHROPIC_API_KEY` and migration 4 to run live. | `src/server/ai/`, ADR 0009 |
 | RealityLoop task state machine (evidence guards, optimistic concurrency, idempotent events) | Implemented, unit-tested | `task-machine.test.ts` |
 | Intent contract schema (Zod) and deterministic action checks | Implemented, unit-tested | `contract.test.ts` |
 | Approval binding (RFC 8785 + SHA-256) | Implemented, unit-tested, used live in the demo | `canonical-json.test.ts`, `approval.test.ts` |
 | ProofPack Seal from digest | Implemented, unit-tested | `seal.test.ts` |
 | Marketing site and pricing page | Implemented, built, checked at 375px and 1440px, light and dark | Manual browser check, see `docs/stages/stage-0.md` |
-| Accounts, organizations, database | All three migrations applied to the hosted project (core schema, projects and server-only writes, intent contracts) | `tests/db/`, `docs/stages/` |
+| Accounts, organizations, database | Migrations 1 to 3 applied to the hosted project (core schema, projects and server-only writes, intent contracts). Migration 4 (AI credit ledger) is written and tested, not applied. | `tests/db/`, `docs/stages/` |
 | Signed-in app: Mission Control, projects, tasks, intent contracts, approvals, billing, settings | Built; verified in the demo workspace; live use needs `.env.local` (run `pnpm setup:env`) | `src/app/app/`, `src/server/workspace/` |
 | Studio, Agent, Mesh, LaunchOS, Mobile | **Not started** | Roadmap |
 | Payments | **Not connected.** `BILLING_MODE=not_connected` | Spec section 23 |
 
 ### Integrations
 
-None are live. No model provider, sandbox, email, database, auth or payment provider is connected. `.env.example` lists the names that later stages will read; the app reads none of them today.
+- **Supabase** (auth and database): connected to the hosted project. The app reads it once `.env.local` exists (`pnpm setup:env`).
+- **Anthropic** (contract drafting): code is in place; it runs only when the server has `ANTHROPIC_API_KEY`. Usage is billed to that key.
+- Not connected: sandbox, email, payments. `.env.example` lists every variable name and what reads it.
 
 ## 3. Data model and auth boundaries
 
-No persistence yet. The domain types in `src/core` define the shapes Stage 1 will persist: billing snapshot, trial window, usage events keyed by `(org_id, idempotency_key)`, task snapshots with version and history, approval records with `bindingHash`.
+Postgres on Supabase with Row Level Security on every table. The browser can only read. Every write goes through a server action, then the TypeScript rules in `src/server/workspace/`, then a service-role-only `app_*` function that re-checks membership, limits and versions. Tables: organizations, members, trials, billing accounts, evaluation events, projects, tasks, task transitions, intent contracts, AI credit ledger, audit events.
 
 ## 4. Design system and logo
 
@@ -74,14 +78,15 @@ No persistence yet. The domain types in `src/core` define the shapes Stage 1 wil
 
 ## 5. Security gaps (see `docs/security/threat-model.md`)
 
-- No authentication or tenant isolation yet (nothing to protect yet: no user data is collected).
+- Auth and tenant isolation are in place (Supabase email sign-in, RLS, cross-tenant database tests). The live write path hasn't been exercised end to end against the hosted project yet.
+- AI drafting sends task titles, project details and the person's notes to Anthropic. They are sent as data with a system prompt that says so; the output only prefills the editor.
 - CSP covers framing, base URI, forms and objects; a nonce-based `script-src` arrives with the app routes.
 - No `security.txt` yet: it needs a real contact address from the owner.
 
 ## 6. Cost drivers
 
-Today: zero runtime cost beyond static hosting. Future drivers, in order: model tokens, sandbox minutes (wall-clock vs active-CPU pricing differs by vendor), database, email.
+Today: Supabase, plus model tokens for each AI contract draft (Claude Opus 5.5, up to 8,000 output tokens per draft, billed to the server's Anthropic key; credits cap how many drafts a workspace can make). Future drivers: sandbox minutes (wall-clock vs active-CPU pricing differs by vendor), email.
 
 ## 7. Highest-value next slice
 
-Stage 1: Supabase auth with email verification, organizations, Drizzle schema for billing/trial/usage/tasks with RLS and cross-tenant tests, persisting the pure logic that already exists, plus the responsive app shell with a real Mission Control. See `docs/stages/stage-0.md` for the acceptance list.
+Stage 2 continues: apply migration 4 and verify AI drafting live, then GitHub import and the file workspace, then patch generation and diff review. See `docs/stages/stage-2.md`.
