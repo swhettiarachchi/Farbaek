@@ -67,7 +67,7 @@ Verify one live draft, then GitHub import and the file workspace.
 
 ### Done
 
-- Migration `20261015120000_project_files.sql` (tested, **not applied yet**): immutable `project_file_revisions` (import, edit, delete) and `project_files` pointing at each path's current revision. The database computes hashes and sizes and re-checks paths and limits. Service-role-only `app_import_files` (all or nothing), `app_save_file` and `app_delete_file` with a project lock and per-file optimistic concurrency. `get_project_file` and `search_project_files` run as the caller under RLS. ADR 0010.
+- Migration `20261015120000_project_files.sql` (tested; **applied to the hosted project 2026-10-13**, see below): immutable `project_file_revisions` (import, edit, delete) and `project_files` pointing at each path's current revision. The database computes hashes and sizes and re-checks paths and limits. Service-role-only `app_import_files` (all or nothing), `app_save_file` and `app_delete_file` with a project lock and per-file optimistic concurrency. `get_project_file` and `search_project_files` run as the caller under RLS. ADR 0010.
 - `src/core/workspace/files.ts`: path rules, import screening (dependency and build folders, credentials files, content matching credential formats, binary, size), the file tree and language labels. `src/config/workspace.ts`: 512 KB per file, 4 MB per import, 25 MB and 3,000 files per project.
 - Use cases `importProjectFiles`, `saveProjectFile` (secret check included) and `deleteProjectFile`; Supabase writer and reader (paged listing past PostgREST's 1,000-row limit).
 - Files page (`/app/projects/[id]/files`): a tree that works without JavaScript, a read-only code view with linkable lines, project-wide search with marked matches, two-step delete, and folder or file import. The browser previews the import, including what will be skipped and why, before anything is uploaded. The project page shows a Files card.
@@ -80,10 +80,17 @@ Verify one live draft, then GitHub import and the file workspace.
 
 ### Not verified
 
-- Importing into the hosted project: needs migration 5 applied, the env file and a signed-in session.
+- Importing into the hosted project: needs the env file and a signed-in session.
 
 ### Next
 
 The CodeMirror editor (needs a dependency install), then targeted patches, diff review and checkpoints on top of the revisions.
+
+## 2026-10-13: migration 5 applied
+
+- Owner-approved, via Claude in Chrome. The SQL Editor contents were hashed in the page and matched the tested file (14,295 bytes, `sha256 511ecfd9…f6a4`). Supabase showed its destructive-operation warning because the body of `app_delete_file` contains a `delete from public.project_files` statement. That statement runs only when someone deletes a file later. The migration itself only creates objects. Confirmed, result: success.
+- Read-only check afterwards: both tables have RLS, select-only for authenticated and nothing for anon; the policies "members read files" and "members read file revisions"; `get_project_file` and `search_project_files` run as the caller; `app_import_files`, `app_save_file` and `app_delete_file` are security definer and executable by service_role only; the private helpers aren't executable by anon, authenticated or service_role. `private.valid_project_path` accepted `src/app/page.tsx` and rejected `../escape`, `a//b` and `/abs`.
+- The hosted project now has all five migrations:
+  `supabase migration repair --status applied 20261013120000 20261014090000 20261014120000 20261015090000 20261015120000`
 
 Note on dates: entries above were first written with later dates (2026-10-14 and 2026-10-15). Everything here happened on 2026-10-13. Migration filenames (`20261014…`, `20261015…`) are ordering versions only and stay as they are, because migrations 2 to 4 are already applied under those names.
