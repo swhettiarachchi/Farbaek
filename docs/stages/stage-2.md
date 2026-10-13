@@ -165,4 +165,21 @@ Project-level checkpoints and the sandbox runner decision (ADR 0003), so VERIFYI
 - The hosted project now has all six migrations:
   `supabase migration repair --status applied 20261013120000 20261014090000 20261014120000 20261015090000 20261015120000 20261015150000`
 
+## 2026-10-13: execution boundary and Review Only
+
+### Done
+
+- `SandboxProvider` interface and `executionMode` (ADR 0003): sandboxed only with verified microVM isolation and restricted egress, otherwise Review Only with a reason. `verificationEvent` maps real exit codes to verified, partially verified or failed, and to no event when all checks pass without a ProofPack or none ran. A test confirms it agrees with the state machine's guards.
+- No adapter is installed, so the server always reports Review Only.
+- Settings: an Execution card with the mode, the reason, and what works and what doesn't.
+- Task page: a Verification card for tasks in verification, listing the contract's required checks as "Not run". The proposal's applied note uses the same reason.
+
+### Verified
+
+- 387 tests; typecheck, lint and build pass. Browser, demo mode: the Settings Execution card at 473px.
+
+### Next
+
+The owner chooses a sandbox provider (E2B or Vercel Sandbox: an account, a key and a cost review). Then an adapter, a runner for tasks in verification, and the ProofPack that verification requires.
+
 Note on dates: entries above were first written with later dates (2026-10-14 and 2026-10-15). Everything here happened on 2026-10-13. Migration filenames (`20261014…`, `20261015…`) are ordering versions only and stay as they are, because migrations 2 to 4 are already applied under those names.

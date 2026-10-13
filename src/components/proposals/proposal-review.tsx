@@ -40,6 +40,7 @@ export function ProposalReview({
   bases,
   invariants,
   disabledReason,
+  executionReason,
 }: {
   projectId: string;
   proposal: ProposalRecord;
@@ -48,6 +49,8 @@ export function ProposalReview({
   /** Contract invariants written in words, which no automatic check covers. */
   invariants: string[];
   disabledReason: string | null;
+  /** Why checks can't run here (Review Only), or null when a sandbox is connected. */
+  executionReason: string | null;
 }) {
   const router = useRouter();
   const [finals, setFinals] = useState<Record<string, string>>(() => Object.fromEntries(proposal.changes.map((c) => [c.path, c.content])));
@@ -176,8 +179,7 @@ export function ProposalReview({
           <p className="flex items-start gap-2 rounded-sm border border-approval/30 bg-approval/[0.06] px-4 py-3 text-sm">
             <WarningCircleIcon size={18} className="mt-px shrink-0 text-approval" aria-hidden />
             <span>
-              Not verified. Checks such as {proposal.plan.checks[0] ? <code className="font-mono text-[13px]">{proposal.plan.checks[0]}</code> : "the test suite"} haven&apos;t run, because no
-              isolated runner is connected yet. The task waits in verification until they can.
+              Not verified. {executionReason ?? "The contract's checks haven't run yet."} The task waits in verification until its checks run and pass.
             </span>
           </p>
         </div>
@@ -203,7 +205,7 @@ export function ProposalReview({
           {proposal.plan.checks.length ? (
             <p className="text-xs text-ink-3">
               Checks the agent suggests: {proposal.plan.checks.map((c, i) => <code key={i} className="mr-2 font-mono">{c}</code>)}
-              They can&apos;t run here yet: no isolated runner is connected.
+              {executionReason ? "They can't run here yet: Review Only." : null}
             </p>
           ) : null}
         </div>

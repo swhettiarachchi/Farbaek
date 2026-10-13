@@ -5,7 +5,9 @@ import { notFound } from "next/navigation";
 import { ApproveContractControl, ContractEditor, ReviseContract } from "@/components/app/contract-editor";
 import { ContractView, contractIntact } from "@/components/app/contract-view";
 import { CancelTaskControl } from "@/components/app/forms";
+import { ChecksList, ExecutionModeBadge } from "@/components/app/execution";
 import { ProposeChange } from "@/components/proposals/propose-change";
+import { currentExecutionMode } from "@/server/execution/sandbox";
 import { ProposalReview } from "@/components/proposals/proposal-review";
 import { Card, TaskStateBadge } from "@/components/app/primitives";
 import { ProofThread } from "@/components/proof/proof-thread";
@@ -32,6 +34,8 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
   const orgId = ctx.current.id;
   const [contract, ai, proposal] = await Promise.all([ctx.reader.getContract(orgId, task.id), loadAiAvailability(ctx, ctx.current), ctx.reader.getLatestProposal(orgId, task.id)]);
   const canPropose = task.state === "CONTRACT_APPROVED";
+  const execution = currentExecutionMode();
+  const showVerification = task.state === "VERIFYING" || (proposal?.status === "applied" && !TERMINAL_STATES.has(task.state));
   const showProposal = proposal !== null && (proposal.status !== "discarded" || !canPropose);
   const [proposeAi, projectFiles, bases] = await Promise.all([
     canPropose ? loadAiAvailability(ctx, ctx.current, "change_proposal") : Promise.resolve(null),
@@ -131,6 +135,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
                 bases={bases}
                 invariants={contract?.body.protectedInvariants.map((i) => i.statement) ?? []}
                 disabledReason={writeReason}
+                executionReason={execution.mode === "review_only" ? execution.reason : null}
               />
             ) : null}
             {canPropose && proposeAi ? (
@@ -139,6 +144,23 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
                 <ProposeChange taskId={task.id} projectId={task.projectId} files={projectFiles.map((f) => ({ path: f.path, sizeBytes: f.sizeBytes }))} ai={proposeAi} />
               </div>
             ) : null}
+          </div>
+        </Card>
+      ) : null}
+
+      {showVerification ? (
+        <Card>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-medium">Verification</h2>
+            <ExecutionModeBadge mode={execution} />
+          </div>
+          <p className="mt-1 text-sm text-ink-2">
+            {execution.mode === "review_only"
+              ? `${execution.reason} The task stays here, not verified, until its checks run and pass.`
+              : "The contract's required checks run in the sandbox against the applied revisions."}
+          </p>
+          <div className="mt-4">
+            <ChecksList checks={contract?.body.requiredChecks ?? []} mode={execution} />
           </div>
         </Card>
       ) : null}

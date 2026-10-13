@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { ExecutionModeBadge } from "@/components/app/execution";
 import { RenameWorkspaceForm } from "@/components/app/forms";
+import { currentExecutionMode } from "@/server/execution/sandbox";
 import { Card, Notice, PageHeader } from "@/components/app/primitives";
 import { RelativeTime } from "@/components/ui/local-time";
 import { loadAppContext } from "@/server/workspace/context";
@@ -16,11 +18,30 @@ export default async function SettingsPage() {
   const ws = ctx.current;
   const members = await ctx.reader.listMembers(ws.id);
   const canRename = ctx.mode === "live" && ctx.role !== null && MANAGER_ROLES.includes(ctx.role);
+  const execution = currentExecutionMode();
   const renameReason = ctx.mode === "demo" ? "The demo workspace is read-only." : canRename ? null : "Only owners and admins can rename this workspace.";
 
   return (
     <div className="grid gap-8">
       <PageHeader title="Settings" description="Workspace details and the people in it." />
+
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-medium">Execution</h2>
+          <ExecutionModeBadge mode={execution} />
+        </div>
+        {execution.mode === "review_only" ? (
+          <div className="mt-3 grid gap-2 text-sm leading-relaxed text-ink-2">
+            <p>{execution.reason}</p>
+            <p>
+              What works: contracts, AI proposals, diffs, approvals and applying changes as file revisions. What doesn&apos;t: builds, tests and previews. Tasks wait in
+              verification and are never marked verified without real check results.
+            </p>
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-ink-2">Checks run in an isolated microVM with restricted network access.</p>
+        )}
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <Card>
