@@ -1,10 +1,12 @@
-import { ArrowLeftIcon, FileDashedIcon, FolderOpenIcon, MagnifyingGlassIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, FileDashedIcon, FilePlusIcon, FolderOpenIcon, MagnifyingGlassIcon, PencilSimpleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, EmptyState, Notice } from "@/components/app/primitives";
 import { CodeView } from "@/components/files/code-view";
 import { DeleteFile } from "@/components/files/delete-file";
+import { FileEditor } from "@/components/files/file-editor";
+import { buttonClasses } from "@/components/ui/button";
 import { FileTree, fileHref } from "@/components/files/file-tree";
 import { ImportFiles } from "@/components/files/import-files";
 import { RelativeTime } from "@/components/ui/local-time";
@@ -37,7 +39,7 @@ export default async function FilesPage({
   searchParams,
 }: {
   params: Promise<{ projectId: string }>;
-  searchParams: Promise<{ path?: string | string[]; q?: string | string[] }>;
+  searchParams: Promise<{ path?: string | string[]; q?: string | string[]; edit?: string | string[]; new?: string | string[] }>;
 }) {
   const [{ projectId }, sp] = await Promise.all([params, searchParams]);
   const ctx = await loadAppContext();
@@ -48,6 +50,8 @@ export default async function FilesPage({
 
   const path = typeof sp.path === "string" ? sp.path : null;
   const query = typeof sp.q === "string" ? sp.q.trim().slice(0, 200) : "";
+  const editing = sp.edit === "1" && path !== null;
+  const creating = sp.new === "1";
   const [files, file, hits] = await Promise.all([
     ctx.reader.listFiles(orgId, project.id),
     path ? ctx.reader.getFile(orgId, project.id, path) : Promise.resolve(null),
@@ -60,6 +64,7 @@ export default async function FilesPage({
   const grouped = new Map<string, SearchHit[]>();
   for (const h of hits) grouped.set(h.path, [...(grouped.get(h.path) ?? []), h]);
   const base = `/app/projects/${project.id}/files`;
+  const focused = Boolean(file) || creating;
 
   return (
     <div className="grid gap-6">
@@ -95,7 +100,10 @@ export default async function FilesPage({
         </Card>
       ) : (
         <div className="grid gap-6 lg:grid-cols-[minmax(240px,300px)_minmax(0,1fr)] lg:items-start">
-          <aside className={`grid gap-4 lg:sticky lg:top-6 ${file ? "order-2 lg:order-none" : ""}`} aria-label="Project files">
+          <aside className={`grid gap-4 lg:sticky lg:top-6 ${focused ? "order-2 lg:order-none" : ""}`} aria-label="Project files">
+            <Link href={`${base}?new=1`} className={buttonClasses("secondary", "sm", "w-full")}>
+              <FilePlusIcon size={16} aria-hidden /> New file
+            </Link>
             <form action={base} className="flex gap-2" role="search">
               {path ? <input type="hidden" name="path" value={path} /> : null}
               <label htmlFor="file-search" className="sr-only">
@@ -192,7 +200,13 @@ export default async function FilesPage({
               </EmptyState>
             ) : null}
 
-            {file ? (
+            {creating ? <FileEditor projectId={project.id} path={null} initialContent="" revision={0} disabledReason={writeReason} /> : null}
+
+            {file && editing && !creating ? (
+              <FileEditor key={`${file.path}@${file.revision}`} projectId={project.id} path={file.path} initialContent={file.content} revision={file.revision} disabledReason={writeReason} />
+            ) : null}
+
+            {file && !editing && !creating ? (
               <div className="grid min-w-0 gap-3">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
@@ -206,16 +220,20 @@ export default async function FilesPage({
                     </p>
                     {writeReason ? <p className="mt-1 text-xs text-ink-3">{writeReason}</p> : null}
                   </div>
-                  <div className="shrink-0">
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    {/* Opens even when changes aren't allowed: the editor explains why it can't save. */}
+                    <Link href={`${fileHref(project.id, file.path)}&edit=1`} className={buttonClasses("secondary", "sm")}>
+                      <PencilSimpleIcon size={16} aria-hidden /> {writeReason ? "Try the editor" : "Edit"}
+                    </Link>
                     <DeleteFile projectId={project.id} path={file.path} revision={file.revision} disabledReason={writeReason} />
                   </div>
                 </div>
                 <CodeView content={file.content} label={`Contents of ${file.path}`} />
-                <p className="text-xs text-ink-3">Read-only view. Editing with syntax highlighting and reviewable diffs comes with the code editor.</p>
+                <p className="text-xs text-ink-3">Every saved change becomes a new revision, after you review it as a diff.</p>
               </div>
             ) : null}
 
-            {!file && !path && !query ? (
+            {!file && !path && !query && !creating ? (
               <Card>
                 <h2 className="text-lg font-medium">Pick a file</h2>
                 <p className="mt-1 text-sm text-ink-2">Open a file from the tree, or search across every file in the project.</p>

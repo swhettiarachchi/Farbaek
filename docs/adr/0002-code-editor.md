@@ -1,6 +1,6 @@
 # 0002. Code editor
 
-- Status: accepted (not yet implemented)
+- Status: accepted, implemented 2026-10-13 (`src/components/files/codemirror.tsx`, `@codemirror/merge` 6.12.2 for diff review)
 - Date: 2026-10-13
 
 ## Decision

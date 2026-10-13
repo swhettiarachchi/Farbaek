@@ -93,4 +93,27 @@ The CodeMirror editor (needs a dependency install), then targeted patches, diff 
 - The hosted project now has all five migrations:
   `supabase migration repair --status applied 20261013120000 20261014090000 20261014120000 20261015090000 20261015120000`
 
+## 2026-10-13: code editor and diff review
+
+### Done
+
+- CodeMirror 6 installed (owner-approved) with exact pins, all at least two weeks old: `@codemirror/state` 6.7.6, `view` 6.43.13, `commands` 6.11.1, `language` 6.12.4, `search` 6.7.2, `merge` 6.12.2, `lang-javascript` 6.2.5, `lang-json` 6.0.2, `lang-css` 6.3.1, `lang-markdown` 6.5.2, `lang-html` 6.4.12, `@lezer/highlight` 1.2.5. pnpm overrides keep view and language releases from 2026-10-07, and `@lezer/css`, `javascript`, `lr` and `markdown` releases from 2026-10-01 to 2026-10-07, out of the tree. One version of each package in the lockfile.
+- `src/components/files/codemirror.tsx`: loaded only on editing screens. Syntax colours come from the design tokens (signal blue, signal cyan, ink). Search, history, bracket matching, line wrapping on phones, 16px text on phones. The review mode is a unified diff against the saved revision, with Accept and Reject on each changed chunk and unchanged lines collapsed.
+- `FileEditor`: edit, then review the exact change (with +added and −removed line counts), then save as the next revision. Rejected chunks stay rejected when you go back to editing. A warning appears before leaving with unsaved changes. New files get a path field with inline checks (`..`, credentials files, build folders). Secrets are blocked before review, and again on the server.
+- `saveFileAction`, with the revision the person started from. A concurrent save returns "Someone changed this file".
+- In read-only contexts (demo, viewers) the editor opens ("Try the editor") with Save off and the reason shown.
+
+### Verified
+
+- 350 tests pass; typecheck, lint and build pass.
+- Browser, demo mode: the editor loads with highlighting; typing marks it unsaved; the review shows "+1 −0 lines" and Accept/Reject on the chunk; Reject restores the saved text and reports nothing to save; Save is disabled with the demo reason. New file at 375px: inline path checks, 16px text, no horizontal scroll.
+
+### Not verified
+
+- Saving to the hosted project (needs the env file and a signed-in session).
+
+### Next
+
+Targeted AI patches: the agent proposes a change to specific files, the person reviews it in this same diff view, and accepted chunks are saved as revisions tied to the task.
+
 Note on dates: entries above were first written with later dates (2026-10-14 and 2026-10-15). Everything here happened on 2026-10-13. Migration filenames (`20261014…`, `20261015…`) are ordering versions only and stay as they are, because migrations 2 to 4 are already applied under those names.

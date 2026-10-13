@@ -13,7 +13,7 @@ import { MANAGER_ROLES } from "@/server/workspace/types";
 import { EMPTY_CONTRACT_FORM, type ContractFormValues } from "@/core/realityloop/contract-form";
 import { approveContract, cancelTask, createProject, createTask, saveContract, type WriteDeps } from "@/server/workspace/use-cases";
 import { draftContractWithAi, type AiCreditDeps } from "@/server/workspace/ai-drafting";
-import { deleteProjectFile, importProjectFiles, type FileDeps, type ImportSummary } from "@/server/workspace/files";
+import { deleteProjectFile, importProjectFiles, saveProjectFile, type FileDeps, type ImportSummary } from "@/server/workspace/files";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
 import { createAnthropicContractDrafter } from "@/server/ai/anthropic";
 import { hasAnthropicKey } from "@/server/ai/config";
@@ -213,6 +213,32 @@ export async function importFilesAction(input: { projectId: string; files: { pat
   if (!result.ok) return { status: "error", message: result.message };
   revalidatePath(`/app/projects/${project.id}`, "layout");
   return { status: "done", summary: result.value };
+}
+
+export type SaveFileState = { status: "error"; message: string } | { status: "done"; revision: number; path: string };
+
+const SaveFileInput = z.object({
+  projectId: z.uuid(),
+  path: z.string().min(1).max(1000),
+  content: z.string().max(WORKSPACE_LIMITS.maxFileBytes * 4),
+  expectedRevision: z.number().int().min(0),
+});
+
+/** Saves one file as a new revision. The person has already reviewed the diff in the editor. */
+export async function saveFileAction(input: { projectId: string; path: string; content: string; expectedRevision: number }): Promise<SaveFileState> {
+  const parsed = SaveFileInput.safeParse(input);
+  if (!parsed.success) return { status: "error", message: "The file couldn't be read. Reload the page and try again." };
+
+  const ctx = await requireContext();
+  const w = await writeDeps(ctx);
+  if ("error" in w) return { status: "error", message: w.error };
+  const project = await ctx.reader.getProject(w.orgId, parsed.data.projectId);
+  if (!project) return { status: "error", message: "That project doesn't exist or isn't in this workspace." };
+
+  const result = await saveProjectFile(w.deps, { orgId: w.orgId, userId: ctx.user.id, ...parsed.data, projectId: project.id, path: parsed.data.path.trim() });
+  if (!result.ok) return { status: "error", message: result.message };
+  revalidatePath(`/app/projects/${project.id}`, "layout");
+  return { status: "done", revision: result.value, path: parsed.data.path.trim().replace(/^\.\//, "") };
 }
 
 export async function deleteFileAction(_previous: FormState, form: FormData): Promise<FormState> {

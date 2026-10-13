@@ -47,7 +47,7 @@ ESLint forbids `src/core` from importing React, Next, Motion or UI code, so ever
 | Entitlement checks (fail closed, typed errors, always-available ops) | Implemented, unit-tested | `entitlements.test.ts` |
 | Evaluation metering (idempotent, per org, period boundaries) | In-memory reference only, unit-tested | `usage.test.ts` |
 | AI credit ledger (reserve, settle, refund; trial or monthly period) | Implemented, tested, applied to the hosted project (migration 4) | `tests/db/ai-credits.test.ts`, `ai-drafting.test.ts` |
-| Project files: import with secret screening, versioned storage, tree, search, read-only view | Implemented, tested, applied to the hosted project (migration 5, ADR 0010) | `tests/db/project-files.test.ts`, `src/core/workspace/` |
+| Project files: import with secret screening, versioned storage, tree, search, CodeMirror editor with diff review | Implemented, tested, applied to the hosted project (migration 5, ADR 0010) | `tests/db/project-files.test.ts`, `src/core/workspace/` |
 | Draft an intent contract with AI (Claude, structured output, refusal fallbacks) | Implemented and unit-tested with a fake drafter. Needs `ANTHROPIC_API_KEY` to run live. | `src/server/ai/`, ADR 0009 |
 | RealityLoop task state machine (evidence guards, optimistic concurrency, idempotent events) | Implemented, unit-tested | `task-machine.test.ts` |
 | Intent contract schema (Zod) and deterministic action checks | Implemented, unit-tested | `contract.test.ts` |
