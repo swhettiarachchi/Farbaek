@@ -37,7 +37,7 @@ AI drafting of the contract (needs a model provider key), GitHub import and the 
 - `src/server/ai/`: a `ContractDrafter` interface and the Anthropic implementation (official SDK 0.128.0, `claude-opus-5-5`, adaptive thinking at medium effort, structured output against `ContractDraftSchema`, `fallbacks: "default"` for policy refusals). Task, project and notes go to the model as JSON data. ADR 0009.
 - `src/core/realityloop/contract-draft.ts`: the draft schema and `draftToForm`, which trims, bounds, de-duplicates and keeps anything both allowed and forbidden as forbidden. The draft only prefills the editor. Saving and approval are unchanged.
 - `src/config/credits.ts` (`contract_draft` = 1 credit) and `docs/billing/ai-credits.md`.
-- Migration `20261015090000_ai_credit_ledger.sql` (tested, **not applied yet**): `ai_credit_ledger` with RLS for members; `ai_credits_used` (runs as the caller); service-role-only `app_reserve_ai_credits` (allowance re-checked under a lock, period must contain now) and `app_settle_ai_credits` (exactly once, audited).
+- Migration `20261015090000_ai_credit_ledger.sql` (tested; **applied to the hosted project 2026-10-15**, see below): `ai_credit_ledger` with RLS for members; `ai_credits_used` (runs as the caller); service-role-only `app_reserve_ai_credits` (allowance re-checked under a lock, period must contain now) and `app_settle_ai_credits` (exactly once, audited).
 - Use case `draftContractWithAi`: reserve, call the model, settle with provider-reported tokens, or refund when no draft came back. It tells the person if a refund couldn't be recorded. `aiDraftAvailability` gives the button's honest reason when it's off: no key, demo, viewer, unknown billing, credits used up.
 - Editor: a "Draft with AI" panel with the credit cost and what's left, the model that answered, and a reminder that nothing is saved until the person saves. In read-only contexts the editor now opens with disabled fields and the reason ("View the editor").
 - Billing page: real AI credit usage. Usage periods share one helper (`usagePeriod`): the trial window during a trial, otherwise the UTC month.
@@ -50,8 +50,15 @@ AI drafting of the contract (needs a model provider key), GitHub import and the 
 
 ### Not verified
 
-- A real model call. It needs the Anthropic key in the local env file, migration 4 on the hosted project and a signed-in session.
+- A real model call. It needs the Anthropic key in the local env file and a signed-in session.
 
 ### Next
 
-Apply migration 4 (owner approval), verify one live draft, then GitHub import and the file workspace.
+Verify one live draft, then GitHub import and the file workspace.
+
+## 2026-10-15: migration 4 applied
+
+- Owner-approved, via Claude in Chrome. The SQL Editor contents were hashed in the page and matched the tested file (6,795 bytes, `sha256 4634b80a…21c8`). Purely additive; Supabase showed no destructive-operation warning. Result: success.
+- Read-only check afterwards: `ai_credit_ledger` has RLS, the policy "members read AI credit usage", select-only for authenticated and nothing for anon. `ai_credits_used` runs as the caller (authenticated and service_role). `app_reserve_ai_credits` and `app_settle_ai_credits` are security definer and executable by service_role only.
+- The hosted project now has all four migrations. When the Supabase CLI is linked, record them so they aren't re-run:
+  `supabase migration repair --status applied 20261013120000 20261014090000 20261014120000 20261015090000`
