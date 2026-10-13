@@ -103,6 +103,7 @@ export default function CodeMirrorSurface({
   path,
   value,
   original,
+  controls = true,
   label,
   onChange,
 }: {
@@ -110,8 +111,10 @@ export default function CodeMirrorSurface({
   value: string;
   /** When set, the surface is a review of `value` against this saved text. */
   original?: string;
+  /** Accept and reject buttons on each chunk. Off for history comparisons, which only show the change. */
+  controls?: boolean;
   label: string;
-  onChange: (doc: string) => void;
+  onChange?: (doc: string) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const onChangeRef = useRef(onChange);
@@ -138,7 +141,7 @@ export default function CodeMirrorSurface({
       languageFor(path),
       EditorView.contentAttributes.of({ "aria-label": label }),
       EditorView.updateListener.of((u) => {
-        if (u.docChanged) onChangeRef.current(u.state.doc.toString());
+        if (u.docChanged) onChangeRef.current?.(u.state.doc.toString());
       }),
       ...(narrow ? [EditorView.lineWrapping] : []),
     ];
@@ -146,7 +149,7 @@ export default function CodeMirrorSurface({
       extensions.push(
         // Not typeable, but the accept and reject controls can still change the text.
         EditorView.editable.of(false),
-        unifiedMergeView({ original, mergeControls: true, highlightChanges: true, gutter: true, collapseUnchanged: { margin: 3, minSize: 6 } }),
+        unifiedMergeView({ original, mergeControls: controls, highlightChanges: true, gutter: true, collapseUnchanged: { margin: 3, minSize: 6 } }),
       );
     } else {
       extensions.push(history(), indentOnInput());

@@ -86,6 +86,14 @@ export interface ProjectFileContent extends ProjectFile {
   content: string;
 }
 
+export interface FileRevision {
+  revision: number;
+  change: "import" | "edit" | "delete";
+  sizeBytes: number | null;
+  sha256: string | null;
+  createdAt: string;
+}
+
 export interface SearchHit {
   path: string;
   line: number;
@@ -106,6 +114,10 @@ export interface WorkspaceReader {
   /** Current files in a project, sorted by path. */
   listFiles(orgId: string, projectId: string): Promise<ProjectFile[]>;
   getFile(orgId: string, projectId: string, path: string): Promise<ProjectFileContent | null>;
+  /** Every revision of one path, newest first (including deletions). */
+  listFileRevisions(orgId: string, projectId: string, path: string): Promise<FileRevision[]>;
+  /** One revision's content, or null when it doesn't exist or is a deletion. */
+  getFileRevision(orgId: string, projectId: string, path: string, revision: number): Promise<string | null>;
   /** Case-insensitive plain-text search; at most 200 matching lines. */
   searchFiles(orgId: string, projectId: string, query: string): Promise<SearchHit[]>;
   /** The latest contract version for a task, or null when none has been written. */

@@ -16,7 +16,7 @@ import {
   DEMO_USER,
   demoEventType,
 } from "@/content/demo-workspace";
-import type { ContractRecord, Project, ProjectFileContent, Task, Transition, WorkspaceReader } from "./types";
+import type { ContractRecord, FileRevision, Project, ProjectFileContent, Task, Transition, WorkspaceReader } from "./types";
 
 /**
  * Read-only sample workspace. Timestamps are relative to "now" so the trial
@@ -31,7 +31,7 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
     files ??= Promise.all(
       DEMO_FILES.map(async (f) => ({
         path: f.path,
-        revision: 1,
+        revision: (f.history?.length ?? 0) + 1,
         sizeBytes: new TextEncoder().encode(f.content).length,
         sha256: await sha256Hex(f.content),
         content: f.content,
@@ -124,6 +124,29 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
 
     async getFile(_orgId, projectId, path) {
       return (await demoFiles(projectId)).find((f) => f.path === path) ?? null;
+    },
+
+    async listFileRevisions(_orgId, projectId, path) {
+      const f = projectId === DEMO_FILES_PROJECT_ID ? DEMO_FILES.find((d) => d.path === path) : undefined;
+      if (!f) return [];
+      const versions = [...(f.history ?? []), { content: f.content, updatedHoursAgo: f.updatedHoursAgo }];
+      const out: FileRevision[] = await Promise.all(
+        versions.map(async (v, i) => ({
+          revision: i + 1,
+          change: i === 0 ? ("import" as const) : ("edit" as const),
+          sizeBytes: new TextEncoder().encode(v.content).length,
+          sha256: await sha256Hex(v.content),
+          createdAt: ago(v.updatedHoursAgo * DEMO_TIME.HOUR),
+        })),
+      );
+      return out.reverse();
+    },
+
+    async getFileRevision(_orgId, projectId, path, revision) {
+      const f = projectId === DEMO_FILES_PROJECT_ID ? DEMO_FILES.find((d) => d.path === path) : undefined;
+      if (!f) return null;
+      const versions = [...(f.history ?? []).map((h) => h.content), f.content];
+      return versions[revision - 1] ?? null;
     },
 
     async searchFiles(_orgId, projectId, query) {

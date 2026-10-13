@@ -4,7 +4,15 @@
  */
 export const DEMO_FILES_PROJECT_ID = "00000000-0000-4000-8000-00000000a001";
 
-export const DEMO_FILES: { path: string; content: string; updatedHoursAgo: number }[] = [
+export interface DemoFile {
+  path: string;
+  content: string;
+  updatedHoursAgo: number;
+  /** Earlier revisions, oldest first. The current content is the next revision. */
+  history?: { content: string; updatedHoursAgo: number }[];
+}
+
+export const DEMO_FILES: DemoFile[] = [
   {
     path: "README.md",
     updatedHoursAgo: 120,
@@ -84,6 +92,27 @@ export function ProductCard({ product }: { product: Product }) {
   {
     path: "src/lib/products.ts",
     updatedHoursAgo: 30,
+    history: [
+      {
+        updatedHoursAgo: 96,
+        content: `export interface Product {
+  id: string;
+  name: string;
+  description: string;
+  priceCents: number;
+}
+
+const PRODUCTS: Product[] = [
+  { id: "p-1", name: "Canvas tote", description: "Heavy cotton tote with an inside pocket.", priceCents: 2400 },
+  { id: "p-2", name: "Enamel mug", description: "Holds 350 ml. Dishwasher safe.", priceCents: 1600 },
+];
+
+export async function listProducts(): Promise<Product[]> {
+  return PRODUCTS;
+}
+`,
+      },
+    ],
     content: `export interface Product {
   id: string;
   name: string;

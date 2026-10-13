@@ -57,6 +57,8 @@ function memoizeReader(reader: WorkspaceReader): WorkspaceReader {
     listFiles: wrap("files", reader.listFiles),
     getFile: wrap("file", reader.getFile),
     searchFiles: wrap("search", reader.searchFiles),
+    listFileRevisions: wrap("revisions", reader.listFileRevisions),
+    getFileRevision: wrap("revision", reader.getFileRevision),
   };
 }
 

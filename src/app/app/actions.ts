@@ -241,6 +241,34 @@ export async function saveFileAction(input: { projectId: string; path: string; c
   return { status: "done", revision: result.value, path: parsed.data.path.trim().replace(/^\.\//, "") };
 }
 
+/** Restores an earlier revision by saving its content as the next revision. History is never rewritten. */
+export async function restoreRevisionAction(input: { projectId: string; path: string; revision: number; expectedRevision: number }): Promise<SaveFileState> {
+  const parsed = z
+    .object({ projectId: z.uuid(), path: z.string().min(1).max(1000), revision: z.number().int().min(1), expectedRevision: z.number().int().min(0) })
+    .safeParse(input);
+  if (!parsed.success) return { status: "error", message: "Reload the page and try again." };
+
+  const ctx = await requireContext();
+  const w = await writeDeps(ctx);
+  if ("error" in w) return { status: "error", message: w.error };
+  const project = await ctx.reader.getProject(w.orgId, parsed.data.projectId);
+  if (!project) return { status: "error", message: "That project doesn't exist or isn't in this workspace." };
+  const content = await ctx.reader.getFileRevision(w.orgId, project.id, parsed.data.path, parsed.data.revision);
+  if (content === null) return { status: "error", message: "That revision has no content to restore." };
+
+  const result = await saveProjectFile(w.deps, {
+    orgId: w.orgId,
+    userId: ctx.user.id,
+    projectId: project.id,
+    path: parsed.data.path,
+    content,
+    expectedRevision: parsed.data.expectedRevision,
+  });
+  if (!result.ok) return { status: "error", message: result.message };
+  revalidatePath(`/app/projects/${project.id}`, "layout");
+  return { status: "done", revision: result.value, path: parsed.data.path };
+}
+
 export async function deleteFileAction(_previous: FormState, form: FormData): Promise<FormState> {
   const projectId = String(form.get("projectId") ?? "");
   const path = String(form.get("path") ?? "");

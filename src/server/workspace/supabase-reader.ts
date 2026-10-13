@@ -197,6 +197,37 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
       return row ? { path: row.path, revision: row.revision, sizeBytes: row.size_bytes, sha256: row.sha256, content: row.content, updatedAt: row.updated_at } : null;
     },
 
+    async listFileRevisions(orgId, projectId, path) {
+      if (!z.uuid().safeParse(projectId).success) return [];
+      const { data, error } = await client
+        .from("project_file_revisions")
+        .select("revision, change, size_bytes, sha256, created_at")
+        .eq("org_id", orgId)
+        .eq("project_id", projectId)
+        .eq("path", path)
+        .order("revision", { ascending: false })
+        .limit(200);
+      if (error) fail("file history", error);
+      return z
+        .array(z.object({ revision: z.number().int(), change: z.enum(["import", "edit", "delete"]), size_bytes: z.number().int().nullable(), sha256: z.string().nullable(), created_at: z.string() }))
+        .parse(data)
+        .map((r) => ({ revision: r.revision, change: r.change, sizeBytes: r.size_bytes, sha256: r.sha256, createdAt: r.created_at }));
+    },
+
+    async getFileRevision(orgId, projectId, path, revision) {
+      if (!z.uuid().safeParse(projectId).success || !Number.isInteger(revision) || revision < 1) return null;
+      const { data, error } = await client
+        .from("project_file_revisions")
+        .select("content")
+        .eq("org_id", orgId)
+        .eq("project_id", projectId)
+        .eq("path", path)
+        .eq("revision", revision)
+        .maybeSingle();
+      if (error) fail("file revision", error);
+      return z.object({ content: z.string().nullable() }).nullable().parse(data)?.content ?? null;
+    },
+
     async searchFiles(orgId, projectId, query) {
       const q = query.trim();
       if (!q || q.length > 200 || !z.uuid().safeParse(projectId).success) return [];

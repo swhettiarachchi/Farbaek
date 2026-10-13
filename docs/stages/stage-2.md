@@ -116,4 +116,21 @@ The CodeMirror editor (needs a dependency install), then targeted patches, diff 
 
 Targeted AI patches: the agent proposes a change to specific files, the person reviews it in this same diff view, and accepted chunks are saved as revisions tied to the task.
 
+## 2026-10-13: file history and restore
+
+### Done
+
+- History for every file (`?history=1`): revisions newest first, showing imported, edited or deleted, when, size and hash. Pick an earlier revision to see what changed since then as a read-only diff, with line counts.
+- Restore saves the earlier content as the next revision, through the same checks as any save (`restoreRevisionAction`, then `saveProjectFile`). History is never rewritten. Deleted files can be restored from their history.
+- Readers: `listFileRevisions` and `getFileRevision` (Supabase through RLS; the demo has a two-revision sample file).
+
+### Verified
+
+- 351 tests; typecheck, lint and build pass.
+- Browser, demo mode: `src/lib/products.ts` history shows revision 2 (current) and revision 1; the comparison shows "+4 −2 lines since then" without accept or reject buttons; Restore is disabled with the demo reason.
+
+### Next
+
+Targeted AI patches on top of this: the agent proposes edits to named files under an approved contract, the person reviews each file in the diff view, and accepted changes become revisions linked to the task.
+
 Note on dates: entries above were first written with later dates (2026-10-14 and 2026-10-15). Everything here happened on 2026-10-13. Migration filenames (`20261014…`, `20261015…`) are ordering versions only and stay as they are, because migrations 2 to 4 are already applied under those names.

@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, FileDashedIcon, FilePlusIcon, FolderOpenIcon, MagnifyingGlassIcon, PencilSimpleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, ClockCounterClockwiseIcon, FileDashedIcon, FilePlusIcon, FolderOpenIcon, MagnifyingGlassIcon, PencilSimpleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -6,6 +6,7 @@ import { Card, EmptyState, Notice } from "@/components/app/primitives";
 import { CodeView } from "@/components/files/code-view";
 import { DeleteFile } from "@/components/files/delete-file";
 import { FileEditor } from "@/components/files/file-editor";
+import { RevisionDiff } from "@/components/files/revision-diff";
 import { buttonClasses } from "@/components/ui/button";
 import { FileTree, fileHref } from "@/components/files/file-tree";
 import { ImportFiles } from "@/components/files/import-files";
@@ -13,7 +14,7 @@ import { RelativeTime } from "@/components/ui/local-time";
 import { shortHash } from "@/core/trust/canonical-json";
 import { buildTree, formatBytes, languageOf } from "@/core/workspace/files";
 import { loadAppContext } from "@/server/workspace/context";
-import type { SearchHit } from "@/server/workspace/types";
+import type { FileRevision, SearchHit } from "@/server/workspace/types";
 
 export const metadata: Metadata = { title: "Files" };
 
@@ -39,7 +40,7 @@ export default async function FilesPage({
   searchParams,
 }: {
   params: Promise<{ projectId: string }>;
-  searchParams: Promise<{ path?: string | string[]; q?: string | string[]; edit?: string | string[]; new?: string | string[] }>;
+  searchParams: Promise<{ path?: string | string[]; q?: string | string[]; edit?: string | string[]; new?: string | string[]; history?: string | string[]; rev?: string | string[] }>;
 }) {
   const [{ projectId }, sp] = await Promise.all([params, searchParams]);
   const ctx = await loadAppContext();
@@ -52,10 +53,14 @@ export default async function FilesPage({
   const query = typeof sp.q === "string" ? sp.q.trim().slice(0, 200) : "";
   const editing = sp.edit === "1" && path !== null;
   const creating = sp.new === "1";
-  const [files, file, hits] = await Promise.all([
+  const historyMode = sp.history === "1" && path !== null;
+  const rev = typeof sp.rev === "string" && /^\d{1,9}$/.test(sp.rev) ? Number(sp.rev) : null;
+  const [files, file, hits, revisions, revContent] = await Promise.all([
     ctx.reader.listFiles(orgId, project.id),
     path ? ctx.reader.getFile(orgId, project.id, path) : Promise.resolve(null),
     query ? ctx.reader.searchFiles(orgId, project.id, query) : Promise.resolve([] as SearchHit[]),
+    historyMode ? ctx.reader.listFileRevisions(orgId, project.id, path!) : Promise.resolve([] as FileRevision[]),
+    historyMode && rev ? ctx.reader.getFileRevision(orgId, project.id, path!, rev) : Promise.resolve(null),
   ]);
   const totalBytes = files.reduce((n, f) => n + f.sizeBytes, 0);
   const writeReason = ctx.writes.enabled ? null : ctx.writes.reason;
@@ -64,7 +69,8 @@ export default async function FilesPage({
   const grouped = new Map<string, SearchHit[]>();
   for (const h of hits) grouped.set(h.path, [...(grouped.get(h.path) ?? []), h]);
   const base = `/app/projects/${project.id}/files`;
-  const focused = Boolean(file) || creating;
+  const focused = Boolean(file) || creating || historyMode;
+  const CHANGE_LABEL = { import: "Imported", edit: "Edited", delete: "Deleted" } as const;
 
   return (
     <div className="grid gap-6">
@@ -194,7 +200,7 @@ export default async function FilesPage({
               </Card>
             ) : null}
 
-            {path && !file ? (
+            {path && !file && !(historyMode && revisions.length > 0) ? (
               <EmptyState icon={FileDashedIcon} title="File not found" action={<Link href={base} className="text-sm text-accent hover:underline">Back to all files</Link>}>
                 There&apos;s no current file at <span className="font-mono text-[13px] break-all">{path}</span>. It may have been deleted or renamed.
               </EmptyState>
@@ -206,7 +212,67 @@ export default async function FilesPage({
               <FileEditor key={`${file.path}@${file.revision}`} projectId={project.id} path={file.path} initialContent={file.content} revision={file.revision} disabledReason={writeReason} />
             ) : null}
 
-            {file && !editing && !creating ? (
+            {historyMode && revisions.length > 0 ? (
+              <div className="grid min-w-0 gap-4">
+                <div className="min-w-0">
+                  <Link href={file ? fileHref(project.id, path!) : base} className="inline-flex items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
+                    <ArrowLeftIcon size={14} aria-hidden /> {file ? "Back to the file" : "All files"}
+                  </Link>
+                  <h2 className="mt-2 flex items-center gap-2 text-lg font-medium">
+                    <ClockCounterClockwiseIcon size={20} className="text-ink-3" aria-hidden /> History
+                  </h2>
+                  <p className="mt-0.5 font-mono text-[13px] break-all text-ink-2">{path}</p>
+                </div>
+                <ol className="overflow-hidden rounded-md border border-line bg-surface">
+                  {revisions.map((r) => {
+                    const isCurrent = file?.revision === r.revision;
+                    const selected = rev === r.revision;
+                    const body = (
+                      <>
+                        <span className="w-24 shrink-0 font-medium tabular">Revision {r.revision}</span>
+                        <span className="w-20 shrink-0 text-ink-2">{CHANGE_LABEL[r.change]}</span>
+                        <span className="min-w-0 flex-1 truncate text-xs text-ink-3">
+                          <RelativeTime iso={r.createdAt} />
+                          {r.sizeBytes !== null ? <> · {formatBytes(r.sizeBytes)}</> : null}
+                          {r.sha256 ? <> · <span className="font-mono">{shortHash(r.sha256)}</span></> : null}
+                        </span>
+                        {isCurrent ? <span className="shrink-0 rounded-full bg-accent/[0.08] px-2.5 py-0.5 text-xs font-medium text-accent">Current</span> : null}
+                      </>
+                    );
+                    const row = `flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm ${selected ? "bg-accent/[0.06]" : ""}`;
+                    return (
+                      <li key={r.revision} className="border-b border-line last:border-b-0">
+                        {r.change === "delete" || isCurrent ? (
+                          <div className={row}>{body}</div>
+                        ) : (
+                          <Link href={`${fileHref(project.id, path!)}&history=1&rev=${r.revision}`} aria-current={selected ? "true" : undefined} className={`${row} hover:bg-surface-raised`}>
+                            {body}
+                          </Link>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ol>
+                {rev && revContent !== null ? (
+                  <RevisionDiff
+                    key={rev}
+                    projectId={project.id}
+                    path={path!}
+                    revision={rev}
+                    revisionContent={revContent}
+                    current={file ? { revision: file.revision, content: file.content } : null}
+                    nextRevision={(revisions[0]?.revision ?? 0) + 1}
+                    disabledReason={writeReason}
+                  />
+                ) : rev ? (
+                  <p className="text-sm text-ink-2">Revision {rev} has no content to compare. It may be a deletion.</p>
+                ) : (
+                  <p className="text-sm text-ink-2">Pick an earlier revision to see what changed since then and restore it.</p>
+                )}
+              </div>
+            ) : null}
+
+            {file && !editing && !creating && !historyMode ? (
               <div className="grid min-w-0 gap-3">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
@@ -225,6 +291,9 @@ export default async function FilesPage({
                     <Link href={`${fileHref(project.id, file.path)}&edit=1`} className={buttonClasses("secondary", "sm")}>
                       <PencilSimpleIcon size={16} aria-hidden /> {writeReason ? "Try the editor" : "Edit"}
                     </Link>
+                    <Link href={`${fileHref(project.id, file.path)}&history=1`} className={buttonClasses("ghost", "sm")}>
+                      <ClockCounterClockwiseIcon size={16} aria-hidden /> History
+                    </Link>
                     <DeleteFile projectId={project.id} path={file.path} revision={file.revision} disabledReason={writeReason} />
                   </div>
                 </div>
@@ -233,7 +302,7 @@ export default async function FilesPage({
               </div>
             ) : null}
 
-            {!file && !path && !query && !creating ? (
+            {!file && !path && !query && !creating && !historyMode ? (
               <Card>
                 <h2 className="text-lg font-medium">Pick a file</h2>
                 <p className="mt-1 text-sm text-ink-2">Open a file from the tree, or search across every file in the project.</p>

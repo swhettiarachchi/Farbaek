@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { DEMO_TASKS, demoEventType } from "@/content/demo-workspace";
 import { newTask, transition, type TaskEventType } from "@/core/realityloop/task-machine";
+import { DEMO_FILES_PROJECT_ID } from "@/content/demo-files";
+import { sha256Hex } from "@/core/trust/canonical-json";
 import { createDemoReader } from "./demo-reader";
 
 describe("demo workspace", () => {
@@ -28,5 +30,28 @@ describe("demo workspace", () => {
       expect(detail?.task.state).toBe(t.state);
       expect(detail?.history.at(-1)?.to ?? "RECEIVED").toBe(t.state);
     }
+  });
+
+  it("serves sample files whose metadata, content, history and search agree", async () => {
+    const reader = createDemoReader(new Date("2026-10-14T12:00:00Z"));
+    const project = DEMO_FILES_PROJECT_ID;
+    const files = await reader.listFiles("demo", project);
+    expect(files.map((f) => f.path)).toEqual([...files.map((f) => f.path)].sort((a, b) => a.localeCompare(b)));
+    for (const f of files) {
+      const full = await reader.getFile("demo", project, f.path);
+      expect(full?.sha256).toBe(await sha256Hex(full!.content));
+      const history = await reader.listFileRevisions("demo", project, f.path);
+      expect(history[0]?.revision).toBe(f.revision);
+      expect(await reader.getFileRevision("demo", project, f.path, f.revision)).toBe(full!.content);
+    }
+    const products = await reader.listFileRevisions("demo", project, "src/lib/products.ts");
+    expect(products.map((r) => [r.revision, r.change])).toEqual([
+      [2, "edit"],
+      [1, "import"],
+    ]);
+    expect(await reader.getFileRevision("demo", project, "src/lib/products.ts", 3)).toBeNull();
+    const hits = await reader.searchFiles("demo", project, "ADDTOCART");
+    expect(hits.length).toBeGreaterThan(0);
+    expect(await reader.listFiles("demo", "another-project")).toEqual([]);
   });
 });
