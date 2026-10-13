@@ -33,3 +33,31 @@ Already correct, so left unchanged: sign-ups allowed, email confirmation require
 ### Next
 
 Sign in once end to end, then: the app shell (sidebar and bottom tabs), Mission Control, server-side task transitions through the RealityLoop machine with optimistic concurrency, the trial reminder job (pg_cron is available on the project), Billing in not-connected mode, and Playwright plus axe.
+
+## 2026-10-14: the signed-in app
+
+### Done
+
+- Migration `20261014090000_projects_and_server_writes.sql` (written and tested, **not yet applied to the hosted project**): projects table with RLS; tasks now belong to a project in the same organization (composite key); the browser can no longer insert tasks; three service-role-only functions `app_create_project` (plan limit re-checked under a row lock, duplicate names rejected), `app_create_task` and `app_apply_task_transition` (optimistic concurrency on version and state, replay-safe by event id). Every call is audited.
+- Write path: server action, then authenticated user, role check, TypeScript entitlement and RealityLoop rules (`src/server/workspace/use-cases.ts`), then the SQL function with the secret key. One source of truth for the rules; the database re-checks membership, limits and versions.
+- App shell: desktop sidebar (workspace switcher, navigation, approvals badge, honest "coming in later stages" list, plan and account footer) and a five-tab bar on phones (Home, Projects, Tasks, Approvals, More).
+- Pages: Mission Control (real counts, trial notice, checklist driven by records), Projects and project detail, Tasks grouped by what they need, task detail (lifecycle from real state and history, timeline, cancel with confirmation), Approvals, Billing (payments not connected, real usage meters with 80% and limit states, plans unavailable with reasons), Settings (rename, people), More, New workspace.
+- Demo workspace (`FARBAEK_DEMO_APP=1`, `pnpm start:demo`): read-only sample data, only when Supabase isn't configured, with a ribbon on every screen. A test replays every demo task through the real state machine.
+- Routes split into a `(site)` group (marketing header and footer) and `/app` (app shell). URLs unchanged.
+
+### Verified
+
+- `pnpm typecheck`, `pnpm lint`, `pnpm test` (242 tests, 17 files), `pnpm build`.
+- Database tests (PGlite): 33, including service-role-only grants, plan-limit enforcement, duplicate names, cross-tenant refusal, version conflicts and replay.
+- Browser, demo mode: Mission Control, task detail, billing, projects and tasks at 689px (phone layout) and 1280px (sidebar layout); no horizontal scroll; no console errors after load.
+- Bugs found and fixed: demo data used `authorize` where the machine requires `grant_approval` (caught by the new test); status badges wrapped; the seat limit message talked about periods.
+
+### Not verified
+
+- The live write path against the hosted project: needs migration 2 applied, `.env.local` and `SUPABASE_SECRET_KEY`.
+- Paid plans anchor usage to the subscription start; until payments exist, non-trial usage uses the UTC calendar month.
+
+### Owner actions
+
+1. Approve applying migration 2 to the hosted project.
+2. Add `SUPABASE_SECRET_KEY` (Project Settings > API Keys > Secret keys) to `.env.local` alongside the URL and publishable key. Never commit it.

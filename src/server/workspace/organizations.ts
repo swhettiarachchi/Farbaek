@@ -32,6 +32,27 @@ export interface WorkspaceSummary {
   billingUnknown: boolean;
 }
 
+/** Billing snapshot for one organization row, or null when billing state is missing. */
+export function billingSnapshotFromRow(row: unknown): BillingSnapshot | null {
+  const parsed = OrganizationRow.parse(row);
+  if (!parsed.billing_accounts) return null;
+  return toSnapshot(parsed);
+}
+
+function toSnapshot(row: z.infer<typeof OrganizationRow>): BillingSnapshot {
+  const window = row.trials ? trialWindow(new Date(row.trials.started_at)) : undefined;
+  const billing = row.billing_accounts;
+  return billing
+    ? {
+        state: billing.state,
+        paidPlanId: billing.paid_plan_id ?? undefined,
+        paidThrough: billing.paid_through ? new Date(billing.paid_through) : undefined,
+        suspendedReason: billing.suspended_reason ?? undefined,
+        trial: window,
+      }
+    : { state: "free" };
+}
+
 export function summarizeOrganizations(rows: unknown, now: Date): WorkspaceSummary[] {
   return z
     .array(OrganizationRow)
@@ -39,15 +60,7 @@ export function summarizeOrganizations(rows: unknown, now: Date): WorkspaceSumma
     .map((row) => {
       const window = row.trials ? trialWindow(new Date(row.trials.started_at)) : undefined;
       const billing = row.billing_accounts;
-      const snapshot: BillingSnapshot = billing
-        ? {
-            state: billing.state,
-            paidPlanId: billing.paid_plan_id ?? undefined,
-            paidThrough: billing.paid_through ? new Date(billing.paid_through) : undefined,
-            suspendedReason: billing.suspended_reason ?? undefined,
-            trial: window,
-          }
-        : { state: "free" };
+      const snapshot = toSnapshot(row);
       return {
         id: row.id,
         name: row.name,

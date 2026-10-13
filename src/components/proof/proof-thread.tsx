@@ -10,6 +10,8 @@ export interface ThreadStage {
   label: string;
   body: string;
   status: ThreadStatus;
+  /** Overrides the default status line, e.g. "not required". */
+  statusText?: string;
 }
 
 const STATUS_TEXT: Record<ThreadStatus, string> = {
@@ -99,7 +101,7 @@ export function ProofThread({ stages, label }: { stages: ThreadStage[]; label: s
             <div className="pb-8 lg:pb-0 lg:pr-6 lg:pt-5">
               <p className="flex items-baseline gap-2">
                 <span className="text-[17px] font-medium">{stage.label}</span>
-                <span className="font-mono text-xs text-ink-3">{STATUS_TEXT[stage.status]}</span>
+                <span className="font-mono text-xs text-ink-3">{stage.statusText ?? STATUS_TEXT[stage.status]}</span>
               </p>
               <p className="mt-1.5 text-[15px] leading-relaxed text-ink-2">{stage.body}</p>
             </div>

@@ -1,0 +1,105 @@
+import { TRIAL } from "@/core/billing/catalog";
+import { resolveEffectivePlan, trialPhase, trialWindow } from "@/core/billing/trial";
+import type { TaskState } from "@/core/realityloop/task-machine";
+import {
+  DEMO_EVALUATIONS_THIS_PERIOD,
+  DEMO_MEMBERS,
+  DEMO_ORG_ID,
+  DEMO_PROJECTS,
+  DEMO_TASKS,
+  DEMO_TIME,
+  DEMO_TRIAL_STARTED_DAYS_AGO,
+  DEMO_USER,
+  demoEventType,
+} from "@/content/demo-workspace";
+import type { Project, Task, Transition, WorkspaceReader } from "./types";
+
+/**
+ * Read-only sample workspace. Timestamps are relative to "now" so the trial
+ * countdown and timelines always look current. Never touches a database.
+ */
+export function createDemoReader(now: Date = new Date()): WorkspaceReader {
+  const ago = (ms: number) => new Date(now.getTime() - ms).toISOString();
+  const trialStart = new Date(now.getTime() - DEMO_TRIAL_STARTED_DAYS_AGO * DEMO_TIME.DAY);
+  const window = trialWindow(trialStart);
+
+  const projects: Project[] = DEMO_PROJECTS.map((p) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    createdAt: ago(p.createdDaysAgo * DEMO_TIME.DAY),
+  }));
+  const projectName = new Map(projects.map((p) => [p.id, p.name]));
+
+  const built = DEMO_TASKS.map((t) => {
+    const created = t.createdHoursAgo * DEMO_TIME.HOUR;
+    const step = created / (t.path.length + 1);
+    let from: TaskState = "RECEIVED";
+    const history: Transition[] = t.path.map((to, i) => {
+      const record: Transition = {
+        eventId: `${t.id}-e${i + 1}`,
+        eventType: demoEventType(from, to),
+        from,
+        to,
+        actorKind: to === "CONTRACT_APPROVED" || to === "CANCELLED" ? "user" : to === "POLICY_EVALUATED" || to === "BLOCKED" ? "system" : "agent",
+        actorId: to === "CONTRACT_APPROVED" || to === "CANCELLED" ? DEMO_USER.id : "farbaek",
+        at: ago(created - step * (i + 1)),
+      };
+      from = to;
+      return record;
+    });
+    const task: Task = {
+      id: t.id,
+      title: t.title,
+      state: t.path.at(-1) ?? "RECEIVED",
+      version: t.path.length,
+      projectId: t.projectId,
+      projectName: projectName.get(t.projectId),
+      createdAt: ago(created),
+      updatedAt: history.at(-1)?.at ?? ago(created),
+    };
+    return { task, history };
+  });
+  const tasks = built.map((b) => b.task).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+
+  return {
+    mode: "demo",
+
+    async listWorkspaces() {
+      return [
+        {
+          id: DEMO_ORG_ID,
+          name: "Harbour Lane Studio",
+          plan: resolveEffectivePlan({ state: "trialing", trial: window }, now),
+          trial: { endsAt: window.endsAt.toISOString(), phase: trialPhase(window, now) },
+          billingUnknown: false,
+        },
+      ];
+    },
+
+    async listMembers() {
+      return DEMO_MEMBERS.map((m) => ({ userId: m.userId, role: m.role, joinedAt: ago(m.joinedDaysAgo * DEMO_TIME.DAY) }));
+    },
+
+    async listProjects() {
+      return projects;
+    },
+
+    async getProject(_orgId, projectId) {
+      return projects.find((p) => p.id === projectId) ?? null;
+    },
+
+    async listTasks(_orgId, options = {}) {
+      const filtered = options.projectId ? tasks.filter((t) => t.projectId === options.projectId) : tasks;
+      return filtered.slice(0, options.limit ?? 200);
+    },
+
+    async getTask(_orgId, taskId) {
+      return built.find((b) => b.task.id === taskId) ?? null;
+    },
+
+    async countEvaluations() {
+      return Math.min(DEMO_EVALUATIONS_THIS_PERIOD, TRIAL.limits.evaluationsTotal);
+    },
+  };
+}

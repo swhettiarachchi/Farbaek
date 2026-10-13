@@ -1,71 +1,25 @@
 /**
- * Runs the real migration in an in-process Postgres (PGlite) with a minimal
- * stand-in for Supabase's auth schema and roles, then checks tenant isolation,
- * trial rules and least-privilege grants under the `authenticated` role.
- *
- * What this does not cover: Supabase's actual auth service, PostgREST, or the
- * hosted database. Those are verified against the live project separately.
+ * Core schema (migration 1, with later migrations applied): tenant
+ * isolation, trial rules and least-privilege grants under the
+ * `authenticated` role. See tests/db/harness.ts for what this covers.
  */
-import { readFileSync } from "node:fs";
-import { PGlite } from "@electric-sql/pglite";
+import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PLAN_CATALOG_VERSION, TRIAL } from "@/core/billing/catalog";
+import { USERS, as as runAs, createOrg as createOrgIn, createTestDb, readMigration } from "./harness";
 
-const MIGRATION = readFileSync(new URL("../../supabase/migrations/20261013120000_core_schema.sql", import.meta.url), "utf8");
-
-// Mirrors what Supabase provides before any project migration runs.
-const SUPABASE_STUB = `
-  create role anon nologin;
-  create role authenticated nologin;
-  create role service_role nologin bypassrls;
-  create schema auth;
-  create table auth.users (id uuid primary key, email text not null, email_confirmed_at timestamptz);
-  create function auth.uid() returns uuid language sql stable
-    as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
-  grant usage on schema auth to anon, authenticated;
-  grant execute on function auth.uid() to anon, authenticated;
-  grant usage on schema public to anon, authenticated, service_role;
-  alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
-  alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
-  alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
-`;
-
-const ALICE = "00000000-0000-4000-8000-00000000a11c";
-const BOB = "00000000-0000-4000-8000-000000000b0b";
-const UNVERIFIED = "00000000-0000-4000-8000-0000000000aa";
+const MIGRATION = readMigration("20261013120000_core_schema.sql");
+const { alice: ALICE, bob: BOB, unverified: UNVERIFIED } = USERS;
 
 let db: PGlite;
-
-async function as<T>(role: "authenticated" | "anon", uid: string | null, fn: () => Promise<T>): Promise<T> {
-  await db.query("select set_config('request.jwt.claim.sub', $1, false)", [uid ?? ""]);
-  await db.exec(`set role ${role}`);
-  try {
-    return await fn();
-  } finally {
-    await db.exec("reset role");
-    await db.query("select set_config('request.jwt.claim.sub', '', false)");
-  }
-}
-
+const as = <T>(role: "authenticated" | "anon", uid: string | null, fn: () => Promise<T>) => runAs(db, role, uid, fn);
 const asUser = <T>(uid: string, fn: () => Promise<T>) => as("authenticated", uid, fn);
-
-async function createOrg(uid: string, name: string): Promise<string> {
-  return asUser(uid, async () => {
-    const r = await db.query<{ id: string }>("select public.create_organization($1) as id", [name]);
-    return r.rows[0]!.id;
-  });
-}
+const createOrg = (uid: string, name: string) => createOrgIn(db, uid, name);
 
 let aliceOrg: string;
 
 beforeAll(async () => {
-  db = new PGlite();
-  await db.exec(SUPABASE_STUB);
-  await db.exec(MIGRATION);
-  await db.query(
-    "insert into auth.users (id, email, email_confirmed_at) values ($1, 'alice@example.test', now()), ($2, 'bob@example.test', now()), ($3, 'new@example.test', null)",
-    [ALICE, BOB, UNVERIFIED],
-  );
+  db = await createTestDb();
   aliceOrg = await createOrg(ALICE, "Alice Studio");
 }, 60_000);
 
@@ -78,7 +32,7 @@ describe("migration", () => {
     const r = await db.query<{ relname: string; relrowsecurity: boolean }>(
       "select c.relname, c.relrowsecurity from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind = 'r' order by 1",
     );
-    expect(r.rows.length).toBe(8);
+    expect(r.rows.length).toBe(9);
     expect(r.rows.filter((t) => !t.relrowsecurity)).toEqual([]);
   });
 
@@ -147,7 +101,7 @@ describe("tenant isolation", () => {
   it("stops a user creating tasks in someone else's organization", async () => {
     await expect(
       asUser(BOB, () => db.query("insert into public.tasks (org_id, title, created_by) values ($1, 'sneaky', $2)", [aliceOrg, BOB])),
-    ).rejects.toThrow(/row-level security/);
+    ).rejects.toThrow(/permission denied|row-level security/);
   });
 
   it("stops renaming someone else's organization", async () => {
@@ -159,14 +113,10 @@ describe("tenant isolation", () => {
 });
 
 describe("least privilege", () => {
-  it("lets members create tasks, which always start at RECEIVED", async () => {
-    const r = await asUser(ALICE, () =>
-      db.query<{ state: string; version: number }>(
-        "insert into public.tasks (org_id, title, created_by) values ($1, 'Rewrite product copy', $2) returning state, version",
-        [aliceOrg, ALICE],
-      ),
-    );
-    expect(r.rows).toEqual([{ state: "RECEIVED", version: 0 }]);
+  it("doesn't let the browser create tasks directly (the server does)", async () => {
+    await expect(
+      asUser(ALICE, () => db.query("insert into public.tasks (org_id, title, created_by) values ($1, 'x', $2)", [aliceOrg, ALICE])),
+    ).rejects.toThrow(/permission denied/);
   });
 
   it("doesn't let the browser set task state or version", async () => {

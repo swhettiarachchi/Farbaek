@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { SiteFooter } from "@/components/site/site-footer";
-import { SiteHeader } from "@/components/site/site-header";
 import "./globals.css";
 
 // next/font downloads these at build time and serves them from our own origin.
@@ -34,9 +32,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         >
           Skip to content
         </a>
-        <SiteHeader />
-        <main id="main" className="overflow-x-clip">{children}</main>
-        <SiteFooter />
+        {children}
       </body>
     </html>
   );

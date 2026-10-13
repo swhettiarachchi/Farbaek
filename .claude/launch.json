@@ -4,13 +4,25 @@
     {
       "name": "farbaek-prod",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["start"],
+      "runtimeArgs": [
+        "start"
+      ],
       "port": 3000
     },
     {
       "name": "farbaek-dev",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dev"],
+      "runtimeArgs": [
+        "dev"
+      ],
+      "port": 3000
+    },
+    {
+      "name": "farbaek-demo",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/start-demo.mjs"
+      ],
       "port": 3000
     }
   ]

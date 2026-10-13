@@ -1,142 +1,176 @@
-import { SignOutIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, CheckCircleIcon, CircleDashedIcon, ListChecksIcon, LockSimpleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { buttonClasses } from "@/components/ui/button";
-import { Container } from "@/components/ui/container";
-import { LocalTime } from "@/components/ui/local-time";
-import { StatusBadge } from "@/components/ui/status-badge";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { Card, EmptyState, Notice, PageHeader, StatTile, TaskStateBadge } from "@/components/app/primitives";
+import { ButtonLink } from "@/components/ui/button";
+import { LocalTime, RelativeTime } from "@/components/ui/local-time";
 import { TRIAL, getPlan } from "@/core/billing/catalog";
-import { ORGANIZATION_SELECT, summarizeOrganizations, type WorkspaceSummary } from "@/server/workspace/organizations";
-import { createSupabaseServerClient } from "@/server/supabase/server";
-import { signOut } from "./actions";
-import { CreateOrganizationForm } from "./create-organization-form";
+import { TERMINAL_STATES, type TaskState } from "@/core/realityloop/task-machine";
+import { loadAppContext } from "@/server/workspace/context";
+import { loadUsageSummary } from "@/server/workspace/usage-summary";
 
-export const metadata: Metadata = {
-  title: "Workspace",
-  robots: { index: false, follow: false },
-};
-
-// Per-user page: always render at request time, never from the build cache.
-export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Mission Control" };
 
 const number = new Intl.NumberFormat("en-US");
 
-function PlanLine({ ws }: { ws: WorkspaceSummary }) {
-  if (ws.billingUnknown) return <StatusBadge status="failed" label="Billing state missing" />;
-  if (ws.plan.source === "trial") return <StatusBadge status="info" label={`${getPlan(ws.plan.planId).name} trial`} />;
-  if (ws.plan.suspendedFrom) return <StatusBadge status="approval" label="Paid features paused" />;
-  return <StatusBadge status="verified" label={getPlan(ws.plan.planId).name} />;
-}
+const PAST_CONTRACT: ReadonlySet<TaskState> = new Set([
+  "CONTRACT_APPROVED",
+  "PLAN_PROPOSED",
+  "POLICY_EVALUATED",
+  "APPROVAL_PENDING",
+  "EXECUTION_AUTHORIZED",
+  "EXECUTING",
+  "VERIFYING",
+  "VERIFIED",
+  "PARTIALLY_VERIFIED",
+]);
 
-function WorkspaceCard({ ws }: { ws: WorkspaceSummary }) {
+export default async function MissionControl() {
+  const ctx = await loadAppContext();
+  if (!ctx?.current) notFound();
+  const ws = ctx.current;
+  const usage = await loadUsageSummary(ctx, ws);
+  const { tasks, projects } = usage;
+
+  const open = tasks.filter((t) => !TERMINAL_STATES.has(t.state));
+  const waiting = tasks.filter((t) => t.state === "APPROVAL_PENDING");
   const limits = ws.plan.limits;
-  const evaluationsLabel = ws.plan.source === "trial" ? "evaluations for the trial" : "evaluations a month";
-  return (
-    <li className="rounded-md border border-line bg-surface p-5 sm:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-medium">{ws.name}</h2>
-        <PlanLine ws={ws} />
-      </div>
+  const trialActive = ws.trial?.phase.phase === "active";
 
-      {ws.trial ? (
-        <p className="mt-3 text-[15px] text-ink-2">
-          {ws.trial.phase.phase === "active" ? (
-            <>
-              {ws.trial.phase.daysRemaining} {ws.trial.phase.daysRemaining === 1 ? "day" : "days"} left. The trial ends{" "}
-              <LocalTime iso={ws.trial.endsAt} />, then this workspace moves to Free. Nothing is charged.
-            </>
-          ) : (
-            <>
-              The trial ended <LocalTime iso={ws.trial.endsAt} />. This workspace is on Free and nothing was charged.
-            </>
-          )}
-        </p>
+  const checklist = [
+    { label: "Create a workspace", done: true, href: "/app/settings", locked: null },
+    { label: "Create a project", done: projects.length > 0, href: "/app/projects", locked: null },
+    { label: "Describe your first task", done: tasks.length > 0, href: projects[0] ? `/app/projects/${projects[0].id}` : "/app/projects", locked: null },
+    {
+      label: "Approve an intent contract",
+      done: tasks.some((t) => PAST_CONTRACT.has(t.state)),
+      href: null,
+      locked: "Opens with Studio in Stage 2.",
+    },
+    { label: "Get your first verified ProofPack", done: tasks.some((t) => t.state === "VERIFIED"), href: null, locked: "Opens with Trust in Stage 3." },
+  ];
+  const doneCount = checklist.filter((c) => c.done).length;
+
+  return (
+    <div className="grid gap-8">
+      <PageHeader
+        title="Mission Control"
+        description={
+          <>
+            {ws.name} is on the <span className="font-medium text-ink">{getPlan(ws.plan.planId).name}</span>
+            {ws.plan.source === "trial" ? " trial" : " plan"}. Everything here is read from your workspace&apos;s records.
+          </>
+        }
+        actions={<ButtonLink href="/app/projects" size="sm">New project</ButtonLink>}
+      />
+
+      {trialActive && ws.trial ? (
+        <Notice>
+          {ws.trial.phase.phase === "active" ? ws.trial.phase.daysRemaining : 0} days left in your Team trial. It ends <LocalTime iso={ws.trial.endsAt} />, then
+          this workspace moves to Free and nothing is charged. <Link href="/app/billing" className="font-medium text-accent hover:underline">See usage</Link>
+        </Notice>
       ) : null}
+      {ws.billingUnknown ? <Notice tone="warning">Billing state for this workspace is missing, so plan limits fail closed. Contact support.</Notice> : null}
 
-      <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-3 border-t border-line pt-5 text-sm sm:grid-cols-4">
-        {[
-          ["Seats", limits.seats],
-          ["Agents", limits.agents],
-          ["Integrations", limits.integrations],
-          [evaluationsLabel, limits.evaluationsPerMonth],
-        ].map(([label, value]) => (
-          <div key={String(label)}>
-            <dt className="text-ink-3">{label}</dt>
-            <dd className="mt-0.5 font-medium tabular">{value === null ? "Contract" : number.format(Number(value))}</dd>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatTile
+          label="Projects"
+          value={`${projects.length}`}
+          detail={`Active projects. Your plan allows ${limits.workspaces === null ? "a contract number" : number.format(limits.workspaces)}.`}
+          href="/app/projects"
+        />
+        <StatTile label="Open tasks" value={number.format(open.length)} detail="Tasks not yet finished, cancelled or stopped." href="/app/tasks" />
+        <StatTile label="Awaiting approval" value={number.format(waiting.length)} detail="Tasks paused until a person approves the exact change." href="/app/approvals" />
+        <StatTile
+          label="Governed evaluations"
+          value={number.format(usage.evaluations)}
+          detail={`Since ${usage.period.start.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })}. Limit ${limits.evaluationsPerMonth === null ? "by contract" : number.format(limits.evaluationsPerMonth)}${usage.period.kind === "trial" ? " for the trial" : " a month"}.`}
+          href="/app/billing"
+        />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <Card>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-medium">Recent tasks</h2>
+            <Link href="/app/tasks" className="inline-flex items-center gap-1 text-sm text-accent hover:underline">
+              All tasks <ArrowRightIcon size={14} aria-hidden />
+            </Link>
           </div>
-        ))}
-      </dl>
-    </li>
-  );
-}
-
-export default async function WorkspaceHome() {
-  const supabase = await createSupabaseServerClient();
-  if (!supabase) {
-    return (
-      <Container className="py-16">
-        <h1 className="text-3xl font-medium tracking-[-0.02em]">Workspace</h1>
-        <p className="mt-4 max-w-[60ch] rounded-md border border-dashed border-line-strong/60 p-5 text-[15px] text-ink-2">
-          Supabase isn&apos;t connected in this environment. Add <code>NEXT_PUBLIC_SUPABASE_URL</code> and{" "}
-          <code>NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY</code> to <code>.env.local</code>, then restart the server.
-        </p>
-      </Container>
-    );
-  }
-
-  const { data: auth } = await supabase.auth.getClaims();
-  const claims = auth?.claims;
-  if (!claims) redirect("/sign-in");
-
-  const { data, error } = await supabase.from("organizations").select(ORGANIZATION_SELECT).order("created_at");
-  const workspaces = error ? null : summarizeOrganizations(data, new Date());
-  const email = typeof claims.email === "string" ? claims.email : "your account";
-
-  return (
-    <Container className="py-12 sm:py-16">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="font-mono text-[13px] text-ink-3">{"// workspace"}</p>
-          <h1 className="mt-2 text-3xl font-medium tracking-[-0.02em]">Your workspaces</h1>
-          <p className="mt-1 text-sm text-ink-3">Signed in as {email}</p>
-        </div>
-        <form action={signOut}>
-          <button type="submit" className={buttonClasses("secondary", "sm")}>
-            <SignOutIcon size={16} aria-hidden /> Sign out
-          </button>
-        </form>
-      </div>
-
-      <div className="mt-10">
-        {workspaces === null ? (
-          <p role="alert" className="rounded-md border border-failed/40 bg-failed/[0.05] p-5 text-[15px]">
-            Your workspaces couldn&apos;t be loaded. Nothing has changed; reload to try again.
-          </p>
-        ) : workspaces.length === 0 ? (
-          <section aria-labelledby="create-title" className="max-w-[480px] rounded-md border border-line bg-surface p-6">
-            <h2 id="create-title" className="text-xl font-medium">
-              Create your first workspace
-            </h2>
-            <p className="mt-2 text-[15px] leading-relaxed text-ink-2">
-              It starts with the {TRIAL.lengthDays}-day Team trial. No card is needed, and when the trial ends the workspace moves to
-              Free.
-            </p>
-            <div className="mt-6">
-              <CreateOrganizationForm />
+          {tasks.length === 0 ? (
+            <div className="mt-5">
+              <EmptyState
+                icon={ListChecksIcon}
+                title="No tasks yet"
+                action={<ButtonLink href={projects[0] ? `/app/projects/${projects[0].id}` : "/app/projects"} size="sm">{projects[0] ? "Add a task" : "Create a project"}</ButtonLink>}
+              >
+                Tasks live inside projects. Describe one outcome and Farbaek tracks it from contract to proof.
+              </EmptyState>
             </div>
-          </section>
-        ) : (
-          <ul className="grid gap-4">
-            {workspaces.map((ws) => (
-              <WorkspaceCard key={ws.id} ws={ws} />
-            ))}
-          </ul>
-        )}
-      </div>
+          ) : (
+            <ul className="mt-4 divide-y divide-line">
+              {tasks.slice(0, 6).map((t) => (
+                <li key={t.id}>
+                  <Link href={`/app/tasks/${t.id}`} className="group flex flex-col gap-2 py-3.5 sm:flex-row sm:items-center sm:gap-4">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[15px] font-medium group-hover:text-accent">{t.title}</span>
+                      <span className="mt-0.5 block text-xs text-ink-3">
+                        {t.projectName ?? "Project"} · updated <RelativeTime iso={t.updatedAt} />
+                      </span>
+                    </span>
+                    <TaskStateBadge state={t.state} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
 
-      <p className="mt-10 max-w-[62ch] text-sm text-ink-3">
-        Projects, tasks and contracts arrive in the next step of the build. This page shows only what is stored today.
-      </p>
-    </Container>
+        <Card>
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-lg font-medium">Your first verified change</h2>
+            <span className="text-sm text-ink-3 tabular">
+              {doneCount} of {checklist.length}
+            </span>
+          </div>
+          <ol className="mt-4 grid gap-1">
+            {checklist.map((item) => {
+              const icon = item.done ? (
+                <CheckCircleIcon size={20} weight="fill" className="shrink-0 text-verified" aria-label="Done" />
+              ) : item.locked ? (
+                <LockSimpleIcon size={18} className="shrink-0 text-ink-3" aria-label="Not available yet" />
+              ) : (
+                <CircleDashedIcon size={20} className="shrink-0 text-unverified" aria-label="To do" />
+              );
+              const body = (
+                <>
+                  {icon}
+                  <span className="min-w-0 flex-1">
+                    <span className={`block text-[15px] ${item.done ? "text-ink-2 line-through decoration-line-strong/60" : "text-ink"}`}>{item.label}</span>
+                    {item.locked && !item.done ? <span className="block text-xs text-ink-3">{item.locked}</span> : null}
+                  </span>
+                </>
+              );
+              return (
+                <li key={item.label}>
+                  {item.href && !item.done ? (
+                    <Link href={item.href} className="flex items-center gap-3 rounded-sm px-2 py-2.5 hover:bg-surface-raised">
+                      {body}
+                      <ArrowRightIcon size={14} className="text-ink-3" aria-hidden />
+                    </Link>
+                  ) : (
+                    <div className="flex items-center gap-3 px-2 py-2.5">{body}</div>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+          <p className="mt-4 border-t border-line pt-4 text-xs leading-relaxed text-ink-3">
+            Progress comes from your records, not from clicks. The trial gives Team features for {TRIAL.lengthDays} days.
+          </p>
+        </Card>
+      </div>
+    </div>
   );
 }
