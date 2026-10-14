@@ -60,3 +60,9 @@ Leases on approvals, scope drift between the contract and the applied diff, and 
 ### Not verified
 
 - These screens in the browser. The demo workspace only runs when Supabase isn't configured, and the real keys are now built in, so signed-in pages need a real session. They'll be checked once the owner signs in.
+
+## 2026-10-14: first live use
+
+- The owner signed in with an email link and created the workspace "Far001" on the hosted project. The 14-day Team trial started (ends 2026-10-28), and Mission Control showed real records, including the empty Recent evidence card. Checked from the owner's screenshot.
+- That screenshot showed the sidebar still listing Studio and Trust as unbuilt. Fixed: the list now names what is still missing (previews and test runs, simulations and recovery), and other stale "arrives in Stage N" copy now says what exists today (`108fbfb`).
+- Still to check live: creating a project, importing files, a task with a hand-written contract and its approval. AI drafting and proposals need the Anthropic key.
