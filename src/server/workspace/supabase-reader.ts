@@ -26,6 +26,7 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
     name: r.name,
     description: r.description,
     createdAt: r.created_at,
+    archivedAt: r.archived_at ?? null,
   });
 
   const TaskWithProject = TaskRowSchema.extend({
@@ -83,10 +84,9 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
       if (!z.uuid().safeParse(projectId).success) return null;
       const { data, error } = await client
         .from("projects")
-        .select("id, name, description, created_at")
+        .select("id, name, description, created_at, archived_at")
         .eq("org_id", orgId)
         .eq("id", projectId)
-        .is("archived_at", null)
         .maybeSingle();
       if (error) fail("the project", error);
       return data ? toProject(ProjectRowSchema.parse(data)) : null;

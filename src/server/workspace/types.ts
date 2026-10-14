@@ -23,8 +23,10 @@ export const ProjectRowSchema = z.object({
   name: z.string(),
   description: z.string().nullable(),
   created_at: z.string(),
+  archived_at: z.string().nullable().optional(),
 });
-export type Project = { id: string; name: string; description: string | null; createdAt: string };
+/** archivedAt is set once an owner or admin archives the project; it stays readable but can't change. */
+export type Project = { id: string; name: string; description: string | null; createdAt: string; archivedAt: string | null };
 
 export const TaskRowSchema = z.object({
   id: z.string(),

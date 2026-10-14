@@ -72,7 +72,8 @@ Leases on approvals, scope drift between the contract and the applied diff, and 
 Done with Claude in Chrome, at the owner's request, on the owner's signed-in session at `localhost:3000` against the hosted project:
 
 - Created the project "Farbaek" (`app_create_project`).
-- Imported 10 real root-level files from the repo (README, CLAUDE.md, package.json and the configs; 11 KB) through the import panel's preview (`app_import_files`). Generated build files, the lockfile and the owner's AGENTS.md were left out. A full `src` import needs the native folder picker, which only the owner can use.
+- Imported 10 real root-level files from the repo (README, CLAUDE.md, package.json and the configs; 11 KB) through the import panel's preview (`app_import_files`). Generated build files, the lockfile and the owner's AGENTS.md were left out.
+- Then imported the rest of the tracked source (189 new files: `src`, `tests`, `docs`, `supabase`, `scripts`) through the same panel, by handing the folder input the files the native picker would give it. The import screen ran as usual. Result: "Imported. 189 new", 199 files, 1.0 MB.
 - Opened `package.json` (all 60 lines rendered, database hash shown) and searched "vitest" (`get_project_file`, `search_project_files`).
 - Created the task "Let owners archive a project from the project page", a real gap: the usage page mentions archiving, but there's no control for it yet (`app_create_task`).
 - Wrote contract version 1 by hand (no Anthropic key yet): path resources, files.edit and files.create allowed, files.delete forbidden, and pnpm typecheck and pnpm test as required checks. Saved it (`app_save_contract`): "Hash checks out: sha256:a74829…e096". Approved it (`app_approve_contract`): the task reached Contract approved.
@@ -80,4 +81,22 @@ Done with Claude in Chrome, at the owner's request, on the owner's signed-in ses
 - Mission Control: 4 of 5 checklist steps done from real records.
 - Fixed while doing this: the sidebar's longer labels wrapped "Stage 2" over two lines. They're now "Test runs" and "Recovery", with the stage tag kept on one line.
 
+- After the bulk import, the Scope card reported "141 of 189 changes fall outside the contract" as one long flat list, and called every import a direct change. That's what led to the grouping below.
+
 Not exercised live yet: saving an edited file, history and restore, and anything that needs the Anthropic key (drafting, proposals, apply, ProofPacks).
+
+## 2026-10-14: archiving projects, grouped scope drift
+
+### Done
+
+- Archiving (the task created above). Owners and admins get an Archive card on the project page with a two-step confirm. An archived project leaves the list and stops counting toward the plan's project limit, and its name is free again. Nothing is deleted: files, tasks, contracts, proposals and ProofPacks stay readable by id. Its files are read-only, and new tasks can't be added. Contributors see the control disabled with the reason.
+- Migration `20261016090000_archive_projects.sql`: `app_archive_project` (service-role only; owner or admin; refuses a second archive; writes a `project.archived` audit event). `private.lock_project` now refuses changes to an archived project with PROJECT_ARCHIVED instead of NOT_FOUND, so imports, saves, restores, deletes and proposal applies say why.
+- Use case `archiveProject` checks the role before the database does; new error codes PROJECT_ARCHIVED and ALREADY_ARCHIVED with plain messages.
+- Scope drift findings carry their origin (applied proposal, direct edit, deletion, import). The Scope card groups them by origin and then by folder, each folder expandable, so a bulk import reads as a few lines instead of a hundred.
+
+### Verified
+
+- 436 tests (34 files), including PGlite tests for archiving: managers only, the quota slot and name are freed, files stay readable, and imports and saves are refused with PROJECT_ARCHIVED. Typecheck and lint pass.
+- Migration 9 on the hosted project: the SQL Editor contents matched the tested file (2,388 bytes, `sha256 9d5d8671…f082`). Result: success. Read-only check: `app_archive_project` is security definer and executable by `service_role` only (not anon, not authenticated); `private.lock_project` contains the PROJECT_ARCHIVED check.
+- All nine migrations are on the hosted project:
+  `supabase migration repair --status applied 20261013120000 20261014090000 20261014120000 20261015090000 20261015120000 20261015150000 20261015180000 20261015210000 20261016090000`

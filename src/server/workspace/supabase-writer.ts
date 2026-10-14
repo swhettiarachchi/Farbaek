@@ -10,13 +10,13 @@ import type { FileDeps } from "./files";
 import type { ProposalDeps } from "./proposals";
 import { createSupabaseReader } from "./supabase-reader";
 import { ProposalRowSchema, proposalFromRow } from "./types";
-import type { RpcResult, WriteDeps } from "./use-cases";
+import type { ProjectAdminDeps, RpcResult, WriteDeps } from "./use-cases";
 
 /**
  * WriteDeps backed by Supabase. Reads use the signed-in user's client (Row
  * Level Security applies); writes call the service-role-only app_* functions.
  */
-export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseClient, userId: string): WriteDeps & AiCreditDeps & FileDeps & ProposalDeps {
+export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseClient, userId: string): WriteDeps & AiCreditDeps & FileDeps & ProposalDeps & ProjectAdminDeps {
   const reader = createSupabaseReader(user);
   async function rpc<T>(fn: string, args: Record<string, unknown>, schema: z.ZodType<T>): Promise<RpcResult<T>> {
     const { data, error } = await admin.rpc(fn, args);
@@ -295,6 +295,9 @@ export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseCli
         { p_proposal: i.proposalId, p_actor: i.actor, p_expected_task_version: i.expectedTaskVersion, p_steps: i.steps },
         z.null().or(z.literal("")).transform(() => null),
       ),
+
+    archiveProject: (i) =>
+      rpc("app_archive_project", { p_project: i.projectId, p_actor: i.actor }, z.null().or(z.literal("")).transform(() => null)),
 
     newEventId: () => crypto.randomUUID(),
     now: () => new Date(),

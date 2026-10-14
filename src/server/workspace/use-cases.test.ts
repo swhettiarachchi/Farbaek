@@ -3,7 +3,7 @@ import { trialWindow, type BillingSnapshot } from "@/core/billing/trial";
 import type { TaskState } from "@/core/realityloop/task-machine";
 import type { OrgRole } from "./types";
 import { EMPTY_CONTRACT_FORM, type ContractFormValues } from "@/core/realityloop/contract-form";
-import { approveContract, cancelTask, codeFromDatabaseError, createProject, createTask, saveContract, type WriteDeps } from "./use-cases";
+import { approveContract, archiveProject, cancelTask, codeFromDatabaseError, createProject, createTask, saveContract, type WriteDeps } from "./use-cases";
 
 const NOW = new Date("2026-10-14T10:00:00.000Z");
 
@@ -200,5 +200,34 @@ describe("approveContract", () => {
   it("refuses when there's no draft to approve or the hash is malformed", async () => {
     expect(await approveContract(fakeDeps().deps, { orgId: "o1", userId: "u1", taskId: "t1", expectedTaskVersion: 0, version: 1, sha256: sha })).toMatchObject({ code: "INVALID_TRANSITION" });
     expect(await approveContract(fakeDeps().deps, { orgId: "o1", userId: "u1", taskId: "t1", expectedTaskVersion: 0, version: 1, sha256: "nope" })).toMatchObject({ code: "CONTRACT_CHANGED" });
+  });
+});
+
+describe("archiveProject", () => {
+  const withArchive = (role: OrgRole | null, error?: string) => {
+    const { deps } = fakeDeps({ role });
+    const calls: unknown[] = [];
+    return {
+      calls,
+      deps: { ...deps, archiveProject: async (input: { projectId: string; actor: string }) => (calls.push(input), error ? { ok: false as const, error } : { ok: true as const, value: null }) },
+    };
+  };
+
+  it("lets owners and admins archive, passing the project and actor to the database", async () => {
+    for (const role of ["owner", "admin"] as const) {
+      const { deps, calls } = withArchive(role);
+      expect(await archiveProject(deps, { orgId: "o1", userId: "u1", projectId: "p1" })).toEqual({ ok: true, value: null });
+      expect(calls).toEqual([{ projectId: "p1", actor: "u1" }]);
+    }
+  });
+
+  it("refuses members and viewers before calling the database, and maps database errors", async () => {
+    for (const role of ["member", "viewer"] as const) {
+      const { deps, calls } = withArchive(role);
+      expect(await archiveProject(deps, { orgId: "o1", userId: "u1", projectId: "p1" })).toMatchObject({ ok: false, code: "FORBIDDEN", message: expect.stringContaining("owners and admins") });
+      expect(calls).toEqual([]);
+    }
+    expect(await archiveProject(withArchive("owner", "ALREADY_ARCHIVED").deps, { orgId: "o1", userId: "u1", projectId: "p1" })).toMatchObject({ code: "ALREADY_ARCHIVED" });
+    expect(await archiveProject(withArchive(null).deps, { orgId: "o1", userId: "u1", projectId: "p1" })).toMatchObject({ code: "NOT_FOUND" });
   });
 });

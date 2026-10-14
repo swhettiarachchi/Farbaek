@@ -11,7 +11,7 @@ import { contractFromForm, type ContractFormValues } from "@/core/realityloop/co
 import { transition, type TaskEventType, type TaskSnapshot, type TaskState } from "@/core/realityloop/task-machine";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
 import { formatBytes } from "@/core/workspace/files";
-import { CONTRIBUTOR_ROLES, type OrgRole } from "./types";
+import { CONTRIBUTOR_ROLES, MANAGER_ROLES, type OrgRole } from "./types";
 
 export type WriteErrorCode =
   | "FORBIDDEN"
@@ -44,6 +44,8 @@ export type WriteErrorCode =
   | "NOTHING_TO_APPLY"
   | "EVALUATION_LIMIT"
   | "APPROVER_ROLE_REQUIRED"
+  | "PROJECT_ARCHIVED"
+  | "ALREADY_ARCHIVED"
   | "PROOFPACK_CHAIN"
   | "INVALID_PROOFPACK"
   | "AI_UNAVAILABLE"
@@ -135,6 +137,8 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   NOTHING_TO_APPLY: "Every change was rejected, so there's nothing to apply. Discard the proposal instead.",
   EVALUATION_LIMIT: "This workspace has used its governed evaluations for the period, so new proposals are paused until it resets or the plan changes.",
   APPROVER_ROLE_REQUIRED: "The policy escalated this change, so an owner or admin has to approve it.",
+  PROJECT_ARCHIVED: "This project is archived, so its files can't change.",
+  ALREADY_ARCHIVED: "This project is already archived.",
   PROOFPACK_CHAIN: "Another change in this project was recorded at the same moment. Reload and approve again.",
   INVALID_PROOFPACK: "The evidence record for this change didn't match it, so nothing was applied.",
   AI_UNAVAILABLE: "AI isn't available right now.",
@@ -170,6 +174,8 @@ export function codeFromDatabaseError(message: string): WriteErrorCode {
     "APPROVER_ROLE_REQUIRED",
     "PROOFPACK_CHAIN",
     "INVALID_PROOFPACK",
+    "PROJECT_ARCHIVED",
+    "ALREADY_ARCHIVED",
   ] as const) {
     if (message.includes(code)) return code;
   }
@@ -207,6 +213,20 @@ export async function createProject(
     description,
     limit: plan?.limits.workspaces ?? null,
   });
+  if (!result.ok) return fail(codeFromDatabaseError(result.error));
+  return result;
+}
+
+export interface ProjectAdminDeps {
+  archiveProject(input: { projectId: string; actor: string }): Promise<RpcResult<null>>;
+}
+
+/** Owners and admins archive a project. The database re-checks the role and refuses a second archive. */
+export async function archiveProject(deps: WriteDeps & ProjectAdminDeps, input: { orgId: string; userId: string; projectId: string }): Promise<WriteResult<null>> {
+  const role = await deps.role(input.orgId);
+  if (!role) return fail("NOT_FOUND");
+  if (!MANAGER_ROLES.includes(role)) return fail("FORBIDDEN", "Only owners and admins can archive a project.");
+  const result = await deps.archiveProject({ projectId: input.projectId, actor: input.userId });
   if (!result.ok) return fail(codeFromDatabaseError(result.error));
   return result;
 }

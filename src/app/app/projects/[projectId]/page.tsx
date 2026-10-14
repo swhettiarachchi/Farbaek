@@ -3,7 +3,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CreateTaskForm } from "@/components/app/forms";
-import { Card, EmptyState, PageHeader } from "@/components/app/primitives";
+import { ArchiveProject } from "@/components/app/archive-project";
+import { LocalTime } from "@/components/ui/local-time";
+import { MANAGER_ROLES } from "@/server/workspace/types";
+import { Card, EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { TaskList } from "@/components/app/task-list";
 import { ButtonLink } from "@/components/ui/button";
 import { formatBytes } from "@/core/workspace/files";
@@ -30,6 +33,13 @@ export default async function ProjectPage({ params }: { params: Promise<{ projec
           <PageHeader title={project.name} description={project.description ?? undefined} />
         </div>
       </div>
+
+      {project.archivedAt ? (
+        <Notice tone="warning">
+          Archived <LocalTime iso={project.archivedAt} />. This project is read-only: its files, tasks and evidence stay readable, and it doesn&apos;t count toward your plan&apos;s
+          project limit.
+        </Notice>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">
         <section aria-labelledby="tasks-heading" className="grid gap-4">
@@ -75,9 +85,27 @@ export default async function ProjectPage({ params }: { params: Promise<{ projec
         <Card>
           <h2 className="text-lg font-medium">New task</h2>
           <div className="mt-4">
-            <CreateTaskForm projectId={project.id} disabledReason={ctx.writes.enabled ? null : ctx.writes.reason} />
+            <CreateTaskForm
+              projectId={project.id}
+              disabledReason={!ctx.writes.enabled ? ctx.writes.reason : project.archivedAt ? "This project is archived, so new tasks can't be added." : null}
+            />
           </div>
         </Card>
+        {!project.archivedAt ? (
+          <Card>
+            <h2 className="text-lg font-medium">Archive</h2>
+            <p className="mt-1 text-sm text-ink-2">Take a finished or paused project out of the list. Nothing is deleted.</p>
+            <div className="mt-4">
+              <ArchiveProject
+                projectId={project.id}
+                name={project.name}
+                disabledReason={
+                  !ctx.writes.enabled ? ctx.writes.reason : ctx.role && MANAGER_ROLES.includes(ctx.role) ? null : "Only owners and admins can archive a project."
+                }
+              />
+            </div>
+          </Card>
+        ) : null}
         </div>
       </div>
     </div>

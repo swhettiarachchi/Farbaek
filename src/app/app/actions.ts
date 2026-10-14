@@ -11,7 +11,7 @@ import { mapCreateOrganizationError } from "@/server/workspace/organizations";
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
 import { MANAGER_ROLES } from "@/server/workspace/types";
 import { EMPTY_CONTRACT_FORM, type ContractFormValues } from "@/core/realityloop/contract-form";
-import { approveContract, cancelTask, createProject, createTask, saveContract, type WriteDeps } from "@/server/workspace/use-cases";
+import { approveContract, archiveProject, cancelTask, createProject, createTask, saveContract, type ProjectAdminDeps, type WriteDeps } from "@/server/workspace/use-cases";
 import { draftContractWithAi, type AiCreditDeps } from "@/server/workspace/ai-drafting";
 import { deleteProjectFile, importProjectFiles, saveProjectFile, type FileDeps, type ImportSummary } from "@/server/workspace/files";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
@@ -37,7 +37,7 @@ async function requireContext(): Promise<AppContext> {
 }
 
 /** Resolves write dependencies, or the honest reason writes are unavailable. */
-async function writeDeps(ctx: AppContext): Promise<{ deps: WriteDeps & AiCreditDeps & FileDeps & ProposalDeps; orgId: string } | { error: string }> {
+async function writeDeps(ctx: AppContext): Promise<{ deps: WriteDeps & AiCreditDeps & FileDeps & ProposalDeps & ProjectAdminDeps; orgId: string } | { error: string }> {
   if (!ctx.writes.enabled) return { error: ctx.writes.reason };
   if (!ctx.current) return { error: "Create a workspace first." };
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
@@ -352,6 +352,19 @@ export async function discardProposalAction(input: { proposalId: string }): Prom
   if (!result.ok) return { status: "error", message: result.message };
   revalidatePath("/app", "layout");
   return { status: "done", written: 0 };
+}
+
+export async function archiveProjectAction(_previous: FormState, form: FormData): Promise<FormState> {
+  const projectId = String(form.get("projectId") ?? "");
+  const ctx = await requireContext();
+  const w = await writeDeps(ctx);
+  if ("error" in w) return { status: "error", message: w.error };
+  const project = await ctx.reader.getProject(w.orgId, projectId);
+  if (!project) return { status: "error", message: "That project doesn't exist or isn't in this workspace." };
+  const result = await archiveProject(w.deps, { orgId: w.orgId, userId: ctx.user.id, projectId: project.id });
+  if (!result.ok) return { status: "error", message: result.message };
+  revalidatePath("/app", "layout");
+  redirect("/app/projects");
 }
 
 export async function renameWorkspaceAction(_previous: FormState, form: FormData): Promise<FormState> {

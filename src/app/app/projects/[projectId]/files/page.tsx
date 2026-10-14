@@ -63,7 +63,7 @@ export default async function FilesPage({
     historyMode && rev ? ctx.reader.getFileRevision(orgId, project.id, path!, rev) : Promise.resolve(null),
   ]);
   const totalBytes = files.reduce((n, f) => n + f.sizeBytes, 0);
-  const writeReason = ctx.writes.enabled ? null : ctx.writes.reason;
+  const writeReason = !ctx.writes.enabled ? ctx.writes.reason : project.archivedAt ? "This project is archived, so its files are read-only." : null;
   const tree = buildTree(files.map((f) => f.path));
   const nameMatches = query ? files.filter((f) => f.path.toLowerCase().includes(query.toLowerCase())).slice(0, 20) : [];
   const grouped = new Map<string, SearchHit[]>();

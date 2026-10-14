@@ -135,7 +135,7 @@ describe("importing files", () => {
     await expect(importFiles([{ path: "x.txt", content: "x" }], { actor: USERS.bob })).rejects.toThrow(/FORBIDDEN/);
     const archived = await newProject("Old");
     await asService(() => db.query("update public.projects set archived_at = now() where id = $1", [archived]));
-    await expect(importFiles([{ path: "x.txt", content: "x" }], { project: archived })).rejects.toThrow(/NOT_FOUND/);
+    await expect(importFiles([{ path: "x.txt", content: "x" }], { project: archived })).rejects.toThrow(/PROJECT_ARCHIVED/);
   });
 });
 

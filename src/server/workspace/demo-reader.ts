@@ -54,6 +54,7 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
     name: p.name,
     description: p.description,
     createdAt: ago(p.createdDaysAgo * DEMO_TIME.DAY),
+    archivedAt: null,
   }));
   const projectName = new Map(projects.map((p) => [p.id, p.name]));
 
