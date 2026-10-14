@@ -17,13 +17,17 @@ describe("ScopeDriftCard", () => {
     const html = render({
       approvedAt,
       changes: 4,
-      findings: [{ path: "src/app/page.tsx", operation: "files.edit", reasons: ["outside_paths"], at: "2026-10-14T10:00:00.000Z", viaProposal: false }],
+      findings: [
+        { path: "src/app/page.tsx", operation: "files.edit", reasons: ["outside_paths"], at: "2026-10-14T10:00:00.000Z", viaProposal: false, origin: "edit" },
+        { path: "docs/a.md", operation: "files.create", reasons: ["outside_paths"], at: "2026-10-14T10:01:00.000Z", viaProposal: false, origin: "import" },
+      ],
     });
-    expect(html).toContain("1 of 4 changes fall outside the contract");
+    expect(html).toContain("2 of 4 changes fall outside the contract");
+    expect(html).toContain("Edited directly");
+    expect(html).toContain("Imported");
     expect(html).toContain("src/app/page.tsx");
     expect(html).toContain("files.edit");
     expect(html).toContain("outside the contract&#x27;s paths");
-    expect(html).toContain("Direct change");
     expect(html).toContain("aria-hidden");
   });
 });

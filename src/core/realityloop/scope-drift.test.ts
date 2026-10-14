@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { INTENT_CONTRACT_SCHEMA, type IntentContract } from "./contract";
-import { operationOf, scopeDrift, type FileChangeEvent } from "./scope-drift";
+import { groupDrift, operationOf, scopeDrift, type FileChangeEvent } from "./scope-drift";
 
 const contract: IntentContract = {
   schema: INTENT_CONTRACT_SCHEMA,
@@ -48,14 +48,34 @@ describe("scopeDrift", () => {
       ev("README.md", "delete", 2, "2026-10-14T13:00:00Z"),
     ]);
     expect(findings).toEqual([
-      { path: "src/lib/old.ts", operation: "files.delete", reasons: ["operation_forbidden"], at: "2026-10-14T11:00:00Z", viaProposal: false },
-      { path: "src/app/page.tsx", operation: "files.edit", reasons: ["outside_paths"], at: "2026-10-14T12:00:00Z", viaProposal: false },
-      { path: "README.md", operation: "files.delete", reasons: ["operation_forbidden", "outside_paths"], at: "2026-10-14T13:00:00Z", viaProposal: false },
+      { path: "src/lib/old.ts", operation: "files.delete", reasons: ["operation_forbidden"], at: "2026-10-14T11:00:00Z", viaProposal: false, origin: "delete" },
+      { path: "src/app/page.tsx", operation: "files.edit", reasons: ["outside_paths"], at: "2026-10-14T12:00:00Z", viaProposal: false, origin: "edit" },
+      { path: "README.md", operation: "files.delete", reasons: ["operation_forbidden", "outside_paths"], at: "2026-10-14T13:00:00Z", viaProposal: false, origin: "delete" },
     ]);
   });
 
   it("treats every file change as drift for a contract that allows no file operations", () => {
     const dataContract = { ...contract, scope: { ...contract.scope, resources: ["products"] }, allowedOperations: ["products.update"], forbiddenOperations: [] };
     expect(scopeDrift(dataContract, [ev("src/lib/cart.ts", "edit", 2)])).toMatchObject([{ reasons: ["operation_not_allowed"] }]);
+  });
+
+  it("groups a bulk import into one origin with folder counts, proposals first", () => {
+    const events = [
+      ev("docs/a.md", "import", 1),
+      ev("docs/b.md", "import", 1),
+      ev("src/core/x.ts", "import", 1),
+      ev("package.json", "import", 1),
+      ev("src/app/page.tsx", "edit", 2, undefined, "prop-9"),
+    ];
+    const groups = groupDrift(scopeDrift(contract, events));
+    expect(groups.map((g) => [g.origin, g.count])).toEqual([
+      ["proposal", 1],
+      ["import", 4],
+    ]);
+    expect(groups[1]!.folders.map((f) => [f.folder, f.findings.length])).toEqual([
+      ["docs", 2],
+      ["(project root)", 1],
+      ["src/core", 1],
+    ]);
   });
 });
