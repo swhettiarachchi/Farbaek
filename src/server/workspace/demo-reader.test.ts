@@ -68,4 +68,13 @@ describe("demo workspace", () => {
     expect(task?.task.state).toBe("APPROVAL_PENDING");
     expect(await reader.getLatestProposal("demo", "00000000-0000-4000-8000-00000000b001")).toBeNull();
   });
+
+  it("reports file changes since a time, oldest first, for scope drift", async () => {
+    const now = new Date("2026-10-14T12:00:00Z");
+    const reader = createDemoReader(now);
+    const since = new Date(now.getTime() - 40 * 3_600_000).toISOString();
+    const changes = await reader.listFileChangesSince("demo", DEMO_FILES_PROJECT_ID, since);
+    expect(changes.map((c) => [c.path, c.change, c.revision])).toEqual([["src/lib/products.ts", "edit", 2]]);
+    expect(await reader.listFileChangesSince("demo", DEMO_FILES_PROJECT_ID, now.toISOString())).toEqual([]);
+  });
 });

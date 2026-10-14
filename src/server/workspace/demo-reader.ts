@@ -172,6 +172,25 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
       return null;
     },
 
+    async listRecentProofPacks() {
+      return [];
+    },
+
+    async listFileChangesSince(_orgId, projectId, since) {
+      if (projectId !== DEMO_FILES_PROJECT_ID) return [];
+      const events = DEMO_FILES.flatMap((f) => {
+        const versions = [...(f.history ?? []), { content: f.content, updatedHoursAgo: f.updatedHoursAgo }];
+        return versions.map((v, i) => ({
+          path: f.path,
+          change: i === 0 ? ("import" as const) : ("edit" as const),
+          revision: i + 1,
+          at: ago(v.updatedHoursAgo * DEMO_TIME.HOUR),
+          proposalId: null,
+        }));
+      });
+      return events.filter((e) => e.at >= since).sort((a, b) => a.at.localeCompare(b.at));
+    },
+
     async getLatestProposal(_orgId, taskId) {
       if (taskId !== DEMO_PROPOSAL_TASK_ID) return null;
       const found = built.find((b) => b.task.id === taskId);

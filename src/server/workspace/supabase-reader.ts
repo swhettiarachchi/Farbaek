@@ -226,6 +226,46 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
       return { digest: r.digest, status: r.status, statement: r.statement, previous: r.previous, createdAt: r.created_at };
     },
 
+    async listRecentProofPacks(orgId, limit) {
+      const { data, error } = await client
+        .from("proofpacks")
+        .select("digest, status, statement, previous, created_at, task_id")
+        .eq("org_id", orgId)
+        .order("seq", { ascending: false })
+        .limit(Math.min(Math.max(limit, 1), 50));
+      if (error) fail("ProofPacks", error);
+      return z
+        .array(
+          z.object({
+            digest: z.string(),
+            status: z.enum(["unverified", "partially_verified", "verified", "failed"]),
+            statement: z.unknown(),
+            previous: z.string().nullable(),
+            created_at: z.string(),
+            task_id: z.string(),
+          }),
+        )
+        .parse(data)
+        .map((r) => ({ digest: r.digest, status: r.status, statement: r.statement, previous: r.previous, createdAt: r.created_at, taskId: r.task_id }));
+    },
+
+    async listFileChangesSince(orgId, projectId, since) {
+      if (!z.uuid().safeParse(projectId).success || Number.isNaN(Date.parse(since))) return [];
+      const { data, error } = await client
+        .from("project_file_revisions")
+        .select("path, change, revision, created_at, proposal_id")
+        .eq("org_id", orgId)
+        .eq("project_id", projectId)
+        .gte("created_at", since)
+        .order("created_at", { ascending: true })
+        .limit(500);
+      if (error) fail("file changes", error);
+      return z
+        .array(z.object({ path: z.string(), change: z.enum(["import", "edit", "delete"]), revision: z.number().int(), created_at: z.string(), proposal_id: z.string().nullable() }))
+        .parse(data)
+        .map((r) => ({ path: r.path, change: r.change, revision: r.revision, at: r.created_at, proposalId: r.proposal_id }));
+    },
+
     async getLatestProposal(orgId, taskId) {
       if (!z.uuid().safeParse(taskId).success) return null;
       const { data, error } = await client

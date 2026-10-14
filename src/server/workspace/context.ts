@@ -62,6 +62,8 @@ function memoizeReader(reader: WorkspaceReader): WorkspaceReader {
     getLatestProposal: wrap("proposal", reader.getLatestProposal),
     listProofPacks: wrap("proofpacks", reader.listProofPacks),
     getProofPack: wrap("proofpack", reader.getProofPack),
+    listRecentProofPacks: wrap("recentProofpacks", reader.listRecentProofPacks),
+    listFileChangesSince: wrap("changesSince", reader.listFileChangesSince),
   };
 }
 

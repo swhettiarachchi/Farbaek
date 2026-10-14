@@ -41,3 +41,22 @@ ProofPack (in-toto statement) for applied changes, leases on approvals, shadow m
 ### Next
 
 Leases on approvals, scope drift between the contract and the applied diff, and signing. Real verification still waits for a sandbox provider (ADR 0003).
+
+## 2026-10-14: scope drift, recent evidence, approvals inbox
+
+### Done
+
+- `src/core/realityloop/scope-drift.ts`: compares every file change since the contract was approved with the contract. That covers direct edits, imports, restores, deletions and applied proposals. A first revision counts as files.create, a later one as files.edit, and a deletion as files.delete. A change drifts when its operation is forbidden or not allowed, or its path is outside the contract's path scope. The path rule is the same one proposals use (`pathScope`).
+- Task page: a "Scope since approval" card for active tasks with an approved contract. It shows either "no changes" or "all inside the contract", or lists each drifting change with its operation, the reasons, whether it was direct or from a reviewed proposal, and when. Drift is reported, not blocked.
+- Mission Control: a Recent evidence card with the latest ProofPacks (status, task, digest, time). The checklist's "verified ProofPack" step now says honestly why it's locked: checks need a sandbox.
+- Approvals page: each waiting change shows its file count and policy outcome. An escalated change notes when the viewer can review but not approve. The outdated "arrives in Stage 3" copy is gone.
+- Readers: `listFileChangesSince` and `listRecentProofPacks` (Supabase through RLS; demo equivalents).
+
+### Verified
+
+- 429 tests (33 files): 4 scope-drift tests, a demo test for change history, and 2 server-render tests of the Scope card's markup (text labels next to icons, nothing conveyed by colour alone). Typecheck, lint and build pass.
+- The live app (real Supabase keys) builds and starts, and `/app` routes redirect to sign-in.
+
+### Not verified
+
+- These screens in the browser. The demo workspace only runs when Supabase isn't configured, and the real keys are now built in, so signed-in pages need a real session. They'll be checked once the owner signs in.

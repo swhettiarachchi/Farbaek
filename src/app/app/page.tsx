@@ -7,6 +7,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
 import { TRIAL, getPlan } from "@/core/billing/catalog";
 import { TERMINAL_STATES, type TaskState } from "@/core/realityloop/task-machine";
+import { shortHash } from "@/core/trust/canonical-json";
 import { loadAppContext } from "@/server/workspace/context";
 import { loadUsageSummary } from "@/server/workspace/usage-summary";
 
@@ -30,7 +31,7 @@ export default async function MissionControl() {
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
   const ws = ctx.current;
-  const usage = await loadUsageSummary(ctx, ws);
+  const [usage, recentEvidence] = await Promise.all([loadUsageSummary(ctx, ws), ctx.reader.listRecentProofPacks(ws.id, 5)]);
   const { tasks, projects } = usage;
 
   const open = tasks.filter((t) => !TERMINAL_STATES.has(t.state));
@@ -48,7 +49,12 @@ export default async function MissionControl() {
       href: tasks.find((t) => ["RECEIVED", "CONTEXT_ASSEMBLED", "CONTRACT_DRAFTED"].includes(t.state)) ? `/app/tasks/${tasks.find((t) => ["RECEIVED", "CONTEXT_ASSEMBLED", "CONTRACT_DRAFTED"].includes(t.state))!.id}` : "/app/tasks",
       locked: null,
     },
-    { label: "Get your first verified ProofPack", done: tasks.some((t) => t.state === "VERIFIED"), href: null, locked: "Opens with Trust in Stage 3." },
+    {
+      label: "Get your first verified ProofPack",
+      done: recentEvidence.some((p) => p.status === "verified"),
+      href: null,
+      locked: "Needs checks to run, and no isolated sandbox is connected yet.",
+    },
   ];
   const doneCount = checklist.filter((c) => c.done).length;
 
@@ -171,6 +177,36 @@ export default async function MissionControl() {
           </p>
         </Card>
       </div>
+
+      <Card>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-medium">Recent evidence</h2>
+          <span className="font-mono text-xs text-ink-3">{"// ProofPacks"}</span>
+        </div>
+        {recentEvidence.length === 0 ? (
+          <p className="mt-3 text-sm text-ink-2">No evidence yet. A ProofPack is recorded each time you approve and apply a change.</p>
+        ) : (
+          <ul className="mt-4 divide-y divide-line">
+            {recentEvidence.map((p) => {
+              const task = tasks.find((t) => t.id === p.taskId);
+              return (
+                <li key={p.digest}>
+                  <Link href={`/app/tasks/${p.taskId}`} className="group flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:gap-4">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[15px] font-medium group-hover:text-accent">{task?.title ?? "Task"}</span>
+                      <span className="mt-0.5 block font-mono text-xs text-ink-3">{shortHash(p.digest)}</span>
+                    </span>
+                    <span className="text-xs text-ink-2">
+                      {p.status === "verified" ? "Verified" : p.status === "partially_verified" ? "Partially verified" : p.status === "failed" ? "Failed" : "Unverified"} ·{" "}
+                      <RelativeTime iso={p.createdAt} />
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Card>
     </div>
   );
 }

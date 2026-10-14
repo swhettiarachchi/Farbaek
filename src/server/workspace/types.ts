@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { Dropped, ProposedChange, Violation } from "@/core/realityloop/change-proposal";
 import type { IntentContract } from "@/core/realityloop/contract";
+import type { FileChangeEvent } from "@/core/realityloop/scope-drift";
 import { TASK_STATES } from "@/core/realityloop/task-machine";
 import type { WorkspaceSummary } from "./organizations";
 
@@ -191,6 +192,10 @@ export interface WorkspaceReader {
   /** ProofPacks recorded for a task, newest first. */
   listProofPacks(orgId: string, taskId: string): Promise<ProofPackRecord[]>;
   getProofPack(orgId: string, digest: string): Promise<ProofPackRecord | null>;
+  /** The workspace's most recent ProofPacks, newest first. */
+  listRecentProofPacks(orgId: string, limit: number): Promise<(ProofPackRecord & { taskId: string })[]>;
+  /** Every file change in a project at or after `since`, oldest first (at most 500). */
+  listFileChangesSince(orgId: string, projectId: string, since: string): Promise<FileChangeEvent[]>;
   /** The most recent change proposal for a task, or null. */
   getLatestProposal(orgId: string, taskId: string): Promise<ProposalRecord | null>;
   /** The latest contract version for a task, or null when none has been written. */

@@ -8,6 +8,8 @@ import { CancelTaskControl } from "@/components/app/forms";
 import { ChecksList, ExecutionModeBadge } from "@/components/app/execution";
 import { ProposeChange } from "@/components/proposals/propose-change";
 import { ProofPackCard } from "@/components/proof/proofpack-card";
+import { ScopeDriftCard } from "@/components/app/scope-drift-card";
+import { scopeDrift } from "@/core/realityloop/scope-drift";
 import { currentExecutionMode } from "@/server/execution/sandbox";
 import { ProposalReview } from "@/components/proposals/proposal-review";
 import { Card, TaskStateBadge } from "@/components/app/primitives";
@@ -41,6 +43,9 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
     ctx.reader.listProofPacks(orgId, task.id),
   ]);
   const canPropose = task.state === "CONTRACT_APPROVED";
+  const approvedContract = contract?.status === "approved" && contract.approvedAt ? contract : null;
+  const driftEvents = approvedContract && !TERMINAL_STATES.has(task.state) ? await ctx.reader.listFileChangesSince(orgId, task.projectId, approvedContract.approvedAt!) : null;
+  const drift = approvedContract && driftEvents ? scopeDrift(approvedContract.body, driftEvents) : [];
   const execution = currentExecutionMode();
   const showVerification = task.state === "VERIFYING" || (proposal?.status === "applied" && !TERMINAL_STATES.has(task.state));
   const showProposal = proposal !== null && (proposal.status !== "discarded" || !canPropose);
@@ -125,6 +130,8 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
           )}
         </div>
       </Card>
+
+      {approvedContract && driftEvents ? <ScopeDriftCard approvedAt={approvedContract.approvedAt!} changes={driftEvents.length} findings={drift} /> : null}
 
       {canPropose || showProposal ? (
         <Card>
