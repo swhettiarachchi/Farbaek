@@ -91,7 +91,7 @@ export default async function BillingPage() {
               />
             )}
             <UsageMeter label="Registered agents" used={0} limit={limits.agents} detail="Agents arrive in Stage 4." />
-            <UsageMeter label="Integrations" used={0} limit={limits.integrations} detail="GitHub arrives with Studio in Stage 2." />
+            <UsageMeter label="Integrations" used={0} limit={limits.integrations} detail="None connected. GitHub import isn't built yet; projects import files from a folder instead." />
           </div>
         </Card>
       </div>

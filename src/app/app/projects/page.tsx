@@ -37,7 +37,7 @@ export default async function ProjectsPage() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">
         {projects.length === 0 ? (
           <EmptyState icon={FolderSimpleIcon} title="No projects yet">
-            Create a project for the codebase or product you want Farbaek to work on. Importing from GitHub arrives with Studio in Stage 2.
+            Create a project for the codebase or product you want Farbaek to work on, then import its files from a folder on your computer. GitHub import isn&apos;t built yet.
           </EmptyState>
         ) : (
           <ul className="grid gap-4 sm:grid-cols-2">

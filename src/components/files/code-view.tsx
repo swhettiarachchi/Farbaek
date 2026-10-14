@@ -1,7 +1,7 @@
 /**
  * Read-only source view with line numbers and linkable lines (#L12). It
- * scrolls sideways inside its own frame so the page never does. Syntax
- * highlighting and editing arrive with the CodeMirror editor (ADR 0002).
+ * scrolls sideways inside its own frame so the page never does. It stays
+ * lightweight for reading; editing uses the CodeMirror editor (ADR 0002).
  */
 export function CodeView({ content, label }: { content: string; label: string }) {
   const lines = content.replace(/\r\n?/g, "\n").replace(/\n$/, "").split("\n");

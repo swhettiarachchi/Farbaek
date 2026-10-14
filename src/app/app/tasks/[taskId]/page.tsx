@@ -231,7 +231,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-ink-2">
               {CAN_START_CONTRACT.has(task.state) || task.state === "CONTRACT_DRAFTED"
-                ? "Write the intent contract, or draft it with AI and review it, then approve the exact version. Planning the change arrives with Farbaek Agent later in Stage 2."
+                ? "Write the intent contract, or draft it with AI and review it, then approve the exact version. Once it's approved, you can ask the agent to propose a change."
                 : task.state === "CONTRACT_APPROVED"
                   ? "The contract is approved. Choose the files the change needs and ask the agent for a proposal, or edit the files yourself."
                   : task.state === "APPROVAL_PENDING"
