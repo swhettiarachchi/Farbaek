@@ -84,10 +84,10 @@ export function SidebarNav({ approvals }: { approvals: number }) {
               title={`${r.label} arrives in Stage ${r.stage}. It isn't built yet.`}
               className="flex h-9 cursor-default items-center gap-3 px-3.5 text-[14px] text-ink-3"
             >
-              <LockSimpleIcon size={16} aria-hidden />
-              {r.label}
+              <LockSimpleIcon size={16} className="shrink-0" aria-hidden />
+              <span className="min-w-0 truncate">{r.label}</span>
               <span className="sr-only">, not available yet</span>
-              <span className="ml-auto text-[11px] tabular">Stage {r.stage}</span>
+              <span className="ml-auto shrink-0 whitespace-nowrap text-[11px] tabular">Stage {r.stage}</span>
             </li>
           ))}
         </ul>

@@ -66,3 +66,18 @@ Leases on approvals, scope drift between the contract and the applied diff, and 
 - The owner signed in with an email link and created the workspace "Far001" on the hosted project. The 14-day Team trial started (ends 2026-10-28), and Mission Control showed real records, including the empty Recent evidence card. Checked from the owner's screenshot.
 - That screenshot showed the sidebar still listing Studio and Trust as unbuilt. Fixed: the list now names what is still missing (previews and test runs, simulations and recovery), and other stale "arrives in Stage N" copy now says what exists today (`108fbfb`).
 - Still to check live: creating a project, importing files, a task with a hand-written contract and its approval. AI drafting and proposals need the Anthropic key.
+
+## 2026-10-14: live setup through the owner's browser
+
+Done with Claude in Chrome, at the owner's request, on the owner's signed-in session at `localhost:3000` against the hosted project:
+
+- Created the project "Farbaek" (`app_create_project`).
+- Imported 10 real root-level files from the repo (README, CLAUDE.md, package.json and the configs; 11 KB) through the import panel's preview (`app_import_files`). Generated build files, the lockfile and the owner's AGENTS.md were left out. A full `src` import needs the native folder picker, which only the owner can use.
+- Opened `package.json` (all 60 lines rendered, database hash shown) and searched "vitest" (`get_project_file`, `search_project_files`).
+- Created the task "Let owners archive a project from the project page", a real gap: the usage page mentions archiving, but there's no control for it yet (`app_create_task`).
+- Wrote contract version 1 by hand (no Anthropic key yet): path resources, files.edit and files.create allowed, files.delete forbidden, and pnpm typecheck and pnpm test as required checks. Saved it (`app_save_contract`): "Hash checks out: sha256:a74829…e096". Approved it (`app_approve_contract`): the task reached Contract approved.
+- The new cards worked live: Scope since approval said "No files changed since the contract was approved." The Change card listed the 10 files and kept "Propose a change" off with "AI isn't connected on this server yet."
+- Mission Control: 4 of 5 checklist steps done from real records.
+- Fixed while doing this: the sidebar's longer labels wrapped "Stage 2" over two lines. They're now "Test runs" and "Recovery", with the stage tag kept on one line.
+
+Not exercised live yet: saving an edited file, history and restore, and anything that needs the Anthropic key (drafting, proposals, apply, ProofPacks).

@@ -4,8 +4,8 @@
  * ProofPacks) exist; what's listed here is what's still missing from them.
  */
 export const ROADMAP = [
-  { label: "Previews and test runs", stage: 2 },
-  { label: "Simulations and recovery", stage: 3 },
+  { label: "Test runs", stage: 2 },
+  { label: "Recovery", stage: 3 },
   { label: "Agent", stage: 4 },
   { label: "Mesh devices", stage: 5 },
   { label: "LaunchOS", stage: 6 },
