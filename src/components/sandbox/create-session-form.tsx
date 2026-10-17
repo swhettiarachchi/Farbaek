@@ -5,12 +5,14 @@ import { useActionState, useMemo, useState } from "react";
 import { createSandboxSessionAction, type CreateSessionState } from "@/app/app/sandbox/actions";
 import { buttonClasses } from "@/components/ui/button";
 import { NETWORK_PROFILE_LABELS, NETWORK_PROFILES, REGISTRY_HOSTS, type NetworkProfile } from "@/core/sandbox/network";
-import { SANDBOX_SIZES, SANDBOX_TEMPLATES, SIZE_IDS, TEMPLATE_IDS, type SizeId, type TemplateId } from "@/core/sandbox/templates";
+import { SANDBOX_SIZES, SANDBOX_TEMPLATES, SIZE_IDS, TEMPLATE_IDS, sizeOnRuntime, type SizeId, type TemplateId } from "@/core/sandbox/templates";
 
 const IDLE: CreateSessionState = { status: "idle" };
 
 export interface CreateSessionFormProps {
   idempotencyKey: string;
+  /** The connected runtime, which decides what each size really gets. */
+  runtime: "e2b" | "vercel";
   allowedSizes: readonly SizeId[];
   allowedNetworks: readonly NetworkProfile[];
   maxMinutes: number;
@@ -53,7 +55,7 @@ export function CreateSessionForm(props: CreateSessionFormProps) {
   const durations = useMemo(() => [15, 30, 60, 120, 240].filter((m) => m <= props.maxMinutes), [props.maxMinutes]);
   const [minutes, setMinutes] = useState<number>(durations.includes(30) ? 30 : (durations.at(-1) ?? 15));
   const tasks = props.tasks.filter((t) => t.projectId === projectId);
-  const chosen = SANDBOX_SIZES[size];
+  const chosen = sizeOnRuntime(SANDBOX_SIZES[size], props.runtime);
   const disabled = Boolean(props.disabledReason) || pending;
 
   return (
@@ -90,7 +92,7 @@ export function CreateSessionForm(props: CreateSessionFormProps) {
           <div className="grid gap-3 sm:grid-cols-2">
             {SIZE_IDS.map((id) => {
               const allowed = props.allowedSizes.includes(id);
-              const s = SANDBOX_SIZES[id];
+              const s = sizeOnRuntime(SANDBOX_SIZES[id], props.runtime);
               return (
                 <Choice
                   key={id}
@@ -99,8 +101,8 @@ export function CreateSessionForm(props: CreateSessionFormProps) {
                   checked={size === id}
                   disabled={!allowed}
                   onChange={() => setSize(id)}
-                  title={s.label}
-                  detail={`${s.vcpu} vCPU, ${s.memoryMiB / 1024} GiB memory, about ${s.diskMiB / 1024} GiB free disk`}
+                  title={SANDBOX_SIZES[id].label}
+                  detail={`${s.vcpu} vCPU, ${s.memoryGiB} GiB memory, ${s.disk}`}
                   note={allowed ? undefined : "Not included in your plan."}
                 />
               );
@@ -203,8 +205,8 @@ export function CreateSessionForm(props: CreateSessionFormProps) {
           <li className="flex gap-3">
             <CpuIcon size={18} className="mt-0.5 shrink-0 text-accent" aria-hidden />
             <span>
-              {chosen.vcpu} vCPU <MemoryIcon size={14} className="mx-1 inline text-ink-3" aria-hidden /> {chosen.memoryMiB / 1024} GiB memory
-              <HardDrivesIcon size={14} className="mx-1 inline text-ink-3" aria-hidden /> about {chosen.diskMiB / 1024} GiB free disk. CPU and memory are fixed by the runtime image; disk is best effort.
+              {chosen.vcpu} vCPU <MemoryIcon size={14} className="mx-1 inline text-ink-3" aria-hidden /> {chosen.memoryGiB} GiB memory
+              <HardDrivesIcon size={14} className="mx-1 inline text-ink-3" aria-hidden /> {chosen.disk}. {chosen.note}
             </span>
           </li>
           <li className="flex gap-3">

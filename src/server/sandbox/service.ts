@@ -137,6 +137,8 @@ export interface LimitsView {
 export interface SandboxOverview {
   execution: ReturnType<typeof sandboxExecutionMode>;
   provider: string | null;
+  /** The adapter's id ("e2b", "vercel"), or null when none is connected. */
+  runtimeId: string | null;
   connectedReason: string | null;
   capabilities: SandboxServiceCapabilities;
   previewReason: string | null;
@@ -212,6 +214,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
     return {
       execution: sandboxExecutionMode(resolution),
       provider: caps?.provider ?? null,
+      runtimeId: runtime?.id ?? null,
       connectedReason: resolution.reason,
       capabilities: {
         pauseResume: Boolean(caps?.pauseResume),

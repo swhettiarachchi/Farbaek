@@ -17,7 +17,7 @@ import {
 } from "./preview";
 import { buildSandboxReceipt, sandboxReceiptDigest, snapshotDigest, type ReceiptInput } from "./receipts";
 import { commandTimeoutSeconds, included, sessionSpec } from "./request";
-import { suggestTemplate } from "./templates";
+import { SANDBOX_SIZES, defaultImageName, sizeOnRuntime, suggestTemplate } from "./templates";
 import { runningSeconds, sessionUsage, wholeMinutes } from "./usage";
 
 describe("session lifecycle", () => {
@@ -361,5 +361,18 @@ describe("preview tokens and hosts", () => {
     expect(rewriteLocation("https://3000-abc.e2b.app/login?x=1", up)).toBe("/login?x=1");
     expect(rewriteLocation("/next", up)).toBe("/next");
     expect(rewriteLocation("https://example.com/", up)).toBe("https://example.com/");
+  });
+});
+
+describe("sizes per runtime", () => {
+  it("states what each runtime really gives a size", () => {
+    expect(sizeOnRuntime(SANDBOX_SIZES.small, "e2b")).toMatchObject({ vcpu: 1, memoryGiB: 1, disk: "about 4 GiB free disk" });
+    expect(sizeOnRuntime(SANDBOX_SIZES.small, "vercel")).toMatchObject({ vcpu: 1, memoryGiB: 2, disk: "64 GiB disk" });
+    expect(sizeOnRuntime(SANDBOX_SIZES.standard, "vercel")).toMatchObject({ vcpu: 2, memoryGiB: 4 });
+  });
+
+  it("starts every template from Vercel's managed image on Vercel", () => {
+    expect(defaultImageName("python", "standard", "vercel")).toBe("vercel/sandbox/universal");
+    expect(defaultImageName("python", "standard")).toBe("farbaek-python-standard");
   });
 });

@@ -55,6 +55,7 @@ export default async function NewSandboxSessionPage({ searchParams }: { searchPa
       <PageHeader title="New session" description="Choose an environment, how big it is and what it may reach. Only the options your plan includes are offered." />
       <CreateSessionForm
         idempotencyKey={crypto.randomUUID()}
+        runtime={overview.runtimeId === "vercel" ? "vercel" : "e2b"}
         allowedSizes={limits.sizes}
         allowedNetworks={limits.networkProfiles}
         maxMinutes={limits.maxSessionMinutes}
