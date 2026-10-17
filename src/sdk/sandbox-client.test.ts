@@ -26,6 +26,20 @@ describe("FarbaekSandboxClient", () => {
     expect(JSON.parse(String(calls[0]!.init.body))).toMatchObject({ name: "Try", projectId: null, include: [] });
   });
 
+  it("reuses a caller's idempotency key so a retry can't run the command twice", async () => {
+    const { f, calls } = fakeFetch(() => json({ data: { id: "e1", state: "succeeded" } }));
+    const client = new FarbaekSandboxClient({ baseUrl: "https://app.test", accessToken: "tok", fetch: f });
+    const key = client.newIdempotencyKey();
+    await client.run("s1", "npm test", { idempotencyKey: key });
+    await client.run("s1", "npm test", { idempotencyKey: key });
+    await client.run("s1", "npm test");
+    const keys = calls.map((c) => new Headers(c.init.headers).get("idempotency-key"));
+    expect(keys[0]).toBe(key);
+    expect(keys[1]).toBe(key);
+    expect(keys[2]).not.toBe(key);
+    expect(JSON.parse(String(calls[0]!.init.body))).toEqual({ command: "npm test" });
+  });
+
   it("raises typed errors with the server's code, category and request id", async () => {
     const { f } = fakeFetch(() => json({ error: { code: "QUOTA_EXCEEDED", message: "Plan limit", category: "quota_exceeded" } }, 409));
     const client = new FarbaekSandboxClient({ baseUrl: "https://app.test", accessToken: "tok", fetch: f });

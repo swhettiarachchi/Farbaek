@@ -220,7 +220,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
         cancel: Boolean(caps?.cancel),
         filesystem: Boolean(caps?.filesystem),
       },
-      previewReason: !caps?.previews ? "This runtime doesn't support previews." : previewUnavailableReason(config),
+      previewReason: !runtime ? (resolution.reason ?? "No runtime is connected.") : !caps?.previews ? "This runtime doesn't support previews." : previewUnavailableReason(config),
       limits: lv,
       usage,
       minutesUsed: wholeMinutes(usage.runningSeconds),

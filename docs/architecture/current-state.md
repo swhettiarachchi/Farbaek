@@ -59,14 +59,15 @@ ESLint forbids `src/core` from importing React, Next, Motion or UI code, so ever
 | Marketing site and pricing page | Implemented, built, checked at 375px and 1440px, light and dark | Manual browser check, see `docs/stages/stage-0.md` |
 | Accounts, organizations, database | All eight migrations applied to the hosted project (core schema, projects and server-only writes, intent contracts, AI credit ledger, project files, change proposals, policy and metering, ProofPacks) | `tests/db/`, `docs/stages/` |
 | Signed-in app: Mission Control, projects, tasks, intent contracts, approvals, billing, settings | Built; verified in the demo workspace; live use needs `.env.local` (run `pnpm setup:env`) | `src/app/app/`, `src/server/workspace/` |
-| Studio, Agent, Mesh, LaunchOS, Mobile | **Not started** | Roadmap |
+| FARBAEK Sandbox: isolated sessions (E2B microVMs behind a Farbaek runtime interface), Guard rules, receipts, previews, v1 API and SDK, Studio UI (ADR 0013) | Built and tested; migration 10 applied to the hosted project. **Execution is off** until a runtime is connected and pnpm sandbox:smoke passes | docs/sandbox/, docs/stages/stage-4.md |
+| Agent, Mesh, LaunchOS, Mobile | **Not started** | Roadmap |
 | Payments | **Not connected.** `BILLING_MODE=not_connected` | Spec section 23 |
 
 ### Integrations
 
 - **Supabase** (auth and database): connected to the hosted project. The app reads it once `.env.local` exists (`pnpm setup:env`).
 - **Anthropic** (contract drafting): code is in place; it runs only when the server has `ANTHROPIC_API_KEY`. Usage is billed to that key.
-- Not connected: sandbox, email, payments. `.env.example` lists every variable name and what reads it.
+- Not connected: sandbox runtime (code and setup are in place; see docs/sandbox/README.md), email, payments. `.env.example` lists every variable name and what reads it.
 
 ## 3. Data model and auth boundaries
 
@@ -89,7 +90,7 @@ Postgres on Supabase with Row Level Security on every table. The browser can onl
 
 ## 6. Cost drivers
 
-Today: Supabase, plus model tokens for each AI contract draft (Claude Opus 5.5, up to 8,000 output tokens per draft, billed to the server's Anthropic key; credits cap how many drafts a workspace can make). Future drivers: sandbox minutes (wall-clock vs active-CPU pricing differs by vendor), email.
+Today: Supabase, plus model tokens for each AI contract draft (Claude Opus 5.5, up to 8,000 output tokens per draft, billed to the server's Anthropic key; credits cap how many drafts a workspace can make). Once a runtime is connected: sandbox running time (metered per session; plan limits in src/config/sandbox.ts; on a self-hosted runtime, the host instead). Future: email.
 
 ## 7. Highest-value next slice
 

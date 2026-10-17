@@ -1,6 +1,6 @@
 # 0003. Execution sandbox
 
-- Status: proposed (owner decision needed)
+- Status: accepted; the provider choice is made in ADR 0013 (E2B behind a Farbaek-owned runtime interface, self-hosted E2B Embed as the target)
 - Date: 2026-10-13
 
 ## Decision so far

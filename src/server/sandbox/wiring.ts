@@ -102,7 +102,8 @@ export async function sandboxRequest(request: Request): Promise<SandboxRequestRe
       global: { headers: { Authorization: `Bearer ${bearer}` } },
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     });
-    const { data } = await user.auth.getClaims(bearer);
+    // A malformed token makes getClaims throw rather than return an error; either way it's unauthenticated.
+    const { data } = await user.auth.getClaims(bearer).catch(() => ({ data: null }));
     userId = typeof data?.claims?.sub === "string" ? data.claims.sub : null;
   } else {
     user = await createSupabaseServerClient();

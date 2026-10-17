@@ -40,3 +40,20 @@ The security evaluation suite (Stage 3) maps scenarios to the OWASP Top 10 for L
 - Fail closed when authorization, policy, quota or identity checks are unavailable (already true of `checkFeature` and `checkQuota`).
 - Emergency pause, revocation, exports and billing stay available in every state (`ALWAYS_AVAILABLE_OPERATIONS`).
 - A model never decides safety on its own. Prompts and hidden buttons are not security boundaries.
+
+## Sandbox boundary (2026-10-17, ADR 0013)
+
+What is built and enforced; full details in `docs/sandbox/README.md`.
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| Sandbox to host and other tenants | Escape, cross-tenant access (ASI05) | One Firecracker microVM per session (runtime-provided). Code never runs on the app server; Guard blocks execution unless isolation was verified on this deployment | `sandbox.test.ts` (Guard), `runtime.smoke.test.ts` (real runtime, when connected) |
+| Sandbox to secrets | Credential exfiltration | No server environment passed in; runtime key only authenticates the SDK | smoke test (no secret names inside) |
+| Sandbox to network | SSRF, metadata theft, exfiltration | Deny-all egress, or npm and PyPI hosts only; private, link-local, loopback, CGNAT and multicast always denied; allow lists never contain IPs | `sandbox.test.ts` (rules), smoke test (metadata and internet blocked) |
+| Browser or API client to sessions | IDOR, guessing ids, cross-tenant reads, unauthorized stop, forged limits | RLS reads; service-role `app_*` writes that re-check creator or owner/admin, contributor role, plan limits under a lock, versions, idempotency; only catalog ids accepted for sizes; another workspace's record is "not found" | `tests/db/sandboxes.test.ts`, `service.test.ts` |
+| Cookie-authenticated API | CSRF | Same-origin `Origin` check on changes; bearer clients exempt | `wiring.test.ts` |
+| Previews | Cookie theft by generated apps, link reuse, cross-tenant access, SSRF through the gateway, framing the app | Separate preview hosts; one-use 60 s HMAC launch token bound to the person; host-only cookie; preview, membership and session re-checked per request; upstream built from stored ids only; Farbaek and Supabase cookies never forwarded; WebSockets refused | `gateway.test.ts`, `sandbox.test.ts` (tokens, hosts) |
+| Resource exhaustion | Runaway processes, endless sessions, cost | Runtime timeout always set, idle stop, per-command timeout with explicit kill, one running command per session, concurrency and period minutes per workspace, output and file caps, rate limits, sweeper and orphan cleanup | `service.test.ts`, `tests/db/sandboxes.test.ts` |
+| Evidence | Tampering with results | Receipts are in-toto statements with RFC 8785 digests, append-only (trigger), checked against the session on insert; verdicts only from real exit codes | `sandbox.test.ts`, `tests/db/sandboxes.test.ts` |
+
+Known limits: E2B domain filtering is HTTP and HTTPS on ports 80 and 443 only, and allows DNS to 8.8.8.8 when domains are allowed; disk size is best effort; in-guest `ulimit` can be raised by sudo inside the VM; isolation depends on the runtime host's kernel and KVM. The smoke test has not yet run against a real runtime (none is connected).

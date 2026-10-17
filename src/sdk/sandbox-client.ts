@@ -9,9 +9,10 @@
  *
  * Authentication is the person's own Supabase access token (Bearer), so the
  * client can do exactly what that person can do and nothing more. There are
- * no administrative or runtime-level endpoints in this SDK. Mutating calls
- * send an Idempotency-Key, so a retried call never starts a second session
- * or runs a command twice.
+ * no administrative or runtime-level endpoints in this SDK. Calls that start
+ * something send an Idempotency-Key: pass the same `idempotencyKey` when you
+ * retry, and the server returns the first result instead of starting a
+ * second session or running the command again.
  */
 
 export type SessionState = "requested" | "provisioning" | "ready" | "paused" | "stopping" | "terminated" | "expired" | "failed";
@@ -147,13 +148,18 @@ export class FarbaekSandboxClient {
     };
   }
 
-  private async request<T>(method: string, path: string, body?: unknown, idempotent = false): Promise<T> {
+  /** A key to reuse when retrying a call that starts something. */
+  newIdempotencyKey(): string {
+    return this.newKey();
+  }
+
+  private async request<T>(method: string, path: string, body?: unknown, idempotencyKey?: string): Promise<T> {
     const res = await this.doFetch(`${this.base}${path}`, {
       method,
       headers: this.headers({
         accept: "application/json",
         ...(body !== undefined ? { "content-type": "application/json" } : {}),
-        ...(idempotent ? { "idempotency-key": this.newKey() } : {}),
+        ...(idempotencyKey ? { "idempotency-key": idempotencyKey } : {}),
       }),
       body: body === undefined ? undefined : JSON.stringify(body),
     });
@@ -187,8 +193,8 @@ export class FarbaekSandboxClient {
     return body;
   }
 
-  create(input: CreateSessionInput) {
-    return this.request<SandboxSession>("POST", "/api/v1/sandboxes", { projectId: null, taskId: null, include: [], ...input }, true);
+  create(input: CreateSessionInput, options: { idempotencyKey?: string } = {}) {
+    return this.request<SandboxSession>("POST", "/api/v1/sandboxes", { projectId: null, taskId: null, include: [], ...input }, options.idempotencyKey ?? this.newKey());
   }
   get(id: string) {
     return this.request<SandboxSession>("GET", `/api/v1/sandboxes/${encodeURIComponent(id)}`);
@@ -202,8 +208,13 @@ export class FarbaekSandboxClient {
   resume(id: string) {
     return this.request<{ state: SessionState }>("POST", `/api/v1/sandboxes/${encodeURIComponent(id)}/resume`);
   }
-  run(id: string, command: string, options: { timeoutSeconds?: number } = {}) {
-    return this.request<Execution>("POST", `/api/v1/sandboxes/${encodeURIComponent(id)}/executions`, { command, ...options }, true);
+  run(id: string, command: string, options: { timeoutSeconds?: number; idempotencyKey?: string } = {}) {
+    return this.request<Execution>(
+      "POST",
+      `/api/v1/sandboxes/${encodeURIComponent(id)}/executions`,
+      { command, timeoutSeconds: options.timeoutSeconds },
+      options.idempotencyKey ?? this.newKey(),
+    );
   }
   executions(id: string, limit = 30) {
     return this.request<Execution[]>("GET", `/api/v1/sandboxes/${encodeURIComponent(id)}/executions?limit=${limit}`);
@@ -229,8 +240,13 @@ export class FarbaekSandboxClient {
   closePreview(id: string, previewId: string) {
     return this.request<null>("DELETE", `/api/v1/sandboxes/${encodeURIComponent(id)}/previews/${encodeURIComponent(previewId)}`);
   }
-  runChecks(id: string) {
-    return this.request<{ digest: string; status: string; taskEvent: string | null; applied: boolean }>("POST", `/api/v1/sandboxes/${encodeURIComponent(id)}/checks`, undefined, true);
+  runChecks(id: string, options: { idempotencyKey?: string } = {}) {
+    return this.request<{ digest: string; status: string; taskEvent: string | null; applied: boolean }>(
+      "POST",
+      `/api/v1/sandboxes/${encodeURIComponent(id)}/checks`,
+      undefined,
+      options.idempotencyKey ?? this.newKey(),
+    );
   }
   receipts(id: string) {
     return this.request<{ digest: string; status: string; createdAt: string; statement: unknown }[]>("GET", `/api/v1/sandboxes/${encodeURIComponent(id)}/receipts`);
@@ -240,10 +256,10 @@ export class FarbaekSandboxClient {
   }
 
   /** Runs a command and yields its output as it happens, ending with the recorded result. */
-  async *runStream(id: string, command: string, options: { timeoutSeconds?: number; signal?: AbortSignal } = {}): AsyncGenerator<StreamEvent> {
+  async *runStream(id: string, command: string, options: { timeoutSeconds?: number; signal?: AbortSignal; idempotencyKey?: string } = {}): AsyncGenerator<StreamEvent> {
     const res = await this.doFetch(`${this.base}/api/v1/sandboxes/${encodeURIComponent(id)}/executions`, {
       method: "POST",
-      headers: this.headers({ accept: "text/event-stream", "content-type": "application/json", "idempotency-key": this.newKey() }),
+      headers: this.headers({ accept: "text/event-stream", "content-type": "application/json", "idempotency-key": options.idempotencyKey ?? this.newKey() }),
       body: JSON.stringify({ command, timeoutSeconds: options.timeoutSeconds }),
       signal: options.signal,
     });

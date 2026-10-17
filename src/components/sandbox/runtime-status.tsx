@@ -30,7 +30,7 @@ export function RuntimeStatus({ overview, health }: { overview: SandboxOverview;
         </h2>
         <ExecutionModeBadge mode={overview.execution} />
       </div>
-      <p className="mt-1 text-sm text-ink-2">{overview.provider ? `${overview.provider}, Firecracker microVMs. Code runs there, never on Farbaek's servers.` : "No runtime is connected."}</p>
+      {overview.provider ? <p className="mt-1 text-sm text-ink-2">{overview.provider}, Firecracker microVMs. Code runs there, never on Farbaek&apos;s servers.</p> : null}
       <p className={`mt-4 flex items-start gap-2 text-sm ${live.tone}`}>
         <live.icon size={18} weight="bold" className="mt-px shrink-0" aria-hidden />
         <span>{live.text}</span>
@@ -63,7 +63,7 @@ export function RuntimeStatus({ overview, health }: { overview: SandboxOverview;
 export function ConnectRuntimeSteps() {
   const steps: [string, string][] = [
     ["Run a runtime you trust", "E2B Embed on a Linux host with KVM that you control (self-hosted), or E2B Cloud while you set that up. Both give each session its own microVM."],
-    ["Connect it", "Run pnpm setup:env and choose sandbox: it asks for SANDBOX_PROVIDER, E2B_API_KEY and, for self-hosting, E2B_DOMAIN. Keys stay on the server."],
+    ["Connect it", "Run pnpm setup:env and type sandbox. It asks for the runtime's API key and, for self-hosting, its domain, and generates the rest. Keys stay on the server."],
     ["Build the images", "pnpm sandbox:templates builds the Node.js and Python images in two sizes on your runtime."],
     ["Prove the isolation", "pnpm sandbox:smoke starts a sandbox, runs a harmless command, checks the network rules and cleans up. When it passes, set SANDBOX_ISOLATION_VERIFIED_AT."],
   ];
