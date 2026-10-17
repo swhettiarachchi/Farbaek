@@ -1,5 +1,6 @@
 /**
- * Runtime smoke test: real execution on the configured runtime (ADR 0013).
+ * Runtime smoke test: real execution on the configured runtime (ADR 0013,
+ * ADR 0016).
  * Skipped unless run with `pnpm sandbox:smoke` (vitest --mode smoke), so
  * `pnpm test` never starts a billed sandbox by accident.
  *
@@ -47,6 +48,7 @@ describe.skipIf(!enabled)("sandbox runtime smoke test", () => {
     const config = readSandboxConfig();
     const created = await runtime!.create({
       image: config.images["node-ts"].small,
+      vcpu: 1,
       ttlSeconds: 300,
       egress: egressRules("none"),
       metadata: { farbaek: config.deploymentId, smoke: "1" },
@@ -79,7 +81,7 @@ describe.skipIf(!enabled)("sandbox runtime smoke test", () => {
   it("has no Docker socket and none of this server's secrets", async () => {
     expect((await run("test -S /var/run/docker.sock")).exitCode).not.toBe(0);
     const env = (await run("env")).stdout;
-    for (const name of ["E2B_API_KEY", "SUPABASE_SECRET_KEY", "ANTHROPIC_API_KEY", "SANDBOX_PREVIEW_SECRET", "SANDBOX_CRON_SECRET", "DODO_PAYMENTS_API_KEY"]) {
+    for (const name of ["E2B_API_KEY", "SANDBOX_VERCEL_TOKEN", "VERCEL_OIDC_TOKEN", "SUPABASE_SECRET_KEY", "ANTHROPIC_API_KEY", "SANDBOX_PREVIEW_SECRET", "SANDBOX_CRON_SECRET", "DODO_PAYMENTS_API_KEY"]) {
       expect(env).not.toContain(name);
     }
   }, 60_000);

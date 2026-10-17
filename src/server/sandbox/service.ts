@@ -220,7 +220,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
         cancel: Boolean(caps?.cancel),
         filesystem: Boolean(caps?.filesystem),
       },
-      previewReason: !runtime ? (resolution.reason ?? "No runtime is connected.") : !caps?.previews ? "This runtime doesn't support previews." : previewUnavailableReason(config),
+      previewReason: !runtime ? (resolution.reason ?? "No runtime is connected.") : !caps?.previews ? (caps?.unavailable?.previews ?? "This runtime doesn't support previews.") : previewUnavailableReason(config),
       limits: lv,
       usage,
       minutesUsed: wholeMinutes(usage.runningSeconds),
@@ -289,6 +289,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
     try {
       const sandbox = await runtime.create({
         image,
+        vcpu: spec.spec.vcpu,
         ttlSeconds: spec.spec.ttlSeconds,
         egress: egressRules(spec.spec.network),
         metadata: { farbaek: config.deploymentId, session: sessionId, org: actor.orgId },
@@ -485,7 +486,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
   async function pauseOrResume(actor: SandboxActor, sessionId: string, action: "pause" | "resume"): Promise<SandboxResult<{ state: SessionState }>> {
     const session = await visibleSession(actor, sessionId);
     if (!session) return err("NOT_FOUND", "That session doesn't exist in this workspace.", "invalid_request");
-    if (!runtime?.capabilities.pauseResume) return err("BLOCKED", "This runtime can't pause sessions.", "provider_rejected");
+    if (!runtime?.capabilities.pauseResume) return err("BLOCKED", runtime?.capabilities.unavailable?.pauseResume ?? "This runtime can't pause sessions.", "provider_rejected");
     const role = await deps.role(actor.orgId);
     const decision = await guard("session.pause", actor, role, session);
     const refused = blocked<{ state: SessionState }>(decision);
@@ -566,7 +567,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
     if (!validPreviewPort(port)) return err("INVALID_REQUEST", "Use a port from 1024 to 65535 that your app listens on.", "invalid_request");
     const session = await visibleSession(actor, sessionId);
     if (!session) return err("NOT_FOUND", "That session doesn't exist in this workspace.", "invalid_request");
-    const unavailable = !runtime?.capabilities.previews ? "This runtime doesn't support previews." : previewUnavailableReason(config);
+    const unavailable = !runtime?.capabilities.previews ? (runtime?.capabilities.unavailable?.previews ?? "This runtime doesn't support previews.") : previewUnavailableReason(config);
     if (unavailable) return err("PREVIEW_UNAVAILABLE", unavailable, "provider_rejected");
     const role = await deps.role(actor.orgId);
     const refused = blocked<{ url: string; previewId: string; expiresAt: string }>(await guard("preview.open", actor, role, session));

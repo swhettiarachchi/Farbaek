@@ -4,7 +4,7 @@
 // drafting (secret keys are hidden as you type), checks their format and
 // writes .env.local with owner-only permissions. Nothing is printed, logged
 // or sent anywhere. Run it again and type "ai" to add the Claude (Anthropic) and Gemini keys,
-// "sandbox" to connect a sandbox runtime, or "verified" once
+// "sandbox" to connect a sandbox runtime (Vercel Sandbox or E2B), or "verified" once
 // pnpm sandbox:smoke has passed on that runtime.
 import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -66,8 +66,38 @@ function upsert(values) {
   writeFileSync(FILE, current, { encoding: "utf8", mode: 0o600 });
 }
 
+async function setupVercelSandbox() {
+  console.log("\nVercel Sandbox (ADR 0016). You need a Vercel account (Hobby is free and hard-capped), a project, and an access token.");
+  console.log("  Token: vercel.com/account/settings/tokens. Scope it to your team and give it an expiry.");
+  console.log("  Team ID: team Settings > General. Project ID: the project's Settings > General.");
+  const token = await askUntil(
+    "Vercel access token (hidden): ",
+    (v) => /^[A-Za-z0-9_.-]{20,300}$/.test(v),
+    "That doesn't look like a Vercel access token. Create one under Account Settings > Tokens.",
+    { hidden: true },
+  );
+  const teamId = await askUntil("Team ID (team_...): ", (v) => /^team_[A-Za-z0-9]{8,}$/.test(v), "It should start with team_.");
+  const projectId = await askUntil("Project ID (prj_...): ", (v) => /^prj_[A-Za-z0-9]{8,}$/.test(v), "It should start with prj_.");
+  const plan = (await ask("Vercel plan: hobby or pro [hobby]: ")).toLowerCase();
+  upsert({
+    SANDBOX_PROVIDER: "vercel",
+    SANDBOX_VERCEL_TOKEN: token,
+    SANDBOX_VERCEL_TEAM_ID: teamId,
+    SANDBOX_VERCEL_PROJECT_ID: projectId,
+    // Vercel's own session ceiling: 45 minutes on Hobby, 24 hours on Pro.
+    SANDBOX_RUNTIME_MAX_SESSION_MINUTES: plan === "pro" ? "1440" : "45",
+    SANDBOX_CRON_SECRET: randomBytes(32).toString("hex"),
+    SANDBOX_DEPLOYMENT_ID: "farbaek-local",
+  });
+  console.log(`\nSaved the Vercel Sandbox settings in ${FILE} (a new cleanup secret was generated).`);
+  console.log("Previews stay off on Vercel Sandbox: it serves ports on public addresses with no sign-in.");
+  console.log("Next: restart the server, then pnpm sandbox:smoke. When it passes, run this again and type verified.\n");
+}
+
 async function setupSandbox() {
   console.log("\nSandbox runtime (docs/sandbox/README.md). Code runs on this runtime, never on this server.");
+  const which = (await ask("Runtime: vercel or e2b [vercel]: ")).toLowerCase();
+  if (which !== "e2b") return setupVercelSandbox();
   const key = await askUntil(
     "E2B API key (e2b_..., hidden): ",
     (v) => /^e2b_[A-Za-z0-9]{20,}$/.test(v),

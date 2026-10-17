@@ -23,6 +23,7 @@ const config: SandboxServerConfig = {
   provider: "e2b",
   unknownProvider: null,
   e2b: { apiKey: "test", domain: null, apiUrl: null, previewProtocol: "https" },
+  vercel: { token: null, teamId: null, projectId: null, oidc: false, region: null },
   isolationVerifiedAt: "2026-10-17",
   runtimeMaxSessionMinutes: 60,
   images: { "node-ts": { small: "n-s", standard: "n-st" }, python: { small: "p-s", standard: "p-st" } },

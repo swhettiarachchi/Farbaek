@@ -1,7 +1,9 @@
 /**
- * The environments people can start, and the sizes they come in. Each
- * (template, size) pair maps to one prebuilt runtime image whose CPU and
- * memory are fixed when the image is built (scripts/sandbox-templates.mjs).
+ * The environments people can start, and the sizes they come in. On E2B,
+ * each (template, size) pair maps to one prebuilt image whose CPU and memory
+ * are fixed when the image is built (scripts/sandbox-templates.mjs). On
+ * Vercel Sandbox, every pair starts from Vercel's managed universal image
+ * and the size picks the vCPUs (2 GB of memory each, set by Vercel).
  * Disk is a requested minimum of free space, which E2B grows on a
  * best-effort basis; the real total shows up in the runtime's metrics.
  * After a sandbox starts, Farbaek records what the runtime actually reports,
@@ -31,7 +33,7 @@ export const SANDBOX_TEMPLATES: Record<TemplateId, SandboxTemplate> = {
   "node-ts": {
     id: "node-ts",
     label: "Node.js and TypeScript",
-    runtime: "Node.js 22 LTS, npm, pnpm and Yarn through Corepack",
+    runtime: "Node.js LTS and npm",
     description: "For web apps, APIs and TypeScript projects. Runs builds, tests and dev servers.",
     setupCommand: "npm install",
     smokeCommand: "node --version && npm --version",
@@ -40,10 +42,10 @@ export const SANDBOX_TEMPLATES: Record<TemplateId, SandboxTemplate> = {
   python: {
     id: "python",
     label: "Python",
-    runtime: "Python 3.12, pip, venv",
+    runtime: "Python 3 and pip",
     description: "For scripts, services and data work. Runs tests with pytest once installed.",
-    setupCommand: "python -m pip install -r requirements.txt",
-    smokeCommand: "python --version && pip --version",
+    setupCommand: "python3 -m pip install -r requirements.txt",
+    smokeCommand: "python3 --version && python3 -m pip --version",
     signals: ["requirements.txt", "pyproject.toml", "setup.py"],
   },
 };
@@ -62,8 +64,12 @@ export const SANDBOX_SIZES: Record<SizeId, SandboxSize> = {
   standard: { id: "standard", label: "Standard", vcpu: 2, memoryMiB: 2048, diskMiB: 8192 },
 };
 
+/** Vercel's managed image with Node.js LTS and Python 3, used for every template on Vercel Sandbox. */
+export const VERCEL_DEFAULT_IMAGE = "vercel/sandbox/universal";
+
 /** The runtime image name for a template and size, unless the deployment overrides it. */
-export function defaultImageName(template: TemplateId, size: SizeId): string {
+export function defaultImageName(template: TemplateId, size: SizeId, provider: "e2b" | "vercel" = "e2b"): string {
+  if (provider === "vercel") return VERCEL_DEFAULT_IMAGE;
   return `farbaek-${template === "node-ts" ? "node" : "python"}-${size}`;
 }
 

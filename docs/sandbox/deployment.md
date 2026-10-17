@@ -1,16 +1,17 @@
 # Deploying FARBAEK Sandbox
 
-How to run the execution plane (E2B) and wire the control plane (the Farbaek app) to it in production. Read [README.md](README.md) first for the security model.
+How to run the execution plane (E2B, or Vercel Sandbox per ADR 0016) and wire the control plane (the Farbaek app) to it in production. Read [README.md](README.md) first for the security model.
 
 ## 1. Choose the runtime
 
-| | Self-hosted: E2B Embed | E2B Cloud |
-| --- | --- | --- |
-| Who runs the microVMs | You, on a host you control | E2B |
-| Needs | Linux host with KVM (bare metal, or a VM with nested virtualization), Docker | An E2B account and API key |
-| Fully self-hosted | Yes, if the Farbaek app and database are too | No: code runs on E2B's infrastructure |
-| Ops | You patch the host, size it, back up template storage | None for the runtime |
-| Limits | One machine by design | Plan-based (session length 1 h Hobby, 24 h Pro) |
+| | Self-hosted: E2B Embed | E2B Cloud | Vercel Sandbox |
+| --- | --- | --- | --- |
+| Who runs the microVMs | You, on a host you control | E2B | Vercel |
+| Needs | Linux host with KVM (bare metal, or a VM with nested virtualization), Docker | An E2B account and API key | A Vercel account, a project, an access token |
+| Fully self-hosted | Yes, if the Farbaek app and database are too | No: code runs on E2B's infrastructure | No: code runs on Vercel's infrastructure (`iad1` unless `SANDBOX_VERCEL_REGION` is set) |
+| Ops | You patch the host, size it, back up template storage | None for the runtime | None; no images to build |
+| Limits | One machine by design | Plan-based (session length 1 h Hobby, 24 h Pro) | Hobby: free, hard-capped, 45 min sessions, 10 at once; Pro: 24 h |
+| In Farbaek | Everything | Everything | No previews, pause or live metrics (ADR 0016) |
 
 Use E2B Cloud to get going if no KVM host exists yet; switching later is a configuration change (`E2B_DOMAIN` / `E2B_API_URL`, rebuild the images, rerun the smoke test).
 

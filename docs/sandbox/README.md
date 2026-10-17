@@ -1,6 +1,6 @@
 # FARBAEK Sandbox
 
-Isolated environments where builds, tests and dev servers run, outside Farbaek's servers. Every command is recorded with its real exit code; check runs produce verification receipts that Guard and the task state machine consume. Decision record: [ADR 0013](../adr/0013-sandbox-runtime-and-control-plane.md). Deployment: [deployment.md](deployment.md). API and SDK: [api.md](api.md).
+Isolated environments where builds, tests and dev servers run, outside Farbaek's servers. Every command is recorded with its real exit code; check runs produce verification receipts that Guard and the task state machine consume. Decision records: [ADR 0013](../adr/0013-sandbox-runtime-and-control-plane.md) (control plane, E2B) and [ADR 0016](../adr/0016-vercel-sandbox-runtime.md) (Vercel Sandbox). Deployment: [deployment.md](deployment.md). API and SDK: [api.md](api.md).
 
 ## Status
 
@@ -8,6 +8,7 @@ Isolated environments where builds, tests and dev servers run, outside Farbaek's
 | --- | --- |
 | Control plane: lifecycle, ownership, quotas, idempotency, sweeper (migration 10) | Built, tested, applied to the hosted project |
 | E2B adapter (Firecracker microVMs; self-hosted Embed or E2B Cloud) | Built and typechecked against the SDK; **not yet run against a real runtime** |
+| Vercel Sandbox adapter (Firecracker microVMs on Vercel; previews, pause and metrics off) | Built, tested against a fake SDK; **not yet run against a real account** |
 | Sandbox Studio: dashboard, create flow, workspace (files, editor, console, preview, checks, details, history) | Built; shows Review Only until a runtime is connected |
 | v1 API, SDK, preview gateway | Built, tested with test doubles |
 | Real execution | **Blocked** until a runtime is connected and `pnpm sandbox:smoke` passes (see "Connect a runtime") |
@@ -53,9 +54,9 @@ Every change goes through `app_transition_sandbox_session` with an expected vers
 
 What Farbaek enforces:
 
-- **Isolation** comes from the runtime: one Firecracker microVM per session (E2B). Farbaek only marks a deployment as Sandboxed after `pnpm sandbox:smoke` passed on it and `SANDBOX_ISOLATION_VERIFIED_AT` is set; otherwise everything that would run code is blocked by Guard with the reason.
+- **Isolation** comes from the runtime: one Firecracker microVM per session (E2B or Vercel Sandbox). Farbaek only marks a deployment as Sandboxed after `pnpm sandbox:smoke` passed on it and `SANDBOX_ISOLATION_VERIFIED_AT` is set; otherwise everything that would run code is blocked by Guard with the reason.
 - **No secrets inside.** Sandboxes are created with no environment variables from the server. The smoke test checks that none of Farbaek's secret names are visible inside.
-- **Network deny by default**: no egress, or only `registry.npmjs.org`, `registry.yarnpkg.com`, `pypi.org`, `files.pythonhosted.org`. Private, link-local (cloud metadata), loopback, CGNAT and multicast ranges are always in `denyOut`, and allow rules only ever name public hostnames (allow wins over deny in E2B). The runtime enforces the rules outside the VM.
+- **Network deny by default**: no egress, or only `registry.npmjs.org`, `registry.yarnpkg.com`, `pypi.org`, `files.pythonhosted.org`. Private, link-local (cloud metadata), loopback, CGNAT and multicast ranges are always in `denyOut`, and allow rules only ever name public hostnames (allow wins over deny in E2B; on Vercel, denied ranges win over allowed domains, and "no network" is `deny-all`, DNS included). The runtime enforces the rules outside the VM.
 - **Ownership** is checked in TypeScript and again in SQL: only a session's creator or an owner or admin can run commands, write files, open previews, pause, resume or stop it. Members and viewers can read records; another workspace's session is "not found".
 - **Limits**: concurrency and period minutes per workspace (checked under a lock), session length capped by plan and by the runtime, idle stop, per-command timeout (killed at the deadline), one running command per session, output capped at 128K characters per stream (start and end kept), files 512 KB, project copy 3,000 files or 25 MB, per-user rate limits.
 - **Paths** are relative to `/home/user/project`; absolute paths, `..`, backslashes and control characters are refused before reaching the runtime. The control plane never extracts archives.
@@ -69,6 +70,8 @@ Known limits and residual risks:
 - E2B's domain filtering covers HTTP and HTTPS on ports 80 and 443; when domains are allowed, DNS to 8.8.8.8 is allowed too, which is a possible low-bandwidth exfiltration channel for the "package registries" profile. The "no network" profile has no egress at all.
 - A blocked TCP connection may look established from inside the sandbox (E2B behaviour); the smoke test checks for an application-level response.
 - Disk size is a best-effort minimum on E2B, not a hard per-session quota.
+- Vercel's domain allowlist matches the TLS SNI only, so with "package registries" a client could send an allowed SNI with a different `Host` header to another site on the same CDN, if the CDN accepts it (domain fronting). Plain HTTP can't be filtered by domain there and is blocked.
+- On Vercel Sandbox, exposed ports are public with no sign-in, so Farbaek exposes none and previews stay off. A Vercel access token can manage the account's other projects: keep a Vercel account only for sandboxes.
 - Isolation quality depends on the runtime host (kernel, KVM, patching). Self-hosting moves that responsibility to the operator.
 - Passing tests don't mean code is secure, and a receipt never authorizes a deployment.
 
@@ -82,6 +85,18 @@ Known limits and residual risks:
 Not supported yet: WebSockets (hot reload), shareable public links.
 
 ## Connect a runtime
+
+### Vercel Sandbox
+
+1. Use a Vercel account kept only for Farbaek sandboxes. Hobby is free and hard-capped (5 Active CPU hours a month, sessions up to 45 minutes, 10 at once); past the allowance, new sandboxes pause until the next cycle and nothing is charged.
+2. Create a project in it (any name; nothing is deployed to it), and an access token under Account Settings > Tokens, with an expiry.
+3. `node scripts/setup-env.mjs sandbox`, choose `vercel`, and enter the token (hidden), the team ID (`team_...`) and the project ID (`prj_...`). A cleanup secret is generated.
+4. `pnpm check:env` confirms Vercel accepts them, without starting anything.
+5. `pnpm sandbox:smoke` runs the real-runtime checks below on one small sandbox. When it passes: `node scripts/setup-env.mjs verified`, then restart.
+
+There are no images to build: sessions start from `vercel/sandbox/universal`.
+
+### E2B
 
 1. Run a runtime: E2B Embed on a Linux host with KVM you control (see [deployment.md](deployment.md)), or an E2B Cloud account.
 2. `pnpm setup:env`, type `sandbox`: enter the E2B API key (hidden) and, for self-hosting, the domain. Preview and sweeper secrets are generated.

@@ -27,6 +27,11 @@ const TEMPLATES = {
   python: () => Template().fromPythonImage("3.12").setWorkdir("/home/user/project"),
 };
 
+if ((process.env.SANDBOX_PROVIDER ?? "").trim().toLowerCase() === "vercel") {
+  console.log("SANDBOX_PROVIDER is vercel: sessions start from Vercel's managed image vercel/sandbox/universal (Node.js LTS and Python 3). Nothing to build.");
+  process.exit(0);
+}
+
 const dryRun = process.argv.includes("--dry-run");
 const apiKey = process.env.E2B_API_KEY?.trim();
 const domain = process.env.E2B_DOMAIN?.trim() || undefined;

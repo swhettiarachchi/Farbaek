@@ -47,3 +47,28 @@ The owner's message asked to proceed without stopping at a plan, so this stage r
 1. Owner: choose the runtime. Either an E2B Cloud account now, or a Linux host with KVM for E2B Embed (docs/sandbox/deployment.md). Then `pnpm setup:env` → `sandbox`, `pnpm sandbox:templates`, `pnpm sandbox:smoke`, `pnpm setup:env` → `verified`, rebuild.
 2. Run the API smoke test against the live app, check the workspace screens at 375px and desktop, and schedule `pnpm sandbox:sweep`.
 3. Then: a durable job runner for long builds (ADR 0006), copying sandbox edits back to the project through change proposals, interactive terminals over a WebSocket gateway, and shareable preview links as an explicit, revocable owner decision.
+
+## 2026-10-17: Vercel Sandbox runtime (ADR 0016)
+
+### Done
+
+- At the owner's request, Vercel Sandbox is a second runtime beside E2B: `SANDBOX_PROVIDER=vercel`. Adapter `src/server/sandbox/vercel-runtime.ts` on the official SDK, pinned to `@vercel/sandbox` 3.5.1 (released 2026-09-28; the four newer releases were days old).
+- The same guarantees as E2B: Firecracker microVM per session, no server environment inside, explicit egress (`deny-all`, or the registry hosts with private and metadata ranges denied), runtime timeout always set, the project folder at `/home/user/project`, `ulimit` wrapper, Review Only until the smoke test passes.
+- Commands run in their own process group (`setsid -w`), so cancel and timeouts stop everything a command started. The group id fits the existing `pid` column, so the database is unchanged.
+- Off on Vercel, with the reason shown in the app: previews (its ports are public with no sign-in), pause and resume (would use Hobby's 15 GB lifetime snapshot storage), live metrics (not reported by the SDK). Runtimes can now carry these reasons (`capabilities.unavailable`).
+- Templates start from `vercel/sandbox/universal`; the size picks the vCPUs. Template labels now say "Node.js LTS and npm" and "Python 3 and pip", and the Python commands use `python3`.
+- `node scripts/setup-env.mjs sandbox` asks for the runtime (Vercel by default) and takes the token hidden, plus the team and project IDs. `pnpm check:env` lists one sandbox to confirm the credentials without starting anything. `pnpm sandbox:templates` says there's nothing to build on Vercel.
+- ADR 0016; sandbox README, deployment guide, threat model and `.env.example` updated.
+
+### Verified
+
+- 18 adapter tests against a fake SDK: credentials, selection and Review Only, capabilities and reasons, firewall policy (deny-all; registries with private ranges denied and no deny-all range), create parameters (no env, no ports, not persistent, timeout capped, tags, vCPU rounding, folder prepared), destroy and gone sandboxes, streaming and real exit codes, timeout kills the group with no exit code, cancel, file writes and reads (paths kept inside the project, 512 KB cap), folder listing, error categories.
+
+### Not verified
+
+- A real Vercel account. Creating one is the owner's step; then `pnpm check:env` and `pnpm sandbox:smoke` are the first live checks.
+
+### Next
+
+1. Owner: a Vercel account kept only for sandboxes (Hobby is free and hard-capped), a project in it, and an access token with an expiry. Then `node scripts/setup-env.mjs sandbox` → `vercel`.
+2. Run `pnpm check:env` and `pnpm sandbox:smoke`; on a pass, `node scripts/setup-env.mjs verified` and restart.

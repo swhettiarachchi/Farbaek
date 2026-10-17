@@ -62,9 +62,12 @@ export function RuntimeStatus({ overview, health }: { overview: SandboxOverview;
 /** The steps to connect a runtime, shown when none is. Plain instructions, no fake progress. */
 export function ConnectRuntimeSteps() {
   const steps: [string, string][] = [
-    ["Run a runtime you trust", "E2B Embed on a Linux host with KVM that you control (self-hosted), or E2B Cloud while you set that up. Both give each session its own microVM."],
-    ["Connect it", "Run pnpm setup:env and type sandbox. It asks for the runtime's API key and, for self-hosting, its domain, and generates the rest. Keys stay on the server."],
-    ["Build the images", "pnpm sandbox:templates builds the Node.js and Python images in two sizes on your runtime."],
+    [
+      "Choose a runtime you trust",
+      "Vercel Sandbox (a free, hard-capped Hobby plan; no previews), or E2B: E2B Cloud, or E2B Embed on a Linux host with KVM that you control. Each gives every session its own microVM.",
+    ],
+    ["Connect it", "Run node scripts/setup-env.mjs sandbox and choose the runtime. It asks for the token or key with hidden input and generates the rest. Keys stay on the server."],
+    ["Build the images (E2B only)", "pnpm sandbox:templates builds the Node.js and Python images in two sizes on E2B. Vercel Sandbox uses its managed image, so there's nothing to build."],
     ["Prove the isolation", "pnpm sandbox:smoke starts a sandbox, runs a harmless command, checks the network rules and cleans up. When it passes, set SANDBOX_ISOLATION_VERIFIED_AT."],
   ];
   return (

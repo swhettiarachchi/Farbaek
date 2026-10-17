@@ -1,8 +1,8 @@
 /**
  * The contract every execution runtime implements (ADR 0013). Farbaek's
- * control plane talks only to this interface; the E2B adapter is the first
- * implementation, and another isolated runtime can be added without touching
- * the application.
+ * control plane talks only to this interface. E2B and Vercel Sandbox
+ * (ADR 0016) implement it, and another isolated runtime can be added without
+ * touching the application.
  *
  * Capabilities are explicit. A feature the runtime doesn't support is false,
  * and the UI shows it as unavailable with the reason, never as working.
@@ -18,11 +18,15 @@ export interface RuntimeCapabilities extends SandboxCapabilities {
   outputStreaming: boolean;
   cancel: boolean;
   filesystem: boolean;
+  /** Why a capability is off on this runtime, in words people can act on. */
+  unavailable?: Partial<Record<"previews" | "pauseResume" | "metrics", string>>;
 }
 
 export interface RuntimeSandboxSpec {
-  /** Runtime image (E2B template) name. */
+  /** Runtime image name (an E2B template, or a Vercel Sandbox image). */
   image: string;
+  /** vCPUs to ask for. E2B fixes this in the image; Vercel Sandbox takes it per sandbox. */
+  vcpu: number;
   /** The runtime ends the sandbox on its own after this long, even if Farbaek is down. */
   ttlSeconds: number;
   egress: EgressRules;

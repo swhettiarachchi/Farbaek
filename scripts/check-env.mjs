@@ -6,6 +6,7 @@
 import { existsSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { Sandbox } from "e2b";
+import { Sandbox as VercelSandbox } from "@vercel/sandbox";
 
 const FILE = ".env.local";
 if (!existsSync(FILE)) {
@@ -98,19 +99,45 @@ const provider = env("SANDBOX_PROVIDER");
 if (!provider) {
   console.log("--    Sandbox runtime not set: project code stays in Review Only (optional; pnpm setup:env, then sandbox)");
 } else {
-  line("Sandbox provider", provider === "e2b", provider === "e2b" ? "" : `"${provider}" has no adapter; use e2b`);
+  const known = provider === "e2b" || provider === "vercel";
+  line("Sandbox provider", known, known ? provider : `"${provider}" has no adapter; use vercel or e2b`);
+  if (provider === "vercel") {
+    const token = env("SANDBOX_VERCEL_TOKEN");
+    const teamId = env("SANDBOX_VERCEL_TEAM_ID");
+    const projectId = env("SANDBOX_VERCEL_PROJECT_ID");
+    line("Vercel token", token.length >= 20, token ? "" : "missing");
+    line("Vercel team ID format", /^team_[A-Za-z0-9]{8,}$/.test(teamId), teamId ? "" : "missing");
+    line("Vercel project ID format", /^prj_[A-Za-z0-9]{8,}$/.test(projectId), projectId ? "" : "missing");
+    if (token && teamId && projectId) {
+      // Listing at most one sandbox starts nothing and confirms the token, team and project.
+      await probe("Vercel Sandbox accepts the token", async () => {
+        try {
+          await VercelSandbox.list({ token, teamId, projectId, limit: 1 });
+          return { ok: true, detail: "" };
+        } catch (error) {
+          const status = error?.response?.status;
+          if (status === 401 || status === 403) return { ok: false, detail: "Vercel refused the token for this team and project" };
+          if (status === 404) return { ok: false, detail: "Vercel doesn't know this team or project ID" };
+          throw error;
+        }
+      });
+    }
+    console.log("--    Previews are off on Vercel Sandbox: it serves ports on public addresses with no sign-in");
+  }
   const e2bKey = env("E2B_API_KEY");
   const keyFormat = /^e2b_[A-Za-z0-9]{20,}$/.test(e2bKey);
-  line("E2B key format", keyFormat, keyFormat ? "" : e2bKey ? "should start with e2b_" : "missing");
-  if (keyFormat) {
+  if (provider !== "vercel") line("E2B key format", keyFormat, keyFormat ? "" : e2bKey ? "should start with e2b_" : "missing");
+  if (provider !== "vercel" && keyFormat) {
     // Listing at most one sandbox is free and confirms the key and the runtime address.
     await probe(`Sandbox runtime accepts the key (${env("E2B_DOMAIN") || (env("E2B_API_URL") ? "self-hosted" : "E2B Cloud")})`, async () => {
       await Sandbox.list({ apiKey: e2bKey, ...(env("E2B_DOMAIN") ? { domain: env("E2B_DOMAIN") } : {}), ...(env("E2B_API_URL") ? { apiUrl: env("E2B_API_URL") } : {}), limit: 1, requestTimeoutMs: 15000 }).nextItems();
       return { ok: true, detail: "" };
     });
   }
-  line("Preview domain", Boolean(env("SANDBOX_PREVIEW_DOMAIN")), env("SANDBOX_PREVIEW_DOMAIN") ? "" : "missing: previews stay off");
-  line("Preview secret length", env("SANDBOX_PREVIEW_SECRET").length >= 32, env("SANDBOX_PREVIEW_SECRET") ? "" : "missing: previews stay off");
+  if (provider !== "vercel") {
+    line("Preview domain", Boolean(env("SANDBOX_PREVIEW_DOMAIN")), env("SANDBOX_PREVIEW_DOMAIN") ? "" : "missing: previews stay off");
+    line("Preview secret length", env("SANDBOX_PREVIEW_SECRET").length >= 32, env("SANDBOX_PREVIEW_SECRET") ? "" : "missing: previews stay off");
+  }
   line("Sweeper secret length", env("SANDBOX_CRON_SECRET").length >= 32, env("SANDBOX_CRON_SECRET") ? "" : "missing: the cleanup endpoint stays off");
   const verified = env("SANDBOX_ISOLATION_VERIFIED_AT");
   if (verified) line("Isolation verified on", !Number.isNaN(Date.parse(verified)), Number.isNaN(Date.parse(verified)) ? "not a date" : "");

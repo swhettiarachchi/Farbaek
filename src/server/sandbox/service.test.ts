@@ -30,6 +30,7 @@ function config(over: Partial<SandboxServerConfig> = {}): SandboxServerConfig {
     provider: "e2b",
     unknownProvider: null,
     e2b: { apiKey: "test", domain: null, apiUrl: null, previewProtocol: "https" },
+    vercel: { token: null, teamId: null, projectId: null, oidc: false, region: null },
     isolationVerifiedAt: "2026-10-17",
     runtimeMaxSessionMinutes: 60,
     images: { "node-ts": { small: "farbaek-node-small", standard: "farbaek-node-standard" }, python: { small: "farbaek-python-small", standard: "farbaek-python-standard" } },
@@ -301,8 +302,8 @@ describe("the sweeper", () => {
   });
 
   it("destroys runtime sandboxes no live session owns", async () => {
-    await runtime.create({ image: "x", ttlSeconds: 60, egress: { profile: "none", allowOut: [], denyOut: [] }, metadata: { farbaek: "test", session: "missing" } });
-    await runtime.create({ image: "x", ttlSeconds: 60, egress: { profile: "none", allowOut: [], denyOut: [] }, metadata: { farbaek: "another-deployment" } });
+    await runtime.create({ image: "x", vcpu: 1, ttlSeconds: 60, egress: { profile: "none", allowOut: [], denyOut: [] }, metadata: { farbaek: "test", session: "missing" } });
+    await runtime.create({ image: "x", vcpu: 1, ttlSeconds: 60, egress: { profile: "none", allowOut: [], denyOut: [] }, metadata: { farbaek: "another-deployment" } });
     const id = await ready();
     const summary = await service().sweep();
     expect(summary.orphans).toBe(1);
