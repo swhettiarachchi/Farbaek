@@ -15,6 +15,10 @@ import {
   proposalFromRow,
 } from "./types";
 
+const RECOVERY_SELECT = "id, status, restored, digest, statement, created_at";
+const RecoveryRow = z.object({ id: z.string(), status: z.enum(["recovered", "partially_recovered"]), restored: z.number().int(), digest: z.string(), statement: z.unknown(), created_at: z.string() });
+const toRecovery = (r: z.infer<typeof RecoveryRow>) => ({ id: r.id, status: r.status, restored: r.restored, digest: r.digest, statement: r.statement, createdAt: r.created_at });
+
 /**
  * Reads with the signed-in user's session. Row Level Security limits every
  * query to organizations the user belongs to; the explicit org_id filters
@@ -295,6 +299,58 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
         .array(z.object({ revision: z.number().int(), change: z.enum(["import", "edit", "delete"]), size_bytes: z.number().int().nullable(), sha256: z.string().nullable(), created_at: z.string() }))
         .parse(data)
         .map((r) => ({ revision: r.revision, change: r.change, sizeBytes: r.size_bytes, sha256: r.sha256, createdAt: r.created_at }));
+    },
+
+    async getRecoverySource(orgId, projectId, proposal) {
+      if (!z.uuid().safeParse(projectId).success || !z.uuid().safeParse(proposal.id).success) return null;
+      const paths = [...new Set(proposal.changes.map((c) => c.path))];
+      if (paths.length === 0) return null;
+      const Revision = z.object({ path: z.string(), revision: z.number().int(), sha256: z.string().nullable() });
+      const baseRevisions = [...new Set(proposal.changes.map((c) => c.baseRevision).filter((r) => r > 0))];
+      const [written, earlier, current, pack] = await Promise.all([
+        client.from("project_file_revisions").select("path, revision, sha256").eq("org_id", orgId).eq("project_id", projectId).eq("proposal_id", proposal.id),
+        baseRevisions.length
+          ? client.from("project_file_revisions").select("path, revision, sha256").eq("org_id", orgId).eq("project_id", projectId).in("path", paths).in("revision", baseRevisions)
+          : Promise.resolve({ data: [], error: null }),
+        client.from("project_files").select("path, revision, sha256").eq("org_id", orgId).eq("project_id", projectId).in("path", paths),
+        client.from("proofpacks").select("digest").eq("org_id", orgId).eq("proposal_id", proposal.id).order("seq", { ascending: false }).limit(1).maybeSingle(),
+      ]);
+      for (const r of [written, earlier, current, pack]) if (r.error) fail("recovery details", r.error);
+      const wrote = new Map(z.array(Revision).parse(written.data).map((r) => [r.path, r]));
+      const bases = z.array(Revision).parse(earlier.data);
+      const applied = proposal.changes.flatMap((c) => {
+        const w = wrote.get(c.path);
+        if (!w?.sha256) return [];
+        const base = c.kind === "edit" ? bases.find((b) => b.path === c.path && b.revision === c.baseRevision) : undefined;
+        return [{ path: c.path, kind: c.kind, baseRevision: c.baseRevision, baseSha256: base?.sha256 ?? null, appliedRevision: w.revision, appliedSha256: w.sha256 }];
+      });
+      if (applied.length === 0) return null;
+      const now = z.array(z.object({ path: z.string(), revision: z.number().int(), sha256: z.string() })).parse(current.data);
+      return {
+        applied,
+        current: Object.fromEntries(now.map((f) => [f.path, { revision: f.revision, sha256: f.sha256 }])),
+        proofPackDigest: pack.data ? z.object({ digest: z.string() }).parse(pack.data).digest : null,
+      };
+    },
+
+    async listRecoveries(orgId, taskId) {
+      if (!z.uuid().safeParse(taskId).success) return [];
+      const { data, error } = await client
+        .from("recovery_operations")
+        .select(RECOVERY_SELECT)
+        .eq("org_id", orgId)
+        .eq("task_id", taskId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) fail("recoveries", error);
+      return z.array(RecoveryRow).parse(data).map(toRecovery);
+    },
+
+    async getRecovery(orgId, digest) {
+      if (!/^[0-9a-f]{64}$/.test(digest)) return null;
+      const { data, error } = await client.from("recovery_operations").select(RECOVERY_SELECT).eq("org_id", orgId).eq("digest", digest).maybeSingle();
+      if (error) fail("recovery", error);
+      return data ? toRecovery(RecoveryRow.parse(data)) : null;
     },
 
     async getFileRevision(orgId, projectId, path, revision) {

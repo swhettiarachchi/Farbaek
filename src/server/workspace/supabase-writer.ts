@@ -8,6 +8,7 @@ import type { AiCreditDeps } from "./ai-drafting";
 import { IntentContractSchema } from "@/core/realityloop/contract";
 import type { FileDeps } from "./files";
 import type { ProposalDeps } from "./proposals";
+import type { RecoveryDeps } from "./recovery";
 import { createSupabaseReader } from "./supabase-reader";
 import { ProposalRowSchema, proposalFromRow } from "./types";
 import type { ProjectAdminDeps, RpcResult, WriteDeps } from "./use-cases";
@@ -16,7 +17,7 @@ import type { ProjectAdminDeps, RpcResult, WriteDeps } from "./use-cases";
  * WriteDeps backed by Supabase. Reads use the signed-in user's client (Row
  * Level Security applies); writes call the service-role-only app_* functions.
  */
-export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseClient, userId: string): WriteDeps & AiCreditDeps & FileDeps & ProposalDeps & ProjectAdminDeps {
+export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseClient, userId: string): WriteDeps & AiCreditDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps {
   const reader = createSupabaseReader(user);
   async function rpc<T>(fn: string, args: Record<string, unknown>, schema: z.ZodType<T>): Promise<RpcResult<T>> {
     const { data, error } = await admin.rpc(fn, args);
@@ -294,6 +295,36 @@ export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseCli
         "app_discard_proposal",
         { p_proposal: i.proposalId, p_actor: i.actor, p_expected_task_version: i.expectedTaskVersion, p_steps: i.steps },
         z.null().or(z.literal("")).transform(() => null),
+      ),
+
+    recoverySource: (orgId, projectId, proposal) => reader.getRecoverySource(orgId, projectId, proposal),
+
+    async findRecovery(orgId, operationSha256) {
+      const { data, error } = await user.from("recovery_operations").select("id, restored, status, digest").eq("org_id", orgId).eq("operation_sha256", operationSha256).maybeSingle();
+      if (error) throw new Error(`Couldn't check for an earlier recovery: ${error.message}`);
+      return data ? z.object({ id: z.string(), restored: z.number().int(), status: z.enum(["recovered", "partially_recovered"]), digest: z.string() }).parse(data) : null;
+    },
+
+    recoverChange: (i) =>
+      rpc(
+        "app_recover_change",
+        {
+          p_proposal: i.proposalId,
+          p_actor: i.actor,
+          p_operations: i.operations,
+          p_plan_sha256: i.planSha256,
+          p_operation_sha256: i.operationSha256,
+          p_expected_task_version: i.expectedTaskVersion,
+          p_steps: i.steps,
+          p_policy: i.policy,
+          p_receipt: i.receipt,
+          p_receipt_digest: i.receiptDigest,
+          p_status: i.status,
+          p_max_file_bytes: WORKSPACE_LIMITS.maxFileBytes,
+          p_max_project_bytes: WORKSPACE_LIMITS.maxProjectBytes,
+          p_max_files: WORKSPACE_LIMITS.maxProjectFiles,
+        },
+        z.object({ id: z.string(), restored: z.number().int(), status: z.enum(["recovered", "partially_recovered"]), digest: z.string(), replayed: z.boolean() }),
       ),
 
     archiveProject: (i) =>

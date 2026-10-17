@@ -64,6 +64,10 @@ function memoizeReader(reader: WorkspaceReader): WorkspaceReader {
     getProofPack: wrap("proofpack", reader.getProofPack),
     listRecentProofPacks: wrap("recentProofpacks", reader.listRecentProofPacks),
     listFileChangesSince: wrap("changesSince", reader.listFileChangesSince),
+    // Not cached: its argument carries file contents, too large for a cache key.
+    getRecoverySource: reader.getRecoverySource,
+    listRecoveries: wrap("recoveries", reader.listRecoveries),
+    getRecovery: wrap("recovery", reader.getRecovery),
   };
 }
 

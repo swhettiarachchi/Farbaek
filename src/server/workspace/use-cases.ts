@@ -48,6 +48,11 @@ export type WriteErrorCode =
   | "ALREADY_ARCHIVED"
   | "PROOFPACK_CHAIN"
   | "INVALID_PROOFPACK"
+  | "NOT_RECOVERABLE"
+  | "RECOVERY_CHANGED"
+  | "INVALID_RECOVERY"
+  | "POLICY_BLOCKED"
+  | "RECOVERY_UNVERIFIED"
   | "AI_UNAVAILABLE"
   | "AI_REFUSED"
   | "AI_INCOMPLETE"
@@ -141,6 +146,11 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   ALREADY_ARCHIVED: "This project is already archived.",
   PROOFPACK_CHAIN: "Another change in this project was recorded at the same moment. Reload and approve again.",
   INVALID_PROOFPACK: "The evidence record for this change didn't match it, so nothing was applied.",
+  NOT_RECOVERABLE: "This task can't be undone from its current state. Verified and finished tasks are closed records.",
+  RECOVERY_CHANGED: "The files changed since you reviewed the undo. Reload and review it again. Nothing was changed.",
+  INVALID_RECOVERY: "The undo didn't match the change it was for, so nothing was changed. Reload and review it again.",
+  POLICY_BLOCKED: "The policy blocked this undo, so nothing was changed.",
+  RECOVERY_UNVERIFIED: "The restored files didn't match their earlier versions, so nothing was changed.",
   AI_UNAVAILABLE: "AI isn't available right now.",
   AI_REFUSED: "The model declined to draft this contract. Write it yourself, or reword the task and try again.",
   AI_INCOMPLETE: "The draft came back incomplete. Try again, or write the contract yourself.",
@@ -174,6 +184,10 @@ export function codeFromDatabaseError(message: string): WriteErrorCode {
     "APPROVER_ROLE_REQUIRED",
     "PROOFPACK_CHAIN",
     "INVALID_PROOFPACK",
+    "NOT_RECOVERABLE",
+    "INVALID_RECOVERY",
+    "POLICY_BLOCKED",
+    "RECOVERY_UNVERIFIED",
     "PROJECT_ARCHIVED",
     "ALREADY_ARCHIVED",
   ] as const) {

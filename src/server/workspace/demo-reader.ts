@@ -173,6 +173,19 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
       return null;
     },
 
+    async getRecoverySource() {
+      // Nothing is applied in the demo, so there's nothing to undo.
+      return null;
+    },
+
+    async listRecoveries() {
+      return [];
+    },
+
+    async getRecovery() {
+      return null;
+    },
+
     async listRecentProofPacks() {
       return [];
     },

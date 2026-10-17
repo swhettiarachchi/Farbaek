@@ -17,6 +17,7 @@ import { deleteProjectFile, importProjectFiles, saveProjectFile, type FileDeps, 
 import { WORKSPACE_LIMITS } from "@/config/workspace";
 import { createChangeProposer, createContractDrafter } from "@/server/ai/providers";
 import { MAX_CONTEXT_FILES, applyProposal, discardProposal, proposeChange, type ProposalDeps } from "@/server/workspace/proposals";
+import { recoverChange, type RecoveryDeps } from "@/server/workspace/recovery";
 import { resolveAiProvider } from "@/server/ai/config";
 import { currentExecutionMode } from "@/server/execution/sandbox";
 
@@ -37,7 +38,7 @@ async function requireContext(): Promise<AppContext> {
 }
 
 /** Resolves write dependencies, or the honest reason writes are unavailable. */
-async function writeDeps(ctx: AppContext): Promise<{ deps: WriteDeps & AiCreditDeps & FileDeps & ProposalDeps & ProjectAdminDeps; orgId: string } | { error: string }> {
+async function writeDeps(ctx: AppContext): Promise<{ deps: WriteDeps & AiCreditDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps; orgId: string } | { error: string }> {
   if (!ctx.writes.enabled) return { error: ctx.writes.reason };
   if (!ctx.current) return { error: "Create a workspace first." };
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
@@ -342,6 +343,23 @@ export async function applyProposalAction(input: { proposalId: string; reviewedS
   if (!result.ok) return { status: "error", message: result.message };
   revalidatePath("/app", "layout");
   return { status: "done", written: result.value.written };
+}
+
+export type RecoverState = { status: "error"; message: string } | { status: "done"; restored: number; complete: boolean };
+
+/** Undoes an applied change for the files the person chose, bound to the plan they reviewed. */
+export async function recoverChangeAction(input: { proposalId: string; planSha256: string; paths: string[] }): Promise<RecoverState> {
+  const parsed = z
+    .object({ proposalId: z.uuid(), planSha256: z.string().regex(/^[0-9a-f]{64}$/), paths: z.array(z.string().min(1).max(1000)).max(30) })
+    .safeParse(input);
+  if (!parsed.success) return { status: "error", message: "Reload the page and review the undo again." };
+  const ctx = await requireContext();
+  const w = await writeDeps(ctx);
+  if ("error" in w) return { status: "error", message: w.error };
+  const result = await recoverChange(w.deps, { orgId: w.orgId, userId: ctx.user.id, ...parsed.data });
+  if (!result.ok) return { status: "error", message: result.message };
+  revalidatePath("/app", "layout");
+  return { status: "done", restored: result.value.restored, complete: result.value.status === "recovered" };
 }
 
 export async function discardProposalAction(input: { proposalId: string }): Promise<ApplyState> {

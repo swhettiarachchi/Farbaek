@@ -44,6 +44,7 @@ export function ProposalReview({
   disabledReason,
   executionReason,
   canApproveEscalated,
+  appliedNote,
 }: {
   projectId: string;
   proposal: ProposalRecord;
@@ -56,6 +57,8 @@ export function ProposalReview({
   executionReason: string | null;
   /** True when the viewer is an owner or admin. Escalated changes need one; the server enforces it too. */
   canApproveEscalated: boolean;
+  /** Replaces the "waiting for checks" note on an applied change, once it's being undone or was. */
+  appliedNote?: string;
 }) {
   const router = useRouter();
   const [finals, setFinals] = useState<Record<string, string>>(() => Object.fromEntries(proposal.changes.map((c) => [c.path, c.content])));
@@ -209,7 +212,7 @@ export function ProposalReview({
           <p className="flex items-start gap-2 rounded-sm border border-approval/30 bg-approval/[0.06] px-4 py-3 text-sm">
             <WarningCircleIcon size={18} className="mt-px shrink-0 text-approval" aria-hidden />
             <span>
-              Not verified. {executionReason ?? "The contract's checks haven't run yet."} The task waits in verification until its checks run and pass.
+              {appliedNote ?? `Not verified. ${executionReason ?? "The contract's checks haven't run yet."} The task waits in verification until its checks run and pass.`}
             </span>
           </p>
         </div>

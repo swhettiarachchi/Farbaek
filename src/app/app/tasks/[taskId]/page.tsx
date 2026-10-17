@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, ClockCounterClockwiseIcon, GitPullRequestIcon, InfoIcon } from "@phosphor-icons/react/ssr";
+import { ArrowCounterClockwiseIcon, ArrowLeftIcon, ClockCounterClockwiseIcon, GitPullRequestIcon, InfoIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -12,6 +12,11 @@ import { ScopeDriftCard } from "@/components/app/scope-drift-card";
 import { scopeDrift } from "@/core/realityloop/scope-drift";
 import { currentExecutionMode } from "@/server/execution/sandbox";
 import { ProposalReview } from "@/components/proposals/proposal-review";
+import { RecoveryPanel } from "@/components/recovery/recovery-panel";
+import { RecoveryRecordCard } from "@/components/recovery/recovery-record";
+import { checkFeature } from "@/core/billing/entitlements";
+import { RECOVERABLE_STATES } from "@/core/realityloop/recovery";
+import { RECOVERY_NOT_IN_PLAN, previewRecovery } from "@/server/workspace/recovery";
 import { Card, TaskStateBadge } from "@/components/app/primitives";
 import { ProofThread } from "@/components/proof/proof-thread";
 import { LocalTime } from "@/components/ui/local-time";
@@ -19,7 +24,7 @@ import { EMPTY_CONTRACT_FORM, formFromContract } from "@/core/realityloop/contra
 import { TASK_STATE_LABELS, lifecycleProgress } from "@/core/realityloop/progress";
 import { TERMINAL_STATES, type TaskState } from "@/core/realityloop/task-machine";
 import { loadAppContext } from "@/server/workspace/context";
-import { MANAGER_ROLES } from "@/server/workspace/types";
+import { CONTRIBUTOR_ROLES, MANAGER_ROLES } from "@/server/workspace/types";
 import { loadAiAvailability } from "@/server/workspace/usage-summary";
 
 export const metadata: Metadata = { title: "Task" };
@@ -47,7 +52,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
   const driftEvents = approvedContract && !TERMINAL_STATES.has(task.state) ? await ctx.reader.listFileChangesSince(orgId, task.projectId, approvedContract.approvedAt!) : null;
   const drift = approvedContract && driftEvents ? scopeDrift(approvedContract.body, driftEvents) : [];
   const execution = currentExecutionMode();
-  const showVerification = task.state === "VERIFYING" || (proposal?.status === "applied" && !TERMINAL_STATES.has(task.state));
+  const showVerification = task.state === "VERIFYING" || (proposal?.status === "applied" && !TERMINAL_STATES.has(task.state) && !RECOVERABLE_STATES.has(task.state));
   const showProposal = proposal !== null && (proposal.status !== "discarded" || !canPropose);
   const [proposeAi, projectFiles, bases] = await Promise.all([
     canPropose ? loadAiAvailability(ctx, ctx.current, "change_proposal") : Promise.resolve(null),
@@ -62,6 +67,35 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
   ]);
   const intact = contract ? await contractIntact(contract) : true;
   const writeReason = ctx.writes.enabled ? null : ctx.writes.reason;
+
+  // Recovery: undoing the applied change, while the task's state allows it.
+  const applied = proposal?.status === "applied" ? proposal : null;
+  const [recoverySource, recoveries] = applied
+    ? await Promise.all([ctx.reader.getRecoverySource(orgId, task.projectId, applied), ctx.reader.listRecoveries(orgId, task.id)])
+    : [null, []];
+  const recovery = applied && recoverySource && RECOVERABLE_STATES.has(task.state) ? await previewRecovery({ taskId: task.id, proposalId: applied.id, source: recoverySource }) : null;
+  const previews: Record<string, { current: string; target: string }> = {};
+  for (const i of recovery?.items ?? []) {
+    if (i.status !== "ready") continue;
+    const current = (await ctx.reader.getFileRevision(orgId, task.projectId, i.path, i.fromRevision)) ?? "";
+    const target = i.action === "restore" ? ((await ctx.reader.getFileRevision(orgId, task.projectId, i.path, i.toRevision)) ?? "") : "";
+    previews[i.path] = { current, target };
+  }
+  const recoveryFeature = checkFeature(ctx.current.billingUnknown ? null : ctx.current.plan, "replay_and_recovery");
+  const isManager = ctx.role !== null && MANAGER_ROLES.includes(ctx.role);
+  const recoveryReason =
+    writeReason ??
+    (recoveryFeature.allowed ? null : recoveryFeature.code === "FEATURE_NOT_IN_PLAN" ? RECOVERY_NOT_IN_PLAN : recoveryFeature.message) ??
+    (ctx.role === null || !CONTRIBUTOR_ROLES.includes(ctx.role) ? "Viewers can't undo changes. Ask a member, admin or owner." : null) ??
+    ((recovery?.policy.outcome === "ESCALATE" || applied?.policy?.outcome === "ESCALATE") && !isManager
+      ? "Undoing this change touches sensitive files, so an owner or admin has to approve it."
+      : null);
+  const appliedNote =
+    task.state === "RECOVERED"
+      ? "Undone: the files are back at their versions from before this change. See Recovery below."
+      : RECOVERABLE_STATES.has(task.state) && task.state !== "VERIFYING"
+        ? "Not verified: its checks didn't run before the undo started. See Recovery below."
+        : undefined;
 
   const stages = lifecycleProgress(task.state, history);
   const finished = TERMINAL_STATES.has(task.state);
@@ -150,7 +184,8 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
                 invariants={contract?.body.protectedInvariants.map((i) => i.statement) ?? []}
                 disabledReason={writeReason}
                 executionReason={execution.mode === "review_only" ? execution.reason : null}
-                canApproveEscalated={ctx.role !== null && MANAGER_ROLES.includes(ctx.role)}
+                canApproveEscalated={isManager}
+                appliedNote={appliedNote}
               />
             ) : null}
             {canPropose && proposeAi ? (
@@ -176,6 +211,42 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
           </p>
           <div className="mt-4">
             <ChecksList checks={contract?.body.requiredChecks ?? []} mode={execution} />
+          </div>
+        </Card>
+      ) : null}
+
+      {recovery || recoveries.length ? (
+        <Card>
+          <h2 className="flex items-center gap-2 text-lg font-medium">
+            <ArrowCounterClockwiseIcon size={20} className="text-ink-3" aria-hidden /> Recovery
+          </h2>
+          <p className="mt-1 text-sm text-ink-2">
+            Undo the applied change, file by file. Each file goes back to its version from before the change. A file that changed since is left as it is, so newer work is never overwritten.
+          </p>
+          <div className="mt-6 grid gap-8">
+            {recovery && applied ? (
+              <RecoveryPanel
+                projectId={task.projectId}
+                proposalId={applied.id}
+                items={recovery.items}
+                planSha256={recovery.planSha256}
+                policy={{ outcome: recovery.policy.outcome, findings: recovery.policy.findings }}
+                previews={previews}
+                disabledReason={recoveryReason}
+              />
+            ) : null}
+            {recoveries.length ? (
+              <div className={recovery ? "border-t border-line pt-6" : ""}>
+                <h3 className="mb-4 text-base font-medium">Recorded recoveries</h3>
+                <div className="grid gap-6 divide-y divide-line">
+                  {recoveries.map((r) => (
+                    <div key={r.id} className="pt-6 first:pt-0">
+                      <RecoveryRecordCard record={r} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         </Card>
       ) : null}
@@ -243,7 +314,13 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
                     ? "The last proposal broke the contract. Revise the contract, or discard the proposal and try again."
                     : "A check blocked this task's plan. Revise the contract to continue."
                   : task.state === "VERIFYING"
-                  ? "The change is applied. Verification needs an isolated runner to run the checks, and none is connected yet, so the task waits here. It is not marked verified."
+                  ? "The change is applied. Verification needs an isolated runner to run the checks, and none is connected yet, so the task waits here. It is not marked verified. You can undo the change under Recovery."
+                  : task.state === "RECOVERY_PENDING"
+                  ? "Part of the change is undone. Undo the rest under Recovery, or put the remaining files back yourself and then finish the recovery."
+                  : task.state === "INTERRUPTED" || task.state === "FAILED"
+                  ? "Verification stopped. Undo the change under Recovery, or stop the task."
+                  : task.state === "RECOVERED"
+                  ? "The change was undone, and every file was checked against its earlier version. This task is finished. Its history stays as a record."
                   : finished
                   ? "This task is finished. Its history stays as a record."
                   : "This task moves forward only through the lifecycle: each step is checked by the state machine and recorded above."}

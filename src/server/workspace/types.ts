@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { Dropped, ProposedChange, Violation } from "@/core/realityloop/change-proposal";
 import type { IntentContract } from "@/core/realityloop/contract";
+import type { AppliedFile, CurrentFile } from "@/core/realityloop/recovery";
 import type { FileChangeEvent } from "@/core/realityloop/scope-drift";
 import { TASK_STATES } from "@/core/realityloop/task-machine";
 import type { WorkspaceSummary } from "./organizations";
@@ -145,6 +146,24 @@ export interface ProofPackRecord {
   createdAt: string;
 }
 
+/** What an applied proposal wrote and what each path holds now, for planning its undo. */
+export interface RecoverySource {
+  applied: AppliedFile[];
+  current: Record<string, CurrentFile>;
+  /** Digest of the change's ProofPack, or null when none was recorded. */
+  proofPackDigest: string | null;
+}
+
+/** One recorded undo of an applied change. */
+export interface RecoveryRecord {
+  id: string;
+  status: "recovered" | "partially_recovered";
+  restored: number;
+  digest: string;
+  statement: unknown;
+  createdAt: string;
+}
+
 export interface ProjectFile {
   path: string;
   revision: number;
@@ -202,4 +221,9 @@ export interface WorkspaceReader {
   getLatestProposal(orgId: string, taskId: string): Promise<ProposalRecord | null>;
   /** The latest contract version for a task, or null when none has been written. */
   getContract(orgId: string, taskId: string): Promise<ContractRecord | null>;
+  /** What an applied proposal wrote, with each file's earlier and current state; null when nothing it wrote is on record. */
+  getRecoverySource(orgId: string, projectId: string, proposal: { id: string; changes: readonly { path: string; kind: "create" | "edit"; baseRevision: number }[] }): Promise<RecoverySource | null>;
+  /** Recoveries recorded for a task, newest first. */
+  listRecoveries(orgId: string, taskId: string): Promise<RecoveryRecord[]>;
+  getRecovery(orgId: string, digest: string): Promise<RecoveryRecord | null>;
 }
