@@ -22,7 +22,9 @@ const nextConfig: NextConfig = {
     serverActions: { bodySizeLimit: "6mb" },
   },
   async headers() {
-    return [{ source: "/(.*)", headers: securityHeaders }];
+    // Preview hosts are excluded: the sandbox preview gateway sets their headers,
+    // including frame-ancestors for the app's own origin.
+    return [{ source: "/(.*)", missing: [{ type: "host", value: "p-[a-zA-Z2-7]{26}\\..*" }], headers: securityHeaders }];
   },
 };
 

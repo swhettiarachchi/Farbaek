@@ -350,6 +350,9 @@ export function createMemoryStore(now: () => Date, viewer: () => string | null =
     async sessionsToSweep() {
       return [...sessions.values()].filter((s) => !TERMINAL_SESSION_STATES.has(s.state) || s.cleanupStatus === "pending" || s.cleanupStatus === "failed").map((s) => ({ ...s }));
     },
+    async memberRoleAsSystem(orgId, userId) {
+      return roleOf(orgId, userId);
+    },
     async overdueExecutions(at) {
       return [...executions.values()].filter((e) => e.state === "running" && Date.parse(e.deadlineAt) < at.getTime());
     },

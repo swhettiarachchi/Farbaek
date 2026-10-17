@@ -338,6 +338,13 @@ export function createSupabaseSandboxStore(user: SupabaseClient | null, admin: S
       return sessions(data ?? []);
     },
 
+    async memberRoleAsSystem(orgId, userId) {
+      if (!admin) return null;
+      const { data, error } = await admin.from("organization_members").select("role").eq("org_id", orgId).eq("user_id", userId).maybeSingle();
+      if (error) fail("membership", error);
+      return z.object({ role: z.string() }).nullable().catch(null).parse(data)?.role ?? null;
+    },
+
     async overdueExecutions(now, limit) {
       if (!admin) return [];
       const { data, error } = await admin.from("sandbox_executions").select(EXECUTION_SELECT).eq("state", "running").lt("deadline_at", now.toISOString()).limit(limit);

@@ -8,6 +8,14 @@ import { readSupabaseConfig } from "@/server/supabase/config";
  * check: every page and action verifies the user itself.
  */
 export async function proxy(request: NextRequest) {
+  // Preview hosts (p-<id>.<preview domain>) go to the sandbox preview gateway,
+  // whatever the path, and never touch the app's session cookies.
+  if (PREVIEW_HOST.test(request.headers.get("host") ?? "")) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/sandbox-preview${request.nextUrl.pathname}`;
+    return NextResponse.rewrite(url);
+  }
+
   const config = readSupabaseConfig();
   if (!config) return NextResponse.next({ request });
 
@@ -31,6 +39,14 @@ export async function proxy(request: NextRequest) {
   return response;
 }
 
+const PREVIEW_HOST = /^p-[a-z2-7]{26}\./i;
+
 export const config = {
-  matcher: ["/app/:path*", "/auth/:path*", "/sign-in"],
+  matcher: [
+    "/app/:path*",
+    "/auth/:path*",
+    "/sign-in",
+    // Every path on a preview host, including /_next/... of the app inside the sandbox.
+    { source: "/:path*", has: [{ type: "host", value: "p-[a-zA-Z2-7]{26}\\..*" }] },
+  ],
 };

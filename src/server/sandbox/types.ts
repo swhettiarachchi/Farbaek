@@ -350,4 +350,6 @@ export interface SandboxStore {
   overdueExecutions(now: Date, limit: number): Promise<ExecutionRecord[]>;
   getPreview(id: string): Promise<PreviewRecord | null>;
   getSessionAsSystem(id: string): Promise<SessionRecord | null>;
+  /** A person's current role in a workspace, read with the service role (for the preview gateway). */
+  memberRoleAsSystem(orgId: string, userId: string): Promise<string | null>;
 }
