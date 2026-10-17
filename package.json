@@ -17,7 +17,10 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test",
     "start:demo": "node scripts/start-demo.mjs",
     "setup:env": "node scripts/setup-env.mjs",
-    "check:env": "node scripts/check-env.mjs"
+    "check:env": "node scripts/check-env.mjs",
+    "sandbox:templates": "node --env-file-if-exists=.env.local scripts/sandbox-templates.mjs",
+    "sandbox:smoke": "node --env-file-if-exists=.env.local node_modules/vitest/vitest.mjs run tests/smoke --mode smoke",
+    "sandbox:sweep": "node --env-file-if-exists=.env.local scripts/sandbox-sweep.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.128.0",

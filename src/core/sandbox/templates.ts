@@ -1,7 +1,9 @@
 /**
  * The environments people can start, and the sizes they come in. Each
- * (template, size) pair maps to one prebuilt runtime image whose CPU, memory
- * and disk are fixed when the image is built (scripts/sandbox-templates.mjs).
+ * (template, size) pair maps to one prebuilt runtime image whose CPU and
+ * memory are fixed when the image is built (scripts/sandbox-templates.mjs).
+ * Disk is a requested minimum of free space, which E2B grows on a
+ * best-effort basis; the real total shows up in the runtime's metrics.
  * After a sandbox starts, Farbaek records what the runtime actually reports,
  * so metering never relies on what was requested.
  */
@@ -29,7 +31,7 @@ export const SANDBOX_TEMPLATES: Record<TemplateId, SandboxTemplate> = {
   "node-ts": {
     id: "node-ts",
     label: "Node.js and TypeScript",
-    runtime: "Node.js 22 LTS, npm, pnpm, TypeScript",
+    runtime: "Node.js 22 LTS, npm, pnpm and Yarn through Corepack",
     description: "For web apps, APIs and TypeScript projects. Runs builds, tests and dev servers.",
     setupCommand: "npm install",
     smokeCommand: "node --version && npm --version",
@@ -51,6 +53,7 @@ export interface SandboxSize {
   label: string;
   vcpu: number;
   memoryMiB: number;
+  /** Requested minimum free disk (best effort on E2B). */
   diskMiB: number;
 }
 

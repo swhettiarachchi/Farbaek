@@ -280,6 +280,8 @@ export interface SandboxStore {
   getSession(id: string): Promise<SessionRecord | null>;
   listSessions(orgId: string, query: SessionListQuery): Promise<{ rows: SessionRecord[]; total: number }>;
   listExecutions(sessionId: string, limit: number): Promise<ExecutionRecord[]>;
+  /** Latest commands across the workspace, for the dashboard. */
+  recentExecutions(orgId: string, limit: number): Promise<ExecutionRecord[]>;
   getExecution(id: string): Promise<ExecutionRecord | null>;
   listEvents(sessionId: string, limit: number): Promise<SessionEventRecord[]>;
   listPreviews(sessionId: string): Promise<PreviewRecord[]>;

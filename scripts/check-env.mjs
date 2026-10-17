@@ -5,6 +5,7 @@
 // the service they belong to.
 import { existsSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { Sandbox } from "e2b";
 
 const FILE = ".env.local";
 if (!existsSync(FILE)) {
@@ -72,6 +73,29 @@ if (anthropic) {
   }
 } else {
   console.log("--    Anthropic key not set: AI drafting and proposals stay off (optional)");
+}
+
+const provider = env("SANDBOX_PROVIDER");
+if (!provider) {
+  console.log("--    Sandbox runtime not set: project code stays in Review Only (optional; pnpm setup:env, then sandbox)");
+} else {
+  line("Sandbox provider", provider === "e2b", provider === "e2b" ? "" : `"${provider}" has no adapter; use e2b`);
+  const e2bKey = env("E2B_API_KEY");
+  const keyFormat = /^e2b_[A-Za-z0-9]{20,}$/.test(e2bKey);
+  line("E2B key format", keyFormat, keyFormat ? "" : e2bKey ? "should start with e2b_" : "missing");
+  if (keyFormat) {
+    // Listing at most one sandbox is free and confirms the key and the runtime address.
+    await probe(`Sandbox runtime accepts the key (${env("E2B_DOMAIN") || (env("E2B_API_URL") ? "self-hosted" : "E2B Cloud")})`, async () => {
+      await Sandbox.list({ apiKey: e2bKey, ...(env("E2B_DOMAIN") ? { domain: env("E2B_DOMAIN") } : {}), ...(env("E2B_API_URL") ? { apiUrl: env("E2B_API_URL") } : {}), limit: 1, requestTimeoutMs: 15000 }).nextItems();
+      return { ok: true, detail: "" };
+    });
+  }
+  line("Preview domain", Boolean(env("SANDBOX_PREVIEW_DOMAIN")), env("SANDBOX_PREVIEW_DOMAIN") ? "" : "missing: previews stay off");
+  line("Preview secret length", env("SANDBOX_PREVIEW_SECRET").length >= 32, env("SANDBOX_PREVIEW_SECRET") ? "" : "missing: previews stay off");
+  line("Sweeper secret length", env("SANDBOX_CRON_SECRET").length >= 32, env("SANDBOX_CRON_SECRET") ? "" : "missing: the cleanup endpoint stays off");
+  const verified = env("SANDBOX_ISOLATION_VERIFIED_AT");
+  if (verified) line("Isolation verified on", !Number.isNaN(Date.parse(verified)), Number.isNaN(Date.parse(verified)) ? "not a date" : "");
+  else console.log("--    Isolation not verified yet: run pnpm sandbox:smoke, then pnpm setup:env and type verified");
 }
 
 console.log(failures === 0 ? "\nAll set." : `\n${failures} problem${failures === 1 ? "" : "s"} found.`);

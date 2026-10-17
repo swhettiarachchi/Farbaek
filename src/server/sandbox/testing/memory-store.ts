@@ -77,6 +77,9 @@ export function createMemoryStore(now: () => Date, viewer: () => string | null =
     async listExecutions(sid, limit) {
       return [...executions.values()].filter((e) => e.sessionId === sid).slice(-limit).reverse();
     },
+    async recentExecutions(orgId, limit) {
+      return [...executions.values()].filter((e) => sessions.get(e.sessionId)?.orgId === orgId).slice(-limit).reverse();
+    },
     async getExecution(eid) {
       const e = executions.get(eid);
       if (!e) return null;

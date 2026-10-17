@@ -105,6 +105,12 @@ export function createSupabaseSandboxStore(user: SupabaseClient | null, admin: S
       return z.array(ExecutionRowSchema).parse(data ?? []).map(executionFromRow);
     },
 
+    async recentExecutions(orgId, limit) {
+      const { data, error } = await reader.from("sandbox_executions").select(EXECUTION_SELECT).eq("org_id", orgId).order("started_at", { ascending: false }).limit(limit);
+      if (error) fail("recent commands", error);
+      return z.array(ExecutionRowSchema).parse(data ?? []).map(executionFromRow);
+    },
+
     async getExecution(id) {
       if (!z.uuid().safeParse(id).success) return null;
       const { data, error } = await reader.from("sandbox_executions").select(EXECUTION_SELECT).eq("id", id).maybeSingle();

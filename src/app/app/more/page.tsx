@@ -1,4 +1,4 @@
-import { CaretRightIcon, ChartPieSliceIcon, GearSixIcon, LockSimpleIcon, SignOutIcon } from "@phosphor-icons/react/ssr";
+import { CaretRightIcon, ChartPieSliceIcon, GearSixIcon, LockSimpleIcon, SignOutIcon, TerminalWindowIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -21,6 +21,12 @@ export default async function MorePage() {
       <WorkspaceSwitcher workspaces={ctx.workspaces} current={ctx.current} canCreate={ctx.mode === "live"} />
 
       <ul className="divide-y divide-line overflow-hidden rounded-md border border-line bg-surface shadow-e1">
+        <li>
+          <Link href="/app/sandbox" className={`${row} hover:bg-canvas-2`}>
+            <TerminalWindowIcon size={20} className="text-ink-2" aria-hidden /> Sandbox
+            <CaretRightIcon size={16} className="ml-auto text-ink-3" aria-hidden />
+          </Link>
+        </li>
         <li>
           <Link href="/app/billing" className={`${row} hover:bg-canvas-2`}>
             <ChartPieSliceIcon size={20} className="text-ink-2" aria-hidden /> Billing and usage

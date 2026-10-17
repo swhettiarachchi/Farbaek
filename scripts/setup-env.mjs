@@ -3,7 +3,10 @@
 // It asks for the Supabase keys and, optionally, an Anthropic key for AI
 // drafting (secret keys are hidden as you type), checks their format and
 // writes .env.local with owner-only permissions. Nothing is printed, logged
-// or sent anywhere. Run it again and type "ai" to add only the Anthropic key.
+// or sent anywhere. Run it again and type "ai" to add only the Anthropic key,
+// "sandbox" to connect a sandbox runtime, or "verified" once
+// pnpm sandbox:smoke has passed on that runtime.
+import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 
@@ -42,11 +45,69 @@ function askAnthropic() {
   );
 }
 
+/** Sets or replaces NAME=value lines in .env.local, keeping everything else. */
+function upsert(values) {
+  let current = existsSync(FILE) ? readFileSync(FILE, "utf8") : "";
+  for (const [name, value] of Object.entries(values)) {
+    const line = `${name}=${value}`;
+    const pattern = new RegExp(`^${name}=.*$`, "m");
+    current = pattern.test(current) ? current.replace(pattern, () => line) : `${current.replace(/\n?$/, "\n")}${line}\n`;
+  }
+  writeFileSync(FILE, current, { encoding: "utf8", mode: 0o600 });
+}
+
+async function setupSandbox() {
+  console.log("\nSandbox runtime (docs/sandbox/README.md). Code runs on this runtime, never on this server.");
+  const key = await askUntil(
+    "E2B API key (e2b_..., hidden): ",
+    (v) => /^e2b_[A-Za-z0-9]{20,}$/.test(v),
+    "It should start with e2b_. Create it in your E2B dashboard, or on your self-hosted E2B (Embed) deployment.",
+    { hidden: true },
+  );
+  const domain = await askUntil(
+    "Self-hosted E2B domain (for example e2b.internal.example.com), or Enter for E2B Cloud: ",
+    (v) => v === "" || /^[a-z0-9.-]+\.[a-z]{2,}(:\d+)?$/i.test(v),
+    "Use a host name such as e2b.example.com, or press Enter for E2B Cloud.",
+  );
+  const previewDomain = await askUntil(
+    "Preview domain [preview.localhost:3000]: ",
+    (v) => v === "" || /^[a-z0-9.-]+(:\d{2,5})?$/i.test(v),
+    "Use a host such as preview.localhost:3000 locally, or a separate domain you own in production.",
+  );
+  upsert({
+    SANDBOX_PROVIDER: "e2b",
+    E2B_API_KEY: key,
+    ...(domain ? { E2B_DOMAIN: domain } : {}),
+    SANDBOX_PREVIEW_DOMAIN: previewDomain || "preview.localhost:3000",
+    SANDBOX_PREVIEW_SECRET: randomBytes(32).toString("hex"),
+    SANDBOX_CRON_SECRET: randomBytes(32).toString("hex"),
+    SANDBOX_DEPLOYMENT_ID: "farbaek-local",
+  });
+  console.log(`\nSaved the sandbox settings in ${FILE} (new preview and cron secrets were generated).`);
+  console.log("Next: pnpm sandbox:templates, then pnpm sandbox:smoke. When it passes, run this again and type verified.\n");
+}
+
 console.log("\nFarbaek environment setup");
 console.log("Find the keys in Supabase: Project Settings > API Keys.\n");
 
 if (existsSync(FILE)) {
-  const answer = (await ask(`${FILE} already exists. Type "ai" to add or change only the Anthropic key, "replace" to start over, or press Enter to keep it: `)).toLowerCase();
+  const answer = (
+    await ask(`${FILE} already exists. Type "ai" for the Anthropic key, "sandbox" to connect a sandbox runtime, "verified" after the smoke test passed, "replace" to start over, or press Enter to keep it: `)
+  ).toLowerCase();
+  if (answer === "sandbox") {
+    await setupSandbox();
+    process.exit(0);
+  }
+  if (answer === "verified") {
+    const sure = (await ask("Did pnpm sandbox:smoke pass on this deployment's runtime just now? Type yes to record it: ")).toLowerCase();
+    if (sure !== "yes") {
+      console.log("Nothing recorded. Project code keeps running in Review Only until the smoke test passes.");
+      process.exit(0);
+    }
+    upsert({ SANDBOX_ISOLATION_VERIFIED_AT: new Date().toISOString().slice(0, 10) });
+    console.log(`\nRecorded the verification date in ${FILE}. Rebuild or restart the server to turn on sandboxed execution.\n`);
+    process.exit(0);
+  }
   if (answer === "ai") {
     const key = await askAnthropic();
     if (!key) {

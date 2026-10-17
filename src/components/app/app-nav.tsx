@@ -9,6 +9,7 @@ import {
   HouseSimpleIcon,
   ListChecksIcon,
   LockSimpleIcon,
+  TerminalWindowIcon,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import Link from "next/link";
@@ -28,6 +29,7 @@ const PRIMARY: NavItem[] = [
   { href: "/app/projects", label: "Projects", short: "Projects", icon: FolderSimpleIcon },
   { href: "/app/tasks", label: "Tasks", short: "Tasks", icon: ListChecksIcon },
   { href: "/app/approvals", label: "Approvals", short: "Approvals", icon: CheckSquareOffsetIcon },
+  { href: "/app/sandbox", label: "Sandbox", short: "Sandbox", icon: TerminalWindowIcon },
 ];
 
 const SECONDARY: NavItem[] = [
@@ -96,11 +98,12 @@ export function SidebarNav({ approvals }: { approvals: number }) {
   );
 }
 
-const TABS: NavItem[] = [...PRIMARY, { href: "/app/more", label: "More", short: "More", icon: DotsThreeOutlineIcon }];
+// Five slots on phones: Sandbox is reached through More there.
+const TABS: NavItem[] = [...PRIMARY.filter((i) => i.href !== "/app/sandbox"), { href: "/app/more", label: "More", short: "More", icon: DotsThreeOutlineIcon }];
 
 export function MobileTabBar({ approvals }: { approvals: number }) {
   const pathname = usePathname();
-  const moreActive = ["/app/more", "/app/billing", "/app/settings", "/app/workspaces"].some((p) => pathname.startsWith(p));
+  const moreActive = ["/app/more", "/app/billing", "/app/settings", "/app/workspaces", "/app/sandbox"].some((p) => pathname.startsWith(p));
   return (
     <nav
       aria-label="App"

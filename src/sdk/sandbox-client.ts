@@ -117,7 +117,11 @@ export class FarbaekApiError extends Error {
 
 export interface ClientOptions {
   baseUrl: string;
-  accessToken: string;
+  /**
+   * The person's Supabase access token. Leave it out only in Farbaek's own
+   * pages, where the session cookie authenticates same-origin requests.
+   */
+  accessToken?: string;
   /** Workspace (organization) id. Defaults to the person's first workspace. */
   workspaceId?: string;
   fetch?: typeof fetch;
@@ -137,7 +141,7 @@ export class FarbaekSandboxClient {
 
   private headers(extra: Record<string, string> = {}): Record<string, string> {
     return {
-      authorization: `Bearer ${this.options.accessToken}`,
+      ...(this.options.accessToken ? { authorization: `Bearer ${this.options.accessToken}` } : {}),
       ...(this.options.workspaceId ? { "x-farbaek-workspace": this.options.workspaceId } : {}),
       ...extra,
     };
