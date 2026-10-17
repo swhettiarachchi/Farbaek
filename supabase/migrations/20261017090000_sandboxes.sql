@@ -160,6 +160,11 @@ create table private.rate_limit_windows (
   hits          integer not null default 0,
   primary key (key, window_start)
 );
+-- Only app_rate_limit (security definer, owned by the table owner) touches it.
+-- The private schema isn't exposed through the API; RLS with no policies and
+-- no grants is defence in depth.
+alter table private.rate_limit_windows enable row level security;
+revoke all on private.rate_limit_windows from public, anon, authenticated;
 
 -- ------------------------------------------------------------------ RLS
 
