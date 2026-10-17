@@ -57,6 +57,12 @@ export interface ProofPackStatement {
     limits: string[];
     createdAt: string;
     previous: string | null;
+    /**
+     * Set on a ProofPack recorded when the change's checks ran in a sandbox:
+     * the check run's receipt, the ProofPack of the change it verifies, and
+     * that the sandbox held exactly the applied content.
+     */
+    verification?: { receipt: string; appliedProofPack: string; filesMatched: true };
   };
 }
 
@@ -103,6 +109,48 @@ export function buildProofPack(input: ProofPackInput): ProofPackStatement {
       limits: limitsFor(input, status),
       createdAt: input.createdAt,
       previous: input.previous,
+    },
+  };
+}
+
+/**
+ * The ProofPack for a check run against an applied change. It repeats what
+ * was approved and applied (from the change's own ProofPack), adds the real
+ * check results and where they ran, and links to the run's receipt. The
+ * change's original ProofPack stays as it was; this one follows it in the
+ * project's chain.
+ */
+export function buildVerificationProofPack(input: {
+  applied: ProofPackStatement;
+  appliedDigest: string;
+  receiptDigest: string;
+  checks: CheckResult[];
+  provider: string;
+  createdAt: string;
+  previous: string | null;
+}): ProofPackStatement {
+  const p = input.applied.predicate;
+  const base = buildProofPack({
+    task: p.task,
+    contract: p.contract,
+    proposal: p.proposal,
+    policy: p.policy,
+    approval: p.approval,
+    files: p.changes,
+    checks: input.checks,
+    execution: { mode: "sandboxed", provider: input.provider },
+    createdAt: input.createdAt,
+    previous: input.previous,
+  });
+  return {
+    ...base,
+    predicate: {
+      ...base.predicate,
+      limits: [
+        ...base.predicate.limits,
+        `Checks ran in ${input.provider} against the applied content: every changed file's SHA-256 matched inside the sandbox before the checks.`,
+      ],
+      verification: { receipt: input.receiptDigest, appliedProofPack: input.appliedDigest, filesMatched: true },
     },
   };
 }

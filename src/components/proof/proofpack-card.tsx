@@ -39,6 +39,12 @@ export async function ProofPackCard({ pack }: { pack: ProofPackRecord }) {
         </p>
         <p className="text-xs text-ink-3">
           Recorded <LocalTime iso={pack.createdAt} />
+          {statement?.predicate?.verification ? (
+            <>
+              {" "}
+              · verifies {shortHash(statement.predicate.verification.appliedProofPack)} from check run {shortHash(statement.predicate.verification.receipt)}
+            </>
+          ) : null}
           {pack.previous ? (
             <>
               {" "}

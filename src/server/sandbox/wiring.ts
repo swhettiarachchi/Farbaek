@@ -16,6 +16,7 @@ import { ORGANIZATION_SELECT, billingSnapshotFromRow } from "@/server/workspace/
 import { createSupabaseReader } from "@/server/workspace/supabase-reader";
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
 import { ORG_ROLES, type OrgRole } from "@/server/workspace/types";
+import type { ProofPackStatement } from "@/core/proof/proofpack";
 import { resolveSandboxRuntime } from "./registry";
 import { createSandboxService, type SandboxActor, type SandboxService, type TaskBridge } from "./service";
 import { createSupabaseSandboxStore } from "./supabase-store";
@@ -40,8 +41,28 @@ function taskBridge(user: SupabaseClient, admin: SupabaseClient | null, userId: 
       const contract = await reader.getContract(orgId, taskId);
       return contract && contract.status === "approved" ? contract.body.requiredChecks : null;
     },
-    async latestProofPackDigest(orgId, taskId) {
-      return (await reader.listProofPacks(orgId, taskId))[0]?.digest ?? null;
+    async appliedProofPack(orgId, taskId) {
+      // Newest first; the change's own ProofPack is the newest one that isn't a verification record.
+      for (const p of await reader.listProofPacks(orgId, taskId)) {
+        const statement = p.statement as ProofPackStatement | null;
+        if (!statement?.predicate || statement.predicate.verification || !Array.isArray(statement.predicate.changes)) continue;
+        return { digest: p.digest, statement };
+      }
+      return null;
+    },
+    latestProjectProofPackDigest: async (orgId, projectId) => (writes ? writes.latestProofPackDigest(orgId, projectId) : null),
+    async recordVerificationProofPack(i) {
+      if (!admin) return { ok: false, error: "WRITES_UNAVAILABLE" };
+      const { data, error } = await admin.rpc("app_record_verification_proofpack", {
+        p_task: i.taskId,
+        p_actor: i.actor,
+        p_receipt: i.receiptDigest,
+        p_statement: i.statement,
+        p_digest: i.digest,
+        p_status: i.status,
+      });
+      if (error) return { ok: false, error: error.message };
+      return typeof data === "string" ? { ok: true, value: data } : { ok: false, error: "UNEXPECTED_RESPONSE" };
     },
     applyTransition: async (i) => (writes ? writes.applyTransition(i) : { ok: false, error: "WRITES_UNAVAILABLE" }),
     newEventId: () => crypto.randomUUID(),

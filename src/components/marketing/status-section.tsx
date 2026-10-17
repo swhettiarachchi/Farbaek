@@ -11,37 +11,32 @@ interface Group {
   items: string[];
 }
 
-// Keep in step with docs/stages/. Only list something under "Built and tested"
-// when it is implemented and covered by tests in this repository.
+// Keep in step with docs/stages/. Only list something under "Built and working"
+// when it is implemented, covered by tests in this repository and has been
+// used end to end on a real setup.
 const GROUPS: Group[] = [
   {
-    title: "Built and tested",
-    note: "Unit-tested in the repository. Not live for customers yet.",
+    title: "Built and working",
+    note: "Tested and used end to end. Not hosted for customers yet.",
     icon: CheckCircleIcon,
     iconClass: "text-verified",
     items: [
-      "Plan catalog and annual pricing math",
-      "14-day trial rules, reminders and expiry to Free",
-      "Entitlement checks that fail closed",
-      "Idempotent usage metering",
-      "Task lifecycle state machine with evidence guards",
-      "Approval binding with RFC 8785 and SHA-256",
-      "Intent contract schema and checks",
-      "Organizations with row-level tenant isolation",
+      "Sign-in by email link, workspaces with row-level tenant isolation",
+      "Projects with versioned files, import, search and the Studio editor",
+      "Intent contracts, drafted with Claude or Gemini, approved by hash",
+      "Agent-proposed changes with per-chunk diff review",
+      "Policy checks, approvals and escalation to owners",
+      "Contract checks run in Firecracker microVMs, with real exit codes",
+      "ProofPacks and receipts, and undo of applied changes",
+      "14-day trial and plan limits that fail closed",
     ],
   },
   {
     title: "Next",
-    note: "Stages 1 to 3.",
+    note: "Before sign-ups open.",
     icon: HourglassMediumIcon,
     iconClass: "text-approval",
-    items: [
-      "Accounts and sign-in, opened to customers",
-      "Projects, tasks and contracts with real storage",
-      "Studio editor and diff review",
-      "Sandboxed builds and test runs",
-      "Signed ProofPacks",
-    ],
+    items: ["Hosting on a public domain", "Trial reminder emails", "Signed ProofPacks"],
   },
   {
     title: "Later",
@@ -57,7 +52,7 @@ export function StatusSection() {
     <section id="status" aria-labelledby="status-title" className="py-20 lg:py-28">
       <Container>
         <SectionHeading id="status-title" title="What works today, and what doesn't yet.">
-          No account can be created yet. Here is the honest state of the build.
+          Sign-ups aren&apos;t open yet. Here is the honest state of the build.
         </SectionHeading>
 
         <div className="mt-12 grid gap-10 lg:grid-cols-[1.25fr_1fr_1fr] lg:gap-0 lg:divide-x lg:divide-line">

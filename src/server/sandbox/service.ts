@@ -20,7 +20,8 @@ import { TERMINAL_SESSION_STATES, type SessionState } from "@/core/sandbox/lifec
 import { egressRules, validPreviewPort } from "@/core/sandbox/network";
 import { MAX_SANDBOX_FILE_BYTES, resolveSandboxPath } from "@/core/sandbox/paths";
 import { newPreviewId, previewOrigin, PREVIEW_LAUNCH_PATH, PREVIEW_LAUNCH_SECONDS, signPreviewToken } from "@/core/sandbox/preview";
-import { buildSandboxReceipt, sandboxReceiptDigest, snapshotDigest, type ReceiptCheck } from "@/core/sandbox/receipts";
+import { buildSandboxReceipt, sandboxReceiptDigest, snapshotDigest, toCheckResult, type ReceiptCheck } from "@/core/sandbox/receipts";
+import { buildVerificationProofPack, proofPackDigest, type ProofPackStatement } from "@/core/proof/proofpack";
 import { commandTimeoutSeconds, sessionSpec } from "@/core/sandbox/request";
 import { RuntimeError, type ResourceSample, type RuntimeFileEntry, type RuntimeHealth } from "@/core/sandbox/runtime";
 import { addUsage, sessionUsage, wholeMinutes, ZERO_USAGE, type UsageTotals } from "@/core/sandbox/usage";
@@ -106,7 +107,12 @@ export interface SandboxActor {
 export interface TaskBridge {
   loadTask(orgId: string, taskId: string): Promise<{ id: string; projectId: string; state: TaskState; version: number; eventIds: string[] } | null>;
   requiredChecks(orgId: string, taskId: string): Promise<string[] | null>;
-  latestProofPackDigest(orgId: string, taskId: string): Promise<string | null>;
+  /** The ProofPack written when the task's change was applied (not a verification one), or null. */
+  appliedProofPack(orgId: string, taskId: string): Promise<{ digest: string; statement: ProofPackStatement } | null>;
+  /** The project's latest ProofPack, which a new one must link to. */
+  latestProjectProofPackDigest(orgId: string, projectId: string): Promise<string | null>;
+  /** Appends the ProofPack for a check run that matched the applied content. Returns its digest. */
+  recordVerificationProofPack(input: { taskId: string; actor: string; receiptDigest: string; statement: ProofPackStatement; digest: string; status: string }): Promise<RpcResult<string>>;
   applyTransition(input: { taskId: string; actor: string; eventId: string; eventType: TaskEventType; from: TaskState; to: TaskState; expectedVersion: number }): Promise<RpcResult<number>>;
   newEventId(): string;
 }
@@ -613,12 +619,38 @@ export function createSandboxService(deps: SandboxServiceDeps) {
    * event the real exit codes support. A partial or failed run is recorded
    * as such; nothing here authorizes a deployment.
    */
+  /** SHA-256 of project files inside the sandbox, by workspace-relative path. Missing or unreadable files are left out. */
+  async function hashInSandbox(sandboxId: string, paths: string[]): Promise<Map<string, string>> {
+    const out = new Map<string, string>();
+    const safe = paths.filter((p) => resolveSandboxPath(p).ok);
+    if (!runtime || safe.length === 0) return out;
+    let stdout = "";
+    const quoted = safe.map((p) => `'${p.replace(/'/g, "'\\''")}'`).join(" ");
+    const r = await runtime.exec(sandboxId, { command: `sha256sum -- ${quoted} 2>/dev/null; true`, timeoutSeconds: 60 }, { onStdout: (c) => (stdout += c) }).catch(() => null);
+    if (!r || r.runtimeError) return out;
+    for (const line of stdout.split("\n")) {
+      const m = /^([0-9a-f]{64}) [ *](.+)$/.exec(line.trim());
+      if (m && safe.includes(m[2]!)) out.set(m[2]!, m[1]!);
+    }
+    return out;
+  }
+
   async function runChecks(actor: SandboxActor, sessionId: string, baseKey: string): Promise<SandboxResult<{ digest: string; status: string; taskEvent: string | null; applied: boolean }>> {
     const session = await visibleSession(actor, sessionId);
     if (!session) return err("NOT_FOUND", "That session doesn't exist in this workspace.", "invalid_request");
     if (!session.taskId || !deps.tasks) return err("INVALID_REQUEST", "Link the session to a task to run its contract's checks.", "invalid_request");
     const checksList = await deps.tasks.requiredChecks(actor.orgId, session.taskId);
     if (!checksList || checksList.length === 0) return err("INVALID_REQUEST", "The task's approved contract lists no required checks.", "invalid_request");
+
+    // Hash the applied change's files inside the sandbox first: only a run
+    // against exactly that content can verify the change.
+    const appliedPack = await deps.tasks.appliedProofPack(actor.orgId, session.taskId);
+    let appliedFiles: { path: string; expected: string; actual: string | null }[] | null = null;
+    if (appliedPack) {
+      const changes = Array.isArray(appliedPack.statement?.predicate?.changes) ? appliedPack.statement.predicate.changes : [];
+      const actual = runtime && session.providerSandboxId ? await hashInSandbox(session.providerSandboxId, changes.map((c) => c.path)) : new Map<string, string>();
+      appliedFiles = changes.map((c) => ({ path: c.path, expected: c.sha256, actual: actual.get(c.path) ?? null }));
+    }
 
     const results: ReceiptCheck[] = [];
     for (const [i, command] of checksList.entries()) {
@@ -647,7 +679,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
 
     const role = await deps.role(actor.orgId);
     const decision = await guard("command.run", actor, role, session);
-    const proofPackDigest = await deps.tasks.latestProofPackDigest(actor.orgId, session.taskId);
+    const appliedDigest = appliedPack?.digest ?? null;
     const statement = buildSandboxReceipt({
       session: { id: session.id, organizationId: session.orgId, projectId: session.projectId, taskId: session.taskId },
       runtime: {
@@ -662,12 +694,31 @@ export function createSandboxService(deps: SandboxServiceDeps) {
       policy: { version: decision.policyVersion, outcome: decision.outcome },
       snapshot: session.snapshotSha256 ? { sha256: session.snapshotSha256, files: session.snapshotFiles ?? 0 } : null,
       checks: results,
-      proofPackDigest,
+      proofPackDigest: appliedDigest,
+      appliedFiles,
       createdAt: deps.now().toISOString(),
     });
     const digest = await sandboxReceiptDigest(statement);
     const recorded = await store.recordReceipt({ sessionId, actor: actor.userId, digest, status: statement.predicate.status, statement });
     if (!recorded.ok) return fromDb(recorded.error);
+
+    // A run against exactly the applied content, where checks ran, gets its own ProofPack in the chain.
+    let verificationDigest: string | null = null;
+    if (appliedPack && statement.predicate.appliedChange?.matched && statement.predicate.status !== "unverified" && session.projectId) {
+      const pack = buildVerificationProofPack({
+        applied: appliedPack.statement,
+        appliedDigest: appliedPack.digest,
+        receiptDigest: digest,
+        checks: results.map(toCheckResult),
+        provider: runtime?.capabilities.provider ?? session.provider,
+        createdAt: deps.now().toISOString(),
+        previous: await deps.tasks.latestProjectProofPackDigest(actor.orgId, session.projectId),
+      });
+      const packDigest = await proofPackDigest(pack);
+      const r = await deps.tasks.recordVerificationProofPack({ taskId: session.taskId, actor: actor.userId, receiptDigest: digest, statement: pack, digest: packDigest, status: pack.predicate.status });
+      if (r.ok) verificationDigest = r.value;
+      else log("warn", "sandbox.verification_proofpack_failed", { task: session.taskId, error: r.error });
+    }
 
     let applied = false;
     const taskEvent = statement.predicate.verdict.taskEvent;
@@ -683,7 +734,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
             type: taskEvent,
             at: deps.now(),
             actor: { kind: "system", id: "sandbox" },
-            evidence: { checks: results.map((r) => ({ name: r.name, command: r.command, exitCode: r.exitCode })), proofPackDigest: proofPackDigest ?? undefined },
+            evidence: { checks: results.map((r) => ({ name: r.name, command: r.command, exitCode: r.exitCode })), proofPackDigest: verificationDigest ?? appliedDigest ?? undefined },
           },
           task.version,
         );

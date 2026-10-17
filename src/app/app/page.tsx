@@ -9,6 +9,7 @@ import { TRIAL, getPlan } from "@/core/billing/catalog";
 import { TERMINAL_STATES, type TaskState } from "@/core/realityloop/task-machine";
 import { shortHash } from "@/core/trust/canonical-json";
 import { loadAppContext } from "@/server/workspace/context";
+import { currentExecutionMode } from "@/server/execution/sandbox";
 import { loadUsageSummary } from "@/server/workspace/usage-summary";
 
 export const metadata: Metadata = { title: "Mission Control" };
@@ -39,6 +40,8 @@ export default async function MissionControl() {
   const limits = ws.plan.limits;
   const trialActive = ws.trial?.phase.phase === "active";
 
+  const execution = currentExecutionMode();
+  const verifying = tasks.find((t) => t.state === "VERIFYING");
   const checklist = [
     { label: "Create a workspace", done: true, href: "/app/settings", locked: null },
     { label: "Create a project", done: projects.length > 0, href: "/app/projects", locked: null },
@@ -52,8 +55,9 @@ export default async function MissionControl() {
     {
       label: "Get your first verified ProofPack",
       done: recentEvidence.some((p) => p.status === "verified"),
-      href: null,
-      locked: "Needs checks to run, and no isolated sandbox is connected yet.",
+      // A task whose change is applied is the next step: its checks run in a sandbox.
+      href: execution.mode === "sandboxed" ? (verifying ? `/app/tasks/${verifying.id}` : "/app/tasks") : null,
+      locked: execution.mode === "sandboxed" ? null : `Needs checks to run in a sandbox. ${execution.reason}`,
     },
   ];
   const doneCount = checklist.filter((c) => c.done).length;

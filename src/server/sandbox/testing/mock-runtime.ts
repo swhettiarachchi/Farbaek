@@ -6,6 +6,7 @@
  * deterministically. It is never resolved by the registry and never shown
  * in the app; real execution only happens on a configured, verified runtime.
  */
+import { createHash } from "node:crypto";
 import { RuntimeError, type ExecOutcome, type RuntimeCapabilities, type SandboxRuntime } from "@/core/sandbox/runtime";
 
 export interface MockRuntimeState {
@@ -80,6 +81,14 @@ export function createMockRuntime(capabilities: Partial<RuntimeCapabilities> = {
     },
     async exec(sandboxId, request, handlers) {
       if (!state.live.has(sandboxId)) return { exitCode: null, timedOut: false, runtimeError: { category: "sandbox_gone", message: "gone" } };
+      if (request.command.startsWith("sha256sum -- ")) {
+        // Hashes the sandbox's copies of the files, like the real command.
+        const files = state.live.get(sandboxId)!.files;
+        const paths = [...request.command.matchAll(/'([^']*)'/g)].map((m) => m[1]!);
+        const lines = paths.filter((p) => files.has(p)).map((p) => `${createHash("sha256").update(files.get(p)!, "utf8").digest("hex")}  ${p}`);
+        if (lines.length) handlers.onStdout?.(`${lines.join("\n")}\n`);
+        return { exitCode: 0, timedOut: false, runtimeError: null };
+      }
       state.executed.push(request.command);
       await handlers.onStart?.(100 + state.executed.length);
       const r = scripted(request.command);

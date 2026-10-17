@@ -5,7 +5,9 @@
  * cleanup after failure, previews, receipts and the sweeper. Real runtime
  * behaviour is covered by the smoke test (pnpm sandbox:smoke).
  */
+import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
+import { buildProofPack, type ProofPackStatement } from "@/core/proof/proofpack";
 import { RuntimeError } from "@/core/sandbox/runtime";
 import { verifyPreviewToken } from "@/core/sandbox/preview";
 import type { BillingSnapshot } from "@/core/billing/trial";
@@ -47,6 +49,8 @@ let runtime: ReturnType<typeof createMockRuntime>;
 let viewer: string | null;
 let billing: BillingSnapshot | null;
 let taskState: { state: "VERIFYING" | "EXECUTING"; version: number; applied: string[] };
+let applied: { digest: string; statement: ProofPackStatement } | null;
+let verificationPacks: Parameters<TaskBridge["recordVerificationProofPack"]>[0][];
 let keyN = 0;
 const key = () => `test-key-${++keyN}`;
 
@@ -56,7 +60,12 @@ function service(over: { runtime?: ReturnType<typeof createMockRuntime> | null; 
   const tasks: TaskBridge = {
     loadTask: async () => ({ id: TASK, projectId: PROJECT, state: taskState.state, version: taskState.version, eventIds: [] }),
     requiredChecks: async () => ["echo hello", "exit 1"],
-    latestProofPackDigest: async () => "f".repeat(64),
+    appliedProofPack: async () => applied,
+    latestProjectProofPackDigest: async () => "e".repeat(64),
+    recordVerificationProofPack: async (i) => {
+      verificationPacks.push(i);
+      return { ok: true, value: i.digest };
+    },
     applyTransition: async (i) => {
       taskState.applied.push(i.eventType);
       return { ok: true, value: i.expectedVersion + 1 };
@@ -91,6 +100,23 @@ beforeEach(() => {
   viewer = null;
   billing = { state: "active", paidPlanId: "team" };
   taskState = { state: "VERIFYING", version: 7, applied: [] };
+  verificationPacks = [];
+  // The task's applied change wrote src/index.ts with the content the project holds.
+  applied = {
+    digest: "a".repeat(64),
+    statement: buildProofPack({
+      task: { id: TASK, organizationId: ORG, projectId: PROJECT },
+      contract: { version: 1, sha256: "c".repeat(64) },
+      proposal: { id: "prop-1", sha256: "b".repeat(64), model: null },
+      policy: null,
+      approval: { approvedBy: ALICE, approvedAt: "2026-10-17T09:00:00.000Z", appliedSha256: "d".repeat(64) },
+      files: [{ path: "src/index.ts", kind: "edit", baseRevision: 1, sha256: createHash("sha256").update("export {}", "utf8").digest("hex") }],
+      checks: [],
+      execution: { mode: "review_only", reason: "No sandbox at apply time." },
+      createdAt: "2026-10-17T09:00:00.000Z",
+      previous: null,
+    }),
+  };
   store = createMemoryStore(() => clock, () => viewer);
   runtime = createMockRuntime();
   store.members.set(ORG, new Map([[ALICE, "owner"], [BOB, "member"], [CAROL, "viewer"], [DAVE, "admin"]]));
@@ -356,7 +382,7 @@ describe("previews", () => {
 
 describe("Guard verification receipts", () => {
   it("runs the contract's checks, records a receipt and applies only the event the exit codes support", async () => {
-    const id = await ready(ALICE, { taskId: TASK });
+    const id = await ready(ALICE, { taskId: TASK, projectId: PROJECT });
     const r = await service().runChecks(as(ALICE), id, key());
     expect(r).toMatchObject({ ok: true, value: { status: "partially_verified", taskEvent: "mark_partially_verified", applied: true } });
     const receipt = [...store.receipts.values()][0]!;
@@ -367,6 +393,42 @@ describe("Guard verification receipts", () => {
     ]);
     expect(statement.predicate.deployment.authorized).toBe(false);
     expect(taskState.applied).toEqual(["mark_partially_verified"]);
+  });
+
+  it("checks the applied files in the sandbox first, and appends a ProofPack with the real results", async () => {
+    const id = await ready(ALICE, { taskId: TASK, projectId: PROJECT });
+    await service().runChecks(as(ALICE), id, key());
+    const receipt = [...store.receipts.values()][0]!;
+    const predicate = (receipt.statement as { predicate: { appliedChange: { matched: boolean; files: { path: string; actual: string | null }[] } } }).predicate;
+    expect(predicate.appliedChange.matched).toBe(true);
+    expect(predicate.appliedChange.files.map((f) => f.path)).toEqual(["src/index.ts"]);
+    expect(verificationPacks).toHaveLength(1);
+    const pack = verificationPacks[0]!;
+    expect(pack).toMatchObject({ taskId: TASK, receiptDigest: receipt.digest, status: "partially_verified" });
+    expect(pack.statement.predicate.verification).toEqual({ receipt: receipt.digest, appliedProofPack: "a".repeat(64), filesMatched: true });
+    expect(pack.statement.predicate.previous).toBe("e".repeat(64));
+    expect(pack.statement.predicate.checks.map((c) => c.status)).toEqual(["passed", "failed"]);
+    expect(pack.statement.predicate.execution).toEqual({ mode: "sandboxed", provider: runtime.capabilities.provider });
+  });
+
+  it("never verifies a change from files edited in the sandbox", async () => {
+    const id = await ready(ALICE, { taskId: TASK, projectId: PROJECT });
+    const sandboxId = store.sessions.get(id)!.providerSandboxId!;
+    await runtime.writeFiles(sandboxId, [{ path: "src/index.ts", content: "export const edited = true;" }]);
+    const r = await service().runChecks(as(ALICE), id, key());
+    expect(r).toMatchObject({ ok: true, value: { taskEvent: null, applied: false } });
+    const receipt = [...store.receipts.values()][0]!;
+    const predicate = (receipt.statement as { predicate: { appliedChange: { matched: boolean }; limits: string[] } }).predicate;
+    expect(predicate.appliedChange.matched).toBe(false);
+    expect(predicate.limits.join(" ")).toMatch(/didn't match the applied change/);
+    expect(taskState.applied).toEqual([]);
+    expect(verificationPacks).toEqual([]);
+  });
+
+  it("doesn't verify a change whose files weren't copied in", async () => {
+    const id = await ready(ALICE, { taskId: TASK });
+    expect(await service().runChecks(as(ALICE), id, key())).toMatchObject({ ok: true, value: { taskEvent: null, applied: false } });
+    expect(verificationPacks).toEqual([]);
   });
 
   it("records a receipt but leaves tasks that aren't waiting for verification alone", async () => {

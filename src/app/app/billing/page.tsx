@@ -86,7 +86,7 @@ export default async function BillingPage() {
                 label="AI credits"
                 used={usage.aiCredits}
                 limit={limits.aiCreditsPerMonth}
-                detail={`Drafting a contract with AI uses ${CREDIT_COSTS.contract_draft} credit. Calls that return no draft are refunded.`}
+                detail={`Drafting a contract uses ${CREDIT_COSTS.contract_draft} credit and proposing a change uses ${CREDIT_COSTS.change_proposal}. Calls that return nothing usable are refunded.`}
                 reached="AI credits used up. AI drafting pauses until the allowance resets or you upgrade. Writing contracts yourself keeps working."
               />
             )}
