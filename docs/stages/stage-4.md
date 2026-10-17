@@ -114,7 +114,11 @@ The owner's message asked to proceed without stopping at a plan, so this stage r
 
 - 497 unit tests and 130 database tests pass (database tests run one at a time on this PC), typecheck, lint and build pass.
 
+### Phone width (375px)
+
+- Every public and signed-in page was rendered at 375px (each page's server HTML in a 375px frame, so the CSS media queries apply as on a phone). Four overflowed: Mission Control (477px), Settings (447px), the Sandbox dashboard (656px) and a sandbox session (389px). Cause: grids without a column template let a long truncated line widen the column. Fixed with one base rule (`.grid` gets `minmax(0, 1fr)`; `grid-cols-*` utilities still win). After the fix all 18 pages fit, and desktop grids keep their columns (checked: 4-column stat tiles, 2-column layout).
+
 ### Not verified
 
 - Accepting an invitation live (needs a second person's email).
-- 375px layouts of the signed-in pages.
+- Pages with scripts running at 375px on a real phone (the frame check covers layout, not interaction).

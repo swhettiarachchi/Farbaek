@@ -69,6 +69,14 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /* A grid without an explicit column template gets one column that can
+     shrink. Otherwise a long unbroken line (a title set to truncate, a file
+     path, a tab bar) widens the implicit column past a phone's screen.
+     grid-cols-* utilities live in a later layer, so they still win. */
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   :focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 3px;
