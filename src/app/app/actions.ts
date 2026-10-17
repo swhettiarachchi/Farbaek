@@ -18,6 +18,8 @@ import { WORKSPACE_LIMITS } from "@/config/workspace";
 import { createChangeProposer, createContractDrafter } from "@/server/ai/providers";
 import { MAX_CONTEXT_FILES, applyProposal, discardProposal, proposeChange, type ProposalDeps } from "@/server/workspace/proposals";
 import { recoverChange, type RecoveryDeps } from "@/server/workspace/recovery";
+import { acceptInvitation, createInvitation, revokeInvitation, type InvitationDeps } from "@/server/workspace/invitations";
+import { siteUrl } from "@/server/supabase/config";
 import { resolveAiProvider } from "@/server/ai/config";
 import { currentExecutionMode } from "@/server/execution/sandbox";
 
@@ -38,7 +40,7 @@ async function requireContext(): Promise<AppContext> {
 }
 
 /** Resolves write dependencies, or the honest reason writes are unavailable. */
-async function writeDeps(ctx: AppContext): Promise<{ deps: WriteDeps & AiCreditDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps; orgId: string } | { error: string }> {
+async function writeDeps(ctx: AppContext): Promise<{ deps: WriteDeps & AiCreditDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps; orgId: string } | { error: string }> {
   if (!ctx.writes.enabled) return { error: ctx.writes.reason };
   if (!ctx.current) return { error: "Create a workspace first." };
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
@@ -405,6 +407,45 @@ export async function renameWorkspaceAction(_previous: FormState, form: FormData
   if (error || !data?.length) return { status: "error", message: "The name couldn't be saved. Nothing was changed.", values };
   revalidatePath("/app", "layout");
   return { status: "done", message: "Workspace renamed." };
+}
+
+export type InviteState = { status: "idle" } | { status: "error"; message: string } | { status: "created"; link: string; email: string; role: string; expiresAt: string };
+
+/** Creates a one-time invitation link for an email address and role. The link is returned once and never stored. */
+export async function inviteMemberAction(_previous: InviteState, form: FormData): Promise<InviteState> {
+  const ctx = await requireContext();
+  const w = await writeDeps(ctx);
+  if ("error" in w) return { status: "error", message: w.error };
+  const r = await createInvitation(w.deps, { orgId: w.orgId, userId: ctx.user.id, email: form.get("email"), role: form.get("role") });
+  if (!r.ok) return { status: "error", message: r.message };
+  revalidatePath("/app/settings");
+  return { status: "created", link: `${siteUrl()}/invite/${r.value.token}`, email: r.value.email, role: r.value.role, expiresAt: r.value.expiresAt };
+}
+
+export async function revokeInvitationAction(form: FormData): Promise<void> {
+  const parsed = z.uuid().safeParse(form.get("invitationId"));
+  if (!parsed.success) return;
+  const ctx = await requireContext();
+  const w = await writeDeps(ctx);
+  if ("error" in w) return;
+  await revokeInvitation(w.deps, { orgId: w.orgId, userId: ctx.user.id, invitationId: parsed.data });
+  revalidatePath("/app/settings");
+}
+
+export type AcceptInviteState = { status: "idle" } | { status: "error"; message: string };
+
+/** Joins the workspace an invitation is for, as the signed-in person, then opens it. */
+export async function acceptInvitationAction(_previous: AcceptInviteState, form: FormData): Promise<AcceptInviteState> {
+  const token = String(form.get("token") ?? "");
+  const ctx = await loadAppContext();
+  if (!ctx) redirect(`/sign-in?next=${encodeURIComponent(`/invite/${token}`)}`);
+  const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
+  if (!user || !admin) return { status: "error", message: "The server isn't configured for this yet." };
+  const r = await acceptInvitation({ ...createSupabaseWriteDeps(user, admin, ctx.user.id), now: () => new Date() }, { userId: ctx.user.id, token });
+  if (!r.ok) return { status: "error", message: r.message };
+  (await cookies()).set(WORKSPACE_COOKIE, r.value.orgId, COOKIE_OPTIONS);
+  revalidatePath("/app", "layout");
+  redirect("/app");
 }
 
 export async function signOut() {

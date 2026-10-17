@@ -154,6 +154,20 @@ export interface RecoverySource {
   proofPackDigest: string | null;
 }
 
+/** An invitation as owners and admins see it. The token never leaves the database as anything but its hash. */
+export interface InvitationRecord {
+  id: string;
+  email: string;
+  role: "admin" | "member" | "viewer";
+  createdAt: string;
+  expiresAt: string;
+  acceptedAt: string | null;
+  acceptedBy: string | null;
+  revokedAt: string | null;
+  /** Not accepted, revoked or expired, as of when it was read. */
+  open: boolean;
+}
+
 /** One run of a task's contract checks in a sandbox, as its receipt. */
 export interface CheckReceiptRecord {
   digest: string;
@@ -237,4 +251,6 @@ export interface WorkspaceReader {
   getRecovery(orgId: string, digest: string): Promise<RecoveryRecord | null>;
   /** Sandbox check runs recorded for a task, newest first. */
   listCheckReceipts(orgId: string, taskId: string): Promise<CheckReceiptRecord[]>;
+  /** The workspace's invitations, newest first. Empty unless the reader is an owner or admin. */
+  listInvitations(orgId: string): Promise<InvitationRecord[]>;
 }

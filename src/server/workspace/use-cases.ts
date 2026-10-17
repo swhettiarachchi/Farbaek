@@ -48,6 +48,13 @@ export type WriteErrorCode =
   | "ALREADY_ARCHIVED"
   | "PROOFPACK_CHAIN"
   | "INVALID_PROOFPACK"
+  | "INVALID_EMAIL"
+  | "ALREADY_MEMBER"
+  | "ALREADY_INVITED"
+  | "SEAT_LIMIT"
+  | "INVITATION_CLOSED"
+  | "WRONG_ACCOUNT"
+  | "INVALID_INVITATION"
   | "NOT_RECOVERABLE"
   | "RECOVERY_CHANGED"
   | "INVALID_RECOVERY"
@@ -146,6 +153,13 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   ALREADY_ARCHIVED: "This project is already archived.",
   PROOFPACK_CHAIN: "Another change in this project was recorded at the same moment. Reload and approve again.",
   INVALID_PROOFPACK: "The evidence record for this change didn't match it, so nothing was applied.",
+  INVALID_EMAIL: "Enter a valid email address.",
+  ALREADY_MEMBER: "That person is already in this workspace.",
+  ALREADY_INVITED: "That person already has an open invitation. Revoke it to create a new link.",
+  SEAT_LIMIT: "Every seat on this plan is taken, counting open invitations. Revoke an invitation or free a seat first.",
+  INVITATION_CLOSED: "This invitation was already used, revoked or has expired. Ask for a new one.",
+  WRONG_ACCOUNT: "This invitation is for a different email address. Sign in with the address it was sent to.",
+  INVALID_INVITATION: "The invitation isn't valid. Try again.",
   NOT_RECOVERABLE: "This task can't be undone from its current state. Verified and finished tasks are closed records.",
   RECOVERY_CHANGED: "The files changed since you reviewed the undo. Reload and review it again. Nothing was changed.",
   INVALID_RECOVERY: "The undo didn't match the change it was for, so nothing was changed. Reload and review it again.",
@@ -184,6 +198,12 @@ export function codeFromDatabaseError(message: string): WriteErrorCode {
     "APPROVER_ROLE_REQUIRED",
     "PROOFPACK_CHAIN",
     "INVALID_PROOFPACK",
+    "ALREADY_MEMBER",
+    "ALREADY_INVITED",
+    "SEAT_LIMIT",
+    "INVITATION_CLOSED",
+    "WRONG_ACCOUNT",
+    "INVALID_INVITATION",
     "NOT_RECOVERABLE",
     "INVALID_RECOVERY",
     "POLICY_BLOCKED",

@@ -2,8 +2,12 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ExecutionModeBadge } from "@/components/app/execution";
 import { RenameWorkspaceForm } from "@/components/app/forms";
+import { InvitePeople } from "@/components/app/invite-people";
+import { revokeInvitationAction } from "@/app/app/actions";
+import { buttonClasses } from "@/components/ui/button";
+import { invitableRoles } from "@/core/workspace/invitations";
 import { currentExecutionMode } from "@/server/execution/sandbox";
-import { Card, Notice, PageHeader } from "@/components/app/primitives";
+import { Card, PageHeader } from "@/components/app/primitives";
 import { RelativeTime } from "@/components/ui/local-time";
 import { loadAppContext } from "@/server/workspace/context";
 import { MANAGER_ROLES } from "@/server/workspace/types";
@@ -16,8 +20,24 @@ export default async function SettingsPage() {
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
   const ws = ctx.current;
-  const members = await ctx.reader.listMembers(ws.id);
-  const canRename = ctx.mode === "live" && ctx.role !== null && MANAGER_ROLES.includes(ctx.role);
+  const canManage = ctx.role !== null && MANAGER_ROLES.includes(ctx.role);
+  const [members, invitations] = await Promise.all([ctx.reader.listMembers(ws.id), canManage ? ctx.reader.listInvitations(ws.id) : Promise.resolve([])]);
+  const canRename = ctx.mode === "live" && canManage;
+  // People who joined through an invitation are shown by the address they were invited at.
+  const emailOf = new Map(invitations.flatMap((i) => (i.acceptedBy ? [[i.acceptedBy, i.email] as const] : [])));
+  const open = invitations.filter((i) => i.open);
+  const seatLimit = ws.plan.limits.seats;
+  const inUse = members.length + open.length;
+  const seats = seatLimit === null ? `${inUse} seats in use.` : `${inUse} of ${seatLimit} seats in use, counting open invitations.`;
+  const inviteRoles = invitableRoles(ctx.role);
+  const inviteReason =
+    ctx.mode === "demo"
+      ? "The demo workspace is read-only."
+      : !ctx.writes.enabled
+        ? ctx.writes.reason
+        : seatLimit !== null && inUse >= seatLimit
+          ? "Every seat on this plan is taken, counting open invitations. Revoke one to invite someone else."
+          : null;
   const execution = currentExecutionMode();
   const renameReason = ctx.mode === "demo" ? "The demo workspace is read-only." : canRename ? null : "Only owners and admins can rename this workspace.";
 
@@ -43,7 +63,7 @@ export default async function SettingsPage() {
         )}
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] lg:items-start">
         <Card>
           <h2 className="text-lg font-medium">Workspace</h2>
           <div className="mt-5">
@@ -62,7 +82,7 @@ export default async function SettingsPage() {
                   {m.userId === ctx.user.id ? ctx.user.email.slice(0, 1).toUpperCase() : "·"}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[15px]">{m.userId === ctx.user.id ? `${ctx.user.email} (you)` : "Teammate"}</span>
+                  <span className="block truncate text-[15px]">{m.userId === ctx.user.id ? `${ctx.user.email} (you)` : (emailOf.get(m.userId) ?? "Teammate")}</span>
                   <span className="block text-xs text-ink-3">
                     Joined <RelativeTime iso={m.joinedAt} />
                   </span>
@@ -71,9 +91,41 @@ export default async function SettingsPage() {
               </li>
             ))}
           </ul>
-          <div className="mt-4">
-            <Notice>Inviting people arrives in a later stage. Teammates&apos; email addresses aren&apos;t shown until invitations exist.</Notice>
-          </div>
+          {inviteRoles.length ? (
+            <div className="mt-6 grid gap-6 border-t border-line pt-6">
+              <div>
+                <h3 className="text-base font-medium">Invite someone</h3>
+                <div className="mt-4">
+                  <InvitePeople roles={inviteRoles} seats={seats} disabledReason={inviteReason} />
+                </div>
+              </div>
+              {open.length ? (
+                <div>
+                  <h3 className="text-base font-medium">Open invitations</h3>
+                  <ul className="mt-3 divide-y divide-line">
+                    {open.map((i) => (
+                      <li key={i.id} className="flex flex-wrap items-center gap-3 py-3">
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[15px]">{i.email}</span>
+                          <span className="block text-xs text-ink-3">
+                            {ROLE_LABEL[i.role]}, expires <RelativeTime iso={i.expiresAt} />
+                          </span>
+                        </span>
+                        <form action={revokeInvitationAction}>
+                          <input type="hidden" name="invitationId" value={i.id} />
+                          <button type="submit" disabled={inviteReason === "The demo workspace is read-only."} className={buttonClasses("secondary", "sm")}>
+                            Revoke
+                          </button>
+                        </form>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-ink-3">Owners and admins invite people. {seats}</p>
+          )}
         </Card>
       </div>
     </div>

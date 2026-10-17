@@ -92,3 +92,29 @@ The owner's message asked to proceed without stopping at a plan, so this stage r
 ### Not verified
 
 - A task going through verification live: the hosted workspace has no task with an applied change yet (that needs a real AI proposal).
+
+## 2026-10-18: whole-platform audit and fixes
+
+### Live end to end (owner's workspace, Claude, Vercel Sandbox)
+
+- Task "Explain how to run the tests in the README": contract drafted by Claude (14 s), reviewed (required checks added by hand), approved; change proposed by Claude, reviewed and applied; checks run from a Vercel session opened by the task page's new link: both exit 0; task Verified with a sealed check run.
+- Task "Say which Node.js version the project needs in the README": hand-written contract, Claude proposal, applied, checks on Vercel: Verified, and a verified ProofPack (chained after the change's own) with the Seal. Mission Control's checklist reached 5 of 5.
+- Task "Link the stage notes from the README": applied, then undone from the Recovery card: Recovered, README back at revision 3, recovery record intact, downloads of both records return in-toto JSON.
+
+### Fixed from the audit
+
+- Verification loophole: files edited in the sandbox (or changed in the project since) could have verified a task. Now every file the applied change wrote is hashed in the sandbox before the checks; only a matching run moves the task.
+- ProofPacks never became verified (written once at apply time). A matching check run now appends a ProofPack with the real results (migration 12, applied live: hash `1bd0cd00…7cfe`).
+- Mission Control's last step claimed no sandbox was connected, and could never complete. It now links to the task waiting on checks.
+- Home "What works today" listed built parts as "Next" and said no account could be created.
+- Billing named only the contract-draft credit cost; the 404 page reused the home title; task pages loaded their data in sequence (now one parallel round).
+- Team invitations (ADR 0017, migration 13, applied live: hash `c54fbe6f…2aa2`): invite by email and role from Settings, a one-time link shown once, `/invite/<token>` page, seats counted with open invitations. Checked live: create, link page (wrong-account state), invalid link, revoke.
+
+### Verified
+
+- 497 unit tests and 130 database tests pass (database tests run one at a time on this PC), typecheck, lint and build pass.
+
+### Not verified
+
+- Accepting an invitation live (needs a second person's email).
+- 375px layouts of the signed-in pages.

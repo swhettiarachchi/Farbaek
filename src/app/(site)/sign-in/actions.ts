@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { siteUrl } from "@/server/supabase/config";
+import { safeNextPath, siteUrl } from "@/server/supabase/config";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 
 export type SignInState =
@@ -21,7 +21,7 @@ export async function requestSignInLink(_previous: SignInState, form: FormData):
 
   const { error } = await supabase.auth.signInWithOtp({
     email: parsed.data,
-    options: { emailRedirectTo: `${siteUrl()}/auth/callback?next=/app`, shouldCreateUser: true },
+    options: { emailRedirectTo: `${siteUrl()}/auth/callback?next=${encodeURIComponent(safeNextPath(String(form.get("next") ?? "")))}`, shouldCreateUser: true },
   });
 
   if (error) {

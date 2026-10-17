@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Container } from "@/components/ui/container";
+import { safeNextPath } from "@/server/supabase/config";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { SignInForm } from "./sign-in-form";
 
@@ -9,12 +10,14 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function SignInPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const { error } = await searchParams;
+export default async function SignInPage({ searchParams }: { searchParams: Promise<{ error?: string; next?: string }> }) {
+  const { error, next: rawNext } = await searchParams;
+  // Where to go after signing in, such as an invitation. Only paths on this site.
+  const next = safeNextPath(rawNext);
   const supabase = await createSupabaseServerClient();
   if (supabase) {
     const { data } = await supabase.auth.getClaims();
-    if (data?.claims) redirect("/app");
+    if (data?.claims) redirect(next);
   }
 
   return (
@@ -27,7 +30,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
         </p>
         <div className="mt-8">
           {supabase ? (
-            <SignInForm linkError={error === "link"} />
+            <SignInForm linkError={error === "link"} next={next} />
           ) : (
             <p className="rounded-md border border-dashed border-line-strong/60 p-5 text-sm text-ink-2">
               Sign-in isn&apos;t connected in this environment. Add the Supabase URL and publishable key to <code>.env.local</code>.

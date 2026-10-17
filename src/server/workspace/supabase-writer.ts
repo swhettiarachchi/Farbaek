@@ -9,6 +9,7 @@ import { IntentContractSchema } from "@/core/realityloop/contract";
 import type { FileDeps } from "./files";
 import type { ProposalDeps } from "./proposals";
 import type { RecoveryDeps } from "./recovery";
+import type { InvitationDeps } from "./invitations";
 import { createSupabaseReader } from "./supabase-reader";
 import { ProposalRowSchema, proposalFromRow } from "./types";
 import type { ProjectAdminDeps, RpcResult, WriteDeps } from "./use-cases";
@@ -17,7 +18,7 @@ import type { ProjectAdminDeps, RpcResult, WriteDeps } from "./use-cases";
  * WriteDeps backed by Supabase. Reads use the signed-in user's client (Row
  * Level Security applies); writes call the service-role-only app_* functions.
  */
-export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseClient, userId: string): WriteDeps & AiCreditDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps {
+export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseClient, userId: string): WriteDeps & AiCreditDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps {
   const reader = createSupabaseReader(user);
   async function rpc<T>(fn: string, args: Record<string, unknown>, schema: z.ZodType<T>): Promise<RpcResult<T>> {
     const { data, error } = await admin.rpc(fn, args);
@@ -326,6 +327,37 @@ export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseCli
         },
         z.object({ id: z.string(), restored: z.number().int(), status: z.enum(["recovered", "partially_recovered"]), digest: z.string(), replayed: z.boolean() }),
       ),
+
+    createInvitation: (i) =>
+      rpc(
+        "app_create_invitation",
+        { p_org: i.orgId, p_actor: i.actor, p_email: i.email, p_role: i.role, p_token_sha256: i.tokenSha256, p_expires_at: i.expiresAt, p_seat_limit: i.seatLimit },
+        z.string(),
+      ),
+
+    revokeInvitation: (i) => rpc("app_revoke_invitation", { p_invitation: i.invitationId, p_actor: i.actor }, z.null().or(z.literal("")).transform(() => null)),
+
+    async invitationPreview(tokenSha256) {
+      const { data, error } = await admin.rpc("app_invitation_preview", { p_token_sha256: tokenSha256 });
+      if (error) throw new Error(`Couldn't read the invitation: ${error.message}`);
+      const rows = z
+        .array(z.object({ org_id: z.string(), org_name: z.string(), role: z.enum(ORG_ROLES), email: z.string(), expires_at: z.string(), state: z.enum(["open", "accepted", "revoked", "expired"]) }))
+        .parse(data ?? []);
+      const r = rows[0];
+      return r ? { orgId: r.org_id, orgName: r.org_name, role: r.role, email: r.email, expiresAt: r.expires_at, state: r.state } : null;
+    },
+
+    async orgBillingAsSystem(orgId) {
+      const { data, error } = await admin.from("organizations").select(ORGANIZATION_SELECT).eq("id", orgId).maybeSingle();
+      if (error || !data) return null;
+      try {
+        return billingSnapshotFromRow(data);
+      } catch {
+        return null;
+      }
+    },
+
+    acceptInvitation: (i) => rpc("app_accept_invitation", { p_token_sha256: i.tokenSha256, p_actor: i.actor, p_seat_limit: i.seatLimit }, z.string()),
 
     archiveProject: (i) =>
       rpc("app_archive_project", { p_project: i.projectId, p_actor: i.actor }, z.null().or(z.literal("")).transform(() => null)),

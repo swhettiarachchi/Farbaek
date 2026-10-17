@@ -346,6 +346,31 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
       return z.array(RecoveryRow).parse(data).map(toRecovery);
     },
 
+    async listInvitations(orgId) {
+      const { data, error } = await client
+        .from("organization_invitations")
+        .select("id, email, role, created_at, expires_at, accepted_at, accepted_by, revoked_at")
+        .eq("org_id", orgId)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) fail("invitations", error);
+      return z
+        .array(
+          z.object({
+            id: z.string(),
+            email: z.string(),
+            role: z.enum(["admin", "member", "viewer"]),
+            created_at: z.string(),
+            expires_at: z.string(),
+            accepted_at: z.string().nullable(),
+            accepted_by: z.string().nullable(),
+            revoked_at: z.string().nullable(),
+          }),
+        )
+        .parse(data)
+        .map((r) => ({ id: r.id, email: r.email, role: r.role, createdAt: r.created_at, expiresAt: r.expires_at, acceptedAt: r.accepted_at, acceptedBy: r.accepted_by, revokedAt: r.revoked_at, open: !r.accepted_at && !r.revoked_at && Date.parse(r.expires_at) > Date.now() }));
+    },
+
     async listCheckReceipts(orgId, taskId) {
       if (!z.uuid().safeParse(taskId).success) return [];
       const { data, error } = await client

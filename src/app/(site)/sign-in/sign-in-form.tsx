@@ -5,7 +5,7 @@ import { useActionState, useId } from "react";
 import { buttonClasses } from "@/components/ui/button";
 import { requestSignInLink, type SignInState } from "./actions";
 
-export function SignInForm({ linkError }: { linkError: boolean }) {
+export function SignInForm({ linkError, next = "/app" }: { linkError: boolean; next?: string }) {
   const [state, action, pending] = useActionState<SignInState, FormData>(requestSignInLink, { status: "idle" });
   const emailId = useId();
   const errorId = useId();
@@ -27,6 +27,7 @@ export function SignInForm({ linkError }: { linkError: boolean }) {
 
   return (
     <form action={action} className="grid gap-5" noValidate>
+      <input type="hidden" name="next" value={next} />
       <div className="grid gap-2">
         <label htmlFor={emailId} className="text-sm font-medium">
           Email address

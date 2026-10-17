@@ -52,12 +52,13 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
   ]);
   const canPropose = task.state === "CONTRACT_APPROVED";
   const approvedContract = contract?.status === "approved" && contract.approvedAt ? contract : null;
-  const driftEvents = approvedContract && !TERMINAL_STATES.has(task.state) ? await ctx.reader.listFileChangesSince(orgId, task.projectId, approvedContract.approvedAt!) : null;
-  const drift = approvedContract && driftEvents ? scopeDrift(approvedContract.body, driftEvents) : [];
   const execution = currentExecutionMode();
   const showVerification = task.state === "VERIFYING" || (proposal?.status === "applied" && !TERMINAL_STATES.has(task.state) && !RECOVERABLE_STATES.has(task.state));
   const showProposal = proposal !== null && (proposal.status !== "discarded" || !canPropose);
-  const [proposeAi, projectFiles, bases] = await Promise.all([
+  const applied = proposal?.status === "applied" ? proposal : null;
+  // Everything below depends only on the reads above, so it loads in one round.
+  const [driftEvents, proposeAi, projectFiles, bases, intact, [recoverySource, recoveries]] = await Promise.all([
+    approvedContract && !TERMINAL_STATES.has(task.state) ? ctx.reader.listFileChangesSince(orgId, task.projectId, approvedContract.approvedAt!) : Promise.resolve(null),
     canPropose ? loadAiAvailability(ctx, ctx.current, "change_proposal") : Promise.resolve(null),
     canPropose ? ctx.reader.listFiles(orgId, task.projectId) : Promise.resolve([]),
     showProposal
@@ -67,23 +68,28 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
             .map(async (c) => [c.path, (await ctx.reader.getFileRevision(orgId, task.projectId, c.path, c.baseRevision)) ?? ""] as const),
         ).then((entries) => Object.fromEntries(entries))
       : Promise.resolve({} as Record<string, string>),
+    contract ? contractIntact(contract) : Promise.resolve(true),
+    // Recovery: undoing the applied change, while the task's state allows it.
+    applied ? Promise.all([ctx.reader.getRecoverySource(orgId, task.projectId, applied), ctx.reader.listRecoveries(orgId, task.id)]) : Promise.resolve([null, []] as const),
   ]);
-  const intact = contract ? await contractIntact(contract) : true;
+  const drift = approvedContract && driftEvents ? scopeDrift(approvedContract.body, driftEvents) : [];
   const writeReason = ctx.writes.enabled ? null : ctx.writes.reason;
 
-  // Recovery: undoing the applied change, while the task's state allows it.
-  const applied = proposal?.status === "applied" ? proposal : null;
-  const [recoverySource, recoveries] = applied
-    ? await Promise.all([ctx.reader.getRecoverySource(orgId, task.projectId, applied), ctx.reader.listRecoveries(orgId, task.id)])
-    : [null, []];
   const recovery = applied && recoverySource && RECOVERABLE_STATES.has(task.state) ? await previewRecovery({ taskId: task.id, proposalId: applied.id, source: recoverySource }) : null;
-  const previews: Record<string, { current: string; target: string }> = {};
-  for (const i of recovery?.items ?? []) {
-    if (i.status !== "ready") continue;
-    const current = (await ctx.reader.getFileRevision(orgId, task.projectId, i.path, i.fromRevision)) ?? "";
-    const target = i.action === "restore" ? ((await ctx.reader.getFileRevision(orgId, task.projectId, i.path, i.toRevision)) ?? "") : "";
-    previews[i.path] = { current, target };
-  }
+  const previews: Record<string, { current: string; target: string }> = Object.fromEntries(
+    await Promise.all(
+      (recovery?.items ?? []).flatMap((i) =>
+        i.status === "ready"
+          ? [
+              Promise.all([
+                ctx.reader.getFileRevision(orgId, task.projectId, i.path, i.fromRevision),
+                i.action === "restore" ? ctx.reader.getFileRevision(orgId, task.projectId, i.path, i.toRevision) : Promise.resolve(""),
+              ]).then(([current, target]) => [i.path, { current: current ?? "", target: target ?? "" }] as const),
+            ]
+          : [],
+      ),
+    ),
+  );
   const recoveryFeature = checkFeature(ctx.current.billingUnknown ? null : ctx.current.plan, "replay_and_recovery");
   const isManager = ctx.role !== null && MANAGER_ROLES.includes(ctx.role);
   const recoveryReason =

@@ -191,6 +191,10 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
       return [];
     },
 
+    async listInvitations() {
+      return [];
+    },
+
     async listRecentProofPacks() {
       return [];
     },
