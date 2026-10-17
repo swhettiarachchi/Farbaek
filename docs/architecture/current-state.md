@@ -56,8 +56,9 @@ ESLint forbids `src/core` from importing React, Next, Motion or UI code, so ever
 | Approval binding (RFC 8785 + SHA-256) | Implemented, unit-tested, used live in the demo | `canonical-json.test.ts`, `approval.test.ts` |
 | ProofPack Seal from digest | Implemented, unit-tested | `seal.test.ts` |
 | ProofPacks: in-toto statements per applied change, append-only, hash-chained, integrity re-checked on view | Implemented, tested, applied to the hosted project (migration 8, ADR 0012). Unverified until a sandbox runs checks. | `proofpack.test.ts`, `tests/db/change-proposals.test.ts` |
+| Recovery: undo an applied change file by file, never over newer changes, verified byte for byte, recorded as an in-toto receipt | Implemented, tested, applied to the hosted project (migration 11, ADR 0015). Not yet run on a live applied change. | `src/core/realityloop/recovery.test.ts`, `tests/db/recovery.test.ts` |
 | Marketing site and pricing page | Implemented, built, checked at 375px and 1440px, light and dark | Manual browser check, see `docs/stages/stage-0.md` |
-| Accounts, organizations, database | All eight migrations applied to the hosted project (core schema, projects and server-only writes, intent contracts, AI credit ledger, project files, change proposals, policy and metering, ProofPacks) | `tests/db/`, `docs/stages/` |
+| Accounts, organizations, database | All eleven migrations applied to the hosted project (core schema, projects and server-only writes, intent contracts, AI credit ledger, project files, change proposals, policy and metering, ProofPacks, archiving, sandboxes, recovery) | `tests/db/`, `docs/stages/` |
 | Signed-in app: Mission Control, projects, tasks, intent contracts, approvals, billing, settings | Built; verified in the demo workspace; live use needs `.env.local` (run `pnpm setup:env`) | `src/app/app/`, `src/server/workspace/` |
 | FARBAEK Sandbox: isolated sessions (E2B microVMs behind a Farbaek runtime interface), Guard rules, receipts, previews, v1 API and SDK, Studio UI (ADR 0013) | Built and tested; migration 10 applied to the hosted project. **Execution is off** until a runtime is connected and pnpm sandbox:smoke passes | docs/sandbox/, docs/stages/stage-4.md |
 | Agent, Mesh, LaunchOS, Mobile | **Not started** | Roadmap |
@@ -71,7 +72,7 @@ ESLint forbids `src/core` from importing React, Next, Motion or UI code, so ever
 
 ## 3. Data model and auth boundaries
 
-Postgres on Supabase with Row Level Security on every table. The browser can only read. Every write goes through a server action, then the TypeScript rules in `src/server/workspace/`, then a service-role-only `app_*` function that re-checks membership, limits and versions. Tables: organizations, members, trials, billing accounts, evaluation events, projects, project files and file revisions, change proposals, tasks, task transitions, intent contracts, AI credit ledger, audit events.
+Postgres on Supabase with Row Level Security on every table. The browser can only read. Every write goes through a server action, then the TypeScript rules in `src/server/workspace/`, then a service-role-only `app_*` function that re-checks membership, limits and versions. Tables: organizations, members, trials, billing accounts, evaluation events, projects, project files and file revisions, change proposals, ProofPacks, recovery operations, tasks, task transitions, intent contracts, AI credit ledger, sandbox sessions and their records, audit events.
 
 ## 4. Design system and logo
 

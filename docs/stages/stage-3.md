@@ -100,3 +100,29 @@ Not exercised live yet: saving an edited file, history and restore, and anything
 - Migration 9 on the hosted project: the SQL Editor contents matched the tested file (2,388 bytes, `sha256 9d5d8671…f082`). Result: success. Read-only check: `app_archive_project` is security definer and executable by `service_role` only (not anon, not authenticated); `private.lock_project` contains the PROJECT_ARCHIVED check.
 - All nine migrations are on the hosted project:
   `supabase migration repair --status applied 20261013120000 20261014090000 20261014120000 20261015090000 20261015120000 20261015150000 20261015180000 20261015210000 20261016090000`
+
+## 2026-10-17: recovery of applied changes
+
+### Done
+
+- Undo an applied change from the task page (ADR 0015). The Recovery card lists every file the change wrote: ready to undo, already back, or changed since (left alone, never overwritten). Each ready file has a preview of what the undo writes. One confirmation is bound to the plan's hash and the chosen files.
+- `src/core/realityloop/recovery.ts`: plan, plan and operation hashes, file choice, lifecycle steps. `src/core/proof/recovery-receipt.ts`: the in-toto recovery record and its limits.
+- `src/server/workspace/recovery.ts`: re-checks the proposal and task state, the plan's entitlement (Team and up, and the trial), the role, the policy on the undone files (escalation to an owner or admin), and that the plan hash still matches. A repeated confirmation returns the first result.
+- Migration `20261017120000_recovery.sql`: `recovery_operations` (append-only, members read, server writes) and `app_recover_change`. Under the project lock it re-checks each file, writes, verifies each restored file against the earlier revision byte for byte, works out completeness itself, then records the receipt and an audit event.
+- Task page: the Recovery card, recorded recoveries with an integrity check and download (`/app/recoveries/<digest>`), and copy for the INTERRUPTED, RECOVERY_PENDING and RECOVERED states. "Recovery" left the roadmap list.
+
+### Verified
+
+- 585 tests pass (13 smoke tests skipped by design), including 8 PGlite tests for migration 11: full undo, repeated request, refusal on a newer change, partial then finished recovery, mismatched records, unapplied proposals, escalation, immutability, access and cleanup with the task. Typecheck, lint and build pass.
+- Migration 11 on the hosted project: the SQL Editor contents matched the tested file (14,425 bytes, `sha256 04bb4893…db62`). Result: success. Read-only check: RLS on with one policy; `app_recover_change` is security definer and executable by `service_role` only; signed-in users can select but not insert; the no-update trigger is enabled; 0 rows.
+- The rebuilt app serves the task page with no server errors.
+
+### Not verified
+
+- An undo of a live applied change. The hosted workspace has no applied proposal yet; making one uses a real AI proposal (3 trial credits and a few cents on the owner's Claude key).
+- The Recovery card at 375px.
+
+### Next
+
+- Run one live proposal, apply it, and undo it.
+- `supabase migration repair --status applied 20261017090000 20261017120000` before the first `db push`.
