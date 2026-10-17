@@ -68,6 +68,7 @@ function memoizeReader(reader: WorkspaceReader): WorkspaceReader {
     getRecoverySource: reader.getRecoverySource,
     listRecoveries: wrap("recoveries", reader.listRecoveries),
     getRecovery: wrap("recovery", reader.getRecovery),
+    listCheckReceipts: wrap("checkReceipts", reader.listCheckReceipts),
   };
 }
 

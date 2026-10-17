@@ -1,4 +1,4 @@
-import { ArrowCounterClockwiseIcon, ArrowLeftIcon, ClockCounterClockwiseIcon, GitPullRequestIcon, InfoIcon } from "@phosphor-icons/react/ssr";
+import { ArrowCounterClockwiseIcon, ArrowLeftIcon, ClockCounterClockwiseIcon, GitPullRequestIcon, InfoIcon, PlayIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -8,6 +8,7 @@ import { CancelTaskControl } from "@/components/app/forms";
 import { ChecksList, ExecutionModeBadge } from "@/components/app/execution";
 import { ProposeChange } from "@/components/proposals/propose-change";
 import { ProofPackCard } from "@/components/proof/proofpack-card";
+import { CheckReceiptCard } from "@/components/proof/check-receipt-card";
 import { ScopeDriftCard } from "@/components/app/scope-drift-card";
 import { scopeDrift } from "@/core/realityloop/scope-drift";
 import { currentExecutionMode } from "@/server/execution/sandbox";
@@ -18,6 +19,7 @@ import { checkFeature } from "@/core/billing/entitlements";
 import { RECOVERABLE_STATES } from "@/core/realityloop/recovery";
 import { RECOVERY_NOT_IN_PLAN, previewRecovery } from "@/server/workspace/recovery";
 import { Card, TaskStateBadge } from "@/components/app/primitives";
+import { ButtonLink } from "@/components/ui/button";
 import { ProofThread } from "@/components/proof/proof-thread";
 import { LocalTime } from "@/components/ui/local-time";
 import { EMPTY_CONTRACT_FORM, formFromContract } from "@/core/realityloop/contract-form";
@@ -41,11 +43,12 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
   if (!found) notFound();
   const { task, history } = found;
   const orgId = ctx.current.id;
-  const [contract, ai, proposal, proofPacks] = await Promise.all([
+  const [contract, ai, proposal, proofPacks, checkRuns] = await Promise.all([
     ctx.reader.getContract(orgId, task.id),
     loadAiAvailability(ctx, ctx.current),
     ctx.reader.getLatestProposal(orgId, task.id),
     ctx.reader.listProofPacks(orgId, task.id),
+    ctx.reader.listCheckReceipts(orgId, task.id),
   ]);
   const canPropose = task.state === "CONTRACT_APPROVED";
   const approvedContract = contract?.status === "approved" && contract.approvedAt ? contract : null;
@@ -212,6 +215,23 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
           <div className="mt-4">
             <ChecksList checks={contract?.body.requiredChecks ?? []} mode={execution} />
           </div>
+          {execution.mode === "sandboxed" && task.state === "VERIFYING" && (contract?.body.requiredChecks.length ?? 0) > 0 ? (
+            <div className="mt-5 grid gap-3 border-t border-line pt-5">
+              <p className="max-w-[65ch] text-sm text-ink-2">
+                Start a session with this project&apos;s files, linked to this task. If the checks need dependencies, choose &quot;Package registries only&quot; and install them in the
+                console first. Then run the checks from the session&apos;s Checks tab. The task is marked verified only when every check passes, and each run leaves a receipt.
+              </p>
+              {writeReason ? (
+                <p className="text-sm text-ink-3">{writeReason}</p>
+              ) : (
+                <div>
+                  <ButtonLink href={`/app/sandbox/new?project=${task.projectId}&task=${task.id}`}>
+                    <PlayIcon size={18} aria-hidden /> Run the checks in a sandbox
+                  </ButtonLink>
+                </div>
+              )}
+            </div>
+          ) : null}
         </Card>
       ) : null}
 
@@ -251,19 +271,37 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
         </Card>
       ) : null}
 
-      {proofPacks.length ? (
+      {proofPacks.length || checkRuns.length ? (
         <Card>
           <h2 className="text-lg font-medium">Evidence</h2>
           <p className="mt-1 text-sm text-ink-2">
-            Each applied change is recorded as a ProofPack: an in-toto attestation of what was approved and applied, and what it does and doesn&apos;t prove.
+            Each applied change is recorded as a ProofPack: an in-toto attestation of what was approved and applied, and what it does and doesn&apos;t prove. Each run of
+            the contract&apos;s checks in a sandbox leaves a receipt with the real exit codes.
           </p>
-          <div className="mt-5 grid gap-6 divide-y divide-line">
-            {proofPacks.map((p) => (
-              <div key={p.digest} className="pt-6 first:pt-0">
-                <ProofPackCard pack={p} />
+          {checkRuns.length ? (
+            <div className="mt-5">
+              <h3 className="text-base font-medium">Check runs</h3>
+              <div className="mt-4 grid gap-6 divide-y divide-line">
+                {checkRuns.map((r) => (
+                  <div key={r.digest} className="pt-6 first:pt-0">
+                    <CheckReceiptCard receipt={r} />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          ) : null}
+          {proofPacks.length ? (
+            <div className={checkRuns.length ? "mt-8 border-t border-line pt-6" : "mt-5"}>
+              {checkRuns.length ? <h3 className="mb-4 text-base font-medium">ProofPacks</h3> : null}
+              <div className="grid gap-6 divide-y divide-line">
+                {proofPacks.map((p) => (
+                  <div key={p.digest} className="pt-6 first:pt-0">
+                    <ProofPackCard pack={p} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </Card>
       ) : null}
 
@@ -314,7 +352,9 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
                     ? "The last proposal broke the contract. Revise the contract, or discard the proposal and try again."
                     : "A check blocked this task's plan. Revise the contract to continue."
                   : task.state === "VERIFYING"
-                  ? "The change is applied. Verification needs an isolated runner to run the checks, and none is connected yet, so the task waits here. It is not marked verified. You can undo the change under Recovery."
+                  ? execution.mode === "sandboxed"
+                    ? "The change is applied. Run the contract's checks in a sandbox from the Verification card; the task is marked verified only when they pass. You can also undo the change under Recovery."
+                    : "The change is applied. Verification needs an isolated runner to run the checks, and none is connected yet, so the task waits here. It is not marked verified. You can undo the change under Recovery."
                   : task.state === "RECOVERY_PENDING"
                   ? "Part of the change is undone. Undo the rest under Recovery, or put the remaining files back yourself and then finish the recovery."
                   : task.state === "INTERRUPTED" || task.state === "FAILED"

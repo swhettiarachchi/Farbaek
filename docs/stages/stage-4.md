@@ -80,3 +80,15 @@ The owner's message asked to proceed without stopping at a plan, so this stage r
 - `pnpm check:env`: "Vercel Sandbox accepts the token".
 - `pnpm sandbox:smoke` against the real account: 8 of 8 passed (run twice). Sandbox `fb-d5tys2…`: 1 vCPU and 2048 MiB reported, guest kernel 6.18.49; real output and exit codes (7 reported as 7); a command killed at its 2-second timeout with no exit code; files written, read back and listed in `/home/user/project`; no Docker socket and none of the server's secret names inside; cloud metadata (169.254.169.254, metadata.google.internal) and the internet blocked; the sandbox deleted afterwards.
 - The API smoke test was skipped (it needs `FARBAEK_SMOKE_BASE_URL` and an access token).
+
+## 2026-10-18: live session on Vercel, task verification path
+
+- Sandbox page live: "Sandboxed · Vercel Sandbox", runtime answered in 585 ms, sessions capped at 45 minutes, previews, pause and metrics shown as off with the reasons.
+- A real session from the app (Node.js, small, no network, 15 minutes, the Farbaek project's 202 files copied in): `node --version && uname -r && ls src && wc -l package.json` printed v24.21.0, kernel 6.18.49, the `src` folders and `60 package.json`, `[exit 0, 2.3 s]`. Stopped from the app: Terminated, sandbox destroyed; the Vercel project lists no sandboxes afterwards.
+- Fixed: the session form claimed E2B's sizes (1 GiB). It now states what the connected runtime gives: on Vercel 1 vCPU with 2 GiB or 2 vCPU with 4 GiB, and a 64 GiB disk (`sizeOnRuntime`).
+- Task page: with a runtime connected, a task in verification gets "Run the checks in a sandbox", which opens the session form with the project and task chosen; the session's Checks tab runs the contract's checks and moves the task by the real exit codes. "What happens next" says so instead of "no runner is connected".
+- Task page Evidence now lists check runs (sandbox receipts for the task): result per check with its exit code, where it ran, an integrity re-check of the digest, a link to the session, and the Seal only for a run where every check passed.
+
+### Not verified
+
+- A task going through verification live: the hosted workspace has no task with an applied change yet (that needs a real AI proposal).

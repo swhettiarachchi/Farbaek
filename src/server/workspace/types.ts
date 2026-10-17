@@ -154,6 +154,15 @@ export interface RecoverySource {
   proofPackDigest: string | null;
 }
 
+/** One run of a task's contract checks in a sandbox, as its receipt. */
+export interface CheckReceiptRecord {
+  digest: string;
+  sessionId: string;
+  status: "verified" | "partially_verified" | "failed" | "unverified";
+  statement: unknown;
+  createdAt: string;
+}
+
 /** One recorded undo of an applied change. */
 export interface RecoveryRecord {
   id: string;
@@ -226,4 +235,6 @@ export interface WorkspaceReader {
   /** Recoveries recorded for a task, newest first. */
   listRecoveries(orgId: string, taskId: string): Promise<RecoveryRecord[]>;
   getRecovery(orgId: string, digest: string): Promise<RecoveryRecord | null>;
+  /** Sandbox check runs recorded for a task, newest first. */
+  listCheckReceipts(orgId: string, taskId: string): Promise<CheckReceiptRecord[]>;
 }

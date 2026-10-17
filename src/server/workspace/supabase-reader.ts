@@ -346,6 +346,22 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
       return z.array(RecoveryRow).parse(data).map(toRecovery);
     },
 
+    async listCheckReceipts(orgId, taskId) {
+      if (!z.uuid().safeParse(taskId).success) return [];
+      const { data, error } = await client
+        .from("sandbox_receipts")
+        .select("digest, session_id, status, statement, created_at")
+        .eq("org_id", orgId)
+        .eq("task_id", taskId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) fail("check runs", error);
+      return z
+        .array(z.object({ digest: z.string(), session_id: z.string(), status: z.enum(["verified", "partially_verified", "failed", "unverified"]), statement: z.unknown(), created_at: z.string() }))
+        .parse(data)
+        .map((r) => ({ digest: r.digest, sessionId: r.session_id, status: r.status, statement: r.statement, createdAt: r.created_at }));
+    },
+
     async getRecovery(orgId, digest) {
       if (!/^[0-9a-f]{64}$/.test(digest)) return null;
       const { data, error } = await client.from("recovery_operations").select(RECOVERY_SELECT).eq("org_id", orgId).eq("digest", digest).maybeSingle();

@@ -186,6 +186,11 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
       return null;
     },
 
+    async listCheckReceipts() {
+      // Nothing runs in the demo.
+      return [];
+    },
+
     async listRecentProofPacks() {
       return [];
     },
