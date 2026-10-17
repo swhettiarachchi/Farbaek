@@ -72,8 +72,27 @@ if (anthropic) {
     });
   }
 } else {
-  console.log("--    Anthropic key not set: AI drafting and proposals stay off (optional)");
+  console.log("--    Anthropic key not set (optional)");
 }
+
+const gemini = env("GEMINI_API_KEY");
+if (gemini) {
+  const geminiFormat = /^[A-Za-z0-9_.-]{30,200}$/.test(gemini);
+  line("Gemini key format", geminiFormat, geminiFormat ? "" : "doesn't look like a Gemini API key");
+  if (geminiFormat) {
+    // Listing one model is free and confirms the key works. The key goes in a header, never the URL.
+    await probe("Gemini accepts the key", async () => {
+      const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=1", { headers: { "x-goog-api-key": gemini } });
+      return { ok: res.ok, detail: res.ok ? "" : `HTTP ${res.status}` };
+    });
+  }
+} else {
+  console.log("--    Gemini key not set (optional)");
+}
+const aiProvider = env("AI_PROVIDER").toLowerCase();
+const activeAi = aiProvider === "anthropic" || aiProvider === "gemini" ? aiProvider : anthropic ? "anthropic" : gemini ? "gemini" : null;
+if (aiProvider && aiProvider !== "anthropic" && aiProvider !== "gemini") line("AI provider", false, 'AI_PROVIDER must be "anthropic" or "gemini"');
+console.log(activeAi ? `--    AI features use ${activeAi === "anthropic" ? "Claude" : "Gemini"}` : "--    No AI key set: AI drafting and proposals stay off (optional)");
 
 const provider = env("SANDBOX_PROVIDER");
 if (!provider) {

@@ -1,5 +1,5 @@
 import { usagePeriod, type BillingPeriod } from "@/core/billing/usage";
-import { hasAnthropicKey } from "@/server/ai/config";
+import { resolveAiProvider } from "@/server/ai/config";
 import type { CreditOperation } from "@/config/credits";
 import { aiAvailability, type AiAvailability } from "./ai-credits";
 import type { AppContext } from "./context";
@@ -37,10 +37,13 @@ const MANUAL: Record<CreditOperation, string> = {
 export async function loadAiAvailability(ctx: AppContext, ws: WorkspaceSummary, operation: CreditOperation = "contract_draft", now = new Date()): Promise<AiAvailability> {
   const period = workspacePeriod(ws, now);
   const used = await ctx.reader.countAiCredits(ws.id, period.start, period.end).catch(() => null);
+  const provider = resolveAiProvider();
   return aiAvailability({
     operation,
     writeReason: ctx.writes.enabled ? null : ctx.writes.reason,
-    keyPresent: hasAnthropicKey(),
+    keyPresent: provider.provider !== null,
+    provider: provider.provider ? provider.label : null,
+    notConnectedReason: provider.provider ? undefined : provider.reason,
     used,
     plan: ws.billingUnknown ? null : ws.plan,
     period: period.kind,

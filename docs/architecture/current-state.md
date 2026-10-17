@@ -66,7 +66,7 @@ ESLint forbids `src/core` from importing React, Next, Motion or UI code, so ever
 ### Integrations
 
 - **Supabase** (auth and database): connected to the hosted project. The app reads it once `.env.local` exists (`pnpm setup:env`).
-- **Anthropic** (contract drafting): code is in place; it runs only when the server has `ANTHROPIC_API_KEY`. Usage is billed to that key.
+- **AI providers** (contract drafting and change proposals): Claude (`ANTHROPIC_API_KEY`) and Gemini (`GEMINI_API_KEY`, ADR 0014). Code is in place for both; each runs only when its key is set on the server, and usage is billed to that key. Claude is used when both are set unless `AI_PROVIDER` says otherwise.
 - Not connected: sandbox runtime (code and setup are in place; see docs/sandbox/README.md), email, payments. `.env.example` lists every variable name and what reads it.
 
 ## 3. Data model and auth boundaries

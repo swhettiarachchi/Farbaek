@@ -3,7 +3,7 @@
 // It asks for the Supabase keys and, optionally, an Anthropic key for AI
 // drafting (secret keys are hidden as you type), checks their format and
 // writes .env.local with owner-only permissions. Nothing is printed, logged
-// or sent anywhere. Run it again and type "ai" to add only the Anthropic key,
+// or sent anywhere. Run it again and type "ai" to add the Claude (Anthropic) and Gemini keys,
 // "sandbox" to connect a sandbox runtime, or "verified" once
 // pnpm sandbox:smoke has passed on that runtime.
 import { randomBytes } from "node:crypto";
@@ -34,6 +34,16 @@ async function askUntil(question, valid, hint, options) {
     if (valid(answer)) return answer;
     console.log(`  ${hint}`);
   }
+}
+
+function askGemini() {
+  console.log("  Gemini note: on Google's free tier, prompts and responses may be used to improve Google's products; on the paid tier they aren't.");
+  return askUntil(
+    "Gemini API key from aistudio.google.com (hidden, Enter to skip): ",
+    (v) => v === "" || /^[A-Za-z0-9_.-]{30,200}$/.test(v),
+    "That doesn't look like a Gemini API key. Copy it from Google AI Studio > API Keys, or press Enter to skip.",
+    { hidden: true },
+  );
 }
 
 function askAnthropic() {
@@ -109,16 +119,16 @@ if (existsSync(FILE)) {
     process.exit(0);
   }
   if (answer === "ai") {
-    const key = await askAnthropic();
-    if (!key) {
+    const anthropicKey = await askAnthropic();
+    const geminiKey = await askGemini();
+    if (!anthropicKey && !geminiKey) {
       console.log("No key entered. Left the existing file unchanged.");
       process.exit(0);
     }
-    const line = `ANTHROPIC_API_KEY=${key}`;
-    const current = readFileSync(FILE, "utf8");
-    const next = /^ANTHROPIC_API_KEY=.*$/m.test(current) ? current.replace(/^ANTHROPIC_API_KEY=.*$/m, () => line) : `${current.replace(/\n?$/, "\n")}${line}\n`;
-    writeFileSync(FILE, next, { encoding: "utf8", mode: 0o600 });
-    console.log(`\nSaved the Anthropic key in ${FILE}. Rebuild or restart the server to turn on AI drafting.\n`);
+    upsert({ ...(anthropicKey ? { ANTHROPIC_API_KEY: anthropicKey } : {}), ...(geminiKey ? { GEMINI_API_KEY: geminiKey } : {}) });
+    const saved = [anthropicKey ? "Anthropic" : null, geminiKey ? "Gemini" : null].filter(Boolean).join(" and ");
+    console.log(`\nSaved the ${saved} key${anthropicKey && geminiKey ? "s" : ""} in ${FILE}. Claude is used when its key is set, otherwise Gemini (set AI_PROVIDER to choose).`);
+    console.log("Rebuild or restart the server, then check with: pnpm check:env\n");
     process.exit(0);
   }
   if (answer !== "replace" && answer !== "yes") {
@@ -147,12 +157,13 @@ const secret = await askUntil(
 );
 
 const anthropic = await askAnthropic();
+const gemini = await askGemini();
 
 const contents = `# Created by scripts/setup-env.mjs. Never commit this file.
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 NEXT_PUBLIC_SUPABASE_URL=${url}
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${publishable}
 SUPABASE_SECRET_KEY=${secret}
-${anthropic ? `ANTHROPIC_API_KEY=${anthropic}\n` : ""}`;
+${anthropic ? `ANTHROPIC_API_KEY=${anthropic}\n` : ""}${gemini ? `GEMINI_API_KEY=${gemini}\n` : ""}`;
 writeFileSync(FILE, contents, { encoding: "utf8", mode: 0o600 });
 console.log(`\nWrote ${FILE}. Start the app with: pnpm build, then pnpm start, and open http://localhost:3000/sign-in\n`);

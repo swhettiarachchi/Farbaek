@@ -165,7 +165,7 @@ function AiDraftPanel({
             <SparkleIcon size={16} weight="fill" className="text-accent" aria-hidden /> Draft with AI
           </p>
           <p className="mt-1 text-xs leading-relaxed text-ink-3">
-            Claude reads the task, the project and anything you&apos;ve typed below, then fills in the fields. Uses {ai.cost} AI credit
+            {ai.provider ?? "The AI"} reads the task, the project and anything you&apos;ve typed below, then fills in the fields. Uses {ai.cost} AI credit
             {left !== null && credits.limit !== null ? (
               <>
                 {" "}

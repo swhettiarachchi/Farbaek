@@ -15,9 +15,9 @@ import { approveContract, archiveProject, cancelTask, createProject, createTask,
 import { draftContractWithAi, type AiCreditDeps } from "@/server/workspace/ai-drafting";
 import { deleteProjectFile, importProjectFiles, saveProjectFile, type FileDeps, type ImportSummary } from "@/server/workspace/files";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
-import { createAnthropicChangeProposer, createAnthropicContractDrafter } from "@/server/ai/anthropic";
+import { createChangeProposer, createContractDrafter } from "@/server/ai/providers";
 import { MAX_CONTEXT_FILES, applyProposal, discardProposal, proposeChange, type ProposalDeps } from "@/server/workspace/proposals";
-import { hasAnthropicKey } from "@/server/ai/config";
+import { resolveAiProvider } from "@/server/ai/config";
 import { currentExecutionMode } from "@/server/execution/sandbox";
 
 export type FormState = { status: "idle" } | { status: "error"; message: string; values?: Record<string, string> } | { status: "done"; message: string };
@@ -171,14 +171,15 @@ export async function draftContractWithAiAction(form: FormData): Promise<AiDraft
   const ctx = await requireContext();
   const w = await writeDeps(ctx);
   if ("error" in w) return { status: "error", message: w.error };
-  if (!hasAnthropicKey()) return { status: "error", message: "AI drafting isn't connected on this server yet. You can still write the contract yourself." };
+  const ai = resolveAiProvider();
+  if (!ai.provider) return { status: "error", message: `${ai.reason} You can still write the contract yourself.` };
 
   // Read through Row Level Security: the task and project must be visible to this user.
   const found = await ctx.reader.getTask(w.orgId, taskId);
   if (!found) return { status: "error", message: "That task doesn't exist or isn't in this workspace." };
   const project = await ctx.reader.getProject(w.orgId, found.task.projectId);
 
-  const result = await draftContractWithAi(w.deps, createAnthropicContractDrafter(), {
+  const result = await draftContractWithAi(w.deps, createContractDrafter(ai.provider), {
     orgId: w.orgId,
     userId: ctx.user.id,
     taskId: found.task.id,
@@ -301,12 +302,13 @@ export async function proposeChangeAction(input: { taskId: string; contextPaths:
   const ctx = await requireContext();
   const w = await writeDeps(ctx);
   if ("error" in w) return { status: "error", message: w.error };
-  if (!hasAnthropicKey()) return { status: "error", message: "AI isn't connected on this server yet. You can still edit the files yourself." };
+  const ai = resolveAiProvider();
+  if (!ai.provider) return { status: "error", message: `${ai.reason} You can still edit the files yourself.` };
   const found = await ctx.reader.getTask(w.orgId, parsed.data.taskId);
   if (!found) return { status: "error", message: "That task doesn't exist or isn't in this workspace." };
   const project = await ctx.reader.getProject(w.orgId, found.task.projectId);
 
-  const result = await proposeChange(w.deps, createAnthropicChangeProposer(), {
+  const result = await proposeChange(w.deps, createChangeProposer(ai.provider), {
     orgId: w.orgId,
     userId: ctx.user.id,
     taskId: found.task.id,

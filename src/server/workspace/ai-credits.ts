@@ -34,6 +34,8 @@ export interface AiAvailability {
   period: "trial" | "month";
   /** Why the button is off, or null when it works. */
   disabledReason: string | null;
+  /** The model provider this server uses ("Claude", "Gemini"), or null when none is connected. */
+  provider: string | null;
 }
 
 export function outOfCredits(trial: boolean, limit: number | null, manual: string): string {
@@ -47,6 +49,10 @@ export function aiAvailability(input: {
   operation: CreditOperation;
   writeReason: string | null;
   keyPresent: boolean;
+  /** Provider label shown next to the action, when one is connected. */
+  provider?: string | null;
+  /** Why no provider is connected, when keyPresent is false. */
+  notConnectedReason?: string;
   used: number | null;
   /** Null when billing state is unknown: AI then fails closed. */
   plan: EffectivePlan | null;
@@ -56,9 +62,9 @@ export function aiAvailability(input: {
 }): AiAvailability {
   const cost = CREDIT_COSTS[input.operation];
   const limit = input.plan?.limits.aiCreditsPerMonth ?? null;
-  const base = { cost, used: input.used, limit, period: input.period };
+  const base = { cost, used: input.used, limit, period: input.period, provider: input.keyPresent ? (input.provider ?? null) : null };
   if (input.writeReason) return { ...base, disabledReason: input.writeReason };
-  if (!input.keyPresent) return { ...base, disabledReason: `AI isn't connected on this server yet. ${input.manual}` };
+  if (!input.keyPresent) return { ...base, disabledReason: `${input.notConnectedReason ?? "AI isn't connected on this server yet."} ${input.manual}` };
   if (input.used === null) return { ...base, disabledReason: "AI credit usage couldn't be read, so AI is paused." };
   const quota = checkQuota(input.plan, "ai_credits", { used: input.used, requested: cost });
   if (quota.allowed) return { ...base, disabledReason: null };

@@ -147,7 +147,7 @@ describe("aiDraftAvailability", () => {
   const base = { writeReason: null, keyPresent: true, used: 5, plan: free, period: "month" as const };
 
   it("is on with credits left, and reports the allowance", () => {
-    expect(aiDraftAvailability(base)).toEqual({ cost: 1, used: 5, limit: 20, period: "month", disabledReason: null });
+    expect(aiDraftAvailability(base)).toEqual({ cost: 1, used: 5, limit: 20, period: "month", disabledReason: null, provider: null });
   });
 
   it("gives an honest reason for each way it can be off", () => {
