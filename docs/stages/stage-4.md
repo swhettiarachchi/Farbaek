@@ -72,3 +72,11 @@ The owner's message asked to proceed without stopping at a plan, so this stage r
 
 1. Owner: a Vercel account kept only for sandboxes (Hobby is free and hard-capped), a project in it, and an access token with an expiry. Then `node scripts/setup-env.mjs sandbox` → `vercel`.
 2. Run `pnpm check:env` and `pnpm sandbox:smoke`; on a pass, `node scripts/setup-env.mjs verified` and restart.
+
+## 2026-10-18: Vercel Sandbox connected and verified live
+
+- Through the owner's signed-in Chrome, at their request: confirmed the account is on the free Hobby plan (nothing bought or upgraded), created an empty project `farbaek-sandbox` (`prj_nOEnEl11EzIxq3Fa4VB4zsT2qQGY`) in team `team_OShrLOPoOQrfxJXRZTEgoV3V`, so sandboxes stay apart from the owner's four live sites. The owner created the access token (90-day expiry) and pasted it into the hidden prompt; Claude never saw it.
+- `node scripts/setup-env.mjs sandbox` now takes `--team`, `--project` and `--plan`, since IDs aren't secrets, so only the token is typed.
+- `pnpm check:env`: "Vercel Sandbox accepts the token".
+- `pnpm sandbox:smoke` against the real account: 8 of 8 passed (run twice). Sandbox `fb-d5tys2…`: 1 vCPU and 2048 MiB reported, guest kernel 6.18.49; real output and exit codes (7 reported as 7); a command killed at its 2-second timeout with no exit code; files written, read back and listed in `/home/user/project`; no Docker socket and none of the server's secret names inside; cloud metadata (169.254.169.254, metadata.google.internal) and the internet blocked; the sandbox deleted afterwards.
+- The API smoke test was skipped (it needs `FARBAEK_SMOKE_BASE_URL` and an access token).

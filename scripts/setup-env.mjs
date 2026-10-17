@@ -66,6 +66,12 @@ function upsert(values) {
   writeFileSync(FILE, current, { encoding: "utf8", mode: 0o600 });
 }
 
+/** The value after --name on the command line, or "". */
+function flag(name) {
+  const i = process.argv.indexOf(`--${name}`);
+  return i > 1 ? (process.argv[i + 1] ?? "").trim() : "";
+}
+
 async function setupVercelSandbox() {
   console.log("\nVercel Sandbox (ADR 0016). You need a Vercel account (Hobby is free and hard-capped), a project, and an access token.");
   console.log("  Token: vercel.com/account/settings/tokens. Scope it to your team and give it an expiry.");
@@ -76,9 +82,13 @@ async function setupVercelSandbox() {
     "That doesn't look like a Vercel access token. Create one under Account Settings > Tokens.",
     { hidden: true },
   );
-  const teamId = await askUntil("Team ID (team_...): ", (v) => /^team_[A-Za-z0-9]{8,}$/.test(v), "It should start with team_.");
-  const projectId = await askUntil("Project ID (prj_...): ", (v) => /^prj_[A-Za-z0-9]{8,}$/.test(v), "It should start with prj_.");
-  const plan = (await ask("Vercel plan: hobby or pro [hobby]: ")).toLowerCase();
+  // IDs aren't secrets, so they can come on the command line: --team team_... --project prj_...
+  const validTeam = (v) => /^team_[A-Za-z0-9]{8,}$/.test(v);
+  const validProject = (v) => /^prj_[A-Za-z0-9]{8,}$/.test(v);
+  const teamId = validTeam(flag("team")) ? flag("team") : await askUntil("Team ID (team_...): ", validTeam, "It should start with team_.");
+  const projectId = validProject(flag("project")) ? flag("project") : await askUntil("Project ID (prj_...): ", validProject, "It should start with prj_.");
+  if (flag("team")) console.log(`  Team ID: ${teamId}. Project ID: ${projectId}.`);
+  const plan = (flag("plan") || (await ask("Vercel plan: hobby or pro [hobby]: "))).toLowerCase();
   upsert({
     SANDBOX_PROVIDER: "vercel",
     SANDBOX_VERCEL_TOKEN: token,
@@ -96,7 +106,7 @@ async function setupVercelSandbox() {
 
 async function setupSandbox() {
   console.log("\nSandbox runtime (docs/sandbox/README.md). Code runs on this runtime, never on this server.");
-  const which = (await ask("Runtime: vercel or e2b [vercel]: ")).toLowerCase();
+  const which = flag("team") ? "vercel" : (await ask("Runtime: vercel or e2b [vercel]: ")).toLowerCase();
   if (which !== "e2b") return setupVercelSandbox();
   const key = await askUntil(
     "E2B API key (e2b_..., hidden): ",
