@@ -32,15 +32,9 @@ export interface CommandResult {
   timedOut: boolean;
 }
 
-export interface SandboxSession {
-  writeFiles(files: { path: string; content: string }[]): Promise<void>;
-  run(command: string, options: { timeoutSeconds: number }): Promise<CommandResult>;
-  close(): Promise<void>;
-}
-
+/** Anything that can say what isolation it gives. The full runtime contract is SandboxRuntime in src/core/sandbox/runtime.ts. */
 export interface SandboxProvider {
   readonly capabilities: SandboxCapabilities;
-  open(input: { projectId: string }): Promise<SandboxSession>;
 }
 
 export type ExecutionMode = { mode: "sandboxed"; provider: string } | { mode: "review_only"; reason: string };

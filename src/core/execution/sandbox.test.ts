@@ -6,9 +6,6 @@ import { executionMode, toCheckResults, verificationEvent, type CommandResult, t
 function mockProvider(over: Partial<SandboxCapabilities> = {}): SandboxProvider {
   return {
     capabilities: { provider: "MockSandbox", isolation: "microvm", verified: true, networkEgress: "deny_all", maxDurationSeconds: 600, maxMemoryMb: 2048, ...over },
-    open: async () => {
-      throw new Error("MockSandbox doesn't run code");
-    },
   };
 }
 
