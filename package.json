@@ -19,8 +19,9 @@
     "setup:env": "node scripts/setup-env.mjs",
     "check:env": "node scripts/check-env.mjs",
     "sandbox:templates": "node --env-file-if-exists=.env.local scripts/sandbox-templates.mjs",
-    "sandbox:smoke": "node --env-file-if-exists=.env.local node_modules/vitest/vitest.mjs run tests/smoke --mode smoke",
-    "sandbox:sweep": "node --env-file-if-exists=.env.local scripts/sandbox-sweep.mjs"
+    "sandbox:smoke": "node --env-file-if-exists=.env.local node_modules/vitest/vitest.mjs run tests/smoke/runtime.smoke.test.ts tests/smoke/api.smoke.test.ts --mode smoke",
+    "sandbox:sweep": "node --env-file-if-exists=.env.local scripts/sandbox-sweep.mjs",
+    "ai:smoke": "node --env-file-if-exists=.env.local node_modules/vitest/vitest.mjs run tests/smoke/ai.smoke.test.ts --mode smoke"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.128.0",

@@ -101,9 +101,13 @@ console.log("\nFarbaek environment setup");
 console.log("Find the keys in Supabase: Project Settings > API Keys.\n");
 
 if (existsSync(FILE)) {
-  const answer = (
-    await ask(`${FILE} already exists. Type "ai" for the Anthropic key, "sandbox" to connect a sandbox runtime, "verified" after the smoke test passed, "replace" to start over, or press Enter to keep it: `)
-  ).toLowerCase();
+  // `node scripts/setup-env.mjs ai` (or sandbox, verified) goes straight to that step, with no menu to miss.
+  const direct = (process.argv[2] ?? "").toLowerCase();
+  const answer = ["ai", "sandbox", "verified"].includes(direct)
+    ? direct
+    : (
+        await ask(`${FILE} already exists. Type "ai" for the Claude and Gemini keys, "sandbox" to connect a sandbox runtime, "verified" after the smoke test passed, "replace" to start over, or press Enter to keep it: `)
+      ).toLowerCase();
   if (answer === "sandbox") {
     await setupSandbox();
     process.exit(0);
