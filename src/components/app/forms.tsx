@@ -10,6 +10,7 @@ import {
   type FormState,
 } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { STARTERS } from "@/content/starters";
 
 const IDLE: FormState = { status: "idle" };
 
@@ -89,6 +90,23 @@ export function CreateProjectForm({ disabledReason }: { disabledReason: string |
     <form action={action} className="grid gap-5">
       <Field label="Project name" name="name" maxLength={80} required error={error} defaultValue={values?.name} disabled={Boolean(disabledReason)} />
       <Field label="Description" name="description" maxLength={500} multiline defaultValue={values?.description} disabled={Boolean(disabledReason)} />
+      <fieldset className="grid gap-2" disabled={Boolean(disabledReason)}>
+        <legend className="mb-2 text-sm font-medium">Start from</legend>
+        <div className="grid gap-2">
+          {STARTERS.map((s) => (
+            <label
+              key={s.id}
+              className="flex cursor-pointer items-start gap-3 rounded-md border border-line bg-surface p-4 has-checked:border-accent has-checked:shadow-[0_0_0_1px_var(--color-accent)] has-focus-visible:outline-2 has-focus-visible:outline-accent"
+            >
+              <input type="radio" name="starter" value={s.id} defaultChecked={(values?.starter ?? "blank") === s.id} className="mt-1 size-4 accent-[var(--color-accent)]" />
+              <span className="grid gap-0.5">
+                <span className="text-[15px] font-medium">{s.name}</span>
+                <span className="text-sm text-ink-2">{s.summary}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending || Boolean(disabledReason)} className={buttonClasses("primary")}>
           {pending ? "Creating…" : "Create project"}

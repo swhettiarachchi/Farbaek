@@ -245,6 +245,8 @@ export interface WorkspaceReader {
   getFile(orgId: string, projectId: string, path: string): Promise<ProjectFileContent | null>;
   /** Every revision of one path, newest first (including deletions). */
   listFileRevisions(orgId: string, projectId: string, path: string): Promise<FileRevision[]>;
+  /** Every current file with its content, sorted by path: for downloads and previews. */
+  getProjectContents(orgId: string, projectId: string): Promise<{ path: string; content: string }[]>;
   /** One revision's content, or null when it doesn't exist or is a deletion. */
   getFileRevision(orgId: string, projectId: string, path: string, revision: number): Promise<string | null>;
   /** Case-insensitive plain-text search; at most 200 matching lines. */

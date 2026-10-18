@@ -55,7 +55,7 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
     throw new Error(`Couldn't load ${what}: ${error?.message ?? "unknown error"}`);
   }
 
-  return {
+  const self: WorkspaceReader = {
     mode: "live",
 
     async listWorkspaces() {
@@ -189,6 +189,32 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
         if (page.length < PAGE) break;
       }
       return rows.map((r) => ({ path: r.path, revision: r.revision, sizeBytes: r.size_bytes, sha256: r.sha256, updatedAt: r.updated_at }));
+    },
+
+    async getProjectContents(orgId, projectId) {
+      const files = await self.listFiles(orgId, projectId);
+      const out: { path: string; content: string }[] = [];
+      // Current revisions only, read in chunks so each request stays small.
+      for (let i = 0; i < files.length; i += 150) {
+        const chunk = files.slice(i, i + 150);
+        const { data, error } = await client
+          .from("project_file_revisions")
+          .select("path, revision, content")
+          .eq("org_id", orgId)
+          .eq("project_id", projectId)
+          .in(
+            "path",
+            chunk.map((f) => f.path),
+          )
+          .not("content", "is", null);
+        if (error) fail("file contents", error);
+        const byKey = new Map(z.array(z.object({ path: z.string(), revision: z.number().int(), content: z.string() })).parse(data ?? []).map((r) => [`${r.path}@${r.revision}`, r.content]));
+        for (const f of chunk) {
+          const content = byKey.get(`${f.path}@${f.revision}`);
+          if (content !== undefined) out.push({ path: f.path, content });
+        }
+      }
+      return out;
     },
 
     async getFile(orgId, projectId, path) {
@@ -450,4 +476,5 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
       return z.number().int().nonnegative().parse(data);
     },
   };
+  return self;
 }

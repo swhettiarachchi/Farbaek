@@ -21,6 +21,7 @@ import { recoverChange, type RecoveryDeps } from "@/server/workspace/recovery";
 import { acceptInvitation, createInvitation, revokeInvitation, type InvitationDeps } from "@/server/workspace/invitations";
 import { createAgentPairing, revokeAgent, type AgentAdminDeps } from "@/server/workspace/agents";
 import { loadUsageMeters } from "@/server/workspace/usage-summary";
+import { STARTERS, getStarter } from "@/content/starters";
 import type { UsageMeter } from "@/core/billing/usage-view";
 import { siteUrl } from "@/server/supabase/config";
 import { resolveAiProvider } from "@/server/ai/config";
@@ -81,7 +82,8 @@ export async function switchWorkspace(form: FormData) {
 }
 
 export async function createProjectAction(_previous: FormState, form: FormData): Promise<FormState> {
-  const values = { name: String(form.get("name") ?? ""), description: String(form.get("description") ?? "") };
+  const starter = getStarter(form.get("starter")) ?? STARTERS[0]!;
+  const values = { name: String(form.get("name") ?? ""), description: String(form.get("description") ?? ""), starter: starter.id };
   const ctx = await requireContext();
   const w = await writeDeps(ctx);
   if ("error" in w) return { status: "error", message: w.error, values };
@@ -89,6 +91,11 @@ export async function createProjectAction(_previous: FormState, form: FormData):
   const result = await createProject(w.deps, { orgId: w.orgId, userId: ctx.user.id, name: values.name, description: values.description });
   if (!result.ok) return { status: "error", message: result.message, values };
   revalidatePath("/app", "layout");
+  if (starter.files.length > 0) {
+    // The starter goes through the same screening and limits as any import. If it fails, the empty project stays and its page says so.
+    const imported = await importProjectFiles(w.deps, { orgId: w.orgId, userId: ctx.user.id, projectId: result.value, files: starter.files });
+    if (!imported.ok) redirect(`/app/projects/${result.value}?starter=failed`);
+  }
   redirect(`/app/projects/${result.value}`);
 }
 

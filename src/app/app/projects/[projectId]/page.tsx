@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, ArrowRightIcon, FolderOpenIcon, ListChecksIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, ArrowRightIcon, DownloadSimpleIcon, FolderOpenIcon, ListChecksIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -8,14 +8,15 @@ import { LocalTime } from "@/components/ui/local-time";
 import { MANAGER_ROLES } from "@/server/workspace/types";
 import { Card, EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { TaskList } from "@/components/app/task-list";
-import { ButtonLink } from "@/components/ui/button";
+import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { formatBytes } from "@/core/workspace/files";
 import { loadAppContext } from "@/server/workspace/context";
 
 export const metadata: Metadata = { title: "Project" };
 
-export default async function ProjectPage({ params }: { params: Promise<{ projectId: string }> }) {
+export default async function ProjectPage({ params, searchParams }: { params: Promise<{ projectId: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { projectId } = await params;
+  const starterFailed = (await searchParams).starter === "failed";
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
   const project = await ctx.reader.getProject(ctx.current.id, projectId);
@@ -33,6 +34,10 @@ export default async function ProjectPage({ params }: { params: Promise<{ projec
           <PageHeader title={project.name} description={project.description ?? undefined} />
         </div>
       </div>
+
+      {starterFailed ? (
+        <Notice tone="warning">The project was created, but the starter&apos;s files couldn&apos;t be added. Import files from the Files page, or create the project again.</Notice>
+      ) : null}
 
       {project.archivedAt ? (
         <Notice tone="warning">
@@ -68,9 +73,16 @@ export default async function ProjectPage({ params }: { params: Promise<{ projec
             ) : null}
           </div>
           {files.length > 0 ? (
-            <p className="mt-2 text-sm text-ink-2">
-              <span className="tabular">{files.length.toLocaleString("en-US")}</span> {files.length === 1 ? "file" : "files"} · <span className="tabular">{formatBytes(filesBytes)}</span>
-            </p>
+            <>
+              <p className="mt-2 text-sm text-ink-2">
+                <span className="tabular">{files.length.toLocaleString("en-US")}</span> {files.length === 1 ? "file" : "files"} · <span className="tabular">{formatBytes(filesBytes)}</span>
+              </p>
+              <div className="mt-4">
+                <a href={`/app/projects/${project.id}/download`} download className={buttonClasses("secondary", "sm")}>
+                  <DownloadSimpleIcon size={16} aria-hidden /> Download .zip
+                </a>
+              </div>
+            </>
           ) : (
             <>
               <p className="mt-2 text-sm text-ink-2">Import the project&apos;s source so tasks can work against real files.</p>

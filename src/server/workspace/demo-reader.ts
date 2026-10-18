@@ -160,6 +160,10 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
       return (await demoFiles(projectId)).map((f) => ({ path: f.path, revision: f.revision, sizeBytes: f.sizeBytes, sha256: f.sha256, updatedAt: f.updatedAt }));
     },
 
+    async getProjectContents(_orgId, projectId) {
+      return (await demoFiles(projectId)).map((f) => ({ path: f.path, content: f.content }));
+    },
+
     async getFile(_orgId, projectId, path) {
       return (await demoFiles(projectId)).find((f) => f.path === path) ?? null;
     },
