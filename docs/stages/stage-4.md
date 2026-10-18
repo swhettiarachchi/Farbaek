@@ -327,3 +327,44 @@ Decision: [ADR 0024](../adr/0024-security-checks.md).
 
 1. The 3D workspace and motion (Phase 5).
 2. Publishing (Stage 6, LaunchOS), then Mesh.
+
+## 2026-10-18: The live workspace (Phase 5)
+
+Decision: [ADR 0025](../adr/0025-live-workspace.md).
+
+### Done
+
+- **The Agent Core** on the Build page and each run page: a 3D glass orb whose motion follows the run's phase (getting ready, thinking, reading, writing, running a command, waiting for you, finished, stopped), from its status and latest recorded event only (`src/core/agent/run-phase.ts`).
+  - Each phase has its own label and icon, and its colour comes from the design tokens.
+  - The static core renders first. The 3D scene loads only on capable devices, never under reduced motion or Save-Data, drops back on a slow start, pauses off-screen, and stops drawing once a run settles.
+- **Phones:** the run page becomes Steps, Files and Run panes, switched with a segmented control or a swipe, and an approval rises as a sheet above the tab bar. Files lists what the run changed in its copy.
+- **Page transitions** (React `ViewTransition`) for sidebar and tab bar moves only. Off under reduced motion.
+- **Mission Control** shows the latest agent runs and the AI usage meter.
+- **Page loads** show a skeleton in the shape of a page.
+- The 3D capability check and frame governor are shared with the hero.
+
+### Verified
+
+- 6 new unit tests for run phases, the files a run changed and the workspace phase. 791 tests pass (14 skipped); typecheck, lint and the build pass.
+- On a temporary local page with sample data, removed before the commit:
+  - the 3D core rendered, and changed colour, icon and label for writing, running, waiting and finished;
+  - at 375px there was no sideways scroll and the pane controls were 44px tall;
+  - a swipe left and right switched panes, and a vertical drag didn't;
+  - the approval sheet left the last steps reachable by scrolling;
+  - at 1280px all three panes showed, with the approval inline.
+- On the owner's workspace (production build):
+  - Mission Control showed the real run and the AI usage meter;
+  - the sidebar link moved to Build with no console errors, and the core read "Ready for a task";
+  - the finished run's page read "Finished" and listed `index.html` as edited.
+
+### Not verified
+
+- The 3D core on the owner's workspace itself: the Chrome window used for signed-in checks was minimised, so it couldn't render or take screenshots there. The same component rendered on the sample page.
+- The page transition animation on screen, for the same reason. Its styles are in place, and the navigation works.
+- A real phone. The checks used 375px emulation.
+
+### Next
+
+1. Publishing (Stage 6, LaunchOS), then Mesh.
+2. Rebuild the desktop installer for the gateway.
+3. Owner items: hosting, Paddle, email, and the preview domain and secret.
