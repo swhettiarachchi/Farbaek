@@ -1,4 +1,4 @@
-import { SignOutIcon } from "@phosphor-icons/react/ssr";
+import { ShieldStarIcon, SignOutIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MobileTabBar, SidebarNav } from "@/components/app/app-nav";
@@ -8,6 +8,7 @@ import { CreateOrganizationForm } from "@/components/app/forms";
 import { WorkspaceSwitcher } from "@/components/app/workspace-switcher";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { TRIAL, getPlan } from "@/core/billing/catalog";
+import { isAdminEmail } from "@/server/admin/access";
 import { loadAppContext } from "@/server/workspace/context";
 import { signOut } from "./actions";
 
@@ -79,6 +80,12 @@ export default async function AppLayout({ children }: Readonly<{ children: React
         <WorkspaceSwitcher workspaces={ctx.workspaces} current={current} canCreate={ctx.mode === "live"} />
         <SidebarNav approvals={approvals} />
         <div className="mt-auto grid gap-3 border-t border-line pt-4">
+          {/* A shortcut only: /admin checks the person again on the server (ADR 0026). */}
+          {ctx.mode === "live" && isAdminEmail(ctx.user.email) ? (
+            <Link href="/admin" className="flex h-10 items-center gap-3 rounded-full px-3.5 text-[14.5px] text-ink-2 hover:bg-surface/70 hover:text-ink">
+              <ShieldStarIcon size={19} aria-hidden /> Admin console
+            </Link>
+          ) : null}
           <UsagePanel planLabel={`${getPlan(current.plan.planId).name}${current.plan.source === "trial" ? " trial" : " plan"}${trialDays !== null ? `, ${trialDays} ${trialDays === 1 ? "day" : "days"} left` : ""}`} />
           <div className="flex items-center gap-2 px-2">
             <span className="min-w-0 flex-1 truncate text-xs text-ink-3">{ctx.user.email}</span>

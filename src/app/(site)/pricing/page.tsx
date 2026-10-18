@@ -4,6 +4,7 @@ import { FaqList, type FaqItem } from "@/components/marketing/faq";
 import { ComparisonTable } from "@/components/pricing/comparison-table";
 import { PricingPlans, SessionsNote } from "@/components/pricing/pricing-plans";
 import { Container } from "@/components/ui/container";
+import { CONTACT } from "@/config/contact";
 import { BILLING_CURRENCY, TRIAL, getPlan } from "@/core/billing/catalog";
 
 export const metadata: Metadata = {
@@ -93,8 +94,11 @@ export default function PricingPage() {
           <div className="mt-8 grid gap-6 border-t border-line pt-6 md:grid-cols-[1.4fr_1fr]">
             <SessionsNote />
             <p className="text-sm text-ink-2 md:text-right">
-              <span className="font-medium text-ink">Enterprise:</span> committed usage at a custom rate, with governance and evidence exports. Prices in {BILLING_CURRENCY};
-              tax is added at checkout.
+              <span className="font-medium text-ink">Enterprise:</span> committed usage at a custom rate, with governance and evidence exports. Write to{" "}
+              <a href={`mailto:${CONTACT.hello}`} className="font-medium text-accent hover:underline">
+                {CONTACT.hello}
+              </a>
+              . Prices in {BILLING_CURRENCY}; tax is added at checkout.
             </p>
           </div>
         </Container>

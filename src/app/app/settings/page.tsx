@@ -5,6 +5,7 @@ import { RenameWorkspaceForm } from "@/components/app/forms";
 import { InvitePeople } from "@/components/app/invite-people";
 import { revokeInvitationAction } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { CONTACT } from "@/config/contact";
 import { invitableRoles } from "@/core/workspace/invitations";
 import { currentExecutionMode } from "@/server/execution/sandbox";
 import { Card, PageHeader } from "@/components/app/primitives";
@@ -64,12 +65,28 @@ export default async function SettingsPage() {
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] lg:items-start">
-        <Card>
-          <h2 className="text-lg font-medium">Workspace</h2>
-          <div className="mt-5">
-            <RenameWorkspaceForm name={ws.name} disabledReason={renameReason} />
-          </div>
-        </Card>
+        <div className="grid gap-6">
+          <Card>
+            <h2 className="text-lg font-medium">Workspace</h2>
+            <div className="mt-5">
+              <RenameWorkspaceForm name={ws.name} disabledReason={renameReason} />
+            </div>
+          </Card>
+          <Card>
+            <h2 className="text-lg font-medium">Help</h2>
+            <p className="mt-2 text-sm leading-relaxed text-ink-2">
+              Questions about your account, a workspace or sign-in: write to{" "}
+              <a href={`mailto:${CONTACT.support}`} className="font-medium text-accent hover:underline">
+                {CONTACT.support}
+              </a>
+              . Anything else, including Enterprise:{" "}
+              <a href={`mailto:${CONTACT.hello}`} className="font-medium text-accent hover:underline">
+                {CONTACT.hello}
+              </a>
+              .
+            </p>
+          </Card>
+        </div>
 
         <Card>
           <h2 className="text-lg font-medium">

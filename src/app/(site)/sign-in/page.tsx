@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Container } from "@/components/ui/container";
+import { CONTACT } from "@/config/contact";
 import { safeNextPath } from "@/server/supabase/config";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { SignInForm } from "./sign-in-form";
@@ -37,6 +38,13 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
             </p>
           )}
         </div>
+        <p className="mt-8 border-t border-line pt-5 text-sm text-ink-2">
+          Trouble signing in? Write to{" "}
+          <a href={`mailto:${CONTACT.support}`} className="font-medium text-accent hover:underline">
+            {CONTACT.support}
+          </a>
+          .
+        </p>
       </div>
     </Container>
   );

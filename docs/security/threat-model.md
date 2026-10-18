@@ -84,3 +84,13 @@ Known limits: Controlled Development runs commands with the person's own rights 
 | Project content to the model provider | Disclosure of project files to a third party | Sent only for the paired person's task, only to the provider this server uses, and said plainly on the Agents page; Farbaek doesn't store the conversation (the ledger keeps model and token counts) | Code review; Agents page copy |
 | The usage wallet | Overspending, races between parallel calls, refund abuse, forged grants | Reserve and settle only through service-role functions under the organization lock; grants issued by the server from the catalog (kind, 70-day cap, key prefix checked in SQL); soonest-expiry draw records exactly which grants it touched; free-retry refunds capped over 31 days in the database; browsers can read their own grants only | `tests/db/ai-credits.test.ts`, `wallet.test.ts`, `ai-usage.test.ts` |
 | Model choice from the browser | Effort or model values used to reach a stronger model | Effort parsed as an enum and routed on the server after the plan is resolved; unknown values fall back to Balanced | `ai-drafting.test.ts`, `routing.test.ts` |
+
+## Admin console (2026-10-18, ADR 0026)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| Who opens `/admin` | Anyone reaching cross-workspace data, guessing the URL, an email changed after listing, a stolen unconfirmed account | `requireAdmin` on every admin page: an `FARBAEK_ADMIN_EMAILS` allowlist (unset or empty: nobody), a valid session, the stored email still listed and confirmed (read with the server key), and the server key set; anyone else gets a 404 | `access.test.ts` (each refusal) |
+| The server key in the console | Cross-tenant reads leaking into workspace pages | The key's client is handed out only after the check, and every admin loader takes it as an argument; the loaders only read | Code review; `data.ts` has no writes |
+| What the console shows | Secret values on screen | Connections show variable names and on or off only; AI cost is computed from ledger units | Code review |
+
+Known limits: sign-in for the admin is an email link with no second factor yet; whoever controls the hello@farbaek.com mailbox controls the console.

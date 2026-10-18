@@ -1,4 +1,15 @@
-import { CaretRightIcon, ChartPieSliceIcon, DesktopIcon, GearSixIcon, ListChecksIcon, LockSimpleIcon, SignOutIcon, TerminalWindowIcon } from "@phosphor-icons/react/ssr";
+import {
+  CaretRightIcon,
+  ChartPieSliceIcon,
+  DesktopIcon,
+  GearSixIcon,
+  LifebuoyIcon,
+  ListChecksIcon,
+  LockSimpleIcon,
+  ShieldStarIcon,
+  SignOutIcon,
+  TerminalWindowIcon,
+} from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -6,6 +17,8 @@ import { ROADMAP } from "@/components/app/roadmap";
 import { PageHeader } from "@/components/app/primitives";
 import { WorkspaceSwitcher } from "@/components/app/workspace-switcher";
 import { UsageMeterList } from "@/components/app/usage-meters";
+import { CONTACT } from "@/config/contact";
+import { isAdminEmail } from "@/server/admin/access";
 import { loadAppContext } from "@/server/workspace/context";
 import { loadUsageMeters } from "@/server/workspace/usage-summary";
 import { signOut } from "../actions";
@@ -61,6 +74,21 @@ export default async function MorePage() {
             <CaretRightIcon size={16} className="ml-auto text-ink-3" aria-hidden />
           </Link>
         </li>
+        <li>
+          <a href={`mailto:${CONTACT.support}`} className={`${row} hover:bg-canvas-2`}>
+            <LifebuoyIcon size={20} className="text-ink-2" aria-hidden /> Help
+            <span className="ml-auto truncate text-sm text-ink-3">{CONTACT.support}</span>
+          </a>
+        </li>
+        {/* A shortcut only: /admin checks the person again on the server (ADR 0026). */}
+        {ctx.mode === "live" && isAdminEmail(ctx.user.email) ? (
+          <li>
+            <Link href="/admin" className={`${row} hover:bg-canvas-2`}>
+              <ShieldStarIcon size={20} className="text-ink-2" aria-hidden /> Admin console
+              <CaretRightIcon size={16} className="ml-auto text-ink-3" aria-hidden />
+            </Link>
+          </li>
+        ) : null}
       </ul>
 
       <section aria-labelledby="later-heading">

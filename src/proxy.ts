@@ -44,6 +44,7 @@ const PREVIEW_HOST = /^p-[a-z2-7]{26}\./i;
 export const config = {
   matcher: [
     "/app/:path*",
+    "/admin/:path*",
     "/auth/:path*",
     "/sign-in",
     // Every path on a preview host, including /_next/... of the app inside the sandbox.
