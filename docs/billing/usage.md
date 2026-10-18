@@ -1,0 +1,74 @@
+# AI usage and the usage wallet
+
+Internal reference (ADR 0020). People never see units: they see the share of this period's usage used, when it resets, what carried over and when it expires (ADR 0019). Prices and allowances come from `src/core/billing/catalog.ts`; this page and the code must agree.
+
+## The unit
+
+1 unit = $0.0001 of provider list cost. Every AI call is metered at its real token usage, priced by `src/core/billing/rate-card.ts`:
+
+| Model | Input | Output | Cache write | Cache read | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Claude Haiku 5.5 | $0.10 | $0.50 | $0.125 | $0.01 | 5x for any request whose prompt is over 100K tokens |
+| Claude Sonnet 5.5 | $2 | $10 | $2.50 | $0.10 | |
+| Claude Opus 5.5 | $4 | $20 | $5 | $0.20 | |
+| Claude Fable 5.1 | $10 | $50 | $12.50 | $0.25 | |
+| Gemini 3.5 Flash-Lite | $0.30 | $2.50 | | $0.03 | |
+| Gemini 3.8 Flash | $1.50 | $7.50 | | $0.15 | 2027 price (doubles 2027-01-01) |
+| Gemini 4 Argon | $4 | $20 | | $0.20 | December price (doubles 2026-12-01) |
+
+USD per million tokens, list prices retrieved 2026-10-18 (sources in `reports/AI coding platform costs and pricing.md`). A model id the rate card doesn't know is priced as Fable, so nothing is under-metered. Gemini is listed at its announced higher prices so allowances stay profitable when they land.
+
+## Allowances
+
+`src/core/billing/allowance.ts` turns a price into an allowance, so plans can't drift from the research:
+
+- Cost budget = 0.55 × price − $0.50. That keeps a 40% margin after Paddle's 5% + $0.50.
+- Minus the fixed share ($0.40 a month: about $80 of hosting, database, email and payout costs over an assumed 200 subscribers), snapshot storage ($0.16 for 2 GB) and sandbox time ($0.149 an hour × the plan's hours).
+- 5% of what's left is held back for free retries. The rest is the AI allowance.
+
+| Plan | Price | AI units a month | Retry reserve | Sandbox hours | About this many Sonnet sessions |
+| --- | --- | --- | --- | --- | --- |
+| Free | $0 | 5,000 (about $0.50) | none | 1 | 1 |
+| Starter | $9.99 | 35,050 | 1,844 | 5 | 9 |
+| Plus | $19.99 | 80,222 | 4,222 | 10 | 22 |
+| Pro | $50 | 215,792 | 11,357 | 25 | 60 |
+| Studio | $79.99 | 351,257 | 18,487 | 40 | 98 |
+| Max | $100 | 441,654 | 23,245 | 50 | 123 |
+| Max 2x | $200 | 893,379 | 47,020 | 100 | 250 |
+| Max 3x | $300 | 1,345,104 | 70,794 | 150 | 376 |
+| Enterprise | Custom | by contract | by contract | by contract | |
+
+The trial gets Pro's features with Starter's AI usage (35,050 units across the 14 days) and 5 sandbox hours. A "session" is Anthropic's published sample Claude Code session with a 30% tokenizer uplift: 3,568 units on Sonnet, 240 on Haiku, 7,135 on Opus. It's guidance on the pricing cards, never a promise.
+
+## The wallet
+
+- **Grants.** Usage lives in `usage_grants`. Each period issues one grant, on its first use (`src/core/billing/wallet.ts`, `currentGrant`):
+  - Paid plans: the calendar month (until payments set a subscription anchor), lasting one more month as rollover. Source key `plan:<plan>:<YYYY-MM>`.
+  - Free: the calendar month, no rollover. Key `free:<YYYY-MM>`.
+  - Trial: the whole trial. Key `trial:<start>`.
+  - Top-ups (later, with payments) and adjustments are inserted by Farbaek only.
+  The database refuses a grant longer than 70 days or with a key that doesn't match its kind.
+- **Spending order.** Soonest expiry first, so carried-over usage goes before this month's. Each ledger entry records which grants it drew from.
+- **Reserve, then settle.** Before a call, `app_reserve_usage` reserves its whole prompt plus the most it can write (`reserveUnits`), under the organization lock, and refuses with `QUOTA_EXCEEDED` if the grants don't hold that much. After the call, `app_settle_usage` settles to the real cost and gives the rest back to the same grants. A call that cost more than reserved draws the difference if there's room; anything beyond is absorbed by Farbaek.
+- **Refunds.** A call that returns nothing usable is refunded in full (`failed`): the provider was busy or failed, the output was cut off or didn't match the schema, or the model and its fallback declined. A proposal is also refunded when none of its changes can be applied, or when a file changed while it was being made. `stopped` is for runs Farbaek stops on its own side. The real cost is still recorded on the entry for Farbaek's own accounts.
+- **Free retries.** `free_retry` refunds come from the plan's retry reserve: the database sums them over the last 31 days under the lock and refuses with `RETRY_CAP` past the reserve, and the server then settles normally (`settleAsFreeRetry`). Nothing uses free retries yet; the cloud agent's "Fix it" will.
+- **Spend cap.** Shown on Billing as unavailable until payments are connected. Until then nothing can be billed.
+- **Fail closed.** If billing state or the wallet can't be read, AI is off. If settling fails after a success, the reservation keeps counting.
+
+## Operations
+
+`src/config/usage.ts` lists them; the ledger accepts only these:
+
+| Operation | Key | What it does |
+| --- | --- | --- |
+| Draft an intent contract | `contract_draft` | One model call that fills the contract editor from the task. Nothing is saved until a person saves it. |
+| Propose a change | `change_proposal` | One model call that plans targeted edits to the files a person chose. Nothing is applied until a person approves it. |
+| Agent step | `agent_step` | Reserved for cloud agent runs (Phase 2). |
+| Security review | `security_review` | Reserved for security checks (Phase 4). |
+| Model call from an agent | `model_gateway` | Reserved for the model gateway the desktop agent will use (Phase 2). |
+
+## Where it's enforced
+
+- TypeScript: `reserveUsage`, `settleUsage`, `refundAndFail`, `settleAsFreeRetry` and `aiAvailability` in `src/server/workspace/ai-usage.ts`, used by `ai-drafting.ts` and `proposals.ts`. The wallet view is `walletView` in `src/core/billing/wallet.ts`.
+- Database: `supabase/migrations/20261018180000_plans_and_wallet.sql` (tests in `tests/db/ai-credits.test.ts`). The ledger table is still named `ai_credit_ledger`; its `credits` column now holds units.
+- Usage records keep the model that answered and the provider-reported input, output and cache tokens, and no prompts or outputs.

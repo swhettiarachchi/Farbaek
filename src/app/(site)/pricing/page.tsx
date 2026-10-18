@@ -1,0 +1,128 @@
+import { ArrowsClockwiseIcon, InfoIcon, ShieldCheckIcon, SparkleIcon, WalletIcon } from "@phosphor-icons/react/ssr";
+import type { Metadata } from "next";
+import { FaqList, type FaqItem } from "@/components/marketing/faq";
+import { ComparisonTable } from "@/components/pricing/comparison-table";
+import { PricingPlans, SessionsNote } from "@/components/pricing/pricing-plans";
+import { Container } from "@/components/ui/container";
+import { CONTACT } from "@/config/contact";
+import { BILLING_CURRENCY, TRIAL, getPlan } from "@/core/billing/catalog";
+
+export const metadata: Metadata = {
+  title: "Pricing",
+  description: "Farbaek plans from $9.99 to $300 a month, with AI, sandboxes and previews included, usage that rolls over, and a 14-day Pro trial with no card.",
+};
+
+const trialBase = getPlan(TRIAL.basePlan).name;
+
+/** What makes a Farbaek plan worth more than its price elsewhere. Each line is a rule the platform enforces. */
+const PROMISES = [
+  { icon: ArrowsClockwiseIcon, title: "Nothing expires at the end of the month", body: "Unused AI usage rolls over for two months, oldest first." },
+  { icon: SparkleIcon, title: "Failed attempts are given back", body: "When the AI fails or a fix doesn't work, that usage returns to you, up to a monthly cap." },
+  { icon: WalletIcon, title: "No surprise bills", body: "Plans never run into overage. You see the share used and when it resets." },
+  { icon: ShieldCheckIcon, title: "Security checks from Plus", body: "Others keep them for business plans. Farbaek includes them at $19.99." },
+] as const;
+
+const PRICING_FAQ: FaqItem[] = [
+  {
+    q: "Do I need my own AI or API key?",
+    a: "No. Farbaek runs the models for you, and everything is included in your plan: the AI, the sandboxes your code runs in, and previews.",
+  },
+  {
+    q: "What's an agent session?",
+    a: "A typical stretch of agent work on Claude Sonnet: reading your project, writing code and checking it. Plans show about how many fit in a month. Real sessions vary with the task; fast models stretch your usage further and stronger models use it faster.",
+  },
+  {
+    q: "What happens to usage I don't use?",
+    a: "It rolls over. Each month's AI usage lasts two months, and Farbaek always spends the oldest first, so nothing you paid for disappears at the end of a month.",
+  },
+  {
+    q: "What if the AI gets it wrong?",
+    a: "When a call fails or returns nothing usable, or a fix after failed checks doesn't work, that usage is given back automatically, up to 5% of your monthly AI usage.",
+  },
+  {
+    q: "What happens when I reach a limit?",
+    a: "AI work pauses until your usage resets or rolls over; nothing is charged beyond your plan. Editing, previews of static sites, downloads, audit history and billing keep working.",
+  },
+  {
+    q: "How does the trial work?",
+    a: `Every eligible new workspace gets ${TRIAL.lengthDays} days of ${trialBase} features, with ${TRIAL.limits.sandboxHours} sandbox hours and AI usage equal to a month of Starter. No card is needed. At the end you move to Free automatically, and nothing is charged.`,
+  },
+  {
+    q: "Is there an annual price?",
+    a: "Not yet. Plans are monthly while payments are prepared. Annual billing will be offered once checkout is live.",
+  },
+  {
+    q: "What about refunds?",
+    a: "Refund terms will be published before payments open.",
+  },
+];
+
+export default function PricingPage() {
+  return (
+    <>
+      <section aria-labelledby="pricing-title" className="pb-16 pt-14 lg:pb-24 lg:pt-20">
+        <Container>
+          <div className="max-w-[46rem]">
+            <h1 id="pricing-title" className="text-4xl font-medium leading-[1.08] tracking-[-0.03em] sm:text-5xl">
+              Build, preview and ship. One subscription.
+            </h1>
+            <p className="mt-5 max-w-[58ch] text-lg leading-relaxed text-ink-2">
+              Every plan includes Farbaek&apos;s AI, sandboxes and previews. No API keys to bring. Start with a {TRIAL.lengthDays}-day {trialBase} trial, no card
+              required.
+            </p>
+          </div>
+
+          <ul aria-label="What every plan promises" className="mt-10 grid gap-x-8 gap-y-6 rounded-md border border-line bg-surface p-6 shadow-e1 sm:grid-cols-2 lg:grid-cols-4">
+            {PROMISES.map(({ icon: Icon, title, body }) => (
+              <li key={title} className="grid content-start gap-2">
+                <Icon size={22} className="text-accent" aria-hidden />
+                <p className="font-medium leading-snug">{title}</p>
+                <p className="text-sm leading-relaxed text-ink-2">{body}</p>
+              </li>
+            ))}
+          </ul>
+
+          <p className="mt-6 flex items-start gap-2.5 rounded-sm border border-info/30 bg-info/[0.06] px-4 py-3 text-sm text-ink">
+            <InfoIcon size={18} weight="bold" className="mt-px shrink-0 text-info" aria-hidden />
+            Payments aren&apos;t open yet. These are the launch plans, and nothing can be bought today.
+          </p>
+
+          <div className="mt-10">
+            <PricingPlans />
+          </div>
+
+          <div className="mt-8 grid gap-6 border-t border-line pt-6 md:grid-cols-[1.4fr_1fr]">
+            <SessionsNote />
+            <p className="text-sm text-ink-2 md:text-right">
+              <span className="font-medium text-ink">Enterprise:</span> committed usage at a custom rate, with governance and evidence exports. Write to{" "}
+              <a href={`mailto:${CONTACT.hello}`} className="font-medium text-accent hover:underline">
+                {CONTACT.hello}
+              </a>
+              . Prices in {BILLING_CURRENCY}; tax is added at checkout.
+            </p>
+          </div>
+        </Container>
+      </section>
+
+      <section aria-labelledby="compare-title" className="border-t border-line py-16 lg:py-24">
+        <Container>
+          <h2 id="compare-title" className="text-3xl font-medium tracking-[-0.02em]">
+            Compare every plan
+          </h2>
+          <div className="mt-8">
+            <ComparisonTable />
+          </div>
+        </Container>
+      </section>
+
+      <section aria-labelledby="pricing-faq-title" className="border-t border-line py-16 lg:py-24">
+        <Container className="grid gap-10 lg:grid-cols-[1fr_1.6fr] lg:gap-16">
+          <h2 id="pricing-faq-title" className="text-3xl font-medium tracking-[-0.02em]">
+            Questions about plans
+          </h2>
+          <FaqList items={PRICING_FAQ} />
+        </Container>
+      </section>
+    </>
+  );
+}

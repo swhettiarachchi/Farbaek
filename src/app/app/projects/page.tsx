@@ -1,0 +1,77 @@
+import { FolderSimpleIcon } from "@phosphor-icons/react/ssr";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { CreateProjectForm } from "@/components/app/forms";
+import { Card, EmptyState, PageHeader } from "@/components/app/primitives";
+import { RelativeTime } from "@/components/ui/local-time";
+import { checkQuota } from "@/core/billing/entitlements";
+import { TERMINAL_STATES } from "@/core/realityloop/task-machine";
+import { loadAppContext } from "@/server/workspace/context";
+
+export const metadata: Metadata = { title: "Projects" };
+
+export default async function ProjectsPage() {
+  const ctx = await loadAppContext();
+  if (!ctx?.current) notFound();
+  const ws = ctx.current;
+  const [projects, tasks] = await Promise.all([ctx.reader.listProjects(ws.id), ctx.reader.listTasks(ws.id)]);
+
+  const quota = checkQuota(ws.plan, "workspaces", { used: projects.length });
+  const disabledReason = !ctx.writes.enabled ? ctx.writes.reason : !quota.allowed ? quota.message : null;
+  const counts = new Map<string, { open: number; total: number }>();
+  for (const t of tasks) {
+    const c = counts.get(t.projectId) ?? { open: 0, total: 0 };
+    c.total += 1;
+    if (!TERMINAL_STATES.has(t.state)) c.open += 1;
+    counts.set(t.projectId, c);
+  }
+
+  return (
+    <div className="grid gap-8">
+      <PageHeader
+        title="Projects"
+        description={`A project is one codebase or product. ${projects.length} of ${ws.plan.limits.workspaces ?? "contract"} allowed on your plan.`}
+      />
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">
+        {projects.length === 0 ? (
+          <EmptyState icon={FolderSimpleIcon} title="No projects yet">
+            Create a project for the codebase or product you want Farbaek to work on, then import its files from a folder on your computer. GitHub import isn&apos;t built yet.
+          </EmptyState>
+        ) : (
+          <ul className="grid gap-4 sm:grid-cols-2">
+            {projects.map((p) => {
+              const c = counts.get(p.id) ?? { open: 0, total: 0 };
+              return (
+                <li key={p.id}>
+                  <Link
+                    href={`/app/projects/${p.id}`}
+                    className="group flex h-full flex-col rounded-md border border-line bg-surface p-5 shadow-e1 transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-e2"
+                  >
+                    <span className="flex size-10 items-center justify-center rounded-[12px] bg-accent/[0.08] text-accent">
+                      <FolderSimpleIcon size={20} aria-hidden />
+                    </span>
+                    <span className="mt-4 text-[16px] font-medium group-hover:text-accent">{p.name}</span>
+                    <span className="mt-1 line-clamp-2 text-sm text-ink-2">{p.description ?? "No description."}</span>
+                    <span className="mt-auto pt-5 text-xs text-ink-3 tabular">
+                      {c.open} open of {c.total} {c.total === 1 ? "task" : "tasks"} · created <RelativeTime iso={p.createdAt} />
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        <Card>
+          <h2 className="text-lg font-medium">New project</h2>
+          <p className="mt-1 text-sm text-ink-2">Name it after the product or repository.</p>
+          <div className="mt-5">
+            <CreateProjectForm disabledReason={disabledReason} />
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,56 @@
+/*
+ * Farbaek "White Signal" design tokens (ADR 0008). Source of truth for colour.
+ * A single light theme by brand decision: white tech, developer-first.
+ * tests/design/contrast.test.ts parses this file and enforces WCAG 2.2 AA
+ * for every text and UI pair, including the dark media panels.
+ *
+ * One accent family: signal blue, with signal cyan only inside the aurora and
+ * the Proof Thread gradient. No gold in the UI (the logo keeps its own colours).
+ */
+
+:root {
+  color-scheme: light;
+
+  --canvas: #fbfbfc;
+  --canvas-2: #f5f6f8;
+  --surface: #ffffff;
+  --surface-raised: #f2f4f7;
+  --surface-sunken: #eceff3;
+  --line: #e4e7ec;
+  --line-strong: #7d828c;
+
+  --ink: #121317;
+  --ink-2: #474c56;
+  --ink-3: #636975;
+
+  --accent: #2450f0;
+  --accent-2: #0a6e85;
+  --on-accent: #ffffff;
+  --seal: #5a616e;
+
+  --primary: #121317;
+  --on-primary: #fbfbfc;
+
+  --verified: #137347;
+  --approval: #9a4d00;
+  --failed: #b42318;
+  --info: #1f4fd6;
+  --unverified: #5f636b;
+  --simulated: #6941c6;
+
+  /* Media panels (concept film, terminal): dark frames inside the white page,
+     the way a video player is. Not a second theme. */
+  --media: #0b0c10;
+  --media-ink: #f2f3f5;
+  --media-ink-2: #a3a9b4;
+  --media-ink-3: #7f8590;
+  --media-accent: #7f9cff;
+  --media-cyan: #5fd3e8;
+  --media-green: #4ade80;
+  --media-amber: #fbbf24;
+  --media-red: #f97066;
+
+  --elev-1: 0 1px 2px rgb(18 19 23 / 0.04), 0 0 0 1px rgb(18 19 23 / 0.04);
+  --elev-2: 0 1px 2px rgb(18 19 23 / 0.04), 0 12px 32px -12px rgb(36 80 240 / 0.12), 0 0 0 1px rgb(18 19 23 / 0.05);
+  --elev-3: 0 2px 4px rgb(18 19 23 / 0.04), 0 32px 80px -24px rgb(36 80 240 / 0.22), 0 0 0 1px rgb(18 19 23 / 0.05);
+}

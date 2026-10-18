@@ -1,0 +1,249 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-canvas-2: var(--canvas-2);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-on-accent: var(--on-accent);
+  --color-seal: var(--seal);
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-verified: var(--verified);
+  --color-approval: var(--approval);
+  --color-failed: var(--failed);
+  --color-info: var(--info);
+  --color-unverified: var(--unverified);
+  --color-simulated: var(--simulated);
+  --color-media: var(--media);
+  --color-media-ink: var(--media-ink);
+  --color-media-ink-2: var(--media-ink-2);
+  --color-media-ink-3: var(--media-ink-3);
+  --color-media-accent: var(--media-accent);
+  --color-media-cyan: var(--media-cyan);
+  --color-media-green: var(--media-green);
+  --color-media-amber: var(--media-amber);
+  --color-media-red: var(--media-red);
+
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", monospace;
+
+  /* Shape lock (ADR 0008): buttons, chips and segmented controls are pills,
+     inputs 12px, cards 20px, large panels and media frames 28px. */
+  --radius-xs: 6px;
+  --radius-sm: 12px;
+  --radius-md: 20px;
+  --radius-lg: 28px;
+
+  --shadow-e1: var(--elev-1);
+  --shadow-e2: var(--elev-2);
+  --shadow-e3: var(--elev-3);
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    scroll-padding-top: 5rem;
+    background: var(--canvas);
+  }
+
+  body {
+    background: var(--canvas);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* A grid without an explicit column template gets one column that can
+     shrink. Otherwise a long unbroken line (a title set to truncate, a file
+     path, a tab bar) widens the implicit column past a phone's screen.
+     grid-cols-* utilities live in a later layer, so they still win. */
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    color: var(--ink);
+  }
+
+  code,
+  kbd,
+  pre,
+  samp {
+    font-family: var(--font-mono);
+    font-variant-ligatures: none;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Faint ruled rows behind evidence and code panels. */
+@utility ledger {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(1.6em - 1px),
+    rgb(255 255 255 / 0.035) calc(1.6em - 1px),
+    rgb(255 255 255 / 0.035) 1.6em
+  );
+  background-position: 0 0.75rem;
+}
+
+/* Dot grid that fades out toward the edges: the "engineering paper" texture. */
+@utility dot-grid {
+  background-image: radial-gradient(circle at 1px 1px, rgb(18 19 23 / 0.07) 1px, transparent 0);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 30%, transparent 75%);
+}
+
+/*
+ * Aurora frame: a soft light field around a product panel. Uses only the
+ * signal blue and cyan family. The colour sits behind the panel, never on text.
+ */
+.aurora {
+  position: relative;
+  isolation: isolate;
+}
+
+.aurora::before {
+  content: "";
+  position: absolute;
+  inset: -6% -4%;
+  z-index: -1;
+  border-radius: 48px;
+  background:
+    radial-gradient(40% 55% at 12% 30%, rgb(36 80 240 / 0.16), transparent 70%),
+    radial-gradient(38% 50% at 88% 25%, rgb(10 110 133 / 0.14), transparent 70%),
+    radial-gradient(50% 45% at 50% 100%, rgb(127 156 255 / 0.18), transparent 70%);
+  filter: blur(28px);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .aurora::before {
+    animation: aurora-breathe 14s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes aurora-breathe {
+  from {
+    transform: scale(1) translateY(0);
+    opacity: 0.85;
+  }
+  to {
+    transform: scale(1.04) translateY(-1.5%);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .aurora::before {
+    opacity: 0.5;
+    filter: none;
+  }
+}
+
+/* The usage panel opening from the sidebar (motion-safe only). */
+/* The security score ring draws in once (reduced motion: drawn at once). */
+@keyframes score-in {
+  from {
+    stroke-dasharray: var(--score-from);
+  }
+}
+
+@keyframes usage-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Build run panes on phones: the next pane slides in from the side it came from (motion-safe only). */
+@keyframes pane-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+
+@keyframes pane-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+}
+
+/* An approval rising as a bottom sheet on phones (motion-safe only). */
+@keyframes sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+}
+
+/*
+ * Page changes in the app (React ViewTransition, class "page"): the old page
+ * fades, the new one rises in. Browsers without view transitions swap
+ * instantly, and reduced motion turns every transition off.
+ */
+::view-transition-old(.page) {
+  animation: 120ms ease-out both page-out;
+}
+
+::view-transition-new(.page) {
+  animation: 260ms cubic-bezier(0.16, 1, 0.3, 1) both page-in;
+}
+
+@keyframes page-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
