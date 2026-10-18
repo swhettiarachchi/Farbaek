@@ -166,12 +166,18 @@ export async function buildChanges(
   return { changes, dropped };
 }
 
-/** Contract resources written as paths ("src/lib", "README.md"). Plain words like "products" aren't paths. */
+/**
+ * Contract resources written as paths ("src/lib", "README.md", "docs/").
+ * Plain words like "products" aren't paths. A resource is judged before it's
+ * normalized, so a top-level folder written as "docs/" or "./docs" counts.
+ * "." alone means the whole project, which is the same as no path scope.
+ */
 export function pathScope(contract: IntentContract): string[] {
   return contract.scope.resources
-    .map((r) => r.trim().replace(/^\.\//, "").replace(/\/+$/, ""))
+    .map((r) => r.trim())
     .filter((r) => r.includes("/") || r.includes("."))
-    .filter(Boolean);
+    .map((r) => r.replace(/^\.\//, "").replace(/\/+$/, ""))
+    .filter((r) => r !== "" && r !== ".");
 }
 
 export function checkProposal(contract: IntentContract, changes: readonly ProposedChange[]): Violation[] {

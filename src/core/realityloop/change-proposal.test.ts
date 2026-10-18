@@ -125,6 +125,7 @@ describe("checkProposal", () => {
   it("treats only path-like resources as path scope", () => {
     expect(pathScope({ ...contract, scope: { ...contract.scope, resources: ["products", "./src/lib/", "README.md"] } })).toEqual(["src/lib", "README.md"]);
     expect(checkProposal({ ...contract, scope: { ...contract.scope, resources: ["products"] } }, [change("anywhere/x.ts")])).toEqual([]);
+    expect(pathScope({ ...contract, scope: { ...contract.scope, resources: ["docs/", "./scripts", ".", "./"] } })).toEqual(["docs", "scripts"]);
   });
 });
 

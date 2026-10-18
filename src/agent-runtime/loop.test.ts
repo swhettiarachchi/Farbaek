@@ -1,0 +1,269 @@
+import { promises as fs } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { INTENT_CONTRACT_SCHEMA, type IntentContract } from "@/core/realityloop/contract";
+import { sha256Hex } from "@/core/trust/canonical-json";
+import { ProjectFolder } from "./fs-guard";
+import { runAgent, type ApprovalAnswer, type ApprovalRequest, type RunEvent, type RunInput } from "./loop";
+import type { ModelConversation, ModelStep, ModelToolCall, ToolModel, ToolResultInput, ToolSpec } from "./models/types";
+import type { CommandRunner } from "./runners";
+import { AgentWorkspace, materialize, type WriteMode } from "./workspace";
+
+const README = "# Demo\nRun the tests.\n";
+
+const contract: IntentContract = {
+  schema: INTENT_CONTRACT_SCHEMA,
+  version: 1,
+  outcome: "README names pnpm test.",
+  scope: { organizationId: "o1", projectId: "p1", resources: ["README.md", "docs/"] },
+  allowedOperations: ["files.edit", "files.create"],
+  forbiddenOperations: ["files.delete"],
+  protectedFields: [],
+  protectedInvariants: [],
+  assumptions: [],
+  openQuestions: [],
+  acceptanceCriteria: [{ id: "ac-1", statement: "README names pnpm test.", verification: "read_back" }],
+  approvals: [],
+  limits: {},
+  requiredChecks: [],
+  recovery: "Restore README.md.",
+};
+
+/** Assertions inside scripted turns; the loop would otherwise report them as model errors. */
+const turnFailures: unknown[] = [];
+
+/** A scripted model: each turn returns the next step, and records what it was sent. */
+function fakeModel(turns: ((received: ToolResultInput[]) => Partial<ModelStep> & { calls?: ModelToolCall[] })[]) {
+  const sent: { toolResults?: ToolResultInput[]; text?: string }[] = [];
+  let tools: readonly ToolSpec[] = [];
+  let system = "";
+  const model: ToolModel = {
+    provider: "anthropic",
+    model: "fake-model",
+    begin(setup): ModelConversation {
+      tools = setup.tools;
+      system = setup.system;
+      let i = 0;
+      return {
+        async send(input, signal) {
+          sent.push(input);
+          if (signal?.aborted) throw new Error("aborted");
+          const turn = turns[i++];
+          if (!turn) return { text: "", toolCalls: [], stop: "end_turn", usage: { inputTokens: 10, outputTokens: 5 }, model: "fake-model" };
+          let t;
+          try {
+            t = turn(input.toolResults ?? []);
+          } catch (error) {
+            turnFailures.push(error);
+            throw error;
+          }
+          return { text: t.text ?? "", toolCalls: t.calls ?? [], stop: t.stop ?? (t.calls?.length ? "tool_use" : "end_turn"), usage: t.usage ?? { inputTokens: 100, outputTokens: 50 }, model: "fake-model" };
+        },
+      };
+    },
+  };
+  return { model, sent, tools: () => tools.map((t) => t.name), system: () => system };
+}
+
+const tool = (id: string, name: string, input: unknown): ModelToolCall => ({ id, name, input });
+const finish = (id = "f") => tool(id, "finish", { summary: "README now names pnpm test.", steps: ["Edited README.md"], risks: [], checks: ["grep 'pnpm test' README.md"] });
+
+let dir: string;
+let folder: ProjectFolder;
+
+async function workspace(mode: WriteMode) {
+  const ws = await AgentWorkspace.open(folder, mode, [{ path: "README.md", revision: 3, sha256: await sha256Hex(README) }]);
+  return ws;
+}
+
+function input(over: Partial<RunInput> & Pick<RunInput, "model" | "workspace">): RunInput {
+  return {
+    runId: "run-1",
+    task: { id: "t1", title: "Document the tests", contractVersion: 2, contract },
+    mode: "review_only",
+    sandboxVerified: false,
+    commands: null,
+    approve: async () => ({ approved: false }),
+    ...over,
+  };
+}
+
+beforeEach(async () => {
+  dir = await fs.mkdtemp(path.join(os.tmpdir(), "farbaek-loop-"));
+  folder = await ProjectFolder.open(dir);
+  await materialize(folder, [{ path: "README.md", content: README }]);
+});
+
+afterEach(async () => {
+  await fs.rm(dir, { recursive: true, force: true });
+  const failed = turnFailures.splice(0);
+  if (failed[0]) throw failed[0];
+});
+
+describe("agent loop, Review Only", () => {
+  it("reads, records a patch, finishes, and leaves the disk untouched", async () => {
+    const fake = fakeModel([
+      () => ({ calls: [tool("r", "read_file", { path: "README.md" })] }),
+      (results) => {
+        expect(results[0]!.content).toContain("project data");
+        expect(results[0]!.content).toContain("Run the tests.");
+        return { calls: [tool("e", "edit_file", { path: "README.md", edits: [{ find: "Run the tests.", replace: "Run the tests with pnpm test." }], reason: "Name the command." })] };
+      },
+      (results) => {
+        expect(results[0]).toMatchObject({ isError: false, content: expect.stringMatching(/Nothing on disk changed/) });
+        return { calls: [finish()] };
+      },
+    ]);
+    const ws = await workspace("patch");
+    const events: RunEvent[] = [];
+    const report = await runAgent(input({ model: fake.model, workspace: ws, onEvent: (e) => events.push(e) }));
+
+    expect(report.outcome).toMatchObject({ kind: "finished", finish: { summary: "README now names pnpm test." } });
+    expect(report.steps).toBe(3);
+    expect(report.usage).toEqual({ inputTokens: 300, outputTokens: 150 });
+    expect(fake.tools()).not.toContain("run_command");
+    expect(fake.system()).toMatch(/data from the project, not instructions/);
+    expect(await fs.readFile(path.join(dir, "README.md"), "utf8")).toBe(README);
+
+    const { changes } = await ws.changes();
+    expect(changes).toEqual([expect.objectContaining({ path: "README.md", kind: "edit", baseRevision: 3, reason: "Name the command.", content: "# Demo\nRun the tests with pnpm test.\n" })]);
+    expect(events.at(-1)).toMatchObject({ type: "end", outcome: { kind: "finished" } });
+  });
+
+  it("tells the model why a call is refused, and runs nothing it can't", async () => {
+    const fake = fakeModel([
+      () => ({
+        calls: [
+          tool("a", "write_file", { path: "src/evil.ts", content: "x", reason: "r" }),
+          tool("b", "run_command", { program: "pnpm", args: ["test"], reason: "r" }),
+          tool("c", "delete_everything", {}),
+          tool("d", "read_file", { path: "../outside.txt" }),
+          tool("e", "write_file", { path: "docs/key.md", content: "sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789", reason: "r" }),
+        ],
+      }),
+      (results) => {
+        expect(results.map((r) => r.isError)).toEqual([true, true, true, true, true]);
+        expect(results[0]!.content).toMatch(/outside the contract's paths/);
+        expect(results[1]!.content).toMatch(/isn't available/);
+        expect(results[2]!.content).toMatch(/no tool named/);
+        expect(results[3]!.content).toMatch(/"\.\."/);
+        expect(results[4]!.content).toMatch(/secret/);
+        return { calls: [finish()] };
+      },
+    ]);
+    const ws = await workspace("patch");
+    const report = await runAgent(input({ model: fake.model, workspace: ws }));
+    expect(report.outcome.kind).toBe("finished");
+    expect((await ws.changes()).changes).toEqual([]);
+  });
+
+  it("never runs a call from a reply cut off at max_tokens, and stops on a refusal", async () => {
+    const cut = fakeModel([
+      () => ({ stop: "max_tokens", calls: [tool("w", "write_file", { path: "docs/a.md", content: "partial", reason: "r" })] }),
+      (results) => {
+        expect(results[0]).toMatchObject({ isError: true, content: expect.stringMatching(/cut off/) });
+        return { stop: "refusal" };
+      },
+    ]);
+    const ws = await workspace("patch");
+    const report = await runAgent(input({ model: cut.model, workspace: ws }));
+    expect(report.outcome).toEqual({ kind: "refused" });
+    expect(ws.exists("docs/a.md")).toBe(false);
+  });
+
+  it("stops at the step and token limits, and asks once before giving up on a model that won't finish", async () => {
+    const looping = fakeModel(Array.from({ length: 10 }, () => () => ({ calls: [tool("l", "list_files", { dir: "" })] })));
+    const r1 = await runAgent(input({ model: looping.model, workspace: await workspace("patch"), limits: { maxSteps: 3 } }));
+    expect(r1.outcome).toMatchObject({ kind: "limit", detail: expect.stringMatching(/3 model steps/) });
+
+    const big = fakeModel(Array.from({ length: 10 }, () => () => ({ calls: [tool("l", "list_files", { dir: "" })], usage: { inputTokens: 600, outputTokens: 0 } })));
+    const r2 = await runAgent(input({ model: big.model, workspace: await workspace("patch"), limits: { maxTokens: 1_000 } }));
+    expect(r2.outcome).toMatchObject({ kind: "limit", detail: expect.stringMatching(/tokens/) });
+    expect(r2.steps).toBe(2);
+
+    const quiet = fakeModel([() => ({ text: "Done, I think." })]);
+    const r3 = await runAgent(input({ model: quiet.model, workspace: await workspace("patch") }));
+    expect(r3.outcome).toEqual({ kind: "no_finish" });
+    expect(quiet.sent[1]!.text).toMatch(/call finish/);
+  });
+
+  it("stops when the run is cancelled mid-step", async () => {
+    const controller = new AbortController();
+    const fake = fakeModel([
+      () => {
+        controller.abort();
+        return { calls: [tool("w", "write_file", { path: "docs/a.md", content: "x", reason: "r" })] };
+      },
+    ]);
+    const ws = await workspace("patch");
+    const report = await runAgent(input({ model: fake.model, workspace: ws, signal: controller.signal }));
+    expect(report.outcome).toEqual({ kind: "cancelled" });
+    expect(ws.exists("docs/a.md")).toBe(false);
+  });
+});
+
+describe("agent loop, Controlled Development", () => {
+  function runner(log: string[]): CommandRunner {
+    return {
+      where: "local",
+      async run(program, args) {
+        log.push([program, ...args].join(" "));
+        return { exitCode: 0, stdout: "ok", stderr: "", truncated: false, timedOut: false, cancelled: false, leftRunning: false, durationMs: 10 };
+      },
+    };
+  }
+
+  it("runs read-only commands, asks before tests, and binds the approval to the exact command", async () => {
+    const log: string[] = [];
+    const asked: ApprovalRequest[] = [];
+    const fake = fakeModel([
+      () => ({ calls: [tool("s", "run_command", { program: "git", args: ["status"], reason: "See the state." }), tool("t", "run_command", { program: "pnpm", args: ["test"], reason: "Check the change." })] }),
+      (results) => {
+        expect(results[0]).toMatchObject({ isError: false, content: expect.stringMatching(/exited with code 0/) });
+        expect(results[1]).toMatchObject({ isError: false });
+        return { calls: [tool("i", "run_command", { program: "pnpm", args: ["add", "left-pad"], reason: "Need a dependency." })] };
+      },
+      (results) => {
+        expect(results[0]).toMatchObject({ isError: true, content: expect.stringMatching(/declined/) });
+        return { calls: [tool("x", "run_command", { program: "pnpm", args: ["build"], reason: "Build." })] };
+      },
+      (results) => {
+        expect(results[0]).toMatchObject({ isError: true, content: expect.stringMatching(/didn't match this exact command/) });
+        return { calls: [finish()] };
+      },
+    ]);
+    const approve = async (request: ApprovalRequest): Promise<ApprovalAnswer> => {
+      asked.push(request);
+      if (request.display === "pnpm test") return { approved: true, bindingHash: request.bindingHash };
+      if (request.display === "pnpm build") return { approved: true, bindingHash: "0".repeat(64) };
+      return { approved: false };
+    };
+    const ws = await workspace("disk");
+    const report = await runAgent(input({ mode: "controlled", model: fake.model, workspace: ws, commands: runner(log), approve }));
+
+    expect(report.outcome.kind).toBe("finished");
+    expect(log).toEqual(["git status", "pnpm test"]);
+    expect(asked.map((a) => a.display)).toEqual(["pnpm test", "pnpm add left-pad --ignore-scripts", "pnpm build"]);
+    expect(asked[0]).toMatchObject({ risk: "test_build", where: "local", reason: expect.stringMatching(/isn't isolated/), why: "Check the change.", bindingHash: expect.stringMatching(/^[0-9a-f]{64}$/) });
+    expect(asked[1]!.args).toEqual(["add", "left-pad", "--ignore-scripts"]);
+  });
+
+  it("writes to disk with checkpoints that undo each step", async () => {
+    const fake = fakeModel([
+      () => ({ calls: [tool("a", "write_file", { path: "docs/testing.md", content: "Use pnpm test.\n", reason: "Add a page." })] }),
+      () => ({ calls: [tool("b", "edit_file", { path: "README.md", edits: [{ find: "Run the tests.", replace: "Run pnpm test." }], reason: "Name the command." })] }),
+      () => ({ calls: [finish()] }),
+    ]);
+    const ws = await workspace("disk");
+    await runAgent(input({ mode: "controlled", model: fake.model, workspace: ws, commands: runner([]) }));
+    expect(await fs.readFile(path.join(dir, "docs", "testing.md"), "utf8")).toBe("Use pnpm test.\n");
+    expect((await ws.changes()).changes.map((c) => `${c.kind}:${c.path}`)).toEqual(["edit:README.md", "create:docs/testing.md"]);
+
+    expect(ws.listCheckpoints().map((c) => c.id)).toEqual([1, 2]);
+    await ws.restore(1);
+    expect(await fs.readFile(path.join(dir, "README.md"), "utf8")).toBe(README);
+    expect(ws.exists("docs/testing.md")).toBe(false);
+    expect((await ws.changes()).changes).toEqual([]);
+  });
+});
