@@ -297,3 +297,33 @@ Decision: [ADR 0023](../adr/0023-previews.md).
 
 1. Security checks (Phase 4).
 2. The 3D workspace and motion (Phase 5).
+
+## 2026-10-18: Security checks (Phase 4)
+
+Decision: [ADR 0024](../adr/0024-security-checks.md).
+
+### Done
+
+- **Farbaek's rules** `src/core/security/rules.ts`: credentials and signed tokens in code, secret-looking public env names, server keys in browser code, tables without Row Level Security, wildcard CORS, raw HTML, `eval`, SQL built from strings, weak hashes, Django debug and a missing Content Security Policy. A secret's value is never echoed.
+- **Package audit**: `npm audit --json --package-lock-only` in a short sandbox session with registry-only network, parsed by `src/core/security/audit.ts`. Nothing is installed and no package code runs.
+- **AI review** `src/server/ai/security-reviewer.ts`: up to 8 of the riskiest files, routed to Sonnet (Balanced), metered from the wallet (`security_review`), refunded when it fails. Findings about files the model wasn't shown are dropped.
+- **The report** `src/core/security/report.ts`: an in-toto statement with the files' digest, the checks (run or skipped, with the reason), the findings and a score with a grade. It is stored with its SHA-256 in `security_reports` (migration 18 `20261018230000_security_reports.sql`), one running check per project.
+- **The Security page** `/app/projects/[projectId]/security`: the score ring, findings by severity (icon and label, never colour alone), earlier checks, and **Fix with the agent**, which turns a finding into a task.
+
+### Verified
+
+- Unit tests for the rules, the audit parser, the report and the runner (9 and 4 new), plus 5 database tests for migration 18. 631 unit and design tests pass; typecheck, lint and the build pass.
+- Migration 18 on the hosted project: the editor's contents matched the tested file (6,379 bytes, `sha256 230f7ed7…963c`), with no destructive notice. Read-only check: the table, its Row Level Security and the server-only functions are in place.
+- Live, on the test project: score 97, grade A, with one low finding (no Content Security Policy in `index.html`). The rules ran, the package audit was skipped with its reason (the project has no npm packages), and the AI review read 1 file and was metered.
+- **Fix with the agent** created the task "Fix: No Content Security Policy in index.html" and opened it.
+- Fixed after the live run: the button kept polling after the report was in, and the report hash showed `sha256:` twice.
+
+### Not verified
+
+- A package audit with real findings (the test project has no lockfile). The parser is tested against `npm audit` output.
+- Python packages aren't audited yet.
+
+### Next
+
+1. The 3D workspace and motion (Phase 5).
+2. Publishing (Stage 6, LaunchOS), then Mesh.
