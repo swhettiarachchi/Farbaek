@@ -274,7 +274,7 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
       if (!z.uuid().safeParse(taskId).success) return null;
       const { data, error } = await client
         .from("change_proposals")
-        .select("id, task_id, project_id, status, contract_version, plan, changes, dropped, violations, sha256, model, created_at, decided_at, applied_sha256, policy")
+        .select("id, task_id, project_id, status, contract_version, plan, changes, dropped, violations, sha256, model, created_at, decided_at, applied_sha256, policy, agent_id")
         .eq("org_id", orgId)
         .eq("task_id", taskId)
         .order("created_at", { ascending: false })
@@ -369,6 +369,31 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
         )
         .parse(data)
         .map((r) => ({ id: r.id, email: r.email, role: r.role, createdAt: r.created_at, expiresAt: r.expires_at, acceptedAt: r.accepted_at, acceptedBy: r.accepted_by, revokedAt: r.revoked_at, open: !r.accepted_at && !r.revoked_at && Date.parse(r.expires_at) > Date.now() }));
+    },
+
+    async listAgents(orgId) {
+      const { data, error } = await client
+        .from("agents")
+        .select("id, name, platform, app_version, paired_by, created_at, last_seen_at, revoked_at")
+        .eq("org_id", orgId)
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) fail("agents", error);
+      return z
+        .array(
+          z.object({
+            id: z.string(),
+            name: z.string(),
+            platform: z.enum(["windows", "macos", "linux"]),
+            app_version: z.string().nullable(),
+            paired_by: z.string(),
+            created_at: z.string(),
+            last_seen_at: z.string().nullable(),
+            revoked_at: z.string().nullable(),
+          }),
+        )
+        .parse(data)
+        .map((r) => ({ id: r.id, name: r.name, platform: r.platform, appVersion: r.app_version, pairedBy: r.paired_by, createdAt: r.created_at, lastSeenAt: r.last_seen_at, revokedAt: r.revoked_at }));
     },
 
     async listCheckReceipts(orgId, taskId) {

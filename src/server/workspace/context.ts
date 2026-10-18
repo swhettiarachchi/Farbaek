@@ -70,6 +70,7 @@ function memoizeReader(reader: WorkspaceReader): WorkspaceReader {
     getRecovery: wrap("recovery", reader.getRecovery),
     listCheckReceipts: wrap("checkReceipts", reader.listCheckReceipts),
     listInvitations: wrap("invitations", reader.listInvitations),
+    listAgents: wrap("agents", reader.listAgents),
   };
 }
 

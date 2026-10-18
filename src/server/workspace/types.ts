@@ -94,6 +94,8 @@ export interface ProposalRecord {
   appliedSha256: string | null;
   /** The policy decision that governed it; null for proposals made before policies were recorded. */
   policy: { outcome: string; version: string; findings: { rule: string; outcome: string; detail: string }[] } | null;
+  /** The Farbaek Agent that made it, or null when it was made in the web app. */
+  agentId: string | null;
 }
 
 /** Shape of change_proposals rows; changes are stored with snake_case keys. */
@@ -114,6 +116,7 @@ export const ProposalRowSchema = z.object({
   created_at: z.string(),
   decided_at: z.string().nullable(),
   applied_sha256: z.string().nullable(),
+  agent_id: z.string().nullable().optional(),
   policy: z
     .object({ outcome: z.string(), version: z.string(), findings: z.array(z.object({ rule: z.string(), outcome: z.string(), detail: z.string() })) })
     .nullable()
@@ -135,6 +138,7 @@ export function proposalFromRow(row: z.infer<typeof ProposalRowSchema>): Proposa
     decidedAt: row.decided_at,
     appliedSha256: row.applied_sha256,
     policy: row.policy ?? null,
+    agentId: row.agent_id ?? null,
   };
 }
 
@@ -155,6 +159,18 @@ export interface RecoverySource {
 }
 
 /** An invitation as owners and admins see it. The token never leaves the database as anything but its hash. */
+/** A paired Farbaek Agent (migration 14). Its token hash is never readable here. */
+export interface AgentRecord {
+  id: string;
+  name: string;
+  platform: "windows" | "macos" | "linux";
+  appVersion: string | null;
+  pairedBy: string;
+  createdAt: string;
+  lastSeenAt: string | null;
+  revokedAt: string | null;
+}
+
 export interface InvitationRecord {
   id: string;
   email: string;
@@ -253,4 +269,6 @@ export interface WorkspaceReader {
   listCheckReceipts(orgId: string, taskId: string): Promise<CheckReceiptRecord[]>;
   /** The workspace's invitations, newest first. Empty unless the reader is an owner or admin. */
   listInvitations(orgId: string): Promise<InvitationRecord[]>;
+  /** The workspace's paired agents, revoked ones included, newest first. */
+  listAgents(orgId: string): Promise<AgentRecord[]>;
 }

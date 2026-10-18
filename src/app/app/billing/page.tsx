@@ -16,7 +16,8 @@ export default async function BillingPage() {
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
   const ws = ctx.current;
-  const usage = await loadUsageSummary(ctx, ws);
+  const [usage, agents] = await Promise.all([loadUsageSummary(ctx, ws), ctx.reader.listAgents(ws.id)]);
+  const activeAgents = agents.filter((a) => !a.revokedAt).length;
   const plan = getPlan(ws.plan.planId);
   const limits = ws.plan.limits;
   const periodLabel =
@@ -90,7 +91,7 @@ export default async function BillingPage() {
                 reached="AI credits used up. AI drafting pauses until the allowance resets or you upgrade. Writing contracts yourself keeps working."
               />
             )}
-            <UsageMeter label="Registered agents" used={0} limit={limits.agents} detail="Agents arrive in Stage 4." />
+            <UsageMeter label="Registered agents" used={activeAgents} limit={limits.agents} detail="Desktop agents paired with this workspace and not revoked." />
             <UsageMeter label="Integrations" used={0} limit={limits.integrations} detail="None connected. GitHub import isn't built yet; projects import files from a folder instead." />
           </div>
         </Card>

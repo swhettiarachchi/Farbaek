@@ -60,6 +60,10 @@ export type WriteErrorCode =
   | "INVALID_RECOVERY"
   | "POLICY_BLOCKED"
   | "RECOVERY_UNVERIFIED"
+  | "AGENT_LIMIT"
+  | "PAIRING_CLOSED"
+  | "INVALID_PAIRING"
+  | "AGENT_REVOKED"
   | "AI_UNAVAILABLE"
   | "AI_REFUSED"
   | "AI_INCOMPLETE"
@@ -169,6 +173,10 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   AI_REFUSED: "The model declined to draft this contract. Write it yourself, or reword the task and try again.",
   AI_INCOMPLETE: "The draft came back incomplete. Try again, or write the contract yourself.",
   AI_BUSY: "The AI provider is busy. Try again in a minute.",
+  AGENT_LIMIT: "Every agent on this plan is in use. Revoke one you no longer use, or change the plan.",
+  PAIRING_CLOSED: "This pairing code was already used or has expired. Create a new code in Farbaek.",
+  INVALID_PAIRING: "The pairing code isn't valid. Create a new code and try again.",
+  AGENT_REVOKED: "This agent was revoked. Pair the app again to keep using it.",
   UNKNOWN: "Something went wrong and nothing was changed. Try again in a moment.",
 };
 
@@ -210,6 +218,10 @@ export function codeFromDatabaseError(message: string): WriteErrorCode {
     "RECOVERY_UNVERIFIED",
     "PROJECT_ARCHIVED",
     "ALREADY_ARCHIVED",
+    "AGENT_LIMIT",
+    "PAIRING_CLOSED",
+    "INVALID_PAIRING",
+    "AGENT_REVOKED",
   ] as const) {
     if (message.includes(code)) return code;
   }
@@ -326,7 +338,7 @@ export async function cancelTask(
 
 /** Runs events through the shared state machine, collecting the steps to store. */
 export function planSteps(
-  deps: WriteDeps,
+  deps: Pick<WriteDeps, "newEventId" | "now">,
   start: { id: string; orgId: string; state: TaskState; version: number },
   userId: string,
   events: TaskEventType[],

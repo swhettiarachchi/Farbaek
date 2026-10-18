@@ -19,6 +19,7 @@ import { createChangeProposer, createContractDrafter } from "@/server/ai/provide
 import { MAX_CONTEXT_FILES, applyProposal, discardProposal, proposeChange, type ProposalDeps } from "@/server/workspace/proposals";
 import { recoverChange, type RecoveryDeps } from "@/server/workspace/recovery";
 import { acceptInvitation, createInvitation, revokeInvitation, type InvitationDeps } from "@/server/workspace/invitations";
+import { createAgentPairing, revokeAgent, type AgentAdminDeps } from "@/server/workspace/agents";
 import { siteUrl } from "@/server/supabase/config";
 import { resolveAiProvider } from "@/server/ai/config";
 import { currentExecutionMode } from "@/server/execution/sandbox";
@@ -40,7 +41,7 @@ async function requireContext(): Promise<AppContext> {
 }
 
 /** Resolves write dependencies, or the honest reason writes are unavailable. */
-async function writeDeps(ctx: AppContext): Promise<{ deps: WriteDeps & AiCreditDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps; orgId: string } | { error: string }> {
+async function writeDeps(ctx: AppContext): Promise<{ deps: WriteDeps & AiCreditDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps & AgentAdminDeps; orgId: string } | { error: string }> {
   if (!ctx.writes.enabled) return { error: ctx.writes.reason };
   if (!ctx.current) return { error: "Create a workspace first." };
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
@@ -446,6 +447,28 @@ export async function acceptInvitationAction(_previous: AcceptInviteState, form:
   (await cookies()).set(WORKSPACE_COOKIE, r.value.orgId, COOKIE_OPTIONS);
   revalidatePath("/app", "layout");
   redirect("/app");
+}
+
+export type PairAgentState = { status: "idle" } | { status: "error"; message: string } | { status: "created"; code: string; expiresAt: string };
+
+/** Creates a one-time pairing code for the desktop app. The code is returned once; only its hash is stored. */
+export async function pairAgentAction(): Promise<PairAgentState> {
+  const ctx = await requireContext();
+  const w = await writeDeps(ctx);
+  if ("error" in w) return { status: "error", message: w.error };
+  const r = await createAgentPairing(w.deps, { orgId: w.orgId, userId: ctx.user.id });
+  if (!r.ok) return { status: "error", message: r.message };
+  return { status: "created", code: r.value.code, expiresAt: r.value.expiresAt };
+}
+
+export async function revokeAgentAction(form: FormData): Promise<void> {
+  const parsed = z.uuid().safeParse(form.get("agentId"));
+  if (!parsed.success) return;
+  const ctx = await requireContext();
+  const w = await writeDeps(ctx);
+  if ("error" in w) return;
+  await revokeAgent(w.deps, { orgId: w.orgId, userId: ctx.user.id, agentId: parsed.data });
+  revalidatePath("/app/agents");
 }
 
 export async function signOut() {

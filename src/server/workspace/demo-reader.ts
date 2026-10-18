@@ -195,6 +195,10 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
       return [];
     },
 
+    async listAgents() {
+      return [];
+    },
+
     async listRecentProofPacks() {
       return [];
     },
@@ -239,6 +243,7 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
         decidedAt: null,
         appliedSha256: null,
         policy: { outcome: decision.outcome, version: decision.policyVersion, findings: decision.findings },
+        agentId: null,
       };
       return record;
     },

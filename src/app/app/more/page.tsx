@@ -1,4 +1,4 @@
-import { CaretRightIcon, ChartPieSliceIcon, GearSixIcon, LockSimpleIcon, SignOutIcon, TerminalWindowIcon } from "@phosphor-icons/react/ssr";
+import { CaretRightIcon, ChartPieSliceIcon, DesktopIcon, GearSixIcon, LockSimpleIcon, SignOutIcon, TerminalWindowIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -24,6 +24,12 @@ export default async function MorePage() {
         <li>
           <Link href="/app/sandbox" className={`${row} hover:bg-canvas-2`}>
             <TerminalWindowIcon size={20} className="text-ink-2" aria-hidden /> Sandbox
+            <CaretRightIcon size={16} className="ml-auto text-ink-3" aria-hidden />
+          </Link>
+        </li>
+        <li>
+          <Link href="/app/agents" className={`${row} hover:bg-canvas-2`}>
+            <DesktopIcon size={20} className="text-ink-2" aria-hidden /> Agents
             <CaretRightIcon size={16} className="ml-auto text-ink-3" aria-hidden />
           </Link>
         </li>

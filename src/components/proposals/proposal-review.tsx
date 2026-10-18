@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, FingerprintIcon, HourglassMediumIcon, ProhibitIcon, ScalesIcon, ShieldWarningIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, DesktopIcon, FingerprintIcon, HourglassMediumIcon, ProhibitIcon, ScalesIcon, ShieldWarningIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -45,6 +45,7 @@ export function ProposalReview({
   executionReason,
   canApproveEscalated,
   appliedNote,
+  agentName = null,
 }: {
   projectId: string;
   proposal: ProposalRecord;
@@ -57,6 +58,8 @@ export function ProposalReview({
   executionReason: string | null;
   /** True when the viewer is an owner or admin. Escalated changes need one; the server enforces it too. */
   canApproveEscalated: boolean;
+  /** The paired Farbaek Agent's name when an agent made the proposal (it may have been revoked since). */
+  agentName?: string | null;
   /** Replaces the "waiting for checks" note on an applied change, once it's being undone or was. */
   appliedNote?: string;
 }) {
@@ -99,6 +102,11 @@ export function ProposalReview({
         <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium ${status.cls}`}>
           <status.Icon size={16} weight="bold" aria-hidden /> {status.label}
         </span>
+        {proposal.agentId ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-sm text-ink-2">
+            <DesktopIcon size={16} aria-hidden /> Proposed by Farbaek Agent{agentName ? ` (${agentName})` : ""}
+          </span>
+        ) : null}
         <span className="font-mono text-xs text-ink-3">
           {short(proposal.sha256)} · contract v{proposal.contractVersion}
           {proposal.model ? ` · ${proposal.model}` : ""}

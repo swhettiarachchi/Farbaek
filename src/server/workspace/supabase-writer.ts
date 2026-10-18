@@ -9,6 +9,7 @@ import { IntentContractSchema } from "@/core/realityloop/contract";
 import type { FileDeps } from "./files";
 import type { ProposalDeps } from "./proposals";
 import type { RecoveryDeps } from "./recovery";
+import type { AgentAdminDeps } from "./agents";
 import type { InvitationDeps } from "./invitations";
 import { createSupabaseReader } from "./supabase-reader";
 import { ProposalRowSchema, proposalFromRow } from "./types";
@@ -18,7 +19,11 @@ import type { ProjectAdminDeps, RpcResult, WriteDeps } from "./use-cases";
  * WriteDeps backed by Supabase. Reads use the signed-in user's client (Row
  * Level Security applies); writes call the service-role-only app_* functions.
  */
-export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseClient, userId: string): WriteDeps & AiCreditDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps {
+export function createSupabaseWriteDeps(
+  user: SupabaseClient,
+  admin: SupabaseClient,
+  userId: string,
+): WriteDeps & AiCreditDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps & AgentAdminDeps {
   const reader = createSupabaseReader(user);
   async function rpc<T>(fn: string, args: Record<string, unknown>, schema: z.ZodType<T>): Promise<RpcResult<T>> {
     const { data, error } = await admin.rpc(fn, args);
@@ -336,6 +341,11 @@ export function createSupabaseWriteDeps(user: SupabaseClient, admin: SupabaseCli
       ),
 
     revokeInvitation: (i) => rpc("app_revoke_invitation", { p_invitation: i.invitationId, p_actor: i.actor }, z.null().or(z.literal("")).transform(() => null)),
+
+    createAgentPairing: (i) =>
+      rpc("app_create_agent_pairing", { p_org: i.orgId, p_actor: i.actor, p_code_sha256: i.codeSha256, p_expires_at: i.expiresAt, p_agent_limit: i.agentLimit }, z.string()),
+
+    revokeAgent: (i) => rpc("app_revoke_agent", { p_agent: i.agentId, p_actor: i.actor }, z.null().or(z.literal("")).transform(() => null)),
 
     async invitationPreview(tokenSha256) {
       const { data, error } = await admin.rpc("app_invitation_preview", { p_token_sha256: tokenSha256 });

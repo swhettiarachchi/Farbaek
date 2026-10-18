@@ -3,6 +3,7 @@
 import {
   ChartPieSliceIcon,
   CheckSquareOffsetIcon,
+  DesktopIcon,
   DotsThreeOutlineIcon,
   FolderSimpleIcon,
   GearSixIcon,
@@ -30,6 +31,7 @@ const PRIMARY: NavItem[] = [
   { href: "/app/tasks", label: "Tasks", short: "Tasks", icon: ListChecksIcon },
   { href: "/app/approvals", label: "Approvals", short: "Approvals", icon: CheckSquareOffsetIcon },
   { href: "/app/sandbox", label: "Sandbox", short: "Sandbox", icon: TerminalWindowIcon },
+  { href: "/app/agents", label: "Agents", short: "Agents", icon: DesktopIcon },
 ];
 
 const SECONDARY: NavItem[] = [
@@ -98,12 +100,12 @@ export function SidebarNav({ approvals }: { approvals: number }) {
   );
 }
 
-// Five slots on phones: Sandbox is reached through More there.
-const TABS: NavItem[] = [...PRIMARY.filter((i) => i.href !== "/app/sandbox"), { href: "/app/more", label: "More", short: "More", icon: DotsThreeOutlineIcon }];
+// Five slots on phones: Sandbox and Agents are reached through More there.
+const TABS: NavItem[] = [...PRIMARY.filter((i) => i.href !== "/app/sandbox" && i.href !== "/app/agents"), { href: "/app/more", label: "More", short: "More", icon: DotsThreeOutlineIcon }];
 
 export function MobileTabBar({ approvals }: { approvals: number }) {
   const pathname = usePathname();
-  const moreActive = ["/app/more", "/app/billing", "/app/settings", "/app/workspaces", "/app/sandbox"].some((p) => pathname.startsWith(p));
+  const moreActive = ["/app/more", "/app/billing", "/app/settings", "/app/workspaces", "/app/sandbox", "/app/agents"].some((p) => pathname.startsWith(p));
   return (
     <nav
       aria-label="App"
