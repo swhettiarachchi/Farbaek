@@ -42,11 +42,11 @@ ESLint forbids `src/core` from importing React, Next, Motion or UI code, so ever
 
 | Capability | Status | Evidence |
 | --- | --- | --- |
-| Plan catalog, annual pricing math | Implemented, unit-tested | `src/core/billing/catalog.test.ts` |
+| Plan catalog: Free, Starter, Plus, Pro, Studio, Max, Max 2x, Max 3x, Enterprise, every allowance from one cost formula at a 40% margin (ADR 0020) | Implemented, unit-tested, on the pricing page and Billing | `src/core/billing/catalog.test.ts`, `allowance.ts` |
 | 14-day trial: eligibility, window, reminders, expiry to Free | Implemented as pure logic, unit-tested | `trial.test.ts` |
 | Entitlement checks (fail closed, typed errors, always-available ops) | Implemented, unit-tested | `entitlements.test.ts` |
 | Evaluation metering (idempotent, per org, period boundaries) | Live for change proposals (one evaluation per policy decision, allowance enforced in the database) | `usage.test.ts`, `tests/db/change-proposals.test.ts` |
-| AI credit ledger (reserve, settle, refund; trial or monthly period) | Implemented, tested, applied to the hosted project (migration 4) | `tests/db/ai-credits.test.ts`, `ai-drafting.test.ts` |
+| Usage wallet: AI metered at real token cost from a rate card, grants with a month of rollover, soonest expiry spent first, reserve then settle, failed calls refunded, a capped free-retry reserve (ADR 0020) | Implemented, tested, migration 15 applied; a live contract draft reserved 1,623 units and settled to its real 163 | `tests/db/ai-credits.test.ts`, `src/core/billing/wallet.test.ts`, `ai-usage.test.ts` |
 | Project files: import with secret screening, versioned storage, tree, search, CodeMirror editor with diff review | Implemented, tested, applied to the hosted project (migration 5, ADR 0010) | `tests/db/project-files.test.ts`, `src/core/workspace/` |
 | Change proposals: agent-proposed targeted edits, contract checks, per-chunk diff review, hash-bound approval, apply as revisions (Review Only, not verified) | Implemented, tested, applied to the hosted project (migration 6, ADR 0011). Needs `ANTHROPIC_API_KEY` to run live. | `tests/db/change-proposals.test.ts`, `src/server/workspace/proposals.ts` |
 | Policy engine v1 and governed-evaluation metering (escalation to owners or admins, evaluation allowance enforced) | Implemented, tested, applied to the hosted project (migration 7, ADR 0004) | `src/core/trust/policy.ts`, `tests/db/change-proposals.test.ts` |
@@ -60,7 +60,7 @@ ESLint forbids `src/core` from importing React, Next, Motion or UI code, so ever
 | Verified ProofPacks: a check run in a sandbox against exactly the applied content appends a ProofPack with the real results; edits in the sandbox never verify a change | Implemented, tested, applied (migration 12), used live on Vercel Sandbox | `tests/db/verification-proofpacks.test.ts`, `service.test.ts` |
 | Team invitations by one-time link: owners and admins invite by email and role, seats counted with open invitations | Implemented, tested, applied (migration 13, ADR 0017); creating, the link page and revoking checked live | `tests/db/invitations.test.ts`, `invitations.test.ts` |
 | Marketing site and pricing page | Implemented, built, checked at 375px and 1440px, light and dark | Manual browser check, see `docs/stages/stage-0.md` |
-| Accounts, organizations, database | All fourteen migrations applied to the hosted project (core schema, projects and server-only writes, intent contracts, AI credit ledger, project files, change proposals, policy and metering, ProofPacks, archiving, sandboxes, recovery, verification ProofPacks, invitations, agents) | `tests/db/`, `docs/stages/` |
+| Accounts, organizations, database | All fifteen migrations applied to the hosted project (core schema, projects and server-only writes, intent contracts, AI credit ledger, project files, change proposals, policy and metering, ProofPacks, archiving, sandboxes, recovery, verification ProofPacks, invitations, agents, plans and the usage wallet) | `tests/db/`, `docs/stages/` |
 | Signed-in app: Mission Control, projects, tasks, intent contracts, approvals, billing, settings | Built; verified in the demo workspace; live use needs `.env.local` (run `pnpm setup:env`) | `src/app/app/`, `src/server/workspace/` |
 | FARBAEK Sandbox: isolated sessions (E2B microVMs behind a Farbaek runtime interface), Guard rules, receipts, previews, v1 API and SDK, Studio UI (ADR 0013) | Built and tested; migration 10 applied to the hosted project. **Execution is off** until a runtime is connected and pnpm sandbox:smoke passes | docs/sandbox/, docs/stages/stage-4.md |
 | Farbaek Agent: desktop app (Electron) with Review Only and Controlled Development, folder guard, command broker, keys in the system keychain, pairing by one-time code, agent API; its work lands as a normal proposal (ADR 0018) | Implemented, tested, migration 14 applied; pairing, task download, proposal submission and revoke checked live (scripted model). Unsigned installer built. Not yet run with a real model key | `docs/agent/`, `tests/db/agents.test.ts`, `src/agent-runtime/*.test.ts` |
@@ -95,7 +95,7 @@ Postgres on Supabase with Row Level Security on every table. The browser can onl
 
 ## 6. Cost drivers
 
-Today: Supabase, plus model tokens for each AI contract draft (Claude Opus 5.5, up to 8,000 output tokens per draft, billed to the server's Anthropic key; credits cap how many drafts a workspace can make). Once a runtime is connected: sandbox running time (metered per session; plan limits in src/config/sandbox.ts; on a self-hosted runtime, the host instead). Future: email.
+Today: Supabase, plus model tokens for each AI contract draft and change proposal (Claude Opus 5.5 for now, billed to the server's Anthropic key; the usage wallet meters each call at its real cost against the plan's allowance, `docs/billing/usage.md`). Plans are costed in `reports/AI coding platform costs and pricing.md`. Once a runtime is connected: sandbox running time (metered per session; plan limits in src/config/sandbox.ts; on a self-hosted runtime, the host instead). Future: email.
 
 ## 7. Highest-value next slice
 

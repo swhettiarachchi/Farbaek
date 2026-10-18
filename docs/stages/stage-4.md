@@ -158,3 +158,39 @@ Plan approved in plan mode (Stage 4 second half, spec §7). Decision: [ADR 0018]
 1. Owner: install `desktop/release/Farbaek-Agent-Setup-0.1.0.exe` (SmartScreen: More info, then Run anyway), pair it from Agents, add your key in Keys, and run one Review Only task.
 2. Sandboxed Autopilot: give the agent API a way to start a sandbox session for the run's copy, so commands run on Vercel instead of this computer.
 3. Code-signing certificates, then signed builds.
+
+## 2026-10-18: Usage like Claude, starters, plans and the usage wallet
+
+Plans approved in plan mode (usage display, starters and download; then eight plans, the wallet, the cloud agent, previews, security checks and the workspace). Decisions: [ADR 0019](../adr/0019-usage-shown-as-percentages.md), [ADR 0020](../adr/0020-plans-and-usage-wallet.md). Cost research: `reports/AI coding platform costs and pricing.md`.
+
+### Done
+
+- **Usage shown like Claude's panel** (commit c53f4fb): share used and reset time per limit, a usage panel from the sidebar, no credit numbers anywhere people look (a design test guards it).
+- **Starters and download** (commit 5dd7827): new projects can start from a static website or a Next.js app (pinned versions), and any project downloads as a .zip.
+- **Eight plans priced from costs**: Free, Starter $9.99, Plus $19.99, Pro $50, Studio $79.99, Max $100, Max 2x $200, Max 3x $300 and Enterprise. Each allowance comes from 0.55 × price − $0.50, less fixed costs, snapshots, sandbox hours and a 5% retry reserve. The trial is Pro with a month of Starter's AI usage.
+- **Rate card and metering**: every AI call is priced at its real input, output and cache tokens (`src/core/billing/rate-card.ts`); an unknown model is priced as the most expensive.
+- **The usage wallet** (migration 15 `20261018180000_plans_and_wallet.sql`):
+  - grants per period, a month of rollover on paid plans, soonest expiry spent first;
+  - each call reserves its prompt plus its longest answer, then settles to the real cost;
+  - failed calls are refunded in full, and free retries are capped in the database;
+  - Billing shows the wallet, each grant's share left and expiry, and the spend cap as unavailable until payments.
+- Pricing page, home teaser and Billing rebuilt for eight plans with "About N agent sessions a month" (guidance from Anthropic's sample session). The old plan names are gone from the app.
+
+### Verified
+
+- 582 unit and design tests and all 13 database test files (one at a time) pass; typecheck, lint and the production build pass.
+- Migration 15 on the hosted project:
+  - The editor's contents matched the tested file (15,238 bytes, `sha256 08023a14…026b`).
+  - Supabase's "destructive operations" notice was for dropped constraints (re-added in the same script) and the two replaced functions; no table or data is dropped.
+  - Read-only check: the old functions are gone and the two new ones exist; `usage_grants` has RLS, anon can't read it and browsers can't change it; only the server role can reserve or settle; trials are Pro; every account is on catalog `2026-10-18.1`; the 4 existing ledger rows are kept.
+- Live: Billing shows the Pro trial, the wallet ("Trial usage, 100% left, expires Oct 28") and the eight plans. A real contract draft on the test project (Claude Opus 5.5) reserved 1,623 units and settled to 163 (1,993 input and 413 output tokens, $0.016); the trial grant shows 163 used of 35,050. The estimate's prompt part was low, so 1,500 tokens of structured-output overhead were added.
+
+### Not verified
+
+- Free retries and the spend cap (nothing uses them yet: they arrive with the cloud agent and with payments).
+- A rollover across a real month boundary (covered by unit and database tests with dated grants).
+
+### Next
+
+1. Phase 2: the model gateway with Auto routing per plan (fast models on Free, Opus from Pro, Fable from Max 2x), cloud runs in Vercel Sandbox (migration 16), the Build workspace, and the desktop agent switched to the gateway so no one brings a key.
+2. Phases 3 to 5: previews, security checks (migration 17), the 3D workspace.

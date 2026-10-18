@@ -61,12 +61,19 @@ export function proposalBriefMessage(brief: ProposalBrief): string {
   });
 }
 
+/**
+ * Prompt tokens the provider adds around ours: the structured-output schema
+ * and its framing. Measured on a live contract draft (2026-10-18): 1,993
+ * input tokens for about 670 of our own.
+ */
+const STRUCTURED_OUTPUT_OVERHEAD_TOKENS = 1_500;
+
 /** About how many prompt tokens a draft sends, so usage can be reserved before the call. */
 export function contractPromptTokens(brief: DraftBrief): number {
-  return approxTokens(CONTRACT_SYSTEM_PROMPT) + approxTokens(contractBriefMessage(brief));
+  return STRUCTURED_OUTPUT_OVERHEAD_TOKENS + approxTokens(CONTRACT_SYSTEM_PROMPT) + approxTokens(contractBriefMessage(brief));
 }
 
 /** About how many prompt tokens a proposal sends, so usage can be reserved before the call. */
 export function proposalPromptTokens(brief: ProposalBrief): number {
-  return approxTokens(PROPOSAL_SYSTEM_PROMPT) + approxTokens(proposalBriefMessage(brief));
+  return STRUCTURED_OUTPUT_OVERHEAD_TOKENS + approxTokens(PROPOSAL_SYSTEM_PROMPT) + approxTokens(proposalBriefMessage(brief));
 }
