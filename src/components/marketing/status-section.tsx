@@ -36,14 +36,14 @@ const GROUPS: Group[] = [
     note: "Before sign-ups open.",
     icon: HourglassMediumIcon,
     iconClass: "text-approval",
-    items: ["Hosting on a public domain", "Trial reminder emails", "Signed ProofPacks"],
+    items: ["Hosting on a public domain", "Trial reminder emails", "Signed ProofPacks", "First Farbaek Agent runs with a real model, and signed installers"],
   },
   {
     title: "Later",
-    note: "Stages 4 to 8, as each one is proven.",
+    note: "Stages 5 to 8, as each one is proven.",
     icon: CircleDashedIcon,
     iconClass: "text-unverified",
-    items: ["Desktop agent runtime", "Mesh device transfer", "LaunchOS deployments", "iOS and Android apps", "Payments"],
+    items: ["Mesh device transfer", "LaunchOS deployments", "iOS and Android apps", "Payments"],
   },
 ];
 

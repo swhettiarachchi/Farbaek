@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- The page loads only its own files and makes no network requests; the main process does all networking. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
+    />
+    <title>Farbaek Agent</title>
+    <link rel="stylesheet" href="./fonts.css" />
+    <link rel="stylesheet" href="./renderer.css" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script src="./renderer.js"></script>
+  </body>
+</html>

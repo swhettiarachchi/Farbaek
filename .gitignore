@@ -16,6 +16,12 @@ coverage/
 .env.*
 !.env.example
 
+# Farbaek Agent desktop build output (the app's package.json is source)
+desktop/app/*
+!desktop/app/package.json
+desktop/release/
+desktop/.cache/
+
 # local tooling
 .vercel/
 .DS_Store

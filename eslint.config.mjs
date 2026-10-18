@@ -21,5 +21,10 @@ export default defineConfig([
       ],
     },
   },
-  globalIgnores([".next/**", "out/**", "build/**", "coverage/**", "next-env.d.ts", "docs/**"]),
+  {
+    // The desktop window is a plain React page bundled by esbuild, not a Next.js app.
+    files: ["desktop/**"],
+    rules: { "@next/next/no-img-element": "off" },
+  },
+  globalIgnores([".next/**", "out/**", "build/**", "coverage/**", "next-env.d.ts", "docs/**", "desktop/app/**", "desktop/release/**", "desktop/.cache/**"]),
 ]);

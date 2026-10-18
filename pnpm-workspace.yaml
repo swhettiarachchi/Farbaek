@@ -1,5 +1,10 @@
 allowBuilds:
   unrs-resolver: false
+  # Downloads the Electron binary for the Farbaek Agent desktop app. Nothing else runs install scripts.
+  electron: true
+  # Not needed: esbuild finds its platform binary without its script, and Squirrel installers aren't built.
+  esbuild: false
+  electron-winstaller: false
 
 # Keep CodeMirror releases that are only days old out of the tree (CLAUDE.md:
 # avoid releases that are only days old). Revisit when they've aged.

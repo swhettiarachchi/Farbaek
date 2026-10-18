@@ -60,10 +60,11 @@ ESLint forbids `src/core` from importing React, Next, Motion or UI code, so ever
 | Verified ProofPacks: a check run in a sandbox against exactly the applied content appends a ProofPack with the real results; edits in the sandbox never verify a change | Implemented, tested, applied (migration 12), used live on Vercel Sandbox | `tests/db/verification-proofpacks.test.ts`, `service.test.ts` |
 | Team invitations by one-time link: owners and admins invite by email and role, seats counted with open invitations | Implemented, tested, applied (migration 13, ADR 0017); creating, the link page and revoking checked live | `tests/db/invitations.test.ts`, `invitations.test.ts` |
 | Marketing site and pricing page | Implemented, built, checked at 375px and 1440px, light and dark | Manual browser check, see `docs/stages/stage-0.md` |
-| Accounts, organizations, database | All thirteen migrations applied to the hosted project (core schema, projects and server-only writes, intent contracts, AI credit ledger, project files, change proposals, policy and metering, ProofPacks, archiving, sandboxes, recovery, verification ProofPacks, invitations) | `tests/db/`, `docs/stages/` |
+| Accounts, organizations, database | All fourteen migrations applied to the hosted project (core schema, projects and server-only writes, intent contracts, AI credit ledger, project files, change proposals, policy and metering, ProofPacks, archiving, sandboxes, recovery, verification ProofPacks, invitations, agents) | `tests/db/`, `docs/stages/` |
 | Signed-in app: Mission Control, projects, tasks, intent contracts, approvals, billing, settings | Built; verified in the demo workspace; live use needs `.env.local` (run `pnpm setup:env`) | `src/app/app/`, `src/server/workspace/` |
 | FARBAEK Sandbox: isolated sessions (E2B microVMs behind a Farbaek runtime interface), Guard rules, receipts, previews, v1 API and SDK, Studio UI (ADR 0013) | Built and tested; migration 10 applied to the hosted project. **Execution is off** until a runtime is connected and pnpm sandbox:smoke passes | docs/sandbox/, docs/stages/stage-4.md |
-| Agent, Mesh, LaunchOS, Mobile | **Not started** | Roadmap |
+| Farbaek Agent: desktop app (Electron) with Review Only and Controlled Development, folder guard, command broker, keys in the system keychain, pairing by one-time code, agent API; its work lands as a normal proposal (ADR 0018) | Implemented, tested, migration 14 applied; pairing, task download, proposal submission and revoke checked live (scripted model). Unsigned installer built. Not yet run with a real model key | `docs/agent/`, `tests/db/agents.test.ts`, `src/agent-runtime/*.test.ts` |
+| Mesh, LaunchOS, Mobile | **Not started** | Roadmap |
 | Payments | **Not connected.** `BILLING_MODE=not_connected` | Spec section 23 |
 
 ### Integrations
@@ -75,7 +76,7 @@ ESLint forbids `src/core` from importing React, Next, Motion or UI code, so ever
 
 ## 3. Data model and auth boundaries
 
-Postgres on Supabase with Row Level Security on every table. The browser can only read. Every write goes through a server action, then the TypeScript rules in `src/server/workspace/`, then a service-role-only `app_*` function that re-checks membership, limits and versions. Tables: organizations, members, trials, billing accounts, evaluation events, projects, project files and file revisions, change proposals, ProofPacks, recovery operations, tasks, task transitions, intent contracts, AI credit ledger, sandbox sessions and their records, audit events.
+Postgres on Supabase with Row Level Security on every table. The browser can only read. Every write goes through a server action, then the TypeScript rules in `src/server/workspace/`, then a service-role-only `app_*` function that re-checks membership, limits and versions. Tables: organizations, members, trials, billing accounts, evaluation events, projects, project files and file revisions, change proposals, ProofPacks, recovery operations, tasks, task transitions, intent contracts, AI credit ledger, sandbox sessions and their records, invitations, agents and pairing codes, audit events. Desktop agents authenticate with their own token on `/api/v1/agent` only; those requests read with the server key, scoped to the agent's workspace in every query, and write through the same `app_*` functions.
 
 ## 4. Design system and logo
 

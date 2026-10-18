@@ -1,0 +1,325 @@
+/**
+ * Agent runs on this computer. A run copies the task's project into its own
+ * folder, works on it with the agent loop and keeps a record on disk. The
+ * finished change waits for the person to submit it; nothing is sent to
+ * Farbaek on its own. A run that was working when the app closed comes back
+ * as interrupted and never continues by itself: the person starts it again
+ * (a new run on a fresh copy) or discards it.
+ *
+ * This module has no Electron imports, so it's unit-tested with Node alone.
+ */
+import { randomUUID } from "node:crypto";
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import { stateAfterRestart } from "@/core/agent/operations";
+import type { AgentMode } from "@/core/agent/modes";
+import type { ProposedChange } from "@/core/realityloop/change-proposal";
+import type { IntentContract } from "@/core/realityloop/contract";
+import type { AgentProposalResult, AgentTaskDetail, ProposalSubmission, SnapshotFile } from "@/agent-runtime/farbaek-client";
+import { ProjectFolder } from "@/agent-runtime/fs-guard";
+import { runAgent, type ApprovalAnswer, type RunEvent, type RunLimits } from "@/agent-runtime/loop";
+import type { ToolModel } from "@/agent-runtime/models/types";
+import { createLocalRunner, type CommandRunner } from "@/agent-runtime/runners";
+import { AgentWorkspace, materialize } from "@/agent-runtime/workspace";
+import type { DisplayEvent, Provider, RunDetail, RunSummary } from "../shared/api";
+
+/** What a run needs from Farbaek. FarbaekAgentClient fits. */
+export interface RunApi {
+  task(id: string): Promise<AgentTaskDetail>;
+  snapshot(taskId: string): Promise<SnapshotFile[]>;
+  submitProposal(taskId: string, proposal: ProposalSubmission): Promise<AgentProposalResult>;
+}
+
+export interface RunDeps {
+  dataDir: string;
+  makeModel(provider: Provider, apiKey: string): ToolModel;
+  emit(run: RunDetail): void;
+  /** Commands for Controlled Development. Defaults to the local broker in the run's folder. */
+  makeRunner?(root: string): CommandRunner;
+  limits?: Partial<RunLimits>;
+  now?(): Date;
+}
+
+interface StoredRun extends RunDetail {
+  contractVersion: number;
+  contractSha256: string;
+}
+
+const MAX_EVENTS = 400;
+
+export class RunError extends Error {}
+
+export class RunManager {
+  private readonly runs = new Map<string, StoredRun>();
+  private readonly live = new Map<string, { controller: AbortController; approvals: Map<string, (answer: ApprovalAnswer) => void> }>();
+  private readonly timers = new Map<string, NodeJS.Timeout>();
+
+  constructor(private readonly deps: RunDeps) {}
+
+  private get runsDir() {
+    return path.join(this.deps.dataDir, "runs");
+  }
+
+  private workspaceDir(id: string) {
+    return path.join(this.deps.dataDir, "workspaces", id);
+  }
+
+  private now(): string {
+    return (this.deps.now?.() ?? new Date()).toISOString();
+  }
+
+  /** Reads saved runs. Anything that was moving when the app stopped becomes interrupted. */
+  async load(): Promise<void> {
+    await fs.mkdir(this.runsDir, { recursive: true });
+    for (const name of await fs.readdir(this.runsDir)) {
+      if (!name.endsWith(".json") || name.endsWith(".changes.json")) continue;
+      let run: StoredRun;
+      try {
+        run = JSON.parse(await fs.readFile(path.join(this.runsDir, name), "utf8")) as StoredRun;
+        if (typeof run.id !== "string" || typeof run.state !== "string" || !Array.isArray(run.events)) continue;
+      } catch {
+        continue;
+      }
+      const after = stateAfterRestart(run.state);
+      if (after !== run.state) {
+        run.state = after;
+        run.pendingApproval = null;
+        run.endedAt = run.endedAt ?? this.now();
+        run.outcome = "The app closed while this run was working. It won't continue on its own: start it again or discard it.";
+        run.events.push({ at: this.now(), kind: "note", text: "Interrupted when the app closed." });
+        await this.save(run);
+      }
+      this.runs.set(run.id, run);
+    }
+  }
+
+  list(): RunSummary[] {
+    return [...this.runs.values()]
+      .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+      .map(({ id, taskId, taskTitle, projectName, mode, provider, state, startedAt, endedAt, outcome, proposal, discarded }) => ({ id, taskId, taskTitle, projectName, mode, provider, state, startedAt, endedAt, outcome, proposal, discarded }));
+  }
+
+  get(id: string): RunDetail | null {
+    const run = this.runs.get(id);
+    return run ? this.detail(run) : null;
+  }
+
+  private detail(run: StoredRun): RunDetail {
+    const detail: Partial<StoredRun> = structuredClone(run);
+    delete detail.contractVersion;
+    delete detail.contractSha256;
+    return detail as RunDetail;
+  }
+
+  private async save(run: StoredRun): Promise<void> {
+    const file = path.join(this.runsDir, `${run.id}.json`);
+    await fs.mkdir(this.runsDir, { recursive: true });
+    await fs.writeFile(`${file}.tmp`, JSON.stringify(run), "utf8");
+    await fs.rename(`${file}.tmp`, file);
+  }
+
+  /** Tells the window and saves soon (at once when `now`). */
+  private touch(run: StoredRun, now = false): Promise<void> | void {
+    this.deps.emit(this.detail(run));
+    const pending = this.timers.get(run.id);
+    if (pending) clearTimeout(pending);
+    if (now) {
+      this.timers.delete(run.id);
+      return this.save(run);
+    }
+    this.timers.set(
+      run.id,
+      setTimeout(() => {
+        this.timers.delete(run.id);
+        void this.save(run).catch(() => undefined);
+      }, 400),
+    );
+  }
+
+  private record(run: StoredRun, event: RunEvent): void {
+    const at = this.now();
+    let shown: DisplayEvent | null = null;
+    if (event.type === "model") {
+      run.usage.inputTokens += event.usage.inputTokens;
+      run.usage.outputTokens += event.usage.outputTokens;
+      if (event.text.trim()) shown = { at, kind: "model", text: event.text.slice(0, 4_000), tokens: event.usage.inputTokens + event.usage.outputTokens };
+    } else if (event.type === "tool") {
+      shown = { at, kind: "tool", tool: event.tool, target: event.target.slice(0, 300), status: event.status, detail: event.detail.slice(0, 1_500) };
+    } else if (event.type === "approval") {
+      shown = { at, kind: "approval", display: event.request.display, risk: event.request.risk };
+    }
+    if (shown) {
+      run.events.push(shown);
+      if (run.events.length > MAX_EVENTS) run.events.splice(0, run.events.length - MAX_EVENTS, { at, kind: "note", text: "Earlier steps aren't shown." });
+    }
+    void this.touch(run);
+  }
+
+  async start(input: { api: RunApi; taskId: string; mode: AgentMode; provider: Provider; apiKey: string }): Promise<string> {
+    if (input.mode === "sandboxed_autopilot") throw new RunError("Sandboxed Autopilot isn't available yet. Use Review Only or Controlled Development.");
+    const task = await input.api.task(input.taskId);
+    if (!task.task.readyForChange || !task.contract) throw new RunError("This task isn't waiting for a change: its contract isn't approved, or a proposal is already open.");
+    const snapshot = await input.api.snapshot(input.taskId);
+
+    const id = randomUUID();
+    const dir = this.workspaceDir(id);
+    await fs.mkdir(dir, { recursive: true });
+    const folder = await ProjectFolder.open(dir);
+    const { skipped } = await materialize(folder, snapshot);
+    const workspace = await AgentWorkspace.open(
+      folder,
+      input.mode === "review_only" ? "patch" : "disk",
+      task.files.map((f) => ({ path: f.path, revision: f.revision, sha256: f.sha256 })),
+    );
+    const model = this.deps.makeModel(input.provider, input.apiKey);
+    const run: StoredRun = {
+      id,
+      taskId: task.task.id,
+      taskTitle: task.task.title,
+      projectName: task.project.name,
+      mode: input.mode,
+      provider: input.provider,
+      model: model.model,
+      state: "running",
+      startedAt: this.now(),
+      endedAt: null,
+      outcome: null,
+      events: [{ at: this.now(), kind: "note", text: `Copied ${snapshot.length} files to this computer.` }],
+      pendingApproval: null,
+      finish: null,
+      changes: [],
+      notProposed: skipped.map((s) => ({ path: s.path, reason: `Not copied to this computer: ${s.reason}` })),
+      usage: { inputTokens: 0, outputTokens: 0 },
+      proposal: null,
+      discarded: false,
+      contractVersion: task.contract.version,
+      contractSha256: task.contract.sha256,
+    };
+    this.runs.set(id, run);
+    await this.touch(run, true);
+    const commands = input.mode === "controlled" ? (this.deps.makeRunner ?? createLocalRunner)(folder.root) : null;
+    void this.execute(run, workspace, model, commands, task.contract.body);
+    return id;
+  }
+
+  private async execute(run: StoredRun, workspace: AgentWorkspace, model: ToolModel, commands: CommandRunner | null, contract: IntentContract): Promise<void> {
+    const controller = new AbortController();
+    const approvals = new Map<string, (answer: ApprovalAnswer) => void>();
+    this.live.set(run.id, { controller, approvals });
+    try {
+      const report = await runAgent({
+        runId: run.id,
+        task: { id: run.taskId, title: run.taskTitle, contractVersion: run.contractVersion, contract },
+        mode: run.mode,
+        sandboxVerified: false,
+        model,
+        workspace,
+        commands,
+        signal: controller.signal,
+        limits: this.deps.limits,
+        onEvent: (event) => this.record(run, event),
+        approve: (request, signal) =>
+          new Promise<ApprovalAnswer>((resolve) => {
+            approvals.set(request.id, resolve);
+            run.pendingApproval = request;
+            void this.touch(run);
+            signal?.addEventListener(
+              "abort",
+              () => {
+                approvals.delete(request.id);
+                resolve({ approved: false });
+              },
+              { once: true },
+            );
+          }),
+      });
+      run.model = report.model;
+      const o = report.outcome;
+      if (o.kind === "finished") {
+        const { changes, notProposed } = await workspace.changes();
+        await fs.writeFile(path.join(this.runsDir, `${run.id}.changes.json`), JSON.stringify(changes), "utf8");
+        run.state = "completed";
+        run.finish = o.finish;
+        run.changes = changes.map((c) => ({ path: c.path, kind: c.kind, bytes: Buffer.byteLength(c.content, "utf8"), reason: c.reason }));
+        run.notProposed.push(...notProposed);
+        run.outcome = changes.length > 0 ? "Finished. Review the change, then submit it to Farbaek." : "Finished without changing any files.";
+      } else if (o.kind === "cancelled") {
+        run.state = "cancelled";
+        run.outcome = "Cancelled. Nothing was submitted.";
+      } else {
+        run.state = "failed";
+        run.outcome =
+          o.kind === "limit" ? o.detail : o.kind === "refused" ? "The model declined this task." : o.kind === "no_finish" ? "The model stopped without finishing the task." : o.detail;
+      }
+    } catch (error) {
+      run.state = "failed";
+      run.outcome = `The run stopped: ${error instanceof Error ? error.message.slice(0, 300) : "unknown error"}.`;
+    } finally {
+      run.pendingApproval = null;
+      run.endedAt = this.now();
+      this.live.delete(run.id);
+      await this.touch(run, true);
+    }
+  }
+
+  /** A person's answer to the approval the run is waiting for. Only the exact pending request can be answered. */
+  answer(runId: string, requestId: string, approved: boolean, bindingHash: string): void {
+    const live = this.live.get(runId);
+    const run = this.runs.get(runId);
+    const resolve = live?.approvals.get(requestId);
+    if (!live || !run || !resolve || run.pendingApproval?.id !== requestId) return;
+    live.approvals.delete(requestId);
+    run.pendingApproval = null;
+    run.events.push({ at: this.now(), kind: "note", text: approved ? "You approved the command." : "You declined the command." });
+    void this.touch(run);
+    resolve(approved ? { approved: true, bindingHash } : { approved: false });
+  }
+
+  /** Stops every working run, for example when the app quits. Commands they started are killed. */
+  abortAll(): void {
+    for (const id of this.live.keys()) this.cancel(id);
+  }
+
+  cancel(runId: string): void {
+    const live = this.live.get(runId);
+    if (!live) return;
+    live.controller.abort();
+    for (const resolve of live.approvals.values()) resolve({ approved: false });
+    live.approvals.clear();
+  }
+
+  /** Sends a finished run's change to Farbaek, which checks it again and creates a proposal for review. */
+  async submit(runId: string, api: RunApi): Promise<RunDetail> {
+    const run = this.runs.get(runId);
+    if (!run) throw new RunError("That run doesn't exist.");
+    if (run.state !== "completed" || run.discarded) throw new RunError("Only a finished run can be submitted.");
+    if (run.proposal) throw new RunError("This run was already submitted.");
+    if (!run.finish || run.changes.length === 0) throw new RunError("This run didn't change any files, so there's nothing to submit.");
+    const changes = JSON.parse(await fs.readFile(path.join(this.runsDir, `${run.id}.changes.json`), "utf8")) as ProposedChange[];
+    const result = await api.submitProposal(run.taskId, {
+      contractVersion: run.contractVersion,
+      contractSha256: run.contractSha256,
+      plan: { summary: run.finish.summary, steps: run.finish.steps, risks: run.finish.risks, checks: run.finish.checks },
+      changes: changes.map((c) => ({ path: c.path, kind: c.kind, baseRevision: c.baseRevision, content: c.content, reason: c.reason })),
+      notProposed: run.notProposed.slice(0, 100),
+      usage: { model: run.model, inputTokens: run.usage.inputTokens, outputTokens: run.usage.outputTokens },
+      mode: run.mode,
+    });
+    run.proposal = { id: result.proposalId, status: result.status, policy: result.policy.outcome, violations: result.violations.map((v) => v.detail), submittedAt: this.now() };
+    run.events.push({ at: this.now(), kind: "note", text: result.status === "pending" ? "Submitted. It's waiting for review in Farbaek." : "Submitted, and Farbaek blocked it: it breaks the contract." });
+    await this.touch(run, true);
+    return this.detail(run);
+  }
+
+  /** Stops a run if it's working, deletes its copy of the project and its change, and keeps the record. */
+  async discard(runId: string): Promise<void> {
+    const run = this.runs.get(runId);
+    if (!run) return;
+    this.cancel(runId);
+    await fs.rm(this.workspaceDir(runId), { recursive: true, force: true });
+    await fs.rm(path.join(this.runsDir, `${runId}.changes.json`), { force: true });
+    run.discarded = true;
+    run.events.push({ at: this.now(), kind: "note", text: "Discarded. The copy of the project on this computer was deleted." });
+    await this.touch(run, true);
+  }
+}

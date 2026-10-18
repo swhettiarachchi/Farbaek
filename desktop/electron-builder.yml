@@ -1,0 +1,33 @@
+# Farbaek Agent installers. Built unsigned: there's no Windows Authenticode
+# certificate or Apple Developer ID yet (see docs/agent/README.md), so
+# Windows SmartScreen and macOS Gatekeeper warn before the app runs.
+appId: dev.farbaek.agent
+productName: Farbaek Agent
+electronVersion: 43.7.7
+directories:
+  app: desktop/app
+  output: desktop/release
+files:
+  - "**/*"
+  # The app is fully bundled by esbuild (desktop/build.mjs), so no node_modules ship with it.
+  - "!node_modules{,/**/*}"
+asar: true
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: public/brand/farbaek-icon.png
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  artifactName: Farbaek-Agent-Setup-${version}.${ext}
+mac:
+  target: dmg
+  category: public.app-category.developer-tools
+  icon: public/brand/farbaek-icon.png
+linux:
+  target: AppImage
+  category: Development
+publish: null

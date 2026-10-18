@@ -122,3 +122,39 @@ The owner's message asked to proceed without stopping at a plan, so this stage r
 
 - Accepting an invitation live (needs a second person's email).
 - Pages with scripts running at 375px on a real phone (the frame check covers layout, not interaction).
+
+## 2026-10-18: Farbaek Agent (desktop runtime)
+
+Plan approved in plan mode (Stage 4 second half, spec §7). Decision: [ADR 0018](../adr/0018-farbaek-agent-runtime.md). Guide: [docs/agent/](../agent/README.md).
+
+### Done
+
+- **Shared rules** `src/core/agent/`: three modes with honest availability, the Zod tool registry (also the model's JSON Schema), the permission engine (mode, contract paths and operations, secret screening, command risk), command risk with `--ignore-scripts` for installs, the run state machine (a running run becomes interrupted at restart, never resumed silently), Windows-aware path rules, and the setup report (manifests, lockfiles, env names only).
+- **Local runtime** `src/agent-runtime/`: folder guard, command broker with process-tree kill, workspace in patch or disk mode with checkpoints and the diff as proposed changes, the bounded loop with approvals bound to the exact command, Claude and Gemini tool-model adapters, and the agent API client.
+- **Migration 14** `20261018150000_agents.sql`: agents and pairing codes (hashes only), `change_proposals.agent_id`, and five service-role functions (create code, redeem, resolve token per request, revoke, create an agent proposal through `app_create_proposal`).
+- **Agent API** `/api/v1/agent` (pair, me, tasks, task, file pages, proposals, unpair), re-validating every proposal like the web app, with per-agent and pairing rate limits.
+- **Web app**: `/app/agents` (pair with a code shown once, list with last seen, revoke), Agents in the navigation and in More, a real agent count on Billing, "Proposed by Farbaek Agent (name)" on proposals; Agent left the roadmap list.
+- **Desktop app** `desktop/`: Electron 43.7.7 main process (keys and token in `safeStorage`, runs on disk, validated IPC), a preload bridge, and a React window in White Signal (pairing, tasks with the contract and mode choice, runs with live steps and approval cards, keys, settings). `pnpm agent:dev`, `agent:build`, `agent:dist`; unsigned NSIS installer.
+- Fixed on the way: a contract resource written as `docs/` was read as a plain word, so it didn't limit paths.
+- Dependencies (approved in the plan, pinned, 18 days to 10 weeks old): `electron` 43.7.7, `electron-builder` 26.17.0, `esbuild` 0.28.2. Only Electron's install script is allowed (`pnpm-workspace.yaml`).
+
+### Verified
+
+- 696 tests pass (14 skipped smoke tests); typecheck, lint and the production build pass. New: 11 shared-rule tests, 9 folder-guard tests on the real disk (a real junction and a hard link to a folder outside are refused), 10 broker tests with real processes (a parent and its child both gone after a timeout and after a cancel; the app's secret names absent from a command's environment; `npm.cmd` runs and `a&b` is refused), 7 loop tests with a scripted model, 3 adapter tests, 4 client tests, 8 agent API tests, 3 pairing use-case tests, 5 desktop run tests, and 9 database tests for migration 14 (139 database tests in all, one at a time).
+- Migration 14 on the hosted project: the editor's contents matched the tested file (12,335 bytes, `sha256 17e022b3…74b5`); Supabase's generic "destructive operations" notice was for a `delete` inside a function body and the `revoke` statements; nothing is dropped. Read-only check: both tables exist with RLS, `agent_id` added, browsers can't read token hashes or pairing codes or call the session and redeem functions, five functions callable by the server only.
+- Live, platform path (`pnpm agent:smoke`, scripted model, owner's workspace): paired from the Agents page, read the ready task and its contract, downloaded the snapshot, worked on a copy in Review Only, submitted; the task page showed "Proposed by Farbaek Agent (Smoke test agent)", contract check passed, policy asked for approval. Then discarded, the test task cancelled, the agent revoked from the web app. A used code gets 410, an unknown token 401.
+- Live, desktop app (driven over the DevTools protocol, separate data folder): paired through its own window, listed the task, showed the contract with Sandboxed Autopilot locked and Start run blocked until a key exists; a malformed key refused; the token file on disk is DPAPI ciphertext; the page has no `process` or `require`, its fetch is blocked, invalid IPC is refused; Unpair revoked the agent in Farbaek.
+- Packaged app (`pnpm agent:dist`): `Farbaek-Agent-Setup-0.1.0.exe` (114 MB, unsigned), app archive 1.6 MB. The first build bundled the whole repository's `node_modules` (280 MB archive) because the app declares no dependencies; fixed by excluding them, since esbuild bundles everything. The packaged app starts, loads Geist and shows pairing.
+- `/app/agents`, More, Billing and a task page fit at 375px.
+
+### Not verified
+
+- A run with a real model. It needs your own Claude or Gemini key, typed into the app's Keys screen; Farbaek never sees it. Then: pick a task, Review Only, Start run, submit, review in Farbaek.
+- Controlled Development commands from the desktop window (covered by the broker and loop tests, not clicked live).
+- Signed installers (no certificates yet), macOS and Linux builds (no machines here).
+
+### Next
+
+1. Owner: install `desktop/release/Farbaek-Agent-Setup-0.1.0.exe` (SmartScreen: More info, then Run anyway), pair it from Agents, add your key in Keys, and run one Review Only task.
+2. Sandboxed Autopilot: give the agent API a way to start a sandbox session for the run's copy, so commands run on Vercel instead of this computer.
+3. Code-signing certificates, then signed builds.
