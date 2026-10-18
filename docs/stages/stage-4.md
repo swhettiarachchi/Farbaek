@@ -190,7 +190,37 @@ Plans approved in plan mode (usage display, starters and download; then eight pl
 - Free retries and the spend cap (nothing uses them yet: they arrive with the cloud agent and with payments).
 - A rollover across a real month boundary (covered by unit and database tests with dated grants).
 
-### Next
+### Next (updated below)
 
 1. Phase 2: the model gateway with Auto routing per plan (fast models on Free, Opus from Pro, Fable from Max 2x), cloud runs in Vercel Sandbox (migration 16), the Build workspace, and the desktop agent switched to the gateway so no one brings a key.
 2. Phases 3 to 5: previews, security checks (migration 17), the 3D workspace.
+
+## 2026-10-18: Auto routing and the model gateway (Phase 2, first half)
+
+Decision: [ADR 0021](../adr/0021-model-gateway-and-auto-routing.md).
+
+### Done
+
+- **Auto routing** `src/core/agent/routing.ts`: the model per step from the plan, the kind of step and an effort (Fast, Balanced, Deep). Haiku reads and plans, Sonnet writes, Opus from Pro and Fable from Max 2x on Deep, fast models only on Free; pins only on Pro and up, only for included models.
+- **Web AI routed on the server**: contract drafts (a planning step) and change proposals (a writing step) no longer always use Opus. An effort control sits next to both buttons. The answer says when Free kept a fast model. Opus and Fable are now live plan features.
+- **Model gateway** `POST /api/v1/agent/model`: the desktop agent's steps on Farbaek's key, routed and metered through the wallet, with refusals and failures refunded. Schema-limited to text, tool use, tool results and thinking; 6 MB, 30 steps a minute per agent.
+- **Desktop app**: the Keys screen is gone; runs take an effort and show the workspace's usage share; keys from earlier versions are deleted on start. The Agents page says plainly that model steps go through Farbaek to Claude.
+- Shared wallet code for the agent API (`usage-store.ts`); threat model and agent guide updated.
+
+### Verified
+
+- 598 unit and design tests pass (new: 7 routing, 6 gateway, 2 gateway-adapter tests); typecheck, lint and the build pass.
+- Live, on the owner's workspace:
+  - A Balanced contract draft on the Pro trial went to Claude Haiku 5.5 and settled to 4 units (1,993 in, 362 out), against 163 units for the same draft on Opus earlier.
+  - `pnpm agent:smoke` with a fresh code paired an agent and made one real gateway step on Fast. It was routed to Haiku, reserved 81 units and settled to 1 (83 in, 4 out); the reply and the usage share came back.
+  - The smoke test then ran the agent, submitted its proposal and unpaired. The proposal was discarded afterwards.
+
+### Not verified
+
+- A full desktop-app run with a real model through the gateway, clicked in the app (the adapter is unit-tested and the gateway was called live).
+- Deep effort reaching Opus live (unit-tested; not spent on).
+
+### Next
+
+1. Cloud runs: the agent in Vercel Sandbox from the web app (migration 16, a run executor, live events), and the Build workspace at `/app/build`.
+2. Previews (Phase 3), security checks (Phase 4), the 3D workspace (Phase 5).
