@@ -263,3 +263,37 @@ Decision: [ADR 0022](../adr/0022-cloud-agent-runs.md).
 
 1. Previews (Phase 3): instant static previews and the signed relay, with a Preview button beside the agent.
 2. Security checks (Phase 4), the 3D workspace (Phase 5).
+
+## 2026-10-18: Previews (Phase 3)
+
+Decision: [ADR 0023](../adr/0023-previews.md).
+
+### Done
+
+- **Project previews** (migration 17 `20261018220000_project_previews.sql`):
+  - a preview can point at a project and serve its current files on the preview's own private host, with no sandbox;
+  - any member can open one; launch once, expiry, revocation and the archived check all apply;
+  - a Preview button on the project page.
+- **Signed relay** `src/core/sandbox/relay.ts`:
+  - one exposed port per sandbox, with a dependency-free Node relay that forwards only requests the gateway signed (per-sandbox HMAC key, 60-second freshness, one-use nonce, app ports on 127.0.0.1 only, no upgrades);
+  - Vercel previews are on when a preview secret is set.
+- **Start app / Stop app** and the app's log in the preview panel.
+
+### Verified
+
+- 618 unit and design tests pass (new: the relay run as a real Node process in front of a test app, Vercel relay start-up and signing, project previews in the gateway, app commands parsed by bash), plus 6 database tests for migration 17 alongside the sandbox tests. Typecheck, lint and the build pass.
+- Migration 17 on the hosted project: the editor's contents matched the tested file (5,691 bytes, `sha256 314301ee…399c`), with no destructive notice. Read-only check: `project_id` added, `session_id` optional, the one-target check in place, and only the server can open or launch previews.
+- Live, on a local test server: preview domain `localhost:3000`, with a random preview secret held only by that process.
+  - **Project preview** of the test project: the page the cloud run had changed ("Hello from Farbaek") with its stylesheet. Without the access cookie it returns 401, and the cookie is HttpOnly.
+  - **App preview on a real Vercel sandbox**: Start app ran Python's web server, and the preview showed the same site through the gateway and the relay.
+  - Inside the sandbox, an unsigned request and a forged one to the relay both got 401, and the key file is readable only by the sandbox user.
+
+### Not verified
+
+- Previews with the owner's real preview domain and secret: `SANDBOX_PREVIEW_DOMAIN` and `SANDBOX_PREVIEW_SECRET` aren't set in this environment, so the Preview button says so. The owner sets them at hosting.
+- A Next.js app preview (the relay path is the same; the static site was used).
+
+### Next
+
+1. Security checks (Phase 4).
+2. The 3D workspace and motion (Phase 5).
