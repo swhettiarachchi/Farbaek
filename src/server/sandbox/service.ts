@@ -593,6 +593,27 @@ export function createSandboxService(deps: SandboxServiceDeps) {
     return { ok: true, value: { url: `${origin}${PREVIEW_LAUNCH_PATH}?t=${encodeURIComponent(token)}`, previewId, expiresAt: created.value } };
   }
 
+  /**
+   * A preview of a project's current files (ADR 0023): no sandbox and no code
+   * running on Farbaek's side. The files are served on the preview's own host,
+   * private to the person who opened it.
+   */
+  async function openProjectPreview(actor: SandboxActor, projectId: unknown): Promise<SandboxResult<{ url: string; previewId: string; expiresAt: string }>> {
+    if (typeof projectId !== "string" || !/^[0-9a-f-]{36}$/i.test(projectId)) return err("NOT_FOUND", "That project doesn't exist.", "invalid_request");
+    const unavailable = previewUnavailableReason(config);
+    if (unavailable) return err("PREVIEW_UNAVAILABLE", unavailable, "provider_rejected");
+    if (await rateLimited(actor, "preview")) return err("RATE_LIMITED", "Too many previews opened in the last minute.", "quota_exceeded");
+    const lv = await limitsFor(actor.orgId);
+    const previewId = newPreviewId();
+    const created = await store.createProjectPreview({ projectId, actor: actor.userId, id: previewId, ttlSeconds: lv.limits.previewMinutes * 60 });
+    if (!created.ok) return fromDb(created.error);
+    const exp = Math.floor(deps.now().getTime() / 1000) + PREVIEW_LAUNCH_SECONDS;
+    const token = await signPreviewToken({ kind: "launch", p: previewId, u: actor.userId, exp, n: deps.randomKey() }, config.preview.secret!);
+    const origin = previewOrigin(previewId, config.preview.domain!, config.preview.protocol);
+    log("info", "sandbox.project_preview_opened", { project: projectId });
+    return { ok: true, value: { url: `${origin}${PREVIEW_LAUNCH_PATH}?t=${encodeURIComponent(token)}`, previewId, expiresAt: created.value } };
+  }
+
   async function revokePreview(actor: SandboxActor, previewId: string): Promise<SandboxResult<null>> {
     if (!/^[a-z2-7]{26}$/.test(previewId)) return err("NOT_FOUND", "That preview doesn't exist.", "invalid_request");
     const r = await store.revokePreview(previewId, actor.userId);
@@ -850,6 +871,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
     readFile,
     writeFile,
     openPreview,
+    openProjectPreview,
     revokePreview,
     sampleMetrics,
     runChecks,

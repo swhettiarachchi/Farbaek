@@ -82,7 +82,47 @@ export function originalPath(url: URL): string {
   return (p.startsWith("/") ? p : `/${p}`) + url.search;
 }
 
-const accessCache = new Map<string, { until: number; sessionId: string; sandboxId: string; port: number }>();
+type Target =
+  | { kind: "session"; until: number; sessionId: string; sandboxId: string; port: number }
+  | { kind: "project"; until: number; orgId: string; projectId: string };
+
+const accessCache = new Map<string, Target>();
+
+const CONTENT_TYPES: Record<string, string> = {
+  html: "text/html; charset=utf-8",
+  htm: "text/html; charset=utf-8",
+  css: "text/css; charset=utf-8",
+  js: "text/javascript; charset=utf-8",
+  mjs: "text/javascript; charset=utf-8",
+  json: "application/json; charset=utf-8",
+  map: "application/json; charset=utf-8",
+  webmanifest: "application/manifest+json; charset=utf-8",
+  svg: "image/svg+xml; charset=utf-8",
+  xml: "application/xml; charset=utf-8",
+  txt: "text/plain; charset=utf-8",
+  md: "text/plain; charset=utf-8",
+};
+
+/** The project files a request path can mean, most specific first: "/" is index.html, "/about" can be about, about.html or about/index.html. */
+export function staticCandidates(rawPath: string): string[] {
+  let p: string;
+  try {
+    p = decodeURIComponent(rawPath.split("?")[0]!.split("#")[0]!);
+  } catch {
+    return [];
+  }
+  p = p.replace(/^\/+/, "");
+  if (p.split("/").some((part) => part === ".." || part === ".")) return [];
+  if (p === "") return ["index.html"];
+  if (p.endsWith("/")) return [`${p}index.html`];
+  const last = p.split("/").at(-1)!;
+  return last.includes(".") ? [p] : [p, `${p}.html`, `${p}/index.html`];
+}
+
+export function contentTypeFor(path: string): string {
+  const ext = path.split(".").at(-1)?.toLowerCase() ?? "";
+  return CONTENT_TYPES[ext] ?? "application/octet-stream";
+}
 
 export async function handlePreviewRequest(request: Request, deps: GatewayDeps): Promise<Response> {
   const { config, store, runtime } = deps;
@@ -122,24 +162,40 @@ export async function handlePreviewRequest(request: Request, deps: GatewayDeps):
   let target = accessCache.get(previewId);
   if (!target || target.until <= Date.now()) {
     const preview = await store.getPreview(previewId);
-    const session = preview ? await store.getSessionAsSystem(preview.sessionId) : null;
     const role = preview ? await store.memberRoleAsSystem(preview.orgId, access.claims.u) : null;
-    const open =
-      preview &&
-      !preview.revokedAt &&
-      Date.parse(preview.expiresAt) > deps.now().getTime() &&
-      preview.launchedAt !== null &&
-      preview.createdBy === access.claims.u &&
-      role !== null &&
-      session?.state === "ready" &&
-      session.providerSandboxId;
-    if (!open) {
+    const usable = preview && !preview.revokedAt && Date.parse(preview.expiresAt) > deps.now().getTime() && preview.launchedAt !== null && preview.createdBy === access.claims.u && role !== null;
+    const session = usable && preview.sessionId ? await store.getSessionAsSystem(preview.sessionId) : null;
+    if (usable && preview.projectId) {
+      target = { kind: "project", until: Date.now() + 5_000, orgId: preview.orgId, projectId: preview.projectId };
+    } else if (usable && session?.state === "ready" && session.providerSandboxId && preview.port !== null) {
+      target = { kind: "session", until: Date.now() + 5_000, sessionId: session.id, sandboxId: session.providerSandboxId, port: preview.port };
+    } else {
       accessCache.delete(previewId);
       return page(403, "This preview has closed", "It expired, was closed, or its session stopped. Open a new preview from Farbaek.", deps.appOrigin);
     }
-    target = { until: Date.now() + 5_000, sessionId: session.id, sandboxId: session.providerSandboxId!, port: preview.port };
     if (accessCache.size > 1000) accessCache.clear();
     accessCache.set(previewId, target);
+  }
+
+  // A project preview: the project's current files, served as they are.
+  if (target.kind === "project") {
+    const method = request.method.toUpperCase();
+    if (method !== "GET" && method !== "HEAD") return page(405, "Read-only preview", "This preview shows the project's files. It can't accept form posts or other changes.", deps.appOrigin);
+    for (const candidate of staticCandidates(path)) {
+      const content = await store.projectFileAsSystem(target.orgId, target.projectId, candidate);
+      if (content === null) continue;
+      return new Response(method === "HEAD" ? null : content, {
+        status: 200,
+        headers: {
+          "content-type": contentTypeFor(candidate),
+          "cache-control": "no-store",
+          "content-security-policy": `frame-ancestors ${deps.appOrigin}`,
+          "referrer-policy": "no-referrer",
+          "x-content-type-options": "nosniff",
+        },
+      });
+    }
+    return page(404, "Not in this project", "There's no file at this address in the project. Previews serve the project's files exactly as they are.", deps.appOrigin);
   }
   if (!runtime) return page(503, "Sandbox runtime unavailable", "This server has no sandbox runtime connected right now.", deps.appOrigin);
 
@@ -148,7 +204,7 @@ export async function handlePreviewRequest(request: Request, deps: GatewayDeps):
 
   let upstream: { origin: string; headers: Record<string, string> };
   try {
-    upstream = await runtime.previewTarget(target.sandboxId, target.port);
+    upstream = await runtime.previewTarget(target.sandboxId, target.port, { method: request.method, path });
   } catch (e) {
     log("warn", "sandbox.preview_target_failed", { preview: previewId, error: e instanceof Error ? e.message : String(e) });
     return page(502, "The sandbox isn't reachable", "The runtime didn't return this session. It may have stopped.", deps.appOrigin);

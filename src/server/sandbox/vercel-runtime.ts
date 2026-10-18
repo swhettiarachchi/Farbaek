@@ -10,9 +10,12 @@
  * - Egress is always set explicitly through Vercel's firewall: deny-all, or
  *   the package registries only, with private, link-local and metadata
  *   ranges denied on top.
- * - No ports are exposed. Vercel serves exposed ports on public addresses
- *   with no sign-in, so previews stay off here rather than relying on an
- *   address nobody is supposed to guess.
+ * - Vercel serves exposed ports on public addresses with no sign-in, so app
+ *   ports are never exposed. Previews go through one exposed port where
+ *   Farbaek's signed relay runs (ADR 0023): it forwards to the app only
+ *   requests the preview gateway signed with this sandbox's key, so the
+ *   public address alone opens nothing. Without a preview secret, no port is
+ *   exposed and previews stay off.
  * - Sandboxes aren't persistent: stopping one discards its disk, so nothing
  *   lingers in snapshot storage.
  * - The runtime's own timeout is always set, so a sandbox ends even if
@@ -25,6 +28,7 @@ import { APIError, Sandbox, StreamError, type NetworkPolicy, type SandboxRegion 
 import { wrapCommand } from "@/core/sandbox/commands";
 import type { FailureCategory } from "@/core/sandbox/failures";
 import { ALL_TRAFFIC, type EgressRules } from "@/core/sandbox/network";
+import { RELAY_DIR, RELAY_KEY_PATH, RELAY_PORT, RELAY_SCRIPT, RELAY_SCRIPT_PATH, relayKey, signRelayRequest } from "@/core/sandbox/relay";
 import { MAX_SANDBOX_FILE_BYTES, SANDBOX_WORKSPACE_ROOT, resolveSandboxPath } from "@/core/sandbox/paths";
 import {
   RuntimeError,
@@ -48,7 +52,7 @@ const WRITE_BATCH = 100;
 
 export const VERCEL_UNAVAILABLE = {
   previews:
-    "Previews are off on Vercel Sandbox. It serves a sandbox's ports on public addresses with no sign-in, and Farbaek only opens previews it can keep private.",
+    "Previews on Vercel Sandbox need SANDBOX_PREVIEW_SECRET, which keeps them private through Farbaek's signed relay. It isn't set on this server.",
   pauseResume: "Sessions on Vercel Sandbox can't be paused yet. Stop the session and start a new one when you need it.",
   metrics: "Vercel Sandbox doesn't report live CPU and memory samples.",
 } as const;
@@ -163,12 +167,41 @@ export function createVercelRuntime(config: SandboxServerConfig): SandboxRuntime
     maxMemoryMb: 4096,
     pauseResume: false,
     metrics: false,
-    previews: false,
+    previews: Boolean(config.preview.secret),
     outputStreaming: true,
     cancel: true,
     filesystem: true,
-    unavailable: { ...VERCEL_UNAVAILABLE },
+    unavailable: config.preview.secret ? { pauseResume: VERCEL_UNAVAILABLE.pauseResume, metrics: VERCEL_UNAVAILABLE.metrics } : { ...VERCEL_UNAVAILABLE },
   };
+
+  // Sandboxes whose relay is running, so it's started once per sandbox.
+  const relays = new Map<string, { until: number; ready: Promise<void> }>();
+
+  async function relayListening(sandbox: Sandbox): Promise<boolean> {
+    const r = await sandbox.runCommand("bash", ["-c", `(exec 3<>/dev/tcp/127.0.0.1/${RELAY_PORT}) 2>/dev/null`]);
+    return r.exitCode === 0;
+  }
+
+  /** Starts the signed relay inside the sandbox and exposes its one port. */
+  async function startRelay(sandbox: Sandbox, sandboxId: string): Promise<void> {
+    if (!(await relayListening(sandbox))) {
+      const key = await relayKey(config.preview.secret!, sandboxId);
+      await sandbox.runCommand("mkdir", ["-p", RELAY_DIR]);
+      await sandbox.writeFiles([
+        { path: RELAY_SCRIPT_PATH, content: RELAY_SCRIPT },
+        { path: RELAY_KEY_PATH, content: key },
+      ]);
+      await sandbox.runCommand("chmod", ["600", RELAY_KEY_PATH]);
+      await sandbox.runCommand({
+        cmd: "setsid",
+        args: ["bash", "-c", `FARBAEK_RELAY_PORT=${RELAY_PORT} nohup node ${RELAY_SCRIPT_PATH} > ${RELAY_DIR}/relay.log 2>&1 &`],
+        env: {},
+      });
+      for (let i = 0; i < 20 && !(await relayListening(sandbox)); i += 1) await sleep(250);
+      if (!(await relayListening(sandbox))) throw new RuntimeError("provider_rejected", "The preview relay didn't start in the sandbox.");
+    }
+    await sandbox.update({ ports: [RELAY_PORT] });
+  }
 
   async function get(sandboxId: string): Promise<Sandbox> {
     if (!/^[A-Za-z0-9_-]{1,80}$/.test(sandboxId)) throw new RuntimeError("invalid_request", "That isn't a sandbox id.");
@@ -406,8 +439,33 @@ export function createVercelRuntime(config: SandboxServerConfig): SandboxRuntime
       }
     },
 
-    async previewTarget() {
-      throw new RuntimeError("provider_rejected", VERCEL_UNAVAILABLE.previews);
+    async previewTarget(sandboxId, port, request) {
+      if (!config.preview.secret) throw new RuntimeError("provider_rejected", VERCEL_UNAVAILABLE.previews);
+      let sandbox = await get(sandboxId);
+      let relay = relays.get(sandboxId);
+      if (!relay || relay.until < Date.now()) {
+        relay = { until: Date.now() + 5 * 60_000, ready: startRelay(sandbox, sandboxId) };
+        relays.set(sandboxId, relay);
+        if (relays.size > 500) relays.clear();
+      }
+      try {
+        await relay.ready;
+      } catch (err) {
+        relays.delete(sandboxId);
+        throw toRuntimeError(err, "Starting the preview relay");
+      }
+      let origin: string;
+      try {
+        origin = sandbox.domain(RELAY_PORT);
+      } catch {
+        // The port was just exposed: read the sandbox again for its new route.
+        sandbox = await get(sandboxId);
+        origin = sandbox.domain(RELAY_PORT);
+      }
+      origin = origin.replace(/\/$/, "");
+      if (!/^https:\/\/[A-Za-z0-9.-]+$/.test(origin)) throw new RuntimeError("provider_rejected", "The runtime returned an unexpected preview address.");
+      const key = await relayKey(config.preview.secret, sandboxId);
+      return { origin, headers: await signRelayRequest(key, { method: request.method, path: request.path, port }) };
     },
   };
 }

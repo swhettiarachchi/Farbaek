@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CreateTaskForm } from "@/components/app/forms";
+import { PreviewButton } from "@/components/app/preview-button";
+import { previewUnavailableReason, readSandboxConfig } from "@/server/sandbox/config";
 import { ArchiveProject } from "@/components/app/archive-project";
 import { LocalTime } from "@/components/ui/local-time";
 import { MANAGER_ROLES } from "@/server/workspace/types";
@@ -23,6 +25,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
   if (!project) notFound();
   const [tasks, files] = await Promise.all([ctx.reader.listTasks(ctx.current.id, { projectId: project.id }), ctx.reader.listFiles(ctx.current.id, project.id)]);
   const filesBytes = files.reduce((n, f) => n + f.sizeBytes, 0);
+  const previewReason = ctx.mode === "demo" ? "Previews need a real workspace." : previewUnavailableReason(readSandboxConfig());
 
   return (
     <div className="grid gap-8">
@@ -77,11 +80,15 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
               <p className="mt-2 text-sm text-ink-2">
                 <span className="tabular">{files.length.toLocaleString("en-US")}</span> {files.length === 1 ? "file" : "files"} · <span className="tabular">{formatBytes(filesBytes)}</span>
               </p>
-              <div className="mt-4">
+              <div className="mt-4 flex flex-wrap items-start gap-3">
+                <PreviewButton projectId={project.id} disabledReason={previewReason} variant="primary" />
                 <a href={`/app/projects/${project.id}/download`} download className={buttonClasses("secondary", "sm")}>
                   <DownloadSimpleIcon size={16} aria-hidden /> Download .zip
                 </a>
               </div>
+              {!previewReason && !files.some((f) => f.path === "index.html") ? (
+                <p className="mt-3 text-xs text-ink-3">Previews serve the project&apos;s files as they are, starting at index.html. Apps that need building preview from a sandbox.</p>
+              ) : null}
             </>
           ) : (
             <>

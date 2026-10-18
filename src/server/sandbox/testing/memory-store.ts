@@ -18,6 +18,8 @@ export interface MemoryStore extends SandboxStore {
   events: { session: string; event: string; actor: string | null }[];
   members: Map<string, Map<string, Role>>;
   files: Map<string, { path: string; sha256: string; content: string }[]>;
+  /** Which workspace each project belongs to, for project previews. */
+  projectOrgs: Map<string, string>;
   rateHits: Map<string, number>;
   rateLimitOverride: number | null;
 }
@@ -35,6 +37,7 @@ export function createMemoryStore(now: () => Date, viewer: () => string | null =
   const events: { session: string; event: string; actor: string | null }[] = [];
   const members = new Map<string, Map<string, Role>>();
   const files = new Map<string, { path: string; sha256: string; content: string }[]>();
+  const projectOrgs = new Map<string, string>();
   const rateHits = new Map<string, number>();
   const idem = new Map<string, string>();
 
@@ -56,6 +59,7 @@ export function createMemoryStore(now: () => Date, viewer: () => string | null =
     events,
     members,
     files,
+    projectOrgs,
     rateHits,
     rateLimitOverride: null,
 
@@ -312,13 +316,26 @@ export function createMemoryStore(now: () => Date, viewer: () => string | null =
       if (!operator(s, i.actor)) return no("FORBIDDEN");
       if (s.state !== "ready") return no("SESSION_NOT_RUNNING");
       const expiresAt = new Date(Math.min(now().getTime() + i.ttlSeconds * 1000, Date.parse(s.expiresAt))).toISOString();
-      previews.set(i.id, { id: i.id, sessionId: i.sessionId, orgId: s.orgId, port: i.port, createdBy: i.actor, expiresAt, launchedAt: null, revokedAt: null, createdAt: iso() });
+      previews.set(i.id, { id: i.id, sessionId: i.sessionId, orgId: s.orgId, port: i.port, projectId: null, createdBy: i.actor, expiresAt, launchedAt: null, revokedAt: null, createdAt: iso() });
       return ok(expiresAt);
+    },
+    async createProjectPreview(i) {
+      const org = projectOrgs.get(i.projectId);
+      if (!org) return no("NOT_FOUND");
+      if (!roleOf(org, i.actor)) return no("FORBIDDEN");
+      const expiresAt = new Date(now().getTime() + i.ttlSeconds * 1000).toISOString();
+      previews.set(i.id, { id: i.id, sessionId: null, orgId: org, port: null, projectId: i.projectId, createdBy: i.actor, expiresAt, launchedAt: null, revokedAt: null, createdAt: iso() });
+      return ok(expiresAt);
+    },
+    async projectFileAsSystem(org, projectId, path) {
+      if (projectOrgs.get(projectId) !== org) return null;
+      return files.get(projectId)?.find((f) => f.path === path)?.content ?? null;
     },
     async launchPreview(pid, user) {
       const p = previews.get(pid);
-      const s = p ? sessions.get(p.sessionId) : undefined;
-      if (!p || !s || p.createdBy !== user || p.revokedAt || Date.parse(p.expiresAt) <= now().getTime() || p.launchedAt || s.state !== "ready" || !roleOf(p.orgId, user)) {
+      const s = p?.sessionId ? sessions.get(p.sessionId) : undefined;
+      const targetOpen = p?.projectId ? projectOrgs.has(p.projectId) : s?.state === "ready";
+      if (!p || !targetOpen || p.createdBy !== user || p.revokedAt || Date.parse(p.expiresAt) <= now().getTime() || p.launchedAt || !roleOf(p.orgId, user)) {
         return no("PREVIEW_UNAVAILABLE");
       }
       p.launchedAt = iso();
@@ -327,7 +344,8 @@ export function createMemoryStore(now: () => Date, viewer: () => string | null =
     async revokePreview(pid, actor) {
       const p = previews.get(pid);
       if (!p) return no("NOT_FOUND");
-      if (p.createdBy !== actor && !operator(sessions.get(p.sessionId)!, actor)) return no("FORBIDDEN");
+      const manager = ["owner", "admin"].includes(roleOf(p.orgId, actor) ?? "");
+      if (p.createdBy !== actor && !(p.sessionId ? operator(sessions.get(p.sessionId)!, actor) : manager)) return no("FORBIDDEN");
       p.revokedAt ??= iso();
       return ok(null);
     },

@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowClockwiseIcon, ArrowSquareOutIcon, DeviceMobileIcon, DeviceTabletIcon, GlobeIcon, MonitorIcon, XIcon } from "@phosphor-icons/react";
+import { ArrowClockwiseIcon, ArrowSquareOutIcon, DeviceMobileIcon, DeviceTabletIcon, GlobeIcon, MonitorIcon, PlayIcon, ScrollIcon, StopIcon, XIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { buttonClasses } from "@/components/ui/button";
+import { APP_LOG_COMMAND, STOP_APP_COMMAND, startAppCommand } from "@/core/sandbox/app-process";
 import { FarbaekApiError, type FarbaekSandboxClient } from "@/sdk/sandbox-client";
 
 const WIDTHS = { desktop: { label: "Desktop", icon: MonitorIcon, width: "100%" }, tablet: { label: "Tablet", icon: DeviceTabletIcon, width: "768px" }, phone: { label: "Phone", icon: DeviceMobileIcon, width: "375px" } } as const;
@@ -20,6 +21,21 @@ export function PreviewPanel({ client, sessionId, available, reason }: { client:
   const [frameReady, setFrameReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [width, setWidth] = useState<keyof typeof WIDTHS>("desktop");
+  const [command, setCommand] = useState("npm run dev -- --hostname 0.0.0.0 --port 3000");
+  const [app, setApp] = useState<{ busy: "start" | "stop" | "log" | null; output: string | null; failed: boolean }>({ busy: null, output: null, failed: false });
+
+  /** Start app, Stop app and its log are ordinary sandbox commands, so the guard and receipts apply. */
+  async function appAction(kind: "start" | "stop" | "log") {
+    setApp({ busy: kind, output: null, failed: false });
+    try {
+      const text = kind === "start" ? startAppCommand(command) : kind === "stop" ? STOP_APP_COMMAND : APP_LOG_COMMAND;
+      const r = await client.run(sessionId, text, { timeoutSeconds: 60 });
+      const output = [r.stdout, r.stderr].filter(Boolean).join("\n").trim();
+      setApp({ busy: null, output: output || (kind === "stop" ? "Stopped." : "Done."), failed: r.exitCode !== 0 });
+    } catch (e) {
+      setApp({ busy: null, output: e instanceof FarbaekApiError ? e.message : e instanceof Error ? e.message : "That didn't work.", failed: true });
+    }
+  }
 
   async function open(target: "frame" | "tab") {
     setError(null);
@@ -69,6 +85,32 @@ export function PreviewPanel({ client, sessionId, available, reason }: { client:
 
   return (
     <div className="grid gap-4">
+      <section aria-labelledby={`app-${sessionId}`} className="grid gap-2 rounded-md border border-line bg-surface p-4">
+        <h3 id={`app-${sessionId}`} className="text-sm font-medium">
+          Your app
+        </h3>
+        <label className="grid gap-1 text-xs text-ink-3">
+          Start command
+          <input value={command} onChange={(e) => setCommand(e.target.value)} spellCheck={false} className="h-11 rounded-sm border border-line bg-surface px-3 font-mono text-base text-ink sm:text-sm" />
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" disabled={app.busy !== null || !command.trim()} onClick={() => void appAction("start")} className={buttonClasses("primary", "sm")}>
+            <PlayIcon size={16} weight="bold" aria-hidden /> {app.busy === "start" ? "Starting…" : "Start app"}
+          </button>
+          <button type="button" disabled={app.busy !== null} onClick={() => void appAction("stop")} className={buttonClasses("secondary", "sm")}>
+            <StopIcon size={16} weight="bold" aria-hidden /> {app.busy === "stop" ? "Stopping…" : "Stop app"}
+          </button>
+          <button type="button" disabled={app.busy !== null} onClick={() => void appAction("log")} className={buttonClasses("ghost", "sm")}>
+            <ScrollIcon size={16} aria-hidden /> {app.busy === "log" ? "Reading…" : "Show log"}
+          </button>
+        </div>
+        {app.output ? (
+          <pre role={app.failed ? "alert" : "status"} className={`max-h-60 overflow-auto rounded-sm bg-media p-3 font-mono text-xs leading-relaxed ${app.failed ? "text-media-amber" : "text-media-ink"}`}>
+            {app.output}
+          </pre>
+        ) : null}
+      </section>
+
       <form
         className="flex flex-wrap items-end gap-2"
         onSubmit={(e) => {
@@ -94,7 +136,7 @@ export function PreviewPanel({ client, sessionId, available, reason }: { client:
         </button>
       </form>
       <p id={`port-help-${sessionId}`} className="-mt-2 text-xs text-ink-3">
-        Start your app in the console first and make it listen on 0.0.0.0, for example: npm run dev -- --hostname 0.0.0.0 --port 3000. Links are private to you and expire with the session.
+        Start your app above (it must listen on 0.0.0.0), then open its port. Links are private to you and expire with the session.
       </p>
       {error ? (
         <p role="alert" className="text-sm text-failed">

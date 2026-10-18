@@ -239,9 +239,12 @@ export interface SessionEventRecord {
 
 export interface PreviewRecord {
   id: string;
-  sessionId: string;
+  /** An app running in a sandbox: its session and port. Null for a project preview. */
+  sessionId: string | null;
   orgId: string;
-  port: number;
+  port: number | null;
+  /** A project preview (migration 17): the project whose current files are served. */
+  projectId: string | null;
   createdBy: string;
   expiresAt: string;
   launchedAt: string | null;
@@ -341,7 +344,10 @@ export interface SandboxStore {
   requestCancel(executionId: string, actor: string): Promise<RpcResult<{ pid: number | null; providerSandboxId: string | null; alreadyFinished: boolean }>>;
   touchSession(sessionId: string, actor: string): Promise<RpcResult<null>>;
   createPreview(input: { sessionId: string; actor: string; id: string; port: number; ttlSeconds: number }): Promise<RpcResult<string>>;
-  launchPreview(id: string, user: string): Promise<RpcResult<{ sessionId: string; port: number; expiresAt: string }>>;
+  launchPreview(id: string, user: string): Promise<RpcResult<{ sessionId: string | null; port: number | null; expiresAt: string }>>;
+  createProjectPreview(input: { projectId: string; actor: string; id: string; ttlSeconds: number }): Promise<RpcResult<string>>;
+  /** One current file of a project, for previews. Read with the server key; the caller has checked the preview. */
+  projectFileAsSystem(orgId: string, projectId: string, path: string): Promise<string | null>;
   revokePreview(id: string, actor: string): Promise<RpcResult<null>>;
   recordReceipt(input: { sessionId: string; actor: string; digest: string; status: string; statement: unknown }): Promise<RpcResult<null>>;
   rateLimit(key: string, windowSeconds: number, limit: number): Promise<boolean>;

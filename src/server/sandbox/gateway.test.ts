@@ -196,3 +196,74 @@ describe("preview gateway", () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe("project previews", () => {
+  const PROJECT = "22222222-2222-4222-8222-222222222222";
+
+  async function openProjectPreview(user = ALICE) {
+    const service = createSandboxService({
+      store,
+      resolution: { runtime: null, reason: "No runtime.", config },
+      role: async () => (user === ALICE ? "owner" : "member"),
+      billing: async () => ({ state: "free" }),
+      now,
+      randomKey: () => crypto.randomUUID(),
+    });
+    const opened = await service.openProjectPreview({ userId: user, orgId: ORG }, PROJECT);
+    if (!opened.ok) throw new Error(opened.message);
+    return { previewId: opened.value.previewId, launchUrl: new URL(opened.value.url) };
+  }
+
+  beforeEach(() => {
+    store.projectOrgs.set(PROJECT, ORG);
+    store.files.set(PROJECT, [
+      { path: "index.html", sha256: "a".repeat(64), content: "<h1>Hello from Farbaek</h1>" },
+      { path: "styles.css", sha256: "b".repeat(64), content: "h1{color:blue}" },
+      { path: "about.html", sha256: "c".repeat(64), content: "<p>About</p>" },
+      { path: "docs/index.html", sha256: "d".repeat(64), content: "<p>Docs</p>" },
+    ]);
+  });
+
+  it("serves the project's files on the preview host, with no sandbox, to the person who opened it", async () => {
+    const { previewId, launchUrl } = await openProjectPreview();
+    const cookie = await launch(launchUrl);
+    const get = (path: string, c = cookie) => handlePreviewRequest(req(`http://p-${previewId}.${DOMAIN}${path}`, { headers: { cookie: c } }), deps());
+
+    const home = await get("/");
+    expect(home.status).toBe(200);
+    expect(home.headers.get("content-type")).toMatch(/text\/html/);
+    expect(home.headers.get("content-security-policy")).toBe(`frame-ancestors ${APP}`);
+    expect(await home.text()).toBe("<h1>Hello from Farbaek</h1>");
+    expect((await get("/styles.css")).headers.get("content-type")).toMatch(/text\/css/);
+    expect(await (await get("/about")).text()).toBe("<p>About</p>");
+    expect(await (await get("/docs/")).text()).toBe("<p>Docs</p>");
+    expect((await get("/missing.html")).status).toBe(404);
+    expect((await get("/../secrets")).status).toBe(404);
+    expect((await get("/")).status).toBe(200);
+    expect(upstreamCalls).toHaveLength(0);
+  });
+
+  it("refuses changes, other people and closed previews", async () => {
+    const { previewId, launchUrl } = await openProjectPreview();
+    const cookie = await launch(launchUrl);
+    const post = await handlePreviewRequest(req(`http://p-${previewId}.${DOMAIN}/`, { method: "POST", body: "x", headers: { cookie } }), deps());
+    expect(post.status).toBe(405);
+    expect((await handlePreviewRequest(req(`http://p-${previewId}.${DOMAIN}/`), deps())).status).toBe(401);
+    store.previews.get(previewId)!.revokedAt = now().toISOString();
+    // Access is re-checked within seconds; a fresh preview id avoids the short cache.
+    const second = await openProjectPreview();
+    const c2 = await launch(second.launchUrl);
+    store.members.get(ORG)!.delete(ALICE);
+    expect((await handlePreviewRequest(req(`http://p-${second.previewId}.${DOMAIN}/`, { headers: { cookie: c2 } }), deps())).status).toBe(403);
+  });
+
+  it("works out which file a path means, and never climbs out of the project", async () => {
+    const { staticCandidates } = await import("./gateway");
+    expect(staticCandidates("/")).toEqual(["index.html"]);
+    expect(staticCandidates("/about?x=1")).toEqual(["about", "about.html", "about/index.html"]);
+    expect(staticCandidates("/docs/")).toEqual(["docs/index.html"]);
+    expect(staticCandidates("/a%20b.css")).toEqual(["a b.css"]);
+    expect(staticCandidates("/%2e%2e/etc/passwd")).toEqual([]);
+    expect(staticCandidates("/%E0%A4%A")).toEqual([]);
+  });
+});

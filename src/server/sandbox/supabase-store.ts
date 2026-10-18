@@ -30,9 +30,10 @@ function fail(what: string, error: { message: string }): never {
 
 const PreviewRow = z.object({
   id: z.string(),
-  session_id: z.string(),
+  session_id: z.string().nullable(),
   org_id: z.string(),
-  port: z.number().int(),
+  port: z.number().int().nullable(),
+  project_id: z.string().nullable().default(null),
   created_by: z.string(),
   expires_at: z.string(),
   launched_at: z.string().nullable(),
@@ -44,6 +45,7 @@ const previewFromRow = (r: z.infer<typeof PreviewRow>): PreviewRecord => ({
   sessionId: r.session_id,
   orgId: r.org_id,
   port: r.port,
+  projectId: r.project_id,
   createdBy: r.created_by,
   expiresAt: r.expires_at,
   launchedAt: r.launched_at,
@@ -313,12 +315,31 @@ export function createSupabaseSandboxStore(user: SupabaseClient | null, admin: S
         "app_launch_sandbox_preview",
         { p_id: id, p_user: user },
         z
-          .array(z.object({ session_id: z.string(), port: z.number().int(), expires_at: z.string() }))
+          .array(z.object({ session_id: z.string().nullable(), port: z.number().int().nullable(), expires_at: z.string() }))
           .length(1)
           .transform((r) => ({ sessionId: r[0]!.session_id, port: r[0]!.port, expiresAt: r[0]!.expires_at })),
       ),
 
     revokePreview: (id, actor) => rpc("app_revoke_sandbox_preview", { p_id: id, p_actor: actor }, voidResult),
+
+    createProjectPreview: (i) => rpc("app_create_project_preview", { p_project: i.projectId, p_actor: i.actor, p_id: i.id, p_ttl_seconds: i.ttlSeconds }, z.string()),
+
+    async projectFileAsSystem(orgId, projectId, path) {
+      if (!admin) return null;
+      const current = await admin.from("project_files").select("revision").eq("org_id", orgId).eq("project_id", projectId).eq("path", path).maybeSingle();
+      if (current.error) fail("the file", current.error);
+      if (!current.data) return null;
+      const { data, error } = await admin
+        .from("project_file_revisions")
+        .select("content")
+        .eq("org_id", orgId)
+        .eq("project_id", projectId)
+        .eq("path", path)
+        .eq("revision", z.number().int().parse(current.data.revision))
+        .maybeSingle();
+      if (error) fail("the file", error);
+      return typeof data?.content === "string" ? data.content : null;
+    },
 
     recordReceipt: (i) =>
       rpc("app_record_sandbox_receipt", { p_session: i.sessionId, p_actor: i.actor, p_digest: i.digest, p_status: i.status, p_statement: i.statement }, voidResult),

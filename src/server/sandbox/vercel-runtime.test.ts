@@ -19,6 +19,9 @@ const fake = vi.hoisted(() => {
     hang: false,
     findOutput: "",
     killed: [] as string[],
+    ports: [] as number[],
+    relayUp: false,
+    relayStarts: true,
   };
 
   class APIError extends Error {
@@ -71,9 +74,21 @@ const fake = vi.hoisted(() => {
     async writeFiles(files: { path: string; content: string }[]) {
       state.written.push(...files);
     }
+    async update(params: { ports?: number[] }) {
+      if (params.ports) state.ports = params.ports;
+    }
+    domain(port: number) {
+      if (!state.ports.includes(port)) throw new Error(`No route for port ${port}`);
+      return `https://sb-${port}.vercel.run/`;
+    }
     async runCommand(a: string | Run, b?: string[]) {
       const run: Run = typeof a === "string" ? { cmd: a, args: b ?? [] } : a;
       state.runs.push(run);
+      if (run.cmd === "bash" && run.args[1]?.includes("/dev/tcp/")) return finished(state.relayUp ? 0 : 1);
+      if (run.cmd === "setsid" && run.args[2]?.includes("nohup node")) {
+        state.relayUp = state.relayStarts;
+        return finished(0);
+      }
       if (run.cmd === "find") return finished(state.findOutput ? 0 : 1, state.findOutput);
       if (run.cmd === "bash" && run.args[1]?.startsWith("kill")) {
         state.killed.push(run.args[1]);
@@ -123,7 +138,7 @@ function config(over: Partial<SandboxServerConfig["vercel"]> = {}, rest: Partial
 }
 
 beforeEach(() => {
-  Object.assign(fake.state, { created: [], runs: [], written: [], deleted: [], files: new Map(), status: "running", missing: false, logs: [], exitCode: 0, hang: false, findOutput: "", killed: [] });
+  Object.assign(fake.state, { created: [], runs: [], written: [], deleted: [], files: new Map(), status: "running", missing: false, logs: [], exitCode: 0, hang: false, findOutput: "", killed: [], ports: [], relayUp: false, relayStarts: true });
 });
 
 describe("Vercel credentials and selection", () => {
@@ -144,7 +159,7 @@ describe("Vercel credentials and selection", () => {
   it("says plainly which capabilities are off, and why", () => {
     const { capabilities } = createVercelRuntime(config());
     expect(capabilities).toMatchObject({ provider: "Vercel Sandbox", isolation: "microvm", previews: false, pauseResume: false, metrics: false, cancel: true, maxDurationSeconds: 45 * 60 });
-    expect(capabilities.unavailable?.previews).toMatch(/public addresses with no sign-in/);
+    expect(capabilities.unavailable?.previews).toMatch(/SANDBOX_PREVIEW_SECRET/);
   });
 });
 
@@ -203,10 +218,42 @@ describe("creating and destroying sandboxes", () => {
     expect(await runtime.isAlive("fb-abc")).toBe(false);
   });
 
+  it("previews through the signed relay when a preview secret is set: started once, one port exposed, each request signed", async () => {
+    const { relayKey, RELAY_HEADERS, RELAY_KEY_PATH, RELAY_SCRIPT_PATH, relayMessage } = await import("@/core/sandbox/relay");
+    const secret = "q".repeat(48);
+    const runtime = createVercelRuntime(config({}, { preview: { domain: "preview.example.test", secret, protocol: "https" } }));
+    expect(runtime.capabilities.previews).toBe(true);
+    const target = await runtime.previewTarget("fb-abc", 3000, { method: "GET", path: "/dashboard?tab=1" });
+    expect(target.origin).toBe("https://sb-3999.vercel.run");
+    expect(fake.state.ports).toEqual([3999]);
+    const key = await relayKey(secret, "fb-abc");
+    expect(fake.state.written).toEqual(expect.arrayContaining([{ path: RELAY_KEY_PATH, content: key }, expect.objectContaining({ path: RELAY_SCRIPT_PATH })]));
+    expect(fake.state.runs.some((r) => r.cmd === "chmod" && r.args.join(" ") === `600 ${RELAY_KEY_PATH}`)).toBe(true);
+
+    // The signature covers this exact request, and only this sandbox's key makes it.
+    const h = target.headers;
+    const expected = await import("node:crypto").then((c) =>
+      c.createHmac("sha256", key).update(relayMessage({ method: "GET", path: "/dashboard?tab=1", port: 3000, ts: Number(h[RELAY_HEADERS.ts]), nonce: h[RELAY_HEADERS.nonce]! })).digest("hex"),
+    );
+    expect(h[RELAY_HEADERS.sig]).toBe(expected);
+    expect(h[RELAY_HEADERS.port]).toBe("3000");
+
+    const starts = fake.state.runs.filter((r) => r.cmd === "setsid").length;
+    await runtime.previewTarget("fb-abc", 3000, { method: "GET", path: "/" });
+    expect(fake.state.runs.filter((r) => r.cmd === "setsid").length).toBe(starts);
+  });
+
+  it("says so when the relay doesn't start, and never exposes an app port", async () => {
+    fake.state.relayStarts = false;
+    const runtime = createVercelRuntime(config({}, { preview: { domain: "preview.example.test", secret: "q".repeat(48), protocol: "https" } }));
+    await expect(runtime.previewTarget("fb-xyz", 3000, { method: "GET", path: "/" })).rejects.toThrow(/relay didn't start/);
+    expect(fake.state.ports).toEqual([]);
+  }, 15_000);
+
   it("refuses pause, resume and previews with the reason", async () => {
     const runtime = createVercelRuntime(config());
     await expect(runtime.pause("fb-abc")).rejects.toThrow(VERCEL_UNAVAILABLE.pauseResume);
-    await expect(runtime.previewTarget("fb-abc", 3000)).rejects.toThrow(VERCEL_UNAVAILABLE.previews);
+    await expect(runtime.previewTarget("fb-abc", 3000, { method: "GET", path: "/" })).rejects.toThrow(VERCEL_UNAVAILABLE.previews);
   });
 });
 

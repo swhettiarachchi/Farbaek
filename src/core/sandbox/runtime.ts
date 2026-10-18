@@ -115,7 +115,8 @@ export interface SandboxRuntime {
   readFile(sandboxId: string, relativePath: string): Promise<string>;
   writeFiles(sandboxId: string, files: { path: string; content: string }[]): Promise<void>;
   metrics(sandboxId: string): Promise<ResourceSample | null>;
-  previewTarget(sandboxId: string, port: number): Promise<PreviewTarget>;
+  /** Where to send one preview request. The method and path let a runtime sign it (the relay, ADR 0023). */
+  previewTarget(sandboxId: string, port: number, request: { method: string; path: string }): Promise<PreviewTarget>;
   /** Sandboxes carrying these metadata labels, for finding ones Farbaek lost track of. */
   listTagged(metadata: Record<string, string>, limit: number): Promise<{ sandboxId: string; metadata: Record<string, string> }[]>;
 }
