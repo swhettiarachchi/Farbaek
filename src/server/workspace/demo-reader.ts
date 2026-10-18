@@ -290,9 +290,9 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
       return Math.min(DEMO_EVALUATIONS_THIS_PERIOD, TRIAL.limits.evaluationsTotal);
     },
 
-    async countAiCredits() {
-      // The demo never calls a model, so it has no AI usage.
-      return 0;
+    async listUsageGrants() {
+      // The demo never calls a model, so its wallet is untouched.
+      return [];
     },
   };
 }

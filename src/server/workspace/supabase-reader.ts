@@ -2,6 +2,16 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { IntentContractSchema } from "@/core/realityloop/contract";
 import { ORGANIZATION_SELECT, summarizeOrganizations } from "./organizations";
+
+// bigint columns arrive as numbers or numeric strings depending on the client.
+const UsageGrantRowSchema = z.object({
+  id: z.string(),
+  kind: z.enum(["plan", "trial", "free", "topup", "adjustment"]),
+  units: z.coerce.number().int().nonnegative(),
+  used: z.coerce.number().int().nonnegative(),
+  starts_at: z.string(),
+  expires_at: z.string(),
+});
 import {
   MemberRow,
   ProjectRowSchema,
@@ -470,10 +480,15 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
       return z.array(z.object({ path: z.string(), line: z.number().int(), text: z.string() })).parse(data);
     },
 
-    async countAiCredits(orgId, from, to) {
-      const { data, error } = await client.rpc("ai_credits_used", { p_org: orgId, p_from: from.toISOString(), p_to: to.toISOString() });
-      if (error) fail("AI credit usage", error);
-      return z.number().int().nonnegative().parse(data);
+    async listUsageGrants(orgId) {
+      const { data, error } = await client
+        .from("usage_grants")
+        .select("id, kind, units, used, starts_at, expires_at")
+        .eq("org_id", orgId)
+        .gt("expires_at", new Date().toISOString())
+        .order("expires_at");
+      if (error) fail("AI usage", error);
+      return z.array(UsageGrantRowSchema).parse(data).map((g) => ({ id: g.id, kind: g.kind, units: g.units, used: g.used, startsAt: g.starts_at, expiresAt: g.expires_at }));
     },
   };
   return self;

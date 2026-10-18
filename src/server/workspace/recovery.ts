@@ -13,6 +13,7 @@
  * 7. Verify and record evidence: the database checks every restored file
  *    against the earlier revision before it saves the recovery record.
  */
+import { cheapestPlanWithFeature, getPlan } from "@/core/billing/catalog";
 import { checkFeature } from "@/core/billing/entitlements";
 import { resolveEffectivePlan } from "@/core/billing/trial";
 import { buildRecoveryReceipt, recoveryReceiptDigest, type RecoveryReceipt, type RecoveryStatus } from "@/core/proof/recovery-receipt";
@@ -78,7 +79,7 @@ export async function previewRecovery(input: { taskId: string; proposalId: strin
 
 /** The person stops verification and plans the undo; Farbaek records the recovery once it verified the files. */
 const SYSTEM_STEPS: ReadonlySet<TaskEventType> = new Set(["recover"]);
-export const RECOVERY_NOT_IN_PLAN = "Undoing applied changes is included from the Team plan up, and in the trial. You can still put files back yourself from their history.";
+export const RECOVERY_NOT_IN_PLAN = `Undoing applied changes is included from the ${getPlan(cheapestPlanWithFeature("replay_and_recovery") ?? "plus").name} plan up, and in the trial. You can still put files back yourself from their history.`;
 
 export async function recoverChange(
   deps: Deps,

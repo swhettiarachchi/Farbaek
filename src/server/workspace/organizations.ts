@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PAID_PLAN_IDS } from "@/core/billing/catalog";
 import { resolveEffectivePlan, trialPhase, trialWindow, type BillingSnapshot, type EffectivePlan, type TrialPhase } from "@/core/billing/trial";
 
 /** Shape returned by `organizations` with embedded one-to-one billing and trial rows. */
@@ -12,7 +13,7 @@ const OrganizationRow = z.object({
   billing_accounts: OneOrMany(
     z.object({
       state: z.enum(["free", "trialing", "checkout_pending", "active", "past_due", "cancellation_scheduled", "suspended", "expired"]),
-      paid_plan_id: z.enum(["developer", "team", "business", "enterprise"]).nullable(),
+      paid_plan_id: z.enum(PAID_PLAN_IDS).nullable(),
       paid_through: z.string().nullable(),
       suspended_reason: z.enum(["payment", "paused"]).nullable(),
     }),

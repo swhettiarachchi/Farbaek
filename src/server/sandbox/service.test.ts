@@ -98,7 +98,7 @@ async function ready(user = ALICE, over: Record<string, unknown> = {}): Promise<
 beforeEach(() => {
   clock = new Date("2026-10-17T10:00:00Z");
   viewer = null;
-  billing = { state: "active", paidPlanId: "team" };
+  billing = { state: "active", paidPlanId: "studio" };
   taskState = { state: "VERIFYING", version: 7, applied: [] };
   verificationPacks = [];
   // The task's applied change wrote src/index.ts with the content the project holds.
@@ -168,7 +168,7 @@ describe("starting a session", () => {
   });
 
   it("caps session length at the runtime's own ceiling", async () => {
-    billing = { state: "active", paidPlanId: "business" };
+    billing = { state: "active", paidPlanId: "max_3x" };
     const r = await service({ config: { runtimeMaxSessionMinutes: 60 } }).createSession(as(ALICE), request({ minutes: 120 }), key());
     expect(r).toMatchObject({ ok: false, code: "INVALID_REQUEST" });
   });

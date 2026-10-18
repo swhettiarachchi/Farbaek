@@ -5,13 +5,15 @@ import { INTENT_CONTRACT_SCHEMA, type IntentContract } from "@/core/realityloop/
 import type { TaskState } from "@/core/realityloop/task-machine";
 import { sha256Hex } from "@/core/trust/canonical-json";
 import type { ChangeProposer, ProposalOutcome } from "@/server/ai/change-proposer";
-import type { AiCreditDeps } from "./ai-credits";
+import { reserveUnits } from "@/core/billing/rate-card";
+import { proposalPromptTokens } from "@/server/ai/prompts";
+import type { AiUsageDeps } from "./ai-usage";
 import { applyProposal, discardProposal, proposeChange, type ProposalDeps, type StoredProposal } from "./proposals";
 import type { OrgRole } from "./types";
 import type { WriteDeps } from "./use-cases";
 
 const fake = (...parts: string[]) => parts.join("");
-const USAGE = { model: "claude-opus-5-5", inputTokens: 4000, outputTokens: 900 };
+const USAGE = { model: "claude-sonnet-5-5", inputTokens: 4000, outputTokens: 900 };
 const REVIEW_ONLY = { mode: "review_only" as const, reason: "No isolated sandbox is connected yet." };
 
 const contract: IntentContract = {
@@ -40,7 +42,8 @@ const GOOD = output([{ path: "src/lib/cart.ts", kind: "edit", edits: [{ find: "q
 
 function fakeProposer(result: ProposalOutcome | Error) {
   const p = {
-    model: "fake",
+    model: "claude-sonnet-5-5",
+    maxOutputTokens: 16_000,
     briefs: [] as unknown[],
     async propose(brief: unknown) {
       p.briefs.push(brief);
@@ -57,7 +60,7 @@ function fakeDeps(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the spy records inputs of several shapes
   const calls: { name: string; input: any }[] = [];
   let n = 0;
-  const deps: WriteDeps & AiCreditDeps & ProposalDeps = {
+  const deps: WriteDeps & AiUsageDeps & ProposalDeps = {
     role: async () => over.role ?? "member",
     billing: async () => over.billing ?? { state: "free" },
     countActiveProjects: async () => 0,
@@ -67,9 +70,9 @@ function fakeDeps(
     applyTransition: async () => ({ ok: true, value: 1 }),
     saveContract: async () => ({ ok: true, value: 1 }),
     approveContract: async () => ({ ok: true, value: null }),
-    countAiCredits: async () => 0,
-    reserveAiCredits: async (input) => (calls.push({ name: "reserve", input }), { ok: true, value: "entry-1" }),
-    settleAiCredits: async (input) => (calls.push({ name: "settle", input }), { ok: true, value: null }),
+    listUsageGrants: async () => [],
+    reserveUsage: async (input) => (calls.push({ name: "reserve", input }), { ok: true, value: "entry-1" }),
+    settleUsage: async (input) => (calls.push({ name: "settle", input }), { ok: true, value: null }),
     approvedContract: async () => ({ version: 1, sha256: "c".repeat(64), body: contract }),
     countEvaluations: async () => over.evaluations ?? 0,
     projectFiles: async () => Object.entries(FILES).map(([path, f]) => ({ path, revision: f.revision, sizeBytes: f.content.length })),
@@ -110,7 +113,7 @@ const propose = (deps: Parameters<typeof proposeChange>[0], proposer: ChangeProp
   proposeChange(deps, proposer, { orgId: "o1", userId: "u1", taskId: "t1", contextPaths, notes: "", taskTitle: "Reject fractions", projectName: "Storefront" });
 
 describe("proposeChange", () => {
-  it("spends 3 credits, shows the model only the chosen files, and records who decided each step", async () => {
+  it("reserves room for its prompt, shows the model only the chosen files, and records who decided each step", async () => {
     const { deps, calls } = fakeDeps();
     const proposer = fakeProposer({ ok: true, output: GOOD, usage: USAGE });
     expect(await propose(deps, proposer)).toMatchObject({
@@ -119,7 +122,7 @@ describe("proposeChange", () => {
     });
     expect((proposer.briefs[0] as { files: { path: string }[] }).files.map((f) => f.path)).toEqual(["src/lib/cart.ts"]);
     expect(calls.map((c) => c.name)).toEqual(["reserve", "create", "settle"]);
-    expect(calls[0]!.input).toMatchObject({ operation: "change_proposal", credits: 3 });
+    expect(calls[0]!.input).toMatchObject({ operation: "change_proposal", units: reserveUnits("claude-sonnet-5-5", proposalPromptTokens(proposer.briefs[0] as never), 16_000), grant: { kind: "free", source_key: "free:2026-10" } });
     const create = calls[1]!.input;
     expect(create.steps.map((s: { event_type: string; actor_kind?: string }) => [s.event_type, s.actor_kind ?? "user"])).toEqual([
       ["propose_plan", "agent"],
@@ -128,7 +131,8 @@ describe("proposeChange", () => {
     ]);
     expect(create.changes[0]).toMatchObject({ path: "src/lib/cart.ts", baseRevision: 3 });
     expect(create.sha256).toMatch(/^[0-9a-f]{64}$/);
-    expect(calls[2]!.input).toMatchObject({ status: "settled", usage: USAGE });
+    // Settled to the real cost: 4,000 in and 900 out on Sonnet is 170 units.
+    expect(calls[2]!.input).toMatchObject({ status: "settled", units: 170, usage: USAGE, refundReason: null });
   });
 
   it("blocks the task when a change breaks the contract, and still charges for the work", async () => {
@@ -146,7 +150,7 @@ describe("proposeChange", () => {
     const result = await propose(deps, fakeProposer({ ok: true, output: miss, usage: USAGE }));
     expect(result).toMatchObject({ ok: false, code: "NO_APPLICABLE_CHANGES", message: expect.stringMatching(/isn't in the current file.*It didn't count toward your AI usage/) });
     expect(calls.map((c) => c.name)).toEqual(["reserve", "settle"]);
-    expect(calls[1]!.input).toMatchObject({ status: "refunded" });
+    expect(calls[1]!.input).toMatchObject({ status: "refunded", refundReason: "failed" });
   });
 
   it("refunds refusals, provider errors and a file changing during the call", async () => {
@@ -219,10 +223,10 @@ describe("policy and metering", () => {
     await propose(deps, fakeProposer({ ok: true, output: pkg, usage: USAGE }));
     const create = calls.find((c) => c.name === "create")!.input;
     expect(create.policy).toMatchObject({ outcome: "REQUIRE_APPROVAL", policyVersion: expect.stringMatching(/^[0-9a-f]{64}$/) });
-    expect(create.evaluationLimit).toBe(2_000);
+    expect(create.evaluationLimit).toBe(1_000);
   });
 
-  it("refuses a proposal when the evaluation allowance is used up, before spending credits", async () => {
+  it("refuses a proposal when the evaluation allowance is used up, before using AI", async () => {
     const proposer = fakeProposer({ ok: true, output: GOOD, usage: USAGE });
     const { deps, calls } = fakeDeps({ evaluations: 2_000 });
     expect(await propose(deps, proposer)).toMatchObject({ ok: false, code: "EVALUATION_LIMIT" });

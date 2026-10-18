@@ -23,7 +23,7 @@ The dev PC has 3.8 GB of RAM. Run checks one at a time, and stop any dev or prev
 - `src/app/(site)/`: marketing routes (`/`, `/pricing`, `/sign-in`) with the site header. `src/app/app/`: the signed-in app (Mission Control, projects, tasks, approvals, billing, settings). Server Components by default.
 - `src/server/workspace/`: request context, readers (Supabase and demo), write use cases. Writes go through `use-cases.ts` (TypeScript rules) then the service-role-only `app_*` SQL functions; the browser can only read.
 - `src/server/ai/`: model providers behind interfaces: Claude and Gemini for contract drafting and change proposals (ADR 0009, ADR 0014; AI_PROVIDER picks one). Server-only; output is untrusted and only prefills forms.
-- `src/config/credits.ts`: what each AI operation costs in credits (with `docs/billing/ai-credits.md`).
+- `src/config/usage.ts` and `src/core/billing/rate-card.ts`: the AI operations, and what each model costs per token (with `docs/billing/usage.md`, ADR 0020). `src/core/billing/allowance.ts` turns a price into a plan's allowance.
 - `src/components/<area>/`: UI. Anything using Motion, state or effects is a `"use client"` leaf.
 - `src/core/<domain>/`: framework-free domain logic shared by server, browser and the future native apps. ESLint blocks React, Next, Motion and UI imports here.
   - `billing/`: plan catalog (the one pricing source), trial lifecycle, entitlements, usage metering.

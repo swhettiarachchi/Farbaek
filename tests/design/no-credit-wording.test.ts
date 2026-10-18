@@ -1,7 +1,7 @@
 /**
  * People see their usage as a share of each limit and when it resets
- * (ADR 0019), never AI credit counts or costs. Credits are the internal unit
- * only. This guards every page, component and user-facing server message.
+ * (ADR 0019), never AI credit or unit counts or costs. Units are the internal
+ * measure only. This guards every page, component and user-facing server message.
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
@@ -31,7 +31,7 @@ function visibleLines(file: string): { line: number; text: string }[] {
 }
 
 const UI = [...files(path.join(ROOT, "src", "app"), /\.tsx$/), ...files(path.join(ROOT, "src", "components"), /\.tsx$/), ...files(path.join(ROOT, "desktop", "src", "renderer"), /\.tsx$/)];
-const MESSAGES = ["ai-credits.ts", "ai-drafting.ts", "proposals.ts", "use-cases.ts", "usage-summary.ts"].map((f) => path.join(ROOT, "src", "server", "workspace", f));
+const MESSAGES = ["ai-usage.ts", "ai-drafting.ts", "proposals.ts", "use-cases.ts", "usage-summary.ts"].map((f) => path.join(ROOT, "src", "server", "workspace", f));
 
 describe("no credit wording reaches people", () => {
   it("pages and components never say credit", () => {
@@ -39,8 +39,8 @@ describe("no credit wording reaches people", () => {
     expect(hits).toEqual([]);
   });
 
-  it("user-facing server messages never say credit", () => {
-    const quoted = /(["'`])(?:(?!\1).)*\bcredits?\b(?:(?!\1).)*\1/i;
+  it("user-facing server messages never say credit or units", () => {
+    const quoted = /(["'`])(?:(?!\1).)*\b(?:credits?|units?)\b(?:(?!\1).)*\1/i;
     const hits = MESSAGES.flatMap((f) => visibleLines(f).filter(({ text }) => quoted.test(text)).map(({ line, text }) => `${path.relative(ROOT, f)}:${line}: ${text.trim()}`));
     expect(hits).toEqual([]);
   });

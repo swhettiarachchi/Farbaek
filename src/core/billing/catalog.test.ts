@@ -1,88 +1,80 @@
 import { describe, expect, it } from "vitest";
-import {
-  PLANS,
-  TRIAL,
-  annualMonthlyEquivalentCents,
-  annualSavingsCents,
-  cheapestPlanWithFeature,
-  formatUsd,
-  getPlan,
-} from "./catalog";
+import { ECONOMICS, allowanceFor, costBudgetUsd, sessionsGuide } from "./allowance";
+import { PLANS, PLAN_ORDER, TRIAL, cheapestPlanWithFeature, formatUsd, getPlan, planAllowance, planSessionsGuide } from "./catalog";
+import { USD_PER_UNIT, costUsd, sampleSessionUnits } from "./rate-card";
 
 describe("plan catalog", () => {
-  it("matches the owner's published monthly and annual prices", () => {
-    const prices = Object.fromEntries(
-      PLANS.filter((p) => p.pricing.kind === "paid").map((p) => [
-        p.id,
-        p.pricing.kind === "paid" ? [p.pricing.monthlyCents, p.pricing.annualCents] : null,
-      ]),
-    );
-    expect(prices).toEqual({
-      developer: [1_900, 18_000],
-      team: [7_900, 75_600],
-      business: [24_900, 238_800],
-    });
+  it("has the owner's eight prices", () => {
+    const prices = Object.fromEntries(PLANS.map((p) => [p.id, p.pricing.kind === "paid" ? p.pricing.monthlyCents : p.pricing.kind]));
+    expect(prices).toEqual({ free: "free", starter: 999, plus: 1_999, pro: 5_000, studio: 7_999, max: 10_000, max_2x: 20_000, max_3x: 30_000, enterprise: "contract" });
   });
 
-  it("keeps annual totals, savings and monthly equivalents mathematically consistent", () => {
-    const expected = {
-      developer: { yearlyAtMonthly: 22_800, savings: 4_800, equivalent: 1_500 },
-      team: { yearlyAtMonthly: 94_800, savings: 19_200, equivalent: 6_300 },
-      business: { yearlyAtMonthly: 298_800, savings: 60_000, equivalent: 19_900 },
-    } as const;
+  it("reproduces the cost budgets in the pricing research (40% margin after Paddle's 5% + 50 cents)", () => {
+    // reports/AI coding platform costs and pricing.md, "Every plan can spend 55% of its price minus 50 cents".
+    const budgets = { 9.99: 4.99, 19.99: 10.49, 50: 27.0, 79.99: 43.49, 100: 54.5, 200: 109.5, 300: 164.5 };
+    for (const [price, budget] of Object.entries(budgets)) expect(costBudgetUsd(Number(price))).toBeCloseTo(budget, 2);
+    const models = { 9.99: [5, 3.69], 19.99: [10, 8.45], 50: [25, 22.72], 100: [50, 46.5], 300: [150, 141.62] } as const;
+    for (const [price, [hours, model]] of Object.entries(models)) expect(allowanceFor(Number(price), hours).modelBudgetUsd).toBeCloseTo(model, 1);
+  });
 
-    for (const [id, want] of Object.entries(expected)) {
-      const plan = getPlan(id as keyof typeof expected);
-      if (plan.pricing.kind !== "paid") throw new Error("expected a paid plan");
-      expect(plan.pricing.monthlyCents * 12).toBe(want.yearlyAtMonthly);
-      expect(annualSavingsCents(plan)).toBe(want.savings);
-      expect(annualMonthlyEquivalentCents(plan)).toBe(want.equivalent);
-      expect(plan.pricing.annualCents).toBe(want.yearlyAtMonthly - want.savings);
+  it("keeps the margin even when a subscriber uses everything", () => {
+    for (const plan of PLANS) {
+      const a = planAllowance(plan);
+      if (!a || plan.pricing.kind !== "paid") continue;
+      const price = plan.pricing.monthlyCents / 100;
+      const cost = (plan.limits.aiUnitsPerMonth! + plan.limits.retryUnitsPerMonth!) * USD_PER_UNIT + a.sandboxUsd + ECONOMICS.fixedShareUsd + ECONOMICS.snapshotUsd;
+      const fee = price * ECONOMICS.paymentPercent + ECONOMICS.paymentFixedUsd;
+      expect((price - fee - cost) / price, plan.id).toBeGreaterThanOrEqual(0.4 - 1e-6);
     }
+  });
+
+  it("prices the research's sample session the same way", () => {
+    // About $0.36 on Sonnet 5.5 and 2.4 cents on Haiku 5.5, with the 30% tokenizer allowance.
+    expect(sampleSessionUnits("claude-sonnet-5-5") * USD_PER_UNIT).toBeCloseTo(0.357, 2);
+    expect(sampleSessionUnits("claude-haiku-5-5") * USD_PER_UNIT).toBeCloseTo(0.024, 3);
+    expect(costUsd("claude-opus-5-5", { inputTokens: 1_000_000, outputTokens: 0 })).toBe(4);
+    expect(costUsd("unknown-model", { inputTokens: 1_000_000, outputTokens: 0 })).toBe(10);
+    expect(costUsd("claude-haiku-5-5", { inputTokens: 120_000, outputTokens: 0 })).toBeCloseTo(0.06, 5);
+  });
+
+  it("steps every allowance up with the price", () => {
+    const paidPlans = PLAN_ORDER.map(getPlan);
+    for (let i = 1; i < paidPlans.length; i++) {
+      const lower = paidPlans[i - 1]!.limits;
+      const higher = paidPlans[i]!.limits;
+      for (const key of ["aiUnitsPerMonth", "sandboxHours", "seats", "workspaces", "evaluationsPerMonth"] as const) {
+        expect(higher[key]!, `${paidPlans[i]!.id}.${key}`).toBeGreaterThanOrEqual(lower[key]!);
+      }
+      for (const f of paidPlans[i - 1]!.features) expect(paidPlans[i]!.features).toContain(f);
+    }
+    expect(planSessionsGuide(getPlan("plus"))).toBe(sessionsGuide(getPlan("plus").limits.aiUnitsPerMonth!));
+    expect(planSessionsGuide(getPlan("plus"))).toBeGreaterThan(20);
   });
 
   it("never offers unlimited usage on self-serve plans", () => {
     for (const plan of PLANS.filter((p) => p.pricing.kind !== "contract")) {
-      for (const value of Object.values(plan.limits)) {
-        expect(value).toBeTypeOf("number");
-        expect(Number.isFinite(value)).toBe(true);
-      }
-    }
-  });
-
-  it("makes each plan include every feature of the plan below it", () => {
-    const order = ["free", "developer", "team", "business"] as const;
-    for (let i = 1; i < order.length; i++) {
-      const lower = getPlan(order[i - 1]!);
-      const higher = getPlan(order[i]!);
-      for (const f of lower.features) expect(higher.features).toContain(f);
+      for (const value of Object.values(plan.limits)) expect(Number.isFinite(value)).toBe(true);
     }
   });
 
   it("points upgrade hints at the cheapest plan with the feature", () => {
-    expect(cheapestPlanWithFeature("basic_policies")).toBe("free");
-    expect(cheapestPlanWithFeature("developer_api")).toBe("developer");
-    expect(cheapestPlanWithFeature("shadow_mode")).toBe("team");
-    expect(cheapestPlanWithFeature("evidence_exports")).toBe("business");
+    expect(cheapestPlanWithFeature("cloud_agent")).toBe("free");
+    expect(cheapestPlanWithFeature("usage_rollover")).toBe("starter");
+    expect(cheapestPlanWithFeature("security_checks")).toBe("plus");
+    expect(cheapestPlanWithFeature("opus_models")).toBe("pro");
+    expect(cheapestPlanWithFeature("fable_models")).toBe("max_2x");
   });
 
-  it("defines the trial exactly as specified", () => {
+  it("gives the trial Pro features with a month of Starter's usage", () => {
     expect(TRIAL.lengthDays).toBe(14);
-    expect(TRIAL.basePlan).toBe("team");
-    expect(TRIAL.limits).toMatchObject({
-      agents: 5,
-      seats: 3,
-      integrations: 3,
-      evaluationsTotal: 10_000,
-      historyDays: 30,
-      aiCreditsTotal: 100,
-    });
+    expect(TRIAL.basePlan).toBe("pro");
+    expect(TRIAL.limits.aiUnitsTotal).toBe(getPlan("starter").limits.aiUnitsPerMonth);
+    expect(TRIAL.limits.sandboxHours).toBe(getPlan("starter").limits.sandboxHours);
     expect(TRIAL.reminderDays).toEqual([7, 12, 13]);
   });
 
-  it("formats whole and fractional dollar amounts", () => {
-    expect(formatUsd(1_900)).toBe("$19");
-    expect(formatUsd(238_800)).toBe("$2,388");
-    expect(formatUsd(1_550)).toBe("$15.50");
+  it("formats whole and fractional dollars", () => {
+    expect(formatUsd(999)).toBe("$9.99");
+    expect(formatUsd(5_000)).toBe("$50");
   });
 });

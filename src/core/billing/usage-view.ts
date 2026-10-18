@@ -21,6 +21,8 @@ export interface UsageMeter {
   period: "trial" | "month";
   /** What stops at the limit, and what keeps working. */
   atLimit: string;
+  /** AI usage carried over from last month, as a share of this month's allowance, and when it expires. */
+  rollover?: { percentOfMonth: number; expiresAt: string };
 }
 
 /**
@@ -76,13 +78,3 @@ export function usageNote(percent: number | null): string | null {
   return `You've used ${percent}% of your AI usage.`;
 }
 
-/**
- * A plan's AI usage relative to Free, the way plans are compared publicly
- * ("5x Free"), derived from the catalog so it can't drift from the limits.
- */
-export function aiUsageMultiple(planAllowance: number | null, freeAllowance: number): string {
-  if (planAllowance === null) return "Custom";
-  if (planAllowance === freeAllowance) return "Included";
-  const x = planAllowance / freeAllowance;
-  return `${Number.isInteger(x) ? x : x.toFixed(1)}x Free`;
-}

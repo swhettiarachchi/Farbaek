@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { TRIAL } from "./catalog";
 import {
   dueTrialReminders,
   evaluateTrialEligibility,
@@ -72,10 +73,10 @@ describe("trial reminders", () => {
 describe("effective plan", () => {
   const trialing: BillingSnapshot = { state: "trialing", trial: trialWindow(start) };
 
-  it("applies Team features with trial caps during the trial", () => {
+  it("applies Pro features with trial caps during the trial", () => {
     const plan = resolveEffectivePlan(trialing, at(DAY));
-    expect(plan).toMatchObject({ source: "trial", planId: "team" });
-    expect(plan.limits).toMatchObject({ seats: 3, agents: 5, integrations: 3, evaluationsPerMonth: 10_000, aiCreditsPerMonth: 100, historyDays: 30 });
+    expect(plan).toMatchObject({ source: "trial", planId: "pro" });
+    expect(plan.limits).toMatchObject({ seats: 3, agents: 3, integrations: 3, evaluationsPerMonth: 10_000, aiUnitsPerMonth: TRIAL.limits.aiUnitsTotal, sandboxHours: 5, historyDays: 30 });
   });
 
   it("falls back to Free the moment the trial ends, even before the job runs", () => {
@@ -87,16 +88,16 @@ describe("effective plan", () => {
   });
 
   it("keeps paid access through the paid-through date after cancelling", () => {
-    const snap: BillingSnapshot = { state: "cancellation_scheduled", paidPlanId: "team", paidThrough: at(30 * DAY) };
-    expect(resolveEffectivePlan(snap, at(29 * DAY))).toMatchObject({ source: "paid", planId: "team" });
+    const snap: BillingSnapshot = { state: "cancellation_scheduled", paidPlanId: "max", paidThrough: at(30 * DAY) };
+    expect(resolveEffectivePlan(snap, at(29 * DAY))).toMatchObject({ source: "paid", planId: "max" });
     expect(resolveEffectivePlan(snap, at(30 * DAY))).toMatchObject({ source: "free" });
   });
 
   it("keeps paid access while past due, and drops to Free limits while suspended", () => {
-    expect(resolveEffectivePlan({ state: "past_due", paidPlanId: "business" }, at(0))).toMatchObject({ planId: "business" });
-    expect(resolveEffectivePlan({ state: "suspended", paidPlanId: "business", suspendedReason: "payment" }, at(0))).toMatchObject({
+    expect(resolveEffectivePlan({ state: "past_due", paidPlanId: "max_3x" }, at(0))).toMatchObject({ planId: "max_3x" });
+    expect(resolveEffectivePlan({ state: "suspended", paidPlanId: "max_3x", suspendedReason: "payment" }, at(0))).toMatchObject({
       planId: "free",
-      suspendedFrom: "business",
+      suspendedFrom: "max_3x",
     });
   });
 });

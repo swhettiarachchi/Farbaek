@@ -3,7 +3,7 @@
  * entitlement state is unknown, protected work is refused. A short list of
  * safety and data-access operations stays available in every state.
  */
-import { cheapestPlanWithFeature, getPlan, type FeatureKey, type PlanId, type PlanLimits } from "./catalog";
+import { PLAN_ORDER, cheapestPlanWithFeature, getPlan, type FeatureKey, type PlanId, type PlanLimits } from "./catalog";
 import type { EffectivePlan } from "./trial";
 
 export type EntitlementErrorCode =
@@ -17,7 +17,7 @@ export type EntitlementDecision =
   | { allowed: true }
   | { allowed: false; code: EntitlementErrorCode; message: string; upgradeTo?: PlanId };
 
-export type Meter = "workspaces" | "seats" | "agents" | "integrations" | "evaluations" | "ai_credits";
+export type Meter = "workspaces" | "seats" | "agents" | "integrations" | "evaluations" | "ai_usage";
 
 const METER_LIMIT: Record<Meter, keyof PlanLimits> = {
   workspaces: "workspaces",
@@ -25,7 +25,7 @@ const METER_LIMIT: Record<Meter, keyof PlanLimits> = {
   agents: "agents",
   integrations: "integrations",
   evaluations: "evaluationsPerMonth",
-  ai_credits: "aiCreditsPerMonth",
+  ai_usage: "aiUnitsPerMonth",
 };
 
 /** Available at every quota level, in every billing state, even when entitlements can't be read. */
@@ -100,7 +100,7 @@ export function checkQuota(
       allowed: false,
       code: "TRIAL_CAP_REACHED",
       message: "You've reached a trial limit. Choose a plan to keep going, or continue on Free.",
-      upgradeTo: "team",
+      upgradeTo: "plus",
     };
   }
 
@@ -113,9 +113,8 @@ export function checkQuota(
 }
 
 function nextPlanWithHigherLimit(current: PlanId, meter: Meter, needed: number): PlanId | undefined {
-  const order: PlanId[] = ["free", "developer", "team", "business"];
-  const start = order.indexOf(current);
-  for (const id of order.slice(start + 1)) {
+  const start = PLAN_ORDER.indexOf(current);
+  for (const id of PLAN_ORDER.slice(start + 1)) {
     const limit = getPlan(id).limits[METER_LIMIT[meter]];
     if (limit !== null && limit >= needed) return id;
   }

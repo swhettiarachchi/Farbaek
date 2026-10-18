@@ -17,7 +17,7 @@ describe("summarizeOrganizations", () => {
       ],
       now,
     );
-    expect(ws).toMatchObject({ name: "Alice Studio", plan: { source: "trial", planId: "team" }, billingUnknown: false });
+    expect(ws).toMatchObject({ name: "Alice Studio", plan: { source: "trial", planId: "pro" }, billingUnknown: false });
     expect(ws!.trial).toMatchObject({ endsAt: "2026-10-27T09:30:00.000Z", phase: { phase: "active", daysRemaining: 12 } });
   });
 

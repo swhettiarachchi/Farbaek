@@ -4,19 +4,19 @@ import { resolveEffectivePlan, trialWindow } from "./trial";
 
 const now = new Date("2026-10-13T12:00:00.000Z");
 const free = resolveEffectivePlan({ state: "free" }, now);
-const developer = resolveEffectivePlan({ state: "active", paidPlanId: "developer" }, now);
+const studio = resolveEffectivePlan({ state: "active", paidPlanId: "studio" }, now);
 const trial = resolveEffectivePlan({ state: "trialing", trial: trialWindow(now) }, now);
-const suspended = resolveEffectivePlan({ state: "suspended", paidPlanId: "team", suspendedReason: "payment" }, now);
+const suspended = resolveEffectivePlan({ state: "suspended", paidPlanId: "max", suspendedReason: "payment" }, now);
 
 describe("checkFeature", () => {
   it("allows included features and refuses others with an upgrade hint", () => {
     expect(checkFeature(free, "basic_policies")).toEqual({ allowed: true });
-    expect(checkFeature(free, "shadow_mode")).toMatchObject({ allowed: false, code: "FEATURE_NOT_IN_PLAN", upgradeTo: "team" });
+    expect(checkFeature(free, "shadow_mode")).toMatchObject({ allowed: false, code: "FEATURE_NOT_IN_PLAN", upgradeTo: "pro" });
   });
 
-  it("gives trial organizations Team features", () => {
+  it("gives trial organizations Pro features", () => {
     expect(checkFeature(trial, "shadow_mode")).toEqual({ allowed: true });
-    expect(checkFeature(trial, "evidence_exports")).toMatchObject({ code: "FEATURE_NOT_IN_PLAN", upgradeTo: "business" });
+    expect(checkFeature(trial, "evidence_exports")).toMatchObject({ code: "FEATURE_NOT_IN_PLAN", upgradeTo: "max_3x" });
   });
 
   it("explains paused paid features while billing is suspended", () => {
@@ -31,13 +31,13 @@ describe("checkFeature", () => {
 
 describe("checkQuota", () => {
   it("allows usage up to the limit and refuses the unit beyond it", () => {
-    expect(checkQuota(free, "evaluations", { used: 1_999 })).toEqual({ allowed: true });
-    expect(checkQuota(free, "evaluations", { used: 2_000 })).toMatchObject({ allowed: false, code: "QUOTA_EXCEEDED", upgradeTo: "developer" });
+    expect(checkQuota(free, "evaluations", { used: 999 })).toEqual({ allowed: true });
+    expect(checkQuota(free, "evaluations", { used: 1_000 })).toMatchObject({ allowed: false, code: "QUOTA_EXCEEDED", upgradeTo: "starter" });
   });
 
   it("checks multi-unit requests against the remaining allowance", () => {
-    expect(checkQuota(developer, "agents", { used: 3, requested: 2 })).toEqual({ allowed: true });
-    expect(checkQuota(developer, "agents", { used: 3, requested: 3 })).toMatchObject({ code: "QUOTA_EXCEEDED", upgradeTo: "team" });
+    expect(checkQuota(studio, "agents", { used: 3, requested: 2 })).toEqual({ allowed: true });
+    expect(checkQuota(studio, "agents", { used: 3, requested: 3 })).toMatchObject({ code: "QUOTA_EXCEEDED", upgradeTo: "max" });
   });
 
   it("reports trial caps separately from plan quotas", () => {

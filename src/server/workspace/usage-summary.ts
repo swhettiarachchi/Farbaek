@@ -1,55 +1,70 @@
+import type { ButtonOperation } from "@/config/usage";
 import { usagePeriod, type BillingPeriod } from "@/core/billing/usage";
 import { meterState, percentUsed, type UsageMeter } from "@/core/billing/usage-view";
+import { currentGrant, walletView, type WalletView } from "@/core/billing/wallet";
 import { sandboxForPage } from "@/server/sandbox/page-context";
 import { resolveAiProvider } from "@/server/ai/config";
-import type { CreditOperation } from "@/config/credits";
-import { aiAvailability, type AiAvailability } from "./ai-credits";
+import { createChangeProposer, createContractDrafter } from "@/server/ai/providers";
+import { aiAvailability, typicalUnits, type AiAvailability } from "./ai-usage";
+import { MANUAL_CONTRACT } from "./ai-drafting";
 import type { AppContext } from "./context";
 import type { WorkspaceSummary } from "./organizations";
+import { MANUAL_FILES } from "./proposals";
 import type { Project, Task } from "./types";
 
 export interface UsageSummary {
   period: { start: Date; end: Date; kind: "trial" | "month" };
   evaluations: number;
-  /** AI credits counted in the period, or null when they couldn't be read (AI drafting then stays off). */
-  aiCredits: number | null;
+  /** The usage wallet, or null when it couldn't be read (AI then stays off). */
+  wallet: WalletView | null;
   projects: Project[];
   members: number;
   tasks: Task[];
 }
 
 /**
- * The numbers Mission Control and Billing show, from real records.
- * During a trial the evaluation cap covers the whole trial, so the period is
- * the trial window. Otherwise the UTC calendar month (the Free plan rule;
- * paid plans will anchor to the subscription start once payments exist).
+ * The window evaluation limits apply to: the trial while it runs, otherwise
+ * the UTC calendar month (paid plans will anchor to the subscription start
+ * once payments exist). AI usage has its own periods, from its grants.
  */
-/** The window usage limits apply to: the trial while it runs, otherwise the UTC calendar month. */
 export function workspacePeriod(ws: WorkspaceSummary, now: Date): BillingPeriod & { kind: "trial" | "month" } {
   const trial = ws.trial && ws.plan.source === "trial" ? { startedAt: new Date(ws.trial.startedAt), endsAt: new Date(ws.trial.endsAt) } : undefined;
   return usagePeriod(trial, null, now);
 }
 
-const MANUAL: Record<CreditOperation, string> = {
-  contract_draft: "You can still write the contract yourself.",
-  change_proposal: "You can still edit the files yourself.",
+/** The wallet as people see it, or null when it couldn't be read. */
+export async function loadWallet(ctx: AppContext, ws: WorkspaceSummary, now = new Date()): Promise<WalletView | null> {
+  if (ws.billingUnknown) return null;
+  const grants = await ctx.reader.listUsageGrants(ws.id).catch(() => null);
+  if (!grants) return null;
+  const trial = ws.trial ? { startedAt: new Date(ws.trial.startedAt), endsAt: new Date(ws.trial.endsAt) } : undefined;
+  return walletView(grants, currentGrant(ws.plan, trial, now), now);
+}
+
+const MANUAL: Record<ButtonOperation, string> = {
+  contract_draft: MANUAL_CONTRACT,
+  change_proposal: MANUAL_FILES,
 };
 
-/** Whether an AI action works for this person in this workspace, and the credits left. */
-export async function loadAiAvailability(ctx: AppContext, ws: WorkspaceSummary, operation: CreditOperation = "contract_draft", now = new Date()): Promise<AiAvailability> {
+/** Whether an AI action works for this person in this workspace, and the share of usage used. */
+export async function loadAiAvailability(ctx: AppContext, ws: WorkspaceSummary, operation: ButtonOperation = "contract_draft", now = new Date()): Promise<AiAvailability> {
   const period = workspacePeriod(ws, now);
-  const used = await ctx.reader.countAiCredits(ws.id, period.start, period.end).catch(() => null);
   const provider = resolveAiProvider();
+  const wallet = await loadWallet(ctx, ws, now);
+  let needs = 1;
+  if (provider.provider) {
+    const model = operation === "contract_draft" ? createContractDrafter(provider.provider) : createChangeProposer(provider.provider);
+    needs = typicalUnits(operation, model.model, model.maxOutputTokens);
+  }
   return aiAvailability({
-    operation,
     writeReason: ctx.writes.enabled ? null : ctx.writes.reason,
     keyPresent: provider.provider !== null,
     provider: provider.provider ? provider.label : null,
     notConnectedReason: provider.provider ? undefined : provider.reason,
-    used,
     plan: ws.billingUnknown ? null : ws.plan,
-    period: period.kind,
-    resetsAt: period.end.toISOString(),
+    wallet,
+    fallback: { resetsAt: period.end.toISOString(), period: period.kind },
+    needs,
     manual: MANUAL[operation],
   });
 }
@@ -57,14 +72,14 @@ export async function loadAiAvailability(ctx: AppContext, ws: WorkspaceSummary, 
 export async function loadUsageSummary(ctx: AppContext, ws: WorkspaceSummary, now = new Date()): Promise<UsageSummary> {
   const period = workspacePeriod(ws, now);
 
-  const [evaluations, aiCredits, projects, members, tasks] = await Promise.all([
+  const [evaluations, wallet, projects, members, tasks] = await Promise.all([
     ctx.reader.countEvaluations(ws.id, period.start, period.end),
-    ctx.reader.countAiCredits(ws.id, period.start, period.end).catch(() => null),
+    loadWallet(ctx, ws, now),
     ctx.reader.listProjects(ws.id),
     ctx.reader.listMembers(ws.id),
     ctx.reader.listTasks(ws.id),
   ]);
-  return { period, evaluations, aiCredits, projects, members: members.length, tasks };
+  return { period, evaluations, wallet, projects, members: members.length, tasks };
 }
 
 const AT_LIMIT: Record<UsageMeter["id"], string> = {
@@ -78,6 +93,22 @@ function meter(id: UsageMeter["id"], label: string, used: number, limit: number 
   return { id, label, percent, state: meterState(percent), resetsAt: period.end.toISOString(), period: period.kind, atLimit: AT_LIMIT[id] };
 }
 
+/** The AI usage meter from the wallet: this period's share, plus what rolled over. */
+export function aiMeter(wallet: WalletView): UsageMeter | null {
+  const current = wallet.current;
+  if (!current) return null;
+  return {
+    id: "ai",
+    label: "AI usage",
+    percent: current.percent,
+    state: meterState(current.percent),
+    resetsAt: current.resetsAt,
+    period: current.period,
+    atLimit: wallet.rollover ? "Carried-over usage is spent first. When both run out, AI pauses until it resets." : AT_LIMIT.ai,
+    rollover: wallet.rollover ?? undefined,
+  };
+}
+
 /**
  * Usage as people see it: the share of each metered limit used in its window,
  * and when that window ends. Counts stay on the server. A meter whose usage
@@ -87,15 +118,16 @@ export async function loadUsageMeters(ctx: AppContext, ws: WorkspaceSummary, now
   if (ws.billingUnknown) return [];
   const period = workspacePeriod(ws, now);
   const limits = ws.plan.limits;
-  const [ai, evaluations, sandbox] = await Promise.all([
-    ctx.reader.countAiCredits(ws.id, period.start, period.end).catch(() => null),
+  const [wallet, evaluations, sandbox] = await Promise.all([
+    loadWallet(ctx, ws, now),
     ctx.reader.countEvaluations(ws.id, period.start, period.end).catch(() => null),
     sandboxForPage(ctx)
       .then((s) => (s.ok ? s.value.service.overview(s.value.actor) : null))
       .catch(() => null),
   ]);
   const meters: UsageMeter[] = [];
-  if (ai !== null) meters.push(meter("ai", "AI usage", ai, limits.aiCreditsPerMonth, period));
+  const ai = wallet ? aiMeter(wallet) : null;
+  if (ai) meters.push(ai);
   if (evaluations !== null) meters.push(meter("evaluations", "Governed evaluations", evaluations, limits.evaluationsPerMonth, period));
   if (sandbox) {
     meters.push(meter("sandbox", "Sandbox time", sandbox.minutesUsed, sandbox.limits.limits.minutesPerPeriod, { end: sandbox.limits.periodEnd, kind: sandbox.limits.periodKind }));

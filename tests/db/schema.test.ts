@@ -9,6 +9,8 @@ import { PLAN_CATALOG_VERSION, TRIAL } from "@/core/billing/catalog";
 import { USERS, as as runAs, createOrg as createOrgIn, createTestDb, readMigration } from "./harness";
 
 const MIGRATION = readMigration("20261013120000_core_schema.sql");
+// Migration 15 moved workspaces onto the current catalog.
+const PLANS_MIGRATION = readMigration("20261018180000_plans_and_wallet.sql");
 const { alice: ALICE, bob: BOB, unverified: UNVERIFIED } = USERS;
 
 let db: PGlite;
@@ -38,12 +40,12 @@ describe("migration", () => {
 
   it("matches the TypeScript catalog: trial length and catalog version", () => {
     expect(MIGRATION).toContain(`interval '${TRIAL.lengthDays} days'`);
-    expect(MIGRATION).toContain(`'${PLAN_CATALOG_VERSION}'`);
+    expect(PLANS_MIGRATION).toContain(`'${PLAN_CATALOG_VERSION}'`);
   });
 });
 
 describe("create_organization", () => {
-  it("makes the caller owner and starts exactly one 14-day Team trial", async () => {
+  it("makes the caller owner and starts exactly one 14-day Pro trial", async () => {
     const rows = await asUser(ALICE, async () => ({
       members: (await db.query("select user_id, role from public.organization_members where org_id = $1", [aliceOrg])).rows,
       trial: (await db.query<{ plan_id: string; length: string }>(
@@ -54,7 +56,7 @@ describe("create_organization", () => {
       audit: (await db.query("select action from public.audit_events where org_id = $1", [aliceOrg])).rows,
     }));
     expect(rows.members).toEqual([{ user_id: ALICE, role: "owner" }]);
-    expect(rows.trial).toEqual([{ plan_id: "team", length: "14 days" }]);
+    expect(rows.trial).toEqual([{ plan_id: "pro", length: "14 days" }]);
     expect(rows.billing).toEqual([{ state: "trialing", plan_catalog_version: PLAN_CATALOG_VERSION }]);
     expect(rows.audit).toEqual([{ action: "organization.created" }]);
   });
@@ -128,7 +130,7 @@ describe("least privilege", () => {
 
   it("doesn't let the browser write billing, trials, usage or audit", async () => {
     const attempts = [
-      ["update public.billing_accounts set state = 'active', paid_plan_id = 'business' where org_id = $1", [aliceOrg]],
+      ["update public.billing_accounts set state = 'active', paid_plan_id = 'max_3x' where org_id = $1", [aliceOrg]],
       ["update public.trials set ends_at = ends_at + interval '30 days' where org_id = $1", [aliceOrg]],
       ["insert into public.evaluation_events (org_id, idempotency_key, outcome) values ($1, 'k', 'ALLOW')", [aliceOrg]],
       ["insert into public.audit_events (org_id, action) values ($1, 'forged')", [aliceOrg]],

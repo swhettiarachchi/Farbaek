@@ -30,7 +30,7 @@ describe("pairing from the web app", () => {
     expect(r).toMatchObject({ ok: true, value: { expiresAt: "2026-10-18T12:10:00.000Z" } });
     if (!r.ok) return;
     expect(r.value.code).toMatch(/^[2-9A-HJ-NP-Z]{5}-[2-9A-HJ-NP-Z]{5}$/);
-    expect(calls[0]).toEqual({ orgId: "o1", actor: "u1", codeSha256: sha256(normalizePairingCode(r.value.code)!), expiresAt: "2026-10-18T12:10:00.000Z", agentLimit: 2 });
+    expect(calls[0]).toEqual({ orgId: "o1", actor: "u1", codeSha256: sha256(normalizePairingCode(r.value.code)!), expiresAt: "2026-10-18T12:10:00.000Z", agentLimit: 1 });
   });
 
   it("refuses viewers and non-members, and reports the plan's agent limit", async () => {

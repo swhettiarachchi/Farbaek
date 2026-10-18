@@ -1,9 +1,11 @@
-import { CheckIcon, ReceiptIcon } from "@phosphor-icons/react/ssr";
+import { ReceiptIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Card, Notice, PageHeader, UsageMeter } from "@/components/app/primitives";
 import { LocalTime } from "@/components/ui/local-time";
-import { FEATURE_LABELS, SELF_SERVE_PLANS, TRIAL, formatUsd, getPlan } from "@/core/billing/catalog";
+import { WalletCard } from "@/components/app/wallet-card";
+import { sessionsLine } from "@/components/pricing/pricing-plans";
+import { SELF_SERVE_PLANS, TRIAL, formatUsd, getPlan } from "@/core/billing/catalog";
 import { loadAppContext } from "@/server/workspace/context";
 import { UsageMeterList } from "@/components/app/usage-meters";
 import { loadUsageMeters, loadUsageSummary } from "@/server/workspace/usage-summary";
@@ -70,15 +72,18 @@ export default async function BillingPage() {
         </Card>
       </div>
 
-      <Card>
-        <h2 className="text-lg font-medium">Workspace</h2>
-        <div className="mt-5 grid gap-6 md:grid-cols-2">
-          <UsageMeter label="Projects" used={usage.projects.length} limit={limits.workspaces} detail="Active projects in this workspace." reached="Project limit reached. Archive a project or choose a bigger plan to add another." />
-          <UsageMeter label="Seats" used={usage.members} limit={limits.seats} detail="People in this workspace." reached="Seat limit reached. Adding people needs a bigger plan." />
-          <UsageMeter label="Registered agents" used={activeAgents} limit={limits.agents} detail="Desktop agents paired with this workspace and not revoked." />
-          <UsageMeter label="Integrations" used={0} limit={limits.integrations} detail="None connected. GitHub import isn't built yet; projects import files from a folder instead." />
-        </div>
-      </Card>
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <WalletCard wallet={usage.wallet} paid={ws.plan.source === "paid"} />
+        <Card>
+          <h2 className="text-lg font-medium">Workspace</h2>
+          <div className="mt-5 grid gap-6 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+            <UsageMeter label="Projects" used={usage.projects.length} limit={limits.workspaces} detail="Active projects in this workspace." reached="Project limit reached. Archive a project or choose a bigger plan to add another." />
+            <UsageMeter label="Seats" used={usage.members} limit={limits.seats} detail="People in this workspace." reached="Seat limit reached. Adding people needs a bigger plan." />
+            <UsageMeter label="Registered agents" used={activeAgents} limit={limits.agents} detail="Desktop agents paired with this workspace and not revoked." />
+            <UsageMeter label="Integrations" used={0} limit={limits.integrations} detail="None connected. GitHub import isn't built yet; projects import files from a folder instead." />
+          </div>
+        </Card>
+      </div>
 
       <section aria-labelledby="plans-heading" className="grid gap-4">
         <h2 id="plans-heading" className="text-lg font-medium">
@@ -97,13 +102,12 @@ export default async function BillingPage() {
                   {p.pricing.kind === "paid" ? formatUsd(p.pricing.monthlyCents) : "$0"}
                   <span className="ml-1 text-sm font-normal text-ink-3">{p.pricing.kind === "paid" ? "per month" : "forever"}</span>
                 </p>
-                <ul className="mt-4 grid gap-1.5 text-sm text-ink-2">
-                  {p.features.slice(-3).map((f) => (
-                    <li key={f} className="flex gap-2">
-                      <CheckIcon size={15} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden />
-                      {FEATURE_LABELS[f]}
-                    </li>
-                  ))}
+                <ul className="mt-4 grid gap-1.5 text-sm text-ink-2 tabular">
+                  <li className="font-medium text-ink">{sessionsLine(p)}</li>
+                  <li>
+                    {p.limits.sandboxHours} sandbox {p.limits.sandboxHours === 1 ? "hour" : "hours"}
+                  </li>
+                  <li>{p.limits.seats === 1 ? "1 seat" : `${p.limits.seats} seats`}</li>
                 </ul>
                 <p className="mt-auto pt-5">
                   <span

@@ -57,7 +57,7 @@ async function openPreview(user = ALICE): Promise<{ previewId: string; launchUrl
     store,
     resolution: { runtime, reason: null, config },
     role: async () => (user === ALICE ? "owner" : "member"),
-    billing: async () => ({ state: "active", paidPlanId: "team" }),
+    billing: async () => ({ state: "active", paidPlanId: "studio" }),
     now,
     randomKey: () => crypto.randomUUID(),
   });

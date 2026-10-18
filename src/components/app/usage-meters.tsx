@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRightIcon, ChartBarIcon, WarningCircleIcon, WarningIcon } from "@phosphor-icons/react";
+import { ArrowUpRightIcon, ArrowsClockwiseIcon, ChartBarIcon, WarningCircleIcon, WarningIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { loadUsageAction } from "@/app/app/actions";
@@ -23,6 +23,16 @@ export function ResetText({ resetsAt, period }: { resetsAt: string; period: "tri
     },
   );
   return <time dateTime={resetsAt}>{text}</time>;
+}
+
+/** "Nov 30" in the viewer's time zone, with the UTC date on the server render. */
+export function DayText({ at }: { at: string }) {
+  const text = useSyncExternalStore(
+    subscribe,
+    () => new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(new Date(at)),
+    () => `${new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(at))} (UTC)`,
+  );
+  return <time dateTime={at}>{text}</time>;
 }
 
 const BAR = { ok: "bg-accent", nearly: "bg-approval", reached: "bg-failed" } as const;
@@ -52,6 +62,14 @@ function Row({ meter, detailed }: { meter: UsageMeter; detailed: boolean }) {
       <p className="mt-1.5 text-xs text-ink-3">
         <ResetText resetsAt={meter.resetsAt} period={meter.period} />
       </p>
+      {meter.rollover ? (
+        <p className="mt-1 flex items-center gap-1.5 text-xs text-ink-2">
+          <ArrowsClockwiseIcon size={13} weight="bold" className="shrink-0 text-accent" aria-hidden />
+          <span>
+            +{meter.rollover.percentOfMonth}% carried over, used first · expires <DayText at={meter.rollover.expiresAt} />
+          </span>
+        </p>
+      ) : null}
       {detailed && meter.state !== "ok" ? <p className={`mt-1 text-xs ${meter.state === "reached" ? "text-failed" : "text-approval"}`}>{meter.atLimit}</p> : null}
     </div>
   );

@@ -17,8 +17,12 @@ export interface DraftBrief {
 /** Usage as reported by the provider, never estimated. */
 export interface ProviderUsage {
   model: string;
+  /** Prompt tokens billed at the full input rate (not read from or written to a cache). */
   inputTokens: number;
+  /** Output tokens, including any thinking. */
   outputTokens: number;
+  cacheWriteTokens?: number;
+  cacheReadTokens?: number;
 }
 
 export type DraftFailure =
@@ -36,5 +40,7 @@ export type DraftOutcome = { ok: true; draft: ContractDraft; usage: ProviderUsag
 export interface ContractDrafter {
   /** The model requested for drafts. The model that answered is in the outcome's usage. */
   readonly model: string;
+  /** The most a draft can write, thinking included: usage is reserved for it before the call. */
+  readonly maxOutputTokens: number;
   draft(brief: DraftBrief, signal?: AbortSignal): Promise<DraftOutcome>;
 }

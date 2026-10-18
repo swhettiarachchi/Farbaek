@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aiUsageMultiple, meterState, percentUsed, resetText, usageNote } from "./usage-view";
-import { PLANS } from "./catalog";
+import { meterState, percentUsed, resetText, usageNote } from "./usage-view";
 
 describe("percent used", () => {
   it("rounds up so any use shows, and keeps 100% for the limit itself", () => {
@@ -58,10 +57,3 @@ describe("usage note", () => {
   });
 });
 
-describe("AI usage between plans", () => {
-  it("compares plans to Free from the catalog, without exposing allowances", () => {
-    const free = PLANS.find((p) => p.id === "free")!.limits.aiCreditsPerMonth!;
-    expect(PLANS.map((p) => `${p.id}: ${aiUsageMultiple(p.limits.aiCreditsPerMonth, free)}`)).toEqual(["free: Included", "developer: 5x Free", "team: 25x Free", "business: 125x Free", "enterprise: Custom"]);
-    expect(aiUsageMultiple(30, 20)).toBe("1.5x Free");
-  });
-});

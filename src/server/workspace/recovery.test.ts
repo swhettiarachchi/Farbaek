@@ -115,9 +115,9 @@ describe("recoverChange", () => {
     expect(calls).toEqual([]);
   });
 
-  it("is part of Team and the trial, not Free", async () => {
+  it("is part of Plus and up and the trial, not Free", async () => {
     const { deps } = fakeDeps({ billing: { state: "free" } });
-    expect(await recover(deps)).toMatchObject({ ok: false, code: "FEATURE_NOT_IN_PLAN", message: expect.stringMatching(/Team plan/) });
+    expect(await recover(deps)).toMatchObject({ ok: false, code: "FEATURE_NOT_IN_PLAN", message: expect.stringMatching(/from the Plus plan up/) });
   });
 
   it("needs a contributor, and an owner or admin when the change was escalated", async () => {

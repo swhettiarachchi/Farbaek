@@ -50,7 +50,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
         <Brand />
         <h1 className="mt-10 text-3xl font-medium tracking-[-0.03em]">Create your first workspace</h1>
         <p className="mt-3 text-[15px] leading-relaxed text-ink-2">
-          It starts with the {TRIAL.lengthDays}-day Team trial. No card is needed, and when the trial ends the workspace moves to Free.
+          It starts with the {TRIAL.lengthDays}-day {getPlan(TRIAL.basePlan).name} trial. No card is needed, and when the trial ends the workspace moves to Free.
         </p>
         <div className="mt-8 rounded-md border border-line bg-surface p-6 shadow-e2">
           <CreateOrganizationForm />

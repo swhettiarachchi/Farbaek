@@ -77,7 +77,7 @@ export default async function MissionControl() {
 
       {trialActive && ws.trial ? (
         <Notice>
-          {ws.trial.phase.phase === "active" ? ws.trial.phase.daysRemaining : 0} days left in your Team trial. It ends <LocalTime iso={ws.trial.endsAt} />, then
+          {ws.trial.phase.phase === "active" ? ws.trial.phase.daysRemaining : 0} days left in your {getPlan(TRIAL.basePlan).name} trial. It ends <LocalTime iso={ws.trial.endsAt} />, then
           this workspace moves to Free and nothing is charged. <Link href="/app/billing" className="font-medium text-accent hover:underline">See usage</Link>
         </Notice>
       ) : null}
@@ -177,7 +177,7 @@ export default async function MissionControl() {
             })}
           </ol>
           <p className="mt-4 border-t border-line pt-4 text-xs leading-relaxed text-ink-3">
-            Progress comes from your records, not from clicks. The trial gives Team features for {TRIAL.lengthDays} days.
+            Progress comes from your records, not from clicks. The trial gives {getPlan(TRIAL.basePlan).name} features for {TRIAL.lengthDays} days.
           </p>
         </Card>
       </div>

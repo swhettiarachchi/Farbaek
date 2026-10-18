@@ -196,8 +196,8 @@ describe("session requests", () => {
 
   it("picks limits by plan, with trial totals", () => {
     expect(sandboxLimitsFor(null)).toBe(SANDBOX_PLAN_LIMITS.free);
-    expect(sandboxLimitsFor({ planId: "team", source: "trial" })).toBe(SANDBOX_TRIAL_LIMITS);
-    expect(sandboxLimitsFor({ planId: "enterprise", source: "paid" })).toBe(SANDBOX_PLAN_LIMITS.business);
+    expect(sandboxLimitsFor({ planId: "pro", source: "trial" })).toBe(SANDBOX_TRIAL_LIMITS);
+    expect(sandboxLimitsFor({ planId: "enterprise", source: "paid" })).toBe(SANDBOX_PLAN_LIMITS.max_3x);
   });
 
   it("suggests a template from project files", () => {

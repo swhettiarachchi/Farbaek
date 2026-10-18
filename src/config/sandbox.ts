@@ -4,7 +4,7 @@
  * bounded (provisioned time is what the runtime bills for) and are enforced
  * on the server and again in the database. Change them here.
  */
-import type { PlanId } from "@/core/billing/catalog";
+import { TRIAL, getPlan, type PlanId } from "@/core/billing/catalog";
 import type { NetworkProfile } from "@/core/sandbox/network";
 import type { SizeId } from "@/core/sandbox/templates";
 
@@ -25,57 +25,30 @@ export interface SandboxPlanLimits {
   previewMinutes: number;
 }
 
+function tier(planId: Exclude<PlanId, "enterprise">, shape: Omit<SandboxPlanLimits, "minutesPerPeriod" | "sizes" | "networkProfiles">): SandboxPlanLimits {
+  return { ...shape, minutesPerPeriod: (getPlan(planId).limits.sandboxHours ?? 0) * 60, sizes: ["small", "standard"], networkProfiles: ["none", "package_registries"] };
+}
+
+/** Provisioned minutes come from each plan's sandbox hours (allowance.ts); concurrency and lengths step up with the tier. */
 export const SANDBOX_PLAN_LIMITS: Record<Exclude<PlanId, "enterprise">, SandboxPlanLimits> = {
-  free: {
-    maxConcurrentSessions: 1,
-    maxSessionMinutes: 30,
-    idleMinutes: 10,
-    maxCommandSeconds: 300,
-    minutesPerPeriod: 120,
-    sizes: ["small"],
-    networkProfiles: ["none", "package_registries"],
-    previewMinutes: 30,
-  },
-  developer: {
-    maxConcurrentSessions: 2,
-    maxSessionMinutes: 60,
-    idleMinutes: 15,
-    maxCommandSeconds: 600,
-    minutesPerPeriod: 900,
-    sizes: ["small", "standard"],
-    networkProfiles: ["none", "package_registries"],
-    previewMinutes: 60,
-  },
-  team: {
-    maxConcurrentSessions: 4,
-    maxSessionMinutes: 120,
-    idleMinutes: 20,
-    maxCommandSeconds: 900,
-    minutesPerPeriod: 3000,
-    sizes: ["small", "standard"],
-    networkProfiles: ["none", "package_registries"],
-    previewMinutes: 120,
-  },
-  business: {
-    maxConcurrentSessions: 10,
-    maxSessionMinutes: 240,
-    idleMinutes: 30,
-    maxCommandSeconds: 1800,
-    minutesPerPeriod: 12000,
-    sizes: ["small", "standard"],
-    networkProfiles: ["none", "package_registries"],
-    previewMinutes: 240,
-  },
+  free: { ...tier("free", { maxConcurrentSessions: 1, maxSessionMinutes: 30, idleMinutes: 10, maxCommandSeconds: 300, previewMinutes: 30 }), sizes: ["small"] },
+  starter: tier("starter", { maxConcurrentSessions: 1, maxSessionMinutes: 45, idleMinutes: 10, maxCommandSeconds: 600, previewMinutes: 60 }),
+  plus: tier("plus", { maxConcurrentSessions: 2, maxSessionMinutes: 60, idleMinutes: 15, maxCommandSeconds: 600, previewMinutes: 60 }),
+  pro: tier("pro", { maxConcurrentSessions: 3, maxSessionMinutes: 120, idleMinutes: 20, maxCommandSeconds: 900, previewMinutes: 120 }),
+  studio: tier("studio", { maxConcurrentSessions: 4, maxSessionMinutes: 120, idleMinutes: 20, maxCommandSeconds: 900, previewMinutes: 120 }),
+  max: tier("max", { maxConcurrentSessions: 5, maxSessionMinutes: 180, idleMinutes: 30, maxCommandSeconds: 1800, previewMinutes: 180 }),
+  max_2x: tier("max_2x", { maxConcurrentSessions: 8, maxSessionMinutes: 240, idleMinutes: 30, maxCommandSeconds: 1800, previewMinutes: 240 }),
+  max_3x: tier("max_3x", { maxConcurrentSessions: 12, maxSessionMinutes: 240, idleMinutes: 30, maxCommandSeconds: 1800, previewMinutes: 240 }),
 };
 
-/** The 14-day trial gets Team's shape with a smaller total, since trial caps are totals for the whole trial. */
-export const SANDBOX_TRIAL_LIMITS: SandboxPlanLimits = { ...SANDBOX_PLAN_LIMITS.team, maxConcurrentSessions: 2, minutesPerPeriod: 600 };
+/** The 14-day trial gets Pro's shape with Starter's hours, since trial caps are totals for the whole trial. */
+export const SANDBOX_TRIAL_LIMITS: SandboxPlanLimits = { ...SANDBOX_PLAN_LIMITS.pro, maxConcurrentSessions: 2, minutesPerPeriod: TRIAL.limits.sandboxHours * 60 };
 
-/** Enterprise limits are set by contract; until a contract value exists, Business limits apply. */
+/** Enterprise limits are set by contract; until a contract value exists, Max 3x limits apply. */
 export function sandboxLimitsFor(plan: { planId: PlanId; source: "free" | "trial" | "paid" } | null): SandboxPlanLimits {
   if (!plan) return SANDBOX_PLAN_LIMITS.free;
   if (plan.source === "trial") return SANDBOX_TRIAL_LIMITS;
-  if (plan.planId === "enterprise") return SANDBOX_PLAN_LIMITS.business;
+  if (plan.planId === "enterprise") return SANDBOX_PLAN_LIMITS.max_3x;
   return SANDBOX_PLAN_LIMITS[plan.planId];
 }
 

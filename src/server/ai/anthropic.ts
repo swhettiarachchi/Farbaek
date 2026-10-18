@@ -23,13 +23,23 @@ export const CONTRACT_DRAFT_MODEL = "claude-opus-5-5";
 
 const MAX_OUTPUT_TOKENS = 8_000;
 
-function usageOf(message: { model: string; usage: { input_tokens: number; output_tokens: number } }): ProviderUsage {
-  return { model: message.model, inputTokens: message.usage.input_tokens, outputTokens: message.usage.output_tokens };
+function usageOf(message: {
+  model: string;
+  usage: { input_tokens: number; output_tokens: number; cache_creation_input_tokens?: number | null; cache_read_input_tokens?: number | null };
+}): ProviderUsage {
+  return {
+    model: message.model,
+    inputTokens: message.usage.input_tokens,
+    outputTokens: message.usage.output_tokens,
+    cacheWriteTokens: message.usage.cache_creation_input_tokens ?? 0,
+    cacheReadTokens: message.usage.cache_read_input_tokens ?? 0,
+  };
 }
 
 export function createAnthropicContractDrafter(client: Anthropic = new Anthropic({ maxRetries: 1, timeout: 90_000 })): ContractDrafter {
   return {
     model: CONTRACT_DRAFT_MODEL,
+    maxOutputTokens: MAX_OUTPUT_TOKENS,
     async draft(brief, signal): Promise<DraftOutcome> {
       try {
         const message = await client.beta.messages.parse(
@@ -71,6 +81,7 @@ const PROPOSAL_MAX_OUTPUT_TOKENS = 16_000;
 export function createAnthropicChangeProposer(client: Anthropic = new Anthropic({ maxRetries: 1, timeout: 300_000 })): ChangeProposer {
   return {
     model: CONTRACT_DRAFT_MODEL,
+    maxOutputTokens: PROPOSAL_MAX_OUTPUT_TOKENS,
     async propose(brief, signal): Promise<ProposalOutcome> {
       try {
         // Streamed: proposals can be long, and streaming avoids request timeouts.

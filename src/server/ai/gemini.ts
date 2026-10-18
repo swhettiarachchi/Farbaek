@@ -63,7 +63,7 @@ export function toGeminiSchema(schema: unknown): unknown {
 interface GeminiResponse {
   candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] }; finishReason?: string }[];
   promptFeedback?: { blockReason?: string };
-  usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number };
+  usageMetadata?: { promptTokenCount?: number; cachedContentTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number };
   modelVersion?: string;
 }
 
@@ -130,7 +130,9 @@ async function generate<T>(
   const meta = body.usageMetadata ?? {};
   const usage: ProviderUsage = {
     model: body.modelVersion ?? options.model,
-    inputTokens: meta.promptTokenCount ?? 0,
+    // The prompt count includes cached tokens, which are billed at the cache rate.
+    inputTokens: Math.max(0, (meta.promptTokenCount ?? 0) - (meta.cachedContentTokenCount ?? 0)),
+    cacheReadTokens: meta.cachedContentTokenCount ?? 0,
     outputTokens: (meta.candidatesTokenCount ?? 0) + (meta.thoughtsTokenCount ?? 0),
   };
 
@@ -154,13 +156,17 @@ async function generate<T>(
   return parsed.success ? { ok: true, value: parsed.data, usage } : { ok: false, failure: "INCOMPLETE", usage };
 }
 
+const DRAFT_MAX_OUTPUT_TOKENS = 16_000;
+const PROPOSAL_MAX_OUTPUT_TOKENS = 32_000;
+
 export function createGeminiContractDrafter(options: GeminiOptions): ContractDrafter {
   return {
     model: options.model,
+    maxOutputTokens: DRAFT_MAX_OUTPUT_TOKENS,
     async draft(brief, signal): Promise<DraftOutcome> {
       const r = await generate(
         options,
-        { system: CONTRACT_SYSTEM_PROMPT, user: contractBriefMessage(brief), schema: ContractDraftSchema, maxOutputTokens: 16_000, timeoutMs: 90_000 },
+        { system: CONTRACT_SYSTEM_PROMPT, user: contractBriefMessage(brief), schema: ContractDraftSchema, maxOutputTokens: DRAFT_MAX_OUTPUT_TOKENS, timeoutMs: 90_000 },
         signal,
       );
       return r.ok ? { ok: true, draft: r.value, usage: r.usage } : { ok: false, failure: r.failure, usage: r.usage };
@@ -171,10 +177,11 @@ export function createGeminiContractDrafter(options: GeminiOptions): ContractDra
 export function createGeminiChangeProposer(options: GeminiOptions): ChangeProposer {
   return {
     model: options.model,
+    maxOutputTokens: PROPOSAL_MAX_OUTPUT_TOKENS,
     async propose(brief, signal): Promise<ProposalOutcome> {
       const r = await generate(
         options,
-        { system: PROPOSAL_SYSTEM_PROMPT, user: proposalBriefMessage(brief), schema: ProposalOutputSchema, maxOutputTokens: 32_000, timeoutMs: 300_000 },
+        { system: PROPOSAL_SYSTEM_PROMPT, user: proposalBriefMessage(brief), schema: ProposalOutputSchema, maxOutputTokens: PROPOSAL_MAX_OUTPUT_TOKENS, timeoutMs: 300_000 },
         signal,
       );
       return r.ok ? { ok: true, output: r.value, usage: r.usage } : { ok: false, failure: r.failure, usage: r.usage };

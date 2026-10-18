@@ -118,7 +118,9 @@ function trialPlan(): EffectivePlan {
       integrations: TRIAL.limits.integrations,
       evaluationsPerMonth: TRIAL.limits.evaluationsTotal,
       historyDays: TRIAL.limits.historyDays,
-      aiCreditsPerMonth: TRIAL.limits.aiCreditsTotal,
+      aiUnitsPerMonth: TRIAL.limits.aiUnitsTotal,
+      retryUnitsPerMonth: getPlan("starter").limits.retryUnitsPerMonth,
+      sandboxHours: TRIAL.limits.sandboxHours,
     },
   };
 }

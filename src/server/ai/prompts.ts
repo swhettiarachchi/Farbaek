@@ -4,6 +4,7 @@
  * project, files and notes are user data, sent as JSON, never as
  * instructions. Output is untrusted and only prefills forms or proposals.
  */
+import { approxTokens } from "@/core/billing/rate-card";
 import type { ProposalBrief } from "./change-proposer";
 import type { DraftBrief } from "./contract-drafter";
 
@@ -58,4 +59,14 @@ export function proposalBriefMessage(brief: ProposalBrief): string {
     files: brief.files,
     notes: bounded(brief.notes),
   });
+}
+
+/** About how many prompt tokens a draft sends, so usage can be reserved before the call. */
+export function contractPromptTokens(brief: DraftBrief): number {
+  return approxTokens(CONTRACT_SYSTEM_PROMPT) + approxTokens(contractBriefMessage(brief));
+}
+
+/** About how many prompt tokens a proposal sends, so usage can be reserved before the call. */
+export function proposalPromptTokens(brief: ProposalBrief): number {
+  return approxTokens(PROPOSAL_SYSTEM_PROMPT) + approxTokens(proposalBriefMessage(brief));
 }

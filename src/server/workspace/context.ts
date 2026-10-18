@@ -52,7 +52,7 @@ function memoizeReader(reader: WorkspaceReader): WorkspaceReader {
     listTasks: wrap("tasks", reader.listTasks),
     getTask: wrap("task", reader.getTask),
     countEvaluations: wrap("evals", (orgId: string, from: Date, to: Date) => reader.countEvaluations(orgId, from, to)),
-    countAiCredits: wrap("ai", (orgId: string, from: Date, to: Date) => reader.countAiCredits(orgId, from, to)),
+    listUsageGrants: wrap("grants", reader.listUsageGrants),
     getContract: wrap("contract", reader.getContract),
     listFiles: wrap("files", reader.listFiles),
     getFile: wrap("file", reader.getFile),

@@ -22,5 +22,7 @@ export type ProposalOutcome = { ok: true; output: ProposalOutput; usage: Provide
 
 export interface ChangeProposer {
   readonly model: string;
+  /** The most a proposal can write, thinking included: usage is reserved for it before the call. */
+  readonly maxOutputTokens: number;
   propose(brief: ProposalBrief, signal?: AbortSignal): Promise<ProposalOutcome>;
 }

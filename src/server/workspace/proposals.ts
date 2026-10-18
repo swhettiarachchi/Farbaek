@@ -32,13 +32,15 @@ import { MANAGER_ROLES } from "./types";
 import type { TaskEventType, TaskState } from "@/core/realityloop/task-machine";
 import { sha256Hex } from "@/core/trust/canonical-json";
 import { screenFile } from "@/core/workspace/files";
-import type { ChangeProposer } from "@/server/ai/change-proposer";
-import { refundAndFail, reserveCredits, settleCredits, type AiCreditDeps } from "./ai-credits";
+import { reserveUnits } from "@/core/billing/rate-card";
+import type { ChangeProposer, ProposalBrief } from "@/server/ai/change-proposer";
+import { proposalPromptTokens } from "@/server/ai/prompts";
+import { refundAndFail, reserveUsage, settleUsage, type AiUsageDeps } from "./ai-usage";
 import { MESSAGES, codeFromDatabaseError, fail, planSteps, requireContributor, type RpcResult, type TransitionStep, type WriteDeps, type WriteResult } from "./use-cases";
 
 export const MAX_CONTEXT_FILES = 20;
 export const MAX_CONTEXT_BYTES = 300 * 1024;
-const MANUAL = "You can still edit the files yourself.";
+export const MANUAL_FILES = "You can still edit the files yourself.";
 
 export interface StoredProposal {
   id: string;
@@ -91,7 +93,7 @@ export interface ProposalDeps {
   discardProposal(input: { proposalId: string; actor: string; expectedTaskVersion: number; steps: TransitionStep[] }): Promise<RpcResult<null>>;
 }
 
-type Deps = WriteDeps & AiCreditDeps & ProposalDeps;
+type Deps = WriteDeps & AiUsageDeps & ProposalDeps;
 
 /** Plans the steps with the state machine and labels who decides each one. */
 function steps(deps: Deps, task: { id: string; state: TaskState; version: number }, orgId: string, userId: string, events: { type: TaskEventType; actor: "user" | "agent" | "system" }[]) {
@@ -138,7 +140,7 @@ export async function proposeChange(
     context.push({ path, ...f });
   }
 
-  // A proposal is a governed evaluation: check the allowance before spending AI credits.
+  // A proposal is a governed evaluation: check the allowance before using AI.
   const now = deps.now();
   const snapshot = await deps.billing(input.orgId);
   const plan = snapshot ? resolveEffectivePlan(snapshot, now) : null;
@@ -148,20 +150,22 @@ export async function proposeChange(
     return evaluations.code === "QUOTA_EXCEEDED" || evaluations.code === "TRIAL_CAP_REACHED" ? fail("EVALUATION_LIMIT") : fail(evaluations.code, evaluations.message);
   }
 
-  const reserved = await reserveCredits(deps, { orgId: input.orgId, userId: input.userId, taskId: task.id, operation: "change_proposal", manual: MANUAL });
+  const brief: ProposalBrief = {
+    contract: contract.body,
+    taskTitle: input.taskTitle,
+    projectName: input.projectName,
+    paths: files.map((f) => f.path),
+    files: context.map((f) => ({ path: f.path, content: f.content })),
+    notes: input.notes.slice(0, 4_000),
+  };
+  const units = reserveUnits(proposer.model, proposalPromptTokens(brief), proposer.maxOutputTokens);
+  const reserved = await reserveUsage(deps, { orgId: input.orgId, userId: input.userId, taskId: task.id, operation: "change_proposal", units, manual: MANUAL_FILES });
   if (!reserved.ok) return reserved;
   const { entryId } = reserved.value;
 
   let outcome;
   try {
-    outcome = await proposer.propose({
-      contract: contract.body,
-      taskTitle: input.taskTitle,
-      projectName: input.projectName,
-      paths: files.map((f) => f.path),
-      files: context.map((f) => ({ path: f.path, content: f.content })),
-      notes: input.notes.slice(0, 4_000),
-    });
+    outcome = await proposer.propose(brief);
   } catch {
     outcome = { ok: false as const, failure: "PROVIDER_ERROR" as const, usage: null };
   }
@@ -205,7 +209,7 @@ export async function proposeChange(
     return refundAndFail(deps, { orgId: input.orgId, entryId, usage: outcome.usage }, { code, message });
   }
 
-  await settleCredits(deps, { orgId: input.orgId, entryId, status: "settled", usage: outcome.usage });
+  await settleUsage(deps, { orgId: input.orgId, entryId, usage: outcome.usage });
   return { ok: true, value: { proposalId: created.value, status: blocked ? "blocked" : "pending", dropped, violations, policy } };
 }
 

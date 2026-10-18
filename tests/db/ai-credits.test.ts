@@ -1,9 +1,11 @@
 /**
- * Migration 4: the AI credit ledger. Credits are reserved under a lock,
- * then settled or refunded exactly once, and only the server can write.
+ * Migration 15: the usage wallet. AI usage is reserved from grants under the
+ * organization lock, soonest expiry first; settling to the real cost or
+ * refunding gives usage back to the same grants; free-retry refunds are
+ * capped; only the server can write. Also the new plan ids.
  */
 import type { PGlite } from "@electric-sql/pglite";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { USERS, as, createOrg, createTestDb } from "./harness";
 
 let db: PGlite;
@@ -13,36 +15,43 @@ let task: string;
 
 const asService = <T>(fn: () => Promise<T>) => as(db, "service_role", null, fn);
 const asUser = <T>(uid: string, fn: () => Promise<T>) => as(db, "authenticated", uid, fn);
+const admin = async <T = Record<string, unknown>>(sql: string, params: unknown[] = []) => (await db.query<T>(sql, params)).rows;
 
 const DAY = 86_400_000;
-const start = () => new Date(Date.now() - DAY).toISOString();
-const end = () => new Date(Date.now() + DAY).toISOString();
+const iso = (ms: number) => new Date(Date.now() + ms).toISOString();
 
 let seq = 0;
-async function reserve(opts: { org?: string; actor?: string; key?: string; credits?: number; limit?: number | null; task?: string | null; from?: string; to?: string } = {}) {
+const grant = (units: number, key = "plan:current", startsIn = -DAY, expiresIn = 30 * DAY) => ({ kind: key.split(":")[0], units, starts_at: iso(startsIn), expires_at: iso(expiresIn), source_key: key });
+
+async function reserve(units: number, opts: { org?: string; actor?: string; grant?: object | null; key?: string; task?: string | null } = {}) {
   return asService(async () => {
-    const r = await db.query<{ id: string }>("select public.app_reserve_ai_credits($1, $2, $3, 'contract_draft', $4, $5, $6, $7, $8) as id", [
+    const r = await db.query<{ id: string }>("select public.app_reserve_usage($1, $2, $3, 'agent_step', $4, $5, $6) as id", [
       opts.org ?? org,
       opts.actor ?? USERS.alice,
       opts.key ?? `key-${++seq}`,
       opts.task === undefined ? task : opts.task,
-      opts.credits ?? 1,
-      opts.limit === undefined ? 100 : opts.limit,
-      opts.from ?? start(),
-      opts.to ?? end(),
+      units,
+      opts.grant === undefined ? JSON.stringify(grant(10_000)) : opts.grant === null ? null : JSON.stringify(opts.grant),
     ]);
     return r.rows[0]!.id;
   });
 }
 
-async function settle(entry: string, status: string, owner = org) {
-  return asService(() => db.query("select public.app_settle_ai_credits($1, $2, $3, 'claude-opus-5-5', 1200, 800)", [owner, entry, status]));
+async function settle(entry: string, status: "settled" | "refunded", units: number, opts: { reason?: string | null; cap?: number | null; owner?: string } = {}) {
+  return asService(() =>
+    db.query("select public.app_settle_usage($1, $2, $3, $4, 'claude-sonnet-5-5', 1200, 800, 5000, 90000, $5, $6)", [
+      opts.owner ?? org,
+      entry,
+      status,
+      units,
+      opts.reason ?? (status === "refunded" ? "failed" : null),
+      opts.cap === undefined ? 1_000 : opts.cap,
+    ]),
+  );
 }
 
-async function used(uid: string = USERS.alice, owner = org): Promise<number> {
-  const r = await asUser(uid, () => db.query<{ n: number }>("select public.ai_credits_used($1, $2, $3) as n", [owner, start(), end()]));
-  return r.rows[0]!.n;
-}
+const grants = () => admin<{ source_key: string; units: number; used: number }>("select source_key, units, used from public.usage_grants where org_id = $1 order by expires_at", [org]);
+const ledger = (id: string) => admin<{ status: string; credits: number; reserved_units: number; grants: { grant: string; units: number }[]; refund_reason: string | null }>("select status, credits, reserved_units, grants, refund_reason from public.ai_credit_ledger where id = $1", [id]).then((r) => r[0]!);
 
 beforeAll(async () => {
   db = await createTestDb();
@@ -55,111 +64,115 @@ beforeAll(async () => {
   });
 }, 60_000);
 
+beforeEach(async () => {
+  await admin("delete from public.ai_credit_ledger where org_id = $1", [org]);
+  await admin("delete from public.usage_grants where org_id = $1", [org]);
+});
+
 afterAll(async () => {
   await db.close();
 });
 
-describe("reserving AI credits", () => {
-  it("records a reservation that counts against the allowance", async () => {
-    const before = await used();
-    await reserve();
-    expect(await used()).toBe(before + 1);
-  });
-
-  it("refuses a reservation that would go over the limit", async () => {
-    const current = await used();
-    await expect(reserve({ credits: 2, limit: current + 1 })).rejects.toThrow(/QUOTA_EXCEEDED/);
-    await reserve({ credits: 1, limit: current + 1 });
-    await expect(reserve({ credits: 1, limit: current + 1 })).rejects.toThrow(/QUOTA_EXCEEDED/);
-  });
-
-  it("treats a null limit as set by contract", async () => {
-    await expect(reserve({ limit: null })).resolves.toMatch(/[0-9a-f-]{36}/);
-  });
-
-  it("rejects a repeated idempotency key", async () => {
-    await reserve({ key: "same-request" });
-    await expect(reserve({ key: "same-request" })).rejects.toThrow(/DUPLICATE_REQUEST/);
-  });
-
-  it("rejects a period that doesn't contain the current time", async () => {
-    const past = new Date(Date.now() - 2 * DAY).toISOString();
-    await expect(reserve({ from: past, to: start() })).rejects.toThrow(/PERIOD_MISMATCH/);
-  });
-
-  it("refuses non-members and tasks from another organization", async () => {
-    await expect(reserve({ actor: USERS.bob })).rejects.toThrow(/FORBIDDEN/);
-    await expect(reserve({ org: bobOrg, actor: USERS.bob, task })).rejects.toThrow(/NOT_FOUND/);
-  });
-
-  it("rejects zero or negative credits", async () => {
-    await expect(reserve({ credits: 0 })).rejects.toThrow(/INVALID_CREDITS/);
+describe("plans", () => {
+  it("accepts only the new plan ids, and trials carry Pro", async () => {
+    await admin("update public.billing_accounts set state = 'active', paid_plan_id = 'max_2x' where org_id = $1", [bobOrg]);
+    await expect(admin("update public.billing_accounts set paid_plan_id = 'team' where org_id = $1", [bobOrg])).rejects.toThrow(/paid_plan_id_check/);
+    expect(await admin("select distinct plan_id from public.trials")).toEqual([{ plan_id: "pro" }]);
   });
 });
 
-describe("settling AI credits", () => {
-  it("keeps settled credits and records provider usage and an audit event", async () => {
-    const before = await used();
-    const entry = await reserve();
-    await settle(entry, "settled");
-    expect(await used()).toBe(before + 1);
-    const row = await asUser(USERS.alice, () =>
-      db.query<{ status: string; model: string; input_tokens: number; output_tokens: number }>(
-        "select status, model, input_tokens, output_tokens from public.ai_credit_ledger where id = $1",
-        [entry],
-      ),
-    );
-    expect(row.rows[0]).toEqual({ status: "settled", model: "claude-opus-5-5", input_tokens: 1200, output_tokens: 800 });
-    const audit = await asService(() => db.query<{ action: string }>("select action from public.audit_events where target = $1", [entry]));
-    expect(audit.rows.map((r) => r.action)).toEqual(["ai.credits_settled"]);
+describe("reserving usage", () => {
+  it("issues the period's grant once and draws from it", async () => {
+    const a = await reserve(300);
+    await reserve(200);
+    expect(await grants()).toEqual([{ source_key: "plan:current", units: 10000, used: 500 }]);
+    expect(await ledger(a)).toMatchObject({ status: "reserved", credits: 300, reserved_units: 300 });
   });
 
-  it("returns refunded credits to the allowance", async () => {
-    const before = await used();
-    const entry = await reserve();
-    expect(await used()).toBe(before + 1);
-    await settle(entry, "refunded");
-    expect(await used()).toBe(before);
+  it("spends rolled-over usage first, then this period's, and refuses what isn't there", async () => {
+    // Last month's grant expires sooner, so it is drawn first.
+    await admin("insert into public.usage_grants (org_id, kind, units, starts_at, expires_at, source_key) values ($1, 'plan', 1000, $2, $3, 'plan:last')", [org, iso(-40 * DAY), iso(20 * DAY)]);
+    const r = await reserve(1_500);
+    expect(await grants()).toEqual([
+      { source_key: "plan:last", units: 1000, used: 1000 },
+      { source_key: "plan:current", units: 10000, used: 500 },
+    ]);
+    expect((await ledger(r)).grants.map((g) => g.units)).toEqual([1_000, 500]);
+    await expect(reserve(9_501)).rejects.toThrow(/QUOTA_EXCEEDED/);
+    // A refused reservation draws nothing.
+    expect((await grants())[1]).toMatchObject({ used: 500 });
   });
 
-  it("closes a reservation only once, and only in its own organization", async () => {
-    const entry = await reserve();
-    await expect(settle(entry, "refunded", bobOrg)).rejects.toThrow(/NOT_FOUND/);
-    await settle(entry, "settled");
-    await expect(settle(entry, "refunded")).rejects.toThrow(/NOT_FOUND/);
+  it("never draws from expired or future grants", async () => {
+    await admin("insert into public.usage_grants (org_id, kind, units, starts_at, expires_at, source_key) values ($1, 'plan', 5000, $2, $3, 'plan:old'), ($1, 'plan', 5000, $4, $5, 'plan:next')", [
+      org,
+      iso(-70 * DAY),
+      iso(-DAY),
+      iso(DAY),
+      iso(60 * DAY),
+    ]);
+    await expect(reserve(100, { grant: null })).rejects.toThrow(/QUOTA_EXCEEDED/);
   });
 
-  it("rejects an unknown status", async () => {
-    const entry = await reserve();
-    await expect(settle(entry, "reserved")).rejects.toThrow(/INVALID_STATUS/);
+  it("validates grants, units, keys, membership and tasks", async () => {
+    await expect(reserve(100, { grant: { ...grant(100), expires_at: iso(90 * DAY) } })).rejects.toThrow(/INVALID_GRANT/);
+    await expect(reserve(100, { grant: { ...grant(100), source_key: "topup:x" } })).rejects.toThrow(/INVALID_GRANT/);
+    await expect(reserve(0)).rejects.toThrow(/INVALID_CREDITS/);
+    await reserve(1, { key: "same" });
+    await expect(reserve(1, { key: "same" })).rejects.toThrow(/DUPLICATE_REQUEST/);
+    await expect(reserve(1, { actor: USERS.bob })).rejects.toThrow(/FORBIDDEN/);
+    await expect(reserve(1, { org: bobOrg, actor: USERS.bob })).rejects.toThrow(/NOT_FOUND/);
+  });
+});
+
+describe("settling usage", () => {
+  it("gives back what a call didn't use, to the grants it drew from", async () => {
+    const r = await reserve(1_000);
+    await settle(r, "settled", 640);
+    expect(await ledger(r)).toMatchObject({ status: "settled", credits: 640, reserved_units: 1_000 });
+    expect((await grants())[0]).toMatchObject({ used: 640 });
+  });
+
+  it("draws the difference when a call cost more, and absorbs what isn't there", async () => {
+    const r = await reserve(9_000);
+    await settle(r, "settled", 9_500);
+    expect((await grants())[0]).toMatchObject({ used: 9500 });
+    const s = await reserve(400);
+    await settle(s, "settled", 1_000);
+    expect(await ledger(s)).toMatchObject({ credits: 500 });
+    expect((await grants())[0]).toMatchObject({ used: 10000 });
+  });
+
+  it("refunds failed calls in full, and closes an entry only once", async () => {
+    const r = await reserve(800);
+    await settle(r, "refunded", 120);
+    expect(await ledger(r)).toMatchObject({ status: "refunded", refund_reason: "failed", grants: [] });
+    expect((await grants())[0]).toMatchObject({ used: 0 });
+    await expect(settle(r, "settled", 10)).rejects.toThrow(/NOT_FOUND/);
+    await expect(settle(r, "refunded", 10, { reason: null })).rejects.toThrow(/INVALID_STATUS|NOT_FOUND/);
+  });
+
+  it("caps free retries per 31 days", async () => {
+    const a = await reserve(600);
+    await settle(a, "refunded", 600, { reason: "free_retry", cap: 1_000 });
+    const b = await reserve(600);
+    await expect(settle(b, "refunded", 600, { reason: "free_retry", cap: 1_000 })).rejects.toThrow(/RETRY_CAP/);
+    await settle(b, "settled", 600);
+    expect((await grants())[0]).toMatchObject({ used: 600 });
   });
 });
 
 describe("access", () => {
-  it("only the server can reserve or settle", async () => {
-    await expect(
-      asUser(USERS.alice, () =>
-        db.query("select public.app_reserve_ai_credits($1, $2, 'k', 'contract_draft', null, 1, 100, now() - interval '1 day', now() + interval '1 day')", [org, USERS.alice]),
-      ),
-    ).rejects.toThrow(/permission denied/);
-    await expect(asUser(USERS.alice, () => db.query("select public.app_settle_ai_credits($1, gen_random_uuid(), 'refunded', null, null, null)", [org]))).rejects.toThrow(
-      /permission denied/,
-    );
+  it("only the server reserves and settles", async () => {
+    await expect(asUser(USERS.alice, () => db.query("select public.app_reserve_usage($1, $2, 'k', 'agent_step', null, 1, null)", [org, USERS.alice]))).rejects.toThrow(/permission denied/);
+    await expect(asUser(USERS.alice, () => db.query("select public.app_settle_usage($1, gen_random_uuid(), 'settled', 1, null, 0, 0, 0, 0, null, 0)", [org]))).rejects.toThrow(/permission denied/);
   });
 
-  it("hides usage from other organizations and blocks browser writes", async () => {
-    expect(await used(USERS.bob, org)).toBe(0);
-    const rows = await asUser(USERS.bob, () => db.query("select id from public.ai_credit_ledger where org_id = $1", [org]));
-    expect(rows.rows).toHaveLength(0);
-    await expect(
-      asUser(USERS.alice, () => db.query("insert into public.ai_credit_ledger (org_id, idempotency_key, operation, credits) values ($1, 'x', 'contract_draft', 1)", [org])),
-    ).rejects.toThrow(/permission denied/);
-    await expect(asUser(USERS.alice, () => db.query("update public.ai_credit_ledger set status = 'refunded' where org_id = $1", [org]))).rejects.toThrow(
-      /permission denied/,
-    );
-  });
-
-  it("can't be read anonymously", async () => {
-    await expect(as(db, "anon", null, () => db.query("select public.ai_credits_used($1, now(), now())", [org]))).rejects.toThrow(/permission denied/);
+  it("members read their own grants only, and browsers can't write them", async () => {
+    await reserve(10);
+    expect(await asUser(USERS.alice, async () => (await db.query("select units from public.usage_grants where org_id = $1", [org])).rows)).toHaveLength(1);
+    expect(await asUser(USERS.bob, async () => (await db.query("select units from public.usage_grants where org_id = $1", [org])).rows)).toEqual([]);
+    await expect(asUser(USERS.alice, () => db.query("update public.usage_grants set used = 0 where org_id = $1", [org]))).rejects.toThrow(/permission denied/);
+    await expect(as(db, "anon", null, () => db.query("select * from public.usage_grants"))).rejects.toThrow(/permission denied/);
   });
 });

@@ -81,7 +81,7 @@ describe("pairing codes and tokens", () => {
     expect(r).toMatchObject({ ok: true, value: { agentId: "agent-1", workspace: { id: ORG, name: "Alice Studio" } } });
     if (!r.ok) return;
     expect(r.value.token).toMatch(/^fa_[A-Za-z0-9_-]{43}$/);
-    expect(calls.redeem![0]).toEqual({ codeSha256: sha256("ABCDE23456"), tokenSha256: sha256(r.value.token), name: "Office PC", platform: "windows", appVersion: "0.1.0", agentLimit: 2 });
+    expect(calls.redeem![0]).toEqual({ codeSha256: sha256("ABCDE23456"), tokenSha256: sha256(r.value.token), name: "Office PC", platform: "windows", appVersion: "0.1.0", agentLimit: 1 });
   });
 
   it("refuses bad, unknown and rate-limited attempts", async () => {
@@ -117,7 +117,7 @@ describe("agent proposals", () => {
     const r = await submitAgentProposal(store, agent, TASK, await body());
     expect(r).toMatchObject({ ok: true, value: { proposalId: "proposal-1", status: "pending", violations: [] } });
     const created = calls.create![0] as Record<string, unknown> & { steps: Record<string, string>[]; changes: { sha256: string }[]; plan: { risks: string[] } };
-    expect(created).toMatchObject({ agentId: "agent-1", actor: "user-1", taskId: TASK, contractVersion: 2, expectedTaskVersion: 3, evaluationLimit: 2_000 });
+    expect(created).toMatchObject({ agentId: "agent-1", actor: "user-1", taskId: TASK, contractVersion: 2, expectedTaskVersion: 3, evaluationLimit: 1_000 });
     expect(created.changes[0]!.sha256).toBe((await body()).sha);
     expect(created.steps.map((s) => `${s.event_type}:${s.actor_kind}:${s.actor_id}`)).toEqual(["propose_plan:agent:agent:agent-1", "evaluate_policy:system:farbaek", "require_approval:system:farbaek"]);
     expect(created.plan.risks).toEqual(["Left out old.md: Deleted. A change proposal can't delete files."]);

@@ -1,3 +1,4 @@
+import type { GrantRow } from "@/core/billing/wallet";
 import { z } from "zod";
 import type { Dropped, ProposedChange, Violation } from "@/core/realityloop/change-proposal";
 import type { IntentContract } from "@/core/realityloop/contract";
@@ -238,8 +239,8 @@ export interface WorkspaceReader {
   listTasks(orgId: string, options?: { projectId?: string; limit?: number }): Promise<Task[]>;
   getTask(orgId: string, taskId: string): Promise<{ task: Task; history: Transition[] } | null>;
   countEvaluations(orgId: string, from: Date, to: Date): Promise<number>;
-  /** AI credits reserved or settled in the window (refunds excluded). */
-  countAiCredits(orgId: string, from: Date, to: Date): Promise<number>;
+  /** The workspace's AI usage grants that haven't expired (the usage wallet, ADR 0020). */
+  listUsageGrants(orgId: string): Promise<GrantRow[]>;
   /** Current files in a project, sorted by path. */
   listFiles(orgId: string, projectId: string): Promise<ProjectFile[]>;
   getFile(orgId: string, projectId: string, path: string): Promise<ProjectFileContent | null>;

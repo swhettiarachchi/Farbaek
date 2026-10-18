@@ -321,12 +321,13 @@ describe("ProofPacks (migration 8)", () => {
   });
 });
 
-describe("credits and access", () => {
-  it("accepts the change_proposal credit operation", async () => {
+describe("usage and access", () => {
+  it("accepts the change_proposal usage operation", async () => {
     const from = new Date(Date.now() - 86_400_000).toISOString();
     const to = new Date(Date.now() + 86_400_000).toISOString();
+    const grant = JSON.stringify({ kind: "plan", units: 1_000, starts_at: from, expires_at: to, source_key: "plan:proposal-test" });
     await expect(
-      q("select public.app_reserve_ai_credits($1, $2, 'k-proposal', 'change_proposal', null, 3, 100, $3, $4)", [org, USERS.alice, from, to]),
+      q("select public.app_reserve_usage($1, $2, 'k-proposal', 'change_proposal', null, 300, $3)", [org, USERS.alice, grant]),
     ).resolves.toHaveLength(1);
   });
 

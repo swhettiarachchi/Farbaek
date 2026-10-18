@@ -8,7 +8,7 @@ import { proposeChangeAction } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
 import { AiUsageNote } from "@/components/app/usage-meters";
 import { formatBytes } from "@/core/workspace/files";
-import type { AiAvailability } from "@/server/workspace/ai-credits";
+import type { AiAvailability } from "@/server/workspace/ai-usage";
 
 const MAX_FILES = 20;
 const MAX_BYTES = 300 * 1024;
