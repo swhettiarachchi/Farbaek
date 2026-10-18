@@ -1,19 +1,20 @@
 /**
  * The contract between the desktop app's window and its main process. The
- * window never sees keys or tokens: it can only ask the main process to
- * store, use or forget them. Everything crossing this bridge is plain data.
+ * window never sees the agent token: it can only ask the main process to use
+ * or forget it. There are no model keys: runs go through Farbaek's model
+ * gateway. Everything crossing this bridge is plain data.
  */
 import type { AgentMode } from "@/core/agent/modes";
 import type { RunState } from "@/core/agent/operations";
 import type { ApprovalRequest } from "@/agent-runtime/loop";
+import type { Effort } from "@/core/agent/routing";
 
-export type Provider = "anthropic" | "gemini";
+export type { Effort };
 export type Result<T> = { ok: true; value: T } | { ok: false; message: string };
 
 export interface AppState {
   version: string;
   paired: { server: string; agentId: string; agentName: string; workspaceName: string } | null;
-  keys: Record<Provider, boolean>;
   /** Whether the system keychain can encrypt secrets. Without it, nothing secret is stored. */
   keychain: { available: boolean; reason: string | null };
   dataFolder: string;
@@ -63,7 +64,8 @@ export interface RunDetail {
   taskTitle: string;
   projectName: string;
   mode: AgentMode;
-  provider: Provider;
+  effort: Effort;
+  /** The model Farbaek chose for the latest step ("auto" before the first). */
   model: string;
   state: RunState;
   startedAt: string;
@@ -76,22 +78,22 @@ export interface RunDetail {
   changes: { path: string; kind: "create" | "edit"; bytes: number; reason: string }[];
   notProposed: { path: string; reason: string }[];
   usage: { inputTokens: number; outputTokens: number };
+  /** The share of the workspace's AI usage used, after the latest step. */
+  usagePercent: number | null;
   proposal: { id: string; status: "pending" | "blocked"; policy: string; violations: string[]; submittedAt: string } | null;
   discarded: boolean;
 }
 
-export type RunSummary = Pick<RunDetail, "id" | "taskId" | "taskTitle" | "projectName" | "mode" | "provider" | "state" | "startedAt" | "endedAt" | "outcome" | "proposal" | "discarded">;
+export type RunSummary = Pick<RunDetail, "id" | "taskId" | "taskTitle" | "projectName" | "mode" | "effort" | "state" | "startedAt" | "endedAt" | "outcome" | "proposal" | "discarded">;
 
 export interface FarbaekAgentBridge {
   state(): Promise<AppState>;
   pair(input: { server: string; code: string; name: string }): Promise<Result<AppState>>;
   unpair(): Promise<Result<AppState>>;
-  setKey(provider: Provider, key: string): Promise<Result<AppState>>;
-  removeKey(provider: Provider): Promise<AppState>;
   profile(): Promise<Result<Profile>>;
   tasks(): Promise<Result<TaskSummary[]>>;
   task(id: string): Promise<Result<TaskView>>;
-  startRun(input: { taskId: string; mode: AgentMode; provider: Provider }): Promise<Result<{ runId: string }>>;
+  startRun(input: { taskId: string; mode: AgentMode; effort: Effort }): Promise<Result<{ runId: string }>>;
   runs(): Promise<RunSummary[]>;
   run(id: string): Promise<RunDetail | null>;
   answerApproval(input: { runId: string; requestId: string; approved: boolean; bindingHash: string }): Promise<void>;

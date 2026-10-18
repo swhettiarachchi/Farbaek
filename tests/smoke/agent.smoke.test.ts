@@ -9,8 +9,10 @@
  *   FARBAEK_AGENT_TASK           optional task id; otherwise the first ready task
  *   FARBAEK_AGENT_KEEP=1         optional: keep the agent paired afterwards
  *
- * No model is called: a scripted stand-in, labelled "farbaek-smoke-script",
- * makes one small edit inside the contract's scope. The proposal it submits
+ * One tiny real model step goes through the model gateway on Fast effort
+ * (Claude Haiku, metered from the workspace's usage). The run itself uses a
+ * scripted stand-in, labelled "farbaek-smoke-script", that makes one small
+ * edit inside the contract's scope. The proposal it submits
  * is an ordinary pending proposal; discard it in the web app afterwards.
  * The agent token stays in memory and is revoked at the end unless KEEP is set.
  */
@@ -91,6 +93,20 @@ describe.skipIf(!enabled)("Farbaek Agent smoke test", () => {
     expect(taskId, "No task is waiting for a change. Approve a contract first.").toBeTruthy();
     const detail = await client.task(taskId!);
     expect(detail.task.readyForChange).toBe(true);
+
+    // One real, tiny model step through the gateway on Fast effort, metered from the workspace's usage (ADR 0021).
+    const step = await client.modelStep({
+      taskId: taskId!,
+      effort: "fast",
+      step: "read",
+      system: "You are checking a connection. Answer with one word.",
+      tools: [],
+      messages: [{ role: "user", content: "Reply with the word ready." }],
+    });
+    expect(step.routedModel).toBe("claude-haiku-5-5");
+    expect(step.message.content.some((b) => b.type === "text")).toBe(true);
+    expect(step.message.usage.output_tokens).toBeGreaterThan(0);
+    expect(step.usage.percent).not.toBeNull();
 
     const snapshot = await client.snapshot(taskId!);
     expect(snapshot.length).toBe(detail.files.length);

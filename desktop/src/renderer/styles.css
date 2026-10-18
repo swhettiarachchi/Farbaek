@@ -475,6 +475,55 @@ pre {
   background: var(--canvas);
   cursor: not-allowed;
 }
+/* Effort: a segmented pill control of real radio buttons. */
+.effort {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.effort legend {
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.segmented {
+  display: inline-flex;
+  width: fit-content;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+}
+.segment {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 16px;
+  border-radius: 999px;
+  color: var(--ink-2);
+  font-size: 14px;
+  cursor: pointer;
+}
+.segment input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.segment.is-selected {
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 500;
+}
+.segment:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.text-approval {
+  color: var(--approval);
+}
 .mode:has(input:focus-visible) {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

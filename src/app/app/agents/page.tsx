@@ -49,7 +49,7 @@ export default async function AgentsPage() {
     <div className="grid gap-8">
       <PageHeader
         title="Agents"
-        description="Farbaek Agent is a desktop app that works on a task's approved contract with your own Claude or Gemini key. Its work arrives here as a change proposal for you to review, apply and verify."
+        description="Farbaek Agent is a desktop app that works on a task's approved contract, using Farbaek's AI. No API key needed: each run uses your workspace's AI usage. Its work arrives here as a change proposal for you to review, apply and verify."
       />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
@@ -66,11 +66,13 @@ export default async function AgentsPage() {
         <Card>
           <h2 className="text-lg font-medium">What stays on your computer</h2>
           <ul className="mt-3 grid gap-2 text-sm leading-relaxed text-ink-2">
-            <li>Your model key. It&apos;s kept in the system keychain and never sent to Farbaek, so runs don&apos;t count toward your Farbaek AI usage.</li>
             <li>The agent&apos;s working copy of the project, one folder per task.</li>
             <li>Commands you approve. They run with your account&apos;s rights, which is why the agent asks first.</li>
+            <li>The agent&apos;s token, kept in the system keychain.</li>
           </ul>
-          <p className="mt-3 text-sm leading-relaxed text-ink-2">Farbaek receives the finished change, the model&apos;s name and its token counts, and checks the change again before you see it.</p>
+          <p className="mt-3 text-sm leading-relaxed text-ink-2">
+            Each model step goes through Farbaek to Claude: the conversation, including the files the agent reads and the command output it shows the model. Farbaek doesn&apos;t keep the conversation. It records the model and its token counts against your AI usage, and checks the finished change again before you see it.
+          </p>
         </Card>
       </div>
 

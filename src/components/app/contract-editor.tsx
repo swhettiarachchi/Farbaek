@@ -3,6 +3,8 @@
 import { FingerprintIcon, InfoIcon, SparkleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useId, useRef, useState, useTransition } from "react";
 import { approveContractAction, draftContractWithAiAction, saveContractAction, type AiDraftState, type FormState } from "@/app/app/actions";
+import { EffortPicker } from "@/components/app/effort-picker";
+import type { Effort } from "@/core/agent/routing";
 import { buttonClasses } from "@/components/ui/button";
 import { AiUsageNote } from "@/components/app/usage-meters";
 import type { ContractFormValues } from "@/core/realityloop/contract-form";
@@ -55,6 +57,7 @@ export function ContractEditor({
   const base = useId();
   const formRef = useRef<HTMLFormElement>(null);
   const [aiPending, startAi] = useTransition();
+  const [effort, setEffort] = useState<Effort>("balanced");
   // `after` is the save state when the draft arrived: a later save error shows what was submitted instead.
   const [aiDraft, setAiDraft] = useState<{ result: AiDraftState; after: FormState; key: number } | null>(null);
   const drafted = aiDraft?.result.status === "done" && aiDraft.after === state ? aiDraft.result : null;
@@ -82,7 +85,7 @@ export function ContractEditor({
       <input type="hidden" name="taskId" value={taskId} />
       <input type="hidden" name="expectedTaskVersion" value={taskVersion} />
       <input type="hidden" name="basedOn" value={basedOn} />
-      <AiDraftPanel ai={ai} pending={aiPending} disabled={pending || Boolean(disabledReason)} formReason={disabledReason} result={aiDraft?.result ?? null} onDraft={draftWithAi} />
+      <AiDraftPanel ai={ai} pending={aiPending} disabled={pending || Boolean(disabledReason)} formReason={disabledReason} result={aiDraft?.result ?? null} onDraft={draftWithAi} effort={effort} onEffort={setEffort} />
       <div className="grid gap-5 md:grid-cols-2">
         {FIELDS.map((f) => {
           const id = `${base}-${f.name}`;
@@ -143,8 +146,12 @@ function AiDraftPanel({
   formReason,
   result,
   onDraft,
+  effort,
+  onEffort,
 }: {
   ai: AiAvailability;
+  effort: Effort;
+  onEffort: (e: Effort) => void;
   pending: boolean;
   disabled: boolean;
   /** Already shown under the form, so not repeated here. */
@@ -175,6 +182,7 @@ function AiDraftPanel({
           </button>
         </span>
       </div>
+      <EffortPicker value={effort} onChange={onEffort} disabled={pending || disabled || Boolean(reason)} />
       <div aria-live="polite" className="empty:hidden">
         {pending ? <p className="text-xs text-ink-2">Drafting. This can take up to a minute.</p> : null}
         {!pending && result?.status === "done" ? (
@@ -182,6 +190,7 @@ function AiDraftPanel({
             <InfoIcon size={16} className="mt-0.5 shrink-0 text-info" aria-hidden />
             <span>
               Drafted by <span className="font-mono text-xs">{result.model}</span>. Nothing is saved yet: check every field, fix what&apos;s wrong, then save.
+              {result.routeNote ? ` ${result.routeNote}` : null}
             </span>
           </p>
         ) : null}

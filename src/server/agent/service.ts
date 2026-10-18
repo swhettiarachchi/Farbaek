@@ -7,8 +7,8 @@
  * here exactly like one made in the web app (paths, file screening, base
  * revisions, contract checks, policy, the evaluation allowance) and then
  * created by the same SQL function, tagged with the agent. The desktop app's
- * own checks are never trusted. No Farbaek AI credits are used: the person's
- * own model key paid for the work.
+ * own checks are never trusted. The agent's model steps go through the model
+ * gateway (gateway.ts) and are metered from the workspace's usage.
  */
 import { z } from "zod";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
@@ -104,6 +104,8 @@ const STATUS: Partial<Record<AgentErrorCode, number>> = {
   FILE_TOO_LARGE: 422,
   TOO_LARGE: 413,
   ENTITLEMENT_UNAVAILABLE: 503,
+  QUOTA_EXCEEDED: 402,
+  TRIAL_CAP_REACHED: 402,
   UNKNOWN: 500,
 };
 
@@ -158,7 +160,7 @@ function requireMember(id: AgentIdentity): AgentResult<OrgRole> {
   return id.role ? { ok: true, value: id.role } : agentFail("UNAUTHENTICATED", "The person who paired this agent isn't in the workspace anymore. Pair the app again.");
 }
 
-function requireContributor(id: AgentIdentity): AgentResult<OrgRole> {
+export function requireAgentContributor(id: AgentIdentity): AgentResult<OrgRole> {
   const member = requireMember(id);
   if (!member.ok) return member;
   return CONTRIBUTOR_ROLES.includes(member.value) ? member : agentFail("FORBIDDEN", "The person who paired this agent can only view this workspace, so the agent can't propose changes.");
@@ -248,7 +250,7 @@ export interface AgentProposalResult {
 }
 
 export async function submitAgentProposal(store: AgentStore, id: AgentIdentity, taskId: string, body: unknown): Promise<AgentResult<AgentProposalResult>> {
-  const role = requireContributor(id);
+  const role = requireAgentContributor(id);
   if (!role.ok) return role;
   if (!(await store.rateLimit(`agent:propose:${id.agentId}`, 60, 10))) return agentFail("RATE_LIMITED", "Too many proposals from this agent in the last minute.");
   const parsed = ProposalBody.safeParse(body);

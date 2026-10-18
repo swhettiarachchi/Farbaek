@@ -35,7 +35,8 @@ import { screenFile } from "@/core/workspace/files";
 import { reserveUnits } from "@/core/billing/rate-card";
 import type { ChangeProposer, ProposalBrief } from "@/server/ai/change-proposer";
 import { proposalPromptTokens } from "@/server/ai/prompts";
-import { refundAndFail, reserveUsage, settleUsage, type AiUsageDeps } from "./ai-usage";
+import { route, type Effort } from "@/core/agent/routing";
+import { refundAndFail, reserveUsage, settleUsage, type AiUsageDeps, type ModelSource } from "./ai-usage";
 import { MESSAGES, codeFromDatabaseError, fail, planSteps, requireContributor, type RpcResult, type TransitionStep, type WriteDeps, type WriteResult } from "./use-cases";
 
 export const MAX_CONTEXT_FILES = 20;
@@ -115,8 +116,8 @@ export interface ProposeResult {
 
 export async function proposeChange(
   deps: Deps,
-  proposer: ChangeProposer,
-  input: { orgId: string; userId: string; taskId: string; contextPaths: string[]; notes: string; taskTitle: string; projectName: string },
+  models: ModelSource<ChangeProposer>,
+  input: { orgId: string; userId: string; taskId: string; contextPaths: string[]; notes: string; taskTitle: string; projectName: string; effort?: Effort },
 ): Promise<WriteResult<ProposeResult>> {
   const role = await requireContributor(deps, input.orgId);
   if (!role.ok) return role;
@@ -158,8 +159,11 @@ export async function proposeChange(
     files: context.map((f) => ({ path: f.path, content: f.content })),
     notes: input.notes.slice(0, 4_000),
   };
+  if (!snapshot || !plan) return fail("ENTITLEMENT_UNAVAILABLE");
+  // Writing code: Auto routing uses the standard model, stronger on Deep where the plan includes it.
+  const proposer = models.create(route({ plan, family: models.family, step: "write", effort: input.effort ?? "balanced" }));
   const units = reserveUnits(proposer.model, proposalPromptTokens(brief), proposer.maxOutputTokens);
-  const reserved = await reserveUsage(deps, { orgId: input.orgId, userId: input.userId, taskId: task.id, operation: "change_proposal", units, manual: MANUAL_FILES });
+  const reserved = await reserveUsage(deps, { orgId: input.orgId, userId: input.userId, taskId: task.id, operation: "change_proposal", units, manual: MANUAL_FILES, billing: { snapshot, plan } });
   if (!reserved.ok) return reserved;
   const { entryId } = reserved.value;
 

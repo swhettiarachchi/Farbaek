@@ -14,9 +14,11 @@
  */
 import { TYPICAL_PROMPT_TOKENS, type ButtonOperation, type UsageOperation } from "@/config/usage";
 import { costUnits, reserveUnits } from "@/core/billing/rate-card";
-import { resolveEffectivePlan, type EffectivePlan } from "@/core/billing/trial";
+import type { ModelFamily } from "@/core/agent/routing";
+import { resolveEffectivePlan, type BillingSnapshot, type EffectivePlan } from "@/core/billing/trial";
 import { currentGrant, walletView, type GrantRow, type GrantSpec, type WalletView } from "@/core/billing/wallet";
 import type { DraftFailure, ProviderUsage } from "@/server/ai/contract-drafter";
+import type { ModelSelection } from "@/server/ai/providers";
 import { MESSAGES, codeFromDatabaseError, fail, type RpcResult, type WriteDeps, type WriteErrorCode, type WriteResult } from "./use-cases";
 
 /** The most one call may reserve or settle (the database's own bound). */
@@ -103,6 +105,27 @@ export function aiAvailability(input: {
   return { ...base, disabledReason: null };
 }
 
+/** What the wallet needs besides the usage functions: the plan, the clock and request keys. Web writes and the agent API both provide it. */
+export type UsageContext = Pick<WriteDeps, "billing" | "now" | "newEventId">;
+
+/** Builds a model client for the model Auto routing chose, on the provider this server uses. */
+export interface ModelSource<T> {
+  family: ModelFamily;
+  create(selection: ModelSelection): T;
+}
+
+export interface ResolvedPlan {
+  snapshot: BillingSnapshot;
+  plan: EffectivePlan;
+}
+
+/** The workspace's plan, or a closed failure when billing state can't be read. */
+export async function resolvePlan(deps: UsageContext, orgId: string): Promise<WriteResult<ResolvedPlan>> {
+  const snapshot = await deps.billing(orgId);
+  if (!snapshot) return fail("ENTITLEMENT_UNAVAILABLE", PLAN_UNCONFIRMED);
+  return { ok: true, value: { snapshot, plan: resolveEffectivePlan(snapshot, deps.now()) } };
+}
+
 export interface Reservation {
   entryId: string;
   units: number;
@@ -113,13 +136,13 @@ export interface Reservation {
 
 /** Reserves room for one call. The database refuses when the grants don't hold enough. */
 export async function reserveUsage(
-  deps: WriteDeps & AiUsageDeps,
-  input: { orgId: string; userId: string; taskId: string | null; operation: UsageOperation; units: number; manual: string },
+  deps: UsageContext & AiUsageDeps,
+  input: { orgId: string; userId: string; taskId: string | null; operation: UsageOperation; units: number; manual: string; billing?: ResolvedPlan },
 ): Promise<WriteResult<Reservation>> {
   const now = deps.now();
-  const snapshot = await deps.billing(input.orgId);
-  const plan = snapshot ? resolveEffectivePlan(snapshot, now) : null;
-  if (!snapshot || !plan) return fail("ENTITLEMENT_UNAVAILABLE", PLAN_UNCONFIRMED);
+  const resolved = input.billing ? { ok: true as const, value: input.billing } : await resolvePlan(deps, input.orgId);
+  if (!resolved.ok) return resolved;
+  const { snapshot, plan } = resolved.value;
   const trial = plan.source === "trial";
   const units = Math.min(MAX_UNITS_PER_CALL, Math.max(1, Math.ceil(input.units)));
   const grant = currentGrant(plan, snapshot.trial, now);
@@ -164,7 +187,7 @@ export async function settleAsFreeRetry(deps: AiUsageDeps, input: { orgId: strin
 }
 
 /** The share of this period's usage used, read after a call, or null when it can't be read. */
-export async function percentAfter(deps: WriteDeps & AiUsageDeps, orgId: string, reservation: Reservation): Promise<number | null> {
+export async function percentAfter(deps: UsageContext & AiUsageDeps, orgId: string, reservation: Reservation): Promise<number | null> {
   const grants = await deps.listUsageGrants(orgId).catch(() => null);
   if (!grants) return null;
   return walletView(grants, reservation.grant, deps.now()).current?.percent ?? null;

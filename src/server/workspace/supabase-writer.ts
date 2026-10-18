@@ -5,6 +5,7 @@ import { ORGANIZATION_SELECT, billingSnapshotFromRow } from "./organizations";
 import { ORG_ROLES } from "./types";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
 import type { AiUsageDeps } from "./ai-usage";
+import { createUsageRpcs } from "./usage-store";
 import { IntentContractSchema } from "@/core/realityloop/contract";
 import type { FileDeps } from "./files";
 import type { ProposalDeps } from "./proposals";
@@ -121,31 +122,7 @@ export function createSupabaseWriteDeps(
 
     listUsageGrants: (orgId) => reader.listUsageGrants(orgId),
 
-    reserveUsage: (i) =>
-      rpc(
-        "app_reserve_usage",
-        { p_org: i.orgId, p_actor: i.actor, p_key: i.key, p_operation: i.operation, p_task: i.taskId, p_units: i.units, p_grant: i.grant },
-        z.string(),
-      ),
-
-    settleUsage: (i) =>
-      rpc(
-        "app_settle_usage",
-        {
-          p_org: i.orgId,
-          p_entry: i.entryId,
-          p_status: i.status,
-          p_units: i.units,
-          p_model: i.usage?.model.slice(0, 100) || null,
-          p_input_tokens: i.usage?.inputTokens ?? null,
-          p_output_tokens: i.usage?.outputTokens ?? null,
-          p_cache_write_tokens: i.usage?.cacheWriteTokens ?? null,
-          p_cache_read_tokens: i.usage?.cacheReadTokens ?? null,
-          p_refund_reason: i.refundReason,
-          p_retry_cap: i.retryCap,
-        },
-        z.null().or(z.literal("")).transform(() => null),
-      ),
+    ...createUsageRpcs(admin),
 
     importFiles: (i) =>
       rpc(

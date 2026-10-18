@@ -1,4 +1,5 @@
 import type { ButtonOperation } from "@/config/usage";
+import { route } from "@/core/agent/routing";
 import { usagePeriod, type BillingPeriod } from "@/core/billing/usage";
 import { meterState, percentUsed, type UsageMeter } from "@/core/billing/usage-view";
 import { currentGrant, walletView, type WalletView } from "@/core/billing/wallet";
@@ -52,8 +53,10 @@ export async function loadAiAvailability(ctx: AppContext, ws: WorkspaceSummary, 
   const provider = resolveAiProvider();
   const wallet = await loadWallet(ctx, ws, now);
   let needs = 1;
-  if (provider.provider) {
-    const model = operation === "contract_draft" ? createContractDrafter(provider.provider) : createChangeProposer(provider.provider);
+  if (provider.provider && !ws.billingUnknown) {
+    // The model a Balanced run would use on this plan.
+    const choice = route({ plan: ws.plan, family: provider.provider, step: operation === "contract_draft" ? "plan" : "write", effort: "balanced" });
+    const model = operation === "contract_draft" ? createContractDrafter(provider.provider, choice) : createChangeProposer(provider.provider, choice);
     needs = typicalUnits(operation, model.model, model.maxOutputTokens);
   }
   return aiAvailability({

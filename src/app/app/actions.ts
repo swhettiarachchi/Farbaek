@@ -15,6 +15,7 @@ import { approveContract, archiveProject, cancelTask, createProject, createTask,
 import { draftContractWithAi, type AiUsageDeps } from "@/server/workspace/ai-drafting";
 import { deleteProjectFile, importProjectFiles, saveProjectFile, type FileDeps, type ImportSummary } from "@/server/workspace/files";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
+import { EFFORTS, type Effort } from "@/core/agent/routing";
 import { createChangeProposer, createContractDrafter } from "@/server/ai/providers";
 import { MAX_CONTEXT_FILES, applyProposal, discardProposal, proposeChange, type ProposalDeps } from "@/server/workspace/proposals";
 import { recoverChange, type RecoveryDeps } from "@/server/workspace/recovery";
@@ -171,7 +172,7 @@ export async function approveContractAction(_previous: FormState, form: FormData
 
 export type AiDraftState =
   | { status: "error"; message: string }
-  | { status: "done"; values: ContractFormValues; model: string; usage: { percent: number | null } };
+  | { status: "done"; values: ContractFormValues; model: string; usage: { percent: number | null }; routeNote: string | null };
 
 /**
  * Drafts contract fields with AI for the person to review. Nothing is saved:
@@ -192,15 +193,18 @@ export async function draftContractWithAiAction(form: FormData): Promise<AiDraft
   if (!found) return { status: "error", message: "That task doesn't exist or isn't in this workspace." };
   const project = await ctx.reader.getProject(w.orgId, found.task.projectId);
 
-  const result = await draftContractWithAi(w.deps, createContractDrafter(ai.provider), {
+  const provider = ai.provider;
+  const effort = z.enum(EFFORTS).catch("balanced").parse(form.get("effort"));
+  const result = await draftContractWithAi(w.deps, { family: provider, create: (s) => createContractDrafter(provider, s) }, {
     orgId: w.orgId,
     userId: ctx.user.id,
     taskId: found.task.id,
     brief: { taskTitle: found.task.title, projectName: project?.name ?? "Project", projectDescription: project?.description ?? null, notes },
+    effort,
   });
   if (!result.ok) return { status: "error", message: result.message };
   revalidatePath("/app", "layout");
-  return { status: "done", values: result.value.form, model: result.value.model, usage: result.value.usage };
+  return { status: "done", values: result.value.form, model: result.value.model, usage: result.value.usage, routeNote: result.value.routeNote };
 }
 
 export type ImportState = { status: "error"; message: string } | { status: "done"; summary: ImportSummary };
@@ -306,9 +310,9 @@ export async function deleteFileAction(_previous: FormState, form: FormData): Pr
 export type ProposeState = { status: "error"; message: string } | { status: "done"; proposalId: string; outcome: "pending" | "blocked" };
 
 /** Asks the agent for a change under the approved contract. Nothing is applied until a person approves it. */
-export async function proposeChangeAction(input: { taskId: string; contextPaths: string[]; notes: string }): Promise<ProposeState> {
+export async function proposeChangeAction(input: { taskId: string; contextPaths: string[]; notes: string; effort?: Effort }): Promise<ProposeState> {
   const parsed = z
-    .object({ taskId: z.uuid(), contextPaths: z.array(z.string().max(1000)).max(MAX_CONTEXT_FILES * 2), notes: z.string().max(4000) })
+    .object({ taskId: z.uuid(), contextPaths: z.array(z.string().max(1000)).max(MAX_CONTEXT_FILES * 2), notes: z.string().max(4000), effort: z.enum(EFFORTS).optional() })
     .safeParse(input);
   if (!parsed.success) return { status: "error", message: "Choose up to 20 files and keep the notes under 4,000 characters." };
 
@@ -321,7 +325,8 @@ export async function proposeChangeAction(input: { taskId: string; contextPaths:
   if (!found) return { status: "error", message: "That task doesn't exist or isn't in this workspace." };
   const project = await ctx.reader.getProject(w.orgId, found.task.projectId);
 
-  const result = await proposeChange(w.deps, createChangeProposer(ai.provider), {
+  const provider = ai.provider;
+  const result = await proposeChange(w.deps, { family: provider, create: (s) => createChangeProposer(provider, s) }, {
     orgId: w.orgId,
     userId: ctx.user.id,
     taskId: found.task.id,
@@ -329,6 +334,7 @@ export async function proposeChangeAction(input: { taskId: string; contextPaths:
     notes: parsed.data.notes,
     taskTitle: found.task.title,
     projectName: project?.name ?? "Project",
+    effort: parsed.data.effort,
   });
   if (!result.ok) return { status: "error", message: result.message };
   revalidatePath("/app", "layout");

@@ -110,7 +110,7 @@ function fakeDeps(
 }
 
 const propose = (deps: Parameters<typeof proposeChange>[0], proposer: ChangeProposer, contextPaths = ["src/lib/cart.ts"]) =>
-  proposeChange(deps, proposer, { orgId: "o1", userId: "u1", taskId: "t1", contextPaths, notes: "", taskTitle: "Reject fractions", projectName: "Storefront" });
+  proposeChange(deps, { family: "anthropic", create: (s) => Object.assign(proposer, { model: s.model }) }, { orgId: "o1", userId: "u1", taskId: "t1", contextPaths, notes: "", taskTitle: "Reject fractions", projectName: "Storefront" });
 
 describe("proposeChange", () => {
   it("reserves room for its prompt, shows the model only the chosen files, and records who decided each step", async () => {
@@ -122,7 +122,9 @@ describe("proposeChange", () => {
     });
     expect((proposer.briefs[0] as { files: { path: string }[] }).files.map((f) => f.path)).toEqual(["src/lib/cart.ts"]);
     expect(calls.map((c) => c.name)).toEqual(["reserve", "create", "settle"]);
-    expect(calls[0]!.input).toMatchObject({ operation: "change_proposal", units: reserveUnits("claude-sonnet-5-5", proposalPromptTokens(proposer.briefs[0] as never), 16_000), grant: { kind: "free", source_key: "free:2026-10" } });
+    expect(calls[0]!.input).toMatchObject({ operation: "change_proposal", units: reserveUnits("claude-haiku-5-5", proposalPromptTokens(proposer.briefs[0] as never), 16_000), grant: { kind: "free", source_key: "free:2026-10" } });
+    // Free writes code on the fast model; paid plans use Sonnet (routing.test.ts).
+    expect(proposer.model).toBe("claude-haiku-5-5");
     const create = calls[1]!.input;
     expect(create.steps.map((s: { event_type: string; actor_kind?: string }) => [s.event_type, s.actor_kind ?? "user"])).toEqual([
       ["propose_plan", "agent"],

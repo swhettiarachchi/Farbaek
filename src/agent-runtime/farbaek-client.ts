@@ -69,6 +69,38 @@ const ProposalResult = z.object({
 });
 export type AgentProposalResult = z.infer<typeof ProposalResult>;
 
+const ModelStepReply = z.object({
+  message: z.object({
+    id: z.string(),
+    model: z.string(),
+    content: z.array(z.looseObject({ type: z.string() })),
+    stop_reason: z.string().nullable(),
+    usage: z.looseObject({
+      input_tokens: z.number(),
+      output_tokens: z.number(),
+      cache_creation_input_tokens: z.number().nullish(),
+      cache_read_input_tokens: z.number().nullish(),
+    }),
+  }),
+  routedModel: z.string(),
+  note: z.string().nullable(),
+  usage: z.object({ percent: z.number().nullable() }),
+});
+export type ModelStepReply = z.infer<typeof ModelStepReply>;
+
+/** One step for the model gateway: the conversation so far, in Claude's message format. */
+export interface ModelStepRequest {
+  taskId: string;
+  effort: "fast" | "balanced" | "deep";
+  step?: "read" | "plan" | "write" | "review";
+  system: string;
+  tools: { name: string; description: string; input_schema: Record<string, unknown> }[];
+  messages: unknown[];
+}
+
+/** A model step can think and write for several minutes. */
+const MODEL_STEP_TIMEOUT_MS = 330_000;
+
 export interface ProposalSubmission {
   contractVersion: number;
   contractSha256: string;
@@ -158,6 +190,12 @@ export class FarbaekAgentClient {
 
   submitProposal(taskId: string, proposal: ProposalSubmission, signal?: AbortSignal): Promise<AgentProposalResult> {
     return this.post(`/api/v1/agent/tasks/${encodeURIComponent(taskId)}/proposals`, proposal, ProposalResult, signal);
+  }
+
+  /** One model step through Farbaek's model gateway, metered from the workspace's usage. */
+  modelStep(request: ModelStepRequest, signal?: AbortSignal): Promise<ModelStepReply> {
+    const timeout = AbortSignal.timeout(MODEL_STEP_TIMEOUT_MS);
+    return this.post("/api/v1/agent/model", request, ModelStepReply, signal ? AbortSignal.any([signal, timeout]) : timeout);
   }
 
   async unpair(): Promise<void> {

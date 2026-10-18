@@ -1,9 +1,10 @@
 /**
  * Farbaek Agent's main process. It owns everything sensitive: the agent
- * token, the person's model keys (both encrypted with the system keychain),
- * network calls to Farbaek and the model provider, the project copies and
- * the commands. The window is a sandboxed page with no Node access that can
- * only call the narrow, validated handlers below.
+ * token (encrypted with the system keychain), network calls to Farbaek
+ * (model steps go through Farbaek's model gateway, so there are no model
+ * keys here), the project copies and the commands. The window is a
+ * sandboxed page with no Node access that can only call the narrow,
+ * validated handlers below.
  *
  * Window hardening: context isolation, the Chromium sandbox, no Node
  * integration, a strict Content Security Policy in the page, no navigation,
@@ -17,10 +18,9 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { z } from "zod";
 import { AGENT_MODES } from "@/core/agent/modes";
+import { EFFORTS } from "@/core/agent/routing";
 import { FarbaekAgentClient, FarbaekApiError, checkServerUrl, pairWithFarbaek } from "@/agent-runtime/farbaek-client";
-import { createAnthropicToolModel } from "@/agent-runtime/models/anthropic";
-import { createGeminiToolModel } from "@/agent-runtime/models/gemini";
-import type { AppState, Provider, Result, RunDetail } from "../shared/api";
+import type { AppState, Result, RunDetail } from "../shared/api";
 import { RunError, RunManager } from "./runs";
 import { SecretStore } from "./secrets";
 
@@ -31,7 +31,6 @@ if (!app.requestSingleInstanceLock()) app.quit();
 
 const RENDERER = path.join(__dirname, "renderer", "index.html");
 const RENDERER_URL = pathToFileURL(RENDERER).href;
-const PROVIDERS = ["anthropic", "gemini"] as const;
 
 interface Settings {
   paired: { server: string; agentId: string; agentName: string; workspaceName: string } | null;
@@ -63,7 +62,6 @@ async function appState(): Promise<AppState> {
   return {
     version: app.getVersion(),
     paired: settings.paired,
-    keys: { anthropic: await store.has("key-anthropic"), gemini: await store.has("key-gemini") },
     keychain: store.availability(),
     dataFolder: dataDir(),
     computerName: os.hostname().slice(0, 60),
@@ -107,7 +105,6 @@ function handle<A extends z.ZodType>(channel: string, args: A, fn: (input: z.inf
 }
 
 const Id = z.uuid();
-const ProviderSchema = z.enum(PROVIDERS);
 
 function registerHandlers(): void {
   handle("app:state", z.undefined(), () => appState());
@@ -133,21 +130,6 @@ function registerHandlers(): void {
       return appState();
     }),
   );
-
-  handle("keys:set", z.object({ provider: ProviderSchema, key: z.string().max(400) }), (input) =>
-    attempt(async () => {
-      const key = input.key.trim();
-      if (key.length < 20 || /\s/.test(key)) throw new RunError("That doesn't look like an API key. Paste the whole key, without spaces.");
-      if (input.provider === "anthropic" && !key.startsWith("sk-ant-")) throw new RunError("Claude API keys start with sk-ant-. Create one in the Claude Console.");
-      await secrets().set(input.provider === "anthropic" ? "key-anthropic" : "key-gemini", key);
-      return appState();
-    }),
-  );
-
-  handle("keys:remove", ProviderSchema, async (provider) => {
-    await secrets().delete(provider === "anthropic" ? "key-anthropic" : "key-gemini");
-    return appState();
-  });
 
   handle("agent:profile", z.undefined(), () => attempt(async () => (await client()).me()));
 
@@ -179,11 +161,9 @@ function registerHandlers(): void {
     }),
   );
 
-  handle("runs:start", z.object({ taskId: Id, mode: z.enum(AGENT_MODES), provider: ProviderSchema }), (input) =>
+  handle("runs:start", z.object({ taskId: Id, mode: z.enum(AGENT_MODES), effort: z.enum(EFFORTS) }), (input) =>
     attempt(async () => {
-      const apiKey = await secrets().get(input.provider === "anthropic" ? "key-anthropic" : "key-gemini");
-      if (!apiKey) throw new RunError(`Add your ${input.provider === "anthropic" ? "Claude" : "Gemini"} key in Keys first.`);
-      const runId = await runs.start({ api: await client(), taskId: input.taskId, mode: input.mode, provider: input.provider, apiKey });
+      const runId = await runs.start({ api: await client(), taskId: input.taskId, mode: input.mode, effort: input.effort });
       return { runId };
     }),
   );
@@ -263,9 +243,9 @@ void app.whenReady().then(async () => {
   }
   harden();
   await loadSettings();
+  await secrets().forgetLegacyKeys();
   runs = new RunManager({
     dataDir: dataDir(),
-    makeModel: (provider: Provider, apiKey: string) => (provider === "anthropic" ? createAnthropicToolModel({ apiKey }) : createGeminiToolModel({ apiKey })),
     emit: (run: RunDetail) => window?.webContents.send("runs:update", run),
   });
   await runs.load();

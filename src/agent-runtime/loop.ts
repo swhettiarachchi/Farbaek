@@ -64,7 +64,7 @@ export type RunOutcome =
 export type ToolStatus = "done" | "denied" | "declined" | "failed";
 
 export type RunEvent =
-  | { type: "model"; step: number; text: string; usage: ModelUsage; stop: StepStop }
+  | { type: "model"; step: number; text: string; usage: ModelUsage; stop: StepStop; model: string }
   | { type: "tool"; step: number; tool: string; target: string; status: ToolStatus; detail: string }
   | { type: "approval"; request: ApprovalRequest }
   | { type: "end"; outcome: RunOutcome };
@@ -310,7 +310,7 @@ export async function runAgent(input: RunInput): Promise<RunReport> {
     usage.inputTokens += step.usage.inputTokens;
     usage.outputTokens += step.usage.outputTokens;
     model = step.model;
-    emit({ type: "model", step: steps, text: step.text, usage: step.usage, stop: step.stop });
+    emit({ type: "model", step: steps, text: step.text, usage: step.usage, stop: step.stop, model: step.model });
 
     if (step.stop === "refusal") return end({ kind: "refused" });
     if (step.stop === "context_full") return end({ kind: "limit", detail: "The conversation outgrew the model's context window." });

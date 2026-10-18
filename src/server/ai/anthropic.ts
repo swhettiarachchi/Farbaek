@@ -3,9 +3,10 @@
  * Anthropic SDK.
  *
  * - Structured output: the response must match ContractDraftSchema.
- * - Refusal fallbacks are on (`fallbacks: "default"`): if the model declines
- *   for policy reasons, the API retries on Anthropic's recommended fallback
- *   model in the same call. The model that answered is recorded.
+ * - Refusal fallbacks are on (`fallbacks: "default"`) where the model has
+ *   them: if it declines for policy reasons, the API retries on Anthropic's
+ *   recommended fallback model in the same call. The model that answered is
+ *   recorded.
  * - The task, project and notes are user data, sent as JSON, never as
  *   instructions (shared prompts in ./prompts.ts). The output is untrusted
  *   and only prefills the editor.
@@ -19,9 +20,26 @@ import type { ChangeProposer, ProposalOutcome } from "./change-proposer";
 import type { ContractDrafter, DraftOutcome, ProviderUsage } from "./contract-drafter";
 import { CONTRACT_SYSTEM_PROMPT, PROPOSAL_SYSTEM_PROMPT, contractBriefMessage, proposalBriefMessage } from "./prompts";
 
-export const CONTRACT_DRAFT_MODEL = "claude-opus-5-5";
+/** The model when none is routed (the smoke test). Use cases route per plan and effort (src/core/agent/routing.ts). */
+export const CONTRACT_DRAFT_MODEL = "claude-sonnet-5-5";
 
 const MAX_OUTPUT_TOKENS = 8_000;
+
+export interface AnthropicCallOptions {
+  model?: string;
+  /** Thinking effort. */
+  effort?: "low" | "medium" | "high";
+  client?: Anthropic;
+}
+
+/**
+ * Refusal fallbacks re-run a declined request on another model inside the
+ * same call. Claude Haiku 5.5 has none (a fallbacks list is a 400), so it
+ * isn't asked for there.
+ */
+function fallbackParams(model: string): { betas: ["server-side-fallback-2026-07-01"]; fallbacks: "default" } | Record<string, never> {
+  return model.startsWith("claude-haiku") ? {} : { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" };
+}
 
 function usageOf(message: {
   model: string;
@@ -36,20 +54,21 @@ function usageOf(message: {
   };
 }
 
-export function createAnthropicContractDrafter(client: Anthropic = new Anthropic({ maxRetries: 1, timeout: 90_000 })): ContractDrafter {
+export function createAnthropicContractDrafter(options: AnthropicCallOptions = {}): ContractDrafter {
+  const client = options.client ?? new Anthropic({ maxRetries: 1, timeout: 90_000 });
+  const model = options.model ?? CONTRACT_DRAFT_MODEL;
   return {
-    model: CONTRACT_DRAFT_MODEL,
+    model,
     maxOutputTokens: MAX_OUTPUT_TOKENS,
     async draft(brief, signal): Promise<DraftOutcome> {
       try {
         const message = await client.beta.messages.parse(
           {
-            model: CONTRACT_DRAFT_MODEL,
+            model,
             max_tokens: MAX_OUTPUT_TOKENS,
-            betas: ["server-side-fallback-2026-07-01"],
-            fallbacks: "default",
+            ...fallbackParams(model),
             thinking: { type: "adaptive" },
-            output_config: { effort: "medium", format: betaZodOutputFormat(ContractDraftSchema) },
+            output_config: { effort: options.effort ?? "medium", format: betaZodOutputFormat(ContractDraftSchema) },
             system: CONTRACT_SYSTEM_PROMPT,
             messages: [{ role: "user", content: contractBriefMessage(brief) }],
           },
@@ -78,21 +97,22 @@ export function createAnthropicContractDrafter(client: Anthropic = new Anthropic
 
 const PROPOSAL_MAX_OUTPUT_TOKENS = 16_000;
 
-export function createAnthropicChangeProposer(client: Anthropic = new Anthropic({ maxRetries: 1, timeout: 300_000 })): ChangeProposer {
+export function createAnthropicChangeProposer(options: AnthropicCallOptions = {}): ChangeProposer {
+  const client = options.client ?? new Anthropic({ maxRetries: 1, timeout: 300_000 });
+  const model = options.model ?? CONTRACT_DRAFT_MODEL;
   return {
-    model: CONTRACT_DRAFT_MODEL,
+    model,
     maxOutputTokens: PROPOSAL_MAX_OUTPUT_TOKENS,
     async propose(brief, signal): Promise<ProposalOutcome> {
       try {
         // Streamed: proposals can be long, and streaming avoids request timeouts.
         const stream = client.beta.messages.stream(
           {
-            model: CONTRACT_DRAFT_MODEL,
+            model,
             max_tokens: PROPOSAL_MAX_OUTPUT_TOKENS,
-            betas: ["server-side-fallback-2026-07-01"],
-            fallbacks: "default",
+            ...fallbackParams(model),
             thinking: { type: "adaptive" },
-            output_config: { effort: "medium", format: betaZodOutputFormat(ProposalOutputSchema) },
+            output_config: { effort: options.effort ?? "medium", format: betaZodOutputFormat(ProposalOutputSchema) },
             system: PROPOSAL_SYSTEM_PROMPT,
             messages: [{ role: "user", content: proposalBriefMessage(brief) }],
           },

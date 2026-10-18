@@ -1,13 +1,20 @@
 /**
  * Builds the drafter and proposer for the provider this server resolves to
- * (./config.ts). Callers check resolveAiProvider() first and show its reason
- * when no provider is connected.
+ * (./config.ts) and the model Auto routing chose (src/core/agent/routing.ts).
+ * Callers check resolveAiProvider() first and show its reason when no
+ * provider is connected.
  */
 import { createAnthropicChangeProposer, createAnthropicContractDrafter } from "./anthropic";
 import type { ChangeProposer } from "./change-proposer";
-import { geminiModel, type AiProviderId } from "./config";
+import type { AiProviderId } from "./config";
 import type { ContractDrafter } from "./contract-drafter";
 import { createGeminiChangeProposer, createGeminiContractDrafter } from "./gemini";
+
+/** The model and thinking effort Auto routing chose. */
+export interface ModelSelection {
+  model: string;
+  thinking: "low" | "medium" | "high";
+}
 
 function geminiKey(): string {
   const key = process.env.GEMINI_API_KEY?.trim();
@@ -15,10 +22,14 @@ function geminiKey(): string {
   return key;
 }
 
-export function createContractDrafter(provider: AiProviderId): ContractDrafter {
-  return provider === "gemini" ? createGeminiContractDrafter({ apiKey: geminiKey(), model: geminiModel() }) : createAnthropicContractDrafter();
+export function createContractDrafter(provider: AiProviderId, selection: ModelSelection): ContractDrafter {
+  return provider === "gemini"
+    ? createGeminiContractDrafter({ apiKey: geminiKey(), model: selection.model })
+    : createAnthropicContractDrafter({ model: selection.model, effort: selection.thinking });
 }
 
-export function createChangeProposer(provider: AiProviderId): ChangeProposer {
-  return provider === "gemini" ? createGeminiChangeProposer({ apiKey: geminiKey(), model: geminiModel() }) : createAnthropicChangeProposer();
+export function createChangeProposer(provider: AiProviderId, selection: ModelSelection): ChangeProposer {
+  return provider === "gemini"
+    ? createGeminiChangeProposer({ apiKey: geminiKey(), model: selection.model })
+    : createAnthropicChangeProposer({ model: selection.model, effort: selection.thinking });
 }

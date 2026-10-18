@@ -7,7 +7,6 @@ import {
   EyeIcon,
   GearSixIcon,
   HourglassMediumIcon,
-  KeyIcon,
   ListChecksIcon,
   LockSimpleIcon,
   PauseCircleIcon,
@@ -24,12 +23,11 @@ import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from
 import { AGENT_MODE_LABELS, type AgentMode } from "@/core/agent/modes";
 import { COMMAND_RISK_LABELS, type CommandRisk } from "@/core/agent/commands";
 import type { RunState } from "@/core/agent/operations";
-import type { AppState, Profile, Provider, RunDetail, RunSummary, TaskSummary, TaskView } from "../shared/api";
+import { EFFORTS, EFFORT_LABELS, type Effort } from "@/core/agent/routing";
+import type { AppState, Profile, RunDetail, RunSummary, TaskSummary, TaskView } from "../shared/api";
 
 const api = window.farbaek;
-type View = "tasks" | "runs" | "keys" | "settings";
-
-const PROVIDER_LABEL: Record<Provider, string> = { anthropic: "Claude", gemini: "Gemini" };
+type View = "tasks" | "runs" | "settings";
 
 const STATE: Record<RunState, { label: string; icon: Icon; tone: string }> = {
   planned: { label: "Planned", icon: HourglassMediumIcon, tone: "info" },
@@ -122,72 +120,6 @@ function PairScreen({ state, onPaired }: { state: AppState; onPaired: (s: AppSta
   );
 }
 
-/* ------------------------------------------------------------------ keys */
-
-function KeysView({ state, onState }: { state: AppState; onState: (s: AppState) => void }) {
-  return (
-    <section className="stack">
-      <header className="view-head">
-        <h1>Keys</h1>
-        <p className="muted">The agent calls the model with your own key. Keys are encrypted with this computer&apos;s keychain, never shown again and never sent to Farbaek, so runs don&apos;t count toward your Farbaek AI usage. Your provider bills you for what a run uses.</p>
-      </header>
-      {!state.keychain.available ? <Alert>{state.keychain.reason}</Alert> : null}
-      {(["anthropic", "gemini"] as const).map((p) => (
-        <KeyCard key={p} provider={p} set={state.keys[p]} disabled={!state.keychain.available} onState={onState} />
-      ))}
-    </section>
-  );
-}
-
-function KeyCard({ provider, set, disabled, onState }: { provider: Provider; set: boolean; disabled: boolean; onState: (s: AppState) => void }) {
-  const [key, setKey] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function save(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    const r = await api.setKey(provider, key);
-    setBusy(false);
-    setKey("");
-    if (r.ok) onState(r.value);
-    else setError(r.message);
-  }
-
-  return (
-    <form className="card stack-sm" onSubmit={(e) => void save(e)}>
-      <div className="row">
-        <h2>{PROVIDER_LABEL[provider]}</h2>
-        {set ? (
-          <Badge tone="verified" icon={CheckCircleIcon}>
-            Saved in the keychain
-          </Badge>
-        ) : (
-          <Badge tone="neutral" icon={KeyIcon}>
-            Not set
-          </Badge>
-        )}
-      </div>
-      <label className="field">
-        <span>{set ? "Replace the key" : "API key"}</span>
-        <input type="password" value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" spellCheck={false} disabled={disabled} placeholder={provider === "anthropic" ? "sk-ant-…" : "Your Gemini API key"} />
-      </label>
-      {error ? <Alert>{error}</Alert> : null}
-      <div className="row-start">
-        <button className="btn btn-primary btn-sm" type="submit" disabled={disabled || busy || key.trim().length === 0}>
-          {busy ? "Saving…" : "Save key"}
-        </button>
-        {set ? (
-          <button className="btn btn-secondary btn-sm" type="button" onClick={() => void api.removeKey(provider).then(onState)}>
-            Remove
-          </button>
-        ) : null}
-      </div>
-    </form>
-  );
-}
-
 /* ------------------------------------------------------------------ tasks */
 
 const MODES: { id: AgentMode; icon: Icon }[] = [
@@ -259,16 +191,16 @@ function TasksView({ state, onRunStarted }: { state: AppState; onRunStarted: (ru
           ))}
         </ul>
       ) : null}
-      {selected ? <TaskPanel key={selected} taskId={selected} state={state} profile={profile} onRunStarted={onRunStarted} /> : null}
+      {selected ? <TaskPanel key={selected} taskId={selected} profile={profile} onRunStarted={onRunStarted} /> : null}
     </section>
   );
 }
 
-function TaskPanel({ taskId, state, profile, onRunStarted }: { taskId: string; state: AppState; profile: Profile | null; onRunStarted: (runId: string) => void }) {
+function TaskPanel({ taskId, profile, onRunStarted }: { taskId: string; profile: Profile | null; onRunStarted: (runId: string) => void }) {
   const [task, setTask] = useState<TaskView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<AgentMode>("review_only");
-  const [provider, setProvider] = useState<Provider>(state.keys.anthropic || !state.keys.gemini ? "anthropic" : "gemini");
+  const [effort, setEffort] = useState<Effort>("balanced");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -289,14 +221,12 @@ function TaskPanel({ taskId, state, profile, onRunStarted }: { taskId: string; s
       ? "This task isn't waiting for a change anymore. Refresh the list."
       : profile && !profile.canPropose
         ? "Your role can't propose changes."
-        : !state.keys[provider]
-          ? `Add your ${PROVIDER_LABEL[provider]} key in Keys first.`
-          : null;
+        : null;
 
   async function start() {
     setBusy(true);
     setError(null);
-    const r = await api.startRun({ taskId, mode, provider });
+    const r = await api.startRun({ taskId, mode, effort });
     setBusy(false);
     if (r.ok) onRunStarted(r.value.runId);
     else setError(r.message);
@@ -351,17 +281,18 @@ function TaskPanel({ taskId, state, profile, onRunStarted }: { taskId: string; s
               );
             })}
           </fieldset>
-          <label className="field field-inline">
-            <span>Model</span>
-            <select value={provider} onChange={(e) => setProvider(e.target.value as Provider)}>
-              {(["anthropic", "gemini"] as const).map((p) => (
-                <option key={p} value={p}>
-                  {PROVIDER_LABEL[p]}
-                  {state.keys[p] ? "" : " (no key yet)"}
-                </option>
+          <fieldset className="effort">
+            <legend>Effort</legend>
+            <div className="segmented">
+              {EFFORTS.map((e) => (
+                <label key={e} className={`segment ${effort === e ? "is-selected" : ""}`}>
+                  <input type="radio" name="effort" value={e} checked={effort === e} onChange={() => setEffort(e)} />
+                  {EFFORT_LABELS[e].title}
+                </label>
               ))}
-            </select>
-          </label>
+            </div>
+            <p className="muted small">{EFFORT_LABELS[effort].detail} Farbaek picks the model, and the run uses your workspace&apos;s AI usage. No API key needed.</p>
+          </fieldset>
           {error ? <Alert>{error}</Alert> : null}
           <div className="row-start">
             <button className="btn btn-primary" type="button" disabled={blocked !== null || busy} onClick={() => void start()}>
@@ -404,7 +335,7 @@ function RunsView({ runs, selected, onSelect }: { runs: RunSummary[]; selected: 
                   <StateBadge run={r} />
                 </span>
                 <span className="muted small">
-                  {AGENT_MODE_LABELS[r.mode].title} · {PROVIDER_LABEL[r.provider]} · {time(r.startedAt)}
+                  {AGENT_MODE_LABELS[r.mode].title} · {EFFORT_LABELS[r.effort ?? "balanced"].title} · {time(r.startedAt)}
                 </span>
               </button>
             </li>
@@ -456,8 +387,11 @@ function RunPanel({ runId }: { runId: string }) {
         <StateBadge run={run} />
       </div>
       <p className="muted small mono">
-        {AGENT_MODE_LABELS[run.mode].title} · {run.model} · {tokens(total)} tokens ({tokens(run.usage.inputTokens)} in, {tokens(run.usage.outputTokens)} out)
+        {AGENT_MODE_LABELS[run.mode].title} · {run.model === "auto" ? "Choosing a model" : run.model} · {tokens(total)} tokens ({tokens(run.usage.inputTokens)} in, {tokens(run.usage.outputTokens)} out)
       </p>
+      {run.usagePercent !== null && run.usagePercent !== undefined ? (
+        <p className={`small ${run.usagePercent >= 80 ? "text-approval" : "muted"}`}>Your workspace has used {run.usagePercent}% of its AI usage.</p>
+      ) : null}
       {run.mode === "controlled" ? (
         <p className="tag-local">
           <TerminalWindowIcon size={16} aria-hidden /> Commands run on this computer, not isolated.
@@ -661,7 +595,7 @@ function SettingsView({ state, onState }: { state: AppState; onState: (s: AppSta
       </div>
       <div className="card stack-sm">
         <h2>Unpair this computer</h2>
-        <p className="muted">Revokes this computer&apos;s agent token in Farbaek and forgets it here. Your keys and past runs stay on this computer until you remove them.</p>
+        <p className="muted">Revokes this computer&apos;s agent token in Farbaek and forgets it here. Past runs stay on this computer until you discard them.</p>
         {error ? <Alert>{error}</Alert> : null}
         <div className="row-start">
           {confirm ? (
@@ -689,7 +623,6 @@ function SettingsView({ state, onState }: { state: AppState; onState: (s: AppSta
 const NAV: { id: View; label: string; icon: Icon }[] = [
   { id: "tasks", label: "Tasks", icon: ListChecksIcon },
   { id: "runs", label: "Runs", icon: ClockCounterClockwiseIcon },
-  { id: "keys", label: "Keys", icon: KeyIcon },
   { id: "settings", label: "Settings", icon: GearSixIcon },
 ];
 
@@ -743,8 +676,6 @@ export function App() {
           />
         ) : view === "runs" ? (
           <RunsView runs={runs} selected={selectedRun} onSelect={setSelectedRun} />
-        ) : view === "keys" ? (
-          <KeysView state={state} onState={setState} />
         ) : (
           <SettingsView state={state} onState={setState} />
         )}

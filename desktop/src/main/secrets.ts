@@ -1,28 +1,31 @@
 /**
- * Secrets on this computer: the agent token and the person's model keys.
- * Each one is encrypted with Electron's safeStorage, which uses the system
- * keychain (DPAPI on Windows, Keychain on macOS, libsecret or KWallet on
- * Linux), and written to its own file in the app's data folder. When the
+ * Secrets on this computer: the agent token. There are no model keys: runs
+ * go through Farbaek's model gateway (ADR 0021). The token is encrypted with
+ * Electron's safeStorage, which uses the system keychain (DPAPI on Windows,
+ * Keychain on macOS, libsecret or KWallet on Linux), and written to its own
+ * file in the app's data folder. When the
  * system can't encrypt (for example Linux with no keyring, where safeStorage
  * falls back to plain text), nothing secret is stored at all.
  *
- * Secret values never leave the main process: the window only learns whether
- * a key is set.
+ * Secret values never leave the main process.
  */
 import { safeStorage } from "electron";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-export type SecretName = "agent-token" | "key-anthropic" | "key-gemini";
+export type SecretName = "agent-token";
+
+/** Model keys stored by app versions before the model gateway. They're deleted on start. */
+const LEGACY_KEY_FILES = ["key-anthropic.bin", "key-gemini.bin"];
 
 export class SecretStore {
   constructor(private readonly dir: string) {}
 
   /** Whether secrets can be stored, and why not when they can't. */
   availability(): { available: boolean; reason: string | null } {
-    if (!safeStorage.isEncryptionAvailable()) return { available: false, reason: "This computer's keychain isn't available, so keys and the agent token can't be stored safely." };
+    if (!safeStorage.isEncryptionAvailable()) return { available: false, reason: "This computer's keychain isn't available, so the agent token can't be stored safely." };
     if (process.platform === "linux" && safeStorage.getSelectedStorageBackend() === "basic_text") {
-      return { available: false, reason: "No keyring is running (GNOME Keyring or KWallet), so keys can't be stored safely. Start one and reopen the app." };
+      return { available: false, reason: "No keyring is running (GNOME Keyring or KWallet), so the agent token can't be stored safely. Start one and reopen the app." };
     }
     return { available: true, reason: null };
   }
@@ -60,5 +63,10 @@ export class SecretStore {
 
   async delete(name: SecretName): Promise<void> {
     await fs.rm(this.file(name), { force: true });
+  }
+
+  /** Deletes model keys an earlier version stored. Nothing uses them now. */
+  async forgetLegacyKeys(): Promise<void> {
+    await Promise.all(LEGACY_KEY_FILES.map((f) => fs.rm(path.join(this.dir, f), { force: true })));
   }
 }

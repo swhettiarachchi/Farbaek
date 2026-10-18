@@ -5,6 +5,7 @@ import type { GrantRow } from "@/core/billing/wallet";
 import type { ContractDraft } from "@/core/realityloop/contract-draft";
 import type { TaskState } from "@/core/realityloop/task-machine";
 import type { ContractDrafter, DraftOutcome } from "@/server/ai/contract-drafter";
+import type { Effort } from "@/core/agent/routing";
 import { contractPromptTokens } from "@/server/ai/prompts";
 import { draftContractWithAi, type AiUsageDeps } from "./ai-drafting";
 import type { OrgRole } from "./types";
@@ -69,7 +70,9 @@ function fakeDeps(over: { role?: OrgRole | null; billing?: BillingSnapshot | nul
   return { deps, calls };
 }
 
-const run = (deps: WriteDeps & AiUsageDeps, drafter: ContractDrafter) => draftContractWithAi(deps, drafter, { orgId: "o1", userId: "u1", taskId: "t1", brief: BRIEF });
+/** Hands the use case the fake drafter, set to whichever model Auto routing chose. */
+const run = (deps: WriteDeps & AiUsageDeps, drafter: ContractDrafter & { calls: number }, effort?: Effort) =>
+  draftContractWithAi(deps, { family: "anthropic", create: (s) => Object.assign(drafter, { model: s.model }) }, { orgId: "o1", userId: "u1", taskId: "t1", brief: BRIEF, effort });
 const FREE_GRANT: GrantRow = { id: "g1", kind: "free", units: 5_000, used: 1_000, startsAt: "2026-10-01T00:00:00.000Z", expiresAt: "2026-11-01T00:00:00.000Z" };
 
 describe("draftContractWithAi", () => {
@@ -79,12 +82,26 @@ describe("draftContractWithAi", () => {
     expect(result).toMatchObject({ ok: true, value: { model: "claude-sonnet-5-5", usage: { percent: 20 } } });
     if (result.ok) expect(result.value.form).toMatchObject({ allowed: "files.edit", acceptance: "assertion: The headline fits at 375px." });
     expect(calls.map((c) => c.name)).toEqual(["reserve", "settle"]);
-    const units = reserveUnits("claude-sonnet-5-5", contractPromptTokens(BRIEF), 8_000);
-    // 8,000 output tokens on Sonnet alone is 800 units; the prompt adds a little.
-    expect(units).toBeGreaterThan(800);
-    expect(units).toBeLessThan(900);
+    // Free routes drafting to Haiku: 8,000 output tokens there is 40 units, and the prompt adds a little.
+    const units = reserveUnits("claude-haiku-5-5", contractPromptTokens(BRIEF), 8_000);
+    expect(units).toBeGreaterThan(40);
+    expect(units).toBeLessThan(50);
     expect(calls[0]!.input).toMatchObject({ operation: "contract_draft", units, taskId: "t1", key: "key-1", grant: { kind: "free", units: 5_000, source_key: "free:2026-10" } });
     expect(calls[1]!.input).toEqual({ orgId: "o1", entryId: "entry-1", status: "settled", units: 78, usage: USAGE, refundReason: null, retryCap: null });
+  });
+
+  it("routes drafting by plan and effort: a fast model by default, the strongest included one on Deep", async () => {
+    const window = trialWindow(new Date("2026-10-10T00:00:00Z"));
+    const billing = { state: "trialing" as const, trial: window };
+    const balanced = fakeDrafter({ ok: true, draft: DRAFT, usage: USAGE });
+    await run(fakeDeps({ billing }).deps, balanced);
+    expect(balanced.model).toBe("claude-haiku-5-5");
+    const deep = fakeDrafter({ ok: true, draft: DRAFT, usage: USAGE });
+    await run(fakeDeps({ billing }).deps, deep, "deep");
+    expect(deep.model).toBe("claude-opus-5-5");
+    const free = fakeDrafter({ ok: true, draft: DRAFT, usage: USAGE });
+    expect(await run(fakeDeps().deps, free, "deep")).toMatchObject({ ok: true, value: { routeNote: expect.stringMatching(/Free uses fast models/) } });
+    expect(free.model).toBe("claude-haiku-5-5");
   });
 
   it("issues the whole trial's grant while the trial runs", async () => {

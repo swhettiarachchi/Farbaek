@@ -43,6 +43,10 @@ async function api(): Promise<RunApi> {
   return {
     task: async () => detail,
     snapshot: async () => [{ path: "README.md", revision: 5, sha256: detail.files[0]!.sha256, content: README }],
+    // Runs in these tests use a scripted model, so the gateway is never called.
+    modelStep: async () => {
+      throw new Error("The model gateway isn't used in these tests.");
+    },
     submitProposal: async (_taskId, proposal) => {
       submitted.push(proposal);
       return { proposalId: "proposal-1", status: "pending", violations: [], policy: { outcome: "REQUIRE_APPROVAL", findings: [] } };
@@ -95,7 +99,7 @@ afterEach(async () => {
 describe("desktop runs", () => {
   it("works on a copy, waits for the person, then submits exactly the finished change", async () => {
     const m = manager(scripted([[edit], [finish]]));
-    const id = await m.start({ api: await api(), taskId: "t1", mode: "review_only", provider: "anthropic", apiKey: "sk-ant-test" });
+    const id = await m.start({ api: await api(), taskId: "t1", mode: "review_only", effort: "balanced" });
     const run = await settle(m, id, (r) => r.state !== "running");
     expect(run).toMatchObject({ state: "completed", model: "fake-model", usage: { inputTokens: 200, outputTokens: 40 }, outcome: expect.stringMatching(/submit it to Farbaek/) });
     expect(run.changes).toEqual([{ path: "README.md", kind: "edit", bytes: 37, reason: "Name the command." }]);
@@ -125,7 +129,7 @@ describe("desktop runs", () => {
       },
     };
     const m = manager(scripted([[{ id: "c", name: "run_command", input: { program: "pnpm", args: ["test"], reason: "Check it." } }], [finish]]), runner);
-    const id = await m.start({ api: await api(), taskId: "t1", mode: "controlled", provider: "anthropic", apiKey: "k" });
+    const id = await m.start({ api: await api(), taskId: "t1", mode: "controlled", effort: "balanced" });
     const waiting = await settle(m, id, (r) => r.pendingApproval !== null);
     expect(waiting.pendingApproval).toMatchObject({ display: "pnpm test", risk: "test_build", where: "local" });
     expect(ran).toEqual([]);
@@ -144,7 +148,7 @@ describe("desktop runs", () => {
         throw new Error("must not run");
       },
     });
-    const id = await m.start({ api: await api(), taskId: "t1", mode: "controlled", provider: "anthropic", apiKey: "k" });
+    const id = await m.start({ api: await api(), taskId: "t1", mode: "controlled", effort: "balanced" });
     await settle(m, id, (r) => r.pendingApproval !== null);
     m.cancel(id);
     const run = await settle(m, id, (r) => r.state !== "running");
@@ -166,6 +170,6 @@ describe("desktop runs", () => {
   });
 
   it("refuses Sandboxed Autopilot until it's built", async () => {
-    await expect(manager(scripted([])).start({ api: await api(), taskId: "t1", mode: "sandboxed_autopilot", provider: "anthropic", apiKey: "k" })).rejects.toThrow(/isn't available yet/);
+    await expect(manager(scripted([])).start({ api: await api(), taskId: "t1", mode: "sandboxed_autopilot", effort: "balanced" })).rejects.toThrow(/isn't available yet/);
   });
 });

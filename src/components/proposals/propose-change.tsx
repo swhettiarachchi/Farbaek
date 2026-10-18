@@ -6,7 +6,9 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { proposeChangeAction } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { EffortPicker } from "@/components/app/effort-picker";
 import { AiUsageNote } from "@/components/app/usage-meters";
+import type { Effort } from "@/core/agent/routing";
 import { formatBytes } from "@/core/workspace/files";
 import type { AiAvailability } from "@/server/workspace/ai-usage";
 
@@ -33,6 +35,7 @@ export function ProposeChange({
   const [filter, setFilter] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [effort, setEffort] = useState<Effort>("balanced");
   const [pending, start] = useTransition();
 
   const sizes = useMemo(() => new Map(files.map((f) => [f.path, f.sizeBytes])), [files]);
@@ -56,7 +59,7 @@ export function ProposeChange({
   function submit() {
     setError(null);
     start(async () => {
-      const r = await proposeChangeAction({ taskId, contextPaths: [...selected], notes });
+      const r = await proposeChangeAction({ taskId, contextPaths: [...selected], notes, effort });
       if (r.status === "error") return setError(r.message);
       router.refresh();
     });
@@ -137,6 +140,8 @@ export function ProposeChange({
           </p>
         ) : null}
       </div>
+
+      <EffortPicker value={effort} onChange={setEffort} disabled={pending || Boolean(ai.disabledReason)} />
 
       <div className="flex flex-wrap items-center gap-3">
         <button

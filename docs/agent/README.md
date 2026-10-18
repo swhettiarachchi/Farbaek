@@ -1,11 +1,11 @@
 # Farbaek Agent
 
-A desktop app that works on a task's approved intent contract on your computer, with your own Claude or Gemini key, and hands the finished change to Farbaek as a normal change proposal for review. Decision: [ADR 0018](../adr/0018-farbaek-agent-runtime.md).
+A desktop app that works on a task's approved intent contract on your computer, using Farbaek's AI through the model gateway (no API key needed), and hands the finished change to Farbaek as a normal change proposal for review. Decisions: [ADR 0018](../adr/0018-farbaek-agent-runtime.md), [ADR 0021](../adr/0021-model-gateway-and-auto-routing.md).
 
 ## How it fits
 
 1. In Farbaek, approve a task's intent contract.
-2. In the app, pick the task and a mode, and start a run. The app copies the project's files into its own folder for that run.
+2. In the app, pick the task, a mode and an effort (Fast, Balanced or Deep), and start a run. The app copies the project's files into its own folder for that run.
 3. The agent works in that copy. Every tool call is validated, checked against the mode and the contract, and, when needed, approved by you.
 4. You review the result in the app and submit it. Farbaek checks it again (paths, file screening, base revisions, contract, policy, evaluation allowance) and creates a proposal tagged "Proposed by Farbaek Agent".
 5. From there it's the same as any proposal: per-chunk review, apply, checks on Vercel Sandbox, ProofPack, recovery.
@@ -26,10 +26,10 @@ Writes must stay inside the contract's paths and allowed operations, and are ref
 - Commands: 5 minutes by default, 30 at most; 64 KB of output kept per stream.
 - Files: 512 KB per file read or written; 5,000 files walked; 100 search matches.
 
-## Pairing and keys
+## Pairing and the model
 
 - **Pairing:** in Farbaek, open Agents and create a code. Type it into the app with Farbaek's address. The code works once, for 10 minutes. The app gets a token that only it stores, encrypted with the system keychain; Farbaek keeps only its hash. Your plan sets how many agents can be paired.
-- **Keys:** add your Claude or Gemini key in the app's Keys screen. It's encrypted with the keychain (DPAPI on Windows), never shown again and never sent to Farbaek. Your provider bills you for what a run uses.
+- **The model:** each step goes to `POST /api/v1/agent/model`. Farbaek picks the model for your plan and the effort (Auto routing), calls Claude with its own key, and meters the step from the workspace's AI usage at its real token cost. Refusals and provider failures are given back. Farbaek doesn't keep the conversation; the usage ledger records the model and token counts. Versions before the gateway stored a personal key; the app now deletes it on start.
 - **Revoking:** from Agents in Farbaek (owners, admins, or the person who paired it), or Settings → Unpair in the app. A revoked token stops working on the next request, and the app forgets it.
 - If the system keychain isn't available (for example Linux without a running keyring), the app refuses to store anything secret.
 
@@ -66,9 +66,10 @@ Until then, Windows SmartScreen shows "Windows protected your PC" (choose More i
 | `GET /tasks/{id}` | The task, its approved contract and the project's file list |
 | `GET /tasks/{id}/files?after=` | File contents in pages of up to 2 MB or 300 files |
 | `POST /tasks/{id}/proposals` | Submits the change; Farbaek re-checks it and creates the proposal |
+| `POST /model` | One model step through the model gateway (task with an approved contract, effort, conversation); metered from the workspace's AI usage |
 | `POST /unpair` | Revokes the calling agent |
 
-Requests are rate-limited per agent (120 a minute; 10 proposals a minute) and pairing per client and globally.
+Requests are rate-limited per agent (120 a minute; 10 proposals and 30 model steps a minute) and pairing per client and globally.
 
 ## Checking it
 
@@ -84,6 +85,7 @@ Runs the whole platform path against a running server with a scripted stand-in f
 | --- | --- |
 | `src/core/agent/` | Modes, tool registry, permission engine, command risk, run states, path rules, setup report |
 | `src/agent-runtime/` | Folder guard, command broker, workspace (patch or disk, checkpoints), loop, model adapters, Farbaek API client |
-| `src/server/agent/`, `src/app/api/v1/agent/` | The agent API |
+| `src/server/agent/`, `src/app/api/v1/agent/` | The agent API, and the model gateway (`gateway.ts`) |
+| `src/core/agent/routing.ts` | Auto routing: the model for each plan and effort |
 | `supabase/migrations/20261018150000_agents.sql` | Agents, pairing codes, agent proposals |
 | `desktop/` | The Electron app: main process, preload bridge, window, build and installer config |

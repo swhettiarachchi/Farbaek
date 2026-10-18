@@ -2,6 +2,8 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { describe, expect, it } from "vitest";
 import { createAnthropicToolModel, toModelStep } from "./anthropic";
 import { createGeminiToolModel } from "./gemini";
+import { FarbaekApiError, type ModelStepRequest } from "../farbaek-client";
+import { createFarbaekToolModel } from "./farbaek";
 
 const tools = [{ name: "read_file", description: "Read a file.", inputSchema: { type: "object", properties: { path: { type: "string" } }, required: ["path"] } }];
 
@@ -84,5 +86,44 @@ describe("Gemini adapter", () => {
     const history = bodies[1]!.contents;
     expect(history[1]).toEqual({ role: "model", parts: [{ functionCall: { name: "read_file", args: { path: "a" } }, thoughtSignature: "ts-1" }] });
     expect(history[2]).toEqual({ role: "user", parts: [{ functionResponse: { name: "read_file", response: { result: "file text" } } }] });
+  });
+});
+
+describe("Farbaek gateway adapter", () => {
+  const reply = (content: unknown[], stop: string) => ({
+    message: { id: "msg_1", model: "claude-sonnet-5-5", content: content as { type: string }[], stop_reason: stop, usage: { input_tokens: 100, output_tokens: 20, cache_read_input_tokens: 900 } },
+    routedModel: "claude-sonnet-5-5",
+    note: null,
+    usage: { percent: 12 },
+  });
+
+  it("sends the conversation to the gateway with no key, and keeps the model's content unchanged", async () => {
+    const requests: ModelStepRequest[] = [];
+    const replies = [reply([{ type: "thinking", thinking: "", signature: "sig-1" }, { type: "tool_use", id: "toolu_1", name: "read_file", input: { path: "a" } }], "tool_use"), reply([{ type: "text", text: "Done." }], "end_turn")];
+    const seen: { percent: number | null }[] = [];
+    const client = { modelStep: async (r: ModelStepRequest) => (requests.push(structuredClone(r)), replies[requests.length - 1]!) };
+    const model = createFarbaekToolModel({ client, taskId: "t1", effort: "deep", onUsage: (u) => seen.push(u) });
+    expect(model).toMatchObject({ provider: "farbaek", model: "auto" });
+    const conversation = model.begin({ system: "sys", message: "brief", tools });
+    const first = await conversation.send({});
+    expect(first).toMatchObject({ stop: "tool_use", model: "claude-sonnet-5-5", usage: { inputTokens: 1000, outputTokens: 20 } });
+    await conversation.send({ toolResults: [{ id: "toolu_1", content: "file text", isError: false }] });
+
+    expect(requests[0]).toMatchObject({ taskId: "t1", effort: "deep", step: "write", system: "sys", tools: [{ name: "read_file", input_schema: tools[0]!.inputSchema }] });
+    expect(JSON.stringify(requests)).not.toMatch(/api[_-]?key/i);
+    expect(requests[1]!.messages[1]).toEqual({ role: "assistant", content: replies[0]!.message.content });
+    expect(requests[1]!.messages[2]).toEqual({ role: "user", content: [{ type: "tool_result", tool_use_id: "toolu_1", content: "file text", is_error: false }] });
+    expect(seen).toHaveLength(2);
+  });
+
+  it("turns Farbaek's answers into model errors the loop understands", async () => {
+    const failing = (error: Error) => createFarbaekToolModel({ client: { modelStep: async () => Promise.reject(error) }, taskId: "t1", effort: "balanced" }).begin({ system: "s", message: "m", tools });
+    await expect(failing(new FarbaekApiError(402, "QUOTA_EXCEEDED", "There isn't enough AI usage left this month for this.")).send({})).rejects.toMatchObject({ kind: "usage", message: expect.stringContaining("AI usage") });
+    await expect(failing(new FarbaekApiError(401, "UNAUTHENTICATED", "x")).send({})).rejects.toMatchObject({ kind: "auth" });
+    await expect(failing(new FarbaekApiError(503, "AI_BUSY", "Busy.")).send({})).rejects.toMatchObject({ kind: "busy" });
+    await expect(failing(new FarbaekApiError(0, "NETWORK", "Offline.")).send({})).rejects.toMatchObject({ kind: "network" });
+    const controller = new AbortController();
+    controller.abort();
+    await expect(failing(new FarbaekApiError(0, "NETWORK", "x")).send({}, controller.signal)).rejects.toMatchObject({ kind: "cancelled" });
   });
 });

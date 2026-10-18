@@ -18,13 +18,14 @@ import type { IntentContract } from "@/core/realityloop/contract";
 import type { AgentProposalResult, AgentTaskDetail, ProposalSubmission, SnapshotFile } from "@/agent-runtime/farbaek-client";
 import { ProjectFolder } from "@/agent-runtime/fs-guard";
 import { runAgent, type ApprovalAnswer, type RunEvent, type RunLimits } from "@/agent-runtime/loop";
+import { createFarbaekToolModel, type GatewayClient } from "@/agent-runtime/models/farbaek";
 import type { ToolModel } from "@/agent-runtime/models/types";
 import { createLocalRunner, type CommandRunner } from "@/agent-runtime/runners";
 import { AgentWorkspace, materialize } from "@/agent-runtime/workspace";
-import type { DisplayEvent, Provider, RunDetail, RunSummary } from "../shared/api";
+import type { DisplayEvent, Effort, RunDetail, RunSummary } from "../shared/api";
 
-/** What a run needs from Farbaek. FarbaekAgentClient fits. */
-export interface RunApi {
+/** What a run needs from Farbaek, model steps included. FarbaekAgentClient fits. */
+export interface RunApi extends GatewayClient {
   task(id: string): Promise<AgentTaskDetail>;
   snapshot(taskId: string): Promise<SnapshotFile[]>;
   submitProposal(taskId: string, proposal: ProposalSubmission): Promise<AgentProposalResult>;
@@ -32,7 +33,8 @@ export interface RunApi {
 
 export interface RunDeps {
   dataDir: string;
-  makeModel(provider: Provider, apiKey: string): ToolModel;
+  /** The model for a run. Defaults to Farbaek's model gateway; tests pass a scripted one. */
+  makeModel?(input: { api: RunApi; taskId: string; effort: Effort; onUsage(info: { percent: number | null; model: string; note: string | null }): void }): ToolModel;
   emit(run: RunDetail): void;
   /** Commands for Controlled Development. Defaults to the local broker in the run's folder. */
   makeRunner?(root: string): CommandRunner;
@@ -77,6 +79,9 @@ export class RunManager {
       try {
         run = JSON.parse(await fs.readFile(path.join(this.runsDir, name), "utf8")) as StoredRun;
         if (typeof run.id !== "string" || typeof run.state !== "string" || !Array.isArray(run.events)) continue;
+        // Runs saved before the model gateway used the person's own key.
+        run.effort ??= "balanced";
+        run.usagePercent ??= null;
       } catch {
         continue;
       }
@@ -96,7 +101,7 @@ export class RunManager {
   list(): RunSummary[] {
     return [...this.runs.values()]
       .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
-      .map(({ id, taskId, taskTitle, projectName, mode, provider, state, startedAt, endedAt, outcome, proposal, discarded }) => ({ id, taskId, taskTitle, projectName, mode, provider, state, startedAt, endedAt, outcome, proposal, discarded }));
+      .map(({ id, taskId, taskTitle, projectName, mode, effort, state, startedAt, endedAt, outcome, proposal, discarded }) => ({ id, taskId, taskTitle, projectName, mode, effort, state, startedAt, endedAt, outcome, proposal, discarded }));
   }
 
   get(id: string): RunDetail | null {
@@ -140,6 +145,7 @@ export class RunManager {
     const at = this.now();
     let shown: DisplayEvent | null = null;
     if (event.type === "model") {
+      run.model = event.model;
       run.usage.inputTokens += event.usage.inputTokens;
       run.usage.outputTokens += event.usage.outputTokens;
       if (event.text.trim()) shown = { at, kind: "model", text: event.text.slice(0, 4_000), tokens: event.usage.inputTokens + event.usage.outputTokens };
@@ -155,7 +161,7 @@ export class RunManager {
     void this.touch(run);
   }
 
-  async start(input: { api: RunApi; taskId: string; mode: AgentMode; provider: Provider; apiKey: string }): Promise<string> {
+  async start(input: { api: RunApi; taskId: string; mode: AgentMode; effort: Effort }): Promise<string> {
     if (input.mode === "sandboxed_autopilot") throw new RunError("Sandboxed Autopilot isn't available yet. Use Review Only or Controlled Development.");
     const task = await input.api.task(input.taskId);
     if (!task.task.readyForChange || !task.contract) throw new RunError("This task isn't waiting for a change: its contract isn't approved, or a proposal is already open.");
@@ -171,14 +177,23 @@ export class RunManager {
       input.mode === "review_only" ? "patch" : "disk",
       task.files.map((f) => ({ path: f.path, revision: f.revision, sha256: f.sha256 })),
     );
-    const model = this.deps.makeModel(input.provider, input.apiKey);
+    let noted = false;
+    const onUsage = (info: { percent: number | null; model: string; note: string | null }) => {
+      run.usagePercent = info.percent;
+      if (info.note && !noted) {
+        noted = true;
+        run.events.push({ at: this.now(), kind: "note", text: info.note });
+      }
+    };
+    const makeModel = this.deps.makeModel ?? ((i) => createFarbaekToolModel({ client: i.api, taskId: i.taskId, effort: i.effort, onUsage: i.onUsage }));
+    const model = makeModel({ api: input.api, taskId: input.taskId, effort: input.effort, onUsage });
     const run: StoredRun = {
       id,
       taskId: task.task.id,
       taskTitle: task.task.title,
       projectName: task.project.name,
       mode: input.mode,
-      provider: input.provider,
+      effort: input.effort,
       model: model.model,
       state: "running",
       startedAt: this.now(),
@@ -190,6 +205,7 @@ export class RunManager {
       changes: [],
       notProposed: skipped.map((s) => ({ path: s.path, reason: `Not copied to this computer: ${s.reason}` })),
       usage: { inputTokens: 0, outputTokens: 0 },
+      usagePercent: null,
       proposal: null,
       discarded: false,
       contractVersion: task.contract.version,
@@ -233,7 +249,6 @@ export class RunManager {
             );
           }),
       });
-      run.model = report.model;
       const o = report.outcome;
       if (o.kind === "finished") {
         const { changes, notProposed } = await workspace.changes();

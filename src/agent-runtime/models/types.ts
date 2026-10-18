@@ -49,7 +49,8 @@ export interface ModelConversation {
   send(input: { toolResults?: ToolResultInput[]; text?: string }, signal?: AbortSignal): Promise<ModelStep>;
 }
 
-export type ModelProvider = "anthropic" | "gemini";
+/** "farbaek" is the model gateway: Farbaek picks the model and pays for it from the workspace's usage. */
+export type ModelProvider = "farbaek" | "anthropic" | "gemini";
 
 export interface ToolModel {
   readonly provider: ModelProvider;
@@ -57,7 +58,8 @@ export interface ToolModel {
   begin(setup: { system: string; message: string; tools: readonly ToolSpec[] }): ModelConversation;
 }
 
-export type ModelErrorKind = "auth" | "busy" | "network" | "bad_request" | "bad_output" | "cancelled";
+/** "usage" means the workspace's AI usage has run out for now. */
+export type ModelErrorKind = "auth" | "busy" | "network" | "bad_request" | "bad_output" | "cancelled" | "usage";
 
 export class ModelError extends Error {
   constructor(
