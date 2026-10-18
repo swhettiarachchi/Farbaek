@@ -224,3 +224,42 @@ Decision: [ADR 0021](../adr/0021-model-gateway-and-auto-routing.md).
 
 1. Cloud runs: the agent in Vercel Sandbox from the web app (migration 16, a run executor, live events), and the Build workspace at `/app/build`.
 2. Previews (Phase 3), security checks (Phase 4), the 3D workspace (Phase 5).
+
+## 2026-10-18: Cloud agent runs and the Build workspace (Phase 2, second half)
+
+Decision: [ADR 0022](../adr/0022-cloud-agent-runs.md).
+
+### Done
+
+- **Migration 16** `20261018200000_agent_runs.sql`:
+  - `agent_runs` and `agent_run_events` (bounded, append-only from the server), with one live run per task;
+  - functions to start a run, record progress and events, interrupt runs that stopped reporting, and create a run's proposal through `app_create_proposal` (tagged with `run_id`).
+- **The executor** `src/server/cloud-agent/`:
+  - the desktop agent's loop on a private server copy of the project, with model steps through the gateway's rules and commands in a sandbox session created as the person;
+  - changed files are copied into the sandbox before each command; Sandboxed Autopilot runs tests and builds, while installs and network wait for approval;
+  - a 40-minute limit, a heartbeat, and cancel and approval answers from the starter or an owner or admin.
+- **Proposal checks shared** between desktop agents and cloud runs (`prepareAgentProposal`).
+- **Build workspace**:
+  - `/app/build`: how a build works, the tasks ready to build with an effort choice, and the runs;
+  - `/app/build/[runId]`: live steps, an approval card for the exact command, stop, and the outcome with "Review the change";
+  - Build is in the sidebar and the phone tab bar, and the task page has "Let the agent build it". The cloud agent is a live plan feature.
+- Fixed on the way: `.gitignore` ignored every folder named `build`, which hid the Build pages from git; it now ignores only the root `/build/`.
+
+### Verified
+
+- 605 unit and design tests pass (new: 4 executor, 3 sandbox-runner); 8 database tests for migration 16, plus the proposal, agent and schema files again; typecheck, lint and the build pass.
+- Migration 16 on the hosted project: the editor's contents matched the tested file (12,839 bytes, `sha256 33b16d60…5ea8`), and nothing is dropped, so there was no destructive notice. Read-only check: RLS on both tables, browsers can't write either one or call the functions, anon can't read, the four functions are server-only, `change_proposals.run_id` exists.
+- Live, on the test project:
+  - A Balanced cloud run copied 4 files, started a Vercel sandbox and edited `index.html` in 3 Sonnet steps (147 units, $0.015, with steps 2 and 3 reading 2,923 and 3,752 tokens from the prompt cache). The sandbox stopped after 17 seconds.
+  - The run finished with a proposal: contract check passed, and policy asked for approval.
+  - The change was accepted and applied; the task moved to Executing.
+
+### Not verified
+
+- A run that asks for an install or runs tests live (both covered by executor tests; the static starter had nothing to test).
+- Interrupting a stale run after a real restart (covered by the database test).
+
+### Next
+
+1. Previews (Phase 3): instant static previews and the signed relay, with a Preview button beside the agent.
+2. Security checks (Phase 4), the 3D workspace (Phase 5).
