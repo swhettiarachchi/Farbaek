@@ -57,8 +57,10 @@ ESLint forbids `src/core` from importing React, Next, Motion or UI code, so ever
 | ProofPack Seal from digest | Implemented, unit-tested | `seal.test.ts` |
 | ProofPacks: in-toto statements per applied change, append-only, hash-chained, integrity re-checked on view | Implemented, tested, applied to the hosted project (migration 8, ADR 0012). Unverified until a sandbox runs checks. | `proofpack.test.ts`, `tests/db/change-proposals.test.ts` |
 | Recovery: undo an applied change file by file, never over newer changes, verified byte for byte, recorded as an in-toto receipt | Implemented, tested, applied to the hosted project (migration 11, ADR 0015). Not yet run on a live applied change. | `src/core/realityloop/recovery.test.ts`, `tests/db/recovery.test.ts` |
+| Verified ProofPacks: a check run in a sandbox against exactly the applied content appends a ProofPack with the real results; edits in the sandbox never verify a change | Implemented, tested, applied (migration 12), used live on Vercel Sandbox | `tests/db/verification-proofpacks.test.ts`, `service.test.ts` |
+| Team invitations by one-time link: owners and admins invite by email and role, seats counted with open invitations | Implemented, tested, applied (migration 13, ADR 0017); creating, the link page and revoking checked live | `tests/db/invitations.test.ts`, `invitations.test.ts` |
 | Marketing site and pricing page | Implemented, built, checked at 375px and 1440px, light and dark | Manual browser check, see `docs/stages/stage-0.md` |
-| Accounts, organizations, database | All eleven migrations applied to the hosted project (core schema, projects and server-only writes, intent contracts, AI credit ledger, project files, change proposals, policy and metering, ProofPacks, archiving, sandboxes, recovery) | `tests/db/`, `docs/stages/` |
+| Accounts, organizations, database | All thirteen migrations applied to the hosted project (core schema, projects and server-only writes, intent contracts, AI credit ledger, project files, change proposals, policy and metering, ProofPacks, archiving, sandboxes, recovery, verification ProofPacks, invitations) | `tests/db/`, `docs/stages/` |
 | Signed-in app: Mission Control, projects, tasks, intent contracts, approvals, billing, settings | Built; verified in the demo workspace; live use needs `.env.local` (run `pnpm setup:env`) | `src/app/app/`, `src/server/workspace/` |
 | FARBAEK Sandbox: isolated sessions (E2B microVMs behind a Farbaek runtime interface), Guard rules, receipts, previews, v1 API and SDK, Studio UI (ADR 0013) | Built and tested; migration 10 applied to the hosted project. **Execution is off** until a runtime is connected and pnpm sandbox:smoke passes | docs/sandbox/, docs/stages/stage-4.md |
 | Agent, Mesh, LaunchOS, Mobile | **Not started** | Roadmap |
@@ -68,7 +70,8 @@ ESLint forbids `src/core` from importing React, Next, Motion or UI code, so ever
 
 - **Supabase** (auth and database): connected to the hosted project. The app reads it once `.env.local` exists (`pnpm setup:env`).
 - **AI providers** (contract drafting and change proposals): Claude (`ANTHROPIC_API_KEY`) and Gemini (`GEMINI_API_KEY`, ADR 0014). Code is in place for both; each runs only when its key is set on the server, and usage is billed to that key. Claude is used when both are set unless `AI_PROVIDER` says otherwise.
-- Not connected: sandbox runtime (adapters for Vercel Sandbox and E2B are in place; see docs/sandbox/README.md), email, payments. `.env.example` lists every variable name and what reads it.
+- **Sandbox runtime**: Vercel Sandbox (Hobby, free and hard-capped), verified with pnpm sandbox:smoke on 2026-10-17 (ADR 0016). E2B stays available.
+- Not connected: hosting and a domain, email (invitations use a one-time link meanwhile), payments. `.env.example` lists every variable name and what reads it.
 
 ## 3. Data model and auth boundaries
 
