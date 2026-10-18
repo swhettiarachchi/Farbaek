@@ -5,23 +5,9 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "motion/react";
 import { LOGO } from "@/components/brand/brand-logo";
+import { canRun3D, whenIdle } from "./capability";
 
 const LoomScene = dynamic(() => import("./loom-scene"), { ssr: false });
-
-type Navigator3D = Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
-
-function canRun3D(): boolean {
-  const nav = navigator as Navigator3D;
-  if (nav.connection?.saveData) return false;
-  if (typeof nav.deviceMemory === "number" && nav.deviceMemory < 4) return false;
-  if (nav.hardwareConcurrency && nav.hardwareConcurrency < 4) return false;
-  try {
-    const canvas = document.createElement("canvas");
-    return Boolean(canvas.getContext("webgl2") ?? canvas.getContext("webgl"));
-  } catch {
-    return false;
-  }
-}
 
 /**
  * The hero visual. The static knight renders first (it is the LCP image);
@@ -38,12 +24,9 @@ export function HeroVisual() {
 
   useEffect(() => {
     if (reduce) return;
-    const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1200));
-    const cancel = window.cancelIdleCallback ?? window.clearTimeout;
-    const handle = idle(() => {
+    return whenIdle(() => {
       if (canRun3D()) setWant3D(true);
     });
-    return () => cancel(handle as number);
   }, [reduce]);
 
   useEffect(() => {

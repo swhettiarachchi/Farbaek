@@ -1,8 +1,10 @@
-import { ArrowRightIcon, CheckCircleIcon, CircleDashedIcon, ListChecksIcon, LockSimpleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, CheckCircleIcon, CircleDashedIcon, ListChecksIcon, LockSimpleIcon, RobotIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, EmptyState, Notice, PageHeader, StatTile, TaskStateBadge } from "@/components/app/primitives";
+import { UsageMeterList } from "@/components/app/usage-meters";
+import { RunStatusBadge } from "@/components/build/run-status";
 import { ButtonLink } from "@/components/ui/button";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
 import { TRIAL, getPlan } from "@/core/billing/catalog";
@@ -10,7 +12,9 @@ import { TERMINAL_STATES, type TaskState } from "@/core/realityloop/task-machine
 import { shortHash } from "@/core/trust/canonical-json";
 import { loadAppContext } from "@/server/workspace/context";
 import { currentExecutionMode } from "@/server/execution/sandbox";
-import { loadUsageSummary } from "@/server/workspace/usage-summary";
+import { listRuns, type RunView } from "@/server/cloud-agent/store";
+import { createSupabaseServerClient } from "@/server/supabase/server";
+import { aiMeter, loadUsageSummary } from "@/server/workspace/usage-summary";
 
 export const metadata: Metadata = { title: "Mission Control" };
 
@@ -32,8 +36,17 @@ export default async function MissionControl() {
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
   const ws = ctx.current;
-  const [usage, recentEvidence] = await Promise.all([loadUsageSummary(ctx, ws), ctx.reader.listRecentProofPacks(ws.id, 5)]);
+  const [usage, recentEvidence, runs] = await Promise.all([
+    loadUsageSummary(ctx, ws),
+    ctx.reader.listRecentProofPacks(ws.id, 5),
+    ctx.mode === "live"
+      ? createSupabaseServerClient()
+          .then((c) => (c ? listRuns(c, ws.id, { limit: 4 }) : ([] as RunView[])))
+          .catch(() => [] as RunView[])
+      : Promise.resolve([] as RunView[]),
+  ]);
   const { tasks, projects } = usage;
+  const ai = usage.wallet ? aiMeter(usage.wallet) : null;
 
   const open = tasks.filter((t) => !TERMINAL_STATES.has(t.state));
   const waiting = tasks.filter((t) => t.state === "APPROVAL_PENDING");
@@ -98,6 +111,57 @@ export default async function MissionControl() {
           detail={`Since ${usage.period.start.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })}. Limit ${limits.evaluationsPerMonth === null ? "by contract" : number.format(limits.evaluationsPerMonth)}${usage.period.kind === "trial" ? " for the trial" : " a month"}.`}
           href="/app/billing"
         />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <Card>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="flex items-center gap-2 text-lg font-medium">
+              <RobotIcon size={20} weight="bold" className="text-accent" aria-hidden /> Agent runs
+            </h2>
+            <Link href="/app/build" className="inline-flex items-center gap-1 text-sm text-accent hover:underline">
+              Build <ArrowRightIcon size={14} aria-hidden />
+            </Link>
+          </div>
+          {runs.length === 0 ? (
+            <p className="mt-3 text-sm leading-relaxed text-ink-2">
+              {ctx.mode === "live"
+                ? "No runs yet. Approve a task's contract, then start the agent from Build. It works in the cloud on Farbaek's AI, with no API key."
+                : "Agent runs need a real workspace. The demo has none."}
+            </p>
+          ) : (
+            <ul className="mt-4 divide-y divide-line">
+              {runs.map((r) => (
+                <li key={r.id}>
+                  <Link href={`/app/build/${r.id}`} className="group flex flex-col gap-2 py-3.5 sm:flex-row sm:items-center sm:gap-4">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[15px] font-medium group-hover:text-accent">{r.taskTitle}</span>
+                      <span className="mt-0.5 block text-xs text-ink-3">
+                        {r.projectName} · <RelativeTime iso={r.startedAt} />
+                      </span>
+                    </span>
+                    <RunStatusBadge status={r.status} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <Card>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-medium">AI usage</h2>
+            <Link href="/app/billing" className="inline-flex items-center gap-1 text-sm text-accent hover:underline">
+              Details <ArrowRightIcon size={14} aria-hidden />
+            </Link>
+          </div>
+          <div className="mt-4">
+            <UsageMeterList meters={ai ? [ai] : []} />
+          </div>
+          <p className="mt-4 border-t border-line pt-4 text-xs leading-relaxed text-ink-3">
+            Failed AI steps are refunded, and unused usage carries over for a month on paid plans.
+          </p>
+        </Card>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">

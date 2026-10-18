@@ -3,10 +3,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EmptyState, Notice, PageHeader } from "@/components/app/primitives";
+import { AgentCore } from "@/components/build/agent-core";
 import { RunStatusBadge } from "@/components/build/run-status";
 import { StartRun } from "@/components/build/start-run";
 import { LocalTime } from "@/components/ui/local-time";
+import { isLive } from "@/core/agent/cloud-run";
 import { EFFORT_LABELS } from "@/core/agent/routing";
+import { workspacePhase } from "@/core/agent/run-phase";
 import { resolveAiProvider } from "@/server/ai/config";
 import { listRuns, type RunView } from "@/server/cloud-agent/store";
 import { sandboxExecutionMode } from "@/server/sandbox/registry";
@@ -50,6 +53,9 @@ export default async function BuildPage() {
   ]);
   const busy = new Set(runs.filter((r) => ["starting", "working", "waiting"].includes(r.status)).map((r) => r.taskId));
   const ready = tasks.filter((t) => t.state === "CONTRACT_APPROVED");
+  const phase = workspacePhase(runs.map((r) => r.status));
+  const going = runs.filter((r) => isLive(r.status)).length;
+  const waitingRun = runs.find((r) => r.status === "waiting");
 
   return (
     <div className="grid gap-8">
@@ -57,6 +63,25 @@ export default async function BuildPage() {
         title="Build"
         description="Describe an outcome, agree the contract, and the Farbaek Agent builds it in the cloud on Farbaek's AI. No API key needed: each run uses your workspace's AI usage, and every change waits for your review."
       />
+
+      <AgentCore phase={phase}>
+        <p className="text-sm leading-relaxed text-ink-2">
+          {waitingRun ? (
+            <>
+              A run is waiting for you to approve a command.{" "}
+              <Link href={`/app/build/${waitingRun.id}`} className="font-medium text-accent hover:underline">
+                Open the run
+              </Link>
+            </>
+          ) : going > 0 ? (
+            `${going} ${going === 1 ? "run is" : "runs are"} going. Each one shows its steps live.`
+          ) : ready.length > 0 ? (
+            `${ready.length} ${ready.length === 1 ? "task is" : "tasks are"} ready to build.`
+          ) : (
+            "Approve a task's contract and it shows up below, ready for the agent."
+          )}
+        </p>
+      </AgentCore>
 
       {sandbox.mode !== "sandboxed" ? (
         <Notice>

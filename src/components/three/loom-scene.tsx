@@ -14,6 +14,7 @@ import { Canvas, useFrame, useLoader } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, type RefObject } from "react";
 import * as THREE from "three";
 import { LOGO } from "@/components/brand/brand-logo";
+import { FrameGovernor } from "./frame-governor";
 
 const ACCENT = "#2450f0";
 const CYAN = "#0a6e85";
@@ -189,22 +190,6 @@ function Motes({ pointer }: { pointer: PointerRef }) {
       <pointsMaterial size={0.03} vertexColors transparent opacity={0.7} sizeAttenuation depthWrite={false} toneMapped={false} />
     </points>
   );
-}
-
-/** Drops back to the static poster if the device can't hold a smooth frame rate. */
-function FrameGovernor({ onSlow }: { onSlow: () => void }) {
-  const samples = useRef<number[]>([]);
-  const done = useRef(false);
-  useFrame((_, delta) => {
-    if (done.current) return;
-    samples.current.push(delta);
-    if (samples.current.length < 90) return;
-    done.current = true;
-    const settled = samples.current.slice(20);
-    const avg = settled.reduce((a, b) => a + b, 0) / settled.length;
-    if (avg > 1 / 24) onSlow();
-  });
-  return null;
 }
 
 export default function LoomScene({ active, onReady, onSlow }: { active: boolean; onReady: () => void; onSlow: () => void }) {

@@ -2,6 +2,7 @@ import { SignOutIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MobileTabBar, SidebarNav } from "@/components/app/app-nav";
+import { PageTransition } from "@/components/app/page-transition";
 import { UsagePanel } from "@/components/app/usage-meters";
 import { CreateOrganizationForm } from "@/components/app/forms";
 import { WorkspaceSwitcher } from "@/components/app/workspace-switcher";
@@ -113,7 +114,9 @@ export default async function AppLayout({ children }: Readonly<{ children: React
         </header>
 
         <main id="main" className="px-4 pb-28 pt-6 sm:px-6 lg:px-10 lg:pb-16 lg:pt-10">
-          <div className="mx-auto max-w-[1120px]">{children}</div>
+          <div className="mx-auto max-w-[1120px]">
+            <PageTransition>{children}</PageTransition>
+          </div>
         </main>
       </div>
 

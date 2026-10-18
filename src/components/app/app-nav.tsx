@@ -15,6 +15,7 @@ import {
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import Link from "next/link";
+import { PAGE_NAV } from "@/components/app/page-transition";
 import { usePathname } from "next/navigation";
 import { ROADMAP } from "./roadmap";
 
@@ -64,6 +65,7 @@ export function SidebarNav({ approvals }: { approvals: number }) {
       <li key={item.href}>
         <Link
           href={item.href}
+          transitionTypes={PAGE_NAV}
           aria-current={active ? "page" : undefined}
           className={`flex h-10 items-center gap-3 rounded-full px-3.5 text-[14.5px] transition-colors duration-150 ${
             active ? "bg-surface font-medium text-ink shadow-e1" : "text-ink-2 hover:bg-surface/70 hover:text-ink"
@@ -121,6 +123,7 @@ export function MobileTabBar({ approvals }: { approvals: number }) {
             <li key={item.href}>
               <Link
                 href={item.href}
+                transitionTypes={PAGE_NAV}
                 aria-current={active ? "page" : undefined}
                 className={`relative flex h-16 flex-col items-center justify-center gap-1 text-[11px] ${active ? "font-medium text-accent" : "text-ink-2"}`}
               >

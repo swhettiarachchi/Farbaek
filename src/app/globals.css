@@ -190,3 +190,60 @@
     transform: none;
   }
 }
+
+/* Build run panes on phones: the next pane slides in from the side it came from (motion-safe only). */
+@keyframes pane-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+
+@keyframes pane-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+}
+
+/* An approval rising as a bottom sheet on phones (motion-safe only). */
+@keyframes sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+}
+
+/*
+ * Page changes in the app (React ViewTransition, class "page"): the old page
+ * fades, the new one rises in. Browsers without view transitions swap
+ * instantly, and reduced motion turns every transition off.
+ */
+::view-transition-old(.page) {
+  animation: 120ms ease-out both page-out;
+}
+
+::view-transition-new(.page) {
+  animation: 260ms cubic-bezier(0.16, 1, 0.3, 1) both page-in;
+}
+
+@keyframes page-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
