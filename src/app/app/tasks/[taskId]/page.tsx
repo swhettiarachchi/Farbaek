@@ -1,4 +1,4 @@
-import { ArrowCounterClockwiseIcon, ArrowLeftIcon, ClockCounterClockwiseIcon, GitPullRequestIcon, InfoIcon, PlayIcon } from "@phosphor-icons/react/ssr";
+import { ArrowCounterClockwiseIcon, ArrowLeftIcon, ClockCounterClockwiseIcon, GitPullRequestIcon, InfoIcon, PlayIcon, RobotIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -7,6 +7,7 @@ import { ContractView, contractIntact } from "@/components/app/contract-view";
 import { CancelTaskControl } from "@/components/app/forms";
 import { ChecksList, ExecutionModeBadge } from "@/components/app/execution";
 import { ProposeChange } from "@/components/proposals/propose-change";
+import { StartRun } from "@/components/build/start-run";
 import { ProofPackCard } from "@/components/proof/proofpack-card";
 import { CheckReceiptCard } from "@/components/proof/check-receipt-card";
 import { ScopeDriftCard } from "@/components/app/scope-drift-card";
@@ -199,9 +200,20 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
                 agentName={proposal!.agentId ? (agents.find((a) => a.id === proposal!.agentId)?.name ?? null) : null}
               />
             ) : null}
+            {canPropose ? (
+              <div className={`grid gap-3 rounded-md border border-accent/30 bg-accent/[0.04] p-5 ${showProposal ? "mt-2" : ""}`}>
+                <h3 className="flex items-center gap-2 text-base font-medium">
+                  <RobotIcon size={18} weight="bold" className="text-accent" aria-hidden /> Let the agent build it
+                </h3>
+                <p className="text-sm leading-relaxed text-ink-2">
+                  The Farbaek Agent works through the whole contract in the cloud: it reads the project, makes the changes and runs the checks, then hands you a proposal to review.
+                </p>
+                <StartRun taskId={task.id} disabledReason={writeReason} />
+              </div>
+            ) : null}
             {canPropose && proposeAi ? (
               <div className={showProposal ? "border-t border-line pt-6" : ""}>
-                {showProposal ? <h3 className="mb-4 text-base font-medium">Propose another change</h3> : null}
+                <h3 className="mb-4 text-base font-medium">{showProposal ? "Propose another change" : "Or propose one change from chosen files"}</h3>
                 <ProposeChange taskId={task.id} projectId={task.projectId} files={projectFiles.map((f) => ({ path: f.path, sizeBytes: f.sizeBytes }))} ai={proposeAi} />
               </div>
             ) : null}

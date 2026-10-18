@@ -73,7 +73,7 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
  * "Coming soon" label, never as available. Flip each one as it ships.
  */
 export const FEATURE_STATUS: Record<FeatureKey, "live" | "coming"> = {
-  cloud_agent: "coming",
+  cloud_agent: "live",
   basic_policies: "live",
   action_receipts: "live",
   community_support: "live",

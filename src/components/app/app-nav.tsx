@@ -10,6 +10,7 @@ import {
   HouseSimpleIcon,
   ListChecksIcon,
   LockSimpleIcon,
+  SparkleIcon,
   TerminalWindowIcon,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
@@ -27,6 +28,7 @@ interface NavItem {
 
 const PRIMARY: NavItem[] = [
   { href: "/app", label: "Mission Control", short: "Home", icon: HouseSimpleIcon, exact: true },
+  { href: "/app/build", label: "Build", short: "Build", icon: SparkleIcon },
   { href: "/app/projects", label: "Projects", short: "Projects", icon: FolderSimpleIcon },
   { href: "/app/tasks", label: "Tasks", short: "Tasks", icon: ListChecksIcon },
   { href: "/app/approvals", label: "Approvals", short: "Approvals", icon: CheckSquareOffsetIcon },
@@ -100,12 +102,13 @@ export function SidebarNav({ approvals }: { approvals: number }) {
   );
 }
 
-// Five slots on phones: Sandbox and Agents are reached through More there.
-const TABS: NavItem[] = [...PRIMARY.filter((i) => i.href !== "/app/sandbox" && i.href !== "/app/agents"), { href: "/app/more", label: "More", short: "More", icon: DotsThreeOutlineIcon }];
+// Five slots on phones: Tasks, Sandbox and Agents are reached through More there.
+const ON_MORE = ["/app/tasks", "/app/sandbox", "/app/agents"];
+const TABS: NavItem[] = [...PRIMARY.filter((i) => !ON_MORE.includes(i.href)), { href: "/app/more", label: "More", short: "More", icon: DotsThreeOutlineIcon }];
 
 export function MobileTabBar({ approvals }: { approvals: number }) {
   const pathname = usePathname();
-  const moreActive = ["/app/more", "/app/billing", "/app/settings", "/app/workspaces", "/app/sandbox", "/app/agents"].some((p) => pathname.startsWith(p));
+  const moreActive = ["/app/more", "/app/billing", "/app/settings", "/app/workspaces", ...ON_MORE].some((p) => pathname.startsWith(p));
   return (
     <nav
       aria-label="App"

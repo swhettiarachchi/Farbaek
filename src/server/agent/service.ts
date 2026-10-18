@@ -249,10 +249,27 @@ export interface AgentProposalResult {
   policy: { outcome: string; findings: { rule: string; outcome: string; detail: string }[] };
 }
 
-export async function submitAgentProposal(store: AgentStore, id: AgentIdentity, taskId: string, body: unknown): Promise<AgentResult<AgentProposalResult>> {
-  const role = requireAgentContributor(id);
-  if (!role.ok) return role;
-  if (!(await store.rateLimit(`agent:propose:${id.agentId}`, 60, 10))) return agentFail("RATE_LIMITED", "Too many proposals from this agent in the last minute.");
+/** Who made a proposal: a paired desktop agent, or a cloud run (ADR 0022). Its steps are tagged with this. */
+export type ProposalSource = { kind: "agent"; agentId: string } | { kind: "run"; runId: string };
+
+export type ProposalInput = Parameters<AgentStore["createAgentProposal"]>[0] extends infer T ? Omit<T, "agentId"> : never;
+
+/** What checking an agent's work needs. AgentStore fits; cloud runs bring their own. */
+export type ProposalChecks = Pick<AgentStore, "loadTask" | "approvedContract" | "project" | "projectFiles" | "billing" | "countEvaluations" | "newEventId" | "now">;
+
+/**
+ * Checks an agent's finished work exactly like a proposal made in the web
+ * app (paths, file screening, base revisions, the contract, policy, the
+ * evaluation allowance) and prepares the proposal. The caller creates it
+ * with the SQL function for its source.
+ */
+export async function prepareAgentProposal(
+  store: ProposalChecks,
+  id: Pick<AgentIdentity, "orgId" | "userId">,
+  source: ProposalSource,
+  taskId: string,
+  body: unknown,
+): Promise<AgentResult<{ input: ProposalInput; blocked: boolean }>> {
   const parsed = ProposalBody.safeParse(body);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
@@ -309,30 +326,52 @@ export async function submitAgentProposal(store: AgentStore, id: AgentIdentity, 
   const sha = await proposalHash({ taskId: task.id, contractVersion: contract.version, contractSha256: contract.sha256, changes });
   const planned = planSteps(store, { ...task, orgId: id.orgId }, id.userId, ["propose_plan", "evaluate_policy", blocked ? "block" : "require_approval"]);
   if (!planned.ok) return agentFail(planned.code);
-  const steps = planned.steps.map((s, i) => (i === 0 ? { ...s, actor_kind: "agent" as const, actor_id: `agent:${id.agentId}` } : { ...s, actor_kind: "system" as const, actor_id: "farbaek" }));
+  const actorId = source.kind === "agent" ? `agent:${source.agentId}` : `run:${source.runId}`;
+  const steps = planned.steps.map((s, i) => (i === 0 ? { ...s, actor_kind: "agent" as const, actor_id: actorId } : { ...s, actor_kind: "system" as const, actor_id: "farbaek" }));
 
   const left = input.notProposed.slice(0, 5).map((n) => `Left out ${n.path.slice(0, 120)}: ${n.reason}`);
-  const created = await store.createAgentProposal({
-    agentId: id.agentId,
-    taskId: task.id,
-    actor: id.userId,
-    contractVersion: contract.version,
-    plan: { summary: input.plan.summary, steps: input.plan.steps, risks: [...input.plan.risks, ...left].slice(0, 20), checks: input.plan.checks },
-    changes,
-    violations,
-    sha256: sha,
-    usage: input.usage,
-    expectedTaskVersion: task.version,
-    steps,
-    policy,
-    evaluationLimit: plan?.limits.evaluationsPerMonth ?? null,
-    period,
-  });
-  if (!created.ok) return agentFail(codeFromDatabaseError(created.error));
   return {
     ok: true,
-    value: { proposalId: created.value, status: blocked ? "blocked" : "pending", violations, policy: { outcome: policy.outcome, findings: policy.findings.map((f) => ({ rule: f.rule, outcome: f.outcome, detail: f.detail })) } },
+    value: {
+      blocked,
+      input: {
+        taskId: task.id,
+        actor: id.userId,
+        contractVersion: contract.version,
+        plan: { summary: input.plan.summary, steps: input.plan.steps, risks: [...input.plan.risks, ...left].slice(0, 20), checks: input.plan.checks },
+        changes,
+        violations,
+        sha256: sha,
+        usage: input.usage,
+        expectedTaskVersion: task.version,
+        steps,
+        policy,
+        evaluationLimit: plan?.limits.evaluationsPerMonth ?? null,
+        period,
+      },
+    },
   };
+}
+
+export function proposalResult(proposalId: string, prepared: { input: ProposalInput; blocked: boolean }): AgentProposalResult {
+  const { violations, policy } = prepared.input;
+  return {
+    proposalId,
+    status: prepared.blocked ? "blocked" : "pending",
+    violations,
+    policy: { outcome: policy.outcome, findings: policy.findings.map((f) => ({ rule: f.rule, outcome: f.outcome, detail: f.detail })) },
+  };
+}
+
+export async function submitAgentProposal(store: AgentStore, id: AgentIdentity, taskId: string, body: unknown): Promise<AgentResult<AgentProposalResult>> {
+  const role = requireAgentContributor(id);
+  if (!role.ok) return role;
+  if (!(await store.rateLimit(`agent:propose:${id.agentId}`, 60, 10))) return agentFail("RATE_LIMITED", "Too many proposals from this agent in the last minute.");
+  const prepared = await prepareAgentProposal(store, id, { kind: "agent", agentId: id.agentId }, taskId, body);
+  if (!prepared.ok) return prepared;
+  const created = await store.createAgentProposal({ agentId: id.agentId, ...prepared.value.input });
+  if (!created.ok) return agentFail(codeFromDatabaseError(created.error));
+  return { ok: true, value: proposalResult(created.value, prepared.value) };
 }
 
 export async function unpairAgent(store: AgentStore, id: AgentIdentity): Promise<AgentResult<null>> {
