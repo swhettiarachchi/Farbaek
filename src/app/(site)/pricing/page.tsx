@@ -4,7 +4,7 @@ import { FaqList, type FaqItem } from "@/components/marketing/faq";
 import { ComparisonTable } from "@/components/pricing/comparison-table";
 import { PricingPlans } from "@/components/pricing/pricing-plans";
 import { Container } from "@/components/ui/container";
-import { BILLING_CURRENCY, TRIAL } from "@/core/billing/catalog";
+import { BILLING_CURRENCY, SELF_SERVE_PLANS, TRIAL } from "@/core/billing/catalog";
 
 export const metadata: Metadata = {
   title: "Pricing",
@@ -12,6 +12,9 @@ export const metadata: Metadata = {
 };
 
 const number = new Intl.NumberFormat("en-US");
+
+const TRIAL_MATCH = SELF_SERVE_PLANS.find((p) => p.limits.aiCreditsPerMonth === TRIAL.limits.aiCreditsTotal);
+const TRIAL_AI = TRIAL_MATCH ? `as much AI usage as a month of ${TRIAL_MATCH.name}` : "a share of AI usage for the trial";
 
 const PRICING_FAQ: FaqItem[] = [
   {
@@ -24,7 +27,7 @@ const PRICING_FAQ: FaqItem[] = [
   },
   {
     q: "How does the trial work?",
-    a: `Every eligible new organization gets ${TRIAL.lengthDays} days of Team features, capped at ${TRIAL.limits.seats} seats, ${TRIAL.limits.agents} agents, ${TRIAL.limits.integrations} integrations, ${number.format(TRIAL.limits.evaluationsTotal)} evaluations and ${TRIAL.limits.aiCreditsTotal} AI credits. No card is needed. At the end you move to Free automatically, and nothing is charged.`,
+    a: `Every eligible new organization gets ${TRIAL.lengthDays} days of Team features, capped at ${TRIAL.limits.seats} seats, ${TRIAL.limits.agents} agents, ${TRIAL.limits.integrations} integrations, ${number.format(TRIAL.limits.evaluationsTotal)} evaluations and ${TRIAL_AI}. No card is needed. At the end you move to Free automatically, and nothing is charged.`,
   },
   {
     q: "Is cancelling easy?",
@@ -35,8 +38,8 @@ const PRICING_FAQ: FaqItem[] = [
     a: "Nothing is deleted. The new limits apply to new actions, and if you're over a limit you choose which resources stay active.",
   },
   {
-    q: "Do AI credits cover my own model API key?",
-    a: "No. If you bring your own model provider key, that provider bills you directly for the usage.",
+    q: "Does Farbaek's AI usage cover my own model key?",
+    a: "No. When you use your own model provider key, for example in Farbaek Agent, that provider bills you directly and it doesn't count toward your Farbaek AI usage.",
   },
   {
     q: "What about refunds?",

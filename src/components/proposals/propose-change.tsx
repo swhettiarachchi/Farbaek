@@ -6,14 +6,13 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { proposeChangeAction } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { AiUsageNote } from "@/components/app/usage-meters";
 import { formatBytes } from "@/core/workspace/files";
 import type { AiAvailability } from "@/server/workspace/ai-credits";
 
 const MAX_FILES = 20;
 const MAX_BYTES = 300 * 1024;
 const SHOWN = 150;
-const PERIOD_TEXT = { trial: "in the trial", month: "this month" } as const;
-
 /**
  * Pick the files the change needs, add notes, and ask the agent for a
  * proposal. Only the chosen files are sent, and only they can be edited.
@@ -44,7 +43,6 @@ export function ProposeChange({
   const bytes = [...selected].reduce((n, p) => n + (sizes.get(p) ?? 0), 0);
   const tooMany = selected.size > MAX_FILES;
   const tooBig = bytes > MAX_BYTES;
-  const left = ai.used !== null && ai.limit !== null ? Math.max(ai.limit - ai.used, 0) : null;
 
   function toggle(path: string) {
     setSelected((prev) => {
@@ -152,14 +150,7 @@ export function ProposeChange({
         <p className="text-xs text-ink-3">
           {ai.disabledReason ?? (
             <>
-              Uses {ai.cost} AI credits
-              {left !== null && ai.limit !== null ? (
-                <>
-                  {" "}
-                  · <span className="tabular">{left}</span> of <span className="tabular">{ai.limit}</span> left {PERIOD_TEXT[ai.period]}
-                </>
-              ) : null}
-              . Nothing is applied until you approve it.
+              Nothing is applied until you approve it. <AiUsageNote percent={ai.percent} resetsAt={ai.resetsAt} period={ai.period} />
             </>
           )}
         </p>

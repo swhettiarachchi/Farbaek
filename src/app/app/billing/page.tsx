@@ -3,27 +3,21 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Card, Notice, PageHeader, UsageMeter } from "@/components/app/primitives";
 import { LocalTime } from "@/components/ui/local-time";
-import { CREDIT_COSTS } from "@/config/credits";
 import { FEATURE_LABELS, SELF_SERVE_PLANS, TRIAL, formatUsd, getPlan } from "@/core/billing/catalog";
 import { loadAppContext } from "@/server/workspace/context";
-import { loadUsageSummary } from "@/server/workspace/usage-summary";
+import { UsageMeterList } from "@/components/app/usage-meters";
+import { loadUsageMeters, loadUsageSummary } from "@/server/workspace/usage-summary";
 
 export const metadata: Metadata = { title: "Billing and usage" };
-
-const dateFmt = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 export default async function BillingPage() {
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
   const ws = ctx.current;
-  const [usage, agents] = await Promise.all([loadUsageSummary(ctx, ws), ctx.reader.listAgents(ws.id)]);
+  const [usage, meters, agents] = await Promise.all([loadUsageSummary(ctx, ws), loadUsageMeters(ctx, ws), ctx.reader.listAgents(ws.id)]);
   const activeAgents = agents.filter((a) => !a.revokedAt).length;
   const plan = getPlan(ws.plan.planId);
   const limits = ws.plan.limits;
-  const periodLabel =
-    usage.period.kind === "trial"
-      ? `For the whole trial, ${dateFmt(usage.period.start)} to ${dateFmt(usage.period.end)} (UTC).`
-      : `This month, ${dateFmt(usage.period.start)} to ${dateFmt(new Date(usage.period.end.getTime() - 1))} (UTC).`;
 
   return (
     <div className="grid gap-8">
@@ -59,7 +53,7 @@ export default async function BillingPage() {
           )}
           {ws.plan.source === "trial" ? (
             <p className="mt-3 text-xs text-ink-3">
-              Trial caps: {TRIAL.limits.seats} seats, {TRIAL.limits.agents} agents, {TRIAL.limits.integrations} integrations, {TRIAL.limits.aiCreditsTotal} AI credits.
+              Trial caps: {TRIAL.limits.seats} seats, {TRIAL.limits.agents} agents and {TRIAL.limits.integrations} integration{TRIAL.limits.integrations === 1 ? "" : "s"}. AI usage and governed evaluations are counted across the whole trial.
             </p>
           ) : null}
           <div className="mt-5 flex items-center gap-2 border-t border-line pt-4 text-sm text-ink-3">
@@ -69,33 +63,22 @@ export default async function BillingPage() {
 
         <Card>
           <h2 className="text-lg font-medium">Usage</h2>
-          <p className="mt-1 text-xs text-ink-3">{periodLabel}</p>
-          <div className="mt-5 grid gap-5">
-            <UsageMeter label="Governed evaluations" used={usage.evaluations} limit={limits.evaluationsPerMonth} detail="Blocked actions count. Retries with the same key count once." reached="Limit reached. New governed actions pause until the next period or an upgrade; exports, billing and emergency pause keep working." />
-            <UsageMeter label="Projects" used={usage.projects.length} limit={limits.workspaces} detail="Active projects in this workspace." reached="Project limit reached. Archive a project or choose a bigger plan to add another." />
-            <UsageMeter label="Seats" used={usage.members} limit={limits.seats} detail="People in this workspace." reached="Seat limit reached. Adding people needs a bigger plan." />
-            {usage.aiCredits === null ? (
-              <div>
-                <div className="flex items-baseline justify-between gap-3">
-                  <p className="text-sm font-medium">AI credits</p>
-                  <p className="text-sm text-ink-3">Unavailable</p>
-                </div>
-                <p className="mt-1.5 text-xs text-ink-3">AI credit usage couldn&apos;t be read, so AI drafting is paused until it can be.</p>
-              </div>
-            ) : (
-              <UsageMeter
-                label="AI credits"
-                used={usage.aiCredits}
-                limit={limits.aiCreditsPerMonth}
-                detail={`Drafting a contract uses ${CREDIT_COSTS.contract_draft} credit and proposing a change uses ${CREDIT_COSTS.change_proposal}. Calls that return nothing usable are refunded.`}
-                reached="AI credits used up. AI drafting pauses until the allowance resets or you upgrade. Writing contracts yourself keeps working."
-              />
-            )}
-            <UsageMeter label="Registered agents" used={activeAgents} limit={limits.agents} detail="Desktop agents paired with this workspace and not revoked." />
-            <UsageMeter label="Integrations" used={0} limit={limits.integrations} detail="None connected. GitHub import isn't built yet; projects import files from a folder instead." />
+          <p className="mt-1 text-sm text-ink-2">How much of each limit this workspace has used, and when it resets.</p>
+          <div className="mt-6">
+            <UsageMeterList meters={meters} detailed />
           </div>
         </Card>
       </div>
+
+      <Card>
+        <h2 className="text-lg font-medium">Workspace</h2>
+        <div className="mt-5 grid gap-6 md:grid-cols-2">
+          <UsageMeter label="Projects" used={usage.projects.length} limit={limits.workspaces} detail="Active projects in this workspace." reached="Project limit reached. Archive a project or choose a bigger plan to add another." />
+          <UsageMeter label="Seats" used={usage.members} limit={limits.seats} detail="People in this workspace." reached="Seat limit reached. Adding people needs a bigger plan." />
+          <UsageMeter label="Registered agents" used={activeAgents} limit={limits.agents} detail="Desktop agents paired with this workspace and not revoked." />
+          <UsageMeter label="Integrations" used={0} limit={limits.integrations} detail="None connected. GitHub import isn't built yet; projects import files from a folder instead." />
+        </div>
+      </Card>
 
       <section aria-labelledby="plans-heading" className="grid gap-4">
         <h2 id="plans-heading" className="text-lg font-medium">

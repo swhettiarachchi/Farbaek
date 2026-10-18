@@ -1,4 +1,6 @@
 import { usagePeriod, type BillingPeriod } from "@/core/billing/usage";
+import { meterState, percentUsed, type UsageMeter } from "@/core/billing/usage-view";
+import { sandboxForPage } from "@/server/sandbox/page-context";
 import { resolveAiProvider } from "@/server/ai/config";
 import type { CreditOperation } from "@/config/credits";
 import { aiAvailability, type AiAvailability } from "./ai-credits";
@@ -47,6 +49,7 @@ export async function loadAiAvailability(ctx: AppContext, ws: WorkspaceSummary, 
     used,
     plan: ws.billingUnknown ? null : ws.plan,
     period: period.kind,
+    resetsAt: period.end.toISOString(),
     manual: MANUAL[operation],
   });
 }
@@ -62,4 +65,40 @@ export async function loadUsageSummary(ctx: AppContext, ws: WorkspaceSummary, no
     ctx.reader.listTasks(ws.id),
   ]);
   return { period, evaluations, aiCredits, projects, members: members.length, tasks };
+}
+
+const AT_LIMIT: Record<UsageMeter["id"], string> = {
+  ai: "AI drafting and proposals pause until it resets. Writing contracts and editing files yourself keep working.",
+  evaluations: "New governed actions pause until it resets. Exports, billing and emergency pause keep working.",
+  sandbox: "New sandbox sessions can't start until it resets. Running ones finish normally.",
+};
+
+function meter(id: UsageMeter["id"], label: string, used: number, limit: number | null, period: { end: Date; kind: "trial" | "month" }): UsageMeter {
+  const percent = percentUsed(used, limit);
+  return { id, label, percent, state: meterState(percent), resetsAt: period.end.toISOString(), period: period.kind, atLimit: AT_LIMIT[id] };
+}
+
+/**
+ * Usage as people see it: the share of each metered limit used in its window,
+ * and when that window ends. Counts stay on the server. A meter whose usage
+ * can't be read is left out rather than shown as zero.
+ */
+export async function loadUsageMeters(ctx: AppContext, ws: WorkspaceSummary, now = new Date()): Promise<UsageMeter[]> {
+  if (ws.billingUnknown) return [];
+  const period = workspacePeriod(ws, now);
+  const limits = ws.plan.limits;
+  const [ai, evaluations, sandbox] = await Promise.all([
+    ctx.reader.countAiCredits(ws.id, period.start, period.end).catch(() => null),
+    ctx.reader.countEvaluations(ws.id, period.start, period.end).catch(() => null),
+    sandboxForPage(ctx)
+      .then((s) => (s.ok ? s.value.service.overview(s.value.actor) : null))
+      .catch(() => null),
+  ]);
+  const meters: UsageMeter[] = [];
+  if (ai !== null) meters.push(meter("ai", "AI usage", ai, limits.aiCreditsPerMonth, period));
+  if (evaluations !== null) meters.push(meter("evaluations", "Governed evaluations", evaluations, limits.evaluationsPerMonth, period));
+  if (sandbox) {
+    meters.push(meter("sandbox", "Sandbox time", sandbox.minutesUsed, sandbox.limits.limits.minutesPerPeriod, { end: sandbox.limits.periodEnd, kind: sandbox.limits.periodKind }));
+  }
+  return meters;
 }

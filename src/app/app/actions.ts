@@ -20,6 +20,8 @@ import { MAX_CONTEXT_FILES, applyProposal, discardProposal, proposeChange, type 
 import { recoverChange, type RecoveryDeps } from "@/server/workspace/recovery";
 import { acceptInvitation, createInvitation, revokeInvitation, type InvitationDeps } from "@/server/workspace/invitations";
 import { createAgentPairing, revokeAgent, type AgentAdminDeps } from "@/server/workspace/agents";
+import { loadUsageMeters } from "@/server/workspace/usage-summary";
+import type { UsageMeter } from "@/core/billing/usage-view";
 import { siteUrl } from "@/server/supabase/config";
 import { resolveAiProvider } from "@/server/ai/config";
 import { currentExecutionMode } from "@/server/execution/sandbox";
@@ -162,7 +164,7 @@ export async function approveContractAction(_previous: FormState, form: FormData
 
 export type AiDraftState =
   | { status: "error"; message: string }
-  | { status: "done"; values: ContractFormValues; model: string; credits: { used: number; limit: number | null } };
+  | { status: "done"; values: ContractFormValues; model: string; usage: { percent: number | null } };
 
 /**
  * Drafts contract fields with AI for the person to review. Nothing is saved:
@@ -191,7 +193,7 @@ export async function draftContractWithAiAction(form: FormData): Promise<AiDraft
   });
   if (!result.ok) return { status: "error", message: result.message };
   revalidatePath("/app", "layout");
-  return { status: "done", values: result.value.form, model: result.value.model, credits: result.value.credits };
+  return { status: "done", values: result.value.form, model: result.value.model, usage: result.value.usage };
 }
 
 export type ImportState = { status: "error"; message: string } | { status: "done"; summary: ImportSummary };
@@ -469,6 +471,17 @@ export async function revokeAgentAction(form: FormData): Promise<void> {
   if ("error" in w) return;
   await revokeAgent(w.deps, { orgId: w.orgId, userId: ctx.user.id, agentId: parsed.data });
   revalidatePath("/app/agents");
+}
+
+/** Usage for the sidebar panel, read when it opens. Percentages and reset times only; counts stay on the server. */
+export async function loadUsageAction(): Promise<{ ok: true; meters: UsageMeter[] } | { ok: false }> {
+  const ctx = await loadAppContext();
+  if (!ctx?.current) return { ok: false };
+  try {
+    return { ok: true, meters: await loadUsageMeters(ctx, ctx.current) };
+  } catch {
+    return { ok: false };
+  }
 }
 
 export async function signOut() {

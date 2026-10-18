@@ -144,7 +144,7 @@ describe("proposeChange", () => {
     const { deps, calls } = fakeDeps();
     const miss = output([{ path: "src/lib/cart.ts", kind: "edit", edits: [{ find: "not in the file", replace: "x" }], content: "", reason: "r" }]);
     const result = await propose(deps, fakeProposer({ ok: true, output: miss, usage: USAGE }));
-    expect(result).toMatchObject({ ok: false, code: "NO_APPLICABLE_CHANGES", message: expect.stringMatching(/isn't in the current file.*No credit was used/) });
+    expect(result).toMatchObject({ ok: false, code: "NO_APPLICABLE_CHANGES", message: expect.stringMatching(/isn't in the current file.*It didn't count toward your AI usage/) });
     expect(calls.map((c) => c.name)).toEqual(["reserve", "settle"]);
     expect(calls[1]!.input).toMatchObject({ status: "refunded" });
   });
@@ -153,7 +153,7 @@ describe("proposeChange", () => {
     expect(await propose(fakeDeps().deps, fakeProposer({ ok: false, failure: "REFUSED", usage: USAGE }))).toMatchObject({ code: "AI_REFUSED" });
     expect(await propose(fakeDeps().deps, fakeProposer(new Error("boom")))).toMatchObject({ code: "AI_UNAVAILABLE" });
     const { deps, calls } = fakeDeps({ createError: "FILE_CHANGED" });
-    expect(await propose(deps, fakeProposer({ ok: true, output: GOOD, usage: USAGE }))).toMatchObject({ code: "FILE_CHANGED", message: expect.stringContaining("No credit was used") });
+    expect(await propose(deps, fakeProposer({ ok: true, output: GOOD, usage: USAGE }))).toMatchObject({ code: "FILE_CHANGED", message: expect.stringContaining("It didn't count toward your AI usage") });
     expect(calls.at(-1)!.input).toMatchObject({ status: "refunded" });
   });
 

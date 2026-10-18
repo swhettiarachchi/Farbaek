@@ -7,6 +7,7 @@ import type { EffectivePlan } from "@/core/billing/trial";
 import { draftToForm } from "@/core/realityloop/contract-draft";
 import type { ContractFormValues } from "@/core/realityloop/contract-form";
 import type { ContractDrafter, DraftBrief } from "@/server/ai/contract-drafter";
+import { percentUsed } from "@/core/billing/usage-view";
 import { aiAvailability, refundAndFail, reserveCredits, settleCredits, type AiAvailability, type AiCreditDeps } from "./ai-credits";
 import { draftingEvents, fail, requireContributor, type WriteDeps, type WriteResult } from "./use-cases";
 
@@ -18,10 +19,11 @@ export interface AiDraft {
   form: ContractFormValues;
   /** The model that answered, which can differ from the one requested when a refusal fallback ran. */
   model: string;
-  credits: { used: number; limit: number | null };
+  /** The share of AI usage used after this draft, for the editor's note. */
+  usage: { percent: number | null };
 }
 
-export function aiDraftAvailability(input: { writeReason: string | null; keyPresent: boolean; used: number | null; plan: EffectivePlan | null; period: "trial" | "month" }): AiAvailability {
+export function aiDraftAvailability(input: { writeReason: string | null; keyPresent: boolean; used: number | null; plan: EffectivePlan | null; period: "trial" | "month"; resetsAt: string }): AiAvailability {
   return aiAvailability({ ...input, operation: "contract_draft", manual: MANUAL });
 }
 
@@ -50,5 +52,5 @@ export async function draftContractWithAi(
   if (!outcome.ok) return refundAndFail(deps, { orgId: input.orgId, entryId, usage: outcome.usage }, outcome.failure);
 
   await settleCredits(deps, { orgId: input.orgId, entryId, status: "settled", usage: outcome.usage });
-  return { ok: true, value: { form: draftToForm(outcome.draft), model: outcome.usage.model, credits: { used: used + credits, limit } } };
+  return { ok: true, value: { form: draftToForm(outcome.draft), model: outcome.usage.model, usage: { percent: percentUsed(used + credits, limit) } } };
 }

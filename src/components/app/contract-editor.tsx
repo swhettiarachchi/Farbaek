@@ -4,6 +4,7 @@ import { FingerprintIcon, InfoIcon, SparkleIcon, WarningCircleIcon } from "@phos
 import { useActionState, useId, useRef, useState, useTransition } from "react";
 import { approveContractAction, draftContractWithAiAction, saveContractAction, type AiDraftState, type FormState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { AiUsageNote } from "@/components/app/usage-meters";
 import type { ContractFormValues } from "@/core/realityloop/contract-form";
 import type { AiAvailability } from "@/server/workspace/ai-drafting";
 
@@ -135,8 +136,6 @@ export function ContractEditor({
   );
 }
 
-const PERIOD_TEXT = { trial: "in the trial", month: "this month" } as const;
-
 function AiDraftPanel({
   ai,
   pending,
@@ -153,10 +152,10 @@ function AiDraftPanel({
   result: AiDraftState | null;
   onDraft: () => void;
 }) {
-  const credits = result?.status === "done" ? result.credits : { used: ai.used, limit: ai.limit };
-  const left = credits.used !== null && credits.limit !== null ? Math.max(credits.limit - credits.used, 0) : null;
-  const outOfCredits = left !== null && left < ai.cost;
-  const reason = ai.disabledReason ?? (outOfCredits ? "You've used the AI credits for this period. You can still write the contract yourself." : null);
+  const percent = result?.status === "done" ? result.usage.percent : ai.percent;
+  const reached = percent !== null && percent >= 100;
+  const limitText = ai.period === "trial" ? "You've reached the AI usage included in the trial." : "You've reached your AI usage limit for this month.";
+  const reason = ai.disabledReason ?? (reached ? `${limitText} You can still write the contract yourself.` : null);
   return (
     <div className="grid gap-3 rounded-sm border border-line bg-surface-raised/60 p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -165,14 +164,8 @@ function AiDraftPanel({
             <SparkleIcon size={16} weight="fill" className="text-accent" aria-hidden /> Draft with AI
           </p>
           <p className="mt-1 text-xs leading-relaxed text-ink-3">
-            {ai.provider ?? "The AI"} reads the task, the project and anything you&apos;ve typed below, then fills in the fields. Uses {ai.cost} AI credit
-            {left !== null && credits.limit !== null ? (
-              <>
-                {" "}
-                · <span className="tabular">{left}</span> of <span className="tabular">{credits.limit}</span> left {PERIOD_TEXT[ai.period]}
-              </>
-            ) : null}
-            .
+            {ai.provider ?? "The AI"} reads the task, the project and anything you&apos;ve typed below, then fills in the fields.{" "}
+            {reached ? null : <AiUsageNote percent={percent} resetsAt={ai.resetsAt} period={ai.period} />}
           </p>
         </div>
         <span className="shrink-0">

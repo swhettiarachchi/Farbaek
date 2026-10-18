@@ -129,7 +129,7 @@ function KeysView({ state, onState }: { state: AppState; onState: (s: AppState) 
     <section className="stack">
       <header className="view-head">
         <h1>Keys</h1>
-        <p className="muted">The agent calls the model with your own key. Keys are encrypted with this computer&apos;s keychain, never shown again and never sent to Farbaek, so Farbaek AI credits aren&apos;t used. Your provider bills you for what a run uses.</p>
+        <p className="muted">The agent calls the model with your own key. Keys are encrypted with this computer&apos;s keychain, never shown again and never sent to Farbaek, so runs don&apos;t count toward your Farbaek AI usage. Your provider bills you for what a run uses.</p>
       </header>
       {!state.keychain.available ? <Alert>{state.keychain.reason}</Alert> : null}
       {(["anthropic", "gemini"] as const).map((p) => (

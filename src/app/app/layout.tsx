@@ -2,6 +2,7 @@ import { SignOutIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MobileTabBar, SidebarNav } from "@/components/app/app-nav";
+import { UsagePanel } from "@/components/app/usage-meters";
 import { CreateOrganizationForm } from "@/components/app/forms";
 import { WorkspaceSwitcher } from "@/components/app/workspace-switcher";
 import { BrandLogo } from "@/components/brand/brand-logo";
@@ -77,11 +78,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
         <WorkspaceSwitcher workspaces={ctx.workspaces} current={current} canCreate={ctx.mode === "live"} />
         <SidebarNav approvals={approvals} />
         <div className="mt-auto grid gap-3 border-t border-line pt-4">
-          <Link href="/app/billing" className="rounded-sm px-2 py-1.5 text-xs text-ink-2 hover:bg-surface">
-            <span className="font-medium text-ink">{getPlan(current.plan.planId).name}</span>
-            {current.plan.source === "trial" ? " trial" : " plan"}
-            {trialDays !== null ? `, ${trialDays} ${trialDays === 1 ? "day" : "days"} left` : ""}
-          </Link>
+          <UsagePanel planLabel={`${getPlan(current.plan.planId).name}${current.plan.source === "trial" ? " trial" : " plan"}${trialDays !== null ? `, ${trialDays} ${trialDays === 1 ? "day" : "days"} left` : ""}`} />
           <div className="flex items-center gap-2 px-2">
             <span className="min-w-0 flex-1 truncate text-xs text-ink-3">{ctx.user.email}</span>
             {ctx.mode === "live" ? (

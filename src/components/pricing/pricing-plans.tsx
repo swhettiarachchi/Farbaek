@@ -4,6 +4,7 @@ import { CheckIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import {
   FEATURE_LABELS,
+  PLANS,
   SELF_SERVE_PLANS,
   annualMonthlyEquivalentCents,
   annualSavingsCents,
@@ -12,8 +13,17 @@ import {
   type FeatureKey,
   type Plan,
 } from "@/core/billing/catalog";
+import { aiUsageMultiple } from "@/core/billing/usage-view";
 
 const number = new Intl.NumberFormat("en-US");
+
+const FREE_AI = PLANS.find((p) => p.id === "free")!.limits.aiCreditsPerMonth ?? 1;
+
+/** "5x the AI usage of Free": plans are compared, allowances aren't shown. */
+function aiUsageLine(allowance: number | null): string {
+  const m = aiUsageMultiple(allowance, FREE_AI);
+  return m === "Included" ? "AI usage included" : m === "Custom" ? "Custom AI usage" : `${m.replace(" Free", "")} the AI usage of Free`;
+}
 
 function newFeatures(plan: Plan, index: number): FeatureKey[] {
   const previous = SELF_SERVE_PLANS[index - 1];
@@ -111,7 +121,7 @@ export function PricingPlans() {
               <li>{plan.limits.agents} registered agents</li>
               <li>{plan.limits.seats === 1 ? "1 seat" : `Up to ${plan.limits.seats} seats`}</li>
               <li>{plan.limits.historyDays}-day activity history</li>
-              <li>{number.format(plan.limits.aiCreditsPerMonth ?? 0)} AI credits a month</li>
+              <li>{aiUsageLine(plan.limits.aiCreditsPerMonth)}</li>
             </ul>
 
             <ul className="mt-5 grid gap-2 text-sm">

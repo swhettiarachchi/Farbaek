@@ -3,11 +3,15 @@
  * before the model is called and the database re-checks the allowance under
  * a lock. A call that produces nothing usable is refunded. If settling fails
  * after a success, the reservation keeps counting (fail closed).
+ *
+ * Credits are the internal unit only. People see the share of their AI usage
+ * used and when it resets (ADR 0019), never credit counts or costs.
  */
 import { CREDIT_COSTS, type CreditOperation } from "@/config/credits";
 import { checkQuota } from "@/core/billing/entitlements";
 import { resolveEffectivePlan, type EffectivePlan } from "@/core/billing/trial";
 import { usagePeriod, type BillingPeriod } from "@/core/billing/usage";
+import { percentUsed } from "@/core/billing/usage-view";
 import type { DraftFailure, ProviderUsage } from "@/server/ai/contract-drafter";
 import { MESSAGES, codeFromDatabaseError, fail, type RpcResult, type WriteDeps, type WriteErrorCode, type WriteResult } from "./use-cases";
 
@@ -28,9 +32,10 @@ export interface AiCreditDeps {
 
 /** What a screen shows about an AI action, computed on the server for the current workspace. */
 export interface AiAvailability {
-  cost: number;
-  used: number | null;
-  limit: number | null;
+  /** Share of the AI usage allowance used in this window, or null when it couldn't be read or is set by contract. */
+  percent: number | null;
+  /** When the window ends (ISO). */
+  resetsAt: string;
   period: "trial" | "month";
   /** Why the button is off, or null when it works. */
   disabledReason: string | null;
@@ -38,11 +43,10 @@ export interface AiAvailability {
   provider: string | null;
 }
 
-export function outOfCredits(trial: boolean, limit: number | null, manual: string): string {
-  const n = limit === null ? "your" : `all ${limit}`;
+export function outOfUsage(trial: boolean, manual: string): string {
   return trial
-    ? `You've used ${n} AI credits in the trial. Choose a plan to keep using AI, or continue without it. ${manual}`
-    : `You've used ${n} AI credits for this period. They reset at the start of the next one. ${manual}`;
+    ? `You've reached the AI usage included in the trial. Choose a plan to keep using AI, or continue without it. ${manual}`
+    : `You've reached your AI usage limit for this month. It resets at the start of the next one. ${manual}`;
 }
 
 export function aiAvailability(input: {
@@ -57,19 +61,22 @@ export function aiAvailability(input: {
   /** Null when billing state is unknown: AI then fails closed. */
   plan: EffectivePlan | null;
   period: "trial" | "month";
+  /** When the window ends (ISO). */
+  resetsAt: string;
   /** What the person can still do by hand, for example "You can still write the contract yourself." */
   manual: string;
 }): AiAvailability {
   const cost = CREDIT_COSTS[input.operation];
   const limit = input.plan?.limits.aiCreditsPerMonth ?? null;
-  const base = { cost, used: input.used, limit, period: input.period, provider: input.keyPresent ? (input.provider ?? null) : null };
+  const percent = input.used === null ? null : percentUsed(input.used, limit);
+  const base = { percent, resetsAt: input.resetsAt, period: input.period, provider: input.keyPresent ? (input.provider ?? null) : null };
   if (input.writeReason) return { ...base, disabledReason: input.writeReason };
   if (!input.keyPresent) return { ...base, disabledReason: `${input.notConnectedReason ?? "AI isn't connected on this server yet."} ${input.manual}` };
-  if (input.used === null) return { ...base, disabledReason: "AI credit usage couldn't be read, so AI is paused." };
+  if (input.used === null) return { ...base, disabledReason: "AI usage couldn't be read, so AI is paused." };
   const quota = checkQuota(input.plan, "ai_credits", { used: input.used, requested: cost });
   if (quota.allowed) return { ...base, disabledReason: null };
   const capped = quota.code === "TRIAL_CAP_REACHED" || quota.code === "QUOTA_EXCEEDED";
-  return { ...base, disabledReason: capped ? outOfCredits(quota.code === "TRIAL_CAP_REACHED", limit, input.manual) : quota.message };
+  return { ...base, disabledReason: capped ? outOfUsage(quota.code === "TRIAL_CAP_REACHED", input.manual) : quota.message };
 }
 
 export interface Reservation {
@@ -95,7 +102,7 @@ export async function reserveCredits(
   const limit = plan?.limits.aiCreditsPerMonth ?? null;
   if (!quota.allowed) {
     const capped = quota.code === "TRIAL_CAP_REACHED" || quota.code === "QUOTA_EXCEEDED";
-    return capped ? fail(quota.code, outOfCredits(quota.code === "TRIAL_CAP_REACHED", limit, input.manual)) : fail(quota.code, quota.message);
+    return capped ? fail(quota.code, outOfUsage(quota.code === "TRIAL_CAP_REACHED", input.manual)) : fail(quota.code, quota.message);
   }
 
   const reserved = await deps.reserveAiCredits({
@@ -110,7 +117,7 @@ export async function reserveCredits(
   });
   if (!reserved.ok) {
     const code = codeFromDatabaseError(reserved.error);
-    if (code === "QUOTA_EXCEEDED") return fail(trial ? "TRIAL_CAP_REACHED" : "QUOTA_EXCEEDED", outOfCredits(trial, limit, input.manual));
+    if (code === "QUOTA_EXCEEDED") return fail(trial ? "TRIAL_CAP_REACHED" : "QUOTA_EXCEEDED", outOfUsage(trial, input.manual));
     return fail(code);
   }
   return { ok: true, value: { entryId: reserved.value, credits, used, limit } };
@@ -136,5 +143,5 @@ export async function refundAndFail<T>(
   const refund = await settleCredits(deps, { ...input, status: "refunded" });
   const code = typeof failure === "string" ? FAILURE_CODE[failure] : failure.code;
   const message = typeof failure === "string" ? MESSAGES[code] : failure.message;
-  return fail(code, `${message} ${refund.ok ? "No credit was used." : "The credit couldn't be returned automatically, so it may still show as used."}`);
+  return fail(code, `${message} ${refund.ok ? "It didn't count toward your AI usage." : "It couldn't be taken off your AI usage automatically, so it may still count."}`);
 }

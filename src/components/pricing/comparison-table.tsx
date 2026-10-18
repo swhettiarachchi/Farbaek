@@ -1,5 +1,6 @@
 import { CheckIcon, MinusIcon } from "@phosphor-icons/react/ssr";
-import { FEATURE_LABELS, SELF_SERVE_PLANS, type FeatureKey, type Plan, type PlanLimits } from "@/core/billing/catalog";
+import { FEATURE_LABELS, PLANS, SELF_SERVE_PLANS, type FeatureKey, type Plan, type PlanLimits } from "@/core/billing/catalog";
+import { aiUsageMultiple } from "@/core/billing/usage-view";
 
 const number = new Intl.NumberFormat("en-US");
 
@@ -44,7 +45,7 @@ const GROUPS: { title: string; rows: Row[] }[] = [
       limitRow("Governed evaluations a month", "evaluationsPerMonth"),
       limitRow("Activity history", "historyDays", " days"),
       limitRow("Integrations", "integrations"),
-      limitRow("AI credits a month", "aiCreditsPerMonth"),
+      { label: "AI usage", value: (plan) => aiUsageMultiple(plan.limits.aiCreditsPerMonth, PLANS.find((p) => p.id === "free")!.limits.aiCreditsPerMonth ?? 1) },
     ],
   },
   {

@@ -66,7 +66,7 @@ export default async function AgentsPage() {
         <Card>
           <h2 className="text-lg font-medium">What stays on your computer</h2>
           <ul className="mt-3 grid gap-2 text-sm leading-relaxed text-ink-2">
-            <li>Your model key. It&apos;s kept in the system keychain and never sent to Farbaek, so Farbaek AI credits aren&apos;t used.</li>
+            <li>Your model key. It&apos;s kept in the system keychain and never sent to Farbaek, so runs don&apos;t count toward your Farbaek AI usage.</li>
             <li>The agent&apos;s working copy of the project, one folder per task.</li>
             <li>Commands you approve. They run with your account&apos;s rights, which is why the agent asks first.</li>
           </ul>

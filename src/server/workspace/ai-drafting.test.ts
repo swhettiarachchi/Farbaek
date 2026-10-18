@@ -67,7 +67,7 @@ describe("draftContractWithAi", () => {
   it("reserves one credit, drafts, settles with provider usage and returns editor fields", async () => {
     const { deps, calls } = fakeDeps({ used: 3 });
     const result = await run(deps, fakeDrafter({ ok: true, draft: DRAFT, usage: USAGE }));
-    expect(result).toMatchObject({ ok: true, value: { model: "claude-opus-5-5", credits: { used: 4, limit: 20 } } });
+    expect(result).toMatchObject({ ok: true, value: { model: "claude-opus-5-5", usage: { percent: 20 } } });
     if (result.ok) expect(result.value.form).toMatchObject({ allowed: "files.edit", acceptance: "assertion: The headline fits at 375px." });
     expect(calls.map((c) => c.name)).toEqual(["count", "reserve", "settle"]);
     expect(calls[1]!.input).toMatchObject({ operation: "contract_draft", credits: 1, limit: 20, taskId: "t1", key: "key-1" });
@@ -89,7 +89,7 @@ describe("draftContractWithAi", () => {
   it("refuses when credits are used up, without calling the model", async () => {
     const drafter = fakeDrafter({ ok: true, draft: DRAFT, usage: USAGE });
     const { deps, calls } = fakeDeps({ used: 20 });
-    expect(await run(deps, drafter)).toMatchObject({ ok: false, code: "QUOTA_EXCEEDED", message: expect.stringContaining("all 20 AI credits") });
+    expect(await run(deps, drafter)).toMatchObject({ ok: false, code: "QUOTA_EXCEEDED", message: expect.stringContaining("AI usage limit") });
     expect(drafter.calls).toBe(0);
     expect(calls.map((c) => c.name)).toEqual(["count"]);
 
@@ -112,7 +112,7 @@ describe("draftContractWithAi", () => {
     ] as const) {
       const { deps, calls } = fakeDeps();
       const result = await run(deps, fakeDrafter({ ok: false, failure, usage: failure === "REFUSED" ? USAGE : null }));
-      expect(result).toMatchObject({ ok: false, code, message: expect.stringContaining("No credit was used.") });
+      expect(result).toMatchObject({ ok: false, code, message: expect.stringContaining("It didn't count toward your AI usage.") });
       expect(calls.at(-1)!.input).toMatchObject({ status: "refunded" });
     }
   });
@@ -125,8 +125,8 @@ describe("draftContractWithAi", () => {
 
   it("says so when a refund couldn't be recorded", async () => {
     const result = await run(fakeDeps({ settleFails: true }).deps, fakeDrafter({ ok: false, failure: "PROVIDER_BUSY", usage: null }));
-    expect(result).toMatchObject({ ok: false, message: expect.stringContaining("may still show as used") });
-    expect(result.ok || result.message.includes("No credit was used")).toBe(false);
+    expect(result).toMatchObject({ ok: false, message: expect.stringContaining("may still count") });
+    expect(result.ok || result.message.includes("didn't count toward your AI usage")).toBe(false);
   });
 
   it("still returns the draft when settling fails after success", async () => {
@@ -144,10 +144,10 @@ describe("draftContractWithAi", () => {
 
 describe("aiDraftAvailability", () => {
   const free = resolveEffectivePlan({ state: "free" }, NOW);
-  const base = { writeReason: null, keyPresent: true, used: 5, plan: free, period: "month" as const };
+  const base = { writeReason: null, keyPresent: true, used: 5, plan: free, period: "month" as const, resetsAt: "2026-11-01T00:00:00.000Z" };
 
-  it("is on with credits left, and reports the allowance", () => {
-    expect(aiDraftAvailability(base)).toEqual({ cost: 1, used: 5, limit: 20, period: "month", disabledReason: null, provider: null });
+  it("is on with usage left, and reports only the share used, never counts", () => {
+    expect(aiDraftAvailability(base)).toEqual({ percent: 25, resetsAt: "2026-11-01T00:00:00.000Z", period: "month", disabledReason: null, provider: null });
   });
 
   it("gives an honest reason for each way it can be off", () => {
@@ -155,6 +155,7 @@ describe("aiDraftAvailability", () => {
     expect(aiDraftAvailability({ ...base, keyPresent: false }).disabledReason).toMatch(/isn't connected/);
     expect(aiDraftAvailability({ ...base, used: null }).disabledReason).toMatch(/couldn't be read/);
     expect(aiDraftAvailability({ ...base, plan: null }).disabledReason).toMatch(/could not be confirmed/);
-    expect(aiDraftAvailability({ ...base, used: 20 }).disabledReason).toMatch(/all 20 AI credits/);
+    expect(aiDraftAvailability({ ...base, used: 20 }).disabledReason).toMatch(/reached your AI usage limit for this month/);
+    expect(aiDraftAvailability({ ...base, used: 20 }).disabledReason).not.toMatch(/credit/i);
   });
 });

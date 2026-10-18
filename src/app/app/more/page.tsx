@@ -5,7 +5,9 @@ import { notFound } from "next/navigation";
 import { ROADMAP } from "@/components/app/roadmap";
 import { PageHeader } from "@/components/app/primitives";
 import { WorkspaceSwitcher } from "@/components/app/workspace-switcher";
+import { UsageMeterList } from "@/components/app/usage-meters";
 import { loadAppContext } from "@/server/workspace/context";
+import { loadUsageMeters } from "@/server/workspace/usage-summary";
 import { signOut } from "../actions";
 
 export const metadata: Metadata = { title: "More" };
@@ -14,11 +16,19 @@ export default async function MorePage() {
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
 
+  const meters = await loadUsageMeters(ctx, ctx.current);
   const row = "flex h-14 items-center gap-3 px-4 text-[15px]";
   return (
     <div className="grid gap-6">
       <PageHeader title="More" />
       <WorkspaceSwitcher workspaces={ctx.workspaces} current={ctx.current} canCreate={ctx.mode === "live"} />
+
+      <section aria-labelledby="usage-heading" className="rounded-md border border-line bg-surface p-5 shadow-e1">
+        <h2 id="usage-heading" className="mb-4 text-base font-medium">
+          Usage
+        </h2>
+        <UsageMeterList meters={meters} />
+      </section>
 
       <ul className="divide-y divide-line overflow-hidden rounded-md border border-line bg-surface shadow-e1">
         <li>
