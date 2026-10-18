@@ -130,7 +130,7 @@ export default async function SecurityPage({ params }: Params) {
                 ))}
               </ul>
               <p className="font-mono text-xs text-ink-3">
-                Checked <LocalTime iso={p.generatedAt} /> · {p.project.files} files · report sha256:{shortHash(lastDone.digest!)}
+                Checked <LocalTime iso={p.generatedAt} /> · {p.project.files} files · report {shortHash(lastDone.digest!)}
               </p>
             </div>
           </section>

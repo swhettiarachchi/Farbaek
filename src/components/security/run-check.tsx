@@ -11,7 +11,12 @@ const IDLE: SecurityActionState = { status: "idle" };
 export function RunSecurityCheck({ projectId, disabledReason, running }: { projectId: string; disabledReason: string | null; running: boolean }) {
   const [state, action, pending] = useActionState(startSecurityCheckAction, IDLE);
   const router = useRouter();
-  const busy = running || state.status === "started";
+  const busy = running;
+
+  // Once a check starts, load the page again so it shows as running.
+  useEffect(() => {
+    if (state.status === "started") router.refresh();
+  }, [state, router]);
 
   // While a check runs, look again every two seconds until its report is in.
   useEffect(() => {
