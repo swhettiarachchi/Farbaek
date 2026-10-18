@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, ArrowRightIcon, DownloadSimpleIcon, FolderOpenIcon, ListChecksIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, ArrowRightIcon, DownloadSimpleIcon, FolderOpenIcon, ListChecksIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -100,6 +100,17 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
               </div>
             </>
           )}
+        </Card>
+        <Card>
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="flex items-center gap-2 text-lg font-medium">
+              <ShieldCheckIcon size={20} className="text-ink-3" aria-hidden /> Security
+            </h2>
+            <Link href={`/app/projects/${project.id}/security`} className="inline-flex min-h-11 items-center gap-1 text-sm text-accent hover:underline">
+              Open <ArrowRightIcon size={14} aria-hidden />
+            </Link>
+          </div>
+          <p className="mt-2 text-sm text-ink-2">Check the code for leaked secrets, unsafe patterns, vulnerable packages and risky logic, then fix findings with the agent.</p>
         </Card>
         <Card>
           <h2 className="text-lg font-medium">New task</h2>

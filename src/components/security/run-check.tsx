@@ -1,0 +1,40 @@
+"use client";
+
+import { ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { useRouter } from "next/navigation";
+import { useActionState, useEffect } from "react";
+import { startSecurityCheckAction, type SecurityActionState } from "@/app/app/projects/[projectId]/security/actions";
+import { buttonClasses } from "@/components/ui/button";
+
+const IDLE: SecurityActionState = { status: "idle" };
+
+export function RunSecurityCheck({ projectId, disabledReason, running }: { projectId: string; disabledReason: string | null; running: boolean }) {
+  const [state, action, pending] = useActionState(startSecurityCheckAction, IDLE);
+  const router = useRouter();
+  const busy = running || state.status === "started";
+
+  // While a check runs, look again every two seconds until its report is in.
+  useEffect(() => {
+    if (!busy) return;
+    const t = setInterval(() => router.refresh(), 2_000);
+    return () => clearInterval(t);
+  }, [busy, router]);
+
+  return (
+    <form action={action} className="grid gap-2">
+      <input type="hidden" name="projectId" value={projectId} />
+      <span className="flex flex-wrap items-center gap-3">
+        <button type="submit" disabled={pending || busy || Boolean(disabledReason)} className={buttonClasses("primary", "sm")}>
+          <ShieldCheckIcon size={16} weight="bold" aria-hidden />
+          {pending ? "Starting…" : busy ? "Checking…" : "Run a security check"}
+        </button>
+        {disabledReason ? <span className="text-xs text-ink-3">{disabledReason}</span> : null}
+      </span>
+      {state.status === "error" ? (
+        <p role="alert" className="flex items-start gap-2 text-sm text-failed">
+          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {state.message}
+        </p>
+      ) : null}
+    </form>
+  );
+}
