@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CreateProjectForm } from "@/components/app/forms";
 import { Card, EmptyState, PageHeader } from "@/components/app/primitives";
+import { buttonClasses } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/local-time";
 import { checkQuota } from "@/core/billing/entitlements";
 import { TERMINAL_STATES } from "@/core/realityloop/task-machine";
@@ -32,6 +33,16 @@ export default async function ProjectsPage() {
       <PageHeader
         title="Projects"
         description={`A project is one codebase or product. ${projects.length} of ${ws.plan.limits.workspaces ?? "contract"} allowed on your plan.`}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Link href="/app/templates" className={buttonClasses("secondary", "sm")}>
+              Templates
+            </Link>
+            <Link href="/app/rescue" className={buttonClasses("secondary", "sm")}>
+              Check an app built elsewhere
+            </Link>
+          </div>
+        }
       />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">

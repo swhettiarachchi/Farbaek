@@ -3,6 +3,7 @@ import type { ContractDraft } from "@/core/realityloop/contract-draft";
 import type { ContractDrafter, DraftBrief, DraftOutcome } from "@/server/ai/contract-drafter";
 import type { AiUsageDeps } from "./ai-usage";
 import type { FileDeps } from "./files";
+import { getStarter } from "@/content/starters";
 import { startFromPrompt } from "./start-from-prompt";
 import type { WriteDeps } from "./use-cases";
 
@@ -122,6 +123,16 @@ describe("startFromPrompt", () => {
       existing: { id: "p-existing", name: "Sunrise Bakery", description: null, paths: ["index.html", "styles.css", "script.js"] },
     });
     expect(briefs[1]?.paths).toEqual(["index.html", "styles.css", "script.js"]);
+  });
+
+  it("uses the template the person chose, even when the prompt's words suggest another starter", async () => {
+    const { deps, log } = fakeDeps();
+    const briefs: DraftBrief[] = [];
+    const capturing: ContractDrafter = { ...drafterWith({ ok: true, draft: DRAFT, usage: USAGE }), draft: async (b) => (briefs.push(b), { ok: true, draft: DRAFT, usage: USAGE }) };
+    // "dashboard" would pick the Next.js app; the chosen template wins.
+    await startFromPrompt(deps, source(capturing), { ...input("A booking dashboard for my café"), starter: "local-business" });
+    expect(log[1]).toBe(`import:${getStarter("local-business")!.files.length}`);
+    expect(briefs[0]?.projectDescription).toContain("Local business");
   });
 
   it("stops when the project can't be created, for example at the plan's project limit", async () => {

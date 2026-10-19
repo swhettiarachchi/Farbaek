@@ -1,11 +1,14 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { readSupabaseConfig } from "@/server/supabase/config";
+import { previewDomainHost } from "@/core/sandbox/preview";
+import { SITE_ROUTE, siteNameFromHost } from "@/core/publish/site";
+import { readSupabaseConfig, siteUrl } from "@/server/supabase/config";
 
 /**
- * Refreshes the Supabase session cookie on app and auth routes. Marketing
- * pages are excluded so they stay static. This is not the authorization
- * check: every page and action verifies the user itself.
+ * Routes preview hosts to the preview gateway, keeps Farbaek off the rest of
+ * the preview domain, and refreshes the Supabase session cookie on app and
+ * auth routes only. This is not the authorization check: every page and
+ * action verifies the user itself.
  */
 export async function proxy(request: NextRequest) {
   // Preview hosts (p-<id>.<preview domain>) go to the sandbox preview gateway,
@@ -15,6 +18,25 @@ export async function proxy(request: NextRequest) {
     url.pathname = `/sandbox-preview${request.nextUrl.pathname}`;
     return NextResponse.rewrite(url);
   }
+
+  // The preview domain holds people's content, and a wildcard record sends every name under it here.
+  // Only preview hosts are served there; the bare domain goes to Farbaek's own address.
+  const place = previewDomainHost(request.headers.get("host"), process.env.SANDBOX_PREVIEW_DOMAIN);
+  if (place === "apex") return NextResponse.redirect(new URL("/", siteUrl()), 308);
+  if (place === "other") {
+    // A published site (ADR 0029): its route checks the name and serves only that site's live files.
+    if (siteNameFromHost(request.headers.get("host"), process.env.SANDBOX_PREVIEW_DOMAIN ?? null)) {
+      const url = request.nextUrl.clone();
+      url.pathname = `${SITE_ROUTE}${request.nextUrl.pathname}`;
+      return NextResponse.rewrite(url);
+    }
+    return new NextResponse("There's nothing at this address.", {
+      status: 404,
+      headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex" },
+    });
+  }
+
+  if (!SESSION_PATH.test(request.nextUrl.pathname)) return NextResponse.next();
 
   const config = readSupabaseConfig();
   if (!config) return NextResponse.next({ request });
@@ -40,6 +62,8 @@ export async function proxy(request: NextRequest) {
 }
 
 const PREVIEW_HOST = /^p-[a-z2-7]{26}\./i;
+// Where the session cookie is refreshed; every other page passes straight through.
+const SESSION_PATH = /^\/(?:app|admin|auth)(?:\/|$)|^\/sign-in(?:\/|$)/;
 
 export const config = {
   matcher: [
@@ -47,6 +71,8 @@ export const config = {
     "/admin/:path*",
     "/auth/:path*",
     "/sign-in",
+    // Every other page too, so names on the preview domain can be refused. Farbaek's own static files are left out.
+    "/((?!_next/static|_next/image|favicon\\.ico).*)",
     // Every path on a preview host, including /_next/... of the app inside the sandbox.
     { source: "/:path*", has: [{ type: "host", value: "p-[a-zA-Z2-7]{26}\\..*" }] },
   ],

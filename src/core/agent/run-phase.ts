@@ -26,7 +26,7 @@ export interface PhaseEvent {
   payload: Record<string, unknown>;
 }
 
-const READ_TOOLS = new Set(["read_file", "list_files", "search_files"]);
+const READ_TOOLS = new Set(["read_file", "list_files", "search_files", "review_site"]);
 const WRITE_TOOLS = new Set(["write_file", "edit_file"]);
 
 /** The run's phase from its status and its latest event. */

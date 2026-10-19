@@ -13,8 +13,9 @@ export const PREVIEW_NAV_MESSAGE = "farbaek-preview-nav";
 const CSP = [
   "default-src 'none'",
   "style-src 'unsafe-inline' https:",
-  "script-src 'unsafe-inline'",
-  "img-src data: https:",
+  // Inline code, plus pinned libraries (three.js, animation libraries) from the CDNs the Studio standard names (ADR 0030).
+  "script-src 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com",
+  "img-src data: blob: https:",
   "font-src data: https:",
   "media-src data: https:",
   "connect-src 'none'",

@@ -115,7 +115,7 @@ export async function runSecurityCheck(deps: SecurityCheckDeps, person: CheckPer
       model = review.model;
       if (review.ok) {
         findings.push(...review.findings);
-        checks.push({ name: "ai_review", ran: true, findings: review.findings.length, detail: `${review.files} files reviewed.` });
+        checks.push({ name: "ai_review", ran: true, findings: review.findings.length, detail: `${review.files} ${review.files === 1 ? "file" : "files"} reviewed.` });
       } else {
         checks.push({ name: "ai_review", ran: false, reason: review.reason });
       }

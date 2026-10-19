@@ -39,12 +39,12 @@ export function ProofPackSeal({
         <path id={pathId} d={`M ${c - r} ${c} a ${r} ${r} 0 1 1 ${2 * r} 0 a ${r} ${r} 0 1 1 ${-2 * r} 0`} />
       </defs>
       <g fill="none" stroke="currentColor">
-        <circle cx={c} cy={c} r={g.outerRadius} strokeWidth={1} />
-        <circle cx={c} cy={c} r={g.outerRadius - 9} strokeWidth={0.5} />
-        <circle cx={c} cy={c} r={g.innerRadius} strokeWidth={0.5} />
-        <path d={g.ticks} strokeWidth={0.8} strokeLinecap="round" />
+        <circle className="seal-part" pathLength={1} cx={c} cy={c} r={g.outerRadius} strokeWidth={1} />
+        <circle className="seal-part" pathLength={1} cx={c} cy={c} r={g.outerRadius - 9} strokeWidth={0.5} />
+        <circle className="seal-part" pathLength={1} cx={c} cy={c} r={g.innerRadius} strokeWidth={0.5} />
+        <path className="seal-part" pathLength={1} d={g.ticks} strokeWidth={0.8} strokeLinecap="round" />
         {g.layers.map((layer, i) => (
-          <path key={i} d={layer.d} strokeWidth={0.55} opacity={layer.opacity} strokeLinejoin="round" />
+          <path key={i} className="seal-part" pathLength={1} style={{ "--i": i + 1 } as React.CSSProperties} d={layer.d} strokeWidth={0.55} opacity={layer.opacity} strokeLinejoin="round" />
         ))}
       </g>
       <circle cx={c} cy={c} r={2.5} fill="currentColor" />

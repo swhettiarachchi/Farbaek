@@ -5,7 +5,8 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { RUN_STATUSES, type CloudRunMode, type RunEventKind, type RunStatus } from "@/core/agent/cloud-run";
+import { LIVE_STATUSES, RUN_STATUSES, type CloudRunMode, type RunEventKind, type RunStatus } from "@/core/agent/cloud-run";
+import type { ProposalState } from "@/core/agent/inbox";
 import { EFFORTS, type Effort } from "@/core/agent/routing";
 import type { ProposalInput } from "@/server/agent/service";
 import type { RpcResult } from "@/server/workspace/use-cases";
@@ -167,6 +168,28 @@ export async function listRuns(client: SupabaseClient, orgId: string, options: {
   const { data, error } = await query;
   if (error) throw new Error(`Couldn't load runs: ${error.message}`);
   return z.array(RunRow).parse(data).map(toView);
+}
+
+/** The live runs' statuses only: the agent presence orb asks for this on every page. */
+export async function liveRunStatuses(client: SupabaseClient, orgId: string): Promise<{ id: string; status: RunStatus }[]> {
+  const { data, error } = await client.from("agent_runs").select("id, status").eq("org_id", orgId).in("status", [...LIVE_STATUSES]).order("started_at", { ascending: false }).limit(20);
+  if (error) throw new Error(`Couldn't load live runs: ${error.message}`);
+  return z.array(z.object({ id: z.string(), status: z.enum(RUN_STATUSES) })).parse(data);
+}
+
+/** The stored state of these proposals, read as the person; ids it can't see are simply missing. */
+export async function proposalStates(client: SupabaseClient, orgId: string, ids: readonly string[]): Promise<Map<string, ProposalState>> {
+  const unique = [...new Set(ids)].filter((id) => z.uuid().safeParse(id).success).slice(0, 100);
+  if (unique.length === 0) return new Map();
+  const { data, error } = await client.from("change_proposals").select("id, status").eq("org_id", orgId).in("id", unique);
+  if (error) throw new Error(`Couldn't load proposals: ${error.message}`);
+  const known = new Set<ProposalState>(["pending", "blocked", "applied", "discarded"]);
+  return new Map(
+    z
+      .array(z.object({ id: z.string(), status: z.string() }))
+      .parse(data)
+      .map((p) => [p.id, known.has(p.status as ProposalState) ? (p.status as ProposalState) : "other"]),
+  );
 }
 
 export interface RunUsage {

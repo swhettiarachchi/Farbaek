@@ -11,7 +11,7 @@
  */
 import type { Effort } from "@/core/agent/routing";
 import { cleanPrompt, projectNameFromPrompt, starterForPrompt, taskTitleFromPrompt } from "@/core/agent/prompt-start";
-import { getStarter } from "@/content/starters";
+import { getStarter, type StarterId } from "@/content/starters";
 import type { ContractDrafter } from "@/server/ai/contract-drafter";
 import { draftContractWithAi } from "./ai-drafting";
 import type { AiUsageDeps, ModelSource } from "./ai-usage";
@@ -32,14 +32,22 @@ export interface PromptStartResult {
 export async function startFromPrompt(
   deps: WriteDeps & AiUsageDeps & FileDeps,
   drafter: ModelSource<ContractDrafter> | { unavailable: string },
-  input: { orgId: string; userId: string; prompt: unknown; effort?: Effort; existing?: { id: string; name: string; description: string | null; paths: readonly string[] } },
+  input: {
+    orgId: string;
+    userId: string;
+    prompt: unknown;
+    effort?: Effort;
+    existing?: { id: string; name: string; description: string | null; paths: readonly string[] };
+    /** A starter or template the person chose; otherwise one is picked from the prompt. */
+    starter?: StarterId;
+  },
 ): Promise<WriteResult<PromptStartResult>> {
   const prompt = cleanPrompt(input.prompt);
   if (!prompt) return fail("INVALID_TITLE", "Describe what you want to build in a few more words.");
 
   // A follow-up goes into the project it's about; a new idea gets its own project from a fitting starter.
   const name = input.existing?.name ?? projectNameFromPrompt(prompt);
-  const starter = getStarter(starterForPrompt(prompt))!;
+  const starter = (input.starter ? getStarter(input.starter) : null) ?? getStarter(starterForPrompt(prompt))!;
   const project: WriteResult<string> = input.existing
     ? { ok: true, value: input.existing.id }
     : await createProject(deps, { orgId: input.orgId, userId: input.userId, name, description: prompt.slice(0, 500) });

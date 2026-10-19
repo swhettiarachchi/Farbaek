@@ -15,6 +15,9 @@
 import { displayCommand, withSafeDefaults, type CommandRisk } from "@/core/agent/commands";
 import { AGENT_MODE_LABELS, type AgentMode } from "@/core/agent/modes";
 import { agentPolicyVersion, decide } from "@/core/agent/permissions";
+import { formatSiteReview, reviewSite } from "@/core/agent/site-review";
+import { skillsSection, type Skill } from "@/core/agent/skills";
+import { STANDARD_PRECEDENCE, STUDIO_STANDARD } from "@/core/agent/studio-standard";
 import { parseToolCall, toolDefinitions, TOOL_NAMES, type ToolCall, type ToolInput, type ToolName } from "@/core/agent/tools";
 import type { IntentContract } from "@/core/realityloop/contract";
 import { approvalBindingHash, type ApprovalSubject } from "@/core/trust/approval";
@@ -81,6 +84,8 @@ export interface RunInput {
   approve(request: ApprovalRequest, signal?: AbortSignal): Promise<ApprovalAnswer>;
   /** Messages the person sent while the run works (ADR 0027), taken before each model step. */
   takeMessages?(): string[];
+  /** Skills selected for this build and the project's own (ADR 0030): guidance inside the contract. */
+  skills?: readonly Skill[];
   onEvent?(event: RunEvent): void;
   limits?: Partial<RunLimits>;
   signal?: AbortSignal;
@@ -102,7 +107,7 @@ function clip(text: string, max = MAX_RESULT_CHARS): string {
   return `${text.slice(0, max)}\n[farbaek: ${(text.length - max).toLocaleString("en-US")} more characters not shown]`;
 }
 
-export function agentSystemPrompt(mode: AgentMode, commands: RunnerLocation | null): string {
+export function agentSystemPrompt(mode: AgentMode, commands: RunnerLocation | null, skills: readonly Skill[] = []): string {
   const lines = [
     "You are Farbaek Agent. You work on one task in a copy of a software project, using only the tools you're given.",
     "The task's approved intent contract is the scope of your work: stay inside its paths and allowed operations, and meet its acceptance criteria. Calls outside the contract are refused.",
@@ -117,7 +122,11 @@ export function agentSystemPrompt(mode: AgentMode, commands: RunnerLocation | nu
   else if (commands === "sandbox") lines.push("Commands run in an isolated sandbox. Tests and builds run right away; anything that crosses the sandbox's limits waits for the person's approval.");
   else lines.push("No command runner is connected, so you can't run commands.");
   lines.push("A person reviews your change before anything is applied to the real project.");
-  return lines.join("\n");
+  // How Farbaek builds anything people see (ADR 0030), then the skills chosen for this build.
+  const sections = [lines.join("\n"), STUDIO_STANDARD, STANDARD_PRECEDENCE];
+  const selected = skillsSection(skills);
+  if (selected) sections.push(selected);
+  return sections.join("\n\n");
 }
 
 export function openingMessage(input: Pick<RunInput, "task" | "mode" | "workspace">): string {
@@ -144,9 +153,26 @@ function target(call: ToolCall): string {
       return call.input.path;
     case "run_command":
       return displayCommand(call.input.program, call.input.args);
+    case "review_site":
+      return "site";
     case "finish":
       return "";
   }
+}
+
+/** The text files a site review reads (pages, styles, scripts), up to a total size. */
+async function siteFiles(workspace: AgentWorkspace): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  let total = 0;
+  for (const path of workspace.files()) {
+    if (!/\.(?:html?|css|m?js)$/i.test(path) || /(?:^|\/)(?:node_modules|dist|build|\.next)\//.test(path)) continue;
+    const text = await workspace.read(path).catch(() => null);
+    if (text === null) continue;
+    total += text.length;
+    if (total > 3_000_000) break;
+    out.set(path, text);
+  }
+  return out;
 }
 
 function errorText(error: unknown): string {
@@ -188,7 +214,7 @@ export async function runAgent(input: RunInput): Promise<RunReport> {
     return { outcome, steps, usage, model };
   };
 
-  const conversation = input.model.begin({ system: agentSystemPrompt(input.mode, input.mode === "review_only" ? null : where), message: openingMessage(input), tools: toolDefinitions(offered) });
+  const conversation = input.model.begin({ system: agentSystemPrompt(input.mode, input.mode === "review_only" ? null : where, input.skills), message: openingMessage(input), tools: toolDefinitions(offered) });
 
   const handle = async (raw: { id: string; name: string; input: unknown }, step: number): Promise<{ result: ToolResultInput; finish?: FinishReport }> => {
     const fail = (status: ToolStatus, tool: string, what: string, content: string) => {
@@ -280,6 +306,10 @@ export async function runAgent(input: RunInput): Promise<RunReport> {
           content = clip(commandText(displayCommand(call.input.program, args), r));
           emit({ type: "tool", step, tool: call.name, target: what, status: r.exitCode === 0 ? "done" : "failed", detail: content.slice(0, 2_000) });
           return { result: { id: raw.id, isError: r.exitCode !== 0, content } };
+        }
+        case "review_site": {
+          content = formatSiteReview(reviewSite(await siteFiles(input.workspace)));
+          break;
         }
         case "finish":
           emit({ type: "tool", step, tool: call.name, target: what, status: "done", detail: call.input.summary });

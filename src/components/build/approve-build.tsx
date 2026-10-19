@@ -22,6 +22,9 @@ export function ApproveBuild({
   sha256,
   estimates,
   disabledReason,
+  skills,
+  suggested,
+  projectSkills,
 }: {
   taskId: string;
   version: number;
@@ -29,6 +32,12 @@ export function ApproveBuild({
   sha256: string;
   estimates: RunEstimates;
   disabledReason: string | null;
+  /** Built-in skills to choose from (ADR 0030). */
+  skills: { id: string; label: string; description: string }[];
+  /** Skills that fit this plan, chosen to begin with. */
+  suggested: string[];
+  /** The project's own skills, which always apply. */
+  projectSkills: string[];
 }) {
   const [state, action, pending] = useActionState(approveAndBuildAction, IDLE);
   const [effort, setEffort] = useState<Effort>("balanced");
@@ -40,6 +49,25 @@ export function ApproveBuild({
       <input type="hidden" name="version" value={version} />
       <input type="hidden" name="expectedTaskVersion" value={expectedTaskVersion} />
       <input type="hidden" name="sha256" value={sha256} />
+      <fieldset className="grid gap-2" disabled={pending || Boolean(disabledReason)}>
+        <legend className="mb-1 text-sm font-medium">Skills for this build</legend>
+        <div className="flex flex-wrap gap-2">
+          {skills.map((s) => (
+            <label
+              key={s.id}
+              title={s.description}
+              className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm text-ink-2 transition-colors duration-150 has-checked:border-accent has-checked:bg-accent/[0.06] has-checked:text-ink has-focus-visible:outline-2 has-focus-visible:outline-accent"
+            >
+              <input type="checkbox" name="skills" value={s.id} defaultChecked={suggested.includes(s.id)} className="size-4 accent-[var(--color-accent)]" />
+              {s.label}
+            </label>
+          ))}
+        </div>
+        <p className="text-xs leading-relaxed text-ink-3">
+          Every build follows the Farbaek Studio standard. Skills go deeper on what this one needs; the ones that fit your plan are chosen.
+          {projectSkills.length ? ` This project's own skills apply too: ${projectSkills.join(", ")}.` : ""}
+        </p>
+      </fieldset>
       <EffortPicker value={effort} onChange={setEffort} disabled={pending || Boolean(disabledReason)} />
       <p className="text-sm text-ink-2" aria-live="polite">
         {estimate ? (

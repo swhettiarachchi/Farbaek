@@ -26,5 +26,5 @@ export default defineConfig([
     files: ["desktop/**"],
     rules: { "@next/next/no-img-element": "off" },
   },
-  globalIgnores([".next/**", "out/**", "build/**", "coverage/**", "next-env.d.ts", "docs/**", "desktop/app/**", "desktop/release/**", "desktop/.cache/**"]),
+  globalIgnores([".claude/**", ".next/**", "out/**", "build/**", "coverage/**", "next-env.d.ts", "docs/**", "desktop/app/**", "desktop/release/**", "desktop/.cache/**"]),
 ]);

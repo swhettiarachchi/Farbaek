@@ -3,7 +3,7 @@ import type { Icon } from "@phosphor-icons/react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Card, EmptyState, PageHeader } from "@/components/app/primitives";
+import { Card, EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { RunSecurityCheck } from "@/components/security/run-check";
 import { ScoreRing } from "@/components/security/score-ring";
 import { LocalTime } from "@/components/ui/local-time";
@@ -41,12 +41,13 @@ function SeverityBadge({ severity }: { severity: Severity }) {
   );
 }
 
-type Params = { params: Promise<{ projectId: string }> };
+type Params = { params: Promise<{ projectId: string }>; searchParams: Promise<{ rescue?: string }> };
 
-export default async function SecurityPage({ params }: Params) {
+export default async function SecurityPage({ params, searchParams }: Params) {
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
   const { projectId } = await params;
+  const rescueNotStarted = (await searchParams).rescue === "not_started";
   const project = await ctx.reader.getProject(ctx.current.id, projectId);
   if (!project) notFound();
 
@@ -84,6 +85,10 @@ export default async function SecurityPage({ params }: Params) {
         description="Farbaek's rules over every file, known vulnerabilities in your packages, and an AI review of the riskiest code. A guide to what to fix first, not a certification."
         actions={<RunSecurityCheck projectId={project.id} disabledReason={reason} running={running} />}
       />
+
+      {rescueNotStarted && !running && !p ? (
+        <Notice>Your app&apos;s files are in this project. The security check didn&apos;t start{reason ? `: ${reason}` : ", so run it now"}.</Notice>
+      ) : null}
 
       {running ? (
         <Card>

@@ -9,6 +9,8 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { getBuiltInSkill } from "@/content/skills";
+import { getStarter } from "@/content/starters";
 import { EFFORTS } from "@/core/agent/routing";
 import { resolveAiProvider } from "@/server/ai/config";
 import { createContractDrafter } from "@/server/ai/providers";
@@ -69,7 +71,9 @@ export async function startFromPromptAction(_previous: PromptStartState, form: F
     existing = { id: project.id, name: project.name, description: project.description ?? null, paths: files.map((f) => f.path) };
   }
 
-  const result = await startFromPrompt(deps, drafter, { orgId: ctx.current.id, userId: ctx.user.id, prompt: form.get("prompt"), effort, existing });
+  // A template chosen in the gallery; only known starters are accepted, and a follow-up never gets one.
+  const starter = existing ? undefined : (getStarter(form.get("starter"))?.id ?? undefined);
+  const result = await startFromPrompt(deps, drafter, { orgId: ctx.current.id, userId: ctx.user.id, prompt: form.get("prompt"), effort, existing, starter });
   if (!result.ok) return { status: "error", message: result.message };
   revalidatePath("/app", "layout");
   redirect(`/app/new/${result.value.taskId}`);
@@ -105,7 +109,9 @@ export async function approveAndBuildAction(_previous: ApproveBuildState, form: 
   const person = { orgId: ctx.current.id, userId: ctx.user.id, role: ctx.role };
   const wiring = await cloudRunDeps(person);
   if (!wiring.ok) return { status: "error", approved: true, message: `The plan is approved. The agent couldn't start: ${wiring.reason}` };
-  const started = await startCloudRun(wiring.deps, { person, taskId, effort });
+  // Skills chosen on the plan card (ADR 0030): only Farbaek's own ids are accepted.
+  const skills = form.getAll("skills").flatMap((v) => (typeof v === "string" && getBuiltInSkill(v) ? [v] : []));
+  const started = await startCloudRun(wiring.deps, { person, taskId, effort, skills });
   if (!started.ok) return { status: "error", approved: true, message: `The plan is approved. The agent couldn't start: ${started.message}` };
   revalidatePath("/app/build");
   redirect(`/app/build/${started.value.runId}`);

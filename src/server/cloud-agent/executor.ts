@@ -27,6 +27,8 @@ import type { CommandRunner } from "@/agent-runtime/runners";
 import { AgentWorkspace, materialize } from "@/agent-runtime/workspace";
 import { CLOUD_RUN_MAX_MINUTES, RUN_HEARTBEAT_MS, boundEvent, type CloudRunMode, type RunEventPayload } from "@/core/agent/cloud-run";
 import type { Effort } from "@/core/agent/routing";
+import { projectSkills, type Skill } from "@/core/agent/skills";
+import { getBuiltInSkill } from "@/content/skills";
 import type { IntentContract } from "@/core/realityloop/contract";
 import { callModel, type GatewayDeps, type GatewayModel } from "@/server/agent/gateway";
 import { prepareAgentProposal, type AgentStore, type ProposalChecks } from "@/server/agent/service";
@@ -78,6 +80,8 @@ export interface StartRunInput {
   person: RunPerson;
   taskId: string;
   effort: Effort;
+  /** Built-in skills the person chose for this build (ADR 0030); unknown ids are ignored. */
+  skills?: readonly string[];
 }
 
 /** Checks and records the run, then starts it in the background. Returns as soon as it's recorded. */
@@ -102,7 +106,8 @@ export async function startCloudRun(deps: ExecutorDeps, input: StartRunInput): P
   const runId = started.value;
   const live: LiveRun = { orgId: person.orgId, startedBy: person.userId, controller: new AbortController(), approvals: new Map(), messages: [] };
   registry.set(runId, live);
-  void execute(deps, { runId, person, task: { id: task.id, title: task.title, projectId: task.projectId }, contract, effort: input.effort, mode, live }).catch((e) => {
+  const chosen = [...new Set(input.skills ?? [])].flatMap((id) => getBuiltInSkill(id) ?? []);
+  void execute(deps, { runId, person, task: { id: task.id, title: task.title, projectId: task.projectId }, contract, effort: input.effort, mode, live, skills: chosen }).catch((e) => {
     log("error", "cloud_run.crashed", { run: runId, error: e instanceof Error ? e.message : String(e) });
   });
   return { ok: true, value: { runId, mode } };
@@ -165,7 +170,16 @@ function describeOutcome(kind: string, detail: string | null): string {
 
 async function execute(
   deps: ExecutorDeps,
-  r: { runId: string; person: RunPerson; task: { id: string; title: string; projectId: string }; contract: { version: number; sha256: string; body: IntentContract }; effort: Effort; mode: CloudRunMode; live: LiveRun },
+  r: {
+    runId: string;
+    person: RunPerson;
+    task: { id: string; title: string; projectId: string };
+    contract: { version: number; sha256: string; body: IntentContract };
+    effort: Effort;
+    mode: CloudRunMode;
+    live: LiveRun;
+    skills: readonly Skill[];
+  },
 ): Promise<void> {
   const { runId, person, live } = r;
   const dir = path.join(deps.workRoot ?? path.join(os.tmpdir(), "farbaek-runs"), runId);
@@ -220,6 +234,9 @@ async function execute(
       files.map((f) => ({ path: f.path, revision: f.revision, sha256: f.sha256 })),
     );
     event({ kind: "note", text: `Copied ${files.length - skipped.length} files into the run's working folder.` });
+    // The skills chosen for this build, then the project's own (.farbaek/skills or .claude/skills), said out loud.
+    const skills = [...r.skills, ...projectSkills(files.flatMap((f) => (contents.has(f.path) ? [{ path: f.path, content: contents.get(f.path)! }] : [])))];
+    if (skills.length) event({ kind: "note", text: `Building to the Farbaek Studio standard, with these skills: ${skills.map((s) => (s.source === "project" ? `${s.name} (this project's)` : "label" in s ? String(s.label) : s.name)).join(", ")}.` });
 
     let commands: CommandRunner | null = null;
     if (r.mode === "sandboxed") {
@@ -285,6 +302,7 @@ async function execute(
       limits: { maxWallMs: CLOUD_RUN_MAX_MINUTES * 60_000 },
       onEvent,
       takeMessages: () => live.messages.splice(0),
+      skills,
       approve: (request, signal) =>
         new Promise<ApprovalAnswer>((resolve) => {
           live.approvals.set(request.id, { resolve, bindingHash: request.bindingHash });

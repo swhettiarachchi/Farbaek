@@ -23,6 +23,19 @@ const FOLLOW_UP_STAGES = ["Reading your project", "Drafting the plan with AI", "
 
 const IDLE: PromptStartState = { status: "idle" };
 
+/** Fired by offerPrompt: a build box on the page takes the sentence and shows it. */
+const PROMPT_OFFER_EVENT = "farbaek:prompt-offer";
+
+/**
+ * Hands a sentence to the page's build box (the homepage showroom uses it).
+ * Returns false when no box took it, so the caller can go on to sign-in;
+ * the sentence is kept in this browser either way.
+ */
+export function offerPrompt(text: string): boolean {
+  store(text);
+  return !window.dispatchEvent(new CustomEvent(PROMPT_OFFER_EVENT, { detail: text, cancelable: true }));
+}
+
 function readStored(): string {
   try {
     return window.localStorage.getItem(PROMPT_STORAGE_KEY) ?? "";
@@ -51,6 +64,7 @@ export function PromptComposer({
   disabledReason = null,
   size = "large",
   projectId,
+  template,
 }: {
   mode: "app" | "public";
   autoResume?: boolean;
@@ -58,6 +72,8 @@ export function PromptComposer({
   size?: "large" | "compact";
   /** A follow-up for this project, rather than a new build. Not kept in the browser. */
   projectId?: string;
+  /** A template chosen in the gallery: the build starts from its files, and its example guides the wording. */
+  template?: { id: string; name: string; example: string };
 }) {
   const followUp = Boolean(projectId);
   const router = useRouter();
@@ -69,7 +85,24 @@ export function PromptComposer({
   const value = draft ?? kept;
   const setValue = (next: string) => setDraft(next);
   const form = useRef<HTMLFormElement>(null);
+  const box = useRef<HTMLTextAreaElement>(null);
   const resumed = useRef(false);
+
+  // A sentence offered by the page (offerPrompt): show it here, bring the box into view and focus it.
+  useEffect(() => {
+    if (followUp) return;
+    const take = (e: Event) => {
+      const text = (e as CustomEvent<string>).detail;
+      if (typeof text !== "string" || e.defaultPrevented) return;
+      e.preventDefault();
+      setDraft(text);
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      form.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
+      box.current?.focus({ preventScroll: true });
+    };
+    window.addEventListener(PROMPT_OFFER_EVENT, take);
+    return () => window.removeEventListener(PROMPT_OFFER_EVENT, take);
+  }, [followUp]);
 
   // After sign-in, send the kept prompt once without asking again.
   useEffect(() => {
@@ -100,10 +133,12 @@ export function PromptComposer({
         }`}
       >
         {projectId ? <input type="hidden" name="projectId" value={projectId} /> : null}
+        {template && !projectId ? <input type="hidden" name="starter" value={template.id} /> : null}
         <label htmlFor={followUp ? "prompt-next" : "prompt"} className="sr-only">
           {followUp ? "Describe the next change" : "Describe what you want to build"}
         </label>
         <textarea
+          ref={box}
           id={followUp ? "prompt-next" : "prompt"}
           name="prompt"
           value={value}
@@ -120,7 +155,9 @@ export function PromptComposer({
           placeholder={
             followUp
               ? "Describe the next change. For example: add a testimonials section under the menu."
-              : "Describe what you want to build. For example: a one-page site for my bakery with the menu, opening hours and a map."
+              : template
+                ? `Say what it is for. For example: ${template.example}`
+                : "Describe what you want to build. For example: a one-page site for my bakery with the menu, opening hours and a map."
           }
           className={`block w-full resize-none rounded-lg bg-transparent px-5 pb-16 pt-4 text-base leading-relaxed text-ink outline-none placeholder:text-ink-3 disabled:opacity-70 ${size === "large" ? "min-h-36" : "min-h-24"}`}
         />
@@ -154,7 +191,7 @@ export function PromptComposer({
 
       {size === "large" && !followUp ? (
         <ul className="flex flex-wrap gap-2" aria-label="Examples">
-          {EXAMPLES.map((ex) => (
+          {(template ? [template.example] : EXAMPLES).map((ex) => (
             <li key={ex}>
               <button
                 type="button"

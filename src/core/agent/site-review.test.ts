@@ -1,0 +1,63 @@
+import { describe, expect, it } from "vitest";
+import { formatSiteReview, reviewSite } from "./site-review";
+
+const GOOD = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Volt Ride</title><meta name="description" content="E-bike rental."><link rel="stylesheet" href="styles.css"></head>
+<body><nav><a href="#bikes">Bikes</a><a href="about.html">About</a><a href="https://example.com">Out</a></nav>
+<main id="bikes"><img src="https://picsum.photos/seed/bike/800/600" alt="A sample photo of an e-bike"><button type="button">Book</button>
+<form><label for="name">Name</label><input id="name" name="name"></form></main><script src="script.js"></script></body></html>`;
+const CSS = `h1 { transition: transform 200ms; } a:focus-visible { outline: 2px solid; } @media (prefers-reduced-motion: reduce) { * { transition: none; } } @media (max-width: 600px) { h1 { font-size: 2rem; } }`;
+
+describe("reviewSite", () => {
+  it("passes a site that has the basics right", () => {
+    const r = reviewSite({ "index.html": GOOD, "about.html": GOOD.replace("Volt Ride", "About"), "styles.css": CSS, "script.js": "console.log(1)" });
+    expect(r).toEqual({ pages: 2, findings: [] });
+    expect(formatSiteReview(r)).toContain("nothing to fix");
+  });
+
+  it("finds broken links and anchors, missing basics, alt text, labels and missing files", () => {
+    const html = `<html><head></head><body><a href="#nope">Go</a><a href="pricing.html">Pricing</a><a href="/"></a><img src="a.png"><button></button><input id="email"><link rel="stylesheet" href="missing.css"></body></html>`;
+    const messages = reviewSite({ "index.html": html }).findings.map((f) => `${f.severity}: ${f.message}`);
+    expect(messages).toEqual(
+      expect.arrayContaining([
+        "fix: The <html> element has no lang attribute.",
+        "fix: There's no viewport meta tag, so phones will show a zoomed-out page.",
+        "fix: The page has no <title>.",
+        "fix: The link to #nope has no matching id on the page.",
+        "fix: The link to pricing.html points at a file that isn't in the project.",
+        'fix: A link has no text or aria-label (href="/").',
+        "fix: A button has no text or aria-label.",
+        "fix: missing.css is referenced but isn't in the project.",
+        expect.stringMatching(/^fix: An image has no alt text/),
+        expect.stringMatching(/^consider: A form input has no label/),
+      ]),
+    );
+  });
+
+  it("flags motion without a reduced-motion fallback, hidden focus, dashes, lorem ipsum and placeholders", () => {
+    const html = GOOD.replace("<button type=\"button\">Book</button>", "<p>Fast — and quiet. Lorem ipsum. [Your price here]</p>");
+    const r = reviewSite({ "index.html": html, "about.html": GOOD, "styles.css": "h1 { animation: x 1s; } a { outline: none; }", "script.js": "window.addEventListener('scroll', f)" });
+    const messages = r.findings.map((f) => f.message);
+    expect(messages).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("em or en dash"),
+        "Lorem ipsum is still on the page.",
+        "A placeholder is still in the copy: [Your price here]",
+        expect.stringContaining("no prefers-reduced-motion fallback"),
+        expect.stringContaining(":focus-visible"),
+        expect.stringContaining("scroll event listener"),
+        expect.stringContaining("No responsive rules"),
+      ]),
+    );
+    expect(formatSiteReview(r)).toMatch(/^Reviewed 2 pages: \d+ to fix, \d+ to consider/);
+  });
+
+  it("counts a control inside its <label> as labelled", () => {
+    const html = GOOD.replace("<form>", `<form><label><input type="radio" name="t" value="a" /> <span>Builder</span></label><input type="radio" name="t" value="b" />`);
+    const messages = reviewSite({ "index.html": html, "about.html": GOOD, "styles.css": CSS, "script.js": "" }).findings.map((f) => f.message);
+    expect(messages).toEqual([expect.stringMatching(/^A form input has no label: <input type="radio" name="t" value="b"/)]);
+  });
+
+  it("says when there's nothing to review", () => {
+    expect(formatSiteReview(reviewSite({ "README.md": "# Hi" }))).toBe("There are no HTML pages in the project to review.");
+  });
+});

@@ -105,3 +105,13 @@ Known limits: sign-in for the admin is an email link with no second factor yet; 
 | The run page's preview data | One workspace's files shown to another | Files and proposals read through RLS with the person's session, scoped to the run's workspace | Code review; `run-preview.ts` uses the workspace reader |
 
 Known limits: preview pages may load `https:` images and fonts, so a page could make image requests to outside hosts with its own content in the address; it can't read Farbaek data. Run messages live in one server's memory and are lost if it restarts mid-run.
+
+## Presence, templates, rescue import and the preview domain (2026-10-19, ADR 0028)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| Hosts on the preview domain | A wildcard DNS record serving Farbaek itself (sign-in, app pages) on the domain for people's content, phishing on look-alike names, cookie tossing between subdomains | The proxy serves only `p-<id>` preview hosts there; the bare domain redirects to Farbaek's own address; any other name gets a plain 404 with `noindex` | `sandbox.test.ts` (host classifier), Host-header checks on a production build |
+| `/app/agent-status` | Reading another workspace's agent activity, load | A session is required; the query runs as the person under RLS, so another workspace returns nothing; it returns only state, a count and a run id | `inbox.test.ts` (presence), code review |
+| Command palette | A crafted command widening what the person can do, prompts leaking into URLs or logs | It only navigates or calls existing server actions, which check everything again; a build prompt is kept in `localStorage`, never in a URL, and still needs the plan card's approval | `command-match.test.ts`, code review |
+| Template thumbnails | Template code running inside Farbaek | Thumbnails use `sandbox=""` (no scripts, opaque origin) with the preview CSP; templates are reviewed content that passes import screening and fetches nothing | `starters.test.ts` |
+| Rescue import (zip) | Zip bombs, path traversal, secrets uploaded by accident, oversized or malformed archives, encrypted entries | Unpacked in the browser with entry, per-file and total caps counted while inflating, ZIP64 refused, CRC-32 checked, offsets bounds-checked; every path and file screened (traversal, secrets, binaries, dependency folders) before upload, and screened again on the server under the import limits | `unzip.test.ts`, `rescue-zip.test.ts`, `rescue.test.ts`, `files.test.ts` |

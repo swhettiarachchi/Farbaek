@@ -5,6 +5,12 @@ import { notFound } from "next/navigation";
 import { CreateTaskForm } from "@/components/app/forms";
 import { PromptComposer } from "@/components/build/prompt-composer";
 import { StaticPreview } from "@/components/preview/static-preview";
+import { PublishPanel } from "@/components/publish/publish-panel";
+import { ProjectSkills, type ProjectSkillView } from "@/components/skills/project-skills";
+import { isProjectSkillPath, parseSkill } from "@/core/agent/skills";
+import { loadPublishPanel } from "@/server/publish/panel";
+import { createSupabaseServerClient } from "@/server/supabase/server";
+import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
 import { runProfile } from "@/content/starters";
 import { PreviewButton } from "@/components/app/preview-button";
 import { previewUnavailableReason, readSandboxConfig } from "@/server/sandbox/config";
@@ -21,7 +27,9 @@ export const metadata: Metadata = { title: "Project" };
 
 export default async function ProjectPage({ params, searchParams }: { params: Promise<{ projectId: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { projectId } = await params;
-  const starterFailed = (await searchParams).starter === "failed";
+  const query = await searchParams;
+  const starterFailed = query.starter === "failed";
+  const rescueFailed = query.rescue === "import_failed";
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
   const project = await ctx.reader.getProject(ctx.current.id, projectId);
@@ -33,6 +41,15 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
   const isStatic = runProfile(files.map((f) => f.path)).kind === "static" && filesBytes <= 3 * 1024 * 1024;
   const contents = isStatic ? await ctx.reader.getProjectContents(ctx.current.id, project.id).catch(() => null) : null;
   const canChange = ctx.mode === "live" && ctx.writes.enabled && !project.archivedAt;
+  const user = ctx.mode === "live" ? await createSupabaseServerClient() : null;
+  const publish = user ? await loadPublishPanel(ctx, user, project).catch(() => null) : null;
+  // The project's own skills (ADR 0030), read from their SKILL.md files.
+  const skillFiles = await Promise.all(files.filter((f) => isProjectSkillPath(f.path)).slice(0, 10).map((f) => ctx.reader.getFile(ctx.current!.id, project.id, f.path).catch(() => null)));
+  const skills: ProjectSkillView[] = skillFiles.flatMap((f) => {
+    const parsed = f ? parseSkill(f.content, f.path.split("/")[2] ?? "skill", "project") : null;
+    return parsed && f ? [{ ...parsed, path: f.path, revision: f.revision }] : [];
+  });
+  const publishReason = !canChange ? (project.archivedAt ? "This project is archived." : ctx.writes.enabled ? null : ctx.writes.reason) : ctx.role && CONTRIBUTOR_ROLES.includes(ctx.role) ? null : "Your role can view this project but not publish it.";
 
   return (
     <div className="grid gap-8">
@@ -47,6 +64,10 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
 
       {starterFailed ? (
         <Notice tone="warning">The project was created, but the starter&apos;s files couldn&apos;t be added. Import files from the Files page, or create the project again.</Notice>
+      ) : null}
+
+      {rescueFailed ? (
+        <Notice tone="warning">The project was created, but the zip&apos;s files couldn&apos;t be stored, so there&apos;s nothing to check yet. Import a smaller folder from the Files page, for example src.</Notice>
       ) : null}
 
       {project.archivedAt ? (
@@ -70,6 +91,10 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
           <StaticPreview versions={[{ id: "now", label: "Current", files: Object.fromEntries(contents.map((f) => [f.path, f.content])) }]} />
         </section>
       ) : null}
+
+      {publish ? <PublishPanel projectId={project.id} data={publish} disabledReason={publishReason} /> : null}
+
+      {ctx.mode === "live" ? <ProjectSkills projectId={project.id} skills={skills} disabledReason={publishReason} /> : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">
         <section aria-labelledby="tasks-heading" className="grid gap-4">
