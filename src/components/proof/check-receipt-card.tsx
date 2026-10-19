@@ -1,6 +1,7 @@
 import { ArrowSquareOutIcon, CheckCircleIcon, MinusCircleIcon, ShieldCheckIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { ProofPackSeal } from "@/components/proof/proofpack-seal";
+import { SealReveal } from "@/components/proof/seal-reveal";
 import { LocalTime } from "@/components/ui/local-time";
 import type { SandboxReceiptStatement } from "@/core/sandbox/receipts";
 import { canonicalHash, shortHash } from "@/core/trust/canonical-json";
@@ -79,7 +80,9 @@ export async function CheckReceiptCard({ receipt }: { receipt: CheckReceiptRecor
           </Link>
         </p>
       </div>
-      {receipt.status === "verified" && intact ? <ProofPackSeal hash={receipt.digest} caption="Farbaek verified checks" size={160} className="justify-self-center" /> : null}
+      {receipt.status === "verified" && intact ? <SealReveal hash={receipt.digest} className="justify-self-center">
+          <ProofPackSeal hash={receipt.digest} caption="Farbaek verified checks" size={160} className="block size-40" />
+        </SealReveal> : null}
     </div>
   );
 }

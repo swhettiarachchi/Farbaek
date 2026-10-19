@@ -269,3 +269,59 @@
     transform: scale(1.35);
   }
 }
+
+/*
+ * A verified ProofPack's Seal forming once (SealReveal): it tilts up out of
+ * perspective while its rings and rosette draw in, then the ring text
+ * appears. Motion-safe only; otherwise the Seal is simply drawn.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .seal-reveal.is-waiting > svg {
+    opacity: 0;
+  }
+
+  .seal-reveal.is-forming {
+    perspective: 700px;
+  }
+
+  .seal-reveal.is-forming > svg {
+    transform-origin: 50% 50%;
+    animation: seal-tilt 1500ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .seal-reveal.is-forming .seal-part {
+    stroke-dasharray: 1;
+    animation: seal-draw 1300ms cubic-bezier(0.65, 0, 0.35, 1) both;
+    animation-delay: calc(var(--i, 0) * 110ms + 150ms);
+  }
+
+  .seal-reveal.is-forming text {
+    animation: seal-text 600ms ease-out 1150ms both;
+  }
+}
+
+@keyframes seal-tilt {
+  from {
+    opacity: 0;
+    transform: rotateX(62deg) rotateZ(-24deg) scale(0.86);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes seal-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes seal-text {
+  from {
+    opacity: 0;
+  }
+}

@@ -1,5 +1,6 @@
 import { CheckCircleIcon, DownloadSimpleIcon, LinkIcon, MinusCircleIcon, ShieldCheckIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import { ProofPackSeal } from "@/components/proof/proofpack-seal";
+import { SealReveal } from "@/components/proof/seal-reveal";
 import { LocalTime } from "@/components/ui/local-time";
 import { verifyProofPack, type ProofPackStatement } from "@/core/proof/proofpack";
 import { shortHash } from "@/core/trust/canonical-json";
@@ -77,7 +78,9 @@ export async function ProofPackCard({ pack }: { pack: ProofPackRecord }) {
           </a>
         </p>
       </div>
-      {pack.status === "verified" && intact ? <ProofPackSeal hash={pack.digest} caption="Farbaek ProofPack" size={160} className="justify-self-center" /> : null}
+      {pack.status === "verified" && intact ? <SealReveal hash={pack.digest} className="justify-self-center">
+          <ProofPackSeal hash={pack.digest} caption="Farbaek ProofPack" size={160} className="block size-40" />
+        </SealReveal> : null}
     </div>
   );
 }
