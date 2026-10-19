@@ -10,7 +10,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { EFFORTS } from "@/core/agent/routing";
-import { answerRunApproval, cancelCloudRun, startCloudRun } from "@/server/cloud-agent/executor";
+import { answerRunApproval, cancelCloudRun, sendRunMessage, startCloudRun } from "@/server/cloud-agent/executor";
 import { cloudRunDeps } from "@/server/cloud-agent/wiring";
 import { loadAppContext, type AppContext } from "@/server/workspace/context";
 
@@ -43,6 +43,16 @@ export async function answerBuildApprovalAction(input: { runId: string; requestI
   const p = await person();
   if ("error" in p) return { status: "error", message: p.error };
   const r = answerRunApproval(p.person, parsed.data);
+  return r.ok ? { status: "done" } : { status: "error", message: r.message };
+}
+
+/** A message for the running agent, read at its next step (ADR 0027). */
+export async function sendRunMessageAction(input: { runId: string; text: string }): Promise<BuildActionState> {
+  const parsed = z.object({ runId: z.uuid(), text: z.string().max(2_000) }).safeParse(input);
+  if (!parsed.success) return { status: "error", message: "That message can't be sent." };
+  const p = await person();
+  if ("error" in p) return { status: "error", message: p.error };
+  const r = sendRunMessage(p.person, parsed.data);
   return r.ok ? { status: "done" } : { status: "error", message: r.message };
 }
 

@@ -57,7 +57,19 @@ export async function startFromPromptAction(_previous: PromptStartState, form: F
   const provider = ai.provider;
   const drafter = provider ? { family: provider, create: (s: Parameters<typeof createContractDrafter>[1]) => createContractDrafter(provider, s) } : { unavailable: `${ai.reason} You can write the plan yourself.` };
 
-  const result = await startFromPrompt(deps, drafter, { orgId: ctx.current.id, userId: ctx.user.id, prompt: form.get("prompt"), effort });
+  // A follow-up names its project; it must be one this person can see in this workspace, and not archived.
+  let existing: { id: string; name: string; description: string | null; paths: string[] } | undefined;
+  const projectId = form.get("projectId");
+  if (typeof projectId === "string" && projectId) {
+    if (!z.uuid().safeParse(projectId).success) return { status: "error", message: "That project doesn't exist." };
+    const project = await ctx.reader.getProject(ctx.current.id, projectId);
+    if (!project) return { status: "error", message: "That project doesn't exist in this workspace." };
+    if (project.archivedAt) return { status: "error", message: "This project is archived, so it can't take new work." };
+    const files = await ctx.reader.listFiles(ctx.current.id, project.id).catch(() => []);
+    existing = { id: project.id, name: project.name, description: project.description ?? null, paths: files.map((f) => f.path) };
+  }
+
+  const result = await startFromPrompt(deps, drafter, { orgId: ctx.current.id, userId: ctx.user.id, prompt: form.get("prompt"), effort, existing });
   if (!result.ok) return { status: "error", message: result.message };
   revalidatePath("/app", "layout");
   redirect(`/app/new/${result.value.taskId}`);

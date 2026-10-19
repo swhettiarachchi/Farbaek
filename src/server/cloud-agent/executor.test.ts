@@ -9,7 +9,7 @@ import type { TaskState } from "@/core/realityloop/task-machine";
 import { sha256Hex } from "@/core/trust/canonical-json";
 import type { GatewayDeps, GatewayModel } from "@/server/agent/gateway";
 import type { ProposalInput } from "@/server/agent/service";
-import { answerRunApproval, cancelCloudRun, startCloudRun, type ExecutorDeps, type RunPerson } from "./executor";
+import { answerRunApproval, cancelCloudRun, sendRunMessage, startCloudRun, type ExecutorDeps, type RunPerson } from "./executor";
 import type { RunPatch, RunStore } from "./store";
 
 const README = "# Demo\nRun the tests.\n";
@@ -180,6 +180,42 @@ describe("cloud runs", () => {
     expect(cancelCloudRun({ ...alice, userId: "u-owner", role: "owner" }, "run-1")).toEqual({ ok: true, value: null });
     expect(await t.ended()).toMatchObject({ status: "cancelled" });
     expect(t.proposals).toEqual([]);
+  });
+
+  it("takes messages from the person while it works, records them, and passes them to the agent at its next step", async () => {
+    const received: (string | undefined)[] = [];
+    const install = { id: "i", name: "run_command", input: { program: "npm", args: ["install", "left-pad"], reason: "Needs a helper." } };
+    const turns: ModelToolCall[][] = [[install], [finish]];
+    const listening: ToolModel = {
+      provider: "farbaek",
+      model: "auto",
+      begin() {
+        let i = 0;
+        return {
+          async send(input): Promise<ModelStep> {
+            received.push(input.text);
+            const calls = turns[i++] ?? [];
+            return { text: "", toolCalls: calls, stop: calls.length ? "tool_use" : "end_turn", usage: { inputTokens: 100, outputTokens: 20 }, model: "claude-sonnet-5-5" };
+          },
+        };
+      },
+    };
+    const t = await deps({ model: listening, sandbox: { where: "sandbox", run: async () => ok } });
+    await startCloudRun(t.d, { person: alice, taskId: "t1", effort: "balanced" });
+    const asked = await t.waiting();
+
+    expect(sendRunMessage({ ...alice, userId: "u-bob" }, { runId: "run-1", text: "Hello" })).toMatchObject({ ok: false, code: "FORBIDDEN" });
+    expect(sendRunMessage(alice, { runId: "run-1", text: "   " })).toMatchObject({ ok: false });
+    expect(sendRunMessage(alice, { runId: "run-1", text: "x".repeat(1_001) })).toMatchObject({ ok: false });
+    expect(sendRunMessage(alice, { runId: "run-1", text: "  Use   a warmer colour  " })).toEqual({ ok: true, value: null });
+
+    answerRunApproval(alice, { runId: "run-1", requestId: asked.requestId, approved: true, bindingHash: asked.bindingHash });
+    expect(await t.ended()).toMatchObject({ status: "finished" });
+    expect(received[1]).toContain("- Use a warmer colour");
+    const notes = t.patches.flatMap((p) => p.events ?? []).filter((e) => e.kind === "note");
+    expect(notes).toContainEqual({ kind: "note", payload: { text: "Use a warmer colour", from: "person" } });
+    // Once the run has ended there's no one to read it.
+    expect(sendRunMessage(alice, { runId: "run-1", text: "Too late?" })).toMatchObject({ ok: false, code: "NOT_FOUND" });
   });
 
   it("refuses viewers, tasks that aren't approved, and a second live run", async () => {

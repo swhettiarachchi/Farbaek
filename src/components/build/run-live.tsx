@@ -1,32 +1,40 @@
 "use client";
 
 import {
+  ArrowCounterClockwiseIcon,
   ArrowRightIcon,
   ChatTextIcon,
   CheckIcon,
   EyeIcon,
   FilePlusIcon,
   FlagCheckeredIcon,
+  GaugeIcon,
   InfoIcon,
   MagnifyingGlassIcon,
+  PaperPlaneRightIcon,
   PencilSimpleLineIcon,
   ProhibitIcon,
   ShieldWarningIcon,
   StopCircleIcon,
   TerminalWindowIcon,
+  UserIcon,
   WarningCircleIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { answerBuildApprovalAction, cancelBuildRunAction } from "@/app/app/build/actions";
+import { answerBuildApprovalAction, cancelBuildRunAction, sendRunMessageAction } from "@/app/app/build/actions";
 import { buttonClasses } from "@/components/ui/button";
 import { CLOUD_RUN_MODE_LABELS, isLive } from "@/core/agent/cloud-run";
 import { EFFORT_LABELS } from "@/core/agent/routing";
 import { latestActivity, runFiles, runPhase } from "@/core/agent/run-phase";
 import type { RunEventView, RunView } from "@/server/cloud-agent/store";
+import { StaticPreview } from "@/components/preview/static-preview";
+import type { RunPreview } from "@/server/workspace/run-preview";
 import { AgentCore } from "./agent-core";
+import { PromptComposer } from "./prompt-composer";
 import { RunStatusBadge } from "./run-status";
 
 const POLL_MS = 1_500;
@@ -44,6 +52,7 @@ const TOOL_ICON: Record<string, Icon> = {
 // On phones the page is three panes you can swipe between; on wide screens all three show at once.
 const PANES = [
   { id: "steps", label: "Steps" },
+  { id: "preview", label: "Preview" },
   { id: "files", label: "Files" },
   { id: "run", label: "Run" },
 ] as const;
@@ -98,6 +107,15 @@ function EventRow({ e, latest }: { e: RunEventView; latest: boolean }) {
     body = (
       <p className="text-sm">
         Asked to run <span className="break-all font-mono text-[13px] text-ink">{str(p.display)}</span>
+      </p>
+    );
+  } else if (e.kind === "note" && p.from === "person") {
+    icon = UserIcon;
+    tone = "text-accent";
+    body = (
+      <p className="w-fit max-w-full rounded-md rounded-tl-xs bg-accent/[0.07] px-3.5 py-2 text-[15px] leading-relaxed text-ink">
+        <span className="mr-2 font-mono text-xs text-accent">you</span>
+        {str(p.text)}
       </p>
     );
   } else {
@@ -166,6 +184,61 @@ function ApprovalCard({ run, request, onAnswered }: { run: RunView; request: Run
   );
 }
 
+/** Talk to the running agent. It reads the message at its next step, as guidance within the plan. */
+function MessageBar({ runId }: { runId: string }) {
+  const [text, setText] = useState("");
+  const [pending, start] = useTransition();
+  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const send = () =>
+    start(async () => {
+      const r = await sendRunMessageAction({ runId, text });
+      if (r.status === "error") setNote({ ok: false, text: r.message });
+      else {
+        setText("");
+        setNote({ ok: true, text: "Sent. The agent reads it at its next step." });
+      }
+    });
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (text.trim()) send();
+      }}
+      className="grid gap-2"
+    >
+      <div className="flex items-center gap-2 rounded-full border border-line bg-surface p-1.5 pl-5 shadow-e1 focus-within:border-accent/60">
+        <label htmlFor="run-message" className="sr-only">
+          Message the agent
+        </label>
+        <input
+          id="run-message"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          maxLength={1_000}
+          disabled={pending}
+          placeholder="Tell the agent something, like “use a warmer colour”"
+          className="min-w-0 flex-1 bg-transparent py-2 text-base text-ink outline-none placeholder:text-ink-3"
+        />
+        <button
+          type="submit"
+          disabled={pending || !text.trim()}
+          className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.97] disabled:opacity-40"
+          aria-label="Send to the agent"
+        >
+          <PaperPlaneRightIcon size={18} weight="fill" aria-hidden />
+        </button>
+      </div>
+      {note ? (
+        <p role={note.ok ? "status" : "alert"} className={`px-5 text-xs ${note.ok ? "text-ink-3" : "text-failed"}`}>
+          {note.text}
+        </p>
+      ) : (
+        <p className="px-5 text-xs text-ink-3">It can&apos;t widen the plan: the agent stays within what you approved.</p>
+      )}
+    </form>
+  );
+}
+
 /** Pane switching for phones: a segmented control, plus a horizontal swipe that leaves vertical scrolling alone. */
 function usePanes() {
   const [active, setActive] = useState<PaneId>("steps");
@@ -204,14 +277,40 @@ function usePanes() {
   return { active, go, swipe, paneClass };
 }
 
-export function RunLive({ initialRun, initialEvents, canAnswer }: { initialRun: RunView; initialEvents: RunEventView[]; canAnswer: boolean }) {
+export type RunUsageView = { share: string | null; refunded: number } | null;
+
+export function RunLive({
+  initialRun,
+  initialEvents,
+  initialUsage,
+  preview,
+  changePending,
+  canAnswer,
+}: {
+  initialRun: RunView;
+  initialEvents: RunEventView[];
+  initialUsage: RunUsageView;
+  preview: RunPreview;
+  /** The run's change is still waiting for review, so it isn't in the project yet. */
+  changePending: boolean;
+  canAnswer: boolean;
+}) {
+  const router = useRouter();
   const [run, setRun] = useState(initialRun);
+  const [usage, setUsage] = useState(initialUsage);
   const [events, setEvents] = useState(initialEvents);
   const [cancelling, startCancel] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const cursor = useRef(initialEvents.at(-1)?.id ?? 0);
   const live = isLive(run.status);
   const panes = usePanes();
+
+  // When the run ends, load the page again so the preview can show the agent's change.
+  const wasLive = useRef(live);
+  useEffect(() => {
+    if (wasLive.current && !live) router.refresh();
+    wasLive.current = live;
+  }, [live, router]);
 
   useEffect(() => {
     if (!live) return;
@@ -221,9 +320,10 @@ export function RunLive({ initialRun, initialEvents, canAnswer }: { initialRun: 
       try {
         const res = await fetch(`/app/build/${run.id}/events?after=${cursor.current}`, { cache: "no-store" });
         if (res.ok) {
-          const body = (await res.json()) as { data: { run: RunView; events: RunEventView[] } };
+          const body = (await res.json()) as { data: { run: RunView; events: RunEventView[]; usage: RunUsageView } };
           if (!stopped) {
             setRun(body.data.run);
+            if (body.data.usage) setUsage(body.data.usage);
             if (body.data.events.length) {
               cursor.current = body.data.events.at(-1)!.id;
               setEvents((prev) => [...prev, ...body.data.events]);
@@ -260,8 +360,43 @@ export function RunLive({ initialRun, initialEvents, canAnswer }: { initialRun: 
             {EFFORT_LABELS[run.effort].title}
           </li>
           <li className="inline-block h-7 max-w-full truncate rounded-full border border-line bg-surface px-3 font-mono leading-[26px] text-ink-2">{run.model ?? "Choosing a model"}</li>
+          {usage?.share ? (
+            <li className="inline-flex h-7 items-center gap-1.5 rounded-full border border-accent/30 bg-accent/[0.05] px-3 text-ink-2">
+              <GaugeIcon size={14} weight="bold" className="text-accent" aria-hidden />
+              {live ? "Used so far" : "Used"} <span className="tabular font-medium text-ink">{usage.share}</span>
+            </li>
+          ) : null}
+          {usage && usage.refunded > 0 ? (
+            <li className="inline-flex h-7 items-center gap-1.5 rounded-full border border-verified/35 px-3 text-ink-2">
+              <ArrowCounterClockwiseIcon size={14} weight="bold" className="text-verified" aria-hidden />
+              {usage.refunded} {usage.refunded === 1 ? "step" : "steps"} refunded
+            </li>
+          ) : null}
         </ul>
+        {!live && run.proposalId ? (
+          <Link href={`/app/tasks/${run.taskId}`} className={buttonClasses("primary", "sm", "mt-4")}>
+            Review and apply <ArrowRightIcon size={16} weight="bold" aria-hidden />
+          </Link>
+        ) : null}
       </AgentCore>
+
+      {live && canAnswer ? <MessageBar runId={run.id} /> : null}
+      {!live && canAnswer ? (
+        <section aria-labelledby="next-heading" className="grid gap-3">
+          <h2 id="next-heading" className="text-base font-medium">
+            Keep going
+          </h2>
+          {changePending ? (
+            <p className="flex items-start gap-2 text-sm leading-relaxed text-ink-2">
+              <InfoIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-accent" aria-hidden />
+              <span>
+                This change isn&apos;t in your project yet. Apply it first and the next change builds on it; otherwise the agent starts from your project as it is now.
+              </span>
+            </p>
+          ) : null}
+          <PromptComposer mode="app" size="compact" projectId={run.projectId} />
+        </section>
+      ) : null}
 
       {sheet ? (
         <>
@@ -293,8 +428,8 @@ export function RunLive({ initialRun, initialEvents, canAnswer }: { initialRun: 
         </div>
       </div>
 
-      <div className="grid gap-6 [touch-action:pan-y] lg:grid-cols-[minmax(0,1fr)_320px] lg:grid-rows-[auto_1fr] lg:items-start" {...panes.swipe}>
-        <div id="pane-steps" className={`${panes.paneClass("steps")} lg:row-span-2`}>
+      <div className="grid gap-6 [touch-action:pan-y] lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:grid-rows-[auto_auto_1fr] lg:items-start" {...panes.swipe}>
+        <div id="pane-steps" className={`${panes.paneClass("steps")} lg:col-start-1 lg:row-start-1`}>
           <section aria-labelledby="steps-heading" className="rounded-md border border-line bg-surface p-5 shadow-e1 sm:p-6">
             <h2 id="steps-heading" className="mb-5 text-lg font-medium">
               Steps
@@ -311,7 +446,17 @@ export function RunLive({ initialRun, initialEvents, canAnswer }: { initialRun: 
           </section>
         </div>
 
-        <div id="pane-run" className={`${panes.paneClass("run")} lg:col-start-2 lg:row-start-1`}>
+        {/* On wide screens the preview holds the right column and stays in view while the steps scroll. */}
+        <div id="pane-preview" className={`${panes.paneClass("preview")} lg:sticky lg:top-6 lg:col-start-2 lg:row-span-3 lg:row-start-1`}>
+          <section aria-labelledby="preview-heading" className="rounded-md border border-line bg-surface p-4 shadow-e1 sm:p-5">
+            <h2 id="preview-heading" className="mb-3 flex items-center gap-2 text-base font-medium">
+              <EyeIcon size={18} weight="bold" className="text-accent" aria-hidden /> Preview
+            </h2>
+            {preview.kind === "static" ? <StaticPreview versions={preview.versions} frameClassName="h-[min(70dvh,640px)] lg:h-[max(22rem,calc(100dvh-17rem))]" /> :<p className="text-sm leading-relaxed text-ink-3">{preview.reason}</p>}
+          </section>
+        </div>
+
+        <div id="pane-run" className={`${panes.paneClass("run")} lg:col-start-1 lg:row-start-2`}>
           <div className="grid gap-4">
             <section className="rounded-md border border-line bg-surface p-5 shadow-e1">
               <div className="flex items-center justify-between gap-3">
@@ -360,7 +505,7 @@ export function RunLive({ initialRun, initialEvents, canAnswer }: { initialRun: 
                 {run.finish ? <p className="mt-3 text-sm leading-relaxed text-ink">{run.finish.summary}</p> : null}
                 {run.proposalId ? (
                   <Link href={`/app/tasks/${run.taskId}`} className={buttonClasses("primary", "sm", "mt-4 w-full")}>
-                    Review the change <ArrowRightIcon size={16} weight="bold" aria-hidden />
+                    Review and apply <ArrowRightIcon size={16} weight="bold" aria-hidden />
                   </Link>
                 ) : null}
               </section>
@@ -368,7 +513,7 @@ export function RunLive({ initialRun, initialEvents, canAnswer }: { initialRun: 
           </div>
         </div>
 
-        <div id="pane-files" className={`${panes.paneClass("files")} lg:col-start-2 lg:row-start-2`}>
+        <div id="pane-files" className={`${panes.paneClass("files")} lg:col-start-1 lg:row-start-3`}>
           <section aria-labelledby="files-heading" className="rounded-md border border-line bg-surface p-5 shadow-e1">
             <h2 id="files-heading" className="flex items-baseline justify-between gap-3 text-base font-medium">
               Files <span className="font-mono text-xs font-normal text-ink-3">{`// ${files.read} read`}</span>

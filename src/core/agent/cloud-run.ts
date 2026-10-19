@@ -42,7 +42,7 @@ export type RunEventPayload =
   | { kind: "model"; text: string; model: string; tokens: number }
   | { kind: "tool"; tool: string; target: string; status: "done" | "denied" | "declined" | "failed"; detail: string }
   | { kind: "approval"; requestId: string; display: string; risk: string; reason: string; why: string; bindingHash: string }
-  | { kind: "note"; text: string }
+  | { kind: "note"; text: string; from?: "person" }
   | { kind: "command"; command: string; exitCode: number | null; output: string };
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
@@ -60,7 +60,8 @@ export function boundEvent(e: RunEventPayload): { kind: RunEventKind; payload: O
         payload: { requestId: clip(e.requestId, 200), display: clip(e.display, 1_000), risk: clip(e.risk, 60), reason: clip(e.reason, 500), why: clip(e.why, 1_000), bindingHash: e.bindingHash },
       };
     case "note":
-      return { kind: "note", payload: { text: clip(e.text, 2_000) } };
+      // A person's message keeps its author, so the run's history can show who said what.
+      return { kind: "note", payload: e.from === "person" ? { text: clip(e.text, 2_000), from: "person" } : { text: clip(e.text, 2_000) } };
     case "command":
       return { kind: "command", payload: { command: clip(e.command, 1_000), exitCode: e.exitCode, output: clip(e.output, 6_000) } };
   }

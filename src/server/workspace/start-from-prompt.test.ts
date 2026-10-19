@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ContractDraft } from "@/core/realityloop/contract-draft";
-import type { ContractDrafter, DraftOutcome } from "@/server/ai/contract-drafter";
+import type { ContractDrafter, DraftBrief, DraftOutcome } from "@/server/ai/contract-drafter";
 import type { AiUsageDeps } from "./ai-usage";
 import type { FileDeps } from "./files";
 import { startFromPrompt } from "./start-from-prompt";
@@ -99,6 +99,29 @@ describe("startFromPrompt", () => {
     const { deps } = fakeDeps({ importFails: true });
     const r = await startFromPrompt(deps, source(drafterWith({ ok: true, draft: DRAFT, usage: USAGE })), input("A landing page for my bakery"));
     expect(r).toMatchObject({ ok: true, value: { planned: true, starterNote: expect.stringContaining("starts empty") } });
+  });
+
+  it("puts a follow-up into the existing project, without a new project or starter", async () => {
+    const { deps, log } = fakeDeps();
+    const r = await startFromPrompt(deps, source(drafterWith({ ok: true, draft: DRAFT, usage: USAGE })), {
+      ...input("Add a testimonials section under the menu"),
+      existing: { id: "p-existing", name: "Sunrise Bakery", description: "A bakery site", paths: ["index.html", "styles.css"] },
+    });
+    expect(r).toMatchObject({ ok: true, value: { projectId: "p-existing", planned: true } });
+    expect(log.some((l) => l.startsWith("project:") || l.startsWith("import:"))).toBe(false);
+    expect(log[0]).toBe("task:Add a testimonials section under the menu");
+  });
+
+  it("tells the drafter the project's real paths: the starter's for a new build, the project's for a follow-up", async () => {
+    const briefs: DraftBrief[] = [];
+    const capturing: ContractDrafter = { ...drafterWith({ ok: true, draft: DRAFT, usage: USAGE }), draft: async (b) => (briefs.push(b), { ok: true, draft: DRAFT, usage: USAGE }) };
+    await startFromPrompt(fakeDeps().deps, source(capturing), input("A landing page for my bakery"));
+    expect(briefs[0]?.paths).toContain("index.html");
+    await startFromPrompt(fakeDeps().deps, source(capturing), {
+      ...input("Add a testimonials section under the menu"),
+      existing: { id: "p-existing", name: "Sunrise Bakery", description: null, paths: ["index.html", "styles.css", "script.js"] },
+    });
+    expect(briefs[1]?.paths).toEqual(["index.html", "styles.css", "script.js"]);
   });
 
   it("stops when the project can't be created, for example at the plan's project limit", async () => {

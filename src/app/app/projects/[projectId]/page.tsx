@@ -1,8 +1,11 @@
-import { ArrowLeftIcon, ArrowRightIcon, DownloadSimpleIcon, FolderOpenIcon, ListChecksIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, ArrowRightIcon, DownloadSimpleIcon, EyeIcon, FolderOpenIcon, ListChecksIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CreateTaskForm } from "@/components/app/forms";
+import { PromptComposer } from "@/components/build/prompt-composer";
+import { StaticPreview } from "@/components/preview/static-preview";
+import { runProfile } from "@/content/starters";
 import { PreviewButton } from "@/components/app/preview-button";
 import { previewUnavailableReason, readSandboxConfig } from "@/server/sandbox/config";
 import { ArchiveProject } from "@/components/app/archive-project";
@@ -26,6 +29,10 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
   const [tasks, files] = await Promise.all([ctx.reader.listTasks(ctx.current.id, { projectId: project.id }), ctx.reader.listFiles(ctx.current.id, project.id)]);
   const filesBytes = files.reduce((n, f) => n + f.sizeBytes, 0);
   const previewReason = ctx.mode === "demo" ? "Previews need a real workspace." : previewUnavailableReason(readSandboxConfig());
+  // Static sites preview instantly in a locked-down frame; apps with a server use the sandbox preview.
+  const isStatic = runProfile(files.map((f) => f.path)).kind === "static" && filesBytes <= 3 * 1024 * 1024;
+  const contents = isStatic ? await ctx.reader.getProjectContents(ctx.current.id, project.id).catch(() => null) : null;
+  const canChange = ctx.mode === "live" && ctx.writes.enabled && !project.archivedAt;
 
   return (
     <div className="grid gap-8">
@@ -47,6 +54,21 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
           Archived <LocalTime iso={project.archivedAt} />. This project is read-only: its files, tasks and evidence stay readable, and it doesn&apos;t count toward your plan&apos;s
           project limit.
         </Notice>
+      ) : null}
+
+      {canChange ? (
+        <section aria-label="Describe a change" className="aurora">
+          <PromptComposer mode="app" size="compact" projectId={project.id} />
+        </section>
+      ) : null}
+
+      {contents ? (
+        <section aria-labelledby="preview-heading" className="grid gap-3 rounded-md border border-line bg-surface p-4 shadow-e1 sm:p-5">
+          <h2 id="preview-heading" className="flex items-center gap-2 text-lg font-medium">
+            <EyeIcon size={20} weight="bold" className="text-accent" aria-hidden /> Live preview
+          </h2>
+          <StaticPreview versions={[{ id: "now", label: "Current", files: Object.fromEntries(contents.map((f) => [f.path, f.content])) }]} />
+        </section>
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">

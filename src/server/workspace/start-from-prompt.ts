@@ -32,20 +32,26 @@ export interface PromptStartResult {
 export async function startFromPrompt(
   deps: WriteDeps & AiUsageDeps & FileDeps,
   drafter: ModelSource<ContractDrafter> | { unavailable: string },
-  input: { orgId: string; userId: string; prompt: unknown; effort?: Effort },
+  input: { orgId: string; userId: string; prompt: unknown; effort?: Effort; existing?: { id: string; name: string; description: string | null; paths: readonly string[] } },
 ): Promise<WriteResult<PromptStartResult>> {
   const prompt = cleanPrompt(input.prompt);
   if (!prompt) return fail("INVALID_TITLE", "Describe what you want to build in a few more words.");
 
-  const name = projectNameFromPrompt(prompt);
+  // A follow-up goes into the project it's about; a new idea gets its own project from a fitting starter.
+  const name = input.existing?.name ?? projectNameFromPrompt(prompt);
   const starter = getStarter(starterForPrompt(prompt))!;
-  const project = await createProject(deps, { orgId: input.orgId, userId: input.userId, name, description: prompt.slice(0, 500) });
+  const project: WriteResult<string> = input.existing
+    ? { ok: true, value: input.existing.id }
+    : await createProject(deps, { orgId: input.orgId, userId: input.userId, name, description: prompt.slice(0, 500) });
   if (!project.ok) return project;
 
   let starterNote: string | null = null;
-  if (starter.files.length > 0) {
+  // What's in the project, so the plan's scope names real files.
+  let paths: readonly string[] = input.existing?.paths ?? [];
+  if (!input.existing && starter.files.length > 0) {
     const imported = await importProjectFiles(deps, { orgId: input.orgId, userId: input.userId, projectId: project.value, files: starter.files });
-    if (!imported.ok) starterNote = `The ${starter.name.toLowerCase()} starter couldn't be added (${imported.message}), so the project starts empty.`;
+    if (imported.ok) paths = starter.files.map((f) => f.path);
+    else starterNote = `The ${starter.name.toLowerCase()} starter couldn't be added (${imported.message}), so the project starts empty.`;
   }
 
   const title = taskTitleFromPrompt(prompt);
@@ -66,7 +72,8 @@ export async function startFromPrompt(
     brief: {
       taskTitle: title,
       projectName: name,
-      projectDescription: `${prompt}\n\nThe project starts from the ${starter.name} starter: ${starter.summary}`,
+      projectDescription: input.existing ? input.existing.description : `${prompt}\n\nThe project starts from the ${starter.name} starter: ${starter.summary}`,
+      paths,
       // A new build adds and edits files; the drafter keeps what's typed here, and the person still reviews it.
       notes: { outcome: prompt.slice(0, 4_000), allowed: "files.create\nfiles.edit" },
     },

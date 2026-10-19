@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanPrompt, estimateRunShare, projectNameFromPrompt, starterForPrompt, taskTitleFromPrompt } from "./prompt-start";
+import { cleanPrompt, estimateRunShare, projectNameFromPrompt, shareOfPeriod, starterForPrompt, taskTitleFromPrompt } from "./prompt-start";
 
 describe("cleanPrompt", () => {
   it("trims, normalises spacing and enforces limits", () => {
@@ -54,5 +54,15 @@ describe("estimateRunShare", () => {
     expect(estimateRunShare({ model: "claude-haiku-5-5", effort: "fast", periodUnits: 100_000_000 })).toEqual({ low: 1, high: 1 });
     expect(estimateRunShare({ model: "claude-sonnet-5-5", effort: "balanced", periodUnits: null })).toBeNull();
     expect(estimateRunShare({ model: "claude-sonnet-5-5", effort: "balanced", periodUnits: 0 })).toBeNull();
+  });
+});
+
+describe("shareOfPeriod", () => {
+  it("shows small shares with care and larger ones as whole percents", () => {
+    expect(shareOfPeriod(0, 100_000)).toBe("0%");
+    expect(shareOfPeriod(50, 100_000)).toBe("under 0.1%");
+    expect(shareOfPeriod(400, 100_000)).toBe("0.4%");
+    expect(shareOfPeriod(3_200, 100_000)).toBe("3%");
+    expect(shareOfPeriod(100, null)).toBeNull();
   });
 });

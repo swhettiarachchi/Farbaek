@@ -18,6 +18,8 @@ const EXAMPLES = [
 
 // While the server works: what's actually happening, in order. Live state, so it may move.
 const STAGES = ["Setting up your project", "Adding a starter that fits", "Drafting the plan with AI", "Checking the plan"];
+// A follow-up goes into a project that already exists, so there's nothing to set up.
+const FOLLOW_UP_STAGES = ["Reading your project", "Drafting the plan with AI", "Checking the plan"];
 
 const IDLE: PromptStartState = { status: "idle" };
 
@@ -48,16 +50,21 @@ export function PromptComposer({
   autoResume = false,
   disabledReason = null,
   size = "large",
+  projectId,
 }: {
   mode: "app" | "public";
   autoResume?: boolean;
   disabledReason?: string | null;
   size?: "large" | "compact";
+  /** A follow-up for this project, rather than a new build. Not kept in the browser. */
+  projectId?: string;
 }) {
+  const followUp = Boolean(projectId);
   const router = useRouter();
   const [state, action, pending] = useActionState(startFromPromptAction, IDLE);
   // A prompt kept from before sign-in shows until the person types; the server render has none.
-  const kept = useSyncExternalStore(noSubscribe, readStored, () => "");
+  const stored = useSyncExternalStore(noSubscribe, readStored, () => "");
+  const kept = followUp ? "" : stored;
   const [draft, setDraft] = useState<string | null>(null);
   const value = draft ?? kept;
   const setValue = (next: string) => setDraft(next);
@@ -66,10 +73,10 @@ export function PromptComposer({
 
   // After sign-in, send the kept prompt once without asking again.
   useEffect(() => {
-    if (!autoResume || mode !== "app" || resumed.current || !readStored()) return;
+    if (!autoResume || followUp || mode !== "app" || resumed.current || !readStored()) return;
     resumed.current = true;
     queueMicrotask(() => form.current?.requestSubmit());
-  }, [autoResume, mode]);
+  }, [autoResume, followUp, mode]);
 
   const tooShort = value.trim().length < PROMPT_MIN;
   const disabled = pending || Boolean(disabledReason);
@@ -79,7 +86,7 @@ export function PromptComposer({
       ref={form}
       action={mode === "app" ? action : undefined}
       onSubmit={(e) => {
-        store(value);
+        if (!followUp) store(value);
         if (mode === "public") {
           e.preventDefault();
           if (!tooShort) router.push("/sign-in?next=/app/new%3Fresume%3D1");
@@ -92,16 +99,17 @@ export function PromptComposer({
           state.status === "error" ? "border-failed/50" : "border-line"
         }`}
       >
-        <label htmlFor="prompt" className="sr-only">
-          Describe what you want to build
+        {projectId ? <input type="hidden" name="projectId" value={projectId} /> : null}
+        <label htmlFor={followUp ? "prompt-next" : "prompt"} className="sr-only">
+          {followUp ? "Describe the next change" : "Describe what you want to build"}
         </label>
         <textarea
-          id="prompt"
+          id={followUp ? "prompt-next" : "prompt"}
           name="prompt"
           value={value}
           onChange={(e) => {
             setValue(e.target.value);
-            store(e.target.value);
+            if (!followUp) store(e.target.value);
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !tooShort && !disabled) e.currentTarget.form?.requestSubmit();
@@ -109,13 +117,17 @@ export function PromptComposer({
           maxLength={PROMPT_MAX}
           rows={size === "large" ? 4 : 2}
           disabled={disabled}
-          placeholder="Describe what you want to build. For example: a one-page site for my bakery with the menu, opening hours and a map."
+          placeholder={
+            followUp
+              ? "Describe the next change. For example: add a testimonials section under the menu."
+              : "Describe what you want to build. For example: a one-page site for my bakery with the menu, opening hours and a map."
+          }
           className={`block w-full resize-none rounded-lg bg-transparent px-5 pb-16 pt-4 text-base leading-relaxed text-ink outline-none placeholder:text-ink-3 disabled:opacity-70 ${size === "large" ? "min-h-36" : "min-h-24"}`}
         />
         <div className="absolute inset-x-3 bottom-3 flex items-center justify-between gap-3">
           <p className="flex min-w-0 items-center gap-1.5 truncate pl-2 text-xs text-ink-3" aria-live="polite">
             {pending ? (
-              <PlanningStages />
+              <PlanningStages stages={projectId ? FOLLOW_UP_STAGES : STAGES} />
             ) : disabledReason ? (
               <span className="truncate">{disabledReason}</span>
             ) : (
@@ -140,7 +152,7 @@ export function PromptComposer({
         </p>
       ) : null}
 
-      {size === "large" ? (
+      {size === "large" && !followUp ? (
         <ul className="flex flex-wrap gap-2" aria-label="Examples">
           {EXAMPLES.map((ex) => (
             <li key={ex}>
@@ -166,16 +178,16 @@ export function PromptComposer({
 const noSubscribe = () => () => {};
 
 /** What the server is doing, advancing while it works. Mounted only while planning, so it always starts at the first stage. */
-function PlanningStages() {
+function PlanningStages({ stages }: { stages: readonly string[] }) {
   const [stage, setStage] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setStage((s) => Math.min(s + 1, STAGES.length - 1)), 2_200);
+    const t = setInterval(() => setStage((s) => Math.min(s + 1, stages.length - 1)), 2_200);
     return () => clearInterval(t);
-  }, []);
+  }, [stages.length]);
   return (
     <>
       <SparkleIcon size={14} weight="fill" className="shrink-0 text-accent motion-safe:animate-pulse" aria-hidden />
-      <span className="truncate">{STAGES[stage]}…</span>
+      <span className="truncate">{stages[stage]}…</span>
     </>
   );
 }

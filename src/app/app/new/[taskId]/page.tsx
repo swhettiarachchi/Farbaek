@@ -1,7 +1,8 @@
-import { ArrowLeftIcon, CheckCircleIcon, FilePlusIcon, LockSimpleIcon, PencilSimpleLineIcon, QuestionIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, CheckCircleIcon, FilePlusIcon, LockSimpleIcon, PencilSimpleLineIcon, ProhibitIcon, QuestionIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CancelTaskControl } from "@/components/app/forms";
 import { ApproveBuild } from "@/components/build/approve-build";
 import { ClearKeptPrompt } from "@/components/build/prompt-composer";
 import { buttonClasses } from "@/components/ui/button";
@@ -100,7 +101,11 @@ export default async function PlanCardPage({ params }: Params) {
               {"// your plan · v"}
               {contract.version} · {shortHash(contract.sha256)}
             </p>
-            {contract.status === "approved" ? (
+            {task.state === "CANCELLED" ? (
+              <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line-strong px-3 text-xs font-medium text-ink-2">
+                <ProhibitIcon size={14} weight="bold" aria-hidden /> Cancelled
+              </span>
+            ) : contract.status === "approved" ? (
               <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-verified/40 px-3 text-xs font-medium text-verified">
                 <CheckCircleIcon size={14} weight="bold" aria-hidden /> Approved
               </span>
@@ -161,7 +166,14 @@ export default async function PlanCardPage({ params }: Params) {
           ) : null}
 
           <div className="border-t border-line pt-6">
-            {contract.status === "approved" ? (
+            {task.state === "CANCELLED" ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="text-sm text-ink-2">This plan was cancelled, so it can&apos;t be built. Its history is kept.</p>
+                <Link href="/app/build" className={buttonClasses("primary", "sm")}>
+                  Start a new build
+                </Link>
+              </div>
+            ) : contract.status === "approved" ? (
               <div className="flex flex-wrap items-center gap-3">
                 <p className="text-sm text-ink-2">This plan is approved.</p>
                 <Link href="/app/build" className={buttonClasses("primary", "sm")}>
@@ -169,19 +181,24 @@ export default async function PlanCardPage({ params }: Params) {
                 </Link>
               </div>
             ) : (
-              <ApproveBuild
-                taskId={task.id}
-                version={contract.version}
-                expectedTaskVersion={task.version}
-                sha256={contract.sha256}
-                estimates={runEstimates(ctx.current)}
-                disabledReason={reason}
-              />
+              <div className="grid gap-4">
+                <ApproveBuild
+                  taskId={task.id}
+                  version={contract.version}
+                  expectedTaskVersion={task.version}
+                  sha256={contract.sha256}
+                  estimates={runEstimates(ctx.current)}
+                  disabledReason={reason}
+                />
+                <CancelTaskControl taskId={task.id} version={task.version} disabledReason={!ctx.writes.enabled ? ctx.writes.reason : canBuild ? null : "Your role can view this plan but not cancel it."} />
+              </div>
             )}
-            <p className="mt-4 text-xs leading-relaxed text-ink-3">
-              Approving fixes this exact plan by its fingerprint. The agent works on a copy, can&apos;t go beyond the plan, and nothing changes in your project until you review and
-              apply the result.
-            </p>
+            {task.state === "CANCELLED" ? null : (
+              <p className="mt-4 text-xs leading-relaxed text-ink-3">
+                Approving fixes this exact plan by its fingerprint. The agent works on a copy, can&apos;t go beyond the plan, and nothing changes in your project until you review
+                and apply the result.
+              </p>
+            )}
           </div>
         </section>
       )}

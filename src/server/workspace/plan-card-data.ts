@@ -11,6 +11,13 @@ import type { WorkspaceSummary } from "./organizations";
 
 export type RunEstimates = Record<Effort, { low: number; high: number; model: string } | null>;
 
+/** This period's allowance in units (server-side only), or null when there's none or billing is unknown. */
+export function periodUnits(ws: WorkspaceSummary, now = new Date()): number | null {
+  if (ws.billingUnknown) return null;
+  const trial = ws.trial ? { startedAt: new Date(ws.trial.startedAt), endsAt: new Date(ws.trial.endsAt) } : undefined;
+  return currentGrant(ws.plan, trial, now)?.units ?? null;
+}
+
 export function runEstimates(ws: WorkspaceSummary, now = new Date()): RunEstimates {
   const family = resolveAiProvider().provider ?? "anthropic";
   const trial = ws.trial ? { startedAt: new Date(ws.trial.startedAt), endsAt: new Date(ws.trial.endsAt) } : undefined;

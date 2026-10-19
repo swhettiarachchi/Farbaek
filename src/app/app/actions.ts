@@ -191,7 +191,7 @@ export async function draftContractWithAiAction(form: FormData): Promise<AiDraft
   // Read through Row Level Security: the task and project must be visible to this user.
   const found = await ctx.reader.getTask(w.orgId, taskId);
   if (!found) return { status: "error", message: "That task doesn't exist or isn't in this workspace." };
-  const project = await ctx.reader.getProject(w.orgId, found.task.projectId);
+  const [project, files] = await Promise.all([ctx.reader.getProject(w.orgId, found.task.projectId), ctx.reader.listFiles(w.orgId, found.task.projectId).catch(() => [])]);
 
   const provider = ai.provider;
   const effort = z.enum(EFFORTS).catch("balanced").parse(form.get("effort"));
@@ -199,7 +199,7 @@ export async function draftContractWithAiAction(form: FormData): Promise<AiDraft
     orgId: w.orgId,
     userId: ctx.user.id,
     taskId: found.task.id,
-    brief: { taskTitle: found.task.title, projectName: project?.name ?? "Project", projectDescription: project?.description ?? null, notes },
+    brief: { taskTitle: found.task.title, projectName: project?.name ?? "Project", projectDescription: project?.description ?? null, paths: files.map((f) => f.path), notes },
     effort,
   });
   if (!result.ok) return { status: "error", message: result.message };

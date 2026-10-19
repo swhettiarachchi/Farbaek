@@ -55,6 +55,16 @@ const LIGHT_STEP: TokenUsage = { inputTokens: 400, cacheReadTokens: 5_000, outpu
 const HEAVY_STEP: TokenUsage = { inputTokens: 1_500, cacheReadTokens: 25_000, outputTokens: 1_200 };
 const STEPS = { fast: [3, 10], balanced: [4, 18], deep: [6, 28] } as const;
 
+/** Units as a share of the period's allowance, as people see it: "under 0.1%", "0.4%", "3%". Null without an allowance. */
+export function shareOfPeriod(units: number, periodUnits: number | null): string | null {
+  if (!periodUnits || periodUnits <= 0) return null;
+  const pct = (Math.max(0, units) / periodUnits) * 100;
+  if (pct === 0) return "0%";
+  if (pct < 0.1) return "under 0.1%";
+  if (pct < 1) return `${pct.toFixed(1)}%`;
+  return `${Math.round(pct)}%`;
+}
+
 /**
  * A run's likely share of this period's AI usage, as a range of whole
  * percents (at least 1). Guidance only: the wallet still meters each step
