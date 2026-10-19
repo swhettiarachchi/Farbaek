@@ -1,12 +1,13 @@
-import { ShieldStarIcon, SignOutIcon } from "@phosphor-icons/react/ssr";
+import { ShieldStarIcon, SignOutIcon, SparkleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MobileTabBar, SidebarNav } from "@/components/app/app-nav";
-import { PageTransition } from "@/components/app/page-transition";
+import { PAGE_NAV, PageTransition } from "@/components/app/page-transition";
 import { UsagePanel } from "@/components/app/usage-meters";
 import { CreateOrganizationForm } from "@/components/app/forms";
 import { WorkspaceSwitcher } from "@/components/app/workspace-switcher";
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { PromptComposer } from "@/components/build/prompt-composer";
 import { TRIAL, getPlan } from "@/core/billing/catalog";
 import { isAdminEmail } from "@/server/admin/access";
 import { loadAppContext } from "@/server/workspace/context";
@@ -48,15 +49,23 @@ export default async function AppLayout({ children }: Readonly<{ children: React
 
   if (!ctx.current) {
     return (
-      <main id="main" className="mx-auto flex min-h-[100dvh] max-w-lg flex-col justify-center px-6 py-16">
+      <main id="main" className="mx-auto flex min-h-[100dvh] max-w-2xl flex-col justify-center px-4 py-16 sm:px-6">
         <Brand />
-        <h1 className="mt-10 text-3xl font-medium tracking-[-0.03em]">Create your first workspace</h1>
-        <p className="mt-3 text-[15px] leading-relaxed text-ink-2">
-          It starts with the {TRIAL.lengthDays}-day {getPlan(TRIAL.basePlan).name} trial. No card is needed, and when the trial ends the workspace moves to Free.
+        <h1 className="mt-10 text-balance text-[2.1rem] font-medium leading-[1.05] tracking-[-0.035em] sm:text-5xl">What do you want to build?</h1>
+        <p className="mt-3 max-w-[56ch] text-[15px] leading-relaxed text-ink-2">
+          Describe it and Farbaek sets up your workspace with the {TRIAL.lengthDays}-day {getPlan(TRIAL.basePlan).name} trial, drafts a plan and waits for your approval. No
+          card is needed, and when the trial ends the workspace moves to Free.
         </p>
-        <div className="mt-8 rounded-md border border-line bg-surface p-6 shadow-e2">
-          <CreateOrganizationForm />
+        <div className="aurora mt-8">
+          {/* A prompt kept from the public site is sent again automatically after sign-in. */}
+          <PromptComposer mode="app" autoResume />
         </div>
+        <details className="mt-8 rounded-md border border-line bg-surface p-5 shadow-e1">
+          <summary className="min-h-11 cursor-pointer content-center text-sm font-medium text-ink-2">Or create an empty workspace</summary>
+          <div className="mt-4">
+            <CreateOrganizationForm />
+          </div>
+        </details>
         <form action={signOut} className="mt-6">
           <button type="submit" className="text-sm text-ink-2 underline-offset-4 hover:underline">
             Sign out of {ctx.user.email}
@@ -78,6 +87,13 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           <Brand />
         </div>
         <WorkspaceSwitcher workspaces={ctx.workspaces} current={current} canCreate={ctx.mode === "live"} />
+        <Link
+          href="/app/new"
+          transitionTypes={PAGE_NAV}
+          className="flex h-11 items-center justify-center gap-2 rounded-full bg-primary text-sm font-medium text-on-primary shadow-e1 transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.98]"
+        >
+          <SparkleIcon size={16} weight="fill" aria-hidden /> New build
+        </Link>
         <SidebarNav approvals={approvals} />
         <div className="mt-auto grid gap-3 border-t border-line pt-4">
           {/* A shortcut only: /admin checks the person again on the server (ADR 0026). */}

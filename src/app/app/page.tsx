@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, EmptyState, Notice, PageHeader, StatTile, TaskStateBadge } from "@/components/app/primitives";
 import { UsageMeterList } from "@/components/app/usage-meters";
+import { PromptComposer } from "@/components/build/prompt-composer";
 import { RunStatusBadge } from "@/components/build/run-status";
 import { ButtonLink } from "@/components/ui/button";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
@@ -87,6 +88,10 @@ export default async function MissionControl() {
         }
         actions={<ButtonLink href="/app/projects" size="sm">New project</ButtonLink>}
       />
+
+      <section aria-label="Start a build" className="aurora">
+        <PromptComposer mode="app" size="compact" disabledReason={ctx.mode === "demo" ? "The demo workspace is read-only." : ctx.writes.enabled ? null : ctx.writes.reason} />
+      </section>
 
       {trialActive && ws.trial ? (
         <Notice>

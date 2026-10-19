@@ -1,8 +1,8 @@
 import { ArrowRightIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { Reveal } from "@/components/motion/reveal";
+import { PromptComposer } from "@/components/build/prompt-composer";
 import { HeroVisual } from "@/components/three/hero-visual";
-import { ButtonLink } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
 
 export function Hero() {
@@ -25,16 +25,19 @@ export function Hero() {
             From idea to verified software.
           </h1>
           <p className="mt-6 max-w-[34rem] text-lg leading-relaxed text-ink-2 sm:text-xl">
-            Farbaek plans each change, runs the real checks, keeps the evidence and waits for your approval before anything ships.
+            Describe what you want. Farbaek plans it, builds it with an agent, runs the real checks and waits for your approval before anything ships.
           </p>
-          <div className="mt-9 flex flex-wrap gap-3">
-            <ButtonLink href="#demo">
-              Try the demo <ArrowRightIcon size={16} weight="bold" aria-hidden />
-            </ButtonLink>
-            <ButtonLink href="/pricing" variant="secondary">
-              See pricing
-            </ButtonLink>
+          <div className="aurora mt-8 max-w-[36rem]">
+            <PromptComposer mode="public" size="compact" />
           </div>
+          <p className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+            <Link href="#demo" className="inline-flex min-h-11 items-center gap-1.5 font-medium text-ink-2 hover:text-ink">
+              Watch the demo <ArrowRightIcon size={14} weight="bold" aria-hidden />
+            </Link>
+            <Link href="/pricing" className="inline-flex min-h-11 items-center gap-1.5 font-medium text-ink-2 hover:text-ink">
+              See pricing <ArrowRightIcon size={14} weight="bold" aria-hidden />
+            </Link>
+          </p>
         </Reveal>
 
         <Reveal className="lg:col-span-5" delay={0.1}>
