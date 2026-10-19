@@ -5,7 +5,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { INTENT_CONTRACT_SCHEMA, type IntentContract } from "@/core/realityloop/contract";
 import { sha256Hex } from "@/core/trust/canonical-json";
 import { ProjectFolder } from "./fs-guard";
-import { runAgent, type ApprovalAnswer, type ApprovalRequest, type RunEvent, type RunInput } from "./loop";
+import { agentSystemPrompt, runAgent, type ApprovalAnswer, type ApprovalRequest, type RunEvent, type RunInput } from "./loop";
+import { getBuiltInSkill } from "@/content/skills";
+import { parseSkill } from "@/core/agent/skills";
 import type { ModelConversation, ModelStep, ModelToolCall, ToolModel, ToolResultInput, ToolSpec } from "./models/types";
 import type { CommandRunner } from "./runners";
 import { AgentWorkspace, materialize, type WriteMode } from "./workspace";
@@ -294,5 +296,18 @@ describe("agent loop, messages from the person", () => {
     const ws = await workspace("patch");
     await runAgent(input({ model: fake.model, workspace: ws, takeMessages: () => [] }));
     expect(fake.sent.every((s) => s.text === undefined)).toBe(true);
+  });
+});
+
+describe("the agent's instructions", () => {
+  it("carry the Studio standard, then the build's skills with the project's own last", () => {
+    const own = parseSkill("---\nname: house-style\ndescription: Ours\n---\nUse our colours.", "x", "project")!;
+    const prompt = agentSystemPrompt("review_only", null, [own, getBuiltInSkill("3d-and-depth")!]);
+    const at = (s: string) => prompt.indexOf(s);
+    expect(at("You are Farbaek Agent")).toBe(0);
+    expect(at("The Farbaek Studio standard")).toBeGreaterThan(0);
+    expect(at("## Skills for this build")).toBeGreaterThan(at("The Farbaek Studio standard"));
+    expect(at("3d-and-depth")).toBeLessThan(at("house-style (from this project's files)"));
+    expect(agentSystemPrompt("review_only", null)).not.toContain("## Skills for this build");
   });
 });

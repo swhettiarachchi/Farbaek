@@ -33,6 +33,8 @@ describe("buildStaticSrcdoc", () => {
     expect(doc).toContain("Content-Security-Policy");
     expect(doc).toContain("connect-src 'none'");
     expect(doc).toContain("form-action 'none'");
+    // Pinned libraries load only from the three CDNs the Studio standard names; nothing else runs.
+    expect(doc).toContain("script-src 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com;");
   });
 
   it("can't be broken out of by closing tags inside a stylesheet or script", () => {

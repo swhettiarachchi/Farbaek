@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { getBuiltInSkill } from "@/content/skills";
 import { getStarter } from "@/content/starters";
 import { EFFORTS } from "@/core/agent/routing";
 import { resolveAiProvider } from "@/server/ai/config";
@@ -108,7 +109,9 @@ export async function approveAndBuildAction(_previous: ApproveBuildState, form: 
   const person = { orgId: ctx.current.id, userId: ctx.user.id, role: ctx.role };
   const wiring = await cloudRunDeps(person);
   if (!wiring.ok) return { status: "error", approved: true, message: `The plan is approved. The agent couldn't start: ${wiring.reason}` };
-  const started = await startCloudRun(wiring.deps, { person, taskId, effort });
+  // Skills chosen on the plan card (ADR 0030): only Farbaek's own ids are accepted.
+  const skills = form.getAll("skills").flatMap((v) => (typeof v === "string" && getBuiltInSkill(v) ? [v] : []));
+  const started = await startCloudRun(wiring.deps, { person, taskId, effort, skills });
   if (!started.ok) return { status: "error", approved: true, message: `The plan is approved. The agent couldn't start: ${started.message}` };
   revalidatePath("/app/build");
   redirect(`/app/build/${started.value.runId}`);
