@@ -139,3 +139,57 @@ Decisions: [ADR 0028](../adr/0028-presence-templates-rescue.md) (agent presence,
 
 1. The owner merges #3 (it now carries Phases C and D too), then the domain steps above.
 2. Phase E: live app previews on `p-<id>.farbaek.si` once the domain and secret are set, then Publish (ADR 0029, migration 19).
+
+## 2026-10-19: Publish, the Farbaek Studio standard and skills
+
+Decisions: [ADR 0029](../adr/0029-publish.md) (Publish), [ADR 0030](../adr/0030-studio-standard-and-skills.md) (Studio standard and skills).
+
+### Done
+
+**Publish** (Phase E, ready for the domain):
+- **Migration 19** adds sites and deployments, with the publish gate repeated in the database.
+- **Serving** live sites at `<name>.farbaek.si` from stored revisions.
+- **The project page's Publish panel:** address, what's live, history, make live, take offline.
+
+**The Farbaek Studio standard**, from the owner's Premium Build Standard, is in the agent's instructions on every run:
+- the design read and `DESIGN.md` first;
+- none of the AI tells;
+- purposeful motion and 3D;
+- honest visuals and samples;
+- complete, accessible pages, checked before finishing.
+
+**Skills**, in Claude's SKILL.md format:
+- seven built-in skills, suggested on the plan card and chosen per build;
+- the project's own skills from `.farbaek/skills` or `.claude/skills`;
+- a stated precedence;
+- skills can't widen the contract.
+
+**Previews** can load pinned libraries from jsDelivr, unpkg and cdnjs.
+
+### Verified
+
+- **Unit tests** (717 at the time, plus the new ones): the publish gate, names and digest, serving, the use case, skills parsing, ordering, limits and suggestions, the agent's instructions, and a cloud run that passes the chosen and project skills and names them.
+- **Database tests:** migration 19 in PGlite (5 tests) and the schema-wide tests (33).
+- **Live, on a local production build against the hosted project:**
+  - "A futuristic one-page site for Volt Ride…" gave a plan with `DESIGN.md` in scope.
+  - Motion, 3D and Brand identity were suggested and chosen.
+  - The run said "Building to the Farbaek Studio standard, with these skills…", wrote `DESIGN.md` first, then the site, in 4 steps and 5% of usage.
+  - The result has a distinctive dark and electric-lime identity, working navigation and menu, scroll reveals, a booking form that validates and says nothing is sent, and a real three.js hero with fallbacks.
+  - The change was applied to the test project.
+
+### Not verified
+
+- **The three.js hero rendering:** this PC reports 4 cores, which the first version of the 3D skill treated as weak, so it showed the still fallback. The rule now matches Farbaek's own.
+- **Publish end to end:** migration 19 isn't applied to the hosted project. The owner stopped that step; it waits for their go-ahead.
+
+### Next
+
+1. The owner merges swhettiarachchi/Farbaek#3, which now carries all of this, and approves applying migration 19.
+2. farbaek.si:
+   - the Railway domain;
+   - the Hostinger DNS records;
+   - `SANDBOX_PREVIEW_DOMAIN` and `SANDBOX_PREVIEW_SECRET`.
+3. A `review_site` tool for the agent's own checks.
+4. Custom skills from the app.
+5. Lifting the starters and templates to the standard.
+6. An image-generation integration, if the owner chooses a provider.
