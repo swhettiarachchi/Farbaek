@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
 import { setupReport } from "@/core/agent/setup-report";
+import { reviewSite } from "@/core/agent/site-review";
 import { screenFile } from "@/core/workspace/files";
 import { STARTERS, TEMPLATE_STARTERS, getStarter, runProfile } from "./index";
 import { NEXTJS_DEPENDENCIES } from "./nextjs-app";
@@ -47,6 +48,24 @@ describe("starters", () => {
         // Sample content is labelled as sample where it's shown.
         expect(f.content.toLowerCase(), `${t.id}/${f.path}`).toContain("sample");
       }
+    }
+  });
+
+  it("meet the Studio standard: a design plan, a clean site review, reduced motion and scripts that run", () => {
+    for (const t of TEMPLATE_STARTERS) {
+      const files = Object.fromEntries(t.files.map((f) => [f.path, f.content]));
+      expect(files["DESIGN.md"], t.id).toMatch(/## Palette[\s\S]*## Type[\s\S]*## Layout[\s\S]*## Signature[\s\S]*## Motion/);
+      expect(files["script.js"], t.id).toBeTruthy();
+      expect(reviewSite(files).findings, t.id).toEqual([]);
+      const css = t.files.filter((f) => f.path.endsWith(".css")).map((f) => f.content.replace(/\/\*[\s\S]*?\*\//g, "")).join("\n");
+      expect(css, t.id).toContain("prefers-reduced-motion: reduce");
+      // Content hidden for an entrance waits for script.js to say it's running (the .js class), so a page without scripts, like a gallery thumbnail, shows everything.
+      for (const [, selector, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const s = selector!.trim();
+        if (/^(from|to|\d+%)/.test(s) || !/opacity:\s*0[;\s]/.test(`${body};`) || /\binput\b/.test(s)) continue;
+        expect(s, `${t.id}: ${s}`).toMatch(/^\.js\b/);
+      }
+      for (const f of t.files.filter((x) => x.path.endsWith(".js"))) expect(() => new Function(f.content), `${t.id}/${f.path}`).not.toThrow();
     }
   });
 

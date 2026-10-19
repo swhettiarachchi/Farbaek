@@ -51,6 +51,12 @@ describe("reviewSite", () => {
     expect(formatSiteReview(r)).toMatch(/^Reviewed 2 pages: \d+ to fix, \d+ to consider/);
   });
 
+  it("counts a control inside its <label> as labelled", () => {
+    const html = GOOD.replace("<form>", `<form><label><input type="radio" name="t" value="a" /> <span>Builder</span></label><input type="radio" name="t" value="b" />`);
+    const messages = reviewSite({ "index.html": html, "about.html": GOOD, "styles.css": CSS, "script.js": "" }).findings.map((f) => f.message);
+    expect(messages).toEqual([expect.stringMatching(/^A form input has no label: <input type="radio" name="t" value="b"/)]);
+  });
+
   it("says when there's nothing to review", () => {
     expect(formatSiteReview(reviewSite({ "README.md": "# Hi" }))).toBe("There are no HTML pages in the project to review.");
   });

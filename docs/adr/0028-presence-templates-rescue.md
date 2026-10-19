@@ -38,7 +38,7 @@ A proposal whose state can't be read never counts as waiting for review.
 ### 2. Templates
 
 Six static templates (`src/content/starters/templates/`) are ordinary starters marked `kind: "template"`:
-- **What's in them:** plain HTML and CSS, system fonts, nothing installed or fetched, and sample content labelled as sample.
+- **What's in them:** plain HTML and CSS, system fonts, nothing installed or fetched, and sample content labelled as sample. (Changed by ADR 0030: they're now built to the Studio standard, with a `DESIGN.md` and a small `script.js`, still fetching nothing.)
 - **The gallery** draws live thumbnails of each home page in a frame with `sandbox=""` (no scripts) and a CSP blocking network requests.
 - **"Use this template"** passes the template's id with the prompt. The server accepts only known starter ids, and a follow-up never takes one.
 

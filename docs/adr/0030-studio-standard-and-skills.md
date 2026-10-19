@@ -42,6 +42,15 @@ The plan drafter puts `DESIGN.md` in scope for visible builds.
 
 **Previews can run pinned libraries.** The preview CSP allows scripts from jsDelivr, unpkg and cdnjs. The frame stays sandboxed, with no same-origin access and no `connect`.
 
+**Templates are exemplars of the standard** (this changes ADR 0028's "plain HTML and CSS"). Each of the six:
+- has a `DESIGN.md` in the standard's shape (palette, type, layout, signature, motion), which the agent follows or deliberately rewrites when the site becomes someone's own;
+- has its own visual direction, a signature element and one feature that really works (a planner, a working invoice screen, a copyable email, a live open-now status, a ticket that fills in as you register, a light and dark theme);
+- uses CSS 3D, drawn SVG art and motion that runs without JavaScript, so gallery thumbnails (no scripts) look alive; a small `script.js` adds reveals and interactions;
+- hides nothing unless `script.js` has marked the page as running, pauses looping motion off screen and stops it all under reduced motion;
+- still fetches nothing.
+
+Tests hold every template to this: a clean `review_site`, a `DESIGN.md`, a reduced-motion fallback, scripts that parse, and no content hidden without the `.js` class.
+
 ## Consequences
 
 - **First live build to the standard** (Volt Ride, an e-bike rental in Kandy, with motion, 3D and brand skills):
@@ -52,9 +61,11 @@ The plan drafter puts `DESIGN.md` in scope for visible builds.
   - Every sample was labelled.
   - It used 5% of the trial period's usage in 4 steps.
 - **The instructions are longer,** about 1,500 tokens more per run, mostly cached between steps.
-- **Next:**
+- **Done since:**
   - a `review_site` tool, so the agent checks links, alt text, metadata and reduced motion mechanically before finishing;
-  - uploading and managing custom skills from the app;
+  - adding and removing a project's own skills from the project page (saved as `.farbaek/skills/<name>/SKILL.md`; published sites never serve hidden folders);
+  - the six templates rebuilt to the standard.
+- **Next:**
   - an image-generation integration (it needs a provider, binary asset storage and pricing, which are the owner's decisions);
-  - lifting the starters and templates to the same standard.
+  - the plain starters (static website, Next.js app) to the same standard.
 - **Plans.** Every plan gets the standard and the built-in skills: the free plan's output is never made worse. Paid plans already add stronger models on Deep, more usage, security checks and publishing. More skills, custom skills or a design-review pass could be paid extras; that's the owner's decision.

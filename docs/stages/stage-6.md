@@ -203,3 +203,65 @@ Decisions: [ADR 0029](../adr/0029-publish.md) (Publish), [ADR 0030](../adr/0030-
 4. Custom skills from the app.
 5. Lifting the starters and templates to the standard.
 6. An image-generation integration, if the owner chooses a provider.
+
+## 2026-10-19: The agent checks its work, project skills in the app, templates to the standard
+
+### Done
+
+**`review_site`** is a read-only agent tool. It checks the project's pages the way a careful reviewer would:
+- links, anchors and referenced files;
+- titles, descriptions, viewport and `lang`;
+- alt text and labels (a control inside its `<label>` counts);
+- motion without a reduced-motion fallback, and hidden focus;
+- em dashes, lorem ipsum and leftover placeholders.
+
+The Studio standard tells the agent to run it after its last change and fix what it marks.
+
+**Project skills from the app.** The project page has a Skills section:
+- paste or load a SKILL.md, and it's saved as `.farbaek/skills/<name>/SKILL.md`;
+- remove one with a button;
+- a skill without a frontmatter name takes its first heading.
+
+Published sites never serve hidden folders (`.farbaek`, `.claude`); `.well-known` is still served.
+
+**Publish says what happened.** Make live and Take the site offline report success and failure, and the "Published" note clears once a site is offline. Suggested names keep the subject: "One-page site for Volt Ride" becomes `volt-ride`.
+
+**The six templates, rebuilt to the standard.** Each has a `DESIGN.md`, its own direction, a signature and one feature that works:
+
+| Template | Direction | Signature and working feature |
+| --- | --- | --- |
+| Landing page (Tidewater) | Calm, cool, rounded type | A floating 3D week over a drifting tide; a planner that spreads your notes over the week |
+| Software site (Ledgerly) | Precise, ledger mono numbers, one orange | A tilted, working invoice screen (reminders send, invoices get paid); a chase timeline you scrub |
+| Portfolio (Jordan Lee) | Black-weight type, one cobalt | A name that builds itself; drawn case-study covers that tilt; a copyable email |
+| Local business (Harbor Café) | Nautical, harbour signage type | An illustrated cup with rising steam and a rocking boat; a live open-now status; a menu filter |
+| Event page (Build Day 2027) | Blueprint, condensed engineering type | A 3D ticket that turns over and fills in as you register; a live countdown; a track filter |
+| Blog (Field Notes) | Editorial, serif for reading | Line drawings that draw themselves; a reading-progress line; light and dark themes |
+
+They still fetch nothing. The motion runs without JavaScript, so gallery thumbnails (no scripts) look alive. Nothing is hidden unless `script.js` is running. Looping motion pauses off screen, and everything stops under reduced motion. ADR 0030 records the change to ADR 0028's "plain HTML and CSS".
+
+### Verified
+
+- **Unit tests:** 885 pass.
+  - New tests: every template has a `DESIGN.md` in the standard's shape and a clean `review_site` (zero findings);
+  - every template has a reduced-motion fallback, scripts that parse, and no content hidden without the `.js` class;
+  - also the wrapped-label rule, hidden folders on published sites, and the name suggestions.
+- **Each template in a browser, at desktop width and at 375 px:**
+  - every interaction was exercised: the planner with a `!` line and more than 21 tasks; reminders, payments and the total; the timeline, tone and billing switches; the open-now status (Monday evening showed "Closed now, opens tomorrow at 7 am"); the menu and track filters; the ticket filling in and turning over; the form errors; the theme switch;
+  - no horizontal scroll at 375 px.
+- **In the app, on a local production build:** the gallery thumbnails render complete with scripts off. The template previews run their scripts in the sandbox with no console errors.
+- **Publish:**
+  - the `volt-ride` test site was taken offline through the panel;
+  - the site domain then answered "There's no site here" (404);
+  - a project skill (`volt-voice`) was added from the page.
+
+### Not verified
+
+- **A full agent build starting from one of the new templates.** The standard and `DESIGN.md` are in place, but no run has used them yet.
+- **Safari and Firefox.** CSS scroll-driven animation (the blog's progress line) is skipped where unsupported, by design.
+
+### Next
+
+1. The owner merges swhettiarachchi/Farbaek#3 and connects farbaek.si (the Railway domain, the Hostinger DNS records, `SANDBOX_PREVIEW_DOMAIN` and `SANDBOX_PREVIEW_SECRET`).
+2. The plain starters (static website, Next.js app) to the standard.
+3. A build from a template, end to end.
+4. An image-generation integration, if the owner chooses a provider.

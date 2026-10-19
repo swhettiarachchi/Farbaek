@@ -17,7 +17,7 @@ export default async function TemplatesPage() {
     <div className="grid gap-8">
       <PageHeader
         title="Templates"
-        description="Finished-looking sites to start from. Each one is plain HTML and CSS that previews instantly; the agent replaces the sample content with yours once you approve its plan."
+        description="Sites built to the Farbaek Studio standard, each with its own design, motion and a feature that works. They preview instantly, and each carries a DESIGN.md the agent builds on when it replaces the sample content with yours."
         actions={
           <Link href="/app/new" className={buttonClasses("secondary", "sm")}>
             Start from a sentence instead

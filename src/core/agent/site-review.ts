@@ -102,7 +102,10 @@ export function reviewSite(input: Record<string, string> | ReadonlyMap<string, s
     for (const m of html.matchAll(/<(input|select|textarea)\b[^>]*>/gi)) {
       if (/type\s*=\s*["']?(hidden|submit|button|reset)/i.test(m[0])) continue;
       const id = attr(m[0], "id");
-      const labelled = attr(m[0], "aria-label") || attr(m[0], "aria-labelledby") || (id && new RegExp(`<label\\b[^>]*for\\s*=\\s*["']${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["']`, "i").test(html));
+      // A control inside an open <label> is labelled by it.
+      const before = html.slice(0, m.index);
+      const wrapped = before.toLowerCase().lastIndexOf("<label") > before.toLowerCase().lastIndexOf("</label");
+      const labelled = wrapped || attr(m[0], "aria-label") || attr(m[0], "aria-labelledby") || (id && new RegExp(`<label\\b[^>]*for\\s*=\\s*["']${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["']`, "i").test(html));
       if (!labelled) add("consider", page, `A form ${m[1]} has no label: ${m[0].slice(0, 80)}`);
     }
 
