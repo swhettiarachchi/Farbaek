@@ -48,7 +48,7 @@ export function PublishForm({ projectId, domain, initialName, live, disabledReas
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
           <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {state.message}
         </p>
-      ) : state.status === "done" ? (
+      ) : state.status === "done" && live ? (
         <p role="status" className="text-sm text-verified">
           {state.message}
         </p>

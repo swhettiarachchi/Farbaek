@@ -52,6 +52,8 @@ export function parseSkill(text: string, fallbackId: string, source: Skill["sour
     }
   }
   body = body.trim();
+  // Without a frontmatter name, a first-line heading ("# House style") names the skill.
+  if (!name) name = /^#{1,3}\s+(.+)$/m.exec(body.split("\n")[0] ?? "")?.[1] ?? "";
   name = (name || fallbackId).trim().slice(0, SKILL_LIMITS.nameChars);
   if (!name || !body) return null;
   const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || fallbackId;

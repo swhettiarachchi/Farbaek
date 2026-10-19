@@ -38,14 +38,17 @@ export async function publishAction(_previous: PublishState, form: FormData): Pr
 }
 
 /** Makes an earlier deployment live again, or takes the site offline (an empty deployment id). */
-export async function setLiveAction(form: FormData): Promise<void> {
+export async function setLiveAction(_previous: PublishState, form: FormData): Promise<PublishState> {
   const parsed = z.object({ projectId: z.uuid(), deploymentId: z.union([z.uuid(), z.literal("")]) }).safeParse({ projectId: form.get("projectId"), deploymentId: form.get("deploymentId") ?? "" });
-  if (!parsed.success) return;
+  if (!parsed.success) return { status: "error", message: "Reload the page and try again." };
   const w = await writer();
-  if ("error" in w) return;
+  if ("error" in w) return { status: "error", message: w.error! };
   // The site is read through Row Level Security, so it must be this workspace's.
   const site = await getSite(w.user, w.orgId, parsed.data.projectId);
-  if (!site) return;
-  await setLiveDeployment(w.admin, { orgId: w.orgId, actor: w.ctx.user.id, siteId: site.id, deploymentId: parsed.data.deploymentId || null });
+  if (!site) return { status: "error", message: "This project has no published site. Reload the page." };
+  const offline = !parsed.data.deploymentId;
+  const r = await setLiveDeployment(w.admin, { orgId: w.orgId, actor: w.ctx.user.id, siteId: site.id, deploymentId: parsed.data.deploymentId || null });
+  if (!r.ok) return { status: "error", message: r.error === "FORBIDDEN" ? "Your role can view this project but not publish it." : `Couldn't ${offline ? "take the site offline" : "make that version live"}. Reload the page and try again.` };
   revalidatePath(`/app/projects/${parsed.data.projectId}`);
+  return { status: "done", message: offline ? "The site is offline. It can take a few seconds to disappear everywhere." : "That version is live again. It can take a few seconds to appear everywhere." };
 }

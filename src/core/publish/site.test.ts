@@ -22,6 +22,10 @@ describe("site names", () => {
 
   it("suggest a usable name from a project's name", () => {
     expect(siteNameFrom("Sunrise Bakery!")).toBe("sunrise-bakery");
+    expect(siteNameFrom("Futuristic one-page site for Volt Ride")).toBe("volt-ride");
+    expect(siteNameFrom("One-page site for Sunrise Bakery")).toBe("sunrise-bakery");
+    expect(siteNameFrom("Landing page for my bakery")).toBe("bakery");
+    expect(siteNameFrom("Portfolio")).toBe("portfolio");
     expect(siteNameFrom("Café Olé")).toBe("cafe-ole");
     expect(siteNameFrom("AB")).toBe("ab-site");
     expect(siteNameFrom("Admin")).toBe("site-admin");

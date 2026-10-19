@@ -50,7 +50,10 @@ export function siteNameFromHost(host: string | null, domain: string | null): st
 
 /** A site name suggested from a project's name: "Sunrise Bakery!" becomes "sunrise-bakery". */
 export function siteNameFrom(projectName: string): string {
-  const slug = projectName
+  // "Futuristic one-page site for Volt Ride" is about Volt Ride: keep the name after "for", without words like "site".
+  const subject = /\bfor\s+(?:my\s+|our\s+|the\s+)?(.+)$/i.exec(projectName)?.[1] ?? projectName;
+  const trimmed = subject.replace(/\b(?:a|an|the|my|our|one-page|single-page|landing|page|site|website|web|portfolio site)\b/gi, " ").trim() || projectName;
+  const slug = trimmed
     .normalize("NFKD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()

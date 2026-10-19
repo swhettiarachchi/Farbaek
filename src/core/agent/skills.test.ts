@@ -19,6 +19,8 @@ describe("parseSkill", () => {
   it("falls back to the folder name, refuses an empty skill and cuts a long one", () => {
     expect(parseSkill("Just instructions.", "my-skill", "project")).toMatchObject({ id: "my-skill", name: "my-skill", body: "Just instructions." });
     expect(parseSkill(md("empty", "nothing", ""), "x", "project")).toBeNull();
+    expect(parseSkill("# House Style\nUse our green.", "", "project")).toMatchObject({ id: "house-style", name: "House Style" });
+    expect(parseSkill("No name anywhere.", "", "project")).toBeNull();
     const long = parseSkill(md("long", "d", "x".repeat(SKILL_LIMITS.bodyChars + 50)), "x", "project")!;
     expect(long.body).toContain("[The rest of this skill was cut to fit.]");
     expect(long.body.length).toBeLessThan(SKILL_LIMITS.bodyChars + 60);

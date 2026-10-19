@@ -41,6 +41,21 @@ describe("serving published sites", () => {
     expect((await get("sunrise-bakery.farbaek.si", "/../secret")).status).toBe(404);
   });
 
+  it("keeps hidden folders like the project's skills private, but serves .well-known", async () => {
+    const withHidden: SiteServeDeps = {
+      ...deps,
+      liveSite: async () => ({
+        deploymentId: "d1",
+        projectId: "p1",
+        files: [...FILES, { path: ".farbaek/skills/house/SKILL.md", revision: 1, sha256: "d".repeat(64), size: 5 }, { path: ".well-known/security.txt", revision: 1, sha256: "e".repeat(64), size: 5 }],
+      }),
+      content: async (_p, path) => (path.startsWith(".") ? "secret-ish" : "x"),
+    };
+    const ask = (p: string) => handleSiteRequest(new Request(`http://localhost:3000/site-serve${p}`, { headers: { host: "sunrise-bakery.farbaek.si" } }), withHidden);
+    expect((await ask("/.farbaek/skills/house/SKILL.md")).status).toBe(404);
+    expect((await ask("/.well-known/security.txt")).status).toBe(200);
+  });
+
   it("answers 304 to a matching ETag, refuses writes, and has nothing for unknown names or Farbaek's own host", async () => {
     expect((await get("sunrise-bakery.farbaek.si", "/", { headers: { "if-none-match": `"${"a".repeat(64)}"` } })).status).toBe(304);
     expect((await get("sunrise-bakery.farbaek.si", "/", { method: "POST" })).status).toBe(405);

@@ -1,12 +1,12 @@
-import { ArrowCounterClockwiseIcon, ArrowSquareOutIcon, CheckCircleIcon, CircleIcon, GlobeIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
+import { ArrowSquareOutIcon, CheckCircleIcon, CircleIcon, GlobeIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { RelativeTime } from "@/components/ui/local-time";
 import { buttonClasses } from "@/components/ui/button";
 import { formatBytes } from "@/core/workspace/files";
 import { shortHash } from "@/core/trust/canonical-json";
-import { setLiveAction } from "@/app/app/projects/[projectId]/publish-actions";
 import type { PublishPanelData } from "@/server/publish/panel";
 import { PublishForm } from "./publish-form";
+import { SetLiveForm } from "./set-live-form";
 
 /**
  * Publish (ADR 0029): put the project's static site live at its own address
@@ -95,13 +95,7 @@ export function PublishPanel({ projectId, data, disabledReason }: { projectId: s
                         <CheckCircleIcon size={14} weight="bold" aria-hidden /> Live
                       </span>
                     ) : disabledReason ? null : (
-                      <form action={setLiveAction}>
-                        <input type="hidden" name="projectId" value={projectId} />
-                        <input type="hidden" name="deploymentId" value={d.id} />
-                        <button type="submit" className={buttonClasses("secondary", "sm")}>
-                          <ArrowCounterClockwiseIcon size={14} aria-hidden /> Make live
-                        </button>
-                      </form>
+                      <SetLiveForm projectId={projectId} deploymentId={d.id} />
                     )}
                   </span>
                 </li>
@@ -109,13 +103,7 @@ export function PublishPanel({ projectId, data, disabledReason }: { projectId: s
             })}
           </ol>
           {live && !disabledReason ? (
-            <form action={setLiveAction} className="mt-3">
-              <input type="hidden" name="projectId" value={projectId} />
-              <input type="hidden" name="deploymentId" value="" />
-              <button type="submit" className="min-h-11 text-sm text-failed underline-offset-4 hover:underline">
-                Take the site offline
-              </button>
-            </form>
+            <SetLiveForm projectId={projectId} deploymentId={null} className="mt-3" />
           ) : null}
           <p className="mt-3 text-xs leading-relaxed text-ink-3">
             Each version records exactly which file revisions went live, with their digest. It shows what was published, not that the site works.

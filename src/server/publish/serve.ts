@@ -42,6 +42,8 @@ export async function handleSiteRequest(request: Request, deps: SiteServeDeps): 
   const path = url.pathname.startsWith(SITE_ROUTE) ? url.pathname.slice(SITE_ROUTE.length) || "/" : url.pathname;
   const byPath = new Map(site.files.map((f) => [f.path, f]));
   for (const candidate of staticCandidates(path)) {
+    // Hidden folders (.farbaek/skills, .claude and the like) hold the project's own notes, not the site; .well-known is public by design.
+    if (candidate.split("/").some((seg) => seg.startsWith(".") && seg !== ".well-known")) continue;
     const file = byPath.get(candidate);
     if (!file) continue;
     const etag = `"${file.sha256}"`;
