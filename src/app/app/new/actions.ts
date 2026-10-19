@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { getStarter } from "@/content/starters";
 import { EFFORTS } from "@/core/agent/routing";
 import { resolveAiProvider } from "@/server/ai/config";
 import { createContractDrafter } from "@/server/ai/providers";
@@ -69,7 +70,9 @@ export async function startFromPromptAction(_previous: PromptStartState, form: F
     existing = { id: project.id, name: project.name, description: project.description ?? null, paths: files.map((f) => f.path) };
   }
 
-  const result = await startFromPrompt(deps, drafter, { orgId: ctx.current.id, userId: ctx.user.id, prompt: form.get("prompt"), effort, existing });
+  // A template chosen in the gallery; only known starters are accepted, and a follow-up never gets one.
+  const starter = existing ? undefined : (getStarter(form.get("starter"))?.id ?? undefined);
+  const result = await startFromPrompt(deps, drafter, { orgId: ctx.current.id, userId: ctx.user.id, prompt: form.get("prompt"), effort, existing, starter });
   if (!result.ok) return { status: "error", message: result.message };
   revalidatePath("/app", "layout");
   redirect(`/app/new/${result.value.taskId}`);

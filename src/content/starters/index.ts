@@ -5,12 +5,13 @@
  */
 import { NEXTJS_APP_FILES } from "./nextjs-app";
 import { STATIC_WEBSITE_FILES } from "./static-website";
+import { TEMPLATES } from "./templates";
 import type { Starter } from "./types";
 
-export type { Starter, StarterFile, StarterId } from "./types";
+export type { Starter, StarterFile, StarterId, TemplateId } from "./types";
 
 export const STARTERS: readonly Starter[] = [
-  { id: "blank", name: "Blank", summary: "An empty project. Import files or write them in Farbaek.", files: [], run: null, staticPreview: false },
+  { id: "blank", name: "Blank", summary: "An empty project. Import files or write them in Farbaek.", files: [], run: null, staticPreview: false, kind: "starter" },
   {
     id: "static-website",
     name: "Static website",
@@ -18,6 +19,7 @@ export const STARTERS: readonly Starter[] = [
     files: STATIC_WEBSITE_FILES,
     run: null,
     staticPreview: true,
+    kind: "starter",
   },
   {
     id: "nextjs-app",
@@ -26,8 +28,13 @@ export const STARTERS: readonly Starter[] = [
     files: NEXTJS_APP_FILES,
     run: { install: "npm install --ignore-scripts --no-audit --no-fund", dev: "npm run dev -- --hostname 0.0.0.0 --port 3000", port: 3000 },
     staticPreview: false,
+    kind: "starter",
   },
+  ...TEMPLATES,
 ];
+
+/** The templates in the gallery, in the order they are shown. */
+export const TEMPLATE_STARTERS: readonly Starter[] = STARTERS.filter((s) => s.kind === "template");
 
 export function getStarter(id: unknown): Starter | null {
   return STARTERS.find((s) => s.id === id) ?? null;

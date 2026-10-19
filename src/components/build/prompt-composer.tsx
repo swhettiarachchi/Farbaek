@@ -51,6 +51,7 @@ export function PromptComposer({
   disabledReason = null,
   size = "large",
   projectId,
+  template,
 }: {
   mode: "app" | "public";
   autoResume?: boolean;
@@ -58,6 +59,8 @@ export function PromptComposer({
   size?: "large" | "compact";
   /** A follow-up for this project, rather than a new build. Not kept in the browser. */
   projectId?: string;
+  /** A template chosen in the gallery: the build starts from its files, and its example guides the wording. */
+  template?: { id: string; name: string; example: string };
 }) {
   const followUp = Boolean(projectId);
   const router = useRouter();
@@ -100,6 +103,7 @@ export function PromptComposer({
         }`}
       >
         {projectId ? <input type="hidden" name="projectId" value={projectId} /> : null}
+        {template && !projectId ? <input type="hidden" name="starter" value={template.id} /> : null}
         <label htmlFor={followUp ? "prompt-next" : "prompt"} className="sr-only">
           {followUp ? "Describe the next change" : "Describe what you want to build"}
         </label>
@@ -120,7 +124,9 @@ export function PromptComposer({
           placeholder={
             followUp
               ? "Describe the next change. For example: add a testimonials section under the menu."
-              : "Describe what you want to build. For example: a one-page site for my bakery with the menu, opening hours and a map."
+              : template
+                ? `Say what it is for. For example: ${template.example}`
+                : "Describe what you want to build. For example: a one-page site for my bakery with the menu, opening hours and a map."
           }
           className={`block w-full resize-none rounded-lg bg-transparent px-5 pb-16 pt-4 text-base leading-relaxed text-ink outline-none placeholder:text-ink-3 disabled:opacity-70 ${size === "large" ? "min-h-36" : "min-h-24"}`}
         />
@@ -154,7 +160,7 @@ export function PromptComposer({
 
       {size === "large" && !followUp ? (
         <ul className="flex flex-wrap gap-2" aria-label="Examples">
-          {EXAMPLES.map((ex) => (
+          {(template ? [template.example] : EXAMPLES).map((ex) => (
             <li key={ex}>
               <button
                 type="button"

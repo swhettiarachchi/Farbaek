@@ -93,7 +93,7 @@ export function CreateProjectForm({ disabledReason }: { disabledReason: string |
       <fieldset className="grid gap-2" disabled={Boolean(disabledReason)}>
         <legend className="mb-2 text-sm font-medium">Start from</legend>
         <div className="grid gap-2">
-          {STARTERS.map((s) => (
+          {STARTERS.filter((s) => s.kind === "starter").map((s) => (
             <label
               key={s.id}
               className="flex cursor-pointer items-start gap-3 rounded-md border border-line bg-surface p-4 has-checked:border-accent has-checked:shadow-[0_0_0_1px_var(--color-accent)] has-focus-visible:outline-2 has-focus-visible:outline-accent"
