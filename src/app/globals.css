@@ -247,3 +247,25 @@
     animation: none !important;
   }
 }
+
+/*
+ * The small agent orb (presence and inbox): its orbit turns while an agent
+ * works and a ring breathes while one waits for a person. Still when idle,
+ * and always still under reduced motion (the classes are motion-safe only).
+ */
+@keyframes core-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes core-call {
+  0% {
+    opacity: 0.55;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}

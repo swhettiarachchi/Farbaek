@@ -2,12 +2,18 @@ import { ShieldStarIcon, SignOutIcon, SparkleIcon } from "@phosphor-icons/react/
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MobileTabBar, SidebarNav } from "@/components/app/app-nav";
+import { CommandPalette, PaletteTrigger } from "@/components/app/command-palette";
+import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
 import { PAGE_NAV, PageTransition } from "@/components/app/page-transition";
 import { UsagePanel } from "@/components/app/usage-meters";
 import { CreateOrganizationForm } from "@/components/app/forms";
 import { WorkspaceSwitcher } from "@/components/app/workspace-switcher";
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { PresenceOrb } from "@/components/build/presence-orb";
 import { PromptComposer } from "@/components/build/prompt-composer";
+import { agentPresence } from "@/core/agent/inbox";
+import { liveRunStatuses } from "@/server/cloud-agent/store";
+import { createSupabaseServerClient } from "@/server/supabase/server";
 import { TRIAL, getPlan } from "@/core/billing/catalog";
 import { isAdminEmail } from "@/server/admin/access";
 import { loadAppContext } from "@/server/workspace/context";
@@ -76,16 +82,30 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   }
 
   const current = ctx.current;
-  const tasks = await ctx.reader.listTasks(current.id);
+  const live = ctx.mode === "live";
+  const [tasks, projects, liveRuns] = await Promise.all([
+    ctx.reader.listTasks(current.id),
+    ctx.reader.listProjects(current.id).catch(() => []),
+    live
+      ? createSupabaseServerClient()
+          .then((c) => (c ? liveRunStatuses(c, current.id) : []))
+          .catch(() => [])
+      : Promise.resolve([]),
+  ]);
+  const presence = agentPresence(liveRuns);
+  const admin = live && isAdminEmail(ctx.user.email);
+  const canBuild = live && ctx.writes.enabled && ctx.role !== null && CONTRIBUTOR_ROLES.includes(ctx.role);
   const approvals = tasks.filter((t) => t.state === "APPROVAL_PENDING").length;
   const trialDays = current.trial?.phase.phase === "active" ? current.trial.phase.daysRemaining : null;
 
   return (
     <div className="min-h-[100dvh] bg-canvas lg:grid lg:grid-cols-[272px_minmax(0,1fr)]">
-      <aside className="sticky top-0 hidden h-[100dvh] flex-col gap-6 overflow-y-auto border-r border-line bg-canvas-2 px-4 py-5 lg:flex">
+      {/* Children never shrink: on a short screen the sidebar scrolls instead of squeezing its controls. */}
+      <aside className="sticky top-0 hidden h-[100dvh] flex-col gap-4 overflow-y-auto border-r border-line bg-canvas-2 px-4 py-5 lg:flex [&>*]:shrink-0">
         <div className="px-1.5">
           <Brand />
         </div>
+        <PaletteTrigger />
         <WorkspaceSwitcher workspaces={ctx.workspaces} current={current} canCreate={ctx.mode === "live"} />
         <Link
           href="/app/new"
@@ -94,10 +114,11 @@ export default async function AppLayout({ children }: Readonly<{ children: React
         >
           <SparkleIcon size={16} weight="fill" aria-hidden /> New build
         </Link>
+        {live ? <PresenceOrb key={`${presence.state}:${presence.count}`} orgId={current.id} initial={presence} /> : null}
         <SidebarNav approvals={approvals} />
         <div className="mt-auto grid gap-3 border-t border-line pt-4">
           {/* A shortcut only: /admin checks the person again on the server (ADR 0026). */}
-          {ctx.mode === "live" && isAdminEmail(ctx.user.email) ? (
+          {admin ? (
             <Link href="/admin" className="flex h-10 items-center gap-3 rounded-full px-3.5 text-[14.5px] text-ink-2 hover:bg-surface/70 hover:text-ink">
               <ShieldStarIcon size={19} aria-hidden /> Admin console
             </Link>
@@ -131,9 +152,12 @@ export default async function AppLayout({ children }: Readonly<{ children: React
 
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-canvas/85 px-4 backdrop-blur-xl lg:hidden">
           <Brand />
-          <Link href="/app/more" className="max-w-[45%] truncate rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium shadow-e1">
-            {current.name}
-          </Link>
+          <div className="flex min-w-0 items-center gap-1">
+            {live ? <PresenceOrb key={`${presence.state}:${presence.count}`} orgId={current.id} initial={presence} compact /> : null}
+            <Link href="/app/more" className="max-w-[42vw] truncate rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium shadow-e1">
+              {current.name}
+            </Link>
+          </div>
         </header>
 
         <main id="main" className="px-4 pb-28 pt-6 sm:px-6 lg:px-10 lg:pb-16 lg:pt-10">
@@ -144,6 +168,12 @@ export default async function AppLayout({ children }: Readonly<{ children: React
       </div>
 
       <MobileTabBar approvals={approvals} />
+      <CommandPalette
+        projects={projects.filter((p) => !p.archivedAt).slice(0, 50).map((p) => ({ id: p.id, name: p.name }))}
+        workspaces={ctx.workspaces.map((w) => ({ id: w.id, name: w.name, current: w.id === current.id }))}
+        canBuild={canBuild}
+        admin={admin}
+      />
     </div>
   );
 }

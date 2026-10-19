@@ -10,6 +10,17 @@
       "port": 3000
     },
     {
+      "name": "farbaek-prod-si",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "start"
+      ],
+      "env": {
+        "SANDBOX_PREVIEW_DOMAIN": "farbaek.si"
+      },
+      "port": 3000
+    },
+    {
       "name": "farbaek-dev",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": [

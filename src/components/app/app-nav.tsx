@@ -42,6 +42,9 @@ const SECONDARY: NavItem[] = [
   { href: "/app/settings", label: "Settings", short: "Settings", icon: GearSixIcon },
 ];
 
+/** Every page in the app's navigation, for the command palette. */
+export const APP_PAGES: readonly NavItem[] = [...PRIMARY, ...SECONDARY];
+
 
 function isActive(pathname: string, item: NavItem): boolean {
   return item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);
