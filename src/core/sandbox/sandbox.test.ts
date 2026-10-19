@@ -9,6 +9,7 @@ import { resolveSandboxPath, toWorkspaceRelative, SANDBOX_WORKSPACE_ROOT } from 
 import {
   forwardableCookies,
   newPreviewId,
+  previewDomainHost,
   previewIdFromHost,
   rewriteLocation,
   signPreviewToken,
@@ -330,6 +331,17 @@ describe("preview tokens and hosts", () => {
     expect(previewIdFromHost(`x.p-${id}.preview.localhost:3000`, "preview.localhost:3000")).toBeNull();
     expect(previewIdFromHost(`p-short.preview.localhost:3000`, "preview.localhost:3000")).toBeNull();
     expect(previewIdFromHost(`p-${id}.preview.localhost:3000`, "")).toBeNull();
+  });
+
+  it("sorts hosts on the preview domain so nothing there serves Farbaek itself", () => {
+    expect(previewDomainHost("farbaek.si", "farbaek.si")).toBe("apex");
+    expect(previewDomainHost("FARBAEK.SI.", "farbaek.si")).toBe("apex");
+    expect(previewDomainHost(`p-${id}.farbaek.si`, "farbaek.si")).toBe("preview");
+    expect(previewDomainHost("login.farbaek.si", "farbaek.si")).toBe("other");
+    expect(previewDomainHost(`x.p-${id}.farbaek.si`, "farbaek.si")).toBe("other");
+    expect(previewDomainHost("www.farbaek.com", "farbaek.si")).toBeNull();
+    expect(previewDomainHost("evilfarbaek.si", "farbaek.si")).toBeNull();
+    expect(previewDomainHost("login.farbaek.si", null)).toBeNull();
   });
 
   it("accepts a valid token once its claims match", async () => {

@@ -49,6 +49,21 @@ export function previewIdFromHost(host: string | null | undefined, previewDomain
   return isPreviewId(id) ? id : null;
 }
 
+/**
+ * Where a host sits on the preview domain, which holds people's content and
+ * must never serve Farbaek itself: the bare domain, one of its preview hosts,
+ * or some other name under it (which a wildcard DNS record also reaches).
+ * Null for every host outside the preview domain.
+ */
+export function previewDomainHost(host: string | null | undefined, previewDomain: string | null | undefined): "apex" | "preview" | "other" | null {
+  if (!host || !previewDomain) return null;
+  const h = host.trim().toLowerCase().replace(/\.$/, "");
+  const domain = previewDomain.trim().toLowerCase();
+  if (h === domain) return "apex";
+  if (!h.endsWith(`.${domain}`)) return null;
+  return previewIdFromHost(h, domain) ? "preview" : "other";
+}
+
 export function previewOrigin(previewId: string, previewDomain: string, protocol: "http" | "https"): string {
   return `${protocol}://${PREVIEW_HOST_PREFIX}${previewId}.${previewDomain}`;
 }
