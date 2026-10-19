@@ -23,6 +23,19 @@ const FOLLOW_UP_STAGES = ["Reading your project", "Drafting the plan with AI", "
 
 const IDLE: PromptStartState = { status: "idle" };
 
+/** Fired by offerPrompt: a build box on the page takes the sentence and shows it. */
+const PROMPT_OFFER_EVENT = "farbaek:prompt-offer";
+
+/**
+ * Hands a sentence to the page's build box (the homepage showroom uses it).
+ * Returns false when no box took it, so the caller can go on to sign-in;
+ * the sentence is kept in this browser either way.
+ */
+export function offerPrompt(text: string): boolean {
+  store(text);
+  return !window.dispatchEvent(new CustomEvent(PROMPT_OFFER_EVENT, { detail: text, cancelable: true }));
+}
+
 function readStored(): string {
   try {
     return window.localStorage.getItem(PROMPT_STORAGE_KEY) ?? "";
@@ -72,7 +85,24 @@ export function PromptComposer({
   const value = draft ?? kept;
   const setValue = (next: string) => setDraft(next);
   const form = useRef<HTMLFormElement>(null);
+  const box = useRef<HTMLTextAreaElement>(null);
   const resumed = useRef(false);
+
+  // A sentence offered by the page (offerPrompt): show it here, bring the box into view and focus it.
+  useEffect(() => {
+    if (followUp) return;
+    const take = (e: Event) => {
+      const text = (e as CustomEvent<string>).detail;
+      if (typeof text !== "string" || e.defaultPrevented) return;
+      e.preventDefault();
+      setDraft(text);
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      form.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
+      box.current?.focus({ preventScroll: true });
+    };
+    window.addEventListener(PROMPT_OFFER_EVENT, take);
+    return () => window.removeEventListener(PROMPT_OFFER_EVENT, take);
+  }, [followUp]);
 
   // After sign-in, send the kept prompt once without asking again.
   useEffect(() => {
@@ -108,6 +138,7 @@ export function PromptComposer({
           {followUp ? "Describe the next change" : "Describe what you want to build"}
         </label>
         <textarea
+          ref={box}
           id={followUp ? "prompt-next" : "prompt"}
           name="prompt"
           value={value}

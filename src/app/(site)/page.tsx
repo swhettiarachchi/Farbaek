@@ -8,6 +8,7 @@ import { PricingTeaser } from "@/components/marketing/pricing-teaser";
 import { StatementSection } from "@/components/marketing/statement-section";
 import { StatusSection } from "@/components/marketing/status-section";
 import { ThreadSection } from "@/components/marketing/thread-section";
+import { ShowcaseSection } from "@/components/showcase/showcase-section";
 
 export default function HomePage() {
   return (
@@ -15,6 +16,7 @@ export default function HomePage() {
       <Hero />
       <FilmSection />
       <StatementSection />
+      <ShowcaseSection />
       <ThreadSection />
       <DemoSection />
       <ModulesBento />

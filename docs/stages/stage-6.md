@@ -265,3 +265,27 @@ They still fetch nothing. The motion runs without JavaScript, so gallery thumbna
 2. The plain starters (static website, Next.js app) to the standard.
 3. A build from a template, end to end.
 4. An image-generation integration, if the owner chooses a provider.
+
+## 2026-10-19: The homepage showroom (ADR 0031)
+
+### Done
+
+**A showroom after the homepage statement.** The section adds to the page and changes nothing else.
+- **Eight concepts,** one per category (Typeset Foundry, Maison Ore, Afterglow, Halo One, Northlight, Tally, Kumo, Orbit Clinic). Each has its own composition and palette and a loop of its own, drawn in HTML and SVG.
+- **Each carries a design read** (palette, type, signature, skills) and the sentence that would start it. "Start a build like this" puts that sentence in the hero's build box.
+- **Every mockup is labelled** "Concept mockup". Halo One's finish picker is the only control inside one, and it works.
+- **"Everything around the design":** ten capabilities with honest statuses. Publishing and app previews read the deployment's configuration; image generation says "Not yet".
+
+### Verified
+
+- **Checks:** typecheck and lint pass; 5 new tests for the showroom's claims.
+- **On a local production build** (no site domain configured):
+  - all eight concepts render, each in its own palette, and the tablist moves with the arrow keys;
+  - the finish picker recolours the headphones;
+  - "Start a build like this" filled the hero's build box, scrolled to it and focused it;
+  - Publish and app previews showed "Turning on", image generation "Not yet";
+  - no horizontal scroll at 375 px or 768 px.
+
+### Not verified
+
+- **Safari:** not tried; the compositions use container query units (`cqw`), which current Safari supports.

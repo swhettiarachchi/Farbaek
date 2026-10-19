@@ -325,3 +325,85 @@
     opacity: 0;
   }
 }
+
+/*
+ * The homepage showroom's concept mockups (ADR 0031). Each runs only through
+ * motion-safe classes, and the stage pauses them while it's off screen.
+ */
+@keyframes showcase-weight {
+  50% {
+    font-weight: calc(1100 - var(--w));
+  }
+}
+
+@keyframes showcase-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes showcase-sway {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1.5deg);
+  }
+  50% {
+    transform: translateY(-3%) rotate(1.5deg);
+  }
+}
+
+@keyframes showcase-twinkle {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes showcase-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes showcase-orbit {
+  from {
+    transform: rotateX(72deg) rotate(0deg);
+  }
+  to {
+    transform: rotateX(72deg) rotate(360deg);
+  }
+}
+
+@keyframes showcase-bounce {
+  0%,
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+  45% {
+    transform: translateY(-8%) scale(0.97, 1.03);
+  }
+  60% {
+    transform: translateY(0) scale(1.04, 0.96);
+  }
+}
+
+@keyframes showcase-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-4deg);
+  }
+  50% {
+    transform: translateY(-12%) rotate(5deg);
+  }
+}
+
+@keyframes showcase-now {
+  to {
+    transform: translateY(4cqw);
+  }
+}
+
+@keyframes showcase-ring {
+  from {
+    stroke-dashoffset: var(--ring-from);
+  }
+}
