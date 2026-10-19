@@ -26,6 +26,7 @@ export const TOOL_INPUTS = {
     args: z.array(z.string().max(1_000)).max(50).describe("Arguments, one per item."),
     reason: Reason,
   }),
+  review_site: z.object({}).describe("No input: it reviews every page, stylesheet and script in the project."),
   finish: z.object({
     summary: z.string().min(1).max(2_000).describe("Two or three sentences: what changed and why."),
     steps: z.array(z.string().max(300)).max(20),
@@ -46,6 +47,8 @@ export const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
   write_file: "Create a file, or replace a whole file, with the given content.",
   edit_file: "Change a file with exact find-and-replace edits. Each find must occur exactly once.",
   run_command: "Run one program with arguments in the project folder. Some commands need a person's approval first.",
+  review_site:
+    "Check the site before finishing: broken links and anchors, missing alt text, labels, title, description, viewport and lang, motion without a reduced-motion fallback, hidden focus, em dashes, lorem ipsum and leftover placeholders. Returns what to fix.",
   finish: "End the run and hand the change to a person for review, with a summary, steps, risks and checks.",
 };
 

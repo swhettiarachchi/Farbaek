@@ -311,3 +311,19 @@ describe("the agent's instructions", () => {
     expect(agentSystemPrompt("review_only", null)).not.toContain("## Skills for this build");
   });
 });
+
+describe("review_site", () => {
+  it("is offered in every mode and reviews the workspace's pages", async () => {
+    const fake = fakeModel([
+      () => ({ calls: [tool("r", "review_site", {})] }),
+      (results) => {
+        expect(results[0]).toMatchObject({ isError: false, content: "There are no HTML pages in the project to review." });
+        return { calls: [finish()] };
+      },
+    ]);
+    const report = await runAgent(input({ model: fake.model, workspace: await workspace("patch") }));
+    expect(report.outcome.kind).toBe("finished");
+    expect(fake.tools()).toContain("review_site");
+    expect(fake.system()).toContain("Call review_site after your last change");
+  });
+});

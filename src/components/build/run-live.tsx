@@ -46,6 +46,7 @@ const TOOL_ICON: Record<string, Icon> = {
   write_file: PencilSimpleLineIcon,
   edit_file: PencilSimpleLineIcon,
   run_command: TerminalWindowIcon,
+  review_site: CheckIcon,
   finish: FlagCheckeredIcon,
 };
 

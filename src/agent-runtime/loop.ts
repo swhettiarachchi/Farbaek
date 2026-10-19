@@ -15,6 +15,7 @@
 import { displayCommand, withSafeDefaults, type CommandRisk } from "@/core/agent/commands";
 import { AGENT_MODE_LABELS, type AgentMode } from "@/core/agent/modes";
 import { agentPolicyVersion, decide } from "@/core/agent/permissions";
+import { formatSiteReview, reviewSite } from "@/core/agent/site-review";
 import { skillsSection, type Skill } from "@/core/agent/skills";
 import { STANDARD_PRECEDENCE, STUDIO_STANDARD } from "@/core/agent/studio-standard";
 import { parseToolCall, toolDefinitions, TOOL_NAMES, type ToolCall, type ToolInput, type ToolName } from "@/core/agent/tools";
@@ -152,9 +153,26 @@ function target(call: ToolCall): string {
       return call.input.path;
     case "run_command":
       return displayCommand(call.input.program, call.input.args);
+    case "review_site":
+      return "site";
     case "finish":
       return "";
   }
+}
+
+/** The text files a site review reads (pages, styles, scripts), up to a total size. */
+async function siteFiles(workspace: AgentWorkspace): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  let total = 0;
+  for (const path of workspace.files()) {
+    if (!/\.(?:html?|css|m?js)$/i.test(path) || /(?:^|\/)(?:node_modules|dist|build|\.next)\//.test(path)) continue;
+    const text = await workspace.read(path).catch(() => null);
+    if (text === null) continue;
+    total += text.length;
+    if (total > 3_000_000) break;
+    out.set(path, text);
+  }
+  return out;
 }
 
 function errorText(error: unknown): string {
@@ -288,6 +306,10 @@ export async function runAgent(input: RunInput): Promise<RunReport> {
           content = clip(commandText(displayCommand(call.input.program, args), r));
           emit({ type: "tool", step, tool: call.name, target: what, status: r.exitCode === 0 ? "done" : "failed", detail: content.slice(0, 2_000) });
           return { result: { id: raw.id, isError: r.exitCode !== 0, content } };
+        }
+        case "review_site": {
+          content = formatSiteReview(reviewSite(await siteFiles(input.workspace)));
+          break;
         }
         case "finish":
           emit({ type: "tool", step, tool: call.name, target: what, status: "done", detail: call.input.summary });

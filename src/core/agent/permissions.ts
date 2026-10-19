@@ -68,6 +68,7 @@ export function decide(call: ToolCall, ctx: PermissionContext): Decision {
     case "list_files":
     case "search_files":
     case "read_file":
+    case "review_site":
     case "finish":
       return { kind: "allow" };
     case "write_file":
