@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { previewDomainHost } from "@/core/sandbox/preview";
+import { SITE_ROUTE, siteNameFromHost } from "@/core/publish/site";
 import { readSupabaseConfig, siteUrl } from "@/server/supabase/config";
 
 /**
@@ -23,6 +24,12 @@ export async function proxy(request: NextRequest) {
   const place = previewDomainHost(request.headers.get("host"), process.env.SANDBOX_PREVIEW_DOMAIN);
   if (place === "apex") return NextResponse.redirect(new URL("/", siteUrl()), 308);
   if (place === "other") {
+    // A published site (ADR 0029): its route checks the name and serves only that site's live files.
+    if (siteNameFromHost(request.headers.get("host"), process.env.SANDBOX_PREVIEW_DOMAIN ?? null)) {
+      const url = request.nextUrl.clone();
+      url.pathname = `${SITE_ROUTE}${request.nextUrl.pathname}`;
+      return NextResponse.rewrite(url);
+    }
     return new NextResponse("There's nothing at this address.", {
       status: 404,
       headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex" },
