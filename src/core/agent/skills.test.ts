@@ -66,6 +66,10 @@ describe("built-in skills", () => {
     expect(ids("A futuristic 3D landing page for my drone startup with smooth animations")).toEqual(expect.arrayContaining(["3d-and-depth", "motion-and-interaction"]));
     expect(ids("An online shop for my handmade candles with a cart")).toContain("shop-and-product-pages");
     expect(ids("A booking dashboard for my clinic")).toContain("app-and-dashboard-ui");
+    // A site with a booking form is a brand site, not a dashboard.
+    const rental = ids("A futuristic one-page site for Volt Ride, an electric bike rental in Kandy: a 3D hero, a booking form and opening hours.");
+    expect(rental).toEqual(expect.arrayContaining(["brand-identity", "3d-and-depth", "motion-and-interaction"]));
+    expect(rental).not.toContain("app-and-dashboard-ui");
     expect(suggestSkills("hello")).toEqual([]);
     expect(suggestSkills("animated futuristic modern premium 3d shop portfolio dashboard brand").length).toBe(3);
   });

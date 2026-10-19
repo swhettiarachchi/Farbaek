@@ -44,12 +44,12 @@ description: Real dimensional moments, from layered parallax and CSS 3D to a thr
 - Pick the lightest technique that delivers the moment: layered parallax (translate by scroll progress), CSS 3D (perspective plus rotateX or rotateY on cards that tilt toward the pointer), or a WebGL scene for one hero or product moment.
 - For a three.js scene in a static site, import a pinned version as an ES module from https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js. Keep geometry simple and art-directed (a sculpted shape, a particle field, a product-like form with a matcap or physical material), light it deliberately, and make it react to the pointer or scroll subtly.
 - Start the scene only when it's on screen and pause it when it isn't or the tab is hidden; cap the device pixel ratio at 2; dispose of it cleanly.
-- Always render a still fallback first (a gradient or a poster frame in the same composition) and keep it for prefers-reduced-motion, missing WebGL and weak devices (navigator.hardwareConcurrency of 4 or less, or saveData).
+- Always render a still fallback first (a gradient or a poster frame in the same composition) and keep it for prefers-reduced-motion, missing WebGL and weak devices (fewer than 4 cores in navigator.hardwareConcurrency, navigator.deviceMemory under 4, or saveData). Four-core laptops and phones should get the scene.
 - Depth must serve hierarchy: the 3D element sits behind or beside the message, never on top of text, and contrast stays readable over it.`,
   ),
   skill(
     "Brand identity",
-    /\b(brand\w*|identity|logo|luxury|premium|boutique|studio|agency|fashion|beauty|restaurant|caf[eé]|hotel)\b/i,
+    /\b(brand\w*|identity|logo|luxury|premium|boutique|studio|agency|fashion|beauty|restaurant|caf[eé]|hotel|rental|business|company|bakery|salon)\b/i,
     `---
 name: brand-identity
 description: Art direction that gives the product a recognisable identity: a named palette, a type voice, a signature motif and consistent details.
@@ -101,7 +101,7 @@ description: Personal sites and portfolios with a strong point of view, where th
   ),
   skill(
     "App and dashboard UI",
-    /\b(dashboard|admin|crm|app|application|portal|tracker|booking|inventory|account\w*|log ?in|internal tool|analytics)\b/i,
+    /\b(dashboard|admin|crm|web app|application|portal|tracker|booking (?:system|app)|inventory|accounts?|log ?in|internal tool|analytics)\b/i,
     `---
 name: app-and-dashboard-ui
 description: Product UI that is calm, fast and complete: clear navigation, dense-but-readable data, and every state designed.
