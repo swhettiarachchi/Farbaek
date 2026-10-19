@@ -96,7 +96,8 @@ export function walletView(grants: readonly GrantRow[], spec: GrantSpec | null, 
   const active = grants.filter((g) => isActive(g, now));
   const currentKey = spec?.source_key;
   // This period's grant is the issued one matching the spec, else the newest active one.
-  const issued = active.find((g) => spec && g.kind === spec.kind && g.startsAt === spec.starts_at) ?? null;
+  // Compared as instants: the database writes "+00:00" where the spec has "Z".
+  const issued = active.find((g) => spec && g.kind === spec.kind && Date.parse(g.startsAt) === Date.parse(spec.starts_at)) ?? null;
   const current: GrantRow | null =
     issued ?? (spec ? { id: currentKey ?? "pending", kind: spec.kind, units: spec.units, used: 0, startsAt: spec.starts_at, expiresAt: spec.expires_at } : null);
   const older = active.filter((g) => g !== issued && (current === null || Date.parse(g.startsAt) < Date.parse(current.startsAt)));
@@ -105,13 +106,13 @@ export function walletView(grants: readonly GrantRow[], spec: GrantSpec | null, 
   const rolledUnits = older.reduce((n, g) => n + Math.max(0, g.units - g.used), 0);
   const rollover =
     rolledUnits > 0 && current && current.units > 0
-      ? { percentOfMonth: Math.max(1, Math.round((rolledUnits / current.units) * 100)), expiresAt: older.reduce((a, g) => (g.expiresAt < a ? g.expiresAt : a), older[0]!.expiresAt) }
+      ? { percentOfMonth: Math.max(1, Math.round((rolledUnits / current.units) * 100)), expiresAt: older.reduce((a, g) => (Date.parse(g.expiresAt) < Date.parse(a) ? g.expiresAt : a), older[0]!.expiresAt) }
       : null;
 
   const listed = issued || !current ? active : [...active, current];
   const grantsView: WalletGrant[] = listed
     .map((g) => ({ id: g.id, kind: g.kind, startsAt: g.startsAt, expiresAt: g.expiresAt, percentLeft: 100 - (percentUsed(g.used, g.units) ?? 0), current: g === current }))
-    .sort((a, b) => a.expiresAt.localeCompare(b.expiresAt));
+    .sort((a, b) => Date.parse(a.expiresAt) - Date.parse(b.expiresAt));
 
   return {
     available,
