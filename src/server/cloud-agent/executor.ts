@@ -352,6 +352,11 @@ async function execute(
     clearInterval(heartbeat);
     for (const p of live.approvals.values()) p.resolve({ approved: false });
     registry.delete(runId);
+    // Messages that came after the agent's last step were shown as sent; say plainly that it didn't read them.
+    if (live.messages.length > 0) {
+      const n = live.messages.splice(0).length;
+      event({ kind: "note", text: `The run ended before the agent read your last ${n === 1 ? "message" : `${n} messages`}, so ${n === 1 ? "it wasn't" : "they weren't"} used. Send it again under Keep going.` });
+    }
     await flush().catch(() => undefined);
     if (stopSandbox) await stopSandbox().catch(() => undefined);
     await fs.rm(dir, { recursive: true, force: true }).catch(() => undefined);

@@ -125,7 +125,10 @@ export function StaticPreview({
           </div>
         )}
       </div>
-      <p className="text-xs text-ink-3">Runs in a locked-down frame with no network and no access to Farbaek. Images stored outside the project don&apos;t load here.</p>
+      <p className="text-xs text-ink-3">
+        Runs in a locked-down frame with no access to Farbaek, and its scripts can&apos;t reach the network. Images and fonts from https addresses load; image files by path
+        don&apos;t show here yet.
+      </p>
     </div>
   );
 }

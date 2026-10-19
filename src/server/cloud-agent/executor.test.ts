@@ -218,6 +218,18 @@ describe("cloud runs", () => {
     expect(sendRunMessage(alice, { runId: "run-1", text: "Too late?" })).toMatchObject({ ok: false, code: "NOT_FOUND" });
   });
 
+  it("says so when the run ends before the agent reads a message", async () => {
+    const install = { id: "i", name: "run_command", input: { program: "npm", args: ["install"], reason: "Install." } };
+    const t = await deps({ model: scripted([[install]]), sandbox: { where: "sandbox", run: async () => ok } });
+    await startCloudRun(t.d, { person: alice, taskId: "t1", effort: "balanced" });
+    await t.waiting();
+    expect(sendRunMessage(alice, { runId: "run-1", text: "Use a warmer colour" })).toEqual({ ok: true, value: null });
+    cancelCloudRun(alice, "run-1");
+    expect(await t.ended()).toMatchObject({ status: "cancelled" });
+    const notes = t.patches.flatMap((p) => p.events ?? []).filter((e) => e.kind === "note").map((e) => (e.payload as { text: string }).text);
+    expect(notes.at(-1)).toMatch(/ended before the agent read your last message/);
+  });
+
   it("refuses viewers, tasks that aren't approved, and a second live run", async () => {
     const t = await deps({ model: scripted([]) });
     expect(await startCloudRun(t.d, { person: { ...alice, role: "viewer" }, taskId: "t1", effort: "balanced" })).toMatchObject({ ok: false, code: "FORBIDDEN" });
