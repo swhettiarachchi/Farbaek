@@ -73,3 +73,69 @@ Decisions: [ADR 0027](../adr/0027-prompt-first-and-run-steering.md) (prompt-firs
 2. Phase C: the agent inbox on Mission Control, the presence orb, the 3D Seal, the command palette, motion polish, and the `farbaek-ui` skill.
 3. Phase D: templates and rescue import.
 4. Phase E once farbaek.si is bought: wildcard domain, live app previews, Publish.
+
+## 2026-10-19: Live on www.farbaek.com, the preview domain, Phases C and D
+
+Decisions: [ADR 0028](../adr/0028-presence-templates-rescue.md) (agent presence, templates, rescue import).
+
+### Live
+
+- Pull request swhettiarachchi/Farbaek#2 (Phases A and B) was merged. `/api/health` on www.farbaek.com reports `ab640adae0f4`.
+
+### farbaek.si (in progress)
+
+- **Bought** by the owner at Hostinger. It resolves through Hostinger's DNS (`athena` and `apollo.dns-parking.com`).
+- **Before any DNS points there:** the proxy now keeps Farbaek off the preview domain. Only `p-<id>` preview hosts are served; the bare domain redirects (308) to Farbaek's address, and every other name gets a plain 404, so the app and its sign-in never appear on the domain for people's content. This is in pull request swhettiarachchi/Farbaek#3.
+- **Railway:** adding the custom domain `*.farbaek.si` (port 8080) is blocked for me by auto mode, as the www domain was. The form is filled in for the owner.
+- **Still to do:**
+  1. merge #3;
+  2. add the domain on Railway;
+  3. add Railway's 2 CNAME records and 1 TXT record in Hostinger's DNS;
+  4. set `SANDBOX_PREVIEW_DOMAIN=farbaek.si`, and `SANDBOX_PREVIEW_SECRET`, which the owner generates and pastes.
+
+### Phase C: done
+
+- **Agent inbox** on Mission Control: Needs you, Working, Ready for review and Done, each run with a small Agent Core and one line on where it is. The page refreshes itself while an agent is live.
+- **Presence orb** in the sidebar and phone header, from a light status route. It checks often while an agent is live and pauses when the tab is hidden.
+- **Command palette** on Ctrl or Cmd+K, plus a sidebar button: pages, projects, templates, the rescue import, a build from what's typed, and switching workspace.
+- **The verified Seal forms once**, in 3D, when it first comes on screen.
+- **Sidebar:** its controls no longer squeeze on short screens.
+- **The `farbaek-ui` project skill** (`.claude/skills/farbaek-ui/`): the design system, components, motion and 3D rules, copy, and the React patterns the lint expects.
+
+### Phase D: done
+
+- **Six templates:** landing page, software site, portfolio, local business, event page and blog.
+  - A gallery with live, script-free thumbnails and a full preview page each.
+  - "Use this template" leads into the prompt flow with the template chosen.
+- **Rescue import:**
+  - a `.zip` is unpacked and screened in the browser;
+  - the server creates a project, imports the files and starts a security check;
+  - a zip bomb, ZIP64, encryption and bad checksums are handled.
+
+### Verified
+
+- **Tests:**
+  - inbox lanes and presence;
+  - palette matching;
+  - every template's screening, links and that nothing is fetched;
+  - a chosen template winning over the prompt's words;
+  - the zip reader: Farbaek's own writer, deflate, size and total caps, a lying size, encryption, CRC, not a zip, too many entries;
+  - the rescue zip (top folder, secrets, dependency folders);
+  - the rescue use case's outcomes.
+- **On a local production build against the hosted project:**
+  - the inbox showed the real runs in the right lanes (one ready for review, two done);
+  - the palette found the bakery project, offered "Plan a build: …" for a longer phrase, and opened Billing on Enter;
+  - the gallery's six thumbnails, a template's preview, and New build with `?template=local-business` (the starter field set, the example as placeholder) all worked;
+  - both verified Seals on the README task waited off-screen, then formed at 160px;
+  - a deliberately flawed app zipped with Windows' tar imported as 3 files with `node_modules` left packed, and its check scored 53 (grade D), finding the DOM XSS and the `eval`;
+  - by Host header: `farbaek.si` returned 308, `login.farbaek.si` 404 on `/`, `/app` and `/sign-in`, and a `p-` host reached the gateway.
+
+### Not verified
+
+- **Phone width (375px)** for the inbox, palette, gallery and rescue page. The owner's Chrome was minimised, and the app refuses framing. They use the same grid and pill patterns as checked pages.
+- **The Seal mid-animation:** screenshots a second apart caught the hidden and finished states only.
+
+### Next
+
+1. The owner merges #3 (it now carries Phases C and D too), then the domain steps above.
+2. Phase E: live app previews on `p-<id>.farbaek.si` once the domain and secret are set, then Publish (ADR 0029, migration 19).
