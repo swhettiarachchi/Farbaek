@@ -113,6 +113,24 @@ description: Product UI that is calm, fast and complete: clear navigation, dense
 - Motion is functional: list items animate in and out, panels slide, values tween when they change. Subtle, fast and always disabled under reduced motion.
 - If there's no backend yet, keep the data in the browser and say so in the UI, so every flow still works end to end.`,
   ),
+  skill(
+    "Mobile app screens",
+    /\b(mobile app|phone app|ios|android|iphone|app screens?|onboarding|react native|expo|pwa|bottom tab)\b/i,
+    `---
+name: mobile-app-screens
+description: App-native phone screens that feel made for a hand, not a website squeezed into a phone.
+---
+- Design for a real phone: respect the status bar, the notch and the home indicator (env(safe-area-inset-*)), keep the main action within thumb reach in the lower half, and make every target at least 44 by 44 px.
+- Pick one platform feel and keep it: iOS-like (large titles, a tab bar, sheets) or Android-like (a top app bar, bottom navigation, firmer cards). Don't mix the two on one screen.
+- Navigation people can predict: a bottom tab bar for three to five main sections, a back stack for drilling into detail, sheets for short side tasks, and one obvious primary action per screen.
+- Keep the first screen calm: one focal point, a headline of one to three short lines, one clear next step. No rows of chips, stats or tags above the fold.
+- Lock a small design system before the second screen (palette with one accent, type scale, spacing, corner radii, icon style) and use it on every screen after, so the flow feels like one app.
+- Build flows, not single screens: when the brief implies a journey (onboarding, sign-in, browse to detail, cart to checkout), make each step its own screen with real transitions, and vary the composition from screen to screen without changing the system.
+- Text stays readable: body at least 16 px, labels at least 13 px, and a scrim or a soft fade under any text that sits on an image.
+- Use imagery and texture with intent: an image-led welcome, a photo header that fades into the page, or a light grain on one hero area makes an app feel crafted. Keep it consistent across screens and never at the cost of legibility.
+- Avoid the mobile AI tells: purple-blue gradients, glass cards everywhere, fake chart dashboards, rows of tiny pills, and one screen repeated with only the icon changed.
+- In a website, show the app in a clean phone frame with even margins. In an app project, build real screens with working navigation, and when there's no backend yet keep the data in the browser and say so.`,
+  ),
 ];
 
 export function getBuiltInSkill(id: string): BuiltInSkill | null {

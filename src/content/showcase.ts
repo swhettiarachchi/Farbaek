@@ -130,7 +130,7 @@ export const SHOWCASE: readonly ShowcaseConcept[] = [
     kind: "Mobile app",
     line: "Shared money for housemates: who paid, who owes, settled in a tap.",
     prompt: "A mobile app for housemates to share bills, see who owes what and settle up in one tap",
-    skills: ["App and dashboard UI", "Motion and interaction"],
+    skills: ["Mobile app screens", "App and dashboard UI", "Motion and interaction"],
     palette: [
       { name: "Fern paper", hex: "#f3f6f2", role: "surface" },
       { name: "Forest", hex: "#0e3b2e", role: "ink" },
@@ -148,7 +148,7 @@ export const SHOWCASE: readonly ShowcaseConcept[] = [
     kind: "Mobile app",
     line: "A habit app with a small cloud that puffs up as you keep your streak.",
     prompt: "A cute habit tracker app with a little cloud mascot that grows as I keep my streaks",
-    skills: ["Brand identity", "Motion and interaction"],
+    skills: ["Mobile app screens", "Brand identity", "Motion and interaction"],
     palette: [
       { name: "Morning", hex: "#eef3ff", role: "surface" },
       { name: "Plum ink", hex: "#2a2340", role: "ink" },
@@ -166,7 +166,7 @@ export const SHOWCASE: readonly ShowcaseConcept[] = [
     kind: "Web app and mobile app",
     line: "Patients book on their phone; the clinic runs the day from one shared schedule.",
     prompt: "A booking system for my physio clinic: patients book times on their phone, and staff see the day's schedule on a dashboard",
-    skills: ["App and dashboard UI", "Software product site"],
+    skills: ["App and dashboard UI", "Mobile app screens"],
     palette: [
       { name: "Clinic white", hex: "#f7f9fb", role: "surface" },
       { name: "Navy", hex: "#0b2545", role: "ink" },
@@ -201,7 +201,7 @@ export interface Capability {
 export const CAPABILITIES: readonly Capability[] = [
   { id: "plan", title: "A plan before anything is built", body: "Describe it in plain words. Claude or Gemini drafts an intent contract you edit and approve.", status: "working" },
   { id: "design", title: "Design to a studio standard", body: "Every build starts with a design read: a palette, type, a signature element and a motion plan.", status: "working" },
-  { id: "skills", title: "Skills, including your own", body: "Seven built-in design skills, plus your own in the SKILL.md format used by Claude Skills.", status: "working" },
+  { id: "skills", title: "Skills, including your own", body: "Eight built-in design skills, plus your own in the SKILL.md format used by Claude Skills.", status: "working" },
   { id: "agent", title: "An agent you can steer", body: "It builds in the cloud under the plan you approved. Message it mid-run; every tool call is checked against the plan.", status: "working" },
   { id: "preview", title: "Previews of real code", body: "Static sites preview instantly. Apps with a server run in an isolated sandbox.", status: "app-previews" },
   { id: "checks", title: "Checks before it's done", body: "The agent reviews its own pages, security checks score the code, and contract checks run real commands.", status: "working" },

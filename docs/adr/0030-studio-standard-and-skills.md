@@ -30,7 +30,7 @@ Until now the agent's instructions covered safety and the contract, but nothing 
 The plan drafter puts `DESIGN.md` in scope for visible builds.
 
 **Skills** (`src/core/agent/skills.ts`) use the SKILL.md format of Claude Skills: frontmatter with a name and a description, then instructions. A skill comes from one of two places:
-- **Built-in** (`src/content/skills`): seven skills, covering motion and interaction, 3D and depth, brand identity, shop and product pages, software product site, portfolio and personal, and app and dashboard UI. They're suggested from the plan and chosen on the plan card.
+- **Built-in** (`src/content/skills`): eight skills, covering motion and interaction, 3D and depth, brand identity, shop and product pages, software product site, portfolio and personal, app and dashboard UI, and mobile app screens (added with the showroom, ADR 0031). They're suggested from the plan and chosen on the plan card.
 - **The project's own:** any `.farbaek/skills/<name>/SKILL.md` or `.claude/skills/<name>/SKILL.md` in its files, loaded on every run. At most 5 are loaded, with size limits.
 
 **Precedence** is stated in the instructions:

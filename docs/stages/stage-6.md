@@ -289,3 +289,13 @@ They still fetch nothing. The motion runs without JavaScript, so gallery thumbna
 ### Not verified
 
 - **Safari:** not tried; the compositions use container query units (`cqw`), which current Safari supports.
+
+**Skills, set up from the owner's design skills.** Taken in Farbaek's own words from taste-skill, gpt-taste, stitch-design-taste and imagegen-frontend-mobile:
+- **An eighth built-in skill, Mobile app screens:**
+  - safe areas, thumb reach and 44 px targets;
+  - one platform feel;
+  - a small design system locked before the second screen;
+  - real flows rather than single screens;
+  - readable text, purposeful imagery, and no mobile AI tells.
+  - It's suggested for prompts about mobile apps, iOS, Android, onboarding or a bottom tab bar.
+- **The Studio standard** now asks `DESIGN.md` for a short list of what the design avoids. Its AI tells now include numbered "Section 01" labels and bento grids with empty cells.
