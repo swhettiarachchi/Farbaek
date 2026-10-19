@@ -185,12 +185,12 @@ Decisions: [ADR 0029](../adr/0029-publish.md) (Publish), [ADR 0030](../adr/0030-
 ### Migration 19 on the hosted project (2026-10-19)
 
 - **Applied** after the owner's "set up everything".
-- **Hash check:** the SQL Editor held exactly the tested file (SHA-256 , 9,302 bytes).
-- **The RLS warning:** Supabase warned that a table had no row-level security, because its check misses the  lines further down. It was run as written ("Run without RLS" runs the SQL unchanged).
+- **Hash check:** the SQL Editor held exactly the tested file (SHA-256 `8d8080121c4b8f1929574dec134b0745510eef33da58bb6235569d411cf2a9a2`, 9,302 bytes).
+- **The RLS warning:** Supabase warned that a table had no row-level security, because its check misses the `enable row level security` lines further down. It was run as written ("Run without RLS" runs the SQL unchanged).
 - **Read-only checks afterwards:**
-  -  and  have row-level security on, with one read policy each;
-  -  can't insert or execute ;
-  -  can.
+  - `sites` and `site_deployments` have row-level security on, with one read policy each;
+  - `authenticated` can't insert or execute `app_publish_site`;
+  - `service_role` can.
 
 ### Next
 
