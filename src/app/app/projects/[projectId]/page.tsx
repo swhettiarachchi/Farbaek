@@ -21,7 +21,9 @@ export const metadata: Metadata = { title: "Project" };
 
 export default async function ProjectPage({ params, searchParams }: { params: Promise<{ projectId: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { projectId } = await params;
-  const starterFailed = (await searchParams).starter === "failed";
+  const query = await searchParams;
+  const starterFailed = query.starter === "failed";
+  const rescueFailed = query.rescue === "import_failed";
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
   const project = await ctx.reader.getProject(ctx.current.id, projectId);
@@ -47,6 +49,10 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
 
       {starterFailed ? (
         <Notice tone="warning">The project was created, but the starter&apos;s files couldn&apos;t be added. Import files from the Files page, or create the project again.</Notice>
+      ) : null}
+
+      {rescueFailed ? (
+        <Notice tone="warning">The project was created, but the zip&apos;s files couldn&apos;t be stored, so there&apos;s nothing to check yet. Import a smaller folder from the Files page, for example src.</Notice>
       ) : null}
 
       {project.archivedAt ? (

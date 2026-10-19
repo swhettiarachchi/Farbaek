@@ -57,6 +57,10 @@ export default async function NewBuildPage({ searchParams }: Props) {
         <Link href="/app/templates" className="inline-flex items-center gap-1 font-medium text-accent hover:underline">
           Browse templates <ArrowRightIcon size={13} weight="bold" aria-hidden />
         </Link>
+        {" "}Built it elsewhere?{" "}
+        <Link href="/app/rescue" className="inline-flex items-center gap-1 font-medium text-accent hover:underline">
+          Check your app <ArrowRightIcon size={13} weight="bold" aria-hidden />
+        </Link>
         {" "}Prefer to set things up yourself?{" "}
         <Link href="/app/projects" className="inline-flex items-center gap-1 font-medium text-accent hover:underline">
           Create a project <ArrowRightIcon size={13} weight="bold" aria-hidden />

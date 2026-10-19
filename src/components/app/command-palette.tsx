@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowsLeftRightIcon, FolderSimpleIcon, MagnifyingGlassIcon, ShieldStarIcon, SparkleIcon, SquaresFourIcon } from "@phosphor-icons/react";
+import { ArrowsLeftRightIcon, FolderSimpleIcon, MagnifyingGlassIcon, ShieldCheckIcon, ShieldStarIcon, SparkleIcon, SquaresFourIcon } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
@@ -114,6 +114,7 @@ export function CommandPalette({
     all.push({ id: "new", group: "Build", label: "New build", icon: SparkleIcon, keywords: ["create", "start", "prompt"], action: { kind: "go", href: "/app/new" } });
     for (const page of APP_PAGES) all.push({ id: page.href, group: "Go to", label: page.label, icon: page.icon, keywords: [page.short], action: { kind: "go", href: page.href } });
     all.push({ id: "/app/templates", group: "Go to", label: "Templates", icon: SquaresFourIcon, keywords: ["gallery", "starter", "site"], action: { kind: "go", href: "/app/templates" } });
+    all.push({ id: "/app/rescue", group: "Go to", label: "Check an app built elsewhere", icon: ShieldCheckIcon, keywords: ["import", "zip", "security", "rescue"], action: { kind: "go", href: "/app/rescue" } });
     if (admin) all.push({ id: "/admin", group: "Go to", label: "Admin console", icon: ShieldStarIcon, action: { kind: "go", href: "/admin" } });
     for (const p of projects) all.push({ id: `p:${p.id}`, group: "Projects", label: p.name, hint: "Project", icon: FolderSimpleIcon, action: { kind: "go", href: `/app/projects/${p.id}` } });
     for (const w of workspaces) {
