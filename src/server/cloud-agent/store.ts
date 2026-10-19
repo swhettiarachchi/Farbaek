@@ -169,6 +169,37 @@ export async function listRuns(client: SupabaseClient, orgId: string, options: {
   return z.array(RunRow).parse(data).map(toView);
 }
 
+export interface RunUsage {
+  /** Units settled for the run's model steps: their real, metered cost. */
+  settledUnits: number;
+  /** Steps whose usage was refunded (failed or stopped on Farbaek's side). */
+  refunded: number;
+}
+
+/**
+ * What a run has really used, from the usage ledger: its task's model steps
+ * between the run's start and end, read as the person (Row Level Security).
+ */
+export async function getRunUsage(client: SupabaseClient, orgId: string, run: Pick<RunView, "taskId" | "startedAt" | "endedAt">): Promise<RunUsage> {
+  let query = client
+    .from("ai_credit_ledger")
+    .select("credits, status")
+    .eq("org_id", orgId)
+    .eq("task_id", run.taskId)
+    .in("operation", ["model_gateway", "agent_step"])
+    .gte("created_at", run.startedAt)
+    .limit(2_000);
+  // A step reserved just before the end settles a moment later, so allow a minute past it.
+  if (run.endedAt) query = query.lte("created_at", new Date(Date.parse(run.endedAt) + 60_000).toISOString());
+  const { data, error } = await query;
+  if (error) throw new Error(`Couldn't read the run's usage: ${error.message}`);
+  const rows = z.array(z.object({ credits: z.coerce.number(), status: z.string() })).parse(data);
+  return {
+    settledUnits: rows.filter((r) => r.status === "settled").reduce((n, r) => n + Math.max(0, r.credits), 0),
+    refunded: rows.filter((r) => r.status === "refunded").length,
+  };
+}
+
 export async function getRun(client: SupabaseClient, orgId: string, runId: string): Promise<RunView | null> {
   if (!z.uuid().safeParse(runId).success) return null;
   const { data, error } = await client.from("agent_runs").select(RUN_SELECT).eq("org_id", orgId).eq("id", runId).maybeSingle();

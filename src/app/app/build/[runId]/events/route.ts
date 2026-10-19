@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { RUN_STALE_AFTER_MS, isLive } from "@/core/agent/cloud-run";
 import { isRunLiveHere } from "@/server/cloud-agent/executor";
-import { createSupabaseRunStore, getRun, listRunEvents } from "@/server/cloud-agent/store";
+import { shareOfPeriod } from "@/core/agent/prompt-start";
+import { createSupabaseRunStore, getRun, getRunUsage, listRunEvents } from "@/server/cloud-agent/store";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { loadAppContext } from "@/server/workspace/context";
+import { periodUnits } from "@/server/workspace/plan-card-data";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +32,7 @@ export async function GET(request: Request, { params }: Params) {
     const admin = createSupabaseAdminClient();
     if (admin && (await createSupabaseRunStore(admin).interruptStale(new Date(Date.now() - RUN_STALE_AFTER_MS))) > 0) run = (await getRun(user, ctx.current.id, runId)) ?? run;
   }
-  const events = await listRunEvents(user, ctx.current.id, run.id, after);
-  return NextResponse.json({ data: { run, events } }, { headers: { "cache-control": "no-store" } });
+  const [events, used] = await Promise.all([listRunEvents(user, ctx.current.id, run.id, after), getRunUsage(user, ctx.current.id, run).catch(() => null)]);
+  const usage = used ? { share: shareOfPeriod(used.settledUnits, periodUnits(ctx.current)), refunded: used.refunded } : null;
+  return NextResponse.json({ data: { run, events, usage } }, { headers: { "cache-control": "no-store" } });
 }

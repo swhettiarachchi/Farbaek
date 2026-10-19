@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { AgentCore } from "@/components/build/agent-core";
+import { PromptComposer } from "@/components/build/prompt-composer";
 import { RunStatusBadge } from "@/components/build/run-status";
 import { StartRun } from "@/components/build/start-run";
 import { LocalTime } from "@/components/ui/local-time";
@@ -63,6 +64,10 @@ export default async function BuildPage() {
         title="Build"
         description="Describe an outcome, agree the contract, and the Farbaek Agent builds it in the cloud on Farbaek's AI. No API key needed: each run uses your workspace's AI usage, and every change waits for your review."
       />
+
+      <section aria-label="Start a build" className="aurora">
+        <PromptComposer mode="app" size="compact" disabledReason={startReason} />
+      </section>
 
       <AgentCore phase={phase}>
         <p className="text-sm leading-relaxed text-ink-2">

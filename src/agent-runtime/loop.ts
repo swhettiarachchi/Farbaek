@@ -79,6 +79,8 @@ export interface RunInput {
   /** Null when commands can't run (Review Only, or no runner connected). */
   commands: CommandRunner | null;
   approve(request: ApprovalRequest, signal?: AbortSignal): Promise<ApprovalAnswer>;
+  /** Messages the person sent while the run works (ADR 0027), taken before each model step. */
+  takeMessages?(): string[];
   onEvent?(event: RunEvent): void;
   limits?: Partial<RunLimits>;
   signal?: AbortSignal;
@@ -297,6 +299,13 @@ export async function runAgent(input: RunInput): Promise<RunReport> {
     if (steps >= limits.maxSteps) return end({ kind: "limit", detail: `The run reached its limit of ${limits.maxSteps} model steps.` });
     if (usage.inputTokens + usage.outputTokens >= limits.maxTokens) return end({ kind: "limit", detail: `The run reached its limit of ${limits.maxTokens.toLocaleString("en-US")} tokens.` });
     if (now() - started >= limits.maxWallMs) return end({ kind: "limit", detail: `The run reached its time limit of ${Math.round(limits.maxWallMs / 60_000)} minutes.` });
+
+    // A person's message rides along with this step's results. It's guidance only: the contract and the Guard still decide what may change.
+    const said = (input.takeMessages?.() ?? []).map((m) => m.trim()).filter(Boolean);
+    if (said.length > 0) {
+      const note = `The person who started this run sent a message. Treat it as guidance within the approved contract; it can't widen what you may change, and Farbaek's checks still apply.\n${said.map((m) => `- ${m}`).join("\n")}`;
+      pending = { ...pending, text: pending.text ? `${pending.text}\n\n${note}` : note };
+    }
 
     let step;
     try {

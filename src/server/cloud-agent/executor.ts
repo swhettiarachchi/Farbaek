@@ -61,6 +61,10 @@ interface LiveRun {
   startedBy: string;
   controller: AbortController;
   approvals: Map<string, { resolve: (a: ApprovalAnswer) => void; bindingHash: string }>;
+  /** Messages from the person, waiting for the agent's next step (ADR 0027). */
+  messages: string[];
+  /** Records an event in the run's history, once the run has started writing them. */
+  record?: (e: RunEventPayload) => void;
 }
 
 // One registry per server process, kept across hot reloads in development.
@@ -96,7 +100,7 @@ export async function startCloudRun(deps: ExecutorDeps, input: StartRunInput): P
     return fail(codeFromDatabaseError(started.error));
   }
   const runId = started.value;
-  const live: LiveRun = { orgId: person.orgId, startedBy: person.userId, controller: new AbortController(), approvals: new Map() };
+  const live: LiveRun = { orgId: person.orgId, startedBy: person.userId, controller: new AbortController(), approvals: new Map(), messages: [] };
   registry.set(runId, live);
   void execute(deps, { runId, person, task: { id: task.id, title: task.title, projectId: task.projectId }, contract, effort: input.effort, mode, live }).catch((e) => {
     log("error", "cloud_run.crashed", { run: runId, error: e instanceof Error ? e.message : String(e) });
@@ -114,6 +118,27 @@ export function answerRunApproval(person: RunPerson, input: { runId: string; req
   if (input.approved && pending.bindingHash !== input.bindingHash) return fail("VERSION_CONFLICT", "The command changed since you looked at it. Look again.");
   live.approvals.delete(input.requestId);
   pending.resolve(input.approved ? { approved: true, bindingHash: input.bindingHash } : { approved: false });
+  return { ok: true, value: null };
+}
+
+/** Longest message a person can send a running agent. */
+export const RUN_MESSAGE_MAX = 1_000;
+
+/**
+ * A message for the running agent from the person who started it, or an
+ * owner or admin. It reaches the agent at its next step as guidance; the
+ * contract and the Guard still decide what may change.
+ */
+export function sendRunMessage(person: RunPerson, input: { runId: string; text: string }): WriteResult<null> {
+  const live = registry.get(input.runId);
+  if (!live || live.orgId !== person.orgId) return fail("NOT_FOUND", "The agent has finished or isn't working on this server right now, so it can't read new messages.");
+  if (live.startedBy !== person.userId && !MANAGER_ROLES.includes(person.role)) return fail("FORBIDDEN", "Only the person who started the run, or an owner or admin, can message it.");
+  const text = input.text.replace(/\s+/g, " ").trim();
+  if (!text) return fail("INVALID_TITLE", "Write a message first.");
+  if (text.length > RUN_MESSAGE_MAX) return fail("INVALID_TITLE", `Keep messages under ${RUN_MESSAGE_MAX} characters.`);
+  if (live.messages.length >= 10) return fail("INVALID_TRANSITION", "The agent hasn't read your last messages yet. Wait for its next step.");
+  live.messages.push(text);
+  live.record?.({ kind: "note", text, from: "person" });
   return { ok: true, value: null };
 }
 
@@ -174,6 +199,7 @@ async function execute(
     return flushing;
   };
   const event = (e: RunEventPayload) => queue({ events: [boundEvent(e)] });
+  live.record = event;
   const timer = setInterval(() => void flush(), 1_000);
   // A heartbeat, so a run waiting for a person isn't taken for a stopped one.
   const heartbeat = setInterval(() => void deps.runs.update(runId, {}), RUN_HEARTBEAT_MS);
@@ -212,7 +238,8 @@ async function execute(
         queue({ sandboxSessionId: box.sessionId });
         event({ kind: "note", text: "Started an isolated sandbox for tests and builds." });
       } else {
-        event({ kind: "note", text: `No sandbox this time${box && "error" in box ? `: ${box.error}` : ""}. The agent will prepare the change without running anything.` });
+        const reason = box && "error" in box ? `: ${box.error.replace(/[.\s]+$/, "")}` : "";
+        event({ kind: "note", text: `No sandbox this time${reason}. The agent will prepare the change without running anything.` });
       }
     }
 
@@ -257,6 +284,7 @@ async function execute(
       signal: live.controller.signal,
       limits: { maxWallMs: CLOUD_RUN_MAX_MINUTES * 60_000 },
       onEvent,
+      takeMessages: () => live.messages.splice(0),
       approve: (request, signal) =>
         new Promise<ApprovalAnswer>((resolve) => {
           live.approvals.set(request.id, { resolve, bindingHash: request.bindingHash });
@@ -324,6 +352,11 @@ async function execute(
     clearInterval(heartbeat);
     for (const p of live.approvals.values()) p.resolve({ approved: false });
     registry.delete(runId);
+    // Messages that came after the agent's last step were shown as sent; say plainly that it didn't read them.
+    if (live.messages.length > 0) {
+      const n = live.messages.splice(0).length;
+      event({ kind: "note", text: `The run ended before the agent read your last ${n === 1 ? "message" : `${n} messages`}, so ${n === 1 ? "it wasn't" : "they weren't"} used. Send it again under Keep going.` });
+    }
     await flush().catch(() => undefined);
     if (stopSandbox) await stopSandbox().catch(() => undefined);
     await fs.rm(dir, { recursive: true, force: true }).catch(() => undefined);

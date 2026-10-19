@@ -53,8 +53,8 @@ export function MobileMenu() {
             ))}
           </ul>
         </nav>
-        <Link href="/#demo" onClick={() => setOpen(false)} className={buttonClasses("primary", "md", "mt-4 w-full")}>
-          Try the demo
+        <Link href="/sign-in?next=/app/new" onClick={() => setOpen(false)} className={buttonClasses("primary", "md", "mt-4 w-full")}>
+          Start building
         </Link>
       </div>
     </div>

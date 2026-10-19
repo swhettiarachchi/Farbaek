@@ -29,7 +29,30 @@ Decisions: [ADR 0026](../adr/0026-admin-console.md) (admin console). Deploy step
 - **The console at phone width:** the signed-in Chrome window is maximised and couldn't be resized. Its layout uses the same patterns as the app: a nav row and tables that scroll inside their own frame.
 - **Signing in as hello@farbaek.com:** that needs the Spacemail records finished and Supabase sending through Spacemail SMTP.
 
+### Live on Railway (2026-10-18)
+
+- **Release:** pull request swhettiarachchi/Farbaek#1 merged into `main` (`94d3cbd`).
+- **Railway service:** project "remarkable-peace", US East, 1 replica, restart on failure, health check `/api/health`, Railpack with Node 24.21.0 and pnpm 12.11.2.
+- **Variables:** the plain ones set in the dashboard; the owner pasted the secret ones. `NEXT_PUBLIC_SITE_URL` and `SANDBOX_DEPLOYMENT_ID` were reset after the paste, to the Railway address and `railway-production`.
+- **Domains:**
+  - `farbaek-production.up.railway.app` and `www.farbaek.com` (HTTPS) serve the app;
+  - `farbaek.com` forwards to `https://www.farbaek.com` (301, Spaceship URL redirect).
+  - farbaek.com's nameservers are Spaceship's, so DNS is managed in Spaceship's Advanced DNS: `www` CNAME to Railway, the Railway verification TXT, and the Spacemail records Spaceship added.
+- **Email:** Spacemail for farbaek.com is verified (MX, SPF, DKIM and autodiscover by Spaceship; DMARC `p=none` added).
+- **Supabase Auth:** Site URL is the Railway address. Allowed redirects: localhost, the Railway address, farbaek.com and www.farbaek.com.
+- **Checked live:**
+  - `/api/health` returns ok with commit `94d3cbd`;
+  - home, pricing, sign-in and `security.txt` return 200, and the sign-in form shows (Supabase connected);
+  - `/app` redirects to sign-in, and `/admin` returns 404 when signed out;
+  - both public addresses appear on the home page.
+
 ### Next
+
+1. Supabase custom SMTP through Spacemail (`mail.spacemail.com`, port 465, SSL, user hello@farbaek.com; the owner types the password). Until then only Supabase team members get sign-in emails.
+2. Set `NEXT_PUBLIC_SITE_URL` and Supabase's Site URL to `https://www.farbaek.com`, then redeploy.
+3. Sign in as hello@farbaek.com and check the admin console live.
+
+### Earlier next steps
 
 1. Merge into `main` through a pull request and create the Railway service.
 2. Finish the Spacemail DNS records and verify the domain.

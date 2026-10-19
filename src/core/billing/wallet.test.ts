@@ -54,6 +54,13 @@ describe("what people see", () => {
     ]);
   });
 
+  it("matches the issued grant when the database writes its times as +00:00, so it's listed and counted once", () => {
+    const issued = grant({ id: "issued", used: 811, startsAt: "2026-10-01 00:00:00+00", expiresAt: "2026-12-01 00:00:00+00" });
+    const view = walletView([issued], spec, now);
+    expect(view.grants.map((g) => [g.id, g.current])).toEqual([["issued", true]]);
+    expect(view.available).toBe(10_000 - 811);
+  });
+
   it("ignores expired grants", () => {
     const expired = grant({ id: "old", used: 0, startsAt: "2026-08-01T00:00:00.000Z", expiresAt: "2026-10-01T00:00:00.000Z" });
     expect(walletView([expired], spec, now)).toMatchObject({ available: 10_000, rollover: null });

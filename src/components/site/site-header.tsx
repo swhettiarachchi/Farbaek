@@ -36,8 +36,8 @@ export function SiteHeader() {
               Sign in
             </ButtonLink>
           </span>
-          <ButtonLink href="/#demo" size="sm">
-            Try the demo
+          <ButtonLink href="/sign-in?next=/app/new" size="sm">
+            Start building
           </ButtonLink>
           <MobileMenu />
         </div>

@@ -10,6 +10,8 @@ export interface DraftBrief {
   taskTitle: string;
   projectName: string;
   projectDescription: string | null;
+  /** Paths already in the project, so the contract's scope names real files. */
+  paths?: readonly string[];
   /** Non-empty fields the person already typed into the editor. */
   notes: Record<string, string>;
 }

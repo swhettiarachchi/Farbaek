@@ -94,3 +94,14 @@ Known limits: Controlled Development runs commands with the person's own rights 
 | What the console shows | Secret values on screen | Connections show variable names and on or off only; AI cost is computed from ledger units | Code review |
 
 Known limits: sign-in for the admin is an email link with no second factor yet; whoever controls the hello@farbaek.com mailbox controls the console.
+
+## Prompt-first builds, run messages and instant previews (2026-10-19, ADR 0027)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| A prompt to a plan | Prompt injection widening the plan, a follow-up into another workspace's project, skipping approval | The prompt, project details and paths go to the drafter as data under the existing system prompt; the draft only fills contract version 1, which goes through the same contract checks; a follow-up's project is read through RLS in the current workspace and refused when archived; nothing runs until the person approves the exact version by its hash | `start-from-prompt.test.ts`, `prompt-start.test.ts` |
+| Messages to a running agent | Someone else steering a run, a message used to widen the contract (ASI01), flooding | Only the person who started the run, or an owner or admin, in the run's workspace; 1,000 characters, 10 unread at a time; framed to the model as guidance that can't widen the contract, and the Guard and scope checks still decide every action; each message is recorded as a run note | `executor.test.ts`, `loop.test.ts` |
+| Static previews in the app | Generated code reading Farbaek cookies, storage or pages, navigating the app, posting forms, or forging navigation messages | `sandbox="allow-scripts"` without `allow-same-origin` (opaque origin); CSP with `default-src 'none'`, `connect-src`, `frame-src`, `form-action` and `base-uri` set to `'none'`; inlined code escaped; the parent accepts navigation messages only from that frame's window and only for paths in the project; 3 MB cap | `static-preview.test.ts` |
+| The run page's preview data | One workspace's files shown to another | Files and proposals read through RLS with the person's session, scoped to the run's workspace | Code review; `run-preview.ts` uses the workspace reader |
+
+Known limits: preview pages may load `https:` images and fonts, so a page could make image requests to outside hosts with its own content in the address; it can't read Farbaek data. Run messages live in one server's memory and are lost if it restarts mid-run.

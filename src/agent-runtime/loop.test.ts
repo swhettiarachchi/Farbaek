@@ -267,3 +267,32 @@ describe("agent loop, Controlled Development", () => {
     expect((await ws.changes()).changes).toEqual([]);
   });
 });
+
+describe("agent loop, messages from the person", () => {
+  it("delivers a queued message with the next step's results, once, as guidance", async () => {
+    const queue: string[] = [];
+    const fake = fakeModel([
+      () => {
+        // The person writes while the first step is being handled.
+        queue.push("Use a warmer colour for the heading.", "  ");
+        return { calls: [tool("r", "read_file", { path: "README.md" })] };
+      },
+      () => ({ calls: [finish()] }),
+    ]);
+    const ws = await workspace("patch");
+    const report = await runAgent(input({ model: fake.model, workspace: ws, takeMessages: () => queue.splice(0) }));
+    expect(report.outcome.kind).toBe("finished");
+    expect(fake.sent[0]!.text).toBeUndefined();
+    expect(fake.sent[1]!.toolResults).toHaveLength(1);
+    expect(fake.sent[1]!.text).toContain("- Use a warmer colour for the heading.");
+    expect(fake.sent[1]!.text).toContain("can't widen what you may change");
+    expect(fake.sent[1]!.text).not.toContain("-   ");
+  });
+
+  it("sends nothing extra when no one has written", async () => {
+    const fake = fakeModel([() => ({ calls: [tool("r", "read_file", { path: "README.md" })] }), () => ({ calls: [finish()] })]);
+    const ws = await workspace("patch");
+    await runAgent(input({ model: fake.model, workspace: ws, takeMessages: () => [] }));
+    expect(fake.sent.every((s) => s.text === undefined)).toBe(true);
+  });
+});
