@@ -180,7 +180,17 @@ Decisions: [ADR 0029](../adr/0029-publish.md) (Publish), [ADR 0030](../adr/0030-
 ### Not verified
 
 - **The three.js hero rendering:** this PC reports 4 cores, which the first version of the 3D skill treated as weak, so it showed the still fallback. The rule now matches Farbaek's own.
-- **Publish end to end:** migration 19 isn't applied to the hosted project. The owner stopped that step; it waits for their go-ahead.
+- **Publish end to end:** it needs the farbaek.si domain connected (see the farbaek.si section).
+
+### Migration 19 on the hosted project (2026-10-19)
+
+- **Applied** after the owner's "set up everything".
+- **Hash check:** the SQL Editor held exactly the tested file (SHA-256 , 9,302 bytes).
+- **The RLS warning:** Supabase warned that a table had no row-level security, because its check misses the  lines further down. It was run as written ("Run without RLS" runs the SQL unchanged).
+- **Read-only checks afterwards:**
+  -  and  have row-level security on, with one read policy each;
+  -  can't insert or execute ;
+  -  can.
 
 ### Next
 
