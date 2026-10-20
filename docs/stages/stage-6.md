@@ -335,3 +335,32 @@ They still fetch nothing. The motion runs without JavaScript, so gallery thumbna
   - limits name the count and a way forward that works today;
   - template briefs no longer carry the sample's features;
   - service businesses get Brand identity and Motion suggested, and the plan card says when nothing matched.
+
+## 2026-10-20: farbaek.si connected in production
+
+### Done
+
+- **Supabase Auth:** the Site URL is `https://www.farbaek.com`. The redirect list already allowed `/auth/callback` there.
+- **Railway variables, deployed:**
+  - `NEXT_PUBLIC_SITE_URL=https://www.farbaek.com`, replacing the Railway address, so sign-in and invite links now point at www.farbaek.com;
+  - `SANDBOX_PREVIEW_DOMAIN=farbaek.si`.
+- **Railway domain:** `*.farbaek.si` on port 8080, with a certificate issued for it. It's the plan's last custom domain slot.
+- **Hostinger DNS for farbaek.si:**
+  - CNAME `*` → `9a461mgi.up.railway.app`;
+  - CNAME `_acme-challenge` → `9a461mgi.authorize.railwaydns.net`;
+  - TXT `_railway-verify`;
+  - all with a TTL of 300.
+  - The apex and `www` stay on Hostinger's parking page.
+
+### Verified (production)
+
+- `https://www.farbaek.com/auth/callback` redirects to `https://www.farbaek.com/sign-in`, not the Railway address.
+- **`test.farbaek.si`** has valid HTTPS. It answers 404 "There's no site here", and `/sign-in` there is also 404, so the app never appears on farbaek.si.
+- **A `p-…` preview host** answers 404 until `SANDBOX_PREVIEW_SECRET` is set.
+- **The homepage capability list** shows Publish as Working and app previews as Turning on.
+- **The exposure window:** for about four minutes between the certificate being issued and the variable deploy going live, `*.farbaek.si` served the normal app. The DNS should have gone in after the variable was deployed; next time, deploy the guard first.
+
+### Still the owner's
+
+- `SANDBOX_PREVIEW_SECRET` in Railway, which turns on previews of apps that need a server.
+- The Spacemail SMTP password in Supabase, so sign-in emails reach everyone.
