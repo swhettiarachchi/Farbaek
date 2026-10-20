@@ -72,15 +72,19 @@ export default function PricingPage() {
             </p>
           </div>
 
-          <ul aria-label="What every plan promises" className="mt-10 grid gap-x-8 gap-y-6 rounded-md border border-line bg-surface p-6 shadow-e1 sm:grid-cols-2 lg:grid-cols-4">
-            {PROMISES.map(({ icon: Icon, title, body }) => (
-              <li key={title} className="grid content-start gap-2">
-                <Icon size={22} className="text-accent" aria-hidden />
-                <p className="font-medium leading-snug">{title}</p>
-                <p className="text-sm leading-relaxed text-ink-2">{body}</p>
-              </li>
-            ))}
-          </ul>
+          <div className="mt-10 rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
+            <ul aria-label="What every plan promises" className="grid gap-x-8 gap-y-6 rounded-md bg-surface p-6 shadow-e1 sm:grid-cols-2 lg:grid-cols-4">
+              {PROMISES.map(({ icon: Icon, title, body }) => (
+                <li key={title} className="grid content-start gap-2">
+                  <span className="flex size-10 items-center justify-center rounded-full bg-accent/[0.08] text-accent">
+                    <Icon size={20} aria-hidden />
+                  </span>
+                  <p className="mt-1 font-medium leading-snug">{title}</p>
+                  <p className="text-sm leading-relaxed text-ink-2">{body}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
 
           <p className="mt-6 flex items-start gap-2.5 rounded-sm border border-info/30 bg-info/[0.06] px-4 py-3 text-sm text-ink">
             <InfoIcon size={18} weight="bold" className="mt-px shrink-0 text-info" aria-hidden />

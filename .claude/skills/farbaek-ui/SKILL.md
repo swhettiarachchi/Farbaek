@@ -51,6 +51,10 @@ Farbaek's interface should feel premium because it is fast, calm and honest. It 
 | Showing a static site | `StaticPreview` (sandboxed `srcdoc`, no network) |
 | A verified Seal | `ProofPackSeal`, wrapped in `SealReveal` to form once. Only for verified evidence or clearly labelled samples |
 | Refreshing live server data | `LiveRefresh active={…}` |
+| A project, as a card | `ProjectCard` (`src/components/app/project-card.tsx`): a live picture of its site (`ProjectThumb`, lazy, no scripts) above its name |
+| Handing a sentence to the build box | `offerPrompt(text)` from `prompt-composer.tsx`: it fills the page's box, scrolls to it and focuses it |
+| A premium panel (plans, promises, showcase) | The double bezel: an outer shell `rounded-lg p-2 ring-1 ring-line bg-surface-raised/60` around an inner `rounded-md bg-surface` card. 28px minus 8px of padding gives the 20px card radius, so the curves stay concentric |
+| A primary call to action with an arrow | Button-in-button: a pill with the arrow in its own `size-8 rounded-full` circle that shifts up and right on hover (see `SiteHeader`) |
 
 ## Motion and 3D: only when it means something
 
