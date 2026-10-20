@@ -133,6 +133,9 @@ describe("startFromPrompt", () => {
     await startFromPrompt(deps, source(capturing), { ...input("A booking dashboard for my café"), starter: "local-business" });
     expect(log[1]).toBe(`import:${getStarter("local-business")!.files.length}`);
     expect(briefs[0]?.projectDescription).toContain("Local business");
+    // The template's own features are sample content, not part of this brief.
+    expect(briefs[0]?.projectDescription).toContain("sample content for a different product");
+    expect(briefs[0]?.projectDescription).not.toContain(getStarter("local-business")!.summary);
   });
 
   it("stops when the project can't be created, for example at the plan's project limit", async () => {

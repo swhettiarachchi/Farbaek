@@ -22,7 +22,7 @@ const skill = (label: string, keywords: RegExp, markdown: string): BuiltInSkill 
 export const FARBAEK_SKILLS: readonly BuiltInSkill[] = [
   skill(
     "Motion and interaction",
-    /\b(animat\w*|motion|interactive|smooth|scroll\w*|transition\w*|dynamic|futuristic|wow|impress\w*|premium|modern)\b/i,
+    /\b(animat\w*|motion|interactive|smooth|scroll\w*|transition\w*|dynamic|futuristic|wow|impress\w*|premium|modern|landing page)\b/i,
     `---
 name: motion-and-interaction
 description: Purposeful, cinematic motion and tactile interaction that make a site feel alive and premium without slowing it down.
@@ -49,7 +49,7 @@ description: Real dimensional moments, from layered parallax and CSS 3D to a thr
   ),
   skill(
     "Brand identity",
-    /\b(brand\w*|identity|logo|luxury|premium|boutique|studio|agency|fashion|beauty|restaurant|caf[eé]|hotel|rental|business|company|bakery|salon)\b/i,
+    /\b(brand\w*|identity|logo|luxury|premium|boutique|studio|agency|fashion|beauty|restaurant|caf[eé]|hotel|rental|business|company|bakery|salon|services?|consult\w*|clinic|firm|practice|landing page)\b/i,
     `---
 name: brand-identity
 description: Art direction that gives the product a recognisable identity: a named palette, a type voice, a signature motif and consistent details.

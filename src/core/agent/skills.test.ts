@@ -70,6 +70,10 @@ describe("built-in skills", () => {
     expect(ids("A booking dashboard for my clinic")).toContain("app-and-dashboard-ui");
     expect(ids("A mobile app for my gym with onboarding and a bottom tab bar")).toContain("mobile-app-screens");
     expect(ids("A one-page site for my bakery with the menu")).not.toContain("mobile-app-screens");
+    // A service business's landing page gets identity and motion, not a shop skill for the word "shops".
+    const bookkeeping = ids("Make this the landing page for Ledgerline, a bookkeeping service for small shops in Colombo, with a sign-up for a free consultation.");
+    expect(bookkeeping).toEqual(expect.arrayContaining(["brand-identity", "motion-and-interaction"]));
+    expect(bookkeeping).not.toContain("shop-and-product-pages");
     // A site with a booking form is a brand site, not a dashboard.
     const rental = ids("A futuristic one-page site for Volt Ride, an electric bike rental in Kandy: a 3D hero, a booking form and opening hours.");
     expect(rental).toEqual(expect.arrayContaining(["brand-identity", "3d-and-depth", "motion-and-interaction"]));
