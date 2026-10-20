@@ -37,27 +37,51 @@ function summary(lane: InboxLane, run: RunView, proposal: ProposalState | null):
   }
 }
 
+/** The done lane shows this many; the rest are on the Build page. */
+const DONE_SHOWN = 4;
+
 /**
  * Mission Control's agent inbox (Phase C): recent runs by what they need from
  * the person, each with a small live Agent Core and one line on where it is.
+ * A summary row counts every lane; only lanes with runs open below it, two
+ * to a row, so titles have room to read.
  */
 export function AgentInbox({ lanes, proposals }: { lanes: Record<InboxLane, RunView[]>; proposals: ReadonlyMap<string, ProposalState> }) {
+  const open = INBOX_LANES.filter((lane) => lanes[lane].length > 0);
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      {INBOX_LANES.map((lane) => {
-        const runs = lanes[lane];
+    <div className="grid gap-4">
+      <ul className="flex flex-wrap gap-2" aria-label="Runs by what they need">
+        {INBOX_LANES.map((lane) => {
+          const style = LANE_STYLE[lane];
+          const count = lanes[lane].length;
+          return (
+            <li
+              key={lane}
+              title={count === 0 ? INBOX_LANE_LABELS[lane].empty : undefined}
+              className={`inline-flex min-h-9 items-center gap-2 rounded-full border bg-surface px-3.5 text-sm shadow-e1 ${
+                lane === "needs_you" && count ? "border-approval/45 text-ink" : count ? "border-line text-ink" : "border-line text-ink-3"
+              }`}
+            >
+              <style.icon size={15} weight="bold" className={`${count ? style.tone : "text-ink-3"} ${lane === "working" && count ? "motion-safe:animate-spin" : ""}`} aria-hidden />
+              {INBOX_LANE_LABELS[lane].title}
+              <span className="tabular font-medium">{count}</span>
+            </li>
+          );
+        })}
+      </ul>
+      <div className={`grid gap-4 ${open.length > 1 ? "lg:grid-cols-2" : ""}`}>
+      {open.map((lane) => {
+        const all = lanes[lane];
+        const runs = lane === "done" ? all.slice(0, DONE_SHOWN) : all;
         const style = LANE_STYLE[lane];
         return (
-          <section key={lane} aria-labelledby={`lane-${lane}`} className={`rounded-md border bg-surface p-4 shadow-e1 ${lane === "needs_you" && runs.length ? "border-approval/45" : "border-line"}`}>
+          <section key={lane} aria-labelledby={`lane-${lane}`} className={`rounded-md border bg-surface p-4 shadow-e1 ${lane === "needs_you" ? "border-approval/45" : "border-line"}`}>
             <h3 id={`lane-${lane}`} className="flex items-center gap-2 text-sm font-medium">
-              <style.icon size={16} weight="bold" className={`${style.tone} ${lane === "working" && runs.length ? "motion-safe:animate-spin" : ""}`} aria-hidden />
+              <style.icon size={16} weight="bold" className={`${style.tone} ${lane === "working" ? "motion-safe:animate-spin" : ""}`} aria-hidden />
               {INBOX_LANE_LABELS[lane].title}
-              <span className="ml-auto rounded-full border border-line px-2 py-px text-xs font-normal text-ink-2 tabular">{runs.length}</span>
+              <span className="ml-auto rounded-full border border-line px-2 py-px text-xs font-normal text-ink-2 tabular">{all.length}</span>
             </h3>
-            {runs.length === 0 ? (
-              <p className="mt-3 text-[13px] leading-relaxed text-ink-3">{INBOX_LANE_LABELS[lane].empty}</p>
-            ) : (
-              <ul className="mt-3 grid gap-2">
+              <ul className="mt-3 grid gap-1.5">
                 {runs.map((r, i) => {
                   const proposal = r.proposalId ? (proposals.get(r.proposalId) ?? null) : null;
                   return (
@@ -79,10 +103,15 @@ export function AgentInbox({ lanes, proposals }: { lanes: Record<InboxLane, RunV
                   );
                 })}
               </ul>
-            )}
+            {all.length > runs.length ? (
+              <Link href="/app/build" className="mt-2 inline-flex min-h-11 items-center gap-1 px-2 text-sm text-accent hover:underline">
+                {all.length - runs.length} more on the Build page <ArrowRightIcon size={13} aria-hidden />
+              </Link>
+            ) : null}
           </section>
         );
       })}
+      </div>
     </div>
   );
 }

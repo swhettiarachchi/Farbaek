@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CreateProjectForm } from "@/components/app/forms";
+import { ProjectCard } from "@/components/app/project-card";
 import { Card, EmptyState, PageHeader } from "@/components/app/primitives";
 import { buttonClasses } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/local-time";
@@ -56,19 +57,16 @@ export default async function ProjectsPage() {
               const c = counts.get(p.id) ?? { open: 0, total: 0 };
               return (
                 <li key={p.id}>
-                  <Link
-                    href={`/app/projects/${p.id}`}
-                    className="group flex h-full flex-col rounded-md border border-line bg-surface p-5 shadow-e1 transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-e2"
-                  >
-                    <span className="flex size-10 items-center justify-center rounded-[12px] bg-accent/[0.08] text-accent">
-                      <FolderSimpleIcon size={20} aria-hidden />
-                    </span>
-                    <span className="mt-4 text-[16px] font-medium group-hover:text-accent">{p.name}</span>
-                    <span className="mt-1 line-clamp-2 text-sm text-ink-2">{p.description ?? "No description."}</span>
-                    <span className="mt-auto pt-5 text-xs text-ink-3 tabular">
-                      {c.open} open of {c.total} {c.total === 1 ? "task" : "tasks"} · created <RelativeTime iso={p.createdAt} />
-                    </span>
-                  </Link>
+                  <ProjectCard
+                    id={p.id}
+                    name={p.name}
+                    description={p.description}
+                    meta={
+                      <>
+                        {c.open} open of {c.total} {c.total === 1 ? "task" : "tasks"} · created <RelativeTime iso={p.createdAt} />
+                      </>
+                    }
+                  />
                 </li>
               );
             })}

@@ -1,8 +1,9 @@
-import { ArrowRightIcon, CheckCircleIcon, CircleDashedIcon, ListChecksIcon, LockSimpleIcon, RobotIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, CheckCircleIcon, CircleDashedIcon, ListChecksIcon, LockSimpleIcon, RobotIcon, SquaresFourIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, EmptyState, Notice, PageHeader, StatTile, TaskStateBadge } from "@/components/app/primitives";
+import { ProjectCard } from "@/components/app/project-card";
 import { UsageMeterList } from "@/components/app/usage-meters";
 import { PromptComposer } from "@/components/build/prompt-composer";
 import { ButtonLink } from "@/components/ui/button";
@@ -63,6 +64,11 @@ export default async function MissionControl() {
   const lanes = groupInbox(runs, inbox?.proposals ?? new Map());
   const live = lanes.working.length + lanes.needs_you.length > 0;
 
+  // The newest work first, as live pictures of each site.
+  const recent = projects
+    .filter((p) => !p.archivedAt)
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+    .slice(0, 4);
   const open = tasks.filter((t) => !TERMINAL_STATES.has(t.state));
   const waiting = tasks.filter((t) => t.state === "APPROVAL_PENDING");
   const limits = ws.plan.limits;
@@ -114,6 +120,26 @@ export default async function MissionControl() {
         </Notice>
       ) : null}
       {ws.billingUnknown ? <Notice tone="warning">Billing state for this workspace is missing, so plan limits fail closed. Contact support.</Notice> : null}
+
+      {recent.length > 0 ? (
+        <section aria-labelledby="recent-heading" className="grid gap-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 id="recent-heading" className="flex items-center gap-2 text-lg font-medium">
+              <SquaresFourIcon size={20} weight="bold" className="text-accent" aria-hidden /> Recent work
+            </h2>
+            <Link href="/app/projects" className="inline-flex min-h-11 items-center gap-1 text-sm text-accent hover:underline">
+              All projects <ArrowRightIcon size={14} aria-hidden />
+            </Link>
+          </div>
+          <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {recent.map((p) => (
+              <li key={p.id}>
+                <ProjectCard id={p.id} name={p.name} compact meta={<>Created <RelativeTime iso={p.createdAt} /></>} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <section aria-labelledby="inbox-heading" className="grid gap-4">
         <div className="flex items-center justify-between gap-3">
