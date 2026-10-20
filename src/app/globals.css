@@ -407,3 +407,10 @@
     stroke-dashoffset: var(--ring-from);
   }
 }
+
+/* The sign-in page's "What happens next" line drawing itself (motion-safe only). */
+@keyframes signin-line {
+  from {
+    transform: scaleY(0);
+  }
+}
