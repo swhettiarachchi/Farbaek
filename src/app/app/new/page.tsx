@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PromptComposer } from "@/components/build/prompt-composer";
-import { TemplateThumb } from "@/components/preview/template-thumb";
-import { getStarter } from "@/content/starters";
+import { SiteThumb } from "@/components/app/site-thumb";
+import { TEMPLATE_STARTERS, getStarter } from "@/content/starters";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
 import { loadAppContext } from "@/server/workspace/context";
 
@@ -33,7 +33,7 @@ export default async function NewBuildPage({ searchParams }: Props) {
       </div>
       {template ? (
         <div className="grid items-center gap-4 rounded-md border border-line bg-surface p-3 shadow-e1 sm:grid-cols-[200px_minmax(0,1fr)]">
-          <TemplateThumb files={template.files} title={template.name} />
+          <SiteThumb src={`/app/templates/${template.id}/thumbnail`} name={template.name} />
           <div className="grid gap-1 px-1">
             <p className="font-mono text-xs text-ink-3">{"// template"}</p>
             <p className="text-[17px] font-medium">{template.name}</p>
@@ -66,6 +66,31 @@ export default async function NewBuildPage({ searchParams }: Props) {
           Create a project <ArrowRightIcon size={13} weight="bold" aria-hidden />
         </Link>
       </p>
+      {!template ? (
+        <section aria-labelledby="start-from" className="grid gap-4 border-t border-line pt-8">
+          <div className="flex items-end justify-between gap-3">
+            <h2 id="start-from" className="text-lg font-medium tracking-[-0.01em]">
+              Or start from a template
+            </h2>
+            <Link href="/app/templates" className="inline-flex min-h-11 items-center gap-1 text-sm text-accent hover:underline">
+              Preview them <ArrowRightIcon size={13} aria-hidden />
+            </Link>
+          </div>
+          <ul className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+            {TEMPLATE_STARTERS.map((t) => (
+              <li key={t.id}>
+                <Link
+                  href={`/app/new?template=${t.id}`}
+                  className="group block h-full rounded-md border border-line bg-surface p-2 shadow-e1 transition-[transform,box-shadow,border-color] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:border-accent/25 hover:shadow-e3"
+                >
+                  <SiteThumb src={`/app/templates/${t.id}/thumbnail`} name={t.name} className="ring-1 ring-line/80" />
+                  <span className="block px-2 pb-1.5 pt-3 text-sm font-medium transition-colors duration-200 group-hover:text-accent">{t.name}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }

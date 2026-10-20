@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/app/primitives";
-import { TemplateThumb } from "@/components/preview/template-thumb";
+import { SiteThumb } from "@/components/app/site-thumb";
 import { buttonClasses } from "@/components/ui/button";
 import { TEMPLATE_STARTERS } from "@/content/starters";
 import { loadAppContext } from "@/server/workspace/context";
@@ -29,7 +29,7 @@ export default async function TemplatesPage() {
           <li key={t.id} className="motion-safe:animate-[usage-in_260ms_cubic-bezier(0.16,1,0.3,1)_both]" style={{ animationDelay: `${i * 50}ms` }}>
             <article className="group grid h-full content-start gap-4 rounded-md border border-line bg-surface p-3 shadow-e1 transition-shadow duration-200 hover:shadow-e2">
               <Link href={`/app/templates/${t.id}`} className="block rounded-sm" aria-label={`Preview the ${t.name} template`}>
-                <TemplateThumb files={t.files} title={t.name} />
+                <SiteThumb src={`/app/templates/${t.id}/thumbnail`} name={t.name} />
               </Link>
               <div className="grid gap-1 px-1.5">
                 <h2 className="text-[17px] font-medium">{t.name}</h2>

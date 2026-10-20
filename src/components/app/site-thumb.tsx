@@ -1,18 +1,18 @@
 "use client";
 
 /**
- * A live picture of a project's site on its card. It loads when the card
- * comes near the screen, from the project's thumbnail route, and is drawn
- * at desktop width in a frame that runs no scripts and fetches nothing (the
- * document carries the preview CSP). Apps that need a server get a drawn
- * cover instead, and empty projects say so.
+ * A live picture of a site (a project's or a template's). It loads when it
+ * comes near the screen, from a thumbnail route that returns the folded
+ * document as JSON, and is drawn at desktop width in a frame that runs no
+ * scripts and fetches nothing (the document carries the preview CSP). Apps
+ * that need a server get a drawn cover instead, and empty projects say so.
  */
 import { BracketsCurlyIcon, FileDashedIcon } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 
 type Thumb = { kind: "static"; srcdoc: string } | { kind: "app" } | { kind: "empty" } | { kind: "loading" } | { kind: "error" };
 
-export function ProjectThumb({ projectId, name, className = "" }: { projectId: string; name: string; className?: string }) {
+export function SiteThumb({ src, name, className = "" }: { src: string; name: string; className?: string }) {
   const box = useRef<HTMLDivElement>(null);
   const [thumb, setThumb] = useState<Thumb>({ kind: "loading" });
 
@@ -21,7 +21,7 @@ export function ProjectThumb({ projectId, name, className = "" }: { projectId: s
     if (!el) return;
     let cancelled = false;
     const load = () =>
-      fetch(`/app/projects/${projectId}/thumbnail`, { headers: { accept: "application/json" } })
+      fetch(src, { headers: { accept: "application/json" } })
         .then((r) => (r.ok ? (r.json() as Promise<Thumb>) : Promise.reject(new Error(String(r.status)))))
         .then((t) => !cancelled && setThumb(t))
         .catch(() => !cancelled && setThumb({ kind: "error" }));
@@ -45,7 +45,7 @@ export function ProjectThumb({ projectId, name, className = "" }: { projectId: s
       cancelled = true;
       io.disconnect();
     };
-  }, [projectId]);
+  }, [src]);
 
   return (
     <div ref={box} className={`relative aspect-[16/10] overflow-hidden rounded-sm bg-surface-raised ${className}`} aria-hidden>

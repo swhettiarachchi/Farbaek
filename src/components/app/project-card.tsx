@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ProjectThumb } from "./project-thumb";
+import { SiteThumb } from "./site-thumb";
 
 /**
  * A project as a card: a live picture of its site above its name. The
@@ -25,7 +25,7 @@ export function ProjectCard({
       href={`/app/projects/${id}`}
       className="group flex h-full flex-col rounded-md border border-line bg-surface p-2 shadow-e1 transition-[box-shadow,transform,border-color] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:border-accent/25 hover:shadow-e3 active:translate-y-0 active:scale-[0.99]"
     >
-      <ProjectThumb projectId={id} name={name} className="ring-1 ring-line/80" />
+      <SiteThumb src={`/app/projects/${id}/thumbnail`} name={name} className="ring-1 ring-line/80" />
       <span className={`flex flex-1 flex-col px-2.5 ${compact ? "pb-2 pt-3" : "pb-3 pt-4"}`}>
         <span className="text-[15.5px] font-medium tracking-[-0.01em] transition-colors duration-200 group-hover:text-accent">{name}</span>
         {!compact ? <span className="mt-1 line-clamp-2 text-sm leading-relaxed text-ink-2">{description || "No description."}</span> : null}
