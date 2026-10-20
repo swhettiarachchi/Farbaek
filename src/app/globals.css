@@ -407,3 +407,17 @@
     stroke-dashoffset: var(--ring-from);
   }
 }
+
+/* The sign-in page's "What happens next" line drawing itself (motion-safe only). */
+@keyframes signin-line {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+/* The 404's stray satellite (motion-safe only). */
+@keyframes notfound-drift {
+  50% {
+    transform: translate(10px, -8px);
+  }
+}

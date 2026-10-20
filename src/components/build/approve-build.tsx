@@ -64,7 +64,8 @@ export function ApproveBuild({
           ))}
         </div>
         <p className="text-xs leading-relaxed text-ink-3">
-          Every build follows the Farbaek Studio standard. Skills go deeper on what this one needs; the ones that fit your plan are chosen.
+          Every build follows the Farbaek Studio standard. Skills go deeper on what this one needs;{" "}
+          {suggested.length ? "the ones that fit your plan are chosen." : "none stood out for this plan, so tick any that fit."}
           {projectSkills.length ? ` This project's own skills apply too: ${projectSkills.join(", ")}.` : ""}
         </p>
       </fieldset>

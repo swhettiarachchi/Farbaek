@@ -95,11 +95,13 @@ export function checkQuota(
   if (limit === null) return unavailable();
   if (usage.used + requested <= limit) return ALLOW;
 
-  if (plan.source === "trial") {
+  const trial = plan.source === "trial";
+  const specific = limitMessage(meter, limit, trial ? "Your trial" : `Your ${getPlan(plan.planId).name} plan`);
+  if (trial) {
     return {
       allowed: false,
       code: "TRIAL_CAP_REACHED",
-      message: "You've reached a trial limit. Choose a plan to keep going, or continue on Free.",
+      message: specific ?? "You've reached a trial limit. Choose a plan to keep going, or continue on Free.",
       upgradeTo: "plus",
     };
   }
@@ -107,9 +109,25 @@ export function checkQuota(
   return {
     allowed: false,
     code: "QUOTA_EXCEEDED",
-    message: "You've reached this plan's limit for the current period.",
+    message: specific ?? "You've reached this plan's limit for the current period.",
     upgradeTo: nextPlanWithHigherLimit(plan.planId, meter, usage.used + requested),
   };
+}
+
+/**
+ * What a reached limit means and how to get past it, for the limits people
+ * meet in everyday work. It names the count and a way forward that works
+ * today; it doesn't say "choose a plan" while plans can't be bought.
+ */
+function limitMessage(meter: Meter, limit: number, whose: string): string | null {
+  if (meter === "workspaces") {
+    const inUse = limit === 1 ? "it's in use" : `all ${limit} are in use`;
+    return `${whose} includes ${limit} ${limit === 1 ? "project" : "projects"}, and ${inUse}. Archive one you've finished to make room, or see the plans with more on the pricing page.`;
+  }
+  if (meter === "seats") {
+    return `${whose} includes ${limit} ${limit === 1 ? "seat" : "seats"}, and ${limit === 1 ? "it's" : "all are"} taken. Remove someone who no longer needs access, or see the plans with more on the pricing page.`;
+  }
+  return null;
 }
 
 function nextPlanWithHigherLimit(current: PlanId, meter: Meter, needed: number): PlanId | undefined {

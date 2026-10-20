@@ -40,6 +40,18 @@ describe("checkQuota", () => {
     expect(checkQuota(studio, "agents", { used: 3, requested: 3 })).toMatchObject({ code: "QUOTA_EXCEEDED", upgradeTo: "max" });
   });
 
+  it("says which limit was reached and how to get past it today", () => {
+    const projects = checkQuota(trial, "workspaces", { used: trial.limits.workspaces! });
+    expect(projects).toMatchObject({ code: "TRIAL_CAP_REACHED" });
+    if (projects.allowed) return;
+    expect(projects.message).toContain(`Your trial includes ${trial.limits.workspaces} projects`);
+    expect(projects.message).toContain("Archive one you've finished");
+    // Plans can't be bought yet, so the way forward never depends on buying one.
+    expect(projects.message).not.toMatch(/choose a plan/i);
+    const seats = checkQuota(studio, "seats", { used: studio.limits.seats! });
+    expect(seats.allowed ? "" : seats.message).toMatch(/^Your Studio plan includes \d+ seats, and all are taken\./);
+  });
+
   it("reports trial caps separately from plan quotas", () => {
     expect(checkQuota(trial, "seats", { used: 3 })).toMatchObject({ code: "TRIAL_CAP_REACHED" });
     expect(checkQuota(trial, "evaluations", { used: 9_999 })).toEqual({ allowed: true });

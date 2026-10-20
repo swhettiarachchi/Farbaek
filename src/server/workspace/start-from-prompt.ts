@@ -80,7 +80,12 @@ export async function startFromPrompt(
     brief: {
       taskTitle: title,
       projectName: name,
-      projectDescription: input.existing ? input.existing.description : `${prompt}\n\nThe project starts from the ${starter.name} starter: ${starter.summary}`,
+      projectDescription: input.existing
+        ? input.existing.description
+        : starter.kind === "template"
+          ? // A template's files are sample content for a different product: its features aren't part of this brief.
+            `${prompt}\n\nThe project starts from the ${starter.name} template. Its files are sample content for a different product, with a DESIGN.md: keep the structure and quality that fit, and replace the content, the signature element and anything specific to the sample with what this brief needs.`
+          : `${prompt}\n\nThe project starts from the ${starter.name} starter: ${starter.summary}`,
       paths,
       // A new build adds and edits files; the drafter keeps what's typed here, and the person still reviews it.
       notes: { outcome: prompt.slice(0, 4_000), allowed: "files.create\nfiles.edit" },

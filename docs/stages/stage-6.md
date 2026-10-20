@@ -299,3 +299,39 @@ They still fetch nothing. The motion runs without JavaScript, so gallery thumbna
   - readable text, purposeful imagery, and no mobile AI tells.
   - It's suggested for prompts about mobile apps, iOS, Android, onboarding or a bottom tab bar.
 - **The Studio standard** now asks `DESIGN.md` for a short list of what the design avoids. Its AI tells now include numbered "Section 01" labels and bento grids with empty cells.
+
+## 2026-10-20: The platform, upgraded where people spend their time
+
+### Done
+
+- **Your work, visible.**
+  - Project cards show a live picture of each project's site. It's built from `index.html` and its linked stylesheets only, within 600 KB, and drawn in a frame that runs no scripts.
+  - Mission Control opens on "Recent work".
+  - Apps with a server get a drawn cover, and projects without a page say so.
+- **A readable agent inbox:** one row counts every lane, and only lanes with runs open below, two to a row, with full titles.
+- **A floating island header** on the public site, with a nested-arrow "Start building". The full-screen phone menu is a real modal: focus moves in and is trapped, Escape closes it, and the page doesn't scroll behind it.
+- **Pricing in double-bezel shells** (28px shell, 8px inset, 20px card), with the recommended plan lit by the aurora.
+- **Sign-in keeps the thread:** "Your build starts with…" shows the sentence kept in the browser. A "What happens next" panel shows the four real steps.
+- **A 404 with a way back in:** the floating header, a drifting orbit, and links to the showroom, pricing and the workspace.
+- **Templates on the new-build page** as live pictures. One `SiteThumb` loads every site picture lazily from a thumbnail route, so the gallery no longer embeds six full documents.
+
+### Verified
+
+- Typecheck and lint pass. 3 new thumbnail tests.
+- **Local production build:**
+  - Mission Control, Projects, New build and Templates were checked at desktop width in Chrome;
+  - the phone menu (open, focus, Escape, scroll lock), pricing, sign-in and the 404 at 375 px;
+  - sign-in at desktop width on 127.0.0.1, where Chrome has no session.
+
+### Not verified
+
+- **Signed-in pages at 375 px.** Chrome is minimised and can't be resized, and the demo workspace needs a build without the Supabase settings.
+
+**A full build from a new template, end to end** (closes the open item from 19 Oct).
+- "Make this the landing page for Ledgerline, a bookkeeping service for small shops in Colombo, with a sign-up for a free consultation." was built from the Landing page template with Brand identity and Motion.
+- The agent read the template's `DESIGN.md`, wrote its own first, rebuilt the page and replaced the sample's floating week with a signature that fits: a ledger of a sample week for a grocery shop in Pettah, in LKR, labelled sample. It ran `review_site` and finished in 4 steps on Claude Sonnet 5.5, using 5% of the period's usage.
+- The change was left unapplied in its test project. "Starter check (test, archive after use)" was archived to make room; nothing was deleted.
+- **It surfaced three fixes,** now made:
+  - limits name the count and a way forward that works today;
+  - template briefs no longer carry the sample's features;
+  - service businesses get Brand identity and Motion suggested, and the plan card says when nothing matched.
