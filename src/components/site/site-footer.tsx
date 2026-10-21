@@ -13,7 +13,7 @@ export function SiteFooter() {
           <div>
             <p className="text-[17px] font-semibold tracking-[-0.02em]">Farbaek</p>
             <p className="mt-1 max-w-[38ch] text-sm text-ink-2">From idea to verified software, with control at every step.</p>
-            <p className="mt-4 text-sm text-ink-3">Farbaek is in development. Payments are not open yet.</p>
+            <p className="mt-4 text-sm text-ink-3">Payments aren&apos;t connected yet, so nothing is charged.</p>
           </div>
         </div>
         <address className="grid gap-3 text-sm not-italic">

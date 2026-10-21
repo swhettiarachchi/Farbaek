@@ -30,11 +30,11 @@ export function FaqList({ items }: { items: FaqItem[] }) {
 const HOME_FAQ: FaqItem[] = [
   {
     q: "Can I sign up today?",
-    a: "Not yet. Accounts open once the core workflow works end to end: sign in, create a project, approve a contract, run real tests and get a ProofPack.",
+    a: "Yes. Sign in with your email and your workspace starts a 14-day Pro trial, with no card. Payments aren't connected yet, so nothing is charged; when the trial ends you move to Free.",
   },
   {
     q: "Does Farbaek run my code safely?",
-    a: "Builds and tests will run in an isolated sandbox with time, memory and network limits. Where isolation can't be verified, Farbaek drops to Review Only instead of pretending.",
+    a: "Builds, tests and app previews run in isolated sandboxes with time and memory limits, away from Farbaek's own servers. Where isolation can't be verified, Farbaek drops to Review Only instead of pretending.",
   },
   {
     q: "What does a ProofPack prove?",
@@ -54,7 +54,7 @@ export function HomeFaq() {
   return (
     <section aria-labelledby="faq-title" className="py-20 lg:py-28">
       <Container className="grid gap-10 lg:grid-cols-[1fr_1.6fr] lg:gap-16">
-        <SectionHeading id="faq-title" title="Questions, answered plainly." />
+        <SectionHeading id="faq-title" title="Common questions" />
         <FaqList items={HOME_FAQ} />
       </Container>
     </section>

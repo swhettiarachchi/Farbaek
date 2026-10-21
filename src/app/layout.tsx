@@ -9,7 +9,7 @@ const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono", dis
 export const metadata: Metadata = {
   title: { default: "Farbaek: from idea to verified software", template: "%s | Farbaek" },
   description:
-    "Farbaek plans each change, runs the real checks, keeps the evidence and waits for your approval before anything ships. Now in development.",
+    "Farbaek plans each change, runs the real checks, keeps the evidence and waits for your approval before anything ships.",
   applicationName: "Farbaek",
   icons: { icon: "/brand/farbaek-icon.png", apple: "/brand/farbaek-apple-icon.png" },
 };

@@ -15,7 +15,7 @@ export function Hero() {
             href="#status"
             className="inline-flex items-center gap-2 rounded-full border border-line bg-surface py-1.5 pl-3 pr-2.5 text-[13px] text-ink-2 shadow-e1 transition-colors hover:text-ink"
           >
-            In development. See what works today
+            Now open. See what works today
             <ArrowRightIcon size={13} weight="bold" aria-hidden />
           </Link>
           <h1

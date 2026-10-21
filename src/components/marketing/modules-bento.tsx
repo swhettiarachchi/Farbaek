@@ -1,4 +1,4 @@
-import { ArrowsLeftRightIcon, DeviceMobileIcon, FingerprintIcon, RobotIcon, RocketLaunchIcon } from "@phosphor-icons/react/ssr";
+import { ArrowsLeftRightIcon, CircleDashedIcon, DeviceMobileIcon, FingerprintIcon, RobotIcon, RocketLaunchIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { DiffView } from "@/components/code/diff-view";
 import { Container } from "@/components/ui/container";
@@ -11,12 +11,15 @@ function Cell({
   body,
   icon: CellIcon,
   className = "",
+  later = false,
   children,
 }: {
   title: string;
   body: string;
   icon?: Icon;
   className?: string;
+  /** Not built yet: says so in words and icon, so the tile never reads as a product that exists. */
+  later?: boolean;
   children?: React.ReactNode;
 }) {
   return (
@@ -28,7 +31,14 @@ function Cell({
           <CellIcon size={20} aria-hidden />
         </span>
       ) : null}
-      <h3 className={`text-[17px] font-medium tracking-[-0.01em] ${CellIcon ? "mt-4" : ""}`}>{title}</h3>
+      <h3 className={`flex flex-wrap items-center gap-2 text-[17px] font-medium tracking-[-0.01em] ${CellIcon ? "mt-4" : ""}`}>
+        {title}
+        {later ? (
+          <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-line-strong/50 px-2 py-0.5 text-xs font-normal text-ink-3">
+            <CircleDashedIcon size={12} aria-hidden /> Later
+          </span>
+        ) : null}
+      </h3>
       <p className="mt-1.5 text-[15px] leading-relaxed text-ink-2">{body}</p>
       {children}
     </li>
@@ -84,9 +94,9 @@ export function ModulesBento() {
           </Cell>
 
           <Cell title="Core" body="Identity, organizations, projects, tasks and entitlements." icon={FingerprintIcon} className="bg-surface" />
-          <Cell title="Mesh" body="Local-first transfer of Workspace Capsules between your own devices." icon={ArrowsLeftRightIcon} className="bg-surface" />
-          <Cell title="LaunchOS" body="Deploys with a cost preview, explicit authorization and real health checks." icon={RocketLaunchIcon} className="bg-surface" />
-          <Cell title="Mobile" body="Review, approve and hand work to your desktop from your phone." icon={DeviceMobileIcon} className="bg-surface" />
+          <Cell title="Mesh" body="Local-first transfer of Workspace Capsules between your own devices." icon={ArrowsLeftRightIcon} className="bg-surface" later />
+          <Cell title="LaunchOS" body="Deploys with a cost preview, explicit authorization and real health checks." icon={RocketLaunchIcon} className="bg-surface" later />
+          <Cell title="Mobile" body="Review, approve and hand work to your desktop from your phone." icon={DeviceMobileIcon} className="bg-surface" later />
         </ul>
       </Container>
     </section>

@@ -53,7 +53,7 @@ export function ShowcaseSection() {
   return (
     <section id="showcase" aria-labelledby="showcase-title" className="overflow-x-clip py-20 lg:py-28">
       <Container>
-        <SectionHeading id="showcase-title" title="Where ambitious ideas become real products.">
+        <SectionHeading id="showcase-title" title="Start from something like these.">
           Eight concepts, each with its own look, motion and purpose, the way Farbaek designs every build. Pick one and start a build like it.
         </SectionHeading>
 
@@ -67,7 +67,7 @@ export function ShowcaseSection() {
 
         <div className="mt-16 border-t border-line pt-10">
           <div className="flex flex-wrap items-end justify-between gap-4">
-            <h3 className="max-w-[24ch] text-balance text-[1.6rem] font-medium leading-tight tracking-[-0.03em] sm:text-[1.9rem]">Everything around the design, in one place.</h3>
+            <h3 className="max-w-[24ch] text-balance text-[1.6rem] font-medium leading-tight tracking-[-0.03em] sm:text-[1.9rem]">What every build comes with.</h3>
             <Link href="#status" className="inline-flex min-h-11 items-center text-sm font-medium text-ink-2 hover:text-ink">
               See what works today
             </Link>
