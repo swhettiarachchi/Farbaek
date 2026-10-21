@@ -80,7 +80,9 @@ ESLint forbids `src/core` from importing React, Next, Motion or UI code, so ever
 | Admin console at `/admin` for listed admins (FARBAEK_ADMIN_EMAILS): overview with AI list cost, workspaces, people, activity and connections, read-only (ADR 0026) | Implemented and tested; checked locally with real data. hello@farbaek.com is the production admin once its sign-in email can arrive | `src/server/admin/`, `src/app/admin/` |
 | Office Space at `officespace.farbaek.com` (ADR 0032): staff sign in with an email code and an authenticator code, five roles, 30-minute idle and 12-hour sessions, a hash-chained audit log; workspace pages, suspend and restore, take sites offline, add AI usage, extend trials (capped by role, 44 days at most), five platform pause switches and announcements, all enforced in the database; an overview of sign-ups, activation, live sites, AI cost (an estimate) and trials, and Ctrl+K search; a support inbox (people write from Help in the app, staff reply or add internal notes) and a Health page | Implemented and tested; migrations 20 to 23 applied to the hosted database. Phase 1 merged; live once Railway builds resume, the `*.farbaek.com` domain is set and the CEO (info@farbaek.com) signs in | `src/app/office/`, `src/server/office/`, `tests/db/office-*.test.ts` |
 | Hosting on Railway (one long-lived server, deploys from `main`), `/api/health` | **Live** at https://www.farbaek.com (farbaek.com forwards there) and farbaek-production.up.railway.app; health, pages and sign-in form checked. Sign-in emails go through Supabase's custom SMTP on Spacemail (`hello@farbaek.com`), saved 21 Oct; first real delivery still to confirm | `docs/deploy/railway.md`, `docs/stages/stage-5.md` |
-| Mesh, LaunchOS, Mobile | **Not started** | Roadmap |
+| LaunchOS A (ADR 0033): the Launch Planner reads a project (kind, commands, setting names only, services, destinations), the evidence chain (security check, ProofPack, live version, live check), and live checks that confirm the live address serves exactly the published version | Implemented and tested; migration 24 applied to the hosted database (2026-10-21). Provider connections wait for the owner's choice | `src/core/launch/`, `src/server/launch/`, `tests/db/site-health.test.ts` |
+| Product films (ADR 0034): real recordings of Farbaek's interface with a sample project, shot frame by frame on a dev-only film stage and encoded to H.264. On the homepage: the build film below the hero, four feature clips, and the proof film. Captions, chapters, transcript; no autoplay under reduced motion or Save-Data | Implemented and tested; not yet deployed | `src/components/films/`, `src/content/films.ts`, `scripts/films/record.mjs`, `public/films/` |
+| Mesh, LaunchOS providers, Mobile | **Not started** | Roadmap |
 | Payments | **Not connected.** `BILLING_MODE=not_connected` | Spec section 23 |
 
 ### Integrations
@@ -99,7 +101,7 @@ Postgres on Supabase with Row Level Security on every table. The browser can onl
 - White Signal design system (ADR 0008, replaces the gold Proof Atelier accent): one light theme, signal blue accent, Geist type, pill controls.
 - Tokens: `src/styles/tokens.css`, mapped into Tailwind v4 in `src/app/globals.css`; 81 contrast checks in `tests/design/contrast.test.ts`.
 - Hero: React Three Fiber scene with the knight levitating inside the RealityLoop orbit (static image first, 3D only on capable devices).
-- Concept film: real-time motion sequence of the workflow from sample data, with real hashes of that data.
+- Product films (ADR 0034): recordings of the real interface with a sample project, made on the film stage by `pnpm films:record`. They replaced the in-browser concept film.
 - Logo: `public/brand/farbaek-logo.webp` (1024x1536, transparent), shown directly on the page with no plate. PNG fallback and icons from `scripts/brand-assets.mjs`.
 
 ## 5. Security gaps (see `docs/security/threat-model.md`)

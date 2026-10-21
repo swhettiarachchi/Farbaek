@@ -66,7 +66,8 @@ const PANE_ENTER = {
 
 const str = (v: unknown) => (typeof v === "string" ? v : "");
 
-function EventRow({ e, latest }: { e: RunEventView; latest: boolean }) {
+/** One step of a run, as the run workspace shows it. Also used by the product films (ADR 0034). */
+export function EventRow({ e, latest }: { e: RunEventView; latest: boolean }) {
   const p = e.payload;
   let icon: Icon = InfoIcon;
   let body: React.ReactNode;

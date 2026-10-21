@@ -1,0 +1,25 @@
+WEBVTT
+
+1
+00:00:00.000 --> 00:00:06.000
+Review a proposed change file by file. Keep what you want, reject the rest.
+
+2
+00:00:06.000 --> 00:00:12.000
+Approval binds to a hash of exactly what you saw. Change one character and it stops matching.
+
+3
+00:00:12.000 --> 00:00:19.000
+Checks run in a sandbox against the applied files. Exit codes decide, and a check that didn't run says so.
+
+4
+00:00:19.000 --> 00:00:25.000
+A ProofPack records what ran, against which files, and what it doesn't prove.
+
+5
+00:00:25.000 --> 00:00:29.000
+Publishing needs a clean check of these exact files, then the live check confirms them.
+
+6
+00:00:29.000 --> 00:00:32.000
+An applied change can be undone, and the undo is recorded too.

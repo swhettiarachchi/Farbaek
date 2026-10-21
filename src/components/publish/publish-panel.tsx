@@ -22,7 +22,7 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
       : null;
 
   return (
-    <section aria-labelledby="publish-heading" className="grid gap-4 rounded-md border border-line bg-surface p-5 shadow-e1">
+    <section id="publish" aria-labelledby="publish-heading" className="grid scroll-mt-24 gap-4 rounded-md border border-line bg-surface p-5 shadow-e1">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 id="publish-heading" className="flex items-center gap-2 text-lg font-medium">
           <GlobeIcon size={20} weight="bold" className="text-accent" aria-hidden /> Publish
