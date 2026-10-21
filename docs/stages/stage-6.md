@@ -360,7 +360,21 @@ They still fetch nothing. The motion runs without JavaScript, so gallery thumbna
 - **The homepage capability list** shows Publish as Working and app previews as Turning on.
 - **The exposure window:** for about four minutes between the certificate being issued and the variable deploy going live, `*.farbaek.si` served the normal app. The DNS should have gone in after the variable was deployed; next time, deploy the guard first.
 
-### Still the owner's
+## 2026-10-21: Previews and sign-in email turned on in production
 
-- `SANDBOX_PREVIEW_SECRET` in Railway, which turns on previews of apps that need a server.
-- The Spacemail SMTP password in Supabase, so sign-in emails reach everyone.
+### Done
+
+- **Railway:** `SANDBOX_PREVIEW_SECRET` is set and deployed. The owner pasted a fresh random 64-character hex value; Claude put it on the clipboard without printing it, so it was never seen.
+- **Supabase Auth:** custom SMTP is on, sending from `hello@farbaek.com` (sender name Farbaek) through `mail.spacemail.com` on port 465. The owner typed the password and saved.
+
+### Verified (production)
+
+- The homepage capability list shows all nine capabilities as Working, previews of real code included. The status reads the server configuration, so it changed with the deploy.
+- A `p-…farbaek.si` preview host without access now answers 401 "Open this preview from Farbaek" (a plain 404 before the secret). A bad launch token gets the same refusal.
+- `test.farbaek.si` still answers 404 "There's no site here".
+- After a reload, the Supabase SMTP page keeps custom SMTP on with the sender and username. Supabase never shows the password again.
+
+### Not verified yet
+
+- **A real sign-in email through Spacemail.** Sign-in creates an account for a new address, so Claude didn't send a test to `hello@farbaek.com`. The owner's next sign-in is the test, and Supabase's auth logs show whether the mail went out.
+- **A full app preview in production.** It needs a sandbox session started from a signed-in workspace.
