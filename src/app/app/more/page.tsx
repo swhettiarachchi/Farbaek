@@ -17,10 +17,11 @@ import { ROADMAP } from "@/components/app/roadmap";
 import { PageHeader } from "@/components/app/primitives";
 import { WorkspaceSwitcher } from "@/components/app/workspace-switcher";
 import { UsageMeterList } from "@/components/app/usage-meters";
-import { CONTACT } from "@/config/contact";
 import { isAdminEmail } from "@/server/admin/access";
 import { loadAppContext } from "@/server/workspace/context";
 import { loadUsageMeters } from "@/server/workspace/usage-summary";
+import { createSupabaseServerClient } from "@/server/supabase/server";
+import { unreadSupportCount } from "@/server/workspace/support";
 import { signOut } from "../actions";
 
 export const metadata: Metadata = { title: "More" };
@@ -29,7 +30,8 @@ export default async function MorePage() {
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
 
-  const meters = await loadUsageMeters(ctx, ctx.current);
+  const client = ctx.mode === "live" ? await createSupabaseServerClient() : null;
+  const [meters, helpUnread] = await Promise.all([loadUsageMeters(ctx, ctx.current), client ? unreadSupportCount(client) : Promise.resolve(0)]);
   const row = "flex h-14 items-center gap-3 px-4 text-[15px]";
   return (
     <div className="grid gap-6">
@@ -75,10 +77,15 @@ export default async function MorePage() {
           </Link>
         </li>
         <li>
-          <a href={`mailto:${CONTACT.support}`} className={`${row} hover:bg-canvas-2`}>
-            <LifebuoyIcon size={20} className="text-ink-2" aria-hidden /> Help
-            <span className="ml-auto truncate text-sm text-ink-3">{CONTACT.support}</span>
-          </a>
+          <Link href="/app/help" className={`${row} hover:bg-canvas-2`}>
+            <LifebuoyIcon size={20} className="text-ink-2" aria-hidden /> Help and support
+            {helpUnread > 0 ? (
+              <span className="ml-auto rounded-full bg-accent px-2 text-xs font-semibold leading-5 text-surface tabular">
+                {helpUnread} new {helpUnread === 1 ? "reply" : "replies"}
+              </span>
+            ) : null}
+            <CaretRightIcon size={16} className={`${helpUnread > 0 ? "" : "ml-auto "}text-ink-3`} aria-hidden />
+          </Link>
         </li>
         {/* A shortcut only: /admin checks the person again on the server (ADR 0026). */}
         {ctx.mode === "live" && isAdminEmail(ctx.user.email) ? (

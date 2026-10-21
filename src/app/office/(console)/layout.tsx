@@ -9,6 +9,7 @@ import { OfficeSearch, OfficeSearchTrigger } from "@/components/office/office-se
 import { LocalTime } from "@/components/ui/local-time";
 import { OFFICE_POLICY } from "@/config/office";
 import { requireStaff } from "@/server/office/access";
+import { supportWaitingCount } from "@/server/office/support-data";
 import { signOutOfficeAction, stayActiveAction } from "../actions";
 
 /**
@@ -20,6 +21,7 @@ export default async function OfficeConsoleLayout({ children }: Readonly<{ child
   const staff = await requireStaff();
   const env = deploymentName();
   const endsAt = new Date(staff.firstFactorAt.getTime() + OFFICE_POLICY.maxSessionHours * 3_600_000).toISOString();
+  const badges = staff.can("support.read") ? { "/support": await supportWaitingCount(staff.admin) } as const : {};
 
   return (
     <div className="lg:grid lg:grid-cols-[256px_minmax(0,1fr)]">
@@ -31,7 +33,7 @@ export default async function OfficeConsoleLayout({ children }: Readonly<{ child
           </Link>
           <p className="font-mono text-xs text-ink-3">{"// office space"}</p>
         </div>
-        <OfficeNav layout="column" />
+        <OfficeNav layout="column" badges={badges} />
         <div className="mt-auto grid gap-3 border-t border-line pt-4">
           <div className="grid gap-1 px-2">
             <p className="truncate text-sm text-ink">{staff.user.email}</p>
@@ -69,7 +71,7 @@ export default async function OfficeConsoleLayout({ children }: Readonly<{ child
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-canvas/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
-        <OfficeNav layout="bar" />
+        <OfficeNav layout="bar" badges={badges} />
       </div>
       <OfficeSearch />
       <IdleWarning lastSeenAt={staff.lastSeenAt.toISOString()} idleMinutes={OFFICE_POLICY.idleMinutes} warnSeconds={OFFICE_POLICY.idleWarningSeconds} stayActive={stayActiveAction} />

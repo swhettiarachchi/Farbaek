@@ -43,6 +43,8 @@ export const OFFICE_ERROR_CODES = [
   "NO_TRIAL",
   "ALREADY_EXTENDED",
   "TRIAL_LIMIT",
+  "THREAD_MISSING",
+  "INVALID_SUPPORT",
   "UNEXPECTED_RESPONSE",
   "UNKNOWN",
 ] as const;
@@ -81,6 +83,8 @@ export const OFFICE_MESSAGES: Record<OfficeErrorCode, string> = {
   NO_TRIAL: "This workspace never had a trial, so there's nothing to extend.",
   ALREADY_EXTENDED: "This trial was already extended. An admin or owner can add more.",
   TRIAL_LIMIT: "A trial can't run past 44 days from its start. Choose fewer days.",
+  THREAD_MISSING: "That support request no longer exists.",
+  INVALID_SUPPORT: "Write a reply of up to 4,000 characters.",
   UNEXPECTED_RESPONSE: "The database sent something unexpected. Nothing was changed.",
   UNKNOWN: "That didn't work, and nothing was changed. Try again in a moment.",
 };
@@ -142,6 +146,9 @@ export interface StaffStore {
   endAnnouncement(actor: StaffActor, input: { id: string; reason: string }, meta: RequestMeta): Promise<StoreResult<null>>;
   // Phase 3 (migration v22)
   extendTrial(actor: StaffActor, input: { orgId: string; days: number; reason: string }, meta: RequestMeta): Promise<StoreResult<string>>;
+  // Phase 4 (migration v23)
+  supportReply(actor: StaffActor, input: { threadId: string; body: string; internal: boolean }, meta: RequestMeta): Promise<StoreResult<null>>;
+  supportUpdate(actor: StaffActor, input: { threadId: string; action: "assign_me" | "unassign" | "close" | "reopen" }, meta: RequestMeta): Promise<StoreResult<null>>;
 }
 
 export function createStaffStore(admin: SupabaseClient): StaffStore {
@@ -215,6 +222,9 @@ export function createStaffStore(admin: SupabaseClient): StaffStore {
       ),
     endAnnouncement: (a, i, meta) => rpc("app_staff_end_announcement", { p_actor: a.userId, p_session: a.sessionId, p_id: i.id, p_reason: i.reason, ...m(meta) }, nothing),
     extendTrial: (a, i, meta) => rpc("app_staff_extend_trial", { p_actor: a.userId, p_session: a.sessionId, p_org: i.orgId, p_days: i.days, p_reason: i.reason, ...m(meta) }, z.string()),
+    supportReply: (a, i, meta) =>
+      rpc("app_staff_support_reply", { p_actor: a.userId, p_session: a.sessionId, p_thread: i.threadId, p_body: i.body, p_internal: i.internal, ...m(meta) }, nothing),
+    supportUpdate: (a, i, meta) => rpc("app_staff_support_update", { p_actor: a.userId, p_session: a.sessionId, p_thread: i.threadId, p_action: i.action, ...m(meta) }, nothing),
     recordVerification: (a, c) =>
       rpc(
         "app_staff_record_verification",

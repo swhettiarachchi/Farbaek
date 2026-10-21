@@ -67,6 +67,14 @@ The database repeats the matrix in `private.staff_can`, and a test keeps the two
 - Revenue, churn and trial-to-paid stay "Billing not connected" until go-live.
 - Quick search masks emails on the server for roles without `people.read_email`.
 
+**Support and health** (phase 4, migration v23):
+- People write to Farbaek from Help in the app. Staff answer from Office Space, signed "Farbaek support".
+- A staff member's identity and internal notes are kept from customers by the column grants, not only by the UI.
+- Support tables carry no activity guard, so a suspended workspace or a paused platform can still reach us. Rate limits (5 new requests a day, 30 messages an hour) cap abuse instead.
+- No email is sent: there's no provider. Replies show in the app, with an unread badge.
+- `support.read` and `support.reply` exclude viewers, who don't read customers' messages.
+- The health page reads counts and states only, and says Unknown when it can't know.
+
 ## Consequences
 
 - **Shared process:** the office's code runs in the same process as the customer app. The offsets are routing by host, a guard on every page and action, a design test, and a lint-style test that keeps customer code from importing office code.

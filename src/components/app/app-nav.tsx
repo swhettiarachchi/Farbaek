@@ -8,6 +8,7 @@ import {
   FolderSimpleIcon,
   GearSixIcon,
   HouseSimpleIcon,
+  LifebuoyIcon,
   ListChecksIcon,
   LockSimpleIcon,
   SparkleIcon,
@@ -40,6 +41,7 @@ const PRIMARY: NavItem[] = [
 const SECONDARY: NavItem[] = [
   { href: "/app/billing", label: "Billing and usage", short: "Billing", icon: ChartPieSliceIcon },
   { href: "/app/settings", label: "Settings", short: "Settings", icon: GearSixIcon },
+  { href: "/app/help", label: "Help and support", short: "Help", icon: LifebuoyIcon },
 ];
 
 /** Every page in the app's navigation, for the command palette. */
@@ -50,17 +52,17 @@ function isActive(pathname: string, item: NavItem): boolean {
   return item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
-function Badge({ count }: { count: number }) {
+function Badge({ count, tone = "approval", label = "waiting" }: { count: number; tone?: "approval" | "accent"; label?: string }) {
   if (count <= 0) return null;
   return (
-    <span className="ml-auto min-w-5 rounded-full bg-approval px-1.5 text-center text-[11px] font-semibold leading-5 text-surface tabular">
+    <span className={`ml-auto min-w-5 rounded-full px-1.5 text-center text-[11px] font-semibold leading-5 text-surface tabular ${tone === "accent" ? "bg-accent" : "bg-approval"}`}>
       {count > 99 ? "99+" : count}
-      <span className="sr-only"> waiting</span>
+      <span className="sr-only"> {label}</span>
     </span>
   );
 }
 
-export function SidebarNav({ approvals }: { approvals: number }) {
+export function SidebarNav({ approvals, helpUnread = 0 }: { approvals: number; helpUnread?: number }) {
   const pathname = usePathname();
   const link = (item: NavItem) => {
     const active = isActive(pathname, item);
@@ -77,6 +79,7 @@ export function SidebarNav({ approvals }: { approvals: number }) {
           <item.icon size={19} weight={active ? "fill" : "regular"} className={active ? "text-accent" : ""} aria-hidden />
           {item.label}
           {item.href === "/app/approvals" ? <Badge count={approvals} /> : null}
+          {item.href === "/app/help" ? <Badge count={helpUnread} tone="accent" label={helpUnread === 1 ? "new reply" : "new replies"} /> : null}
         </Link>
       </li>
     );
@@ -111,9 +114,9 @@ export function SidebarNav({ approvals }: { approvals: number }) {
 const ON_MORE = ["/app/tasks", "/app/sandbox", "/app/agents"];
 const TABS: NavItem[] = [...PRIMARY.filter((i) => !ON_MORE.includes(i.href)), { href: "/app/more", label: "More", short: "More", icon: DotsThreeOutlineIcon }];
 
-export function MobileTabBar({ approvals }: { approvals: number }) {
+export function MobileTabBar({ approvals, helpUnread = 0 }: { approvals: number; helpUnread?: number }) {
   const pathname = usePathname();
-  const moreActive = ["/app/more", "/app/billing", "/app/settings", "/app/workspaces", ...ON_MORE].some((p) => pathname.startsWith(p));
+  const moreActive = ["/app/more", "/app/billing", "/app/settings", "/app/workspaces", "/app/help", ...ON_MORE].some((p) => pathname.startsWith(p));
   return (
     <nav
       aria-label="App"
@@ -136,6 +139,12 @@ export function MobileTabBar({ approvals }: { approvals: number }) {
                   <span className="absolute right-[calc(50%-20px)] top-2 min-w-4 rounded-full bg-approval px-1 text-center text-[10px] font-semibold leading-4 text-surface tabular">
                     {approvals}
                     <span className="sr-only"> waiting</span>
+                  </span>
+                ) : null}
+                {/* Help lives under More on phones; a dot there says Farbaek replied. */}
+                {item.href === "/app/more" && helpUnread > 0 ? (
+                  <span className="absolute right-[calc(50%-16px)] top-2.5 size-2.5 rounded-full bg-accent ring-2 ring-surface">
+                    <span className="sr-only">, Farbaek replied to your request</span>
                   </span>
                 ) : null}
               </Link>

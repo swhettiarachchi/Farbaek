@@ -36,6 +36,18 @@ export interface Workspace360 {
   runs: { id: string; status: string; task: string; startedAt: string }[];
 }
 
+/** A workspace in one line: name, plan, trial days left and any suspension. For side cards. */
+export async function loadWorkspaceBrief(
+  admin: SupabaseClient,
+  orgId: string,
+  now = new Date(),
+): Promise<{ id: string; name: string; plan: string; trialDaysLeft: number | null; suspension: { at: string; notice: string } | null } | null> {
+  const org = must(await admin.from("organizations").select(ORGANIZATION_SELECT).eq("id", orgId).maybeSingle(), "the workspace");
+  if (!org) return null;
+  const [summary] = summarizeOrganizations([org], now);
+  return summary ? { id: summary.id, name: summary.name, plan: planLabel(summary), trialDaysLeft: trialDaysLeft(summary), suspension: summary.suspension } : null;
+}
+
 export async function loadWorkspace360(admin: SupabaseClient, orgId: string, now = new Date()): Promise<Workspace360 | null> {
   const org = must(await admin.from("organizations").select(`${ORGANIZATION_SELECT}`).eq("id", orgId).maybeSingle(), "the workspace");
   if (!org) return null;
