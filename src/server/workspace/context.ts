@@ -8,6 +8,7 @@ import { createSupabaseServerClient } from "@/server/supabase/server";
 import { createDemoReader } from "./demo-reader";
 import type { WorkspaceSummary } from "./organizations";
 import { createSupabaseReader } from "./supabase-reader";
+import { refreshPlatformState } from "@/server/platform/state";
 import { CONTRIBUTOR_ROLES, type OrgRole, type WorkspaceReader } from "./types";
 
 /** Remembers the selected workspace. A preference only: access is still checked on every read. */
@@ -109,7 +110,8 @@ export const loadAppContext = cache(async (): Promise<AppContext | null> => {
   if (!claims?.sub) redirect("/sign-in");
 
   const reader = memoizeReader(createSupabaseReader(client));
-  const workspaces = await reader.listWorkspaces();
+  // Office Space's pause switches, so AI, sandbox and publish messages explain a pause (ADR 0032).
+  const [workspaces] = await Promise.all([reader.listWorkspaces(), refreshPlatformState()]);
   const current = pickCurrent(workspaces, preferred);
   const role = current ? ((await reader.listMembers(current.id)).find((m) => m.userId === claims.sub)?.role ?? null) : null;
 
@@ -119,6 +121,9 @@ export const loadAppContext = cache(async (): Promise<AppContext | null> => {
       enabled: false,
       reason: "Creating and changing items needs the server key (SUPABASE_SECRET_KEY), which isn't set in this environment.",
     };
+  } else if (current?.suspension) {
+    // Paused by Farbaek staff (ADR 0032); the database refuses writes too.
+    writes = { enabled: false, reason: `Farbaek has paused this workspace: ${current.suspension.notice}` };
   } else if (role && !CONTRIBUTOR_ROLES.includes(role)) {
     writes = { enabled: false, reason: "You have view-only access to this workspace." };
   }

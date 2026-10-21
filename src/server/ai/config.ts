@@ -7,6 +7,7 @@
  * There is no silent switch between vendors mid-request: project data only
  * goes to the provider this resolves to.
  */
+import { platformPause } from "@/server/platform/state";
 
 export type AiProviderId = "anthropic" | "gemini";
 
@@ -37,6 +38,9 @@ export function geminiModel(): string {
 export type AiProviderResolution = { provider: AiProviderId; label: string } | { provider: null; reason: string };
 
 export function resolveAiProvider(): AiProviderResolution {
+  // Paused by Farbaek's owners from Office Space (ADR 0032): every AI path shows this reason.
+  const paused = platformPause("ai_runs");
+  if (paused) return { provider: null, reason: paused };
   const pref = (env("AI_PROVIDER") ?? "").toLowerCase();
   const pick = (p: AiProviderId): AiProviderResolution => ({ provider: p, label: AI_PROVIDER_LABELS[p] });
 

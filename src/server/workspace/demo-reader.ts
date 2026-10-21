@@ -131,6 +131,7 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
           plan: resolveEffectivePlan({ state: "trialing", trial: window }, now),
           trial: { startedAt: window.startedAt.toISOString(), endsAt: window.endsAt.toISOString(), phase: trialPhase(window, now) },
           billingUnknown: false,
+          suspension: null,
         },
       ];
     },

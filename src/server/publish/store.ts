@@ -15,6 +15,8 @@ export interface SiteView {
   name: string;
   liveDeploymentId: string | null;
   createdAt: string;
+  /** Taken offline by Farbaek staff (ADR 0032), with the notice they wrote for the owner. */
+  blocked: { at: string; notice: string } | null;
 }
 
 export interface DeploymentView {
@@ -28,7 +30,14 @@ export interface DeploymentView {
   createdAt: string;
 }
 
-const SiteRow = z.object({ id: z.string(), name: z.string(), live_deployment_id: z.string().nullable(), created_at: z.string() });
+const SiteRow = z.object({
+  id: z.string(),
+  name: z.string(),
+  live_deployment_id: z.string().nullable(),
+  created_at: z.string(),
+  blocked_at: z.string().nullable().optional(),
+  blocked_notice: z.string().nullable().optional(),
+});
 const DeploymentRow = z.object({
   id: z.string(),
   number: z.number(),
@@ -42,11 +51,17 @@ const DeploymentRow = z.object({
 const FilesJson = z.array(z.object({ path: z.string(), revision: z.number().int().positive(), sha256: z.string(), size: z.number() }));
 
 export async function getSite(client: SupabaseClient, orgId: string, projectId: string): Promise<SiteView | null> {
-  const { data, error } = await client.from("sites").select("id, name, live_deployment_id, created_at").eq("org_id", orgId).eq("project_id", projectId).maybeSingle();
+  const { data, error } = await client.from("sites").select("id, name, live_deployment_id, created_at, blocked_at, blocked_notice").eq("org_id", orgId).eq("project_id", projectId).maybeSingle();
   if (error) throw new Error(`Couldn't load the site: ${error.message}`);
   if (!data) return null;
   const r = SiteRow.parse(data);
-  return { id: r.id, name: r.name, liveDeploymentId: r.live_deployment_id, createdAt: r.created_at };
+  return {
+    id: r.id,
+    name: r.name,
+    liveDeploymentId: r.live_deployment_id,
+    createdAt: r.created_at,
+    blocked: r.blocked_at ? { at: r.blocked_at, notice: r.blocked_notice ?? "Farbaek has taken this site offline." } : null,
+  };
 }
 
 export async function listDeployments(client: SupabaseClient, orgId: string, siteId: string, limit = 20): Promise<DeploymentView[]> {
@@ -104,17 +119,19 @@ export async function setLiveDeployment(admin: SupabaseClient, input: { orgId: s
   return error ? { ok: false, error: rpcError(error) } : { ok: true, value: null };
 }
 
-/** For serving: the live deployment behind a site name, or null when there's no live site by that name. */
-export async function liveSiteAsSystem(admin: SupabaseClient, name: string): Promise<{ deploymentId: string; projectId: string; files: PublishedFile[] } | null> {
-  const { data: site, error } = await admin.from("sites").select("live_deployment_id").eq("name", name).maybeSingle();
+export type SiteForServing = { state: "live"; deploymentId: string; projectId: string; files: PublishedFile[] } | { state: "none" | "blocked" | "paused" | "suspended" };
+
+/** For serving (migration v21): whether a name is live, blocked, paused or suspended, and the live files when it is. */
+export async function siteForServingAsSystem(admin: SupabaseClient, name: string): Promise<SiteForServing> {
+  const { data, error } = await admin.rpc("app_site_for_serving", { p_name: name });
   if (error) throw new Error(`Couldn't load the site: ${error.message}`);
-  const live = z.string().nullable().parse(site?.live_deployment_id ?? null);
-  if (!live) return null;
-  const { data, error: e2 } = await admin.from("site_deployments").select("id, project_id, files").eq("id", live).maybeSingle();
-  if (e2) throw new Error(`Couldn't load the deployment: ${e2.message}`);
-  if (!data) return null;
-  const r = z.object({ id: z.string(), project_id: z.string(), files: FilesJson }).parse(data);
-  return { deploymentId: r.id, projectId: r.project_id, files: r.files };
+  const r = z
+    .union([
+      z.object({ state: z.literal("live"), deployment_id: z.string(), project_id: z.string(), files: FilesJson }),
+      z.object({ state: z.enum(["none", "blocked", "paused", "suspended"]) }),
+    ])
+    .parse(data);
+  return r.state === "live" ? { state: "live", deploymentId: r.deployment_id, projectId: r.project_id, files: r.files } : { state: r.state };
 }
 
 /** For serving: one stored revision's text, which never changes once written. */

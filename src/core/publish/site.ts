@@ -85,6 +85,7 @@ export function hasUnpublishedChanges(liveDigest: string | null, currentDigest: 
 }
 
 export type PublishBlock =
+  | { code: "PAUSED"; message: string }
   | { code: "NO_DOMAIN"; message: string }
   | { code: "NOT_STATIC"; message: string }
   | { code: "NO_INDEX"; message: string }
@@ -101,6 +102,8 @@ export interface GateInput {
   filesChangedAt: string | null;
   /** The project's latest security check. */
   check: { status: "running" | "done" | "failed"; startedAt: string; critical: number } | null;
+  /** Why Farbaek has paused publishing for everyone, if it has (ADR 0032). */
+  paused?: string | null;
 }
 
 /**
@@ -109,6 +112,7 @@ export interface GateInput {
  * nothing critical.
  */
 export function publishGate(input: GateInput): PublishBlock | null {
+  if (input.paused) return { code: "PAUSED", message: input.paused };
   if (!input.domain) return { code: "NO_DOMAIN", message: "Publishing turns on when Farbaek's site domain is connected." };
   if (input.profile === "node") return { code: "NOT_STATIC", message: "Apps with a server can't be published yet. Static sites (HTML, CSS and JavaScript) can." };
   if (!input.paths.includes("index.html")) return { code: "NO_INDEX", message: "Add an index.html first: it's the page people see." };

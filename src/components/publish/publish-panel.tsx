@@ -1,4 +1,4 @@
-import { ArrowSquareOutIcon, CheckCircleIcon, CircleIcon, GlobeIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
+import { ArrowSquareOutIcon, CheckCircleIcon, CircleIcon, GlobeIcon, ProhibitIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { RelativeTime } from "@/components/ui/local-time";
 import { buttonClasses } from "@/components/ui/button";
@@ -13,8 +13,9 @@ import { SetLiveForm } from "./set-live-form";
  * on the site domain, after a security check of exactly these files. Each
  * publish is kept, so any earlier version can be made live again.
  */
-export function PublishPanel({ projectId, data, disabledReason }: { projectId: string; data: PublishPanelData; disabledReason: string | null }) {
+export function PublishPanel({ projectId, data, disabledReason: given }: { projectId: string; data: PublishPanelData; disabledReason: string | null }) {
   const { site, live, address } = data;
+  const disabledReason = site?.blocked ? "Farbaek has taken this site offline." : given;
   const blockLink =
     data.block?.code === "NO_CHECK" || data.block?.code === "CHECK_STALE" || data.block?.code === "CRITICAL_FINDINGS" || data.block?.code === "CHECK_RUNNING"
       ? { href: `/app/projects/${projectId}/security`, label: data.block.code === "CRITICAL_FINDINGS" ? "See the findings" : "Open Security" }
@@ -36,6 +37,16 @@ export function PublishPanel({ projectId, data, disabledReason }: { projectId: s
           </span>
         )}
       </div>
+
+      {site?.blocked ? (
+        <p role="status" className="flex items-start gap-2.5 rounded-sm border border-failed/30 bg-failed/[0.05] px-4 py-3 text-sm text-ink">
+          <ProhibitIcon size={18} weight="bold" className="mt-px shrink-0 text-failed" aria-hidden />
+          <span>
+            <span className="font-medium">Farbaek took this site offline</span> <RelativeTime iso={site.blocked.at} />. {site.blocked.notice} It can&apos;t go live again until
+            Farbaek lifts this; visitors see that the site isn&apos;t available.
+          </span>
+        </p>
+      ) : null}
 
       {live && address ? (
         <div className="grid gap-1">

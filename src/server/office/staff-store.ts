@@ -24,6 +24,20 @@ export const OFFICE_ERROR_CODES = [
   "CANNOT_CHANGE_SELF",
   "LAST_OWNER",
   "INVALID_EVENT",
+  "WORKSPACE_MISSING",
+  "CONFIRM_NAME_MISMATCH",
+  "ALREADY_SUSPENDED",
+  "NOT_SUSPENDED",
+  "NOTICE_REQUIRED",
+  "SITE_MISSING",
+  "ALREADY_BLOCKED",
+  "NOT_BLOCKED",
+  "INVALID_UNITS",
+  "USAGE_CAP",
+  "INVALID_EXPIRY",
+  "INVALID_FLAG",
+  "INVALID_ANNOUNCEMENT",
+  "ANNOUNCEMENT_MISSING",
   "UNEXPECTED_RESPONSE",
   "UNKNOWN",
 ] as const;
@@ -43,6 +57,20 @@ export const OFFICE_MESSAGES: Record<OfficeErrorCode, string> = {
   CANNOT_CHANGE_SELF: "You can't change your own role or remove yourself. Ask another owner.",
   LAST_OWNER: "The office must keep at least one owner. Make someone else an owner first.",
   INVALID_EVENT: "That event can't be recorded.",
+  WORKSPACE_MISSING: "That workspace doesn't exist any more.",
+  CONFIRM_NAME_MISMATCH: "Type the workspace's name exactly as shown to confirm.",
+  ALREADY_SUSPENDED: "This workspace is already suspended.",
+  NOT_SUSPENDED: "This workspace isn't suspended.",
+  NOTICE_REQUIRED: "Write the notice people will see, 10 characters or more.",
+  SITE_MISSING: "That site doesn't exist any more.",
+  ALREADY_BLOCKED: "This site is already offline.",
+  NOT_BLOCKED: "This site isn't blocked.",
+  INVALID_UNITS: "Add at least 1,000 units ($0.10 of list cost).",
+  USAGE_CAP: "That's more than your role can add at once. An owner can add more.",
+  INVALID_EXPIRY: "AI usage added by Farbaek expires within 1 to 90 days.",
+  INVALID_FLAG: "That switch doesn't exist.",
+  INVALID_ANNOUNCEMENT: "Write 10 to 280 characters, pick a tone, and an end time in the future if you set one.",
+  ANNOUNCEMENT_MISSING: "That announcement already ended.",
   UNEXPECTED_RESPONSE: "The database sent something unexpected. Nothing was changed.",
   UNKNOWN: "That didn't work, and nothing was changed. Try again in a moment.",
 };
@@ -93,6 +121,15 @@ export interface StaffStore {
     meta: RequestMeta | null,
   ): Promise<StoreResult<number>>;
   recordVerification(actor: StaffActor, check: { throughSeq: number; headHash: string | null; ok: boolean; firstBadSeq: number | null }): Promise<StoreResult<null>>;
+  // Controls (migration v21)
+  suspendWorkspace(actor: StaffActor, input: { orgId: string; confirmName: string; notice: string; reason: string }, meta: RequestMeta): Promise<StoreResult<null>>;
+  restoreWorkspace(actor: StaffActor, input: { orgId: string; reason: string }, meta: RequestMeta): Promise<StoreResult<null>>;
+  blockSite(actor: StaffActor, input: { siteId: string; notice: string; reason: string }, meta: RequestMeta): Promise<StoreResult<null>>;
+  unblockSite(actor: StaffActor, input: { siteId: string; reason: string }, meta: RequestMeta): Promise<StoreResult<null>>;
+  addUsage(actor: StaffActor, input: { orgId: string; units: number; days: number; reason: string }, strength: AuthStrength, meta: RequestMeta): Promise<StoreResult<string>>;
+  setFlag(actor: StaffActor, input: { key: string; paused: boolean; message: string | null; reason: string }, strength: AuthStrength, meta: RequestMeta): Promise<StoreResult<null>>;
+  publishAnnouncement(actor: StaffActor, input: { message: string; tone: "info" | "incident"; dismissible: boolean; endsAt: string | null; reason: string }, meta: RequestMeta): Promise<StoreResult<string>>;
+  endAnnouncement(actor: StaffActor, input: { id: string; reason: string }, meta: RequestMeta): Promise<StoreResult<null>>;
 }
 
 export function createStaffStore(admin: SupabaseClient): StaffStore {
@@ -149,6 +186,22 @@ export function createStaffStore(admin: SupabaseClient): StaffStore {
         },
         z.coerce.number(),
       ),
+    suspendWorkspace: (a, i, meta) =>
+      rpc("app_staff_suspend_workspace", { p_actor: a.userId, p_session: a.sessionId, p_org: i.orgId, p_confirm_name: i.confirmName, p_notice: i.notice, p_reason: i.reason, ...m(meta) }, nothing),
+    restoreWorkspace: (a, i, meta) => rpc("app_staff_restore_workspace", { p_actor: a.userId, p_session: a.sessionId, p_org: i.orgId, p_reason: i.reason, ...m(meta) }, nothing),
+    blockSite: (a, i, meta) => rpc("app_staff_block_site", { p_actor: a.userId, p_session: a.sessionId, p_site: i.siteId, p_notice: i.notice, p_reason: i.reason, ...m(meta) }, nothing),
+    unblockSite: (a, i, meta) => rpc("app_staff_unblock_site", { p_actor: a.userId, p_session: a.sessionId, p_site: i.siteId, p_reason: i.reason, ...m(meta) }, nothing),
+    addUsage: (a, i, strength, meta) =>
+      rpc("app_staff_add_usage", { p_actor: a.userId, p_session: a.sessionId, p_org: i.orgId, p_units: i.units, p_days: i.days, p_reason: i.reason, p_auth_strength: strength, ...m(meta) }, z.string().uuid()),
+    setFlag: (a, i, strength, meta) =>
+      rpc("app_staff_set_flag", { p_actor: a.userId, p_session: a.sessionId, p_key: i.key, p_paused: i.paused, p_message: i.message, p_reason: i.reason, p_auth_strength: strength, ...m(meta) }, nothing),
+    publishAnnouncement: (a, i, meta) =>
+      rpc(
+        "app_staff_publish_announcement",
+        { p_actor: a.userId, p_session: a.sessionId, p_message: i.message, p_tone: i.tone, p_dismissible: i.dismissible, p_ends_at: i.endsAt, p_reason: i.reason, ...m(meta) },
+        z.string().uuid(),
+      ),
+    endAnnouncement: (a, i, meta) => rpc("app_staff_end_announcement", { p_actor: a.userId, p_session: a.sessionId, p_id: i.id, p_reason: i.reason, ...m(meta) }, nothing),
     recordVerification: (a, c) =>
       rpc(
         "app_staff_record_verification",

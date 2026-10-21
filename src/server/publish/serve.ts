@@ -10,9 +10,12 @@ import { contentTypeFor, staticCandidates } from "@/server/sandbox/gateway";
 
 export { SITE_ROUTE, siteNameFromHost };
 
+export type ServedSite = { state: "live"; deploymentId: string; projectId: string; files: PublishedFile[] } | { state: "none" | "blocked" | "paused" | "suspended" };
+
 export interface SiteServeDeps {
   domain: string | null;
-  liveSite: (name: string) => Promise<{ deploymentId: string; projectId: string; files: PublishedFile[] } | null>;
+  /** What the name is doing right now (ADR 0029; blocked, paused and suspended from ADR 0032). */
+  liveSite: (name: string) => Promise<ServedSite>;
   content: (projectId: string, path: string, revision: number) => Promise<string | null>;
 }
 
@@ -21,10 +24,12 @@ const BASE_HEADERS = {
   "referrer-policy": "strict-origin-when-cross-origin",
 };
 
-function notFound(title: string, body: string): Response {
+function page(status: number, title: string, body: string): Response {
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${title}</title><style>body{font:16px/1.6 system-ui,sans-serif;margin:0;display:grid;place-items:center;min-height:100vh;color:#15171c;background:#fafafa}main{max-width:32rem;padding:24px}h1{font-size:22px;margin:0 0 8px}p{margin:0;color:#4d5360}</style></head><body><main><h1>${title}</h1><p>${body}</p></main></body></html>`;
-  return new Response(html, { status: 404, headers: { ...BASE_HEADERS, "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+  return new Response(html, { status, headers: { ...BASE_HEADERS, "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex" } });
 }
+
+const notFound = (title: string, body: string) => page(404, title, body);
 
 export async function handleSiteRequest(request: Request, deps: SiteServeDeps): Promise<Response> {
   const name = siteNameFromHost(request.headers.get("host"), deps.domain);
@@ -35,7 +40,10 @@ export async function handleSiteRequest(request: Request, deps: SiteServeDeps): 
   }
 
   const site = await deps.liveSite(name);
-  if (!site) return notFound("There's no site here", "Nothing is published at this address right now.");
+  // Visitors see a neutral page; the site's owner sees why on their project page.
+  if (site.state === "blocked") return page(403, "This site isn't available", "It has been taken offline.");
+  if (site.state === "paused" || site.state === "suspended") return page(503, "This site is temporarily unavailable", "Please check back later.");
+  if (site.state !== "live") return notFound("There's no site here", "Nothing is published at this address right now.");
 
   const url = new URL(request.url);
   // src/proxy.ts rewrites site hosts to this route; the original path follows the prefix.

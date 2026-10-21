@@ -4,6 +4,7 @@
  * Farbaek stays in Review Only and says why. Code never runs on this server.
  */
 import { executionMode, type ExecutionMode } from "@/core/execution/sandbox";
+import { platformPause } from "@/server/platform/state";
 import type { SandboxRuntime } from "@/core/sandbox/runtime";
 import { readSandboxConfig, type SandboxServerConfig } from "./config";
 import { createE2bRuntime } from "./e2b-runtime";
@@ -50,6 +51,8 @@ export function resolveSandboxRuntime(config: SandboxServerConfig = readSandboxC
 }
 
 export function sandboxExecutionMode(resolution: RuntimeResolution = resolveSandboxRuntime()): ExecutionMode {
+  const paused = platformPause("sandboxes");
+  if (paused) return executionMode(null, paused);
   if (!resolution.runtime) return executionMode(null, resolution.reason);
   const mode = executionMode(resolution.runtime);
   if (mode.mode === "review_only" && !resolution.runtime.capabilities.verified) {

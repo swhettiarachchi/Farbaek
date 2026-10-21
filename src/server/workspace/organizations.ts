@@ -19,10 +19,13 @@ const OrganizationRow = z.object({
     }),
   ),
   trials: OneOrMany(z.object({ started_at: z.string(), ends_at: z.string() })),
+  // Set by Farbaek staff from Office Space (migration v21, ADR 0032).
+  suspended_at: z.string().nullable().optional(),
+  suspended_notice: z.string().nullable().optional(),
 });
 
 export const ORGANIZATION_SELECT =
-  "id, name, created_at, billing_accounts(state, paid_plan_id, paid_through, suspended_reason), trials(started_at, ends_at)";
+  "id, name, created_at, suspended_at, suspended_notice, billing_accounts(state, paid_plan_id, paid_through, suspended_reason), trials(started_at, ends_at)";
 
 export interface WorkspaceSummary {
   id: string;
@@ -31,6 +34,8 @@ export interface WorkspaceSummary {
   trial: { startedAt: string; endsAt: string; phase: TrialPhase } | null;
   /** True when billing state is missing, so entitlements fail closed. */
   billingUnknown: boolean;
+  /** Paused by Farbaek staff: members can read but not change anything, and the notice says why. */
+  suspension: { at: string; notice: string } | null;
 }
 
 /** Billing snapshot for one organization row, or null when billing state is missing. */
@@ -68,15 +73,17 @@ export function summarizeOrganizations(rows: unknown, now: Date): WorkspaceSumma
         plan: resolveEffectivePlan(snapshot, now),
         trial: window ? { startedAt: window.startedAt.toISOString(), endsAt: window.endsAt.toISOString(), phase: trialPhase(window, now) } : null,
         billingUnknown: !billing,
+        suspension: row.suspended_at ? { at: row.suspended_at, notice: row.suspended_notice ?? "Farbaek has paused this workspace." } : null,
       };
     });
 }
 
-export type CreateOrganizationError = "EMAIL_NOT_VERIFIED" | "INVALID_NAME" | "NOT_AUTHENTICATED" | "UNKNOWN";
+export type CreateOrganizationError = "EMAIL_NOT_VERIFIED" | "INVALID_NAME" | "NOT_AUTHENTICATED" | "PAUSED" | "UNKNOWN";
 
 export function mapCreateOrganizationError(message: string | undefined): { code: CreateOrganizationError; message: string } {
   if (message?.includes("EMAIL_NOT_VERIFIED")) return { code: "EMAIL_NOT_VERIFIED", message: "Confirm your email address first, then try again." };
   if (message?.includes("INVALID_NAME")) return { code: "INVALID_NAME", message: "Use a name between 1 and 80 characters." };
   if (message?.includes("NOT_AUTHENTICATED")) return { code: "NOT_AUTHENTICATED", message: "Your session ended. Sign in again." };
+  if (message?.includes("PAUSED_BY_FARBAEK")) return { code: "PAUSED", message: "Farbaek has paused new workspaces for a short while. Try again soon; nothing was charged." };
   return { code: "UNKNOWN", message: "The workspace couldn't be created. Nothing was charged. Try again in a moment." };
 }

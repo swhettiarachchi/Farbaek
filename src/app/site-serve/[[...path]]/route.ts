@@ -1,15 +1,12 @@
-import type { PublishedFile } from "@/core/publish/site";
 import { siteDomain } from "@/server/publish/config";
-import { handleSiteRequest } from "@/server/publish/serve";
-import { liveSiteAsSystem, revisionContentAsSystem } from "@/server/publish/store";
+import { handleSiteRequest, type ServedSite } from "@/server/publish/serve";
+import { revisionContentAsSystem, siteForServingAsSystem } from "@/server/publish/store";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
-type Live = { deploymentId: string; projectId: string; files: PublishedFile[] } | null;
-
-// Which deployment is live is looked up again every few seconds, so a rollback shows quickly.
-const sites = new Map<string, { live: Live; until: number }>();
+// What a name is doing is looked up again every few seconds, so a rollback or a takedown shows quickly.
+const sites = new Map<string, { live: ServedSite; until: number }>();
 // A stored revision never changes, so its text can be kept as long as there's room.
 const contents = new Map<string, string>();
 const MAX_CONTENT_ENTRIES = 400;
@@ -27,7 +24,7 @@ async function handle(request: Request): Promise<Response> {
     async liveSite(name) {
       const cached = sites.get(name);
       if (cached && cached.until > Date.now()) return cached.live;
-      const live = await liveSiteAsSystem(admin, name);
+      const live = await siteForServingAsSystem(admin, name);
       if (sites.size > 2_000) sites.clear();
       sites.set(name, { live, until: Date.now() + 10_000 });
       return live;
