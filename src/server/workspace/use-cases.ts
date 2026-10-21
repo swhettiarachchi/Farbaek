@@ -68,6 +68,9 @@ export type WriteErrorCode =
   | "AI_REFUSED"
   | "AI_INCOMPLETE"
   | "AI_BUSY"
+  | "WORKSPACE_SUSPENDED"
+  | "PAUSED_BY_FARBAEK"
+  | "SITE_BLOCKED"
   | "UNKNOWN";
 
 export type WriteResult<T> = { ok: true; value: T } | { ok: false; code: WriteErrorCode; message: string };
@@ -177,6 +180,9 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   PAIRING_CLOSED: "This pairing code was already used or has expired. Create a new code in Farbaek.",
   INVALID_PAIRING: "The pairing code isn't valid. Create a new code and try again.",
   AGENT_REVOKED: "This agent was revoked. Pair the app again to keep using it.",
+  WORKSPACE_SUSPENDED: "Farbaek has paused this workspace, so nothing in it can change right now. The notice at the top of the page says why and how to reach us.",
+  PAUSED_BY_FARBAEK: "Farbaek has paused this for everyone for a short while. Your work is safe; try again soon.",
+  SITE_BLOCKED: "Farbaek has taken this site offline, so it can't go live again for now. The notice on the project page says why.",
   UNKNOWN: "Something went wrong and nothing was changed. Try again in a moment.",
 };
 
@@ -185,6 +191,10 @@ export const fail = <T>(code: WriteErrorCode, message = MESSAGES[code]): WriteRe
 /** Maps an error raised by an app_* database function to a result code. */
 export function codeFromDatabaseError(message: string): WriteErrorCode {
   for (const code of [
+    // Staff controls (ADR 0032) first: they can arrive from any function.
+    "WORKSPACE_SUSPENDED",
+    "PAUSED_BY_FARBAEK",
+    "SITE_BLOCKED",
     "FORBIDDEN",
     "INVALID_NAME",
     "INVALID_TITLE",

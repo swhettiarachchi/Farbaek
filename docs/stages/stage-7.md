@@ -94,3 +94,59 @@ Read-only checks afterwards:
 
 - The CEO's first sign-in. The code, the authenticator, the bootstrap and the console pages can only be exercised by someone with the info@farbaek.com mailbox and their own authenticator app.
 - Production routing: it waits for the merge and the domain swap.
+
+## 2026-10-21: Phase 2, controls enforced in the database
+
+### Done
+
+**Migration v21** (`20261023090000_office_controls.sql`):
+- **Workspaces:** suspension columns, and `require_contributor` refuses a suspended workspace's members.
+- **Activity guards:** `guard_activity` BEFORE INSERT triggers on the 16 tables where activity starts. They catch the functions that check membership themselves, and the five platform switches.
+- **Sites:** blocking columns, plus a trigger so a blocked site can't go live again.
+- **Serving:** `app_site_for_serving` returns live, none, blocked, paused or suspended.
+- **Staff functions:** suspend and restore, block and unblock, add AI usage (an adjustment grant capped by role, with a fresh code above $100, never billing), set a switch (owner and a fresh code), and publish or end an announcement. Each records one chained event; workspace actions also write a customer `farbaek.*` audit row with the public notice only.
+
+**Customer app:**
+- a suspended workspace turns writes off with the staff notice;
+- AI, sandbox and publish messages explain a pause (a 15-second snapshot of the switches; the database stays the authority);
+- new error codes have plain messages;
+- announcements show across the top (notices can be closed, incidents can't);
+- a site owner sees why their site was taken offline;
+- visitors get a neutral 403 or 503.
+
+**Office:**
+- **Workspace 360:** members, projects and sites, runs, AI usage and grants, Add AI usage, and Suspend or Restore with a typed name;
+- **Sites:** take a site offline or restore it;
+- **Controls:** the five switches;
+- **Announcements;**
+- a **More** page for the phone bar.
+
+Suspending a workspace, or pausing AI, stops live runs on this server.
+
+### Applied to the hosted database
+
+Migration v21 went in through the SQL Editor:
+- **Hash check:** the editor held exactly the tested file (SHA-256 `ffde3dbb014b43091720478957da28619ea6bcbc6ef313d08c1dec42fbc6f5c7`, 23,385 bytes). There was no RLS warning this time.
+- **Read-only checks afterwards:**
+  - five switches, none paused;
+  - 17 guard triggers;
+  - both column pairs present;
+  - all nine functions;
+  - `authenticated` can't run `app_staff_set_flag` or update the switches;
+  - no workspace suspended;
+  - `app_site_for_serving` answers `none` for an unknown name.
+
+It had to go in before this code deploys, because the workspace query now reads the suspension columns.
+
+### Verified
+
+- PGlite `office-controls.test.ts` (10 tests):
+  - suspension blocks members' writes through `require_contributor` and the insert guards, keeps the data and lets plain updates through;
+  - a restore brings writes back;
+  - a blocked site can't go live again but can stay offline;
+  - each switch blocks its work and only that;
+  - usage caps and the fresh code, with no billing change;
+  - announcements are readable while live, without the author;
+  - browsers are refused;
+  - refused calls record nothing.
+- Database suite: 187 passed. Unit, design and serve tests: passed.

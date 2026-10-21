@@ -14,6 +14,8 @@ import { PromptComposer } from "@/components/build/prompt-composer";
 import { agentPresence } from "@/core/agent/inbox";
 import { liveRunStatuses } from "@/server/cloud-agent/store";
 import { createSupabaseServerClient } from "@/server/supabase/server";
+import { AnnouncementBanner } from "@/components/app/announcement-banner";
+import { liveAnnouncements } from "@/server/platform/announcements";
 import { TRIAL, getPlan } from "@/core/billing/catalog";
 import { isAdminEmail } from "@/server/admin/access";
 import { loadAppContext } from "@/server/workspace/context";
@@ -83,14 +85,12 @@ export default async function AppLayout({ children }: Readonly<{ children: React
 
   const current = ctx.current;
   const live = ctx.mode === "live";
-  const [tasks, projects, liveRuns] = await Promise.all([
+  const client = live ? await createSupabaseServerClient().catch(() => null) : null;
+  const [tasks, projects, liveRuns, announcements] = await Promise.all([
     ctx.reader.listTasks(current.id),
     ctx.reader.listProjects(current.id).catch(() => []),
-    live
-      ? createSupabaseServerClient()
-          .then((c) => (c ? liveRunStatuses(c, current.id) : []))
-          .catch(() => [])
-      : Promise.resolve([]),
+    client ? liveRunStatuses(client, current.id).catch(() => []) : Promise.resolve([]),
+    client ? liveAnnouncements(client) : Promise.resolve([]),
   ]);
   const presence = agentPresence(liveRuns);
   const admin = live && isAdminEmail(ctx.user.email);
@@ -142,6 +142,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
       </aside>
 
       <div className="min-w-0">
+        <AnnouncementBanner items={announcements} />
         {ctx.mode === "demo" ? (
           <p className="border-b border-accent/20 bg-accent/[0.06] px-4 py-2.5 text-center text-[13px] text-ink">
             <span className="font-medium">Demo workspace.</span> Sample data only. Nothing you do here is saved or sent anywhere.

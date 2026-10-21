@@ -10,13 +10,35 @@ const CONTENT: Record<string, string> = { "index.html:3": "<h1>Home</h1>", "abou
 
 const deps: SiteServeDeps = {
   domain: "farbaek.si",
-  liveSite: async (name) => (name === "sunrise-bakery" ? { deploymentId: "d1", projectId: "p1", files: FILES } : null),
+  liveSite: async (name) =>
+    name === "sunrise-bakery"
+      ? { state: "live", deploymentId: "d1", projectId: "p1", files: FILES }
+      : name === "taken-down"
+        ? { state: "blocked" }
+        : name === "paused-site"
+          ? { state: "paused" }
+          : name === "quiet-studio"
+            ? { state: "suspended" }
+            : { state: "none" },
   content: async (_p, path, revision) => CONTENT[`${path}:${revision}`] ?? null,
 };
 
 const get = (host: string, path = "/", init: RequestInit = {}) => handleSiteRequest(new Request(`http://localhost:3000/site-serve${path}`, { ...init, headers: { host, ...(init.headers ?? {}) } }), deps);
 
 describe("serving published sites", () => {
+  it("shows visitors a neutral page for a site Farbaek took offline, paused or suspended (ADR 0032)", async () => {
+    const blocked = await get("taken-down.farbaek.si");
+    expect(blocked.status).toBe(403);
+    expect(await blocked.text()).toContain("This site isn't available");
+    for (const host of ["paused-site.farbaek.si", "quiet-studio.farbaek.si"]) {
+      const r = await get(host);
+      expect(r.status).toBe(503);
+      expect(r.headers.get("x-robots-tag")).toBe("noindex");
+      expect(r.headers.get("cache-control")).toBe("no-store");
+    }
+    expect((await get("nobody-here.farbaek.si")).status).toBe(404);
+  });
+
   it("only answers for a valid single name on the site domain", () => {
     expect(siteNameFromHost("sunrise-bakery.farbaek.si", "farbaek.si")).toBe("sunrise-bakery");
     expect(siteNameFromHost("SUNRISE-BAKERY.farbaek.si.", "farbaek.si")).toBe("sunrise-bakery");
@@ -45,6 +67,7 @@ describe("serving published sites", () => {
     const withHidden: SiteServeDeps = {
       ...deps,
       liveSite: async () => ({
+        state: "live",
         deploymentId: "d1",
         projectId: "p1",
         files: [...FILES, { path: ".farbaek/skills/house/SKILL.md", revision: 1, sha256: "d".repeat(64), size: 5 }, { path: ".well-known/security.txt", revision: 1, sha256: "e".repeat(64), size: 5 }],

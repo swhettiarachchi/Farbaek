@@ -157,6 +157,24 @@ export function cancelCloudRun(person: RunPerson, runId: string): WriteResult<nu
   return { ok: true, value: null };
 }
 
+/**
+ * Stops live runs on this server for Office Space (ADR 0032): one
+ * workspace's when it's suspended, or every run when AI is paused. Each run
+ * ends as stopped, through its own abort path. Returns how many it stopped.
+ */
+export function abortCloudRuns(scope: { orgId: string } | "all"): number {
+  let stopped = 0;
+  for (const live of registry.values()) {
+    if (scope !== "all" && live.orgId !== scope.orgId) continue;
+    live.record?.({ kind: "note", text: "Farbaek stopped this run from Office Space." });
+    live.controller.abort();
+    for (const p of live.approvals.values()) p.resolve({ approved: false });
+    live.approvals.clear();
+    stopped += 1;
+  }
+  return stopped;
+}
+
 function describeOutcome(kind: string, detail: string | null): string {
   switch (kind) {
     case "refused":

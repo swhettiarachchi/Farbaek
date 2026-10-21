@@ -5,6 +5,7 @@
  * nothing critical. What goes live is the current list of file revisions.
  */
 import { runProfile } from "@/content/starters";
+import { platformPause } from "@/server/platform/state";
 import { deploymentDigest, publishGate, siteNameProblem, SITE_NAME_MESSAGES, type PublishBlock, type PublishedFile } from "@/core/publish/site";
 
 export interface PublishCheck {
@@ -44,7 +45,7 @@ export async function publishReadiness(deps: PublishDeps, orgId: string, project
   const paths = files.map((f) => f.path);
   const filesChangedAt = files.reduce<string | null>((latest, f) => (!latest || f.updatedAt > latest ? f.updatedAt : latest), null);
   const profile = runProfile(paths).kind;
-  const block: PublishBlock | null = publishGate({ domain: deps.domain, profile, paths, filesChangedAt, check });
+  const block: PublishBlock | null = publishGate({ domain: deps.domain, profile, paths, filesChangedAt, check, paused: platformPause("publishing") });
   const published: PublishedFile[] = files.map((f) => ({ path: f.path, revision: f.revision, sha256: f.sha256, size: f.sizeBytes }));
   return { files: published, check, block, digest: files.length ? await deploymentDigest(projectId, published) : null };
 }

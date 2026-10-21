@@ -352,7 +352,7 @@ export function ConceptFilm({ data }: { data: FilmData }) {
       </div>
 
       <figcaption className="mt-4 flex flex-col gap-2 text-sm text-ink-3 sm:flex-row sm:items-start sm:justify-between">
-        <span>The intended workflow, played in real time from sample data. Farbaek is in development.</span>
+        <span>The workflow, played in real time with sample data.</span>
         <details className="group sm:text-right">
           <summary className="cursor-pointer list-none text-ink-2 hover:text-ink [&::-webkit-details-marker]:hidden">Read the transcript</summary>
           <ol className="mt-3 grid gap-1.5 text-left text-ink-2">

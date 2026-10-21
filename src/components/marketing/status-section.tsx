@@ -17,33 +17,33 @@ interface Group {
 const GROUPS: Group[] = [
   {
     title: "Built and working",
-    note: "Tested and used end to end. Not hosted for customers yet.",
+    note: "Live at www.farbaek.com, tested and used end to end.",
     icon: CheckCircleIcon,
     iconClass: "text-verified",
     items: [
       "Sign-in by email link, workspaces with row-level tenant isolation",
+      "One sentence to a plan: Claude or Gemini drafts an intent contract you approve by hash",
+      "The cloud agent builds under that plan, and you can message it mid-run",
       "Projects with versioned files, import, search and the Studio editor",
-      "Intent contracts, drafted with Claude or Gemini, approved by hash",
-      "Agent-proposed changes with per-chunk diff review",
-      "Policy checks, approvals and escalation to owners",
-      "Contract checks run in Firecracker microVMs, with real exit codes",
-      "ProofPacks and receipts, and undo of applied changes",
+      "Previews of static sites and of apps in isolated sandboxes",
+      "Security checks, contract checks with real exit codes, ProofPacks and undo",
+      "Publishing static sites to their own address",
       "14-day trial and plan limits that fail closed",
     ],
   },
   {
     title: "Next",
-    note: "Before sign-ups open.",
+    note: "Planned next, in no fixed order.",
     icon: HourglassMediumIcon,
     iconClass: "text-approval",
-    items: ["Hosting on a public domain", "Trial reminder emails", "Signed ProofPacks", "First Farbaek Agent runs with a real model, and signed installers"],
+    items: ["Payments, so plans can be bought", "Trial reminder emails", "Signed ProofPacks", "Image generation", "Your own domain for a published site"],
   },
   {
     title: "Later",
-    note: "Stages 5 to 8, as each one is proven.",
+    note: "As each one is proven.",
     icon: CircleDashedIcon,
     iconClass: "text-unverified",
-    items: ["Mesh device transfer", "LaunchOS deployments", "iOS and Android apps", "Payments"],
+    items: ["Mesh device transfer", "LaunchOS deployments", "iOS and Android apps"],
   },
 ];
 
@@ -52,7 +52,7 @@ export function StatusSection() {
     <section id="status" aria-labelledby="status-title" className="py-20 lg:py-28">
       <Container>
         <SectionHeading id="status-title" title="What works today, and what doesn't yet.">
-          Sign-ups aren&apos;t open yet. Here is the honest state of the build.
+          Anyone can sign in and start a 14-day trial. Payments aren&apos;t connected yet, so nothing is charged.
         </SectionHeading>
 
         <div className="mt-12 grid gap-10 lg:grid-cols-[1.25fr_1fr_1fr] lg:gap-0 lg:divide-x lg:divide-line">

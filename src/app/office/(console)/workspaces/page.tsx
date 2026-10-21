@@ -1,5 +1,6 @@
 import { BuildingsIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { AdminTable, Cell, Chip } from "@/components/admin/table";
 import { EmptyState, PageHeader } from "@/components/app/primitives";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
@@ -15,7 +16,7 @@ export default async function OfficeWorkspaces() {
 
   return (
     <div className="grid gap-6">
-      <PageHeader title="Workspaces" description={`${rows.length} ${rows.length === 1 ? "workspace" : "workspaces"}, newest first. AI used is this period's share of each workspace's own allowance.`} />
+      <PageHeader title="Workspaces" description={`${rows.length} ${rows.length === 1 ? "workspace" : "workspaces"}, newest first. AI used is this period's share of each workspace's own allowance. Open one to manage it.`} />
       {rows.length === 0 ? (
         <EmptyState icon={BuildingsIcon} title="No workspaces yet">
           A workspace appears here as soon as someone creates one after signing in.
@@ -25,7 +26,9 @@ export default async function OfficeWorkspaces() {
           {rows.map((w) => (
             <tr key={w.id}>
               <Cell>
-                <span className="block font-medium">{w.name}</span>
+                <Link href={`/workspaces/${w.id}`} className="block font-medium text-ink underline-offset-4 hover:text-accent hover:underline">
+                  {w.name}
+                </Link>
                 <span className="block text-xs text-ink-3">
                   Created {w.createdAt ? <LocalTime iso={w.createdAt} /> : "at an unknown time"}
                 </span>
