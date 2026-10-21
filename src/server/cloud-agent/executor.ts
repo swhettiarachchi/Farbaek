@@ -76,6 +76,11 @@ export function isRunLiveHere(runId: string): boolean {
   return registry.has(runId);
 }
 
+/** Runs this server process is working on right now, for Office Space's health page. */
+export function liveRunsHere(): number {
+  return registry.size;
+}
+
 export interface StartRunInput {
   person: RunPerson;
   taskId: string;
