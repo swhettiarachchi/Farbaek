@@ -129,7 +129,7 @@ export default async function BuildPage() {
             {ready.map((t) => (
               <li key={t.id} className="grid gap-4 rounded-md border border-line bg-surface p-5 shadow-e1">
                 <div className="min-w-0">
-                  <Link href={`/app/tasks/${t.id}`} className="text-[15px] font-medium hover:underline">
+                  <Link href={`/app/tasks/${t.id}`} className="-my-3 inline-flex min-h-11 items-center text-[15px] font-medium hover:underline">
                     {t.title}
                   </Link>
                   <p className="mt-1 text-sm text-ink-3">Contract approved. Waiting for a change.</p>

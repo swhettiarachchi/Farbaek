@@ -69,6 +69,25 @@ describe("starters", () => {
     }
   });
 
+  it("give the plain starters the Studio standard's bones: a plan to write, and only placeholders left to fix", () => {
+    for (const id of ["static-website", "nextjs-app"] as const) {
+      const files = Object.fromEntries(getStarter(id)!.files.map((f) => [f.path, f.content]));
+      expect(files["DESIGN.md"], id).toMatch(/isn't written yet[\s\S]*## Palette[\s\S]*## Type[\s\S]*## Layout[\s\S]*## Signature[\s\S]*## Motion/);
+      const css = Object.entries(files).filter(([p]) => p.endsWith(".css")).map(([, c]) => c).join("\n");
+      expect(css, id).toContain("prefers-reduced-motion");
+      expect(css, id).toContain(":focus-visible");
+    }
+    const site = Object.fromEntries(getStarter("static-website")!.files.map((f) => [f.path, f.content]));
+    // Everything a review checks is in place; what's left is the copy in brackets, which the build replaces.
+    expect(reviewSite(site).findings.map((f) => f.message)).toEqual([expect.stringMatching(/^A placeholder is still in the copy/)]);
+    expect(site["index.html"]).toContain('class="skip" href="#main"');
+    expect(site["styles.css"]).toMatch(/\.js \.reveal \{\s*opacity: 0/);
+    expect(() => new Function(site["script.js"]!)).not.toThrow();
+    const next = Object.fromEntries(getStarter("nextjs-app")!.files.map((f) => [f.path, f.content]));
+    expect(next["app/layout.tsx"]).toContain('href="#main"');
+    expect(next["app/page.tsx"]).toContain('id="main"');
+  });
+
   it("use plain copy with no em dashes", () => {
     for (const starter of STARTERS) for (const f of starter.files) expect(f.content, `${starter.id}/${f.path}`).not.toMatch(/[—–]/);
   });

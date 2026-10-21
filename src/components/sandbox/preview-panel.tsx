@@ -128,10 +128,10 @@ export function PreviewPanel({ client, sessionId, available, reason }: { client:
             aria-describedby={`port-help-${sessionId}`}
           />
         </label>
-        <button type="submit" disabled={loading !== null || !port} className={buttonClasses("accent", "sm", "h-11")}>
+        <button type="submit" disabled={loading !== null || !port} className={buttonClasses("accent", "sm")}>
           {loading === "frame" ? "Opening…" : preview ? "Open again" : "Open preview"}
         </button>
-        <button type="button" onClick={() => void open("tab")} disabled={loading !== null || !port} className={buttonClasses("secondary", "sm", "h-11")}>
+        <button type="button" onClick={() => void open("tab")} disabled={loading !== null || !port} className={buttonClasses("secondary", "sm")}>
           <ArrowSquareOutIcon size={16} aria-hidden /> New tab
         </button>
       </form>
@@ -160,7 +160,7 @@ export function PreviewPanel({ client, sessionId, available, reason }: { client:
                       type="button"
                       aria-pressed={width === k}
                       onClick={() => setWidth(k)}
-                      className={`inline-flex size-9 items-center justify-center rounded-full ${width === k ? "bg-ink text-surface" : "text-ink-2 hover:bg-surface-raised"}`}
+                      className={`inline-flex size-11 items-center justify-center rounded-full ${width === k ? "bg-ink text-surface" : "text-ink-2 hover:bg-surface-raised"}`}
                       aria-label={W.label}
                     >
                       <W.icon size={16} aria-hidden />
@@ -175,12 +175,12 @@ export function PreviewPanel({ client, sessionId, available, reason }: { client:
                   setPreview((p) => (p ? { ...p, src: `${p.origin}/` } : p));
                   setFrameKey((k) => k + 1);
                 }}
-                className="inline-flex size-9 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised"
+                className="inline-flex size-11 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised"
                 aria-label="Reload preview"
               >
                 <ArrowClockwiseIcon size={16} aria-hidden />
               </button>
-              <button type="button" onClick={() => void close()} className="inline-flex size-9 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised" aria-label="Close preview">
+              <button type="button" onClick={() => void close()} className="inline-flex size-11 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised" aria-label="Close preview">
                 <XIcon size={16} aria-hidden />
               </button>
             </div>

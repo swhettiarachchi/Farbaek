@@ -17,7 +17,8 @@ const variants: Record<Variant, string> = {
 
 const sizes: Record<Size, string> = {
   md: "h-12 px-6 text-[15px]",
-  sm: "h-10 px-4 text-sm",
+  // A full 44px touch target, like every control.
+  sm: "h-11 px-4 text-sm",
 };
 
 export function buttonClasses(variant: Variant = "primary", size: Size = "md", className = ""): string {

@@ -118,10 +118,10 @@ export function SandboxWorkspace(props: WorkspaceProps) {
             {confirmStop ? (
               <span className="flex flex-wrap items-center gap-2 rounded-full border border-failed/30 bg-failed/[0.05] py-1 pl-4 pr-1">
                 <span className="text-sm">Stop and destroy the sandbox?</span>
-                <button type="button" onClick={() => void act("stop")} disabled={busy !== null} className={buttonClasses("danger", "sm", "h-9")}>
+                <button type="button" onClick={() => void act("stop")} disabled={busy !== null} className={buttonClasses("danger", "sm")}>
                   {busy === "stop" ? "Stopping…" : "Stop"}
                 </button>
-                <button type="button" onClick={() => setConfirmStop(false)} className={buttonClasses("ghost", "sm", "h-9")}>
+                <button type="button" onClick={() => setConfirmStop(false)} className={buttonClasses("ghost", "sm")}>
                   Keep running
                 </button>
               </span>
@@ -177,7 +177,7 @@ export function SandboxWorkspace(props: WorkspaceProps) {
               aria-selected={tab === t.id}
               aria-controls={`panel-${t.id}`}
               onClick={() => setTab(t.id)}
-              className={`h-10 shrink-0 rounded-full px-4 text-sm ${tab === t.id ? "bg-ink font-medium text-surface" : "text-ink-2 hover:bg-surface-raised"}`}
+              className={`h-11 shrink-0 rounded-full px-4 text-sm ${tab === t.id ? "bg-ink font-medium text-surface" : "text-ink-2 hover:bg-surface-raised"}`}
             >
               {t.label}
               {t.id === "checks" && problems.length > 0 ? <span className="ml-1.5 tabular">({problems.length})</span> : null}

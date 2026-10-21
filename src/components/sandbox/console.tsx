@@ -183,7 +183,7 @@ export function SandboxConsole({
             type="button"
             onClick={cancel}
             disabled={!canCancel || !live.executionId}
-            className="inline-flex h-10 items-center gap-1.5 rounded-full border border-white/20 px-4 text-sm text-media-ink hover:bg-white/10 disabled:opacity-50"
+            className="inline-flex h-11 items-center gap-1.5 rounded-full border border-white/20 px-4 text-sm text-media-ink hover:bg-white/10 disabled:opacity-50"
           >
             <ProhibitIcon size={16} aria-hidden /> Cancel
           </button>
@@ -192,7 +192,7 @@ export function SandboxConsole({
             type="button"
             onClick={() => void run()}
             disabled={!canRun || !command.trim()}
-            className="inline-flex h-10 items-center rounded-full bg-media-accent px-4 text-sm font-medium text-media hover:brightness-110 disabled:opacity-40"
+            className="inline-flex h-11 items-center rounded-full bg-media-accent px-4 text-sm font-medium text-media hover:brightness-110 disabled:opacity-40"
           >
             Run
           </button>

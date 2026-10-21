@@ -29,7 +29,7 @@ export const dynamic = "force-dynamic";
 
 function Brand() {
   return (
-    <Link href="/app" className="flex items-center gap-2 rounded-full" aria-label="Farbaek, Mission Control">
+    <Link href="/app" className="flex min-h-11 items-center gap-2 rounded-full" aria-label="Farbaek, Mission Control">
       <BrandLogo height={32} />
       <span className="text-[16px] font-semibold tracking-[-0.02em]">Farbaek</span>
     </Link>
@@ -154,8 +154,9 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           <Brand />
           <div className="flex min-w-0 items-center gap-1">
             {live ? <PresenceOrb key={`${presence.state}:${presence.count}`} orgId={current.id} initial={presence} compact /> : null}
-            <Link href="/app/more" className="max-w-[42vw] truncate rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium shadow-e1">
-              {current.name}
+            {/* The pill stays small; the link around it is a full 44px target. */}
+            <Link href="/app/more" className="flex min-h-11 min-w-0 max-w-[42vw] items-center rounded-full">
+              <span className="truncate rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium shadow-e1">{current.name}</span>
             </Link>
           </div>
         </header>

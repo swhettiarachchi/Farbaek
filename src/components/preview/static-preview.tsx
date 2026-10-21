@@ -99,7 +99,7 @@ export function StaticPreview({
                 aria-label={d.label}
                 title={d.label}
                 onClick={() => setDevice(d.id)}
-                className={`inline-flex size-9 items-center justify-center rounded-full transition-colors duration-150 ${device === d.id ? "bg-surface-raised text-ink" : "text-ink-3 hover:text-ink"}`}
+                className={`inline-flex size-11 items-center justify-center rounded-full transition-colors duration-150 ${device === d.id ? "bg-surface-raised text-ink" : "text-ink-3 hover:text-ink"}`}
               >
                 <d.icon size={17} weight={device === d.id ? "fill" : "regular"} aria-hidden />
               </button>

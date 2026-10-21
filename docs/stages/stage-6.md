@@ -335,3 +335,102 @@ They still fetch nothing. The motion runs without JavaScript, so gallery thumbna
   - limits name the count and a way forward that works today;
   - template briefs no longer carry the sample's features;
   - service businesses get Brand identity and Motion suggested, and the plan card says when nothing matched.
+
+## 2026-10-20: farbaek.si connected in production
+
+### Done
+
+- **Supabase Auth:** the Site URL is `https://www.farbaek.com`. The redirect list already allowed `/auth/callback` there.
+- **Railway variables, deployed:**
+  - `NEXT_PUBLIC_SITE_URL=https://www.farbaek.com`, replacing the Railway address, so sign-in and invite links now point at www.farbaek.com;
+  - `SANDBOX_PREVIEW_DOMAIN=farbaek.si`.
+- **Railway domain:** `*.farbaek.si` on port 8080, with a certificate issued for it. It's the plan's last custom domain slot.
+- **Hostinger DNS for farbaek.si:**
+  - CNAME `*` → `9a461mgi.up.railway.app`;
+  - CNAME `_acme-challenge` → `9a461mgi.authorize.railwaydns.net`;
+  - TXT `_railway-verify`;
+  - all with a TTL of 300.
+  - The apex and `www` stay on Hostinger's parking page.
+
+### Verified (production)
+
+- `https://www.farbaek.com/auth/callback` redirects to `https://www.farbaek.com/sign-in`, not the Railway address.
+- **`test.farbaek.si`** has valid HTTPS. It answers 404 "There's no site here", and `/sign-in` there is also 404, so the app never appears on farbaek.si.
+- **A `p-…` preview host** answers 404 until `SANDBOX_PREVIEW_SECRET` is set.
+- **The homepage capability list** shows Publish as Working and app previews as Turning on.
+- **The exposure window:** for about four minutes between the certificate being issued and the variable deploy going live, `*.farbaek.si` served the normal app. The DNS should have gone in after the variable was deployed; next time, deploy the guard first.
+
+## 2026-10-21: Previews and sign-in email turned on in production
+
+### Done
+
+- **Railway:** `SANDBOX_PREVIEW_SECRET` is set and deployed. The owner pasted a fresh random 64-character hex value; Claude put it on the clipboard without printing it, so it was never seen.
+- **Supabase Auth:** custom SMTP is on, sending from `hello@farbaek.com` (sender name Farbaek) through `mail.spacemail.com` on port 465. The owner typed the password and saved.
+
+### Verified (production)
+
+- The homepage capability list shows all nine capabilities as Working, previews of real code included. The status reads the server configuration, so it changed with the deploy.
+- A `p-…farbaek.si` preview host without access now answers 401 "Open this preview from Farbaek" (a plain 404 before the secret). A bad launch token gets the same refusal.
+- `test.farbaek.si` still answers 404 "There's no site here".
+- After a reload, the Supabase SMTP page keeps custom SMTP on with the sender and username. Supabase never shows the password again.
+
+### Not verified yet
+
+- **A real sign-in email through Spacemail.** Sign-in creates an account for a new address, so Claude didn't send a test to `hello@farbaek.com`. The owner's next sign-in is the test, and Supabase's auth logs show whether the mail went out.
+- **A full app preview in production.** It needs a sandbox session started from a signed-in workspace.
+
+## 2026-10-21: The plain starters, built on the Studio standard
+
+Every prompt that doesn't pick a template starts from the Static website or Next.js app starter, so these two are the most-used starting points. Both now come with the standard's bones, and their neutral look is a stand-in.
+
+### Done
+
+- **A blank `DESIGN.md`** with the Palette, Type, Layout, Signature, Motion, Shape and Avoid sections. It says it isn't written yet, so the agent writes it for the brief instead of following a neutral plan. The plan drafter is told the same.
+- **The static website:**
+  - named tokens (`--paper`, `--ink`, `--accent`, the type steps, the 12, 20 and 28px radii, the easing);
+  - a skip link and visible focus;
+  - a menu that closes on Escape and returns focus to its button;
+  - a header that gains an edge once the page moves (IntersectionObserver, no scroll listener);
+  - a split hero with a stand-in signature (three sheets in perspective) that rests off screen;
+  - a work list instead of equal cards;
+  - sections that rise in only after `script.js` adds `.js`. All motion stops under reduced motion.
+- **The Next.js app:**
+  - the same tokens in Tailwind's `@theme`, so they work as utilities (`bg-paper`, `rounded-card`, `font-display`, `animate-rise`);
+  - a skip link and visible focus, with reduced motion;
+  - a first screen shaped like an app: a top bar, a heading, a double-bezel empty state and the build steps.
+
+### Verified
+
+- Unit tests: the plain starters have the plan, focus and reduced-motion styles, and a site review whose only finding is the bracketed copy. The plan drafter's brief names the blank plan. Full suite: 895 passed.
+- The static starter in a browser:
+  - at 375px there's no sideways scroll, the menu opens, and Escape closes it with focus back on the button;
+  - at 1280px the hero splits;
+  - sections reveal and the header edge appears after scrolling.
+- The Next.js starter's `globals.css` compiled with Tailwind 4.3.3: all 13 token utilities and the `rise` keyframes are generated.
+
+## 2026-10-21: Signed-in pages at 375 px
+
+The signed-in app had never been checked at phone width; Chrome was minimised and the demo needed a build without Supabase. This time a local build ran with `NEXT_PUBLIC_SUPABASE_URL=off` and `FARBAEK_DEMO_APP=1`, which turns on the read-only demo workspace. A script then checked every page under `/app` at 375 px for sideways scroll, controls under 44 px and inputs under 16 px.
+
+### Found and fixed
+
+- **No page scrolled sideways.** All 21 checked routes matched the 375 px width.
+- **The prompt box's placeholder ran under the Plan it button** on phones (three lines in a two-line box). The box now sizes to its text where `field-sizing` is supported, with a taller minimum on phones. On desktop it starts compact and grows as you type.
+- **Controls under 44 px:**
+  - the shared small button (40 px, used on settings, agents, security, templates and build) is now 44 px everywhere;
+  - the app header's logo link (32 px) and workspace pill link (30 px) now have 44 px targets, while the pill keeps its look;
+  - Mission Control's "All tasks", "Details" and first-ProofPack links;
+  - the Build page's task titles;
+  - the workspace menu's items;
+  - the device toggles on template and project previews (36 px);
+  - the sandbox console, tabs, preview and file controls.
+
+### Verified
+
+- After a rebuild, the same script reports nothing but the visually hidden skip link and screen-reader-only radio inputs, whose visible labels are the targets.
+- At 1280 px, Mission Control has no sideways scroll and the prompt box fits its placeholder.
+- `pnpm typecheck`, `pnpm lint`, `pnpm test`: 895 passed.
+
+### Note
+
+The local `.next` folder is now the demo build. Run `pnpm build` again before `pnpm start` against Supabase.
