@@ -21,7 +21,8 @@ export function newNonce(): string {
   return Buffer.from(crypto.getRandomValues(new Uint8Array(18))).toString("base64");
 }
 
-export function officeCsp(nonce: string, dev: boolean): string {
+/** `https` is false only for a local office on plain http, where upgrading requests would break it. */
+export function officeCsp(nonce: string, dev: boolean, https = true): string {
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
@@ -37,7 +38,7 @@ export function officeCsp(nonce: string, dev: boolean): string {
     "base-uri 'none'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    ...(dev ? [] : ["upgrade-insecure-requests"]),
+    ...(dev || !https ? [] : ["upgrade-insecure-requests"]),
   ].join("; ");
 }
 

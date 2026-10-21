@@ -52,3 +52,39 @@ The proxy, `requireStaff` and `staffAction` check the host, `aal2`, the 12-hour 
 - the `farbaek-office` project skill;
 - `OFFICE_HOST` and `OFFICE_OWNER_EMAIL` in `.env.example`;
 - a `farbaek-office` launch configuration for local checks.
+
+### Applied to the hosted database
+
+**Migration v20** went in through the Supabase SQL Editor, after the plan's approval.
+- **Hash check:** the editor held exactly the tested file (SHA-256 `508edfaa7c2994b3d22eb1fad0ff1d5bbfb52d9a0ea3821f161e46638c27481f`, 38,731 bytes).
+- **RLS warning:** Supabase warned about `private.staff_audit_head`, which has no row-level security. That schema isn't exposed through the API and all access is revoked, so it was run as written.
+
+Read-only checks afterwards:
+- 15 `app_staff_*` / `app_record_staff_event` functions;
+- every staff table has row-level security on, the server key can only read it (no insert or update), and `authenticated` can't read it;
+- `authenticated` can't run `app_staff_begin_session`;
+- the five protective triggers exist;
+- the chain head is at genesis (0);
+- the functions' owner (`postgres`) can read `auth.sessions`, so a session signed out in Supabase ends in the office too.
+
+### Verified
+
+**Unit and database tests:**
+- 15 PGlite staff tests: grants, the bootstrap and its limits, sessions (replaced, idle, 12 hours, signed out in Supabase), invites, no changing yourself, the last-owner rule, removal, the authenticator reset window, refused event names, and the chain (gapless, accepted by the verifier, triggers refuse edits, tampering detected);
+- the SQL and TypeScript permission matrices match;
+- routing cases, header rules, sign-in use cases, cookie hardening and the office gate;
+- design guards: every console page and action checks the staff member, no `/office` links, and customer code doesn't import office code;
+- full suite: 938 passed.
+
+**A local production build with `OFFICE_HOST=officespace.localhost:3000`, against the hosted Supabase project:**
+- `localhost:3000/office` and `/office/staff` answer 404;
+- the office root redirects to `/sign-in`, and `/api/health`, `/app` and `/office/staff` there are 404;
+- office responses carry the nonce CSP (every script has the nonce), COOP, `no-store`, `no-referrer`, their own HSTS and `noindex`;
+- the customer site keeps its headers;
+- a POST from `http://localhost:3000`, or with no Origin, is refused with 403;
+- asking for a code for an address that isn't staff shows the same reply as for staff, sends nothing, and the server logs no errors.
+
+### Not verified yet (needs the owner)
+
+- The CEO's first sign-in. The code, the authenticator, the bootstrap and the console pages can only be exercised by someone with the info@farbaek.com mailbox and their own authenticator app.
+- Production routing: it waits for the merge and the domain swap.

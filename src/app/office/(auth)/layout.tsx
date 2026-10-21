@@ -10,7 +10,7 @@ import { OFFICE_POLICY } from "@/config/office";
  */
 export default function OfficeAuthLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <main id="main" className="mx-auto grid min-h-[100dvh] max-w-[1180px] gap-10 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,440px)] lg:items-center lg:gap-16 lg:py-12">
+    <main id="main" className="mx-auto grid min-h-[100dvh] max-w-[1180px] content-start gap-10 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,440px)] lg:content-center lg:items-center lg:gap-16 lg:py-12">
       <section className="grid content-start gap-8 lg:content-center">
         <div className="flex flex-wrap items-center gap-3">
           <BrandLogo height={30} />

@@ -43,7 +43,7 @@ export async function proxy(request: NextRequest) {
     case "office-public":
       return NextResponse.next();
     case "office":
-      return officeRequest(request, decision.rewrite);
+      return officeRequest(request, decision.rewrite, office?.origin.startsWith("https://") ?? true);
     case "app":
       return appRequest(request);
   }
@@ -63,14 +63,14 @@ function plain(status: number, body: string) {
 }
 
 /** Office Space (ADR 0032): its own session cookie, a nonce CSP, no caching, and every path under /office. */
-async function officeRequest(request: NextRequest, rewrite: string) {
+async function officeRequest(request: NextRequest, rewrite: string, https: boolean) {
   const writes: ((response: NextResponse) => void)[] = [];
   const supabase = createOfficeProxyClient(request, (write) => writes.push(write));
   // Validates the JWT and refreshes it when needed; the new cookie reaches this render through the request below.
   if (supabase) await supabase.auth.getClaims();
 
   const nonce = newNonce();
-  const csp = officeCsp(nonce, process.env.NODE_ENV === "development");
+  const csp = officeCsp(nonce, process.env.NODE_ENV === "development", https);
   const headers = new Headers(request.headers);
   headers.set("x-nonce", nonce);
   headers.set("content-security-policy", csp);
