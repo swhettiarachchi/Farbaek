@@ -378,3 +378,32 @@ They still fetch nothing. The motion runs without JavaScript, so gallery thumbna
 
 - **A real sign-in email through Spacemail.** Sign-in creates an account for a new address, so Claude didn't send a test to `hello@farbaek.com`. The owner's next sign-in is the test, and Supabase's auth logs show whether the mail went out.
 - **A full app preview in production.** It needs a sandbox session started from a signed-in workspace.
+
+## 2026-10-21: The plain starters, built on the Studio standard
+
+Every prompt that doesn't pick a template starts from the Static website or Next.js app starter, so these two are the most-used starting points. Both now come with the standard's bones, and their neutral look is a stand-in.
+
+### Done
+
+- **A blank `DESIGN.md`** with the Palette, Type, Layout, Signature, Motion, Shape and Avoid sections. It says it isn't written yet, so the agent writes it for the brief instead of following a neutral plan. The plan drafter is told the same.
+- **The static website:**
+  - named tokens (`--paper`, `--ink`, `--accent`, the type steps, the 12, 20 and 28px radii, the easing);
+  - a skip link and visible focus;
+  - a menu that closes on Escape and returns focus to its button;
+  - a header that gains an edge once the page moves (IntersectionObserver, no scroll listener);
+  - a split hero with a stand-in signature (three sheets in perspective) that rests off screen;
+  - a work list instead of equal cards;
+  - sections that rise in only after `script.js` adds `.js`. All motion stops under reduced motion.
+- **The Next.js app:**
+  - the same tokens in Tailwind's `@theme`, so they work as utilities (`bg-paper`, `rounded-card`, `font-display`, `animate-rise`);
+  - a skip link and visible focus, with reduced motion;
+  - a first screen shaped like an app: a top bar, a heading, a double-bezel empty state and the build steps.
+
+### Verified
+
+- Unit tests: the plain starters have the plan, focus and reduced-motion styles, and a site review whose only finding is the bracketed copy. The plan drafter's brief names the blank plan. Full suite: 895 passed.
+- The static starter in a browser:
+  - at 375px there's no sideways scroll, the menu opens, and Escape closes it with focus back on the button;
+  - at 1280px the hero splits;
+  - sections reveal and the header edge appears after scrolling.
+- The Next.js starter's `globals.css` compiled with Tailwind 4.3.3: all 13 token utilities and the `rise` keyframes are generated.

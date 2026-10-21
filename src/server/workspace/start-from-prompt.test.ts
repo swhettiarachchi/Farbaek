@@ -118,6 +118,9 @@ describe("startFromPrompt", () => {
     const capturing: ContractDrafter = { ...drafterWith({ ok: true, draft: DRAFT, usage: USAGE }), draft: async (b) => (briefs.push(b), { ok: true, draft: DRAFT, usage: USAGE }) };
     await startFromPrompt(fakeDeps().deps, source(capturing), input("A landing page for my bakery"));
     expect(briefs[0]?.paths).toContain("index.html");
+    // A plain starter's DESIGN.md is a plan to write, not one to follow.
+    expect(briefs[0]?.paths).toContain("DESIGN.md");
+    expect(briefs[0]?.projectDescription).toContain("blank design plan");
     await startFromPrompt(fakeDeps().deps, source(capturing), {
       ...input("Add a testimonials section under the menu"),
       existing: { id: "p-existing", name: "Sunrise Bakery", description: null, paths: ["index.html", "styles.css", "script.js"] },
