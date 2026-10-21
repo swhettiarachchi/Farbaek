@@ -67,6 +67,12 @@ Read-only checks afterwards:
 - the chain head is at genesis (0);
 - the functions' owner (`postgres`) can read `auth.sessions`, so a session signed out in Supabase ends in the office too.
 
+### Supabase Auth, set up ahead of the merge
+
+- **The "Magic link or OTP" and "Confirm sign up" email templates:** both now show the 6-digit code under the existing link, with a line telling office staff to use the code. Customers' links are unchanged. Both were checked after a reload.
+- **Redirect URLs:** `https://officespace.farbaek.com/sign-in` added (five in all). The Site URL stays www.
+- **Multi-Factor:** TOTP (app authenticator) is enabled. SMS MFA stays off (it's a paid add-on).
+
 ### Verified
 
 **Unit and database tests:**
