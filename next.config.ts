@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { OFFICE_STATIC_HEADERS, officeHostPattern } from "./src/server/http/office-headers";
 
 // Baseline headers for every route. A nonce-based script-src CSP arrives with the
 // authenticated app routes (Stage 1); see docs/security/threat-model.md.
@@ -14,6 +15,9 @@ const securityHeaders = [
   },
 ];
 
+// Office Space (ADR 0032) has its own, stricter set; the proxy adds its nonce CSP.
+const OFFICE_HOST = officeHostPattern(process.env.OFFICE_HOST);
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
@@ -24,7 +28,17 @@ const nextConfig: NextConfig = {
   async headers() {
     // Preview hosts are excluded: the sandbox preview gateway sets their headers,
     // including frame-ancestors for the app's own origin.
-    return [{ source: "/(.*)", missing: [{ type: "host", value: "p-[a-zA-Z2-7]{26}\\..*" }], headers: securityHeaders }];
+    return [
+      {
+        source: "/(.*)",
+        missing: [
+          { type: "host", value: "p-[a-zA-Z2-7]{26}\\..*" },
+          { type: "host", value: OFFICE_HOST },
+        ],
+        headers: securityHeaders,
+      },
+      { source: "/(.*)", has: [{ type: "host", value: OFFICE_HOST }], headers: [...OFFICE_STATIC_HEADERS] },
+    ];
   },
 };
 

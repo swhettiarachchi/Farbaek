@@ -1,41 +1,89 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { previewDomainHost } from "@/core/sandbox/preview";
-import { SITE_ROUTE, siteNameFromHost } from "@/core/publish/site";
+import { SITE_ROUTE } from "@/core/publish/site";
+import { decideRoute } from "@/server/http/hosts";
+import { newNonce, officeCsp, officeResponseHeaders } from "@/server/http/office-headers";
+import { appHostFromEnv, officeConfig } from "@/server/office/config";
+import { createOfficeProxyClient } from "@/server/office/supabase";
 import { readSupabaseConfig, siteUrl } from "@/server/supabase/config";
 
 /**
- * Routes preview hosts to the preview gateway, keeps Farbaek off the rest of
- * the preview domain, and refreshes the Supabase session cookie on app and
- * auth routes only. This is not the authorization check: every page and
- * action verifies the user itself.
+ * Carries out the host decision in src/server/http/hosts.ts: the preview
+ * gateway, published sites, Office Space on its own host, not found for
+ * every other name, and the customer app. It also refreshes the Supabase
+ * session cookie (the office's own on the office host). This is not the
+ * authorization check: every page and action verifies the user itself.
  */
 export async function proxy(request: NextRequest) {
-  // Preview hosts (p-<id>.<preview domain>) go to the sandbox preview gateway,
-  // whatever the path, and never touch the app's session cookies.
-  if (PREVIEW_HOST.test(request.headers.get("host") ?? "")) {
-    const url = request.nextUrl.clone();
-    url.pathname = `/sandbox-preview${request.nextUrl.pathname}`;
-    return NextResponse.rewrite(url);
-  }
+  const office = officeConfig();
+  const decision = decideRoute(
+    {
+      host: request.headers.get("host"),
+      pathname: request.nextUrl.pathname,
+      method: request.method,
+      origin: request.headers.get("origin"),
+      secFetchSite: request.headers.get("sec-fetch-site"),
+    },
+    { previewDomain: process.env.SANDBOX_PREVIEW_DOMAIN ?? null, officeHost: office?.host ?? null, appHost: appHostFromEnv() },
+  );
 
-  // The preview domain holds people's content, and a wildcard record sends every name under it here.
-  // Only preview hosts are served there; the bare domain goes to Farbaek's own address.
-  const place = previewDomainHost(request.headers.get("host"), process.env.SANDBOX_PREVIEW_DOMAIN);
-  if (place === "apex") return NextResponse.redirect(new URL("/", siteUrl()), 308);
-  if (place === "other") {
+  switch (decision.kind) {
+    // Preview hosts go to the sandbox preview gateway, whatever the path, and never touch the app's session cookies.
+    case "preview":
+      return rewriteTo(request, `/sandbox-preview${request.nextUrl.pathname}`);
+    case "site-domain-apex":
+      return NextResponse.redirect(new URL("/", siteUrl()), 308);
     // A published site (ADR 0029): its route checks the name and serves only that site's live files.
-    if (siteNameFromHost(request.headers.get("host"), process.env.SANDBOX_PREVIEW_DOMAIN ?? null)) {
-      const url = request.nextUrl.clone();
-      url.pathname = `${SITE_ROUTE}${request.nextUrl.pathname}`;
-      return NextResponse.rewrite(url);
-    }
-    return new NextResponse("There's nothing at this address.", {
-      status: 404,
-      headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex" },
-    });
+    case "site":
+      return rewriteTo(request, `${SITE_ROUTE}${request.nextUrl.pathname}`);
+    case "not-found":
+      return plain(404, "There's nothing at this address.");
+    case "office-refused":
+      return plain(403, "That request didn't come from Office Space, so it was refused.");
+    case "office-public":
+      return NextResponse.next();
+    case "office":
+      return officeRequest(request, decision.rewrite);
+    case "app":
+      return appRequest(request);
   }
+}
 
+function rewriteTo(request: NextRequest, pathname: string) {
+  const url = request.nextUrl.clone();
+  url.pathname = pathname;
+  return NextResponse.rewrite(url);
+}
+
+function plain(status: number, body: string) {
+  return new NextResponse(body, {
+    status,
+    headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex" },
+  });
+}
+
+/** Office Space (ADR 0032): its own session cookie, a nonce CSP, no caching, and every path under /office. */
+async function officeRequest(request: NextRequest, rewrite: string) {
+  const writes: ((response: NextResponse) => void)[] = [];
+  const supabase = createOfficeProxyClient(request, (write) => writes.push(write));
+  // Validates the JWT and refreshes it when needed; the new cookie reaches this render through the request below.
+  if (supabase) await supabase.auth.getClaims();
+
+  const nonce = newNonce();
+  const csp = officeCsp(nonce, process.env.NODE_ENV === "development");
+  const headers = new Headers(request.headers);
+  headers.set("x-nonce", nonce);
+  headers.set("content-security-policy", csp);
+
+  const url = request.nextUrl.clone();
+  url.pathname = rewrite;
+  const response = NextResponse.rewrite(url, { request: { headers } });
+  for (const write of writes) write(response);
+  for (const [key, value] of Object.entries(officeResponseHeaders(csp))) response.headers.set(key, value);
+  return response;
+}
+
+async function appRequest(request: NextRequest) {
   if (!SESSION_PATH.test(request.nextUrl.pathname)) return NextResponse.next();
 
   const config = readSupabaseConfig();
@@ -61,8 +109,7 @@ export async function proxy(request: NextRequest) {
   return response;
 }
 
-const PREVIEW_HOST = /^p-[a-z2-7]{26}\./i;
-// Where the session cookie is refreshed; every other page passes straight through.
+// Where the customer app's session cookie is refreshed; every other page passes straight through.
 const SESSION_PATH = /^\/(?:app|admin|auth)(?:\/|$)|^\/sign-in(?:\/|$)/;
 
 export const config = {
@@ -71,7 +118,7 @@ export const config = {
     "/admin/:path*",
     "/auth/:path*",
     "/sign-in",
-    // Every other page too, so names on the preview domain can be refused. Farbaek's own static files are left out.
+    // Every other page too, so other hosts can be routed or refused. Farbaek's own static files are left out.
     "/((?!_next/static|_next/image|favicon\\.ico).*)",
     // Every path on a preview host, including /_next/... of the app inside the sandbox.
     { source: "/:path*", has: [{ type: "host", value: "p-[a-zA-Z2-7]{26}\\..*" }] },
