@@ -50,8 +50,14 @@ The spec's LaunchOS (§12) takes a verified project to a running service under e
   - the server and unknown reasons;
   - older versions' check wording.
 
+### Applied to the hosted database (2026-10-21)
+
+Migration v24 went in through the SQL Editor on the owner's dashboard, after checking the editor's contents had the tested file's SHA-256 (`9aa9f024…26b3`, 3,606 bytes). Read-only checks afterwards:
+- row level security is on, with one read policy;
+- `app_record_site_health` runs for the service role only, not for anon or authenticated;
+- authenticated can't insert, and anon can't read the table.
+
 ### Not done yet
 
-- **Migration v24 isn't applied to the hosted database yet.** Claude in Chrome disconnected before it could be. Until it is, a live check says it couldn't be saved and the page shows no results; nothing breaks.
 - **A real "live" verdict:** that needs a site published on farbaek.si after this deploys.
 - **Provider connections:** they need the owner's choice of provider. Purchase and deploy authorization and idempotent orders come with them.
