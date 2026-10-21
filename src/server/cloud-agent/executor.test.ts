@@ -142,8 +142,8 @@ describe("cloud runs", () => {
     const events = t.patches.flatMap((p) => p.events ?? []);
     expect(events.map((e) => e.kind)).toEqual(expect.arrayContaining(["note", "model", "tool"]));
     expect(t.patches.reduce((n, p) => n + (p.addSteps ?? 0), 0)).toBe(2);
-    // The working folder is gone once the run ends.
-    expect(await fs.readdir(root)).toEqual([]);
+    // The working folder goes as the run's last step, just after its final status is written.
+    await expect.poll(() => fs.readdir(root), { timeout: 4000 }).toEqual([]);
   });
 
   it("runs tests in the sandbox on its own, with the agent's changes copied in first, and asks before installs", async () => {
