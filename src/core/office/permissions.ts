@@ -19,9 +19,9 @@ export const ROLE_LABELS: Record<StaffRole, string> = {
 export const ROLE_SUMMARIES: Record<StaffRole, string> = {
   owner: "Everything, including staff, kill switches and large usage additions. Severe actions need a fresh authenticator code.",
   admin: "Reads everything, suspends workspaces, takes sites offline, adds AI usage up to a cap and runs announcements.",
-  support: "Reads workspaces and people to help customers, and can extend a trial once.",
-  trust_safety: "Reads everything and handles abuse: suspends workspaces and takes sites offline.",
-  viewer: "Reads the console and the audit log. Email addresses are masked.",
+  support: "Reads workspaces and people, answers support requests, and can extend a trial once.",
+  trust_safety: "Reads everything and handles abuse: answers reports, suspends workspaces and takes sites offline.",
+  viewer: "Reads the console and the audit log, not support requests. Email addresses are masked.",
 };
 
 export const OFFICE_ACTIONS = [
@@ -37,6 +37,8 @@ export const OFFICE_ACTIONS = [
   "trial.extend",
   "flags.set",
   "announcements.manage",
+  "support.read",
+  "support.reply",
 ] as const;
 export type OfficeAction = (typeof OFFICE_ACTIONS)[number];
 
@@ -56,6 +58,8 @@ export const PERMISSIONS: Record<OfficeAction, readonly StaffRole[]> = {
   "trial.extend": ["owner", "admin", "support"],
   "flags.set": ["owner"],
   "announcements.manage": ["owner", "admin"],
+  "support.read": ["owner", "admin", "support", "trust_safety"],
+  "support.reply": ["owner", "admin", "support", "trust_safety"],
 };
 
 /** Actions that need a fresh authenticator code in the same request, whatever the input. */
@@ -66,6 +70,9 @@ export const USAGE_STEP_UP_UNITS = 1_000_000;
 
 /** The most AI usage each role may add in one go, in units (1 unit = $0.0001 of list cost). */
 export const USAGE_CAPS: Partial<Record<StaffRole, number>> = { owner: 5_000_000, admin: 500_000 };
+
+/** The most trial days each role may add at once (migration v22). Support may extend a trial only once; no trial runs past 44 days. */
+export const TRIAL_EXTEND_CAPS: Partial<Record<StaffRole, number>> = { owner: 30, admin: 14, support: 7 };
 
 export function isStaffRole(value: unknown): value is StaffRole {
   return typeof value === "string" && (STAFF_ROLES as readonly string[]).includes(value);

@@ -156,10 +156,13 @@ describe("constraints", () => {
     ).rejects.toThrow(/duplicate key/);
   });
 
-  it("rejects a trial that isn't exactly 14 days", async () => {
+  it("keeps a trial between 14 and 44 days (staff can extend one, ADR 0032)", async () => {
     const org = (await db.query<{ id: string }>("insert into public.organizations (name) values ('Edge') returning id")).rows[0]!.id;
     await expect(
-      db.query("insert into public.trials (org_id, started_at, ends_at) values ($1, now(), now() + interval '30 days')", [org]),
-    ).rejects.toThrow(/trials_length_14_days/);
+      db.query("insert into public.trials (org_id, started_at, ends_at) values ($1, now(), now() + interval '13 days')", [org]),
+    ).rejects.toThrow(/trials_length_14_to_44_days/);
+    await expect(
+      db.query("insert into public.trials (org_id, started_at, ends_at) values ($1, now(), now() + interval '50 days')", [org]),
+    ).rejects.toThrow(/trials_length_14_to_44_days/);
   });
 });

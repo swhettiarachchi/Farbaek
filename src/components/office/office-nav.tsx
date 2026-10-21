@@ -3,9 +3,11 @@
 import {
   BuildingsIcon,
   ChartLineUpIcon,
+  ChatsCircleIcon,
   DotsThreeOutlineIcon,
   FingerprintIcon,
   GlobeIcon,
+  HeartbeatIcon,
   IdentificationBadgeIcon,
   MegaphoneIcon,
   PulseIcon,
@@ -28,8 +30,10 @@ const ICONS: Record<OfficeHref | "/more", Icon> = {
   "/": ChartLineUpIcon,
   "/workspaces": BuildingsIcon,
   "/people": UsersThreeIcon,
+  "/support": ChatsCircleIcon,
   "/activity": PulseIcon,
   "/sites": GlobeIcon,
+  "/health": HeartbeatIcon,
   "/controls": SlidersHorizontalIcon,
   "/announcements": MegaphoneIcon,
   "/staff": IdentificationBadgeIcon,
@@ -47,7 +51,7 @@ const BAR: {
   { segment: "more", href: "/more", short: "More" },
 ];
 
-export function OfficeNav({ layout }: { layout: "column" | "bar" }) {
+export function OfficeNav({ layout, badges = {} }: { layout: "column" | "bar"; badges?: Partial<Record<OfficeHref, number>> }) {
   const segment = useSelectedLayoutSegment();
   if (layout === "bar") {
     const inBar = new Set(BAR.map((b) => b.segment));
@@ -64,7 +68,7 @@ export function OfficeNav({ layout }: { layout: "column" | "bar" }) {
                   href={item.href}
                   transitionTypes={PAGE_NAV}
                   aria-current={active ? "page" : undefined}
-                  className={`flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] ${active ? "font-medium text-ink" : "text-ink-3"}`}
+                  className={`relative flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] ${active ? "font-medium text-ink" : "text-ink-3"}`}
                 >
                   <BarIcon
                     href={item.href}
@@ -74,6 +78,12 @@ export function OfficeNav({ layout }: { layout: "column" | "bar" }) {
                     aria-hidden
                   />
                   {item.short}
+                  {item.href !== "/more" && (badges[item.href] ?? 0) > 0 ? (
+                    <span className="absolute right-[calc(50%-18px)] top-2 min-w-4 rounded-full bg-approval px-1 text-center text-[10px] font-semibold leading-4 text-surface tabular">
+                      {badges[item.href]}
+                      <span className="sr-only"> waiting</span>
+                    </span>
+                  ) : null}
                 </Link>
               </li>
             );
@@ -108,6 +118,12 @@ export function OfficeNav({ layout }: { layout: "column" | "bar" }) {
                     aria-hidden
                   />
                   {item.label}
+                  {(badges[item.href] ?? 0) > 0 ? (
+                    <span className="ml-auto min-w-5 rounded-full bg-approval px-1.5 text-center text-[11px] font-semibold leading-5 text-surface tabular">
+                      {badges[item.href]}
+                      <span className="sr-only"> waiting</span>
+                    </span>
+                  ) : null}
                 </Link>
               </li>
             );

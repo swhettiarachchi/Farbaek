@@ -16,6 +16,7 @@ import { liveRunStatuses } from "@/server/cloud-agent/store";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { AnnouncementBanner } from "@/components/app/announcement-banner";
 import { liveAnnouncements } from "@/server/platform/announcements";
+import { unreadSupportCount } from "@/server/workspace/support";
 import { TRIAL, getPlan } from "@/core/billing/catalog";
 import { isAdminEmail } from "@/server/admin/access";
 import { loadAppContext } from "@/server/workspace/context";
@@ -86,11 +87,12 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   const current = ctx.current;
   const live = ctx.mode === "live";
   const client = live ? await createSupabaseServerClient().catch(() => null) : null;
-  const [tasks, projects, liveRuns, announcements] = await Promise.all([
+  const [tasks, projects, liveRuns, announcements, helpUnread] = await Promise.all([
     ctx.reader.listTasks(current.id),
     ctx.reader.listProjects(current.id).catch(() => []),
     client ? liveRunStatuses(client, current.id).catch(() => []) : Promise.resolve([]),
     client ? liveAnnouncements(client) : Promise.resolve([]),
+    client ? unreadSupportCount(client) : Promise.resolve(0),
   ]);
   const presence = agentPresence(liveRuns);
   const admin = live && isAdminEmail(ctx.user.email);
@@ -115,7 +117,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           <SparkleIcon size={16} weight="fill" aria-hidden /> New build
         </Link>
         {live ? <PresenceOrb key={`${presence.state}:${presence.count}`} orgId={current.id} initial={presence} /> : null}
-        <SidebarNav approvals={approvals} />
+        <SidebarNav approvals={approvals} helpUnread={helpUnread} />
         <div className="mt-auto grid gap-3 border-t border-line pt-4">
           {/* A shortcut only: /admin checks the person again on the server (ADR 0026). */}
           {admin ? (
@@ -148,7 +150,18 @@ export default async function AppLayout({ children }: Readonly<{ children: React
             <span className="font-medium">Demo workspace.</span> Sample data only. Nothing you do here is saved or sent anywhere.
           </p>
         ) : !ctx.writes.enabled ? (
-          <p className="border-b border-approval/25 bg-approval/[0.06] px-4 py-2.5 text-center text-[13px] text-ink">{ctx.writes.reason}</p>
+          <p className="border-b border-approval/25 bg-approval/[0.06] px-4 py-2.5 text-center text-[13px] text-ink">
+            {ctx.writes.reason}
+            {/* A paused workspace can still write to support (migration v23), so the notice never ends in a dead end. */}
+            {current.suspension ? (
+              <>
+                {" "}
+                <Link href="/app/help/new?topic=account" className="font-medium text-accent underline-offset-4 hover:underline">
+                  Contact Farbaek support
+                </Link>
+              </>
+            ) : null}
+          </p>
         ) : null}
 
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-canvas/85 px-4 backdrop-blur-xl lg:hidden">
@@ -169,7 +182,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
         </main>
       </div>
 
-      <MobileTabBar approvals={approvals} />
+      <MobileTabBar approvals={approvals} helpUnread={helpUnread} />
       <CommandPalette
         projects={projects.filter((p) => !p.archivedAt).slice(0, 50).map((p) => ({ id: p.id, name: p.name }))}
         workspaces={ctx.workspaces.map((w) => ({ id: w.id, name: w.name, current: w.id === current.id }))}

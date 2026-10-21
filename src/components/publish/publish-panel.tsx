@@ -43,7 +43,10 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
           <ProhibitIcon size={18} weight="bold" className="mt-px shrink-0 text-failed" aria-hidden />
           <span>
             <span className="font-medium">Farbaek took this site offline</span> <RelativeTime iso={site.blocked.at} />. {site.blocked.notice} It can&apos;t go live again until
-            Farbaek lifts this; visitors see that the site isn&apos;t available.
+            Farbaek lifts this; visitors see that the site isn&apos;t available.{" "}
+            <Link href="/app/help/new?topic=other" className="font-medium text-accent underline-offset-4 hover:underline">
+              Ask Farbaek about this
+            </Link>
           </span>
         </p>
       ) : null}

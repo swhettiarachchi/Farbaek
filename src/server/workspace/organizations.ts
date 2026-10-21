@@ -46,7 +46,7 @@ export function billingSnapshotFromRow(row: unknown): BillingSnapshot | null {
 }
 
 function toSnapshot(row: z.infer<typeof OrganizationRow>): BillingSnapshot {
-  const window = row.trials ? trialWindow(new Date(row.trials.started_at)) : undefined;
+  const window = row.trials ? trialWindow(new Date(row.trials.started_at), new Date(row.trials.ends_at)) : undefined;
   const billing = row.billing_accounts;
   return billing
     ? {
@@ -64,7 +64,7 @@ export function summarizeOrganizations(rows: unknown, now: Date): WorkspaceSumma
     .array(OrganizationRow)
     .parse(rows)
     .map((row) => {
-      const window = row.trials ? trialWindow(new Date(row.trials.started_at)) : undefined;
+      const window = row.trials ? trialWindow(new Date(row.trials.started_at), new Date(row.trials.ends_at)) : undefined;
       const billing = row.billing_accounts;
       const snapshot = toSnapshot(row);
       return {

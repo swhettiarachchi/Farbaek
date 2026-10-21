@@ -150,3 +150,145 @@ It had to go in before this code deploys, because the workspace query now reads 
   - browsers are refused;
   - refused calls record nothing.
 - Database suite: 187 passed. Unit, design and serve tests: passed.
+
+## 2026-10-21: Phase 3, the owner's numbers, trial extensions and quick search
+
+### Done
+
+**Migration v22** (`20261024090000_office_metrics_and_trials.sql`):
+- A trial can now run 14 to 44 days (`trials_length_14_to_44_days`). New trials are still exactly 14.
+- `app_staff_extend_trial`: support adds up to 7 days, once; admins up to 14; owners up to 30. Never past 44 days from the start. It moves the trial's usage grant with it, writes `farbaek.trial_extended` to the workspace's log and one chained staff event.
+- `app_office_metrics(p_now)`: counts only, in one call:
+  - sign-ups, with 14 days by day;
+  - workspaces, active in 7 days and suspended;
+  - activation of the 8 to 60 day cohort;
+  - live and blocked sites;
+  - AI list cost by day;
+  - runs this week;
+  - the trial funnel.
+  No names, no emails, no revenue.
+- `app_office_search(p_query)`: up to 8 workspaces (name or id prefix), people (email) and sites (name). Wildcards are treated as text, and anything under 2 characters returns nothing.
+
+**App:**
+- `trialWindow` uses the stored end when it's a valid 14 to 44 days, so an extension shows everywhere: plan label, days left, wallet expiry.
+- **Overview:** two trend tiles (sign-ups, and AI cost marked as an estimate) with 14-day sparklines, then three counts (active workspaces, activation, live sites). Below them:
+  - the trial bar, where "Became paid" says "Billing not connected";
+  - runs this week;
+  - the month's cost;
+  - revenue tiles that stay unavailable;
+  - connections.
+- **Workspace 360:** an "Extend the trial" form. It shows the days so far, the role's cap and the 44-day ceiling, and says so plainly when support has already used its one extension.
+- **Quick search:** Ctrl or Cmd+K, or the header button (an icon on phones).
+  - Pages match as you type; records come from the server after 2 letters.
+  - A slower answer never replaces a newer one.
+  - Emails are masked on the server for roles that may not read them.
+  - It only navigates, so every rule still applies on the page it opens.
+
+### Applied to the hosted database
+
+Migration v22 went in through the SQL Editor:
+- **Before:** v21 present, none of the v22 functions, the old trial check in place, and no trial other than 14 days.
+- **Hash check:** the editor held exactly the tested file (SHA-256 `6c8e4e8d8a98d657b756bf4118bbf680399d0a4d53a81819de268184c303b428`, 9,800 bytes).
+- **After:**
+  - the three security-definer functions are in place;
+  - the old check is gone and the new one is present;
+  - `authenticated` can't read the metrics, and `anon` can't search;
+  - the service role can extend;
+  - a 1-letter search returns empty lists;
+  - the metrics return 14 days of AI cost.
+
+### Verified
+
+- PGlite `office-metrics.test.ts` (5 tests):
+  - the caps per role, support only once, and the 44-day ceiling;
+  - the grant's expiry moves, with one event per success and none on failure;
+  - the metrics on seeded data, with no billing fields;
+  - search by name, id prefix and email, with wildcards treated as text;
+  - browsers are refused.
+- The schema test follows the new trial rule.
+- Unit tests: `trialWindow` with a stored end, the sparkline path, and search query rules and masking.
+- `pnpm typecheck`, `pnpm lint` and `pnpm build` pass. Full `pnpm test`: 965 passed. The one failure was the known executor race, which passes on its own (3 of 3).
+- **Layout:** checked with a static render of the overview and Workspace 360 using sample numbers, at 960px and 375px. No horizontal scroll, and the palette fits a phone.
+
+### Not verified yet (needs the owner)
+
+- The live console with real data. That needs the CEO's first office sign-in, after Railway deploys #6 and the office host is set up.
+
+## 2026-10-21: Phase 4, support requests and system health
+
+### Done
+
+**Migration v23** (`20261025090000_support_and_health.sql`):
+- **`support_threads` and `support_messages`:**
+  - a request belongs to the person who wrote it;
+  - RLS shows them only their own requests and never internal notes;
+  - column grants hide the assignee, a message's author and the `internal` flag, so staff identity never reaches a customer;
+  - browsers can't write.
+- **No activity guard on support tables:** a suspended workspace, or a paused platform, can still reach Farbaek.
+- **Customer functions:** `app_support_open` (5 new requests a day each), `app_support_reply` (30 messages an hour, and it reopens a closed request), `app_support_close` and `app_support_mark_seen`.
+- **Staff functions:** `app_staff_support_reply` (a reply, or an internal note) and `app_staff_support_update` (assign, unassign, close, reopen). Each writes one chained staff event that records the action, never the message.
+- **Permissions:** `support.read` and `support.reply` for owner, admin, support and trust and safety. Viewers don't read customers' messages.
+- **Office reads:** `app_office_support_queue`, `app_office_support_thread` and `app_office_health`.
+
+**Customer app:**
+- **Help and support at `/app/help`:**
+  - your requests, each with its status in words and an icon;
+  - a new request form: topic pills, subject and message, with "never include passwords or secret keys";
+  - a request page with the conversation: replies signed "Farbaek support" under the logo, and a compact reply box that stays in reach on phones;
+  - Close request.
+- **Unread replies:** a badge on Help in the sidebar, a dot on More on phones, and a count on the More page.
+- **No more dead ends:**
+  - the suspension banner links to "Contact Farbaek support";
+  - a site taken offline links to "Ask Farbaek about this".
+
+**Office Space:**
+- **Support:**
+  - Waiting on us, Answered and Closed, with an abuse-only filter;
+  - each row shows the email, workspace, message count, wait time and assignee;
+  - the nav shows a waiting count;
+  - a request page with internal notes on a hatched background, a Reply or Internal note switch, a side card with the workspace (plan, trial days, suspension), and Assign to me, Close and Reopen.
+- **Health:**
+  - checks for the database round trip, agent runs (stuck after 10 minutes), failures in 24 hours, the audit chain (unknown until checked, needs a look after 7 days or a break), paused switches and the support queue (needs a look after a day);
+  - each check says OK, Needs a look or Unknown, in words and with an icon;
+  - this server's commit, region, uptime, memory and live runs;
+  - connections.
+- **Phone bar:** Overview, Workspaces, Support, Controls and More.
+
+### Applied to the hosted database
+
+Migration v23 went in through the SQL Editor:
+- **Before:** v22 present, no support tables or functions.
+- **Hash check:** the editor held exactly the tested file (SHA-256 `48ce97b02d30c06aefc389ef0f91e923f05a3367459ad29677d3809163f54b6a`, 17,020 bytes).
+- **After:**
+  - RLS on both tables;
+  - all nine security-definer functions in place;
+  - support can read requests, viewers can't;
+  - `authenticated` can't call `app_support_open`, can't see the assignee or `internal`, and can't insert;
+  - no requests yet;
+  - the health read and the queue answer.
+
+### Verified
+
+- PGlite `support.test.ts` (7 tests):
+  - open, answer, close and reopen;
+  - another person sees nothing;
+  - the column grants hold;
+  - the topic, workspace and length checks;
+  - writing while suspended and paused;
+  - the daily limit;
+  - staff events without the body;
+  - viewers refused;
+  - the queue and thread reads;
+  - the health read.
+- Permission matrix: the TS and SQL copies are still equal.
+- Unit: support rules, unread logic and wait times; support writes and their error mapping; the health verdicts.
+- `pnpm typecheck`, `pnpm lint` and `pnpm build` pass. Full `pnpm test`: 982 passed.
+- **Layout:** checked with a static render of all six new pages using sample data, at 375px and 1100px. No horizontal scroll. Fixed from that check:
+  - status chips now sit under the subject;
+  - a compact reply box on phones;
+  - short tab names;
+  - message headers that wrap cleanly.
+
+### Not verified yet (needs the owner)
+
+- Sending and answering a real request end to end. That needs a signed-in customer on www and the CEO's office sign-in, after Railway deploys.

@@ -24,6 +24,8 @@ export interface Workspace360 {
   createdAt: string;
   plan: string;
   trialDaysLeft: number | null;
+  /** The trial as stored, with its length so far, or null when the workspace never had one. */
+  trial: { startedAt: string; endsAt: string; days: number } | null;
   suspension: { at: string; notice: string } | null;
   members: { userId: string; email: string; role: string }[];
   projects: { id: string; name: string; archived: boolean; createdAt: string }[];
@@ -32,6 +34,18 @@ export interface Workspace360 {
   aiPercent: number | null;
   aiCostThisMonthUsd: number;
   runs: { id: string; status: string; task: string; startedAt: string }[];
+}
+
+/** A workspace in one line: name, plan, trial days left and any suspension. For side cards. */
+export async function loadWorkspaceBrief(
+  admin: SupabaseClient,
+  orgId: string,
+  now = new Date(),
+): Promise<{ id: string; name: string; plan: string; trialDaysLeft: number | null; suspension: { at: string; notice: string } | null } | null> {
+  const org = must(await admin.from("organizations").select(ORGANIZATION_SELECT).eq("id", orgId).maybeSingle(), "the workspace");
+  if (!org) return null;
+  const [summary] = summarizeOrganizations([org], now);
+  return summary ? { id: summary.id, name: summary.name, plan: planLabel(summary), trialDaysLeft: trialDaysLeft(summary), suspension: summary.suspension } : null;
 }
 
 export async function loadWorkspace360(admin: SupabaseClient, orgId: string, now = new Date()): Promise<Workspace360 | null> {
@@ -68,6 +82,9 @@ export async function loadWorkspace360(admin: SupabaseClient, orgId: string, now
     createdAt: z.object({ created_at: z.string() }).parse(org).created_at,
     plan: planLabel(summary),
     trialDaysLeft: trialDaysLeft(summary),
+    trial: summary.trial
+      ? { startedAt: summary.trial.startedAt, endsAt: summary.trial.endsAt, days: Math.round((Date.parse(summary.trial.endsAt) - Date.parse(summary.trial.startedAt)) / 86_400_000) }
+      : null,
     suspension: summary.suspension,
     members: memberRows.map((m, i) => ({ userId: m.user_id, email: emails[i]!, role: m.role })),
     projects: z

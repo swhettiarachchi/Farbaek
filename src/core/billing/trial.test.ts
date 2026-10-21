@@ -115,3 +115,18 @@ describe("trial expiry", () => {
     expect(expireTrialIfDue(snap, at(DAY))).toEqual({ snapshot: snap, events: [] });
   });
 });
+
+describe("trialWindow with a stored end (staff extensions, ADR 0032)", () => {
+  const begun = new Date("2026-10-01T00:00:00Z");
+  const days = (n: number) => new Date(begun.getTime() + n * 86_400_000);
+
+  it("uses an extension of up to 44 days, and falls back to 14 for anything else", () => {
+    expect(trialWindow(begun).endsAt).toEqual(days(14));
+    expect(trialWindow(begun, days(21)).endsAt).toEqual(days(21));
+    expect(trialWindow(begun, days(44)).endsAt).toEqual(days(44));
+    expect(trialWindow(begun, days(45)).endsAt).toEqual(days(14));
+    expect(trialWindow(begun, days(10)).endsAt).toEqual(days(14));
+    expect(trialWindow(begun, new Date("nonsense")).endsAt).toEqual(days(14));
+    expect(trialWindow(begun, null).endsAt).toEqual(days(14));
+  });
+});
