@@ -38,6 +38,11 @@ export const OFFICE_ERROR_CODES = [
   "INVALID_FLAG",
   "INVALID_ANNOUNCEMENT",
   "ANNOUNCEMENT_MISSING",
+  "INVALID_DAYS",
+  "TRIAL_CAP",
+  "NO_TRIAL",
+  "ALREADY_EXTENDED",
+  "TRIAL_LIMIT",
   "UNEXPECTED_RESPONSE",
   "UNKNOWN",
 ] as const;
@@ -71,6 +76,11 @@ export const OFFICE_MESSAGES: Record<OfficeErrorCode, string> = {
   INVALID_FLAG: "That switch doesn't exist.",
   INVALID_ANNOUNCEMENT: "Write 10 to 280 characters, pick a tone, and an end time in the future if you set one.",
   ANNOUNCEMENT_MISSING: "That announcement already ended.",
+  INVALID_DAYS: "Choose how many days to add.",
+  TRIAL_CAP: "That's more days than your role can add. Support can add 7, admins 14 and owners 30.",
+  NO_TRIAL: "This workspace never had a trial, so there's nothing to extend.",
+  ALREADY_EXTENDED: "This trial was already extended. An admin or owner can add more.",
+  TRIAL_LIMIT: "A trial can't run past 44 days from its start. Choose fewer days.",
   UNEXPECTED_RESPONSE: "The database sent something unexpected. Nothing was changed.",
   UNKNOWN: "That didn't work, and nothing was changed. Try again in a moment.",
 };
@@ -130,6 +140,8 @@ export interface StaffStore {
   setFlag(actor: StaffActor, input: { key: string; paused: boolean; message: string | null; reason: string }, strength: AuthStrength, meta: RequestMeta): Promise<StoreResult<null>>;
   publishAnnouncement(actor: StaffActor, input: { message: string; tone: "info" | "incident"; dismissible: boolean; endsAt: string | null; reason: string }, meta: RequestMeta): Promise<StoreResult<string>>;
   endAnnouncement(actor: StaffActor, input: { id: string; reason: string }, meta: RequestMeta): Promise<StoreResult<null>>;
+  // Phase 3 (migration v22)
+  extendTrial(actor: StaffActor, input: { orgId: string; days: number; reason: string }, meta: RequestMeta): Promise<StoreResult<string>>;
 }
 
 export function createStaffStore(admin: SupabaseClient): StaffStore {
@@ -202,6 +214,7 @@ export function createStaffStore(admin: SupabaseClient): StaffStore {
         z.string().uuid(),
       ),
     endAnnouncement: (a, i, meta) => rpc("app_staff_end_announcement", { p_actor: a.userId, p_session: a.sessionId, p_id: i.id, p_reason: i.reason, ...m(meta) }, nothing),
+    extendTrial: (a, i, meta) => rpc("app_staff_extend_trial", { p_actor: a.userId, p_session: a.sessionId, p_org: i.orgId, p_days: i.days, p_reason: i.reason, ...m(meta) }, z.string()),
     recordVerification: (a, c) =>
       rpc(
         "app_staff_record_verification",

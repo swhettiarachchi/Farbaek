@@ -150,3 +150,66 @@ It had to go in before this code deploys, because the workspace query now reads 
   - browsers are refused;
   - refused calls record nothing.
 - Database suite: 187 passed. Unit, design and serve tests: passed.
+
+## 2026-10-21: Phase 3, the owner's numbers, trial extensions and quick search
+
+### Done
+
+**Migration v22** (`20261024090000_office_metrics_and_trials.sql`):
+- A trial can now run 14 to 44 days (`trials_length_14_to_44_days`). New trials are still exactly 14.
+- `app_staff_extend_trial`: support adds up to 7 days, once; admins up to 14; owners up to 30. Never past 44 days from the start. It moves the trial's usage grant with it, writes `farbaek.trial_extended` to the workspace's log and one chained staff event.
+- `app_office_metrics(p_now)`: counts only, in one call:
+  - sign-ups, with 14 days by day;
+  - workspaces, active in 7 days and suspended;
+  - activation of the 8 to 60 day cohort;
+  - live and blocked sites;
+  - AI list cost by day;
+  - runs this week;
+  - the trial funnel.
+  No names, no emails, no revenue.
+- `app_office_search(p_query)`: up to 8 workspaces (name or id prefix), people (email) and sites (name). Wildcards are treated as text, and anything under 2 characters returns nothing.
+
+**App:**
+- `trialWindow` uses the stored end when it's a valid 14 to 44 days, so an extension shows everywhere: plan label, days left, wallet expiry.
+- **Overview:** two trend tiles (sign-ups, and AI cost marked as an estimate) with 14-day sparklines, then three counts (active workspaces, activation, live sites). Below them:
+  - the trial bar, where "Became paid" says "Billing not connected";
+  - runs this week;
+  - the month's cost;
+  - revenue tiles that stay unavailable;
+  - connections.
+- **Workspace 360:** an "Extend the trial" form. It shows the days so far, the role's cap and the 44-day ceiling, and says so plainly when support has already used its one extension.
+- **Quick search:** Ctrl or Cmd+K, or the header button (an icon on phones).
+  - Pages match as you type; records come from the server after 2 letters.
+  - A slower answer never replaces a newer one.
+  - Emails are masked on the server for roles that may not read them.
+  - It only navigates, so every rule still applies on the page it opens.
+
+### Applied to the hosted database
+
+Migration v22 went in through the SQL Editor:
+- **Before:** v21 present, none of the v22 functions, the old trial check in place, and no trial other than 14 days.
+- **Hash check:** the editor held exactly the tested file (SHA-256 `6c8e4e8d8a98d657b756bf4118bbf680399d0a4d53a81819de268184c303b428`, 9,800 bytes).
+- **After:**
+  - the three security-definer functions are in place;
+  - the old check is gone and the new one is present;
+  - `authenticated` can't read the metrics, and `anon` can't search;
+  - the service role can extend;
+  - a 1-letter search returns empty lists;
+  - the metrics return 14 days of AI cost.
+
+### Verified
+
+- PGlite `office-metrics.test.ts` (5 tests):
+  - the caps per role, support only once, and the 44-day ceiling;
+  - the grant's expiry moves, with one event per success and none on failure;
+  - the metrics on seeded data, with no billing fields;
+  - search by name, id prefix and email, with wildcards treated as text;
+  - browsers are refused.
+- The schema test follows the new trial rule.
+- Unit tests: `trialWindow` with a stored end, the sparkline path, and search query rules and masking.
+- `pnpm typecheck`, `pnpm lint` and `pnpm build` pass. Full `pnpm test`: 965 passed. The one failure was the known executor race, which passes on its own (3 of 3).
+- **Layout:** checked with a static render of the overview and Workspace 360 using sample numbers, at 960px and 375px. No horizontal scroll, and the palette fits a phone.
+
+### Not verified yet (needs the owner)
+
+- The live console with real data. That needs the CEO's first office sign-in, after Railway deploys #6 and the office host is set up.

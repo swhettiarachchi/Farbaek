@@ -5,6 +5,7 @@ import { BrandLogo } from "@/components/brand/brand-logo";
 import { deploymentName, EnvPill, RoleBadge } from "@/components/office/badges";
 import { IdleWarning } from "@/components/office/idle-warning";
 import { OfficeNav } from "@/components/office/office-nav";
+import { OfficeSearch, OfficeSearchTrigger } from "@/components/office/office-search";
 import { LocalTime } from "@/components/ui/local-time";
 import { OFFICE_POLICY } from "@/config/office";
 import { requireStaff } from "@/server/office/access";
@@ -54,6 +55,7 @@ export default async function OfficeConsoleLayout({ children }: Readonly<{ child
           </Link>
           <p className="hidden text-sm text-ink-3 lg:block">Office Space</p>
           <div className="flex items-center gap-2">
+            <OfficeSearchTrigger />
             <EnvPill label={env} />
             <RoleBadge role={staff.role} />
           </div>
@@ -69,6 +71,7 @@ export default async function OfficeConsoleLayout({ children }: Readonly<{ child
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-canvas/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
         <OfficeNav layout="bar" />
       </div>
+      <OfficeSearch />
       <IdleWarning lastSeenAt={staff.lastSeenAt.toISOString()} idleMinutes={OFFICE_POLICY.idleMinutes} warnSeconds={OFFICE_POLICY.idleWarningSeconds} stayActive={stayActiveAction} />
     </div>
   );

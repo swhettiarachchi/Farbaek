@@ -67,6 +67,9 @@ export const USAGE_STEP_UP_UNITS = 1_000_000;
 /** The most AI usage each role may add in one go, in units (1 unit = $0.0001 of list cost). */
 export const USAGE_CAPS: Partial<Record<StaffRole, number>> = { owner: 5_000_000, admin: 500_000 };
 
+/** The most trial days each role may add at once (migration v22). Support may extend a trial only once; no trial runs past 44 days. */
+export const TRIAL_EXTEND_CAPS: Partial<Record<StaffRole, number>> = { owner: 30, admin: 14, support: 7 };
+
 export function isStaffRole(value: unknown): value is StaffRole {
   return typeof value === "string" && (STAFF_ROLES as readonly string[]).includes(value);
 }

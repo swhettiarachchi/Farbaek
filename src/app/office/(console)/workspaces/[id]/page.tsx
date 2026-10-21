@@ -8,12 +8,13 @@ import { OfficeActionForm } from "@/components/office/action-form";
 import { officeInputClass, ReasonField, StepUpField } from "@/components/office/fields";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
 import { USD_PER_UNIT } from "@/core/billing/rate-card";
-import { maskEmail, USAGE_CAPS, USAGE_STEP_UP_UNITS } from "@/core/office/permissions";
+import { TRIAL_MAX_DAYS } from "@/core/billing/trial";
+import { maskEmail, TRIAL_EXTEND_CAPS, USAGE_CAPS, USAGE_STEP_UP_UNITS } from "@/core/office/permissions";
 import { usd } from "@/server/admin/summaries";
 import { requireStaff } from "@/server/office/access";
 import { loadWorkspace360 } from "@/server/office/controls-data";
 import { siteDomain } from "@/server/publish/config";
-import { addUsageAction, restoreWorkspaceAction, suspendWorkspaceAction } from "./actions";
+import { addUsageAction, extendTrialAction, restoreWorkspaceAction, suspendWorkspaceAction } from "./actions";
 
 export const metadata: Metadata = { title: "Workspace" };
 
@@ -29,6 +30,10 @@ export default async function OfficeWorkspace({ params }: { params: Promise<{ id
   const domain = siteDomain();
   const showEmail = staff.can("people.read_email");
   const cap = USAGE_CAPS[staff.role] ?? 0;
+  const trialRoom = ws.trial ? Math.max(0, TRIAL_MAX_DAYS - ws.trial.days) : 0;
+  const supportUsed = staff.role === "support" && ws.trial !== null && ws.trial.days > 14;
+  const trialCap = Math.min(TRIAL_EXTEND_CAPS[staff.role] ?? 0, trialRoom);
+  const dayChoices = [...new Set([1, 3, 5, 7, 10, 14, 21, 30].filter((d) => d < trialCap).concat(trialCap))].filter((d) => d > 0);
 
   return (
     <div className="grid gap-8">
@@ -139,17 +144,53 @@ export default async function OfficeWorkspace({ params }: { params: Promise<{ id
                 <dd className="mt-1 font-mono text-xl tabular">{usd(ws.aiCostThisMonthUsd)}</dd>
               </div>
             </dl>
-            <ul className="mt-4 grid gap-2 border-t border-line pt-4 text-sm">
-              {ws.grants.slice(0, 8).map((g, i) => (
-                <li key={`${g.startsAt}-${i}`} className="flex flex-wrap items-center justify-between gap-2">
-                  <span className={g.kind === "adjustment" ? "font-medium text-ink" : "text-ink-2"}>{GRANT_LABELS[g.kind] ?? g.kind}</span>
-                  <span className="font-mono text-xs text-ink-3 tabular">
-                    {number.format(g.used)} / {number.format(g.units)} · until <LocalTime iso={g.expiresAt} />
-                  </span>
-                </li>
-              ))}
-            </ul>
+            {ws.grants.length > 0 ? (
+              <ul className="mt-4 grid gap-2 border-t border-line pt-4 text-sm">
+                {ws.grants.slice(0, 8).map((g, i) => (
+                  <li key={`${g.startsAt}-${i}`} className="flex flex-wrap items-center justify-between gap-2">
+                    <span className={g.kind === "adjustment" ? "font-medium text-ink" : "text-ink-2"}>{GRANT_LABELS[g.kind] ?? g.kind}</span>
+                    <span className="font-mono text-xs text-ink-3 tabular">
+                      {number.format(g.used)} / {number.format(g.units)} · until <LocalTime iso={g.expiresAt} />
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </Card>
+
+          {staff.can("trial.extend") && ws.trial ? (
+            <section aria-labelledby="trial-title" className="grid gap-4 rounded-md border border-line bg-surface p-5 shadow-e1">
+              <div>
+                <h2 id="trial-title" className="text-lg font-medium">
+                  Extend the trial
+                </h2>
+                <p className="mt-1 text-sm text-ink-2">
+                  {ws.trial.days} days so far, ending <LocalTime iso={ws.trial.endsAt} />. A trial can run {TRIAL_MAX_DAYS} days at most; the trial&apos;s AI usage moves with it.
+                </p>
+              </div>
+              {supportUsed ? (
+                <Notice>This trial was already extended. Support can extend a trial once; an admin or owner can add more.</Notice>
+              ) : trialCap === 0 ? (
+                <Notice>This trial is already at {TRIAL_MAX_DAYS} days, the most a trial can run.</Notice>
+              ) : (
+                <OfficeActionForm action={extendTrialAction} submit="Extend the trial" tone="secondary" className="grid gap-3">
+                  <input type="hidden" name="orgId" value={ws.id} />
+                  <label htmlFor="trial-days" className="grid gap-1.5 text-sm">
+                    <span className="font-medium text-ink">Add</span>
+                    <select id="trial-days" name="days" defaultValue={String(Math.min(7, trialCap))} className={officeInputClass}>
+                      {dayChoices.map((d) => (
+                        <option key={d} value={d}>
+                          {d} {d === 1 ? "day" : "days"}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-xs text-ink-3">Counted from the later of today and the current end. Your role can add up to {TRIAL_EXTEND_CAPS[staff.role]} days{staff.role === "support" ? ", once" : ""}.</span>
+                  </label>
+                  <ReasonField id="trial-reason" />
+                </OfficeActionForm>
+              )}
+            </section>
+          ) : null}
 
           {staff.can("usage.add") ? (
             <section aria-labelledby="add-usage-title" className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">

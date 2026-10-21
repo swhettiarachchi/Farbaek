@@ -33,12 +33,23 @@ export function evaluateTrialEligibility(input: TrialEligibilityInput): TrialEli
 
 export interface TrialWindow {
   startedAt: Date;
-  /** Exactly startedAt + 14 days. UTC has no daylight-saving shifts. */
+  /** startedAt + 14 days, or later when Farbaek staff extended the trial (at most 44 days in all). UTC has no daylight-saving shifts. */
   endsAt: Date;
 }
 
-export function trialWindow(startedAt: Date): TrialWindow {
-  return { startedAt, endsAt: new Date(startedAt.getTime() + TRIAL.lengthDays * DAY_MS) };
+/** The most a trial can run after staff extensions (migration v22). */
+export const TRIAL_MAX_DAYS = 44;
+
+/**
+ * A trial's window. The stored end wins when it's a valid 14 to 44 days
+ * after the start (an extension from Office Space, ADR 0032); otherwise
+ * it's exactly 14 days.
+ */
+export function trialWindow(startedAt: Date, storedEndsAt?: Date | null): TrialWindow {
+  const standard = startedAt.getTime() + TRIAL.lengthDays * DAY_MS;
+  const stored = storedEndsAt?.getTime();
+  const valid = stored !== undefined && Number.isFinite(stored) && stored >= standard && stored <= startedAt.getTime() + TRIAL_MAX_DAYS * DAY_MS;
+  return { startedAt, endsAt: new Date(valid ? stored : standard) };
 }
 
 export type TrialPhase =

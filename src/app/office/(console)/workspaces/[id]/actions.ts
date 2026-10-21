@@ -42,6 +42,21 @@ export async function restoreWorkspaceAction(_prev: OfficeFormState, form: FormD
   return { ok: true, message: "Restored. Members can work again and its sites serve as before." };
 }
 
+/** Adds days to a trial. The database holds the caps: support 7 once, admins 14, owners 30, never past 44 days in all. */
+export async function extendTrialAction(_prev: OfficeFormState, form: FormData): Promise<OfficeFormState> {
+  const gate = await staffAction("trial.extend");
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const orgId = Uuid.safeParse(form.get("orgId"));
+  const days = Number(text(form, "days"));
+  if (!orgId.success) return { ok: false, message: OFFICE_MESSAGES.WORKSPACE_MISSING };
+  if (!Number.isInteger(days) || days < 1) return { ok: false, message: OFFICE_MESSAGES.INVALID_DAYS };
+  const r = await gate.ctx.store.extendTrial({ userId: gate.ctx.user.id, sessionId: gate.ctx.sessionId }, { orgId: orgId.data, days, reason: text(form, "reason") }, await requestMeta());
+  if (!r.ok) return { ok: false, message: OFFICE_MESSAGES[r.code] };
+  refresh();
+  const ends = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", timeZone: "UTC" }).format(new Date(r.value));
+  return { ok: true, message: `Extended by ${days} ${days === 1 ? "day" : "days"}. The trial now ends ${ends} (UTC), and its AI usage lasts until then too.` };
+}
+
 /** AI usage added by Farbaek, entered in dollars of list cost and stored as units. Never a payment. */
 export async function addUsageAction(_prev: OfficeFormState, form: FormData): Promise<OfficeFormState> {
   const gate = await staffAction("usage.add");
