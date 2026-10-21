@@ -407,3 +407,30 @@ Every prompt that doesn't pick a template starts from the Static website or Next
   - at 1280px the hero splits;
   - sections reveal and the header edge appears after scrolling.
 - The Next.js starter's `globals.css` compiled with Tailwind 4.3.3: all 13 token utilities and the `rise` keyframes are generated.
+
+## 2026-10-21: Signed-in pages at 375 px
+
+The signed-in app had never been checked at phone width; Chrome was minimised and the demo needed a build without Supabase. This time a local build ran with `NEXT_PUBLIC_SUPABASE_URL=off` and `FARBAEK_DEMO_APP=1`, which turns on the read-only demo workspace. A script then checked every page under `/app` at 375 px for sideways scroll, controls under 44 px and inputs under 16 px.
+
+### Found and fixed
+
+- **No page scrolled sideways.** All 21 checked routes matched the 375 px width.
+- **The prompt box's placeholder ran under the Plan it button** on phones (three lines in a two-line box). The box now sizes to its text where `field-sizing` is supported, with a taller minimum on phones. On desktop it starts compact and grows as you type.
+- **Controls under 44 px:**
+  - the shared small button (40 px, used on settings, agents, security, templates and build) is now 44 px everywhere;
+  - the app header's logo link (32 px) and workspace pill link (30 px) now have 44 px targets, while the pill keeps its look;
+  - Mission Control's "All tasks", "Details" and first-ProofPack links;
+  - the Build page's task titles;
+  - the workspace menu's items;
+  - the device toggles on template and project previews (36 px);
+  - the sandbox console, tabs, preview and file controls.
+
+### Verified
+
+- After a rebuild, the same script reports nothing but the visually hidden skip link and screen-reader-only radio inputs, whose visible labels are the targets.
+- At 1280 px, Mission Control has no sideways scroll and the prompt box fits its placeholder.
+- `pnpm typecheck`, `pnpm lint`, `pnpm test`: 895 passed.
+
+### Note
+
+The local `.next` folder is now the demo build. Run `pnpm build` again before `pnpm start` against Supabase.

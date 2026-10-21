@@ -159,7 +159,8 @@ export function PromptComposer({
                 ? `Say what it is for. For example: ${template.example}`
                 : "Describe what you want to build. For example: a one-page site for my bakery with the menu, opening hours and a map."
           }
-          className={`block w-full resize-none rounded-lg bg-transparent px-5 pb-16 pt-4 text-base leading-relaxed text-ink outline-none placeholder:text-ink-3 disabled:opacity-70 ${size === "large" ? "min-h-36" : "min-h-24"}`}
+          // It grows with its text (and its placeholder) where field-sizing is supported; elsewhere the minimum keeps a phone's three-line placeholder clear of the button.
+          className={`block max-h-[50dvh] w-full resize-none rounded-lg bg-transparent px-5 pb-16 pt-4 text-base leading-relaxed text-ink outline-none field-sizing-content placeholder:text-ink-3 disabled:opacity-70 ${size === "large" ? "min-h-44 sm:min-h-36" : "min-h-40 sm:min-h-24"}`}
         />
         <div className="absolute inset-x-3 bottom-3 flex items-center justify-between gap-3">
           <p className="flex min-w-0 items-center gap-1.5 truncate pl-2 text-xs text-ink-3" aria-live="polite">

@@ -30,7 +30,7 @@ export function WorkspaceSwitcher({ workspaces, current, canCreate }: { workspac
             <li key={ws.id}>
               <form action={switchWorkspace}>
                 <input type="hidden" name="orgId" value={ws.id} />
-                <button type="submit" className="flex w-full items-center gap-2 rounded-[8px] px-2.5 py-2 text-left text-sm hover:bg-surface-raised">
+                <button type="submit" className="flex min-h-11 w-full items-center gap-2 rounded-[8px] px-2.5 py-2 text-left text-sm hover:bg-surface-raised">
                   <span className="min-w-0 flex-1 truncate">{ws.name}</span>
                   {ws.id === current.id ? <CheckIcon size={15} weight="bold" className="text-accent" aria-label="Current" /> : null}
                 </button>
@@ -39,7 +39,7 @@ export function WorkspaceSwitcher({ workspaces, current, canCreate }: { workspac
           ))}
         </ul>
         {canCreate ? (
-          <Link href="/app/workspaces/new" className="mt-1 flex items-center gap-2 rounded-[8px] border-t border-line px-2.5 py-2 text-sm text-ink-2 hover:bg-surface-raised">
+          <Link href="/app/workspaces/new" className="mt-1 flex min-h-11 items-center gap-2 rounded-[8px] border-t border-line px-2.5 py-2 text-sm text-ink-2 hover:bg-surface-raised">
             <PlusIcon size={15} aria-hidden /> New workspace
           </Link>
         ) : null}

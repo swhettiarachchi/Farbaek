@@ -185,7 +185,7 @@ export default async function MissionControl() {
         <Card>
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-medium">Recent tasks</h2>
-            <Link href="/app/tasks" className="inline-flex items-center gap-1 text-sm text-accent hover:underline">
+            <Link href="/app/tasks" className="-my-3 inline-flex min-h-11 items-center gap-1 text-sm text-accent hover:underline">
               All tasks <ArrowRightIcon size={14} aria-hidden />
             </Link>
           </div>
@@ -222,7 +222,7 @@ export default async function MissionControl() {
           <Card>
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-lg font-medium">AI usage</h2>
-              <Link href="/app/billing" className="inline-flex items-center gap-1 text-sm text-accent hover:underline">
+              <Link href="/app/billing" className="-my-3 inline-flex min-h-11 items-center gap-1 text-sm text-accent hover:underline">
                 Details <ArrowRightIcon size={14} aria-hidden />
               </Link>
             </div>
@@ -262,7 +262,7 @@ export default async function MissionControl() {
                 return (
                   <li key={item.label}>
                     {item.href && !item.done ? (
-                      <Link href={item.href} className="flex items-center gap-3 rounded-sm px-2 py-2.5 hover:bg-surface-raised">
+                      <Link href={item.href} className="flex min-h-11 items-center gap-3 rounded-sm px-2 py-2.5 hover:bg-surface-raised">
                         {body}
                         <ArrowRightIcon size={14} className="text-ink-3" aria-hidden />
                       </Link>

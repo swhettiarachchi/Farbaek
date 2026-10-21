@@ -223,7 +223,7 @@ export function DetailsPanel({
         <div className="rounded-md border border-line p-4">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-base font-medium">Resources now</h3>
-            <button type="button" onClick={() => void refresh()} disabled={!metricsAvailable || state === "loading" || session.state !== "ready"} className={buttonClasses("secondary", "sm", "h-9")}>
+            <button type="button" onClick={() => void refresh()} disabled={!metricsAvailable || state === "loading" || session.state !== "ready"} className={buttonClasses("secondary", "sm")}>
               <ArrowsClockwiseIcon size={16} aria-hidden /> {state === "loading" ? "Reading…" : "Sample"}
             </button>
           </div>

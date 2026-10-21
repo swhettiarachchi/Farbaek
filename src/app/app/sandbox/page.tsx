@@ -163,7 +163,7 @@ export default async function SandboxPage({ searchParams }: { searchParams: Prom
                 ))}
               </select>
             </label>
-            <button type="submit" className={buttonClasses("secondary", "sm", "col-span-2 h-11 sm:col-span-1")}>
+            <button type="submit" className={buttonClasses("secondary", "sm", "col-span-2 sm:col-span-1")}>
               Apply
             </button>
           </form>

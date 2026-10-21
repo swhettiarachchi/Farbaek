@@ -179,7 +179,7 @@ export function FilesPanel({ client, sessionId, canWrite, readReason }: { client
       <div className="flex min-h-0 flex-col border-b border-line md:border-b-0">
         <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-2">
           <span className="font-mono text-xs text-ink-3">{"// files"}</span>
-          <button type="button" onClick={() => setVersion((v) => v + 1)} className="inline-flex size-9 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised" aria-label="Refresh files">
+          <button type="button" onClick={() => setVersion((v) => v + 1)} className="inline-flex size-11 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised" aria-label="Refresh files">
             <ArrowClockwiseIcon size={16} aria-hidden />
           </button>
         </div>
@@ -241,7 +241,7 @@ export function FilesPanel({ client, sessionId, canWrite, readReason }: { client
             {dirty ? <span className="ml-2 font-sans text-xs text-approval">Unsaved</span> : null}
           </span>
           {open && canWrite ? (
-            <button type="button" onClick={() => void save()} disabled={!dirty} className={buttonClasses("secondary", "sm", "h-9")}>
+            <button type="button" onClick={() => void save()} disabled={!dirty} className={buttonClasses("secondary", "sm")}>
               <FloppyDiskIcon size={16} aria-hidden /> Save
             </button>
           ) : null}
