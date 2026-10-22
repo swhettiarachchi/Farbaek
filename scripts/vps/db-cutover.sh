@@ -25,11 +25,14 @@ main() {
   fi
 
   step "The address the app will use"
-  if ! curl -fsS -o /dev/null --max-time 10 "$API_URL/auth/v1/health"; then
+  # Any HTTP answer over valid HTTPS will do: without a key the gateway rightly says 401.
+  local code
+  code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$API_URL/auth/v1/health" 2>/dev/null || true)
+  if [ -z "$code" ] || [ "$code" = 000 ]; then
     echo "$API_URL doesn't answer over HTTPS yet (DNS or its certificate). Not switching."
     exit 1
   fi
-  echo "$API_URL answers"
+  echo "$API_URL answers over HTTPS ($code)"
 
   step "Row counts: Supabase Cloud against this server"
   farbaek-db-move --count
