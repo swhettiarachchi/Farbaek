@@ -57,9 +57,19 @@ main() {
     fi
 
     step "Restore into the self-hosted database"
+    # Supabase Storage is off here (Farbaek doesn't use it), so its tables don't exist. Their COPY
+    # blocks are left out, as Supabase's guide does for missing tables, but only while they're empty.
+    local storage_rows
+    storage_rows=$(awk '/^COPY "?storage"?\./ { skip = 1; next } skip && /^\\\.$/ { skip = 0; next } skip { n++ } END { print n + 0 }' "$work/data.sql")
+    if [ "$storage_rows" != 0 ]; then
+      echo "Supabase Storage holds $storage_rows rows in the cloud, and Storage is off here. Stopping so nothing is lost."
+      exit 1
+    fi
+    awk '/^COPY "?storage"?\./ { skip = 1; next } skip && /^\\\.$/ { skip = 0; next } !skip' "$work/data.sql" >"$work/data.farbaek.sql"
+
     # Supabase Cloud's roles dump grants a setting to its Realtime service's reserved role. Realtime
     # is off here and only a superuser may touch that role, so those lines are left out.
-    { grep -v 'supabase_realtime_admin' "$work/roles.sql"; cat "$work/schema.sql"; echo "SET session_replication_role = replica;"; cat "$work/data.sql"; } |
+    { grep -v 'supabase_realtime_admin' "$work/roles.sql"; cat "$work/schema.sql"; echo "SET session_replication_role = replica;"; cat "$work/data.farbaek.sql"; } |
       docker exec -i supabase-db psql -h localhost -U postgres -d postgres --single-transaction -v ON_ERROR_STOP=1 -q >"$work/restore.log" 2>&1 ||
       { echo "The restore failed and was rolled back. The first errors:"; grep -m 5 ERROR "$work/restore.log"; exit 1; }
     echo "restored"
