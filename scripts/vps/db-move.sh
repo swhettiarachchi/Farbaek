@@ -57,7 +57,9 @@ main() {
     fi
 
     step "Restore into the self-hosted database"
-    { cat "$work/roles.sql" "$work/schema.sql"; echo "SET session_replication_role = replica;"; cat "$work/data.sql"; } |
+    # Supabase Cloud's schema refers to Realtime's role; Realtime is off here, so the role is made first, as Supabase's own setup makes it.
+    { echo 'DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '"'supabase_realtime_admin'"') THEN CREATE ROLE supabase_realtime_admin NOINHERIT NOLOGIN NOREPLICATION; END IF; END $$;'
+      cat "$work/roles.sql" "$work/schema.sql"; echo "SET session_replication_role = replica;"; cat "$work/data.sql"; } |
       docker exec -i supabase-db psql -h localhost -U postgres -d postgres --single-transaction -v ON_ERROR_STOP=1 -q >"$work/restore.log" 2>&1 ||
       { echo "The restore failed and was rolled back. The first errors:"; grep -m 5 ERROR "$work/restore.log"; exit 1; }
     echo "restored"
