@@ -13,6 +13,18 @@ www.farbaek.com, officespace.farbaek.com {
 	}
 }
 
+# Farbaek's own Supabase (ADR 0036). Only the two public API paths are
+# forwarded; Studio and everything else behind the gateway stay private.
+api.farbaek.com {
+	@api path /auth/v1/* /rest/v1/*
+	handle @api {
+		reverse_proxy supabase-gw:8000
+	}
+	handle {
+		respond "Not found" 404
+	}
+}
+
 # Published sites and previews on farbaek.si need a wildcard certificate,
 # which needs DNS-01. That arrives with the Cloudflare build of Caddy
 # (docs/deploy/vps.md, "farbaek.si").
