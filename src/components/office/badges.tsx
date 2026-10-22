@@ -1,5 +1,6 @@
 import { ShieldCheckIcon, UserCircleIcon } from "@phosphor-icons/react/ssr";
 import { ROLE_LABELS, type StaffRole } from "@/core/office/permissions";
+import { deploymentInfo } from "@/server/deployment";
 
 /**
  * Which deployment this is, impossible to miss: a label, an icon and a
@@ -28,7 +29,7 @@ export function RoleBadge({ role }: { role: StaffRole }) {
 }
 
 export function deploymentName(env: Record<string, string | undefined> = process.env): string {
-  const name = env.RAILWAY_ENVIRONMENT_NAME?.trim();
+  const name = deploymentInfo(env).environment;
   if (name) return name.charAt(0).toUpperCase() + name.slice(1);
   return env.NODE_ENV === "production" ? "Production build" : "Local";
 }

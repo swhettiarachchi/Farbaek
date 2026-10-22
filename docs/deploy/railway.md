@@ -1,4 +1,6 @@
-# Deploying Farbaek on Railway
+# Deploying Farbaek on Railway (retired)
+
+> **Retired on 2026-10-22.** Farbaek now runs on the owner's VPS: see `docs/deploy/vps.md` and ADR 0035. Railway leaked customers' environment variables on 2026-10-21 (`docs/security/incident-2026-10-21-railway.md`). This page is kept as a record.
 
 Farbaek runs as one long-lived Node server: cloud agent runs live in the server process (ADR 0022), so serverless hosts with short time limits don't fit. Railway's Hobby plan does.
 

@@ -1,0 +1,22 @@
+# Only what the server build needs goes into the image (Dockerfile, ADR 0035).
+# Env files never do: production values come in as a build secret and env_file.
+.env*
+!.env.example
+*.pem
+*.key
+
+.git
+node_modules
+.next
+*.tsbuildinfo
+
+.agents
+.claude
+desktop
+docs
+reports
+research_notes
+supabase
+tests
+coverage
+films-stills

@@ -1,0 +1,5 @@
+# Files that run on the Linux VPS keep Unix line endings on every checkout,
+# including Windows ones with core.autocrlf (ADR 0035).
+*.sh text eol=lf
+Dockerfile text eol=lf
+deploy/** text eol=lf

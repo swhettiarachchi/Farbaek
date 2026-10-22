@@ -9,6 +9,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { currentGrant, walletView } from "@/core/billing/wallet";
 import { resolveAiProvider } from "@/server/ai/config";
+import { deploymentInfo } from "@/server/deployment";
 import { sandboxExecutionMode } from "@/server/sandbox/registry";
 import { hasServerWriteKey } from "@/server/supabase/admin";
 import { ORGANIZATION_SELECT, summarizeOrganizations, type WorkspaceSummary } from "@/server/workspace/organizations";
@@ -243,9 +244,11 @@ export function deploymentConnections(env: Record<string, string | undefined> = 
   ];
 }
 
-/** Which build this is: the Railway commit when deployed there, otherwise local. */
+/** Which build this is: the host and commit when deployed, otherwise local. */
 export function deploymentLabel(env: Record<string, string | undefined> = process.env): string {
-  const sha = env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7);
-  const where = env.RAILWAY_ENVIRONMENT_NAME ? `Railway ${env.RAILWAY_ENVIRONMENT_NAME.slice(0, 30)}` : "Local";
+  const info = deploymentInfo(env);
+  const sha = info.commit?.slice(0, 7);
+  const host = info.host === "vps" ? "VPS" : info.host === "railway" ? "Railway" : null;
+  const where = host ? `${host} ${(info.environment ?? "").slice(0, 30)}`.trim() : "Local";
   return sha ? `${where} · ${sha}` : where;
 }
