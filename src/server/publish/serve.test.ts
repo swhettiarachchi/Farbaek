@@ -57,6 +57,9 @@ describe("serving published sites", () => {
     expect(home.headers.get("content-type")).toContain("text/html");
     expect(home.headers.get("x-content-type-options")).toBe("nosniff");
     expect(home.headers.get("set-cookie")).toBeNull();
+    // Names the live version for Farbaek's live check (ADR 0033).
+    expect(home.headers.get("x-farbaek-deployment")).toBe("d1");
+    expect(home.headers.get("etag")).toMatch(/^"[0-9a-f]+"$/);
     expect(await (await get("sunrise-bakery.farbaek.si", "/about")).text()).toBe("<h1>About</h1>");
     expect((await get("sunrise-bakery.farbaek.si", "/styles.css")).headers.get("content-type")).toContain("text/css");
     expect((await get("sunrise-bakery.farbaek.si", "/missing")).status).toBe(404);

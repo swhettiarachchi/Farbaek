@@ -5,6 +5,7 @@
  * must not share an origin with Farbaek. Reads only, no cookies, nothing
  * forwarded.
  */
+import { DEPLOYMENT_HEADER } from "@/core/launch/health";
 import { SITE_ROUTE, siteNameFromHost, type PublishedFile } from "@/core/publish/site";
 import { contentTypeFor, staticCandidates } from "@/server/sandbox/gateway";
 
@@ -55,7 +56,8 @@ export async function handleSiteRequest(request: Request, deps: SiteServeDeps): 
     const file = byPath.get(candidate);
     if (!file) continue;
     const etag = `"${file.sha256}"`;
-    const headers = { ...BASE_HEADERS, "content-type": contentTypeFor(candidate), "cache-control": "public, max-age=30, must-revalidate", etag };
+    // The deployment id lets Farbaek's live check confirm exactly which version is answering (ADR 0033). It isn't a secret.
+    const headers = { ...BASE_HEADERS, "content-type": contentTypeFor(candidate), "cache-control": "public, max-age=30, must-revalidate", etag, [DEPLOYMENT_HEADER]: site.deploymentId };
     if (request.headers.get("if-none-match") === etag) return new Response(null, { status: 304, headers });
     const content = await deps.content(site.projectId, file.path, file.revision);
     if (content === null) continue;

@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, ArrowRightIcon, DownloadSimpleIcon, EyeIcon, FolderOpenIcon, ListChecksIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, ArrowRightIcon, DownloadSimpleIcon, EyeIcon, FolderOpenIcon, ListChecksIcon, RocketLaunchIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -58,7 +58,15 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
           <ArrowLeftIcon size={14} aria-hidden /> Projects
         </Link>
         <div className="mt-3">
-          <PageHeader title={project.name} description={project.description ?? undefined} />
+          <PageHeader
+            title={project.name}
+            description={project.description ?? undefined}
+            actions={
+              <Link href={`/app/projects/${project.id}/launch`} className={buttonClasses("secondary", "sm")}>
+                <RocketLaunchIcon size={16} aria-hidden /> Launch plan
+              </Link>
+            }
+          />
         </div>
       </div>
 

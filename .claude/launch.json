@@ -46,6 +46,28 @@
         "scripts/start-demo.mjs"
       ],
       "port": 3000
+    },
+    {
+      "name": "farbaek-films",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "dev"
+      ],
+      "env": {
+        "FARBAEK_FILM_STAGE": "1"
+      },
+      "port": 3000
+    },
+    {
+      "name": "farbaek-films-prod",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "start"
+      ],
+      "env": {
+        "FARBAEK_FILM_STAGE": "1"
+      },
+      "port": 3000
     }
   ]
 }

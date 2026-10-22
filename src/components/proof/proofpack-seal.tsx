@@ -17,7 +17,7 @@ export function ProofPackSeal({
   caption: string;
   size?: number;
   className?: string;
-  /** "media" for dark media panels such as the concept film. */
+  /** "media" for dark media panels such as the evidence terminal. */
   tone?: "page" | "media";
   /** Keeps SVG ids unique when the same digest is drawn twice on a page. */
   idSuffix?: string;
