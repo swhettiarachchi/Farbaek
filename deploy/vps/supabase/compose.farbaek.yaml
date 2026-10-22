@@ -1,0 +1,40 @@
+# Farbaek's changes to Supabase's official self-hosting compose (ADR 0036).
+# The official files stay untouched at a pinned commit in
+# /opt/farbaek/supabase/docker; COMPOSE_FILE in its .env lists this file
+# after theirs, so every `docker compose` there applies it.
+#
+# - Only what Farbaek uses runs: Postgres, Auth, PostgREST, the gateway,
+#   postgres-meta and Studio. Realtime, Storage, imgproxy, Edge Functions and
+#   Supavisor are switched off.
+# - Nothing is published to the internet. Docker's published ports bypass
+#   ufw, so the gateway's 8000 is removed: Caddy reaches it on Farbaek's
+#   network and forwards only /auth/v1 and /rest/v1. Studio listens on the
+#   server's loopback only, for an SSH tunnel.
+
+services:
+  realtime:
+    profiles: ["off"]
+  storage:
+    profiles: ["off"]
+  imgproxy:
+    profiles: ["off"]
+  functions:
+    profiles: ["off"]
+  supavisor:
+    profiles: ["off"]
+
+  api-gw:
+    ports: !reset []
+    networks:
+      farbaek:
+        aliases:
+          - supabase-gw
+
+  studio:
+    ports:
+      - "127.0.0.1:54323:3000"
+
+networks:
+  farbaek:
+    external: true
+    name: farbaek_default

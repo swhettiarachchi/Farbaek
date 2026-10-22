@@ -1,0 +1,8 @@
+[Unit]
+Description=Check that Farbaek's newest backup restores (scripts/vps/db-restore-test.sh)
+After=docker.service
+
+[Service]
+Type=oneshot
+User=farbaek
+ExecStart=/usr/local/bin/farbaek-db-restore-test

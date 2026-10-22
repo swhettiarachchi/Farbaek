@@ -1,0 +1,8 @@
+[Unit]
+Description=Back up Farbaek's database (scripts/vps/db-backup.sh)
+After=docker.service
+
+[Service]
+Type=oneshot
+User=farbaek
+ExecStart=/usr/local/bin/farbaek-db-backup
