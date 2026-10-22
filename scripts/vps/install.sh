@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Installs Farbaek's deploy tools from the checkout at /opt/farbaek/app
-# (ADR 0035): the deploy and sweep commands, and their systemd timers. Run as
+# (ADR 0035): the deploy, sweep and set-env commands, and the systemd timers. Run as
 # root after bootstrap.sh and the first clone, and again whenever these files
 # change. Safe to run again.
 set -euo pipefail
@@ -12,6 +12,7 @@ main() {
 
   install -m 755 "$app/scripts/vps/deploy.sh" /usr/local/bin/farbaek-deploy
   install -m 755 "$app/scripts/vps/sweep.sh" /usr/local/bin/farbaek-sweep
+  install -m 755 "$app/scripts/vps/set-env.sh" /usr/local/bin/farbaek-set-env
   install -m 644 "$app"/deploy/vps/systemd/farbaek-*.service "$app"/deploy/vps/systemd/farbaek-*.timer /etc/systemd/system/
   if [ ! -f /opt/farbaek/env/production.env ]; then
     install -m 600 -o farbaek -g farbaek "$app/deploy/vps/production.env.example" /opt/farbaek/env/production.env
