@@ -268,9 +268,10 @@ export class IncomingTransfer {
       this.set("finishing");
       for (const [f, entry] of this.manifest.files.entries()) await this.folder!.moveNew(`${this.temp}/${f}.part`, entry.path);
       await fs.rm(path.join(this.destination!, INCOMING), { recursive: true, force: true });
-      await channel.send({ t: "verified", files: this.manifest.totals.files, bytes: this.manifest.totals.bytes });
-      channel.close();
+      // Done once the files are in place; a lost "verified" can't undo that, and a resume just hears it again.
       this.set("done", `Every file matched its hash. Saved in ${this.destination}.`);
+      await channel.send({ t: "verified", files: this.manifest.totals.files, bytes: this.manifest.totals.bytes }).catch(() => undefined);
+      channel.close();
     } catch (error) {
       await current?.handle.close().catch(() => undefined);
       if (!dropped(error)) {

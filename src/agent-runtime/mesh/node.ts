@@ -357,6 +357,12 @@ export class MeshNode {
       try {
         const manifest = await readOffer(channel, first);
         if (existing.digest !== first.digest || manifest.id !== existing.manifest.id || !channel.peer.publicKey.equals(existing.peerKey)) throw new OfferError("That isn't the transfer it claims to resume.");
+        if (existing.state === "done") {
+          // Finished here already; the sender only missed the verdict.
+          await channel.send({ t: "verified", files: manifest.totals.files, bytes: manifest.totals.bytes }).catch(() => undefined);
+          channel.close();
+          return;
+        }
         await existing.reattach(channel);
       } catch (error) {
         await channel.send({ t: "error", code: "bad_offer", message: error instanceof OfferError ? error.message : "That transfer can't be resumed." }).catch(() => undefined);

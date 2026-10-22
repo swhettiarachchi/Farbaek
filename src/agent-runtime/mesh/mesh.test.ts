@@ -267,6 +267,31 @@ describe("nearby transfer between two agents", { timeout: 30_000 }, () => {
     expect(Buffer.compare(await fs.readFile(path.join(dest, "assets", "big.bin")), big)).toBe(0);
   });
 
+  it("keeps a finished transfer when the verdict is lost, and tells the sender again when it resumes", async () => {
+    const { a, b, port } = await paired();
+    const { root, big } = await sourceFolder();
+    const parent = await tmp("dest");
+    const send = SecureChannel.prototype.send;
+    let dropped = false;
+    vi.spyOn(SecureChannel.prototype, "send").mockImplementation(function (this: SecureChannel, message, body) {
+      if (message.t === "verified" && !dropped) {
+        dropped = true;
+        this.close();
+        return Promise.reject(new Error("lost"));
+      }
+      return send.call(this, message, body);
+    });
+    const { outId, inId } = await offerTo(a, b, port, root);
+    await b.accept(inId, parent);
+    await until(() => stateOf(b, inId) === "done" && stateOf(a, outId) === "interrupted");
+    const dest = b.snapshot().transfers.find((t) => t.id === inId)!.destination!;
+    expect(Buffer.compare(await fs.readFile(path.join(dest, "assets", "big.bin")), big)).toBe(0);
+
+    await a.resume(outId);
+    await until(() => stateOf(a, outId) === "done");
+    expect(Buffer.compare(await fs.readFile(path.join(dest, "assets", "big.bin")), big)).toBe(0);
+  });
+
   it("stops and removes everything when a chunk doesn't match its hash", async () => {
     const { a, b, port } = await paired();
     const { root } = await sourceFolder();

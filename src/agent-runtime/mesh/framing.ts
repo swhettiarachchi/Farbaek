@@ -30,6 +30,8 @@ export class FramedSocket {
   private readonly frames: Buffer[] = [];
   private readonly waiters: Waiter[] = [];
   private failure: Error | null = null;
+  /** Set when this side closes: it stops reading at once, even while the other side's messages are still arriving. */
+  private closedHere = false;
   private paused = false;
 
   constructor(readonly socket: Socket) {
@@ -40,7 +42,7 @@ export class FramedSocket {
   }
 
   get closed(): boolean {
-    return this.failure !== null;
+    return this.closedHere || this.failure !== null;
   }
 
   private onData(chunk: Buffer): void {
@@ -75,6 +77,8 @@ export class FramedSocket {
 
   /** The next message, waiting at most `timeoutMs` when given. */
   read(timeoutMs?: number): Promise<Buffer> {
+    if (this.closedHere) return Promise.reject(new FrameError("The connection closed."));
+    // After the other side closes, what it sent first can still be read.
     const next = this.frames.shift();
     if (this.paused && this.frames.length < HIGH_WATER / 2) {
       this.paused = false;
@@ -97,6 +101,7 @@ export class FramedSocket {
 
   /** Sends one message, waiting while the socket's buffer is full. */
   async write(frame: Uint8Array): Promise<void> {
+    if (this.closedHere) throw new FrameError("The connection closed.");
     if (this.failure) throw this.failure;
     if (frame.length > MAX_MESSAGE) throw new FrameError("A message was larger than 65,535 bytes.");
     const header = Buffer.alloc(2);
@@ -121,6 +126,14 @@ export class FramedSocket {
 
   /** Closes after flushing what was already written (a last error or verdict), then makes sure the socket is gone. */
   close(): void {
+    if (!this.closedHere) {
+      this.closedHere = true;
+      this.frames.length = 0;
+      for (const waiter of this.waiters.splice(0)) {
+        if (waiter.timer) clearTimeout(waiter.timer);
+        waiter.reject(new FrameError("The connection closed."));
+      }
+    }
     if (this.socket.destroyed) return;
     this.socket.end();
     setTimeout(() => this.socket.destroy(), 1_000).unref();

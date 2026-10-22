@@ -109,6 +109,13 @@ export class OutgoingTransfer {
         this.set("failed", `${this.device.name}: ${message.message}`);
         return;
       }
+      if (message.t === "verified") {
+        // A resume of a transfer the other computer had already finished and checked.
+        channel.close();
+        this.bytesDone = this.packed.manifest.totals.bytes;
+        this.set("done", `Delivered. ${this.device.name} had already checked every file against its hash.`);
+        return;
+      }
       if (message.t !== "accept") throw new ChannelError("The other computer answered out of order.");
       const parsed = ResumeSchema.safeParse(JSON.parse((await channel.receiveBlob(message.size, OFFER_TIMEOUT_MS)).toString("utf8")));
       if (!parsed.success) throw new ChannelError("The other computer's answer wasn't readable.");
