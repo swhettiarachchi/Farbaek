@@ -23,6 +23,11 @@ services:
   supavisor:
     profiles: ["off"]
 
+  # The same Auth version as the Supabase Cloud project the data comes from
+  # (2.197.0, released 2026-09-09), so auth's tables have the same columns.
+  auth:
+    image: supabase/gotrue:v2.197.0
+
   api-gw:
     ports: !reset []
     networks:
