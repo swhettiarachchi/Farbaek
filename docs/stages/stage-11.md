@@ -46,6 +46,8 @@ The owner asked to keep building the platform. The next unbuilt stage in the spe
   - the demo can't import and says why; the phone tab bar keeps five slots, with Mesh under More;
   - no horizontal scroll at 375px. A 4px overflow of the per-file switch (a fieldset's default minimum width) was found and fixed.
 
+**Production database:** migration v25 applied to the self-hosted database on 2026-10-22 (SHA-256 `677c305f…697a1be` matched on both ends; one transaction with `ON_ERROR_STOP`). Read-only checks afterwards: the table exists with RLS on and one policy (members read their workspace's Capsules), 0 rows; `app_record_capsule` runs for `service_role` only, not `anon` or `authenticated`; `anon` can't select and `authenticated` can't insert. The API's schema cache was reloaded.
+
 ### Next
 
 - Phase B: nearby transfer between Farbaek Agents (discovery, pairing with a short code, an encrypted channel, chunked sending with per-chunk checks). It needs its own plan.
