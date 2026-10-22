@@ -64,3 +64,9 @@ Reads leave no rows, so this can't rule out data being read. The Supabase reques
    - the Supabase request logs for the secret key used from addresses other than Railway's.
 3. **When Railway restores deploys:** redeploy, then confirm sign-in, a build and a publish work with the new keys.
 4. Record each rotation here with its date, never the value.
+
+## Rotations
+
+| Date | Key | Done by | Checked |
+| --- | --- | --- | --- |
+| 2026-10-22 | `SUPABASE_SECRET_KEY`: new key `railway_server_2026_10_22`, old key deleted | Owner | Supabase accepts the new key for auth admin and database requests (200), checked from `.env.local` by a script that prints only results. Railway's value waits for deploys |
