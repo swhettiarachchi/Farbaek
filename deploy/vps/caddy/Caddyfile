@@ -1,0 +1,30 @@
+# Farbaek's front door on the VPS (ADR 0035). Caddy gets and renews each
+# certificate itself. The Host header passes through untouched, so
+# src/proxy.ts decides what every name serves, exactly as before.
+{
+	email hello@farbaek.com
+}
+
+www.farbaek.com, officespace.farbaek.com {
+	reverse_proxy app:3000 {
+		# While a deploy swaps the app container, hold requests for a moment instead of failing them.
+		lb_try_duration 20s
+		lb_try_interval 500ms
+	}
+}
+
+# Farbaek's own Supabase (ADR 0036). Only the two public API paths are
+# forwarded; Studio and everything else behind the gateway stay private.
+api.farbaek.com {
+	@api path /auth/v1/* /rest/v1/*
+	handle @api {
+		reverse_proxy supabase-gw:8000
+	}
+	handle {
+		respond "Not found" 404
+	}
+}
+
+# Published sites and previews on farbaek.si need a wildcard certificate,
+# which needs DNS-01. That arrives with the Cloudflare build of Caddy
+# (docs/deploy/vps.md, "farbaek.si").
