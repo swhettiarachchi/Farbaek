@@ -4,7 +4,7 @@
  * page, and the main process validates every call again.
  */
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
-import type { FarbaekAgentBridge, RunDetail } from "../shared/api";
+import type { FarbaekAgentBridge, MeshSnapshot, RunDetail } from "../shared/api";
 
 const invoke = (channel: string, input?: unknown) => ipcRenderer.invoke(channel, input);
 
@@ -27,6 +27,29 @@ const bridge: FarbaekAgentBridge = {
     const wrapped = (_event: IpcRendererEvent, run: RunDetail) => listener(run);
     ipcRenderer.on("runs:update", wrapped);
     return () => ipcRenderer.removeListener("runs:update", wrapped);
+  },
+  mesh: {
+    state: () => invoke("mesh:state"),
+    setVisible: (on) => invoke("mesh:visible", on),
+    setLooking: (on) => invoke("mesh:look", on),
+    pair: (at) => invoke("mesh:pair", at),
+    confirm: (ok) => invoke("mesh:confirm", ok),
+    dismissPairing: () => invoke("mesh:dismiss-pairing"),
+    forget: (fingerprint) => invoke("mesh:forget", fingerprint),
+    prepare: () => invoke("mesh:prepare"),
+    dropPrepared: (id) => invoke("mesh:drop-prepared", id),
+    send: (input) => invoke("mesh:send", input),
+    accept: (id) => invoke("mesh:accept", id),
+    decline: (id) => invoke("mesh:decline", id),
+    cancel: (id) => invoke("mesh:cancel", id),
+    resume: (id) => invoke("mesh:resume", id),
+    dismiss: (id) => invoke("mesh:dismiss", id),
+    openFolder: (id) => invoke("mesh:open-folder", id),
+    onUpdate(listener) {
+      const wrapped = (_event: IpcRendererEvent, snapshot: MeshSnapshot) => listener(snapshot);
+      ipcRenderer.on("mesh:update", wrapped);
+      return () => ipcRenderer.removeListener("mesh:update", wrapped);
+    },
   },
 };
 

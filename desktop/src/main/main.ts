@@ -21,6 +21,7 @@ import { AGENT_MODES } from "@/core/agent/modes";
 import { EFFORTS } from "@/core/agent/routing";
 import { FarbaekAgentClient, FarbaekApiError, checkServerUrl, pairWithFarbaek } from "@/agent-runtime/farbaek-client";
 import type { AppState, Result, RunDetail } from "../shared/api";
+import { DesktopMesh } from "./mesh";
 import { RunError, RunManager } from "./runs";
 import { SecretStore } from "./secrets";
 
@@ -41,6 +42,12 @@ let settings: Settings = { paired: null };
 const dataDir = () => app.getPath("userData");
 const secrets = () => new SecretStore(path.join(dataDir(), "secrets"));
 let runs: RunManager;
+const mesh = new DesktopMesh({
+  dataDir: dataDir(),
+  secrets: () => secrets(),
+  name: () => settings.paired?.agentName ?? os.hostname().slice(0, 60),
+  window: () => window,
+});
 
 async function loadSettings(): Promise<void> {
   try {
@@ -177,6 +184,8 @@ function registerHandlers(): void {
   handle("runs:submit", Id, (id) => attempt(async () => runs.submit(id, await client())));
   handle("runs:discard", Id, async (id) => runs.discard(id));
 
+  mesh.register(handle);
+
   handle("app:open-task", Id, async (taskId) => {
     if (!settings.paired) return;
     // Only the Farbaek server this computer is paired with, over the checked origin.
@@ -231,6 +240,7 @@ app.on("second-instance", () => {
 app.on("before-quit", () => {
   // Stops anything a run started; the next launch shows those runs as interrupted.
   runs?.abortAll();
+  void mesh.close();
 });
 
 app.on("window-all-closed", () => app.quit());

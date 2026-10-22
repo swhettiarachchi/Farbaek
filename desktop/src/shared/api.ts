@@ -8,8 +8,12 @@ import type { AgentMode } from "@/core/agent/modes";
 import type { RunState } from "@/core/agent/operations";
 import type { ApprovalRequest } from "@/agent-runtime/loop";
 import type { Effort } from "@/core/agent/routing";
+import type { MeshSnapshot, PreparedView } from "@/agent-runtime/mesh/node";
 
-export type { Effort };
+export type { Effort, MeshSnapshot, PreparedView };
+
+/** Nearby transfer, or why it can't run on this computer. */
+export type MeshState = { available: true; snapshot: MeshSnapshot } | { available: false; reason: string };
 export type Result<T> = { ok: true; value: T } | { ok: false; message: string };
 
 export interface AppState {
@@ -102,6 +106,28 @@ export interface FarbaekAgentBridge {
   discardRun(runId: string): Promise<void>;
   openTaskInFarbaek(taskId: string): Promise<void>;
   onRunUpdate(listener: (run: RunDetail) => void): () => void;
+
+  mesh: {
+    state(): Promise<MeshState>;
+    setVisible(on: boolean): Promise<Result<void>>;
+    setLooking(on: boolean): Promise<Result<void>>;
+    pair(at: { address: string; port: number }): Promise<Result<void>>;
+    confirm(ok: boolean): Promise<Result<void>>;
+    dismissPairing(): Promise<Result<void>>;
+    forget(fingerprint: string): Promise<Result<void>>;
+    /** Opens the folder dialog; null when the person cancels it. */
+    prepare(): Promise<Result<PreparedView | null>>;
+    dropPrepared(id: string): Promise<Result<void>>;
+    send(input: { preparedId: string; fingerprint: string; at?: { address: string; port: number } }): Promise<Result<string>>;
+    /** Opens the folder dialog for where to save it; false when the person cancels it. */
+    accept(id: string): Promise<Result<boolean>>;
+    decline(id: string): Promise<Result<void>>;
+    cancel(id: string): Promise<Result<void>>;
+    resume(id: string): Promise<Result<void>>;
+    dismiss(id: string): Promise<Result<void>>;
+    openFolder(id: string): Promise<Result<void>>;
+    onUpdate(listener: (snapshot: MeshSnapshot) => void): () => void;
+  };
 }
 
 declare global {

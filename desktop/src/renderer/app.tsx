@@ -1,6 +1,7 @@
 import {
   ArrowClockwiseIcon,
   ArrowSquareOutIcon,
+  BroadcastIcon,
   CheckCircleIcon,
   CircleNotchIcon,
   ClockCounterClockwiseIcon,
@@ -25,9 +26,10 @@ import { COMMAND_RISK_LABELS, type CommandRisk } from "@/core/agent/commands";
 import type { RunState } from "@/core/agent/operations";
 import { EFFORTS, EFFORT_LABELS, type Effort } from "@/core/agent/routing";
 import type { AppState, Profile, RunDetail, RunSummary, TaskSummary, TaskView } from "../shared/api";
+import { NearbyView } from "./nearby";
 
 const api = window.farbaek;
-type View = "tasks" | "runs" | "settings";
+type View = "tasks" | "runs" | "nearby" | "settings";
 
 const STATE: Record<RunState, { label: string; icon: Icon; tone: string }> = {
   planned: { label: "Planned", icon: HourglassMediumIcon, tone: "info" },
@@ -73,7 +75,7 @@ function Alert({ children }: { children: ReactNode }) {
 
 /* ------------------------------------------------------------------ pairing */
 
-function PairScreen({ state, onPaired }: { state: AppState; onPaired: (s: AppState) => void }) {
+function PairScreen({ state, onPaired, onNearby }: { state: AppState; onPaired: (s: AppState) => void; onNearby: () => void }) {
   const [server, setServer] = useState("");
   const [code, setCode] = useState("");
   const [name, setName] = useState(state.computerName);
@@ -115,6 +117,12 @@ function PairScreen({ state, onPaired }: { state: AppState; onPaired: (s: AppSta
         <button className="btn btn-primary" type="submit" disabled={busy || !state.keychain.available}>
           {busy ? "Pairing…" : "Pair"}
         </button>
+        <p className="small muted pair-alt">
+          Only moving files between your computers?{" "}
+          <button className="link-button" type="button" onClick={onNearby}>
+            Use Nearby without pairing
+          </button>
+        </p>
       </form>
     </main>
   );
@@ -623,6 +631,7 @@ function SettingsView({ state, onState }: { state: AppState; onState: (s: AppSta
 const NAV: { id: View; label: string; icon: Icon }[] = [
   { id: "tasks", label: "Tasks", icon: ListChecksIcon },
   { id: "runs", label: "Runs", icon: ClockCounterClockwiseIcon },
+  { id: "nearby", label: "Nearby", icon: BroadcastIcon },
   { id: "settings", label: "Settings", icon: GearSixIcon },
 ];
 
@@ -631,6 +640,7 @@ export function App() {
   const [view, setView] = useState<View>("tasks");
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [selectedRun, setSelectedRun] = useState<string | null>(null);
+  const [nearbyOnly, setNearbyOnly] = useState(false);
 
   useEffect(() => {
     void api.state().then(setState);
@@ -639,7 +649,20 @@ export function App() {
   }, []);
 
   if (!state) return <main className="pair muted">Loading…</main>;
-  if (!state.paired) return <PairScreen state={state} onPaired={setState} />;
+  if (!state.paired && nearbyOnly) {
+    return (
+      <main className="content solo">
+        <NearbyView
+          intro={
+            <button className="link-button" type="button" onClick={() => setNearbyOnly(false)}>
+              Pair this computer with Farbaek instead
+            </button>
+          }
+        />
+      </main>
+    );
+  }
+  if (!state.paired) return <PairScreen state={state} onPaired={setState} onNearby={() => setNearbyOnly(true)} />;
   const waiting = runs.filter((r) => r.state === "running").length;
 
   return (
@@ -676,6 +699,8 @@ export function App() {
           />
         ) : view === "runs" ? (
           <RunsView runs={runs} selected={selectedRun} onSelect={setSelectedRun} />
+        ) : view === "nearby" ? (
+          <NearbyView />
         ) : (
           <SettingsView state={state} onState={setState} />
         )}

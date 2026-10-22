@@ -33,6 +33,24 @@ Writes must stay inside the contract's paths and allowed operations, and are ref
 - **Revoking:** from Agents in Farbaek (owners, admins, or the person who paired it), or Settings → Unpair in the app. A revoked token stops working on the next request, and the app forgets it.
 - If the system keychain isn't available (for example Linux without a running keyring), the app refuses to store anything secret.
 
+## Nearby: folders between your computers
+
+Nearby (Mesh phase B, ADR 0038) sends a folder straight to another computer on the same network, with no Farbaek account needed and nothing passing through Farbaek's servers.
+
+1. **Be visible.** On the receiving computer, open Nearby and choose **Be visible**. It lasts five minutes. Windows may ask to allow Farbaek Agent on private networks the first time.
+2. **Pair, once.**
+   - On the sending computer, choose **Look for computers**, then **Pair**.
+   - Both screens show a six-digit code. Confirm on both only if the codes match. A different code means something is between the two computers.
+   - If the network hides computers from each other, use **Connect by address** with the address and port the visible computer shows.
+3. **Send.** Choose a folder and see what's included and what stays behind (credentials, `.env` files, keys, dependency folders, secret-looking text; detection isn't guaranteed), then choose the paired computer.
+4. **Accept.** The receiving computer shows the offer. Accept and choose where it goes: it's saved into a new folder there.
+
+Every 4 MiB piece is checked against its BLAKE3 hash as it arrives, and the sender shows "Delivered" only after the receiver has checked every file. If the connection drops, **Resume** carries on from the last checked piece. **Forget** a paired computer to stop it sending to or receiving from this one. Nothing received is ever run.
+
+**Checked so far:** two agents on one computer. Transfer between two physical computers on a real network is still to be checked.
+
+To check Nearby by script, run two windows with separate scratch data folders (`FARBAEK_AGENT_DATA_DIR`) and the development-only folder overrides `FARBAEK_AGENT_TEST_SEND_FOLDER` and `FARBAEK_AGENT_TEST_SAVE_FOLDER`, which packaged builds ignore.
+
 ## Building
 
 ```bash
@@ -88,4 +106,6 @@ Runs the whole platform path against a running server with a scripted stand-in f
 | `src/server/agent/`, `src/app/api/v1/agent/` | The agent API, and the model gateway (`gateway.ts`) |
 | `src/core/agent/routing.ts` | Auto routing: the model for each plan and effort |
 | `supabase/migrations/20261018150000_agents.sql` | Agents, pairing codes, agent proposals |
+| `src/agent-runtime/mesh/` | Nearby: Noise XX (`noise.ts`), framing, the secure channel, discovery, device identity, packing, sending, receiving, `MeshNode` |
+| `src/core/mesh/` | The Capsule format and checks, and the `farbaek-mesh/1` messages and limits |
 | `desktop/` | The Electron app: main process, preload bridge, window, build and installer config |

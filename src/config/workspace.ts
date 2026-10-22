@@ -14,3 +14,14 @@ export const WORKSPACE_LIMITS = {
   /** Most files in one project. */
   maxProjectFiles: 3_000,
 } as const;
+
+/**
+ * What a Workspace Capsule may hold when it's opened (ADR 0037). The browser
+ * preview and the server use the same numbers; the server action body limit
+ * in next.config.ts sits just above maxTotalBytes.
+ */
+export const CAPSULE_LIMITS = {
+  maxFileBytes: WORKSPACE_LIMITS.maxFileBytes,
+  maxFiles: WORKSPACE_LIMITS.maxProjectFiles,
+  maxTotalBytes: 5 * 1024 * 1024,
+} as const;
