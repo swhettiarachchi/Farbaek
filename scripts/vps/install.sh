@@ -23,7 +23,7 @@ main() {
   if [ "${1:-}" = "--enable-timers" ]; then
     systemctl enable --now farbaek-deploy.timer farbaek-sweep.timer
   fi
-  echo "Installed. Timers: $(systemctl is-enabled farbaek-deploy.timer 2>/dev/null || echo off) (deploy), $(systemctl is-enabled farbaek-sweep.timer 2>/dev/null || echo off) (sweep)."
+  echo "Installed. Timers: deploy $(systemctl is-enabled farbaek-deploy.timer 2>/dev/null || true), sweep $(systemctl is-enabled farbaek-sweep.timer 2>/dev/null || true)."
 }
 
 main "$@"

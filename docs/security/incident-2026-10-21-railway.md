@@ -69,4 +69,10 @@ Reads leave no rows, so this can't rule out data being read. The Supabase reques
 
 | Date | Key | Done by | Checked |
 | --- | --- | --- | --- |
-| 2026-10-22 | `SUPABASE_SECRET_KEY`: new key `railway_server_2026_10_22`, old key deleted | Owner | Supabase accepts the new key for auth admin and database requests (200), checked from `.env.local` by a script that prints only results. Railway's value waits for deploys |
+| 2026-10-22 | `SUPABASE_SECRET_KEY`: new key `railway_server_2026_10_22`, old key `default` deleted | Owner | Supabase accepts the new key for auth admin and database requests (200), checked from `.env.local` by a script that prints only results |
+| 2026-10-22 | `SUPABASE_SECRET_KEY` again: `railway_server_2026_10_22` deleted, replaced by `vps_server_2026_10_22` | Owner | 200 from the VPS, status code only |
+| 2026-10-22 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: the old one deleted, replaced by `farbaek_web`. Publishable keys are public by design; deleting it stopped the Railway site, which can't redeploy | Owner | 200 from the VPS |
+| 2026-10-22 | `ANTHROPIC_API_KEY`: a new key | Owner | 200 from Anthropic's models endpoint on the VPS. Deleting the old key: owner to confirm |
+| 2026-10-22 | `SANDBOX_PREVIEW_SECRET`, `SANDBOX_CRON_SECRET`: new random values, made on this PC by the owner's settings form and sent over SSH | Owner's form | Set on the VPS, names checked only |
+
+The production values now live only on the VPS, in `/opt/farbaek/env/production.env` (ADR 0035). The owner entered them through a local form that sent them over SSH, so no value passed through a chat or a log.
