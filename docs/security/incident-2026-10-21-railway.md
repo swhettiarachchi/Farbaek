@@ -75,4 +75,9 @@ Reads leave no rows, so this can't rule out data being read. The Supabase reques
 | 2026-10-22 | `ANTHROPIC_API_KEY`: a new key | Owner | 200 from Anthropic's models endpoint on the VPS. Deleting the old key: owner to confirm |
 | 2026-10-22 | `SANDBOX_PREVIEW_SECRET`, `SANDBOX_CRON_SECRET`: new random values, made on this PC by the owner's settings form and sent over SSH | Owner's form | Set on the VPS, names checked only |
 
+**2026-10-22, during the database move:**
+- The Supabase Cloud database password contained an `@`, which broke the connection address.
+- The Supabase CLI's parse error quoted part of the address, including part of the password, into Claude's session output. The local copy of that output was deleted, but the password is treated as exposed: the owner resets it to a generated one.
+- `scripts/vps/db-move.sh` now checks the address's shape without printing it, and sends every tool's output to a log on the server only.
+
 The production values now live only on the VPS, in `/opt/farbaek/env/production.env` (ADR 0035). The owner entered them through a local form that sent them over SSH, so no value passed through a chat or a log.

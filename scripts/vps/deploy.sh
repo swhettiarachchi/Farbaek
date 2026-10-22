@@ -46,6 +46,13 @@ main() {
 
   log "building ${sha:0:12} ($ref)"
   git checkout --quiet --force --detach "$sha"
+  # Once the database runs on this server (ADR 0036), a commit without its API route would cut the app off from it.
+  if [ -f /opt/farbaek/supabase/docker/.env ] && ! grep -q 'api\.farbaek\.com' deploy/vps/caddy/Caddyfile; then
+    log "not deploying ${sha:0:12}: its Caddyfile has no api.farbaek.com route, and the database runs here"
+    [ -n "$current" ] && git checkout --quiet --force --detach "$current"
+    echo "$sha" > "$STATE/failed"
+    exit 1
+  fi
   if ! DOCKER_BUILDKIT=1 docker build --secret "id=env,src=$ENV_FILE" --build-arg "FARBAEK_COMMIT=$sha" -t "farbaek-app:$sha" . >>"$LOG" 2>&1; then
     log "build failed for ${sha:0:12}; still running ${current:0:12}"
     echo "$sha" > "$STATE/failed"

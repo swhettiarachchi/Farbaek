@@ -1,14 +1,24 @@
 #!/usr/bin/env bash
-# Saves settings into /opt/farbaek/env/production.env from NAME=value lines
-# on standard input (ADR 0035). scripts/vps/set-secrets.ps1 sends the owner's
+# Saves settings into /opt/farbaek/env/production.env (or another allowed
+# settings file) from NAME=value lines on standard input (ADR 0035, 0036). scripts/vps/set-secrets.ps1 sends the owner's
 # values here over SSH, so they never appear on a command line, a screen or a
 # log. It prints the names it set, never a value. Runs as farbaek.
 set -euo pipefail
 
+#   farbaek-set-env                  the app's settings (production.env)
+#   farbaek-set-env --file <path>    another settings file, from the list below
 ENV_FILE=/opt/farbaek/env/production.env
+ALLOWED=(/opt/farbaek/env/production.env /opt/farbaek/env/migration.env /opt/farbaek/env/backup.env /opt/farbaek/supabase/docker/.env)
 
 main() {
+  if [ "${1:-}" = "--file" ]; then
+    local wanted="${2:-}" ok=0 path
+    for path in "${ALLOWED[@]}"; do [ "$wanted" = "$path" ] && ok=1; done
+    [ "$ok" = 1 ] || { echo "farbaek-set-env only writes: ${ALLOWED[*]}"; exit 1; }
+    ENV_FILE="$wanted"
+  fi
   umask 077
+  [ -f "$ENV_FILE" ] || : > "$ENV_FILE"
   local tmp
   tmp=$(mktemp "$(dirname "$ENV_FILE")/.production.env.XXXXXX")
   # Expanded now: the local variable is gone by the time the shell exits.

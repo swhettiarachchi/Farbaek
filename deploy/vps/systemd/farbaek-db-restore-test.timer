@@ -1,0 +1,10 @@
+[Unit]
+Description=Test restoring Farbaek's newest backup every week
+
+[Timer]
+OnCalendar=Sun *-*-* 04:00:00
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

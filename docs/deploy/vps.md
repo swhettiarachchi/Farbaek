@@ -79,6 +79,36 @@ A deploy restarts the app. Agent runs going at that moment show as Interrupted.
 - **farbaek.com:** DNS stays at Spaceship, with the email records. `www` and `officespace` are A records to the server, and the apex forwards to `https://www.farbaek.com`. Caddy gets ordinary certificates for both names.
 - **farbaek.si:** published sites and previews need one wildcard certificate, `*.farbaek.si`. That needs a DNS-01 challenge, and Caddy has no Hostinger DNS plugin. So farbaek.si's DNS moves to Cloudflare (free plan), with an API token that can edit DNS for that one zone. Caddy is then built with the `caddy-dns/cloudflare` module, and a `*.farbaek.si, farbaek.si` block is added. Until then, farbaek.si isn't served from this server.
 
+## The database (ADR 0036)
+
+Self-hosted Supabase runs beside the app:
+- **What:** Postgres 17, Auth, PostgREST, the Envoy gateway, postgres-meta and Studio.
+- **Where:** Supabase's official files, pinned, in `/opt/farbaek/supabase/docker`, plus Farbaek's override, `deploy/vps/supabase/compose.farbaek.yaml`, named by `COMPOSE_FILE` in that folder's `.env`.
+- **Its secrets:** `/opt/farbaek/supabase/docker/.env` (mode 600), generated on the server by Supabase's `utils/generate-keys.sh` and never printed.
+- **Exposure:**
+  - the public API is `https://api.farbaek.com`, where Caddy forwards only `/auth/v1/*` and `/rest/v1/*`;
+  - Postgres has no public port;
+  - Studio listens on `127.0.0.1:54323` only.
+
+| To | Run |
+| --- | --- |
+| See the database containers | `cd /opt/farbaek/supabase/docker && docker compose ps` |
+| Restart Auth after changing its settings | `cd /opt/farbaek/supabase/docker && docker compose up -d auth` |
+| Open Studio | On your computer: `ssh -L 54323:127.0.0.1:54323 farbaek@2.25.88.188`, then http://localhost:54323 |
+| Back up now | `farbaek-db-backup` (nightly at 02:30 UTC, keeping 14 days in `/opt/farbaek/backups`) |
+| Prove the newest backup restores | `farbaek-db-restore-test` (weekly on Sundays) |
+| Restore a backup into the live database | Stop the app (`docker stop farbaek-app`), then `docker exec -i supabase-db pg_restore -h localhost -U supabase_admin -d postgres --clean --if-exists < /opt/farbaek/backups/<file>.dump`, then `docker start farbaek-app` |
+| Point the app back at Supabase Cloud | `farbaek-db-cutover --back` |
+| Change a setting in the database's settings file | `echo "NAME=value" \| farbaek-set-env --file /opt/farbaek/supabase/docker/.env`, then restart the service that reads it |
+
+**Off-server copies:** each backup also goes to the `offsite` rclone remote once `/opt/farbaek/env/backup.env` sets one. For Cloudflare R2, that's:
+- `RCLONE_CONFIG_OFFSITE_TYPE=s3` and `RCLONE_CONFIG_OFFSITE_PROVIDER=Cloudflare`;
+- `RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID` and `RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY`, from a token limited to the bucket;
+- `RCLONE_CONFIG_OFFSITE_ENDPOINT=https://<account id>.r2.cloudflarestorage.com`;
+- `OFFSITE_BUCKET=farbaek-backups`.
+
+**Rebuilds:** `farbaek-deploy --again` rebuilds the commit that's running, and Caddy reloads that commit's Caddyfile. So the commit that's live must include `deploy/vps/supabase/` and the `api.farbaek.com` block. A rebuild of an older commit drops the API route; that happened once, on 2026-10-22.
+
 ## Checking a deploy
 
 1. `curl -s https://www.farbaek.com/api/health` shows the commit in the deploy log.
