@@ -1,0 +1,43 @@
+# Farbaek on the VPS (ADR 0035, docs/deploy/vps.md). scripts/vps/deploy.sh
+# builds farbaek-app:<commit> and runs this with FARBAEK_IMAGE_TAG set.
+# Only Caddy publishes ports; the app is reachable inside this network alone.
+name: farbaek
+
+services:
+  app:
+    image: farbaek-app:${FARBAEK_IMAGE_TAG:?set FARBAEK_IMAGE_TAG to the commit to run}
+    container_name: farbaek-app
+    restart: unless-stopped
+    env_file: /opt/farbaek/env/production.env
+    environment:
+      FARBAEK_ENVIRONMENT: production
+      FARBAEK_REGION: ${FARBAEK_REGION:-}
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 40s
+    # Agent runs live in this process (ADR 0022): give them a moment to wind down.
+    stop_grace_period: 30s
+
+  caddy:
+    image: caddy:2.10.2
+    container_name: farbaek-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./caddy:/etc/caddy:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -12,6 +12,11 @@ describe("GET /api/health", () => {
     expect(await res.json()).toEqual({ ok: true, commit: "0123456789ab" });
   });
 
+  it("names the commit from Farbaek's own deploy on the VPS", async () => {
+    vi.stubEnv("FARBAEK_COMMIT", "fedcba9876543210fedc");
+    expect(await GET().json()).toEqual({ ok: true, commit: "fedcba987654" });
+  });
+
   it("works without a commit (local)", async () => {
     vi.stubEnv("RAILWAY_GIT_COMMIT_SHA", undefined as unknown as string);
     expect(await GET().json()).toEqual({ ok: true, commit: null });

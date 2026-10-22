@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { FLAG_DETAILS, isPlatformFlag } from "@/core/office/flags";
 import { waitingFor } from "@/core/support/support";
+import { deploymentInfo } from "@/server/deployment";
 
 const Count = z.coerce.number().int().nonnegative();
 const Snapshot = z.object({
@@ -115,12 +116,13 @@ export async function loadHealth(admin: SupabaseClient, now = new Date()): Promi
 /** What this server process knows about itself. Names and numbers only, never a secret. */
 export function serverFacts(env: Record<string, string | undefined> = process.env): { label: string; value: string }[] {
   const memory = process.memoryUsage().rss;
+  const info = deploymentInfo(env);
   const uptime = process.uptime();
   const hours = Math.floor(uptime / 3600);
   const minutes = Math.floor((uptime % 3600) / 60);
   return [
-    { label: "Deployed commit", value: env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 12) ?? "Local build" },
-    { label: "Region", value: env.RAILWAY_REPLICA_REGION?.slice(0, 40) ?? "Not reported" },
+    { label: "Deployed commit", value: info.commit?.slice(0, 12) ?? "Local build" },
+    { label: "Region", value: info.region?.slice(0, 40) ?? "Not reported" },
     { label: "Up for", value: hours > 0 ? `${hours} h ${minutes} min` : `${minutes} min` },
     { label: "Memory in use", value: `${Math.round(memory / 1_048_576)} MB` },
     { label: "Node.js", value: process.version },

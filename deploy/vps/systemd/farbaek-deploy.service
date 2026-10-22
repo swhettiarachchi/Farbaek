@@ -1,0 +1,9 @@
+[Unit]
+Description=Deploy Farbaek when main moves (scripts/vps/deploy.sh)
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=farbaek
+ExecStart=/usr/local/bin/farbaek-deploy
