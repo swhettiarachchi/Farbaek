@@ -23,6 +23,12 @@ COUNT_SQL="select n.nspname || '.' || c.relname, (xpath('/row/c/text()', query_t
 
 main() {
   [ -f "$MIGRATION_ENV" ] && grep -Eq '^MIGRATION_SOURCE_DB_URL=.+' "$MIGRATION_ENV" || { echo "Set MIGRATION_SOURCE_DB_URL in $MIGRATION_ENV first."; exit 1; }
+  # The address is checked without ever being printed: tools echo parts of an address they can't parse.
+  if ! with_source_env bash -c '[[ "$MIGRATION_SOURCE_DB_URL" =~ ^postgres(ql)?://[^:@/]+:[^@/:#?]+@[^@/:]+:[0-9]+/[A-Za-z0-9_]+$ ]]'; then
+    echo "MIGRATION_SOURCE_DB_URL isn't a plain postgresql://user:password@host:port/database address."
+    echo "A password containing @ : / # or ? breaks it. Reset the database password to a generated one and enter the address again."
+    exit 1
+  fi
 
   if [ "${1:-}" != "--count" ]; then
     install_cli
@@ -31,14 +37,18 @@ main() {
     install -d -m 700 "$work"
 
     step "Dump from Supabase Cloud"
-    cloud_dump -f "$work/roles.sql" --role-only
-    cloud_dump -f "$work/schema.sql"
-    cloud_dump -f "$work/data.sql" --use-copy --data-only
-    ls -l "$work"
+    # Tool output goes to a log on this server only: error messages can quote the connection address.
+    local log="$work/dump.log"
+    cloud_dump -f "$work/roles.sql" --role-only >>"$log" 2>&1 &&
+      cloud_dump -f "$work/schema.sql" >>"$log" 2>&1 &&
+      cloud_dump -f "$work/data.sql" --use-copy --data-only >>"$log" 2>&1 ||
+      { echo "The dump failed. Details are in $log on the server; they may quote the connection address, so they aren't shown here."; exit 1; }
+    ls -l "$work" | grep '\.sql$'
 
     step "Postgres versions"
     local cloud ours
-    cloud=$(with_source_env docker run --rm -e MIGRATION_SOURCE_DB_URL --entrypoint sh "$DB_IMAGE" -c 'psql "$MIGRATION_SOURCE_DB_URL" -Atc "show server_version"')
+    cloud=$(with_source_env docker run --rm -e MIGRATION_SOURCE_DB_URL --entrypoint sh "$DB_IMAGE" -c 'psql "$MIGRATION_SOURCE_DB_URL" -Atc "show server_version"' 2>>"$log") ||
+      { echo "Couldn't read the cloud's Postgres version. Details are in $log on the server."; exit 1; }
     ours=$(docker exec supabase-db psql -h localhost -U postgres -d postgres -Atc "show server_version")
     echo "cloud: $cloud, this server: $ours"
     if [ "${cloud%%.*}" != "${ours%%.*}" ]; then
@@ -56,7 +66,8 @@ main() {
   step "Row counts, Supabase Cloud against this server"
   local a b
   a=$(mktemp) b=$(mktemp)
-  with_source_env docker run --rm -e MIGRATION_SOURCE_DB_URL --entrypoint sh "$DB_IMAGE" -c "psql \"\$MIGRATION_SOURCE_DB_URL\" -AtF ' ' -c \"$COUNT_SQL\"" >"$a"
+  with_source_env docker run --rm -e MIGRATION_SOURCE_DB_URL --entrypoint sh "$DB_IMAGE" -c "psql \"\$MIGRATION_SOURCE_DB_URL\" -AtF ' ' -c \"$COUNT_SQL\"" >"$a" 2>/dev/null ||
+    { echo "Couldn't count rows in the cloud database."; rm -f "$a" "$b"; exit 1; }
   docker exec supabase-db psql -h localhost -U postgres -d postgres -AtF ' ' -c "$COUNT_SQL" >"$b"
   if diff -u --label cloud --label "this server" "$a" "$b"; then
     echo "All $(wc -l <"$a") tables match."
