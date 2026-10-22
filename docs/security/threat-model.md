@@ -144,3 +144,11 @@ Known limits: preview pages may load `https:` images and fonts, so a page could 
 | A hostile sender | Writing outside the chosen folder, overwriting files, sending credentials, filling the disk, or sending something other than what was offered | The manifest's digest and `checkManifest` with the disk path rules (traversal, absolute paths, NFC, case collisions, Windows device names, screened names, chunk layout, limits); the person must accept; a new folder every time; a free-space check; every chunk and file checked by BLAKE3; writes through the folder guard; nothing runs | `mesh.test.ts` (traversal, tampered chunk, no space, decline, new folder) |
 | A compromised or careless sender computer | Secrets sent by accident | The sending side screens like an import and lists everything left out; the window says detection isn't guaranteed | `mesh.test.ts` (packing exclusions) |
 | The device key | Theft of the key that proves who this computer is | Stored only encrypted with the system keychain (`safeStorage`); without a keychain, Nearby doesn't run. Forget revokes a device on this side | `desktop/src/main/mesh.ts`, code review |
+
+## Portable Proof and Eject Anytime (2026-10-22, ADR 0039)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| The public verify page | A forged or edited evidence file shown as genuine; the page leaking what visitors check | The digest is recomputed from the canonical statement and compared, and any difference shows as "Changed". Missing parts are refused. The page states that a match proves the record is unchanged, not who made it (no signatures yet). Files are read and hashed in the browser; nothing is sent | `inspect.test.ts`, code review (no request carries the file) |
+| Samples | A sample passed off as real evidence | Statements marked `sample: true` are labelled "Sample data" and the Seal says "Sample ProofPack"; the sample's first limit says it records no real project | `src/app/(site)/verify/sample.json/route.ts`, `evidence-check.tsx` |
+| The full export | Leaking another workspace's data, setting values or people's details | Read through RLS like the plain download (members of the project's workspace only). Setting names come from the Launch Planner, never values. People appear only as the actor ids already in the records | `export.test.ts`, route code review |

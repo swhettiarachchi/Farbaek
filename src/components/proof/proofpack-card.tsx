@@ -76,6 +76,13 @@ export async function ProofPackCard({ pack }: { pack: ProofPackRecord }) {
           <a href={`/app/proofpacks/${pack.digest}`} className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline">
             <DownloadSimpleIcon size={16} aria-hidden /> Download the attestation (in-toto JSON)
           </a>
+          <span className="mt-1 block text-xs text-ink-3">
+            Anyone you send it to can check it at{" "}
+            <a href="/verify" className="underline underline-offset-2 hover:text-ink">
+              farbaek.com/verify
+            </a>
+            , in their browser.
+          </span>
         </p>
       </div>
       {pack.status === "verified" && intact ? <SealReveal hash={pack.digest} className="justify-self-center">
