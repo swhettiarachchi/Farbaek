@@ -19,6 +19,7 @@ main() {
   install -m 755 "$app/scripts/vps/db-move.sh" /usr/local/bin/farbaek-db-move
   install -m 755 "$app/scripts/vps/db-backup.sh" /usr/local/bin/farbaek-db-backup
   install -m 755 "$app/scripts/vps/db-restore-test.sh" /usr/local/bin/farbaek-db-restore-test
+  install -m 755 "$app/scripts/vps/db-cutover.sh" /usr/local/bin/farbaek-db-cutover
   install -m 644 "$app"/deploy/vps/systemd/farbaek-*.service "$app"/deploy/vps/systemd/farbaek-*.timer /etc/systemd/system/
   if [ ! -f /opt/farbaek/env/production.env ]; then
     install -m 600 -o farbaek -g farbaek "$app/deploy/vps/production.env.example" /opt/farbaek/env/production.env
