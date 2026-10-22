@@ -28,6 +28,7 @@ function toModelError(error: unknown, signal?: AbortSignal): ModelError {
   if (signal?.aborted) return new ModelError("cancelled", "The run was cancelled.");
   if (!(error instanceof FarbaekApiError)) return new ModelError("bad_output", "The model's reply couldn't be read.");
   if (error.status === 401) return new ModelError("auth", "This app isn't paired anymore. Pair it again from Agents in Farbaek.");
+  if (error.code === "RUN_CAP_REACHED") return new ModelError("cap", error.message);
   if (error.status === 402) return new ModelError("usage", error.message);
   if (error.status === 429 || error.status === 503) return new ModelError("busy", error.message);
   if (error.status === 0) return new ModelError("network", error.message);

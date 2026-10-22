@@ -86,7 +86,7 @@ export interface AgentStore {
   now(): Date;
 }
 
-export type AgentErrorCode = WriteErrorCode | "UNAUTHENTICATED" | "RATE_LIMITED" | "INVALID_REQUEST" | "TOO_LARGE";
+export type AgentErrorCode = WriteErrorCode | "UNAUTHENTICATED" | "RATE_LIMITED" | "INVALID_REQUEST" | "TOO_LARGE" | "RUN_CAP_REACHED";
 export type AgentResult<T> = { ok: true; value: T } | { ok: false; status: number; code: AgentErrorCode; message: string };
 
 const STATUS: Partial<Record<AgentErrorCode, number>> = {
@@ -96,6 +96,7 @@ const STATUS: Partial<Record<AgentErrorCode, number>> = {
   NOT_FOUND: 404,
   PAIRING_CLOSED: 410,
   RATE_LIMITED: 429,
+  RUN_CAP_REACHED: 402,
   INVALID_REQUEST: 400,
   INVALID_PAIRING: 400,
   INVALID_PATH: 422,

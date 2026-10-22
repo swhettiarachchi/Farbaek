@@ -342,6 +342,8 @@ export async function runAgent(input: RunInput): Promise<RunReport> {
       step = await conversation.send(pending, input.signal);
     } catch (error) {
       if (input.signal?.aborted || (error instanceof ModelError && error.kind === "cancelled")) return end({ kind: "cancelled" });
+      // The run's cap is a limit like steps or time: the work so far is kept.
+      if (error instanceof ModelError && error.kind === "cap") return end({ kind: "limit", detail: error.message });
       if (error instanceof ModelError) return end({ kind: "model_error", errorKind: error.kind, detail: error.message });
       return end({ kind: "model_error", errorKind: "bad_output", detail: "The model call failed." });
     }

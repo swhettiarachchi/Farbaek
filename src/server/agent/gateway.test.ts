@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { BillingSnapshot } from "@/core/billing/trial";
 import type { TaskState } from "@/core/realityloop/task-machine";
-import { callModel, stepReserveUnits, type GatewayCallResult, type GatewayDeps, type GatewayModel, type GatewayRequest } from "./gateway";
+import { worstStepUnits } from "@/core/agent/run-cap";
+import { approxTokens } from "@/core/billing/rate-card";
+import { STEP_MAX_OUTPUT_TOKENS, callModel, stepReserveUnits, type GatewayCallResult, type GatewayDeps, type GatewayModel, type GatewayRequest } from "./gateway";
 import type { AgentIdentity } from "./service";
 
 const TASK = "22222222-2222-4222-8222-222222222222";
@@ -59,6 +61,33 @@ const body = (over: Record<string, unknown> = {}) => ({
   tools: [{ name: "read_file", description: "Read a file.", input_schema: { type: "object", properties: { path: { type: "string" } } } }],
   messages: [{ role: "user", content: "Reject fractional quantities in the cart." }],
   ...over,
+});
+
+describe("a run's cap (ADR 0040)", () => {
+  const b = body();
+  const worst = worstStepUnits("claude-sonnet-5-5", approxTokens(JSON.stringify(b.system)) + approxTokens(JSON.stringify(b.tools)) + approxTokens(JSON.stringify(b.messages)), STEP_MAX_OUTPUT_TOKENS);
+
+  it("stops before a step whose worst case doesn't fit, without reserving or calling the model", async () => {
+    const { deps, calls } = fakeDeps();
+    const model = fakeModel(reply());
+    const r = await callModel(deps, model, agent, b, undefined, { remainingUnits: worst - 1 });
+    expect(r).toMatchObject({ ok: false, status: 402, code: "RUN_CAP_REACHED", message: expect.stringContaining("Nothing more was charged") });
+    expect(calls).toEqual([]);
+    expect(model.requests).toEqual([]);
+  });
+
+  it("lets a step through when even its worst case fits, and charges only what it really cost", async () => {
+    const { deps, calls } = fakeDeps();
+    const r = await callModel(deps, fakeModel(reply()), agent, b, undefined, { remainingUnits: worst });
+    expect(r).toMatchObject({ ok: true });
+    expect(calls.map((c) => c.name)).toEqual(["reserve", "settle"]);
+    expect(calls[1]!.input.units).toBeLessThanOrEqual(worst);
+  });
+
+  it("works as before when no cap is given", async () => {
+    const { deps } = fakeDeps();
+    expect(await callModel(deps, fakeModel(reply()), agent, b)).toMatchObject({ ok: true });
+  });
 });
 
 describe("one model step through the gateway", () => {

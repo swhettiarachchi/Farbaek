@@ -279,7 +279,8 @@ function usePanes() {
   return { active, go, swipe, paneClass };
 }
 
-export type RunUsageView = { share: string | null; refunded: number } | null;
+export type { RunUsageView } from "@/server/workspace/plan-card-data";
+import type { RunUsageView } from "@/server/workspace/plan-card-data";
 
 export function RunLive({
   initialRun,
@@ -366,6 +367,18 @@ export function RunLive({
             <li className="inline-flex h-7 items-center gap-1.5 rounded-full border border-accent/30 bg-accent/[0.05] px-3 text-ink-2">
               <GaugeIcon size={14} weight="bold" className="text-accent" aria-hidden />
               {live ? "Used so far" : "Used"} <span className="tabular font-medium text-ink">{usage.share}</span>
+            </li>
+          ) : null}
+          {usage?.cap ? (
+            <li className="inline-flex h-7 items-center gap-2 rounded-full border border-line bg-surface px-3 text-ink-2">
+              <span>
+                Cap <span className="tabular font-medium text-ink">{usage.cap}</span>
+              </span>
+              {usage.capUsed !== null ? (
+                <span className="block h-1.5 w-12 overflow-hidden rounded-full bg-surface-sunken" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={usage.capUsed} aria-label={`${usage.capUsed}% of this run's cap used`}>
+                  <span className="block h-full rounded-full bg-accent" style={{ width: `${usage.capUsed}%` }} />
+                </span>
+              ) : null}
             </li>
           ) : null}
           {usage && usage.refunded > 0 ? (

@@ -108,6 +108,17 @@ describe("starting runs", () => {
     expect(await q("select 1 from public.audit_events where action = 'agent.run_started' and target = $1", [id])).toHaveLength(1);
   });
 
+  it("records a run's own usage cap, refuses a non-positive one, and still starts uncapped runs (ADR 0040)", async () => {
+    const task = await approvedTask("Capped run");
+    const id = (await q<{ id: string }>("select public.app_start_agent_run($1, $2, $3, 'balanced', 'sandboxed', 1, $4, $5) as id", [org, USERS.alice, task, H("c"), 1_200]))[0]!.id;
+    expect(await q("select cap_units from public.agent_runs where id = $1", [id])).toEqual([{ cap_units: 1_200 }]);
+    expect(await q<{ cap: number }>("select (metadata->>'cap_units')::int as cap from public.audit_events where action = 'agent.run_started' and target = $1", [id])).toEqual([{ cap: 1_200 }]);
+    const other = await approvedTask("Bad cap");
+    await expect(q("select public.app_start_agent_run($1, $2, $3, 'balanced', 'sandboxed', 1, $4, 0)", [org, USERS.alice, other, H("c")])).rejects.toThrow(/INVALID_CAP/);
+    const uncapped = await start(other);
+    expect(await q("select cap_units from public.agent_runs where id = $1", [uncapped])).toEqual([{ cap_units: null }]);
+  });
+
   it("refuses tasks that aren't approved, other workspaces and non-members", async () => {
     const draft = (await q<{ id: string }>("select public.app_create_task($1, $2, $3, 'Not yet') as id", [org, USERS.alice, project]))[0]!.id;
     await expect(start(draft)).rejects.toThrow(/INVALID_TRANSITION/);

@@ -30,7 +30,7 @@ import type { Effort } from "@/core/agent/routing";
 import { projectSkills, type Skill } from "@/core/agent/skills";
 import { getBuiltInSkill } from "@/content/skills";
 import type { IntentContract } from "@/core/realityloop/contract";
-import { callModel, type GatewayDeps, type GatewayModel } from "@/server/agent/gateway";
+import { callModel, stepUnits, type GatewayDeps, type GatewayModel } from "@/server/agent/gateway";
 import { prepareAgentProposal, type AgentStore, type ProposalChecks } from "@/server/agent/service";
 import { log } from "@/server/observability/log";
 import { codeFromDatabaseError, fail, MESSAGES, type WriteResult } from "@/server/workspace/use-cases";
@@ -87,6 +87,8 @@ export interface StartRunInput {
   effort: Effort;
   /** Built-in skills the person chose for this build (ADR 0030); unknown ids are ignored. */
   skills?: readonly string[];
+  /** The run's own usage cap in units (ADR 0040), worked out on the server; null for none. */
+  capUnits?: number | null;
 }
 
 /** Checks and records the run, then starts it in the background. Returns as soon as it's recorded. */
@@ -103,7 +105,8 @@ export async function startCloudRun(deps: ExecutorDeps, input: StartRunInput): P
   if (project.archived) return fail("PROJECT_ARCHIVED");
 
   const mode: CloudRunMode = deps.sandboxAvailable() ? "sandboxed" : "review_only";
-  const started = await deps.runs.start({ orgId: person.orgId, actor: person.userId, taskId: task.id, effort: input.effort, mode, contractVersion: contract.version, contractSha256: contract.sha256 });
+  const capUnits = input.capUnits && input.capUnits > 0 ? Math.ceil(input.capUnits) : null;
+  const started = await deps.runs.start({ orgId: person.orgId, actor: person.userId, taskId: task.id, effort: input.effort, mode, contractVersion: contract.version, contractSha256: contract.sha256, capUnits });
   if (!started.ok) {
     if (started.error.includes("RUN_ACTIVE")) return fail("INVALID_TRANSITION", "An agent run is already working on this task. Open it from Build.");
     return fail(codeFromDatabaseError(started.error));
@@ -112,7 +115,7 @@ export async function startCloudRun(deps: ExecutorDeps, input: StartRunInput): P
   const live: LiveRun = { orgId: person.orgId, startedBy: person.userId, controller: new AbortController(), approvals: new Map(), messages: [] };
   registry.set(runId, live);
   const chosen = [...new Set(input.skills ?? [])].flatMap((id) => getBuiltInSkill(id) ?? []);
-  void execute(deps, { runId, person, task: { id: task.id, title: task.title, projectId: task.projectId }, contract, effort: input.effort, mode, live, skills: chosen }).catch((e) => {
+  void execute(deps, { runId, person, task: { id: task.id, title: task.title, projectId: task.projectId }, contract, effort: input.effort, mode, live, skills: chosen, capUnits }).catch((e) => {
     log("error", "cloud_run.crashed", { run: runId, error: e instanceof Error ? e.message : String(e) });
   });
   return { ok: true, value: { runId, mode } };
@@ -202,6 +205,7 @@ async function execute(
     mode: CloudRunMode;
     live: LiveRun;
     skills: readonly Skill[];
+    capUnits: number | null;
   },
 ): Promise<void> {
   const { runId, person, live } = r;
@@ -283,9 +287,13 @@ async function execute(
       }
     }
 
+    // What the run's settled steps have cost so far; refused steps were refunded and cost nothing.
+    let spentUnits = 0;
     const step = async (request: ModelStepRequest, signal?: AbortSignal): Promise<ModelStepReply> => {
-      const result = await callModel(deps.gateway.deps, deps.gateway.model, { agentId: `run:${runId}`, orgId: person.orgId, userId: person.userId, role: person.role, name: "Farbaek Agent" }, request, signal);
+      const budget = r.capUnits === null ? {} : { remainingUnits: Math.max(0, r.capUnits - spentUnits) };
+      const result = await callModel(deps.gateway.deps, deps.gateway.model, { agentId: `run:${runId}`, orgId: person.orgId, userId: person.userId, role: person.role, name: "Farbaek Agent" }, request, signal, budget);
       if (!result.ok) throw new FarbaekApiError(result.status, result.code, result.message);
+      if (result.value.message.stop_reason !== "refusal") spentUnits += stepUnits(result.value.message);
       // The gateway's reply is Claude's message as it came; its content blocks all carry a type.
       return result.value as ModelStepReply;
     };
@@ -378,6 +386,34 @@ async function execute(
             const code = codeFromDatabaseError(created.error);
             queue({ status: "failed", finish: o.finish, outcome: `The agent finished, but its change couldn't be proposed: ${MESSAGES[code]}` });
           }
+        }
+      }
+    } else if (o.kind === "limit") {
+      // Stopped by the run's cap or a fixed limit: keep the work so far as a partial proposal, the checkpoint to carry on from.
+      const { changes, notProposed } = await workspace.changes();
+      const why = o.detail.replace(/\s+$/, "");
+      if (changes.length === 0) {
+        queue({ status: "failed", outcome: `${why} The agent hadn't changed any files yet.` });
+      } else {
+        const prepared = await prepareAgentProposal(deps.checks, person, { kind: "run", runId }, r.task.id, {
+          contractVersion: r.contract.version,
+          contractSha256: r.contract.sha256,
+          plan: {
+            summary: `Partial: the run stopped before finishing. ${why}`.slice(0, 2000),
+            steps: ["Review what changed so far.", "Apply it if it's useful, then choose Keep going to carry on from it."],
+            risks: ["The agent didn't finish, so this change may be incomplete."],
+            checks: [],
+          },
+          changes: changes.slice(0, 30).map((c) => ({ path: c.path, kind: c.kind, baseRevision: c.baseRevision, content: c.content, reason: c.reason })),
+          notProposed: [...skipped.map((s) => ({ path: s.path, reason: `Not copied into the run: ${s.reason}` })), ...notProposed].slice(0, 100),
+          usage: { model: report.model === "auto" ? "farbaek-gateway" : report.model, inputTokens: report.usage.inputTokens, outputTokens: report.usage.outputTokens },
+          mode: commands ? "sandboxed_autopilot" : "review_only",
+        });
+        const created = prepared.ok ? (await flush(), await deps.runs.createRunProposal(runId, prepared.value.input)) : null;
+        if (prepared.ok && created?.ok) {
+          queue({ status: "finished", outcome: `${why} The work so far is waiting for your review as a partial change: apply it and choose Keep going to carry on.` });
+        } else {
+          queue({ status: "failed", outcome: `${why} The work so far couldn't be kept as a proposal.` });
         }
       }
     } else if (o.kind === "cancelled") {

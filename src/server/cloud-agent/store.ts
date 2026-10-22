@@ -24,7 +24,7 @@ export interface RunPatch {
 }
 
 export interface RunStore {
-  start(input: { orgId: string; actor: string; taskId: string; effort: Effort; mode: CloudRunMode; contractVersion: number; contractSha256: string }): Promise<RpcResult<string>>;
+  start(input: { orgId: string; actor: string; taskId: string; effort: Effort; mode: CloudRunMode; contractVersion: number; contractSha256: string; capUnits: number | null }): Promise<RpcResult<string>>;
   update(runId: string, patch: RunPatch): Promise<RpcResult<null>>;
   createRunProposal(runId: string, input: ProposalInput): Promise<RpcResult<string>>;
   interruptStale(before: Date): Promise<number>;
@@ -42,7 +42,17 @@ export function createSupabaseRunStore(admin: SupabaseClient): RunStore {
     start: (i) =>
       rpc(
         "app_start_agent_run",
-        { p_org: i.orgId, p_actor: i.actor, p_task: i.taskId, p_effort: i.effort, p_mode: i.mode, p_contract_version: i.contractVersion, p_contract_sha256: i.contractSha256 },
+        {
+          p_org: i.orgId,
+          p_actor: i.actor,
+          p_task: i.taskId,
+          p_effort: i.effort,
+          p_mode: i.mode,
+          p_contract_version: i.contractVersion,
+          p_contract_sha256: i.contractSha256,
+          // Sent only when set, so an uncapped run also starts against a database without migration v26.
+          ...(i.capUnits ? { p_cap_units: i.capUnits } : {}),
+        },
         z.string(),
       ),
     update: (runId, p) =>
@@ -107,6 +117,7 @@ const RunRow = z.object({
   input_tokens: z.coerce.number(),
   output_tokens: z.coerce.number(),
   outcome: z.string().nullable(),
+  cap_units: z.number().int().nullable().optional(),
   finish: z.object({ summary: z.string(), steps: z.array(z.string()), risks: z.array(z.string()), checks: z.array(z.string()) }).nullable(),
   proposal_id: z.string().nullable(),
   sandbox_session_id: z.string().nullable(),
@@ -135,9 +146,11 @@ export interface RunView {
   sandboxSessionId: string | null;
   startedAt: string;
   endedAt: string | null;
+  /** The run's own usage cap in units (ADR 0040), or null for none. */
+  capUnits: number | null;
 }
 
-const RUN_SELECT = "id, task_id, project_id, started_by, effort, mode, status, model, steps, input_tokens, output_tokens, outcome, finish, proposal_id, sandbox_session_id, started_at, ended_at, tasks(title), projects(name)";
+const RUN_SELECT = "id, task_id, project_id, started_by, effort, mode, status, model, steps, input_tokens, output_tokens, outcome, finish, proposal_id, sandbox_session_id, started_at, ended_at, cap_units, tasks(title), projects(name)";
 
 function toView(r: z.infer<typeof RunRow>): RunView {
   return {
@@ -147,6 +160,7 @@ function toView(r: z.infer<typeof RunRow>): RunView {
     projectId: r.project_id,
     projectName: r.projects?.name ?? "Project",
     startedBy: r.started_by,
+    capUnits: r.cap_units ?? null,
     effort: r.effort,
     mode: r.mode,
     status: r.status,

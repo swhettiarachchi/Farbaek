@@ -11,6 +11,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getBuiltInSkill } from "@/content/skills";
 import { getStarter } from "@/content/starters";
+import { CAP_CHOICES } from "@/core/agent/run-cap";
 import { EFFORTS } from "@/core/agent/routing";
 import { resolveAiProvider } from "@/server/ai/config";
 import { createContractDrafter } from "@/server/ai/providers";
@@ -20,6 +21,7 @@ import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { WORKSPACE_COOKIE, isDemoMode, loadAppContext } from "@/server/workspace/context";
 import { mapCreateOrganizationError } from "@/server/workspace/organizations";
+import { runCapUnits } from "@/server/workspace/plan-card-data";
 import { startFromPrompt } from "@/server/workspace/start-from-prompt";
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
 import { approveContract } from "@/server/workspace/use-cases";
@@ -90,6 +92,7 @@ export async function approveAndBuildAction(_previous: ApproveBuildState, form: 
       expectedTaskVersion: z.coerce.number().int().nonnegative(),
       sha256: z.string().regex(/^[0-9a-f]{64}$/),
       effort: z.enum(EFFORTS).catch("balanced"),
+      cap: z.enum(CAP_CHOICES).catch("double"),
     })
     .safeParse(Object.fromEntries(form));
   if (!parsed.success) return { status: "error", message: "Reload the page and try again." };
@@ -101,7 +104,7 @@ export async function approveAndBuildAction(_previous: ApproveBuildState, form: 
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
   if (!user || !admin) return { status: "error", message: "The server isn't configured for writes." };
 
-  const { taskId, version, expectedTaskVersion, sha256, effort } = parsed.data;
+  const { taskId, version, expectedTaskVersion, sha256, effort, cap } = parsed.data;
   const approved = await approveContract(createSupabaseWriteDeps(user, admin, ctx.user.id), { orgId: ctx.current.id, userId: ctx.user.id, taskId, expectedTaskVersion, version, sha256 });
   if (!approved.ok) return { status: "error", message: approved.message };
   revalidatePath("/app", "layout");
@@ -111,7 +114,7 @@ export async function approveAndBuildAction(_previous: ApproveBuildState, form: 
   if (!wiring.ok) return { status: "error", approved: true, message: `The plan is approved. The agent couldn't start: ${wiring.reason}` };
   // Skills chosen on the plan card (ADR 0030): only Farbaek's own ids are accepted.
   const skills = form.getAll("skills").flatMap((v) => (typeof v === "string" && getBuiltInSkill(v) ? [v] : []));
-  const started = await startCloudRun(wiring.deps, { person, taskId, effort, skills });
+  const started = await startCloudRun(wiring.deps, { person, taskId, effort, skills, capUnits: runCapUnits(ctx.current, effort, cap) });
   if (!started.ok) return { status: "error", approved: true, message: `The plan is approved. The agent couldn't start: ${started.message}` };
   revalidatePath("/app/build");
   redirect(`/app/build/${started.value.runId}`);

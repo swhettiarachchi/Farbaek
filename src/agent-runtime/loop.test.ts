@@ -8,7 +8,7 @@ import { ProjectFolder } from "./fs-guard";
 import { agentSystemPrompt, runAgent, type ApprovalAnswer, type ApprovalRequest, type RunEvent, type RunInput } from "./loop";
 import { getBuiltInSkill } from "@/content/skills";
 import { parseSkill } from "@/core/agent/skills";
-import type { ModelConversation, ModelStep, ModelToolCall, ToolModel, ToolResultInput, ToolSpec } from "./models/types";
+import { ModelError, type ModelConversation, type ModelStep, type ModelToolCall, type ToolModel, type ToolResultInput, type ToolSpec } from "./models/types";
 import type { CommandRunner } from "./runners";
 import { AgentWorkspace, materialize, type WriteMode } from "./workspace";
 
@@ -183,6 +183,19 @@ describe("agent loop, Review Only", () => {
     const r2 = await runAgent(input({ model: big.model, workspace: await workspace("patch"), limits: { maxTokens: 1_000 } }));
     expect(r2.outcome).toMatchObject({ kind: "limit", detail: expect.stringMatching(/tokens/) });
     expect(r2.steps).toBe(2);
+
+    // The run's own usage cap (ADR 0040) ends it like a limit, so its work so far can be kept.
+    const capped: ToolModel = {
+      provider: "farbaek",
+      model: "auto",
+      begin: () => ({
+        send: async () => {
+          throw new ModelError("cap", "The next step could pass this run's cap, so the run stopped before it.");
+        },
+      }),
+    };
+    const r4 = await runAgent(input({ model: capped, workspace: await workspace("patch") }));
+    expect(r4.outcome).toEqual({ kind: "limit", detail: "The next step could pass this run's cap, so the run stopped before it." });
 
     const quiet = fakeModel([() => ({ text: "Done, I think." })]);
     const r3 = await runAgent(input({ model: quiet.model, workspace: await workspace("patch") }));

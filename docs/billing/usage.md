@@ -67,6 +67,15 @@ The trial gets Pro's features with Starter's AI usage (35,050 units across the 1
 | Security review | `security_review` | Reserved for security checks (Phase 4). |
 | Model call from an agent | `model_gateway` | Reserved for the model gateway the desktop agent will use (Phase 2). |
 
+## A run's own cap (ADR 0040)
+
+Before a cloud agent run starts, the plan card shows its estimate and a cap: **the estimate** (its top), **twice that** (the default), or **no run cap** (the plan's allowance still applies).
+
+- **How it's set:** the server works out the cap in units from the workspace's plan; the browser only sends which choice.
+- **How it's enforced:** before each model step, the gateway prices the step's worst case and refuses the step, before reserving or calling anything, unless it fits in what's left. The worst case is every input token written to the cache, plus 25%, and the step's full output allowance. Settled steps are added up at their real cost; refunded steps count as nothing.
+- **What's estimated:** input tokens are counted approximately before a step (about 3 characters a token). The 25% margin covers that. The cap holds as long as the count is within it.
+- **What happens at the cap:** the run stops before the step that might pass the cap. Any files the agent changed become a proposal marked partial, kept for review; once applied, Keep going carries on from it. Runs that reach the fixed step, token or time limits keep their work the same way.
+
 ## Where it's enforced
 
 - TypeScript: `reserveUsage`, `settleUsage`, `refundAndFail`, `settleAsFreeRetry` and `aiAvailability` in `src/server/workspace/ai-usage.ts`, used by `ai-drafting.ts` and `proposals.ts`. The wallet view is `walletView` in `src/core/billing/wallet.ts`.

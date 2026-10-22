@@ -60,7 +60,7 @@ function scripted(turns: ModelToolCall[][]): ToolModel {
 const edit = { id: "e", name: "edit_file", input: { path: "README.md", edits: [{ find: "Run the tests.", replace: "Run the tests with pnpm test." }], reason: "Name the command." } };
 const finish = { id: "f", name: "finish", input: { summary: "README names pnpm test.", steps: ["Edited README.md"], risks: [], checks: ["pnpm test"] } };
 
-async function deps(over: { model: ToolModel; state?: TaskState; sandbox?: CommandRunner | null; runError?: string; extraFiles?: { path: string; content: string }[] }) {
+async function deps(over: { model?: ToolModel; state?: TaskState; sandbox?: CommandRunner | null; runError?: string; extraFiles?: { path: string; content: string }[]; taskId?: string; gateway?: ExecutorDeps["gateway"] }) {
   const patches: RunPatch[] = [];
   const proposals: ProposalInput[] = [];
   const synced: string[][] = [];
@@ -75,7 +75,7 @@ async function deps(over: { model: ToolModel; state?: TaskState; sandbox?: Comma
   const d: ExecutorDeps = {
     runs,
     checks: {
-      loadTask: async () => ({ id: "t1", title: "Name the test command", projectId: "p1", state: over.state ?? "CONTRACT_APPROVED", version: 4 }),
+      loadTask: async () => ({ id: over.taskId ?? "t1", title: "Name the test command", projectId: "p1", state: over.state ?? "CONTRACT_APPROVED", version: 4 }),
       approvedContract: async () => ({ version: 1, sha256: "c".repeat(64), body: contract }),
       project: async () => ({ id: "p1", name: "Storefront", archived: false }),
       projectFiles: async () => [{ path: "README.md", revision: 5, sha256: sha, sizeBytes: README.length }, ...(over.extraFiles ?? []).map((f) => ({ path: f.path, revision: 1, sha256: "e".repeat(64), sizeBytes: f.content.length }))],
@@ -85,7 +85,7 @@ async function deps(over: { model: ToolModel; state?: TaskState; sandbox?: Comma
       newEventId: () => `ev-${++n}`,
       now: () => new Date("2026-10-18T12:00:00Z"),
     },
-    gateway: { deps: {} as GatewayDeps, model: {} as GatewayModel },
+    gateway: over.gateway ?? { deps: {} as GatewayDeps, model: {} as GatewayModel },
     sandboxAvailable: () => over.sandbox !== undefined && over.sandbox !== null,
     async sandbox(input) {
       if (!over.sandbox) return null;
@@ -102,7 +102,7 @@ async function deps(over: { model: ToolModel; state?: TaskState; sandbox?: Comma
         },
       };
     },
-    makeModel: () => over.model,
+    makeModel: over.model ? () => over.model! : undefined,
     workRoot: root,
   };
   const ended = async () => {
@@ -261,5 +261,70 @@ describe("skills in a cloud run", () => {
     expect(system).not.toContain("not-a-skill");
     const notes = t.patches.flatMap((p) => p.events ?? []).filter((e) => e.kind === "note").map((e) => (e.payload as { text: string }).text);
     expect(notes).toContainEqual(expect.stringContaining("with these skills: 3D and depth, house-style (this project's)"));
+  });
+});
+
+describe("a run's cap (ADR 0040)", () => {
+  const TASK = "22222222-2222-4222-8222-222222222222";
+  // Each step settles at 220 units on Sonnet (see gateway.test.ts).
+  const usage = { input_tokens: 500, output_tokens: 1_200, cache_creation_input_tokens: 2_000, cache_read_input_tokens: 40_000 };
+
+  function capGateway(): { gateway: ExecutorDeps["gateway"]; settled: number[] } {
+    const settled: number[] = [];
+    let turn = 0;
+    const gatewayDeps: GatewayDeps = {
+      billing: async () => ({ state: "active", paidPlanId: "pro" }),
+      now: () => new Date("2026-10-18T12:00:00Z"),
+      newEventId: () => `key-${turn}`,
+      loadTask: async () => ({ id: TASK, state: "CONTRACT_APPROVED" }),
+      rateLimit: async () => true,
+      listUsageGrants: async () => [{ id: "g", kind: "plan", units: 215_792, used: 0, startsAt: "2026-10-01T00:00:00.000Z", expiresAt: "2026-12-01T00:00:00.000Z" }],
+      reserveUsage: async () => ({ ok: true, value: `entry-${turn}` }),
+      settleUsage: async (input) => (input.status === "settled" ? settled.push(input.units) : undefined, { ok: true, value: null }),
+    };
+    const model: GatewayModel = {
+      family: "anthropic",
+      async call() {
+        turn += 1;
+        // First the edit, then the agent keeps reading: it would never finish on its own.
+        const block =
+          turn === 1
+            ? { type: "tool_use", id: `tu_${turn}`, name: "edit_file", input: { path: "README.md", edits: [{ find: "Run the tests.", replace: "Run the tests with pnpm test." }], reason: "Name the command." } }
+            : { type: "tool_use", id: `tu_${turn}`, name: "read_file", input: { path: "README.md" } };
+        return { ok: true, message: { id: `msg_${turn}`, model: "claude-sonnet-5-5", content: [block], stop_reason: "tool_use", usage } };
+      },
+    } as GatewayModel;
+    return { gateway: { deps: gatewayDeps, model }, settled };
+  }
+
+  it("stops before the cap, never past it, and keeps the work so far as a partial change", async () => {
+    const { gateway, settled } = capGateway();
+    const t = await deps({ taskId: TASK, gateway });
+    const capUnits = 9_000;
+    await startCloudRun(t.d, { person: alice, taskId: TASK, effort: "balanced", capUnits });
+    const end = await t.ended();
+    expect(end).toMatchObject({ status: "finished", outcome: expect.stringMatching(/run's cap.*partial change/) });
+    expect(settled.length).toBeGreaterThan(1);
+    expect(settled.reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(capUnits);
+    expect(t.proposals).toHaveLength(1);
+    expect(t.proposals[0]!.plan.summary).toMatch(/^Partial: the run stopped before finishing/);
+    expect(t.proposals[0]!.changes.map((c) => c.path)).toEqual(["README.md"]);
+  });
+
+  it("keeps the work of a run that reaches its step limit too", async () => {
+    const read = { id: "r", name: "read_file", input: { path: "README.md" } };
+    const t = await deps({ model: scripted([[edit], ...Array.from({ length: 60 }, () => [read])]) });
+    await startCloudRun(t.d, { person: alice, taskId: "t1", effort: "balanced" });
+    expect(await t.ended()).toMatchObject({ status: "finished", outcome: expect.stringMatching(/limit of 40 model steps.*partial change/) });
+    expect(t.proposals[0]!.plan.summary).toMatch(/^Partial:/);
+  });
+
+  it("says so when the cap stops a run before it changed anything", async () => {
+    const { gateway, settled } = capGateway();
+    const t = await deps({ taskId: TASK, gateway });
+    await startCloudRun(t.d, { person: alice, taskId: TASK, effort: "balanced", capUnits: 50 });
+    expect(await t.ended()).toMatchObject({ status: "failed", outcome: expect.stringMatching(/run's cap.*hadn't changed any files/) });
+    expect(settled).toEqual([]);
+    expect(t.proposals).toEqual([]);
   });
 });
