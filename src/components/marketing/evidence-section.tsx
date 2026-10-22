@@ -1,4 +1,5 @@
-import { CheckIcon, MinusIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, CheckIcon, MinusIcon } from "@phosphor-icons/react/ssr";
+import Link from "next/link";
 import { JsonView } from "@/components/code/json-view";
 import { ProofPackSeal } from "@/components/proof/proofpack-seal";
 import { Container } from "@/components/ui/container";
@@ -39,6 +40,9 @@ export async function EvidenceSection() {
             <p className="max-w-[30ch] text-center text-sm text-ink-3 lg:text-left">
               Sample written to show the format. This seal and {shortHash(digest)} are computed from this sample&apos;s JSON.
             </p>
+            <Link href="/verify" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-accent hover:underline">
+              Check a ProofPack yourself <ArrowRightIcon size={14} aria-hidden />
+            </Link>
           </div>
         </div>
 

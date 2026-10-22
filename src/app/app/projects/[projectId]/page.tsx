@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, ArrowRightIcon, DownloadSimpleIcon, EyeIcon, FolderOpenIcon, ListChecksIcon, RocketLaunchIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
+import { ArchiveIcon, ArrowLeftIcon, ArrowRightIcon, DownloadSimpleIcon, EyeIcon, FolderOpenIcon, ListChecksIcon, RocketLaunchIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -140,7 +140,17 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
                 <a href={`/app/projects/${project.id}/download`} download className={buttonClasses("secondary", "sm")}>
                   <DownloadSimpleIcon size={16} aria-hidden /> Download .zip
                 </a>
+                <a href={`/app/projects/${project.id}/export`} download className={buttonClasses("secondary", "sm")}>
+                  <ArchiveIcon size={16} aria-hidden /> Export everything
+                </a>
               </div>
+              <p className="mt-3 text-xs text-ink-3">
+                Export everything adds the tasks, contracts, ProofPacks and history, ready to build without Farbaek. Anyone can check its evidence at{" "}
+                <Link href="/verify" className="underline underline-offset-2 hover:text-ink">
+                  farbaek.com/verify
+                </Link>
+                .
+              </p>
               {!previewReason && !files.some((f) => f.path === "index.html") ? (
                 <p className="mt-3 text-xs text-ink-3">Previews serve the project&apos;s files as they are, starting at index.html. Apps that need building preview from a sandbox.</p>
               ) : null}
