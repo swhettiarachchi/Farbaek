@@ -84,11 +84,12 @@ install_cli() {
   step "Supabase CLI $CLI_VERSION"
   local tmp base="https://github.com/supabase/cli/releases/download/v$CLI_VERSION"
   tmp=$(mktemp -d)
-  curl -fsSL -o "$tmp/supabase_linux_amd64.tar.gz" "$base/supabase_linux_amd64.tar.gz"
+  local archive="supabase_${CLI_VERSION}_linux_amd64.tar.gz"
+  curl -fsSL -o "$tmp/$archive" "$base/$archive"
   curl -fsSL -o "$tmp/checksums.txt" "$base/checksums.txt"
-  (cd "$tmp" && grep ' supabase_linux_amd64.tar.gz$' checksums.txt | sha256sum -c -)
+  (cd "$tmp" && grep " $archive\$" checksums.txt | sha256sum -c -)
   install -d -m 755 "$BIN"
-  tar -xzf "$tmp/supabase_linux_amd64.tar.gz" -C "$tmp" supabase
+  tar -xzf "$tmp/$archive" -C "$tmp" supabase
   install -m 755 "$tmp/supabase" "$BIN/supabase"
   rm -rf "$tmp"
   "$BIN/supabase" --version
