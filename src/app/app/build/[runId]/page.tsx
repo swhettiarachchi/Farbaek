@@ -4,11 +4,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/app/primitives";
 import { RunLive } from "@/components/build/run-live";
-import { shareOfPeriod } from "@/core/agent/prompt-start";
 import { getRun, getRunUsage, listRunEvents } from "@/server/cloud-agent/store";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { loadAppContext } from "@/server/workspace/context";
-import { periodUnits } from "@/server/workspace/plan-card-data";
+import { runUsageView } from "@/server/workspace/plan-card-data";
 import { loadRunPreview } from "@/server/workspace/run-preview";
 import { MANAGER_ROLES } from "@/server/workspace/types";
 
@@ -35,7 +34,7 @@ export default async function BuildRunPage({ params }: Params) {
           .catch(() => false)
       : false,
   ]);
-  const usage = used ? { share: shareOfPeriod(used.settledUnits, periodUnits(ctx.current)), refunded: used.refunded } : null;
+  const usage = runUsageView(used, run.capUnits, ctx.current);
   const canAnswer = ctx.writes.enabled && (run.startedBy === ctx.user.id || (ctx.role !== null && MANAGER_ROLES.includes(ctx.role)));
 
   return (

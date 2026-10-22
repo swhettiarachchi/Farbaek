@@ -59,7 +59,8 @@ export interface ToolModel {
 }
 
 /** "usage" means the workspace's AI usage has run out for now. */
-export type ModelErrorKind = "auth" | "busy" | "network" | "bad_request" | "bad_output" | "cancelled" | "usage";
+/** "cap": the run's own usage cap stopped the next step (ADR 0040). */
+export type ModelErrorKind = "auth" | "busy" | "network" | "bad_request" | "bad_output" | "cancelled" | "usage" | "cap";
 
 export class ModelError extends Error {
   constructor(

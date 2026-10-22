@@ -9,10 +9,12 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { CAP_CHOICES } from "@/core/agent/run-cap";
 import { EFFORTS } from "@/core/agent/routing";
 import { answerRunApproval, cancelCloudRun, sendRunMessage, startCloudRun } from "@/server/cloud-agent/executor";
 import { cloudRunDeps } from "@/server/cloud-agent/wiring";
 import { loadAppContext, type AppContext } from "@/server/workspace/context";
+import { runCapUnits } from "@/server/workspace/plan-card-data";
 
 export type BuildActionState = { status: "idle" } | { status: "error"; message: string } | { status: "done" };
 
@@ -25,13 +27,16 @@ async function person(): Promise<{ ctx: AppContext; person: { orgId: string; use
 }
 
 export async function startBuildRunAction(_previous: BuildActionState, form: FormData): Promise<BuildActionState> {
-  const parsed = z.object({ taskId: z.uuid(), effort: z.enum(EFFORTS).catch("balanced") }).safeParse({ taskId: form.get("taskId"), effort: form.get("effort") });
+  const parsed = z
+    .object({ taskId: z.uuid(), effort: z.enum(EFFORTS).catch("balanced"), cap: z.enum(CAP_CHOICES).catch("double") })
+    .safeParse({ taskId: form.get("taskId"), effort: form.get("effort"), cap: form.get("cap") ?? undefined });
   if (!parsed.success) return { status: "error", message: "Choose a task with an approved contract." };
   const p = await person();
   if ("error" in p) return { status: "error", message: p.error };
   const wiring = await cloudRunDeps(p.person);
   if (!wiring.ok) return { status: "error", message: wiring.reason };
-  const started = await startCloudRun(wiring.deps, { person: p.person, taskId: parsed.data.taskId, effort: parsed.data.effort });
+  const capUnits = p.ctx.current ? runCapUnits(p.ctx.current, parsed.data.effort, parsed.data.cap) : null;
+  const started = await startCloudRun(wiring.deps, { person: p.person, taskId: parsed.data.taskId, effort: parsed.data.effort, capUnits });
   if (!started.ok) return { status: "error", message: started.message };
   revalidatePath("/app/build");
   redirect(`/app/build/${started.value.runId}`);

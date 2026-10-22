@@ -15,6 +15,7 @@
  * - A refusal or a provider failure is refunded in full.
  */
 import { z } from "zod";
+import { worstStepUnits } from "@/core/agent/run-cap";
 import { EFFORTS, route } from "@/core/agent/routing";
 import { approxTokens, costUnits } from "@/core/billing/rate-card";
 import type { TaskState } from "@/core/realityloop/task-machine";
@@ -135,7 +136,19 @@ const FAILURES: Record<DraftFailure, { status: number; code: "AI_REFUSED" | "AI_
   PROVIDER_ERROR: { status: 502, code: "AI_UNAVAILABLE", message: "The model couldn't be reached." },
 };
 
-export async function callModel(deps: GatewayDeps, model: GatewayModel, agent: AgentIdentity, raw: unknown, signal?: AbortSignal): Promise<AgentResult<GatewayReply>> {
+/**
+ * `remainingUnits` is what's left of a run's cap (ADR 0040). The step goes
+ * ahead only when even its worst case fits; otherwise nothing is reserved
+ * or charged and the run stops at its cap.
+ */
+export async function callModel(
+  deps: GatewayDeps,
+  model: GatewayModel,
+  agent: AgentIdentity,
+  raw: unknown,
+  signal?: AbortSignal,
+  options: { remainingUnits?: number } = {},
+): Promise<AgentResult<GatewayReply>> {
   const role = requireAgentContributor(agent);
   if (!role.ok) return role;
   const parsed = ModelCallBody.safeParse(raw);
@@ -150,6 +163,13 @@ export async function callModel(deps: GatewayDeps, model: GatewayModel, agent: A
   const billing = await resolvePlan(deps, agent.orgId);
   if (!billing.ok) return agentFail(billing.code, billing.message);
   const choice = route({ plan: billing.value.plan, family: model.family, step: body.step, effort: body.effort, pinned: body.pinned });
+
+  if (options.remainingUnits !== undefined) {
+    const input = approxTokens(JSON.stringify(body.system)) + approxTokens(JSON.stringify(body.tools)) + approxTokens(JSON.stringify(body.messages));
+    if (worstStepUnits(choice.model, input, STEP_MAX_OUTPUT_TOKENS) > options.remainingUnits) {
+      return agentFail("RUN_CAP_REACHED", "The next step could pass this run's cap, so the run stopped before it. Nothing more was charged.");
+    }
+  }
 
   const reserved = await reserveUsage(deps, {
     orgId: agent.orgId,

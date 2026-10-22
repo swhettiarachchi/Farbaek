@@ -2,10 +2,11 @@
 
 import { RocketLaunchIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useId, useState } from "react";
 import { approveAndBuildAction, type ApproveBuildState } from "@/app/app/new/actions";
 import { EffortPicker } from "@/components/app/effort-picker";
 import { buttonClasses } from "@/components/ui/button";
+import { CAP_CHOICES, CAP_LABELS, type CapChoice } from "@/core/agent/run-cap";
 import type { Effort } from "@/core/agent/routing";
 import type { RunEstimates } from "@/server/workspace/plan-card-data";
 
@@ -41,6 +42,8 @@ export function ApproveBuild({
 }) {
   const [state, action, pending] = useActionState(approveAndBuildAction, IDLE);
   const [effort, setEffort] = useState<Effort>("balanced");
+  const [cap, setCap] = useState<CapChoice>("double");
+  const capId = useId();
   const estimate = estimates[effort];
 
   return (
@@ -80,6 +83,25 @@ export function ApproveBuild({
           "Each step is metered from your AI usage at its real cost, and steps that fail are refunded."
         )}
       </p>
+      {estimate ? (
+        <fieldset className="grid min-w-0 gap-1.5" disabled={pending || Boolean(disabledReason)}>
+          <legend className="mb-1 text-sm font-medium">Stop the run at</legend>
+          <div className="inline-flex w-full rounded-full border border-line bg-surface p-1 shadow-e1 sm:w-auto">
+            {CAP_CHOICES.map((c) => (
+              <label key={c} className="relative flex-1 sm:flex-none">
+                <input type="radio" name="cap" value={c} checked={cap === c} onChange={() => setCap(c)} aria-describedby={`${capId}-detail`} className="peer sr-only" />
+                <span className="flex min-h-11 cursor-pointer items-center justify-center whitespace-nowrap rounded-full px-3 text-sm text-ink-2 transition-colors duration-[160ms] peer-checked:bg-primary peer-checked:font-medium peer-checked:text-on-primary peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent peer-disabled:cursor-not-allowed peer-disabled:opacity-50 sm:px-4">
+                  {CAP_LABELS[c].title}
+                </span>
+              </label>
+            ))}
+          </div>
+          <p id={`${capId}-detail`} className="text-xs leading-relaxed text-ink-3">
+            {CAP_LABELS[cap].detail(estimate.high)}
+            {cap !== "plan" ? " It never goes past the cap: a step that might is stopped before it starts, and the work so far is kept for your review." : ""}
+          </p>
+        </fieldset>
+      ) : null}
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending || Boolean(disabledReason)} className={buttonClasses("primary")}>
           <RocketLaunchIcon size={18} weight="bold" aria-hidden />
