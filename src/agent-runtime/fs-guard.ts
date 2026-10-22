@@ -20,6 +20,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { constants, promises as fs, type BigIntStats } from "node:fs";
+import type { FileHandle } from "node:fs/promises";
 import path from "node:path";
 import { checkAgentDir, checkAgentPath } from "@/core/agent/paths";
 import { IGNORED_FOLDERS } from "@/core/workspace/files";
@@ -193,6 +194,50 @@ export class ProjectFolder {
       await fs.rm(tmp, { force: true });
       throw error;
     }
+  }
+
+  /**
+   * Opens a file of any kind for streaming reads, checked like read() but
+   * with no size or text limit. Mesh sends files this way, piece by piece.
+   * The caller closes the handle.
+   */
+  async openRead(rel: string): Promise<{ handle: FileHandle; size: number }> {
+    const r = await this.resolve(rel, true);
+    const stat = r.stat!;
+    if (!stat.isFile()) throw new FolderGuardError("NOT_A_FILE", `${r.rel} isn't a file.`);
+    if (stat.nlink > 1n) throw new FolderGuardError("LINK", `${r.rel} has more than one hard link, so it could be a file outside the folder.`);
+    const handle = await fs.open(r.abs, constants.O_RDONLY | NOFOLLOW);
+    const opened = await handle.stat({ bigint: true });
+    if (opened.ino !== stat.ino || opened.dev !== stat.dev) {
+      await handle.close();
+      throw new FolderGuardError("CHANGED", `${r.rel} changed while it was being opened.`);
+    }
+    return { handle, size: Number(opened.size) };
+  }
+
+  /**
+   * Creates a file that doesn't exist yet, for streaming writes. "wx" never
+   * replaces or follows anything already there. The caller closes the handle.
+   */
+  async createNew(rel: string): Promise<FileHandle> {
+    const r = await this.resolve(rel, false);
+    if (r.stat) throw new FolderGuardError("CHANGED", `${r.rel} already exists.`);
+    const parent = await this.ensureParent(r.rel);
+    const realParent = await fs.realpath(parent);
+    if (!isInside(this.root, realParent)) throw new FolderGuardError("OUTSIDE_ROOT", `${r.rel} resolves outside the folder.`);
+    return fs.open(r.abs, "wx", 0o644);
+  }
+
+  /** Moves a file to a path that doesn't exist yet, inside the folder. */
+  async moveNew(fromRel: string, toRel: string): Promise<void> {
+    const from = await this.resolve(fromRel, true);
+    if (!from.stat!.isFile()) throw new FolderGuardError("NOT_A_FILE", `${from.rel} isn't a file.`);
+    const to = await this.resolve(toRel, false);
+    if (to.stat) throw new FolderGuardError("CHANGED", `${to.rel} already exists.`);
+    const parent = await this.ensureParent(to.rel);
+    const realParent = await fs.realpath(parent);
+    if (!isInside(this.root, realParent)) throw new FolderGuardError("OUTSIDE_ROOT", `${to.rel} resolves outside the folder.`);
+    await fs.rename(from.abs, to.abs);
   }
 
   /** Deletes one file. Used to undo a file the agent created; unlink never follows a link. */

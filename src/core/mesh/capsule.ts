@@ -22,6 +22,7 @@ import { blake3 } from "@noble/hashes/blake3.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { z } from "zod";
 import { canonicalize } from "@/core/trust/canonical-json";
+import { checkAgentPath } from "@/core/agent/paths";
 import { checkPath, screenFile, screenPath, type SkipReason } from "@/core/workspace/files";
 import { readZip, ZipError } from "@/core/workspace/unzip";
 import { zipFiles } from "@/core/workspace/zip";
@@ -186,26 +187,7 @@ export async function openCapsule(data: Uint8Array, limits: CapsuleLimits): Prom
   if (!parsed.success) return { ok: false, problems: ["capsule.json doesn't match the Capsule format (farbaek.capsule/1)."] };
   const manifest = parsed.data;
 
-  const problems: string[] = [];
-  if (manifest.files.length > limits.maxFiles) problems.push(`It holds ${manifest.files.length} files; the most a Capsule can hold is ${limits.maxFiles}.`);
-  if (manifest.totals.files !== manifest.files.length) problems.push("The manifest's file count doesn't match its file list.");
-
-  // Paths: each one checked as in any import, kept in NFC form, and unique even ignoring case.
-  const byFolded = new Map<string, string>();
-  for (const entry of manifest.files) {
-    if (entry.path.normalize("NFC") !== entry.path) problems.push(`${entry.path}: the name isn't in normalised (NFC) form.`);
-    const checked = checkPath(entry.path);
-    if (!checked.ok || checked.path !== entry.path) {
-      problems.push(`${entry.path.slice(0, 120)}: ${checked.ok ? "the path isn't in its plain form." : checked.reason}`);
-      continue;
-    }
-    const screened = screenPath(entry.path);
-    if (!screened.ok) problems.push(`${entry.path}: ${reasonWords(screened.reason)} files can't be in a Capsule.`);
-    const folded = entry.path.toLowerCase();
-    const other = byFolded.get(folded);
-    if (other !== undefined) problems.push(other === entry.path ? `${entry.path} is listed twice.` : `${entry.path} and ${other} differ only in capital letters.`);
-    byFolded.set(folded, entry.path);
-  }
+  const problems = checkManifest(manifest, limits);
 
   // The archive must hold exactly the manifest and the files it lists.
   const listed = new Set(manifest.files.map((f) => f.path));
@@ -250,8 +232,108 @@ export async function openCapsule(data: Uint8Array, limits: CapsuleLimits): Prom
   if (total > limits.maxTotalBytes) problems.push("The files add up to more than a Capsule may hold.");
   if (total !== manifest.totals.bytes) problems.push("The manifest's byte count doesn't match its files.");
 
-  if (problems.length > 0) return { ok: false, problems: problems.slice(0, 50) };
+  if (problems.length > 0) return { ok: false, problems: [...new Set(problems)].slice(0, 50) };
   return { ok: true, manifest, digest: manifestDigest(manifest), files };
+}
+
+/**
+ * The checks every manifest gets wherever a Capsule arrives, before any byte
+ * of it is used: counts and sizes within the limits, each file's chunks laid
+ * out as packing lays them out, and every path checked as in any import,
+ * kept in NFC form, unique even ignoring case, and allowed by the screening
+ * (so a hostile sender can't list a `.env` or a key). `diskPaths` adds the
+ * rules for names on a real disk, for Capsules written to a computer.
+ */
+export function checkManifest(manifest: CapsuleManifest, limits: CapsuleLimits, options: { diskPaths?: boolean } = {}): string[] {
+  const problems: string[] = [];
+  if (manifest.files.length > limits.maxFiles) problems.push(`It holds ${manifest.files.length} files; the most a Capsule can hold is ${limits.maxFiles}.`);
+  if (manifest.totals.files !== manifest.files.length) problems.push("The manifest's file count doesn't match its file list.");
+
+  let declared = 0;
+  const byFolded = new Map<string, string>();
+  for (const entry of manifest.files) {
+    declared += entry.bytes;
+    if (entry.bytes > limits.maxFileBytes) problems.push(`${entry.path.slice(0, 120)} is larger than a Capsule file may be.`);
+    if (!chunksLaidOut(entry)) problems.push(`${entry.path.slice(0, 120)}: its chunk list doesn't match its size.`);
+
+    if (entry.path.normalize("NFC") !== entry.path) problems.push(`${entry.path}: the name isn't in normalised (NFC) form.`);
+    const checked = options.diskPaths ? checkAgentPath(entry.path) : checkPath(entry.path);
+    if (!checked.ok || checked.path !== entry.path) {
+      problems.push(`${entry.path.slice(0, 120)}: ${checked.ok ? "the path isn't in its plain form." : checked.reason}`);
+      continue;
+    }
+    const screened = screenPath(entry.path);
+    if (!screened.ok) problems.push(`${entry.path}: ${reasonWords(screened.reason)} files can't be in a Capsule.`);
+    const folded = entry.path.toLowerCase();
+    const other = byFolded.get(folded);
+    if (other !== undefined) problems.push(other === entry.path ? `${entry.path} is listed twice.` : `${entry.path} and ${other} differ only in capital letters.`);
+    byFolded.set(folded, entry.path);
+  }
+  if (declared !== manifest.totals.bytes) problems.push("The manifest's byte count doesn't match its files.");
+  if (declared > limits.maxTotalBytes) problems.push("The files add up to more than a Capsule may hold.");
+  return problems.slice(0, 50);
+}
+
+/** Chunks as packing makes them: numbered from 0, each CHUNK_BYTES but the last, adding up to the file. An empty file has one empty chunk. */
+function chunksLaidOut(entry: CapsuleFileEntry): boolean {
+  const count = entry.bytes === 0 ? 1 : Math.ceil(entry.bytes / CHUNK_BYTES);
+  if (entry.chunks.length !== count) return false;
+  return entry.chunks.every((c, i) => c.index === i && c.bytes === (i < count - 1 ? CHUNK_BYTES : entry.bytes - CHUNK_BYTES * (count - 1)));
+}
+
+export type CapsuleChunk = CapsuleFileEntry["chunks"][number];
+
+/**
+ * Hashes a file as it streams past, without holding it: BLAKE3 of each
+ * 4 MiB chunk and of the whole file, laid out exactly as packing lays them
+ * out. `onChunk` hears each chunk as it completes, so a receiver can check
+ * it before the next one arrives.
+ */
+export class ChunkHasher {
+  private readonly whole = blake3.create();
+  private part = blake3.create();
+  private inPart = 0;
+  private total = 0;
+  private done = false;
+  readonly chunks: CapsuleChunk[] = [];
+
+  constructor(private readonly onChunk?: (chunk: CapsuleChunk) => void) {}
+
+  get bytes(): number {
+    return this.total;
+  }
+
+  update(bytes: Uint8Array): void {
+    if (this.done) throw new Error("This file has already been hashed.");
+    let offset = 0;
+    while (offset < bytes.length) {
+      const take = Math.min(bytes.length - offset, CHUNK_BYTES - this.inPart);
+      const piece = bytes.subarray(offset, offset + take);
+      this.whole.update(piece);
+      this.part.update(piece);
+      this.inPart += take;
+      this.total += take;
+      offset += take;
+      if (this.inPart === CHUNK_BYTES) this.closePart();
+    }
+  }
+
+  /** Finishes the file: its size, whole-file hash and chunks. */
+  digest(): { bytes: number; blake3: string; chunks: CapsuleChunk[] } {
+    if (!this.done) {
+      if (this.inPart > 0 || this.chunks.length === 0) this.closePart();
+      this.done = true;
+    }
+    return { bytes: this.total, blake3: bytesToHex(this.whole.digest()), chunks: this.chunks };
+  }
+
+  private closePart(): void {
+    const chunk = { index: this.chunks.length, bytes: this.inPart, blake3: bytesToHex(this.part.digest()) };
+    this.chunks.push(chunk);
+    this.part = blake3.create();
+    this.inPart = 0;
+    this.onChunk?.(chunk);
+  }
 }
 
 function chunksMatch(bytes: Uint8Array, entry: CapsuleFileEntry): boolean {

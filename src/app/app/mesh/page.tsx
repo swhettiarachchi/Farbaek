@@ -78,10 +78,10 @@ export default async function MeshPage() {
             <h2 className="flex items-center gap-2 text-lg font-medium">
               <DevicesIcon size={20} className="text-ink-3" aria-hidden /> Your devices
             </h2>
-            <StatusBadge status="unverified" label="Not available yet" />
+            <StatusBadge status="info" label="In the Farbaek Agent" />
           </div>
           <p className="mt-3 text-sm leading-relaxed text-ink-2">
-            Sending a Capsule straight to your other computer, over your own network and paired with a short code, comes next with the Farbaek Agent. Until then, download a Capsule and move the file yourself.
+            The Farbaek Agent sends a folder straight to your other computer on the same network. Pair the two once with a six-digit code; every piece is then encrypted and checked against its hash as it arrives, and nothing passes through Farbaek. So far it has been checked between two agents on one computer.
           </p>
           <Link href="/app/agents" className="mt-4 inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-accent hover:underline">
             About the Farbaek Agent <ArrowRightIcon size={14} aria-hidden />

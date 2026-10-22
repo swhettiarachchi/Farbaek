@@ -51,3 +51,63 @@ The owner asked to keep building the platform. The next unbuilt stage in the spe
 ### Next
 
 - Phase B: nearby transfer between Farbaek Agents (discovery, pairing with a short code, an encrypted channel, chunked sending with per-chunk checks). It needs its own plan.
+
+## 2026-10-22: phase B, nearby transfer between Farbaek Agents
+
+- **Plan:** approved 2026-10-22.
+- **Decision record:** `docs/adr/0038-mesh-nearby-transfer.md`.
+- **Branch:** `feat/mesh-nearby`, from `feat/mesh-capsules`.
+
+### Done
+
+**Cryptography:** `Noise_XX_25519_AESGCM_SHA256` on `node:crypto` (`src/agent-runtime/mesh/noise.ts`), no new dependencies. Electron's BoringSSL has no ChaCha20-Poly1305 for Node, hence AES-GCM.
+
+**Pairing:**
+- a six-digit code from the handshake hash, confirmed by both people within two minutes;
+- the device key kept with the system keychain;
+- trusted devices stored by public key.
+
+**Discovery:** UDP multicast only while visible or looking (five minutes); connect by address as the fallback.
+
+**Transfer** (`farbaek-mesh/1`, `src/core/mesh/protocol.ts`):
+- an offer of a Capsule manifest, with acceptance and a new destination folder;
+- free-space check;
+- streaming with backpressure;
+- BLAKE3 per 4 MiB chunk and per file as it arrives;
+- checkpoints and resume;
+- cancel;
+- `verified` only after every file matched.
+
+**Shared code:** `checkManifest` and `ChunkHasher` are now shared in `src/core/mesh/capsule.ts`. The folder guard gained binary streaming (`openRead`, `createNew`, `moveNew`).
+
+**The agent:** a **Nearby** view (visibility, pairing code, send a folder, incoming offers, transfers with progress, Resume and Cancel, paired computers with Forget), also reachable without pairing with Farbaek.
+
+### Verified
+
+- **Noise** matches the published cacophony vector for `Noise_XX_25519_AESGCM_SHA256`: all six messages and the handshake hash. Tampered, replayed and reordered messages are refused, and a relay gives different codes.
+- **Two `MeshNode`s on localhost** (`mesh.test.ts`, 14 tests, stable over three runs):
+  - pairing, and a "don't match" pairs nothing;
+  - a 10 MiB binary and text files arrive byte-identical;
+  - a second transfer lands in a new folder;
+  - decline writes nothing;
+  - a dropped connection resumes from the checked chunks and the result is identical;
+  - a corrupted chunk stops the transfer and removes everything;
+  - traversal in an offer is refused;
+  - not enough space is refused;
+  - a forgotten device is refused.
+- **Two bugs found and fixed by those tests:**
+  - resumed writes landed at the file's start;
+  - a receiver's last error was lost by an abrupt close.
+- **The same tests under Electron's own runtime** (`ELECTRON_RUN_AS_NODE`), on BoringSSL: 30 of 30 pass.
+- **Live in the real app:** two agent windows on this computer with scratch data folders, driven over DevTools.
+  - Window A found B by multicast.
+  - Both showed code 335 201, and both confirmed.
+  - A sent `harbour-lane` (3 files, 12.0 MB), and B accepted.
+  - Both showed "Checked".
+  - The SHA-256 of every received file matched the original; `.env` and `node_modules` stayed behind; no temporary folder was left.
+
+### Not yet
+
+- **Between two physical computers on a real network:** needs the owner. Install the rebuilt agent on two computers on the same Wi-Fi.
+- **The installer:** it needs rebuilding (`pnpm agent:dist`) to include Nearby.
+- **Not built:** mDNS for iOS, the mobile apps (Stage 7), remote transfer and the encrypted relay.

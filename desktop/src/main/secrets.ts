@@ -1,5 +1,6 @@
 /**
- * Secrets on this computer: the agent token. There are no model keys: runs
+ * Secrets on this computer: the agent token and Mesh's device key (the
+ * private half of the key nearby computers know it by). There are no model keys: runs
  * go through Farbaek's model gateway (ADR 0021). The token is encrypted with
  * Electron's safeStorage, which uses the system keychain (DPAPI on Windows,
  * Keychain on macOS, libsecret or KWallet on Linux), and written to its own
@@ -13,7 +14,7 @@ import { safeStorage } from "electron";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-export type SecretName = "agent-token";
+export type SecretName = "agent-token" | "mesh-device-key";
 
 /** Model keys stored by app versions before the model gateway. They're deleted on start. */
 const LEGACY_KEY_FILES = ["key-anthropic.bin", "key-gemini.bin"];

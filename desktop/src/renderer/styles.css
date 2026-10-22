@@ -638,3 +638,108 @@ pre {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Nearby (Mesh): pairing code, progress, devices */
+.content.solo {
+  height: 100%;
+}
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  justify-self: start;
+}
+.pair-alt {
+  text-align: center;
+}
+.pair-code {
+  font-size: 2.6rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  padding: 18px 0 6px;
+}
+.offer {
+  border-color: color-mix(in srgb, var(--approval) 45%, var(--line));
+}
+.pairing {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+.excluded {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-raised);
+  padding: 10px 14px;
+}
+.excluded summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+.excluded ul {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.excluded li {
+  display: grid;
+  gap: 2px;
+}
+.transfers,
+.devices {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.transfer {
+  display: grid;
+  gap: 8px;
+  padding: 14px 0;
+}
+.transfer + .transfer,
+.devices li + li {
+  border-top: 1px solid var(--line);
+}
+.devices li {
+  align-items: center;
+  padding: 10px 0;
+}
+.transfer-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+.progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+.progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 200ms ease-out;
+}
+.address-form {
+  align-items: flex-end;
+  margin-top: 10px;
+}
+.port-field input {
+  width: 110px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress span {
+    transition: none;
+  }
+}
