@@ -11,6 +11,7 @@ import {
   LifebuoyIcon,
   ListChecksIcon,
   LockSimpleIcon,
+  PackageIcon,
   SparkleIcon,
   TerminalWindowIcon,
 } from "@phosphor-icons/react";
@@ -36,6 +37,7 @@ const PRIMARY: NavItem[] = [
   { href: "/app/approvals", label: "Approvals", short: "Approvals", icon: CheckSquareOffsetIcon },
   { href: "/app/sandbox", label: "Sandbox", short: "Sandbox", icon: TerminalWindowIcon },
   { href: "/app/agents", label: "Agents", short: "Agents", icon: DesktopIcon },
+  { href: "/app/mesh", label: "Mesh", short: "Mesh", icon: PackageIcon },
 ];
 
 const SECONDARY: NavItem[] = [
@@ -110,8 +112,8 @@ export function SidebarNav({ approvals, helpUnread = 0 }: { approvals: number; h
   );
 }
 
-// Five slots on phones: Tasks, Sandbox and Agents are reached through More there.
-const ON_MORE = ["/app/tasks", "/app/sandbox", "/app/agents"];
+// Five slots on phones: Tasks, Sandbox, Agents and Mesh are reached through More there.
+const ON_MORE = ["/app/tasks", "/app/sandbox", "/app/agents", "/app/mesh"];
 const TABS: NavItem[] = [...PRIMARY.filter((i) => !ON_MORE.includes(i.href)), { href: "/app/more", label: "More", short: "More", icon: DotsThreeOutlineIcon }];
 
 export function MobileTabBar({ approvals, helpUnread = 0 }: { approvals: number; helpUnread?: number }) {
