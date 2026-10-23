@@ -31,9 +31,20 @@ Known gaps:
 | Desktop / mobile / Mesh | Device spoofing, path traversal on import, archive bombs | PAKE or Noise pairing, short-lived scoped tokens, manifest and hash validation, no auto-execution on import |
 | Previews | Credential theft from generated code | Separate registrable domain, restrictive CSP, no shared cookies |
 
-## OWASP mapping (to be filled per stage)
+## OWASP mapping (2026-10-23, ADR 0048)
 
-The security evaluation suite (Stage 3) maps scenarios to the OWASP Top 10 for LLM Applications 2025 (LLM01 to LLM10) and the OWASP Top 10 for Agentic Applications 2026 (ASI01 to ASI10). Coverage is reported per ID, together with its limits.
+The security evaluation suite maps scenarios to the OWASP Top 10 for Agentic Applications 2026 (ASI01 to ASI10) and the OWASP Top 10 for LLM Applications 2025 (LLM01 to LLM10).
+- **Where it lives:**
+  - the scenarios are in `tests/security-eval/` and run with every `pnpm test`;
+  - the registry, with what each risk leaves untested, is `src/core/security-eval/catalog.ts`;
+  - `pnpm security:eval` writes the latest run to `src/content/security-eval-run.json`;
+  - `/security` shows it publicly.
+- **v1 (23 scenarios):**
+  - all ten agentic risks have at least one scenario;
+  - LLM08 (vector and embedding weaknesses) doesn't apply, because Farbaek has no retrieval or embeddings.
+- **What it doesn't do:**
+  - it doesn't measure whether a model resists injection: the scenarios script a model that obeys, and check that the boundaries hold;
+  - it doesn't test escapes from the sandbox's microVM, Farbaek's infrastructure failing, or how people act on what they see.
 
 ## Principles
 

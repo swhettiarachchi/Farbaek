@@ -26,7 +26,8 @@
     "agent:dist": "node desktop/build.mjs --production && electron-builder --config desktop/electron-builder.yml --publish never",
     "agent:smoke": "node node_modules/vitest/vitest.mjs run tests/smoke/agent.smoke.test.ts --mode smoke",
     "ai:smoke": "node --env-file-if-exists=.env.local node_modules/vitest/vitest.mjs run tests/smoke/ai.smoke.test.ts --mode smoke",
-    "films:record": "node scripts/films/record.mjs"
+    "films:record": "node scripts/films/record.mjs",
+    "security:eval": "node scripts/security-eval.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.128.0",

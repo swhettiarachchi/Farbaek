@@ -40,7 +40,8 @@ beforeEach(async () => {
   root = await fs.mkdtemp(path.join(os.tmpdir(), "farbaek-executor-"));
 });
 afterEach(async () => {
-  await fs.rm(root, { recursive: true, force: true });
+  // The run removes its own folder as it ends; on Windows the two removals can overlap for a moment.
+  await fs.rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
 });
 
 /** A labelled stand-in for the model: it plays a fixed script of tool calls. */

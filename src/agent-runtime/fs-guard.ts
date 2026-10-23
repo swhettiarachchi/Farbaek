@@ -79,6 +79,24 @@ export function isInside(root: string, candidate: string): boolean {
   return rel === "" || (rel.split(path.sep)[0] !== ".." && !path.isAbsolute(rel));
 }
 
+/**
+ * Renames a file. On Windows, antivirus and search indexers briefly lock a
+ * file that was just written, so the rename can fail with EPERM, EACCES or
+ * EBUSY for a moment; it's tried again a few times before giving up.
+ */
+async function renameRetrying(from: string, to: string): Promise<void> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await fs.rename(from, to);
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (process.platform !== "win32" || attempt >= 5 || (code !== "EPERM" && code !== "EACCES" && code !== "EBUSY")) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 25 * 2 ** attempt));
+    }
+  }
+}
+
 interface Resolved {
   abs: string;
   rel: string;
@@ -189,7 +207,7 @@ export class ProjectFolder {
     try {
       const realParent = await fs.realpath(parent);
       if (!isInside(this.root, realParent)) throw new FolderGuardError("OUTSIDE_ROOT", `${r.rel} resolves outside the project folder.`);
-      await fs.rename(tmp, r.abs);
+      await renameRetrying(tmp, r.abs);
     } catch (error) {
       await fs.rm(tmp, { force: true });
       throw error;
