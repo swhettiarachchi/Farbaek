@@ -30,6 +30,9 @@ import { currentExecutionMode } from "@/server/execution/sandbox";
 import { createAnthropicLensMapper } from "@/server/ai/lens-mapper";
 import { suggestLensMapping, type LensSuggestionDeps } from "@/server/workspace/lens-suggestions";
 import { limitsFrom, setWorkspaceAutonomy, type AutonomyDeps } from "@/server/workspace/autonomy";
+import { startTaskVerification } from "@/server/verification/runner";
+import { verificationDeps } from "@/server/verification/wiring";
+import { log } from "@/server/observability/log";
 
 export type FormState = { status: "idle" } | { status: "error"; message: string; values?: Record<string, string> } | { status: "done"; message: string };
 
@@ -343,6 +346,13 @@ export async function proposeChangeAction(input: { taskId: string; contextPaths:
     execution: currentExecutionMode(),
   });
   if (!result.ok) return { status: "error", message: result.message };
+  if (result.value.status === "applied" && ctx.role) {
+    // A change that applied on its own is checked straight away (ADR 0047). If that can't start, the task says so and waits for a person.
+    const person = { orgId: w.orgId, userId: ctx.user.id, role: ctx.role };
+    const wiring = await verificationDeps(person);
+    const started = wiring.ok ? await startTaskVerification(wiring.deps, person, found.task.id, "autonomy") : null;
+    if (started && !started.ok) log("warn", "verification.autostart_failed", { task: found.task.id, code: started.code });
+  }
   revalidatePath("/app", "layout");
   return { status: "done", proposalId: result.value.proposalId, outcome: result.value.status };
 }

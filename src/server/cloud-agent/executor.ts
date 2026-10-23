@@ -38,6 +38,8 @@ import { codeFromDatabaseError, fail, MESSAGES, type WriteResult } from "@/serve
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES, type OrgRole } from "@/server/workspace/types";
 import type { RunPatch, RunStore } from "./store";
 import type { AutonomyLimits } from "@/core/trust/policy";
+import { autoVerifiedOutcome, VERIFICATION_RESULT_WORDS } from "@/core/realityloop/verification";
+import type { VerificationOutcome } from "@/server/verification/runner";
 
 export interface RunPerson {
   orgId: string;
@@ -51,7 +53,17 @@ export interface ExecutorDeps {
   checks: ProposalChecks & Pick<AgentStore, "fileContents">;
   gateway: { deps: GatewayDeps; model: GatewayModel };
   /** Starts the run's sandbox session and returns a runner for it, or null when no verified sandbox is connected. */
-  sandbox(input: { runId: string; taskTitle: string; projectId: string; taskId: string; paths: string[]; pending(): Promise<{ path: string; content: string }[]>; onCommand(info: { command: string; exitCode: number | null; output: string }): void }): Promise<{ runner: CommandRunner; sessionId: string; stop(): Promise<void> } | { error: string } | null>;
+  sandbox(input: { runId: string; taskTitle: string; projectId: string; taskId: string; paths: string[]; pending(): Promise<{ path: string; content: string }[]>; onCommand(info: { command: string; exitCode: number | null; output: string }): void }): Promise<
+    | {
+        runner: CommandRunner;
+        sessionId: string;
+        /** Runs the contract's checks in this sandbox against exactly these applied files (ADR 0047). */
+        verify?(files: { path: string; content: string }[]): Promise<VerificationOutcome>;
+        stop(): Promise<void>;
+      }
+    | { error: string }
+    | null
+  >;
   /** Whether a verified sandbox is connected, decided before the run starts. */
   sandboxAvailable(): boolean;
   /** The approved version of each of the project's own skills, by path (ADR 0043). */
@@ -219,6 +231,7 @@ async function execute(
   const { runId, person, live } = r;
   const dir = path.join(deps.workRoot ?? path.join(os.tmpdir(), "farbaek-runs"), runId);
   let stopSandbox: (() => Promise<void>) | null = null;
+  let verifyInSandbox: ((files: { path: string; content: string }[]) => Promise<VerificationOutcome>) | null = null;
 
   // Events are batched and written about once a second, and at once for approvals and the end.
   let pending: RunPatch = {};
@@ -291,6 +304,7 @@ async function execute(
       if (box && "runner" in box) {
         commands = box.runner;
         stopSandbox = box.stop;
+        verifyInSandbox = box.verify ?? null;
         queue({ sandboxSessionId: box.sessionId });
         event({ kind: "note", text: "Started an isolated sandbox for tests and builds." });
       } else {
@@ -373,8 +387,9 @@ async function execute(
       if (changes.length === 0) {
         queue({ status: "finished", outcome: "Finished without changing any files.", finish: o.finish });
       } else {
-        // A finished change may apply on its own within the workspace's autonomy limits (ADR 0046).
-        const policyContext = { autonomy: await deps.autonomy(person.orgId), verifiable: r.contract.body.requiredChecks.length > 0 && deps.sandboxAvailable() };
+        // A finished change may apply on its own within the workspace's autonomy limits (ADR 0046),
+        // only when this run's own sandbox is there to check it straight away (ADR 0047).
+        const policyContext = { autonomy: await deps.autonomy(person.orgId), verifiable: r.contract.body.requiredChecks.length > 0 && commands !== null && verifyInSandbox !== null };
         const prepared = await prepareAgentProposal(deps.checks, person, { kind: "run", runId }, r.task.id, {
           contractVersion: r.contract.version,
           contractSha256: r.contract.sha256,
@@ -395,13 +410,30 @@ async function execute(
             const autonomyNote = policy.findings.find((f) => f.rule === "autonomy");
             if (autonomyNote) event({ kind: "note", text: autonomyNote.detail });
             const applied = policy.outcome === "ALLOW_WITHIN_LIMITS" ? await deps.applyWithinLimits({ orgId: person.orgId, userId: person.userId, proposalId: created.value }) : null;
+            // Checked straight away, in this run's sandbox, against exactly what applied (ADR 0047).
+            let verified: VerificationOutcome | null = null;
+            if (applied?.ok && verifyInSandbox) {
+              const files = prepared.value.input.changes.filter((c) => !(c.kind === "create" && c.content === "")).map((c) => ({ path: c.path, content: c.content }));
+              const n = r.contract.body.requiredChecks.length;
+              event({ kind: "note", text: `Checking the applied change: running the contract's ${n === 1 ? "check" : `${n} checks`} in this run's sandbox.` });
+              await flush();
+              verified = await verifyInSandbox(files).catch(() => ({ ok: false as const, reason: "Something went wrong on Farbaek's side, so the checks didn't finish." }));
+              event({
+                kind: "note",
+                text: verified.ok
+                  ? `${VERIFICATION_RESULT_WORDS[verified.result].title}. ${VERIFICATION_RESULT_WORDS[verified.result].detail.replace(" See the check run below.", " The check run is on the task.")}`
+                  : verified.reason,
+              });
+            }
             queue({
               status: "finished",
               finish: o.finish,
               outcome: blocked
                 ? "Finished. Farbaek blocked the change: it breaks the contract. Open the proposal to see why."
                 : applied?.ok
-                  ? "Finished. The change applied on its own, within this workspace's autonomy limits. Run its checks to verify it, or undo it from the task."
+                  ? verified
+                    ? autoVerifiedOutcome(verified)
+                    : "Finished. The change applied on its own, within this workspace's autonomy limits. Run its checks to verify it, or undo it from the task."
                   : applied
                     ? `Finished. The change couldn't apply on its own (${applied.message.replace(/[.\s]+$/, "")}), so it's waiting for your review.`
                     : "Finished. The change is waiting for your review.",

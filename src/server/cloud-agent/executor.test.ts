@@ -13,6 +13,7 @@ import type { GatewayDeps, GatewayModel } from "@/server/agent/gateway";
 import type { ProposalInput } from "@/server/agent/service";
 import { answerRunApproval, cancelCloudRun, sendRunMessage, startCloudRun, type ExecutorDeps, type RunPerson } from "./executor";
 import type { RunPatch, RunStore } from "./store";
+import type { VerificationOutcome } from "@/server/verification/runner";
 
 const README = "# Demo\nRun the tests.\n";
 const contract: IntentContract = {
@@ -62,11 +63,12 @@ function scripted(turns: ModelToolCall[][]): ToolModel {
 const edit = { id: "e", name: "edit_file", input: { path: "README.md", edits: [{ find: "Run the tests.", replace: "Run the tests with pnpm test." }], reason: "Name the command." } };
 const finish = { id: "f", name: "finish", input: { summary: "README names pnpm test.", steps: ["Edited README.md"], risks: [], checks: ["pnpm test"] } };
 
-async function deps(over: { model?: ToolModel; state?: TaskState; sandbox?: CommandRunner | null; runError?: string; extraFiles?: { path: string; content: string }[]; taskId?: string; gateway?: ExecutorDeps["gateway"]; pins?: Map<string, SkillPin>; autonomy?: AutonomyLimits | null; applyFails?: string; contract?: IntentContract }) {
+async function deps(over: { model?: ToolModel; state?: TaskState; sandbox?: CommandRunner | null; runError?: string; extraFiles?: { path: string; content: string }[]; taskId?: string; gateway?: ExecutorDeps["gateway"]; pins?: Map<string, SkillPin>; autonomy?: AutonomyLimits | null; applyFails?: string; contract?: IntentContract; verify?: VerificationOutcome | null }) {
   const patches: RunPatch[] = [];
   const proposals: ProposalInput[] = [];
   const synced: string[][] = [];
   const applied: { orgId: string; userId: string; proposalId: string }[] = [];
+  const verified: { path: string; content: string }[][] = [];
   const runs: RunStore = {
     start: async () => (over.runError ? { ok: false, error: over.runError } : { ok: true, value: "run-1" }),
     update: async (_id, p) => (patches.push(structuredClone(p)), { ok: true, value: null }),
@@ -99,6 +101,7 @@ async function deps(over: { model?: ToolModel; state?: TaskState; sandbox?: Comm
       return {
         sessionId: "s1",
         stop: async () => undefined,
+        verify: over.verify === null ? undefined : async (files) => (verified.push(files), over.verify ?? { ok: true, result: "verified", receiptDigest: "r".repeat(64) }),
         runner: {
           where: "sandbox",
           async run(program, args, signal) {
@@ -127,7 +130,7 @@ async function deps(over: { model?: ToolModel; state?: TaskState; sandbox?: Comm
     }
     throw new Error("No approval was asked for.");
   };
-  return { d, patches, proposals, synced, ended, waiting, applied };
+  return { d, patches, proposals, synced, ended, waiting, applied, verified };
 }
 
 const ok = { exitCode: 0, stdout: "ok", stderr: "", truncated: false, timedOut: false, cancelled: false, leftRunning: false, durationMs: 5 };
@@ -277,13 +280,28 @@ describe("autonomy level 2 (ADR 0046)", () => {
   const sandbox: CommandRunner = { where: "sandbox", run: async () => ok };
   const notes = (t: { patches: RunPatch[] }) => t.patches.flatMap((p) => p.events ?? []).filter((e) => e.kind === "note").map((e) => (e.payload as { text: string }).text);
 
-  it("applies a small, checked change on its own and says so", async () => {
+  it("applies a small, checked change on its own, checks it in the run's sandbox straight away, and says so", async () => {
     const t = await deps({ model: scripted([[edit], [finish]]), sandbox, autonomy: LIMITS, contract: checked });
     await startCloudRun(t.d, { person: alice, taskId: "t1", effort: "balanced", skills: [] });
-    expect(await t.ended()).toMatchObject({ status: "finished", outcome: expect.stringMatching(/applied on its own, within this workspace's autonomy limits/) });
+    expect(await t.ended()).toMatchObject({ status: "finished", outcome: "Finished. The change applied on its own, and its checks passed: verified." });
     expect(t.proposals[0]!.policy.outcome).toBe("ALLOW_WITHIN_LIMITS");
     expect(t.applied).toEqual([{ orgId: alice.orgId, userId: alice.userId, proposalId: "proposal-1" }]);
+    // Exactly the applied content goes into the check run.
+    expect(t.verified).toEqual([[{ path: "README.md", content: "# Demo\nRun the tests with pnpm test.\n" }]]);
     expect(notes(t)).toContainEqual(expect.stringMatching(/Within this workspace's autonomy limits \(level 2\)/));
+    expect(notes(t)).toContainEqual("Checking the applied change: running the contract's check in this run's sandbox.");
+    expect(notes(t)).toContainEqual(expect.stringMatching(/^Verified\. Every check passed/));
+  });
+
+  it("says when the automatic check failed, which pauses autonomy, or couldn't run", async () => {
+    const failed = await deps({ model: scripted([[edit], [finish]]), sandbox, autonomy: LIMITS, contract: checked, verify: { ok: true, result: "failed", receiptDigest: "f".repeat(64) } });
+    await startCloudRun(failed.d, { person: alice, taskId: "t1", effort: "balanced", skills: [] });
+    expect(await failed.ended()).toMatchObject({ outcome: expect.stringMatching(/its checks failed, so autonomy is paused for this workspace/) });
+
+    const lost = await deps({ model: scripted([[edit], [finish]]), sandbox, autonomy: LIMITS, contract: checked, verify: { ok: false, reason: "The checks didn't run: The session isn't running." } });
+    await startCloudRun(lost.d, { person: alice, taskId: "t1", effort: "balanced", skills: [] });
+    expect(await lost.ended()).toMatchObject({ outcome: expect.stringMatching(/^Finished\. The change applied on its own, but its checks couldn't run/) });
+    expect(notes(lost)).toContainEqual("The checks didn't run: The session isn't running.");
   });
 
   it("waits for a person when nothing could check the change, and when autonomy is off", async () => {
@@ -292,6 +310,12 @@ describe("autonomy level 2 (ADR 0046)", () => {
     expect(await noSandbox.ended()).toMatchObject({ status: "finished", outcome: "Finished. The change is waiting for your review." });
     expect(noSandbox.applied).toEqual([]);
     expect(notes(noSandbox)).toContainEqual(expect.stringMatching(/waits for a person: nothing could check it/));
+
+    // A sandbox that can't check what applied doesn't count either.
+    const noCheck = await deps({ model: scripted([[edit], [finish]]), sandbox, autonomy: LIMITS, contract: checked, verify: null });
+    await startCloudRun(noCheck.d, { person: alice, taskId: "t1", effort: "balanced", skills: [] });
+    await noCheck.ended();
+    expect(noCheck.applied).toEqual([]);
 
     const off = await deps({ model: scripted([[edit], [finish]]), sandbox, contract: checked });
     await startCloudRun(off.d, { person: alice, taskId: "t1", effort: "balanced", skills: [] });

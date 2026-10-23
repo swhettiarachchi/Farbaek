@@ -22,6 +22,7 @@ import {
   DEMO_LENS_SUGGESTION,
   DEMO_PROPOSAL_ID,
   DEMO_PROPOSAL_TASK_ID,
+  DEMO_VERIFICATION,
   demoEventType,
 } from "@/content/demo-workspace";
 import type { ContractRecord, FileRevision, Project, ProjectFileContent, ProposalRecord, Task, Transition, WorkspaceReader } from "./types";
@@ -197,6 +198,23 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
     async listCheckReceipts() {
       // Nothing runs in the demo.
       return [];
+    },
+
+    async getLatestVerification(_orgId, taskId) {
+      if (taskId !== DEMO_VERIFICATION.taskId) return null;
+      return {
+        id: "00000000-0000-4000-8000-0000000d0001",
+        taskId,
+        trigger: "autonomy",
+        status: "failed",
+        result: null,
+        receiptDigest: null,
+        failure: DEMO_VERIFICATION.failure,
+        sessionId: null,
+        startedBy: DEMO_USER.id,
+        startedAt: ago(DEMO_VERIFICATION.startedMinutesAgo * 60_000),
+        finishedAt: ago(DEMO_VERIFICATION.startedMinutesAgo * 60_000 - 40_000),
+      };
     },
 
     async listInvitations() {

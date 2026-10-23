@@ -77,6 +77,7 @@ A proposal allowed within limits is applied right after it's created, by `autoAp
 
 - **Small, checked changes stop waiting** in workspaces that opt in. Everything risky still waits, because autonomy never lowers a block or an escalation.
 - **Checks don't run by themselves after an automatic apply.** They run when someone runs them, as for any applied change, so a failure suspends autonomy only once they've run. Running them automatically is the next step.
+  - Since ADR 0047 they do: a change that applies on its own is checked straight away, and a partly failed check suspends autonomy too (migration v32).
 - **Not done:**
   - levels 3 and 4;
   - per-project autonomy;

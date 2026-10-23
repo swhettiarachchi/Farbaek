@@ -1,4 +1,4 @@
-import { ArrowCounterClockwiseIcon, ArrowLeftIcon, ClockCounterClockwiseIcon, GitPullRequestIcon, InfoIcon, PlayIcon, RobotIcon } from "@phosphor-icons/react/ssr";
+import { ArrowCounterClockwiseIcon, ArrowLeftIcon, ClockCounterClockwiseIcon, GitPullRequestIcon, InfoIcon, RobotIcon, TerminalWindowIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -20,7 +20,10 @@ import { checkFeature } from "@/core/billing/entitlements";
 import { RECOVERABLE_STATES } from "@/core/realityloop/recovery";
 import { RECOVERY_NOT_IN_PLAN, previewRecovery } from "@/server/workspace/recovery";
 import { Card, TaskStateBadge } from "@/components/app/primitives";
-import { ButtonLink } from "@/components/ui/button";
+import { LiveRefresh } from "@/components/app/live-refresh";
+import { VerificationStatus } from "@/components/tasks/verification-status";
+import { VerifyNow } from "@/components/tasks/verify-now";
+import { verificationState } from "@/core/realityloop/verification";
 import { ProofThread } from "@/components/proof/proof-thread";
 import { LocalTime } from "@/components/ui/local-time";
 import { EMPTY_CONTRACT_FORM, formFromContract } from "@/core/realityloop/contract-form";
@@ -60,7 +63,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
   const showProposal = proposal !== null && (proposal.status !== "discarded" || !canPropose);
   const applied = proposal?.status === "applied" ? proposal : null;
   // Everything below depends only on the reads above, so it loads in one round.
-  const [driftEvents, proposeAi, projectFiles, bases, intact, [recoverySource, recoveries], agents, lensSuggestion, lensAi] = await Promise.all([
+  const [driftEvents, proposeAi, projectFiles, bases, intact, [recoverySource, recoveries], agents, lensSuggestion, lensAi, verification] = await Promise.all([
     approvedContract && !TERMINAL_STATES.has(task.state) ? ctx.reader.listFileChangesSince(orgId, task.projectId, approvedContract.approvedAt!) : Promise.resolve(null),
     canPropose ? loadAiAvailability(ctx, ctx.current, "change_proposal") : Promise.resolve(null),
     canPropose ? ctx.reader.listFiles(orgId, task.projectId) : Promise.resolve([]),
@@ -78,6 +81,8 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
     // The Intent Diff Lens's AI mapping on a pending proposal (ADR 0044).
     showProposal && proposal!.status === "pending" ? ctx.reader.getLensSuggestion(orgId, proposal!.id).catch(() => null) : Promise.resolve(null),
     showProposal && proposal!.status === "pending" ? loadAiAvailability(ctx, ctx.current, "lens_mapping") : Promise.resolve(null),
+    // The latest one-step check run of the applied change (ADR 0047).
+    task.state === "VERIFYING" ? ctx.reader.getLatestVerification(orgId, task.id).catch(() => null) : Promise.resolve(null),
   ]);
   const drift = approvedContract && driftEvents ? scopeDrift(approvedContract.body, driftEvents) : [];
   const writeReason = ctx.writes.enabled ? null : ctx.writes.reason;
@@ -112,6 +117,13 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
       : RECOVERABLE_STATES.has(task.state) && task.state !== "VERIFYING"
         ? "Not verified: its checks didn't run before the undo started. See Recovery below."
         : undefined;
+
+  const requiredChecks = contract?.body.requiredChecks.length ?? 0;
+  const checking = verification !== null && verificationState(verification, new Date(renderedAt)) === "running";
+  const verifyReason =
+    writeReason ??
+    (execution.mode === "review_only" ? execution.reason : null) ??
+    (ctx.role === null || !CONTRIBUTOR_ROLES.includes(ctx.role) ? "Viewers can't run checks. Ask a member, admin or owner." : null);
 
   const stages = lifecycleProgress(task.state, history);
   const finished = TERMINAL_STATES.has(task.state);
@@ -244,20 +256,27 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
           <div className="mt-4">
             <ChecksList checks={contract?.body.requiredChecks ?? []} mode={execution} />
           </div>
-          {execution.mode === "sandboxed" && task.state === "VERIFYING" && (contract?.body.requiredChecks.length ?? 0) > 0 ? (
-            <div className="mt-5 grid gap-3 border-t border-line pt-5">
-              <p className="max-w-[65ch] text-sm text-ink-2">
-                Start a session with this project&apos;s files, linked to this task. If the checks need dependencies, choose &quot;Package registries only&quot; and install them in the
-                console first. Then run the checks from the session&apos;s Checks tab. The task is marked verified only when every check passes, and each run leaves a receipt.
-              </p>
-              {writeReason ? (
-                <p className="text-sm text-ink-3">{writeReason}</p>
-              ) : (
-                <div>
-                  <ButtonLink href={`/app/sandbox/new?project=${task.projectId}&task=${task.id}`}>
-                    <PlayIcon size={18} aria-hidden /> Run the checks in a sandbox
-                  </ButtonLink>
-                </div>
+          {task.state === "VERIFYING" && requiredChecks > 0 ? (
+            <div className="mt-5 grid gap-4 border-t border-line pt-5">
+              {verification ? <VerificationStatus verification={verification} viewerId={ctx.user.id} now={new Date(renderedAt)} /> : null}
+              <LiveRefresh active={checking} everyMs={3_000} />
+              {checking ? null : (
+                <>
+                  <p className="max-w-[65ch] text-sm text-ink-2">
+                    One step: a sandbox starts with this project&apos;s files, installs its packages if it has any, runs the{" "}
+                    {requiredChecks === 1 ? "check" : `${requiredChecks} checks`}, then stops. The task is marked verified only when every check passes, and the run leaves a
+                    receipt below. It uses sandbox time from your plan.
+                  </p>
+                  <VerifyNow taskId={task.id} disabledReason={verifyReason} label={verification && verification.status !== "running" ? "Run the checks again" : "Run the checks now"} />
+                  {verifyReason ? null : (
+                    <p className="text-sm text-ink-3">
+                      Need to install something by hand first?{" "}
+                      <Link href={`/app/sandbox/new?project=${task.projectId}&task=${task.id}`} className="inline-flex min-h-11 items-center gap-1 font-medium text-accent hover:underline sm:min-h-0">
+                        <TerminalWindowIcon size={15} aria-hidden /> Open a sandbox yourself
+                      </Link>
+                    </p>
+                  )}
+                </>
               )}
             </div>
           ) : null}
@@ -382,7 +401,9 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
                     : "A check blocked this task's plan. Revise the contract to continue."
                   : task.state === "VERIFYING"
                   ? execution.mode === "sandboxed"
-                    ? "The change is applied. Run the contract's checks in a sandbox from the Verification card; the task is marked verified only when they pass. You can also undo the change under Recovery."
+                    ? checking
+                      ? "The change is applied and its checks are running in a sandbox now. The task is marked verified only when they all pass. You can also undo the change under Recovery."
+                      : "The change is applied. Run its checks from the Verification card; the task is marked verified only when they all pass. You can also undo the change under Recovery."
                     : "The change is applied. Verification needs an isolated runner to run the checks, and none is connected yet, so the task waits here. It is not marked verified. You can undo the change under Recovery."
                   : task.state === "RECOVERY_PENDING"
                   ? "Part of the change is undone. Undo the rest under Recovery, or put the remaining files back yourself and then finish the recovery."
