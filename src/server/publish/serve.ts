@@ -18,6 +18,8 @@ export interface SiteServeDeps {
   /** What the name is doing right now (ADR 0029; blocked, paused and suspended from ADR 0032). */
   liveSite: (name: string) => Promise<ServedSite>;
   content: (projectId: string, path: string, revision: number) => Promise<string | null>;
+  /** The site a verified custom domain belongs to (ADR 0045), or null. */
+  nameForDomain?: (hostname: string) => Promise<string | null>;
 }
 
 const BASE_HEADERS = {
@@ -33,7 +35,10 @@ function page(status: number, title: string, body: string): Response {
 const notFound = (title: string, body: string) => page(404, title, body);
 
 export async function handleSiteRequest(request: Request, deps: SiteServeDeps): Promise<Response> {
-  const name = siteNameFromHost(request.headers.get("host"), deps.domain);
+  const host = request.headers.get("host");
+  // A name on the site domain, or else a custom domain someone verified for a site.
+  const hostname = (host ?? "").trim().toLowerCase().replace(/:\d+$/, "").replace(/\.$/, "");
+  const name = siteNameFromHost(host, deps.domain) ?? (deps.nameForDomain && hostname ? await deps.nameForDomain(hostname) : null);
   if (!name) return new Response("Not found", { status: 404, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } });
   const method = request.method.toUpperCase();
   if (method !== "GET" && method !== "HEAD") {

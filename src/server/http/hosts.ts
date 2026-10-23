@@ -29,6 +29,7 @@ export type RouteDecision =
   | { kind: "preview" }
   | { kind: "site-domain-apex" }
   | { kind: "site" }
+  | { kind: "custom-site" }
   | { kind: "not-found" }
   | { kind: "office"; rewrite: string }
   | { kind: "office-public" }
@@ -50,6 +51,12 @@ export interface RouteEnv {
   officeHost: string | null;
   /** The customer app's host with any port, from NEXT_PUBLIC_SITE_URL. */
   appHost: string | null;
+  /**
+   * Whether other names may be people's own domains for published sites
+   * (ADR 0045). On when the site domain is set; the site route then serves
+   * a name only if it's a verified domain, and answers 404 otherwise.
+   */
+  customDomains?: boolean;
 }
 
 /** Lower case, no trailing dot; the port stays. */
@@ -68,6 +75,11 @@ export function appZone(appHost: string | null): string | null {
   if (name === "localhost" || /^[\d.]+$/.test(name) || name.includes(":")) return null;
   const labels = name.split(".");
   return labels.length >= 3 ? labels.slice(1).join(".") : name;
+}
+
+/** localhost, *.localhost, and IPv4 or IPv6 addresses: never a custom domain. */
+function isLocalOrAddress(name: string): boolean {
+  return name === "localhost" || name.endsWith(".localhost") || /^[\d.]+$/.test(name) || name.includes(":") || name.startsWith("[") || !name.includes(".");
 }
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -112,5 +124,7 @@ export function decideRoute(input: RouteInput, env: RouteEnv): RouteDecision {
     const name = hostname(host);
     if (name === zone || name.endsWith(`.${zone}`)) return { kind: "not-found" };
   }
+  // Any other real name, once sites are connected, can only be someone's own domain for a site.
+  if (env.customDomains && app && host !== app && !isLocalOrAddress(hostname(host))) return { kind: "custom-site" };
   return { kind: "app" };
 }

@@ -3,6 +3,12 @@
 # src/proxy.ts decides what every name serves, exactly as before.
 {
 	email hello@farbaek.com
+	# Published sites and people's own domains get their certificates on
+	# first visit (ADR 0045), but only for names Farbaek says are live sites:
+	# a live <name>.farbaek.si, or a verified custom domain whose site is live.
+	on_demand_tls {
+		ask http://app:3000/api/sites/tls-allowed
+	}
 }
 
 www.farbaek.com, officespace.farbaek.com {
@@ -25,6 +31,17 @@ api.farbaek.com {
 	}
 }
 
-# Published sites and previews on farbaek.si need a wildcard certificate,
-# which needs DNS-01. That arrives with the Cloudflare build of Caddy
-# (docs/deploy/vps.md, "farbaek.si").
+# Every other name: published sites on farbaek.si and people's own domains
+# (ADR 0045). The certificate is made on the first visit once the ask above
+# says yes; the app then serves only a live site there, and 404 otherwise.
+# Previews (p-<id>.farbaek.si) aren't allowed here; they wait for the
+# wildcard certificate (docs/deploy/vps.md, "farbaek.si").
+https:// {
+	tls {
+		on_demand
+	}
+	reverse_proxy app:3000 {
+		lb_try_duration 20s
+		lb_try_interval 500ms
+	}
+}

@@ -24,7 +24,7 @@ export async function proxy(request: NextRequest) {
       origin: request.headers.get("origin"),
       secFetchSite: request.headers.get("sec-fetch-site"),
     },
-    { previewDomain: process.env.SANDBOX_PREVIEW_DOMAIN ?? null, officeHost: office?.host ?? null, appHost: appHostFromEnv() },
+    { previewDomain: process.env.SANDBOX_PREVIEW_DOMAIN ?? null, officeHost: office?.host ?? null, appHost: appHostFromEnv(), customDomains: Boolean(process.env.SANDBOX_PREVIEW_DOMAIN) },
   );
 
   switch (decision.kind) {
@@ -35,6 +35,8 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL("/", siteUrl()), 308);
     // A published site (ADR 0029): its route checks the name and serves only that site's live files.
     case "site":
+    // Someone's own domain (ADR 0045): the site route serves it only when it's verified, and answers 404 otherwise.
+    case "custom-site":
       return rewriteTo(request, `${SITE_ROUTE}${request.nextUrl.pathname}`);
     case "not-found":
       return plain(404, "There's nothing at this address.");

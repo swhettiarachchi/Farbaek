@@ -74,3 +74,26 @@ describe("host helpers", () => {
     expect(officeWriteAllowed({ method: "get", origin: "https://evil.example", secFetchSite: "cross-site" }, "https://officespace.farbaek.com")).toBe(true);
   });
 });
+
+describe("custom domains (ADR 0045)", () => {
+  const ON: RouteEnv = { ...PROD, customDomains: true };
+
+  it("sends any other real name to the site route once sites are connected", () => {
+    expect(route("www.example.com", "/", {}, ON)).toEqual({ kind: "custom-site" });
+    expect(route("Shop.Example.co.uk.", "/about", {}, ON)).toEqual({ kind: "custom-site" });
+  });
+
+  it("never takes the app, the office, Farbaek's own names, local names or addresses", () => {
+    expect(route("www.farbaek.com", "/", {}, ON)).toEqual({ kind: "app" });
+    expect(route("officespace.farbaek.com", "/", {}, ON)).toEqual({ kind: "office", rewrite: "/office" });
+    expect(route("api.farbaek.com", "/", {}, ON)).toEqual({ kind: "not-found" });
+    expect(route("bakery.farbaek.si", "/", {}, ON)).toEqual({ kind: "site" });
+    for (const host of ["localhost:3000", "shop.localhost:3000", "203.0.113.7", "[::1]:3000", "intranet"]) {
+      expect(route(host, "/", {}, ON)).toEqual({ kind: "app" });
+    }
+  });
+
+  it("stays off until sites are connected", () => {
+    expect(route("www.example.com", "/")).toEqual({ kind: "app" });
+  });
+});

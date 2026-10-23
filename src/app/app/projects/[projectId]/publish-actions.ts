@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { publishDeps } from "@/server/publish/panel";
+import { addSiteDomain, checkSiteDomain, removeSiteDomain } from "@/server/publish/domains";
+import { domainDeps, publishDeps } from "@/server/publish/panel";
 import { publishSite } from "@/server/publish/publish";
 import { getSite, setLiveDeployment } from "@/server/publish/store";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
@@ -51,4 +52,39 @@ export async function setLiveAction(_previous: PublishState, form: FormData): Pr
   if (!r.ok) return { status: "error", message: r.error === "FORBIDDEN" ? "Your role can view this project but not publish it." : `Couldn't ${offline ? "take the site offline" : "make that version live"}. Reload the page and try again.` };
   revalidatePath(`/app/projects/${parsed.data.projectId}`);
   return { status: "done", message: offline ? "The site is offline. It can take a few seconds to disappear everywhere." : "That version is live again. It can take a few seconds to appear everywhere." };
+}
+
+/** Connects one of the person's own domains to the project's site, as pending until its DNS is checked (ADR 0045). */
+export async function addDomainAction(_previous: PublishState, form: FormData): Promise<PublishState> {
+  const parsed = z.object({ projectId: z.uuid(), domain: z.string().max(300) }).safeParse({ projectId: form.get("projectId"), domain: form.get("domain") });
+  if (!parsed.success) return { status: "error", message: "Enter a domain, such as www.example.com." };
+  const w = await writer();
+  if ("error" in w) return { status: "error", message: w.error! };
+  const site = await getSite(w.user, w.orgId, parsed.data.projectId);
+  if (!site) return { status: "error", message: "Publish the site first, then connect a domain." };
+  const r = await addSiteDomain(domainDeps(w.ctx, w.user, w.admin), { orgId: w.orgId, userId: w.ctx.user.id, siteId: site.id, domain: parsed.data.domain });
+  if (!r.ok) return { status: "error", message: r.message };
+  revalidatePath(`/app/projects/${parsed.data.projectId}`);
+  return { status: "done", message: `Added ${r.value.hostname}. Set the two DNS records below, then check.` };
+}
+
+/** Reads the domain's DNS now and marks it verified when the records are in place. */
+export async function checkDomainAction(_previous: PublishState, form: FormData): Promise<PublishState> {
+  const parsed = z.object({ projectId: z.uuid(), domainId: z.uuid() }).safeParse({ projectId: form.get("projectId"), domainId: form.get("domainId") });
+  if (!parsed.success) return { status: "error", message: "Reload the page and try again." };
+  const w = await writer();
+  if ("error" in w) return { status: "error", message: w.error! };
+  const r = await checkSiteDomain(domainDeps(w.ctx, w.user, w.admin), { orgId: w.orgId, userId: w.ctx.user.id, domainId: parsed.data.domainId });
+  if (!r.ok) return { status: "error", message: r.message };
+  revalidatePath(`/app/projects/${parsed.data.projectId}`);
+  return r.value.verified ? { status: "done", message: r.value.message } : { status: "error", message: r.value.message };
+}
+
+export async function removeDomainAction(form: FormData): Promise<void> {
+  const parsed = z.object({ projectId: z.uuid(), domainId: z.uuid() }).safeParse({ projectId: form.get("projectId"), domainId: form.get("domainId") });
+  if (!parsed.success) return;
+  const w = await writer();
+  if ("error" in w) return;
+  await removeSiteDomain(domainDeps(w.ctx, w.user, w.admin), { orgId: w.orgId, userId: w.ctx.user.id, domainId: parsed.data.domainId });
+  revalidatePath(`/app/projects/${parsed.data.projectId}`);
 }
