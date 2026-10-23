@@ -45,6 +45,7 @@ describe("decideRoute", () => {
     expect(route("p-abcdefghijklmnopqrstuvwxyz.farbaek.si", "/office")).toEqual({ kind: "preview" });
     expect(route("bakery.farbaek.si", "/")).toEqual({ kind: "site" });
     expect(route("farbaek.si", "/")).toEqual({ kind: "site-domain-apex" });
+    expect(route("WWW.farbaek.si", "/pricing")).toEqual({ kind: "site-domain-apex" });
     expect(route("bad_name.farbaek.si", "/")).toEqual({ kind: "not-found" });
   });
 

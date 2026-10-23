@@ -82,6 +82,8 @@ A deploy restarts the app. Agent runs going at that moment show as Interrupted.
      - `@` (farbaek.si itself, which redirects to www.farbaek.com);
      - `*` (every site name);
      - `sites` (where people's own subdomains point with a CNAME).
+
+     `www` stays a CNAME to `farbaek.si`; www.farbaek.si redirects to www.farbaek.com too. Done on 2026-10-23, with TTL 300.
   2. **On the server,** set `SITES_DOMAIN=farbaek.si` and `SITES_TARGET_IP=<the server's IPv4 address>` with `farbaek-set-env`.
      - The IP is what people's root domains point at.
      - `SITES_DOMAIN` turns on published sites only. `SANDBOX_PREVIEW_DOMAIN` would also turn on preview links, which wait for the wildcard certificate below.

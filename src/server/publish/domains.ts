@@ -99,14 +99,14 @@ export const recordsFor = (domain: Pick<SiteDomainView, "hostname" | "verifyToke
 
 /**
  * Whether Caddy may get a certificate for a name (its on-demand TLS
- * question): the site domain itself (it redirects to Farbaek), a live
+ * question): the site domain and its www name (both redirect to Farbaek), a live
  * site's name on it, or a verified custom domain whose site is live.
  * Preview names and everything else: no.
  */
 export async function tlsAllowed(host: string, deps: { domain: string | null; liveSite(name: string): Promise<SiteForServing>; nameForDomain(hostname: string): Promise<string | null> }): Promise<boolean> {
   const hostname = host.trim().toLowerCase().replace(/\.$/, "");
   if (!hostname || hostname.length > 253 || !/^[a-z0-9.-]+$/.test(hostname)) return false;
-  if (deps.domain !== null && hostname === deps.domain) return true;
+  if (deps.domain !== null && (hostname === deps.domain || hostname === `www.${deps.domain}`)) return true;
   const onSiteDomain = deps.domain !== null && hostname.endsWith(`.${deps.domain}`);
   const name = onSiteDomain ? siteNameFromHost(hostname, deps.domain) : await deps.nameForDomain(hostname);
   if (!name) return false;

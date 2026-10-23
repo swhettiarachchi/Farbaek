@@ -105,7 +105,8 @@ export function decideRoute(input: RouteInput, env: RouteEnv): RouteDecision {
   if (PREVIEW_HOST.test(host)) return { kind: "preview" };
 
   const place = previewDomainHost(host, env.previewDomain ?? undefined);
-  if (place === "apex") return { kind: "site-domain-apex" };
+  // The site domain and its www name (a reserved site name) both lead to Farbaek.
+  if (place === "apex" || (env.previewDomain && host === `www.${normalizeHost(env.previewDomain)}`)) return { kind: "site-domain-apex" };
   if (place === "other") return siteNameFromHost(host, env.previewDomain ?? null) ? { kind: "site" } : { kind: "not-found" };
 
   const office = env.officeHost ? normalizeHost(env.officeHost) : null;
