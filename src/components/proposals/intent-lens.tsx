@@ -41,9 +41,10 @@ function Chip({ tone, icon: ChipIcon, children, title }: { tone: "failed" | "ver
     approval: "border-approval/40 border-dashed text-approval",
   }[tone];
   return (
-    <span title={title} className={`inline-flex min-h-7 max-w-full items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs ${cls}`}>
+    <span title={title} className={`inline-flex min-h-7 max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${cls}`}>
       <ChipIcon size={13} weight="bold" className={`shrink-0 ${tone === "verified" ? "text-verified" : ""}`} aria-hidden />
-      <span className="min-w-0 truncate">{children}</span>
+      {/* Phones have no hover to read a cut-off clause, so it wraps there; wider screens keep one line. */}
+      <span className="min-w-0 leading-snug sm:truncate">{children}</span>
     </span>
   );
 }

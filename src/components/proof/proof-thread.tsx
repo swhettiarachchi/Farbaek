@@ -79,7 +79,7 @@ export function ProofThread({ stages, label }: { stages: ThreadStage[]; label: s
       {stages.map((stage, i) => {
         const next = stages[i + 1];
         return (
-          <motion.li key={stage.key} variants={item} className="grid grid-cols-[28px_1fr] gap-x-4 lg:flex lg:flex-col lg:gap-0">
+          <motion.li key={stage.key} variants={item} className="grid min-w-0 grid-cols-[28px_1fr] gap-x-4 lg:flex lg:flex-col lg:gap-0">
             {/* Node and connector */}
             <div className="flex flex-col items-center lg:flex-row lg:items-center">
               <Node status={stage.status} />
@@ -98,8 +98,9 @@ export function ProofThread({ stages, label }: { stages: ThreadStage[]; label: s
                 </>
               ) : null}
             </div>
-            <div className="pb-8 lg:pb-0 lg:pr-6 lg:pt-5">
-              <p className="flex items-baseline gap-2">
+            <div className="min-w-0 pb-8 lg:pb-0 lg:pr-4 lg:pt-5">
+              {/* Side by side when stacked; label over status in the six-column row, so narrow columns never overlap. */}
+              <p className="flex flex-wrap items-baseline gap-x-2 lg:flex-col lg:items-start lg:gap-0.5">
                 <span className="text-[17px] font-medium">{stage.label}</span>
                 <span className="font-mono text-xs text-ink-3">{stage.statusText ?? STATUS_TEXT[stage.status]}</span>
               </p>
