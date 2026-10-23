@@ -4,6 +4,7 @@
  * the normal contract use cases. Usage follows ai-usage.ts.
  */
 import { draftToForm } from "@/core/realityloop/contract-draft";
+import { isStaticSite, SITE_CHECK_COMMAND } from "@/core/realityloop/site-check";
 import type { ContractFormValues } from "@/core/realityloop/contract-form";
 import { route, type Effort } from "@/core/agent/routing";
 import type { ContractDrafter, DraftBrief } from "@/server/ai/contract-drafter";
@@ -59,5 +60,8 @@ export async function draftContractWithAi(
 
   await settleUsage(deps, { orgId: input.orgId, entryId, usage: outcome.usage });
   const percent = await percentAfter(deps, input.orgId, reserved.value);
-  return { ok: true, value: { form: draftToForm(outcome.draft), model: outcome.usage.model, usage: { percent }, routeNote: choice.note } };
+  const form = draftToForm(outcome.draft);
+  // An existing static site's plan gets Farbaek's site check when the model listed none (ADR 0054), so the person sees it before approving.
+  if (!form.checks.trim() && isStaticSite(input.brief.paths ?? [])) form.checks = SITE_CHECK_COMMAND;
+  return { ok: true, value: { form, model: outcome.usage.model, usage: { percent }, routeNote: choice.note } };
 }

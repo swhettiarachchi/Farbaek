@@ -12,6 +12,7 @@
  * instead, before the sandbox stops (verifyInRunSession).
  */
 import { templateFor } from "@/core/agent/cloud-run";
+import { checksToRun } from "@/core/realityloop/site-check";
 import { verificationSetup, type VerificationResult, type VerificationTrigger } from "@/core/realityloop/verification";
 import type { AgentStore } from "@/server/agent/service";
 import { log } from "@/server/observability/log";
@@ -51,7 +52,12 @@ export async function startTaskVerification(deps: VerificationDeps, person: Veri
   if (!task) return fail("NOT_FOUND");
   if (task.state !== "VERIFYING") return fail("INVALID_TRANSITION", "Only an applied change that's waiting for its checks can be verified.");
   const contract = await deps.checks.approvedContract(person.orgId, taskId);
-  if (!contract || contract.body.requiredChecks.length === 0) return fail("INVALID_TRANSITION", "The approved contract lists no checks to run.");
+  if (!contract) return fail("INVALID_TRANSITION", "The approved contract lists no checks to run.");
+  // A static site with no checks in its plan runs Farbaek's site check instead (ADR 0054).
+  if (contract.body.requiredChecks.length === 0) {
+    const paths = (await deps.checks.projectFiles(person.orgId, task.projectId)).map((f) => f.path);
+    if (checksToRun([], paths).length === 0) return fail("INVALID_TRANSITION", "The approved contract lists no checks to run.");
+  }
 
   const started = await deps.store.start({ orgId: person.orgId, actor: person.userId, taskId, trigger });
   if (!started.ok) return started.error.includes("VERIFICATION_RUNNING") ? fail("INVALID_TRANSITION", RUNNING) : fail(codeFromDatabaseError(started.error));

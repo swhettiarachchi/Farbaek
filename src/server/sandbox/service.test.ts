@@ -6,6 +6,8 @@
  * behaviour is covered by the smoke test (pnpm sandbox:smoke).
  */
 import { createHash } from "node:crypto";
+import { SITE_CHECK_COMMAND, SITE_CHECK_PATH } from "@/core/realityloop/site-check";
+import { SITE_CHECK_SCRIPT } from "@/core/realityloop/site-check-script";
 import { beforeEach, describe, expect, it } from "vitest";
 import { buildProofPack, type ProofPackStatement } from "@/core/proof/proofpack";
 import { RuntimeError } from "@/core/sandbox/runtime";
@@ -54,12 +56,12 @@ let verificationPacks: Parameters<TaskBridge["recordVerificationProofPack"]>[0][
 let keyN = 0;
 const key = () => `test-key-${++keyN}`;
 
-function service(over: { runtime?: ReturnType<typeof createMockRuntime> | null; config?: Partial<SandboxServerConfig>; reason?: string } = {}) {
+function service(over: { runtime?: ReturnType<typeof createMockRuntime> | null; config?: Partial<SandboxServerConfig>; reason?: string; checks?: string[] } = {}) {
   const rt = over.runtime === undefined ? runtime : over.runtime;
   const cfg = config(over.config);
   const tasks: TaskBridge = {
     loadTask: async () => ({ id: TASK, projectId: PROJECT, state: taskState.state, version: taskState.version, eventIds: [] }),
-    requiredChecks: async () => ["echo hello", "exit 1"],
+    requiredChecks: async () => over.checks ?? ["echo hello", "exit 1"],
     appliedProofPack: async () => applied,
     latestProjectProofPackDigest: async () => "e".repeat(64),
     recordVerificationProofPack: async (i) => {
@@ -437,6 +439,16 @@ describe("Guard verification receipts", () => {
     const r = await service().runChecks(as(ALICE), id, key());
     expect(r).toMatchObject({ ok: true, value: { applied: false } });
     expect(taskState.applied).toEqual([]);
+  });
+
+  it("runs Farbaek's site check from a script it writes into the sandbox, and names the script by hash (ADR 0054)", async () => {
+    const id = await ready(ALICE, { taskId: TASK, projectId: PROJECT });
+    const r = await service({ checks: [SITE_CHECK_COMMAND] }).runChecks(as(ALICE), id, key());
+    expect(r).toMatchObject({ ok: true, value: { status: "verified", taskEvent: "mark_verified", applied: true } });
+    const sandboxId = store.sessions.get(id)!.providerSandboxId!;
+    expect(runtime.state.live.get(sandboxId)!.files.get(SITE_CHECK_PATH)).toBe(SITE_CHECK_SCRIPT);
+    const statement = [...store.receipts.values()][0]!.statement as { predicate: { checks: { name: string; command: string }[] } };
+    expect(statement.predicate.checks).toMatchObject([{ name: expect.stringMatching(/^farbaek check-site \(script sha256:[0-9a-f]{12}\)$/), command: "node .farbaek-checks/check-site.mjs" }]);
   });
 
   it("needs a task with checks", async () => {

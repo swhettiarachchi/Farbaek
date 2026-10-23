@@ -156,6 +156,18 @@ describe("draftContractWithAi", () => {
     });
   });
 
+  it("puts Farbaek's site check in an existing static site's plan when the model listed no checks (ADR 0054)", async () => {
+    const drafter = fakeDrafter({ ok: true, draft: { ...DRAFT, requiredChecks: [] }, usage: USAGE });
+    const draft = (paths: string[]) =>
+      draftContractWithAi(fakeDeps().deps, { family: "anthropic", create: (sel) => Object.assign(drafter, { model: sel.model }) }, { orgId: "o1", userId: "u1", taskId: "t1", brief: { ...BRIEF, paths } });
+    expect(await draft(["index.html", "styles.css"])).toMatchObject({ ok: true, value: { form: { checks: "farbaek check-site" } } });
+    expect(await draft(["index.html", "package.json"])).toMatchObject({ ok: true, value: { form: { checks: "" } } });
+    expect(await draft([])).toMatchObject({ ok: true, value: { form: { checks: "" } } });
+    // The model's own checks are kept as they are.
+    const withChecks = fakeDrafter({ ok: true, draft: DRAFT, usage: USAGE });
+    expect(await draftContractWithAi(fakeDeps().deps, { family: "anthropic", create: (sel) => Object.assign(withChecks, { model: sel.model }) }, { orgId: "o1", userId: "u1", taskId: "t1", brief: { ...BRIEF, paths: ["index.html"] } })).toMatchObject({ ok: true, value: { form: { checks: "pnpm test" } } });
+  });
+
   it("refuses viewers, missing billing state and tasks past planning before spending anything", async () => {
     const drafter = fakeDrafter({ ok: true, draft: DRAFT, usage: USAGE });
     expect(await run(fakeDeps({ role: "viewer" }).deps, drafter)).toMatchObject({ code: "FORBIDDEN" });
