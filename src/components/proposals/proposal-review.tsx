@@ -15,19 +15,20 @@ import { lensForChange, lensSummary } from "@/core/realityloop/intent-lens";
 import { withSuggestion, type StoredLensSuggestion } from "@/core/realityloop/lens-suggestion";
 import { FileLensRows, IntentLensSummary } from "./intent-lens";
 import { approvalWindow } from "@/core/trust/approval-wallet";
+import { WhenNear } from "@/components/ui/when-near";
 import { shortHash } from "@/core/trust/canonical-json";
 import { OUTCOME_LABELS } from "@/core/trust/policy";
 import type { PolicyOutcome } from "@/core/billing/usage";
 import type { ProposalRecord } from "@/server/workspace/types";
 
-const Surface = dynamic(() => import("@/components/files/codemirror"), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-40 items-center justify-center rounded-md border border-line bg-surface-raised text-sm text-ink-3" role="status">
-      Loading the diff…
-    </div>
-  ),
-});
+const diffLoading = (
+  <div className="flex h-40 items-center justify-center rounded-md border border-line bg-surface-raised text-sm text-ink-3" role="status">
+    Loading the diff…
+  </div>
+);
+
+// The editor loads only for diffs near the screen (WhenNear), so a task page doesn't start CodeMirror before anyone scrolls to it.
+const Surface = dynamic(() => import("@/components/files/codemirror"), { ssr: false, loading: () => diffLoading });
 
 const fileHref = (projectId: string, path: string) => `/app/projects/${projectId}/files?path=${encodeURIComponent(path)}`;
 const short = (hex: string) => `sha256:${hex.slice(0, 6)}…${hex.slice(-4)}`;
@@ -302,14 +303,16 @@ export function ProposalReview({
               </div>
               {c.reason ? <p className="text-xs text-ink-2">{c.reason}</p> : null}
               {lenses?.[i] ? <FileLensRows lens={lenses[i]!} /> : null}
-              <Surface
-                path={c.path}
-                value={c.content}
-                original={bases[c.path] ?? ""}
-                controls={open && !disabledReason}
-                label={`Proposed changes to ${c.path}`}
-                onChange={(doc) => setFinals((prev) => ({ ...prev, [c.path]: doc }))}
-              />
+              <WhenNear placeholder={diffLoading}>
+                <Surface
+                  path={c.path}
+                  value={c.content}
+                  original={bases[c.path] ?? ""}
+                  controls={open && !disabledReason}
+                  label={`Proposed changes to ${c.path}`}
+                  onChange={(doc) => setFinals((prev) => ({ ...prev, [c.path]: doc }))}
+                />
+              </WhenNear>
             </section>
           ))}
           {proposal.plan.checks.length ? (

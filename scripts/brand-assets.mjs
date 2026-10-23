@@ -19,6 +19,14 @@ await sharp(SRC)
   .png()
   .toFile("public/brand/farbaek-icon.png");
 
+// Browser tabs need 16 to 48 pixels; a 32px file keeps every page from fetching the 512px one (ADR 0052).
+for (const size of [32, 48]) {
+  await sharp(SRC)
+    .resize(size, size, { fit: "contain", background: transparent })
+    .png({ compressionLevel: 9 })
+    .toFile(`public/brand/farbaek-icon-${size}.png`);
+}
+
 // iOS renders transparent touch icons on black, so the apple icon sits on the porcelain surface.
 await sharp(SRC)
   .resize(148, 148, { fit: "contain", background: transparent })
@@ -27,4 +35,4 @@ await sharp(SRC)
   .png()
   .toFile("public/brand/farbaek-apple-icon.png");
 
-console.log("Wrote farbaek-logo.png, farbaek-icon.png and farbaek-apple-icon.png");
+console.log("Wrote farbaek-logo.png, farbaek-icon.png, farbaek-icon-32.png, farbaek-icon-48.png and farbaek-apple-icon.png");

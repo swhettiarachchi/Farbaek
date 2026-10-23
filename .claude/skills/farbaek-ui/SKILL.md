@@ -88,6 +88,7 @@ Animate for live state, hierarchy, storytelling or feedback, and nothing else.
 
 **3D (React Three Fiber):**
 - Lazy load it (`next/dynamic`, `ssr: false`) after `whenIdle`, and only when `canRun3D()` is true.
+- `canRun3D()` is false on touch-first screens: phones get the static version (ADR 0052, measured with `pnpm qa:vitals`).
 - Pause it off-screen and when the tab is hidden.
 - Cross-fade it over a static fallback.
 - Never make it the only way to read a state.
