@@ -3,12 +3,11 @@
 /**
  * Browser facts the film players play by (ADR 0034, ADR 0051): the screen
  * width, the system's reduced-motion and Save-Data wishes, whether a film is
- * on screen and whether the tab is visible, which one video on the page may
- * play, and the video element itself. Read with useSyncExternalStore, or set
+ * on screen and whether the tab is visible, and the video element itself. Read with useSyncExternalStore, or set
  * from browser callbacks, never in an effect body.
  */
 import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react";
-import { pickLead, playFailure, SLOW_AFTER_MS, VISIBLE_SHARE, WIDE_QUERY, type LeadCandidate } from "./player-logic";
+import { playFailure, SLOW_AFTER_MS, VISIBLE_SHARE, WIDE_QUERY } from "./player-logic";
 
 const REDUCE_QUERY = "(prefers-reduced-motion: reduce)";
 /** Large screens with a mouse: where the stage tilt and the breathing aurora are worth their cost. */
@@ -55,55 +54,10 @@ export function usePlaybackLimits(): { reducedMotion: boolean; saveData: boolean
   return { reducedMotion, saveData };
 }
 
-// ------------------------------------------------------------------ one video at a time
-
-const candidates = new Map<string, LeadCandidate>();
-const leadListeners = new Set<() => void>();
-let lead: string | null = null;
-let nextOrder = 0;
-
-function chooseLead() {
-  const next = pickLead([...candidates.values()]);
-  if (next === lead) return;
-  lead = next;
-  leadListeners.forEach((l) => l());
-}
-
-/** The page-wide choice of which video plays (pickLead). Players report into it from effects and callbacks. */
-export const playbackLead = {
-  report(id: string, patch: Partial<Omit<LeadCandidate, "id" | "order">>) {
-    const current = candidates.get(id) ?? { id, eligible: false, visiblePx: 0, userAt: null, order: nextOrder++ };
-    candidates.set(id, { ...current, ...patch });
-    chooseLead();
-  },
-  leave(id: string) {
-    candidates.delete(id);
-    chooseLead();
-  },
-  subscribe(listener: () => void) {
-    leadListeners.add(listener);
-    return () => {
-      leadListeners.delete(listener);
-    };
-  },
-  current: () => lead,
-};
-
-/** Whether this video is the one the page lets play. */
-export function useIsLead(id: string): boolean {
-  return useSyncExternalStore(playbackLead.subscribe, () => playbackLead.current() === id, () => false);
-}
-
 // ------------------------------------------------------------------ on screen
 
-const THRESHOLDS = Array.from({ length: 11 }, (_, i) => i / 10);
-
-/**
- * Whether at least `share` of an element is on screen, and whether the tab is
- * in the background. `id` also reports how much of it shows to the page's
- * playback lead, so the video taking up most of the screen is the one that plays.
- */
-export function useOnScreen<T extends Element>(share = VISIBLE_SHARE, id?: string) {
+/** Whether at least `share` of an element is on screen, and whether the tab is in the background. */
+export function useOnScreen<T extends Element>(share = VISIBLE_SHARE) {
   const ref = useRef<T>(null);
   const [inView, setInView] = useState(false);
   const [hidden, setHidden] = useState(false);
@@ -112,11 +66,9 @@ export function useOnScreen<T extends Element>(share = VISIBLE_SHARE, id?: strin
     if (!el) return;
     const io = new IntersectionObserver(
       ([e]) => {
-        if (!e) return;
-        setInView(e.intersectionRatio >= share);
-        if (id) playbackLead.report(id, { visiblePx: Math.round(e.intersectionRect.height * e.intersectionRect.width) });
+        if (e) setInView(e.intersectionRatio >= share);
       },
-      { threshold: [...new Set([...THRESHOLDS, share])].sort((a, b) => a - b) },
+      { threshold: [...new Set([0, share, 1])].sort((a, b) => a - b) },
     );
     io.observe(el);
     const onVisibility = () => setHidden(document.hidden);
@@ -125,7 +77,7 @@ export function useOnScreen<T extends Element>(share = VISIBLE_SHARE, id?: strin
       io.disconnect();
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [share, id]);
+  }, [share]);
   return { ref, inView, hidden };
 }
 
@@ -222,8 +174,11 @@ export function useVideoControl(video: RefObject<HTMLVideoElement | null>, want:
     let timer: ReturnType<typeof setTimeout> | undefined;
     const failed: Failed = (failure) => {
       if (!live) return;
-      if (failure === "blocked") setBlockedFor(source);
-      else setErrorFor(source);
+      // A refusal isn't a stall: it waits for a press, so it's never "slow".
+      if (failure === "blocked") {
+        clearTimeout(timer);
+        setBlockedFor(source);
+      } else setErrorFor(source);
     };
     const watch = () => {
       clearTimeout(timer);

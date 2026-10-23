@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chapterFills, chapterTarget, formatFor, keyAction, pickLead, playFailure, playerNotice, shouldPlay, type AutoplayInput, type LeadCandidate } from "./player-logic";
+import { chapterFills, chapterTarget, filmMotion, formatFor, keyAction, playFailure, playerNotice, shouldPlay, type AutoplayInput } from "./player-logic";
 
 const base: AutoplayInput = { inView: true, hidden: false, reducedMotion: false, saveData: false, userPaused: false, userPlayed: false };
 const chapters = [{ start: 0 }, { start: 8_000 }, { start: 17_000 }];
@@ -76,24 +76,15 @@ describe("keyAction", () => {
   });
 });
 
-describe("pickLead", () => {
-  const c = (id: string, over: Partial<LeadCandidate> = {}): LeadCandidate => ({ id, eligible: true, visiblePx: 300, userAt: null, order: 0, ...over });
-
-  it("plays the video taking up most of the screen, and only one", () => {
-    expect(pickLead([c("film", { visiblePx: 420, order: 0 }), c("clip", { visiblePx: 250, order: 1 })])).toBe("film");
-    expect(pickLead([c("film", { visiblePx: 120, order: 0 }), c("clip", { visiblePx: 250, order: 1 })])).toBe("clip");
+describe("filmMotion", () => {
+  it("plays the video, or the silent loop where the browser refused to start it", () => {
+    expect(filmMotion({ want: true, blocked: false, error: false })).toBe("video");
+    expect(filmMotion({ want: true, blocked: true, error: false })).toBe("loop");
   });
 
-  it("prefers the one the person started, most recent first", () => {
-    expect(pickLead([c("film", { visiblePx: 600 }), c("clip", { visiblePx: 100, userAt: 5 })])).toBe("clip");
-    expect(pickLead([c("film", { userAt: 9 }), c("clip", { userAt: 5 })])).toBe("film");
-  });
-
-  it("skips videos that can't play now, breaks ties by page order and can choose none", () => {
-    expect(pickLead([c("film", { eligible: false, userAt: 9, visiblePx: 800 }), c("clip")])).toBe("clip");
-    expect(pickLead([c("b", { order: 2 }), c("a", { order: 1 })])).toBe("a");
-    expect(pickLead([c("film", { eligible: false })])).toBeNull();
-    expect(pickLead([])).toBeNull();
+  it("rests on the poster when it shouldn't move or the recording failed", () => {
+    expect(filmMotion({ want: false, blocked: true, error: false })).toBe("still");
+    expect(filmMotion({ want: true, blocked: true, error: true })).toBe("still");
   });
 });
 

@@ -2,12 +2,13 @@
 
 /**
  * The homepage film player (ADR 0034). It plays a real recording of
- * Farbaek's interface: muted (the films have no sound), only while at least
- * 45% of it is on screen, the tab is visible and it's the page's one playing
- * video (ADR 0051), and never on its own under reduced motion or Save-Data.
- * A person's pause stays paused. A refused autoplay shows a play button, a
- * stall says so after ten seconds with a retry, and a failure offers the
- * transcript.
+ * Farbaek's interface on a loop: muted (the films have no sound), whenever
+ * it's in sight and the tab is visible, and never on its own under reduced
+ * motion or Save-Data. A person's pause stays paused. Where the browser
+ * refuses to start it (iOS Low Power Mode), the recording keeps moving as a
+ * silent animated loop, with a press away from captions and chapters
+ * (ADR 0055). A stall says so after ten seconds with a retry, and a failure
+ * offers the transcript.
  *
  * Progress is painted straight onto CSS variables from one animation frame
  * loop, so the scrubber and the chapter rail move smoothly without
@@ -28,8 +29,9 @@ import { motion, useReducedMotion, useScroll, useTransform } from "motion/react"
 import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { FILMS, FILM_LABEL, filmFile, filmTrack, type FilmChapter, type FilmFormat, type FilmId } from "@/content/films";
 import { chapterAt, clock } from "./timeline";
-import { chapterFills, chapterTarget, formatFor, keyAction, playerNotice, shouldPlay } from "./player-logic";
-import { DESKTOP_QUERY, playbackLead, useIsLead, useMediaQuery, useOnScreen, usePlaybackLimits, useVideoControl, useWide } from "./use-playback";
+import { chapterFills, chapterTarget, filmMotion, formatFor, keyAction, playerNotice, shouldPlay } from "./player-logic";
+import { SilentLoop } from "./silent-loop";
+import { DESKTOP_QUERY, useMediaQuery, useOnScreen, usePlaybackLimits, useVideoControl, useWide } from "./use-playback";
 
 /**
  * The stage tilts back and settles flat as it scrolls up into view, the way
@@ -134,10 +136,9 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
   const duration = film.durationMs;
   const formats = Object.keys(film.formats) as FilmFormat[];
 
-  const key = useId();
   const wide = useWide();
   const { reducedMotion, saveData } = usePlaybackLimits();
-  const { ref: screenRef, inView, hidden } = useOnScreen<HTMLDivElement>(undefined, key);
+  const { ref: screenRef, inView, hidden } = useOnScreen<HTMLDivElement>();
   const format = wide === null ? null : formatFor(formats, wide);
   const source = format ? filmFile(id, format, "mp4") : null;
 
@@ -154,18 +155,15 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
   const [fullscreen, setFullscreen] = useState(false);
   const [active, setActive] = useState(0);
 
-  const eligible = format !== null && shouldPlay({ inView, hidden, reducedMotion, saveData, userPaused, userPlayed });
-  const isLead = useIsLead(key);
-  const want = eligible && isLead;
+  const want = format !== null && shouldPlay({ inView, hidden, reducedMotion, saveData, userPaused, userPlayed });
   const control = useVideoControl(video, want, source);
+  const motion = filmMotion({ want, blocked: control.blocked, error: control.error });
+  // Which source's silent loop has drawn: in browsers that skip it, the play cover stays.
+  const [loopShown, setLoopShown] = useState<string | null>(null);
+  const looping = motion === "loop" && loopShown === source;
   // The poster steps aside once a frame is drawn, and comes back if the recording fails.
   const started = control.shown && !control.error;
   const captionId = useId();
-
-  useEffect(() => {
-    playbackLead.report(key, { eligible: eligible && !control.error });
-  }, [key, eligible, control.error]);
-  useEffect(() => () => playbackLead.leave(key), [key]);
 
   /** Paints the time onto the scrubber, the rail and the clock. Called from the frame loop and from video events. */
   const paint = useCallback(() => {
@@ -205,16 +203,14 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
   const play = () => {
     setUserPaused(false);
     setUserPlayed(true);
-    playbackLead.report(key, { userAt: Date.now(), eligible: true });
     if (control.error || control.slow) control.retry();
     else control.start();
   };
   const pause = () => {
     setUserPaused(true);
     setUserPlayed(false);
-    playbackLead.report(key, { userAt: null });
   };
-  const playing = want && !control.blocked && !control.error;
+  const playing = motion === "video";
   const toggle = () => (playing ? pause() : play());
 
   const seekTo = (ms: number, start = false) => {
@@ -263,8 +259,8 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
   };
 
   const caption = chapters[active]!;
-  // The big play button shows only where the film won't start on its own.
-  const showPlayCover = !started && !control.error && (control.blocked || (!userPlayed && (reducedMotion || saveData)));
+  // The big play button shows only where the film won't start on its own and isn't looping silently.
+  const showPlayCover = !started && !control.error && !looping && (control.blocked || (!userPlayed && (reducedMotion || saveData)));
   const notice = playerNotice({ want, playing: control.playing, blocked: control.blocked, slow: control.slow, error: control.error });
 
   return (
@@ -322,6 +318,21 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
                   <div aria-hidden className={`pointer-events-none absolute inset-0 transition-opacity duration-500 ${started ? "opacity-0" : "opacity-100"}`}>
                     {poster}
                   </div>
+
+                  {motion === "loop" && source ? <SilentLoop src={source} fit="contain" onShown={() => setLoopShown(source)} /> : null}
+
+                  {looping ? (
+                    <button
+                      type="button"
+                      onClick={play}
+                      className="absolute bottom-3 left-3 inline-flex min-h-11 items-center gap-2 rounded-full bg-surface py-1.5 pl-1.5 pr-4 text-sm font-medium text-ink shadow-e2 ring-1 ring-line transition-transform duration-200 active:scale-[0.98]"
+                    >
+                      <span className="inline-flex size-8 items-center justify-center rounded-full bg-primary text-on-primary">
+                        <PlayIcon size={13} weight="fill" aria-hidden />
+                      </span>
+                      Play with captions
+                    </button>
+                  ) : null}
 
                   {showPlayCover ? (
                     <button
@@ -384,7 +395,11 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
 
                 {/* Captions and controls. The films are silent, so the captions say what happens. */}
                 <div className="border-t border-line px-3 pb-2 pt-3 sm:px-4">
-                  {captions ? (
+                  {looping ? (
+                    <p id={captionId} className="min-h-[2.75rem] text-[15px] leading-snug text-ink-2">
+                      Playing as a silent loop. Press play for captions and chapters.
+                    </p>
+                  ) : captions ? (
                     <p id={captionId} className="min-h-[2.75rem] text-[15px] leading-snug text-ink" aria-hidden>
                       <span className="mr-2 text-[13px] font-medium text-accent">{caption.label}</span>
                       {caption.caption}

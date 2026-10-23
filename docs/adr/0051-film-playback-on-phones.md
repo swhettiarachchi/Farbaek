@@ -1,6 +1,6 @@
 # ADR 0051: Film playback that holds up on phones
 
-- Status: accepted (2026-10-23).
+- Status: accepted (2026-10-23). One video at a time (`pickLead`) was replaced by ADR 0055: every film in sight plays.
 - Builds on ADR 0034 (product films) and ADR 0008 (White Signal).
 
 ## Context
