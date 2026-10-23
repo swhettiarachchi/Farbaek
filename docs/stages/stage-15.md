@@ -90,6 +90,18 @@ Approvals sync to the desktop runtime. A stale hash can't be approved.
     - there are no hydration errors.
 - **The desktop agent:** `pnpm agent:build` bundles cleanly. The run screen's new states weren't seen live, because that needs a paired agent against a signed-in workspace. The state handling is covered by the `RunManager` test.
 
+**Production database:** migration v27 applied to the self-hosted database on 2026-10-23.
+- **How:** the SHA-256 (`317ce930…8981a1c4`) matched on the server; one transaction with `ON_ERROR_STOP`.
+- **Read-only checks:**
+  - `expires_at` is non-null with the 72-hour default;
+  - the trigger is enabled and the check constraint is in place;
+  - the two proposals pending then close about 72 hours after the migration;
+  - no row has a window ending before it was made;
+  - the trigger function isn't executable by `anon` or `authenticated`;
+  - members can still read the column.
+- **Afterwards:** the API schema cache was reloaded.
+- **Compatibility:** the migration works with the code already running, which doesn't read the column. That code would report an expired approval as an unknown error until this branch is deployed.
+
 ### Next
 
 - A passkey (WebAuthn) step-up for escalated approvals. It needs a WebAuthn library approved.
