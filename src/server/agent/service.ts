@@ -25,6 +25,7 @@ import { checkPath, screenFile } from "@/core/workspace/files";
 import { MESSAGES, codeFromDatabaseError, planSteps, type RpcResult, type TransitionStep, type WriteErrorCode } from "@/server/workspace/use-cases";
 import { CONTRIBUTOR_ROLES, type OrgRole } from "@/server/workspace/types";
 import { newAgentToken, normalizePairingCode, sha256 } from "./tokens";
+import type { AutonomyLimits } from "@/core/trust/policy";
 
 export interface AgentIdentity {
   agentId: string;
@@ -295,6 +296,8 @@ export async function prepareAgentProposal(
   source: ProposalSource,
   taskId: string,
   body: unknown,
+  /** Cloud runs pass the workspace's autonomy (ADR 0046); the desktop agent's work always waits for a person. */
+  policyContext: { autonomy: AutonomyLimits | null; verifiable: boolean } = { autonomy: null, verifiable: false },
 ): Promise<AgentResult<{ input: ProposalInput; blocked: boolean }>> {
   const parsed = ProposalBody.safeParse(body);
   if (!parsed.success) {
@@ -347,7 +350,7 @@ export async function prepareAgentProposal(
   }
 
   const violations = checkProposal(contract.body, changes);
-  const policy = await evaluateChangePolicy({ files: changes, contractViolations: violations });
+  const policy = await evaluateChangePolicy({ files: changes, contractViolations: violations, autonomy: policyContext.autonomy, verifiable: policyContext.verifiable });
   const blocked = policy.outcome === "BLOCK";
   const sha = await proposalHash({ taskId: task.id, contractVersion: contract.version, contractSha256: contract.sha256, changes });
   const planned = planSteps(store, { ...task, orgId: id.orgId }, id.userId, ["propose_plan", "evaluate_policy", blocked ? "block" : "require_approval"]);

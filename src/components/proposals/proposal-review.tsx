@@ -255,7 +255,9 @@ export function ProposalReview({
       {proposal.status === "applied" ? (
         <div className="grid gap-3">
           <p className="text-sm">
-            Applied as new file revisions after your approval
+            {proposal.policy?.outcome === "ALLOW_WITHIN_LIMITS"
+              ? "Applied on its own as new file revisions, within this workspace's autonomy limits (level 2)"
+              : "Applied as new file revisions after your approval"}
             {proposal.appliedSha256 ? <span className="font-mono text-xs text-ink-3"> · approved content {short(proposal.appliedSha256)}</span> : null}.
           </p>
           <ul className="grid gap-1">

@@ -4,6 +4,7 @@ import { IntentContractSchema } from "@/core/realityloop/contract";
 import { ORGANIZATION_SELECT, summarizeOrganizations } from "./organizations";
 import { readSkillPins } from "./skill-pins";
 import { GRANT_COLUMNS, UsageGrantRowSchema, grantFromRow } from "./usage-store";
+import { readAutonomy } from "./autonomy";
 import {
   MemberRow,
   ProjectRowSchema,
@@ -459,6 +460,7 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
     },
 
     listSkillPins: (orgId, projectId) => readSkillPins(client, orgId, projectId),
+    getAutonomy: (orgId) => readAutonomy(client, orgId),
 
     async getFileRevision(orgId, projectId, path, revision) {
       if (!z.uuid().safeParse(projectId).success || !Number.isInteger(revision) || revision < 1) return null;

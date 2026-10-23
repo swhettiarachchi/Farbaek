@@ -25,6 +25,7 @@ import {
   demoEventType,
 } from "@/content/demo-workspace";
 import type { ContractRecord, FileRevision, Project, ProjectFileContent, ProposalRecord, Task, Transition, WorkspaceReader } from "./types";
+import { AUTONOMY_OFF } from "./autonomy";
 
 /**
  * Read-only sample workspace. Timestamps are relative to "now" so the trial
@@ -276,6 +277,9 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
       // A sample mapping for the demo's pending proposal, so the review shows how AI suggestions read.
       return proposalId === DEMO_PROPOSAL_ID ? { ...DEMO_LENS_SUGGESTION, createdAt: ago(DEMO_TIME.HOUR) } : null;
     },
+
+    // The demo workspace keeps every change waiting for a person.
+    getAutonomy: async () => AUTONOMY_OFF,
 
     async listSkillPins(_orgId, projectId) {
       if (projectId !== DEMO_FILES_PROJECT_ID) return [];

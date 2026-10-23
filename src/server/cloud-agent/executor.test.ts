@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { ModelStep, ModelToolCall, ToolModel } from "@/agent-runtime/models/types";
 import type { CommandRunner } from "@/agent-runtime/runners";
 import type { SkillPin } from "@/core/agent/skill-pins";
+import type { AutonomyLimits } from "@/core/trust/policy";
 import { INTENT_CONTRACT_SCHEMA, type IntentContract } from "@/core/realityloop/contract";
 import type { TaskState } from "@/core/realityloop/task-machine";
 import { sha256Hex } from "@/core/trust/canonical-json";
@@ -61,10 +62,11 @@ function scripted(turns: ModelToolCall[][]): ToolModel {
 const edit = { id: "e", name: "edit_file", input: { path: "README.md", edits: [{ find: "Run the tests.", replace: "Run the tests with pnpm test." }], reason: "Name the command." } };
 const finish = { id: "f", name: "finish", input: { summary: "README names pnpm test.", steps: ["Edited README.md"], risks: [], checks: ["pnpm test"] } };
 
-async function deps(over: { model?: ToolModel; state?: TaskState; sandbox?: CommandRunner | null; runError?: string; extraFiles?: { path: string; content: string }[]; taskId?: string; gateway?: ExecutorDeps["gateway"]; pins?: Map<string, SkillPin> }) {
+async function deps(over: { model?: ToolModel; state?: TaskState; sandbox?: CommandRunner | null; runError?: string; extraFiles?: { path: string; content: string }[]; taskId?: string; gateway?: ExecutorDeps["gateway"]; pins?: Map<string, SkillPin>; autonomy?: AutonomyLimits | null; applyFails?: string; contract?: IntentContract }) {
   const patches: RunPatch[] = [];
   const proposals: ProposalInput[] = [];
   const synced: string[][] = [];
+  const applied: { orgId: string; userId: string; proposalId: string }[] = [];
   const runs: RunStore = {
     start: async () => (over.runError ? { ok: false, error: over.runError } : { ok: true, value: "run-1" }),
     update: async (_id, p) => (patches.push(structuredClone(p)), { ok: true, value: null }),
@@ -77,7 +79,7 @@ async function deps(over: { model?: ToolModel; state?: TaskState; sandbox?: Comm
     runs,
     checks: {
       loadTask: async () => ({ id: over.taskId ?? "t1", title: "Name the test command", projectId: "p1", state: over.state ?? "CONTRACT_APPROVED", version: 4 }),
-      approvedContract: async () => ({ version: 1, sha256: "c".repeat(64), body: contract }),
+      approvedContract: async () => ({ version: 1, sha256: "c".repeat(64), body: over.contract ?? contract }),
       project: async () => ({ id: "p1", name: "Storefront", archived: false }),
       projectFiles: async () => [{ path: "README.md", revision: 5, sha256: sha, sizeBytes: README.length }, ...(over.extraFiles ?? []).map((f) => ({ path: f.path, revision: 1, sha256: "e".repeat(64), sizeBytes: f.content.length }))],
       fileContents: async () => new Map([["README.md", README], ...(over.extraFiles ?? []).map((f) => [f.path, f.content] as [string, string])]),
@@ -89,6 +91,8 @@ async function deps(over: { model?: ToolModel; state?: TaskState; sandbox?: Comm
     gateway: over.gateway ?? { deps: {} as GatewayDeps, model: {} as GatewayModel },
     sandboxAvailable: () => over.sandbox !== undefined && over.sandbox !== null,
     skillPins: async () => over.pins ?? new Map(),
+    autonomy: async () => over.autonomy ?? null,
+    applyWithinLimits: async (input) => (applied.push(input), over.applyFails ? { ok: false, message: over.applyFails } : { ok: true }),
     async sandbox(input) {
       if (!over.sandbox) return null;
       const runner = over.sandbox;
@@ -123,7 +127,7 @@ async function deps(over: { model?: ToolModel; state?: TaskState; sandbox?: Comm
     }
     throw new Error("No approval was asked for.");
   };
-  return { d, patches, proposals, synced, ended, waiting };
+  return { d, patches, proposals, synced, ended, waiting, applied };
 }
 
 const ok = { exitCode: 0, stdout: "ok", stderr: "", truncated: false, timedOut: false, cancelled: false, leftRunning: false, durationMs: 5 };
@@ -264,6 +268,42 @@ describe("skills in a cloud run", () => {
     expect(system).not.toContain("not-a-skill");
     const notes = t.patches.flatMap((p) => p.events ?? []).filter((e) => e.kind === "note").map((e) => (e.payload as { text: string }).text);
     expect(notes).toContainEqual(expect.stringContaining("with these skills: 3D and depth, house-style (this project's)"));
+  });
+});
+
+describe("autonomy level 2 (ADR 0046)", () => {
+  const LIMITS: AutonomyLimits = { level: 2, maxFiles: 3, allowCreates: false };
+  const checked: IntentContract = { ...contract, requiredChecks: ["pnpm test"] };
+  const sandbox: CommandRunner = { where: "sandbox", run: async () => ok };
+  const notes = (t: { patches: RunPatch[] }) => t.patches.flatMap((p) => p.events ?? []).filter((e) => e.kind === "note").map((e) => (e.payload as { text: string }).text);
+
+  it("applies a small, checked change on its own and says so", async () => {
+    const t = await deps({ model: scripted([[edit], [finish]]), sandbox, autonomy: LIMITS, contract: checked });
+    await startCloudRun(t.d, { person: alice, taskId: "t1", effort: "balanced", skills: [] });
+    expect(await t.ended()).toMatchObject({ status: "finished", outcome: expect.stringMatching(/applied on its own, within this workspace's autonomy limits/) });
+    expect(t.proposals[0]!.policy.outcome).toBe("ALLOW_WITHIN_LIMITS");
+    expect(t.applied).toEqual([{ orgId: alice.orgId, userId: alice.userId, proposalId: "proposal-1" }]);
+    expect(notes(t)).toContainEqual(expect.stringMatching(/Within this workspace's autonomy limits \(level 2\)/));
+  });
+
+  it("waits for a person when nothing could check the change, and when autonomy is off", async () => {
+    const noSandbox = await deps({ model: scripted([[edit], [finish]]), autonomy: LIMITS, contract: checked });
+    await startCloudRun(noSandbox.d, { person: alice, taskId: "t1", effort: "balanced", skills: [] });
+    expect(await noSandbox.ended()).toMatchObject({ status: "finished", outcome: "Finished. The change is waiting for your review." });
+    expect(noSandbox.applied).toEqual([]);
+    expect(notes(noSandbox)).toContainEqual(expect.stringMatching(/waits for a person: nothing could check it/));
+
+    const off = await deps({ model: scripted([[edit], [finish]]), sandbox, contract: checked });
+    await startCloudRun(off.d, { person: alice, taskId: "t1", effort: "balanced", skills: [] });
+    await off.ended();
+    expect(off.proposals[0]!.policy.outcome).toBe("REQUIRE_APPROVAL");
+    expect(off.applied).toEqual([]);
+  });
+
+  it("leaves the change waiting, and says why, when it can't apply on its own", async () => {
+    const t = await deps({ model: scripted([[edit], [finish]]), sandbox, autonomy: LIMITS, contract: checked, applyFails: "A file changed after this proposal was made." });
+    await startCloudRun(t.d, { person: alice, taskId: "t1", effort: "balanced", skills: [] });
+    expect(await t.ended()).toMatchObject({ outcome: "Finished. The change couldn't apply on its own (A file changed after this proposal was made), so it's waiting for your review." });
   });
 });
 

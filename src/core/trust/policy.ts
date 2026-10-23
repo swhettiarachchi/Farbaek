@@ -4,13 +4,17 @@
  * with the same canonical JSON as approvals, and every decision records
  * that hash, so a decision can be traced to the exact rules that made it.
  *
- * Version 1 governs change proposals at autonomy level 0, where every
- * change needs a person's approval:
+ * Version 2 governs change proposals:
  * - Any contract violation: BLOCK.
  * - Sensitive files (dependencies, CI, database migrations, infrastructure,
  *   auth and security code) or a large change: ESCALATE, meaning an owner
  *   or admin must approve.
  * - Anything else: REQUIRE_APPROVAL, meaning any contributor may approve.
+ * - Autonomy level 2 (ADR 0046), when the workspace turned it on: a change
+ *   that would only need a contributor applies on its own
+ *   (ALLOW_WITHIN_LIMITS) if it stays within the file limit, creates no
+ *   files unless allowed, and has checks a verified sandbox can run.
+ *   Autonomy never lowers a BLOCK or an ESCALATE.
  */
 import type { PolicyOutcome } from "../billing/usage";
 import { canonicalHash } from "./canonical-json";
@@ -28,9 +32,19 @@ export interface PolicyDecision {
   policyVersion: string;
 }
 
+/** A workspace's autonomy at level 2 (ADR 0046); null or absent means level 0. */
+export interface AutonomyLimits {
+  level: 2;
+  maxFiles: number;
+  allowCreates: boolean;
+}
+
 export interface ChangePolicyInput {
   files: readonly { path: string; kind: "create" | "edit" }[];
   contractViolations: readonly { kind: string; detail: string }[];
+  autonomy?: AutonomyLimits | null;
+  /** The contract lists checks and a verified sandbox can run them once the change applies. */
+  verifiable?: boolean;
 }
 
 const SENSITIVE: readonly { rule: string; pattern: RegExp; why: string }[] = [
@@ -59,13 +73,18 @@ export const LARGE_CHANGE_FILES = 10;
 
 /** The rule set, as data. Its canonical hash is the policy version. */
 export const CHANGE_POLICY_RULES = {
-  schema: "farbaek.policy/v1",
+  schema: "farbaek.policy/v2",
   scope: "change_proposal",
-  autonomyLevel: 0,
   contractViolation: "BLOCK",
   sensitive: SENSITIVE.map((s) => ({ rule: s.rule, pattern: s.pattern.source, outcome: "ESCALATE" })),
   largeChange: { files: LARGE_CHANGE_FILES, outcome: "ESCALATE" },
   otherwise: "REQUIRE_APPROVAL",
+  autonomy: {
+    level: 2,
+    outcome: "ALLOW_WITHIN_LIMITS",
+    onlyFrom: "REQUIRE_APPROVAL",
+    requires: ["files within the workspace's limit", "no new files unless the workspace allows them", "checks a verified sandbox can run"],
+  },
 } as const;
 
 let versionPromise: Promise<string> | null = null;
@@ -87,14 +106,30 @@ export async function evaluateChangePolicy(input: ChangePolicyInput): Promise<Po
   if (input.files.length > LARGE_CHANGE_FILES) {
     findings.push({ rule: "large_change", outcome: "ESCALATE", detail: `${input.files.length} files change, more than ${LARGE_CHANGE_FILES}.` });
   }
-  // Autonomy level 0: nothing is allowed without a person, so the floor is REQUIRE_APPROVAL.
-  const outcome = findings.reduce<PolicyOutcome>((worst, f) => (RANK[f.outcome] > RANK[worst] ? f.outcome : worst), "REQUIRE_APPROVAL");
+  // Without autonomy nothing is allowed without a person, so the floor is REQUIRE_APPROVAL.
+  let outcome = findings.reduce<PolicyOutcome>((worst, f) => (RANK[f.outcome] > RANK[worst] ? f.outcome : worst), "REQUIRE_APPROVAL");
+  // Level 2 only ever lowers REQUIRE_APPROVAL, and only when every limit holds.
+  if (input.autonomy?.level === 2 && outcome === "REQUIRE_APPROVAL") {
+    const limits = input.autonomy;
+    const creates = input.files.filter((f) => f.kind === "create").length;
+    const unmet = [
+      input.files.length > limits.maxFiles ? `it changes ${input.files.length} files, more than the limit of ${limits.maxFiles}` : null,
+      creates > 0 && !limits.allowCreates ? `it creates ${creates === 1 ? "a new file" : `${creates} new files`}, which this workspace doesn't allow on their own` : null,
+      input.verifiable ? null : "nothing could check it: the contract lists no checks, or no verified sandbox is connected",
+    ].filter((x): x is string => x !== null);
+    if (unmet.length === 0) {
+      outcome = "ALLOW_WITHIN_LIMITS";
+      findings.push({ rule: "autonomy", outcome, detail: `Within this workspace's autonomy limits (level 2): ${input.files.length} ${input.files.length === 1 ? "file" : "files"}, inside the contract, no sensitive files, and its checks can run in a verified sandbox.` });
+    } else {
+      findings.push({ rule: "autonomy", outcome: "REQUIRE_APPROVAL", detail: `Autonomy level 2 is on, but this waits for a person: ${unmet.join("; ")}.` });
+    }
+  }
   return { outcome, findings, policyVersion: await changePolicyVersion() };
 }
 
 export const OUTCOME_LABELS: Record<PolicyOutcome, string> = {
   ALLOW: "Allowed",
-  ALLOW_WITHIN_LIMITS: "Allowed within limits",
+  ALLOW_WITHIN_LIMITS: "Applies on its own within this workspace's limits",
   REQUIRE_APPROVAL: "Needs a contributor's approval",
   SIMULATE_FIRST: "Needs a simulation first",
   ESCALATE: "Needs an owner or admin to approve",

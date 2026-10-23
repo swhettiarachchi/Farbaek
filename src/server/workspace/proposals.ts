@@ -25,7 +25,7 @@ import type { IntentContract } from "@/core/realityloop/contract";
 import { checkQuota } from "@/core/billing/entitlements";
 import { resolveEffectivePlan } from "@/core/billing/trial";
 import { usagePeriod, type BillingPeriod } from "@/core/billing/usage";
-import { evaluateChangePolicy, type PolicyDecision } from "@/core/trust/policy";
+import { evaluateChangePolicy, type AutonomyLimits, type PolicyDecision } from "@/core/trust/policy";
 import type { ExecutionMode } from "@/core/execution/sandbox";
 import { buildProofPack, proofPackDigest } from "@/core/proof/proofpack";
 import { MANAGER_ROLES } from "./types";
@@ -110,7 +110,8 @@ function steps(deps: Deps, task: { id: string; state: TaskState; version: number
 
 export interface ProposeResult {
   proposalId: string;
-  status: "pending" | "blocked";
+  /** "applied" when the workspace's autonomy applied it on its own (ADR 0046). */
+  status: "pending" | "blocked" | "applied";
   dropped: Dropped[];
   violations: Violation[];
   policy: PolicyDecision;
@@ -119,7 +120,19 @@ export interface ProposeResult {
 export async function proposeChange(
   deps: Deps,
   models: ModelSource<ChangeProposer>,
-  input: { orgId: string; userId: string; taskId: string; contextPaths: string[]; notes: string; taskTitle: string; projectName: string; effort?: Effort },
+  input: {
+    orgId: string;
+    userId: string;
+    taskId: string;
+    contextPaths: string[];
+    notes: string;
+    taskTitle: string;
+    projectName: string;
+    effort?: Effort;
+    /** The workspace's autonomy at level 2, when it's on (ADR 0046), and where checks would run. */
+    autonomy?: AutonomyLimits | null;
+    execution?: ExecutionMode;
+  },
 ): Promise<WriteResult<ProposeResult>> {
   const role = await requireContributor(deps, input.orgId);
   if (!role.ok) return role;
@@ -183,7 +196,9 @@ export async function proposeChange(
     return refundAndFail(deps, { orgId: input.orgId, entryId, usage: outcome.usage }, { code: "NO_APPLICABLE_CHANGES", message: `${MESSAGES.NO_APPLICABLE_CHANGES}${why}` });
   }
   const violations = checkProposal(contract.body, changes);
-  const policy = await evaluateChangePolicy({ files: changes, contractViolations: violations });
+  // Checks run after a change applies only when the contract lists them and a verified sandbox is connected.
+  const verifiable = contract.body.requiredChecks.length > 0 && input.execution?.mode === "sandboxed";
+  const policy = await evaluateChangePolicy({ files: changes, contractViolations: violations, autonomy: input.autonomy ?? null, verifiable });
   const blocked = policy.outcome === "BLOCK";
   const sha256 = await proposalHash({ taskId: task.id, contractVersion: contract.version, contractSha256: contract.sha256, changes });
   const planned = steps(deps, task, input.orgId, input.userId, [
@@ -216,19 +231,44 @@ export async function proposeChange(
   }
 
   await settleUsage(deps, { orgId: input.orgId, entryId, usage: outcome.usage });
+  // Within the workspace's autonomy limits, it applies now; if it can't, it waits for a person as usual.
+  if (policy.outcome === "ALLOW_WITHIN_LIMITS" && input.execution) {
+    const applied = await autoApplyWithinLimits(deps, { orgId: input.orgId, userId: input.userId, proposalId: created.value, execution: input.execution });
+    if (applied.ok) return { ok: true, value: { proposalId: created.value, status: "applied", dropped, violations, policy } };
+  }
   return { ok: true, value: { proposalId: created.value, status: blocked ? "blocked" : "pending", dropped, violations, policy } };
 }
 
 export async function applyProposal(
   deps: Deps,
-  input: { orgId: string; userId: string; proposalId: string; reviewedSha256: string; files: { path: string; content: string }[]; execution: ExecutionMode },
+  input: {
+    orgId: string;
+    userId: string;
+    proposalId: string;
+    reviewedSha256: string;
+    files: { path: string; content: string }[];
+    execution: ExecutionMode;
+    /**
+     * "policy" applies a proposal the workspace's autonomy allowed (ADR 0046):
+     * exactly its own content, approved by the policy on behalf of the person
+     * whose work it was. Anything else stays the person's approval.
+     */
+    by?: "person" | "policy";
+  },
 ): Promise<WriteResult<{ written: number; appliedSha256: string; proofPackDigest: string }>> {
+  const byPolicy = input.by === "policy";
   const role = await requireContributor(deps, input.orgId);
   if (!role.ok) return role;
   const proposal = await deps.loadProposal(input.orgId, input.proposalId);
   if (!proposal) return fail("NOT_FOUND");
   if (proposal.status !== "pending") return fail("PROPOSAL_CLOSED");
   if (proposal.sha256 !== input.reviewedSha256) return fail("PROPOSAL_CHANGED");
+  if (byPolicy) {
+    if (proposal.policyOutcome !== "ALLOW_WITHIN_LIMITS") return fail("FORBIDDEN", "Only a change the workspace's autonomy allowed can apply on its own.");
+    // On its own, only the proposal's exact content applies: nothing was reviewed or edited.
+    const exact = new Map(proposal.changes.map((c) => [c.path, c.content]));
+    if (input.files.length !== exact.size || input.files.some((f) => exact.get(f.path) !== f.content)) return fail("INVALID_PROPOSAL");
+  }
   if (deps.now().getTime() >= Date.parse(proposal.expiresAt)) return fail("PROPOSAL_EXPIRED");
   if (proposal.policyOutcome === "ESCALATE" && !MANAGER_ROLES.includes(role.value)) return fail("APPROVER_ROLE_REQUIRED");
   const task = await deps.loadTask(input.orgId, proposal.taskId);
@@ -250,7 +290,7 @@ export async function applyProposal(
 
   const appliedSha256 = await appliedHash({ proposalSha256: proposal.sha256, files });
   const planned = steps(deps, task, input.orgId, input.userId, [
-    { type: "grant_approval", actor: "user" },
+    { type: "grant_approval", actor: byPolicy ? "system" : "user" },
     { type: "start_execution", actor: "system" },
     { type: "begin_verification", actor: "system" },
   ]);
@@ -265,7 +305,7 @@ export async function applyProposal(
     contract: { version: contract.version, sha256: contract.sha256 },
     proposal: { id: proposal.id, sha256: proposal.sha256, model: proposal.model },
     policy: proposal.policy,
-    approval: { approvedBy: input.userId, approvedAt: deps.now().toISOString(), appliedSha256 },
+    approval: { approvedBy: input.userId, approvedAt: deps.now().toISOString(), appliedSha256, ...(byPolicy ? { by: "policy" as const, autonomyLevel: 2 as const } : {}) },
     files: files.map((f) => {
       const change = byPath.get(f.path)!;
       return { path: f.path, kind: change.kind, baseRevision: change.baseRevision, sha256: f.sha256 };
@@ -310,4 +350,24 @@ export async function discardProposal(deps: Deps, input: { orgId: string; userId
   const result = await deps.discardProposal({ proposalId: proposal.id, actor: input.userId, expectedTaskVersion: task.version, steps: planned.steps });
   if (!result.ok) return fail(codeFromDatabaseError(result.error));
   return result;
+}
+
+/**
+ * Applies a just-created proposal that the workspace's autonomy allowed
+ * (ADR 0046), exactly as proposed. When it can't (a file changed meanwhile,
+ * the window closed), the proposal simply waits for a person, as at level 0.
+ */
+export async function autoApplyWithinLimits(deps: Deps, input: { orgId: string; userId: string; proposalId: string; execution: ExecutionMode }): Promise<WriteResult<{ written: number; appliedSha256: string; proofPackDigest: string }>> {
+  const proposal = await deps.loadProposal(input.orgId, input.proposalId);
+  if (!proposal) return fail("NOT_FOUND");
+  if (proposal.policyOutcome !== "ALLOW_WITHIN_LIMITS") return fail("FORBIDDEN", "This change needs a person's approval.");
+  return applyProposal(deps, {
+    orgId: input.orgId,
+    userId: input.userId,
+    proposalId: proposal.id,
+    reviewedSha256: proposal.sha256,
+    files: proposal.changes.map((c) => ({ path: c.path, content: c.content })),
+    execution: input.execution,
+    by: "policy",
+  });
 }

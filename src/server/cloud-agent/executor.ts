@@ -37,6 +37,7 @@ import { log } from "@/server/observability/log";
 import { codeFromDatabaseError, fail, MESSAGES, type WriteResult } from "@/server/workspace/use-cases";
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES, type OrgRole } from "@/server/workspace/types";
 import type { RunPatch, RunStore } from "./store";
+import type { AutonomyLimits } from "@/core/trust/policy";
 
 export interface RunPerson {
   orgId: string;
@@ -55,6 +56,10 @@ export interface ExecutorDeps {
   sandboxAvailable(): boolean;
   /** The approved version of each of the project's own skills, by path (ADR 0043). */
   skillPins(orgId: string, projectId: string): Promise<Map<string, SkillPin>>;
+  /** The workspace's autonomy at level 2, or null when changes wait for a person (ADR 0046). */
+  autonomy(orgId: string): Promise<AutonomyLimits | null>;
+  /** Applies a just-made proposal the workspace's autonomy allowed, exactly as proposed. */
+  applyWithinLimits(input: { orgId: string; userId: string; proposalId: string }): Promise<{ ok: true } | { ok: false; message: string }>;
   /** Overrides the model, for tests. */
   makeModel?(input: { taskId: string; effort: Effort; step: (r: ModelStepRequest, signal?: AbortSignal) => Promise<ModelStepReply> }): ToolModel;
   workRoot?: string;
@@ -368,6 +373,8 @@ async function execute(
       if (changes.length === 0) {
         queue({ status: "finished", outcome: "Finished without changing any files.", finish: o.finish });
       } else {
+        // A finished change may apply on its own within the workspace's autonomy limits (ADR 0046).
+        const policyContext = { autonomy: await deps.autonomy(person.orgId), verifiable: r.contract.body.requiredChecks.length > 0 && deps.sandboxAvailable() };
         const prepared = await prepareAgentProposal(deps.checks, person, { kind: "run", runId }, r.task.id, {
           contractVersion: r.contract.version,
           contractSha256: r.contract.sha256,
@@ -376,7 +383,7 @@ async function execute(
           notProposed: [...skipped.map((s) => ({ path: s.path, reason: `Not copied into the run: ${s.reason}` })), ...notProposed].slice(0, 100),
           usage: { model: report.model === "auto" ? "farbaek-gateway" : report.model, inputTokens: report.usage.inputTokens, outputTokens: report.usage.outputTokens },
           mode: commands ? "sandboxed_autopilot" : "review_only",
-        });
+        }, policyContext);
         if (!prepared.ok) {
           queue({ status: "failed", outcome: `The agent finished, but its change couldn't be proposed: ${prepared.message}`, finish: o.finish });
         } else {
@@ -384,10 +391,20 @@ async function execute(
           const created = await deps.runs.createRunProposal(runId, prepared.value.input);
           if (created.ok) {
             const blocked = prepared.value.blocked;
+            const policy = prepared.value.input.policy;
+            const autonomyNote = policy.findings.find((f) => f.rule === "autonomy");
+            if (autonomyNote) event({ kind: "note", text: autonomyNote.detail });
+            const applied = policy.outcome === "ALLOW_WITHIN_LIMITS" ? await deps.applyWithinLimits({ orgId: person.orgId, userId: person.userId, proposalId: created.value }) : null;
             queue({
               status: "finished",
               finish: o.finish,
-              outcome: blocked ? "Finished. Farbaek blocked the change: it breaks the contract. Open the proposal to see why." : "Finished. The change is waiting for your review.",
+              outcome: blocked
+                ? "Finished. Farbaek blocked the change: it breaks the contract. Open the proposal to see why."
+                : applied?.ok
+                  ? "Finished. The change applied on its own, within this workspace's autonomy limits. Run its checks to verify it, or undo it from the task."
+                  : applied
+                    ? `Finished. The change couldn't apply on its own (${applied.message.replace(/[.\s]+$/, "")}), so it's waiting for your review.`
+                    : "Finished. The change is waiting for your review.",
             });
           } else {
             const code = codeFromDatabaseError(created.error);

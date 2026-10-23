@@ -25,6 +25,9 @@ import type { ExecutorDeps } from "./executor";
 import { createSandboxRunner } from "./sandbox-runner";
 import { createSupabaseRunStore } from "./store";
 import { pinMap, readSkillPins } from "@/server/workspace/skill-pins";
+import { limitsFrom, readAutonomy } from "@/server/workspace/autonomy";
+import { autoApplyWithinLimits } from "@/server/workspace/proposals";
+import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
 
 const SESSION_MINUTES = 45;
 
@@ -55,6 +58,12 @@ export async function cloudRunDeps(person: { orgId: string; userId: string; role
     gateway: { deps: { ...agentStore, ...createServerUsageDeps(admin) }, model: createAnthropicGatewayModel() },
     sandboxAvailable: () => sandboxed && token !== null,
     skillPins: async (orgId, projectId) => pinMap(await readSkillPins(admin, orgId, projectId)),
+    autonomy: async (orgId) => limitsFrom(await readAutonomy(admin, orgId)),
+    async applyWithinLimits(input) {
+      // The server's client, scoped by workspace and person in every query, as a background run has no session.
+      const r = await autoApplyWithinLimits(createSupabaseWriteDeps(admin, admin, input.userId), { ...input, execution: sandboxExecutionMode() });
+      return r.ok ? { ok: true } : { ok: false, message: r.message };
+    },
     async sandbox(input) {
       if (!token) return null;
       const user = createClient(config.url, config.publishableKey, {

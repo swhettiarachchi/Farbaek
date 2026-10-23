@@ -28,7 +28,11 @@ export interface ProofPackInput {
   contract: { version: number; sha256: string };
   proposal: { id: string; sha256: string; model: string | null };
   policy: { outcome: string; version: string; findings: { rule: string; outcome: string; detail: string }[] } | null;
-  approval: { approvedBy: string; approvedAt: string; appliedSha256: string };
+  /**
+   * Who approved: a person, or the workspace's policy at autonomy level 2
+   * (ADR 0046), in which case approvedBy is the person whose work it was.
+   */
+  approval: { approvedBy: string; approvedAt: string; appliedSha256: string; by?: "policy"; autonomyLevel?: 2 };
   /** The files written, with the digest of the exact content applied. */
   files: { path: string; kind: "create" | "edit"; baseRevision: number; sha256: string }[];
   /** The contract's required checks and what happened to each. exitCode null means it didn't run. */

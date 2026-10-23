@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { AutonomySettings } from "@/components/app/autonomy-settings";
 import { ExecutionModeBadge } from "@/components/app/execution";
 import { RenameWorkspaceForm } from "@/components/app/forms";
 import { InvitePeople } from "@/components/app/invite-people";
@@ -22,7 +23,7 @@ export default async function SettingsPage() {
   if (!ctx?.current) notFound();
   const ws = ctx.current;
   const canManage = ctx.role !== null && MANAGER_ROLES.includes(ctx.role);
-  const [members, invitations] = await Promise.all([ctx.reader.listMembers(ws.id), canManage ? ctx.reader.listInvitations(ws.id) : Promise.resolve([])]);
+  const [members, invitations, autonomy] = await Promise.all([ctx.reader.listMembers(ws.id), canManage ? ctx.reader.listInvitations(ws.id) : Promise.resolve([]), ctx.reader.getAutonomy(ws.id)]);
   const canRename = ctx.mode === "live" && canManage;
   // People who joined through an invitation are shown by the address they were invited at.
   const emailOf = new Map(invitations.flatMap((i) => (i.acceptedBy ? [[i.acceptedBy, i.email] as const] : [])));
@@ -62,6 +63,14 @@ export default async function SettingsPage() {
         ) : (
           <p className="mt-3 text-sm text-ink-2">Checks run in an isolated microVM with restricted network access.</p>
         )}
+      </Card>
+
+      <Card>
+        <AutonomySettings
+          view={autonomy}
+          verifiable={execution.mode === "sandboxed"}
+          disabledReason={ctx.mode === "demo" ? "The demo workspace is read-only." : !ctx.writes.enabled ? ctx.writes.reason : canManage ? null : "Only owners and admins can change autonomy."}
+        />
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] lg:items-start">
