@@ -71,6 +71,13 @@ describe("startTaskVerification", () => {
     expect(await startTaskVerification(fakes({ running: true }).deps, alice, "t1", "person")).toMatchObject({ ok: false, message: "The checks are already running for this change." });
   });
 
+  it("verifies a static site whose plan lists no checks with Farbaek's site check (ADR 0054)", async () => {
+    const f = fakes({ checksList: [], files: ["index.html", "styles.css"] });
+    expect(await startTaskVerification(f.deps, alice, "t1", "person")).toEqual({ ok: true, value: { verificationId: "v1" } });
+    // A project with things to install and no checks still has nothing to run.
+    expect(await startTaskVerification(fakes({ checksList: [], files: ["index.html", "package.json"] }).deps, alice, "t1", "person")).toMatchObject({ ok: false, message: expect.stringMatching(/no checks/) });
+  });
+
   it("records the attempt and runs it in the background", async () => {
     const f = fakes();
     expect(await startTaskVerification(f.deps, alice, "t1", "autonomy")).toEqual({ ok: true, value: { verificationId: "v1" } });

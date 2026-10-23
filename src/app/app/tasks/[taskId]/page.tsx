@@ -18,6 +18,7 @@ import { RecoveryPanel } from "@/components/recovery/recovery-panel";
 import { RecoveryRecordCard } from "@/components/recovery/recovery-record";
 import { checkFeature } from "@/core/billing/entitlements";
 import { RECOVERABLE_STATES } from "@/core/realityloop/recovery";
+import { checksToRun } from "@/core/realityloop/site-check";
 import { RECOVERY_NOT_IN_PLAN, previewRecovery } from "@/server/workspace/recovery";
 import { Card, TaskStateBadge } from "@/components/app/primitives";
 import { LiveRefresh } from "@/components/app/live-refresh";
@@ -66,7 +67,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
   const [driftEvents, proposeAi, projectFiles, bases, intact, [recoverySource, recoveries], agents, lensSuggestion, lensAi, verification] = await Promise.all([
     approvedContract && !TERMINAL_STATES.has(task.state) ? ctx.reader.listFileChangesSince(orgId, task.projectId, approvedContract.approvedAt!) : Promise.resolve(null),
     canPropose ? loadAiAvailability(ctx, ctx.current, "change_proposal") : Promise.resolve(null),
-    canPropose ? ctx.reader.listFiles(orgId, task.projectId) : Promise.resolve([]),
+    canPropose || task.state === "VERIFYING" ? ctx.reader.listFiles(orgId, task.projectId) : Promise.resolve([]),
     showProposal
       ? Promise.all(
           proposal!.changes
@@ -118,7 +119,11 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
         ? "Not verified: its checks didn't run before the undo started. See Recovery below."
         : undefined;
 
-  const requiredChecks = contract?.body.requiredChecks.length ?? 0;
+  // What a verification runs: the plan's checks, or Farbaek's site check for a static site whose plan lists none (ADR 0054).
+  const planChecks = contract?.body.requiredChecks ?? [];
+  const checksForRun = checksToRun(planChecks, projectFiles.map((f) => f.path));
+  const requiredChecks = checksForRun.length;
+  const siteCheck = planChecks.length === 0 && requiredChecks > 0;
   const checking = verification !== null && verificationState(verification, new Date(renderedAt)) === "running";
   const verifyReason =
     writeReason ??
@@ -254,7 +259,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
               : "The contract's required checks run in the sandbox against the applied revisions."}
           </p>
           <div className="mt-4">
-            <ChecksList checks={contract?.body.requiredChecks ?? []} mode={execution} />
+            <ChecksList checks={task.state === "VERIFYING" ? checksForRun : planChecks} mode={execution} />
           </div>
           {task.state === "VERIFYING" && requiredChecks > 0 ? (
             <div className="mt-5 grid gap-4 border-t border-line pt-5">
@@ -262,12 +267,24 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
               <LiveRefresh active={checking} everyMs={3_000} />
               {checking ? null : (
                 <>
-                  <p className="max-w-[65ch] text-sm text-ink-2">
-                    One step: a sandbox starts with this project&apos;s files, installs its packages if it has any, runs the{" "}
-                    {requiredChecks === 1 ? "check" : `${requiredChecks} checks`}, then stops. The task is marked verified only when every check passes, and the run leaves a
-                    receipt below. It uses sandbox time from your plan.
-                  </p>
-                  <VerifyNow taskId={task.id} disabledReason={verifyReason} label={verification && verification.status !== "running" ? "Run the checks again" : "Run the checks now"} />
+                  {siteCheck ? (
+                    <p className="max-w-[65ch] text-sm text-ink-2">
+                      The plan lists no checks, so Farbaek checks the site itself: every page&apos;s links, scripts, styles and images lead to files in the project, each page
+                      has a title, a language and a phone viewport, and images have alt text. It runs in a fresh sandbox against exactly the applied files, and the task is
+                      marked verified only if nothing is wrong. It uses sandbox time from your plan.
+                    </p>
+                  ) : (
+                    <p className="max-w-[65ch] text-sm text-ink-2">
+                      One step: a sandbox starts with this project&apos;s files, installs its packages if it has any, runs the{" "}
+                      {requiredChecks === 1 ? "check" : `${requiredChecks} checks`}, then stops. The task is marked verified only when every check passes, and the run leaves a
+                      receipt below. It uses sandbox time from your plan.
+                    </p>
+                  )}
+                  <VerifyNow
+                    taskId={task.id}
+                    disabledReason={verifyReason}
+                    label={siteCheck ? (verification && verification.status !== "running" ? "Check the site again" : "Check the site now") : verification && verification.status !== "running" ? "Run the checks again" : "Run the checks now"}
+                  />
                   {verifyReason ? null : (
                     <p className="text-sm text-ink-3">
                       Need to install something by hand first?{" "}
@@ -278,6 +295,17 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
                   )}
                 </>
               )}
+            </div>
+          ) : task.state === "VERIFYING" ? (
+            // No checks to run, and nothing Farbaek can check on its own: say so, and what can be done.
+            <div className="mt-5 grid gap-2 border-t border-line pt-5 text-sm text-ink-2">
+              <p className="max-w-[65ch]">
+                The plan lists no checks, so nothing can verify this change, and it stays not verified. The change itself is applied: its files are in the project.
+              </p>
+              <p className="max-w-[65ch]">
+                To have changes like this verified, describe how to check them when you start the next build (for example &quot;run the tests&quot;), and they go into its
+                plan. Or undo this change below.
+              </p>
             </div>
           ) : null}
         </Card>

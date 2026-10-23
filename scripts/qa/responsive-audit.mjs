@@ -155,7 +155,7 @@ try {
     }
     await ctx.close();
   }
-  const selected = routeFilter ? routes.filter((r) => routeFilter.includes(r)) : routes;
+  const selected = routeFilter ?? routes;
   if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 
   for (const width of WIDTHS) {

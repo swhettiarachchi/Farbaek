@@ -25,6 +25,8 @@ import { buildVerificationProofPack, proofPackDigest, type ProofPackStatement } 
 import { commandTimeoutSeconds, sessionSpec } from "@/core/sandbox/request";
 import { RuntimeError, type ResourceSample, type RuntimeFileEntry, type RuntimeHealth } from "@/core/sandbox/runtime";
 import { addUsage, sessionUsage, wholeMinutes, ZERO_USAGE, type UsageTotals } from "@/core/sandbox/usage";
+import { SITE_CHECK_COMMAND, SITE_CHECK_PATH } from "@/core/realityloop/site-check";
+import { SITE_CHECK_SCRIPT } from "@/core/realityloop/site-check-script";
 import { transition as taskTransition, type TaskEventType, type TaskSnapshot, type TaskState } from "@/core/realityloop/task-machine";
 import { sha256Hex } from "@/core/trust/canonical-json";
 import type { PolicyDecision } from "@/core/trust/policy";
@@ -673,18 +675,38 @@ export function createSandboxService(deps: SandboxServiceDeps) {
       appliedFiles = changes.map((c) => ({ path: c.path, expected: c.sha256, actual: actual.get(c.path) ?? null }));
     }
 
+    // Farbaek's site check (ADR 0054) is a script Farbaek writes into the sandbox, outside the project's
+    // own folders, after the applied files were hashed. The receipt names it with the script's hash.
+    let siteCheckName: string | null = null;
+    if (checksList.includes(SITE_CHECK_COMMAND) && runtime && session.providerSandboxId) {
+      const script = SITE_CHECK_SCRIPT;
+      try {
+        await runtime.writeFiles(session.providerSandboxId, [{ path: SITE_CHECK_PATH, content: script }]);
+        siteCheckName = `${SITE_CHECK_COMMAND} (script sha256:${(await sha256Hex(script)).slice(0, 12)})`;
+      } catch (e) {
+        log("warn", "sandbox.site_check_write_failed", { session: sessionId, error: e instanceof Error ? e.message : String(e) });
+      }
+    }
+
     const results: ReceiptCheck[] = [];
-    for (const [i, command] of checksList.entries()) {
-      const run = await runCommand(actor, sessionId, { command, kind: "check", label: command }, `${baseKey}:check:${i}`);
+    for (const [i, planned] of checksList.entries()) {
+      const isSiteCheck = planned === SITE_CHECK_COMMAND;
+      const command = isSiteCheck ? `node ${SITE_CHECK_PATH}` : planned;
+      const name = isSiteCheck ? (siteCheckName ?? SITE_CHECK_COMMAND) : planned;
+      if (isSiteCheck && !siteCheckName) {
+        results.push({ name, command, exitCode: null, durationMs: null, failure: "control_plane_interrupted", stdoutSha256: null, stderrSha256: null });
+        continue;
+      }
+      const run = await runCommand(actor, sessionId, { command, kind: "check", label: name }, `${baseKey}:check:${i}`);
       if (!run.ok) {
         // A refused or failed-to-start check is recorded as not run, and the rest still run.
-        results.push({ name: command, command, exitCode: null, durationMs: null, failure: run.category, stdoutSha256: null, stderrSha256: null });
+        results.push({ name, command, exitCode: null, durationMs: null, failure: run.category, stdoutSha256: null, stderrSha256: null });
         if (run.code === "NOT_CONNECTED" || run.code === "SESSION_NOT_RUNNING" || run.code === "BLOCKED") break;
         continue;
       }
       const e = run.value;
       results.push({
-        name: command,
+        name,
         command,
         exitCode: e.state === "succeeded" || e.state === "failed" ? e.exitCode : null,
         durationMs: e.durationMs,
