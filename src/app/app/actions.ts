@@ -29,6 +29,7 @@ import { resolveAiProvider } from "@/server/ai/config";
 import { currentExecutionMode } from "@/server/execution/sandbox";
 import { createAnthropicLensMapper } from "@/server/ai/lens-mapper";
 import { suggestLensMapping, type LensSuggestionDeps } from "@/server/workspace/lens-suggestions";
+import { limitsFrom, setWorkspaceAutonomy, type AutonomyDeps } from "@/server/workspace/autonomy";
 
 export type FormState = { status: "idle" } | { status: "error"; message: string; values?: Record<string, string> } | { status: "done"; message: string };
 
@@ -47,7 +48,7 @@ async function requireContext(): Promise<AppContext> {
 }
 
 /** Resolves write dependencies, or the honest reason writes are unavailable. */
-async function writeDeps(ctx: AppContext): Promise<{ deps: WriteDeps & AiUsageDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps & AgentAdminDeps & LensSuggestionDeps; orgId: string } | { error: string }> {
+async function writeDeps(ctx: AppContext): Promise<{ deps: WriteDeps & AiUsageDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps & AgentAdminDeps & LensSuggestionDeps & AutonomyDeps; orgId: string } | { error: string }> {
   if (!ctx.writes.enabled) return { error: ctx.writes.reason };
   if (!ctx.current) return { error: "Create a workspace first." };
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
@@ -309,7 +310,7 @@ export async function deleteFileAction(_previous: FormState, form: FormData): Pr
   redirect(`/app/projects/${project.id}/files`);
 }
 
-export type ProposeState = { status: "error"; message: string } | { status: "done"; proposalId: string; outcome: "pending" | "blocked" };
+export type ProposeState = { status: "error"; message: string } | { status: "done"; proposalId: string; outcome: "pending" | "blocked" | "applied" };
 
 /** Asks the agent for a change under the approved contract. Nothing is applied until a person approves it. */
 export async function proposeChangeAction(input: { taskId: string; contextPaths: string[]; notes: string; effort?: Effort }): Promise<ProposeState> {
@@ -337,6 +338,9 @@ export async function proposeChangeAction(input: { taskId: string; contextPaths:
     taskTitle: found.task.title,
     projectName: project?.name ?? "Project",
     effort: parsed.data.effort,
+    // Level 2 lets a small, checked change apply on its own (ADR 0046); the database checks it again.
+    autonomy: limitsFrom(await ctx.reader.getAutonomy(w.orgId)),
+    execution: currentExecutionMode(),
   });
   if (!result.ok) return { status: "error", message: result.message };
   revalidatePath("/app", "layout");
@@ -455,6 +459,24 @@ export async function inviteMemberAction(_previous: InviteState, form: FormData)
   if (!r.ok) return { status: "error", message: r.message };
   revalidatePath("/app/settings");
   return { status: "created", link: `${siteUrl()}/invite/${r.value.token}`, email: r.value.email, role: r.value.role, expiresAt: r.value.expiresAt };
+}
+
+export type AutonomyState = { status: "idle" } | { status: "error"; message: string } | { status: "done"; message: string };
+
+/** Sets the workspace's autonomy (ADR 0046). Owners and admins only; the database checks again. */
+export async function setAutonomyAction(_previous: AutonomyState, form: FormData): Promise<AutonomyState> {
+  const parsed = z
+    .object({ level: z.enum(["0", "2"]), maxFiles: z.coerce.number().int().min(1).max(5), allowCreates: z.string().optional() })
+    .safeParse({ level: form.get("level"), maxFiles: form.get("maxFiles"), allowCreates: form.get("allowCreates") ?? undefined });
+  if (!parsed.success) return { status: "error", message: "Choose a level and a file limit from 1 to 5." };
+  const ctx = await requireContext();
+  const w = await writeDeps(ctx);
+  if ("error" in w) return { status: "error", message: w.error };
+  const level = parsed.data.level === "2" ? 2 : 0;
+  const r = await setWorkspaceAutonomy(w.deps, { orgId: w.orgId, userId: ctx.user.id, level, maxFiles: parsed.data.maxFiles, allowCreates: parsed.data.allowCreates === "on" });
+  if (!r.ok) return { status: "error", message: r.message };
+  revalidatePath("/app/settings");
+  return { status: "done", message: level === 2 ? "Saved. Small, checked changes now apply on their own within these limits." : "Saved. Every change waits for a person." };
 }
 
 export async function revokeInvitationAction(form: FormData): Promise<void> {

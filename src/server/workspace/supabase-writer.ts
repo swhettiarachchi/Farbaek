@@ -17,6 +17,7 @@ import { ProposalRowSchema, proposalFromRow } from "./types";
 import type { ProjectAdminDeps, RpcResult, WriteDeps } from "./use-cases";
 import type { SkillPinDeps } from "./skill-pins";
 import type { LensSuggestionDeps } from "./lens-suggestions";
+import type { AutonomyDeps } from "./autonomy";
 
 /**
  * WriteDeps backed by Supabase. Reads use the signed-in user's client (Row
@@ -26,7 +27,7 @@ export function createSupabaseWriteDeps(
   user: SupabaseClient,
   admin: SupabaseClient,
   userId: string,
-): WriteDeps & AiUsageDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps & AgentAdminDeps & SkillPinDeps & LensSuggestionDeps {
+): WriteDeps & AiUsageDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps & AgentAdminDeps & SkillPinDeps & LensSuggestionDeps & AutonomyDeps {
   const reader = createSupabaseReader(user);
   async function rpc<T>(fn: string, args: Record<string, unknown>, schema: z.ZodType<T>): Promise<RpcResult<T>> {
     const { data, error } = await admin.rpc(fn, args);
@@ -172,6 +173,13 @@ export function createSupabaseWriteDeps(
       ),
 
     fileRevision: (orgId, projectId, path, revision) => reader.getFileRevision(orgId, projectId, path, revision),
+
+    setAutonomy: (i) =>
+      rpc(
+        "app_set_autonomy",
+        { p_org: i.orgId, p_actor: i.actor, p_level: i.level, p_max_files: i.maxFiles, p_allow_creates: i.allowCreates },
+        z.null().or(z.literal("")).transform(() => null),
+      ),
 
     recordLensSuggestion: (i) =>
       rpc(

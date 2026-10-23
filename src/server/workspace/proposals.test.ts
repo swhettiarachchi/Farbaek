@@ -8,7 +8,7 @@ import type { ChangeProposer, ProposalOutcome } from "@/server/ai/change-propose
 import { reserveUnits } from "@/core/billing/rate-card";
 import { proposalPromptTokens } from "@/server/ai/prompts";
 import type { AiUsageDeps } from "./ai-usage";
-import { applyProposal, discardProposal, proposeChange, type ProposalDeps, type StoredProposal } from "./proposals";
+import { applyProposal, autoApplyWithinLimits, discardProposal, proposeChange, type ProposalDeps, type StoredProposal } from "./proposals";
 import type { OrgRole } from "./types";
 import type { WriteDeps } from "./use-cases";
 
@@ -287,5 +287,62 @@ describe("ProofPack on apply", () => {
     const { deps } = fakeDeps({ state: "APPROVAL_PENDING", proposal: { contractVersion: 7 } });
     const r = await applyProposal(deps, { orgId: "o1", userId: "u1", proposalId: "prop-1", reviewedSha256: "a".repeat(64), files: [{ path: "src/lib/cart.ts", content: "x" }], execution: REVIEW_ONLY });
     expect(r).toMatchObject({ ok: false, code: "CONTRACT_CHANGED" });
+  });
+});
+
+describe("autonomy level 2 (ADR 0046)", () => {
+  const SANDBOXED = { mode: "sandboxed" as const, provider: "Vercel Sandbox" };
+  const LIMITS = { level: 2 as const, maxFiles: 3, allowCreates: false };
+  const allowed = { policyOutcome: "ALLOW_WITHIN_LIMITS", changes: [{ path: "src/lib/cart.ts", kind: "edit" as const, baseRevision: 3, content: "x", sha256: "b".repeat(64), reason: "" }] };
+
+  it("applies a proposal the workspace allowed, exactly as proposed, approved by policy", async () => {
+    const { deps, calls } = fakeDeps({ state: "APPROVAL_PENDING", proposal: allowed });
+    expect(await autoApplyWithinLimits(deps, { orgId: "o1", userId: "u1", proposalId: "prop-1", execution: SANDBOXED })).toMatchObject({ ok: true });
+    const apply = calls.find((c) => c.name === "apply")!.input;
+    expect(apply.files).toEqual([{ path: "src/lib/cart.ts", content: "x" }]);
+    expect(apply.steps[0]).toMatchObject({ event_type: "grant_approval", actor_kind: "system" });
+    expect(apply.proofpack.predicate.approval).toMatchObject({ approvedBy: "u1", by: "policy", autonomyLevel: 2 });
+  });
+
+  it("refuses to apply on its own anything the policy didn't allow, or anything but the proposal's own content", async () => {
+    const plain = fakeDeps({ state: "APPROVAL_PENDING" });
+    expect(await autoApplyWithinLimits(plain.deps, { orgId: "o1", userId: "u1", proposalId: "prop-1", execution: SANDBOXED })).toMatchObject({ ok: false, code: "FORBIDDEN" });
+    const edited = fakeDeps({ state: "APPROVAL_PENDING", proposal: allowed });
+    expect(
+      await applyProposal(edited.deps, { orgId: "o1", userId: "u1", proposalId: "prop-1", reviewedSha256: "a".repeat(64), files: [{ path: "src/lib/cart.ts", content: "changed" }], execution: SANDBOXED, by: "policy" }),
+    ).toMatchObject({ ok: false, code: "INVALID_PROPOSAL" });
+    expect([...plain.calls, ...edited.calls].some((c) => c.name === "apply")).toBe(false);
+  });
+
+  it("proposes and applies on its own when the workspace allows it and checks can run", async () => {
+    const { deps, calls } = fakeDeps();
+    const created = () => calls.some((c) => c.name === "create");
+    deps.approvedContract = async () => ({ version: 1, sha256: "c".repeat(64), body: { ...contract, requiredChecks: ["pnpm test"] } });
+    deps.loadTask = async () => ({ id: "t1", projectId: "p1", state: created() ? "APPROVAL_PENDING" : "CONTRACT_APPROVED", version: 4, eventIds: [] });
+    deps.loadProposal = async () => ({
+      id: "prop-1",
+      taskId: "t1",
+      projectId: "p1",
+      status: "pending",
+      sha256: "a".repeat(64),
+      changes: calls.find((c) => c.name === "create")!.input.changes,
+      policyOutcome: calls.find((c) => c.name === "create")!.input.policy.outcome,
+      contractVersion: 1,
+      model: null,
+      policy: null,
+      expiresAt: "2026-10-15T10:00:00Z",
+    });
+    const run = (autonomy: typeof LIMITS | null, execution: typeof SANDBOXED | typeof REVIEW_ONLY) =>
+      proposeChange(deps, { family: "anthropic", create: (s) => Object.assign(fakeProposer({ ok: true, output: GOOD, usage: USAGE }), { model: s.model }) }, { orgId: "o1", userId: "u1", taskId: "t1", contextPaths: ["src/lib/cart.ts"], notes: "", taskTitle: "T", projectName: "P", autonomy, execution });
+    expect(await run(LIMITS, SANDBOXED)).toMatchObject({ ok: true, value: { status: "applied", policy: { outcome: "ALLOW_WITHIN_LIMITS" } } });
+    expect(calls.map((c) => c.name)).toEqual(["reserve", "create", "settle", "apply"]);
+  });
+
+  it("keeps the proposal waiting when no sandbox can check it", async () => {
+    const { deps, calls } = fakeDeps();
+    deps.approvedContract = async () => ({ version: 1, sha256: "c".repeat(64), body: { ...contract, requiredChecks: ["pnpm test"] } });
+    const r = await proposeChange(deps, { family: "anthropic", create: (s) => Object.assign(fakeProposer({ ok: true, output: GOOD, usage: USAGE }), { model: s.model }) }, { orgId: "o1", userId: "u1", taskId: "t1", contextPaths: ["src/lib/cart.ts"], notes: "", taskTitle: "T", projectName: "P", autonomy: LIMITS, execution: REVIEW_ONLY });
+    expect(r).toMatchObject({ ok: true, value: { status: "pending", policy: { outcome: "REQUIRE_APPROVAL" } } });
+    expect(calls.some((c) => c.name === "apply")).toBe(false);
   });
 });
