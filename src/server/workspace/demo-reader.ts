@@ -19,6 +19,8 @@ import {
   DEMO_USER,
   DEMO_CODE_CONTRACT,
   DEMO_PROPOSAL_OUTPUT,
+  DEMO_LENS_SUGGESTION,
+  DEMO_PROPOSAL_ID,
   DEMO_PROPOSAL_TASK_ID,
   demoEventType,
 } from "@/content/demo-workspace";
@@ -235,7 +237,7 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
       const violations = checkProposal(contract.body, changes);
       const decision = await evaluateChangePolicy({ files: changes, contractViolations: violations });
       const record: ProposalRecord = {
-        id: "00000000-0000-4000-8000-0000000c0001",
+        id: DEMO_PROPOSAL_ID,
         status: "pending",
         contractVersion: contract.version,
         plan: planFrom(DEMO_PROPOSAL_OUTPUT),
@@ -268,6 +270,11 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
         })),
       );
       return out.reverse();
+    },
+
+    async getLensSuggestion(_orgId, proposalId) {
+      // A sample mapping for the demo's pending proposal, so the review shows how AI suggestions read.
+      return proposalId === DEMO_PROPOSAL_ID ? { ...DEMO_LENS_SUGGESTION, createdAt: ago(DEMO_TIME.HOUR) } : null;
     },
 
     async listSkillPins(_orgId, projectId) {

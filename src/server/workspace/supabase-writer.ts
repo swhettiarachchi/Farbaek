@@ -16,6 +16,7 @@ import { createSupabaseReader } from "./supabase-reader";
 import { ProposalRowSchema, proposalFromRow } from "./types";
 import type { ProjectAdminDeps, RpcResult, WriteDeps } from "./use-cases";
 import type { SkillPinDeps } from "./skill-pins";
+import type { LensSuggestionDeps } from "./lens-suggestions";
 
 /**
  * WriteDeps backed by Supabase. Reads use the signed-in user's client (Row
@@ -25,7 +26,7 @@ export function createSupabaseWriteDeps(
   user: SupabaseClient,
   admin: SupabaseClient,
   userId: string,
-): WriteDeps & AiUsageDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps & AgentAdminDeps & SkillPinDeps {
+): WriteDeps & AiUsageDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps & AgentAdminDeps & SkillPinDeps & LensSuggestionDeps {
   const reader = createSupabaseReader(user);
   async function rpc<T>(fn: string, args: Record<string, unknown>, schema: z.ZodType<T>): Promise<RpcResult<T>> {
     const { data, error } = await admin.rpc(fn, args);
@@ -167,6 +168,15 @@ export function createSupabaseWriteDeps(
       rpc(
         "app_pin_skill",
         { p_project: i.projectId, p_actor: i.actor, p_path: i.path, p_revision: i.revision, p_sha256: i.sha256 },
+        z.null().or(z.literal("")).transform(() => null),
+      ),
+
+    fileRevision: (orgId, projectId, path, revision) => reader.getFileRevision(orgId, projectId, path, revision),
+
+    recordLensSuggestion: (i) =>
+      rpc(
+        "app_record_lens_suggestion",
+        { p_proposal: i.proposalId, p_actor: i.actor, p_suggestion: { mappings: i.mappings }, p_model: i.model },
         z.null().or(z.literal("")).transform(() => null),
       ),
 

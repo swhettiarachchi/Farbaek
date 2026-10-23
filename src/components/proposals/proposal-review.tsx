@@ -12,6 +12,7 @@ import { relativeLabel, useNow } from "@/components/ui/use-now";
 import { DROP_LABELS } from "@/core/realityloop/change-proposal";
 import type { IntentContract } from "@/core/realityloop/contract";
 import { lensForChange, lensSummary } from "@/core/realityloop/intent-lens";
+import { withSuggestion, type StoredLensSuggestion } from "@/core/realityloop/lens-suggestion";
 import { FileLensRows, IntentLensSummary } from "./intent-lens";
 import { approvalWindow } from "@/core/trust/approval-wallet";
 import { shortHash } from "@/core/trust/canonical-json";
@@ -57,6 +58,8 @@ export function ProposalReview({
   agentName = null,
   contract = null,
   serverNow,
+  lensSuggestion = null,
+  lensAiReason = null,
 }: {
   projectId: string;
   proposal: ProposalRecord;
@@ -77,6 +80,10 @@ export function ProposalReview({
   contract?: IntentContract | null;
   /** The server's render time, so the approval window reads the same before and after hydration. */
   serverNow: number;
+  /** The AI mapping asked for on this proposal, if any (ADR 0044). */
+  lensSuggestion?: StoredLensSuggestion | null;
+  /** Why asking for an AI mapping isn't possible here, or null when it is. */
+  lensAiReason?: string | null;
 }) {
   const router = useRouter();
   const [finals, setFinals] = useState<Record<string, string>>(() => Object.fromEntries(proposal.changes.map((c) => [c.path, c.content])));
@@ -95,7 +102,11 @@ export function ProposalReview({
     (escalated && !canApproveEscalated ? "The policy escalated this change, so an owner or admin has to approve it." : null);
   const kept = proposal.changes.filter((c) => (c.kind === "create" ? finals[c.path] !== "" : finals[c.path] !== bases[c.path]));
   // Each hunk read against the contract: exact flags first, then a pointer to the clause it shares words with.
-  const lenses = useMemo(() => (contract ? proposal.changes.map((c) => lensForChange(contract, c, bases[c.path] ?? "")) : null), [contract, proposal.changes, bases]);
+  // The AI mapping, when someone asked for it, sits beside the exact checks and never changes them (ADR 0044).
+  const lenses = useMemo(
+    () => (contract ? withSuggestion(contract, proposal.changes.map((c) => lensForChange(contract, c, bases[c.path] ?? "")), lensSuggestion?.mappings ?? null) : null),
+    [contract, proposal.changes, bases, lensSuggestion],
+  );
 
   function approve() {
     setError(null);
@@ -265,7 +276,17 @@ export function ProposalReview({
         </div>
       ) : proposal.status === "discarded" ? null : (
         <div className="grid gap-5">
-          {lenses ? <IntentLensSummary summary={lensSummary(lenses)} /> : null}
+          {lenses ? (
+            <IntentLensSummary
+              summary={lensSummary(lenses)}
+              ai={{
+                proposalId: proposal.id,
+                open,
+                suggestion: lensSuggestion ? { model: lensSuggestion.model, createdAt: lensSuggestion.createdAt } : null,
+                disabledReason: disabledReason ?? lensAiReason,
+              }}
+            />
+          ) : null}
           {proposal.changes.map((c, i) => (
             <section key={c.path} className="grid min-w-0 gap-2" aria-label={`Changes to ${c.path}`}>
               <div className="flex flex-wrap items-baseline justify-between gap-2">

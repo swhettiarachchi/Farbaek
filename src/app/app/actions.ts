@@ -27,6 +27,8 @@ import type { UsageMeter } from "@/core/billing/usage-view";
 import { siteUrl } from "@/server/supabase/config";
 import { resolveAiProvider } from "@/server/ai/config";
 import { currentExecutionMode } from "@/server/execution/sandbox";
+import { createAnthropicLensMapper } from "@/server/ai/lens-mapper";
+import { suggestLensMapping, type LensSuggestionDeps } from "@/server/workspace/lens-suggestions";
 
 export type FormState = { status: "idle" } | { status: "error"; message: string; values?: Record<string, string> } | { status: "done"; message: string };
 
@@ -45,7 +47,7 @@ async function requireContext(): Promise<AppContext> {
 }
 
 /** Resolves write dependencies, or the honest reason writes are unavailable. */
-async function writeDeps(ctx: AppContext): Promise<{ deps: WriteDeps & AiUsageDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps & AgentAdminDeps; orgId: string } | { error: string }> {
+async function writeDeps(ctx: AppContext): Promise<{ deps: WriteDeps & AiUsageDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps & AgentAdminDeps & LensSuggestionDeps; orgId: string } | { error: string }> {
   if (!ctx.writes.enabled) return { error: ctx.writes.reason };
   if (!ctx.current) return { error: "Create a workspace first." };
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
@@ -361,6 +363,23 @@ export async function applyProposalAction(input: { proposalId: string; reviewedS
   if (!result.ok) return { status: "error", message: result.message };
   revalidatePath("/app", "layout");
   return { status: "done", written: result.value.written };
+}
+
+export type LensSuggestState = { status: "error"; message: string } | { status: "done"; mapped: number; hunks: number };
+
+/** Asks the model to map each hunk of a pending proposal to a contract clause (ADR 0044). Metered; refunded if it fails. */
+export async function suggestLensMappingAction(input: { proposalId: string }): Promise<LensSuggestState> {
+  const parsed = z.object({ proposalId: z.uuid() }).safeParse(input);
+  if (!parsed.success) return { status: "error", message: "Reload the page and try again." };
+  const ctx = await requireContext();
+  const w = await writeDeps(ctx);
+  if ("error" in w) return { status: "error", message: w.error };
+  const ai = resolveAiProvider();
+  if (ai.provider !== "anthropic") return { status: "error", message: ai.provider ? "AI mapping uses Claude, and this server uses another provider." : ai.reason };
+  const result = await suggestLensMapping(w.deps, { family: "anthropic", create: (s) => createAnthropicLensMapper({ model: s.model, effort: "low" }) }, { orgId: w.orgId, userId: ctx.user.id, proposalId: parsed.data.proposalId });
+  if (!result.ok) return { status: "error", message: result.message };
+  revalidatePath("/app", "layout");
+  return { status: "done", mapped: result.value.mapped, hunks: result.value.hunks };
 }
 
 export type RecoverState = { status: "error"; message: string } | { status: "done"; restored: number; complete: boolean };

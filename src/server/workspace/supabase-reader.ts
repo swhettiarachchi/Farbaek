@@ -298,6 +298,17 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
         .map((r) => ({ path: r.path, change: r.change, revision: r.revision, at: r.created_at, proposalId: r.proposal_id }));
     },
 
+    async getLensSuggestion(orgId, proposalId) {
+      if (!z.uuid().safeParse(proposalId).success) return null;
+      const { data, error } = await client.from("proposal_lens_suggestions").select("suggestion, model, created_at").eq("org_id", orgId).eq("proposal_id", proposalId).maybeSingle();
+      if (error) fail("lens suggestion", error);
+      const row = z
+        .object({ suggestion: z.object({ mappings: z.array(z.object({ hunk: z.string(), clause: z.string(), reason: z.string() })) }), model: z.string(), created_at: z.string() })
+        .nullable()
+        .parse(data);
+      return row ? { mappings: row.suggestion.mappings, model: row.model, createdAt: row.created_at } : null;
+    },
+
     async getLatestProposal(orgId, taskId) {
       if (!z.uuid().safeParse(taskId).success) return null;
       const { data, error } = await client
