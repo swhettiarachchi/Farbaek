@@ -51,20 +51,20 @@ export default async function NewBuildPage({ searchParams }: Props) {
           template={template ? { id: template.id, name: template.name, example: template.examplePrompt ?? template.summary } : undefined}
         />
       </div>
-      <p className="text-sm text-ink-3">
-        Want a head start?{" "}
-        <Link href="/app/templates" className="inline-flex items-center gap-1 font-medium text-accent hover:underline">
-          Browse templates <ArrowRightIcon size={13} weight="bold" aria-hidden />
-        </Link>
-        {" "}Built it elsewhere?{" "}
-        <Link href="/app/rescue" className="inline-flex items-center gap-1 font-medium text-accent hover:underline">
-          Check your app <ArrowRightIcon size={13} weight="bold" aria-hidden />
-        </Link>
-        {" "}Prefer to set things up yourself?{" "}
-        <Link href="/app/projects" className="inline-flex items-center gap-1 font-medium text-accent hover:underline">
-          Create a project <ArrowRightIcon size={13} weight="bold" aria-hidden />
-        </Link>
-      </p>
+      <ul className="grid text-sm text-ink-3 sm:flex sm:flex-wrap sm:gap-x-6">
+        {[
+          { lead: "Want a head start?", href: "/app/templates", label: "Browse templates" },
+          { lead: "Built it elsewhere?", href: "/app/rescue", label: "Check your app" },
+          { lead: "Prefer to set things up yourself?", href: "/app/projects", label: "Create a project" },
+        ].map((w) => (
+          <li key={w.href} className="flex flex-wrap items-center gap-x-1.5">
+            {w.lead}
+            <Link href={w.href} className="inline-flex min-h-11 items-center gap-1 font-medium text-accent hover:underline">
+              {w.label} <ArrowRightIcon size={13} weight="bold" aria-hidden />
+            </Link>
+          </li>
+        ))}
+      </ul>
       {!template ? (
         <section aria-labelledby="start-from" className="grid gap-4 border-t border-line pt-8">
           <div className="flex items-end justify-between gap-3">

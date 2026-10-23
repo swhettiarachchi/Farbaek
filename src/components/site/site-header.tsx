@@ -37,7 +37,7 @@ export function SiteHeader() {
         <div className="flex items-center gap-1.5">
           {/* Wrapper controls visibility: the link's own display class would override "hidden". */}
           <span className="hidden sm:inline-flex">
-            <Link href="/sign-in" className="inline-flex h-10 items-center rounded-full px-4 text-sm font-medium text-ink-2 transition-colors duration-200 hover:bg-surface-raised hover:text-ink">
+            <Link href="/sign-in" className="inline-flex h-11 items-center rounded-full px-4 text-sm font-medium text-ink-2 transition-colors duration-200 hover:bg-surface-raised hover:text-ink">
               Sign in
             </Link>
           </span>

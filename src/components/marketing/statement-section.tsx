@@ -38,7 +38,7 @@ const STATEMENT =
 function Word({ children, progress, range }: { children: string; progress: MotionValue<number>; range: [number, number] }) {
   const color = useTransform(progress, range, ["var(--ink-3)", "var(--ink)"]);
   return (
-    <motion.span style={{ color }} className="mr-[0.24em] inline-block">
+    <motion.span style={{ color }} className="statement-word mr-[0.24em] inline-block">
       {children}
     </motion.span>
   );
@@ -85,13 +85,12 @@ export function StatementSection() {
           ref={ref}
           className="mx-auto mt-14 max-w-[24ch] text-balance text-center text-[1.75rem] font-medium leading-[1.2] tracking-[-0.03em] sm:text-[2.6rem] lg:text-[3.1rem]"
         >
-          {reduce
-            ? STATEMENT
-            : words.map((w, i) => (
-                <Word key={i} progress={scrollYProgress} range={[i / words.length, (i + 1) / words.length]}>
-                  {w}
-                </Word>
-              ))}
+          {/* The same words on the server and the client; under reduced motion CSS holds them at full ink. */}
+          {words.map((w, i) => (
+            <Word key={i} progress={scrollYProgress} range={[i / words.length, (i + 1) / words.length]}>
+              {w}
+            </Word>
+          ))}
         </p>
       </Container>
     </section>

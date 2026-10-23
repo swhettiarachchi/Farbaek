@@ -25,7 +25,7 @@ export default async function SandboxSessionPage({ params }: { params: Promise<{
   if (!sandbox.ok) {
     return (
       <div className="grid gap-6">
-        <Link href="/app/sandbox" className="text-sm font-medium text-accent hover:underline">
+        <Link href="/app/sandbox" className="inline-flex min-h-11 w-fit items-center text-sm font-medium text-accent hover:underline">
           Back to Sandbox
         </Link>
         <Notice tone="warning">{sandbox.reason}</Notice>
@@ -81,7 +81,7 @@ export default async function SandboxSessionPage({ params }: { params: Promise<{
 
   return (
     <div className="grid gap-4">
-      <Link href="/app/sandbox" className="text-sm font-medium text-accent hover:underline">
+      <Link href="/app/sandbox" className="inline-flex min-h-11 w-fit items-center text-sm font-medium text-accent hover:underline">
         Back to Sandbox
       </Link>
       <SandboxWorkspace

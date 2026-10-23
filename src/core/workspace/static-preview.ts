@@ -78,6 +78,16 @@ export function buildStaticSrcdoc(files: Readonly<Record<string, string>>, page 
 }
 
 /** The project's files with a proposal's changes laid over them: what the site looks like if the change is applied. */
+/**
+ * A folded document for a picture (project cards, template thumbnails), with
+ * its scripts taken out. The picture's frame runs no scripts anyway
+ * (`sandbox=""` is the boundary); without them the browser has nothing to
+ * refuse, so the console stays quiet.
+ */
+export function pictureSrcdoc(srcdoc: string): string {
+  return srcdoc.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, "").replace(/<script\b[^>]*\/>/gi, "");
+}
+
 export function overlayChanges(files: Readonly<Record<string, string>>, changes: readonly { path: string; content: string | null }[]): Record<string, string> {
   const out: Record<string, string> = { ...files };
   for (const c of changes) {

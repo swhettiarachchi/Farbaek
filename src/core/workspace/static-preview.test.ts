@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildStaticSrcdoc, overlayChanges, resolveSitePath, sitePages } from "./static-preview";
+import { buildStaticSrcdoc, overlayChanges, pictureSrcdoc, resolveSitePath, sitePages } from "./static-preview";
 
 const SITE = {
   "index.html": `<!doctype html><html><head><title>Bakery</title><link rel="stylesheet" href="styles.css"></head><body><h1>Sunrise</h1><a href="menu.html">Menu</a><script src="./script.js"></script></body></html>`,
@@ -67,5 +67,16 @@ describe("sitePages and overlayChanges", () => {
     expect(after["styles.css"]).toBe("h1 { color: navy; }");
     expect(sitePages(after)).toEqual(["index.html", "about.html"]);
     expect(SITE["styles.css"]).toContain("tomato");
+  });
+});
+
+describe("pictureSrcdoc", () => {
+  it("takes every script out of a picture and leaves the page", () => {
+    const doc = buildStaticSrcdoc(SITE, "index.html")!;
+    expect(doc).toMatch(/<script/i);
+    const picture = pictureSrcdoc(doc + '<SCRIPT type="module">\nalert(1)\n</SCRIPT ><script src="a.js"/>');
+    expect(picture).not.toMatch(/<script/i);
+    expect(picture).toContain("<h1>Sunrise</h1>");
+    expect(picture).toContain("tomato");
   });
 });

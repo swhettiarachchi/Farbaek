@@ -18,7 +18,7 @@ export default async function NewSandboxSessionPage({ searchParams }: { searchPa
   const sandbox = await sandboxForPage(ctx);
 
   const back = (
-    <Link href="/app/sandbox" className="text-sm font-medium text-accent hover:underline">
+    <Link href="/app/sandbox" className="inline-flex min-h-11 w-fit items-center text-sm font-medium text-accent hover:underline">
       Back to Sandbox
     </Link>
   );

@@ -158,6 +158,17 @@
   }
 }
 
+/*
+ * The homepage statement colours in word by word as it scrolls. Under reduced
+ * motion it's simply full ink; done in CSS so the server and the client render
+ * the same words (a branch in React broke hydration).
+ */
+@media (prefers-reduced-motion: reduce) {
+  .statement-word {
+    color: var(--ink) !important;
+  }
+}
+
 @keyframes aurora-breathe {
   from {
     transform: scale(1) translateY(0);

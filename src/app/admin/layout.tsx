@@ -76,7 +76,7 @@ export default async function AdminLayout({ children }: Readonly<{ children: Rea
           <AdminNav layout="row" />
         </header>
 
-        <main id="main" className="px-4 pb-16 pt-6 sm:px-6 lg:px-10 lg:pt-10">
+        <main id="main" className="overflow-x-clip px-4 pb-16 pt-6 sm:px-6 lg:px-10 lg:pt-10">
           <div className="mx-auto grid max-w-[1180px] gap-8">
             <ConnectionsStrip connections={deploymentConnections()} deployment={deploymentLabel()} />
             <PageTransition>{children}</PageTransition>

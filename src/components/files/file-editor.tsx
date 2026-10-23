@@ -110,7 +110,7 @@ export function FileEditor({
     <div className="grid min-w-0 gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <Link href={cancelHref} className="inline-flex items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
+          <Link href={cancelHref} className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
             <ArrowLeftIcon size={14} aria-hidden /> {isNew ? "All files" : "Back to the file"}
           </Link>
           {isNew ? (

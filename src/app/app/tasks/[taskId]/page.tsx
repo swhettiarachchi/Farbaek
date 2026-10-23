@@ -132,7 +132,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
   return (
     <div className="grid gap-8">
       <div>
-        <Link href={`/app/projects/${task.projectId}`} className="inline-flex items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
+        <Link href={`/app/projects/${task.projectId}`} className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
           <ArrowLeftIcon size={14} aria-hidden /> {task.projectName ?? "Project"}
         </Link>
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
