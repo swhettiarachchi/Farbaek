@@ -7,6 +7,7 @@
  * Every film shows a sample project. Each capability shown exists in the
  * product today; nothing here is a roadmap item.
  */
+import FILM_VERSIONS from "./films-manifest.json";
 
 export type FilmFormat = "landscape" | "portrait" | "clip";
 
@@ -124,13 +125,22 @@ export function isFilmId(value: unknown): value is FilmId {
   return typeof value === "string" && Object.hasOwn(FILMS, value);
 }
 
-/** Where a recording lives under /public. */
+/**
+ * A recording or track, versioned by its content hash (films-manifest.json,
+ * ADR 0051), so it can be cached for a year and still change when re-recorded.
+ */
+function versioned(path: string): string {
+  const v = (FILM_VERSIONS as Record<string, string | undefined>)[path];
+  return v ? `/films/${path}?v=${v}` : `/films/${path}`;
+}
+
+/** Where a recording lives under /public. Posters go through the image optimiser, so they stay unversioned. */
 export function filmFile(id: FilmId, format: FilmFormat, kind: "mp4" | "jpg"): string {
-  return `/films/${id}/${format}.${kind}`;
+  return kind === "mp4" ? versioned(`${id}/${format}.mp4`) : `/films/${id}/${format}.${kind}`;
 }
 
 export function filmTrack(id: FilmId, kind: "captions" | "chapters"): string {
-  return `/films/${id}/${kind}.vtt`;
+  return versioned(`${id}/${kind}.vtt`);
 }
 
 /** Size limits per recording, so the homepage stays light. */

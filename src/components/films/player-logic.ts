@@ -40,6 +40,66 @@ export function shouldPlay(s: AutoplayInput): boolean {
   return !s.reducedMotion && !s.saveData;
 }
 
+/** After this long trying to play without a frame, the player says so and offers to try again. */
+export const SLOW_AFTER_MS = 10_000;
+
+/** A video that may want to play, as the page sees it when choosing which one plays. */
+export interface LeadCandidate {
+  id: string;
+  /** It may play right now: on screen, in a visible tab, allowed, not paused by the person. */
+  eligible: boolean;
+  /** How many pixels of it are on screen. */
+  visiblePx: number;
+  /** When the person last pressed play on it, or null. */
+  userAt: number | null;
+  /** Its place on the page, for ties. */
+  order: number;
+}
+
+/**
+ * The one video that plays on the page: of those that may play, the one the
+ * person started most recently, else the one taking up most of the screen,
+ * else the first on the page. One at a time keeps phones to one decoder and
+ * one download.
+ */
+export function pickLead(candidates: readonly LeadCandidate[]): string | null {
+  let best: LeadCandidate | null = null;
+  for (const c of candidates) {
+    if (!c.eligible) continue;
+    if (!best) {
+      best = c;
+      continue;
+    }
+    const byUser = (c.userAt ?? -1) - (best.userAt ?? -1);
+    if (byUser > 0 || (byUser === 0 && (c.visiblePx > best.visiblePx || (c.visiblePx === best.visiblePx && c.order < best.order)))) best = c;
+  }
+  return best?.id ?? null;
+}
+
+export type PlayFailure = "blocked" | "interrupted" | "failed";
+
+/**
+ * What a refused `play()` means. "blocked": the browser won't start it on its
+ * own (Low Power Mode, a data saver), but a person can. "interrupted": a pause
+ * or a new load got there first, so it's worth trying again. "failed": the
+ * recording can't play here.
+ */
+export function playFailure(err: unknown): PlayFailure {
+  const name = err && typeof err === "object" && "name" in err ? String((err as { name: unknown }).name) : "";
+  if (name === "NotAllowedError") return "blocked";
+  if (name === "AbortError") return "interrupted";
+  return "failed";
+}
+
+export type PlayerNotice = "none" | "loading" | "slow" | "error";
+
+/** What the player says over the picture: nothing while it plays or rests, otherwise loading, slow or failed. */
+export function playerNotice(s: { want: boolean; playing: boolean; blocked: boolean; slow: boolean; error: boolean }): PlayerNotice {
+  if (s.error) return "error";
+  if (!s.want || s.blocked || s.playing) return "none";
+  return s.slow ? "slow" : "loading";
+}
+
 /** How far through each chapter the film is, from 0 to 1. */
 export function chapterFills(chapters: readonly Pick<FilmChapter, "start">[], durationMs: number, t: number): number[] {
   return chapters.map((c, i) => {

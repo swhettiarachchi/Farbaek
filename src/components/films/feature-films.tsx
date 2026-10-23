@@ -4,12 +4,14 @@
  * "What it does for you": four features, each with its own clip (ADR 0034).
  * On wide screens the text scrolls on the left while a pinned stage on the
  * right cross-fades to the clip of whichever feature crosses the middle of
- * the screen. On phones every feature shows its clip inline.
+ * the screen. On phones every feature shows its clip inline. Only the
+ * layout on screen mounts its videos (ADR 0051).
  */
 import { ArrowRightIcon, CheckIcon } from "@phosphor-icons/react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { FilmId } from "@/content/films";
 import { FilmClip } from "./film-clip";
+import { LG_QUERY, useMediaQuery } from "./use-playback";
 
 export interface Feature {
   id: FilmId;
@@ -31,6 +33,7 @@ function Bezel({ children }: { children: ReactNode }) {
 export function FeatureFilms({ features }: { features: Feature[] }) {
   const list = useRef<HTMLOListElement>(null);
   const [active, setActive] = useState(0);
+  const lg = useMediaQuery(LG_QUERY);
 
   // The feature crossing the middle band of the screen is the one on stage. Two can share the
   // band for a moment while scrolling, so the one nearer the middle wins, checked on every change.
@@ -78,7 +81,7 @@ export function FeatureFilms({ features }: { features: Feature[] }) {
             <li key={f.id} className="lg:flex lg:min-h-[76vh] lg:flex-col lg:justify-center">
               <div className="mb-7 lg:hidden">
                 <Bezel>
-                  <FilmClip id={f.id} poster={f.poster} />
+                  <FilmClip id={f.id} poster={f.poster} enabled={lg === false} />
                 </Bezel>
               </div>
               <p className="text-[13px] font-medium text-accent">{f.label}</p>
@@ -121,7 +124,7 @@ export function FeatureFilms({ features }: { features: Feature[] }) {
                       i === active ? "scale-100 opacity-100" : "scale-[0.985] opacity-0"
                     }`}
                   >
-                    <FilmClip id={f.id} poster={f.poster} active={i === active} />
+                    <FilmClip id={f.id} poster={f.poster} active={i === active} enabled={lg === true} />
                   </div>
                 ))}
               </div>
