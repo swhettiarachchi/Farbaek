@@ -15,6 +15,7 @@ pnpm test         # vitest run (unit, domain and design-token tests)
 pnpm check        # typecheck, lint, test in sequence
 pnpm security:eval   # run the OWASP-mapped security scenarios and record the run (/security shows it)
 pnpm qa:responsive   # every route at 320 to 1440px as phone, tablet, desktop: sideways scroll, cut-off content, small targets, console errors
+pnpm qa:vitals       # phone-profile LCP, CLS, TBT, FCP and bytes per page, median of three (lab numbers, ADR 0052)
 node scripts/brand-assets.mjs   # regenerate icon sizes from the logo
 ```
 
@@ -56,7 +57,7 @@ The dev PC has 3.8 GB of RAM. Run checks one at a time, and stop any dev or prev
 - Fonts: Geist (UI and display, weight 500 headlines, tight tracking) and Geist Mono for code and data only (hashes, paths, commands, IDs, keys). No serif.
 - Small text (ADR 0049): sentence-case Geist labels, no `//` labels or eyebrows over titles, at least 12px (11px only for tab labels and badges), one `·` per line at most. `tests/design/type-tells.test.ts` checks it.
 - Logo: `public/brand/farbaek-logo.webp`, used unaltered through `BrandLogo` or `LOGO`, directly on the page: no plate, frame or filter.
-- 3D and film load lazily, pause off-screen, and fall back to static under reduced motion, Save-Data or weak hardware. Film content is labelled sample data.
+- 3D and film load lazily, pause off-screen, and fall back to static under reduced motion, Save-Data, weak hardware or a touch-first screen (ADR 0052). Film content is labelled sample data. Measure phone changes with `pnpm qa:vitals`.
 - Motion only for live state, hierarchy, storytelling or feedback; always honour `prefers-reduced-motion`.
 - Status never relies on colour alone: icon, label and pattern.
 - Copy: plain sentences, no em dashes in UI text, no filler verbs.
