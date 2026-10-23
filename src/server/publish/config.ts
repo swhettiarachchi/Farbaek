@@ -1,10 +1,13 @@
 /**
- * Where published sites live: `<name>.<site domain>`. It's the same separate
- * domain previews use (ADR 0023, farbaek.si in production), so people's
- * content never shares an origin with Farbaek.
+ * Where published sites live: `<name>.<site domain>`, a domain separate
+ * from Farbaek's own (farbaek.si in production), so people's content never
+ * shares an origin with Farbaek. SITES_DOMAIN sets it; without it, sites
+ * share the preview domain (ADR 0023). Sites can go live on their own:
+ * their certificates come on demand (ADR 0045), while previews still need
+ * a wildcard certificate.
  */
 export function siteDomain(): string | null {
-  const domain = process.env.SANDBOX_PREVIEW_DOMAIN?.trim().toLowerCase();
+  const domain = (process.env.SITES_DOMAIN || process.env.SANDBOX_PREVIEW_DOMAIN)?.trim().toLowerCase();
   return domain ? domain : null;
 }
 

@@ -81,6 +81,8 @@ describe("tlsAllowed", () => {
     expect(await tlsAllowed("harbour-lane.farbaek.si", d)).toBe(true);
     expect(await tlsAllowed("WWW.example.com.", d)).toBe(true);
     expect(await tlsAllowed("old.example.com", d)).toBe(false);
+    // The site domain itself redirects to Farbaek, so it gets a certificate too.
+    expect(await tlsAllowed("farbaek.si", d)).toBe(true);
   });
 
   it("refuses preview names, unknown names, unverified domains and junk", async () => {

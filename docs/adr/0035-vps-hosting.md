@@ -1,7 +1,7 @@
 # ADR 0035: Hosting on the owner's VPS instead of Railway
 
 - Status: accepted (2026-10-22).
-- Replaces the hosting part of `docs/deploy/railway.md`.
+- Replaces the hosting part of `docs/deploy/railway.md` (that guide was removed on 2026-10-23, when Railway was retired for good).
 
 ## Context
 

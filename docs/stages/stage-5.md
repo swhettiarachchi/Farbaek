@@ -2,7 +2,7 @@
 
 ## 2026-10-18: Public addresses, the admin console and the Railway setup
 
-Decisions: [ADR 0026](../adr/0026-admin-console.md) (admin console). Deploy steps: [docs/deploy/railway.md](../deploy/railway.md).
+Decisions: [ADR 0026](../adr/0026-admin-console.md) (admin console). Deploy steps: then Railway, now [docs/deploy/vps.md](../deploy/vps.md) (the Railway guide was removed on 2026-10-23).
 
 ### Done
 

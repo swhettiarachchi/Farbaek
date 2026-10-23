@@ -248,7 +248,7 @@ export function deploymentConnections(env: Record<string, string | undefined> = 
 export function deploymentLabel(env: Record<string, string | undefined> = process.env): string {
   const info = deploymentInfo(env);
   const sha = info.commit?.slice(0, 7);
-  const host = info.host === "vps" ? "VPS" : info.host === "railway" ? "Railway" : null;
+  const host = info.host === "vps" ? "VPS" : null;
   const where = host ? `${host} ${(info.environment ?? "").slice(0, 30)}`.trim() : "Local";
   return sha ? `${where} · ${sha}` : where;
 }

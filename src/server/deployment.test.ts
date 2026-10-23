@@ -11,19 +11,13 @@ describe("deploymentInfo", () => {
     });
   });
 
-  it("still reads a Railway deploy", () => {
-    expect(deploymentInfo({ RAILWAY_GIT_COMMIT_SHA: "def456", RAILWAY_ENVIRONMENT_NAME: "production", RAILWAY_REPLICA_REGION: "europe-west4" })).toEqual({
-      host: "railway",
-      commit: "def456",
+  it("ignores blank values and other hosts' names", () => {
+    expect(deploymentInfo({ FARBAEK_COMMIT: "  ", FARBAEK_ENVIRONMENT: "production", RAILWAY_GIT_COMMIT_SHA: "def456" })).toEqual({
+      host: "vps",
+      commit: null,
       environment: "production",
-      region: "europe-west4",
+      region: null,
     });
-  });
-
-  it("prefers Farbaek's names when both are present, and ignores blank values", () => {
-    const info = deploymentInfo({ FARBAEK_COMMIT: "  ", FARBAEK_ENVIRONMENT: "production", RAILWAY_GIT_COMMIT_SHA: "def456" });
-    expect(info.host).toBe("vps");
-    expect(info.commit).toBe("def456");
   });
 
   it("knows nothing locally", () => {

@@ -102,7 +102,7 @@ export default async function OfficeHealth() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <h2 className="text-lg font-medium">This server</h2>
-          <p className="mt-1 text-sm text-ink-2">The process that answered this page. Railway may run more than one.</p>
+          <p className="mt-1 text-sm text-ink-2">The process that answered this page.</p>
           <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
             {facts.map((f) => (
               <div key={f.label}>

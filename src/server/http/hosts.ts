@@ -11,8 +11,9 @@
  * - Any other name under the app's own domain (a wildcard record sends
  *   them all here): not found. That includes the office host while the
  *   office is switched off, so it fails closed.
- * - Everything else (www, the Railway address, localhost): the customer
- *   app, where /office doesn't exist.
+ * - Everything else (www, localhost): the customer app, where /office
+ *   doesn't exist. Once sites are connected, other real names are people's
+ *   own domains for published sites (ADR 0045).
  */
 import { previewDomainHost } from "@/core/sandbox/preview";
 import { siteNameFromHost } from "@/core/publish/site";

@@ -6,10 +6,10 @@ const req = (host: string | null, pathname = "/", extra: Partial<RouteInput> = {
 const route = (host: string | null, pathname = "/", extra: Partial<RouteInput> = {}, env: RouteEnv = PROD) => decideRoute(req(host, pathname, extra), env);
 
 describe("decideRoute", () => {
-  it("leaves the customer app alone on www, the Railway address and localhost", () => {
+  it("leaves the customer app alone on www, another host name and localhost", () => {
     expect(route("www.farbaek.com", "/app/projects")).toEqual({ kind: "app" });
     expect(route("WWW.Farbaek.com.", "/")).toEqual({ kind: "app" });
-    expect(route("farbaek-production.up.railway.app", "/api/health")).toEqual({ kind: "app" });
+    expect(route("farbaek-staging.example.net", "/api/health")).toEqual({ kind: "app" });
     expect(route("localhost:3000", "/app", {}, { officeHost: "officespace.localhost:3000", appHost: "localhost:3000" })).toEqual({ kind: "app" });
     expect(route(null, "/")).toEqual({ kind: "app" });
   });
@@ -28,7 +28,7 @@ describe("decideRoute", () => {
   it("hides /office everywhere else", () => {
     expect(route("www.farbaek.com", "/office")).toEqual({ kind: "not-found" });
     expect(route("www.farbaek.com", "/office/staff")).toEqual({ kind: "not-found" });
-    expect(route("farbaek-production.up.railway.app", "/office")).toEqual({ kind: "not-found" });
+    expect(route("farbaek-staging.example.net", "/office")).toEqual({ kind: "not-found" });
     expect(route("www.farbaek.com", "/officers")).toEqual({ kind: "app" });
   });
 
