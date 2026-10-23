@@ -3,22 +3,33 @@
  * `pnpm films:record`. This keeps them honest and light: every film and
  * format has its recording and poster, each recording fits its size budget
  * and starts playing before it has fully downloaded, the captions match
- * src/content/films.ts, and the words follow the copy rules.
+ * src/content/films.ts, the words follow the copy rules, and every URL
+ * carries the hash of exactly the file it names (ADR 0051).
  */
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { toVtt } from "@/components/films/timeline";
+import FILM_VERSIONS from "@/content/films-manifest.json";
+import { filmManifest } from "../../scripts/films/manifest.mjs";
 import { FILMS, FILM_BUDGET_BYTES, FILM_LABEL, filmFile, filmTrack, type FilmFormat, type FilmMeta } from "@/content/films";
 
 const PUBLIC = path.resolve(__dirname, "..", "..", "public");
-const local = (url: string) => path.join(PUBLIC, ...url.split("/").filter(Boolean));
+const local = (url: string) => path.join(PUBLIC, ...url.split("?")[0]!.split("/").filter(Boolean));
 const films = Object.values(FILMS) as FilmMeta[];
 const id = (f: FilmMeta) => f.id as keyof typeof FILMS;
 // Git may check text out with CRLF on Windows; the cues are what matter.
 const text = (file: string) => readFileSync(file, "utf8").replace(/\r\n/g, "\n");
 
 describe("product films", () => {
+  it("lists the current hash of every recording and track, so a re-recording gets a new URL", () => {
+    expect(FILM_VERSIONS, "run node scripts/films/manifest.mjs").toEqual(filmManifest());
+    for (const film of films) {
+      for (const format of Object.keys(film.formats) as FilmFormat[]) expect(filmFile(id(film), format, "mp4")).toMatch(/\?v=[0-9a-f]{12}$/);
+      expect(filmTrack(id(film), "captions")).toMatch(/\?v=[0-9a-f]{12}$/);
+    }
+  });
+
   for (const film of films) {
     for (const format of Object.keys(film.formats) as FilmFormat[]) {
       it(`${film.id} has a ${format} recording within budget, ready to stream`, () => {

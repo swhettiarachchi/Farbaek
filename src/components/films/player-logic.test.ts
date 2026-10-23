@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chapterFills, chapterTarget, formatFor, keyAction, shouldPlay, type AutoplayInput } from "./player-logic";
+import { chapterFills, chapterTarget, formatFor, keyAction, pickLead, playFailure, playerNotice, shouldPlay, type AutoplayInput, type LeadCandidate } from "./player-logic";
 
 const base: AutoplayInput = { inView: true, hidden: false, reducedMotion: false, saveData: false, userPaused: false, userPlayed: false };
 const chapters = [{ start: 0 }, { start: 8_000 }, { start: 17_000 }];
@@ -73,5 +73,50 @@ describe("keyAction", () => {
     expect(keyAction("c")).toEqual({ kind: "captions" });
     expect(keyAction("f")).toEqual({ kind: "fullscreen" });
     expect(keyAction("x")).toBeNull();
+  });
+});
+
+describe("pickLead", () => {
+  const c = (id: string, over: Partial<LeadCandidate> = {}): LeadCandidate => ({ id, eligible: true, visiblePx: 300, userAt: null, order: 0, ...over });
+
+  it("plays the video taking up most of the screen, and only one", () => {
+    expect(pickLead([c("film", { visiblePx: 420, order: 0 }), c("clip", { visiblePx: 250, order: 1 })])).toBe("film");
+    expect(pickLead([c("film", { visiblePx: 120, order: 0 }), c("clip", { visiblePx: 250, order: 1 })])).toBe("clip");
+  });
+
+  it("prefers the one the person started, most recent first", () => {
+    expect(pickLead([c("film", { visiblePx: 600 }), c("clip", { visiblePx: 100, userAt: 5 })])).toBe("clip");
+    expect(pickLead([c("film", { userAt: 9 }), c("clip", { userAt: 5 })])).toBe("film");
+  });
+
+  it("skips videos that can't play now, breaks ties by page order and can choose none", () => {
+    expect(pickLead([c("film", { eligible: false, userAt: 9, visiblePx: 800 }), c("clip")])).toBe("clip");
+    expect(pickLead([c("b", { order: 2 }), c("a", { order: 1 })])).toBe("a");
+    expect(pickLead([c("film", { eligible: false })])).toBeNull();
+    expect(pickLead([])).toBeNull();
+  });
+});
+
+describe("playFailure", () => {
+  it("tells a refused autoplay from an interruption and a real failure", () => {
+    expect(playFailure(new DOMException("no", "NotAllowedError"))).toBe("blocked");
+    expect(playFailure(new DOMException("paused", "AbortError"))).toBe("interrupted");
+    expect(playFailure(new DOMException("codec", "NotSupportedError"))).toBe("failed");
+    expect(playFailure("odd")).toBe("failed");
+  });
+});
+
+describe("playerNotice", () => {
+  const s = { want: true, playing: false, blocked: false, slow: false, error: false };
+  it("says loading, then slow, until frames arrive, and stays quiet at rest", () => {
+    expect(playerNotice(s)).toBe("loading");
+    expect(playerNotice({ ...s, slow: true })).toBe("slow");
+    expect(playerNotice({ ...s, playing: true, slow: true })).toBe("none");
+    expect(playerNotice({ ...s, want: false })).toBe("none");
+  });
+
+  it("leaves a refused autoplay to the play button, and always shows a failure", () => {
+    expect(playerNotice({ ...s, blocked: true })).toBe("none");
+    expect(playerNotice({ ...s, want: false, error: true })).toBe("error");
   });
 });

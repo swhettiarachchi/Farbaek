@@ -75,7 +75,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
   return (
     <div className="grid gap-8">
       <div>
-        <Link href="/app/projects" className="inline-flex items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
+        <Link href="/app/projects" className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
           <ArrowLeftIcon size={14} aria-hidden /> Projects
         </Link>
         <div className="mt-3">
@@ -146,7 +146,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
               <FolderOpenIcon size={20} className="text-ink-3" aria-hidden /> Files
             </h2>
             {files.length > 0 ? (
-              <Link href={`/app/projects/${project.id}/files`} className="inline-flex items-center gap-1 text-sm text-accent hover:underline">
+              <Link href={`/app/projects/${project.id}/files`} className="inline-flex min-h-11 items-center gap-1 text-sm text-accent hover:underline">
                 Open <ArrowRightIcon size={14} aria-hidden />
               </Link>
             ) : null}

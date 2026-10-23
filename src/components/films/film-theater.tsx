@@ -3,8 +3,11 @@
 /**
  * The homepage film player (ADR 0034). It plays a real recording of
  * Farbaek's interface: muted (the films have no sound), only while at least
- * 45% of it is on screen and the tab is visible, and never on its own under
- * reduced motion or Save-Data. A person's pause stays paused.
+ * 45% of it is on screen, the tab is visible and it's the page's one playing
+ * video (ADR 0051), and never on its own under reduced motion or Save-Data.
+ * A person's pause stays paused. A refused autoplay shows a play button, a
+ * stall says so after ten seconds with a retry, and a failure offers the
+ * transcript.
  *
  * Progress is painted straight onto CSS variables from one animation frame
  * loop, so the scrubber and the chapter rail move smoothly without
@@ -12,6 +15,7 @@
  * when it first plays (`preload="none"`); until then the poster shows.
  */
 import {
+  ArrowClockwiseIcon,
   ArrowRightIcon,
   ClosedCaptioningIcon,
   CornersInIcon,
@@ -24,14 +28,18 @@ import { motion, useReducedMotion, useScroll, useTransform } from "motion/react"
 import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { FILMS, FILM_LABEL, filmFile, filmTrack, type FilmChapter, type FilmFormat, type FilmId } from "@/content/films";
 import { chapterAt, clock } from "./timeline";
-import { chapterFills, chapterTarget, formatFor, keyAction, shouldPlay } from "./player-logic";
-import { useOnScreen, usePlaybackLimits, useWide } from "./use-playback";
+import { chapterFills, chapterTarget, formatFor, keyAction, playerNotice, shouldPlay } from "./player-logic";
+import { DESKTOP_QUERY, playbackLead, useIsLead, useMediaQuery, useOnScreen, usePlaybackLimits, useVideoControl, useWide } from "./use-playback";
 
-type Status = "idle" | "loading" | "playing" | "paused" | "error";
-
-/** The stage tilts back and settles flat as it scrolls up into view, the way the films' own camera does. */
+/**
+ * The stage tilts back and settles flat as it scrolls up into view, the way
+ * the films' own camera does. Only on large screens with a mouse: on phones a
+ * scroll-linked 3D transform around a playing video costs frames and can
+ * leave the video unpainted.
+ */
 function Rise({ children }: { children: ReactNode }) {
-  const reduce = useReducedMotion();
+  const desktop = useMediaQuery(DESKTOP_QUERY) === true;
+  const reduce = useReducedMotion() || !desktop;
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "start 60%"] });
   const rotateX = useTransform(scrollYProgress, [0, 1], [16, 0]);
@@ -126,10 +134,12 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
   const duration = film.durationMs;
   const formats = Object.keys(film.formats) as FilmFormat[];
 
+  const key = useId();
   const wide = useWide();
   const { reducedMotion, saveData } = usePlaybackLimits();
-  const { ref: screenRef, inView, hidden } = useOnScreen<HTMLDivElement>();
+  const { ref: screenRef, inView, hidden } = useOnScreen<HTMLDivElement>(undefined, key);
   const format = wide === null ? null : formatFor(formats, wide);
+  const source = format ? filmFile(id, format, "mp4") : null;
 
   const root = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
@@ -138,18 +148,24 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
   const timeLabel = useRef<HTMLSpanElement>(null);
   const transcript = useRef<HTMLDetailsElement>(null);
 
-  const [status, setStatus] = useState<Status>("idle");
-  const [shownFormat, setShownFormat] = useState<FilmFormat | null>(null);
   const [userPaused, setUserPaused] = useState(false);
   const [userPlayed, setUserPlayed] = useState(false);
-  const [blocked, setBlocked] = useState(false);
   const [captions, setCaptions] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
   const [active, setActive] = useState(0);
 
-  const want = format !== null && status !== "error" && shouldPlay({ inView, hidden, reducedMotion, saveData, userPaused, userPlayed });
-  const started = shownFormat !== null && shownFormat === format;
+  const eligible = format !== null && shouldPlay({ inView, hidden, reducedMotion, saveData, userPaused, userPlayed });
+  const isLead = useIsLead(key);
+  const want = eligible && isLead;
+  const control = useVideoControl(video, want, source);
+  // The poster steps aside once a frame is drawn, and comes back if the recording fails.
+  const started = control.shown && !control.error;
   const captionId = useId();
+
+  useEffect(() => {
+    playbackLead.report(key, { eligible: eligible && !control.error });
+  }, [key, eligible, control.error]);
+  useEffect(() => () => playbackLead.leave(key), [key]);
 
   /** Paints the time onto the scrubber, the rail and the clock. Called from the frame loop and from video events. */
   const paint = useCallback(() => {
@@ -167,22 +183,9 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
     setActive(index);
   }, [chapters, duration]);
 
-  // Play or pause to match the rules. A refused autoplay (some phones in low power mode) leaves the play button.
-  useEffect(() => {
-    const v = video.current;
-    if (!v) return;
-    if (!want) {
-      v.pause();
-      return;
-    }
-    v.play().catch((err: unknown) => {
-      if (err instanceof DOMException && err.name === "NotAllowedError") setBlocked(true);
-    });
-  }, [want, format]);
-
   // The frame loop runs only while the film plays.
   useEffect(() => {
-    if (status !== "playing") return;
+    if (!control.playing) return;
     let raf = 0;
     const tick = () => {
       paint();
@@ -190,7 +193,7 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [status, paint]);
+  }, [control.playing, paint]);
 
   useEffect(() => {
     const onChange = () => setFullscreen(document.fullscreenElement === frame.current);
@@ -198,20 +201,21 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
 
+  // A press plays inside the gesture, so phones that refused to start it on their own still do.
   const play = () => {
     setUserPaused(false);
     setUserPlayed(true);
-    setBlocked(false);
-    if (status === "error") {
-      setStatus("idle");
-      video.current?.load();
-    }
+    playbackLead.report(key, { userAt: Date.now(), eligible: true });
+    if (control.error || control.slow) control.retry();
+    else control.start();
   };
   const pause = () => {
     setUserPaused(true);
     setUserPlayed(false);
+    playbackLead.report(key, { userAt: null });
   };
-  const toggle = () => (want && !blocked ? pause() : play());
+  const playing = want && !control.blocked && !control.error;
+  const toggle = () => (playing ? pause() : play());
 
   const seekTo = (ms: number, start = false) => {
     const v = video.current;
@@ -260,9 +264,8 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
 
   const caption = chapters[active]!;
   // The big play button shows only where the film won't start on its own.
-  const showPlayCover = !started && status !== "error" && (blocked || (!userPlayed && (reducedMotion || saveData)));
-  const loading = want && status !== "playing" && !blocked;
-  const playing = want && !blocked;
+  const showPlayCover = !started && !control.error && (control.blocked || (!userPlayed && (reducedMotion || saveData)));
+  const notice = playerNotice({ want, playing: control.playing, blocked: control.blocked, slow: control.slow, error: control.error });
 
   return (
     <div
@@ -294,16 +297,13 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
                     formats.includes("portrait") ? "aspect-[4/5] sm:aspect-[16/10]" : "aspect-[16/10]"
                   }`}
                 >
-                  <div aria-hidden className={`absolute inset-0 transition-opacity duration-500 ${started ? "opacity-0" : "opacity-100"}`}>
-                    {poster}
-                  </div>
-
-                  {format ? (
+                  {/* The video sits under the poster at full opacity: phones may not start a video they think is hidden. */}
+                  {format && source ? (
                     <video
                       key={format}
                       ref={video}
-                      className={`absolute inset-0 size-full object-contain transition-opacity duration-500 ${started ? "opacity-100" : "opacity-0"}`}
-                      src={filmFile(id, format, "mp4")}
+                      className="absolute inset-0 size-full object-contain"
+                      src={source}
                       muted
                       loop
                       playsInline
@@ -311,24 +311,17 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
                       preload="none"
                       aria-hidden
                       tabIndex={-1}
-                      onLoadedData={() => {
-                        setShownFormat(format);
-                        paint();
-                      }}
-                      onPlaying={() => {
-                        setStatus("playing");
-                        setShownFormat(format);
-                      }}
-                      // A failed load also pauses the video; the error has to stay.
-                      onWaiting={() => setStatus((s) => (s === "error" ? s : "loading"))}
-                      onPause={() => setStatus((s) => (s === "error" ? s : "paused"))}
+                      onLoadedData={paint}
                       onSeeked={paint}
-                      onError={() => setStatus("error")}
                     >
                       <track kind="captions" src={filmTrack(id, "captions")} srcLang="en" label="English" />
                       <track kind="chapters" src={filmTrack(id, "chapters")} srcLang="en" label="Chapters" />
                     </video>
                   ) : null}
+
+                  <div aria-hidden className={`pointer-events-none absolute inset-0 transition-opacity duration-500 ${started ? "opacity-0" : "opacity-100"}`}>
+                    {poster}
+                  </div>
 
                   {showPlayCover ? (
                     <button
@@ -337,7 +330,7 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
                       className="group absolute inset-0 flex items-center justify-center"
                       aria-label={`Play the film, ${clock(duration)}`}
                     >
-                      <span className="inline-flex min-h-14 items-center gap-3 rounded-full bg-surface/90 py-2 pl-2 pr-5 text-[15px] font-medium text-ink shadow-e3 ring-1 ring-line backdrop-blur transition-transform duration-200 group-hover:scale-[1.03] group-active:scale-[0.98]">
+                      <span className="inline-flex min-h-14 items-center gap-3 rounded-full bg-surface py-2 pl-2 pr-5 text-[15px] font-medium text-ink shadow-e3 ring-1 ring-line transition-transform duration-200 group-hover:scale-[1.03] group-active:scale-[0.98]">
                         <span className="inline-flex size-10 items-center justify-center rounded-full bg-primary text-on-primary">
                           <PlayIcon size={16} weight="fill" aria-hidden />
                         </span>
@@ -347,15 +340,31 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
                     </button>
                   ) : null}
 
-                  {loading ? (
-                    <p className="pointer-events-none absolute right-3 top-3 inline-flex items-center gap-2 rounded-full bg-surface/90 px-3 py-1.5 text-xs text-ink-2 shadow-e1 ring-1 ring-line backdrop-blur" role="status">
+                  {notice === "loading" ? (
+                    <p className="pointer-events-none absolute right-3 top-3 inline-flex items-center gap-2 rounded-full bg-surface px-3 py-1.5 text-xs text-ink-2 shadow-e1 ring-1 ring-line" role="status">
                       <span aria-hidden className="size-1.5 rounded-full bg-accent motion-safe:animate-pulse" />
                       Loading the film
                     </p>
                   ) : null}
 
-                  {status === "error" ? (
-                    <div className="absolute inset-0 flex items-center justify-center bg-canvas/70 p-4 backdrop-blur-sm" role="alert">
+                  {notice === "slow" ? (
+                    <div className="absolute inset-x-3 top-3 flex flex-wrap items-center justify-end gap-2" role="status">
+                      <p className="inline-flex items-center gap-2 rounded-full bg-surface px-3 py-1.5 text-xs text-ink-2 shadow-e1 ring-1 ring-line">
+                        <span aria-hidden className="size-1.5 rounded-full bg-approval" />
+                        This is taking longer than usual
+                      </p>
+                      <button
+                        type="button"
+                        onClick={play}
+                        className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-4 text-sm font-medium text-on-primary shadow-e2"
+                      >
+                        <ArrowClockwiseIcon size={16} weight="bold" aria-hidden /> Try again
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {notice === "error" ? (
+                    <div className="absolute inset-0 flex items-center justify-center bg-canvas/80 p-4" role="alert">
                       <div className="max-w-xs rounded-md bg-surface p-5 text-center shadow-e2 ring-1 ring-line">
                         <WarningCircleIcon size={22} weight="bold" aria-hidden className="mx-auto text-failed" />
                         <p className="mt-2 font-medium text-ink">The film couldn&apos;t load.</p>

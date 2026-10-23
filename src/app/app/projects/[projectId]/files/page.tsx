@@ -75,7 +75,7 @@ export default async function FilesPage({
   return (
     <div className="grid gap-6">
       <div>
-        <Link href={`/app/projects/${project.id}`} className="inline-flex items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
+        <Link href={`/app/projects/${project.id}`} className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
           <ArrowLeftIcon size={14} aria-hidden /> {project.name}
         </Link>
         <div className="mt-3 flex flex-col gap-1">
@@ -132,7 +132,7 @@ export default async function FilesPage({
               <FileTree projectId={project.id} nodes={tree} current={file?.path ?? path} expandAll={files.length <= SMALL_PROJECT} />
             </div>
             <details className="rounded-md border border-line bg-surface p-4">
-              <summary className="cursor-pointer text-sm font-medium">Import more files</summary>
+              <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium">Import more files</summary>
               <div className="mt-4">
                 <ImportFiles projectId={project.id} disabledReason={writeReason} compact />
               </div>
@@ -215,7 +215,7 @@ export default async function FilesPage({
             {historyMode && revisions.length > 0 ? (
               <div className="grid min-w-0 gap-4">
                 <div className="min-w-0">
-                  <Link href={file ? fileHref(project.id, path!) : base} className="inline-flex items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
+                  <Link href={file ? fileHref(project.id, path!) : base} className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
                     <ArrowLeftIcon size={14} aria-hidden /> {file ? "Back to the file" : "All files"}
                   </Link>
                   <h2 className="mt-2 flex items-center gap-2 text-lg font-medium">

@@ -13,7 +13,7 @@ export function Hero() {
         <Reveal className="relative z-10 lg:col-span-7">
           <Link
             href="#status"
-            className="inline-flex items-center gap-2 rounded-full border border-line bg-surface py-1.5 pl-3 pr-2.5 text-[13px] text-ink-2 shadow-e1 transition-colors hover:text-ink"
+            className="relative inline-flex items-center gap-2 rounded-full border border-line bg-surface py-1.5 pl-3 pr-2.5 text-[13px] text-ink-2 shadow-e1 transition-colors before:absolute before:inset-x-0 before:-inset-y-1.5 hover:text-ink"
           >
             Now open. See what works today
             <ArrowRightIcon size={13} weight="bold" aria-hidden />

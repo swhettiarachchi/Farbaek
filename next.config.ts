@@ -38,6 +38,13 @@ const nextConfig: NextConfig = {
         headers: securityHeaders,
       },
       { source: "/(.*)", has: [{ type: "host", value: OFFICE_HOST }], headers: [...OFFICE_STATIC_HEADERS] },
+      // Film recordings and tracks are requested with their content hash (?v=, ADR 0051), so a
+      // phone can keep them; a re-recording has a new URL. Unversioned requests keep the default.
+      {
+        source: "/films/:path*",
+        has: [{ type: "query", key: "v", value: "[0-9a-f]{12}" }],
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
     ];
   },
 };

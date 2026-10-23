@@ -148,9 +148,24 @@
   pointer-events: none;
 }
 
-@media (prefers-reduced-motion: no-preference) {
+/*
+ * It breathes only on large screens with a mouse. On phones a blurred layer
+ * animating forever behind a playing film costs battery and frames (ADR 0051).
+ */
+@media (prefers-reduced-motion: no-preference) and (min-width: 1024px) and (hover: hover) and (pointer: fine) {
   .aurora::before {
     animation: aurora-breathe 14s ease-in-out infinite alternate;
+  }
+}
+
+/*
+ * The homepage statement colours in word by word as it scrolls. Under reduced
+ * motion it's simply full ink; done in CSS so the server and the client render
+ * the same words (a branch in React broke hydration).
+ */
+@media (prefers-reduced-motion: reduce) {
+  .statement-word {
+    color: var(--ink) !important;
   }
 }
 

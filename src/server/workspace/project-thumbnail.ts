@@ -6,7 +6,7 @@
  * it's a picture, never a running page.
  */
 import { runProfile } from "@/content/starters";
-import { buildStaticSrcdoc, resolveSitePath } from "@/core/workspace/static-preview";
+import { buildStaticSrcdoc, pictureSrcdoc, resolveSitePath } from "@/core/workspace/static-preview";
 import type { WorkspaceReader } from "./types";
 
 export type ProjectThumbnail =
@@ -52,5 +52,5 @@ export async function projectThumbnail(reader: Reader, orgId: string, projectId:
     budget -= size;
   }
   const srcdoc = buildStaticSrcdoc(parts, "index.html");
-  return srcdoc ? { kind: "static", srcdoc } : { kind: "empty" };
+  return srcdoc ? { kind: "static", srcdoc: pictureSrcdoc(srcdoc) } : { kind: "empty" };
 }

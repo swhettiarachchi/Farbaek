@@ -20,6 +20,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium } from "playwright-core";
+import { writeFilmManifest } from "./manifest.mjs";
 
 const require = createRequire(import.meta.url);
 const FILMS = ["build", "proof", "clip-plan", "clip-agent", "clip-check", "clip-live"];
@@ -171,3 +172,6 @@ try {
 } finally {
   await browser.close();
 }
+
+// New recordings get new URLs, so phones that cached the old ones fetch these (ADR 0051).
+if (!stills) console.log(`Film manifest: ${Object.keys(writeFilmManifest()).length} files.`);

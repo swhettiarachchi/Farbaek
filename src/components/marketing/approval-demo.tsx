@@ -132,9 +132,9 @@ export function ApprovalDemo() {
               type="checkbox"
               checked={raisePrices}
               onChange={(e) => setRaisePrices(e.target.checked)}
-              className="mt-0.5 size-5 shrink-0 accent-[var(--accent)]"
+              className="mt-3 size-5 shrink-0 accent-[var(--accent)]"
             />
-            <label htmlFor={ids.price} className="text-sm">
+            <label htmlFor={ids.price} className="min-h-11 py-2.5 text-sm">
               Also raise prices by 5%
               <span className="block text-xs text-ink-3">Price is a protected field in this contract.</span>
             </label>
