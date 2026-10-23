@@ -7,7 +7,7 @@
  * from browser callbacks, never in an effect body.
  */
 import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react";
-import { playFailure, SLOW_AFTER_MS, VISIBLE_SHARE, WIDE_QUERY } from "./player-logic";
+import { playFailure, QUIET_REFUSAL_MS, SLOW_AFTER_MS, VISIBLE_SHARE, WIDE_QUERY } from "./player-logic";
 
 const REDUCE_QUERY = "(prefers-reduced-motion: reduce)";
 /** Large screens with a mouse: where the stage tilt and the breathing aurora are worth their cost. */
@@ -193,6 +193,10 @@ export function useVideoControl(video: RefObject<HTMLVideoElement | null>, want:
     const settled = () => clearTimeout(timer);
     playVideo(v, failed);
     watch();
+    // Nothing at all after a few seconds: a quiet refusal (QUIET_REFUSAL_MS).
+    const quiet = setTimeout(() => {
+      if (live && v.paused && v.readyState === 0 && !v.error) failed("blocked");
+    }, QUIET_REFUSAL_MS);
     v.addEventListener("canplay", resume);
     v.addEventListener("waiting", watch);
     v.addEventListener("stalled", watch);
@@ -202,6 +206,7 @@ export function useVideoControl(video: RefObject<HTMLVideoElement | null>, want:
     return () => {
       live = false;
       clearTimeout(timer);
+      clearTimeout(quiet);
       v.removeEventListener("canplay", resume);
       v.removeEventListener("waiting", watch);
       v.removeEventListener("stalled", watch);

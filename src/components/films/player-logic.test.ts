@@ -77,14 +77,20 @@ describe("keyAction", () => {
 });
 
 describe("filmMotion", () => {
+  const s = { want: true, blocked: false, error: false, userPaused: false };
   it("plays the video, or the silent loop where the browser refused to start it", () => {
-    expect(filmMotion({ want: true, blocked: false, error: false })).toBe("video");
-    expect(filmMotion({ want: true, blocked: true, error: false })).toBe("loop");
+    expect(filmMotion(s)).toBe("video");
+    expect(filmMotion({ ...s, blocked: true })).toBe("loop");
   });
 
-  it("rests on the poster when it shouldn't move or the recording failed", () => {
-    expect(filmMotion({ want: false, blocked: true, error: false })).toBe("still");
-    expect(filmMotion({ want: true, blocked: true, error: true })).toBe("still");
+  it("keeps the loop when the film scrolls away, so it's moving when it comes back", () => {
+    expect(filmMotion({ ...s, want: false, blocked: true })).toBe("loop");
+    expect(filmMotion({ ...s, want: false })).toBe("still");
+  });
+
+  it("rests on the poster when the person paused it or the recording failed", () => {
+    expect(filmMotion({ ...s, blocked: true, userPaused: true })).toBe("still");
+    expect(filmMotion({ ...s, blocked: true, error: true })).toBe("still");
   });
 });
 

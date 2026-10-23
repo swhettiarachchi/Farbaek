@@ -29,6 +29,12 @@ They asked for the homepage films to play like animation: always on, always loop
 - **The theater in loop mode** says it's a silent loop and offers "Play with captions". The clip's button pauses the loop.
 - **A refused autoplay no longer turns into "slow"** after ten seconds. Clips used to swap their play button for "Try again".
 
+**The build box (`PromptComposer`):**
+- **The problem:** its "Start building" button sat greyed out until eight characters were typed. On phones its reason was hidden, so the hero's main button looked broken in the owner's screenshot.
+- **The fix:** the button stays live. A press with too little written focuses the box and says what's needed:
+  - "Describe what you want first, in a sentence or two." when it's empty;
+  - "Add a few more words, so the plan has something to go on." when it's too short.
+
 ### Verified
 
 - **Diagnosis:**
@@ -40,6 +46,12 @@ They asked for the homepage films to play like animation: always on, always loop
   - **Phone with `play()` refused** (NotAllowedError, as Low Power Mode does): the loop layer mounts for each film in sight, Chrome makes no MP4 request at all, and the play cover and clip buttons stay.
   - **Desktop, 1280 px:** films play in sight and rest off screen.
 - **Screenshots:** the aurora at 1280 and 393 px (soft, no edges) and the Halo One contact shadow.
+- **The build box at 393 px:**
+  - the button is enabled;
+  - an empty press shows the first line and focuses the box;
+  - "cafe" shows the second line;
+  - a real prompt goes on to sign-in as before.
+- **The live homepage at 393 px,** top to bottom: no layout faults. The live public pages pass the responsive audit at 375 and 1280.
 - **Audits:**
   - `pnpm qa:responsive` at 320, 375, 414, 768, 1024 and 1440 px: 180 page views, no sideways scroll, cut-off content, small targets or errors;
   - `pnpm qa:a11y`: 60 page views, no findings.

@@ -139,9 +139,20 @@ export function filmFile(id: FilmId, format: FilmFormat, kind: "mp4" | "jpg"): s
   return kind === "mp4" ? versioned(`${id}/${format}.mp4`) : `/films/${id}/${format}.${kind}`;
 }
 
+/**
+ * A recording's silent loop: the same film as an animated WebP, shown where a
+ * browser won't start the video on its own (scripts/films/loops.mjs, ADR 0056).
+ */
+export function filmLoop(id: FilmId, format: FilmFormat): string {
+  return versioned(`${id}/${format}-loop.webp`);
+}
+
 export function filmTrack(id: FilmId, kind: "captions" | "chapters"): string {
   return versioned(`${id}/${kind}.vtt`);
 }
 
 /** Size limits per recording, so the homepage stays light. */
 export const FILM_BUDGET_BYTES = { landscape: 6_000_000, portrait: 5_000_000, clip: 1_200_000 } as const;
+
+/** Size limits per silent loop. Only browsers that refuse the video download one. */
+export const LOOP_BUDGET_BYTES = { landscape: 4_000_000, portrait: 2_500_000, clip: 1_300_000 } as const;

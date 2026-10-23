@@ -1,5 +1,5 @@
 // Writes src/content/films-manifest.json: a short content hash for every film
-// recording and caption track in public/films (ADR 0051). The players add it
+// recording, silent loop and caption track in public/films (ADR 0051). The players add it
 // to each URL (`?v=`), so phones can keep a recording for a year and still
 // fetch a new one the moment it's re-recorded. `pnpm films:record` runs this
 // at the end; run it on its own after replacing a file by hand:
@@ -27,7 +27,7 @@ export function filmHash(name, bytes) {
 export function filmManifest(dir = FILMS_DIR) {
   const entries = {};
   for (const film of readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort()) {
-    for (const file of readdirSync(join(dir, film)).filter((f) => f.endsWith(".mp4") || f.endsWith(".vtt")).sort()) {
+    for (const file of readdirSync(join(dir, film)).filter((f) => f.endsWith(".mp4") || f.endsWith(".vtt") || f.endsWith("-loop.webp")).sort()) {
       entries[`${film}/${file}`] = filmHash(file, readFileSync(join(dir, film, file)));
     }
   }

@@ -27,7 +27,7 @@ import {
 } from "@phosphor-icons/react";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { FILMS, FILM_LABEL, filmFile, filmTrack, type FilmChapter, type FilmFormat, type FilmId } from "@/content/films";
+import { FILMS, FILM_LABEL, filmFile, filmLoop, filmTrack, type FilmChapter, type FilmFormat, type FilmId } from "@/content/films";
 import { chapterAt, clock } from "./timeline";
 import { chapterFills, chapterTarget, filmMotion, formatFor, keyAction, playerNotice, shouldPlay } from "./player-logic";
 import { SilentLoop } from "./silent-loop";
@@ -141,6 +141,7 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
   const { ref: screenRef, inView, hidden } = useOnScreen<HTMLDivElement>();
   const format = wide === null ? null : formatFor(formats, wide);
   const source = format ? filmFile(id, format, "mp4") : null;
+  const loop = format ? filmLoop(id, format) : null;
 
   const root = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
@@ -157,10 +158,10 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
 
   const want = format !== null && shouldPlay({ inView, hidden, reducedMotion, saveData, userPaused, userPlayed });
   const control = useVideoControl(video, want, source);
-  const motion = filmMotion({ want, blocked: control.blocked, error: control.error });
-  // Which source's silent loop has drawn: in browsers that skip it, the play cover stays.
-  const [loopShown, setLoopShown] = useState<string | null>(null);
-  const looping = motion === "loop" && loopShown === source;
+  const motion = filmMotion({ want, blocked: control.blocked, error: control.error, userPaused });
+  // A loop that failed to load leaves the poster and the play cover.
+  const [loopFailed, setLoopFailed] = useState<string | null>(null);
+  const looping = motion === "loop" && loop !== null && loopFailed !== loop;
   // The poster steps aside once a frame is drawn, and comes back if the recording fails.
   const started = control.shown && !control.error;
   const captionId = useId();
@@ -210,7 +211,8 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
     setUserPaused(true);
     setUserPlayed(false);
   };
-  const playing = motion === "video";
+  // The silent loop counts as playing: pause stops it, and play starts the film itself.
+  const playing = motion === "video" || looping;
   const toggle = () => (playing ? pause() : play());
 
   const seekTo = (ms: number, start = false) => {
@@ -259,8 +261,9 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
   };
 
   const caption = chapters[active]!;
-  // The big play button shows only where the film won't start on its own and isn't looping silently.
-  const showPlayCover = !started && !control.error && !looping && (control.blocked || (!userPlayed && (reducedMotion || saveData)));
+  // The big play button shows only under reduced motion or Save-Data, or where neither the film nor its loop will play.
+  const refusedWithoutLoop = control.blocked && !looping && !userPaused;
+  const showPlayCover = !started && !control.error && (refusedWithoutLoop || (!userPlayed && (reducedMotion || saveData)));
   const notice = playerNotice({ want, playing: control.playing, blocked: control.blocked, slow: control.slow, error: control.error });
 
   return (
@@ -319,20 +322,7 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
                     {poster}
                   </div>
 
-                  {motion === "loop" && source ? <SilentLoop src={source} fit="contain" onShown={() => setLoopShown(source)} /> : null}
-
-                  {looping ? (
-                    <button
-                      type="button"
-                      onClick={play}
-                      className="absolute bottom-3 left-3 inline-flex min-h-11 items-center gap-2 rounded-full bg-surface py-1.5 pl-1.5 pr-4 text-sm font-medium text-ink shadow-e2 ring-1 ring-line transition-transform duration-200 active:scale-[0.98]"
-                    >
-                      <span className="inline-flex size-8 items-center justify-center rounded-full bg-primary text-on-primary">
-                        <PlayIcon size={13} weight="fill" aria-hidden />
-                      </span>
-                      Play with captions
-                    </button>
-                  ) : null}
+                  {looping ? <SilentLoop src={loop} fit="contain" onFailed={() => setLoopFailed(loop)} /> : null}
 
                   {showPlayCover ? (
                     <button
@@ -396,8 +386,11 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
                 {/* Captions and controls. The films are silent, so the captions say what happens. */}
                 <div className="border-t border-line px-3 pb-2 pt-3 sm:px-4">
                   {looping ? (
-                    <p id={captionId} className="min-h-[2.75rem] text-[15px] leading-snug text-ink-2">
-                      Playing as a silent loop. Press play for captions and chapters.
+                    <p id={captionId} className="flex min-h-[2.75rem] flex-wrap items-center gap-x-3 text-[15px] leading-snug text-ink-2">
+                      Playing as a silent loop.
+                      <button type="button" onClick={play} className="inline-flex min-h-11 items-center gap-1.5 rounded-full font-medium text-accent">
+                        <ClosedCaptioningIcon size={18} weight="fill" aria-hidden /> Play with captions
+                      </button>
                     </p>
                   ) : captions ? (
                     <p id={captionId} className="min-h-[2.75rem] text-[15px] leading-snug text-ink" aria-hidden>
