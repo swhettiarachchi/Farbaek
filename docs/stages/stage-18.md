@@ -77,6 +77,14 @@ Production didn't serve published sites: the planned wildcard certificate for fa
   - a local production build answering for a custom Host header (the routing and serving are unit-tested);
   - a real certificate and a real domain, which need the owner's DNS records first.
 
+**Production database:** migration v30 applied to the self-hosted database on 2026-10-23.
+- **How:** the SHA-256 (`6774b4d9…39fcbed82`) matched on the server; one transaction with `ON_ERROR_STOP`.
+- **Read-only checks:**
+  - `site_domains` has RLS with one read policy;
+  - signed-in users can read and not write, and anonymous users can't read;
+  - only the server can run the four functions.
+- **Afterwards:** the API schema cache was reloaded.
+
 ### Next
 
 - Re-check verified domains on a schedule, and show domains in Office Space.
