@@ -67,6 +67,16 @@ The spec's Stage 3 asks for autonomy levels 0 to 2. Farbaek ran only level 0. No
   - no hydration errors.
 - **Not run:** a real automatic apply. It needs a signed-in workspace with level 2 on and a verified sandbox; the paths are covered by the use-case, executor and database tests.
 
+**Production database:** migration v31 applied to the self-hosted database on 2026-10-23.
+- **How:** the SHA-256 (`d47d8dbc…c924233b3`) matched on the server; one transaction with `ON_ERROR_STOP`.
+- **Read-only checks:**
+  - `org_autonomy` has RLS with one read policy;
+  - signed-in users can read and not write, and anonymous users can't read;
+  - only the server can run `app_set_autonomy`;
+  - both triggers are in place;
+  - no workspace has a setting yet, so every workspace is at level 0.
+- **Afterwards:** the API schema cache was reloaded.
+
 ### Next
 
 - Run the contract's checks automatically after a change applies on its own, in the run's own sandbox.
