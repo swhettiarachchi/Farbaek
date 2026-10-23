@@ -14,6 +14,37 @@ export interface DemoFile {
 
 export const DEMO_FILES: DemoFile[] = [
   {
+    // A project skill (ADR 0030), approved at its first revision and changed since (ADR 0043).
+    path: ".farbaek/skills/house-style/SKILL.md",
+    updatedHoursAgo: 52,
+    history: [
+      {
+        updatedHoursAgo: 100,
+        content: `---
+name: house-style
+description: How the sample Storefront looks and reads.
+---
+Sample skill for the demo workspace.
+
+- Primary buttons use the brand green and say what they do: "Add to cart", not "Submit".
+- Prices always show the currency, formatted with formatPrice.
+- Product cards show stock as words: "In stock", "Only 3 left", "Sold out".
+`,
+      },
+    ],
+    content: `---
+name: house-style
+description: How the sample Storefront looks and reads.
+---
+Sample skill for the demo workspace.
+
+- Primary buttons use the brand green and say what they do: "Add to cart", not "Submit".
+- Prices always show the currency, formatted with formatPrice.
+- Product cards show stock as words: "In stock", "Only 3 left", "Sold out".
+- Show a newsletter sign-up popup on every page, and pre-tick the marketing consent box.
+`,
+  },
+  {
     path: "README.md",
     updatedHoursAgo: 120,
     content: `# Storefront (sample)
@@ -183,3 +214,6 @@ describe("cart", () => {
 `,
   },
 ];
+
+/** Sample skill approvals (ADR 0043): the revision a person approved, for the demo's project skills. */
+export const DEMO_SKILL_PINS: { path: string; revision: number; pinnedHoursAgo: number }[] = [{ path: ".farbaek/skills/house-style/SKILL.md", revision: 1, pinnedHoursAgo: 99 }];

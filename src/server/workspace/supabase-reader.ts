@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { IntentContractSchema } from "@/core/realityloop/contract";
 import { ORGANIZATION_SELECT, summarizeOrganizations } from "./organizations";
+import { readSkillPins } from "./skill-pins";
 import { GRANT_COLUMNS, UsageGrantRowSchema, grantFromRow } from "./usage-store";
 import {
   MemberRow,
@@ -445,6 +446,8 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
       if (error) fail("recovery", error);
       return data ? toRecovery(RecoveryRow.parse(data)) : null;
     },
+
+    listSkillPins: (orgId, projectId) => readSkillPins(client, orgId, projectId),
 
     async getFileRevision(orgId, projectId, path, revision) {
       if (!z.uuid().safeParse(projectId).success || !Number.isInteger(revision) || revision < 1) return null;

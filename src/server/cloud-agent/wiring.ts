@@ -24,6 +24,7 @@ import type { OrgRole } from "@/server/workspace/types";
 import type { ExecutorDeps } from "./executor";
 import { createSandboxRunner } from "./sandbox-runner";
 import { createSupabaseRunStore } from "./store";
+import { pinMap, readSkillPins } from "@/server/workspace/skill-pins";
 
 const SESSION_MINUTES = 45;
 
@@ -53,6 +54,7 @@ export async function cloudRunDeps(person: { orgId: string; userId: string; role
     checks: agentStore,
     gateway: { deps: { ...agentStore, ...createServerUsageDeps(admin) }, model: createAnthropicGatewayModel() },
     sandboxAvailable: () => sandboxed && token !== null,
+    skillPins: async (orgId, projectId) => pinMap(await readSkillPins(admin, orgId, projectId)),
     async sandbox(input) {
       if (!token) return null;
       const user = createClient(config.url, config.publishableKey, {

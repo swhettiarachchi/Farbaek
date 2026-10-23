@@ -26,6 +26,8 @@ export function ApproveBuild({
   skills,
   suggested,
   projectSkills,
+  heldSkills = [],
+  skillsHref,
 }: {
   taskId: string;
   version: number;
@@ -37,8 +39,12 @@ export function ApproveBuild({
   skills: { id: string; label: string; description: string }[];
   /** Skills that fit this plan, chosen to begin with. */
   suggested: string[];
-  /** The project's own skills, which always apply. */
+  /** The project's own skills in their approved version, which always apply. */
   projectSkills: string[];
+  /** The project's skills that are new or changed since approval, which wait for a review (ADR 0043). */
+  heldSkills?: string[];
+  /** Where the project's skills are reviewed. */
+  skillsHref?: string;
 }) {
   const [state, action, pending] = useActionState(approveAndBuildAction, IDLE);
   const [effort, setEffort] = useState<Effort>("balanced");
@@ -71,6 +77,19 @@ export function ApproveBuild({
           {suggested.length ? "the ones that fit your plan are chosen." : "none stood out for this plan, so tick any that fit."}
           {projectSkills.length ? ` This project's own skills apply too: ${projectSkills.join(", ")}.` : ""}
         </p>
+        {heldSkills.length ? (
+          <p className="flex items-start gap-2 text-xs leading-relaxed text-approval">
+            <WarningCircleIcon size={14} className="mt-px shrink-0" aria-hidden />
+            <span>
+              {heldSkills.length === 1 ? "1 skill is" : `${heldSkills.length} skills are`} waiting for review and won&apos;t apply: {heldSkills.join(", ")}.{" "}
+              {skillsHref ? (
+                <Link href={skillsHref} className="font-medium underline underline-offset-2 hover:text-ink">
+                  Review on the project page
+                </Link>
+              ) : null}
+            </span>
+          </p>
+        ) : null}
       </fieldset>
       <EffortPicker value={effort} onChange={setEffort} disabled={pending || Boolean(disabledReason)} />
       <p className="text-sm text-ink-2" aria-live="polite">

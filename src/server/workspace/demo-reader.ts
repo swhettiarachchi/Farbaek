@@ -4,7 +4,7 @@ import { contractHash, type IntentContract } from "@/core/realityloop/contract";
 import type { TaskState } from "@/core/realityloop/task-machine";
 import { sha256Hex } from "@/core/trust/canonical-json";
 import { SAMPLE_CONTRACT } from "@/content/samples";
-import { DEMO_FILES, DEMO_FILES_PROJECT_ID } from "@/content/demo-files";
+import { DEMO_FILES, DEMO_FILES_PROJECT_ID, DEMO_SKILL_PINS } from "@/content/demo-files";
 import { buildChanges, checkProposal, planFrom, proposalHash } from "@/core/realityloop/change-proposal";
 import { evaluateChangePolicy } from "@/core/trust/policy";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
@@ -268,6 +268,19 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
         })),
       );
       return out.reverse();
+    },
+
+    async listSkillPins(_orgId, projectId) {
+      if (projectId !== DEMO_FILES_PROJECT_ID) return [];
+      return Promise.all(
+        DEMO_SKILL_PINS.flatMap((pin) => {
+          const f = DEMO_FILES.find((d) => d.path === pin.path);
+          const content = f ? [...(f.history ?? []).map((h) => h.content), f.content][pin.revision - 1] : undefined;
+          return content === undefined
+            ? []
+            : [sha256Hex(content).then((sha256) => ({ path: pin.path, revision: pin.revision, sha256, pinnedBy: null, pinnedAt: ago(pin.pinnedHoursAgo * DEMO_TIME.HOUR) }))];
+        }),
+      );
     },
 
     async getFileRevision(_orgId, projectId, path, revision) {
