@@ -1,56 +1,50 @@
 "use client";
 
 /**
- * A short, silent feature clip that loops beside its text (ADR 0034). It
- * plays only while `active`, on screen, in a visible tab and the page's one
- * playing video (ADR 0051), and never on its own under reduced motion or
- * Save-Data, where the poster frame stands in. A pause button is always
- * there, because moving content needs one; it shows play whenever the clip
- * isn't really playing, so a refused autoplay is one press away.
+ * A short, silent feature clip that loops beside its text like an animation
+ * (ADR 0034, ADR 0055). It plays while `active`, on screen and in a visible
+ * tab, and never on its own under reduced motion or Save-Data, where the
+ * poster frame stands in. Where the browser refuses to start it (iOS Low
+ * Power Mode), the same recording loops as a silent animated image. A pause
+ * button is always there, because moving content needs one; it shows play
+ * whenever the clip isn't moving, so a refused autoplay is one press away.
  *
  * The video sits under its poster at full opacity: phone browsers may not
  * start a video they think is invisible, so the poster fades out over it
  * instead of the video fading in.
  */
 import { ArrowClockwiseIcon, PauseIcon, PlayIcon } from "@phosphor-icons/react";
-import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { FILMS, filmFile, type FilmId } from "@/content/films";
-import { shouldPlay } from "./player-logic";
-import { noSubscribe, playbackLead, useIsLead, useOnScreen, usePlaybackLimits, useVideoControl } from "./use-playback";
+import { filmMotion, shouldPlay } from "./player-logic";
+import { SilentLoop } from "./silent-loop";
+import { noSubscribe, useOnScreen, usePlaybackLimits, useVideoControl } from "./use-playback";
 
 export function FilmClip({ id, poster, active = true, enabled = true }: { id: FilmId; poster: ReactNode; active?: boolean; enabled?: boolean }) {
   const film = FILMS[id];
-  const key = useId();
   const { reducedMotion, saveData } = usePlaybackLimits();
-  const { ref, inView, hidden } = useOnScreen<HTMLDivElement>(0.3, key);
+  const { ref, inView, hidden } = useOnScreen<HTMLDivElement>();
   const video = useRef<HTMLVideoElement>(null);
   const [userPaused, setUserPaused] = useState(false);
   const [userPlayed, setUserPlayed] = useState(false);
   const mounted = useSyncExternalStore(noSubscribe, () => true, () => false);
   const source = mounted && enabled ? filmFile(id, "clip", "mp4") : null;
-  const eligible = source !== null && active && shouldPlay({ inView, hidden, reducedMotion, saveData, userPaused, userPlayed });
-  const isLead = useIsLead(key);
-  const want = eligible && isLead;
+  const want = source !== null && active && shouldPlay({ inView, hidden, reducedMotion, saveData, userPaused, userPlayed });
   const control = useVideoControl(video, want, source);
-
-  useEffect(() => {
-    playbackLead.report(key, { eligible: eligible && !control.error });
-  }, [key, eligible, control.error]);
-  useEffect(() => () => playbackLead.leave(key), [key]);
-
-  const playing = want && !control.blocked && !control.error;
+  const motion = filmMotion({ want, blocked: control.blocked, error: control.error });
+  // Which source's silent loop has drawn: in browsers that skip it, the play button stays.
+  const [loopShown, setLoopShown] = useState<string | null>(null);
+  const playing = motion === "video" || (motion === "loop" && loopShown === source);
   // A failure, or ten seconds of trying without a frame, turns the button into a retry.
-  const stuck = control.error || (want && control.slow && !control.playing);
+  const stuck = control.error || (motion === "video" && control.slow && !control.playing);
   const press = () => {
     if (playing) {
       setUserPaused(true);
       setUserPlayed(false);
-      playbackLead.report(key, { userAt: null });
       return;
     }
     setUserPaused(false);
     setUserPlayed(true);
-    playbackLead.report(key, { userAt: Date.now(), eligible: true });
     control.start();
   };
 
@@ -73,6 +67,7 @@ export function FilmClip({ id, poster, active = true, enabled = true }: { id: Fi
       <div aria-hidden className={`pointer-events-none absolute inset-0 transition-opacity duration-500 ${control.shown && !control.error ? "opacity-0" : "opacity-100"}`}>
         {poster}
       </div>
+      {motion === "loop" && source ? <SilentLoop src={source} fit="cover" onShown={() => setLoopShown(source)} /> : null}
       <p className="sr-only">{film.summary}</p>
       {stuck ? (
         <button

@@ -8,8 +8,12 @@ import type { FilmChapter, FilmFormat } from "@/content/films";
 /** Wider than this, the landscape recording fits; narrower, the portrait one. */
 export const WIDE_QUERY = "(min-width: 640px)";
 
-/** How much of a film must be on screen before it plays on its own. */
-export const VISIBLE_SHARE = 0.45;
+/**
+ * How much of a film must be on screen before it plays on its own. Low, so a
+ * film is moving whenever it's in sight, like an animation; off screen it
+ * rests, which costs nothing anyone can see.
+ */
+export const VISIBLE_SHARE = 0.2;
 
 /** The recording to load: the landscape film on wide screens, the portrait film on phones, a clip as it is. */
 export function formatFor(formats: readonly FilmFormat[], wide: boolean): FilmFormat {
@@ -43,37 +47,17 @@ export function shouldPlay(s: AutoplayInput): boolean {
 /** After this long trying to play without a frame, the player says so and offers to try again. */
 export const SLOW_AFTER_MS = 10_000;
 
-/** A video that may want to play, as the page sees it when choosing which one plays. */
-export interface LeadCandidate {
-  id: string;
-  /** It may play right now: on screen, in a visible tab, allowed, not paused by the person. */
-  eligible: boolean;
-  /** How many pixels of it are on screen. */
-  visiblePx: number;
-  /** When the person last pressed play on it, or null. */
-  userAt: number | null;
-  /** Its place on the page, for ties. */
-  order: number;
-}
+export type FilmMotion = "video" | "loop" | "still";
 
 /**
- * The one video that plays on the page: of those that may play, the one the
- * person started most recently, else the one taking up most of the screen,
- * else the first on the page. One at a time keeps phones to one decoder and
- * one download.
+ * How a film that may move is shown. "video": the player plays it. "loop":
+ * the browser refused to start it on its own (iOS Low Power Mode refuses even
+ * silent films), so the same recording runs as a silent animated image until
+ * a person presses play. "still": its poster, at rest, paused or failed.
  */
-export function pickLead(candidates: readonly LeadCandidate[]): string | null {
-  let best: LeadCandidate | null = null;
-  for (const c of candidates) {
-    if (!c.eligible) continue;
-    if (!best) {
-      best = c;
-      continue;
-    }
-    const byUser = (c.userAt ?? -1) - (best.userAt ?? -1);
-    if (byUser > 0 || (byUser === 0 && (c.visiblePx > best.visiblePx || (c.visiblePx === best.visiblePx && c.order < best.order)))) best = c;
-  }
-  return best?.id ?? null;
+export function filmMotion(s: { want: boolean; blocked: boolean; error: boolean }): FilmMotion {
+  if (!s.want || s.error) return "still";
+  return s.blocked ? "loop" : "video";
 }
 
 export type PlayFailure = "blocked" | "interrupted" | "failed";

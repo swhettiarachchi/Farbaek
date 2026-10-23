@@ -192,7 +192,7 @@ export function SandboxConsole({
             type="button"
             onClick={() => void run()}
             disabled={!canRun || !command.trim()}
-            className="inline-flex h-11 items-center rounded-full bg-media-accent px-4 text-sm font-medium text-media hover:brightness-110 disabled:opacity-40"
+            className="inline-flex h-11 items-center rounded-full bg-media-accent px-4 text-sm font-medium text-media hover:bg-media-accent/90 disabled:opacity-40"
           >
             Run
           </button>

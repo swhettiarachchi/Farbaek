@@ -135,28 +135,33 @@
 /*
  * Aurora frame: a soft light field around a product panel. Uses only the
  * signal blue and cyan family. The colour sits behind the panel, never on text.
+ *
+ * No CSS filter: each glow is a closest-side gradient, so it fades to nothing
+ * inside its own box and needs no blur. A filter on an element below the fold
+ * makes iOS 26 Safari paint a black square at the top left of the screen
+ * (WebKit bug 314999, ADR 0055), and a blurred layer is costly on phones.
  */
 .aurora {
   position: relative;
   isolation: isolate;
+  /* A lighter signal blue for the lower glow. */
+  --aurora-lilac: color-mix(in srgb, var(--accent) 55%, white);
 }
 
 .aurora::before {
   content: "";
   position: absolute;
-  inset: -6% -4%;
+  inset: -12% -8%;
   z-index: -1;
-  border-radius: 48px;
   background:
-    radial-gradient(40% 55% at 12% 30%, rgb(36 80 240 / 0.16), transparent 70%),
-    radial-gradient(38% 50% at 88% 25%, rgb(10 110 133 / 0.14), transparent 70%),
-    radial-gradient(50% 45% at 50% 100%, rgb(127 156 255 / 0.18), transparent 70%);
-  filter: blur(28px);
+    radial-gradient(closest-side at 16% 30%, color-mix(in srgb, var(--accent) 16%, transparent), color-mix(in srgb, var(--accent) 6%, transparent) 60%, transparent),
+    radial-gradient(closest-side at 84% 26%, color-mix(in srgb, var(--accent-2) 14%, transparent), color-mix(in srgb, var(--accent-2) 5%, transparent) 60%, transparent),
+    radial-gradient(closest-side at 50% 82%, color-mix(in srgb, var(--aurora-lilac) 18%, transparent), color-mix(in srgb, var(--aurora-lilac) 7%, transparent) 60%, transparent);
   pointer-events: none;
 }
 
 /*
- * It breathes only on large screens with a mouse. On phones a blurred layer
+ * It breathes only on large screens with a mouse. On phones a layer
  * animating forever behind a playing film costs battery and frames (ADR 0051).
  */
 @media (prefers-reduced-motion: no-preference) and (min-width: 1024px) and (hover: hover) and (pointer: fine) {
@@ -190,7 +195,6 @@
 @media (prefers-reduced-transparency: reduce) {
   .aurora::before {
     opacity: 0.5;
-    filter: none;
   }
 }
 

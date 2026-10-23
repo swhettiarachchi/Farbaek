@@ -256,10 +256,10 @@ h1, h2, h3 { font-family: var(--sans); font-weight: 750; letter-spacing: -0.03em
 .signup input { flex: 1 1 220px; min-height: 52px; padding: 0 16px; border: 0; border-radius: 12px; background: var(--paper); color: var(--ink); font: 16px var(--sans); }
 .signup input:focus { outline: 3px solid var(--accent); outline-offset: 2px; }
 .subscribe .signup-msg { margin-top: 12px; font: 14px var(--sans); }
-.button { display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 24px; border: 0; border-radius: 999px; background: var(--accent); color: #ffffff; font: 650 16px var(--sans); text-decoration: none; cursor: pointer; transition: transform 0.2s var(--ease), filter 0.2s; }
+.button { display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 24px; border: 0; border-radius: 999px; background: var(--accent); color: #ffffff; font: 650 16px var(--sans); text-decoration: none; cursor: pointer; transition: transform 0.2s var(--ease), box-shadow 0.2s; }
 :root[data-theme="dark"] .button { color: #141619; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .button { color: #141619; } }
-.button:hover { transform: translateY(-2px); filter: brightness(1.05); }
+.button:hover { transform: translateY(-2px); box-shadow: 0 12px 24px -14px var(--accent); }
 .button:active { transform: translateY(1px); }
 .about { margin: clamp(56px, 8vw, 96px) 0; }
 .about p { max-width: 60ch; margin: 0; }

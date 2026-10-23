@@ -319,8 +319,10 @@ function Product({ finish }: { finish: string }) {
       <Layer depth={1.2} order={1} style={{ left: "20%", top: "14%", width: "46%", height: "76%" }}>
         <div className="relative h-full w-full [perspective:120cqw]">
           <div className="absolute inset-[6%] rounded-full border-[0.18cqw] border-dashed border-[var(--s-ink)]/25 [transform:rotateX(72deg)] motion-safe:animate-[showcase-orbit_18s_linear_infinite]" />
+          {/* A contact shadow drawn as a gradient: a drop-shadow filter trips WebKit bug 314999 on iOS (ADR 0055). */}
+          <div aria-hidden className="absolute inset-x-[16%] bottom-[3%] h-[10%] rounded-[50%] bg-[radial-gradient(closest-side,color-mix(in_srgb,var(--s-ink)_26%,transparent),transparent)]" />
           <motion.div className="relative h-full w-full" style={ctx.reduce ? undefined : { rotateY, rotateX, transformStyle: "preserve-3d" }}>
-            <Headphones finish={finish} className="h-full w-full drop-shadow-[0_2cqw_2.4cqw_rgba(21,23,27,0.25)] transition-[filter] duration-500" />
+            <Headphones finish={finish} className="h-full w-full" />
           </motion.div>
         </div>
       </Layer>
