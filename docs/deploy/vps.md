@@ -5,7 +5,7 @@ Farbaek runs on the owner's Hostinger KVM 2 (ADR 0035). It replaced Railway afte
 | | |
 | --- | --- |
 | Server | `srv2085400.hstgr.cloud`, `2.25.88.188`, Ubuntu 24.04, 2 vCPU, 8 GB, 100 GB |
-| Database | Supabase, unchanged |
+| Database | Self-hosted Supabase on this server (ADR 0036) |
 | Login | `ssh farbaek@2.25.88.188`, keys only |
 
 It's still one long-lived Node server with one replica, because agent runs live in the process (ADR 0022). Values never go in the repo; this file names settings only.
@@ -78,8 +78,15 @@ A deploy restarts the app. Agent runs going at that moment show as Interrupted.
 
 - **farbaek.com:** DNS stays at Spaceship, with the email records. `www` and `officespace` are A records to the server, and the apex forwards to `https://www.farbaek.com`. Caddy gets ordinary certificates for both names.
 - **Published sites on farbaek.si, and people's own domains (ADR 0045).** Caddy makes each site's certificate on its first visit (on-demand TLS), after the app confirms the name is a live site. To turn it on:
-  1. **At Hostinger, for farbaek.si,** add two A records to the server's address: `*` (every site name) and `sites` (where people's own subdomains point with a CNAME).
-  2. **On the server,** set `SANDBOX_PREVIEW_DOMAIN=farbaek.si` and `SITES_TARGET_IP=<the server's IPv4 address>` with `set-env.sh`. The IP is what people's root domains point at.
+  1. **At Hostinger, for farbaek.si,** point three A records at the server's address, replacing Hostinger's parking records:
+     - `@` (farbaek.si itself, which redirects to www.farbaek.com);
+     - `*` (every site name);
+     - `sites` (where people's own subdomains point with a CNAME).
+
+     `www` stays a CNAME to `farbaek.si`; www.farbaek.si redirects to www.farbaek.com too. Done on 2026-10-23, with TTL 300.
+  2. **On the server,** set `SITES_DOMAIN=farbaek.si` and `SITES_TARGET_IP=<the server's IPv4 address>` with `farbaek-set-env`.
+     - The IP is what people's root domains point at.
+     - `SITES_DOMAIN` turns on published sites only. `SANDBOX_PREVIEW_DOMAIN` would also turn on preview links, which wait for the wildcard certificate below.
   3. **Deploy.** `farbaek-deploy` reloads Caddy with the `on_demand_tls` settings.
   4. **Check it:** publish a site, open `https://<name>.farbaek.si`, and wait a few seconds the first time.
 - **Previews on farbaek.si** (`p-<id>`) still need one wildcard certificate, `*.farbaek.si`. On-demand would make a new certificate for every preview, and Let's Encrypt allows 50 new ones a week per domain.

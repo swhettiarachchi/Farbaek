@@ -4,6 +4,7 @@ import { SITE_ROUTE } from "@/core/publish/site";
 import { decideRoute } from "@/server/http/hosts";
 import { newNonce, officeCsp, officeResponseHeaders } from "@/server/http/office-headers";
 import { appHostFromEnv, officeConfig } from "@/server/office/config";
+import { siteDomain } from "@/server/publish/config";
 import { createOfficeProxyClient } from "@/server/office/supabase";
 import { readSupabaseConfig, siteUrl } from "@/server/supabase/config";
 
@@ -24,7 +25,8 @@ export async function proxy(request: NextRequest) {
       origin: request.headers.get("origin"),
       secFetchSite: request.headers.get("sec-fetch-site"),
     },
-    { previewDomain: process.env.SANDBOX_PREVIEW_DOMAIN ?? null, officeHost: office?.host ?? null, appHost: appHostFromEnv(), customDomains: Boolean(process.env.SANDBOX_PREVIEW_DOMAIN) },
+    // Previews and published sites share one domain; sites can be on without previews (SITES_DOMAIN, ADR 0045).
+    { previewDomain: process.env.SANDBOX_PREVIEW_DOMAIN || process.env.SITES_DOMAIN || null, officeHost: office?.host ?? null, appHost: appHostFromEnv(), customDomains: Boolean(siteDomain()) },
   );
 
   switch (decision.kind) {
