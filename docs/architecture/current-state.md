@@ -112,6 +112,7 @@ Postgres on Supabase with Row Level Security on every table. The browser can onl
 
 ## 5. Security gaps (see `docs/security/threat-model.md`)
 
+- Next.js is pinned to 16.4.2, which fixes the three advisories published 2026-10-22, two of them critical remote code execution (`docs/security/advisory-2026-10-22-nextjs.md`). Production is safe once that's deployed.
 - Auth and tenant isolation are in place (Supabase email sign-in, RLS, cross-tenant database tests). The live write path hasn't been exercised end to end against the hosted project yet.
 - AI drafting sends task titles, project details and the person's notes to Anthropic. They are sent as data with a system prompt that says so; the output only prefills the editor.
 - CSP covers framing, base URI, forms and objects; a nonce-based `script-src` arrives with the app routes.
