@@ -13,6 +13,7 @@ pnpm typecheck    # tsc --noEmit
 pnpm lint         # eslint .
 pnpm test         # vitest run (unit, domain and design-token tests)
 pnpm check        # typecheck, lint, test in sequence
+pnpm security:eval   # run the OWASP-mapped security scenarios and record the run (/security shows it)
 node scripts/brand-assets.mjs   # regenerate icon sizes from the logo
 ```
 

@@ -492,6 +492,6 @@ async function execute(
     }
     await flush().catch(() => undefined);
     if (stopSandbox) await stopSandbox().catch(() => undefined);
-    await fs.rm(dir, { recursive: true, force: true }).catch(() => undefined);
+    await fs.rm(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 }).catch(() => undefined);
   }
 }

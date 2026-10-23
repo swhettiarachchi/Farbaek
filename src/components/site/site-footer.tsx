@@ -33,7 +33,7 @@ export function SiteFooter() {
         </address>
         <nav aria-label="Footer" className="md:justify-self-end">
           <ul className="grid grid-cols-2 gap-x-10 gap-y-3 text-sm">
-            {[...NAV_LINKS, { href: "/verify", label: "Verify evidence" }, { href: "/sign-in", label: "Sign in" }].map((link) => (
+            {[...NAV_LINKS, { href: "/verify", label: "Verify evidence" }, { href: "/security", label: "Security tests" }, { href: "/sign-in", label: "Sign in" }].map((link) => (
               <li key={link.href}>
                 <Link href={link.href} className="text-ink-2 hover:text-ink">
                   {link.label}

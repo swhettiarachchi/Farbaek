@@ -1,0 +1,100 @@
+{
+  "ranAt": "2026-10-23T09:18:44.524Z",
+  "commit": "a404ff623598",
+  "node": "v24.13.1",
+  "suiteSha256": "8e3e35eaac7529e6936f0e88ba4dac87a84c18be97ee577580ecb9d7e4ccb92d",
+  "scenarios": {
+    "SE-001": {
+      "status": "passed",
+      "tests": 1
+    },
+    "SE-002": {
+      "status": "passed",
+      "tests": 1
+    },
+    "SE-003": {
+      "status": "passed",
+      "tests": 1
+    },
+    "SE-004": {
+      "status": "passed",
+      "tests": 2
+    },
+    "SE-005": {
+      "status": "passed",
+      "tests": 2
+    },
+    "SE-006": {
+      "status": "passed",
+      "tests": 3
+    },
+    "SE-007": {
+      "status": "passed",
+      "tests": 2
+    },
+    "SE-008": {
+      "status": "passed",
+      "tests": 2
+    },
+    "SE-009": {
+      "status": "passed",
+      "tests": 2
+    },
+    "SE-010": {
+      "status": "passed",
+      "tests": 1
+    },
+    "SE-011": {
+      "status": "passed",
+      "tests": 1
+    },
+    "SE-012": {
+      "status": "passed",
+      "tests": 2
+    },
+    "SE-013": {
+      "status": "passed",
+      "tests": 1
+    },
+    "SE-014": {
+      "status": "passed",
+      "tests": 2
+    },
+    "SE-015": {
+      "status": "passed",
+      "tests": 1
+    },
+    "SE-016": {
+      "status": "passed",
+      "tests": 1
+    },
+    "SE-017": {
+      "status": "passed",
+      "tests": 2
+    },
+    "SE-018": {
+      "status": "passed",
+      "tests": 1
+    },
+    "SE-019": {
+      "status": "passed",
+      "tests": 2
+    },
+    "SE-020": {
+      "status": "passed",
+      "tests": 1
+    },
+    "SE-021": {
+      "status": "passed",
+      "tests": 1
+    },
+    "SE-022": {
+      "status": "passed",
+      "tests": 1
+    },
+    "SE-023": {
+      "status": "passed",
+      "tests": 2
+    }
+  }
+}
