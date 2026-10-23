@@ -5,7 +5,9 @@ import { notFound } from "next/navigation";
 import { CancelTaskControl } from "@/components/app/forms";
 import { ApproveBuild } from "@/components/build/approve-build";
 import { FARBAEK_SKILLS, suggestSkills } from "@/content/skills";
+import { splitByPins } from "@/core/agent/skill-pins";
 import { isProjectSkillPath } from "@/core/agent/skills";
+import { pinMap } from "@/server/workspace/skill-pins";
 import { ClearKeptPrompt } from "@/components/build/prompt-composer";
 import { buttonClasses } from "@/components/ui/button";
 import { contractHash } from "@/core/realityloop/contract";
@@ -61,13 +63,17 @@ export default async function PlanCardPage({ params }: Params) {
   const found = await ctx.reader.getTask(ctx.current.id, taskId);
   if (!found) notFound();
   const { task } = found;
-  const [contract, project, files] = await Promise.all([
+  const [contract, project, files, pins] = await Promise.all([
     ctx.reader.getContract(ctx.current.id, task.id),
     ctx.reader.getProject(ctx.current.id, task.projectId),
     ctx.reader.listFiles(ctx.current.id, task.projectId).catch(() => []),
+    ctx.reader.listSkillPins(ctx.current.id, task.projectId).catch(() => []),
   ]);
-  // Skills (ADR 0030): the ones that fit this plan start chosen; the project's own always apply.
-  const projectSkillNames = files.filter((f) => isProjectSkillPath(f.path)).map((f) => f.path.split("/")[2]!);
+  // Skills (ADR 0030): the ones that fit this plan start chosen; the project's own apply in their approved version (ADR 0043).
+  const { use: pinnedFiles, held } = splitByPins(files, pinMap(pins));
+  const skillName = (path: string) => path.split("/")[2]!;
+  const projectSkillNames = pinnedFiles.filter((f) => isProjectSkillPath(f.path)).map((f) => skillName(f.path));
+  const heldSkillNames = held.map((h) => skillName(h.path));
 
   const canBuild = ctx.role !== null && CONTRIBUTOR_ROLES.includes(ctx.role);
   const ai = resolveAiProvider();
@@ -201,6 +207,8 @@ export default async function PlanCardPage({ params }: Params) {
                   skills={FARBAEK_SKILLS.map((s) => ({ id: s.id, label: s.label, description: s.description }))}
                   suggested={suggested}
                   projectSkills={projectSkillNames}
+                  heldSkills={heldSkillNames}
+                  skillsHref={`/app/projects/${task.projectId}#skills`}
                 />
                 <CancelTaskControl taskId={task.id} version={task.version} disabledReason={!ctx.writes.enabled ? ctx.writes.reason : canBuild ? null : "Your role can view this plan but not cancel it."} />
               </div>

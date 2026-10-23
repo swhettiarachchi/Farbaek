@@ -27,6 +27,7 @@ import type { CommandRunner } from "@/agent-runtime/runners";
 import { AgentWorkspace, materialize } from "@/agent-runtime/workspace";
 import { CLOUD_RUN_MAX_MINUTES, RUN_HEARTBEAT_MS, boundEvent, type CloudRunMode, type RunEventPayload } from "@/core/agent/cloud-run";
 import type { Effort } from "@/core/agent/routing";
+import { heldSkillsNote, splitByPins, type SkillPin } from "@/core/agent/skill-pins";
 import { projectSkills, type Skill } from "@/core/agent/skills";
 import { getBuiltInSkill } from "@/content/skills";
 import type { IntentContract } from "@/core/realityloop/contract";
@@ -52,6 +53,8 @@ export interface ExecutorDeps {
   sandbox(input: { runId: string; taskTitle: string; projectId: string; taskId: string; paths: string[]; pending(): Promise<{ path: string; content: string }[]>; onCommand(info: { command: string; exitCode: number | null; output: string }): void }): Promise<{ runner: CommandRunner; sessionId: string; stop(): Promise<void> } | { error: string } | null>;
   /** Whether a verified sandbox is connected, decided before the run starts. */
   sandboxAvailable(): boolean;
+  /** The approved version of each of the project's own skills, by path (ADR 0043). */
+  skillPins(orgId: string, projectId: string): Promise<Map<string, SkillPin>>;
   /** Overrides the model, for tests. */
   makeModel?(input: { taskId: string; effort: Effort; step: (r: ModelStepRequest, signal?: AbortSignal) => Promise<ModelStepReply> }): ToolModel;
   workRoot?: string;
@@ -262,7 +265,11 @@ async function execute(
     );
     event({ kind: "note", text: `Copied ${files.length - skipped.length} files into the run's working folder.` });
     // The skills chosen for this build, then the project's own (.farbaek/skills or .claude/skills), said out loud.
-    const skills = [...r.skills, ...projectSkills(files.flatMap((f) => (contents.has(f.path) ? [{ path: f.path, content: contents.get(f.path)! }] : [])))];
+    // A project skill applies only in the version a person approved; new or changed ones wait (ADR 0043).
+    const { use: pinned, held } = splitByPins(files, await deps.skillPins(person.orgId, r.task.projectId));
+    const skills = [...r.skills, ...projectSkills(pinned.flatMap((f) => (contents.has(f.path) ? [{ path: f.path, content: contents.get(f.path)! }] : [])))];
+    const heldNote = heldSkillsNote(held);
+    if (heldNote) event({ kind: "note", text: heldNote });
     if (skills.length) event({ kind: "note", text: `Building to the Farbaek Studio standard, with these skills: ${skills.map((s) => (s.source === "project" ? `${s.name} (this project's)` : "label" in s ? String(s.label) : s.name)).join(", ")}.` });
 
     let commands: CommandRunner | null = null;

@@ -15,6 +15,7 @@ import type { InvitationDeps } from "./invitations";
 import { createSupabaseReader } from "./supabase-reader";
 import { ProposalRowSchema, proposalFromRow } from "./types";
 import type { ProjectAdminDeps, RpcResult, WriteDeps } from "./use-cases";
+import type { SkillPinDeps } from "./skill-pins";
 
 /**
  * WriteDeps backed by Supabase. Reads use the signed-in user's client (Row
@@ -24,7 +25,7 @@ export function createSupabaseWriteDeps(
   user: SupabaseClient,
   admin: SupabaseClient,
   userId: string,
-): WriteDeps & AiUsageDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps & AgentAdminDeps {
+): WriteDeps & AiUsageDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps & AgentAdminDeps & SkillPinDeps {
   const reader = createSupabaseReader(user);
   async function rpc<T>(fn: string, args: Record<string, unknown>, schema: z.ZodType<T>): Promise<RpcResult<T>> {
     const { data, error } = await admin.rpc(fn, args);
@@ -161,6 +162,15 @@ export function createSupabaseWriteDeps(
         { p_project: i.projectId, p_actor: i.actor, p_path: i.path, p_expected_revision: i.expectedRevision },
         z.null().or(z.literal("")).transform(() => null),
       ),
+
+    pinSkill: (i) =>
+      rpc(
+        "app_pin_skill",
+        { p_project: i.projectId, p_actor: i.actor, p_path: i.path, p_revision: i.revision, p_sha256: i.sha256 },
+        z.null().or(z.literal("")).transform(() => null),
+      ),
+
+    unpinSkill: (i) => rpc("app_unpin_skill", { p_project: i.projectId, p_actor: i.actor, p_path: i.path }, z.null().or(z.literal("")).transform(() => null)),
 
     async approvedContract(orgId, taskId) {
       const { data, error } = await user

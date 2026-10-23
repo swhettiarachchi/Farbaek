@@ -7,6 +7,7 @@ import { PromptComposer } from "@/components/build/prompt-composer";
 import { StaticPreview } from "@/components/preview/static-preview";
 import { PublishPanel } from "@/components/publish/publish-panel";
 import { ProjectSkills, type ProjectSkillView } from "@/components/skills/project-skills";
+import { skillPinStatus } from "@/core/agent/skill-pins";
 import { isProjectSkillPath, parseSkill } from "@/core/agent/skills";
 import { loadPublishPanel } from "@/server/publish/panel";
 import { createSupabaseServerClient } from "@/server/supabase/server";
@@ -43,12 +44,32 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
   const canChange = ctx.mode === "live" && ctx.writes.enabled && !project.archivedAt;
   const user = ctx.mode === "live" ? await createSupabaseServerClient() : null;
   const publish = user ? await loadPublishPanel(ctx, user, project).catch(() => null) : null;
-  // The project's own skills (ADR 0030), read from their SKILL.md files.
-  const skillFiles = await Promise.all(files.filter((f) => isProjectSkillPath(f.path)).slice(0, 10).map((f) => ctx.reader.getFile(ctx.current!.id, project.id, f.path).catch(() => null)));
-  const skills: ProjectSkillView[] = skillFiles.flatMap((f) => {
-    const parsed = f ? parseSkill(f.content, f.path.split("/")[2] ?? "skill", "project") : null;
-    return parsed && f ? [{ ...parsed, path: f.path, revision: f.revision }] : [];
-  });
+  // The project's own skills (ADR 0030), read from their SKILL.md files, each with its approval (ADR 0043).
+  const [skillFiles, skillPins] = await Promise.all([
+    Promise.all(files.filter((f) => isProjectSkillPath(f.path)).slice(0, 10).map((f) => ctx.reader.getFile(ctx.current!.id, project.id, f.path).catch(() => null))),
+    ctx.reader.listSkillPins(ctx.current.id, project.id).catch(() => []),
+  ]);
+  const skills: ProjectSkillView[] = (
+    await Promise.all(
+      skillFiles.map(async (f): Promise<ProjectSkillView | null> => {
+        const parsed = f ? parseSkill(f.content, f.path.split("/")[2] ?? "skill", "project") : null;
+        if (!parsed || !f) return null;
+        const pin = skillPins.find((p) => p.path === f.path);
+        const sha256 = files.find((x) => x.path === f.path)?.sha256 ?? "";
+        const status = skillPinStatus({ sha256 }, pin);
+        return {
+          ...parsed,
+          path: f.path,
+          revision: f.revision,
+          sha256,
+          content: f.content,
+          status,
+          pin: pin ? { revision: pin.revision, sha256: pin.sha256, pinnedAt: pin.pinnedAt, by: pin.pinnedBy === null ? "before" : pin.pinnedBy === ctx.user.id ? "you" : "teammate" } : null,
+          approvedContent: pin && status === "changed" ? await ctx.reader.getFileRevision(ctx.current!.id, project.id, f.path, pin.revision) : null,
+        };
+      }),
+    )
+  ).filter((s): s is ProjectSkillView => s !== null);
   const publishReason = !canChange ? (project.archivedAt ? "This project is archived." : ctx.writes.enabled ? null : ctx.writes.reason) : ctx.role && CONTRIBUTOR_ROLES.includes(ctx.role) ? null : "Your role can view this project but not publish it.";
 
   return (
@@ -102,7 +123,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
 
       {publish ? <PublishPanel projectId={project.id} data={publish} disabledReason={publishReason} /> : null}
 
-      {ctx.mode === "live" ? <ProjectSkills projectId={project.id} skills={skills} disabledReason={publishReason} /> : null}
+      <ProjectSkills projectId={project.id} skills={skills} disabledReason={publishReason} />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">
         <section aria-labelledby="tasks-heading" className="grid gap-4">

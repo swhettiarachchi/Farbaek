@@ -6,6 +6,7 @@ import type { AppliedFile, CurrentFile } from "@/core/realityloop/recovery";
 import type { FileChangeEvent } from "@/core/realityloop/scope-drift";
 import { TASK_STATES } from "@/core/realityloop/task-machine";
 import type { WorkspaceSummary } from "./organizations";
+import type { SkillPinRecord } from "./skill-pins";
 
 export const ORG_ROLES = ["owner", "admin", "member", "viewer"] as const;
 export type OrgRole = (typeof ORG_ROLES)[number];
@@ -254,6 +255,8 @@ export interface WorkspaceReader {
   getProjectContents(orgId: string, projectId: string): Promise<{ path: string; content: string }[]>;
   /** One revision's content, or null when it doesn't exist or is a deletion. */
   getFileRevision(orgId: string, projectId: string, path: string, revision: number): Promise<string | null>;
+  /** The approved version of each of the project's own skills (ADR 0043). */
+  listSkillPins(orgId: string, projectId: string): Promise<SkillPinRecord[]>;
   /** Case-insensitive plain-text search; at most 200 matching lines. */
   searchFiles(orgId: string, projectId: string, query: string): Promise<SearchHit[]>;
   /** ProofPacks recorded for a task, newest first. */
