@@ -89,6 +89,8 @@ export default async function PlanCardPage({ params }: Params) {
           : null;
 
   const c = contract?.body;
+  // What the plan keeps as it is: forbidden operations, protected fields and invariants.
+  const kept = c ? [...c.forbiddenOperations.map(say), ...c.protectedFields, ...c.protectedInvariants.map((i) => i.statement)] : [];
   const suggested = suggestSkills(`${task.title} ${c?.outcome ?? ""} ${project?.description ?? ""}`).map((s) => s.id);
   return (
     <div className="mx-auto grid w-full max-w-4xl gap-6">
@@ -99,7 +101,7 @@ export default async function PlanCardPage({ params }: Params) {
 
       {!contract || !c ? (
         <section className="grid gap-4 rounded-lg border border-line bg-surface p-6 shadow-e2 sm:p-8">
-          <p className="font-mono text-xs text-ink-3">{"// your plan"}</p>
+          <p className="text-[13px] font-medium text-ink-3">Your plan</p>
           <h1 className="text-2xl font-medium tracking-[-0.02em]">{task.title}</h1>
           <p className="text-[15px] leading-relaxed text-ink-2">
             Your project <span className="font-medium text-ink">{project?.name ?? ""}</span> is ready, but there&apos;s no plan yet. The AI couldn&apos;t draft one this time.
@@ -112,9 +114,11 @@ export default async function PlanCardPage({ params }: Params) {
       ) : (
         <section aria-labelledby="plan-title" className="grid gap-6 rounded-lg border border-line bg-surface p-6 shadow-e2 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="font-mono text-xs text-ink-3">
-              {"// your plan · v"}
-              {contract.version} · {shortHash(contract.sha256)}
+            <p className="flex flex-wrap items-baseline gap-x-2 text-[13px] text-ink-3">
+              <span className="font-medium">Your plan, version {contract.version}</span>
+              <span className="font-mono text-xs" title={`sha256:${contract.sha256}`}>
+                {shortHash(contract.sha256)}
+              </span>
             </p>
             {task.state === "CANCELLED" ? (
               <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line-strong px-3 text-xs font-medium text-ink-2">
@@ -156,13 +160,19 @@ export default async function PlanCardPage({ params }: Params) {
               {c.requiredChecks.length ? <Chips items={c.requiredChecks} empty="" /> : null}
             </Section>
             <Section title="What stays untouched" icon={<LockSimpleIcon size={16} weight="bold" className="text-ink-2" aria-hidden />} delay={240}>
-              <p className="text-sm text-ink-2">
-                {[...c.forbiddenOperations.map(say), ...c.protectedFields, ...c.protectedInvariants.map((i) => i.statement)].join(" · ") || "Nothing is marked as protected."}
-              </p>
+              {kept.length ? (
+                <ul className="grid gap-1 text-sm text-ink-2">
+                  {kept.map((k) => (
+                    <li key={k}>{k}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-ink-2">Nothing is marked as protected.</p>
+              )}
             </Section>
             <Section title="If something goes wrong" icon={<ShieldCheckIcon size={16} weight="bold" className="text-ink-2" aria-hidden />} delay={320}>
               <p className="text-sm text-ink-2">{c.recovery}</p>
-              {c.assumptions.length ? <p className="text-xs text-ink-3">Assumes: {c.assumptions.join(" · ")}</p> : null}
+              {c.assumptions.length ? <p className="text-[13px] text-ink-3">Assumes: {c.assumptions.join("; ")}</p> : null}
             </Section>
           </div>
 

@@ -23,9 +23,8 @@ export default function NotFound() {
       <main id="main" className="overflow-x-clip">
         <Container className="grid min-h-[calc(100dvh-4rem)] items-center gap-12 py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
           <div>
-            <p className="font-mono text-[13px] text-ink-3">{"// 404"}</p>
-            <h1 className="mt-4 max-w-[14ch] text-[2.6rem] font-medium leading-[1.02] tracking-[-0.04em] sm:text-[3.6rem]">This page drifted out of orbit.</h1>
-            <p className="mt-4 max-w-[46ch] text-lg leading-relaxed text-ink-2">The link may be old, or the page may not have been built yet. Here are three ways back in.</p>
+            <h1 className="max-w-[14ch] text-[2.6rem] font-medium leading-[1.02] tracking-[-0.04em] sm:text-[3.6rem]">We can&apos;t find that page.</h1>
+            <p className="mt-4 max-w-[46ch] text-lg leading-relaxed text-ink-2">The link may be old, or the page may not exist yet. Here are three ways back in.</p>
             <ul className="mt-8 grid max-w-[30rem] gap-2">
               {WAYS_IN.map((w) => (
                 <li key={w.href}>
@@ -59,7 +58,7 @@ export default function NotFound() {
                 <ellipse cx="200" cy="200" rx="170" ry="58" fill="none" stroke="var(--color-accent-2)" strokeOpacity="0.55" strokeDasharray="5 9" transform="rotate(-18 200 200)" />
               </g>
               <circle cx="352" cy="96" r="9" fill="var(--color-accent-2)" className="motion-safe:animate-[notfound-drift_6s_ease-in-out_infinite]" />
-              <text x="200" y="320" textAnchor="middle" fill="var(--color-ink-3)" fontFamily="var(--font-geist-mono), monospace" fontSize="14">
+              <text x="200" y="320" textAnchor="middle" fill="var(--color-ink-3)" fontFamily="var(--font-geist), sans-serif" fontSize="15" fontWeight="500">
                 404
               </text>
             </svg>

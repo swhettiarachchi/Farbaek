@@ -5,7 +5,4 @@
  * connected), Agent (the paired desktop app, with Mesh nearby transfer), the
  * Launch Planner and Mesh Capsules exist; what's listed here is still missing.
  */
-export const ROADMAP = [
-  { label: "LaunchOS: your own hosting", stage: 6 },
-  { label: "Mobile apps", stage: 7 },
-] as const;
+export const ROADMAP = [{ label: "LaunchOS: your own hosting" }, { label: "Mobile apps" }] as const;

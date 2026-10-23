@@ -23,7 +23,7 @@ export default async function AdminOverview() {
       <section aria-label="This month's AI cost" className="grid gap-5 rounded-lg border border-line bg-surface p-6 shadow-e2 sm:p-8 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
         <div>
           <p className="text-sm text-ink-2">AI list cost since {monthName(o.aiCost.since)} (UTC)</p>
-          <p className="mt-2 font-mono text-[clamp(2.5rem,6vw,4rem)] font-medium leading-none tracking-[-0.04em] tabular">{usd(o.aiCost.usd)}</p>
+          <p className="mt-2 text-[clamp(2.5rem,6vw,4rem)] font-medium leading-none tracking-[-0.04em] tabular">{usd(o.aiCost.usd)}</p>
           <p className="mt-3 max-w-[60ch] text-sm leading-relaxed text-ink-2">
             From {number.format(o.aiCost.settledCalls)} settled AI calls at the providers&apos; list prices, before any discounts. Refunded calls aren&apos;t counted. Payments
             aren&apos;t connected yet, so there&apos;s no revenue to set against it.
@@ -32,11 +32,11 @@ export default async function AdminOverview() {
         <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm md:text-right">
           <div>
             <dt className="text-ink-3">Paid workspaces</dt>
-            <dd className="font-mono text-lg tabular">{number.format(o.workspaces.paid)}</dd>
+            <dd className="text-lg tabular">{number.format(o.workspaces.paid)}</dd>
           </div>
           <div>
             <dt className="text-ink-3">On a trial</dt>
-            <dd className="font-mono text-lg tabular">{number.format(o.workspaces.onTrial)}</dd>
+            <dd className="text-lg tabular">{number.format(o.workspaces.onTrial)}</dd>
           </div>
         </dl>
       </section>
@@ -75,11 +75,11 @@ export default async function AdminOverview() {
           <dl className="mt-4 grid gap-3 text-sm">
             <div className="flex items-baseline justify-between gap-3">
               <dt className="text-ink-2">Active projects</dt>
-              <dd className="font-mono tabular">{number.format(o.projects)}</dd>
+              <dd className="tabular">{number.format(o.projects)}</dd>
             </div>
             <div className="flex items-baseline justify-between gap-3">
               <dt className="text-ink-2">Tasks</dt>
-              <dd className="font-mono tabular">{number.format(o.tasks)}</dd>
+              <dd className="tabular">{number.format(o.tasks)}</dd>
             </div>
           </dl>
         </Card>

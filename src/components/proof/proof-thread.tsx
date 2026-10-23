@@ -14,11 +14,14 @@ export interface ThreadStage {
   statusText?: string;
 }
 
+/** "in progress" becomes "In progress": status words read as sentences. */
+const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
 const STATUS_TEXT: Record<ThreadStatus, string> = {
-  verified: "verified",
-  approval: "awaiting approval",
-  unverified: "not verified yet",
-  failed: "failed",
+  verified: "Verified",
+  approval: "Awaiting approval",
+  unverified: "Not verified yet",
+  failed: "Failed",
 };
 
 const SEGMENT: Record<ThreadStatus, string> = {
@@ -102,7 +105,7 @@ export function ProofThread({ stages, label }: { stages: ThreadStage[]; label: s
               {/* Side by side when stacked; label over status in the six-column row, so narrow columns never overlap. */}
               <p className="flex flex-wrap items-baseline gap-x-2 lg:flex-col lg:items-start lg:gap-0.5">
                 <span className="text-[17px] font-medium">{stage.label}</span>
-                <span className="font-mono text-xs text-ink-3">{stage.statusText ?? STATUS_TEXT[stage.status]}</span>
+                <span className="text-[13px] text-ink-3">{sentence(stage.statusText ?? STATUS_TEXT[stage.status])}</span>
               </p>
               <p className="mt-1.5 text-[15px] leading-relaxed text-ink-2">{stage.body}</p>
             </div>

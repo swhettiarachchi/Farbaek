@@ -66,6 +66,27 @@ const PANE_ENTER = {
 
 const str = (v: unknown) => (typeof v === "string" ? v : "");
 
+/** What each tool did, as a person would say it. The tool's own name stays in the tooltip. */
+const TOOL_VERB: Record<string, string> = {
+  list_files: "Looked in",
+  search_files: "Searched for",
+  read_file: "Read",
+  write_file: "Wrote",
+  edit_file: "Edited",
+  run_command: "Ran",
+  review_site: "Reviewed the site",
+  finish: "Finished",
+};
+
+/** A tool's target: paths and commands stay mono; a search, a summary or the project's top folder are words. */
+function toolTarget(tool: string, target: string): { text: string; mono: boolean } | null {
+  if (!target || tool === "review_site") return null;
+  if (tool === "search_files") return { text: `“${target}”`, mono: false };
+  if (tool === "finish") return { text: target, mono: false };
+  if (target === "(top)") return { text: "the project", mono: false };
+  return { text: target, mono: true };
+}
+
 /** One step of a run, as the run workspace shows it. Also used by the product films (ADR 0034). */
 export function EventRow({ e, latest }: { e: RunEventView; latest: boolean }) {
   const p = e.payload;
@@ -76,14 +97,19 @@ export function EventRow({ e, latest }: { e: RunEventView; latest: boolean }) {
     icon = ChatTextIcon;
     body = <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-ink">{str(p.text)}</p>;
   } else if (e.kind === "tool") {
-    icon = TOOL_ICON[str(p.tool)] ?? InfoIcon;
+    const tool = str(p.tool);
+    icon = TOOL_ICON[tool] ?? InfoIcon;
     const status = str(p.status);
     tone = status === "done" ? "text-ink-2" : status === "failed" ? "text-failed" : "text-approval";
+    const target = toolTarget(tool, str(p.target));
     body = (
       <div className="min-w-0">
-        <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
-          <span className="font-mono text-xs text-ink-3">{str(p.tool)}</span>
-          <span className="break-all font-mono text-[13px] text-ink">{str(p.target)}</span>
+        <p className="flex flex-wrap items-baseline gap-x-1.5 text-sm">
+          <span className="text-ink-3" title={tool}>
+            {TOOL_VERB[tool] ?? tool}
+            {tool === "finish" && target ? ":" : ""}
+          </span>
+          {target ? <span className={`break-all text-ink ${target.mono ? "font-mono text-[13px]" : ""}`}>{target.text}</span> : null}
           {status !== "done" ? <span className={`text-xs font-medium ${tone}`}>{status === "failed" ? "Failed" : status === "denied" ? "Not allowed" : "Declined"}</span> : null}
         </p>
         {status !== "done" && str(p.detail) ? <p className="mt-1 text-xs text-ink-3">{str(p.detail)}</p> : null}
@@ -116,7 +142,7 @@ export function EventRow({ e, latest }: { e: RunEventView; latest: boolean }) {
     tone = "text-accent";
     body = (
       <p className="w-fit max-w-full rounded-md rounded-tl-xs bg-accent/[0.07] px-3.5 py-2 text-[15px] leading-relaxed text-ink">
-        <span className="mr-2 font-mono text-xs text-accent">you</span>
+        <span className="mr-2 text-[13px] font-medium text-accent">You</span>
         {str(p.text)}
       </p>
     );
@@ -531,7 +557,7 @@ export function RunLive({
         <div id="pane-files" className={`${panes.paneClass("files")} lg:col-start-1 lg:row-start-3`}>
           <section aria-labelledby="files-heading" className="rounded-md border border-line bg-surface p-5 shadow-e1">
             <h2 id="files-heading" className="flex items-baseline justify-between gap-3 text-base font-medium">
-              Files <span className="font-mono text-xs font-normal text-ink-3">{`// ${files.read} read`}</span>
+              Files <span className="text-[13px] font-normal text-ink-3">{files.read} read</span>
             </h2>
             {files.changed.length === 0 ? (
               <p className="mt-3 text-sm text-ink-3">{live ? "No files changed yet." : "This run changed no files."}</p>

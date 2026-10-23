@@ -141,9 +141,12 @@ export function ProposalReview({
             <DesktopIcon size={16} aria-hidden /> Proposed by Farbaek Agent{agentName ? ` (${agentName})` : ""}
           </span>
         ) : null}
-        <span className="font-mono text-xs text-ink-3">
-          {shortHash(proposal.sha256, 8, 6)} · contract v{proposal.contractVersion}
-          {proposal.model ? ` · ${proposal.model}` : ""}
+        <span className="flex flex-wrap gap-x-3 text-xs text-ink-3">
+          <span>Contract version {proposal.contractVersion}</span>
+          <span className="font-mono" title={`sha256:${proposal.sha256}`}>
+            {shortHash(proposal.sha256, 8, 6)}
+          </span>
+          {proposal.model ? <span className="font-mono">{proposal.model}</span> : null}
         </span>
       </div>
 
@@ -221,7 +224,9 @@ export function ProposalReview({
               {escalated ? <ShieldWarningIcon size={16} className="text-approval" aria-hidden /> : <ScalesIcon size={16} className="text-ink-3" aria-hidden />}
               Policy: {OUTCOME_LABELS[proposal.policy.outcome as PolicyOutcome] ?? proposal.policy.outcome}
             </p>
-            <span className="font-mono text-xs text-ink-3">rules {short(proposal.policy.version)}</span>
+            <span className="text-xs text-ink-3">
+              Rules <span className="font-mono">{short(proposal.policy.version)}</span>
+            </span>
           </div>
           {proposal.policy.findings.filter((f) => f.rule !== "contract").length ? (
             <ul className="grid gap-1 text-ink-2">
@@ -258,7 +263,7 @@ export function ProposalReview({
             {proposal.policy?.outcome === "ALLOW_WITHIN_LIMITS"
               ? "Applied on its own as new file revisions, within this workspace's autonomy limits (level 2)"
               : "Applied as new file revisions after your approval"}
-            {proposal.appliedSha256 ? <span className="font-mono text-xs text-ink-3"> · approved content {short(proposal.appliedSha256)}</span> : null}.
+            . {proposal.appliedSha256 ? <span className="text-xs text-ink-3">Approved content <span className="font-mono">{short(proposal.appliedSha256)}</span></span> : null}
           </p>
           <ul className="grid gap-1">
             {proposal.changes.map((c) => (

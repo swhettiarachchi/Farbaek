@@ -5,16 +5,23 @@ import { FILMS, type FilmId } from "@/content/films";
 import { FeatureFilms, type Feature } from "./feature-films";
 import { FilmPoster } from "./film-poster";
 import { FilmTheater } from "./film-theater";
-import { clock } from "./timeline";
 
 // The primary films sit in the container's main column: about 880px wide on desktop.
 const THEATER_SIZES = { sizes: "calc(100vw - 2rem)", wideSizes: "(min-width: 1280px) 880px, (min-width: 1024px) 72vw, 100vw" };
 
+/** "44 seconds", "1 min 12 s". */
+function lengthWords(ms: number): string {
+  const total = Math.round(ms / 1000);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return m === 0 ? `${s} seconds` : s === 0 ? `${m} min` : `${m} min ${s} s`;
+}
+
 function FilmMeta({ id }: { id: FilmId }) {
   const film = FILMS[id];
   return (
-    <p className="font-mono text-xs text-ink-3">
-      {`// ${clock(film.durationMs)} · ${film.chapters.length} chapters · silent, with captions`}
+    <p className="shrink-0 text-sm text-ink-3">
+      {lengthWords(film.durationMs)}, {film.chapters.length} chapters. Silent, with captions.
     </p>
   );
 }
@@ -39,7 +46,7 @@ export function ProductFilmSection() {
 const FEATURES: Omit<Feature, "poster">[] = [
   {
     id: "clip-plan",
-    label: "plan",
+    label: "Plan",
     title: "A plan you approve before any code.",
     points: [
       "The goal, what must not change and the design, in plain words.",
@@ -50,7 +57,7 @@ const FEATURES: Omit<Feature, "poster">[] = [
   },
   {
     id: "clip-agent",
-    label: "build",
+    label: "Build",
     title: "An agent that works in the open.",
     points: [
       "Every step shows as it happens: reading, writing and checking.",
@@ -61,7 +68,7 @@ const FEATURES: Omit<Feature, "poster">[] = [
   },
   {
     id: "clip-check",
-    label: "check",
+    label: "Check",
     title: "Checked before it can go live.",
     points: [
       "Farbaek's security rules read every file.",
@@ -72,7 +79,7 @@ const FEATURES: Omit<Feature, "poster">[] = [
   },
   {
     id: "clip-live",
-    label: "publish",
+    label: "Publish",
     title: "Published, then confirmed live.",
     points: [
       "Publish puts this exact version at its own address.",

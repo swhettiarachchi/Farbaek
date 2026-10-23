@@ -12,7 +12,7 @@ export function SignInSteps({ current }: { current: 0 | 1 | 2 }) {
         return (
           <li key={step} className="flex items-center gap-2" aria-current={here ? "step" : undefined}>
             <span
-              className={`flex size-6 items-center justify-center rounded-full font-mono text-[11px] ${
+              className={`flex size-6 items-center justify-center rounded-full text-xs font-semibold tabular ${
                 done ? "bg-verified text-on-accent" : here ? "bg-primary text-on-primary" : "border border-line text-ink-3"
               }`}
             >

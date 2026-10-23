@@ -107,14 +107,14 @@ export default async function MorePage() {
 
       <section aria-labelledby="later-heading">
         <h2 id="later-heading" className="px-1 text-sm font-medium text-ink-3">
-          Coming in later stages
+          Coming later
         </h2>
         <ul className="mt-2 divide-y divide-line overflow-hidden rounded-md border border-line bg-surface">
           {ROADMAP.map((r) => (
             <li key={r.label} className={`${row} text-ink-3`}>
               <LockSimpleIcon size={18} aria-hidden /> {r.label}
               <span className="sr-only">, not available yet</span>
-              <span className="ml-auto text-xs tabular">Stage {r.stage}</span>
+              <span className="ml-auto rounded-full border border-dashed border-line-strong/50 px-2 text-xs">Planned</span>
             </li>
           ))}
         </ul>

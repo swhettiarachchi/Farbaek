@@ -40,7 +40,7 @@ function tileState(c: RiskCoverage) {
   const failing = c.scenarios.filter((s) => s.result?.status === "failed").length;
   if (failing > 0) return { label: `${failing} failing`, Icon: XCircleIcon, tone: "text-failed", frame: "border border-failed/40 bg-surface shadow-e1" };
   const n = c.scenarios.length;
-  return { label: `Tested · ${n} ${n === 1 ? "scenario" : "scenarios"}`, Icon: CheckCircleIcon, tone: "text-verified", frame: "border border-line bg-surface shadow-e1" };
+  return { label: `Tested in ${n} ${n === 1 ? "scenario" : "scenarios"}`, Icon: CheckCircleIcon, tone: "text-verified", frame: "border border-line bg-surface shadow-e1" };
 }
 
 function RiskTile({ risk }: { risk: OwaspRisk }) {
@@ -51,7 +51,7 @@ function RiskTile({ risk }: { risk: OwaspRisk }) {
         href={`#${risk.id}`}
         className={`grid h-full min-h-[118px] content-between gap-3 rounded-md p-4 transition-colors duration-150 hover:border-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${s.frame}`}
       >
-        <span className="font-mono text-xs text-ink-3">{risk.id}</span>
+        <span className="text-[13px] font-medium text-ink-3 tabular">{risk.id}</span>
         <span className="text-[15px] font-medium leading-snug tracking-[-0.01em] text-ink">{risk.title}</span>
         <span className={`flex items-center gap-1.5 text-xs font-medium ${s.tone}`}>
           <s.Icon size={15} weight="bold" aria-hidden /> {s.label}
@@ -68,7 +68,7 @@ function RiskDetail({ risk }: { risk: OwaspRisk }) {
     <article id={risk.id} className="scroll-mt-24 rounded-md border border-line bg-surface p-5 sm:p-6">
       <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
         <h3 className="text-[17px] font-medium tracking-[-0.01em]">
-          <span className="mr-2 font-mono text-sm text-ink-3">{risk.id}</span>
+          <span className="mr-2 text-ink-3 tabular">{risk.id}</span>
           {risk.title}
         </h3>
         <span className={`flex items-center gap-1.5 text-xs font-medium ${s.tone}`}>
@@ -80,14 +80,14 @@ function RiskDetail({ risk }: { risk: OwaspRisk }) {
           {c.scenarios.map(({ scenario, result }) => (
             <li key={scenario.id} className="grid gap-1 border-l-2 border-line pl-3">
               <p className="flex flex-wrap items-center gap-x-2 text-sm font-medium">
-                <span className="font-mono text-xs text-ink-3">{scenario.id}</span> {scenario.title}
+                <span className="text-ink-3 tabular">{scenario.id}</span> {scenario.title}
                 {result ? (
                   <span className={`inline-flex items-center gap-1 text-xs ${result.status === "passed" ? "text-verified" : "text-failed"}`}>
                     {result.status === "passed" ? <CheckCircleIcon size={13} weight="bold" aria-hidden /> : <XCircleIcon size={13} weight="bold" aria-hidden />}
-                    {result.status === "passed" ? "passed" : "failed"}
+                    {result.status === "passed" ? "Passed" : "Failed"}
                   </span>
                 ) : (
-                  <span className="text-xs text-ink-3">not in the last run</span>
+                  <span className="text-xs text-ink-3">Not in the last run</span>
                 )}
               </p>
               <p className="text-sm leading-relaxed text-ink-2">{scenario.asserts}</p>
@@ -109,31 +109,30 @@ export default function SecurityTestsPage() {
     <>
       <section className="pt-14 pb-12 sm:pt-20 lg:pt-24">
         <Container>
-          <p className="font-mono text-xs text-accent">{"// security tests"}</p>
-          <h1 className="mt-4 max-w-[18ch] text-balance text-[2.5rem] font-medium leading-[1.05] tracking-[-0.04em] sm:text-[3.5rem]">Tested against agent risks, in the open.</h1>
+          <h1 className="max-w-[18ch] text-balance text-[2.5rem] font-medium leading-[1.05] tracking-[-0.04em] sm:text-[3.5rem]">Tested against agent risks, in the open.</h1>
           <p className="mt-5 max-w-[60ch] text-[17px] leading-relaxed text-ink-2">
             Farbaek&apos;s agents read code they didn&apos;t write and run commands, so its boundaries are attacked on purpose: {totals.scenarios} scenarios, mapped to the OWASP
             risk lists for agentic and LLM applications. Each one assumes the model has already been fooled, and checks that the boundary holds anyway.
           </p>
-          <dl className="mt-8 flex flex-wrap gap-x-8 gap-y-3 font-mono text-xs text-ink-2">
+          <dl className="mt-8 flex flex-wrap gap-x-10 gap-y-4 text-[13px] text-ink-3">
             <div>
-              <dt className="text-ink-3">last run</dt>
-              <dd className="mt-1 text-sm text-ink">{dateLabel(run.ranAt)}</dd>
+              <dt>Last run</dt>
+              <dd className="mt-1 text-[15px] font-medium text-ink">{dateLabel(run.ranAt)}</dd>
             </div>
             <div>
-              <dt className="text-ink-3">result</dt>
-              <dd className={`mt-1 flex items-center gap-1.5 text-sm ${totals.failed ? "text-failed" : "text-verified"}`}>
-                {totals.failed ? <XCircleIcon size={15} weight="bold" aria-hidden /> : <CheckCircleIcon size={15} weight="bold" aria-hidden />}
+              <dt>Result</dt>
+              <dd className={`mt-1 flex items-center gap-1.5 text-[15px] font-medium ${totals.failed ? "text-failed" : "text-verified"}`}>
+                {totals.failed ? <XCircleIcon size={16} weight="bold" aria-hidden /> : <CheckCircleIcon size={16} weight="bold" aria-hidden />}
                 {totals.passed} of {totals.scenarios} scenarios passed
               </dd>
             </div>
             <div>
-              <dt className="text-ink-3">tests</dt>
-              <dd className="mt-1 text-sm text-ink">{totals.tests}</dd>
+              <dt>Tests</dt>
+              <dd className="mt-1 text-[15px] font-medium text-ink tabular">{totals.tests}</dd>
             </div>
             <div>
-              <dt className="text-ink-3">commit</dt>
-              <dd className="mt-1 text-sm text-ink">{run.commit.slice(0, 7)}</dd>
+              <dt>Commit</dt>
+              <dd className="mt-1 font-mono text-sm text-ink">{run.commit.slice(0, 7)}</dd>
             </div>
           </dl>
         </Container>
@@ -178,7 +177,7 @@ export default function SecurityTestsPage() {
           </h2>
           {LISTS.map((list) => (
             <div key={list} className="mt-10">
-              <h3 className="font-mono text-xs text-ink-3">{`// ${RISK_LISTS[list].short}`}</h3>
+              <h3 className="text-base font-medium text-ink-2">{RISK_LISTS[list].short}</h3>
               <div className="mt-4 grid gap-4 lg:grid-cols-2">
                 {OWASP_RISKS.filter((r) => r.list === list).map((r) => (
                   <RiskDetail key={r.id} risk={r} />

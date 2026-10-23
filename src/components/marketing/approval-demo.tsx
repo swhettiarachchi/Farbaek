@@ -142,7 +142,7 @@ export function ApprovalDemo() {
         </div>
 
         <div className="mt-6">
-          <p className="font-mono text-xs text-ink-3">{"// canonical payload (RFC 8785)"}</p>
+          <p className="text-[13px] font-medium text-ink-3">Canonical payload (RFC 8785)</p>
           <pre className="mt-2 max-h-40 overflow-auto rounded-sm bg-surface-raised px-3 py-2.5 font-mono text-[12px] leading-[1.6] text-ink-2 whitespace-pre-wrap break-all">
             <code>{canonical}</code>
           </pre>
@@ -152,16 +152,16 @@ export function ApprovalDemo() {
       {/* Approval */}
       <section aria-labelledby="demo-approval" className="flex flex-col rounded-md border border-line bg-surface p-5 shadow-e2 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="font-mono text-xs text-ink-3">
-            contract v{SAMPLE_VERSIONS.contractVersion} / policy v{SAMPLE_VERSIONS.policyVersion}
+          <p className="text-[13px] text-ink-3">
+            Contract version {SAMPLE_VERSIONS.contractVersion}, policy version {SAMPLE_VERSIONS.policyVersion}
           </p>
           {blocked ? (
             <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-failed/40 px-2 text-xs font-medium text-failed">
-              <ProhibitIcon size={14} weight="bold" aria-hidden /> BLOCK
+              <ProhibitIcon size={14} weight="bold" aria-hidden /> Blocked
             </span>
           ) : (
             <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-approval/40 px-2 text-xs font-medium text-approval">
-              <HourglassMediumIcon size={14} weight="bold" aria-hidden /> REQUIRE_APPROVAL
+              <HourglassMediumIcon size={14} weight="bold" aria-hidden /> Needs approval
             </span>
           )}
         </div>

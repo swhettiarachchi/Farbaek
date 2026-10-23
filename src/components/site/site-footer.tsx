@@ -17,7 +17,7 @@ export function SiteFooter() {
           </div>
         </div>
         <address className="grid gap-3 text-sm not-italic">
-          <p className="font-mono text-xs text-ink-3">{"// contact"}</p>
+          <p className="font-medium text-ink">Contact</p>
           <p>
             <span className="block text-ink-3">General</span>
             <a href={`mailto:${CONTACT.hello}`} className="text-ink-2 hover:text-ink">

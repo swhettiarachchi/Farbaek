@@ -25,7 +25,6 @@ export default async function NewBuildPage({ searchParams }: Props) {
   return (
     <div className="mx-auto grid w-full max-w-3xl gap-10 pt-2 sm:pt-8">
       <div className="grid gap-3">
-        <p className="font-mono text-xs text-ink-3">{"// new build"}</p>
         <h1 className="text-balance text-[2.2rem] font-medium leading-[1.05] tracking-[-0.035em] sm:text-5xl">What do you want to build?</h1>
         <p className="max-w-[56ch] text-[15px] leading-relaxed text-ink-2">
           Describe it in your own words. Farbaek sets up the project, drafts a plan you can read in a minute, and starts the agent once you approve it.
@@ -35,7 +34,7 @@ export default async function NewBuildPage({ searchParams }: Props) {
         <div className="grid items-center gap-4 rounded-md border border-line bg-surface p-3 shadow-e1 sm:grid-cols-[200px_minmax(0,1fr)]">
           <SiteThumb src={`/app/templates/${template.id}/thumbnail`} name={template.name} />
           <div className="grid gap-1 px-1">
-            <p className="font-mono text-xs text-ink-3">{"// template"}</p>
+            <p className="text-[13px] font-medium text-ink-3">Template</p>
             <p className="text-[17px] font-medium">{template.name}</p>
             <p className="text-sm text-ink-2">{template.summary} Its content is sample text the agent replaces.</p>
             <Link href="/app/templates" className="mt-1 inline-flex min-h-11 w-fit items-center text-sm font-medium text-accent hover:underline">

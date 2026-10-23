@@ -24,8 +24,7 @@ function Frame({ title, children }: { title: string; children: React.ReactNode }
   return (
     <Container className="flex min-h-[70dvh] items-start justify-center py-16 sm:items-center">
       <div className="w-full max-w-[460px]">
-        <p className="font-mono text-[13px] text-ink-3">{"// invitation"}</p>
-        <h1 className="mt-4 text-3xl font-medium tracking-[-0.02em] text-balance">{title}</h1>
+        <h1 className="text-3xl font-medium tracking-[-0.02em] text-balance">{title}</h1>
         <div className="mt-6 grid gap-5 text-[15px] leading-relaxed text-ink-2">{children}</div>
       </div>
     </Container>

@@ -348,7 +348,7 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
                   ) : null}
 
                   {loading ? (
-                    <p className="pointer-events-none absolute right-3 top-3 inline-flex items-center gap-2 rounded-full bg-surface/90 px-3 py-1.5 font-mono text-xs text-ink-2 shadow-e1 ring-1 ring-line backdrop-blur" role="status">
+                    <p className="pointer-events-none absolute right-3 top-3 inline-flex items-center gap-2 rounded-full bg-surface/90 px-3 py-1.5 text-xs text-ink-2 shadow-e1 ring-1 ring-line backdrop-blur" role="status">
                       <span aria-hidden className="size-1.5 rounded-full bg-accent motion-safe:animate-pulse" />
                       Loading the film
                     </p>
@@ -377,7 +377,7 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
                 <div className="border-t border-line px-3 pb-2 pt-3 sm:px-4">
                   {captions ? (
                     <p id={captionId} className="min-h-[2.75rem] text-[15px] leading-snug text-ink" aria-hidden>
-                      <span className="mr-2 font-mono text-xs text-accent">{caption.label}</span>
+                      <span className="mr-2 text-[13px] font-medium text-accent">{caption.label}</span>
                       {caption.caption}
                     </p>
                   ) : (

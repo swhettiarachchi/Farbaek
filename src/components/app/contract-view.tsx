@@ -5,6 +5,9 @@ import { contractHash } from "@/core/realityloop/contract";
 import { shortHash } from "@/core/trust/canonical-json";
 import type { ContractRecord } from "@/server/workspace/types";
 
+/** How each acceptance criterion is checked, in words. */
+const VERIFICATION_WORDS: Record<string, string> = { test: "by a test", assertion: "by an assertion", read_back: "by reading it back", manual: "by a person" };
+
 function Clause({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="grid gap-1 border-t border-line py-3 sm:grid-cols-[180px_1fr] sm:gap-4">
@@ -47,7 +50,7 @@ export async function ContractView({ record }: { record: ContractRecord }) {
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-mono text-xs text-ink-3">contract v{record.version}</span>
+        <span className="text-[13px] font-medium text-ink-3">Version {record.version}</span>
         {record.status === "approved" ? (
           <StatusBadge status="verified" label="Approved" />
         ) : record.status === "draft" ? (
@@ -65,8 +68,7 @@ export async function ContractView({ record }: { record: ContractRecord }) {
         Written <LocalTime iso={record.createdAt} />
         {record.approvedAt ? (
           <>
-            {" "}
-            · approved <LocalTime iso={record.approvedAt} />
+            , approved <LocalTime iso={record.approvedAt} />
           </>
         ) : null}
       </p>
@@ -93,7 +95,7 @@ export async function ContractView({ record }: { record: ContractRecord }) {
               <li key={a.id} className="flex gap-2">
                 <CheckCircleIcon size={17} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
                 <span>
-                  {a.statement} <span className="font-mono text-xs text-ink-3">{a.verification}</span>
+                  {a.statement} <span className="text-[13px] text-ink-3">({VERIFICATION_WORDS[a.verification] ?? a.verification})</span>
                 </span>
               </li>
             ))}

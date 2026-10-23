@@ -337,7 +337,7 @@ export function ProofFilm({ t, format }: { t: number; format: "landscape" | "por
             </MobileShell>
           </div>
         </Rig>
-        <p className="absolute bottom-[1.4%] left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-full bg-surface/85 px-2 py-0.5 font-mono text-[8px] text-ink-3 ring-1 ring-line">Sample project, recorded from Farbaek&apos;s interface.</p>
+        <p className="absolute bottom-[1.4%] left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-full bg-surface/85 px-2 py-0.5 text-[8px] text-ink-3 ring-1 ring-line">Sample project, recorded from Farbaek&apos;s interface.</p>
       </Stage>
     );
   }

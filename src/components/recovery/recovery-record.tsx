@@ -31,8 +31,13 @@ export async function RecoveryRecordCard({ record }: { record: RecoveryRecord })
         {intact ? "Record intact: its digest was recomputed from the stored statement just now and matches." : "This record changed after it was made: the recomputed digest doesn't match."}
       </p>
       <p className="text-xs text-ink-3">
-        Recorded <LocalTime iso={record.createdAt} /> · {record.restored} {record.restored === 1 ? "file" : "files"} undone
-        {predicate?.proofPack ? <> · undoes ProofPack {shortHash(predicate.proofPack)}</> : null}
+        Recorded <LocalTime iso={record.createdAt} />. {record.restored} {record.restored === 1 ? "file" : "files"} undone.
+        {predicate?.proofPack ? (
+          <>
+            {" "}
+            Undoes ProofPack <span className="font-mono">{shortHash(predicate.proofPack)}</span>.
+          </>
+        ) : null}
       </p>
       {operations.length || left.length ? (
         <ul className="grid gap-1 text-sm">

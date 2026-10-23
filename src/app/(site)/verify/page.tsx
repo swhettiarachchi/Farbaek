@@ -31,8 +31,7 @@ export default function VerifyPage() {
     <>
       <section className="pt-14 pb-10 sm:pt-20 lg:pt-24">
         <Container>
-          <p className="font-mono text-xs text-accent">{"// verify"}</p>
-          <h1 className="mt-4 max-w-[16ch] text-balance text-[2.5rem] font-medium leading-[1.05] tracking-[-0.04em] sm:text-[3.5rem]">Check the evidence yourself.</h1>
+          <h1 className="max-w-[16ch] text-balance text-[2.5rem] font-medium leading-[1.05] tracking-[-0.04em] sm:text-[3.5rem]">Check the evidence yourself.</h1>
           <p className="mt-5 max-w-[56ch] text-[17px] leading-relaxed text-ink-2">
             Someone sent you a ProofPack, a receipt or a Capsule from Farbaek? Drop it here to see whether it&apos;s exactly what was recorded, and what it says was approved,
             changed and checked.

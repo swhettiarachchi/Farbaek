@@ -79,7 +79,7 @@ export function OfficeNav({ layout, badges = {} }: { layout: "column" | "bar"; b
                   />
                   {item.short}
                   {item.href !== "/more" && (badges[item.href] ?? 0) > 0 ? (
-                    <span className="absolute right-[calc(50%-18px)] top-2 min-w-4 rounded-full bg-approval px-1 text-center text-[10px] font-semibold leading-4 text-surface tabular">
+                    <span className="absolute right-[calc(50%-18px)] top-2 min-w-4 rounded-full bg-approval px-1 text-center text-[11px] font-semibold leading-4 text-surface tabular">
                       {badges[item.href]}
                       <span className="sr-only"> waiting</span>
                     </span>

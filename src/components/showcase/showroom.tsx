@@ -206,7 +206,7 @@ export function Showroom() {
 
             <dl className="grid content-start gap-4 border-t border-line pt-4 text-[14.5px] lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
               <div>
-                <dt className="font-mono text-xs text-ink-3">{"// palette"}</dt>
+                <dt className="text-[13px] font-medium text-ink-3">Palette</dt>
                 <dd className="mt-2 flex flex-wrap gap-2">
                   {concept.palette.map((p) => (
                     <span key={p.hex} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface py-1 pl-1 pr-2.5 text-xs text-ink-2">
@@ -218,15 +218,15 @@ export function Showroom() {
                 </dd>
               </div>
               <div>
-                <dt className="font-mono text-xs text-ink-3">{"// type"}</dt>
+                <dt className="text-[13px] font-medium text-ink-3">Type</dt>
                 <dd className="mt-1 text-ink-2">{concept.type}</dd>
               </div>
               <div>
-                <dt className="font-mono text-xs text-ink-3">{"// signature"}</dt>
+                <dt className="text-[13px] font-medium text-ink-3">Signature</dt>
                 <dd className="mt-1 text-ink-2">{concept.signature}</dd>
               </div>
               <div>
-                <dt className="font-mono text-xs text-ink-3">{"// skills it would use"}</dt>
+                <dt className="text-[13px] font-medium text-ink-3">Skills it would use</dt>
                 <dd className="mt-2 flex flex-wrap gap-1.5">
                   {concept.skills.map((s) => (
                     <span key={s} className="rounded-full bg-accent/[0.08] px-2.5 py-1 text-xs font-medium text-accent">

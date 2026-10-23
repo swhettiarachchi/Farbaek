@@ -115,8 +115,8 @@ export function SandboxConsole({
   return (
     <section aria-label="Console" className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg bg-media text-media-ink">
       <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-2.5">
-        <span className="flex items-center gap-2 font-mono text-xs text-media-ink-2">
-          <TerminalWindowIcon size={16} aria-hidden /> {"// console"}
+        <span className="flex items-center gap-2 text-[13px] font-medium text-media-ink-2">
+          <TerminalWindowIcon size={16} aria-hidden /> Console
         </span>
         <span className="text-xs text-media-ink-3">Commands run in /home/user/project, one at a time.</span>
       </div>

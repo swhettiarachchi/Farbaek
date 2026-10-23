@@ -27,8 +27,18 @@ Farbaek's interface should feel premium because it is fast, calm and honest. It 
 
 **Type:**
 - Geist for UI and headings: weight 500, tight tracking (`tracking-[-0.03em]`).
-- Geist Mono for code, data and `// labels`.
+- Geist Mono for code and data only: hashes, paths, commands, IDs, model IDs, keys and timecodes. Never for words.
 - No serif.
+
+**Small text (ADR 0049).** It should read like a calm product, not generated UI:
+- Labels are sentence-case Geist: field labels `text-[13px] font-medium text-ink-3`, group headers `text-xs font-medium text-ink-3`.
+- No `// label` overlines and no eyebrow over a page title: the title stands alone.
+- Meta lines are short phrases ("Python, 2 KB. Revision 3, updated 2 hours ago."), or items in a flex row with a gap. At most one `·` per line.
+- Nothing under 12px, except tab-bar labels and count badges (11px).
+- Status words are sentences ("Awaiting approval"), always with their icon.
+- Words like "Stage 6" are for the team, not the interface: say "Planned".
+
+`tests/design/type-tells.test.ts` fails on `//` labels, tiny type, middot chains and tracked capitals.
 
 **Depth:** `shadow-e1` (cards), `shadow-e2` (raised panels), `shadow-e3` (dialogs and menus).
 

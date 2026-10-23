@@ -85,7 +85,7 @@ export default async function FilesPage({
               "No files yet."
             ) : (
               <>
-                <span className="tabular">{files.length.toLocaleString("en-US")}</span> {files.length === 1 ? "file" : "files"} ·{" "}
+                <span className="tabular">{files.length.toLocaleString("en-US")}</span> {files.length === 1 ? "file" : "files"},{" "}
                 <span className="tabular">{formatBytes(totalBytes)}</span>. Every change is kept as a revision.
               </>
             )}
@@ -152,7 +152,7 @@ export default async function FilesPage({
                 </div>
                 {nameMatches.length > 0 ? (
                   <div className="mt-4">
-                    <p className="font-mono text-xs text-ink-3">{"// file names"}</p>
+                    <p className="text-[13px] font-medium text-ink-3">Matching file names</p>
                     <ul className="mt-2 grid gap-1">
                       {nameMatches.map((f) => (
                         <li key={f.path}>
@@ -233,8 +233,8 @@ export default async function FilesPage({
                         <span className="w-20 shrink-0 text-ink-2">{CHANGE_LABEL[r.change]}</span>
                         <span className="min-w-0 flex-1 truncate text-xs text-ink-3">
                           <RelativeTime iso={r.createdAt} />
-                          {r.sizeBytes !== null ? <> · {formatBytes(r.sizeBytes)}</> : null}
-                          {r.sha256 ? <> · <span className="font-mono">{shortHash(r.sha256)}</span></> : null}
+                          {r.sizeBytes !== null ? <>, {formatBytes(r.sizeBytes)}</> : null}
+                          {r.sha256 ? <span className="ml-2 font-mono">{shortHash(r.sha256)}</span> : null}
                         </span>
                         {isCurrent ? <span className="shrink-0 rounded-full bg-accent/[0.08] px-2.5 py-0.5 text-xs font-medium text-accent">Current</span> : null}
                       </>
@@ -280,9 +280,16 @@ export default async function FilesPage({
                       All files
                     </Link>
                     <h2 className="font-mono text-[15px] font-medium break-all">{file.path}</h2>
-                    <p className="mt-1 text-xs text-ink-3">
-                      {languageOf(file.path)} · {formatBytes(file.sizeBytes)} · revision <span className="tabular">{file.revision}</span> · updated{" "}
-                      <RelativeTime iso={file.updatedAt} /> · <span className="font-mono">{shortHash(file.sha256)}</span>
+                    <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-ink-3">
+                      <span>
+                        {languageOf(file.path)}, {formatBytes(file.sizeBytes)}
+                      </span>
+                      <span>
+                        Revision <span className="tabular">{file.revision}</span>, updated <RelativeTime iso={file.updatedAt} />
+                      </span>
+                      <span className="font-mono" title={`sha256:${file.sha256}`}>
+                        {shortHash(file.sha256)}
+                      </span>
                     </p>
                     {writeReason ? <p className="mt-1 text-xs text-ink-3">{writeReason}</p> : null}
                   </div>

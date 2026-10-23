@@ -16,9 +16,9 @@ import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
 export const metadata: Metadata = { title: "Mesh" };
 
 const ROUTE = [
-  { label: "pack", body: "Your files, each with a BLAKE3 hash. Credentials, keys and build folders stay behind." },
-  { label: "move", body: "Email it, share it from a drive or carry it on a USB stick. The file is all that travels." },
-  { label: "verify", body: "Every byte is hashed again on arrival, and you decide each file that differs." },
+  { label: "Pack", body: "Your files, each with a BLAKE3 hash. Credentials, keys and build folders stay behind." },
+  { label: "Move", body: "Email it, share it from a drive or carry it on a USB stick. The file is all that travels." },
+  { label: "Verify", body: "Every byte is hashed again on arrival, and you decide each file that differs." },
 ];
 
 export default async function MeshPage() {
@@ -49,8 +49,8 @@ export default async function MeshPage() {
       <ol className="grid gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-3">
         {ROUTE.map((step, i) => (
           <li key={step.label} className="grid content-start gap-1.5 bg-surface px-5 py-4">
-            <span className="flex items-center gap-2 font-mono text-xs text-accent">
-              {`// ${step.label}`}
+            <span className="flex items-center gap-2 text-[13px] font-medium text-accent">
+              {step.label}
               {i < ROUTE.length - 1 ? <ArrowRightIcon size={12} className="hidden text-ink-3 sm:inline" aria-hidden /> : null}
             </span>
             <span className="text-sm leading-relaxed text-ink-2">{step.body}</span>

@@ -21,7 +21,7 @@ function Feature({ feature }: { feature: FeatureKey }) {
       {coming ? <ClockCounterClockwiseIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden /> : <CheckIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden />}
       <span>
         {FEATURE_LABELS[feature]}
-        {coming ? <span className="ml-1.5 whitespace-nowrap rounded-full border border-line px-1.5 py-px text-[11px] text-ink-3">Coming soon</span> : null}
+        {coming ? <span className="ml-1.5 whitespace-nowrap rounded-full border border-line px-2 py-px text-xs text-ink-3">Coming soon</span> : null}
       </span>
     </li>
   );
