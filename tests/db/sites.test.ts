@@ -4,7 +4,12 @@
  * check of those files with nothing critical; each publish is a numbered
  * deployment; the site can roll back or unpublish; members read their own
  * workspace's sites only, and only the server writes.
+ *
+ * Migration 33: the evidence gate. The latest applied change needs a
+ * verified ProofPack with nothing changed since, or an owner or admin
+ * publishes with a reason, kept on the version and in the audit log.
  */
+import { randomBytes } from "node:crypto";
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { USERS, as, createOrg, createTestDb } from "./harness";
@@ -36,8 +41,10 @@ async function check(critical = 0, p = project) {
   return id;
 }
 
-const publish = async (name: string, report: string, files?: unknown, actor: string = USERS.alice, p = project) =>
-  (await q<{ id: string }>("select public.app_publish_site($1, $2, $3, $4, $5, $6, $7) as id", [org, actor, p, name, JSON.stringify(files ?? (await currentFiles(p))), DIGEST, report]))[0]!.id;
+// These projects have no ProofPacks, so an owner publishes them with a reason (v33).
+const REASON = "No agent changes in this project yet.";
+const publish = async (name: string, report: string, files?: unknown, actor: string = USERS.alice, p = project, reason: string | null = REASON, o = org) =>
+  (await q<{ id: string }>("select public.app_publish_site($1, $2, $3, $4, $5, $6, $7, $8) as id", [o, actor, p, name, JSON.stringify(files ?? (await currentFiles(p))), DIGEST, report, reason]))[0]!.id;
 
 beforeAll(async () => {
   db = await createTestDb();
@@ -119,5 +126,90 @@ describe("published sites", () => {
     expect(await as(db, "authenticated", USERS.bob, async () => (await db.query("select id from public.site_deployments")).rows)).toEqual([]);
     await expect(as(db, "authenticated", USERS.alice, () => db.query("update public.sites set name = 'hijack'"))).rejects.toThrow(/permission denied/);
     await expect(as(db, "authenticated", USERS.alice, () => db.query("select public.app_set_live_deployment($1, $2, $3, null)", [org, USERS.alice, org]))).rejects.toThrow(/permission denied/);
+  });
+});
+
+describe("the evidence gate", () => {
+  let evOrg: string;
+  let ev: string;
+  const hex = () => randomBytes(32).toString("hex");
+
+  async function evCheck() {
+    const id = (await q<{ id: string }>("select public.app_start_security_report($1, $2, $3) as id", [evOrg, USERS.alice, ev]))[0]!.id;
+    await q("select public.app_finish_security_report($1, 'done', 90, 'A', $2, $3, $4, null)", [id, JSON.stringify({ critical: 0, high: 0, medium: 0, low: 0, info: 0 }), JSON.stringify({ predicateType: "https://farbaek.dev/security-report/v1", predicate: {} }), "c".repeat(64)]);
+    return id;
+  }
+  const evPublish = async (reason: string | null, actor: string = USERS.alice) => publish("evidence-site", await evCheck(), undefined, actor, ev, reason, evOrg);
+
+  /** A ProofPack as applying a change writes it, or as a check run of that change appends it. */
+  async function pack(status: string, verifies?: string) {
+    const task = (await q<{ id: string }>("select public.app_create_task($1, $2, $3, 'A change') as id", [evOrg, USERS.alice, ev]))[0]!.id;
+    const digest = hex();
+    const predicate = { status, ...(verifies ? { verification: { receipt: hex(), appliedProofPack: verifies } } : {}) };
+    await admin("insert into public.proofpacks (digest, org_id, project_id, task_id, status, statement) values ($1, $2, $3, $4, $5, $6)", [digest, evOrg, ev, task, status, JSON.stringify({ _type: "https://in-toto.io/Statement/v1", predicate })]);
+    return digest;
+  }
+  const deployment = async (id: string) =>
+    (await admin("select evidence, evidence_proofpack, override_reason from public.site_deployments where id = $1", [id]))[0];
+  const audit = async (id: string) =>
+    (await admin<{ metadata: Record<string, unknown> }>("select metadata from public.audit_events where target = $1 and action = 'site.published'", [id]))[0]!.metadata;
+
+  beforeAll(async () => {
+    evOrg = await createOrg(db, USERS.alice, "Evidence Co");
+    await admin("insert into public.organization_members (org_id, user_id, role) values ($1, $2, 'member')", [evOrg, USERS.bob]);
+    ev = (await q<{ id: string }>("select public.app_create_project($1, $2, 'Evidence', null, null) as id", [evOrg, USERS.alice]))[0]!.id;
+    await importFiles([{ path: "index.html", content: "<h1>Evidence</h1>" }], ev);
+  });
+
+  it("refuses a project with no ProofPack unless an owner says why, and records the reason", async () => {
+    await expect(evPublish(null)).rejects.toThrow(/EVIDENCE_REQUIRED/);
+    await expect(evPublish("   ")).rejects.toThrow(/EVIDENCE_REQUIRED/);
+    await expect(evPublish("too short")).rejects.toThrow(/REASON_REQUIRED/);
+    await expect(evPublish("A member can't decide this.", USERS.bob)).rejects.toThrow(/OVERRIDE_FORBIDDEN/);
+    // A call from before v33, with no reason, resolves and is refused.
+    const files = JSON.stringify(await currentFiles(ev));
+    await expect(q("select public.app_publish_site($1, $2, $3, 'evidence-site', $4, $5, $6)", [evOrg, USERS.alice, ev, files, DIGEST, await evCheck()])).rejects.toThrow(/EVIDENCE_REQUIRED/);
+
+    const id = await evPublish("  Hand-made page, reviewed by me.  ");
+    expect(await deployment(id)).toEqual({ evidence: "none", evidence_proofpack: null, override_reason: "Hand-made page, reviewed by me." });
+    expect(await audit(id)).toMatchObject({ evidence: "none", proofpack: null, override: "Hand-made page, reviewed by me." });
+  });
+
+  it("publishes a verified change without a reason, and names its ProofPack", async () => {
+    const change = await pack("unverified");
+    await expect(evPublish(null)).rejects.toThrow(/EVIDENCE_REQUIRED/);
+    const verified = await pack("verified", change);
+    const id = await evPublish("Ignored, because it's verified.");
+    expect(await deployment(id)).toEqual({ evidence: "verified", evidence_proofpack: verified, override_reason: null });
+    expect(await audit(id)).toMatchObject({ evidence: "verified", proofpack: verified, override: null });
+  });
+
+  it("goes by the latest applied change, not the newest ProofPack", async () => {
+    const first = await pack("unverified");
+    const second = await pack("unverified");
+    // The first change's check run lands after the second change was applied.
+    await pack("verified", first);
+    await expect(evPublish(null)).rejects.toThrow(/EVIDENCE_REQUIRED/);
+    const id = await evPublish("Second change checked by hand.");
+    expect(await deployment(id)).toMatchObject({ evidence: "unverified", evidence_proofpack: second });
+
+    const partly = await pack("partially_verified", second);
+    const again = await evPublish("Only the slow test failed.");
+    expect(await deployment(again)).toMatchObject({ evidence: "partially_verified", evidence_proofpack: partly });
+  });
+
+  it("needs a reason again once a file changes after the verified change", async () => {
+    const change = await pack("unverified");
+    await pack("verified", change);
+    await evPublish(null);
+    await importFiles([{ path: "about.html", content: "<p>Edited by hand</p>" }], ev);
+    await expect(evPublish(null)).rejects.toThrow(/EVIDENCE_REQUIRED/);
+    const id = await evPublish("Small copy edit after the check.");
+    expect(await deployment(id)).toEqual({ evidence: "changed", evidence_proofpack: change, override_reason: "Small copy edit after the check." });
+  });
+
+  it("keeps the record consistent: a reason exactly when the evidence isn't verified", async () => {
+    const [any] = await admin<{ id: string }>("select id from public.site_deployments where evidence = 'none' limit 1");
+    await expect(admin("update public.site_deployments set override_reason = null where id = $1", [any!.id])).rejects.toThrow(/site_deployments_override/);
   });
 });

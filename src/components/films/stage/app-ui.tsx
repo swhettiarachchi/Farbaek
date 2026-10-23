@@ -62,6 +62,7 @@ export const SAMPLE = {
   projectId: "00000000-0000-4000-8000-0000000000f1",
   taskId: "00000000-0000-4000-8000-0000000000f2",
   digest: "9c41e07b2d5f8a63c1e9047db6a25f3e8b0c7d1a94e2f6503b8c7a1d2e4f9b60",
+  proofPack: "3fb81d0c6e2a945d7c1f08b3e6a2d4957c0e1b8f3a6d29e4b7c05f1a8d3e6b20",
   planHash: "3f9a2c71e8b04d5a9c6e1f20b7d3a8e5c4f1092b6d7e3a80c5f1b2d4e6a8c0f2",
 };
 
@@ -510,7 +511,21 @@ export function CheckView({ t, from }: { t: number; from: number }) {
 export function PublishView({ t, from, publishAt }: { t: number; from: number; publishAt: number }) {
   const name = typed(SAMPLE.site, t, from + 900, 14) || "";
   const live = t >= publishAt + 700;
-  const deployment = { id: "dep-1", number: 1, fileCount: 5, totalBytes: 41_230, digest: SAMPLE.digest, securityScore: 100, createdBy: "you", createdAt: recently() };
+  // The sample change was verified, as the Launch scene shows next.
+  const evidence = { status: "verified" as const, proofPack: SAMPLE.proofPack, taskId: null };
+  const deployment = {
+    id: "dep-1",
+    number: 1,
+    fileCount: 5,
+    totalBytes: 41_230,
+    digest: SAMPLE.digest,
+    securityScore: 100,
+    createdBy: "you",
+    createdAt: recently(),
+    evidence: evidence.status,
+    evidenceProofPack: evidence.proofPack,
+    overrideReason: null,
+  };
   const data: PublishPanelData = {
     domain: SAMPLE.domain,
     site: live ? { id: "site-1", name: SAMPLE.site, liveDeploymentId: "dep-1", createdAt: recently(), blocked: null } : null,
@@ -520,6 +535,9 @@ export function PublishView({ t, from, publishAt }: { t: number; from: number; p
     deployments: live ? [deployment] : [],
     block: null,
     check: { id: "chk-1", status: "done", startedAt: recently(), critical: 0 },
+    evidence,
+    needsOverride: false,
+    canOverride: true,
     unpublishedChanges: false,
     domains: [],
     domainsAvailable: false,

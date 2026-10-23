@@ -225,6 +225,13 @@ export const EVAL_SCENARIOS: readonly EvalScenario[] = [
     asserts: "A failed or partly failed check after an automatic apply pauses autonomy for the whole workspace, and one verification runs per task at a time.",
     file: "database.test.ts",
   },
+  {
+    id: "SE-024",
+    title: "Deploying without evidence",
+    risks: ["ASI09", "LLM06"],
+    asserts: "A site goes live only when a check run verified the latest applied change, or when an owner or admin gives a reason that's kept with the version and in the audit log.",
+    file: "database.test.ts",
+  },
 ];
 
 /** What isn't tested for each risk, and the reason when a risk doesn't apply. */

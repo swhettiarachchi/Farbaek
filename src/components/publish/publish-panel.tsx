@@ -1,7 +1,8 @@
-import { ArrowSquareOutIcon, CheckCircleIcon, CircleIcon, GlobeIcon, ProhibitIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
+import { ArrowSquareOutIcon, CheckCircleIcon, CircleDashedIcon, CircleIcon, GlobeIcon, ProhibitIcon, SealCheckIcon, ShieldCheckIcon, WarningIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { RelativeTime } from "@/components/ui/local-time";
 import { buttonClasses } from "@/components/ui/button";
+import { EVIDENCE_WORDS, type EvidenceStatus } from "@/core/publish/evidence";
 import { formatBytes } from "@/core/workspace/files";
 import { shortHash } from "@/core/trust/canonical-json";
 import type { PublishPanelData } from "@/server/publish/panel";
@@ -9,14 +10,25 @@ import { PublishForm } from "./publish-form";
 import { SetLiveForm } from "./set-live-form";
 import { SiteDomains } from "./site-domains";
 
+function EvidenceIcon({ status, size }: { status: EvidenceStatus; size: number }) {
+  if (status === "verified") return <SealCheckIcon size={size} weight="bold" className="shrink-0 text-verified" aria-hidden />;
+  if (status === "none") return <CircleDashedIcon size={size} weight="bold" className="shrink-0 text-ink-3" aria-hidden />;
+  return <WarningIcon size={size} weight="bold" className={`shrink-0 ${status === "failed" ? "text-failed" : "text-approval"}`} aria-hidden />;
+}
+
 /**
  * Publish (ADR 0029): put the project's static site live at its own address
  * on the site domain, after a security check of exactly these files. Each
- * publish is kept, so any earlier version can be made live again.
+ * publish is kept, so any earlier version can be made live again. Without
+ * verified evidence for the latest change (ADR 0050), an owner or admin
+ * publishes with a reason that stays with the version.
  */
 export function PublishPanel({ projectId, data, disabledReason: given }: { projectId: string; data: PublishPanelData; disabledReason: string | null }) {
-  const { site, live, address } = data;
+  const { site, live, address, evidence } = data;
   const disabledReason = site?.blocked ? "Farbaek has taken this site offline." : given;
+  // Only publishing needs evidence: domains and earlier versions stay in reach.
+  const publishDisabled = disabledReason ?? (data.needsOverride && !data.canOverride ? "An owner or admin can publish this with a reason, or run the latest change's checks first." : null);
+  const words = EVIDENCE_WORDS[evidence.status];
   const blockLink =
     data.block?.code === "NO_CHECK" || data.block?.code === "CHECK_STALE" || data.block?.code === "CRITICAL_FINDINGS" || data.block?.code === "CHECK_RUNNING"
       ? { href: `/app/projects/${projectId}/security`, label: data.block.code === "CRITICAL_FINDINGS" ? "See the findings" : "Open Security" }
@@ -73,6 +85,21 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
         </p>
       )}
 
+      <div className="flex flex-wrap items-start gap-3 rounded-sm border border-line px-4 py-3 text-sm">
+        <span className="mt-px">
+          <EvidenceIcon status={evidence.status} size={18} />
+        </span>
+        <p className="min-w-0 flex-1 leading-relaxed text-ink-2">
+          <span className="font-medium text-ink">{words.title}.</span> {words.detail}
+          {data.needsOverride ? " Publishing without it needs a reason from an owner or admin." : ""}
+        </p>
+        {evidence.taskId ? (
+          <Link href={`/app/tasks/${evidence.taskId}`} className={buttonClasses("secondary", "sm")}>
+            Open the task
+          </Link>
+        ) : null}
+      </div>
+
       {data.block ? (
         <div className="flex flex-wrap items-center gap-3 rounded-sm border border-line bg-surface-raised/60 px-4 py-3 text-sm">
           <ShieldCheckIcon size={18} className="shrink-0 text-ink-3" aria-hidden />
@@ -86,7 +113,14 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
       ) : null}
 
       {data.domain && data.block?.code !== "NO_DOMAIN" && data.block?.code !== "NOT_STATIC" ? (
-        <PublishForm projectId={projectId} domain={data.domain} initialName={data.suggestedName} live={Boolean(live)} disabledReason={disabledReason ?? (data.block ? "See above." : null)} />
+        <PublishForm
+          projectId={projectId}
+          domain={data.domain}
+          initialName={data.suggestedName}
+          live={Boolean(live)}
+          override={data.needsOverride && data.canOverride}
+          disabledReason={publishDisabled ?? (data.block ? "See above." : null)}
+        />
       ) : null}
 
       {site ? (
@@ -113,6 +147,12 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
                   <span className="font-mono text-xs text-ink-3" title={`sha256:${d.digest}`}>
                     {shortHash(d.digest)}
                   </span>
+                  {d.evidence ? (
+                    <span className="inline-flex items-center gap-1 text-xs text-ink-2" title={d.evidenceProofPack ? `ProofPack sha256:${d.evidenceProofPack}` : undefined}>
+                      <EvidenceIcon status={d.evidence} size={14} />
+                      {d.evidence === "verified" ? "Verified" : "Without verified evidence"}
+                    </span>
+                  ) : null}
                   <span className="ml-auto">
                     {isLive ? (
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-verified">
@@ -122,6 +162,7 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
                       <SetLiveForm projectId={projectId} deploymentId={d.id} />
                     )}
                   </span>
+                  {d.overrideReason ? <p className="basis-full text-xs leading-relaxed text-ink-2">Reason: {d.overrideReason}</p> : null}
                 </li>
               );
             })}

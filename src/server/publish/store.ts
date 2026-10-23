@@ -6,6 +6,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { launchEvidence, type EvidencePack, type EvidenceStatus, type LaunchEvidence } from "@/core/publish/evidence";
 import type { PublishedFile } from "@/core/publish/site";
 import type { RpcResult } from "@/server/workspace/use-cases";
 import type { SiteDomainView } from "./domains";
@@ -29,6 +30,11 @@ export interface DeploymentView {
   securityScore: number | null;
   createdBy: string;
   createdAt: string;
+  /** What evidence covered the files (ADR 0050); null for versions published before the gate. */
+  evidence: EvidenceStatus | null;
+  evidenceProofPack: string | null;
+  /** Why an owner or admin published without verified evidence. */
+  overrideReason: string | null;
 }
 
 const SiteRow = z.object({
@@ -48,6 +54,9 @@ const DeploymentRow = z.object({
   security_score: z.number().nullable(),
   created_by: z.string(),
   created_at: z.string(),
+  evidence: z.enum(["verified", "unverified", "partially_verified", "failed", "changed", "none"]).nullable(),
+  evidence_proofpack: z.string().nullable(),
+  override_reason: z.string().nullable(),
 });
 const FilesJson = z.array(z.object({ path: z.string(), revision: z.number().int().positive(), sha256: z.string(), size: z.number() }));
 
@@ -68,7 +77,7 @@ export async function getSite(client: SupabaseClient, orgId: string, projectId: 
 export async function listDeployments(client: SupabaseClient, orgId: string, siteId: string, limit = 20): Promise<DeploymentView[]> {
   const { data, error } = await client
     .from("site_deployments")
-    .select("id, number, file_count, total_bytes, digest, security_score, created_by, created_at")
+    .select("id, number, file_count, total_bytes, digest, security_score, created_by, created_at, evidence, evidence_proofpack, override_reason")
     .eq("org_id", orgId)
     .eq("site_id", siteId)
     .order("number", { ascending: false })
@@ -77,7 +86,54 @@ export async function listDeployments(client: SupabaseClient, orgId: string, sit
   return z
     .array(DeploymentRow)
     .parse(data)
-    .map((r) => ({ id: r.id, number: r.number, fileCount: r.file_count, totalBytes: r.total_bytes, digest: r.digest, securityScore: r.security_score, createdBy: r.created_by, createdAt: r.created_at }));
+    .map((r) => ({
+      id: r.id,
+      number: r.number,
+      fileCount: r.file_count,
+      totalBytes: r.total_bytes,
+      digest: r.digest,
+      securityScore: r.security_score,
+      createdBy: r.created_by,
+      createdAt: r.created_at,
+      evidence: r.evidence,
+      evidenceProofPack: r.evidence_proofpack,
+      overrideReason: r.override_reason,
+    }));
+}
+
+const PackRow = z.object({
+  digest: z.string(),
+  status: z.enum(["unverified", "partially_verified", "verified", "failed"]),
+  task_id: z.string(),
+  created_at: z.string(),
+  verifies: z.string().nullable(),
+});
+// The statement itself isn't fetched: only which change a check run verified.
+const PACK_COLUMNS = "digest, status, task_id, created_at, verifies:statement->predicate->verification->>appliedProofPack";
+const toPack = (r: z.infer<typeof PackRow>): EvidencePack => ({ digest: r.digest, status: r.status, createdAt: r.created_at, taskId: r.task_id, verifies: r.verifies });
+
+/**
+ * The evidence that covers a project's files now (ADR 0050), read as the
+ * person: the latest change ProofPack, the latest check run of that change,
+ * and when a file last changed. The database repeats this when publishing.
+ */
+export async function latestEvidence(client: SupabaseClient, orgId: string, projectId: string): Promise<LaunchEvidence> {
+  const latest = () => client.from("proofpacks").select(PACK_COLUMNS).eq("org_id", orgId).eq("project_id", projectId).order("seq", { ascending: false }).limit(1);
+  const [change, revision] = await Promise.all([
+    latest().is("statement->predicate->verification", null).maybeSingle(),
+    client.from("project_file_revisions").select("created_at").eq("project_id", projectId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+  ]);
+  if (change.error) throw new Error(`Couldn't load the evidence: ${change.error.message}`);
+  if (revision.error) throw new Error(`Couldn't load the file history: ${revision.error.message}`);
+  const c = change.data ? toPack(PackRow.parse(change.data)) : null;
+  let v: EvidencePack | null = null;
+  if (c) {
+    const check = await latest().eq("statement->predicate->verification->>appliedProofPack", c.digest).maybeSingle();
+    if (check.error) throw new Error(`Couldn't load the evidence: ${check.error.message}`);
+    v = check.data ? toPack(PackRow.parse(check.data)) : null;
+  }
+  const changedAt = revision.data ? z.object({ created_at: z.string() }).parse(revision.data).created_at : null;
+  return launchEvidence({ change: c, verification: v, filesChangedAt: changedAt });
 }
 
 /** The project's latest security check, with how many critical findings it had. */
@@ -100,7 +156,7 @@ const rpcError = (e: { message: string } | null) => (e ? e.message : "UNKNOWN");
 
 export async function publishRpc(
   admin: SupabaseClient,
-  input: { orgId: string; actor: string; projectId: string; name: string; files: PublishedFile[]; digest: string; reportId: string },
+  input: { orgId: string; actor: string; projectId: string; name: string; files: PublishedFile[]; digest: string; reportId: string; overrideReason: string | null },
 ): Promise<RpcResult<string>> {
   const { data, error } = await admin.rpc("app_publish_site", {
     p_org: input.orgId,
@@ -110,6 +166,7 @@ export async function publishRpc(
     p_files: input.files,
     p_digest: input.digest,
     p_report: input.reportId,
+    p_override_reason: input.overrideReason,
   });
   if (error) return { ok: false, error: rpcError(error) };
   return { ok: true, value: z.string().parse(data) };

@@ -26,16 +26,33 @@ async function writer() {
   return { ctx, user, admin, orgId: ctx.current.id };
 }
 
-/** Publishes the project's current files (ADR 0029). The gate is checked here and again in the database. */
+/**
+ * Publishes the project's current files (ADR 0029). The gate is checked here and again in the database.
+ * Without verified evidence (ADR 0050), an owner or admin's reason goes with it.
+ */
 export async function publishAction(_previous: PublishState, form: FormData): Promise<PublishState> {
-  const parsed = z.object({ projectId: z.uuid(), name: z.string().max(80) }).safeParse({ projectId: form.get("projectId"), name: form.get("name") });
+  const parsed = z
+    .object({ projectId: z.uuid(), name: z.string().max(80), overrideReason: z.string().max(600).nullable() })
+    .safeParse({ projectId: form.get("projectId"), name: form.get("name"), overrideReason: form.get("overrideReason") });
   if (!parsed.success) return { status: "error", message: "Reload the page and try again." };
   const w = await writer();
   if ("error" in w) return { status: "error", message: w.error! };
-  const r = await publishSite(publishDeps(w.ctx, w.user, w.admin), { orgId: w.orgId, userId: w.ctx.user.id, projectId: parsed.data.projectId, name: parsed.data.name });
+  const r = await publishSite(publishDeps(w.ctx, w.user, w.admin), {
+    orgId: w.orgId,
+    userId: w.ctx.user.id,
+    projectId: parsed.data.projectId,
+    name: parsed.data.name,
+    overrideReason: parsed.data.overrideReason,
+  });
   if (!r.ok) return { status: "error", message: r.message };
   revalidatePath(`/app/projects/${parsed.data.projectId}`);
-  return { status: "done", message: "Published. It can take a few seconds to appear everywhere." };
+  revalidatePath(`/app/projects/${parsed.data.projectId}/launch`);
+  return {
+    status: "done",
+    message: r.overridden
+      ? "Published without verified evidence. Your reason is saved with this version. It can take a few seconds to appear everywhere."
+      : "Published. It can take a few seconds to appear everywhere.",
+  };
 }
 
 /** Makes an earlier deployment live again, or takes the site offline (an empty deployment id). */
