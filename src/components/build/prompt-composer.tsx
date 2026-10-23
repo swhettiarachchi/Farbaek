@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpIcon, SparkleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowUpIcon, InfoIcon, SparkleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { startFromPromptAction, type PromptStartState } from "@/app/app/new/actions";
@@ -87,6 +87,8 @@ export function PromptComposer({
   const form = useRef<HTMLFormElement>(null);
   const box = useRef<HTMLTextAreaElement>(null);
   const resumed = useRef(false);
+  // Pressing the button with too little written says what's needed instead of doing nothing.
+  const [nudge, setNudge] = useState(false);
 
   // A sentence offered by the page (offerPrompt): show it here, bring the box into view and focus it.
   useEffect(() => {
@@ -119,10 +121,16 @@ export function PromptComposer({
       ref={form}
       action={mode === "app" ? action : undefined}
       onSubmit={(e) => {
+        if (tooShort) {
+          e.preventDefault();
+          setNudge(true);
+          box.current?.focus();
+          return;
+        }
         if (!followUp) store(value);
         if (mode === "public") {
           e.preventDefault();
-          if (!tooShort) router.push("/sign-in?next=/app/new%3Fresume%3D1");
+          router.push("/sign-in?next=/app/new%3Fresume%3D1");
         }
       }}
       className="grid gap-3"
@@ -144,10 +152,11 @@ export function PromptComposer({
           value={value}
           onChange={(e) => {
             setValue(e.target.value);
+            setNudge(false);
             if (!followUp) store(e.target.value);
           }}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !tooShort && !disabled) e.currentTarget.form?.requestSubmit();
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !disabled) e.currentTarget.form?.requestSubmit();
           }}
           maxLength={PROMPT_MAX}
           rows={size === "large" ? 4 : 2}
@@ -174,7 +183,7 @@ export function PromptComposer({
           </p>
           <button
             type="submit"
-            disabled={disabled || tooShort}
+            disabled={disabled}
             aria-label={mode === "app" ? "Plan this build" : "Start building"}
             className="inline-flex h-11 shrink-0 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-on-primary transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -183,6 +192,13 @@ export function PromptComposer({
           </button>
         </div>
       </div>
+
+      {nudge && tooShort ? (
+        <p role="status" className="flex items-start gap-2 text-sm text-ink-2">
+          <InfoIcon size={16} className="mt-0.5 shrink-0 text-accent" aria-hidden />
+          {value.trim() ? "Add a few more words, so the plan has something to go on." : "Describe what you want first, in a sentence or two."}
+        </p>
+      ) : null}
 
       {state.status === "error" ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
