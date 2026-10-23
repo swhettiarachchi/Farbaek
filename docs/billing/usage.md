@@ -66,6 +66,7 @@ The trial gets Pro's features with Starter's AI usage (35,050 units across the 1
 | Agent step | `agent_step` | Reserved for cloud agent runs (Phase 2). |
 | Security review | `security_review` | Reserved for security checks (Phase 4). |
 | Model call from an agent | `model_gateway` | Reserved for the model gateway the desktop agent will use (Phase 2). |
+| Map a change to its contract | `lens_mapping` | One model call, asked for on a proposal in review, that names the contract clause each change serves (ADR 0044). Refunded if it fails or is refused. |
 
 ## A run's own cap (ADR 0040)
 

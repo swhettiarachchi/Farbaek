@@ -5,7 +5,7 @@
  * reserves room first and is settled to the real cost afterwards.
  * The database ledger (ai_credit_ledger) accepts only these operations.
  */
-export const USAGE_OPERATIONS = ["contract_draft", "change_proposal", "agent_step", "security_review", "model_gateway"] as const;
+export const USAGE_OPERATIONS = ["contract_draft", "change_proposal", "agent_step", "security_review", "model_gateway", "lens_mapping"] as const;
 
 export type UsageOperation = (typeof USAGE_OPERATIONS)[number];
 
@@ -15,10 +15,11 @@ export const USAGE_OPERATION_LABELS: Record<UsageOperation, string> = {
   agent_step: "Agent step",
   security_review: "Security review",
   model_gateway: "Model call from an agent",
+  lens_mapping: "Map a change to its contract",
 };
 
 /** The operations a button in the web app starts directly. */
-export type ButtonOperation = Extract<UsageOperation, "contract_draft" | "change_proposal">;
+export type ButtonOperation = Extract<UsageOperation, "contract_draft" | "change_proposal" | "lens_mapping">;
 
 /**
  * Prompt tokens of a typical call, for deciding whether a button works
@@ -28,4 +29,5 @@ export type ButtonOperation = Extract<UsageOperation, "contract_draft" | "change
 export const TYPICAL_PROMPT_TOKENS: Record<ButtonOperation, number> = {
   contract_draft: 2_000,
   change_proposal: 20_000,
+  lens_mapping: 6_000,
 };

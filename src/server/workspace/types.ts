@@ -7,6 +7,7 @@ import type { FileChangeEvent } from "@/core/realityloop/scope-drift";
 import { TASK_STATES } from "@/core/realityloop/task-machine";
 import type { WorkspaceSummary } from "./organizations";
 import type { SkillPinRecord } from "./skill-pins";
+import type { StoredLensSuggestion } from "@/core/realityloop/lens-suggestion";
 
 export const ORG_ROLES = ["owner", "admin", "member", "viewer"] as const;
 export type OrgRole = (typeof ORG_ROLES)[number];
@@ -268,6 +269,8 @@ export interface WorkspaceReader {
   listFileChangesSince(orgId: string, projectId: string, since: string): Promise<FileChangeEvent[]>;
   /** The most recent change proposal for a task, or null. */
   getLatestProposal(orgId: string, taskId: string): Promise<ProposalRecord | null>;
+  /** The AI mapping asked for in the Intent Diff Lens, if any (ADR 0044). */
+  getLensSuggestion(orgId: string, proposalId: string): Promise<StoredLensSuggestion | null>;
   /** The latest contract version for a task, or null when none has been written. */
   getContract(orgId: string, taskId: string): Promise<ContractRecord | null>;
   /** What an applied proposal wrote, with each file's earlier and current state; null when nothing it wrote is on record. */

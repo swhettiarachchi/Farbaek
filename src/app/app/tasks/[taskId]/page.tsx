@@ -60,7 +60,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
   const showProposal = proposal !== null && (proposal.status !== "discarded" || !canPropose);
   const applied = proposal?.status === "applied" ? proposal : null;
   // Everything below depends only on the reads above, so it loads in one round.
-  const [driftEvents, proposeAi, projectFiles, bases, intact, [recoverySource, recoveries], agents] = await Promise.all([
+  const [driftEvents, proposeAi, projectFiles, bases, intact, [recoverySource, recoveries], agents, lensSuggestion, lensAi] = await Promise.all([
     approvedContract && !TERMINAL_STATES.has(task.state) ? ctx.reader.listFileChangesSince(orgId, task.projectId, approvedContract.approvedAt!) : Promise.resolve(null),
     canPropose ? loadAiAvailability(ctx, ctx.current, "change_proposal") : Promise.resolve(null),
     canPropose ? ctx.reader.listFiles(orgId, task.projectId) : Promise.resolve([]),
@@ -75,6 +75,9 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
     // Recovery: undoing the applied change, while the task's state allows it.
     applied ? Promise.all([ctx.reader.getRecoverySource(orgId, task.projectId, applied), ctx.reader.listRecoveries(orgId, task.id)]) : Promise.resolve([null, []] as const),
     showProposal && proposal!.agentId ? ctx.reader.listAgents(orgId) : Promise.resolve([]),
+    // The Intent Diff Lens's AI mapping on a pending proposal (ADR 0044).
+    showProposal && proposal!.status === "pending" ? ctx.reader.getLensSuggestion(orgId, proposal!.id).catch(() => null) : Promise.resolve(null),
+    showProposal && proposal!.status === "pending" ? loadAiAvailability(ctx, ctx.current, "lens_mapping") : Promise.resolve(null),
   ]);
   const drift = approvedContract && driftEvents ? scopeDrift(approvedContract.body, driftEvents) : [];
   const writeReason = ctx.writes.enabled ? null : ctx.writes.reason;
@@ -202,6 +205,8 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
                 agentName={proposal!.agentId ? (agents.find((a) => a.id === proposal!.agentId)?.name ?? null) : null}
                 contract={contract?.body ?? null}
                 serverNow={renderedAt}
+                lensSuggestion={lensSuggestion}
+                lensAiReason={lensAi?.disabledReason ?? null}
               />
             ) : null}
             {canPropose ? (
