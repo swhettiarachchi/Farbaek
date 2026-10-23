@@ -65,6 +65,15 @@ The spec's MVP item "Intent Diff Lens" maps each hunk to the contract "via file 
   - at 375px the chips wrap to full text, the button is 44px tall, and nothing scrolls sideways.
 - **Not run:** a real model call. It spends real AI usage, so it waits for the owner's go-ahead on a signed-in workspace.
 
+**Production database:** migration v29 applied to the self-hosted database on 2026-10-23.
+- **How:** the SHA-256 (`89ee85ad…b64acb4f`) matched on the server; one transaction with `ON_ERROR_STOP`.
+- **Read-only checks:**
+  - the ledger accepts `lens_mapping`, and every operation already in it is still allowed;
+  - `proposal_lens_suggestions` has RLS with one read policy;
+  - signed-in users can read and not write, and anonymous users can't read;
+  - only the server can run `app_record_lens_suggestion`.
+- **Afterwards:** the API schema cache was reloaded.
+
 ### Next
 
 - Map automatically on each new proposal, as a per-workspace setting, once real costs are known.
