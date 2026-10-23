@@ -11,7 +11,15 @@ export const metadata: Metadata = {
   description:
     "Farbaek plans each change, runs the real checks, keeps the evidence and waits for your approval before anything ships.",
   applicationName: "Farbaek",
-  icons: { icon: "/brand/farbaek-icon.png", apple: "/brand/farbaek-apple-icon.png" },
+  // Small sizes first: a tab only needs 16 to 48 pixels, and the 512px file is 200 KB (ADR 0052).
+  icons: {
+    icon: [
+      { url: "/brand/farbaek-icon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/brand/farbaek-icon-48.png", sizes: "48x48", type: "image/png" },
+      { url: "/brand/farbaek-icon.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/brand/farbaek-apple-icon.png",
+  },
 };
 
 export const viewport: Viewport = {

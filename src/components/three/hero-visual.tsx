@@ -80,6 +80,8 @@ export function HeroVisual() {
         alt="Farbaek"
         fill
         preload
+        // The largest paint on phones: ahead of the scripts (ADR 0052).
+        fetchPriority="high"
         sizes="(min-width: 1024px) 44vw, (min-width: 640px) 440px, 92vw"
         className={`object-contain p-[10%] ${fade(!ready)}`}
       />

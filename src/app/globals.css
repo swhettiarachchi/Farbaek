@@ -95,8 +95,15 @@
     font-variant-ligatures: none;
   }
 
+  /*
+   * Smooth only while something on the page has focus, as when a link is
+   * clicked. Arriving at a page with a #hash, route changes and find-in-page
+   * jump straight there; an animated jump to a position estimated before the
+   * homepage's later sections are laid out could end in the wrong place
+   * (ADR 0052).
+   */
   @media (prefers-reduced-motion: no-preference) {
-    html {
+    html:focus-within {
       scroll-behavior: smooth;
     }
   }
@@ -192,6 +199,48 @@
 @keyframes score-in {
   from {
     stroke-dasharray: var(--score-from);
+  }
+}
+
+/*
+ * Homepage sections below the first screen are laid out as they near it
+ * (ADR 0052). .cv-off on <html> lays them all out before an in-page jump
+ * (AnchorLayout), so anchors land exactly.
+ */
+.home-later {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 900px;
+}
+
+.cv-off .home-later {
+  content-visibility: visible;
+}
+
+/* The hero rising in on first paint, without waiting for scripts (Reveal, ADR 0052). */
+@keyframes reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+/* The public site's mobile menu (ADR 0052): the sheet fades, the links rise. */
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes menu-rise {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
   }
 }
 

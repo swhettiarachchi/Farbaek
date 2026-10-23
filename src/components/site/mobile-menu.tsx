@@ -6,19 +6,24 @@
  * another. It's a modal: focus moves in and stays in, Escape closes it and
  * focus returns to the button, and the page behind doesn't scroll. Still
  * under reduced motion.
+ *
+ * The motion is CSS (sheet-in, sheet-out, menu-rise in globals.css), so
+ * every public page doesn't download an animation library for a menu
+ * (ADR 0052).
  */
 import { ArrowUpRightIcon } from "@phosphor-icons/react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
-import { useEffect, useId, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { NAV_LINKS } from "./nav-links";
 
-const EASE = [0.32, 0.72, 0, 1] as const;
+/** How long the sheet takes to fade out; it stays mounted that long. */
+const CLOSE_MS = 220;
+const REDUCE_QUERY = "(prefers-reduced-motion: reduce)";
 
 export function MobileMenu() {
-  const [open, setOpen] = useState(false);
-  const reduce = useReducedMotion() ?? false;
+  const [phase, setPhase] = useState<"closed" | "open" | "closing">("closed");
+  const open = phase === "open";
   const panelId = useId();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -26,9 +31,16 @@ export function MobileMenu() {
   const mounted = useSyncExternalStore(noSubscribe, () => true, () => false);
 
   const close = (refocus = true) => {
-    setOpen(false);
+    // Under reduced motion it goes at once; otherwise it fades out first.
+    setPhase(window.matchMedia(REDUCE_QUERY).matches ? "closed" : "closing");
     if (refocus) buttonRef.current?.focus();
   };
+
+  useEffect(() => {
+    if (phase !== "closing") return;
+    const t = window.setTimeout(() => setPhase("closed"), CLOSE_MS);
+    return () => window.clearTimeout(t);
+  }, [phase]);
 
   useEffect(() => {
     if (!open) return;
@@ -37,7 +49,7 @@ export function MobileMenu() {
     root.style.overflow = "hidden";
     const onKey = (e: globalThis.KeyboardEvent) => {
       if (e.key === "Escape") {
-        setOpen(false);
+        setPhase("closed");
         buttonRef.current?.focus();
       }
     };
@@ -46,7 +58,7 @@ export function MobileMenu() {
     const t = window.setTimeout(() => panelRef.current?.querySelector<HTMLElement>("a")?.focus(), 30);
     // The sheet is for narrow screens: close it if the window grows past the breakpoint.
     const wide = window.matchMedia("(min-width: 1024px)");
-    const onWide = () => wide.matches && setOpen(false);
+    const onWide = () => wide.matches && setPhase("closed");
     wide.addEventListener("change", onWide);
     return () => {
       root.style.overflow = before;
@@ -73,6 +85,7 @@ export function MobileMenu() {
   };
 
   const links = [...NAV_LINKS, { href: "/#status", label: "What works today" }];
+  const rise = (i: number): CSSProperties => ({ animationDelay: `${60 + i * 50}ms` });
 
   return (
     <div className="lg:hidden" onKeyDown={open ? trap : undefined}>
@@ -81,7 +94,7 @@ export function MobileMenu() {
         type="button"
         aria-expanded={open}
         aria-controls={panelId}
-        onClick={() => (open ? close() : setOpen(true))}
+        onClick={() => (open ? close() : setPhase("open"))}
         className="relative inline-flex size-11 items-center justify-center rounded-full text-ink transition-colors duration-200 hover:bg-surface-raised"
       >
         <span className="sr-only">{open ? "Close menu" : "Open menu"}</span>
@@ -95,70 +108,54 @@ export function MobileMenu() {
         </span>
       </button>
 
-      {mounted
+      {mounted && phase !== "closed"
         ? createPortal(
-      <AnimatePresence>
-        {open ? (
-          <motion.div
-            key="sheet"
-            id={panelId}
-            ref={panelRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Menu"
-            className="fixed inset-0 z-30 flex flex-col bg-canvas/90 px-5 pb-8 pt-24 backdrop-blur-2xl supports-[not(backdrop-filter:blur(0))]:bg-canvas"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: reduce ? 0 : 0.3, ease: EASE }}
-          >
-            <nav aria-label="Mobile" className="flex-1">
-              <ul className="grid gap-1">
-                {links.map((link, i) => (
-                  <motion.li
-                    key={link.href}
-                    initial={reduce ? false : { opacity: 0, y: 28 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, ease: EASE, delay: 0.06 + i * 0.05 }}
-                  >
-                    <Link
-                      href={link.href}
-                      onClick={() => close(false)}
-                      className="group flex min-h-14 items-center justify-between gap-4 border-b border-line/80 py-2 text-[1.75rem] font-medium tracking-[-0.03em] text-ink"
-                    >
-                      {link.label}
-                      <span className="flex size-10 items-center justify-center rounded-full bg-surface-raised text-ink-2 transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:-translate-y-px group-hover:translate-x-0.5">
-                        <ArrowUpRightIcon size={17} aria-hidden />
-                      </span>
-                    </Link>
-                  </motion.li>
-                ))}
-              </ul>
-            </nav>
-            <motion.div
-              className="grid gap-2"
-              initial={reduce ? false : { opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: EASE, delay: 0.06 + links.length * 0.05 }}
+            <div
+              id={panelId}
+              ref={panelRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Menu"
+              inert={phase === "closing"}
+              className={`fixed inset-0 z-30 flex flex-col bg-canvas/90 px-5 pb-8 pt-24 backdrop-blur-2xl supports-[not(backdrop-filter:blur(0))]:bg-canvas ${
+                phase === "closing" ? "motion-safe:animate-[sheet-out_220ms_cubic-bezier(0.32,0.72,0,1)_both]" : "motion-safe:animate-[sheet-in_300ms_cubic-bezier(0.32,0.72,0,1)_both]"
+              }`}
             >
-              <Link
-                href="/sign-in?next=/app/new"
-                onClick={() => close(false)}
-                className="flex h-14 items-center justify-center rounded-full bg-primary text-base font-medium text-on-primary shadow-e2 active:scale-[0.98]"
-              >
-                Start building
-              </Link>
-              <Link
-                href="/sign-in"
-                onClick={() => close(false)}
-                className="flex h-14 items-center justify-center rounded-full border border-line bg-surface text-base font-medium text-ink active:scale-[0.98]"
-              >
-                Sign in
-              </Link>
-            </motion.div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>,
+              <nav aria-label="Mobile" className="flex-1">
+                <ul className="grid gap-1">
+                  {links.map((link, i) => (
+                    <li key={link.href} className="motion-safe:animate-[menu-rise_500ms_cubic-bezier(0.32,0.72,0,1)_both]" style={rise(i)}>
+                      <Link
+                        href={link.href}
+                        onClick={() => close(false)}
+                        className="group flex min-h-14 items-center justify-between gap-4 border-b border-line/80 py-2 text-[1.75rem] font-medium tracking-[-0.03em] text-ink"
+                      >
+                        {link.label}
+                        <span className="flex size-10 items-center justify-center rounded-full bg-surface-raised text-ink-2 transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:-translate-y-px group-hover:translate-x-0.5">
+                          <ArrowUpRightIcon size={17} aria-hidden />
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+              <div className="grid gap-2 motion-safe:animate-[menu-rise_500ms_cubic-bezier(0.32,0.72,0,1)_both]" style={rise(links.length)}>
+                <Link
+                  href="/sign-in?next=/app/new"
+                  onClick={() => close(false)}
+                  className="flex h-14 items-center justify-center rounded-full bg-primary text-base font-medium text-on-primary shadow-e2 active:scale-[0.98]"
+                >
+                  Start building
+                </Link>
+                <Link
+                  href="/sign-in"
+                  onClick={() => close(false)}
+                  className="flex h-14 items-center justify-center rounded-full border border-line bg-surface text-base font-medium text-ink active:scale-[0.98]"
+                >
+                  Sign in
+                </Link>
+              </div>
+            </div>,
             document.body,
           )
         : null}

@@ -20,6 +20,8 @@ const OFFICE_HOST = officeHostPattern(process.env.OFFICE_HOST);
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // AVIF first, WebP for browsers without it: the same images in fewer bytes on phones (ADR 0052).
+  images: { formats: ["image/avif", "image/webp"] },
   reactStrictMode: true,
   experimental: {
     // Project imports send up to 4 MB of text (src/config/workspace.ts); JSON escaping and form encoding add overhead.
