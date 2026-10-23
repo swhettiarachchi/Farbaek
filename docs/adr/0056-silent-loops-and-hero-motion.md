@@ -59,6 +59,29 @@ If the video starts later, it takes over.
 - **Desktops with a mouse** still cross-fade to the 3D scene.
 - **A Chrome quirk:** Chrome stops redrawing an SVG whose only animations are `animateMotion`. Each light carries an `<animate>` element, which keeps both layers ticking in step.
 
+## Amendment (2026-10-24): the Loom on every screen
+
+The owner asked for the desktop 3D scene's look on phones:
+- a tilted ring with the six stage nodes (three blue, one amber, two grey);
+- evidence packets travelling the thread;
+- motes rising round the knight.
+
+The two lights above were replaced by the Loom itself, drawn in 2D:
+
+- **One geometry:** `loom-geometry.ts` holds the Loom's shape, colours and speeds as plain numbers. The 3D scene (`loom-scene.tsx`) now reads them too, so the two can't drift.
+- **Checked against three.js:**
+  - `toWorld` matches the 3D groups' transforms exactly;
+  - `project` matches the 3D camera;
+  - the stages sit at even lengths round the ring, like the 3D curve's `getPointAt`.
+- **`LoomCanvas`:**
+  - draws each frame on two canvases either side of the knight: the far half behind, the near half over him;
+  - motes are sized as three.js sizes points, by screen height;
+  - on screens under 1024 px the rings sit at 78% of their size, so the stages stay on screen;
+  - it starts once the browser is idle and stops off screen;
+  - under reduced motion it draws one still frame;
+  - it fades out when the 3D scene takes over on desktops with a mouse.
+- **Cost:** a few hundred canvas calls a frame and no 3D library. On a 4× slower CPU it holds 60 frames a second, with the slowest frame at 17 ms.
+
 ## Consequences
 
 - **Low Power Mode and restrictive in-app browsers** download a loop instead of the MP4: about half the bytes for portrait films.
