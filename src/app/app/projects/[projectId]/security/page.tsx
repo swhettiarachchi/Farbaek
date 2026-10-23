@@ -129,13 +129,16 @@ export default async function SecurityPage({ params, searchParams }: Params) {
                     {c.ran ? <CheckCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden /> : <CircleDashedIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />}
                     <span>
                       <span className="text-ink">{CHECK_LABELS[c.name]}</span>
-                      <span className="text-ink-3"> · {c.ran ? `${c.findings} found${c.detail ? `. ${c.detail}` : ""}` : `Skipped: ${c.reason}`}</span>
+                      <span className="text-ink-3">: {c.ran ? `${c.findings} found${c.detail ? `. ${c.detail}` : ""}` : `skipped. ${c.reason}`}</span>
                     </span>
                   </li>
                 ))}
               </ul>
-              <p className="font-mono text-xs text-ink-3">
-                Checked <LocalTime iso={p.generatedAt} /> · {p.project.files} files · report {shortHash(lastDone.digest!)}
+              <p className="text-xs text-ink-3">
+                Checked <LocalTime iso={p.generatedAt} />, {p.project.files} files. Report{" "}
+                <span className="font-mono" title={`sha256:${lastDone.digest}`}>
+                  {shortHash(lastDone.digest!)}
+                </span>
               </p>
             </div>
           </section>
@@ -166,7 +169,7 @@ export default async function SecurityPage({ params, searchParams }: Params) {
                           ) : null}
                         </div>
                         <span className="flex shrink-0 items-center gap-2">
-                          <span className="rounded-full border border-line px-2 py-0.5 font-mono text-[11px] text-ink-3">{SOURCE_LABEL[f.source]}</span>
+                          <span className="rounded-full border border-line px-2 py-0.5 text-xs text-ink-3">{SOURCE_LABEL[f.source]}</span>
                           <SeverityBadge severity={f.severity} />
                         </span>
                       </div>
@@ -203,7 +206,7 @@ export default async function SecurityPage({ params, searchParams }: Params) {
             {reports.slice(1).map((r) => (
               <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm sm:px-5">
                 <LocalTime iso={r.startedAt} />
-                <span className="tabular text-ink-2">{r.status === "done" ? `${r.score} · grade ${r.grade}` : r.status === "failed" ? "Failed" : "Running"}</span>
+                <span className="tabular text-ink-2">{r.status === "done" ? `${r.score}, grade ${r.grade}` : r.status === "failed" ? "Failed" : "Running"}</span>
               </li>
             ))}
           </ul>

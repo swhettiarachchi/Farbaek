@@ -172,8 +172,7 @@ export function DescribeView({ t, typeFrom, submitAt }: { t: number; typeFrom: n
   return (
     <div className="mx-auto grid max-w-[640px] gap-6 pt-6 max-sm:pt-0">
       <div>
-        <p className="font-mono text-xs text-ink-3">{"// new build"}</p>
-        <h1 className="mt-2 text-balance text-[2.1rem] font-medium leading-[1.05] tracking-[-0.035em] max-sm:text-[1.7rem]">What do you want to build?</h1>
+        <h1 className="text-balance text-[2.1rem] font-medium leading-[1.05] tracking-[-0.035em] max-sm:text-[1.7rem]">What do you want to build?</h1>
         <p className="mt-2 text-[15px] leading-relaxed text-ink-2 max-sm:text-sm">Describe it and Farbaek drafts a plan. Nothing is built until you approve it.</p>
       </div>
       <div className={`relative rounded-lg border bg-surface shadow-e2 ${text && !submitted ? "border-accent/60 shadow-e3" : "border-line"}`}>
@@ -224,9 +223,9 @@ export function PlanView({ t, from, approvedAt, compact = false }: { t: number; 
   return (
     <div className="grid gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3" style={{ opacity: s(0) }}>
-        <p className="font-mono text-xs text-ink-3">
-          {"// your plan · v1 · "}
-          {short(SAMPLE.planHash)}
+        <p className="flex flex-wrap items-baseline gap-x-2 text-[13px] text-ink-3">
+          <span className="font-medium">Your plan, version 1</span>
+          <span className="font-mono text-xs">{short(SAMPLE.planHash)}</span>
         </p>
         {approved ? (
           <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-verified/40 px-3 text-xs font-medium text-verified">
@@ -268,7 +267,10 @@ export function PlanView({ t, from, approvedAt, compact = false }: { t: number; 
         {compact ? null : (
           <>
             <PlanSection title="What stays untouched" icon={<LockSimpleIcon size={16} weight="bold" className="text-ink-2" aria-hidden />} shown={s(3)}>
-              <p className="text-sm text-ink-2">Files outside this project · No payments or accounts</p>
+              <ul className="grid gap-1 text-sm text-ink-2">
+                <li>Files outside this project</li>
+                <li>Payments and accounts</li>
+              </ul>
             </PlanSection>
             <PlanSection title="If something goes wrong" icon={<ShieldCheckIcon size={16} weight="bold" className="text-ink-2" aria-hidden />} shown={s(4)}>
               <p className="text-sm text-ink-2">Each change arrives as a proposal you review, and an applied change can be undone.</p>
@@ -364,7 +366,9 @@ export function RunView({ t, from, layout = "wide" }: { t: number; from: number;
         <div className="min-w-0">
           <p className="text-xs text-ink-3">{done ? "Finished" : "Working"}</p>
           <p className="truncate text-[17px] font-medium tracking-[-0.01em]">{phase}</p>
-          <p className="mt-0.5 font-mono text-[11.5px] text-ink-3">step {Math.max(1, shown.length)} · balanced · claude-opus-5-5</p>
+          <p className="mt-0.5 text-xs text-ink-3">
+            Step {Math.max(1, shown.length)}, balanced effort. <span className="font-mono">claude-opus-5-5</span>
+          </p>
         </div>
       </div>
       <ol className="relative before:absolute before:bottom-6 before:left-[13px] before:top-2 before:w-px before:bg-line">
@@ -483,7 +487,9 @@ export function CheckView({ t, from }: { t: number; from: number }) {
                 </li>
               ))}
             </ul>
-            <p className="font-mono text-xs text-ink-3">Checked just now · 5 files · report {short(SAMPLE.digest)}</p>
+            <p className="text-xs text-ink-3">
+              Checked just now, 5 files. Report <span className="font-mono">{short(SAMPLE.digest)}</span>
+            </p>
           </div>
         </section>
       )}

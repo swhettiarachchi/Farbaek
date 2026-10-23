@@ -125,7 +125,7 @@ export function FileLensRows({ lens }: { lens: SuggestedFileLens }) {
               ))}
               {h.match ? (
                 <Chip tone="verified" icon={CrosshairIcon} title={`${h.match.statement} Shared words: ${h.match.shared.join(", ")}.`}>
-                  <span className="font-medium">{h.match.label}</span> · {h.match.statement}
+                  <span className="font-medium">{h.match.label}:</span> {h.match.statement}
                 </Chip>
               ) : null}
               {h.unexplained ? (
@@ -135,7 +135,7 @@ export function FileLensRows({ lens }: { lens: SuggestedFileLens }) {
               ) : null}
               {h.ai ? (
                 <Chip tone="ai" icon={SparkleIcon} title={"none" in h.ai ? `AI: no clause fits. ${h.ai.reason}` : `AI: ${h.ai.label}, ${h.ai.statement} ${h.ai.reason}`}>
-                  <span className="font-medium">AI</span> · {"none" in h.ai ? "no clause fits" : h.ai.label} · {h.ai.reason}
+                  <span className="font-medium">AI: {"none" in h.ai ? "no clause fits" : h.ai.label}.</span> {h.ai.reason}
                 </Chip>
               ) : null}
             </span>

@@ -30,7 +30,7 @@ function Rule({ icon, title, children, coming = false }: { icon: ReactNode; titl
       <div>
         <p className="text-sm font-medium text-ink">
           {title}
-          {coming ? <span className="ml-2 whitespace-nowrap rounded-full border border-line px-2 py-px text-[11px] font-normal text-ink-3">Coming soon</span> : null}
+          {coming ? <span className="ml-2 whitespace-nowrap rounded-full border border-line px-2 py-px text-xs font-normal text-ink-3">Coming soon</span> : null}
         </p>
         <p className="mt-0.5 text-sm leading-relaxed text-ink-2">{children}</p>
       </div>

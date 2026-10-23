@@ -97,13 +97,13 @@ export default async function OfficeOverview({ searchParams }: { searchParams: P
                   <dt className="flex items-center gap-1.5 text-ink-3">
                     <span aria-hidden className="size-2.5 rounded-full bg-accent" /> Active
                   </dt>
-                  <dd className="font-mono text-lg tabular">{number.format(m.trials.active)}</dd>
+                  <dd className="text-lg tabular">{number.format(m.trials.active)}</dd>
                 </div>
                 <div>
                   <dt className="flex items-center gap-1.5 text-ink-3">
                     <span aria-hidden className="size-2.5 rounded-full bg-[repeating-linear-gradient(135deg,var(--color-line-strong)_0_2px,transparent_2px_4px)] ring-1 ring-line-strong" /> Ended
                   </dt>
-                  <dd className="font-mono text-lg tabular">{number.format(m.trials.ended)}</dd>
+                  <dd className="text-lg tabular">{number.format(m.trials.ended)}</dd>
                 </div>
                 <div>
                   <dt className="text-ink-3">Became paid</dt>
@@ -120,25 +120,25 @@ export default async function OfficeOverview({ searchParams }: { searchParams: P
 
         <Card>
           <h2 className="text-lg font-medium">Agent runs, 7 days</h2>
-          <p className="mt-1 font-mono text-[2rem] font-medium leading-none tracking-[-0.03em] tabular">{number.format(m.runs7.total)}</p>
+          <p className="mt-1 text-[2rem] font-medium leading-none tracking-[-0.03em] tabular">{number.format(m.runs7.total)}</p>
           <ul className="mt-4 grid gap-2 text-sm">
             <li className="flex items-center justify-between gap-3">
               <span className="flex items-center gap-2 text-ink-2">
                 <CheckCircleIcon size={16} weight="fill" className="text-verified" aria-hidden /> Finished
               </span>
-              <span className="font-mono tabular">{number.format(m.runs7.finished)}</span>
+              <span className="tabular">{number.format(m.runs7.finished)}</span>
             </li>
             <li className="flex items-center justify-between gap-3">
               <span className="flex items-center gap-2 text-ink-2">
                 <XCircleIcon size={16} weight="fill" className="text-failed" aria-hidden /> Failed
               </span>
-              <span className="font-mono tabular">{number.format(m.runs7.failed)}</span>
+              <span className="tabular">{number.format(m.runs7.failed)}</span>
             </li>
             <li className="flex items-center justify-between gap-3">
               <span className="flex items-center gap-2 text-ink-2">
                 <StopCircleIcon size={16} weight="fill" className="text-ink-3" aria-hidden /> Stopped or interrupted
               </span>
-              <span className="font-mono tabular">{number.format(m.runs7.stopped)}</span>
+              <span className="tabular">{number.format(m.runs7.stopped)}</span>
             </li>
           </ul>
         </Card>
@@ -147,7 +147,7 @@ export default async function OfficeOverview({ searchParams }: { searchParams: P
       <section aria-label="This month's AI cost" className="grid gap-5 rounded-lg border border-line bg-surface p-6 shadow-e2 sm:p-8 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
         <div>
           <p className="text-sm text-ink-2">AI list cost since {monthName(o.aiCost.since)} (UTC), an estimate</p>
-          <p className="mt-2 font-mono text-[clamp(2.5rem,6vw,4rem)] font-medium leading-none tracking-[-0.04em] tabular">{usd(o.aiCost.usd)}</p>
+          <p className="mt-2 text-[clamp(2.5rem,6vw,4rem)] font-medium leading-none tracking-[-0.04em] tabular">{usd(o.aiCost.usd)}</p>
           <p className="mt-3 max-w-[60ch] text-sm leading-relaxed text-ink-2">
             From {number.format(o.aiCost.settledCalls)} settled AI calls at the providers&apos; list prices, before any discounts. Refunded calls aren&apos;t counted.
           </p>
@@ -155,11 +155,11 @@ export default async function OfficeOverview({ searchParams }: { searchParams: P
         <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm md:text-right">
           <div>
             <dt className="text-ink-3">Paid workspaces</dt>
-            <dd className="font-mono text-lg tabular">{number.format(o.workspaces.paid)}</dd>
+            <dd className="text-lg tabular">{number.format(o.workspaces.paid)}</dd>
           </div>
           <div>
             <dt className="text-ink-3">On a trial</dt>
-            <dd className="font-mono text-lg tabular">{number.format(o.workspaces.onTrial)}</dd>
+            <dd className="text-lg tabular">{number.format(o.workspaces.onTrial)}</dd>
           </div>
         </dl>
       </section>

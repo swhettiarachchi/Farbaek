@@ -1,4 +1,4 @@
-import { ArrowsLeftRightIcon, CircleDashedIcon, DeviceMobileIcon, FingerprintIcon, RobotIcon, RocketLaunchIcon } from "@phosphor-icons/react/ssr";
+import { ArrowsLeftRightIcon, CaretRightIcon, CircleDashedIcon, DeviceMobileIcon, FingerprintIcon, RobotIcon, RocketLaunchIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { DiffView } from "@/components/code/diff-view";
 import { Container } from "@/components/ui/container";
@@ -45,7 +45,17 @@ function Cell({
   );
 }
 
-const LIFECYCLE = ["RECEIVED", "CONTRACT_APPROVED", "EXECUTING", "VERIFYING", "VERIFIED"] as const;
+const LIFECYCLE = ["Received", "Contract approved", "Executing", "Verifying", "Verified"] as const;
+
+/** The policy's six outcomes, in words. */
+const OUTCOME_WORDS: Record<(typeof POLICY_OUTCOMES)[number], string> = {
+  ALLOW: "Allow",
+  ALLOW_WITHIN_LIMITS: "Allow within limits",
+  REQUIRE_APPROVAL: "Require approval",
+  SIMULATE_FIRST: "Simulate first",
+  ESCALATE: "Escalate",
+  BLOCK: "Block",
+};
 
 export function ModulesBento() {
   return (
@@ -63,7 +73,7 @@ export function ModulesBento() {
           >
             <div className="mt-6">
               <DiffView lines={SAMPLE_DIFF} path={SAMPLE_CHANGED_FILE.path} />
-              <p className="mt-2 font-mono text-xs text-ink-3">sample diff</p>
+              <p className="mt-2 text-xs text-ink-3">Sample diff</p>
             </div>
           </Cell>
 
@@ -75,8 +85,8 @@ export function ModulesBento() {
             <div aria-hidden className="dot-grid pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_bottom,transparent,black)]" />
             <ul className="relative mt-5 flex flex-wrap gap-2" aria-label="Policy outcomes">
               {POLICY_OUTCOMES.map((outcome) => (
-                <li key={outcome} className="rounded-full border border-line bg-surface px-3 py-1 font-mono text-[11.5px] text-ink-2 shadow-e1">
-                  {outcome}
+                <li key={outcome} className="rounded-full border border-line bg-surface px-3 py-1 text-[13px] text-ink-2 shadow-e1">
+                  {OUTCOME_WORDS[outcome]}
                 </li>
               ))}
             </ul>
@@ -90,7 +100,14 @@ export function ModulesBento() {
           />
 
           <Cell title="RealityLoop" body="Intent contracts, context readiness and outcome tracking for every task." className="bg-surface">
-            <p className="mt-4 font-mono text-[11.5px] leading-relaxed text-ink-3">{LIFECYCLE.join(" → ")}</p>
+            <ol className="mt-4 flex flex-wrap items-center gap-x-1 gap-y-1 text-[13px] text-ink-3" aria-label="A task's lifecycle">
+              {LIFECYCLE.map((step, i) => (
+                <li key={step} className="flex items-center gap-1">
+                  {i > 0 ? <CaretRightIcon size={12} className="text-line-strong" aria-hidden /> : null}
+                  {step}
+                </li>
+              ))}
+            </ol>
           </Cell>
 
           <Cell title="Core" body="Identity, organizations, projects, tasks and entitlements." icon={FingerprintIcon} className="bg-surface" />

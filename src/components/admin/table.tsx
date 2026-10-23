@@ -12,7 +12,7 @@ export function AdminTable({ caption, columns, children }: { caption: string; co
         <thead>
           <tr className="border-b border-line bg-canvas-2">
             {columns.map((c) => (
-              <th key={c} scope="col" className="whitespace-nowrap px-4 py-2.5 font-mono text-[11px] font-normal text-ink-3">
+              <th key={c} scope="col" className="whitespace-nowrap px-4 py-2.5 text-xs font-medium text-ink-3">
                 {c}
               </th>
             ))}

@@ -39,20 +39,21 @@ export async function ProofPackCard({ pack }: { pack: ProofPackRecord }) {
           {intact ? "Record intact: its digest was recomputed from the stored statement just now and matches." : "This record changed after it was made: the recomputed digest doesn't match."}
         </p>
         <p className="text-xs text-ink-3">
-          Recorded <LocalTime iso={pack.createdAt} />
+          Recorded <LocalTime iso={pack.createdAt} />.
           {statement?.predicate?.verification ? (
             <>
               {" "}
-              · verifies {shortHash(statement.predicate.verification.appliedProofPack)} from check run {shortHash(statement.predicate.verification.receipt)}
+              Verifies <span className="font-mono">{shortHash(statement.predicate.verification.appliedProofPack)}</span> from check run{" "}
+              <span className="font-mono">{shortHash(statement.predicate.verification.receipt)}</span>.
             </>
           ) : null}
           {pack.previous ? (
             <>
               {" "}
-              · <LinkIcon size={12} className="inline align-[-1px]" aria-hidden /> follows {shortHash(pack.previous)}
+              <LinkIcon size={12} className="inline align-[-1px]" aria-hidden /> Follows <span className="font-mono">{shortHash(pack.previous)}</span>.
             </>
           ) : (
-            " · the first in this project"
+            " The first in this project."
           )}
         </p>
         {checks.length ? (

@@ -85,11 +85,9 @@ export default async function OfficeSupport({ searchParams }: { searchParams: Pr
                       {TOPIC_LABELS[r.topic]}
                     </Chip>
                   </span>
-                  <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-3">
+                  <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-3">
                     <span className="break-all">{r.email}</span>
-                    <span aria-hidden>·</span>
                     <span>{r.workspace ?? "No workspace"}</span>
-                    <span aria-hidden>·</span>
                     <span>
                       {r.messages} {r.messages === 1 ? "message" : "messages"}
                     </span>

@@ -117,7 +117,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
 
       <section aria-labelledby="plan-title" className="relative overflow-hidden rounded-lg border border-line bg-surface p-6 shadow-e2 sm:p-8">
         <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-[radial-gradient(circle,var(--color-accent)_0%,transparent_70%)] opacity-[0.07]" />
-        <p className="font-mono text-xs text-ink-3">{"// launch plan"}</p>
+        <p className="text-[13px] font-medium text-ink-3">Launch plan</p>
         <h2 id="plan-title" className="mt-2 text-balance text-[1.7rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2.2rem]">
           {KIND_LABELS[plan.kind]}
           {sitesDestination.available ? <span className="text-ink-3">, ready for Farbaek Sites</span> : null}
@@ -330,10 +330,10 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
                       ) : null}
                     </span>
                     <span className="text-xs text-ink-3">
-                      Published <RelativeTime iso={d.createdAt} /> · {d.fileCount} files · {formatBytes(d.totalBytes)}
-                      {d.securityScore !== null ? ` · security ${d.securityScore}` : ""}
+                      Published <RelativeTime iso={d.createdAt} />. {d.fileCount} files, {formatBytes(d.totalBytes)}
+                      {d.securityScore !== null ? `, security score ${d.securityScore}` : ""}.
                     </span>
-                    <code className="font-mono text-[11px] text-ink-3" title={d.digest}>
+                    <code className="font-mono text-xs text-ink-3" title={d.digest}>
                       sha256 {d.digest.slice(0, 16)}…
                     </code>
                   </span>

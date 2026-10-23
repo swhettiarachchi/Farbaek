@@ -46,7 +46,7 @@ export function PaletteTrigger() {
     >
       <MagnifyingGlassIcon size={16} aria-hidden />
       <span className="flex-1 truncate whitespace-nowrap text-left">Search or jump to</span>
-      <kbd className="rounded-full border border-line px-1.5 font-mono text-[11px] text-ink-3">{shortcut}</kbd>
+      <kbd className="rounded-full border border-line px-1.5 font-mono text-xs text-ink-3">{shortcut}</kbd>
     </button>
   );
 }
@@ -185,7 +185,7 @@ export function CommandPalette({
           placeholder={canBuild ? "Go to a page or project, or describe a build" : "Go to a page or project"}
           className="h-14 min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-ink-3"
         />
-        <kbd className="hidden rounded-full border border-line px-1.5 font-mono text-[11px] text-ink-3 sm:inline">Esc</kbd>
+        <kbd className="hidden rounded-full border border-line px-1.5 font-mono text-xs text-ink-3 sm:inline">Esc</kbd>
       </div>
       <ul id={listId} role="listbox" aria-label="Results" className="max-h-[min(60dvh,440px)] overflow-y-auto p-2">
         {commands.length === 0 ? (
@@ -197,7 +197,7 @@ export function CommandPalette({
             const showGroup = i === 0 || commands[i - 1]!.group !== c.group;
             return (
               <li key={c.id} role="presentation">
-                {showGroup ? <p className="px-3 pb-1 pt-2 font-mono text-[11px] text-ink-3">{`// ${c.group.toLowerCase()}`}</p> : null}
+                {showGroup ? <p className="px-3 pb-1 pt-2 text-xs font-medium text-ink-3">{c.group}</p> : null}
                 <div
                   id={optionId(i)}
                   role="option"

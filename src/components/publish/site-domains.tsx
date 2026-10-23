@@ -80,14 +80,14 @@ function DomainCard({ projectId, domain, disabledReason }: { projectId: string; 
                 </span>
                 <span className="flex min-w-0 items-center gap-1">
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[11px] text-ink-3">Name</span>
+                    <span className="block text-xs text-ink-3">Name</span>
                     <span className="block break-all font-mono text-[13px]">{r.name}</span>
                   </span>
                   <Copy value={r.name} label={`the ${r.type} record's name`} />
                 </span>
                 <span className="flex min-w-0 items-center gap-1">
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[11px] text-ink-3">Value</span>
+                    <span className="block text-xs text-ink-3">Value</span>
                     <span className="block break-all font-mono text-[13px]">{r.value}</span>
                   </span>
                   <Copy value={r.value} label={`the ${r.type} record's value`} />

@@ -75,7 +75,7 @@ export function StaticPreview({
             ))}
           </div>
         ) : (
-          <span className="font-mono text-xs text-ink-3">{`// ${version.label.toLowerCase()}`}</span>
+          <span className="text-[13px] font-medium text-ink-3">{version.label}</span>
         )}
         <div className="flex items-center gap-2">
           {pages.length > 1 ? (

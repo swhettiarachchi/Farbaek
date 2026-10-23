@@ -81,7 +81,7 @@ export function FeatureFilms({ features }: { features: Feature[] }) {
                   <FilmClip id={f.id} poster={f.poster} />
                 </Bezel>
               </div>
-              <p className="font-mono text-xs text-ink-3">{`// ${f.label}`}</p>
+              <p className="text-[13px] font-medium text-accent">{f.label}</p>
               <h3
                 className={`mt-3 text-balance text-[1.75rem] font-medium leading-[1.12] tracking-[-0.03em] transition-colors duration-300 sm:text-[2rem] ${
                   current ? "text-ink" : "text-ink lg:text-ink-3"

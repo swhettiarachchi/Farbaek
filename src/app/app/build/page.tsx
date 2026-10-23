@@ -101,7 +101,7 @@ export default async function BuildPage() {
               <span className="inline-flex size-7 items-center justify-center rounded-full bg-accent/[0.08] text-accent">
                 <s.icon size={15} weight="bold" aria-hidden />
               </span>
-              <span className="font-mono text-xs text-ink-3">{`0${i + 1}`}</span> {s.title}
+              <span className="text-ink-3 tabular">{i + 1}.</span> {s.title}
             </p>
             <p className="mt-2 text-sm leading-relaxed text-ink-2">{s.text}</p>
           </li>
@@ -155,7 +155,7 @@ export default async function BuildPage() {
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[15px] font-medium">{r.taskTitle}</span>
                     <span className="block text-xs text-ink-3">
-                      {r.projectName} · {EFFORT_LABELS[r.effort].title} · <LocalTime iso={r.startedAt} />
+                      {r.projectName}, {EFFORT_LABELS[r.effort].title.toLowerCase()} effort. Started <LocalTime iso={r.startedAt} />
                     </span>
                   </span>
                   <RunStatusBadge status={r.status} />

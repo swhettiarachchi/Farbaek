@@ -118,13 +118,15 @@ export default async function OfficeAudit({ searchParams }: { searchParams: Prom
                 <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
                   <span className="font-medium text-ink">{ACTIONS[e.action] ?? e.action}</span>
                   <Result result={e.result} />
-                  {e.strength === "step_up" ? <span className="rounded-full bg-surface-raised px-2 py-0.5 text-[11px] text-ink-2">fresh code</span> : null}
+                  {e.strength === "step_up" ? <span className="rounded-full bg-surface-raised px-2 py-0.5 text-xs text-ink-2">Fresh code</span> : null}
                 </p>
-                <p className="mt-0.5 text-xs text-ink-3">
-                  {e.actor ?? "Someone not signed in"}
-                  {e.actorRole && isStaffRole(e.actorRole) ? ` · ${ROLE_LABELS[e.actorRole]}` : ""}
-                  {e.targetType ? ` · ${e.targetType}` : ""}
-                  <span className="font-mono"> · {e.action}</span>
+                <p className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-ink-3">
+                  <span>
+                    {e.actor ?? "Someone not signed in"}
+                    {e.actorRole && isStaffRole(e.actorRole) ? `, ${ROLE_LABELS[e.actorRole]}` : ""}
+                  </span>
+                  {e.targetType ? <span>{e.targetType}</span> : null}
+                  <span className="font-mono">{e.action}</span>
                 </p>
                 {e.reason ? <p className="mt-1.5 max-w-[70ch] text-sm text-ink-2">&ldquo;{e.reason}&rdquo;</p> : null}
               </div>

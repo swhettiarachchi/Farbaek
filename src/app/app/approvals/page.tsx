@@ -83,7 +83,7 @@ export default async function ApprovalsPage() {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[15px] font-medium group-hover:text-accent">{t.title}</span>
                   <span className="mt-0.5 block text-xs text-ink-3">
-                    {t.projectName ?? "Project"} · waiting since <RelativeTime iso={t.updatedAt} /> · no open proposal on record, so there&apos;s nothing to approve here. Open the task to see why.
+                    In {t.projectName ?? "its project"}, waiting since <RelativeTime iso={t.updatedAt} />. There&apos;s no open proposal on record, so nothing to approve here. Open the task to see why.
                   </span>
                 </span>
                 <ArrowRightIcon size={14} className="shrink-0 text-ink-3" aria-hidden />

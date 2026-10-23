@@ -184,7 +184,7 @@ export function EvidenceCheck() {
       <section aria-live="polite" aria-label="Result" className="min-w-0 rounded-md border border-line bg-surface p-5 shadow-e1 sm:p-7">
         {!result ? (
           <div className="grid gap-4">
-            <p className="font-mono text-xs text-ink-3">{"// what can be checked"}</p>
+            <p className="text-[13px] font-medium text-ink-3">What can be checked</p>
             <ul className="grid gap-3">
               {KINDS.map((k) => (
                 <li key={k.label} className="grid gap-0.5 border-t border-line pt-3 first:border-t-0 first:pt-0">
@@ -268,8 +268,8 @@ function EvidenceResult({ inspection: r }: { inspection: Extract<Inspection, { o
     <div className="grid gap-6 motion-safe:animate-[usage-in_220ms_cubic-bezier(0.16,1,0.3,1)_both]">
       <div className={`grid gap-5 ${sealed ? "sm:grid-cols-[minmax(0,1fr)_150px] sm:items-start" : ""}`}>
         <div className="grid min-w-0 gap-3">
-          <p className="flex flex-wrap items-center gap-2 font-mono text-xs text-accent">
-            {`// ${label.toLowerCase()}`}
+          <p className="flex flex-wrap items-center gap-2 text-[13px] font-medium text-accent">
+            {label}
             {r.sample ? <StatusBadge status="simulated" label="Sample data" /> : null}
           </p>
           <Verdict intact={r.intact} label={label} />
@@ -401,7 +401,7 @@ function CapsuleResult({ name, opened }: { name: string; opened: OpenedCapsule }
   if (!opened.ok) {
     return (
       <div role="alert" className="grid gap-3">
-        <p className="font-mono text-xs text-accent">{"// workspace capsule"}</p>
+        <p className="text-[13px] font-medium text-accent">Workspace Capsule</p>
         <p className="flex items-start gap-2.5 text-lg font-medium leading-snug text-failed">
           <XCircleIcon size={24} weight="fill" className="mt-0.5 shrink-0" aria-hidden /> This Capsule didn&apos;t pass its checks.
         </p>
@@ -420,7 +420,7 @@ function CapsuleResult({ name, opened }: { name: string; opened: OpenedCapsule }
     <div className="grid gap-6 motion-safe:animate-[usage-in_220ms_cubic-bezier(0.16,1,0.3,1)_both]">
       <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_150px] sm:items-start">
         <div className="grid min-w-0 gap-3">
-          <p className="font-mono text-xs text-accent">{"// workspace capsule"}</p>
+          <p className="text-[13px] font-medium text-accent">Workspace Capsule</p>
           <p className="flex items-start gap-2.5 text-lg font-medium leading-snug">
             <CheckCircleIcon size={24} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
             <span>Intact. Every file matches its BLAKE3 hash.</span>

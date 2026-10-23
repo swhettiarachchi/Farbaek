@@ -139,8 +139,8 @@ export function FileEditor({
           )}
         </div>
         <p className="shrink-0 text-xs text-ink-3" aria-live="polite">
-          {mode === "edit" ? (dirty ? "Unsaved changes" : "No changes yet") : "Reviewing changes"} · {formatBytes(bytes)}
-          {isNew ? null : <> · from revision {revision}</>}
+          {mode === "edit" ? (dirty ? "Unsaved changes" : "No changes yet") : "Reviewing changes"}. {formatBytes(bytes)}
+          {isNew ? null : <>, from revision {revision}</>}
         </p>
       </div>
 

@@ -14,7 +14,7 @@ What the Antigravity page actually does (checked in the browser on 2026-10-13): 
 - **One light theme**, dark-mode-free by brand decision. Tokens in `src/styles/tokens.css`, contrast enforced by `tests/design/contrast.test.ts` (81 checks).
 - **Accent:** signal blue `#2450f0` (text-safe on every surface), with signal cyan `#0a6e85` used only in the aurora glow, the orbit packets and syntax tint. No gold in the UI. The logo keeps its own colours, unaltered.
 - **Logo:** placed directly on the page with no plate, frame, filter or recolouring. In the hero it levitates in 3D.
-- **Type:** Geist and Geist Mono via `next/font`. Google Sans Flex is not used: it reads as Google's brand, and the spec forbids copying another company's branding.
+- **Type:** Geist and Geist Mono via `next/font`. Since ADR 0049, Geist Mono is for code and data only, and small text follows that ADR's rules. Google Sans Flex is not used: it reads as Google's brand, and the spec forbids copying another company's branding.
 - **Media panels:** the evidence terminal and sandbox output are dark frames (`--media*` tokens) inside the white page, the way a video player is. They are content, not a second theme.
 - **Shape lock:** pills for buttons, chips and segmented controls; inputs 12px; cards 20px; large panels and media frames 28px.
 - **3D:** React Three Fiber 9 / three.js 0.186. The hero scene ("The Loom") shows the knight as a textured plane with the six RealityLoop stages orbiting it, passing in front of and behind it, plus rising particles. It loads after idle, only on capable devices, never under reduced motion or Save-Data, pauses when off-screen, and falls back to the static image if the first second runs below 24 fps.

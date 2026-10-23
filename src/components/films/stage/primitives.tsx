@@ -57,7 +57,7 @@ export function Stage({ t, width, height, children, label = true }: { t: number;
       {/* A faint floor line gives the set a horizon, so depth reads. */}
       <div aria-hidden className="absolute inset-x-0 h-px" style={{ top: "88%", background: "linear-gradient(90deg, transparent, var(--color-line-strong), transparent)", opacity: 0.35 }} />
       {children}
-      {label ? <p className="absolute bottom-[2.2%] left-[2.6%] z-50 rounded-full bg-surface/85 px-2.5 py-1 font-mono text-[10px] tracking-tight text-ink-3 ring-1 ring-line">{FILM_LABEL}</p> : null}
+      {label ? <p className="absolute bottom-[2.2%] left-[2.6%] z-50 rounded-full bg-surface/85 px-2.5 py-1 text-[10px] text-ink-3 ring-1 ring-line">{FILM_LABEL}</p> : null}
     </div>
   );
 }

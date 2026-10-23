@@ -43,7 +43,7 @@ const PAGE_ICONS: Record<OfficeHref, Icon> = {
   "/security": FingerprintIcon,
 };
 const HIT_ICONS: Record<OfficeSearchHit["kind"], Icon> = { workspace: BuildingsIcon, person: UserIcon, site: GlobeIcon };
-const GROUPS: Record<OfficeSearchHit["kind"] | "page", string> = { page: "go to", workspace: "workspaces", person: "people", site: "sites" };
+const GROUPS: Record<OfficeSearchHit["kind"] | "page", string> = { page: "Go to", workspace: "Workspaces", person: "People", site: "Sites" };
 
 interface Row {
   id: string;
@@ -72,7 +72,7 @@ export function OfficeSearchTrigger() {
         >
           <MagnifyingGlassIcon size={16} aria-hidden />
           <span className="flex-1 truncate text-left">Search workspaces, people, sites</span>
-          <kbd className="rounded-full border border-line px-1.5 font-mono text-[11px]">{shortcut}</kbd>
+          <kbd className="rounded-full border border-line px-1.5 font-mono text-xs">{shortcut}</kbd>
         </button>
       </span>
       <span className="md:hidden">
@@ -218,7 +218,7 @@ export function OfficeSearch() {
           placeholder="Search workspaces, people, sites"
           className="h-14 min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-ink-3"
         />
-        <kbd className="hidden rounded-full border border-line px-1.5 font-mono text-[11px] text-ink-3 sm:inline">Esc</kbd>
+        <kbd className="hidden rounded-full border border-line px-1.5 font-mono text-xs text-ink-3 sm:inline">Esc</kbd>
       </div>
       <p aria-live="polite" className={status ? "flex items-center gap-2 border-b border-line px-4 py-2.5 text-xs text-ink-3" : "sr-only"}>
         {remote.state === "searching" ? <span aria-hidden className="size-1.5 rounded-full bg-accent motion-safe:animate-pulse" /> : null}
@@ -229,7 +229,7 @@ export function OfficeSearch() {
           const showGroup = i === 0 || rows[i - 1]!.group !== r.group;
           return (
             <li key={r.id} role="presentation">
-              {showGroup ? <p className="px-3 pb-1 pt-2 font-mono text-[11px] text-ink-3">{`// ${GROUPS[r.group]}`}</p> : null}
+              {showGroup ? <p className="px-3 pb-1 pt-2 text-xs font-medium text-ink-3">{GROUPS[r.group]}</p> : null}
               <div
                 id={optionId(i)}
                 role="option"

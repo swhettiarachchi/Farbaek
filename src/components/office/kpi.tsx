@@ -26,7 +26,7 @@ export function KpiTile({ label, value, detail, trend, href, className = "" }: {
     <>
       <p className="text-sm text-ink-2">{label}</p>
       <div className="mt-2 flex items-end justify-between gap-3">
-        <p className="font-mono text-[2rem] font-medium leading-none tracking-[-0.03em] tabular">{value}</p>
+        <p className="text-[2rem] font-medium leading-none tracking-[-0.03em] tabular">{value}</p>
         {trend ? <div className="shrink-0 pb-0.5">{trend}</div> : null}
       </div>
       <p className="mt-3 text-xs leading-relaxed text-ink-3">{detail}</p>

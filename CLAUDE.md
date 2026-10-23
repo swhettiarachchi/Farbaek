@@ -52,7 +52,8 @@ The dev PC has 3.8 GB of RAM. Run checks one at a time, and stop any dev or prev
 - One light theme. Colours come from tokens only. One accent: signal blue (`accent`); signal cyan (`accent-2`) only in the aurora, orbit and syntax tint. No gold.
 - Dark `media` tokens are for media frames only (concept film, evidence terminal), never for whole sections.
 - Shape lock: buttons, chips and segmented controls are pills; inputs 12px (`rounded-sm`); cards 20px (`rounded-md`); large panels 28px.
-- Fonts: Geist (UI and display, weight 500 headlines, tight tracking) and Geist Mono (code, data, `//` labels). No serif.
+- Fonts: Geist (UI and display, weight 500 headlines, tight tracking) and Geist Mono for code and data only (hashes, paths, commands, IDs, keys). No serif.
+- Small text (ADR 0049): sentence-case Geist labels, no `//` labels or eyebrows over titles, at least 12px (11px only for tab labels and badges), one `·` per line at most. `tests/design/type-tells.test.ts` checks it.
 - Logo: `public/brand/farbaek-logo.webp`, used unaltered through `BrandLogo` or `LOGO`, directly on the page: no plate, frame or filter.
 - 3D and film load lazily, pause off-screen, and fall back to static under reduced motion, Save-Data or weak hardware. Film content is labelled sample data.
 - Motion only for live state, hierarchy, storytelling or feedback; always honour `prefers-reduced-motion`.

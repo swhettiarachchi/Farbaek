@@ -9,7 +9,6 @@ export default function OfficeNotFound() {
         <span className="flex size-12 items-center justify-center rounded-full bg-accent/[0.08] text-accent">
           <CompassIcon size={24} aria-hidden />
         </span>
-        <p className="font-mono text-xs text-ink-3">{"// 404"}</p>
         <h1 className="text-2xl font-medium tracking-[-0.02em]">There&apos;s nothing at this address</h1>
         <p className="text-[15px] text-ink-2">The page may have moved, or you may not have access to it.</p>
         <Link href="/" className={buttonClasses("secondary", "sm", "mt-2")}>

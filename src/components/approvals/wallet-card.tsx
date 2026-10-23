@@ -141,7 +141,7 @@ export function WalletCard({ card, serverNow }: { card: WalletCardData; serverNo
       {/* The stub: what you hand in. Its dashed edge is the tear line of a ticket. */}
       <div className="grid content-between gap-5 border-t border-dashed border-line-strong/40 bg-surface-raised/50 p-4 sm:p-5 md:border-t-0 md:border-l">
         <div className="grid gap-2">
-          <p className="font-mono text-xs text-ink-3">{"// Approval window"}</p>
+          <p className="text-[13px] font-medium text-ink-3">Approval window</p>
           {expired ? (
             <p className="text-sm">
               Expired {left}. <span className="text-ink-2">It can only be discarded now.</span>
@@ -158,7 +158,7 @@ export function WalletCard({ card, serverNow }: { card: WalletCardData; serverNo
         </div>
 
         <div className="grid gap-1">
-          <p className="font-mono text-xs text-ink-3">{"// Proposal hash"}</p>
+          <p className="text-[13px] font-medium text-ink-3">Proposal hash</p>
           <p className="font-mono text-[13px] break-all" title={card.sha256}>
             {shortHash(card.sha256, 8, 6)}
           </p>

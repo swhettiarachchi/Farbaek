@@ -283,7 +283,7 @@ export default async function MissionControl() {
       <Card>
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-medium">Recent evidence</h2>
-          <span className="font-mono text-xs text-ink-3">{"// ProofPacks"}</span>
+          <span className="text-[13px] text-ink-3">ProofPacks</span>
         </div>
         {recentEvidence.length === 0 ? (
           <p className="mt-3 text-sm text-ink-2">No evidence yet. A ProofPack is recorded each time you approve and apply a change.</p>

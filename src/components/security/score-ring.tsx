@@ -29,7 +29,7 @@ export function ScoreRing({ score, grade, size = 132 }: { score: number; grade: 
       </svg>
       <figcaption className="absolute inset-0 grid place-content-center text-center">
         <span className="text-4xl font-medium tracking-[-0.03em] tabular">{score}</span>
-        <span className="mt-0.5 font-mono text-xs text-ink-3">grade {grade}</span>
+        <span className="mt-0.5 text-[13px] text-ink-3">Grade {grade}</span>
       </figcaption>
     </figure>
   );

@@ -74,7 +74,7 @@ export function SiteThumb({ src, name, className = "" }: { src: string; name: st
               <BracketsCurlyIcon size={22} />
             </span>
             <span className="text-xs text-ink-2">An app with a server</span>
-            <span className="text-[11px] text-ink-3">It previews in a sandbox</span>
+            <span className="text-xs text-ink-3">It previews in a sandbox</span>
           </span>
         </div>
       ) : (

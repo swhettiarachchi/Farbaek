@@ -92,18 +92,14 @@ export function SidebarNav({ approvals, helpUnread = 0 }: { approvals: number; h
       <ul className="grid gap-0.5">{PRIMARY.map(link)}</ul>
       <ul className="grid gap-0.5">{SECONDARY.map(link)}</ul>
       <div>
-        <p className="px-3.5 text-xs font-medium text-ink-3">Coming in later stages</p>
+        <p className="px-3.5 text-xs font-medium text-ink-3">Coming later</p>
         <ul className="mt-2 grid gap-0.5">
           {ROADMAP.map((r) => (
-            <li
-              key={r.label}
-              title={`${r.label} arrives in Stage ${r.stage}. It isn't built yet.`}
-              className="flex h-9 cursor-default items-center gap-3 px-3.5 text-[14px] text-ink-3"
-            >
+            <li key={r.label} title={`${r.label} isn't built yet.`} className="flex h-9 cursor-default items-center gap-3 px-3.5 text-[14px] text-ink-3">
               <LockSimpleIcon size={16} className="shrink-0" aria-hidden />
               <span className="min-w-0 truncate">{r.label}</span>
               <span className="sr-only">, not available yet</span>
-              <span className="ml-auto shrink-0 whitespace-nowrap text-[11px] tabular">Stage {r.stage}</span>
+              <span className="ml-auto shrink-0 whitespace-nowrap rounded-full border border-dashed border-line-strong/50 px-2 text-xs">Planned</span>
             </li>
           ))}
         </ul>
@@ -138,7 +134,7 @@ export function MobileTabBar({ approvals, helpUnread = 0 }: { approvals: number;
                 <item.icon size={22} weight={active ? "fill" : "regular"} aria-hidden />
                 {item.short}
                 {item.href === "/app/approvals" && approvals > 0 ? (
-                  <span className="absolute right-[calc(50%-20px)] top-2 min-w-4 rounded-full bg-approval px-1 text-center text-[10px] font-semibold leading-4 text-surface tabular">
+                  <span className="absolute right-[calc(50%-20px)] top-2 min-w-4 rounded-full bg-approval px-1 text-center text-[11px] font-semibold leading-4 text-surface tabular">
                     {approvals}
                     <span className="sr-only"> waiting</span>
                   </span>

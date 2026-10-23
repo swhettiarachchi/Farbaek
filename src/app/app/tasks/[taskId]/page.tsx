@@ -35,7 +35,7 @@ import { loadAiAvailability } from "@/server/workspace/usage-summary";
 
 export const metadata: Metadata = { title: "Task" };
 
-const ACTOR: Record<"user" | "agent" | "system", string> = { user: "Person", agent: "Agent", system: "Farbaek" };
+const ACTOR: Record<"user" | "agent" | "system", string> = { user: "By a person", agent: "By the agent", system: "By Farbaek" };
 const CAN_START_CONTRACT: ReadonlySet<TaskState> = new Set(["RECEIVED", "CONTEXT_ASSEMBLED"]);
 const CAN_REVISE: ReadonlySet<TaskState> = new Set(["CONTRACT_DRAFTED", "CONTRACT_APPROVED", "BLOCKED"]);
 
@@ -140,7 +140,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
           <TaskStateBadge state={task.state} />
         </div>
         <p className="mt-2 text-sm text-ink-3">
-          Created <LocalTime iso={task.createdAt} /> · version <span className="tabular">{task.version}</span>
+          Created <LocalTime iso={task.createdAt} />. Version <span className="tabular">{task.version}</span>
         </p>
       </div>
 
@@ -372,8 +372,8 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
                 <p className="text-[15px]">
                   {TASK_STATE_LABELS[h.from]} <span className="text-ink-3">to</span> {TASK_STATE_LABELS[h.to]}
                 </p>
-                <p className="text-xs text-ink-3">
-                  {ACTOR[h.actorKind]} · <span className="font-mono">{h.eventType}</span> · <LocalTime iso={h.at} />
+                <p className="text-xs text-ink-3" title={`Event: ${h.eventType}`}>
+                  {ACTOR[h.actorKind]}, <LocalTime iso={h.at} />
                 </p>
               </li>
             ))}

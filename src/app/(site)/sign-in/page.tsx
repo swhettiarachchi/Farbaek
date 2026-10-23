@@ -35,8 +35,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
   return (
     <Container className="grid min-h-[calc(100dvh-4rem)] items-center gap-12 py-12 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-16 lg:py-16">
       <div className="w-full max-w-[440px] justify-self-center lg:justify-self-start">
-        <p className="font-mono text-[13px] text-ink-3">{"// early access"}</p>
-        <h1 className="mt-4 text-[2.4rem] font-medium leading-[1.05] tracking-[-0.035em]">Sign in to Farbaek</h1>
+        <h1 className="text-[2.4rem] font-medium leading-[1.05] tracking-[-0.035em]">Sign in to Farbaek</h1>
         <p className="mt-3 text-[15px] leading-relaxed text-ink-2">No password. We email you a one-time link. Farbaek is in early development, so expect rough edges.</p>
         <div className="mt-8 rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
           <div className="rounded-md bg-surface p-5 shadow-e1 sm:p-6">
@@ -77,10 +76,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
                     <s.icon size={19} aria-hidden />
                   </span>
                   <span>
-                    <span className="block font-medium">
-                      <span className="mr-2 font-mono text-xs text-ink-3">{i + 1}</span>
-                      {s.title}
-                    </span>
+                    <span className="block font-medium">{s.title}</span>
                     <span className="mt-1 block max-w-[42ch] text-sm leading-relaxed text-ink-2">{s.body}</span>
                   </span>
                 </li>
