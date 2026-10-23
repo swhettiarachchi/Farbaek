@@ -239,6 +239,51 @@ describe("applying a proposal", () => {
   });
 });
 
+describe("the approval window (migration 27)", () => {
+  const windowHours = (id: string) => q<{ hours: number }>("select extract(epoch from expires_at - created_at) / 3600 as hours from public.change_proposals where id = $1", [id]);
+  /** Moves a proposal's window into the past, as the owner of the table with the guard switched off. */
+  async function expire(id: string) {
+    await db.exec("alter table public.change_proposals disable trigger change_proposals_approval_window");
+    try {
+      await db.query("update public.change_proposals set created_at = now() - interval '4 days', expires_at = now() - interval '1 hour' where id = $1", [id]);
+    } finally {
+      await db.exec("alter table public.change_proposals enable trigger change_proposals_approval_window");
+    }
+  }
+
+  it("gives each proposal 72 hours from when it's made", async () => {
+    const task = await approvedTask("Window");
+    const id = await propose(task, [change("src/cart.ts", "export const max = 4;\n", await fileRevision("src/cart.ts"))]);
+    expect(Number((await windowHours(id))[0]!.hours)).toBeCloseTo(72, 3);
+    await discard(id, task);
+  });
+
+  it("refuses to apply an expired proposal, changing nothing, but lets it be discarded", async () => {
+    const task = await approvedTask("Expired");
+    const before = await fileRevision("src/cart.ts");
+    const id = await propose(task, [change("src/cart.ts", "export const max = 5;\n", before)]);
+    await expire(id);
+    const packs = await latestProofPack();
+    await expect(apply(id, task, [{ path: "src/cart.ts", content: "export const max = 5;\n" }])).rejects.toThrow(/PROPOSAL_EXPIRED/);
+    expect(await fileRevision("src/cart.ts")).toBe(before);
+    expect(await latestProofPack()).toBe(packs);
+    expect((await taskState(task)).state).toBe("APPROVAL_PENDING");
+    const [p] = await q<{ status: string }>("select status from public.change_proposals where id = $1", [id]);
+    expect(p!.status).toBe("pending");
+    await discard(id, task);
+    expect((await taskState(task)).state).toBe("CONTRACT_APPROVED");
+  });
+
+  it("never lets the window move, even for the server", async () => {
+    const task = await approvedTask("Fixed window");
+    const id = await propose(task, [change("src/cart.ts", "export const max = 6;\n", await fileRevision("src/cart.ts"))]);
+    await expect(q("update public.change_proposals set expires_at = expires_at + interval '1 day' where id = $1", [id])).rejects.toThrow(/INVALID_PROPOSAL|permission denied/);
+    await expect(db.query("update public.change_proposals set expires_at = expires_at + interval '1 day' where id = $1", [id])).rejects.toThrow(/INVALID_PROPOSAL/);
+    await expect(db.query("update public.change_proposals set expires_at = created_at where id = $1", [id])).rejects.toThrow(/INVALID_PROPOSAL|change_proposals_expiry/);
+    await discard(id, task);
+  });
+});
+
 describe("policy and metering (migration 7)", () => {
   it("stores the policy decision and counts one governed evaluation per proposal", async () => {
     const task = await approvedTask("Metered");

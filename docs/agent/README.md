@@ -10,6 +10,16 @@ A desktop app that works on a task's approved intent contract on your computer, 
 4. You review the result in the app and submit it. Farbaek checks it again (paths, file screening, base revisions, contract, policy, evaluation allowance) and creates a proposal tagged "Proposed by Farbaek Agent".
 5. From there it's the same as any proposal: per-chunk review, apply, checks on Vercel Sandbox, ProofPack, recovery.
 
+### After you submit
+
+Farbaek's review decides what happens to the change. The app shows where it stands, checking every 30 seconds while it can still change and the window is visible, or when you choose **Check now** (Approval Wallet, [ADR 0042](../adr/0042-approval-wallet.md)):
+- **Waiting for review,** with the time it can still be approved. A proposal can be approved for 72 hours.
+- **Expired:** discard it in Farbaek, then start a new run.
+- **Applied, not verified,** then **Verified** or **Checks failed,** with the approved content's hash and the ProofPack.
+- **Discarded in Farbaek.**
+
+When it submits, the app works out the proposal's hash from exactly what it sent. Each check compares that with the hash Farbaek holds. If they differ, the app says not to approve it.
+
 ## Modes
 
 | Mode | Files | Commands | Where |

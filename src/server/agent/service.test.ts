@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { INTENT_CONTRACT_SCHEMA, type IntentContract } from "@/core/realityloop/contract";
 import { sha256Hex } from "@/core/trust/canonical-json";
-import { agentTaskFiles, pairAgent, submitAgentProposal, type AgentIdentity, type AgentStore } from "./service";
+import { agentProposal, agentTaskFiles, pairAgent, submitAgentProposal, type AgentIdentity, type AgentProposalStatus, type AgentStore } from "./service";
 import { newPairingCode, normalizePairingCode, sha256 } from "./tokens";
 
 const ORG = "11111111-1111-4111-8111-111111111111";
@@ -57,6 +57,8 @@ function fakeStore(over: Partial<AgentStore> = {}) {
       return { ok: true, value: "proposal-1" };
     },
     revokeAgent: async () => ({ ok: true, value: null }),
+    // Only agent-1's own proposal in ORG; the real store filters on both in the query.
+    agentProposal: async (orgId, agentId, id) => (orgId === ORG && agentId === "agent-1" && id === OWN.id ? OWN : null),
     newEventId: () => `event-${++n}`,
     now: () => new Date("2026-10-18T12:00:00Z"),
     ...over,
@@ -65,6 +67,18 @@ function fakeStore(over: Partial<AgentStore> = {}) {
 }
 
 const agent: AgentIdentity = { agentId: "agent-1", orgId: ORG, userId: "user-1", role: "member", name: "Office PC" };
+
+const OWN: AgentProposalStatus = {
+  id: "44444444-4444-4444-8444-444444444444",
+  taskId: TASK,
+  status: "applied",
+  sha256: "e".repeat(64),
+  createdAt: "2026-10-18T10:00:00Z",
+  expiresAt: "2026-10-21T10:00:00Z",
+  decidedAt: "2026-10-18T11:00:00Z",
+  appliedSha256: "f".repeat(64),
+  proofPack: { digest: "9".repeat(64), status: "verified" },
+};
 
 describe("pairing codes and tokens", () => {
   it("makes typeable codes and accepts them with or without the dash", () => {
@@ -160,5 +174,24 @@ describe("file pages", () => {
     expect(first).toMatchObject({ ok: true, value: { files: [{ path: "README.md", revision: 4, content: "content of README.md" }], next: "README.md", total: 3 } });
     const second = await agentTaskFiles(store, agent, TASK, "README.md", 2 * 1024 * 1024);
     expect(second).toMatchObject({ ok: true, value: { files: [{ path: "src/app.ts" }, { path: "src/z.ts" }], next: null } });
+  });
+});
+
+describe("proposal status (ADR 0042)", () => {
+  it("tells an agent where its own proposal stands, ProofPack included", async () => {
+    const { store } = fakeStore();
+    expect(await agentProposal(store, agent, OWN.id)).toEqual({ ok: true, value: OWN });
+  });
+
+  it("finds nothing for another agent's proposal, another workspace or an unknown id", async () => {
+    const { store } = fakeStore();
+    expect(await agentProposal(store, { ...agent, agentId: "agent-2" }, OWN.id)).toMatchObject({ ok: false, status: 404, code: "NOT_FOUND" });
+    expect(await agentProposal(store, { ...agent, orgId: "55555555-5555-4555-8555-555555555555" }, OWN.id)).toMatchObject({ ok: false, code: "NOT_FOUND" });
+    expect(await agentProposal(store, agent, "proposal-2")).toMatchObject({ ok: false, code: "NOT_FOUND" });
+  });
+
+  it("refuses once the person who paired it has left the workspace", async () => {
+    const { store } = fakeStore();
+    expect(await agentProposal(store, { ...agent, role: null }, OWN.id)).toMatchObject({ ok: false, status: 401, code: "UNAUTHENTICATED" });
   });
 });

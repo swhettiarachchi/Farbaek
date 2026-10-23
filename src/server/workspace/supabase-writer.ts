@@ -216,7 +216,7 @@ export function createSupabaseWriteDeps(
       if (!z.uuid().safeParse(proposalId).success) return null;
       const { data, error } = await user
         .from("change_proposals")
-        .select("id, task_id, project_id, status, contract_version, plan, changes, dropped, violations, sha256, model, created_at, decided_at, applied_sha256, policy")
+        .select("id, task_id, project_id, status, contract_version, plan, changes, dropped, violations, sha256, model, created_at, expires_at, decided_at, applied_sha256, policy")
         .eq("org_id", orgId)
         .eq("id", proposalId)
         .maybeSingle();
@@ -235,6 +235,7 @@ export function createSupabaseWriteDeps(
         contractVersion: record.contractVersion,
         model: record.model,
         policy: record.policy,
+        expiresAt: record.expiresAt,
       };
     },
 

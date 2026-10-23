@@ -54,6 +54,8 @@ export interface StoredProposal {
   contractVersion: number;
   model: string | null;
   policy: { outcome: string; version: string; findings: { rule: string; outcome: string; detail: string }[] } | null;
+  /** The end of its approval window (ADR 0042). The database refuses a later approval too. */
+  expiresAt: string;
 }
 
 export interface ProposalDeps {
@@ -227,6 +229,7 @@ export async function applyProposal(
   if (!proposal) return fail("NOT_FOUND");
   if (proposal.status !== "pending") return fail("PROPOSAL_CLOSED");
   if (proposal.sha256 !== input.reviewedSha256) return fail("PROPOSAL_CHANGED");
+  if (deps.now().getTime() >= Date.parse(proposal.expiresAt)) return fail("PROPOSAL_EXPIRED");
   if (proposal.policyOutcome === "ESCALATE" && !MANAGER_ROLES.includes(role.value)) return fail("APPROVER_ROLE_REQUIRED");
   const task = await deps.loadTask(input.orgId, proposal.taskId);
   if (!task) return fail("NOT_FOUND");

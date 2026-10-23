@@ -21,6 +21,7 @@ const bridge: FarbaekAgentBridge = {
   answerApproval: (input) => invoke("runs:answer", input),
   cancelRun: (runId) => invoke("runs:cancel", runId),
   submitRun: (runId) => invoke("runs:submit", runId),
+  checkProposal: (runId) => invoke("runs:check-proposal", runId),
   discardRun: (runId) => invoke("runs:discard", runId),
   openTaskInFarbaek: (taskId) => invoke("app:open-task", taskId),
   onRunUpdate(listener) {

@@ -21,8 +21,12 @@ export function TaskStateBadge({ state }: { state: TaskState }) {
   return <StatusBadge status={stateTone(state)} label={TASK_STATE_LABELS[state]} />;
 }
 
-export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-md border border-line bg-surface p-5 shadow-e1 sm:p-6 ${className}`}>{children}</section>;
+export function Card({ children, className = "", id }: { children: ReactNode; className?: string; id?: string }) {
+  return (
+    <section id={id} className={`rounded-md border border-line bg-surface p-5 shadow-e1 sm:p-6 ${className}`}>
+      {children}
+    </section>
+  );
 }
 
 export function EmptyState({ icon: EmptyIcon, title, children, action }: { icon: Icon; title: string; children: ReactNode; action?: ReactNode }) {

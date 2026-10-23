@@ -69,6 +69,20 @@ const ProposalResult = z.object({
 });
 export type AgentProposalResult = z.infer<typeof ProposalResult>;
 
+/** Where a submitted proposal stands in Farbaek (ADR 0042). */
+const ProposalStatus = z.object({
+  id: z.string(),
+  taskId: z.string(),
+  status: z.enum(["pending", "blocked", "applied", "discarded"]),
+  sha256: z.string(),
+  createdAt: z.string(),
+  expiresAt: z.string(),
+  decidedAt: z.string().nullable(),
+  appliedSha256: z.string().nullable(),
+  proofPack: z.object({ digest: z.string(), status: z.enum(["unverified", "partially_verified", "verified", "failed"]) }).nullable(),
+});
+export type AgentProposalStatus = z.infer<typeof ProposalStatus>;
+
 const ModelStepReply = z.object({
   message: z.object({
     id: z.string(),
@@ -190,6 +204,11 @@ export class FarbaekAgentClient {
 
   submitProposal(taskId: string, proposal: ProposalSubmission, signal?: AbortSignal): Promise<AgentProposalResult> {
     return this.post(`/api/v1/agent/tasks/${encodeURIComponent(taskId)}/proposals`, proposal, ProposalResult, signal);
+  }
+
+  /** Where one of this agent's proposals stands: waiting, applied, verified, discarded or expired. */
+  proposal(id: string, signal?: AbortSignal): Promise<AgentProposalStatus> {
+    return this.get(`/api/v1/agent/proposals/${encodeURIComponent(id)}`, ProposalStatus, signal);
   }
 
   /** One model step through Farbaek's model gateway, metered from the workspace's usage. */

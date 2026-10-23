@@ -13,22 +13,45 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { stateAfterRestart } from "@/core/agent/operations";
 import type { AgentMode } from "@/core/agent/modes";
-import type { ProposedChange } from "@/core/realityloop/change-proposal";
+import { proposalHash, type ProposedChange } from "@/core/realityloop/change-proposal";
+import { sha256Hex } from "@/core/trust/canonical-json";
+import { checkPath } from "@/core/workspace/files";
 import type { IntentContract } from "@/core/realityloop/contract";
-import type { AgentProposalResult, AgentTaskDetail, ProposalSubmission, SnapshotFile } from "@/agent-runtime/farbaek-client";
+import type { AgentProposalResult, AgentProposalStatus, AgentTaskDetail, ProposalSubmission, SnapshotFile } from "@/agent-runtime/farbaek-client";
 import { ProjectFolder } from "@/agent-runtime/fs-guard";
 import { runAgent, type ApprovalAnswer, type RunEvent, type RunLimits } from "@/agent-runtime/loop";
 import { createFarbaekToolModel, type GatewayClient } from "@/agent-runtime/models/farbaek";
 import type { ToolModel } from "@/agent-runtime/models/types";
 import { createLocalRunner, type CommandRunner } from "@/agent-runtime/runners";
 import { AgentWorkspace, materialize } from "@/agent-runtime/workspace";
-import type { DisplayEvent, Effort, RunDetail, RunSummary } from "../shared/api";
+import type { DisplayEvent, Effort, ProposalReview, RunDetail, RunSummary } from "../shared/api";
 
 /** What a run needs from Farbaek, model steps included. FarbaekAgentClient fits. */
 export interface RunApi extends GatewayClient {
   task(id: string): Promise<AgentTaskDetail>;
   snapshot(taskId: string): Promise<SnapshotFile[]>;
   submitProposal(taskId: string, proposal: ProposalSubmission): Promise<AgentProposalResult>;
+}
+
+/** What checking a proposal needs from Farbaek. FarbaekAgentClient fits. */
+export interface ProposalStatusApi {
+  proposal(id: string): Promise<AgentProposalStatus>;
+}
+
+/** What changed since the last check, in words for the run's log; null when nothing did. */
+function reviewNote(before: ProposalReview | undefined, after: ProposalReview): string | null {
+  if (after.matchesSent === false && before?.matchesSent !== false) return "Farbaek's record of this proposal doesn't match what this computer sent. Don't approve it: discard it in Farbaek.";
+  if (after.status !== (before?.status ?? "pending")) {
+    if (after.status === "applied") return "Approved and applied in Farbaek.";
+    if (after.status === "discarded") return "Discarded in Farbaek.";
+  }
+  const pack = after.proofPack?.status;
+  if (pack && pack !== before?.proofPack?.status) {
+    if (pack === "verified") return "Verified in Farbaek: its checks passed.";
+    if (pack === "failed") return "Its checks failed in Farbaek.";
+    if (pack === "partially_verified") return "Partly verified in Farbaek: some checks passed.";
+  }
+  return null;
 }
 
 export interface RunDeps {
@@ -320,8 +343,42 @@ export class RunManager {
       usage: { model: run.model, inputTokens: run.usage.inputTokens, outputTokens: run.usage.outputTokens },
       mode: run.mode,
     });
-    run.proposal = { id: result.proposalId, status: result.status, policy: result.policy.outcome, violations: result.violations.map((v) => v.detail), submittedAt: this.now() };
+    // Worked out here the way Farbaek does, so a later check can confirm Farbaek holds exactly what was sent.
+    const sentSha256 = await proposalHash({
+      taskId: run.taskId,
+      contractVersion: run.contractVersion,
+      contractSha256: run.contractSha256,
+      changes: await Promise.all(
+        changes.map(async (c) => {
+          const checked = checkPath(c.path);
+          return { ...c, path: checked.ok ? checked.path : c.path, sha256: await sha256Hex(c.content) };
+        }),
+      ),
+    });
+    run.proposal = { id: result.proposalId, status: result.status, policy: result.policy.outcome, violations: result.violations.map((v) => v.detail), submittedAt: this.now(), sentSha256 };
     run.events.push({ at: this.now(), kind: "note", text: result.status === "pending" ? "Submitted. It's waiting for review in Farbaek." : "Submitted, and Farbaek blocked it: it breaks the contract." });
+    await this.touch(run, true);
+    return this.detail(run);
+  }
+
+  /** Asks Farbaek where the run's proposal stands (waiting, applied, verified, discarded) and keeps the answer. */
+  async refreshProposal(runId: string, api: ProposalStatusApi): Promise<RunDetail> {
+    const run = this.runs.get(runId);
+    if (!run) throw new RunError("That run doesn't exist.");
+    if (!run.proposal) throw new RunError("This run hasn't been sent to Farbaek yet.");
+    const s = await api.proposal(run.proposal.id);
+    const review: ProposalReview = {
+      status: s.status,
+      expiresAt: s.expiresAt,
+      decidedAt: s.decidedAt,
+      appliedSha256: s.appliedSha256,
+      proofPack: s.proofPack,
+      matchesSent: run.proposal.sentSha256 ? s.sha256 === run.proposal.sentSha256 : null,
+      checkedAt: this.now(),
+    };
+    const note = reviewNote(run.proposal.review, review);
+    run.proposal.review = review;
+    if (note) run.events.push({ at: this.now(), kind: "note", text: note });
     await this.touch(run, true);
     return this.detail(run);
   }

@@ -62,6 +62,19 @@ export type DisplayEvent =
   | { at: string; kind: "approval"; display: string; risk: string }
   | { at: string; kind: "note"; text: string };
 
+/** Where a submitted proposal stands in Farbaek, from this app's last check (ADR 0042). */
+export interface ProposalReview {
+  status: "pending" | "blocked" | "applied" | "discarded";
+  /** After this a pending proposal can only be discarded in Farbaek. */
+  expiresAt: string;
+  decidedAt: string | null;
+  appliedSha256: string | null;
+  proofPack: { digest: string; status: "unverified" | "partially_verified" | "verified" | "failed" } | null;
+  /** Farbaek's proposal hash against the one worked out here from what was sent; null for runs sent before this check. */
+  matchesSent: boolean | null;
+  checkedAt: string;
+}
+
 export interface RunDetail {
   id: string;
   taskId: string;
@@ -84,7 +97,17 @@ export interface RunDetail {
   usage: { inputTokens: number; outputTokens: number };
   /** The share of the workspace's AI usage used, after the latest step. */
   usagePercent: number | null;
-  proposal: { id: string; status: "pending" | "blocked"; policy: string; violations: string[]; submittedAt: string } | null;
+  proposal: {
+    id: string;
+    /** As Farbaek answered when it was sent. */
+    status: "pending" | "blocked";
+    policy: string;
+    violations: string[];
+    submittedAt: string;
+    /** The proposal hash worked out on this computer from exactly what was sent. */
+    sentSha256?: string;
+    review?: ProposalReview;
+  } | null;
   discarded: boolean;
 }
 
@@ -103,6 +126,8 @@ export interface FarbaekAgentBridge {
   answerApproval(input: { runId: string; requestId: string; approved: boolean; bindingHash: string }): Promise<void>;
   cancelRun(runId: string): Promise<void>;
   submitRun(runId: string): Promise<Result<RunDetail>>;
+  /** Asks Farbaek where the run's proposal stands now. */
+  checkProposal(runId: string): Promise<Result<RunDetail>>;
   discardRun(runId: string): Promise<void>;
   openTaskInFarbaek(taskId: string): Promise<void>;
   onRunUpdate(listener: (run: RunDetail) => void): () => void;

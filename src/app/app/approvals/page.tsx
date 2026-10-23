@@ -1,64 +1,102 @@
-import { ArrowRightIcon, CheckSquareOffsetIcon, ShieldWarningIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, CheckSquareOffsetIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EmptyState, PageHeader } from "@/components/app/primitives";
+import { WalletCard, type WalletCardData } from "@/components/approvals/wallet-card";
 import { RelativeTime } from "@/components/ui/local-time";
-import { OUTCOME_LABELS } from "@/core/trust/policy";
-import type { PolicyOutcome } from "@/core/billing/usage";
+import { lensForChange, lensSummary } from "@/core/realityloop/intent-lens";
+import { walletRisk } from "@/core/trust/approval-wallet";
+import { currentExecutionMode } from "@/server/execution/sandbox";
 import { loadAppContext } from "@/server/workspace/context";
 import { MANAGER_ROLES } from "@/server/workspace/types";
 
 export const metadata: Metadata = { title: "Approvals" };
+
+/** Cards read in full on one page. More than this waits for the next approvals. */
+const MAX_CARDS = 25;
 
 export default async function ApprovalsPage() {
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
   const orgId = ctx.current.id;
   const waiting = (await ctx.reader.listTasks(orgId)).filter((t) => t.state === "APPROVAL_PENDING");
-  const proposals = await Promise.all(waiting.map((t) => ctx.reader.getLatestProposal(orgId, t.id)));
+  const shown = waiting.slice(0, MAX_CARDS);
   const canApproveEscalated = ctx.role !== null && MANAGER_ROLES.includes(ctx.role);
+  const execution = currentExecutionMode();
+
+  const read = await Promise.all(
+    shown.map(async (t): Promise<WalletCardData | null> => {
+      const [proposal, contract] = await Promise.all([ctx.reader.getLatestProposal(orgId, t.id), ctx.reader.getContract(orgId, t.id)]);
+      if (!proposal || proposal.status !== "pending") return null;
+      // The same reading as the review: each hunk against the contract (ADR 0041).
+      const bases = Object.fromEntries(
+        await Promise.all(
+          proposal.changes.filter((c) => c.kind === "edit").map(async (c) => [c.path, (await ctx.reader.getFileRevision(orgId, t.projectId, c.path, c.baseRevision)) ?? ""] as const),
+        ),
+      );
+      const lens = contract ? lensSummary(proposal.changes.map((c) => lensForChange(contract.body, c, bases[c.path] ?? ""))) : null;
+      const escalated = proposal.policy?.outcome === "ESCALATE";
+      return {
+        taskId: t.id,
+        title: t.title,
+        projectName: t.projectName ?? "Project",
+        sha256: proposal.sha256,
+        createdAt: proposal.createdAt,
+        expiresAt: proposal.expiresAt,
+        byAgent: proposal.agentId !== null,
+        facts: walletRisk({ policyOutcome: proposal.policy?.outcome ?? null, lens, changes: proposal.changes }),
+        checks: contract?.body.requiredChecks ?? [],
+        checksReason: execution.mode === "review_only" ? execution.reason : null,
+        canApprove: !escalated || canApproveEscalated,
+      };
+    }),
+  );
+  const cards = read.filter((c): c is WalletCardData => c !== null);
+  // Waiting with no open proposal on record: still listed, so the count in the menu adds up.
+  const unread = shown.filter((_, i) => read[i] === null);
+  // Soonest to close first.
+  cards.sort((a, b) => a.expiresAt.localeCompare(b.expiresAt));
+  // This request's time; a server component renders once per request.
+  const serverNow = new Date().getTime();
 
   return (
     <div className="grid gap-8">
       <PageHeader
         title="Approvals"
-        description="Changes waiting for a person. Open one to review each file as a diff, then approve the exact content or discard it."
+        description="Changes waiting for a person. Each one can be approved for 72 hours, only as the exact content you review. Open one to read each file as a diff, then approve it or discard it."
       />
-      {waiting.length === 0 ? (
+      {cards.length === 0 && unread.length === 0 ? (
         <EmptyState icon={CheckSquareOffsetIcon} title="Nothing waiting for you">
           Approvals appear when the agent proposes a change under an approved contract. Every change needs a person at autonomy level 0.
         </EmptyState>
       ) : (
-        <ul className="grid gap-3">
-          {waiting.map((t, i) => {
-            const p = proposals[i];
-            const outcome = p?.policy?.outcome as PolicyOutcome | undefined;
-            const escalated = outcome === "ESCALATE";
-            return (
-              <li key={t.id}>
-                <Link href={`/app/tasks/${t.id}`} className="group flex flex-col gap-2 rounded-md border border-line bg-surface p-4 shadow-e1 hover:shadow-e2 sm:flex-row sm:items-center sm:gap-4">
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[15px] font-medium group-hover:text-accent">{t.title}</span>
-                    <span className="mt-0.5 block text-xs text-ink-3">
-                      {t.projectName ?? "Project"} · {p ? `${p.changes.length} ${p.changes.length === 1 ? "file" : "files"}` : "no proposal on record"} · waiting since{" "}
-                      <RelativeTime iso={t.updatedAt} />
-                    </span>
+        <ul className="grid gap-4">
+          {cards.map((card, i) => (
+            <li key={card.taskId} className="motion-safe:animate-[usage-in_260ms_cubic-bezier(0.16,1,0.3,1)_both]" style={{ animationDelay: `${i * 40}ms` }}>
+              <WalletCard card={card} serverNow={serverNow} />
+            </li>
+          ))}
+          {unread.map((t) => (
+            <li key={t.id}>
+              <Link href={`/app/tasks/${t.id}`} className="group flex items-center gap-4 rounded-md border border-dashed border-line-strong/40 bg-surface px-4 py-3 hover:border-line-strong/60">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[15px] font-medium group-hover:text-accent">{t.title}</span>
+                  <span className="mt-0.5 block text-xs text-ink-3">
+                    {t.projectName ?? "Project"} · waiting since <RelativeTime iso={t.updatedAt} /> · no open proposal on record, so there&apos;s nothing to approve here. Open the task to see why.
                   </span>
-                  {outcome ? (
-                    <span className={`inline-flex shrink-0 items-center gap-1.5 text-xs ${escalated ? "text-approval" : "text-ink-2"}`}>
-                      {escalated ? <ShieldWarningIcon size={14} aria-hidden /> : null}
-                      {OUTCOME_LABELS[outcome] ?? outcome}
-                      {escalated && !canApproveEscalated ? " (you can review, not approve)" : ""}
-                    </span>
-                  ) : null}
-                  <ArrowRightIcon size={14} className="hidden shrink-0 text-ink-3 sm:block" aria-hidden />
-                </Link>
-              </li>
-            );
-          })}
+                </span>
+                <ArrowRightIcon size={14} className="shrink-0 text-ink-3" aria-hidden />
+              </Link>
+            </li>
+          ))}
         </ul>
       )}
+      {waiting.length > MAX_CARDS ? (
+        <p className="text-sm text-ink-3">
+          Showing the first {MAX_CARDS} of {waiting.length}. The rest are on their tasks, and appear here as these are decided.
+        </p>
+      ) : null}
     </div>
   );
 }
