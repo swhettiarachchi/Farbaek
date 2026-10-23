@@ -4,10 +4,13 @@ import { CheckCircleIcon, DesktopIcon, FingerprintIcon, HourglassMediumIcon, Pro
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { applyProposalAction, discardProposalAction } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
 import { DROP_LABELS } from "@/core/realityloop/change-proposal";
+import type { IntentContract } from "@/core/realityloop/contract";
+import { lensForChange, lensSummary } from "@/core/realityloop/intent-lens";
+import { FileLensRows, IntentLensSummary } from "./intent-lens";
 import { OUTCOME_LABELS } from "@/core/trust/policy";
 import type { PolicyOutcome } from "@/core/billing/usage";
 import type { ProposalRecord } from "@/server/workspace/types";
@@ -46,6 +49,7 @@ export function ProposalReview({
   canApproveEscalated,
   appliedNote,
   agentName = null,
+  contract = null,
 }: {
   projectId: string;
   proposal: ProposalRecord;
@@ -62,6 +66,8 @@ export function ProposalReview({
   agentName?: string | null;
   /** Replaces the "waiting for checks" note on an applied change, once it's being undone or was. */
   appliedNote?: string;
+  /** The contract the change was made under, for the Intent Diff Lens (ADR 0041). */
+  contract?: IntentContract | null;
 }) {
   const router = useRouter();
   const [finals, setFinals] = useState<Record<string, string>>(() => Object.fromEntries(proposal.changes.map((c) => [c.path, c.content])));
@@ -73,6 +79,8 @@ export function ProposalReview({
   const escalated = proposal.policy?.outcome === "ESCALATE";
   const approveReason = disabledReason ?? (escalated && !canApproveEscalated ? "The policy escalated this change, so an owner or admin has to approve it." : null);
   const kept = proposal.changes.filter((c) => (c.kind === "create" ? finals[c.path] !== "" : finals[c.path] !== bases[c.path]));
+  // Each hunk read against the contract: exact flags first, then a pointer to the clause it shares words with.
+  const lenses = useMemo(() => (contract ? proposal.changes.map((c) => lensForChange(contract, c, bases[c.path] ?? "")) : null), [contract, proposal.changes, bases]);
 
   function approve() {
     setError(null);
@@ -226,13 +234,15 @@ export function ProposalReview({
         </div>
       ) : proposal.status === "discarded" ? null : (
         <div className="grid gap-5">
-          {proposal.changes.map((c) => (
+          {lenses ? <IntentLensSummary summary={lensSummary(lenses)} /> : null}
+          {proposal.changes.map((c, i) => (
             <section key={c.path} className="grid min-w-0 gap-2" aria-label={`Changes to ${c.path}`}>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="min-w-0 font-mono text-[13px] font-medium break-all">{c.path}</p>
                 <p className="text-xs text-ink-3">{c.kind === "create" ? "New file" : `Edit of revision ${c.baseRevision}`}</p>
               </div>
               {c.reason ? <p className="text-xs text-ink-2">{c.reason}</p> : null}
+              {lenses?.[i] ? <FileLensRows lens={lenses[i]!} /> : null}
               <Surface
                 path={c.path}
                 value={c.content}

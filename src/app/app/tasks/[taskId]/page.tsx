@@ -198,6 +198,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
                 canApproveEscalated={isManager}
                 appliedNote={appliedNote}
                 agentName={proposal!.agentId ? (agents.find((a) => a.id === proposal!.agentId)?.name ?? null) : null}
+                contract={contract?.body ?? null}
               />
             ) : null}
             {canPropose ? (
