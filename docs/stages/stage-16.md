@@ -55,6 +55,16 @@ The spec's backlog (§25, Next) lists Tool Definition Pinning against tool poiso
   - at 375px the diff wraps, the button is 44px tall, and nothing scrolls sideways.
 - **Not seen in the browser:** the plan card's "waiting for review" line. No demo task in that project has a plan awaiting approval; the line comes from the tested `splitByPins`.
 
+**Production database:** migration v28 applied to the self-hosted database on 2026-10-23.
+- **How:** the SHA-256 (`23cdb046…d80a2fed`) matched on the server; one transaction with `ON_ERROR_STOP`.
+- **Read-only checks:**
+  - RLS is on, with one read policy;
+  - signed-in users can read and not write, and anonymous users can't read;
+  - only the server can run `app_pin_skill` and `app_unpin_skill`;
+  - the one skill file in production was pinned at its current revision and hash, with no person named.
+- **Afterwards:** the API schema cache was reloaded.
+- **Until this branch is deployed:** cloud runs keep loading every project skill, as before.
+
 ### Next
 
 - When agents connect to MCP servers, pin each server's tool descriptions the same way.
