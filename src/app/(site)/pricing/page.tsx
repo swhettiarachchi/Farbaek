@@ -92,6 +92,8 @@ export default function PricingPage() {
           </p>
 
           <div className="mt-10">
+            {/* Names the plan list for screen readers, so the plan names (h3) sit under a heading. */}
+            <h2 className="sr-only">Plans</h2>
             <PricingPlans />
           </div>
 

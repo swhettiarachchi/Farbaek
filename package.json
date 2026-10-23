@@ -27,6 +27,7 @@
     "agent:smoke": "node node_modules/vitest/vitest.mjs run tests/smoke/agent.smoke.test.ts --mode smoke",
     "ai:smoke": "node --env-file-if-exists=.env.local node_modules/vitest/vitest.mjs run tests/smoke/ai.smoke.test.ts --mode smoke",
     "films:record": "node scripts/films/record.mjs",
+    "qa:a11y": "node scripts/qa/a11y-audit.mjs",
     "qa:responsive": "node scripts/qa/responsive-audit.mjs",
     "qa:vitals": "node scripts/qa/vitals.mjs",
     "security:eval": "node scripts/security-eval.mjs"

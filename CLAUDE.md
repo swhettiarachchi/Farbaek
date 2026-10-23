@@ -16,6 +16,7 @@ pnpm check        # typecheck, lint, test in sequence
 pnpm security:eval   # run the OWASP-mapped security scenarios and record the run (/security shows it)
 pnpm qa:responsive   # every route at 320 to 1440px as phone, tablet, desktop: sideways scroll, cut-off content, small targets, console errors
 pnpm qa:vitals       # phone-profile LCP, CLS, TBT, FCP and bytes per page, median of three (lab numbers, ADR 0052)
+pnpm qa:a11y         # every route at 1280 and 375: nameless controls, alt text, headings, landmarks, hidden focusables, visible focus (ADR 0053)
 node scripts/brand-assets.mjs   # regenerate icon sizes from the logo
 ```
 

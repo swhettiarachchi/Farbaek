@@ -55,6 +55,22 @@ export function StaticPreview({
     return () => window.removeEventListener("message", onMessage);
   }, [page, version.files]);
 
+  // Focus inside the frame is invisible to CSS (no :focus or :focus-within reaches the page), so the
+  // ring is drawn from script: the page's window blurs and the frame becomes the active element (ADR 0053).
+  const [frameFocused, setFrameFocused] = useState(false);
+  useEffect(() => {
+    const onBlur = () => setTimeout(() => setFrameFocused(document.activeElement === frame.current));
+    const onFocus = () => setFrameFocused(false);
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("focusin", onFocus);
+    return () => {
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("focusin", onFocus);
+    };
+  }, []);
+
   const width = DEVICES.find((d) => d.id === device)!.width;
 
   return (
@@ -112,7 +128,10 @@ export function StaticPreview({
         {doc === null ? (
           <p className="grid h-72 place-items-center px-6 text-center text-sm text-ink-3">This version has no {page}, so there&apos;s nothing to show yet.</p>
         ) : (
-          <div className="mx-auto overflow-hidden rounded-sm bg-surface shadow-e1 motion-safe:transition-[max-width] motion-safe:duration-300" style={{ maxWidth: width ?? "100%" }}>
+          <div
+            className={`mx-auto overflow-hidden rounded-sm bg-surface shadow-e1 motion-safe:transition-[max-width] motion-safe:duration-300 ${frameFocused ? "ring-2 ring-accent" : ""}`}
+            style={{ maxWidth: width ?? "100%" }}
+          >
             <iframe
               ref={frame}
               key={`${version.id}:${page}`}
