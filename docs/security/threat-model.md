@@ -39,7 +39,7 @@ The security evaluation suite maps scenarios to the OWASP Top 10 for Agentic App
   - the registry, with what each risk leaves untested, is `src/core/security-eval/catalog.ts`;
   - `pnpm security:eval` writes the latest run to `src/content/security-eval-run.json`;
   - `/security` shows it publicly.
-- **v1 (23 scenarios):**
+- **v1 (24 scenarios; SE-024 came with ADR 0050):**
   - all ten agentic risks have at least one scenario;
   - LLM08 (vector and embedding weaknesses) doesn't apply, because Farbaek has no retrieval or embeddings.
 - **What it doesn't do:**
@@ -163,3 +163,11 @@ Known limits: preview pages may load `https:` images and fonts, so a page could 
 | The public verify page | A forged or edited evidence file shown as genuine; the page leaking what visitors check | The digest is recomputed from the canonical statement and compared, and any difference shows as "Changed". Missing parts are refused. The page states that a match proves the record is unchanged, not who made it (no signatures yet). Files are read and hashed in the browser; nothing is sent | `inspect.test.ts`, code review (no request carries the file) |
 | Samples | A sample passed off as real evidence | Statements marked `sample: true` are labelled "Sample data" and the Seal says "Sample ProofPack"; the sample's first limit says it records no real project | `src/app/(site)/verify/sample.json/route.ts`, `evidence-check.tsx` |
 | The full export | Leaking another workspace's data, setting values or people's details | Read through RLS like the plain download (members of the project's workspace only). Setting names come from the Launch Planner, never values. People appear only as the actor ids already in the records | `export.test.ts`, route code review |
+
+## Launch Evidence Gate (2026-10-23, ADR 0050)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| Publishing a site | An unverified or failing change going live because the newest ProofPack says "verified" (a check run of an earlier change landing late), or a hand edit, undo or import after the verified change | `private.launch_evidence` reads the latest change ProofPack, refuses to count it if any revision came after it, and takes only a check run of that exact change. `app_publish_site` refuses without verified evidence (`EVIDENCE_REQUIRED`) | `tests/db/sites.test.ts`, `tests/security-eval/database.test.ts` (SE-024) |
+| The override | A member, or a prompt in the page, waving a launch through; an override nobody can see later | Only owners and admins, checked in the database (`OVERRIDE_FORBIDDEN`); a 10 to 500 character reason; kept on the version (a constraint makes it present exactly when the evidence isn't verified) and in the `site.published` audit event with the evidence and ProofPack | `tests/db/sites.test.ts`, `src/server/publish/publish.test.ts` |
+| What the page shows | The panel saying "verified" when the database disagrees | The panel and the Launch page use the same rule as the database (`launchEvidence`); if they ever differ, the database refuses and the panel explains | `src/core/publish/evidence.test.ts` |

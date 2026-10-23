@@ -26,7 +26,7 @@ beforeAll(async () => {
   const report = (await q<{ id: string }>("select public.app_start_security_report($1, $2, $3) as id", [org, USERS.alice, project]))[0]!.id;
   await q("select public.app_finish_security_report($1, 'done', 90, 'A', $2, $3, $4, null)", [report, JSON.stringify({ critical: 0, high: 0, medium: 0, low: 0, info: 0 }), JSON.stringify({ predicateType: "https://farbaek.dev/security-report/v1", predicate: {} }), "c".repeat(64)]);
   const files = (await db.query("select path, revision, sha256, size_bytes as size from public.project_files where project_id = $1", [project])).rows;
-  deployment = (await q<{ id: string }>("select public.app_publish_site($1, $2, $3, 'sunrise-bakery', $4, $5, $6) as id", [org, USERS.alice, project, JSON.stringify(files), "d".repeat(64), report]))[0]!.id;
+  deployment = (await q<{ id: string }>("select public.app_publish_site($1, $2, $3, 'sunrise-bakery', $4, $5, $6, $7) as id", [org, USERS.alice, project, JSON.stringify(files), "d".repeat(64), report, "No agent changes in this project yet."]))[0]!.id;
   site = (await db.query<{ id: string }>("select id from public.sites where project_id = $1", [project])).rows[0]!.id;
 }, 60_000);
 

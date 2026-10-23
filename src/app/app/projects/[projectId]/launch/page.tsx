@@ -17,12 +17,15 @@ import {
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import { Card, PageHeader } from "@/components/app/primitives";
 import { LiveCheck } from "@/components/launch/live-check";
 import { buttonClasses } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/local-time";
 import { VERDICT_WORDS } from "@/core/launch/health";
 import { KIND_LABELS, type PlanCommand, type ServiceKind } from "@/core/launch/planner";
+import { EVIDENCE_WORDS } from "@/core/publish/evidence";
+import { shortHash } from "@/core/trust/canonical-json";
 import { formatBytes } from "@/core/workspace/files";
 import { loadLaunchPage } from "@/server/launch/plan-data";
 import { createSupabaseServerClient } from "@/server/supabase/server";
@@ -65,7 +68,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
   const project = await ctx.reader.getProject(ctx.current.id, projectId);
   if (!project) notFound();
   const user = ctx.mode === "live" ? await createSupabaseServerClient() : null;
-  const { plan, publish, proofPack, checks } = await loadLaunchPage(ctx, user, project);
+  const { plan, publish, evidence: proof, checks } = await loadLaunchPage(ctx, user, project);
 
   const site = publish?.site ?? null;
   const live = publish?.live ?? null;
@@ -87,20 +90,33 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
             : check.critical > 0
               ? { state: "attention", text: `The last check found ${check.critical} critical ${check.critical === 1 ? "problem" : "problems"}.` }
               : { state: "done", text: "The last check of exactly these files found nothing critical." };
-  const evidence: { state: StepState; text: string } = !proofPack
-    ? { state: "missing", text: "No change in this project has a ProofPack yet. Changes made by the agent and approved by you get one." }
-    : proofPack.status === "verified"
-      ? { state: "done", text: "The latest change's checks ran in a sandbox against exactly what was applied, and passed." }
-      : proofPack.status === "failed"
-        ? { state: "attention", text: "The latest change's checks failed. Look at the task before launching." }
-        : { state: "attention", text: proofPack.status === "partially_verified" ? "The latest change is partly verified: some checks didn't run." : "The latest change was applied without verified checks." };
-  const deployed: { state: StepState; text: string } = live
-    ? { state: "done", text: `Version ${live.number} is live: ${live.fileCount} files, recorded with a SHA-256 digest of exactly those revisions.` }
+  // The same evidence the publish gate reads (ADR 0050).
+  const evidence: { state: StepState; text: ReactNode } = {
+    state: proof.status === "verified" ? "done" : proof.status === "none" ? "missing" : "attention",
+    text: `${EVIDENCE_WORDS[proof.status].detail}${proof.status === "verified" ? "" : " Without verified evidence, publishing needs a reason from an owner or admin."}`,
+  };
+  const deployed: { state: StepState; text: ReactNode } = live
+    ? {
+        state: "done",
+        text: (
+          <>
+            Version {live.number} is live: {live.fileCount} files, recorded with a SHA-256 digest of exactly those revisions.
+            {live.evidence === "verified" && live.evidenceProofPack ? (
+              <>
+                {" "}
+                It went live with verified evidence, ProofPack <span className="font-mono text-[13px]" title={`sha256:${live.evidenceProofPack}`}>{shortHash(live.evidenceProofPack)}</span>.
+              </>
+            ) : live.evidence ? (
+              <> It went live without verified evidence. The reason given: {live.overrideReason}</>
+            ) : null}
+          </>
+        ),
+      }
     : { state: plan.hosting === "static" ? "missing" : "na", text: plan.hosting === "static" ? "Nothing is live yet." : "Launching servers comes with your own hosting, next in LaunchOS." };
 
   const steps = [
     { key: "security", title: "Security check of these files", icon: ShieldCheckIcon, ...security, href: `/app/projects/${project.id}/security`, link: "Open Security" },
-    { key: "evidence", title: "Evidence for the latest change", icon: FingerprintIcon, ...evidence, href: proofPack ? `/app/tasks/${proofPack.taskId}` : null, link: "Open the task" },
+    { key: "evidence", title: "Evidence for the latest change", icon: FingerprintIcon, ...evidence, href: proof.taskId ? `/app/tasks/${proof.taskId}` : null, link: "Open the task" },
     { key: "deployed", title: "The version that's live", icon: CubeIcon, ...deployed, href: null, link: null },
   ];
 

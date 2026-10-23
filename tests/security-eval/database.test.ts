@@ -1,9 +1,10 @@
 /**
- * Boundaries the database enforces on its own (ASI03, ASI07, ASI08, ASI10),
- * on a real Postgres (PGlite) with every migration: workspaces stay apart,
- * desktop agents' credentials can't be reused, Farbaek's AI switch stops
- * every workspace at once, and a failure after an automatic apply pauses
- * autonomy.
+ * Boundaries the database enforces on its own (ASI03, ASI07, ASI08, ASI09,
+ * ASI10, LLM06), on a real Postgres (PGlite) with every migration:
+ * workspaces stay apart, desktop agents' credentials can't be reused,
+ * Farbaek's AI switch stops every workspace at once, a failure after an
+ * automatic apply pauses autonomy, and nothing goes live without verified
+ * evidence or an owner's logged reason.
  */
 import { createHash } from "node:crypto";
 import type { PGlite } from "@electric-sql/pglite";
@@ -160,5 +161,44 @@ describe("SE-023 A failure after autonomy applies a change", () => {
     const t = await task(orgA, USERS.alice, projectA, "One at a time", "person");
     await q("select public.app_start_task_verification($1, $2, $3, 'person')", [orgA, USERS.alice, t.task]);
     await expect(q("select public.app_start_task_verification($1, $2, $3, 'autonomy')", [orgA, USERS.alice, t.task])).rejects.toThrow(/VERIFICATION_RUNNING/);
+  });
+});
+
+describe("SE-024 Deploying without evidence", () => {
+  let project: string;
+  const files = async () => JSON.stringify(await admin("select path, revision, sha256, size_bytes as size from public.project_files where project_id = $1 order by path", [project]));
+  async function check() {
+    const id = (await q<{ id: string }>("select public.app_start_security_report($1, $2, $3) as id", [orgA, USERS.alice, project]))[0]!.id;
+    await q("select public.app_finish_security_report($1, 'done', 90, 'A', $2, $3, $4, null)", [id, JSON.stringify({ critical: 0, high: 0, medium: 0, low: 0, info: 0 }), JSON.stringify({ predicateType: "https://farbaek.dev/security-report/v1", predicate: {} }), H("c")]);
+    return id;
+  }
+  const publish = async (actor: string, reason: string | null) =>
+    (await q<{ id: string }>("select public.app_publish_site($1, $2, $3, 'launch-eval', $4, $5, $6, $7) as id", [orgA, actor, project, await files(), H("d"), await check(), reason]))[0]!.id;
+  const recorded = async (id: string) => ({
+    ...(await admin("select evidence, override_reason from public.site_deployments where id = $1", [id]))[0],
+    audit: (await admin<{ metadata: Record<string, unknown> }>("select metadata from public.audit_events where target = $1 and action = 'site.published'", [id]))[0]!.metadata,
+  });
+
+  beforeAll(async () => {
+    project = (await q<{ id: string }>("select public.app_create_project($1, $2, 'Launch', null, null) as id", [orgA, USERS.alice]))[0]!.id;
+    await q("select public.app_import_files($1, $2, $3, 524288, 4194304, 26214400, 3000)", [project, USERS.alice, JSON.stringify([{ path: "index.html", content: "<h1>Launch</h1>" }])]);
+    await admin("insert into public.organization_members (org_id, user_id, role) values ($1, $2, 'member')", [orgA, USERS.unverified]);
+  });
+
+  it("refuses to publish an unverified change unless an owner or admin says why, and records the reason", async () => {
+    await task(orgA, USERS.alice, project, "Launch copy", "person");
+    await expect(publish(USERS.alice, null)).rejects.toThrow(/EVIDENCE_REQUIRED/);
+    await expect(publish(USERS.unverified, "The agent said it was fine.")).rejects.toThrow(/OVERRIDE_FORBIDDEN/);
+    const id = await publish(USERS.alice, "Checked the page by hand before launch.");
+    expect(await recorded(id)).toMatchObject({ evidence: "unverified", override_reason: "Checked the page by hand before launch.", audit: { evidence: "unverified", override: "Checked the page by hand before launch." } });
+  });
+
+  it("publishes without a reason only once a check run verified that exact change", async () => {
+    const change = (await latest(project))!;
+    const statement = { _type: "https://in-toto.io/Statement/v1", predicate: { status: "verified", verification: { receipt: H("7"), appliedProofPack: change }, nonce: ++seq } };
+    const t = (await admin<{ task_id: string }>("select task_id from public.proofpacks where digest = $1", [change]))[0]!.task_id;
+    await admin("insert into public.proofpacks (digest, org_id, project_id, task_id, status, statement, previous) values ($1, $2, $3, $4, 'verified', $5, $6)", [sha(JSON.stringify(statement)), orgA, project, t, JSON.stringify(statement), change]);
+    const id = await publish(USERS.unverified, null);
+    expect(await recorded(id)).toMatchObject({ evidence: "verified", override_reason: null, audit: { evidence: "verified", override: null } });
   });
 });

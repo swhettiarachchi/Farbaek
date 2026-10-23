@@ -42,7 +42,7 @@ beforeAll(async () => {
     "c".repeat(64),
   ]);
   const files = await su("select path, revision, sha256, size_bytes as size from public.project_files where project_id = $1 order by path", [project]);
-  await q("select public.app_publish_site($1, $2, $3, 'sunrise-bakery', $4, $5, $6)", [org, USERS.alice, project, JSON.stringify(files), "d".repeat(64), report]);
+  await q("select public.app_publish_site($1, $2, $3, 'sunrise-bakery', $4, $5, $6, $7)", [org, USERS.alice, project, JSON.stringify(files), "d".repeat(64), report, "No agent changes in this project yet."]);
   site = (await su<{ id: string }>("select id from public.sites where name = 'sunrise-bakery'"))[0]!.id;
 
   ceoSession = crypto.randomUUID();

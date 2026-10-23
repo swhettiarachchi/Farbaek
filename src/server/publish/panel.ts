@@ -1,12 +1,14 @@
 /**
  * What the project page's Publish panel shows (ADR 0029): the site and its
  * address, what's live, the deployment history, whether the files changed
- * since the live version, and what (if anything) stops the next publish.
+ * since the live version, what (if anything) stops the next publish, and
+ * the evidence behind it (ADR 0050).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { LaunchEvidence } from "@/core/publish/evidence";
 import { hasUnpublishedChanges, siteNameFrom, type PublishBlock } from "@/core/publish/site";
 import type { AppContext } from "@/server/workspace/context";
-import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
+import { CONTRIBUTOR_ROLES, MANAGER_ROLES } from "@/server/workspace/types";
 import { randomInt } from "node:crypto";
 import type { DnsRecord } from "@/core/publish/domains";
 import { appZone } from "@/server/http/hosts";
@@ -15,7 +17,7 @@ import { siteAddress, siteDomain, siteTarget } from "./config";
 import { createDnsLookup } from "./dns";
 import { recordsFor, type DomainDeps, type SiteDomainView } from "./domains";
 import { publishReadiness, type PublishCheck, type PublishDeps } from "./publish";
-import { addDomainRpc, getSite, latestCheck, listDeployments, listSiteDomains, loadSiteDomain, markDomainRpc, publishRpc, removeDomainRpc, type DeploymentView, type SiteView } from "./store";
+import { addDomainRpc, getSite, latestCheck, latestEvidence, listDeployments, listSiteDomains, loadSiteDomain, markDomainRpc, publishRpc, removeDomainRpc, type DeploymentView, type SiteView } from "./store";
 
 const TOKEN_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
 
@@ -42,6 +44,8 @@ export function publishDeps(ctx: AppContext, user: SupabaseClient, admin: Supaba
     canPublish: async () => ctx.role !== null && CONTRIBUTOR_ROLES.includes(ctx.role),
     files: (orgId, projectId) => ctx.reader.listFiles(orgId, projectId),
     latestCheck: (orgId, projectId) => latestCheck(user, orgId, projectId),
+    evidence: (orgId, projectId) => latestEvidence(user, orgId, projectId),
+    canOverride: async () => ctx.role !== null && MANAGER_ROLES.includes(ctx.role),
     publish: async (input) => (admin ? publishRpc(admin, input) : { ok: false, error: "NOT_CONFIGURED" }),
   };
 }
@@ -55,6 +59,10 @@ export interface PublishPanelData {
   deployments: DeploymentView[];
   block: PublishBlock | null;
   check: PublishCheck | null;
+  /** What evidence covers the files now; without "verified", publishing needs a reason. */
+  evidence: LaunchEvidence;
+  needsOverride: boolean;
+  canOverride: boolean;
   unpublishedChanges: boolean;
   /** The site's own domains, each with the DNS records it needs (ADR 0045). */
   domains: (SiteDomainView & { records: DnsRecord[] | null })[];
@@ -81,6 +89,9 @@ export async function loadPublishPanel(ctx: AppContext, user: SupabaseClient, pr
     deployments,
     block: ready.block,
     check: ready.check,
+    evidence: ready.evidence,
+    needsOverride: ready.needsOverride,
+    canOverride: ctx.role !== null && MANAGER_ROLES.includes(ctx.role),
     unpublishedChanges: ready.digest ? hasUnpublishedChanges(live?.digest ?? null, ready.digest) : false,
     domains: domains.map((d) => ({ ...d, records: recordsFor(d, target) })),
     domainsAvailable: target !== null,
