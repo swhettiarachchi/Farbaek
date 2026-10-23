@@ -515,6 +515,8 @@ export function PublishView({ t, from, publishAt }: { t: number; from: number; p
     block: null,
     check: { id: "chk-1", status: "done", startedAt: recently(), critical: 0 },
     unpublishedChanges: false,
+    domains: [],
+    domainsAvailable: false,
   };
   return (
     <div className="grid gap-5">

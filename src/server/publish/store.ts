@@ -8,6 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { PublishedFile } from "@/core/publish/site";
 import type { RpcResult } from "@/server/workspace/use-cases";
+import type { SiteDomainView } from "./domains";
 import type { PublishCheck } from "./publish";
 
 export interface SiteView {
@@ -139,4 +140,62 @@ export async function revisionContentAsSystem(admin: SupabaseClient, projectId: 
   const { data, error } = await admin.from("project_file_revisions").select("content").eq("project_id", projectId).eq("path", path).eq("revision", revision).maybeSingle();
   if (error) throw new Error(`Couldn't load the file: ${error.message}`);
   return typeof data?.content === "string" ? data.content : null;
+}
+
+// ------------------------------------------------ custom domains (ADR 0045)
+
+const DomainRow = z.object({
+  id: z.string(),
+  site_id: z.string(),
+  hostname: z.string(),
+  status: z.enum(["pending", "verified"]),
+  verify_token: z.string(),
+  verified_at: z.string().nullable(),
+  checked_at: z.string().nullable(),
+});
+const DOMAIN_COLUMNS = "id, site_id, hostname, status, verify_token, verified_at, checked_at";
+const domainFromRow = (r: z.infer<typeof DomainRow>): SiteDomainView => ({
+  id: r.id,
+  siteId: r.site_id,
+  hostname: r.hostname,
+  status: r.status,
+  verifyToken: r.verify_token,
+  verifiedAt: r.verified_at,
+  checkedAt: r.checked_at,
+});
+
+/** A site's domains, read as the person (Row Level Security). */
+export async function listSiteDomains(client: SupabaseClient, orgId: string, siteId: string): Promise<SiteDomainView[]> {
+  const { data, error } = await client.from("site_domains").select(DOMAIN_COLUMNS).eq("org_id", orgId).eq("site_id", siteId).order("created_at");
+  if (error) throw new Error(`Couldn't load the site's domains: ${error.message}`);
+  return z.array(DomainRow).parse(data).map(domainFromRow);
+}
+
+export async function loadSiteDomain(client: SupabaseClient, orgId: string, domainId: string): Promise<SiteDomainView | null> {
+  if (!z.uuid().safeParse(domainId).success) return null;
+  const { data, error } = await client.from("site_domains").select(DOMAIN_COLUMNS).eq("org_id", orgId).eq("id", domainId).maybeSingle();
+  if (error) throw new Error(`Couldn't load the domain: ${error.message}`);
+  return data ? domainFromRow(DomainRow.parse(data)) : null;
+}
+
+export async function addDomainRpc(admin: SupabaseClient, input: { siteId: string; actor: string; hostname: string; token: string }): Promise<RpcResult<string>> {
+  const { data, error } = await admin.rpc("app_add_site_domain", { p_site: input.siteId, p_actor: input.actor, p_hostname: input.hostname, p_token: input.token });
+  return error ? { ok: false, error: rpcError(error) } : { ok: true, value: z.string().parse(data) };
+}
+
+export async function markDomainRpc(admin: SupabaseClient, input: { domainId: string; actor: string; verified: boolean }): Promise<RpcResult<string>> {
+  const { data, error } = await admin.rpc("app_mark_site_domain", { p_domain: input.domainId, p_actor: input.actor, p_verified: input.verified });
+  return error ? { ok: false, error: rpcError(error) } : { ok: true, value: z.string().parse(data) };
+}
+
+export async function removeDomainRpc(admin: SupabaseClient, input: { domainId: string; actor: string }): Promise<RpcResult<null>> {
+  const { error } = await admin.rpc("app_remove_site_domain", { p_domain: input.domainId, p_actor: input.actor });
+  return error ? { ok: false, error: rpcError(error) } : { ok: true, value: null };
+}
+
+/** For serving and certificates: the site a verified domain belongs to. */
+export async function siteNameForDomainAsSystem(admin: SupabaseClient, hostname: string): Promise<string | null> {
+  const { data, error } = await admin.rpc("app_site_name_for_domain", { p_hostname: hostname });
+  if (error) throw new Error(`Couldn't look up the domain: ${error.message}`);
+  return z.string().nullable().parse(data);
 }

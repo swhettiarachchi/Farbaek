@@ -7,6 +7,7 @@ import { shortHash } from "@/core/trust/canonical-json";
 import type { PublishPanelData } from "@/server/publish/panel";
 import { PublishForm } from "./publish-form";
 import { SetLiveForm } from "./set-live-form";
+import { SiteDomains } from "./site-domains";
 
 /**
  * Publish (ADR 0029): put the project's static site live at its own address
@@ -86,6 +87,15 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
 
       {data.domain && data.block?.code !== "NO_DOMAIN" && data.block?.code !== "NOT_STATIC" ? (
         <PublishForm projectId={projectId} domain={data.domain} initialName={data.suggestedName} live={Boolean(live)} disabledReason={disabledReason ?? (data.block ? "See above." : null)} />
+      ) : null}
+
+      {site ? (
+        <SiteDomains
+          projectId={projectId}
+          domains={data.domains.map((d) => ({ id: d.id, hostname: d.hostname, status: d.status, records: d.records }))}
+          available={data.domainsAvailable}
+          disabledReason={disabledReason}
+        />
       ) : null}
 
       {site && data.deployments.length > 0 ? (

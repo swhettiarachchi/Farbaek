@@ -91,3 +91,18 @@ describe("serving published sites", () => {
     expect((await get("www.farbaek.com")).status).toBe(404);
   });
 });
+
+describe("custom domains (ADR 0045)", () => {
+  const withDomains: SiteServeDeps = { ...deps, nameForDomain: async (host) => (host === "www.sunrise.example" ? "sunrise-bakery" : null) };
+  const visit = (host: string, path = "/") => handleSiteRequest(new Request(`http://localhost:3000/site-serve${path}`, { headers: { host } }), withDomains);
+
+  it("serves a verified domain's site, whatever the case or port", async () => {
+    const r = await visit("WWW.Sunrise.Example:443", "/about");
+    expect(r.status).toBe(200);
+    expect(await r.text()).toBe("<h1>About</h1>");
+  });
+
+  it("answers not found for a name nobody verified", async () => {
+    expect((await visit("www.someone-else.example")).status).toBe(404);
+  });
+});

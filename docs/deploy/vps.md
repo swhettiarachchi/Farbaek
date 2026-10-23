@@ -77,7 +77,15 @@ A deploy restarts the app. Agent runs going at that moment show as Interrupted.
 ## DNS and certificates
 
 - **farbaek.com:** DNS stays at Spaceship, with the email records. `www` and `officespace` are A records to the server, and the apex forwards to `https://www.farbaek.com`. Caddy gets ordinary certificates for both names.
-- **farbaek.si:** published sites and previews need one wildcard certificate, `*.farbaek.si`. That needs a DNS-01 challenge, and Caddy has no Hostinger DNS plugin. So farbaek.si's DNS moves to Cloudflare (free plan), with an API token that can edit DNS for that one zone. Caddy is then built with the `caddy-dns/cloudflare` module, and a `*.farbaek.si, farbaek.si` block is added. Until then, farbaek.si isn't served from this server.
+- **Published sites on farbaek.si, and people's own domains (ADR 0045).** Caddy makes each site's certificate on its first visit (on-demand TLS), after the app confirms the name is a live site. To turn it on:
+  1. **At Hostinger, for farbaek.si,** add two A records to the server's address: `*` (every site name) and `sites` (where people's own subdomains point with a CNAME).
+  2. **On the server,** set `SANDBOX_PREVIEW_DOMAIN=farbaek.si` and `SITES_TARGET_IP=<the server's IPv4 address>` with `set-env.sh`. The IP is what people's root domains point at.
+  3. **Deploy.** `farbaek-deploy` reloads Caddy with the `on_demand_tls` settings.
+  4. **Check it:** publish a site, open `https://<name>.farbaek.si`, and wait a few seconds the first time.
+- **Previews on farbaek.si** (`p-<id>`) still need one wildcard certificate, `*.farbaek.si`. On-demand would make a new certificate for every preview, and Let's Encrypt allows 50 new ones a week per domain.
+  - **Why it's harder:** a wildcard needs a DNS-01 challenge, and Caddy has no Hostinger DNS plugin.
+  - **The plan:** move farbaek.si's DNS to Cloudflare (free plan), with an API token that can edit DNS for that one zone. Build Caddy with the `caddy-dns/cloudflare` module, and add a `*.farbaek.si` block.
+  - **Until then,** previews aren't served from this server.
 
 ## The database (ADR 0036)
 

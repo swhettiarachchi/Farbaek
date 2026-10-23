@@ -1,12 +1,14 @@
 import { siteDomain } from "@/server/publish/config";
 import { handleSiteRequest, type ServedSite } from "@/server/publish/serve";
-import { revisionContentAsSystem, siteForServingAsSystem } from "@/server/publish/store";
+import { revisionContentAsSystem, siteForServingAsSystem, siteNameForDomainAsSystem } from "@/server/publish/store";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
 // What a name is doing is looked up again every few seconds, so a rollback or a takedown shows quickly.
 const sites = new Map<string, { live: ServedSite; until: number }>();
+// Custom domains (ADR 0045), looked up again every few seconds so a removed domain stops quickly.
+const domains = new Map<string, { name: string | null; until: number }>();
 // A stored revision never changes, so its text can be kept as long as there's room.
 const contents = new Map<string, string>();
 const MAX_CONTENT_ENTRIES = 400;
@@ -28,6 +30,14 @@ async function handle(request: Request): Promise<Response> {
       if (sites.size > 2_000) sites.clear();
       sites.set(name, { live, until: Date.now() + 10_000 });
       return live;
+    },
+    async nameForDomain(hostname) {
+      const cached = domains.get(hostname);
+      if (cached && cached.until > Date.now()) return cached.name;
+      const name = await siteNameForDomainAsSystem(admin, hostname);
+      if (domains.size > 2_000) domains.clear();
+      domains.set(hostname, { name, until: Date.now() + 10_000 });
+      return name;
     },
     async content(projectId, path, revision) {
       const key = `${projectId}:${revision}:${path}`;
