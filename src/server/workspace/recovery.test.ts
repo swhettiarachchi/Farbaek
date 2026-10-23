@@ -48,6 +48,7 @@ function fakeDeps(over: { state?: TaskState; role?: OrgRole; billing?: BillingSn
       contractVersion: 1,
       model: null,
       policy: { outcome: "REQUIRE_APPROVAL", version: H("e"), findings: [] },
+      expiresAt: "2026-10-20T10:00:00Z",
       ...over.proposal,
     }),
     recoverySource: async () => (over.source === undefined ? SOURCE : over.source),

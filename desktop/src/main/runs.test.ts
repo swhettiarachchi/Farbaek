@@ -3,8 +3,9 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { INTENT_CONTRACT_SCHEMA, type IntentContract } from "@/core/realityloop/contract";
+import { proposalHash } from "@/core/realityloop/change-proposal";
 import { sha256Hex } from "@/core/trust/canonical-json";
-import type { AgentTaskDetail, ProposalSubmission } from "@/agent-runtime/farbaek-client";
+import type { AgentProposalStatus, AgentTaskDetail, ProposalSubmission } from "@/agent-runtime/farbaek-client";
 import type { ModelStep, ModelToolCall, ToolModel } from "@/agent-runtime/models/types";
 import type { CommandRunner } from "@/agent-runtime/runners";
 import type { RunDetail } from "../shared/api";
@@ -117,6 +118,37 @@ describe("desktop runs", () => {
       usage: { model: "fake-model", inputTokens: 200, outputTokens: 40 },
     });
     await expect(m.submit(id, await api())).rejects.toThrow(/already submitted/);
+  });
+
+  it("checks the proposal in Farbaek against the hash worked out from what was sent", async () => {
+    const m = manager(scripted([[edit], [finish]]));
+    const id = await m.start({ api: await api(), taskId: "t1", mode: "review_only", effort: "balanced" });
+    await settle(m, id, (r) => r.state !== "running");
+    const sent = await m.submit(id, await api());
+    // Farbaek's hash of the same change, the way the server works it out.
+    const content = "# Demo\nRun the tests with pnpm test.\n";
+    const serverSha = await proposalHash({ taskId: "t1", contractVersion: 3, contractSha256: "c".repeat(64), changes: [{ path: "README.md", kind: "edit", baseRevision: 5, content, sha256: await sha256Hex(content), reason: "" }] });
+    expect(sent.proposal?.sentSha256).toBe(serverSha);
+
+    const status = (over: Partial<AgentProposalStatus> = {}): { proposal: () => Promise<AgentProposalStatus> } => ({
+      proposal: async () => ({ id: "proposal-1", taskId: "t1", status: "pending", sha256: serverSha, createdAt: "2026-10-18T10:00:00Z", expiresAt: "2026-10-21T10:00:00Z", decidedAt: null, appliedSha256: null, proofPack: null, ...over }),
+    });
+    const waiting = await m.refreshProposal(id, status());
+    expect(waiting.proposal?.review).toMatchObject({ status: "pending", expiresAt: "2026-10-21T10:00:00Z", matchesSent: true });
+    const notes = () => m.get(id)!.events.filter((e) => e.kind === "note").map((e) => (e as { text: string }).text);
+    const before = notes().length;
+
+    await m.refreshProposal(id, status({ status: "applied", decidedAt: "2026-10-18T11:00:00Z", appliedSha256: "a".repeat(64), proofPack: { digest: "9".repeat(64), status: "unverified" } }));
+    await m.refreshProposal(id, status({ status: "applied", appliedSha256: "a".repeat(64), proofPack: { digest: "8".repeat(64), status: "verified" } }));
+    await m.refreshProposal(id, status({ status: "applied", appliedSha256: "a".repeat(64), proofPack: { digest: "8".repeat(64), status: "verified" } }));
+    expect(notes().slice(before)).toEqual(["Approved and applied in Farbaek.", "Verified in Farbaek: its checks passed."]);
+    // The record survives a restart.
+    const saved = JSON.parse(await fs.readFile(path.join(dir, "runs", `${id}.json`), "utf8")) as RunDetail;
+    expect(saved.proposal?.review).toMatchObject({ status: "applied", proofPack: { status: "verified" }, matchesSent: true });
+
+    const odd = await m.refreshProposal(id, status({ sha256: "0".repeat(64) }));
+    expect(odd.proposal?.review?.matchesSent).toBe(false);
+    expect(notes().at(-1)).toMatch(/doesn't match what this computer sent/);
   });
 
   it("holds a command for approval and runs it only once approved", async () => {

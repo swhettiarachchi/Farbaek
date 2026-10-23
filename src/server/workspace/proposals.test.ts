@@ -98,6 +98,7 @@ function fakeDeps(
             contractVersion: 1,
             model: "claude-opus-5-5",
             policy: { outcome: "REQUIRE_APPROVAL", version: "e".repeat(64), findings: [] },
+            expiresAt: "2026-10-15T10:00:00Z",
             ...over.proposal,
           },
     applyProposal: async (input) => (calls.push({ name: "apply", input }), over.applyError ? { ok: false, error: over.applyError } : { ok: true, value: input.files.length }),
@@ -197,6 +198,14 @@ describe("applyProposal", () => {
     expect(await apply(fakeDeps({ state: "APPROVAL_PENDING", proposal: { status: "applied" } }).deps, [{ path: "src/lib/cart.ts", content: "x" }])).toMatchObject({ code: "PROPOSAL_CLOSED" });
     expect(await apply(fakeDeps({ state: "APPROVAL_PENDING" }).deps, [{ path: "src/other.ts", content: "x" }])).toMatchObject({ code: "INVALID_PROPOSAL" });
     expect(await apply(fakeDeps({ state: "APPROVAL_PENDING" }).deps, [{ path: "src/lib/new.ts", content: "" }])).toMatchObject({ code: "NOTHING_TO_APPLY" });
+  });
+
+  it("refuses an expired proposal before writing anything, and applies one still inside its window", async () => {
+    const expired = fakeDeps({ state: "APPROVAL_PENDING", proposal: { expiresAt: "2026-10-13T10:00:00Z" } });
+    expect(await apply(expired.deps, [{ path: "src/lib/cart.ts", content: "x" }])).toMatchObject({ code: "PROPOSAL_EXPIRED" });
+    expect(expired.calls.filter((c) => c.name === "apply")).toEqual([]);
+    const open = fakeDeps({ state: "APPROVAL_PENDING", proposal: { expiresAt: "2026-10-13T10:00:01Z" } });
+    expect(await apply(open.deps, [{ path: "src/lib/cart.ts", content: "x" }])).toMatchObject({ ok: true });
   });
 
   it("blocks secrets in accepted content and explains a stale file", async () => {

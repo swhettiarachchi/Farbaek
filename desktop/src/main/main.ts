@@ -182,6 +182,7 @@ function registerHandlers(): void {
   );
   handle("runs:cancel", Id, async (id) => runs.cancel(id));
   handle("runs:submit", Id, (id) => attempt(async () => runs.submit(id, await client())));
+  handle("runs:check-proposal", Id, (id) => attempt(async () => runs.refreshProposal(id, await client())));
   handle("runs:discard", Id, async (id) => runs.discard(id));
 
   mesh.register(handle);

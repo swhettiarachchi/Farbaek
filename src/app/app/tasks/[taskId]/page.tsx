@@ -54,6 +54,8 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
   const canPropose = task.state === "CONTRACT_APPROVED";
   const approvedContract = contract?.status === "approved" && contract.approvedAt ? contract : null;
   const execution = currentExecutionMode();
+  // This request's time; a server component renders once per request.
+  const renderedAt = new Date().getTime();
   const showVerification = task.state === "VERIFYING" || (proposal?.status === "applied" && !TERMINAL_STATES.has(task.state) && !RECOVERABLE_STATES.has(task.state));
   const showProposal = proposal !== null && (proposal.status !== "discarded" || !canPropose);
   const applied = proposal?.status === "applied" ? proposal : null;
@@ -179,7 +181,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
       {approvedContract && driftEvents ? <ScopeDriftCard approvedAt={approvedContract.approvedAt!} changes={driftEvents.length} findings={drift} /> : null}
 
       {canPropose || showProposal ? (
-        <Card>
+        <Card id="change" className="scroll-mt-24">
           <h2 className="flex items-center gap-2 text-lg font-medium">
             <GitPullRequestIcon size={20} className="text-ink-3" aria-hidden /> Change
           </h2>
@@ -198,6 +200,8 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
                 canApproveEscalated={isManager}
                 appliedNote={appliedNote}
                 agentName={proposal!.agentId ? (agents.find((a) => a.id === proposal!.agentId)?.name ?? null) : null}
+                contract={contract?.body ?? null}
+                serverNow={renderedAt}
               />
             ) : null}
             {canPropose ? (

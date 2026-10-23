@@ -1,13 +1,20 @@
 "use client";
 
-import { CheckCircleIcon, DesktopIcon, FingerprintIcon, HourglassMediumIcon, ProhibitIcon, ScalesIcon, ShieldWarningIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, ClockCountdownIcon, DesktopIcon, FingerprintIcon, HourglassMediumIcon, ProhibitIcon, ScalesIcon, ShieldWarningIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { applyProposalAction, discardProposalAction } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { LocalTime } from "@/components/ui/local-time";
+import { relativeLabel, useNow } from "@/components/ui/use-now";
 import { DROP_LABELS } from "@/core/realityloop/change-proposal";
+import type { IntentContract } from "@/core/realityloop/contract";
+import { lensForChange, lensSummary } from "@/core/realityloop/intent-lens";
+import { FileLensRows, IntentLensSummary } from "./intent-lens";
+import { approvalWindow } from "@/core/trust/approval-wallet";
+import { shortHash } from "@/core/trust/canonical-json";
 import { OUTCOME_LABELS } from "@/core/trust/policy";
 import type { PolicyOutcome } from "@/core/billing/usage";
 import type { ProposalRecord } from "@/server/workspace/types";
@@ -29,6 +36,8 @@ const STATUS = {
   blocked: { label: "Blocked by the contract", Icon: ProhibitIcon, cls: "border-failed/30 bg-failed/[0.05] text-failed" },
   applied: { label: "Applied", Icon: CheckCircleIcon, cls: "border-verified/30 bg-verified/[0.05] text-verified" },
   discarded: { label: "Discarded", Icon: XCircleIcon, cls: "border-line bg-surface-raised text-ink-2" },
+  // Past its approval window (ADR 0042): it can only be discarded.
+  expired: { label: "Expired", Icon: ProhibitIcon, cls: "border-line bg-surface-raised text-ink-2" },
 } as const;
 
 /**
@@ -46,6 +55,8 @@ export function ProposalReview({
   canApproveEscalated,
   appliedNote,
   agentName = null,
+  contract = null,
+  serverNow,
 }: {
   projectId: string;
   proposal: ProposalRecord;
@@ -62,17 +73,29 @@ export function ProposalReview({
   agentName?: string | null;
   /** Replaces the "waiting for checks" note on an applied change, once it's being undone or was. */
   appliedNote?: string;
+  /** The contract the change was made under, for the Intent Diff Lens (ADR 0041). */
+  contract?: IntentContract | null;
+  /** The server's render time, so the approval window reads the same before and after hydration. */
+  serverNow: number;
 }) {
   const router = useRouter();
   const [finals, setFinals] = useState<Record<string, string>>(() => Object.fromEntries(proposal.changes.map((c) => [c.path, c.content])));
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  const open = proposal.status === "pending";
-  const status = STATUS[proposal.status];
+  const now = useNow(serverNow);
+  const win = approvalWindow(proposal.createdAt, proposal.expiresAt, new Date(now));
+  const expired = proposal.status === "pending" && win.state === "expired";
+  const open = proposal.status === "pending" && !expired;
+  const status = STATUS[expired ? "expired" : proposal.status];
+  const closesIn = relativeLabel(Date.parse(proposal.expiresAt) - now);
 
   const escalated = proposal.policy?.outcome === "ESCALATE";
-  const approveReason = disabledReason ?? (escalated && !canApproveEscalated ? "The policy escalated this change, so an owner or admin has to approve it." : null);
+  const approveReason =
+    disabledReason ??
+    (escalated && !canApproveEscalated ? "The policy escalated this change, so an owner or admin has to approve it." : null);
   const kept = proposal.changes.filter((c) => (c.kind === "create" ? finals[c.path] !== "" : finals[c.path] !== bases[c.path]));
+  // Each hunk read against the contract: exact flags first, then a pointer to the clause it shares words with.
+  const lenses = useMemo(() => (contract ? proposal.changes.map((c) => lensForChange(contract, c, bases[c.path] ?? "")) : null), [contract, proposal.changes, bases]);
 
   function approve() {
     setError(null);
@@ -108,10 +131,26 @@ export function ProposalReview({
           </span>
         ) : null}
         <span className="font-mono text-xs text-ink-3">
-          {short(proposal.sha256)} · contract v{proposal.contractVersion}
+          {shortHash(proposal.sha256, 8, 6)} · contract v{proposal.contractVersion}
           {proposal.model ? ` · ${proposal.model}` : ""}
         </span>
       </div>
+
+      {open ? (
+        <p className={`-mt-3 flex items-start gap-2 text-sm ${win.state === "closing" ? "text-approval" : "text-ink-2"}`}>
+          <ClockCountdownIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
+          <span>
+            Approve by <LocalTime iso={proposal.expiresAt} /> · closes {closesIn}. After that it can only be discarded.
+          </span>
+        </p>
+      ) : expired ? (
+        <p className="-mt-3 flex items-start gap-2 text-sm text-ink-2">
+          <ProhibitIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
+          <span>
+            This proposal expired {closesIn}, so it can&apos;t be approved. Discard it and ask the agent to propose again against the files as they are now.
+          </span>
+        </p>
+      ) : null}
 
       <div className="grid gap-3">
         <p className="text-[15px] leading-relaxed">{proposal.plan.summary}</p>
@@ -226,13 +265,15 @@ export function ProposalReview({
         </div>
       ) : proposal.status === "discarded" ? null : (
         <div className="grid gap-5">
-          {proposal.changes.map((c) => (
+          {lenses ? <IntentLensSummary summary={lensSummary(lenses)} /> : null}
+          {proposal.changes.map((c, i) => (
             <section key={c.path} className="grid min-w-0 gap-2" aria-label={`Changes to ${c.path}`}>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="min-w-0 font-mono text-[13px] font-medium break-all">{c.path}</p>
                 <p className="text-xs text-ink-3">{c.kind === "create" ? "New file" : `Edit of revision ${c.baseRevision}`}</p>
               </div>
               {c.reason ? <p className="text-xs text-ink-2">{c.reason}</p> : null}
+              {lenses?.[i] ? <FileLensRows lens={lenses[i]!} /> : null}
               <Surface
                 path={c.path}
                 value={c.content}
@@ -271,16 +312,18 @@ export function ProposalReview({
             </p>
           ) : null}
           <div className="flex flex-wrap items-center gap-3">
-            {open ? (
-              <button type="button" onClick={approve} disabled={pending || kept.length === 0 || Boolean(approveReason)} className={buttonClasses("primary", "sm")}>
+            {proposal.status === "pending" ? (
+              <button type="button" onClick={approve} disabled={pending || expired || kept.length === 0 || Boolean(approveReason)} className={buttonClasses(expired ? "secondary" : "primary", "sm")}>
                 <FingerprintIcon size={16} weight="bold" aria-hidden />
                 {pending ? "Applying…" : `Approve and apply ${kept.length} ${kept.length === 1 ? "file" : "files"}`}
               </button>
             ) : null}
-            <button type="button" onClick={discard} disabled={pending || Boolean(disabledReason)} className={buttonClasses(open ? "ghost" : "secondary", "sm")}>
+            <button type="button" onClick={discard} disabled={pending || Boolean(disabledReason)} className={buttonClasses(expired ? "primary" : open ? "ghost" : "secondary", "sm")}>
               Discard proposal
             </button>
-            {approveReason ? <p className="text-sm text-ink-3">{approveReason}</p> : null}
+            {expired ? <p className="text-sm text-ink-3">Expired {closesIn}: it can only be discarded.</p> : null}
+            {/* Once expired, only the reason Discard is unavailable still matters. */}
+            {(expired ? disabledReason : approveReason) ? <p className="text-sm text-ink-3">{expired ? disabledReason : approveReason}</p> : null}
             {open && kept.length === 0 ? <p className="text-sm text-ink-3">Every change is rejected. Discard the proposal instead.</p> : null}
           </div>
         </div>

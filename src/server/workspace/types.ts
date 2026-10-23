@@ -91,6 +91,8 @@ export interface ProposalRecord {
   sha256: string;
   model: string | null;
   createdAt: string;
+  /** After this it can only be discarded: 72 hours after it was made, set by the database (ADR 0042). */
+  expiresAt: string;
   decidedAt: string | null;
   appliedSha256: string | null;
   /** The policy decision that governed it; null for proposals made before policies were recorded. */
@@ -115,6 +117,7 @@ export const ProposalRowSchema = z.object({
   sha256: z.string(),
   model: z.string().nullable(),
   created_at: z.string(),
+  expires_at: z.string(),
   decided_at: z.string().nullable(),
   applied_sha256: z.string().nullable(),
   agent_id: z.string().nullable().optional(),
@@ -136,6 +139,7 @@ export function proposalFromRow(row: z.infer<typeof ProposalRowSchema>): Proposa
     sha256: row.sha256,
     model: row.model,
     createdAt: row.created_at,
+    expiresAt: row.expires_at,
     decidedAt: row.decided_at,
     appliedSha256: row.applied_sha256,
     policy: row.policy ?? null,

@@ -217,6 +217,44 @@ export function createSupabaseAgentStore(admin: SupabaseClient): AgentStore {
       return r.ok ? { ok: true, value: null } : r;
     },
 
+    async agentProposal(orgId, agentId, proposalId) {
+      if (!isUuid(proposalId)) return null;
+      // Scoped to the workspace and to the agent that made it.
+      const { data, error } = await admin
+        .from("change_proposals")
+        .select("id, task_id, status, sha256, created_at, expires_at, decided_at, applied_sha256")
+        .eq("org_id", orgId)
+        .eq("agent_id", agentId)
+        .eq("id", proposalId)
+        .maybeSingle();
+      if (error) fail("the proposal", error);
+      const row = z
+        .object({
+          id: z.string(),
+          task_id: z.string(),
+          status: z.enum(["pending", "blocked", "applied", "discarded"]),
+          sha256: z.string(),
+          created_at: z.string(),
+          expires_at: z.string(),
+          decided_at: z.string().nullable(),
+          applied_sha256: z.string().nullable(),
+        })
+        .safeParse(data);
+      if (!row.success) return null;
+      const { data: pack, error: packError } = await admin
+        .from("proofpacks")
+        .select("digest, status")
+        .eq("org_id", orgId)
+        .eq("proposal_id", proposalId)
+        .order("seq", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (packError) fail("the ProofPack", packError);
+      const proofPack = z.object({ digest: z.string(), status: z.enum(["unverified", "partially_verified", "verified", "failed"]) }).nullable().parse(pack ?? null);
+      const r = row.data;
+      return { id: r.id, taskId: r.task_id, status: r.status, sha256: r.sha256, createdAt: r.created_at, expiresAt: r.expires_at, decidedAt: r.decided_at, appliedSha256: r.applied_sha256, proofPack };
+    },
+
     newEventId: () => crypto.randomUUID(),
     now: () => new Date(),
   };

@@ -41,6 +41,7 @@ export type WriteErrorCode =
   | "INVALID_PROPOSAL"
   | "PROPOSAL_CLOSED"
   | "PROPOSAL_CHANGED"
+  | "PROPOSAL_EXPIRED"
   | "NOTHING_TO_APPLY"
   | "EVALUATION_LIMIT"
   | "APPROVER_ROLE_REQUIRED"
@@ -153,6 +154,7 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   INVALID_PROPOSAL: "The proposal isn't valid, so nothing was changed.",
   PROPOSAL_CLOSED: "This proposal was already applied or discarded. Reload to see the latest state.",
   PROPOSAL_CHANGED: "The proposal changed since you reviewed it. Reload and review it again.",
+  PROPOSAL_EXPIRED: "This proposal expired, so it can't be approved. Discard it and ask the agent to propose again against the files as they are now.",
   NOTHING_TO_APPLY: "Every change was rejected, so there's nothing to apply. Discard the proposal instead.",
   EVALUATION_LIMIT: "This workspace has used its governed evaluations for the period, so new proposals are paused until it resets or the plan changes.",
   APPROVER_ROLE_REQUIRED: "The policy escalated this change, so an owner or admin has to approve it.",
@@ -211,6 +213,7 @@ export function codeFromDatabaseError(message: string): WriteErrorCode {
     "FILE_CHANGED",
     "INVALID_PROPOSAL",
     "PROPOSAL_CLOSED",
+    "PROPOSAL_EXPIRED",
     "NOTHING_TO_APPLY",
     "EVALUATION_LIMIT",
     "APPROVER_ROLE_REQUIRED",

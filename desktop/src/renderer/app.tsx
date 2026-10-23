@@ -25,7 +25,10 @@ import { AGENT_MODE_LABELS, type AgentMode } from "@/core/agent/modes";
 import { COMMAND_RISK_LABELS, type CommandRisk } from "@/core/agent/commands";
 import type { RunState } from "@/core/agent/operations";
 import { EFFORTS, EFFORT_LABELS, type Effort } from "@/core/agent/routing";
-import type { AppState, Profile, RunDetail, RunSummary, TaskSummary, TaskView } from "../shared/api";
+import { approvalWindow } from "@/core/trust/approval-wallet";
+import { shortHash } from "@/core/trust/canonical-json";
+import { relativeLabel, useNow } from "@/components/ui/use-now";
+import type { AppState, Profile, ProposalReview, RunDetail, RunSummary, TaskSummary, TaskView } from "../shared/api";
 import { NearbyView } from "./nearby";
 
 const api = window.farbaek;
@@ -53,8 +56,34 @@ function Badge({ tone, icon: BadgeIcon, children, spin = false }: { tone: string
   );
 }
 
+/** Where a checked proposal stands, as one badge (ADR 0042). */
+function reviewBadge(review: ProposalReview, now: number): { tone: string; icon: Icon; label: string } {
+  if (review.matchesSent === false) return { tone: "failed", icon: WarningCircleIcon, label: "Doesn't match what was sent" };
+  if (review.status === "applied") {
+    const pack = review.proofPack?.status;
+    if (pack === "verified") return { tone: "verified", icon: ShieldCheckIcon, label: "Verified" };
+    if (pack === "failed") return { tone: "failed", icon: XCircleIcon, label: "Checks failed" };
+    return { tone: "verified", icon: CheckCircleIcon, label: "Applied, not verified" };
+  }
+  if (review.status === "discarded") return { tone: "neutral", icon: TrashIcon, label: "Discarded in Farbaek" };
+  if (review.status === "blocked") return { tone: "failed", icon: XCircleIcon, label: "Blocked by Farbaek" };
+  return approvalWindow(review.checkedAt, review.expiresAt, new Date(now)).state === "expired"
+    ? { tone: "neutral", icon: ProhibitIcon, label: "Expired" }
+    : { tone: "approval", icon: HourglassMediumIcon, label: "Waiting for review" };
+}
+
 function StateBadge({ run }: { run: Pick<RunDetail, "state" | "discarded" | "proposal"> }) {
+  // This app has no server render, so the fallback time is never drawn.
+  const now = useNow(0);
   if (run.discarded) return <Badge tone="neutral" icon={TrashIcon}>Discarded</Badge>;
+  if (run.proposal?.review) {
+    const b = reviewBadge(run.proposal.review, now);
+    return (
+      <Badge tone={b.tone} icon={b.icon}>
+        {b.label}
+      </Badge>
+    );
+  }
   if (run.proposal) return <Badge tone={run.proposal.status === "pending" ? "verified" : "failed"} icon={run.proposal.status === "pending" ? CheckCircleIcon : XCircleIcon}>{run.proposal.status === "pending" ? "Submitted" : "Blocked by Farbaek"}</Badge>;
   const s = STATE[run.state];
   return (
@@ -355,6 +384,71 @@ function RunsView({ runs, selected, onSelect }: { runs: RunSummary[]; selected: 
   );
 }
 
+/** What Farbaek's record says about the submitted proposal, in words (ADR 0042). */
+function ReviewState({ review, sentSha256 }: { review: ProposalReview; sentSha256?: string }) {
+  const now = useNow(0);
+  const expired = review.status === "pending" && approvalWindow(review.checkedAt, review.expiresAt, new Date(now)).state === "expired";
+  const pack = review.proofPack;
+  return (
+    <>
+      {review.matchesSent === false ? (
+        <Alert>Farbaek&apos;s record of this proposal doesn&apos;t match what this computer sent. Don&apos;t approve it: discard it in Farbaek and start a new run.</Alert>
+      ) : null}
+      {expired ? (
+        <p>
+          Expired in Farbaek {relativeLabel(Date.parse(review.expiresAt) - now)}, so it can&apos;t be approved anymore. Discard it there, then start a new run against the files as they are now.
+        </p>
+      ) : review.status === "pending" ? (
+        <p>
+          Waiting for review in Farbaek. It can be approved until {new Date(review.expiresAt).toLocaleString()} ({relativeLabel(Date.parse(review.expiresAt) - now)}); after that it can only be discarded.
+        </p>
+      ) : review.status === "applied" ? (
+        <p>
+          Approved and applied in Farbaek{review.decidedAt ? ` on ${new Date(review.decidedAt).toLocaleString()}` : ""}.{" "}
+          {pack?.status === "verified"
+            ? "Its checks passed, so it's verified."
+            : pack?.status === "failed"
+              ? "Its checks failed: open it in Farbaek to see why and recover."
+              : pack?.status === "partially_verified"
+                ? "Some of its checks passed; it isn't fully verified."
+                : "It isn't verified until its checks run and pass."}
+        </p>
+      ) : review.status === "discarded" ? (
+        <p>Discarded in Farbaek. Nothing from this run was applied.</p>
+      ) : (
+        <p>Farbaek blocked it: it breaks the contract.</p>
+      )}
+      {review.matchesSent && sentSha256 ? (
+        <p className="muted small">
+          <ShieldCheckIcon size={14} weight="bold" aria-hidden /> Farbaek&apos;s record matches what this computer sent: <span className="mono">{shortHash(sentSha256, 8, 6)}</span>
+        </p>
+      ) : null}
+      {review.appliedSha256 ? <p className="muted small mono">Approved content {shortHash(review.appliedSha256, 8, 6)}</p> : null}
+      {pack ? <p className="muted small mono">ProofPack {shortHash(pack.digest, 8, 6)}</p> : null}
+    </>
+  );
+}
+
+/** Asks Farbaek every 30 seconds, while the proposal can still change and the window is visible. Draws nothing. */
+function ProposalWatch({ runId, review }: { runId: string; review?: ProposalReview }) {
+  const settled =
+    review !== undefined && (review.status === "discarded" || review.status === "blocked" || (review.status === "applied" && review.proofPack !== null && review.proofPack.status !== "unverified"));
+  useEffect(() => {
+    if (settled) return;
+    const check = () => {
+      if (document.visibilityState === "visible") void api.checkProposal(runId);
+    };
+    check();
+    const t = window.setInterval(check, 30_000);
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      window.clearInterval(t);
+      document.removeEventListener("visibilitychange", check);
+    };
+  }, [runId, settled]);
+  return null;
+}
+
 function RunPanel({ runId }: { runId: string }) {
   const [run, setRun] = useState<RunDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -374,12 +468,22 @@ function RunPanel({ runId }: { runId: string }) {
 
   if (!run) return <p className="muted">Loading the run…</p>;
   const working = run.state === "running";
+  const review = run.proposal?.review;
   const total = run.usage.inputTokens + run.usage.outputTokens;
 
   async function submit() {
     setBusy(true);
     setError(null);
     const r = await api.submitRun(runId);
+    setBusy(false);
+    if (r.ok) setRun(r.value);
+    else setError(r.message);
+  }
+
+  async function checkNow() {
+    setBusy(true);
+    setError(null);
+    const r = await api.checkProposal(runId);
     setBusy(false);
     if (r.ok) setRun(r.value);
     else setError(r.message);
@@ -476,9 +580,14 @@ function RunPanel({ runId }: { runId: string }) {
       {error ? <Alert>{error}</Alert> : null}
       {run.proposal ? (
         <div className="stack-sm">
-          <p>
-            {run.proposal.status === "pending" ? "Farbaek checked the change and it's waiting for review." : "Farbaek checked the change and blocked it."} Policy: <span className="mono small">{run.proposal.policy}</span>.
-          </p>
+          <ProposalWatch runId={run.id} review={review} />
+          {review ? (
+            <ReviewState review={review} sentSha256={run.proposal.sentSha256} />
+          ) : (
+            <p>
+              {run.proposal.status === "pending" ? "Farbaek checked the change and it's waiting for review." : "Farbaek checked the change and blocked it."} Policy: <span className="mono small">{run.proposal.policy}</span>.
+            </p>
+          )}
           {run.proposal.violations.length ? (
             <ul className="bullets">
               {run.proposal.violations.map((v) => (
@@ -488,9 +597,17 @@ function RunPanel({ runId }: { runId: string }) {
           ) : null}
           <div>
             <button className="btn btn-secondary btn-sm" type="button" onClick={() => void api.openTaskInFarbaek(run.taskId)}>
-              <ArrowSquareOutIcon size={16} aria-hidden /> Review it in Farbaek
+              <ArrowSquareOutIcon size={16} aria-hidden /> {review?.status === "applied" || review?.status === "discarded" ? "Open it in Farbaek" : "Review it in Farbaek"}
+            </button>{" "}
+            <button className="btn btn-ghost btn-sm" type="button" disabled={busy} onClick={() => void checkNow()}>
+              <ArrowClockwiseIcon size={16} aria-hidden /> {busy ? "Checking…" : "Check now"}
             </button>
           </div>
+          {review ? (
+            <p className="muted small">
+              Last checked <time dateTime={review.checkedAt}>{new Date(review.checkedAt).toLocaleTimeString()}</time>. While it can still change, this app checks every 30 seconds.
+            </p>
+          ) : null}
         </div>
       ) : null}
       {!run.discarded ? (

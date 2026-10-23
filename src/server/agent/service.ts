@@ -50,6 +50,21 @@ export interface AgentProjectFile {
   sizeBytes: number;
 }
 
+/** Where one of an agent's own proposals stands in Farbaek (the Approval Wallet, ADR 0042). */
+export interface AgentProposalStatus {
+  id: string;
+  taskId: string;
+  status: "pending" | "blocked" | "applied" | "discarded";
+  sha256: string;
+  createdAt: string;
+  /** After this a pending proposal can only be discarded. */
+  expiresAt: string;
+  decidedAt: string | null;
+  appliedSha256: string | null;
+  /** The latest ProofPack for it: unverified when applied, then the checks' result. */
+  proofPack: { digest: string; status: "unverified" | "partially_verified" | "verified" | "failed" } | null;
+}
+
 export interface AgentStore {
   session(tokenSha256: string): Promise<AgentIdentity | null>;
   rateLimit(key: string, windowSeconds: number, limit: number): Promise<boolean>;
@@ -82,6 +97,8 @@ export interface AgentStore {
     period: BillingPeriod;
   }): Promise<RpcResult<string>>;
   revokeAgent(agentId: string, actor: string): Promise<RpcResult<null>>;
+  /** One proposal this agent made, in its workspace; null for anyone else's. */
+  agentProposal(orgId: string, agentId: string, proposalId: string): Promise<AgentProposalStatus | null>;
   newEventId(): string;
   now(): Date;
 }
@@ -203,6 +220,14 @@ export async function agentTask(store: AgentStore, id: AgentIdentity, taskId: st
       files,
     },
   };
+}
+
+/** Where one of this agent's own proposals stands: waiting, applied (and verified), discarded, or past its window. */
+export async function agentProposal(store: AgentStore, id: AgentIdentity, proposalId: string): Promise<AgentResult<AgentProposalStatus>> {
+  const member = requireMember(id);
+  if (!member.ok) return member;
+  const found = await store.agentProposal(id.orgId, id.agentId, proposalId);
+  return found ? { ok: true, value: found } : agentFail("NOT_FOUND", "This agent made no such proposal in this workspace.");
 }
 
 /** One page of the task's project files with their content, at most `maxBytes` of content or 300 files, after the `after` path. */
