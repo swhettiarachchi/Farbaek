@@ -4,7 +4,8 @@
  * format has its recording and poster, each recording fits its size budget
  * and starts playing before it has fully downloaded, the captions match
  * src/content/films.ts, the words follow the copy rules, and every URL
- * carries the hash of exactly the file it names (ADR 0051).
+ * carries the hash of exactly the file it names (ADR 0051). Each recording
+ * also has its silent loop, an animated WebP within its own budget (ADR 0056).
  */
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
@@ -12,7 +13,7 @@ import { describe, expect, it } from "vitest";
 import { toVtt } from "@/components/films/timeline";
 import FILM_VERSIONS from "@/content/films-manifest.json";
 import { filmManifest } from "../../scripts/films/manifest.mjs";
-import { FILMS, FILM_BUDGET_BYTES, FILM_LABEL, filmFile, filmTrack, type FilmFormat, type FilmMeta } from "@/content/films";
+import { FILMS, FILM_BUDGET_BYTES, FILM_LABEL, LOOP_BUDGET_BYTES, filmFile, filmLoop, filmTrack, type FilmFormat, type FilmMeta } from "@/content/films";
 
 const PUBLIC = path.resolve(__dirname, "..", "..", "public");
 const local = (url: string) => path.join(PUBLIC, ...url.split("?")[0]!.split("/").filter(Boolean));
@@ -25,7 +26,10 @@ describe("product films", () => {
   it("lists the current hash of every recording and track, so a re-recording gets a new URL", () => {
     expect(FILM_VERSIONS, "run node scripts/films/manifest.mjs").toEqual(filmManifest());
     for (const film of films) {
-      for (const format of Object.keys(film.formats) as FilmFormat[]) expect(filmFile(id(film), format, "mp4")).toMatch(/\?v=[0-9a-f]{12}$/);
+      for (const format of Object.keys(film.formats) as FilmFormat[]) {
+        expect(filmFile(id(film), format, "mp4")).toMatch(/\?v=[0-9a-f]{12}$/);
+        expect(filmLoop(id(film), format)).toMatch(/\?v=[0-9a-f]{12}$/);
+      }
       expect(filmTrack(id(film), "captions")).toMatch(/\?v=[0-9a-f]{12}$/);
     }
   });
@@ -41,6 +45,17 @@ describe("product films", () => {
         expect(head.slice(4, 8)).toBe("ftyp");
         expect(head.indexOf("moov")).toBeGreaterThan(0);
         expect(existsSync(local(filmFile(id(film), format, "jpg")))).toBe(true);
+      });
+
+      it(`${film.id} has a ${format} silent loop within budget, as an animated WebP`, () => {
+        const loop = local(filmLoop(id(film), format));
+        expect(existsSync(loop), `${loop} is missing: run pnpm films:loops ${film.id}`).toBe(true);
+        expect(statSync(loop).size).toBeLessThanOrEqual(LOOP_BUDGET_BYTES[format]);
+        const head = readFileSync(loop).subarray(0, 4096).toString("latin1");
+        expect(head.slice(0, 4)).toBe("RIFF");
+        expect(head.slice(8, 12)).toBe("WEBP");
+        // An ANIM chunk: it moves.
+        expect(head).toContain("ANIM");
       });
     }
 

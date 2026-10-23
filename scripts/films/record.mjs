@@ -5,7 +5,8 @@
 // to a temporary folder, then encodes them with ffmpeg to an H.264 MP4. A
 // file over its size budget is re-encoded from the same frames at a higher
 // CRF, so the size is tuned without filming again. It also writes the poster
-// and the WebVTT captions and chapters.
+// and the WebVTT captions and chapters. Then run `pnpm films:loops` for each
+// film's silent loop (ADR 0056).
 //
 //   pnpm films:record                      every film
 //   pnpm films:record build proof          some films

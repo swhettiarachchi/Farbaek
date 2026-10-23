@@ -171,6 +171,44 @@
 }
 
 /*
+ * The hero knight floats, and his shadow narrows and fades as he rises
+ * (ADR 0056). On every screen, since the 3D scene only runs with a mouse;
+ * paused off screen (data-paused) and still under reduced motion.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .hero-float {
+    animation: hero-float 6s ease-in-out infinite alternate;
+  }
+  .hero-shadow {
+    animation: hero-shadow 6s ease-in-out infinite alternate;
+  }
+  [data-paused] .hero-float,
+  [data-paused] .hero-shadow {
+    animation-play-state: paused;
+  }
+}
+
+@keyframes hero-float {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-2.5%);
+  }
+}
+
+@keyframes hero-shadow {
+  from {
+    scale: 1;
+    opacity: 1;
+  }
+  to {
+    scale: 0.86 1;
+    opacity: 0.65;
+  }
+}
+
+/*
  * The homepage statement colours in word by word as it scrolls. Under reduced
  * motion it's simply full ink; done in CSS so the server and the client render
  * the same words (a branch in React broke hydration).

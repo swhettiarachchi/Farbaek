@@ -47,17 +47,27 @@ export function shouldPlay(s: AutoplayInput): boolean {
 /** After this long trying to play without a frame, the player says so and offers to try again. */
 export const SLOW_AFTER_MS = 10_000;
 
+/**
+ * Some browsers neither play nor refuse: `play()` stays pending and nothing
+ * loads. After this long with no data at all, the film counts as refused,
+ * so its silent loop takes over; if the video starts later, it takes over again.
+ */
+export const QUIET_REFUSAL_MS = 3_000;
+
 export type FilmMotion = "video" | "loop" | "still";
 
 /**
- * How a film that may move is shown. "video": the player plays it. "loop":
- * the browser refused to start it on its own (iOS Low Power Mode refuses even
- * silent films), so the same recording runs as a silent animated image until
- * a person presses play. "still": its poster, at rest, paused or failed.
+ * How a film is shown. "video": the player plays it. "loop": the browser
+ * refused to start it on its own (iOS Low Power Mode refuses even silent
+ * films), so the same recording runs as a silent animated image until a
+ * person presses play or pause. The loop stays when the film scrolls away,
+ * so it's still moving when it comes back; off screen the browser doesn't
+ * draw it. "still": its poster, at rest, paused or failed.
  */
-export function filmMotion(s: { want: boolean; blocked: boolean; error: boolean }): FilmMotion {
-  if (!s.want || s.error) return "still";
-  return s.blocked ? "loop" : "video";
+export function filmMotion(s: { want: boolean; blocked: boolean; error: boolean; userPaused: boolean }): FilmMotion {
+  if (s.error || s.userPaused) return "still";
+  if (s.blocked) return "loop";
+  return s.want ? "video" : "still";
 }
 
 export type PlayFailure = "blocked" | "interrupted" | "failed";

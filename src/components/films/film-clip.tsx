@@ -15,7 +15,7 @@
  */
 import { ArrowClockwiseIcon, PauseIcon, PlayIcon } from "@phosphor-icons/react";
 import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { FILMS, filmFile, type FilmId } from "@/content/films";
+import { FILMS, filmFile, filmLoop, type FilmId } from "@/content/films";
 import { filmMotion, shouldPlay } from "./player-logic";
 import { SilentLoop } from "./silent-loop";
 import { noSubscribe, useOnScreen, usePlaybackLimits, useVideoControl } from "./use-playback";
@@ -29,12 +29,14 @@ export function FilmClip({ id, poster, active = true, enabled = true }: { id: Fi
   const [userPlayed, setUserPlayed] = useState(false);
   const mounted = useSyncExternalStore(noSubscribe, () => true, () => false);
   const source = mounted && enabled ? filmFile(id, "clip", "mp4") : null;
+  const loop = mounted && enabled ? filmLoop(id, "clip") : null;
   const want = source !== null && active && shouldPlay({ inView, hidden, reducedMotion, saveData, userPaused, userPlayed });
   const control = useVideoControl(video, want, source);
-  const motion = filmMotion({ want, blocked: control.blocked, error: control.error });
-  // Which source's silent loop has drawn: in browsers that skip it, the play button stays.
-  const [loopShown, setLoopShown] = useState<string | null>(null);
-  const playing = motion === "video" || (motion === "loop" && loopShown === source);
+  const motion = filmMotion({ want, blocked: control.blocked, error: control.error, userPaused });
+  // A loop that failed to load leaves the poster and the play button.
+  const [loopFailed, setLoopFailed] = useState<string | null>(null);
+  const looping = motion === "loop" && loop !== null && loopFailed !== loop;
+  const playing = motion === "video" || looping;
   // A failure, or ten seconds of trying without a frame, turns the button into a retry.
   const stuck = control.error || (motion === "video" && control.slow && !control.playing);
   const press = () => {
@@ -67,7 +69,7 @@ export function FilmClip({ id, poster, active = true, enabled = true }: { id: Fi
       <div aria-hidden className={`pointer-events-none absolute inset-0 transition-opacity duration-500 ${control.shown && !control.error ? "opacity-0" : "opacity-100"}`}>
         {poster}
       </div>
-      {motion === "loop" && source ? <SilentLoop src={source} fit="cover" onShown={() => setLoopShown(source)} /> : null}
+      {looping ? <SilentLoop src={loop} fit="cover" onFailed={() => setLoopFailed(loop)} /> : null}
       <p className="sr-only">{film.summary}</p>
       {stuck ? (
         <button

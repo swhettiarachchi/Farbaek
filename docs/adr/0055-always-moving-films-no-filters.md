@@ -1,6 +1,6 @@
 # ADR 0055: Films that keep moving, and no CSS filters
 
-- Status: accepted (2026-10-24).
+- Status: accepted (2026-10-24). The Safari-only MP4 loop was replaced by animated WebP loops in ADR 0056.
 - Changes ADR 0051 (one video at a time) and the aurora from ADR 0008. Builds on ADR 0034 (the films).
 
 ## Context
