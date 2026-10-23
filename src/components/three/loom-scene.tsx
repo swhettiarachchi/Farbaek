@@ -15,14 +15,12 @@ import { Suspense, useEffect, useMemo, useRef, type RefObject } from "react";
 import * as THREE from "three";
 import { LOGO } from "@/components/brand/brand-logo";
 import { FrameGovernor } from "./frame-governor";
+import { LOOM, LOOM_COLORS } from "./loom-geometry";
 
-const ACCENT = "#2450f0";
-const CYAN = "#0a6e85";
-const INK = "#121317";
-// Intent, Code, Test (verified) · Approval (waiting) · Proof, Launch (not yet)
-const STAGE_COLORS = [ACCENT, ACCENT, ACCENT, "#d98e04", "#9aa0aa", "#9aa0aa"];
-const PACKETS = 12;
-const MOTES = 260;
+// The shape, colours and speeds are shared with the 2D drawing phones get (loom-geometry.ts, ADR 0056).
+const { accent: ACCENT, cyan: CYAN, ink: INK, stages: STAGE_COLORS } = LOOM_COLORS;
+const PACKETS = LOOM.packets.count;
+const MOTES = LOOM.motes.count;
 
 type PointerRef = RefObject<{ x: number; y: number }>;
 
@@ -68,12 +66,12 @@ function Knight({ onReady, pointer }: { onReady: () => void; pointer: PointerRef
     const m = mesh.current;
     if (!m) return;
     const p = pointer.current;
-    m.position.y = 0.08 + Math.sin(clock.elapsedTime * 0.9) * 0.06;
+    m.position.y = LOOM.knight.y + Math.sin(clock.elapsedTime * 0.9) * 0.06;
     m.rotation.y = THREE.MathUtils.lerp(m.rotation.y, p.x * 0.14, 0.04);
     m.rotation.x = THREE.MathUtils.lerp(m.rotation.x, -p.y * 0.06, 0.04);
   });
 
-  const height = 3.25;
+  const height = LOOM.knight.height;
   return (
     <mesh ref={mesh}>
       <planeGeometry args={[(height * LOGO.width) / LOGO.height, height]} />
@@ -85,10 +83,10 @@ function Knight({ onReady, pointer }: { onReady: () => void; pointer: PointerRef
 function Loom() {
   const spin = useRef<THREE.Group>(null);
   const packets = useRef<THREE.InstancedMesh>(null);
-  const inner = useMemo(() => orbitCurve(2.0, 1.12), []);
-  const outer = useMemo(() => orbitCurve(2.7, 1.5), []);
-  const innerTube = useMemo(() => new THREE.TubeGeometry(inner, 256, 0.009, 8, true), [inner]);
-  const outerTube = useMemo(() => new THREE.TubeGeometry(outer, 256, 0.005, 6, true), [outer]);
+  const inner = useMemo(() => orbitCurve(LOOM.inner.rx, LOOM.inner.rz), []);
+  const outer = useMemo(() => orbitCurve(LOOM.outer.rx, LOOM.outer.rz), []);
+  const innerTube = useMemo(() => new THREE.TubeGeometry(inner, 256, LOOM.inner.tube, 8, true), [inner]);
+  const outerTube = useMemo(() => new THREE.TubeGeometry(outer, 256, LOOM.outer.tube, 6, true), [outer]);
   const nodes = useMemo(() => STAGE_COLORS.map((color, i) => ({ color, position: inner.getPointAt(i / STAGE_COLORS.length) })), [inner]);
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
@@ -102,11 +100,11 @@ function Loom() {
 
   useFrame(({ clock }, delta) => {
     const t = clock.elapsedTime;
-    if (spin.current) spin.current.rotation.y += delta * 0.11;
+    if (spin.current) spin.current.rotation.y += delta * LOOM.spin;
     const mesh = packets.current;
     if (!mesh) return;
     for (let i = 0; i < PACKETS; i++) {
-      const u = (t * 0.03 + i / PACKETS) % 1;
+      const u = (t * LOOM.packets.lapsPerSecond + i / PACKETS) % 1;
       dummy.position.copy(inner.getPointAt(u));
       dummy.scale.setScalar(0.7 + 0.3 * Math.sin(t * 3 + i));
       dummy.updateMatrix();
@@ -116,28 +114,28 @@ function Loom() {
   });
 
   return (
-    <group rotation={[0.36, 0, -0.14]} position={[0, -0.15, 0]}>
+    <group rotation={[...LOOM.tilt]} position={[0, LOOM.drop, 0]}>
       <group ref={spin}>
         <mesh geometry={innerTube}>
-          <meshBasicMaterial color={ACCENT} transparent opacity={0.75} toneMapped={false} />
+          <meshBasicMaterial color={ACCENT} transparent opacity={LOOM.inner.opacity} toneMapped={false} />
         </mesh>
         <mesh geometry={outerTube}>
-          <meshBasicMaterial color={INK} transparent opacity={0.14} toneMapped={false} />
+          <meshBasicMaterial color={INK} transparent opacity={LOOM.outer.opacity} toneMapped={false} />
         </mesh>
         {nodes.map((node, i) => (
           <group key={i} position={node.position}>
             <mesh>
-              <sphereGeometry args={[0.075, 24, 24]} />
+              <sphereGeometry args={[LOOM.node.core, 24, 24]} />
               <meshBasicMaterial color={node.color} toneMapped={false} />
             </mesh>
             <mesh>
-              <sphereGeometry args={[0.16, 24, 24]} />
-              <meshBasicMaterial color={node.color} transparent opacity={0.12} depthWrite={false} toneMapped={false} />
+              <sphereGeometry args={[LOOM.node.halo, 24, 24]} />
+              <meshBasicMaterial color={node.color} transparent opacity={LOOM.node.haloOpacity} depthWrite={false} toneMapped={false} />
             </mesh>
           </group>
         ))}
         <instancedMesh ref={packets} args={[undefined, undefined, PACKETS]}>
-          <sphereGeometry args={[0.026, 12, 12]} />
+          <sphereGeometry args={[LOOM.packets.size, 12, 12]} />
           <meshBasicMaterial color={CYAN} toneMapped={false} />
         </instancedMesh>
       </group>
@@ -153,8 +151,8 @@ function Motes({ pointer }: { pointer: PointerRef }) {
     const positions = new Float32Array(MOTES * 3);
     const colors = new Float32Array(MOTES * 3);
     const speeds = new Float32Array(MOTES);
-    const palette = [new THREE.Color(ACCENT), new THREE.Color(CYAN), new THREE.Color("#7f9cff"), new THREE.Color("#9aa0aa")];
-    let seed = 11;
+    const palette = LOOM_COLORS.motes.map((c) => new THREE.Color(c));
+    let seed: number = LOOM.motes.seed;
     const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
     for (let i = 0; i < MOTES; i++) {
       positions.set([(rand() - 0.5) * 9, (rand() - 0.5) * 7, (rand() - 0.5) * 4 - 1], i * 3);
@@ -187,7 +185,7 @@ function Motes({ pointer }: { pointer: PointerRef }) {
 
   return (
     <points ref={points} geometry={geometry}>
-      <pointsMaterial size={0.03} vertexColors transparent opacity={0.7} sizeAttenuation depthWrite={false} toneMapped={false} />
+      <pointsMaterial size={LOOM.motes.size} vertexColors transparent opacity={LOOM.motes.opacity} sizeAttenuation depthWrite={false} toneMapped={false} />
     </points>
   );
 }
@@ -200,7 +198,7 @@ export default function LoomScene({ active, onReady, onSlow }: { active: boolean
       style={{ pointerEvents: "none" }}
       frameloop={active ? "always" : "never"}
       dpr={[1, 1.5]}
-      camera={{ position: [0, 0.15, 6.6], fov: 35 }}
+      camera={{ position: [0, LOOM.camera.y, LOOM.camera.z], fov: LOOM.camera.fov }}
       gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
       aria-hidden
     >

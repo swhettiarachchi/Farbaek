@@ -60,6 +60,28 @@ They asked for no play button to push, and for films that repeat on their own.
 
 **Checks:** `pnpm typecheck` and `pnpm lint` are clean; `pnpm test`: 1,323 passed, 14 skipped.
 
+### Then: the Loom on phones
+
+The owner sent the desktop 3D hero ("i need this"): a tilted ring with stage nodes, packets and motes round the knight.
+
+**Done:**
+- **`loom-geometry.ts`:** the Loom's numbers, shared by the 3D scene and a new 2D drawing.
+- **`LoomCanvas`:** two canvases, behind and in front of the knight, drawn each frame.
+- **The hero uses it on every screen:** phones get the same ring, nodes, packets and motes, with the ring at 78% so the stages stay on screen. Desktops with a mouse still cross-fade to the 3D scene.
+
+**Verified:**
+- **Unit tests against three.js:** the world transform, the camera projection and the stage spacing all match.
+- **Phone at 393 px:**
+  - frames nine seconds apart show the ring turning to the reference's steep diagonal, with the amber node passing in front of the knight;
+  - no sideways scroll.
+- **Desktop at 1280 px:**
+  - the 3D scene loads and the drawing fades out;
+  - under reduced motion, the drawing's still frame shows.
+- **Cost on a 4× slower CPU:** 60 frames a second, slowest frame 17 ms. The long tasks during start-up match the live site without the Loom.
+- **`qa:vitals` on `/`** (five runs): LCP 2,120 ms, CLS 0, TBT 318 ms (229 ms in a three-run sample before). The Loom starts only once the browser is idle, and the start-up long tasks are the same on the live site without it.
+- **`qa:responsive` and `qa:a11y` on `/`:** no issues.
+- **Checks:** `pnpm typecheck` and `pnpm lint` are clean; `pnpm test`: 1,328 passed, 14 skipped.
+
 ### Not verified
 
 - **The owner's iPhone in Low Power Mode** and the Google app: the loops, the hero motion and the black square's absence.
