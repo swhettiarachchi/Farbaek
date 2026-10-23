@@ -28,6 +28,8 @@ import { pinMap, readSkillPins } from "@/server/workspace/skill-pins";
 import { limitsFrom, readAutonomy } from "@/server/workspace/autonomy";
 import { autoApplyWithinLimits } from "@/server/workspace/proposals";
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
+import { verifyInRunSession } from "@/server/verification/runner";
+import { createSupabaseVerificationStore } from "@/server/verification/store";
 
 const SESSION_MINUTES = 45;
 
@@ -92,6 +94,8 @@ export async function cloudRunDeps(person: { orgId: string; userId: string; role
       return {
         sessionId,
         runner: createSandboxRunner({ service, actor, sessionId, pending: input.pending, onCommand: input.onCommand, newKey: () => crypto.randomUUID() }),
+        // A change the run applied on its own is checked here, before the sandbox stops (ADR 0047).
+        verify: (files) => verifyInRunSession({ store: createSupabaseVerificationStore(admin), service, actor }, person, { taskId: input.taskId, sessionId, files }),
         stop: async () => {
           await service.stopSession(actor, sessionId);
         },

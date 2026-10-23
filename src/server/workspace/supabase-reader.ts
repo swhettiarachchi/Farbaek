@@ -5,6 +5,7 @@ import { ORGANIZATION_SELECT, summarizeOrganizations } from "./organizations";
 import { readSkillPins } from "./skill-pins";
 import { GRANT_COLUMNS, UsageGrantRowSchema, grantFromRow } from "./usage-store";
 import { readAutonomy } from "./autonomy";
+import { VERIFICATION_SELECT, VerificationRow, verificationFromRow } from "@/server/verification/store";
 import {
   MemberRow,
   ProjectRowSchema,
@@ -450,6 +451,13 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
         .array(z.object({ digest: z.string(), session_id: z.string(), status: z.enum(["verified", "partially_verified", "failed", "unverified"]), statement: z.unknown(), created_at: z.string() }))
         .parse(data)
         .map((r) => ({ digest: r.digest, sessionId: r.session_id, status: r.status, statement: r.statement, createdAt: r.created_at }));
+    },
+
+    async getLatestVerification(orgId, taskId) {
+      if (!z.uuid().safeParse(taskId).success) return null;
+      const { data, error } = await client.from("task_verifications").select(VERIFICATION_SELECT).eq("org_id", orgId).eq("task_id", taskId).order("started_at", { ascending: false }).limit(1).maybeSingle();
+      if (error) fail("verification", error);
+      return data ? verificationFromRow(VerificationRow.parse(data)) : null;
     },
 
     async getRecovery(orgId, digest) {

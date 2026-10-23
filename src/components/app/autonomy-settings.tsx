@@ -120,8 +120,8 @@ export function AutonomySettings({ view, disabledReason, verifiable }: { view: A
           </div>
           {!verifiable ? <p className="text-sm text-ink-3">No verified sandbox is connected on this server, so for now every change still waits for a person.</p> : null}
           <p className="text-xs leading-relaxed text-ink-3">
-            Each change applied this way is recorded as approved by this policy, in its ProofPack and history, and can be undone file by file. If one fails its checks,
-            autonomy pauses itself for the whole workspace.
+            Each change applied this way is recorded as approved by this policy, in its ProofPack and history, and can be undone file by file. Its checks run straight away
+            in a sandbox. If any of them fail, autonomy pauses itself for the whole workspace.
           </p>
         </div>
       ) : (

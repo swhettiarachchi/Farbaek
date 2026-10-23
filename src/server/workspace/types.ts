@@ -9,6 +9,7 @@ import type { WorkspaceSummary } from "./organizations";
 import type { SkillPinRecord } from "./skill-pins";
 import type { StoredLensSuggestion } from "@/core/realityloop/lens-suggestion";
 import type { AutonomyView } from "./autonomy";
+import type { VerificationRecord } from "@/core/realityloop/verification";
 
 export const ORG_ROLES = ["owner", "admin", "member", "viewer"] as const;
 export type OrgRole = (typeof ORG_ROLES)[number];
@@ -283,6 +284,8 @@ export interface WorkspaceReader {
   getRecovery(orgId: string, digest: string): Promise<RecoveryRecord | null>;
   /** Sandbox check runs recorded for a task, newest first. */
   listCheckReceipts(orgId: string, taskId: string): Promise<CheckReceiptRecord[]>;
+  /** The newest attempt to verify a task's applied change in one step, or null (ADR 0047). */
+  getLatestVerification(orgId: string, taskId: string): Promise<VerificationRecord | null>;
   /** The workspace's invitations, newest first. Empty unless the reader is an owner or admin. */
   listInvitations(orgId: string): Promise<InvitationRecord[]>;
   /** The workspace's paired agents, revoked ones included, newest first. */

@@ -75,6 +75,7 @@ function memoizeReader(reader: WorkspaceReader): WorkspaceReader {
     listRecoveries: wrap("recoveries", reader.listRecoveries),
     getRecovery: wrap("recovery", reader.getRecovery),
     listCheckReceipts: wrap("checkReceipts", reader.listCheckReceipts),
+    getLatestVerification: wrap("verification", reader.getLatestVerification),
     listInvitations: wrap("invitations", reader.listInvitations),
     listAgents: wrap("agents", reader.listAgents),
   };

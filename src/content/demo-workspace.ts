@@ -93,6 +93,14 @@ export const DEMO_TASKS: DemoTask[] = [
     code: true,
   },
   {
+    id: "00000000-0000-4000-8000-00000000b009",
+    projectId: P[0].id,
+    title: "Validate postcodes at checkout",
+    path: [...HAPPY_TO_APPROVAL, "EXECUTION_AUTHORIZED", "EXECUTING", "VERIFYING"],
+    createdHoursAgo: 1,
+    code: true,
+  },
+  {
     id: "00000000-0000-4000-8000-00000000b006",
     projectId: P[0].id,
     title: "Remove the legacy coupon system",
@@ -149,6 +157,13 @@ export const DEMO_LENS_SUGGESTION = {
     { hunk: "f0h0", clause: "ac-1", reason: "The guard now throws for 1.5 and any other number that isn't whole, with a message saying so." },
     { hunk: "f1h0", clause: "ac-1", reason: "The new test adds 1.5 of a mug and expects the whole-number error." },
   ],
+};
+
+/** A sample attempt to verify task b009's applied change that couldn't run (ADR 0047). Sample data: nothing runs in the demo. */
+export const DEMO_VERIFICATION = {
+  taskId: "00000000-0000-4000-8000-00000000b009",
+  failure: "Sample: Install packages with npm failed (exit 1), so the checks didn't run.",
+  startedMinutesAgo: 12,
 };
 
 /** The sample model output behind the demo's pending proposal (task b007). Sample data, not a real model call. */
