@@ -14,6 +14,7 @@ import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { readSupabaseConfig } from "@/server/supabase/config";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import type { OrgRole } from "@/server/workspace/types";
+import { serverNotifier } from "@/server/email/wiring";
 import type { VerificationDeps } from "./runner";
 import { createSupabaseVerificationStore } from "./store";
 
@@ -54,6 +55,8 @@ export async function verificationDeps(person: { orgId: string; userId: string; 
       checks: createSupabaseAgentStore(admin),
       sandbox,
       newKey: () => crypto.randomUUID(),
+      // Tells the person how the checks ended (ADR 0060); null while email is off.
+      notify: serverNotifier(),
     },
   };
 }

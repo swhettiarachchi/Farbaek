@@ -19,6 +19,7 @@ import { log } from "@/server/observability/log";
 import type { SandboxActor, SandboxService } from "@/server/sandbox/service";
 import { CONTRIBUTOR_ROLES, type OrgRole } from "@/server/workspace/types";
 import { codeFromDatabaseError, fail, type WriteResult } from "@/server/workspace/use-cases";
+import type { Notifier } from "@/server/email/notify";
 import type { VerificationStore } from "./store";
 
 export type VerificationSandbox = Pick<SandboxService, "overview" | "createSession" | "runCommand" | "runChecks" | "stopSession" | "writeFile">;
@@ -29,6 +30,8 @@ export interface VerificationDeps {
   /** The sandbox service acting as the person, or why there's none. */
   sandbox: { service: VerificationSandbox; actor: SandboxActor } | { unavailable: string };
   newKey(): string;
+  /** Emails the person when the checks end (ADR 0060); null or absent when email is off. */
+  notify?: Pick<Notifier, "checksFinished"> | null;
 }
 
 export interface VerifyPerson {
@@ -70,8 +73,17 @@ export async function startTaskVerification(deps: VerificationDeps, person: Veri
   return { ok: true, value: { verificationId: id } };
 }
 
-/** Runs a started attempt in a fresh session. Exported for tests; startTaskVerification runs it in the background. */
+/** Runs a started attempt in a fresh session, then tells the person how it ended. Exported for tests; startTaskVerification runs it in the background. */
 export async function runTaskVerification(deps: VerificationDeps, person: VerifyPerson, input: { id: string; task: { id: string; title: string; projectId: string } }): Promise<VerificationOutcome> {
+  const outcome = await runAttempt(deps, person, input);
+  if (deps.notify) {
+    const ended = outcome.ok ? { result: outcome.result } : { result: null, reason: outcome.reason };
+    await deps.notify.checksFinished({ userId: person.userId, taskId: input.task.id, taskTitle: input.task.title, ...ended }).catch(() => undefined);
+  }
+  return outcome;
+}
+
+async function runAttempt(deps: VerificationDeps, person: VerifyPerson, input: { id: string; task: { id: string; title: string; projectId: string } }): Promise<VerificationOutcome> {
   const failed = (reason: string) => recordFailure(deps.store, person, input.id, reason);
   if ("unavailable" in deps.sandbox) return failed(deps.sandbox.unavailable);
   const { service, actor } = deps.sandbox;

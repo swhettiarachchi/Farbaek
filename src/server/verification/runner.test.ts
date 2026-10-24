@@ -97,6 +97,19 @@ describe("runTaskVerification", () => {
     expect(f.finished).toEqual([{ id: "v1", actor: "u-alice", status: "done", receiptDigest: "r".repeat(64) }]);
   });
 
+  it("emails the person how the checks ended, passed or not (ADR 0060)", async () => {
+    const sent: unknown[] = [];
+    const notify = { checksFinished: async (n: unknown) => void sent.push(n) };
+    const f = fakes({ checks: "verified" });
+    await runTaskVerification({ ...f.deps, notify }, alice, { id: "v1", task });
+    const g = fakes({ createFails: "No sandbox minutes left." });
+    await runTaskVerification({ ...g.deps, notify }, alice, { id: "v1", task });
+    expect(sent).toEqual([
+      { userId: "u-alice", taskId: "t1", taskTitle: "Fix the cart total", result: "verified" },
+      { userId: "u-alice", taskId: "t1", taskTitle: "Fix the cart total", result: null, reason: "The sandbox didn't start: No sandbox minutes left." },
+    ]);
+  });
+
   it("needs no network or install for a project with nothing to install", async () => {
     const f = fakes({ files: ["index.html", "check.mjs"] });
     await runTaskVerification(f.deps, alice, { id: "v1", task });
