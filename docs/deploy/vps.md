@@ -76,7 +76,13 @@ A deploy restarts the app. Agent runs going at that moment show as Interrupted.
 
 ## DNS and certificates
 
-- **farbaek.com:** DNS stays at Spaceship, with the email records. `www` and `officespace` are A records to the server, and the apex forwards to `https://www.farbaek.com`. Caddy gets ordinary certificates for both names.
+- **farbaek.com:** DNS stays at Spaceship, with the email records. `www` and `officespace` are A records to the server, and Caddy gets ordinary certificates for them.
+  - **The apex (`farbaek.com` itself)** should be an A record to the server too. Caddy then redirects every path to the same path on www, so links and the ProofPack type URI (`https://farbaek.com/proofpack/v1`) reach their page.
+  - **Until it is,** Spaceship's URL forwarding answers for it and sends every path to the homepage.
+  - **To switch:**
+    1. Deploy the Caddyfile's `farbaek.com` block.
+    2. At Spaceship, remove the URL forwarding for `@` and add an A record `@` to the server's address (TTL 300). Leave the email records alone.
+    3. On the server, run `docker exec farbaek-caddy caddy reload --config /etc/caddy/Caddyfile --force`, so Caddy fetches the certificate straight away.
 - **Published sites on farbaek.si, and people's own domains (ADR 0045).** Caddy makes each site's certificate on its first visit (on-demand TLS), after the app confirms the name is a live site. To turn it on:
   1. **At Hostinger, for farbaek.si,** point three A records at the server's address, replacing Hostinger's parking records:
      - `@` (farbaek.si itself, which redirects to www.farbaek.com);
