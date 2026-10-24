@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { egressRules } from "../sandbox/network";
 import { buildSandboxReceipt, sandboxReceiptDigest } from "../sandbox/receipts";
 import { buildSecurityReport, securityReportDigest } from "../security/report";
-import { sha256Hex } from "../trust/canonical-json";
+import { canonicalHash, sha256Hex } from "../trust/canonical-json";
 import { inspectEvidence, matchFile } from "./inspect";
 import { buildProofPack, proofPackDigest, type ProofPackInput } from "./proofpack";
 import { buildRecoveryReceipt, recoveryReceiptDigest } from "./recovery-receipt";
@@ -36,6 +36,14 @@ describe("inspectEvidence", () => {
     expect(r.summary.checks).toEqual([{ name: "test", command: "pnpm test", exitCode: 0, status: "passed" }]);
     expect(r.summary.links).toEqual([{ label: "The project's previous ProofPack", digest: H("9") }]);
     expect(r.summary.limits.length).toBeGreaterThan(0);
+  });
+
+  it("still reads ProofPacks recorded under the placeholder type", async () => {
+    const { statement } = await packFor("a");
+    expect(statement.predicateType).toBe("https://farbaek.com/proofpack/v1");
+    const legacy = { ...statement, predicateType: "https://farbaek.dev/proofpack/v1" };
+    const r = await inspectEvidence({ digest: await canonicalHash(legacy), statement: legacy });
+    expect(r).toMatchObject({ ok: true, kind: "proofpack", intact: true });
   });
 
   it("catches a single changed character, and a wrong pasted digest", async () => {

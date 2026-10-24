@@ -18,8 +18,10 @@ import type { CheckResult } from "../realityloop/task-machine";
 import { canonicalHash } from "../trust/canonical-json";
 
 export const IN_TOTO_STATEMENT_TYPE = "https://in-toto.io/Statement/v1";
-/** Placeholder predicate URI from the spec; replace with an owned domain before signing (ADR 0012). */
-export const PROOFPACK_PREDICATE_TYPE = "https://farbaek.dev/proofpack/v1";
+/** On Farbaek's own domain, since ProofPacks are signed (ADR 0062). */
+export const PROOFPACK_PREDICATE_TYPE = "https://farbaek.com/proofpack/v1";
+/** The placeholder ProofPacks recorded before ADR 0062 carry (ADR 0012); still read, never written. */
+export const LEGACY_PROOFPACK_PREDICATE_TYPE = "https://farbaek.dev/proofpack/v1";
 
 export type ProofPackStatus = "unverified" | "partially_verified" | "verified" | "failed";
 

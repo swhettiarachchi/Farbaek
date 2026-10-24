@@ -160,7 +160,7 @@ Known limits: preview pages may load `https:` images and fonts, so a page could 
 
 | Boundary | Threats | Enforcement (built) | Tested by |
 | --- | --- | --- | --- |
-| The public verify page | A forged or edited evidence file shown as genuine; the page leaking what visitors check | The digest is recomputed from the canonical statement and compared, and any difference shows as "Changed". Missing parts are refused. The page states that a match proves the record is unchanged, not who made it (no signatures yet). Files are read and hashed in the browser; nothing is sent | `inspect.test.ts`, code review (no request carries the file) |
+| The public verify page | A forged or edited evidence file shown as genuine; the page leaking what visitors check | The digest is recomputed from the canonical statement and compared, and any difference shows as "Changed". Missing parts are refused. A match on its own proves the record is unchanged, not who made it, and the page says so; only a valid signature from a key Farbaek publishes makes it say Farbaek recorded it (ADR 0062). Files are read and hashed in the browser; nothing is sent | `inspect.test.ts`, code review (no request carries the file) |
 | Samples | A sample passed off as real evidence | Statements marked `sample: true` are labelled "Sample data" and the Seal says "Sample ProofPack"; the sample's first limit says it records no real project | `src/app/(site)/verify/sample.json/route.ts`, `evidence-check.tsx` |
 | The full export | Leaking another workspace's data, setting values or people's details | Read through RLS like the plain download (members of the project's workspace only). Setting names come from the Launch Planner, never values. People appear only as the actor ids already in the records | `export.test.ts`, route code review |
 
@@ -171,3 +171,13 @@ Known limits: preview pages may load `https:` images and fonts, so a page could 
 | Publishing a site | An unverified or failing change going live because the newest ProofPack says "verified" (a check run of an earlier change landing late), or a hand edit, undo or import after the verified change | `private.launch_evidence` reads the latest change ProofPack, refuses to count it if any revision came after it, and takes only a check run of that exact change. `app_publish_site` refuses without verified evidence (`EVIDENCE_REQUIRED`) | `tests/db/sites.test.ts`, `tests/security-eval/database.test.ts` (SE-024) |
 | The override | A member, or a prompt in the page, waving a launch through; an override nobody can see later | Only owners and admins, checked in the database (`OVERRIDE_FORBIDDEN`); a 10 to 500 character reason; kept on the version (a constraint makes it present exactly when the evidence isn't verified) and in the `site.published` audit event with the evidence and ProofPack | `tests/db/sites.test.ts`, `src/server/publish/publish.test.ts` |
 | What the page shows | The panel saying "verified" when the database disagrees | The panel and the Launch page use the same rule as the database (`launchEvidence`); if they ever differ, the database refuses and the panel explains | `src/core/publish/evidence.test.ts` |
+
+## Signed ProofPacks (2026-10-24, ADR 0062)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| The signing key | Theft, or someone signing evidence Farbaek didn't record | Made on the VPS by the owner's script and kept only in the server's settings, never printed or committed; one key per server; the script refuses to replace a set key | `signing.test.ts`, script review |
+| Stored signatures | A signature swapped or rewritten to match an edited record; one workspace reading another's | Written only by the service role through `app_record_proofpack_signature`, first one kept; updates refused by a trigger; members read through RLS | `proofpack-signatures.test.ts` |
+| The verify page | A valid signature reused beside different evidence; a look-alike key; keys that don't load | The signed payload must hash to the evidence shown; only keys from `/.well-known/farbaek-keys.json` on Farbaek's own domain count; an unknown key, a bad signature or missing keys each say so, and only a good signature shows "exactly what Farbaek recorded" and keeps the Seal | `dsse.test.ts`, demo build checks |
+
+Known limits: whoever controls the server can sign; the key isn't in a hardware module; there's no rotation yet (retired keys aren't published), so the key isn't replaced.
