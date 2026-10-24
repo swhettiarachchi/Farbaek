@@ -54,6 +54,7 @@ export function ProposalReview({
   invariants,
   disabledReason,
   executionReason,
+  checksOnApply = false,
   canApproveEscalated,
   appliedNote,
   agentName = null,
@@ -71,6 +72,8 @@ export function ProposalReview({
   disabledReason: string | null;
   /** Why checks can't run here (Review Only), or null when a sandbox is connected. */
   executionReason: string | null;
+  /** Applying starts the change's checks (ADR 0059): the plan has some, or Farbaek has a fallback for this project. */
+  checksOnApply?: boolean;
   /** True when the viewer is an owner or admin. Escalated changes need one; the server enforces it too. */
   canApproveEscalated: boolean;
   /** The paired Farbaek Agent's name when an agent made the proposal (it may have been revoked since). */
@@ -340,6 +343,7 @@ export function ProposalReview({
                 {kept.length} of {proposal.changes.length} {proposal.changes.length === 1 ? "file" : "files"}
               </span>{" "}
               exactly as shown above, after your accept and reject decisions.
+              {executionReason || !checksOnApply ? null : " Once it's applied, its checks start on their own in a fresh sandbox."}
             </p>
           ) : null}
           <div className="flex flex-wrap items-center gap-3">
