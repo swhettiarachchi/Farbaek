@@ -40,6 +40,7 @@ import type { RunPatch, RunStore } from "./store";
 import type { AutonomyLimits } from "@/core/trust/policy";
 import { autoVerifiedOutcome, VERIFICATION_RESULT_WORDS } from "@/core/realityloop/verification";
 import type { VerificationOutcome } from "@/server/verification/runner";
+import type { Notifier } from "@/server/email/notify";
 
 export interface RunPerson {
   orgId: string;
@@ -72,6 +73,8 @@ export interface ExecutorDeps {
   autonomy(orgId: string): Promise<AutonomyLimits | null>;
   /** Applies a just-made proposal the workspace's autonomy allowed, exactly as proposed. */
   applyWithinLimits(input: { orgId: string; userId: string; proposalId: string }): Promise<{ ok: true } | { ok: false; message: string }>;
+  /** Emails the person who started the run once it ends (ADR 0060); null or absent when email is off. */
+  notify?: Pick<Notifier, "buildFinished"> | null;
   /** Overrides the model, for tests. */
   makeModel?(input: { taskId: string; effort: Effort; step: (r: ModelStepRequest, signal?: AbortSignal) => Promise<ModelStepReply> }): ToolModel;
   workRoot?: string;
@@ -236,7 +239,10 @@ async function execute(
   // Events are batched and written about once a second, and at once for approvals and the end.
   let pending: RunPatch = {};
   let flushing: Promise<void> = Promise.resolve();
+  // How the run ended, for the email to the person who started it (ADR 0060).
+  let ended: { status: "finished" | "failed" | "cancelled"; outcome: string } | null = null;
   const queue = (p: RunPatch) => {
+    if ((p.status === "finished" || p.status === "failed" || p.status === "cancelled") && p.outcome) ended = { status: p.status, outcome: p.outcome };
     pending = {
       ...pending,
       ...p,
@@ -492,6 +498,10 @@ async function execute(
     }
     await flush().catch(() => undefined);
     if (stopSandbox) await stopSandbox().catch(() => undefined);
+    if (ended && deps.notify) {
+      const end: { status: "finished" | "failed" | "cancelled"; outcome: string } = ended;
+      await deps.notify.buildFinished({ userId: person.userId, taskId: r.task.id, taskTitle: r.task.title, ...end }).catch(() => undefined);
+    }
     await fs.rm(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 }).catch(() => undefined);
   }
 }

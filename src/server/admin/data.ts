@@ -15,6 +15,7 @@ import { hasServerWriteKey } from "@/server/supabase/admin";
 import { ORGANIZATION_SELECT, summarizeOrganizations, type WorkspaceSummary } from "@/server/workspace/organizations";
 import { GRANT_COLUMNS, UsageGrantRowSchema, grantFromRow } from "@/server/workspace/usage-store";
 import { aiCostUsd, countBy, latestBy, monthStartUtc, planLabel, trialDaysLeft } from "./summaries";
+import { emailStatus } from "@/server/email/config";
 
 const LIST_CAP = 1000;
 const ACTIVITY_LIMIT = 25;
@@ -240,7 +241,7 @@ export function deploymentConnections(env: Record<string, string | undefined> = 
       detail: env.SANDBOX_PREVIEW_DOMAIN && env.SANDBOX_PREVIEW_SECRET ? "Preview host and secret set" : "Needs SANDBOX_PREVIEW_DOMAIN and SANDBOX_PREVIEW_SECRET",
     },
     { name: "Payments", on: billing !== "not_connected", detail: billing === "not_connected" ? "Not connected until go-live" : `BILLING_MODE is ${billing.slice(0, 30)}` },
-    { name: "Trial emails", on: Boolean(env.EMAIL_PROVIDER_API_KEY), detail: env.EMAIL_PROVIDER_API_KEY ? "Provider key set" : "No email provider yet" },
+    { name: "Email", ...emailStatus(env) },
   ];
 }
 
