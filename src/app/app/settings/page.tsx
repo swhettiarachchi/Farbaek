@@ -1,3 +1,4 @@
+import { DownloadSimpleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AutonomySettings } from "@/components/app/autonomy-settings";
@@ -204,13 +205,39 @@ export default async function SettingsPage() {
         </Card>
       </div>
 
+      <section id="your-data" aria-labelledby="your-data-title" className="scroll-mt-24">
+        <Card>
+          <h2 id="your-data-title" className="text-lg font-medium">
+            Your data
+          </h2>
+          <p className="mt-1 max-w-[62ch] text-sm leading-relaxed text-ink-2">
+            Download what Farbaek holds about you, as one JSON file: your account, email choices, workspaces and roles, support requests, the actions you took, your AI use, and the
+            projects, tasks and sites you created. A project&apos;s files are in Export everything, on its page.
+          </p>
+          <div className="mt-5 grid justify-items-start gap-2">
+            {ctx.mode === "live" ? (
+              <a href="/app/account/export" download className={buttonClasses("secondary", "md")}>
+                <DownloadSimpleIcon size={16} aria-hidden /> Download my data
+              </a>
+            ) : (
+              <>
+                <span aria-disabled="true" className={buttonClasses("secondary", "md", "pointer-events-none opacity-50")}>
+                  <DownloadSimpleIcon size={16} aria-hidden /> Download my data
+                </span>
+                <p className="text-sm text-ink-3">The demo workspace has no account to download.</p>
+              </>
+            )}
+          </div>
+        </Card>
+      </section>
+
       <section id="delete-account" aria-labelledby="delete-account-title" className="scroll-mt-24">
         <Card>
           <h2 id="delete-account-title" className="text-lg font-medium">
             Delete your account
           </h2>
           <p className="mt-1 max-w-[62ch] text-sm leading-relaxed text-ink-2">
-            Here&apos;s what happens to each workspace you&apos;re in. Want a copy first? Export a project from its page: the Capsule holds its files and history.
+            Here&apos;s what happens to each workspace you&apos;re in. Want a copy first? Download your data above, and export each project from its page: the Capsule holds its files and history.
           </p>
           <div className="mt-5">
             <DeleteAccount
