@@ -7,20 +7,24 @@ import { StepUpField } from "@/components/office/fields";
 import { LocalTime } from "@/components/ui/local-time";
 import { OFFICE_POLICY } from "@/config/office";
 import { requireStaff } from "@/server/office/access";
+import { currentDeviceHash } from "@/server/office/devices";
 import { officeAuth } from "@/server/office/supabase-auth";
 import { endOtherSessionsAction, removeAuthenticatorAction } from "./actions";
 import { AddAuthenticator } from "./add-authenticator";
+import { DevicesCard } from "./devices";
 
 export const metadata: Metadata = { title: "My security" };
 
 export default async function OfficeSecurity() {
   const staff = await requireStaff();
   const factors = await officeAuth(staff.client).verifiedTotp();
+  const devices = await staff.store.listDevices(staff.user.id);
+  const currentHash = await currentDeviceHash();
   const endsAt = new Date(staff.firstFactorAt.getTime() + OFFICE_POLICY.maxSessionHours * 3_600_000).toISOString();
 
   return (
     <div className="grid gap-8">
-      <PageHeader title="My security" description="Your authenticators and this office session." />
+      <PageHeader title="My security" description="Your devices, your authenticators and this office session." />
 
       {factors.length < 2 ? <Notice tone="warning">You have one authenticator. Add a second on another device, so a lost or broken phone doesn&apos;t lock you out.</Notice> : null}
 
@@ -85,6 +89,8 @@ export default async function OfficeSecurity() {
           </OfficeActionForm>
         </Card>
       </div>
+
+      <DevicesCard devices={devices.ok ? devices.value : null} currentHash={currentHash} />
     </div>
   );
 }

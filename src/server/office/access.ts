@@ -14,6 +14,7 @@ import { tokenVerdict } from "@/core/office/session-policy";
 import { normalizeHost } from "@/server/http/hosts";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { officeConfig, type OfficeConfig } from "./config";
+import { currentDeviceHash } from "./devices";
 import { requestMeta } from "./request-meta";
 import { createStaffStore, OFFICE_MESSAGES, type SessionCheck, type StaffStore, type StoreResult } from "./staff-store";
 import { createOfficeServerClient } from "./supabase";
@@ -31,13 +32,15 @@ export interface StaffContext {
   can: (action: OfficeAction) => boolean;
 }
 
-export type StaffRefusal = "not_found" | "sign_in" | "verify" | "not_staff" | "ended" | "unavailable";
+export type StaffRefusal = "not_found" | "sign_in" | "verify" | "not_staff" | "ended" | "device" | "unavailable";
 
 export interface StaffCheckInput {
   hostOk: boolean;
   configured: boolean;
   claims: { sub?: unknown; aal?: unknown; amr?: unknown; session_id?: unknown; email?: unknown } | null;
   check: StoreResult<SessionCheck> | null;
+  /** Whether this browser is one of the person's trusted devices (ADR 0069). Only true lets them in. */
+  deviceTrusted?: boolean;
   now: Date;
 }
 
@@ -55,6 +58,7 @@ export function checkStaff(input: StaffCheckInput): { ok: true; role: StaffRole;
   if (c.status === "not_staff") return { ok: false, reason: "not_staff" };
   if (c.status === "no_session") return { ok: false, reason: "sign_in" };
   if (c.status === "ended" || !c.role) return { ok: false, reason: "ended" };
+  if (input.deviceTrusted !== true) return { ok: false, reason: "device" };
   return { ok: true, role: c.role, firstFactorAt: verdict.firstFactorAt, lastSeenAt: c.last_seen_at ? new Date(c.last_seen_at) : input.now };
 }
 
@@ -82,9 +86,12 @@ export const getStaff = cache(async (): Promise<{ ok: true; ctx: StaffContext } 
   const userId = typeof claims?.sub === "string" ? claims.sub : null;
   const sessionId = typeof claims?.session_id === "string" ? claims.session_id : null;
   const now = new Date();
-  const pre = checkStaff({ hostOk: true, configured: true, claims, check: { ok: true, value: { status: "active", role: "viewer" } }, now });
+  // The token alone first, so a bad one costs no database call.
+  const pre = checkStaff({ hostOk: true, configured: true, claims, check: { ok: true, value: { status: "active", role: "viewer" } }, deviceTrusted: true, now });
   const check = pre.ok && userId && sessionId ? await clients.store.checkSession({ userId, sessionId }) : null;
-  const decided = checkStaff({ hostOk: true, configured: true, claims, check, now });
+  const deviceHash = check?.ok && check.value.status === "active" && userId ? await currentDeviceHash() : null;
+  const deviceTrusted = deviceHash && userId ? await clients.store.deviceTrusted(userId, deviceHash) : false;
+  const decided = checkStaff({ hostOk: true, configured: true, claims, check, deviceTrusted, now });
   if (!decided.ok) {
     if (decided.reason === "ended" || (decided.reason === "sign_in" && claims)) await clients.client.auth.signOut({ scope: "local" }).catch(() => undefined);
     return decided;
@@ -119,6 +126,8 @@ export async function requireStaff(): Promise<StaffContext> {
       redirect("/not-staff");
     case "ended":
       redirect("/sign-in?ended=1");
+    case "device":
+      redirect("/device");
     case "unavailable":
       throw new Error("Office Space couldn't check your session. Nothing was changed.");
     default:
@@ -134,7 +143,10 @@ export type ActionGate = { ok: true; ctx: StaffContext } | { ok: false; message:
  */
 export async function staffAction(action: OfficeAction): Promise<ActionGate> {
   const r = await getStaff();
-  if (!r.ok) return { ok: false, message: r.reason === "not_found" ? "Not found." : OFFICE_MESSAGES.STAFF_SESSION_ENDED };
+  if (!r.ok) {
+    if (r.reason === "not_found") return { ok: false, message: "Not found." };
+    return { ok: false, message: r.reason === "device" ? "This device isn't trusted for Office Space. Nothing was changed." : OFFICE_MESSAGES.STAFF_SESSION_ENDED };
+  }
   const ctx = r.ctx;
   const h = await headers();
   const origin = h.get("origin");

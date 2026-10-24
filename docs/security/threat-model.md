@@ -230,3 +230,13 @@ Known limits: the documents are drafts until a lawyer reviews them; no DMCA desi
 | Rate limit records | Hashed addresses kept indefinitely | `app_rate_limit` deletes every window older than a day and refuses longer windows | `tests/db/sign-in-guard.test.ts`, `src/config/legal.test.ts` |
 
 Known limits: until the owner sets the keys, only the app's limits apply, and direct calls to Auth meet only Auth's own limits.
+
+## Office Space on trusted devices (2026-10-24, ADR 0069)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| The office from a new browser | Someone with the owner's inbox and authenticator signing in from their own computer | After both codes, an unknown device gets no session, only a code shown on it; it opens once approved from a trusted device with that code and a fresh authenticator code. Every page and action checks the device again | `tests/db/staff-devices.test.ts`, `src/server/office/sign-in.test.ts` |
+| Approving a device | Tricking the owner into approving an attacker's device; guessing the code | The code exists only on the new device; approval needs step-up from a trusted device; five wrong codes cancel the request | `tests/db/staff-devices.test.ts` |
+| Device records | Forging or reading device secrets | Only SHA-256 hashes are stored; the server key can only read them; writes go through the `app_staff_*device*` functions with one audit event each | `tests/db/staff-devices.test.ts` |
+
+Known limits: a device cookie copied off a trusted device (by malware there) works until removed; losing every trusted device needs SSH to the server.

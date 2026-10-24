@@ -3,6 +3,7 @@
 import { refresh } from "next/cache";
 import type { OfficeFormState } from "@/components/office/action-form";
 import { staffAction } from "@/server/office/access";
+import { currentDeviceHash } from "@/server/office/devices";
 import { requestMeta } from "@/server/office/request-meta";
 import { startEnrollment } from "@/server/office/sign-in";
 import { OFFICE_MESSAGES } from "@/server/office/staff-store";
@@ -57,4 +58,42 @@ export async function endOtherSessionsAction(): Promise<OfficeFormState> {
   if (!r.ok) return { ok: false, message: OFFICE_MESSAGES[r.code] };
   refresh();
   return { ok: true, message: r.value === 0 ? "You had no other office sessions." : `Ended ${r.value} other ${r.value === 1 ? "session" : "sessions"}.` };
+}
+
+/**
+ * Approves one of your own waiting devices (ADR 0069), from this trusted one,
+ * with the code the new device shows and a fresh authenticator code.
+ */
+export async function approveDeviceAction(_prev: OfficeFormState, form: FormData): Promise<OfficeFormState> {
+  const gate = await staffAction("devices.own");
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const deviceId = String(form.get("deviceId") ?? "");
+  const code = String(form.get("code") ?? "").replace(/\s+/g, "");
+  if (!/^[0-9a-f-]{36}$/.test(deviceId)) return { ok: false, message: OFFICE_MESSAGES.DEVICE_NOT_FOUND };
+  if (!/^\d{6}$/.test(code)) return { ok: false, message: "Enter the 6-digit code the new device shows." };
+  const fromHash = await currentDeviceHash();
+  if (!fromHash) return { ok: false, message: OFFICE_MESSAGES.DEVICE_NOT_TRUSTED };
+  const meta = await requestMeta();
+  const step = await verifyStepUp(gate.ctx, form.get("totp"), meta);
+  if (!step.ok) return { ok: false, message: step.message };
+  const r = await gate.ctx.store.approveDevice({ userId: gate.ctx.user.id, sessionId: gate.ctx.sessionId }, { fromHash, deviceId, code }, "step_up", meta);
+  if (!r.ok) return { ok: false, message: OFFICE_MESSAGES[r.code] };
+  if (!r.value.ok) {
+    const left = r.value.tries_left ?? 0;
+    return { ok: false, message: left > 0 ? `That isn't the code the device shows. ${left} ${left === 1 ? "try" : "tries"} left.` : "Too many wrong codes, so that request was cancelled. Sign in again on the device for a new code." };
+  }
+  refresh();
+  return { ok: true, message: "Approved. On that device, select Continue." };
+}
+
+/** Removes one of your own devices (ADR 0069). It's out at its next request. */
+export async function revokeDeviceAction(_prev: OfficeFormState, form: FormData): Promise<OfficeFormState> {
+  const gate = await staffAction("devices.own");
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const deviceId = String(form.get("deviceId") ?? "");
+  if (!/^[0-9a-f-]{36}$/.test(deviceId)) return { ok: false, message: OFFICE_MESSAGES.DEVICE_NOT_FOUND };
+  const r = await gate.ctx.store.revokeDevice({ userId: gate.ctx.user.id, sessionId: gate.ctx.sessionId }, deviceId, await requestMeta());
+  if (!r.ok) return { ok: false, message: OFFICE_MESSAGES[r.code] };
+  refresh();
+  return { ok: true, message: "Removed. That device can't open the office until it's approved again." };
 }

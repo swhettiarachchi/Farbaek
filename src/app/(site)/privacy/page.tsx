@@ -203,6 +203,9 @@ const SECTIONS: LegalSection[] = [
             <>
               <code className="font-mono text-[13px]">__Host-fb-office</code>: Farbaek staff only, for our own console.
             </>,
+            <>
+              <code className="font-mono text-[13px]">__Host-fb-device</code>: Farbaek staff only, so our console opens only on devices they&apos;ve approved.
+            </>,
             <>In your browser&apos;s local storage: a prompt you typed before signing in, so it&apos;s still there after, and notices you dismissed. It stays on your device.</>,
           ]}
         />
