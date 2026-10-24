@@ -22,6 +22,7 @@ import { resolveSandboxRuntime } from "./registry";
 import { createSandboxService, type SandboxActor, type SandboxService, type TaskBridge } from "./service";
 import { createSupabaseSandboxStore } from "./supabase-store";
 import type { SandboxStore } from "./types";
+import { signRecordedProofPack } from "@/server/proof/record";
 
 export interface SandboxRequest {
   actor: SandboxActor;
@@ -70,7 +71,10 @@ function taskBridge(user: SupabaseClient, admin: SupabaseClient | null, userId: 
         p_status: i.status,
       });
       if (error) return { ok: false, error: error.message };
-      return typeof data === "string" ? { ok: true, value: data } : { ok: false, error: "UNEXPECTED_RESPONSE" };
+      if (typeof data !== "string") return { ok: false, error: "UNEXPECTED_RESPONSE" };
+      // Farbaek signs the verification ProofPack it just recorded (ADR 0062).
+      await signRecordedProofPack(admin, i.digest, i.statement);
+      return { ok: true, value: data };
     },
     applyTransition: async (i) => (writes ? writes.applyTransition(i) : { ok: false, error: "WRITES_UNAVAILABLE" }),
     newEventId: () => crypto.randomUUID(),

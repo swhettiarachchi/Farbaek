@@ -18,6 +18,7 @@ import type { ProjectAdminDeps, RpcResult, WriteDeps } from "./use-cases";
 import type { SkillPinDeps } from "./skill-pins";
 import type { LensSuggestionDeps } from "./lens-suggestions";
 import type { AutonomyDeps } from "./autonomy";
+import { signRecordedProofPack } from "@/server/proof/record";
 
 /**
  * WriteDeps backed by Supabase. Reads use the signed-in user's client (Row
@@ -267,8 +268,8 @@ export function createSupabaseWriteDeps(
       };
     },
 
-    applyProposal: (i) =>
-      rpc(
+    async applyProposal(i) {
+      const applied = await rpc(
         "app_apply_proposal",
         {
           p_proposal: i.proposalId,
@@ -285,7 +286,11 @@ export function createSupabaseWriteDeps(
           p_proofpack_status: i.proofpackStatus,
         },
         z.number().int(),
-      ),
+      );
+      // Farbaek signs the ProofPack it just recorded (ADR 0062); signing never blocks or undoes the apply.
+      if (applied.ok) await signRecordedProofPack(admin, i.proofpackDigest, i.proofpack);
+      return applied;
+    },
 
     async latestProofPackDigest(orgId, projectId) {
       const { data, error } = await user.from("proofpacks").select("digest").eq("org_id", orgId).eq("project_id", projectId).order("seq", { ascending: false }).limit(1).maybeSingle();

@@ -6,12 +6,14 @@
  * whether a single character changed since Farbaek recorded it.
  *
  * It runs anywhere Web Crypto does, including the public verify page, where
- * nothing leaves the visitor's browser. It proves integrity, not authorship:
- * statements aren't signed yet (ADR 0012), and the page says so.
+ * nothing leaves the visitor's browser. The digest proves integrity. A
+ * ProofPack Farbaek signed (ADR 0062) carries a DSSE envelope too, and its
+ * signature, checked against Farbaek's published keys, proves who recorded it.
  */
 import { z } from "zod";
 import { canonicalHash } from "../trust/canonical-json";
-import { IN_TOTO_STATEMENT_TYPE, PROOFPACK_PREDICATE_TYPE } from "./proofpack";
+import { fromBase64, verifyEnvelope, type PublicSigningKey } from "../trust/dsse";
+import { IN_TOTO_STATEMENT_TYPE, LEGACY_PROOFPACK_PREDICATE_TYPE, PROOFPACK_PREDICATE_TYPE } from "./proofpack";
 import { RECOVERY_PREDICATE_TYPE } from "./recovery-receipt";
 
 /** Kept as literals so this module doesn't pull in the sandbox and security code. */
@@ -29,6 +31,7 @@ export const EVIDENCE_LABELS: Record<EvidenceKind, string> = {
 
 const KIND_BY_PREDICATE: Record<string, EvidenceKind> = {
   [PROOFPACK_PREDICATE_TYPE]: "proofpack",
+  [LEGACY_PROOFPACK_PREDICATE_TYPE]: "proofpack",
   [RECOVERY_PREDICATE_TYPE]: "recovery",
   [CHECK_RECEIPT_PREDICATE_TYPE]: "check_receipt",
   [SECURITY_REPORT_PREDICATE_TYPE]: "security_report",
@@ -72,8 +75,40 @@ export type Inspection =
       /** Marked as sample data inside the statement, so it must be shown as a sample. */
       sample: boolean;
       summary: EvidenceSummary;
+      signature: EvidenceSignature;
     }
   | { ok: false; message: string };
+
+/** Who signed it (ADR 0062): checked against Farbaek's published keys, or why it couldn't be. */
+export type EvidenceSignature =
+  | { status: "signed"; keyid: string }
+  | { status: "bad"; reason: string }
+  | { status: "unknown_key"; keyid: string }
+  | { status: "unsigned" }
+  /** It's signed, but Farbaek's keys couldn't be loaded to check it. */
+  | { status: "unchecked" };
+
+/** The statement inside a bare DSSE envelope, or null. */
+function statementFromEnvelope(env: Record<string, unknown>): unknown {
+  if (typeof env.payload !== "string" || typeof env.payloadType !== "string") return null;
+  const bytes = fromBase64(env.payload);
+  if (!bytes) return null;
+  try {
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+  } catch {
+    return null;
+  }
+}
+
+async function checkSignature(dsse: unknown, computed: string, keys: readonly PublicSigningKey[] | null): Promise<EvidenceSignature> {
+  if (dsse === undefined || dsse === null) return { status: "unsigned" };
+  if (!keys) return { status: "unchecked" };
+  const r = await verifyEnvelope(dsse, keys);
+  if (r.status === "unknown_key") return { status: "unknown_key", keyid: r.keyid };
+  if (r.status === "invalid") return { status: "bad", reason: r.reason };
+  // The signature must be over this very statement, not some other one.
+  return (await canonicalHash(r.statement)) === computed ? { status: "signed", keyid: r.keyid } : { status: "bad", reason: "The signature is for different evidence than this file holds." };
+}
 
 const Hex64 = /^[0-9a-f]{64}$/;
 const str = z.string().max(2000);
@@ -233,13 +268,17 @@ function summarize(kind: EvidenceKind, predicate: unknown): { summary: EvidenceS
 }
 
 /**
- * Inspects evidence as downloaded from Farbaek (`{ digest, status, statement }`)
- * or a bare statement. `pastedDigest`, when given, is what it's compared with.
+ * Inspects evidence as downloaded from Farbaek (`{ digest, status, statement,
+ * dsse? }`), a bare statement, or a bare DSSE envelope. `pastedDigest`, when
+ * given, is what it's compared with. `keys` are Farbaek's published signing
+ * keys; null when they couldn't be loaded.
  */
-export async function inspectEvidence(input: unknown, pastedDigest?: string): Promise<Inspection> {
+export async function inspectEvidence(input: unknown, pastedDigest?: string, keys: readonly PublicSigningKey[] | null = null): Promise<Inspection> {
   if (typeof input !== "object" || input === null) return { ok: false, message: "This isn't a Farbaek evidence file: it isn't a JSON object." };
   const envelope = input as Record<string, unknown>;
-  const statement = "statement" in envelope && !("_type" in envelope) ? envelope.statement : envelope;
+  const bare = statementFromEnvelope(envelope);
+  const dsse = bare ? envelope : envelope.dsse;
+  const statement = bare ?? ("statement" in envelope && !("_type" in envelope) ? envelope.statement : envelope);
   if (typeof statement !== "object" || statement === null) return { ok: false, message: "This file has no statement to check." };
   const s = statement as Record<string, unknown>;
   if (s._type !== IN_TOTO_STATEMENT_TYPE) return { ok: false, message: "This isn't an in-toto statement, so it isn't Farbaek evidence." };
@@ -255,7 +294,8 @@ export async function inspectEvidence(input: unknown, pastedDigest?: string): Pr
   const summarized = summarize(kind, s.predicate);
   if (!summarized) return { ok: false, message: `This ${EVIDENCE_LABELS[kind]} is missing parts Farbaek always records, so it was changed or isn't genuine.` };
   const sample = typeof s.predicate === "object" && s.predicate !== null && (s.predicate as Record<string, unknown>).sample === true;
-  return { ok: true, kind, claimed, computed, intact: claimed === null ? null : claimed === computed, status: summarized.status, recordedAt: summarized.recordedAt, sample, summary: summarized.summary };
+  const signature = await checkSignature(dsse, computed, keys);
+  return { ok: true, kind, claimed, computed, intact: claimed === null ? null : claimed === computed, status: summarized.status, recordedAt: summarized.recordedAt, sample, summary: summarized.summary, signature };
 }
 
 /** The files in a summary whose recorded SHA-256 is this one. */

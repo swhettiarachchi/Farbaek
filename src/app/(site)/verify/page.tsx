@@ -16,8 +16,8 @@ const MEANING = [
   },
   {
     icon: FingerprintIcon,
-    title: "Who recorded it comes next",
-    body: "Farbaek doesn't sign its records yet, so a match proves the record is unchanged, not who made it. Signatures are planned, and this page will check them too.",
+    title: "A signature shows who recorded it",
+    body: "A signed ProofPack carries Farbaek's Ed25519 signature. This page checks it against the keys Farbaek publishes, and says plainly when a record isn't signed: then a match proves it's unchanged, not who made it.",
   },
   {
     icon: LockKeyIcon,
