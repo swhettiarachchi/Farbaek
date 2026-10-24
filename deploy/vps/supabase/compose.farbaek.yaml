@@ -34,6 +34,13 @@ services:
       GOTRUE_SECURITY_CAPTCHA_ENABLED: ${FARBAEK_CAPTCHA_ENABLED:-false}
       GOTRUE_SECURITY_CAPTCHA_PROVIDER: turnstile
       GOTRUE_SECURITY_CAPTCHA_SECRET: ${FARBAEK_CAPTCHA_SECRET:-}
+      # Sign-in emails (public/auth-email/, served by the app). Office Space's
+      # carry only the 6-digit code; customers' carry the link. Auth falls back
+      # to its built-in link-only emails if it can't fetch these.
+      GOTRUE_MAILER_TEMPLATES_MAGIC_LINK: https://www.farbaek.com/auth-email/magic-link.html
+      GOTRUE_MAILER_TEMPLATES_CONFIRMATION: https://www.farbaek.com/auth-email/confirmation.html
+      GOTRUE_MAILER_SUBJECTS_MAGIC_LINK: Sign in to Farbaek
+      GOTRUE_MAILER_SUBJECTS_CONFIRMATION: Confirm your email for Farbaek
 
   api-gw:
     ports: !reset []

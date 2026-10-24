@@ -1,0 +1,12 @@
+<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#121317;font-size:16px;line-height:1.55;max-width:560px">
+{{ if eq .RedirectTo "https://officespace.farbaek.com/sign-in" }}
+<p style="margin:0 0 14px">Your code for Office Space:</p>
+<p style="margin:0 0 18px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:30px;font-weight:600;letter-spacing:6px">{{ .Token }}</p>
+<p style="margin:0 0 14px">Enter it on the Office Space sign-in page. It works once, for an hour.</p>
+<p style="margin:22px 0 0;color:#636975;font-size:13px">If you didn't ask for it, ignore this email. Nobody gets in without this code and your authenticator app.</p>
+{{ else }}
+<p style="margin:0 0 14px">Here's your link to sign in to Farbaek. It works once, for an hour.</p>
+<p style="margin:22px 0"><a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#121317;color:#fbfbfc;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:500">Sign in to Farbaek</a></p>
+<p style="margin:22px 0 0;color:#636975;font-size:13px">If you didn't ask to sign in, ignore this email. Nothing happens unless the link is used.</p>
+{{ end }}
+</div>
