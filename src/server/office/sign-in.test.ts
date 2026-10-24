@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { checkStaff } from "./access";
 import { officeConfig } from "./config";
-import { CODE_SENT_MESSAGE, SIGN_IN_PAUSED, openSession, requestStaffCode, startEnrollment, verifySecondFactor, verifyStaffCode, type OfficeAuth, type SignInDeps } from "./sign-in";
+import { CODE_SENT_MESSAGE, SIGN_IN_PAUSED, openSession, requestStaffCode, startEnrollment, uniqueFactorName, verifySecondFactor, verifyStaffCode, type OfficeAuth, type SignInDeps } from "./sign-in";
 import type { StaffStore } from "./staff-store";
 import { hardenOfficeCookie } from "./supabase";
 
@@ -126,6 +126,12 @@ describe("checking the email code", () => {
 });
 
 describe("the authenticator", () => {
+  it("numbers a second authenticator added the same day, since Supabase Auth refuses a repeated name", () => {
+    expect(uniqueFactorName("Office Space 2026-10-24", [])).toBe("Office Space 2026-10-24");
+    expect(uniqueFactorName("Office Space 2026-10-24", ["Office Space 2026-10-24", null])).toBe("Office Space 2026-10-24 (2)");
+    expect(uniqueFactorName("Office Space 2026-10-24", ["Office Space 2026-10-24", "Office Space 2026-10-24 (2)"])).toBe("Office Space 2026-10-24 (3)");
+  });
+
   it("only starts enrolment for someone allowed, clearing half-finished factors first", async () => {
     expect(await startEnrollment(fakes({ mayEnroll: false }).deps)).toEqual({ status: "sign_in" });
     const ok = fakes({ mayEnroll: true });
