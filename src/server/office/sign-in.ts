@@ -66,7 +66,8 @@ export async function requestStaffCode(deps: SignInDeps, rawEmail: unknown): Pro
       { strength: "system", action: sent.ok ? "auth.code_sent" : "auth.code_not_sent", targetType: "email", targetId: emailKey(email), result: sent.ok ? "success" : "error" },
       deps.meta,
     );
-    if (!sent.ok && sent.rateLimited) return { status: "error", message: "Supabase is limiting sign-in emails right now. Wait a few minutes, then try again.", email };
+    // Our own Supabase Auth sends one email per address a minute (its SMTP max frequency).
+    if (!sent.ok && sent.rateLimited) return { status: "error", message: "A code was sent to this address moments ago. Wait a minute, then ask for a new one.", email };
   }
   return { status: "sent", email };
 }
