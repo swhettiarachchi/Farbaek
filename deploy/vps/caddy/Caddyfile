@@ -19,6 +19,14 @@ www.farbaek.com, officespace.farbaek.com {
 	}
 }
 
+# The bare domain keeps the path on its way to www, so shared links and the
+# ProofPack type URI (https://farbaek.com/proofpack/v1, ADR 0062) land on
+# the page they name. Serves once farbaek.com's A record points here
+# (docs/deploy/vps.md); until then Caddy just can't get its certificate yet.
+farbaek.com {
+	redir https://www.farbaek.com{uri} permanent
+}
+
 # Farbaek's own Supabase (ADR 0036). Only the two public API paths are
 # forwarded; Studio and everything else behind the gateway stay private.
 api.farbaek.com {

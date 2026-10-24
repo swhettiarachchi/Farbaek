@@ -1,5 +1,6 @@
 import { DownloadSimpleIcon, FingerprintIcon, LockKeyIcon, SealCheckIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Container } from "@/components/ui/container";
 import { EvidenceCheck } from "@/components/verify/evidence-check";
 
@@ -64,7 +65,11 @@ export default function VerifyPage() {
           </ul>
           <p className="mt-10 max-w-[70ch] text-sm leading-relaxed text-ink-3">
             Evidence files come from Farbaek: download one from a ProofPack, or export a whole project with everything it holds. Each file is an in-toto statement you can also
-            check without this page: compute the SHA-256 of its RFC 8785 canonical JSON and compare it with the digest.
+            check without this page.{" "}
+            <Link href="/proofpack/v1" className="font-medium text-accent underline-offset-2 hover:underline">
+              The ProofPack format, and how to check one with OpenSSL
+            </Link>
+            .
           </p>
         </Container>
       </section>
