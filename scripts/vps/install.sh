@@ -13,6 +13,7 @@ main() {
 
   install -m 755 "$app/scripts/vps/deploy.sh" /usr/local/bin/farbaek-deploy
   install -m 755 "$app/scripts/vps/sweep.sh" /usr/local/bin/farbaek-sweep
+  install -m 755 "$app/scripts/vps/jobs.sh" /usr/local/bin/farbaek-jobs
   install -m 755 "$app/scripts/vps/set-env.sh" /usr/local/bin/farbaek-set-env
   # The database on this server (ADR 0036).
   install -m 755 "$app/scripts/vps/supabase-setup.sh" /usr/local/bin/farbaek-supabase-setup
@@ -30,13 +31,13 @@ main() {
   local arg
   for arg in "$@"; do
     case "$arg" in
-      --enable-timers) systemctl enable --now farbaek-deploy.timer farbaek-sweep.timer ;;
+      --enable-timers) systemctl enable --now farbaek-deploy.timer farbaek-sweep.timer farbaek-jobs.timer ;;
       # Once the database runs here: nightly backups and a weekly restore test.
       --enable-db-timers) systemctl enable --now farbaek-db-backup.timer farbaek-db-restore-test.timer ;;
     esac
   done
   local t
-  for t in deploy sweep db-backup db-restore-test; do echo "timer $t: $(systemctl is-enabled farbaek-$t.timer 2>/dev/null || true)"; done
+  for t in deploy sweep jobs db-backup db-restore-test; do echo "timer $t: $(systemctl is-enabled farbaek-$t.timer 2>/dev/null || true)"; done
 }
 
 main "$@"

@@ -1,6 +1,6 @@
 # 0006. Background jobs
 
-- Status: proposed
+- Status: settled for the VPS by ADR 0063 (systemd timers calling internal routes, with idempotent claims in Postgres)
 - Date: 2026-10-13
 
 ## Need

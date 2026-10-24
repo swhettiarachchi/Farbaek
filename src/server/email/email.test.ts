@@ -168,6 +168,20 @@ describe("notifications", () => {
     expect(html).not.toContain("<site>");
   });
 
+  it("respect a person who turned these emails off, and say where to change it", async () => {
+    const send = vi.fn(async () => undefined);
+    const wants = vi.fn(async (id: string, kind: string) => !(id === "off" && kind === "work_updates"));
+    const n = createNotifier({ config: cfg, emailOf: async () => "ada@example.com", wants, send });
+    await n.checksFinished({ userId: "off", taskId: "t", taskTitle: "x", result: "verified" });
+    expect(send).not.toHaveBeenCalled();
+    await n.checksFinished({ userId: "on", taskId: "t", taskTitle: "x", result: "verified" });
+    expect(wants).toHaveBeenCalledWith("on", "work_updates");
+    const data = (send.mock.calls[0] as unknown as [SmtpConfig, unknown, string])[2];
+    const text = Buffer.from(data.split('Content-Type: text/plain; charset="utf-8"\r\nContent-Transfer-Encoding: base64\r\n\r\n')[1]!.split("\r\n--")[0]!.replace(/\r\n/g, ""), "base64").toString("utf8");
+    expect(text).toContain("Open the task: https://www.farbaek.com/app/tasks/t");
+    expect(text).toContain("Choose which emails you get: https://www.farbaek.com/app/settings#email");
+  });
+
   it("send nothing without settings, and never let a failure reach the work", async () => {
     const send = vi.fn(async () => {
       throw new SmtpError("The mail server refused the sign-in: 535", 535);

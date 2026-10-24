@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { checkSchedulerToken } from "@/server/jobs/auth";
 import { log } from "@/server/observability/log";
 import { readSandboxConfig } from "@/server/sandbox/config";
 import { json, problem } from "@/server/sandbox/http";
@@ -10,13 +10,6 @@ import { createSupabaseAdminClient } from "@/server/supabase/admin";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-function matches(given: string, expected: string): boolean {
-  // Hash both so the comparison is constant-time regardless of length.
-  const a = createHash("sha256").update(given).digest();
-  const b = createHash("sha256").update(expected).digest();
-  return timingSafeEqual(a, b);
-}
-
 /**
  * POST /api/internal/sandbox/sweep, called by a scheduler every few minutes
  * with "Authorization: Bearer $SANDBOX_CRON_SECRET". Ends expired and idle
@@ -25,9 +18,9 @@ function matches(given: string, expected: string): boolean {
  */
 export async function POST(request: Request) {
   const config = readSandboxConfig();
-  if (!config.cronSecret) return problem(503, "NOT_CONFIGURED", "SANDBOX_CRON_SECRET isn't set on this server.");
-  const token = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/)?.[1] ?? "";
-  if (!matches(token, config.cronSecret)) return problem(401, "UNAUTHENTICATED", "Not allowed.");
+  const auth = checkSchedulerToken(request, config.cronSecret);
+  if (auth === "missing") return problem(503, "NOT_CONFIGURED", "SANDBOX_CRON_SECRET isn't set on this server.");
+  if (auth === "denied") return problem(401, "UNAUTHENTICATED", "Not allowed.");
   const admin = createSupabaseAdminClient();
   if (!admin) return problem(503, "NOT_CONFIGURED", "The server key for writes isn't set.");
 

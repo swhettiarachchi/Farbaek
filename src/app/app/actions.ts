@@ -468,6 +468,22 @@ export async function renameWorkspaceAction(_previous: FormState, form: FormData
   return { status: "done", message: "Workspace renamed." };
 }
 
+/** Saves which emails the signed-in person wants (ADR 0063). Only their own choices, through the server. */
+export async function setEmailPreferencesAction(_previous: FormState, form: FormData): Promise<FormState> {
+  const ctx = await requireContext();
+  if (ctx.mode === "demo") return { status: "error", message: "The demo workspace is read-only." };
+  const admin = createSupabaseAdminClient();
+  if (!admin) return { status: "error", message: "Supabase isn't connected in this environment." };
+  const { error } = await admin.rpc("app_set_email_preferences", {
+    p_user: ctx.user.id,
+    p_work_updates: form.get("workUpdates") === "on",
+    p_trial_reminders: form.get("trialReminders") === "on",
+  });
+  if (error) return { status: "error", message: "Your email choices couldn't be saved. Nothing was changed." };
+  revalidatePath("/app/settings");
+  return { status: "done", message: "Email choices saved." };
+}
+
 export type InviteState = { status: "idle" } | { status: "error"; message: string } | { status: "created"; link: string; email: string; role: string; expiresAt: string };
 
 /** Creates a one-time invitation link for an email address and role. The link is returned once and never stored. */

@@ -9,12 +9,12 @@
  * and never in the way of the work: a failure to send is logged and
  * dropped. With no email settings, nothing is sent.
  */
-import { randomBytes } from "node:crypto";
 import { VERIFICATION_RESULT_WORDS, type VerificationResult } from "@/core/realityloop/verification";
 import { log } from "@/server/observability/log";
+import { renderEmail, sendEmail, type EmailContent } from "./compose";
 import type { EmailConfig } from "./config";
-import { buildMessage, isPlainAddress, type EmailMessage } from "./message";
-import { sendSmtp } from "./smtp";
+import { isPlainAddress } from "./message";
+import type { sendSmtp } from "./smtp";
 
 export interface RunNotice {
   userId: string;
@@ -42,11 +42,15 @@ export interface NotifierDeps {
   config: EmailConfig | null;
   /** The person's confirmed email address, or null. */
   emailOf(userId: string): Promise<string | null>;
+  /** Whether the person wants this kind of email (ADR 0063); off in their settings means no. */
+  wants?(userId: string, kind: EmailPreference): Promise<boolean>;
   send?: typeof sendSmtp;
   now?: () => Date;
 }
 
-const escape = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+/** The kinds of email a person can turn off in Settings (ADR 0063). */
+export type EmailPreference = "work_updates" | "trial_reminders";
+
 /** A title kept to one short line for a subject. */
 const short = (s: string) => {
   const one = s.replace(/\s+/g, " ").trim();
@@ -72,33 +76,16 @@ export function checksEmail(n: ChecksNotice): { subject: string; lines: string[]
   return { subject, lines: [words.detail.replace(" See the check run below.", ""), next] };
 }
 
-function render(config: EmailConfig, to: string, taskId: string, content: { subject: string; lines: string[] }, why: string): EmailMessage {
-  const url = `${config.siteUrl}/app/tasks/${encodeURIComponent(taskId)}`;
-  const text = [...content.lines, "", `Open the task: ${url}`, "", why].join("\n");
-  const html = [
-    '<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#121317;font-size:16px;line-height:1.55;max-width:560px">',
-    ...content.lines.map((l) => `<p style="margin:0 0 14px">${escape(l)}</p>`),
-    `<p style="margin:22px 0"><a href="${escape(url)}" style="display:inline-block;background:#121317;color:#fbfbfc;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:500">Open the task</a></p>`,
-    `<p style="margin:22px 0 0;color:#636975;font-size:13px">${escape(why)}</p>`,
-    "</div>",
-  ].join("");
-  return { fromName: config.fromName, fromAddress: config.fromAddress, to, subject: content.subject, text, html };
-}
-
 export function createNotifier(deps: NotifierDeps): Notifier {
-  const send = deps.send ?? sendSmtp;
-  const now = deps.now ?? (() => new Date());
-
-  async function deliver(kind: string, userId: string, taskId: string, content: { subject: string; lines: string[] } | null, why: string) {
+  async function deliver(kind: string, userId: string, taskId: string, content: EmailContent | null, why: string) {
     const config = deps.config;
     if (!config || !content) return;
     try {
+      if (deps.wants && !(await deps.wants(userId, "work_updates"))) return;
       const to = await deps.emailOf(userId);
       if (!to || !isPlainAddress(to)) return;
-      const message = render(config, to, taskId, content, why);
-      const id = randomBytes(12).toString("hex");
-      const data = buildMessage(message, { date: now(), messageId: `<${id}@farbaek.com>`, boundary: `farbaek-${id}` });
-      await send(config.smtp, { from: config.fromAddress, to }, data);
+      const message = renderEmail(config, to, content, { label: "Open the task", path: `/app/tasks/${encodeURIComponent(taskId)}` }, why);
+      await sendEmail(config, message, { send: deps.send, now: deps.now });
       log("info", "email.sent", { kind, task: taskId });
     } catch (e) {
       // Never the address or the password: the kind, the task and the reason are enough to look into it.

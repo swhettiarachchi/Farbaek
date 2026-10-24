@@ -485,6 +485,14 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
     listSkillPins: (orgId, projectId) => readSkillPins(client, orgId, projectId),
     getAutonomy: (orgId) => readAutonomy(client, orgId),
 
+    async getEmailPreferences() {
+      // Row Level Security returns only the signed-in person's own row.
+      const { data, error } = await client.from("email_preferences").select("work_updates, trial_reminders").maybeSingle();
+      if (error) fail("email preferences", error);
+      const row = data as { work_updates: boolean; trial_reminders: boolean } | null;
+      return { workUpdates: row?.work_updates ?? true, trialReminders: row?.trial_reminders ?? true };
+    },
+
     async getFileRevision(orgId, projectId, path, revision) {
       if (!z.uuid().safeParse(projectId).success || !Number.isInteger(revision) || revision < 1) return null;
       const { data, error } = await client

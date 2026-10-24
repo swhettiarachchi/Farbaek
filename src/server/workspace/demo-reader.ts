@@ -298,6 +298,7 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
 
     // The demo workspace keeps every change waiting for a person.
     getAutonomy: async () => AUTONOMY_OFF,
+    getEmailPreferences: async () => ({ workUpdates: true, trialReminders: true }),
 
     async listSkillPins(_orgId, projectId) {
       if (projectId !== DEMO_FILES_PROJECT_ID) return [];

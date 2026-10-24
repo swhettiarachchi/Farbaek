@@ -7,6 +7,7 @@ import {
   resolveEffectivePlan,
   trialPhase,
   trialReminderSchedule,
+  trialReminderToSend,
   trialWindow,
   type BillingSnapshot,
 } from "./trial";
@@ -67,6 +68,53 @@ describe("trial reminders", () => {
     expect(dueTrialReminders(w, at(6 * DAY), new Set())).toEqual([]);
     expect(dueTrialReminders(w, at(12 * DAY + 5), new Set(["day_7"])).map((r) => r.kind)).toEqual(["day_12"]);
     expect(dueTrialReminders(w, at(20 * DAY), new Set()).map((r) => r.kind)).toEqual(["day_7", "day_12", "day_13", "expiry"]);
+  });
+
+  it("anchor the last days to the end when staff extended the trial", () => {
+    const extended = trialWindow(start, new Date(start.getTime() + 24 * DAY));
+    expect(trialReminderSchedule(extended).map((r) => [r.kind, r.dueAt.toISOString()])).toEqual([
+      ["day_7", "2026-10-20T09:30:00.000Z"],
+      ["day_12", "2026-11-04T09:30:00.000Z"],
+      ["day_13", "2026-11-05T09:30:00.000Z"],
+      ["expiry", "2026-11-06T09:30:00.000Z"],
+    ]);
+  });
+});
+
+describe("which reminder a run sends", () => {
+  const w = trialWindow(start);
+
+  it("sends each one in its turn", () => {
+    expect(trialReminderToSend(w, at(6 * DAY), new Set())).toEqual({ send: null, skip: [] });
+    expect(trialReminderToSend(w, at(7 * DAY + 60_000), new Set()).send?.kind).toBe("day_7");
+    expect(trialReminderToSend(w, at(12 * DAY), new Set(["day_7"]))).toMatchObject({ send: { kind: "day_12" }, skip: [] });
+    expect(trialReminderToSend(w, at(14 * DAY), new Set(["day_7", "day_12", "day_13"])).send?.kind).toBe("expiry");
+    expect(trialReminderToSend(w, at(15 * DAY), new Set(["day_7", "day_12", "day_13", "expiry"]))).toEqual({ send: null, skip: [] });
+  });
+
+  it("sends only the latest after a gap, and skips the rest", () => {
+    // A first run on day 10, as in production when the job started.
+    expect(trialReminderToSend(w, at(10 * DAY), new Set())).toMatchObject({ send: { kind: "day_7" }, skip: [] });
+    expect(trialReminderToSend(w, at(13 * DAY + 3_600_000), new Set())).toEqual({
+      send: { kind: "day_13", dueAt: at(13 * DAY) },
+      skip: [
+        { kind: "day_7", reason: "superseded" },
+        { kind: "day_12", reason: "superseded" },
+      ],
+    });
+  });
+
+  it("doesn't send an expiry reminder more than three days late", () => {
+    expect(trialReminderToSend(w, at(17 * DAY - 1), new Set(["day_7", "day_12", "day_13"])).send?.kind).toBe("expiry");
+    expect(trialReminderToSend(w, at(30 * DAY), new Set())).toEqual({
+      send: null,
+      skip: [
+        { kind: "day_7", reason: "superseded" },
+        { kind: "day_12", reason: "superseded" },
+        { kind: "day_13", reason: "superseded" },
+        { kind: "expiry", reason: "too_late" },
+      ],
+    });
   });
 });
 
