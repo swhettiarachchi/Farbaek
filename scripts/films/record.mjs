@@ -26,10 +26,11 @@ import { writeFilmManifest } from "./manifest.mjs";
 const require = createRequire(import.meta.url);
 const FILMS = ["build", "proof", "clip-plan", "clip-agent", "clip-check", "clip-live"];
 const FPS = 30;
-const BUDGET = { landscape: 6_000_000, portrait: 5_000_000, clip: 1_200_000 };
-// Where each format's CRF starts. Landscape frames carry the most detail.
-const START_CRF = { landscape: 25, portrait: 23, clip: 23 };
-const MAX_CRF = 32;
+// The size limits in src/content/films.ts (FILM_BUDGET_BYTES), repeated here for a script that can't import TypeScript.
+const BUDGET = { landscape: 12_000_000, portrait: 8_000_000, clip: 2_500_000 };
+// Where each format's CRF starts (lower is sharper): near-transparent quality for interface text (ADR 0057).
+const START_CRF = { landscape: 20, portrait: 18, clip: 18 };
+const MAX_CRF = 26;
 
 const args = process.argv.slice(2);
 const flag = (name) => args.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3);
@@ -66,7 +67,7 @@ function ffmpegPath() {
 function encode(frames, out, quality) {
   const ff = spawn(
     ffmpegPath(),
-    ["-y", "-loglevel", "error", "-framerate", String(FPS), "-i", join(frames, "f%05d.jpg"), "-c:v", "libx264", "-preset", "slow", "-tune", "animation", "-crf", String(quality), "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", out],
+    ["-y", "-loglevel", "error", "-framerate", String(FPS), "-i", join(frames, "f%05d.png"), "-c:v", "libx264", "-preset", "slow", "-tune", "animation", "-crf", String(quality), "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", out],
     { stdio: ["ignore", "inherit", "inherit"] },
   );
   return new Promise((resolve, reject) => {
@@ -100,9 +101,10 @@ async function openStage(browser, id, format) {
   await page.waitForFunction(() => window.__film?.ready === true, null, { timeout: 60_000 });
   await page.evaluate(() => document.fonts.ready);
   const clip = { x: 0, y: 0, width: meta.size.cssWidth, height: meta.size.cssHeight };
-  const shot = async (ms, quality = 92) => {
+  // Frames are lossless PNG, so the only compression is the film's own (ADR 0057); stills and posters are JPEG.
+  const shot = async (ms, quality) => {
     await page.evaluate((t) => window.__film.seek(t), ms);
-    return page.screenshot({ type: "jpeg", quality, clip });
+    return quality ? page.screenshot({ type: "jpeg", quality, clip }) : page.screenshot({ type: "png", clip });
   };
   return { meta, shot, close: () => context.close() };
 }
@@ -145,10 +147,10 @@ try {
       const tmp = mkdtempSync(join(tmpdir(), `farbaek-film-${id}-${format}-`));
       try {
         for (let i = 0; i < frames; i += 1) {
-          writeFileSync(join(tmp, `f${String(i).padStart(5, "0")}.jpg`), await stage.shot((i * 1000) / FPS));
+          writeFileSync(join(tmp, `f${String(i).padStart(5, "0")}.png`), await stage.shot((i * 1000) / FPS));
           if (i % 150 === 0) console.log(`${id} ${format}: frame ${i}/${frames}`);
         }
-        writeFileSync(join(dir, `${format}.jpg`), await stage.shot(stage.meta.posterAtMs, 84));
+        writeFileSync(join(dir, `${format}.jpg`), await stage.shot(stage.meta.posterAtMs, 92));
         writeFileSync(join(dir, "captions.vtt"), stage.meta.captionsVtt);
         writeFileSync(join(dir, "chapters.vtt"), stage.meta.chaptersVtt);
         await stage.close();
