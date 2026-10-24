@@ -1,0 +1,31 @@
+# Is Farbaek up? Every 30 minutes GitHub asks https://www.farbaek.com/api/ready,
+# which answers 200 only when the app runs, the database answers and the
+# server's disk has room. Three tries a minute apart ride out a deploy. When
+# all three fail the run fails, and GitHub emails the repository owner.
+# Private repositories get 2,000 free minutes a month; this uses about 1,440.
+name: Uptime
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ready:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: www.farbaek.com is ready
+        run: |
+          for attempt in 1 2 3; do
+            out=$(curl -sS --max-time 20 -w '\n%{http_code}' https://www.farbaek.com/api/ready 2>&1) || true
+            code=$(tail -n1 <<<"$out")
+            body=$(head -n1 <<<"$out")
+            if [ "$code" = 200 ]; then echo "ready: $body"; exit 0; fi
+            echo "try $attempt: ${code:-no answer} $body"
+            [ "$attempt" = 3 ] || sleep 60
+          done
+          echo "::error::www.farbaek.com/api/ready failed three times in a row"
+          exit 1
