@@ -14,6 +14,16 @@ describe("decideRoute", () => {
     expect(route(null, "/")).toEqual({ kind: "app" });
   });
 
+  it("refuses the office's requests that reach the app under another name, such as Next.js fetching after a redirect", () => {
+    // Next.js fetches the page after a Server Action's redirect from localhost:3000, keeping X-Forwarded-Host.
+    expect(route("localhost:3000", "/", { forwardedHost: "officespace.farbaek.com" })).toEqual({ kind: "not-found" });
+    expect(route("0.0.0.0:3000", "/security", { forwardedHost: "OfficeSpace.farbaek.com, 10.0.0.2" })).toEqual({ kind: "not-found" });
+    // The browser's own requests are unchanged: Caddy sends the same name in both.
+    expect(route("officespace.farbaek.com", "/", { forwardedHost: "officespace.farbaek.com" })).toEqual({ kind: "office", rewrite: "/office" });
+    expect(route("www.farbaek.com", "/", { forwardedHost: "www.farbaek.com" })).toEqual({ kind: "app" });
+    expect(route("localhost:3000", "/", { forwardedHost: "www.farbaek.com" })).toEqual({ kind: "app" });
+  });
+
   it("serves the office only on its own host, with every path under /office", () => {
     expect(route("officespace.farbaek.com", "/")).toEqual({ kind: "office", rewrite: "/office" });
     expect(route("officespace.farbaek.com", "/staff")).toEqual({ kind: "office", rewrite: "/office/staff" });

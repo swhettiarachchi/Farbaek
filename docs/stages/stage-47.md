@@ -47,6 +47,26 @@ The owner asked for Office Space to open only on their computer and phone.
 - `pnpm typecheck` and lint are clean. The full suite run is in the PR.
 - **Not seen in a browser:** the office needs a real sign-in, and the demo build has none. The owner's first sign-in after the merge is the check.
 
+### Found after the merge
+
+**What worked:** the owner's first sign-in, read back in the database:
+- the authenticator was enrolled;
+- Chrome on Windows was trusted as the first device;
+- the owner was made (`staff.bootstrapped`);
+- the office session opened.
+
+**What went wrong:** the page after it showed the public homepage at officespace.farbaek.com/?welcome=1.
+
+**The cause** is older than this stage:
+- after a Server Action's `redirect()`, Next.js fetches the next page itself from its own address (`localhost:3000`), keeping the browser's `X-Forwarded-Host`;
+- the proxy routed by Host, so it served the customer app's `/`;
+- this was reproduced in production: that request answered 200 with the homepage.
+
+**The fix** (`fix/office-action-redirects`):
+- `decideRoute` refuses a request whose `X-Forwarded-Host` is the office but whose Host isn't;
+- Next.js then has the browser load the page from the office itself;
+- tests are in `src/server/http/hosts.test.ts`.
+
 ### The owner's steps after merging
 
 1. On the computer: sign in to Office Space, then select Continue on the device page. As the first device, it's trusted.

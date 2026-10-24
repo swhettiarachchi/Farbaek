@@ -43,6 +43,8 @@ export interface RouteInput {
   method: string;
   origin: string | null;
   secFetchSite: string | null;
+  /** X-Forwarded-Host, which Caddy sets to the name the browser asked for. */
+  forwardedHost?: string | null;
 }
 
 export interface RouteEnv {
@@ -111,6 +113,12 @@ export function decideRoute(input: RouteInput, env: RouteEnv): RouteDecision {
 
   const office = env.officeHost ? normalizeHost(env.officeHost) : null;
   const app = env.appHost ? normalizeHost(env.appHost) : null;
+  // A request meant for the office that reached the app under another name. After a Server Action's
+  // redirect, Next.js fetches the next page itself from its own address (localhost:3000), keeping
+  // the browser's X-Forwarded-Host; served here, that would be a customer page at the office's URL.
+  // Refusing it makes Next.js let the browser load the page from the office instead.
+  const forwarded = input.forwardedHost ? normalizeHost(input.forwardedHost.split(",")[0]) : null;
+  if (office && office !== app && forwarded === office && host !== office) return { kind: "not-found" };
   if (office && office !== app && host === office) {
     if (!officeWriteAllowed(input, originOf(office))) return { kind: "office-refused" };
     if (OFFICE_PUBLIC.test(path)) return { kind: "office-public" };

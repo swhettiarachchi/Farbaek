@@ -24,6 +24,7 @@ export async function proxy(request: NextRequest) {
       method: request.method,
       origin: request.headers.get("origin"),
       secFetchSite: request.headers.get("sec-fetch-site"),
+      forwardedHost: request.headers.get("x-forwarded-host"),
     },
     // Previews and published sites share one domain; sites can be on without previews (SITES_DOMAIN, ADR 0045).
     { previewDomain: process.env.SANDBOX_PREVIEW_DOMAIN || process.env.SITES_DOMAIN || null, officeHost: office?.host ?? null, appHost: appHostFromEnv(), customDomains: Boolean(siteDomain()) },
