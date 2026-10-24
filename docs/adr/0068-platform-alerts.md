@@ -26,7 +26,7 @@ The hourly jobs ran through `/api/internal/jobs/trial-reminders`, called by `/us
 - it ends `accepted` or `failed` with the mail server's answer, or `skipped`;
 - only the server key can read or write it.
 
-**Recipient:** `ALERT_EMAIL`, or hello@farbaek.com when unset or not a plain address.
+**Recipient:** `ALERT_EMAIL`, else Office Space's owner (`OFFICE_OWNER_EMAIL`, the inbox the owner reads), else hello@farbaek.com. Only plain addresses count.
 
 **One runner for every hourly job:**
 - `handleHourlyJobs` runs the trial reminders and the platform alerts, each on its own, so one failing or not configured doesn't stop the other;
