@@ -9,11 +9,20 @@ import type { FilmChapter, FilmFormat } from "@/content/films";
 export const WIDE_QUERY = "(min-width: 640px)";
 
 /**
- * How much of a film must be on screen before it plays on its own. Low, so a
- * film is moving whenever it's in sight, like an animation; off screen it
- * rests, which costs nothing anyone can see.
+ * How far ahead a film starts (ADR 0061), as an IntersectionObserver margin
+ * (top, right, bottom, left). People scroll down, so a film plays once it's
+ * within a screen below the view, already moving when it scrolls in, and
+ * rests once it's a quarter of a screen above. The film under the hero is
+ * that close when the page opens on most phones and every desktop, so it
+ * plays from the start. Two or three films decode at most.
  */
-export const VISIBLE_SHARE = 0.2;
+export const PLAY_AHEAD = "25% 0px 100% 0px";
+
+/**
+ * How far ahead a film starts downloading without playing: two screens below.
+ * The desktop feature stage's clips are ready before they're switched to.
+ */
+export const PRELOAD_AHEAD = "50% 0px 200% 0px";
 
 /** The recording to load: the landscape film on wide screens, the portrait film on phones, a clip as it is. */
 export function formatFor(formats: readonly FilmFormat[], wide: boolean): FilmFormat {
@@ -23,7 +32,7 @@ export function formatFor(formats: readonly FilmFormat[], wide: boolean): FilmFo
 }
 
 export interface AutoplayInput {
-  /** At least VISIBLE_SHARE of it is on screen. */
+  /** It's on screen or within PLAY_AHEAD of it. */
   inView: boolean;
   /** The tab is in the background. */
   hidden: boolean;

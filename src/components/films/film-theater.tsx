@@ -12,8 +12,9 @@
  *
  * Progress is painted straight onto CSS variables from one animation frame
  * loop, so the scrubber and the chapter rail move smoothly without
- * re-rendering React on every frame. The recording only starts downloading
- * when it first plays (`preload="none"`); until then the poster shows.
+ * re-rendering React on every frame. The recording starts downloading a
+ * screen and a half ahead and playing half a screen ahead, so it's already
+ * moving when it scrolls into view (ADR 0061); until then the poster shows.
  */
 import {
   ArrowClockwiseIcon,
@@ -138,7 +139,7 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
 
   const wide = useWide();
   const { reducedMotion, saveData } = usePlaybackLimits();
-  const { ref: screenRef, inView, hidden } = useOnScreen<HTMLDivElement>();
+  const { ref: screenRef, inView, near, hidden } = useOnScreen<HTMLDivElement>();
   const format = wide === null ? null : formatFor(formats, wide);
   const source = format ? filmFile(id, format, "mp4") : null;
   const loop = format ? filmLoop(id, format) : null;
@@ -307,7 +308,7 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
                       loop
                       playsInline
                       disablePictureInPicture
-                      preload="none"
+                      preload={near && !reducedMotion && !saveData ? "auto" : "none"}
                       aria-hidden
                       tabIndex={-1}
                       onLoadedData={paint}

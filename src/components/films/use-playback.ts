@@ -7,7 +7,7 @@
  * from browser callbacks, never in an effect body.
  */
 import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react";
-import { playFailure, QUIET_REFUSAL_MS, SLOW_AFTER_MS, VISIBLE_SHARE, WIDE_QUERY } from "./player-logic";
+import { PLAY_AHEAD, playFailure, PRELOAD_AHEAD, QUIET_REFUSAL_MS, SLOW_AFTER_MS, WIDE_QUERY } from "./player-logic";
 
 const REDUCE_QUERY = "(prefers-reduced-motion: reduce)";
 /** Large screens with a mouse: where the stage tilt and the breathing aurora are worth their cost. */
@@ -56,29 +56,32 @@ export function usePlaybackLimits(): { reducedMotion: boolean; saveData: boolean
 
 // ------------------------------------------------------------------ on screen
 
-/** Whether at least `share` of an element is on screen, and whether the tab is in the background. */
-export function useOnScreen<T extends Element>(share = VISIBLE_SHARE) {
+/**
+ * Whether a film is close enough to play (within PLAY_AHEAD of the view) or
+ * to download (within PRELOAD_AHEAD), and whether the tab is in the
+ * background (ADR 0061).
+ */
+export function useOnScreen<T extends Element>() {
   const ref = useRef<T>(null);
   const [inView, setInView] = useState(false);
+  const [near, setNear] = useState(false);
   const [hidden, setHidden] = useState(false);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const io = new IntersectionObserver(
-      ([e]) => {
-        if (e) setInView(e.intersectionRatio >= share);
-      },
-      { threshold: [...new Set([0, share, 1])].sort((a, b) => a - b) },
-    );
-    io.observe(el);
+    const play = new IntersectionObserver(([e]) => e && setInView(e.isIntersecting), { rootMargin: PLAY_AHEAD });
+    const preload = new IntersectionObserver(([e]) => e && setNear(e.isIntersecting), { rootMargin: PRELOAD_AHEAD });
+    play.observe(el);
+    preload.observe(el);
     const onVisibility = () => setHidden(document.hidden);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      io.disconnect();
+      play.disconnect();
+      preload.disconnect();
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [share]);
-  return { ref, inView, hidden };
+  }, []);
+  return { ref, inView, near, hidden };
 }
 
 // ------------------------------------------------------------------ the video element
@@ -102,6 +105,45 @@ function reloadVideo(v: HTMLVideoElement, failed: Failed) {
   v.load();
   if (at > 0) v.currentTime = at;
   playVideo(v, failed);
+}
+
+// ------------------------------------------------------------------ unlocking on a person's first touch
+
+/**
+ * Low Power Mode and some in-app browsers refuse to start any video until a
+ * person touches the page (ADR 0061). Each refused film signs up here, and
+ * its silent loop stands in. The next tap, click or key anywhere plays every
+ * one of them inside that gesture, which unlocks each for good, and pauses
+ * again at once any that shouldn't be moving yet.
+ */
+const refused = new Map<HTMLVideoElement, () => boolean>();
+const UNLOCK_EVENTS = ["pointerup", "touchend", "click", "keydown"] as const;
+let listening = false;
+
+function stopListening() {
+  UNLOCK_EVENTS.forEach((t) => window.removeEventListener(t, unlockFilms, true));
+  listening = false;
+}
+
+function unlockFilms() {
+  for (const [v, wants] of refused) {
+    const started = v.play();
+    if (!wants()) v.pause();
+    // A pause right after counts: the gesture unlocked it. Only a refusal keeps it waiting for the next touch.
+    started
+      .then(() => refused.delete(v))
+      .catch((err: unknown) => {
+        if (playFailure(err) !== "blocked") refused.delete(v);
+      })
+      .finally(() => refused.size === 0 && stopListening());
+  }
+}
+
+function waitForTouch(v: HTMLVideoElement, wants: () => boolean) {
+  refused.set(v, wants);
+  if (listening) return;
+  listening = true;
+  UNLOCK_EVENTS.forEach((t) => window.addEventListener(t, unlockFilms, { capture: true, passive: true }));
 }
 
 export interface VideoControl {
@@ -135,7 +177,18 @@ export function useVideoControl(video: RefObject<HTMLVideoElement | null>, want:
   const [blockedFor, setBlockedFor] = useState<string | null>(null);
   const [slowFor, setSlowFor] = useState<string | null>(null);
   const [errorFor, setErrorFor] = useState<string | null>(null);
-
+  // For the first-touch unlock: whether this film should be moving at that moment.
+  const wantRef = useRef(want);
+  useEffect(() => {
+    wantRef.current = want;
+  }, [want]);
+  // A refused film stops waiting for a touch once its element or recording goes away.
+  useEffect(() => {
+    const v = video.current;
+    return () => {
+      if (v) refused.delete(v);
+    };
+  }, [video, source]);
 
   // What the element does, in state. Listeners live as long as this element and source.
   useEffect(() => {
@@ -178,6 +231,7 @@ export function useVideoControl(video: RefObject<HTMLVideoElement | null>, want:
       if (failure === "blocked") {
         clearTimeout(timer);
         setBlockedFor(source);
+        waitForTouch(v, () => wantRef.current);
       } else setErrorFor(source);
     };
     const watch = () => {
