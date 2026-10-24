@@ -76,13 +76,10 @@ A deploy restarts the app. Agent runs going at that moment show as Interrupted.
 
 ## DNS and certificates
 
-- **farbaek.com:** DNS stays at Spaceship, with the email records. `www` and `officespace` are A records to the server, and Caddy gets ordinary certificates for them.
-  - **The apex (`farbaek.com` itself)** should be an A record to the server too. Caddy then redirects every path to the same path on www, so links and the ProofPack type URI (`https://farbaek.com/proofpack/v1`) reach their page.
-  - **Until it is,** Spaceship's URL forwarding answers for it and sends every path to the homepage.
-  - **To switch:**
-    1. Deploy the Caddyfile's `farbaek.com` block.
-    2. At Spaceship, remove the URL forwarding for `@` and add an A record `@` to the server's address (TTL 300). Leave the email records alone.
-    3. On the server, run `docker exec farbaek-caddy caddy reload --config /etc/caddy/Caddyfile --force`, so Caddy fetches the certificate straight away.
+- **farbaek.com:** DNS stays at Spaceship, with the email records. `farbaek.com` itself (`@`), `www`, `officespace` and `api` are A records to the server, and Caddy gets ordinary certificates for each.
+  - **The bare `farbaek.com`** redirects every path and query to the same address on www, so links and the ProofPack type URI (`https://farbaek.com/proofpack/v1`) reach their page. Switched on 2026-10-24.
+  - **Spaceship's URL forwarding** used to answer for it. It sent every path to the homepage, and its `*` record went with it. Don't turn it back on: it would replace the `@` A record.
+  - **If the `@` record ever changes,** run `docker exec farbaek-caddy caddy reload --config /etc/caddy/Caddyfile --force` on the server, so Caddy fetches the certificate straight away instead of waiting out its retry delay.
 - **Published sites on farbaek.si, and people's own domains (ADR 0045).** Caddy makes each site's certificate on its first visit (on-demand TLS), after the app confirms the name is a live site. To turn it on:
   1. **At Hostinger, for farbaek.si,** point three A records at the server's address, replacing Hostinger's parking records:
      - `@` (farbaek.si itself, which redirects to www.farbaek.com);
@@ -99,6 +96,21 @@ A deploy restarts the app. Agent runs going at that moment show as Interrupted.
   - **Why it's harder:** a wildcard needs a DNS-01 challenge, and Caddy has no Hostinger DNS plugin.
   - **The plan:** move farbaek.si's DNS to Cloudflare (free plan), with an API token that can edit DNS for that one zone. Build Caddy with the `caddy-dns/cloudflare` module, and add a `*.farbaek.si` block.
   - **Until then,** previews aren't served from this server.
+
+## The check sandbox (ADR 0016)
+
+Checks and builds run in Vercel Sandbox, never on this server. Until it's connected and its isolation is proven, every task page says so and "Check the site now" stays unavailable.
+
+1. **In Vercel** (a free Hobby account; one used only for sandboxes is safest, since a token can manage every project in its account):
+   - a project for the sandboxes, such as `farbaek-sandbox` (nothing is deployed to it);
+   - an access token under Account Settings > Tokens, with an expiry.
+2. **On the owner's PC:** run `scripts/vps/set-sandbox.ps1 -TeamId team_... -ProjectId prj_...`.
+   - It asks for the token (hidden) and checks with Vercel that the token reaches the project.
+   - It saves `SANDBOX_PROVIDER=vercel` and the three Vercel settings on the server and in the checkout's `.env.local`.
+3. **Prove the isolation** from that checkout: `pnpm check:env`, then `pnpm sandbox:smoke`. It starts one small sandbox, checks exit codes, timeouts, files, no Docker socket, no secrets and blocked network, and removes it.
+4. **When it passes:** save `SANDBOX_ISOLATION_VERIFIED_AT=<the time it printed>` with `farbaek-set-env`, then run `farbaek-deploy --again`.
+
+When the token expires, checks stop with that reason on the task page. Make a new token and run step 2 again.
 
 ## The database (ADR 0036)
 

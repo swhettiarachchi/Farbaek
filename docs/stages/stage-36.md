@@ -59,7 +59,23 @@ The octal key prefix also prints the right 12 bytes under `sh`.
 
 `qa:responsive` and `qa:a11y` on `/proofpack/v1` and `/verify` found nothing. `pnpm typecheck`, `pnpm lint` and the design tests pass.
 
+### Production, after merging (#44)
+
+- **The format page is live** at `https://www.farbaek.com/proofpack/v1` (200).
+- **The bare domain moved to the server.** At Spaceship I saved the 12 records first.
+  - The owner deleted the URL redirect: two automated attempts were refused by the browser safety check. The redirect took its `@` and `*` records with it.
+  - The owner added `@` A `2.25.88.188` (TTL 5 min); Spaceship's nameserver answered with it at 07:10:42 UTC.
+  - Caddy was reloaded with `--force`, and Let's Encrypt issued `farbaek.com`'s certificate at 07:11:04 (valid to 22 January 2027).
+- **Checked through public DNS:**
+
+  | Address | Goes to |
+  | --- | --- |
+  | `https://farbaek.com/proofpack/v1` | `https://www.farbaek.com/proofpack/v1`, then the page (200) |
+  | `https://farbaek.com/pricing?ref=x` | `https://www.farbaek.com/pricing?ref=x` |
+  | `http://farbaek.com/verify` | `https://farbaek.com/verify` first (308) |
+
+  Both MX records are unchanged.
+
 ### Not verified
 
-- **The bare-domain redirect.** It needs the owner's DNS change at Spaceship. Until then, Caddy logs that it can't get a certificate for `farbaek.com` and retries; other names are unaffected.
 - **The jq filters with real jq.**

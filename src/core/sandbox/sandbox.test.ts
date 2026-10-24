@@ -315,6 +315,15 @@ describe("usage", () => {
     expect(runningSeconds({ ...s, runningSince: null }, now)).toBe(120);
     expect(wholeMinutes(61)).toBe(2);
   });
+
+  it("never counts running time past the session's expiry, when the runtime killed it", () => {
+    const s = { billedSeconds: 0, runningSince: "2026-10-18T12:12:00Z", expiresAt: "2026-10-18T12:41:34Z", vcpu: 1, memoryMiB: 2048 };
+    // Recorded days late, as when no runtime was connected to finish a shutdown.
+    expect(runningSeconds(s, new Date("2026-10-23T11:00:00Z"))).toBe(1774);
+    expect(runningSeconds(s, new Date("2026-10-18T12:20:00Z"))).toBe(480);
+    // Opened after its expiry: nothing.
+    expect(runningSeconds({ ...s, runningSince: "2026-10-18T13:00:00Z" }, new Date("2026-10-19T00:00:00Z"))).toBe(0);
+  });
 });
 
 describe("preview tokens and hosts", () => {
