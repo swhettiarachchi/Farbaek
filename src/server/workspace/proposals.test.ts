@@ -184,7 +184,8 @@ describe("applyProposal", () => {
       { path: "src/lib/cart.ts", content: "accepted" },
       { path: "src/lib/new.ts", content: "" },
     ]);
-    expect(result).toMatchObject({ ok: true, value: { written: 1, appliedSha256: expect.stringMatching(/^[0-9a-f]{64}$/) } });
+    // The task id comes back, so the caller can start its checks (ADR 0059).
+    expect(result).toMatchObject({ ok: true, value: { written: 1, appliedSha256: expect.stringMatching(/^[0-9a-f]{64}$/), taskId: expect.any(String) } });
     expect(calls[0]!.input.files).toEqual([{ path: "src/lib/cart.ts", content: "accepted" }]);
     expect(calls[0]!.input.steps.map((s: { event_type: string; actor_kind?: string }) => [s.event_type, s.actor_kind ?? "user"])).toEqual([
       ["grant_approval", "user"],

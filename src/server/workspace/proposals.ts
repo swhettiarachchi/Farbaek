@@ -255,7 +255,7 @@ export async function applyProposal(
      */
     by?: "person" | "policy";
   },
-): Promise<WriteResult<{ written: number; appliedSha256: string; proofPackDigest: string }>> {
+): Promise<WriteResult<{ written: number; appliedSha256: string; proofPackDigest: string; taskId: string }>> {
   const byPolicy = input.by === "policy";
   const role = await requireContributor(deps, input.orgId);
   if (!role.ok) return role;
@@ -332,7 +332,7 @@ export async function applyProposal(
     const code = codeFromDatabaseError(result.error);
     return fail(code, code === "FILE_CHANGED" ? "A file changed after this proposal was made. Discard it and propose again." : MESSAGES[code]);
   }
-  return { ok: true, value: { written: result.value, appliedSha256, proofPackDigest: digest } };
+  return { ok: true, value: { written: result.value, appliedSha256, proofPackDigest: digest, taskId: proposal.taskId } };
 }
 
 export async function discardProposal(deps: Deps, input: { orgId: string; userId: string; proposalId: string }): Promise<WriteResult<null>> {

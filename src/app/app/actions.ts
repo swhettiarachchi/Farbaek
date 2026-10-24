@@ -357,7 +357,7 @@ export async function proposeChangeAction(input: { taskId: string; contextPaths:
   return { status: "done", proposalId: result.value.proposalId, outcome: result.value.status };
 }
 
-export type ApplyState = { status: "error"; message: string } | { status: "done"; written: number };
+export type ApplyState = { status: "error"; message: string } | { status: "done"; written: number; checking: boolean };
 
 /** Applies the exact content the person accepted in the review, as new file revisions. */
 export async function applyProposalAction(input: { proposalId: string; reviewedSha256: string; files: { path: string; content: string }[] }): Promise<ApplyState> {
@@ -375,8 +375,18 @@ export async function applyProposalAction(input: { proposalId: string; reviewedS
   if ("error" in w) return { status: "error", message: w.error };
   const result = await applyProposal(w.deps, { orgId: w.orgId, userId: ctx.user.id, ...parsed.data, execution: currentExecutionMode() });
   if (!result.ok) return { status: "error", message: result.message };
+  // Applying is the person's go-ahead, so the change's checks start straight away (ADR 0059), as they do for a
+  // change applied on its own. If they can't start (no sandbox, nothing to check), the task page says why and offers the button.
+  let checking = false;
+  if (ctx.role) {
+    const person = { orgId: w.orgId, userId: ctx.user.id, role: ctx.role };
+    const wiring = await verificationDeps(person);
+    const started = wiring.ok ? await startTaskVerification(wiring.deps, person, result.value.taskId, "person") : null;
+    checking = started?.ok === true;
+    if (started && !started.ok) log("info", "verification.after_apply_not_started", { task: result.value.taskId, code: started.code });
+  }
   revalidatePath("/app", "layout");
-  return { status: "done", written: result.value.written };
+  return { status: "done", written: result.value.written, checking };
 }
 
 export type LensSuggestState = { status: "error"; message: string } | { status: "done"; mapped: number; hunks: number };
@@ -422,7 +432,7 @@ export async function discardProposalAction(input: { proposalId: string }): Prom
   const result = await discardProposal(w.deps, { orgId: w.orgId, userId: ctx.user.id, proposalId: parsed.data.proposalId });
   if (!result.ok) return { status: "error", message: result.message };
   revalidatePath("/app", "layout");
-  return { status: "done", written: 0 };
+  return { status: "done", written: 0, checking: false };
 }
 
 export async function archiveProjectAction(_previous: FormState, form: FormData): Promise<FormState> {

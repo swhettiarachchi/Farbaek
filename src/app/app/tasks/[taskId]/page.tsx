@@ -67,7 +67,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
   const [driftEvents, proposeAi, projectFiles, bases, intact, [recoverySource, recoveries], agents, lensSuggestion, lensAi, verification] = await Promise.all([
     approvedContract && !TERMINAL_STATES.has(task.state) ? ctx.reader.listFileChangesSince(orgId, task.projectId, approvedContract.approvedAt!) : Promise.resolve(null),
     canPropose ? loadAiAvailability(ctx, ctx.current, "change_proposal") : Promise.resolve(null),
-    canPropose || task.state === "VERIFYING" ? ctx.reader.listFiles(orgId, task.projectId) : Promise.resolve([]),
+    canPropose || task.state === "VERIFYING" || task.state === "APPROVAL_PENDING" ? ctx.reader.listFiles(orgId, task.projectId) : Promise.resolve([]),
     showProposal
       ? Promise.all(
           proposal!.changes
@@ -122,7 +122,9 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
   // What a verification runs: the plan's checks, or when it lists none, Farbaek's site check for a static site or the app's own build and tests (ADR 0054, ADR 0058).
   const planChecks = contract?.body.requiredChecks ?? [];
   const manifest =
-    task.state === "VERIFYING" && planChecks.length === 0 && projectFiles.some((f) => f.path === "package.json") ? await ctx.reader.getFile(orgId, task.projectId, "package.json") : null;
+    (task.state === "VERIFYING" || task.state === "APPROVAL_PENDING") && planChecks.length === 0 && projectFiles.some((f) => f.path === "package.json")
+      ? await ctx.reader.getFile(orgId, task.projectId, "package.json")
+      : null;
   const checksForRun = checksToRun(planChecks, projectFiles.map((f) => f.path), (p) => (p === "package.json" ? (manifest?.content ?? null) : null));
   const requiredChecks = checksForRun.length;
   const fallback = planChecks.length === 0 && requiredChecks > 0 ? fallbackChecksWords(checksForRun) : null;
@@ -227,6 +229,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
                 serverNow={renderedAt}
                 lensSuggestion={lensSuggestion}
                 lensAiReason={lensAi?.disabledReason ?? null}
+                checksOnApply={checksForRun.length > 0}
               />
             ) : null}
             {canPropose ? (
