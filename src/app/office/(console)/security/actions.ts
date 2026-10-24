@@ -3,6 +3,8 @@
 import { refresh } from "next/cache";
 import type { OfficeFormState } from "@/components/office/action-form";
 import { staffAction } from "@/server/office/access";
+import { formatDeviceCode, newDeviceCode } from "@/core/office/device-codes";
+import { deviceCodeHash } from "@/server/office/device-token";
 import { currentDeviceHash } from "@/server/office/devices";
 import { requestMeta } from "@/server/office/request-meta";
 import { startEnrollment } from "@/server/office/sign-in";
@@ -96,4 +98,24 @@ export async function revokeDeviceAction(_prev: OfficeFormState, form: FormData)
   if (!r.ok) return { ok: false, message: OFFICE_MESSAGES[r.code] };
   refresh();
   return { ok: true, message: "Removed. That device can't open the office until it's approved again." };
+}
+
+export type InviteState = { status: "idle" } | { status: "ready"; code: string; expiresAt: string } | { status: "error"; message: string };
+
+/**
+ * A one-time code that adds a new device (ADR 0072), made on this trusted
+ * device with a fresh authenticator code. Shown once; only its hash is kept.
+ */
+export async function createDeviceInviteAction(_prev: InviteState, form: FormData): Promise<InviteState> {
+  const gate = await staffAction("devices.own");
+  if (!gate.ok) return { status: "error", message: gate.message };
+  const fromHash = await currentDeviceHash();
+  if (!fromHash) return { status: "error", message: OFFICE_MESSAGES.DEVICE_NOT_TRUSTED };
+  const meta = await requestMeta();
+  const step = await verifyStepUp(gate.ctx, form.get("totp"), meta);
+  if (!step.ok) return { status: "error", message: step.message };
+  const code = newDeviceCode();
+  const r = await gate.ctx.store.createDeviceInvite({ userId: gate.ctx.user.id, sessionId: gate.ctx.sessionId }, { fromHash, codeHash: deviceCodeHash(code) }, "step_up", meta);
+  if (!r.ok) return { status: "error", message: OFFICE_MESSAGES[r.code] };
+  return { status: "ready", code: formatDeviceCode(code), expiresAt: r.value };
 }

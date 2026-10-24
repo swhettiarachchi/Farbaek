@@ -5,16 +5,12 @@
  * keep a cookie). The database stores only its SHA-256. The name doesn't
  * start with the session cookie's, so Supabase never mistakes it for one.
  */
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { deviceLabel } from "@/core/office/devices";
+import { DEVICE_COOKIE, DEVICE_TOKEN as TOKEN, deviceHash } from "./device-token";
 
-export const DEVICE_COOKIE = "__Host-fb-device";
-const TOKEN = /^[A-Za-z0-9_-]{43}$/;
-
-export function deviceHash(token: string): string {
-  return createHash("sha256").update(`office-device:${token}`).digest("hex");
-}
+export { DEVICE_COOKIE, deviceHash };
 
 /** The device's hash, if this browser already has a device cookie. For pages and checks. */
 export async function currentDeviceHash(): Promise<string | null> {

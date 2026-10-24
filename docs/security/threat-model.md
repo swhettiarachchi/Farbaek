@@ -240,3 +240,12 @@ Known limits: until the owner sets the keys, only the app's limits apply, and di
 | Device records | Forging or reading device secrets | Only SHA-256 hashes are stored; the server key can only read them; writes go through the `app_staff_*device*` functions with one audit event each | `tests/db/staff-devices.test.ts` |
 
 Known limits: a device cookie copied off a trusted device (by malware there) works until removed; losing every trusted device needs SSH to the server.
+
+## Office Space hidden from unknown devices (2026-10-24, ADR 0072)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| The office host | Finding Office Space and probing its sign-in from any device | The proxy answers 404 to unknown devices before any page or action; only `/add-device` answers, and it names nothing | `tests/db/office-hidden.test.ts` |
+| Device-add codes | Guessing a code; reusing one | 8 characters from 31, one live code, 15 minutes, once; 5 tries per address per 15 minutes; stored as a hash nobody can read; made only on a trusted device with step-up | `tests/db/office-hidden.test.ts`, `src/core/office/device-codes.test.ts` |
+
+Known limits: while no device is trusted (a new office or after the SSH reset), the office is open to the first device that signs in with both codes.
