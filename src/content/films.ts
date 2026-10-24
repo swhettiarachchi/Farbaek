@@ -40,7 +40,8 @@ export interface FilmMeta {
 export const FILM_FPS = 30;
 export const FILM_LABEL = "Sample project, recorded from Farbaek's interface.";
 
-const LANDSCAPE = { width: 1920, height: 1200, cssWidth: 1280, cssHeight: 800 };
+// Landscape films can go full screen on large displays, so they're filmed at twice their stage size (ADR 0057).
+const LANDSCAPE = { width: 2560, height: 1600, cssWidth: 1280, cssHeight: 800 };
 const PORTRAIT = { width: 1080, height: 1350, cssWidth: 432, cssHeight: 540 };
 const CLIP = { width: 1440, height: 1080, cssWidth: 1024, cssHeight: 768 };
 
@@ -152,7 +153,7 @@ export function filmTrack(id: FilmId, kind: "captions" | "chapters"): string {
 }
 
 /** Size limits per recording, so the homepage stays light. */
-export const FILM_BUDGET_BYTES = { landscape: 6_000_000, portrait: 5_000_000, clip: 1_200_000 } as const;
+export const FILM_BUDGET_BYTES = { landscape: 12_000_000, portrait: 8_000_000, clip: 2_500_000 } as const;
 
 /** Size limits per silent loop. Only browsers that refuse the video download one. */
 export const LOOP_BUDGET_BYTES = { landscape: 4_000_000, portrait: 2_500_000, clip: 1_300_000 } as const;

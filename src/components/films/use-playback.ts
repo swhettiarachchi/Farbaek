@@ -193,9 +193,10 @@ export function useVideoControl(video: RefObject<HTMLVideoElement | null>, want:
     const settled = () => clearTimeout(timer);
     playVideo(v, failed);
     watch();
-    // Nothing at all after a few seconds: a quiet refusal (QUIET_REFUSAL_MS).
+    // Nothing at all after a few seconds, and not even downloading: a quiet refusal (QUIET_REFUSAL_MS).
+    // A slow download isn't one; it keeps its poster until the first frame.
     const quiet = setTimeout(() => {
-      if (live && v.paused && v.readyState === 0 && !v.error) failed("blocked");
+      if (live && v.paused && v.readyState === 0 && v.networkState !== v.NETWORK_LOADING && !v.error) failed("blocked");
     }, QUIET_REFUSAL_MS);
     v.addEventListener("canplay", resume);
     v.addEventListener("waiting", watch);

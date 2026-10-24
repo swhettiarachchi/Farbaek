@@ -322,7 +322,7 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
                     {poster}
                   </div>
 
-                  {looping ? <SilentLoop src={loop} fit="contain" onFailed={() => setLoopFailed(loop)} /> : null}
+                  {looping && source ? <SilentLoop key={loop} mp4={source} webp={loop} fit="contain" onFailed={() => setLoopFailed(loop)} /> : null}
 
                   {showPlayCover ? (
                     <button

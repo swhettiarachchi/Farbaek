@@ -2,18 +2,21 @@
 
 /**
  * A short, silent feature clip that loops beside its text like an animation
- * (ADR 0034, ADR 0055). It plays while `active`, on screen and in a visible
- * tab, and never on its own under reduced motion or Save-Data, where the
- * poster frame stands in. Where the browser refuses to start it (iOS Low
- * Power Mode), the same recording loops as a silent animated image. A pause
- * button is always there, because moving content needs one; it shows play
- * whenever the clip isn't moving, so a refused autoplay is one press away.
+ * (ADR 0034, ADR 0055, ADR 0057). It plays while `active`, on screen and in
+ * a visible tab, and never on its own under reduced motion or Save-Data,
+ * where the poster frame stands in. Where the browser refuses to start it
+ * (iOS Low Power Mode), the same recording loops as a silent image.
+ *
+ * No button sits on the picture while it plays. The whole clip is the
+ * control: a tap or Space pauses it (moving content needs a way to stop,
+ * WCAG 2.2.2) and plays it again, and a small "Paused" or "Play" label shows
+ * only when it isn't moving.
  *
  * The video sits under its poster at full opacity: phone browsers may not
  * start a video they think is invisible, so the poster fades out over it
  * instead of the video fading in.
  */
-import { ArrowClockwiseIcon, PauseIcon, PlayIcon } from "@phosphor-icons/react";
+import { ArrowClockwiseIcon, PlayIcon } from "@phosphor-icons/react";
 import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { FILMS, filmFile, filmLoop, type FilmId } from "@/content/films";
 import { filmMotion, shouldPlay } from "./player-logic";
@@ -69,7 +72,7 @@ export function FilmClip({ id, poster, active = true, enabled = true }: { id: Fi
       <div aria-hidden className={`pointer-events-none absolute inset-0 transition-opacity duration-500 ${control.shown && !control.error ? "opacity-0" : "opacity-100"}`}>
         {poster}
       </div>
-      {looping ? <SilentLoop src={loop} fit="cover" onFailed={() => setLoopFailed(loop)} /> : null}
+      {looping && source ? <SilentLoop key={loop} mp4={source} webp={loop} fit="cover" onFailed={() => setLoopFailed(loop)} /> : null}
       <p className="sr-only">{film.summary}</p>
       {stuck ? (
         <button
@@ -85,9 +88,13 @@ export function FilmClip({ id, poster, active = true, enabled = true }: { id: Fi
           type="button"
           onClick={press}
           aria-label={`${playing ? "Pause" : "Play"} the clip: ${film.title}`}
-          className="absolute bottom-3 right-3 inline-flex size-11 items-center justify-center rounded-full bg-surface text-ink shadow-e2 ring-1 ring-line transition-transform duration-200 hover:scale-105 active:scale-95"
+          className="group absolute inset-0 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
         >
-          {playing ? <PauseIcon size={16} weight="fill" aria-hidden /> : <PlayIcon size={16} weight="fill" aria-hidden />}
+          {playing ? null : (
+            <span className="absolute bottom-3 right-3 inline-flex min-h-9 items-center gap-1.5 rounded-full bg-surface/95 px-3 text-sm font-medium text-ink shadow-e2 ring-1 ring-line">
+              <PlayIcon size={13} weight="fill" aria-hidden /> {userPaused ? "Paused" : "Play"}
+            </span>
+          )}
         </button>
       ) : null}
     </div>
