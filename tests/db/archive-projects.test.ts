@@ -59,6 +59,21 @@ describe("archiving a project", () => {
     expect(content.rows[0]!.content).toBe("# hi\n");
   });
 
+  it("still lets a task in it be cancelled, but not start a sandbox", async () => {
+    const id = await project("Tidy up later");
+    const task = (await q<{ id: string }>("select public.app_create_task($1, $2, $3, 'Left over') as id", [org, USERS.alice, id]))[0]!.id;
+    await archive(id);
+    // The task page offers Cancel on an archived project's task, and greys out everything that changes the work.
+    const v = await q<{ v: number }>("select public.app_apply_task_transition($1, $2, 'user', $3, gen_random_uuid()::text, 'cancel', 'RECEIVED', 'CANCELLED', 0) as v", [task, USERS.alice, USERS.alice]);
+    expect(v[0]!.v).toBe(1);
+    await expect(
+      q(
+        "select * from public.app_create_sandbox_session($1, $2, $3, $4, 'Check', 'node-ts', 'small', 'img', 'none', 1, 1024, 'test', 'microvm', 900, 600, 5, 100, now() - interval '1 day', 'archived-check-1')",
+        [org, USERS.alice, id, task],
+      ),
+    ).rejects.toThrow(/PROJECT_ARCHIVED/);
+  });
+
   it("can't be called from the browser", async () => {
     const id = await project("Server only");
     await expect(asUser(USERS.alice, () => db.query("select public.app_archive_project($1, $2)", [id, USERS.alice]))).rejects.toThrow(/permission denied/);
