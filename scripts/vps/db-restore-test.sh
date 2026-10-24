@@ -11,6 +11,11 @@ DB_IMAGE=supabase/postgres:17.6.1.136
 NAME=farbaek-restore-test
 TABLES_SQL="select n.nspname || '.' || c.relname, (xpath('/row/c/text()', query_to_xml(format('select count(*) as c from %I.%I', n.nspname, c.relname), false, true, '')))[1]::text from pg_class c join pg_namespace n on n.oid = c.relnamespace where c.relkind = 'r' and (n.nspname in ('public', 'private') or (n.nspname = 'auth' and c.relname = 'users')) order by 1"
 
+# Records each run for the Health page and /api/ready (ADR 0071). Never fails the test itself.
+note_run() {
+  docker exec supabase-db psql -U postgres -d postgres -qAt -v ON_ERROR_STOP=1 \n    -c "select public.app_note_job_run('restore_test', $1, '$2')" >/dev/null 2>&1 || true
+}
+
 main() {
   local latest
   latest=$(ls -1t "$DIR"/farbaek-*.dump 2>/dev/null | head -1)
@@ -38,8 +43,10 @@ main() {
 
   if [ "$missing" = 0 ] && [ "$empty" = 0 ]; then
     echo "restore test passed: $(basename "$latest"), $(wc -l <<<"$restored") tables"
+    note_run true "$(basename "$latest"), $(wc -l <<<"$restored") tables"
   else
     echo "restore test FAILED: $missing missing, $empty empty ($(basename "$latest"))"
+    note_run false "$missing tables missing, $empty empty in $(basename "$latest")"
     exit 1
   fi
 }

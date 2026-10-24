@@ -11,7 +11,13 @@ KEEP=14
 BACKUP_ENV=/opt/farbaek/env/backup.env
 RCLONE_IMAGE=rclone/rclone:1.71.1
 
+# Records each run for the Health page and /api/ready (ADR 0071). Never fails the backup itself.
+note_run() {
+  docker exec supabase-db psql -U postgres -d postgres -qAt -v ON_ERROR_STOP=1 \n    -c "select public.app_note_job_run('db_backup', $1, '$2')" >/dev/null 2>&1 || true
+}
+
 main() {
+  trap 'note_run false "The nightly backup failed; see journalctl -u farbaek-db-backup."' ERR
   install -d -m 700 "$DIR"
   local file="$DIR/farbaek-$(date -u +%Y%m%dT%H%M%SZ).dump"
   umask 077
@@ -31,6 +37,7 @@ main() {
   else
     echo "no off-server copy: $BACKUP_ENV has no offsite remote yet (docs/deploy/vps.md)"
   fi
+  note_run true "$(basename "$file")"
 }
 
 main "$@"

@@ -6,8 +6,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { FLAG_DETAILS, isPlatformFlag } from "@/core/office/flags";
+import type { JobStatus } from "@/core/ops/jobs";
 import { waitingFor } from "@/core/support/support";
 import { deploymentInfo } from "@/server/deployment";
+import { readJobStatuses } from "@/server/ops/jobs";
 
 const Count = z.coerce.number().int().nonnegative();
 const Snapshot = z.object({
@@ -103,6 +105,30 @@ export function healthChecks(s: HealthSnapshot, dbMs: number, now: Date): Health
   ];
 }
 
+/** One check per background job (ADR 0071). A job that never reported is unknown, never alarming. */
+export function jobChecks(statuses: readonly JobStatus[] | null, now: Date): HealthCheck[] {
+  if (!statuses) return [{ key: "jobs", label: "Background jobs", state: "unknown", value: "Couldn't read", detail: "Their runs couldn't be read. Migration v43 may not be applied." }];
+  return statuses.map((j) => {
+    const hostScript = j.key === "db_backup" || j.key === "restore_test";
+    switch (j.state) {
+      case "ok":
+        return { key: `job-${j.key}`, label: j.label, state: "ok", value: `Ran ${waitingFor(j.lastOkAt!, now)} ago`, detail: `Runs ${j.every}.` };
+      case "late":
+        return { key: `job-${j.key}`, label: j.label, state: "attention", value: `Late: last ran ${waitingFor(j.lastOkAt!, now)} ago`, detail: `It runs ${j.every}. Check its timer on the server: systemctl list-timers "farbaek-*".` };
+      case "failing":
+        return { key: `job-${j.key}`, label: j.label, state: "attention", value: `Failed ${waitingFor(j.lastFailedAt!, now)} ago`, detail: j.detail ? `It said: ${j.detail}` : `Its last run failed. It runs ${j.every}.` };
+      default:
+        return {
+          key: `job-${j.key}`,
+          label: j.label,
+          state: "unknown",
+          value: "No report yet",
+          detail: hostScript ? "It reports once install.sh has been run again on the server (docs/deploy/vps.md)." : `It reports from its next run, ${j.every}.`,
+        };
+    }
+  });
+}
+
 export async function loadHealth(admin: SupabaseClient, now = new Date()): Promise<{ checks: HealthCheck[]; snapshot: HealthSnapshot } | { error: string }> {
   const started = performance.now();
   const { data, error } = await admin.rpc("app_office_health", { p_now: now.toISOString() });
@@ -110,7 +136,7 @@ export async function loadHealth(admin: SupabaseClient, now = new Date()): Promi
   if (error) return { error: "The database didn't answer the health check. Supabase may be down, or this server can't reach it." };
   const parsed = Snapshot.safeParse(data);
   if (!parsed.success) return { error: "The database answered in an unexpected shape. Migration v23 may not be applied." };
-  return { checks: healthChecks(parsed.data, dbMs, now), snapshot: parsed.data };
+  return { checks: [...healthChecks(parsed.data, dbMs, now), ...jobChecks(await readJobStatuses(admin, now), now)], snapshot: parsed.data };
 }
 
 /** What this server process knows about itself. Names and numbers only, never a secret. */

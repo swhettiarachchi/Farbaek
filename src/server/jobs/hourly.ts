@@ -10,6 +10,8 @@ import { platformAlertDeps } from "@/server/jobs/platform-alerts-wiring";
 import { runTrialReminders } from "@/server/jobs/trial-reminders";
 import { trialReminderDeps } from "@/server/jobs/trial-reminders-wiring";
 import { log } from "@/server/observability/log";
+import { noteJobRun } from "@/server/ops/jobs";
+import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { readSandboxConfig } from "@/server/sandbox/config";
 import { json, problem } from "@/server/sandbox/http";
 
@@ -38,6 +40,9 @@ export async function handleHourlyJobs(request: Request): Promise<Response> {
   };
   const all = Object.values(jobs);
   if (all.every((j) => j.status === "not_configured")) return problem(503, "NOT_CONFIGURED", "Email or the server key for writes isn't set, so no hourly job can run.");
+  const failed = all.some((j) => j.status === "failed");
+  const admin = createSupabaseAdminClient();
+  if (admin) await noteJobRun(admin, "hourly_jobs", !failed, failed ? Object.entries(jobs).filter(([, j]) => j.status === "failed").map(([name]) => `${name} failed`).join(", ") : null);
   // Safe to run again: every job claims its work before doing it.
-  return json({ data: jobs }, all.some((j) => j.status === "failed") ? 500 : 200);
+  return json({ data: jobs }, failed ? 500 : 200);
 }
