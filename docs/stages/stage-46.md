@@ -25,7 +25,7 @@ The platform's daily AI limit pauses AI for everyone when it's reached. Now the 
 - `/api/internal/jobs/hourly` is new, and `/trial-reminders` runs the same jobs for the `jobs.sh` copy already installed;
 - `jobs.sh` calls `/hourly`.
 
-**`ALERT_EMAIL`:** in both env examples, defaulting to hello@farbaek.com.
+**`ALERT_EMAIL`:** in both env examples. Unset, alerts go to Office Space's owner (info@farbaek.com in production), then hello@.
 
 **Office Space wording:** the sign-in limit message no longer blames "Supabase", which is now our own service on the server. It says a code went to the address moments ago, and to wait a minute.
 

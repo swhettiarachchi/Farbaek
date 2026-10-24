@@ -3,8 +3,9 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { officeClients } from "@/server/office/access";
+import { ensureDevice } from "@/server/office/devices";
 import { requestMeta } from "@/server/office/request-meta";
-import { requestStaffCode, startEnrollment, verifySecondFactor, verifyStaffCode, type SignInDeps } from "@/server/office/sign-in";
+import { openSession, requestStaffCode, startEnrollment, verifySecondFactor, verifyStaffCode, type SignInDeps } from "@/server/office/sign-in";
 import { officeAuth } from "@/server/office/supabase-auth";
 
 /** The sign-in steps run only on the office host, for requests made by the office itself. */
@@ -14,7 +15,7 @@ async function deps(): Promise<SignInDeps | null> {
   const h = await headers();
   const origin = h.get("origin");
   if (origin ? origin !== clients.office.origin : h.get("sec-fetch-site") !== "same-origin") return null;
-  return { auth: officeAuth(clients.client, clients.admin), store: clients.store, office: clients.office, meta: await requestMeta(), now: () => new Date() };
+  return { auth: officeAuth(clients.client, clients.admin), store: clients.store, office: clients.office, meta: await requestMeta(), now: () => new Date(), device: await ensureDevice() };
 }
 
 const REFUSED = "This request didn't come from Office Space.";
@@ -66,8 +67,18 @@ export async function finishEnrollAction(_prev: FactorState, form: FormData): Pr
   return finish(await verifySecondFactor(d, factorId, form.get("code"), true));
 }
 
+/** On a device waiting for approval: checks again, and opens the office once it is trusted (ADR 0069). */
+export async function continueOnDeviceAction(): Promise<FactorState> {
+  const d = await deps();
+  if (!d) return { message: REFUSED };
+  const r = await openSession(d, false);
+  if (r.status === "device") return { message: "Not approved yet. Approve this device on one you trust, then select Continue again." };
+  return finish(r);
+}
+
 function finish(r: Awaited<ReturnType<typeof verifySecondFactor>>): FactorState {
   if (r.status === "in") redirect(r.welcome ? "/?welcome=1" : "/");
+  if (r.status === "device") redirect("/device");
   if (r.status === "not_staff") redirect("/not-staff");
   if (r.status === "sign_in") redirect("/sign-in");
   return { message: r.message };

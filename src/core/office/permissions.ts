@@ -39,6 +39,7 @@ export const OFFICE_ACTIONS = [
   "announcements.manage",
   "support.read",
   "support.reply",
+  "devices.own",
 ] as const;
 export type OfficeAction = (typeof OFFICE_ACTIONS)[number];
 
@@ -60,6 +61,8 @@ export const PERMISSIONS: Record<OfficeAction, readonly StaffRole[]> = {
   "announcements.manage": ["owner", "admin"],
   "support.read": ["owner", "admin", "support", "trust_safety"],
   "support.reply": ["owner", "admin", "support", "trust_safety"],
+  // Approving and removing your own Office Space devices (ADR 0069).
+  "devices.own": ALL,
 };
 
 /** Actions that need a fresh authenticator code in the same request, whatever the input. */

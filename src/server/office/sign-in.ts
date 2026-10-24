@@ -32,6 +32,8 @@ export interface SignInDeps {
   office: OfficeConfig;
   meta: RequestMeta;
   now: () => Date;
+  /** This browser's device (ADR 0069). Opening a session needs it; the other steps don't. */
+  device?: { hash: string; label: string } | null;
 }
 
 export const CODE_SENT_MESSAGE = "If this address belongs to Farbaek staff, a 6-digit code is on its way. It works for an hour.";
@@ -111,7 +113,14 @@ export async function startEnrollment(deps: SignInDeps): Promise<Enrollment> {
   return factor ? { status: "ready", factorId: factor.id, ...factor } : { status: "error", message: "The authenticator couldn't be set up. Try again." };
 }
 
-export type SecondStep = { status: "in"; welcome: boolean } | { status: "not_staff" } | { status: "error"; message: string } | { status: "sign_in" };
+export type SecondStep =
+  | { status: "in"; welcome: boolean }
+  | { status: "device"; code: string }
+  | { status: "not_staff" }
+  | { status: "error"; message: string }
+  | { status: "sign_in" };
+
+export const DEVICE_CHECK_FAILED = "Office Space couldn't check this device. Nothing was opened. Try again.";
 
 /** Checks an authenticator code (the first one after enrolling, or the usual one), then opens the office session. */
 export async function verifySecondFactor(deps: SignInDeps, factorId: string | null, rawCode: unknown, enrolling: boolean): Promise<SecondStep> {
@@ -131,13 +140,26 @@ export async function verifySecondFactor(deps: SignInDeps, factorId: string | nu
   return openSession(deps, enrolling);
 }
 
-/** After an authenticator code: starts the office session, joining from an invite if there is one. */
+/**
+ * After an authenticator code: checks the device (ADR 0069), then starts the
+ * office session, joining from an invite if there is one. A device that isn't
+ * trusted yet gets its approval code instead, and no session.
+ */
 export async function openSession(deps: SignInDeps, enrolled: boolean): Promise<SecondStep> {
   const claims = await deps.auth.claims();
   const first = claims ? firstFactorAt(claims.amr) : null;
   if (!claims || claims.aal !== "aal2" || !claims.session_id || !first) return { status: "sign_in" };
   const actor = { userId: claims.sub, sessionId: claims.session_id };
   if (enrolled) await deps.store.noteEnrollment(actor, deps.meta);
+
+  if (!deps.device) return { status: "error", message: DEVICE_CHECK_FAILED };
+  const device = await deps.store.checkDevice(claims.sub, deps.device, deps.office.ownerEmail, deps.meta);
+  if (!device.ok) return { status: "error", message: DEVICE_CHECK_FAILED };
+  if (device.value.status === "not_staff") {
+    await deps.auth.signOut();
+    return { status: "not_staff" };
+  }
+  if (device.value.status === "pending") return device.value.code ? { status: "device", code: device.value.code } : { status: "error", message: DEVICE_CHECK_FAILED };
 
   const begun = await deps.store.beginSession(actor, first, deps.meta, deps.office.ownerEmail);
   if (!begun.ok) return { status: "error", message: "The office session couldn't start. Sign in again." };

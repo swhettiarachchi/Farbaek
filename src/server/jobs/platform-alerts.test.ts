@@ -86,10 +86,12 @@ describe("platform alerts", () => {
 });
 
 describe("where alerts go", () => {
-  it("uses ALERT_EMAIL when it's a plain address, and hello@ otherwise", () => {
-    expect(alertEmail(() => "ops@farbaek.com")).toBe("ops@farbaek.com");
-    expect(alertEmail(() => undefined)).toBe("hello@farbaek.com");
-    expect(alertEmail(() => "not an address")).toBe("hello@farbaek.com");
-    expect(alertEmail(() => "a@b.com\r\nBcc: x@y.com")).toBe("hello@farbaek.com");
+  it("uses ALERT_EMAIL, then Office Space's owner, then hello@, plain addresses only", () => {
+    const env = (vars: Record<string, string>) => (name: string) => vars[name];
+    expect(alertEmail(env({ ALERT_EMAIL: "ops@farbaek.com", OFFICE_OWNER_EMAIL: "info@farbaek.com" }))).toBe("ops@farbaek.com");
+    expect(alertEmail(env({ OFFICE_OWNER_EMAIL: "info@farbaek.com" }))).toBe("info@farbaek.com");
+    expect(alertEmail(env({ ALERT_EMAIL: "not an address", OFFICE_OWNER_EMAIL: "info@farbaek.com" }))).toBe("info@farbaek.com");
+    expect(alertEmail(env({}))).toBe("hello@farbaek.com");
+    expect(alertEmail(env({ ALERT_EMAIL: "a@b.com\r\nBcc: x@y.com" }))).toBe("hello@farbaek.com");
   });
 });

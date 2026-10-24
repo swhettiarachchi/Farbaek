@@ -45,6 +45,10 @@ export const OFFICE_ERROR_CODES = [
   "TRIAL_LIMIT",
   "THREAD_MISSING",
   "INVALID_SUPPORT",
+  "INVALID_DEVICE",
+  "DEVICE_NOT_TRUSTED",
+  "DEVICE_NOT_WAITING",
+  "DEVICE_NOT_FOUND",
   "UNEXPECTED_RESPONSE",
   "UNKNOWN",
 ] as const;
@@ -85,6 +89,10 @@ export const OFFICE_MESSAGES: Record<OfficeErrorCode, string> = {
   TRIAL_LIMIT: "A trial can't run past 44 days from its start. Choose fewer days.",
   THREAD_MISSING: "That support request no longer exists.",
   INVALID_SUPPORT: "Write a reply of up to 4,000 characters.",
+  INVALID_DEVICE: "This browser's device key is missing. Reload the page and sign in again.",
+  DEVICE_NOT_TRUSTED: "Approve devices from one you already trust.",
+  DEVICE_NOT_WAITING: "That device isn't waiting any more. On it, sign in again for a new code.",
+  DEVICE_NOT_FOUND: "That device isn't on your list any more.",
   UNEXPECTED_RESPONSE: "The database sent something unexpected. Nothing was changed.",
   UNKNOWN: "That didn't work, and nothing was changed. Try again in a moment.",
 };
@@ -149,6 +157,44 @@ export interface StaffStore {
   // Phase 4 (migration v23)
   supportReply(actor: StaffActor, input: { threadId: string; body: string; internal: boolean }, meta: RequestMeta): Promise<StoreResult<null>>;
   supportUpdate(actor: StaffActor, input: { threadId: string; action: "assign_me" | "unassign" | "close" | "reopen" }, meta: RequestMeta): Promise<StoreResult<null>>;
+  // Trusted devices (migration v41)
+  checkDevice(userId: string, device: { hash: string; label: string }, bootstrapEmail: string | null, meta: RequestMeta): Promise<StoreResult<DeviceCheck>>;
+  deviceTrusted(userId: string, hash: string): Promise<boolean>;
+  listDevices(userId: string): Promise<StoreResult<StaffDevice[]>>;
+  approveDevice(actor: StaffActor, input: { fromHash: string; deviceId: string; code: string }, strength: AuthStrength, meta: RequestMeta): Promise<StoreResult<{ ok: boolean; tries_left?: number }>>;
+  revokeDevice(actor: StaffActor, deviceId: string, meta: RequestMeta): Promise<StoreResult<null>>;
+}
+
+const DeviceCheckSchema = z.object({
+  status: z.enum(["trusted", "pending", "not_staff"]),
+  device: z.string().uuid().optional(),
+  code: z.string().regex(/^\d{6}$/).optional(),
+  first: z.boolean().optional(),
+});
+export type DeviceCheck = z.infer<typeof DeviceCheckSchema>;
+
+const DeviceRow = z.object({
+  id: z.string().uuid(),
+  token_hash: z.string(),
+  label: z.string(),
+  requested_at: z.string(),
+  approved_at: z.string().nullable(),
+  approved_via: z.string().nullable(),
+  revoked_at: z.string().nullable(),
+  last_seen_at: z.string(),
+  request_code: z.string().nullable(),
+});
+
+/** A device as the person's own Security page shows it. The waiting code never leaves the server. */
+export interface StaffDevice {
+  id: string;
+  tokenHash: string;
+  label: string;
+  state: "trusted" | "waiting" | "removed";
+  requestedAt: string;
+  approvedAt: string | null;
+  approvedVia: "first_device" | "approved" | null;
+  lastSeenAt: string;
 }
 
 export function createStaffStore(admin: SupabaseClient): StaffStore {
@@ -231,5 +277,41 @@ export function createStaffStore(admin: SupabaseClient): StaffStore {
         { p_actor: a.userId, p_session: a.sessionId, p_through_seq: c.throughSeq, p_head_hash: c.headHash, p_ok: c.ok, p_first_bad_seq: c.firstBadSeq },
         nothing,
       ),
+    checkDevice: (userId, device, bootstrapEmail, meta) =>
+      rpc("app_staff_check_device", { p_user: userId, p_token_hash: device.hash, p_label: device.label, p_bootstrap_email: bootstrapEmail, ...m(meta) }, DeviceCheckSchema),
+    async deviceTrusted(userId, hash) {
+      const r = await rpc("app_staff_device_trusted", { p_user: userId, p_token_hash: hash }, z.boolean());
+      // Fails closed: a device the database can't vouch for isn't trusted.
+      return r.ok && r.value;
+    },
+    async listDevices(userId) {
+      const { data, error } = await admin.from("staff_devices").select("id, token_hash, label, requested_at, approved_at, approved_via, revoked_at, last_seen_at, request_code").eq("user_id", userId).order("requested_at", { ascending: false }).limit(50);
+      if (error) return { ok: false, code: officeCodeFromDatabaseError(error.message) };
+      const rows = z.array(DeviceRow).safeParse(data);
+      if (!rows.success) return { ok: false, code: "UNEXPECTED_RESPONSE" };
+      return {
+        ok: true,
+        value: rows.data
+          // A cancelled request (five wrong codes) has no code left and nothing to approve: it's not shown.
+          .filter((d) => d.approved_at || d.revoked_at || d.request_code)
+          .map((d) => ({
+            id: d.id,
+            tokenHash: d.token_hash,
+            label: d.label,
+            state: d.revoked_at ? "removed" : d.approved_at ? "trusted" : "waiting",
+            requestedAt: d.requested_at,
+            approvedAt: d.approved_at,
+            approvedVia: d.approved_via === "first_device" || d.approved_via === "approved" ? d.approved_via : null,
+            lastSeenAt: d.last_seen_at,
+          })),
+      };
+    },
+    approveDevice: (a, i, strength, meta) =>
+      rpc(
+        "app_staff_approve_device",
+        { p_actor: a.userId, p_session: a.sessionId, p_from_token_hash: i.fromHash, p_device: i.deviceId, p_code: i.code, p_auth_strength: strength, ...m(meta) },
+        z.object({ ok: z.boolean(), tries_left: z.number().optional() }),
+      ),
+    revokeDevice: (a, deviceId, meta) => rpc("app_staff_revoke_device", { p_actor: a.userId, p_session: a.sessionId, p_device: deviceId, ...m(meta) }, nothing),
   };
 }

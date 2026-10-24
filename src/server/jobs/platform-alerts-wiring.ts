@@ -16,10 +16,17 @@ import type { PlatformAlertDeps } from "./platform-alerts";
 const KINDS: readonly SpendAlertKind[] = ["ai_spend_80", "ai_spend_100"];
 const Recorded = z.array(z.object({ kind: z.string(), status: z.string(), attempts: z.number() }));
 
-/** Where alerts go: ALERT_EMAIL when it's a plain address, otherwise hello@. */
+/**
+ * Where alerts go: ALERT_EMAIL, else Office Space's owner (OFFICE_OWNER_EMAIL,
+ * the inbox the person running Farbaek reads), else hello@. Only plain
+ * addresses count.
+ */
 export function alertEmail(read: (name: string) => string | undefined = (name) => process.env[name]): string {
-  const value = read("ALERT_EMAIL")?.trim();
-  return value && isPlainAddress(value) ? value : CONTACT.hello;
+  for (const name of ["ALERT_EMAIL", "OFFICE_OWNER_EMAIL"]) {
+    const value = read(name)?.trim();
+    if (value && isPlainAddress(value)) return value;
+  }
+  return CONTACT.hello;
 }
 
 export function platformAlertDeps(): PlatformAlertDeps | null {
