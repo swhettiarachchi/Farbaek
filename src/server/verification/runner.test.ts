@@ -26,7 +26,7 @@ const contract: IntentContract = {
 
 const execution = (exitCode: number | null, state: ExecutionRecord["state"] = exitCode === 0 ? "succeeded" : "failed") => ({ exitCode, state }) as ExecutionRecord;
 
-function fakes(over: { files?: string[]; registries?: boolean; createFails?: string; setupExit?: number | null; setupState?: ExecutionRecord["state"]; checks?: string; checksFail?: string; state?: TaskState; checksList?: string[]; running?: boolean; writeFails?: string } = {}) {
+function fakes(over: { files?: string[]; registries?: boolean; createFails?: string; setupExit?: number | null; setupState?: ExecutionRecord["state"]; checks?: string; checksFail?: string; state?: TaskState; checksList?: string[]; running?: boolean; writeFails?: string; manifest?: string } = {}) {
   const calls: string[] = [];
   const finished: Parameters<VerificationStore["finish"]>[0][] = [];
   const store: VerificationStore = {
@@ -52,7 +52,7 @@ function fakes(over: { files?: string[]; registries?: boolean; createFails?: str
       loadTask: async () => ({ id: "t1", title: "Fix the cart total", projectId: "p1", state: over.state ?? "VERIFYING", version: 7 }),
       approvedContract: async () => ({ version: 1, sha256: "c".repeat(64), body: { ...contract, requiredChecks: over.checksList ?? contract.requiredChecks } }),
       projectFiles: async () => files.map((path) => ({ path, revision: 1, sha256: "e".repeat(64), sizeBytes: 10 })),
-      fileContents: async () => new Map([["package.json", '{"scripts":{"test":"node test.js"}}']]),
+      fileContents: async () => new Map([["package.json", over.manifest ?? '{"scripts":{"test":"node test.js"}}']]),
     },
     sandbox: { service, actor: { orgId: "o1", userId: "u-alice" } },
     newKey: () => "k",
@@ -67,15 +67,17 @@ describe("startTaskVerification", () => {
     expect(await startTaskVerification(fakes().deps, { ...alice, role: "viewer" }, "t1", "person")).toMatchObject({ ok: false, code: "FORBIDDEN" });
     expect(await startTaskVerification({ ...fakes().deps, sandbox: { unavailable: "No verified sandbox is connected." } }, alice, "t1", "person")).toMatchObject({ ok: false, message: "No verified sandbox is connected." });
     expect(await startTaskVerification(fakes({ state: "APPROVAL_PENDING" }).deps, alice, "t1", "person")).toMatchObject({ ok: false, message: expect.stringMatching(/waiting for its checks/) });
-    expect(await startTaskVerification(fakes({ checksList: [] }).deps, alice, "t1", "person")).toMatchObject({ ok: false, message: expect.stringMatching(/no checks/) });
+    expect(await startTaskVerification(fakes({ checksList: [], files: ["notes.txt"] }).deps, alice, "t1", "person")).toMatchObject({ ok: false, message: expect.stringMatching(/no checks/) });
     expect(await startTaskVerification(fakes({ running: true }).deps, alice, "t1", "person")).toMatchObject({ ok: false, message: "The checks are already running for this change." });
   });
 
-  it("verifies a static site whose plan lists no checks with Farbaek's site check (ADR 0054)", async () => {
+  it("verifies a plan with no checks: the site check for a static site, the app's own for an app (ADR 0054, ADR 0058)", async () => {
     const f = fakes({ checksList: [], files: ["index.html", "styles.css"] });
     expect(await startTaskVerification(f.deps, alice, "t1", "person")).toEqual({ ok: true, value: { verificationId: "v1" } });
-    // A project with things to install and no checks still has nothing to run.
-    expect(await startTaskVerification(fakes({ checksList: [], files: ["index.html", "package.json"] }).deps, alice, "t1", "person")).toMatchObject({ ok: false, message: expect.stringMatching(/no checks/) });
+    // An app with a build or real tests runs them.
+    expect(await startTaskVerification(fakes({ checksList: [], manifest: '{"scripts":{"build":"next build"}}' }).deps, alice, "t1", "person")).toEqual({ ok: true, value: { verificationId: "v1" } });
+    // An app with neither still has nothing to run.
+    expect(await startTaskVerification(fakes({ checksList: [], files: ["index.html", "package.json"], manifest: '{"scripts":{"start":"node server.js"}}' }).deps, alice, "t1", "person")).toMatchObject({ ok: false, message: expect.stringMatching(/no checks/) });
   });
 
   it("records the attempt and runs it in the background", async () => {

@@ -18,7 +18,7 @@ import { RecoveryPanel } from "@/components/recovery/recovery-panel";
 import { RecoveryRecordCard } from "@/components/recovery/recovery-record";
 import { checkFeature } from "@/core/billing/entitlements";
 import { RECOVERABLE_STATES } from "@/core/realityloop/recovery";
-import { checksToRun } from "@/core/realityloop/site-check";
+import { checksToRun, fallbackChecksWords } from "@/core/realityloop/app-check";
 import { RECOVERY_NOT_IN_PLAN, previewRecovery } from "@/server/workspace/recovery";
 import { Card, TaskStateBadge } from "@/components/app/primitives";
 import { LiveRefresh } from "@/components/app/live-refresh";
@@ -119,11 +119,14 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
         ? "Not verified: its checks didn't run before the undo started. See Recovery below."
         : undefined;
 
-  // What a verification runs: the plan's checks, or Farbaek's site check for a static site whose plan lists none (ADR 0054).
+  // What a verification runs: the plan's checks, or when it lists none, Farbaek's site check for a static site or the app's own build and tests (ADR 0054, ADR 0058).
   const planChecks = contract?.body.requiredChecks ?? [];
-  const checksForRun = checksToRun(planChecks, projectFiles.map((f) => f.path));
+  const manifest =
+    task.state === "VERIFYING" && planChecks.length === 0 && projectFiles.some((f) => f.path === "package.json") ? await ctx.reader.getFile(orgId, task.projectId, "package.json") : null;
+  const checksForRun = checksToRun(planChecks, projectFiles.map((f) => f.path), (p) => (p === "package.json" ? (manifest?.content ?? null) : null));
   const requiredChecks = checksForRun.length;
-  const siteCheck = planChecks.length === 0 && requiredChecks > 0;
+  const fallback = planChecks.length === 0 && requiredChecks > 0 ? fallbackChecksWords(checksForRun) : null;
+  const siteCheck = fallback?.kind === "site";
   const checking = verification !== null && verificationState(verification, new Date(renderedAt)) === "running";
   const verifyReason =
     writeReason ??
@@ -272,6 +275,12 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
                       The plan lists no checks, so Farbaek checks the site itself: every page&apos;s links, scripts, styles and images lead to files in the project, each page
                       has a title, a language and a phone viewport, and images have alt text. It runs in a fresh sandbox against exactly the applied files, and the task is
                       marked verified only if nothing is wrong. It uses sandbox time from your plan.
+                    </p>
+                  ) : fallback ? (
+                    <p className="max-w-[65ch] text-sm text-ink-2">
+                      {fallback.text} A fresh sandbox gets exactly the applied files, installs the packages without running their install scripts, runs{" "}
+                      {requiredChecks === 1 ? "it" : "them"} and stops. The task is marked verified only when every one passes, and the run leaves a receipt below. It uses
+                      sandbox time from your plan.
                     </p>
                   ) : (
                     <p className="max-w-[65ch] text-sm text-ink-2">

@@ -15,12 +15,19 @@ export type NetworkProfile = (typeof NETWORK_PROFILES)[number];
 
 export const ALL_TRAFFIC = "0.0.0.0/0";
 
-/** Package registries only. Anything else (GitHub, APIs, CDNs) needs a reviewed profile change. */
+/**
+ * Package registries, and the Google Fonts CDN that `next/font/google`
+ * downloads from while an app builds (ADR 0058): without it a correct Next.js
+ * app fails its own build check. Both font hosts are public and read-only.
+ * Anything else (GitHub, APIs, other CDNs) needs a reviewed profile change.
+ */
 export const REGISTRY_HOSTS: readonly string[] = [
   "registry.npmjs.org",
   "registry.yarnpkg.com",
   "pypi.org",
   "files.pythonhosted.org",
+  "fonts.googleapis.com",
+  "fonts.gstatic.com",
 ];
 
 /** Always denied, whatever the profile: loopback, private, link-local (cloud metadata), CGNAT and multicast. */
@@ -51,7 +58,7 @@ export function egressRules(profile: NetworkProfile): EgressRules {
 export const NETWORK_PROFILE_LABELS: Record<NetworkProfile, { title: string; detail: string }> = {
   none: { title: "No network", detail: "Nothing inside the sandbox can reach the internet. Best for running code you already have." },
   package_registries: {
-    title: "Package registries only",
+    title: "Package registries and fonts",
     detail: `Installs from ${REGISTRY_HOSTS.join(", ")}. Every other address is blocked.`,
   },
 };

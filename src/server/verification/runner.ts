@@ -12,7 +12,7 @@
  * instead, before the sandbox stops (verifyInRunSession).
  */
 import { templateFor } from "@/core/agent/cloud-run";
-import { checksToRun } from "@/core/realityloop/site-check";
+import { checksToRun } from "@/core/realityloop/app-check";
 import { verificationSetup, type VerificationResult, type VerificationTrigger } from "@/core/realityloop/verification";
 import type { AgentStore } from "@/server/agent/service";
 import { log } from "@/server/observability/log";
@@ -53,10 +53,12 @@ export async function startTaskVerification(deps: VerificationDeps, person: Veri
   if (task.state !== "VERIFYING") return fail("INVALID_TRANSITION", "Only an applied change that's waiting for its checks can be verified.");
   const contract = await deps.checks.approvedContract(person.orgId, taskId);
   if (!contract) return fail("INVALID_TRANSITION", "The approved contract lists no checks to run.");
-  // A static site with no checks in its plan runs Farbaek's site check instead (ADR 0054).
+  // A plan with no checks runs Farbaek's site check for a static site, or the app's own build and tests (ADR 0054, ADR 0058).
   if (contract.body.requiredChecks.length === 0) {
-    const paths = (await deps.checks.projectFiles(person.orgId, task.projectId)).map((f) => f.path);
-    if (checksToRun([], paths).length === 0) return fail("INVALID_TRANSITION", "The approved contract lists no checks to run.");
+    const files = await deps.checks.projectFiles(person.orgId, task.projectId);
+    const manifests = files.filter((f) => f.path === "package.json");
+    const contents = manifests.length ? await deps.checks.fileContents(person.orgId, task.projectId, manifests) : new Map<string, string>();
+    if (checksToRun([], files.map((f) => f.path), (p) => contents.get(p) ?? null).length === 0) return fail("INVALID_TRANSITION", "The approved contract lists no checks to run.");
   }
 
   const started = await deps.store.start({ orgId: person.orgId, actor: person.userId, taskId, trigger });

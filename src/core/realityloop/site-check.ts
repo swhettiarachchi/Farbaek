@@ -121,12 +121,4 @@ export function isStaticSite(paths: readonly string[]): boolean {
   return paths.includes("index.html") && !paths.includes("package.json") && !paths.includes("requirements.txt") && !paths.includes("pyproject.toml");
 }
 
-/**
- * The checks a verification runs: the plan's own, or, when it lists none and
- * the project is a static site, Farbaek's site check, so a plain site's change
- * can still be verified. Anything else with no checks has none to run.
- */
-export function checksToRun(planChecks: readonly string[], paths: readonly string[]): string[] {
-  if (planChecks.length > 0) return [...planChecks];
-  return isStaticSite(paths) ? [SITE_CHECK_COMMAND] : [];
-}
+// What a verification runs when the plan lists no checks is chosen in app-check.ts (checksToRun).

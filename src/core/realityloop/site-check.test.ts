@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { checkSite, checksToRun, isStaticSite, SITE_CHECK_PATH } from "./site-check";
+import { checkSite, isStaticSite, SITE_CHECK_PATH } from "./site-check";
 import { SITE_CHECK_SCRIPT } from "./site-check-script";
 
 const page = (body: string, head = '<meta name="viewport" content="width=device-width, initial-scale=1"><title>Bakery</title>') =>
@@ -101,13 +101,5 @@ describe("the site check script", () => {
     expect(r.stdout).toContain('- index.html: the link to "gone.html" isn\'t in the project.');
     expect(r.stdout).toContain("Checked 1 pages: 1 to fix.");
     expect(r.status).toBe(1);
-  });
-});
-
-describe("checksToRun", () => {
-  it("runs the plan's checks when it has any, and the site check for a static site with none", () => {
-    expect(checksToRun(["pnpm test"], ["index.html"])).toEqual(["pnpm test"]);
-    expect(checksToRun([], ["index.html", "styles.css"])).toEqual(["farbaek check-site"]);
-    expect(checksToRun([], ["package.json", "index.html"])).toEqual([]);
   });
 });

@@ -14,10 +14,13 @@ import { checkSite } from "../src/core/realityloop/site-check.ts";
 
 const OUT = fileURLToPath(new URL("../src/core/realityloop/site-check-script.ts", import.meta.url));
 
+// Unix line endings, so a Windows checkout (CRLF) and the Linux server generate the same script.
+const source = checkSite.toString().replace(/\r\n/g, "\n");
+
 const script = `// Farbaek's site check (ADR 0054). Written by Farbaek for this check run; not part of the project.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-const checkSite = ${checkSite.toString()};
+const checkSite = ${source};
 const paths = [];
 const walk = (dir, prefix) => {
   for (const name of readdirSync(dir)) {

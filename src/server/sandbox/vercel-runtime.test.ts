@@ -170,7 +170,7 @@ describe("network policy", () => {
 
   it("allows only the registries and still denies private and metadata ranges", () => {
     const policy = networkPolicyFor(egressRules("package_registries"));
-    expect(policy).toMatchObject({ allow: ["registry.npmjs.org", "registry.yarnpkg.com", "pypi.org", "files.pythonhosted.org"] });
+    expect(policy).toMatchObject({ allow: ["registry.npmjs.org", "registry.yarnpkg.com", "pypi.org", "files.pythonhosted.org", "fonts.googleapis.com", "fonts.gstatic.com"] });
     const deny = (policy as { subnets: { deny: string[] } }).subnets.deny;
     expect(deny).toContain("169.254.0.0/16");
     expect(deny).toContain("10.0.0.0/8");

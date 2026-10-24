@@ -94,7 +94,10 @@ describe("network policy", () => {
     const reg = egressRules("package_registries");
     expect(egressAllows(reg, { host: "registry.npmjs.org" })).toBe(true);
     expect(egressAllows(reg, { host: "pypi.org" })).toBe(true);
+    // next/font/google downloads fonts while an app builds (ADR 0058).
+    expect(egressAllows(reg, { host: "fonts.gstatic.com" })).toBe(true);
     expect(egressAllows(reg, { host: "github.com" })).toBe(false);
+    expect(egressAllows(reg, { host: "www.googleapis.com" })).toBe(false);
     expect(egressAllows(reg, { host: "evil.registry.npmjs.org.attacker.test" })).toBe(false);
     expect(egressAllows(reg, { ip: "169.254.169.254" })).toBe(false);
     expect(egressAllows(reg, { ip: "10.0.0.5" })).toBe(false);

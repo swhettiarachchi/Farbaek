@@ -17,7 +17,7 @@ import { createSupabaseReader } from "@/server/workspace/supabase-reader";
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
 import { ORG_ROLES, type OrgRole } from "@/server/workspace/types";
 import type { ProofPackStatement } from "@/core/proof/proofpack";
-import { checksToRun } from "@/core/realityloop/site-check";
+import { checksToRun } from "@/core/realityloop/app-check";
 import { resolveSandboxRuntime } from "./registry";
 import { createSandboxService, type SandboxActor, type SandboxService, type TaskBridge } from "./service";
 import { createSupabaseSandboxStore } from "./supabase-store";
@@ -41,11 +41,13 @@ function taskBridge(user: SupabaseClient, admin: SupabaseClient | null, userId: 
     async requiredChecks(orgId, taskId) {
       const contract = await reader.getContract(orgId, taskId);
       if (!contract || contract.status !== "approved") return null;
-      // A static site whose plan lists no checks gets Farbaek's site check (ADR 0054).
+      // A plan with no checks gets Farbaek's site check for a static site, or the app's own build and tests (ADR 0054, ADR 0058).
       if (contract.body.requiredChecks.length > 0) return contract.body.requiredChecks;
       const task = await reader.getTask(orgId, taskId);
-      const paths = task ? (await reader.listFiles(orgId, task.task.projectId)).map((f) => f.path) : [];
-      return checksToRun([], paths);
+      if (!task) return [];
+      const paths = (await reader.listFiles(orgId, task.task.projectId)).map((f) => f.path);
+      const manifest = paths.includes("package.json") ? await reader.getFile(orgId, task.task.projectId, "package.json") : null;
+      return checksToRun([], paths, (p) => (p === "package.json" ? (manifest?.content ?? null) : null));
     },
     async appliedProofPack(orgId, taskId) {
       // Newest first; the change's own ProofPack is the newest one that isn't a verification record.
