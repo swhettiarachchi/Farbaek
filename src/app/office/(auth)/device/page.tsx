@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { deviceLabel } from "@/core/office/devices";
 import { firstFactorAt } from "@/core/office/session-policy";
-import { getStaff, officeClients } from "@/server/office/access";
+import { officeClients } from "@/server/office/access";
 import { currentDeviceHash } from "@/server/office/devices";
 import { requestMeta } from "@/server/office/request-meta";
 import { officeAuth } from "@/server/office/supabase-auth";
@@ -16,10 +16,12 @@ export const metadata: Metadata = { title: "Approve this device" };
  * A device that isn't trusted yet (ADR 0069). After both codes, it shows the
  * code that only this device ever shows; approving it from a trusted device
  * lets this one in.
+ *
+ * It never calls getStaff(): that ends any sign-in without an office session,
+ * and a device waiting for approval has none yet, so the phone was sent back
+ * to the sign-in page (tests/design/office-device-page.test.ts).
  */
 export default async function OfficeDevice() {
-  const r = await getStaff();
-  if (r.ok) redirect("/");
   const clients = await officeClients();
   if (!clients) redirect("/sign-in");
   const claims = await officeAuth(clients.client).claims();
@@ -33,6 +35,11 @@ export default async function OfficeDevice() {
   if (check?.ok && check.value.status === "not_staff") redirect("/not-staff");
   const code = check?.ok && check.value.status === "pending" ? check.value.code : null;
   const trusted = check?.ok && check.value.status === "trusted";
+  // Already in on this device: straight to the console.
+  if (trusted && claims.session_id) {
+    const session = await clients.store.checkSession({ userId: claims.sub, sessionId: claims.session_id });
+    if (session.ok && session.value.status === "active") redirect("/");
+  }
 
   return (
     <div className="grid gap-6">
