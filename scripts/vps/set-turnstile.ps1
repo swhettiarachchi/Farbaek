@@ -17,8 +17,12 @@
 # To switch it off again (Auth first, then the page):
 #
 #   powershell -ExecutionPolicy Bypass -File "C:\Users\INTEL\Documents\FarBaek\scripts\vps\set-turnstile.ps1" -Off
+#
+# The site key is public, so it can be given up front with -SiteKey 0x...;
+# then only the secret is asked for.
 param(
   [switch]$Off,
+  [string]$SiteKey = "",
   [string]$Server = "2.25.88.188",
   [string]$Key = "$HOME\.ssh\farbaek_vps"
 )
@@ -43,7 +47,7 @@ if ($Off) {
   exit 0
 }
 
-$site = (Read-Host -Prompt "Turnstile site key (public, starts with 0x)").Trim()
+$site = if ($SiteKey) { $SiteKey.Trim() } else { (Read-Host -Prompt "Turnstile site key (public, starts with 0x)").Trim() }
 if ($site -notmatch '^[0-9A-Za-z_-]{10,100}$') { Write-Host "That doesn't look like a site key, so nothing changed." -ForegroundColor Red; exit 1 }
 
 $secure = Read-Host -AsSecureString -Prompt "Turnstile secret key"

@@ -36,6 +36,11 @@ export const SUBPROCESSORS = [
   { name: "Google", purpose: "AI models (Gemini), when the server uses them instead of Claude, on a paid account only", data: "Prompts, chosen file contents, AI output", where: "United States" },
   { name: "Vercel", purpose: "Isolated sandboxes that run your project's checks and builds", data: "Project files, commands and their output", where: "United States" },
   { name: "Hostinger", purpose: "The server for the app, database, sign-in and backups, and DNS for farbaek.si", data: "Everything Farbaek stores", where: "United States" },
-  { name: "Cloudflare", purpose: "Turnstile, the check at sign-in that tells people from bots, once it's switched on", data: "Your IP address and signals from your browser, while you sign in", where: "Its worldwide network; a United States company" },
+  {
+    name: "Cloudflare",
+    purpose: "Turnstile, the check at sign-in that tells people from bots, and R2, which keeps a copy of each nightly backup away from our server, each once it's switched on",
+    data: "For sign-in, your IP address and signals from your browser; for backups, everything Farbaek stores, deleted after the same 14 days",
+    where: "Its worldwide network; a United States company",
+  },
   { name: "Spaceship (Spacemail)", purpose: "Sending sign-in links and the emails you choose to get, and DNS for farbaek.com", data: "Your email address and the email's content", where: "A United States company; we're confirming where its mail servers are" },
 ] as const;
