@@ -89,12 +89,14 @@ healthy() {
 }
 
 # Keeps the running image and the one before it; removes older Farbaek images.
+# Build cache is capped at 10 GB, newest kept: each build adds about 3.5 GB,
+# and a week of it (the old rule) filled 81% of the disk on 2026-10-24.
 prune() {
   local keep_a="farbaek-app:$1" keep_b="farbaek-app:${2:-none}" image
   for image in $(docker images farbaek-app --format '{{.Repository}}:{{.Tag}}'); do
     [ "$image" = "$keep_a" ] || [ "$image" = "$keep_b" ] || docker rmi "$image" >/dev/null 2>&1 || true
   done
-  docker builder prune -f --filter until=168h >/dev/null 2>&1 || true
+  docker builder prune -f --max-used-space 10GB >/dev/null 2>&1 || docker builder prune -f --filter until=24h >/dev/null 2>&1 || true
 }
 
 log() { echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $*" | tee -a "$LOG"; }

@@ -119,10 +119,17 @@ ESLint forbids `src/core` from importing React, Next, Motion or UI code, so ever
 
 ### Integrations
 
-- **Supabase** (auth and database): connected to the hosted project. The app reads it once `.env.local` exists (`pnpm setup:env`).
+- **Hosting:** the owner's Hostinger VPS in Boston, behind Caddy, at www.farbaek.com and farbaek.si, deploying itself from `main` (ADR 0035).
+- **Supabase** (auth and database): self-hosted on the same server (ADR 0036). The app reads it once `.env.local` exists (`pnpm setup:env`).
 - **AI providers** (contract drafting and change proposals): Claude (`ANTHROPIC_API_KEY`) and Gemini (`GEMINI_API_KEY`, ADR 0014). Code is in place for both; each runs only when its key is set on the server, and usage is billed to that key. Claude is used when both are set unless `AI_PROVIDER` says otherwise.
-- **Sandbox runtime**: Vercel Sandbox (Hobby, free and hard-capped), verified with pnpm sandbox:smoke on 2026-10-17 (ADR 0016). E2B stays available.
-- Not connected: hosting and a domain, email (invitations use a one-time link meanwhile), payments. `.env.example` lists every variable name and what reads it.
+- **Sandbox runtime**: Vercel Sandbox, connected in production on 2026-10-24 and its isolation proven with `pnpm sandbox:smoke` (ADR 0016). E2B stays available.
+- **Email:** Spacemail over SMTP, on in production since 2026-10-24 (ADR 0060).
+- **Not connected:**
+  - payments;
+  - Cloudflare Turnstile (waiting for the owner's widget, ADR 0067);
+  - off-server backup copies (waiting for an R2 bucket).
+
+  `.env.example` lists every variable name and what reads it.
 
 ## 3. Data model and auth boundaries
 
