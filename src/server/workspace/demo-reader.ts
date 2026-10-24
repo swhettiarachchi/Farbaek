@@ -134,6 +134,7 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
           name: "Harbour Lane Studio",
           plan: resolveEffectivePlan({ state: "trialing", trial: window }, now),
           trial: { startedAt: window.startedAt.toISOString(), endsAt: window.endsAt.toISOString(), phase: trialPhase(window, now) },
+          trialWithheld: null,
           billingUnknown: false,
           suspension: null,
         },

@@ -7,6 +7,7 @@
  * There is no silent switch between vendors mid-request: project data only
  * goes to the provider this resolves to.
  */
+import { USD_PER_UNIT } from "@/core/billing/rate-card";
 import { platformPause } from "@/server/platform/state";
 
 export type AiProviderId = "anthropic" | "gemini";
@@ -33,6 +34,22 @@ export function hasGeminiKey(): boolean {
 export function geminiModel(): string {
   const m = env("GEMINI_MODEL");
   return m && /^[a-z0-9][a-z0-9.-]{2,60}$/.test(m) ? m : DEFAULT_GEMINI_MODEL;
+}
+
+/** The whole platform's AI spend for one UTC day when AI_DAILY_LIMIT_USD isn't set (ADR 0065). */
+export const DEFAULT_AI_DAILY_LIMIT_USD = 20;
+
+/**
+ * Today's platform-wide AI limit in units, passed to every reservation (ADR
+ * 0065), or null when AI_DAILY_LIMIT_USD is "off". A cap on what free trials
+ * and any bug can spend from Farbaek's own keys in a day.
+ */
+export function platformDailyAiUnits(read: (name: string) => string | null = env): number | null {
+  const raw = read("AI_DAILY_LIMIT_USD")?.toLowerCase() ?? null;
+  if (raw === "off") return null;
+  const usd = raw === null ? DEFAULT_AI_DAILY_LIMIT_USD : Number(raw);
+  const safe = Number.isFinite(usd) && usd > 0 ? Math.min(usd, 100_000) : DEFAULT_AI_DAILY_LIMIT_USD;
+  return Math.floor(safe / USD_PER_UNIT);
 }
 
 export type AiProviderResolution = { provider: AiProviderId; label: string } | { provider: null; reason: string };

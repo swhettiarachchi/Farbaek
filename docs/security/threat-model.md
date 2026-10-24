@@ -201,3 +201,13 @@ Known limits: the scheduler's secret is shared with the sandbox sweep. "Accepted
 | Repeat trials | Deleting and re-creating an account, or +tag and dotted Gmail variants, for another free trial | `trial_claims` holds a SHA-256 of the normalised address, claimed before the trial starts; nobody but the server can read it | `tests/db/people-and-accounts.test.ts` |
 
 Known limits: other email providers' aliasing schemes aren't normalised; disposable addresses are the next stage.
+
+## Launch guards (2026-10-24, ADR 0065)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| Trials | Farming free trials with throwaway addresses | `create_organization` gives no trial to a disposable domain or its subdomains (CC0 list, pinned); one trial per normalised address (ADR 0064) | `tests/db/launch-guards.test.ts` |
+| The platform's AI spend | A burst of sign-ups, abuse or a bug spending Farbaek's keys without limit | Every reservation carries the day's platform limit; the database refuses past it under one lock, across all workspaces | `tests/db/launch-guards.test.ts`, `src/server/ai/config.test.ts` |
+| `/api/ready` | Leaking infrastructure details | Answers only ok, "unreachable" or "not configured", never hosts, keys or errors | Route review |
+
+Known limits: no CAPTCHA at sign-in yet (Turnstile needs the owner's Cloudflare widget); GoTrue's per-IP limits see the proxy's address until `GOTRUE_RATE_LIMIT_HEADER` is set.

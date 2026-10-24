@@ -45,7 +45,7 @@ describe("one free trial per email address", () => {
     await db.query("insert into auth.users (id, email, email_confirmed_at) values ($1, 'Carol+again@Example.test', now())", [again]);
     const second = await createOrg(db, again, "Carol Again");
     expect(await billing(second)).toBe("free");
-    expect(await q("select metadata from public.audit_events where org_id = $1 and action = 'organization.created'", [second])).toEqual([{ metadata: { trial_started: false } }]);
+    expect(await q("select metadata from public.audit_events where org_id = $1 and action = 'organization.created'", [second])).toEqual([{ metadata: { trial_started: false, trial_withheld: "address_used" } }]);
   });
 });
 

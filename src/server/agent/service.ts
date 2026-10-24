@@ -125,6 +125,8 @@ const STATUS: Partial<Record<AgentErrorCode, number>> = {
   ENTITLEMENT_UNAVAILABLE: 503,
   QUOTA_EXCEEDED: 402,
   TRIAL_CAP_REACHED: 402,
+  // The platform's daily AI limit (ADR 0065): retry tomorrow, not a client error.
+  PLATFORM_DAILY_LIMIT: 503,
   UNKNOWN: 500,
 };
 
