@@ -41,3 +41,19 @@ The second launch stage: limits on what free trials, and any bug, can spend from
   - catalog and trial tests updated for 2 sandbox hours.
 - **Full `pnpm test`:** 1,396 passed. The v37 test's audit expectation was updated for the new `trial_withheld` field. The mesh packing test timed out under load and passes on its own (a known flake).
 - **Checks:** `pnpm typecheck` and `pnpm lint` are clean.
+
+**Production database:**
+- v38 applied with the hash-verified pattern (`703ab19c…a0f63`);
+- read back:
+  - 9,927 domains loaded;
+  - `mailinator.com` counts as disposable and `gmail.com` doesn't;
+  - `app_reserve_usage` has the new argument, and only the server can call it;
+  - `billing_accounts.trial_withheld` exists.
+
+The live code's 7-argument reservation still resolves.
+
+### Next
+
+- Legal pages.
+- Turnstile at sign-in, once the owner has a widget.
+- Heartbeat pings for the timers, and encrypted off-site backups.
