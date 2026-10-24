@@ -76,6 +76,23 @@ The payload is the statement's canonical JSON, so its SHA-256 is the ProofPack's
 
 **Audits on `/verify`:** `qa:responsive` and `qa:a11y` found nothing.
 
+**The owner's key script:** its server part was run locally against a scratch settings file, with stand-ins for `farbaek-set-env` and `farbaek-deploy`, and fed Windows line endings as a CRLF checkout sends them.
+- The first run set the key and restarted.
+- The second run refused (exit 3) and left the key alone.
+- Other settings were untouched.
+- The key parsed as Ed25519 PKCS#8, the form the app reads. It was deleted after.
+
+**Production database:**
+- v34 applied before merging with the hash-verified pattern (`c632cc70…22c5ae`); the reader asks for signatures with each ProofPack, so the table must exist first;
+- read back:
+  - the table, with RLS on;
+  - the members-read policy;
+  - `authenticated` can only `SELECT`;
+  - `app_record_proofpack_signature` is executable by `service_role` only;
+  - the immutability trigger;
+  - no rows;
+- PostgREST reloaded its schema cache at 05:58:43 UTC.
+
 ### Not verified
 
 - **A real signed ProofPack in production.** It needs the owner to run `set-signing-key.ps1` after this merges, then one applied change. Until then the key list is empty and nothing is signed.
