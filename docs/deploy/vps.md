@@ -24,6 +24,7 @@ It's still one long-lived Node server with one replica, because agent runs live 
   - a commit that failed isn't retried until a newer one lands;
   - the log is `/var/log/farbaek/deploy.log`.
 - **Sandbox cleanup:** `farbaek-sweep.timer` calls `POST /api/internal/sandbox/sweep` every 15 minutes, from inside the app container, which already holds `SANDBOX_CRON_SECRET`.
+- **Hourly jobs (ADR 0063):** `farbaek-jobs.timer` calls `POST /api/internal/jobs/trial-reminders` the same way, every hour. It sends the trial reminders that are due and records each one in `trial_reminders`. Safe to run again: `sudo systemctl start farbaek-jobs`, then `journalctl -u farbaek-jobs -n 5`.
 - **Secrets:** they live only in `/opt/farbaek/env/production.env` (mode 600, owner `farbaek`).
   - The build reads that file as a secret mount, so the `NEXT_PUBLIC_*` values get inlined and nothing is written into a layer.
   - The running app gets it from compose's `env_file`.
@@ -37,7 +38,7 @@ It's still one long-lived Node server with one replica, because agent runs live 
 | `deploy/vps/caddy/Caddyfile` | Mounted read-only into Caddy; reloaded after every deploy |
 | `deploy/vps/production.env.example` | Copied once to `/opt/farbaek/env/production.env` |
 | `deploy/vps/systemd/*` | `/etc/systemd/system/` |
-| `scripts/vps/deploy.sh`, `sweep.sh` | `/usr/local/bin/farbaek-deploy`, `farbaek-sweep` |
+| `scripts/vps/deploy.sh`, `sweep.sh`, `jobs.sh` | `/usr/local/bin/farbaek-deploy`, `farbaek-sweep`, `farbaek-jobs` |
 | `scripts/vps/bootstrap.sh`, `install.sh` | Run by hand: the first setup, and after these files change |
 
 ## Setting up a server from nothing

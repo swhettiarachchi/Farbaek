@@ -70,10 +70,19 @@ export interface TrialReminder {
   dueAt: Date;
 }
 
+/**
+ * Days 7, 12 and 13 of a 14-day trial, and its end (spec, trial lifecycle).
+ * The reminders in the second half are anchored to the end, so when staff
+ * extend a trial (ADR 0032) "2 days left" still comes 2 days before it ends
+ * (ADR 0063). For a 14-day trial both readings are the same instant.
+ */
 export function trialReminderSchedule(window: TrialWindow): TrialReminder[] {
   const reminders: TrialReminder[] = TRIAL.reminderDays.map((day) => ({
     kind: `day_${day}` as TrialReminderKind,
-    dueAt: new Date(window.startedAt.getTime() + day * DAY_MS),
+    dueAt:
+      day * 2 <= TRIAL.lengthDays
+        ? new Date(window.startedAt.getTime() + day * DAY_MS)
+        : new Date(window.endsAt.getTime() - (TRIAL.lengthDays - day) * DAY_MS),
   }));
   reminders.push({ kind: "expiry", dueAt: window.endsAt });
   return reminders;
@@ -82,6 +91,32 @@ export function trialReminderSchedule(window: TrialWindow): TrialReminder[] {
 /** Reminders a scheduled job should send now. Sending is recorded separately with provider status. */
 export function dueTrialReminders(window: TrialWindow, now: Date, alreadySent: ReadonlySet<TrialReminderKind>): TrialReminder[] {
   return trialReminderSchedule(window).filter((r) => r.dueAt.getTime() <= now.getTime() && !alreadySent.has(r.kind));
+}
+
+/** An expiry reminder later than this isn't sent: the person has long seen it in the app. */
+export const TRIAL_EXPIRY_REMINDER_GRACE_DAYS = 3;
+
+export type TrialReminderSkip = { kind: TrialReminderKind; reason: "superseded" | "too_late" };
+
+/**
+ * What a scheduled run does for one trial (ADR 0063): send the latest due
+ * reminder and skip the earlier ones, so a first run or an outage never
+ * sends a burst. An expiry reminder more than three days late is skipped.
+ * `recorded` holds every kind already sent, failed for good or skipped.
+ */
+export function trialReminderToSend(
+  window: TrialWindow,
+  now: Date,
+  recorded: ReadonlySet<TrialReminderKind>,
+): { send: TrialReminder | null; skip: TrialReminderSkip[] } {
+  const due = dueTrialReminders(window, now, recorded);
+  if (due.length === 0) return { send: null, skip: [] };
+  const latest = due[due.length - 1]!;
+  const skip: TrialReminderSkip[] = due.slice(0, -1).map((r) => ({ kind: r.kind, reason: "superseded" }));
+  if (latest.kind === "expiry" && now.getTime() - window.endsAt.getTime() > TRIAL_EXPIRY_REMINDER_GRACE_DAYS * DAY_MS) {
+    return { send: null, skip: [...skip, { kind: "expiry", reason: "too_late" }] };
+  }
+  return { send: latest, skip };
 }
 
 export type SubscriptionState =

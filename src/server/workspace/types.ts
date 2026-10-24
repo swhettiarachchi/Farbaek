@@ -34,6 +34,9 @@ export const ProjectRowSchema = z.object({
 /** archivedAt is set once an owner or admin archives the project; it stays readable but can't change. */
 export type Project = { id: string; name: string; description: string | null; createdAt: string; archivedAt: string | null };
 
+/** The emails a person wants from Farbaek (ADR 0063): about their builds and checks, and trial reminders. */
+export type EmailPreferences = { workUpdates: boolean; trialReminders: boolean };
+
 export const TaskRowSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -262,6 +265,8 @@ export interface WorkspaceReader {
   getFileRevision(orgId: string, projectId: string, path: string, revision: number): Promise<string | null>;
   /** The workspace's autonomy setting (ADR 0046). */
   getAutonomy(orgId: string): Promise<AutonomyView>;
+  /** Which emails the signed-in person wants (ADR 0063). Both on until they choose. */
+  getEmailPreferences(): Promise<EmailPreferences>;
   /** The approved version of each of the project's own skills (ADR 0043). */
   listSkillPins(orgId: string, projectId: string): Promise<SkillPinRecord[]>;
   /** Case-insensitive plain-text search; at most 200 matching lines. */

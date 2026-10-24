@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AutonomySettings } from "@/components/app/autonomy-settings";
+import { EmailPreferencesForm } from "@/components/app/email-preferences";
+import { readEmailConfig } from "@/server/email/config";
 import { ExecutionModeBadge } from "@/components/app/execution";
 import { RenameWorkspaceForm } from "@/components/app/forms";
 import { InvitePeople } from "@/components/app/invite-people";
@@ -23,7 +25,13 @@ export default async function SettingsPage() {
   if (!ctx?.current) notFound();
   const ws = ctx.current;
   const canManage = ctx.role !== null && MANAGER_ROLES.includes(ctx.role);
-  const [members, invitations, autonomy] = await Promise.all([ctx.reader.listMembers(ws.id), canManage ? ctx.reader.listInvitations(ws.id) : Promise.resolve([]), ctx.reader.getAutonomy(ws.id)]);
+  const [members, invitations, autonomy, emailChoices] = await Promise.all([
+    ctx.reader.listMembers(ws.id),
+    canManage ? ctx.reader.listInvitations(ws.id) : Promise.resolve([]),
+    ctx.reader.getAutonomy(ws.id),
+    ctx.reader.getEmailPreferences(),
+  ]);
+  const emailReason = ctx.mode === "demo" ? "The demo workspace is read-only." : readEmailConfig() ? null : "Farbaek isn't sending email from this server yet.";
   const canRename = ctx.mode === "live" && canManage;
   // People who joined through an invitation are shown by the address they were invited at.
   const emailOf = new Map(invitations.flatMap((i) => (i.acceptedBy ? [[i.acceptedBy, i.email] as const] : [])));
@@ -81,6 +89,19 @@ export default async function SettingsPage() {
               <RenameWorkspaceForm name={ws.name} disabledReason={renameReason} />
             </div>
           </Card>
+          <section id="email" aria-labelledby="email-title" className="scroll-mt-24">
+            <Card>
+              <h2 id="email-title" className="text-lg font-medium">
+                Email
+              </h2>
+              <p className="mt-1 text-sm leading-relaxed text-ink-2">
+                Farbaek writes to <span className="break-all">{ctx.user.email}</span>, the address you sign in with. These choices are yours, in every workspace.
+              </p>
+              <div className="mt-4">
+                <EmailPreferencesForm preferences={emailChoices} disabledReason={emailReason} />
+              </div>
+            </Card>
+          </section>
           <Card>
             <h2 className="text-lg font-medium">Help</h2>
             <p className="mt-2 text-sm leading-relaxed text-ink-2">

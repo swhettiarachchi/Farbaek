@@ -181,3 +181,13 @@ Known limits: preview pages may load `https:` images and fonts, so a page could 
 | The verify page | A valid signature reused beside different evidence; a look-alike key; keys that don't load | The signed payload must hash to the evidence shown; only keys from `/.well-known/farbaek-keys.json` on Farbaek's own domain count; an unknown key, a bad signature or missing keys each say so, and only a good signature shows "exactly what Farbaek recorded" and keeps the Seal | `dsse.test.ts`, demo build checks |
 
 Known limits: whoever controls the server can sign; the key isn't in a hardware module; there's no rotation yet (retired keys aren't published), so the key isn't replaced.
+
+## Scheduled jobs and trial reminders (2026-10-24, ADR 0063)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| The internal jobs route | Anyone on the internet triggering the job, or flooding owners with reminders | `POST /api/internal/jobs/trial-reminders` needs the scheduler's secret, compared in constant time; it's called only from inside the app container. Each reminder is claimed once per workspace and kind before sending, so a repeated or parallel run sends nothing more | `trial-reminders.test.ts` (token, second run), `tests/db/trial-reminders.test.ts` (claims) |
+| Reminder recipients | Emailing people who didn't ask, or another workspace's members | Only the workspace's owners, at their confirmed sign-in address, and only if they haven't turned trial reminders off. Records are readable to the workspace's members only, and written only by the service role | `trial-reminders.test.ts`, `tests/db/trial-reminders.test.ts` (RLS, grants) |
+| Email choices | One person changing another's choices | Saved by a server action for the signed-in person only, through a service-role function; each person reads only their own row | `tests/db/trial-reminders.test.ts` |
+
+Known limits: the scheduler's secret is shared with the sandbox sweep. "Accepted" means the mail server took the message, not that it reached the inbox.
