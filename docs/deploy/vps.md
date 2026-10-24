@@ -150,13 +150,26 @@ Self-hosted Supabase runs beside the app:
 | Point the app back at Supabase Cloud | `farbaek-db-cutover --back` |
 | Change a setting in the database's settings file | `echo "NAME=value" \| farbaek-set-env --file /opt/farbaek/supabase/docker/.env`, then restart the service that reads it |
 
-**Off-server copies:** each backup also goes to the `offsite` rclone remote once `/opt/farbaek/env/backup.env` sets one. For Cloudflare R2, that's:
+**Off-server copies:** each backup also goes to the `offsite` rclone remote once `/opt/farbaek/env/backup.env` sets one.
+
+To turn it on with Cloudflare R2:
+1. **Create the bucket:** R2 > Create bucket `farbaek-backups`, with a lifecycle rule that deletes objects after 14 days. The Privacy Policy promises that period.
+2. **Create a token:** R2 > Manage API tokens, "Object Read & Write" on that bucket only.
+3. **Run** `scripts/vps/set-offsite.ps1 -AccountId <account id>`. It asks for the token's two keys (hidden), saves them, then takes a backup and checks the copy reached R2.
+
+The settings it writes are:
 - `RCLONE_CONFIG_OFFSITE_TYPE=s3` and `RCLONE_CONFIG_OFFSITE_PROVIDER=Cloudflare`;
 - `RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID` and `RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY`, from a token limited to the bucket;
 - `RCLONE_CONFIG_OFFSITE_ENDPOINT=https://<account id>.r2.cloudflarestorage.com`;
 - `OFFSITE_BUCKET=farbaek-backups`.
 
 **Rebuilds:** `farbaek-deploy --again` rebuilds the commit that's running, and Caddy reloads that commit's Caddyfile. So the commit that's live must include `deploy/vps/supabase/` and the `api.farbaek.com` block. A rebuild of an older commit drops the API route; that happened once, on 2026-10-22.
+
+## Is it up?
+
+- **`.github/workflows/uptime.yml`:** every 30 minutes, GitHub asks `https://www.farbaek.com/api/ready`, three times a minute apart. If all three fail, the run fails and GitHub emails the repository owner. It needs no other account, and it uses about 1,440 of a private repository's 2,000 free Action minutes a month.
+- **`/api/ready`** fails when the app, the database or the disk isn't ready (under 10% or 5 GB free).
+- **For alerts within minutes,** add a free external monitor (UptimeRobot or Better Stack) on the same address.
 
 ## Checking a deploy
 

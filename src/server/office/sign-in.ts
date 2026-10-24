@@ -101,15 +101,26 @@ export async function verifyStaffCode(deps: SignInDeps, rawEmail: unknown, rawCo
 
 export type Enrollment = { status: "ready"; factorId: string; qr: string; secret: string; uri: string } | { status: "error"; message: string } | { status: "sign_in" };
 
+/**
+ * A name for a new authenticator that none of the person's others has: Supabase Auth refuses a
+ * second factor with the same name, so a second one added the same day is numbered.
+ */
+export function uniqueFactorName(base: string, taken: readonly (string | null)[]): string {
+  const names = new Set(taken.filter((n): n is string => Boolean(n)));
+  if (!names.has(base)) return base;
+  for (let n = 2; ; n++) if (!names.has(`${base} (${n})`)) return `${base} (${n})`;
+}
+
 /** Starts adding an authenticator. Only someone signed in with an email code who may enroll gets one. */
 export async function startEnrollment(deps: SignInDeps): Promise<Enrollment> {
   const claims = await deps.auth.claims();
   if (!claims || !firstFactorAt(claims.amr)) return { status: "sign_in" };
-  const hasFactor = (await deps.auth.verifiedTotp()).length > 0;
+  const existing = await deps.auth.verifiedTotp();
+  const hasFactor = existing.length > 0;
   if (!hasFactor && !(await deps.store.mayEnroll(claims.sub, deps.office.ownerEmail))) return { status: "sign_in" };
   if (hasFactor && claims.aal !== "aal2") return { status: "sign_in" };
   for (const id of await deps.auth.unverifiedFactorIds()) await deps.auth.unenroll(id);
-  const factor = await deps.auth.enroll(`Office Space ${deps.now().toISOString().slice(0, 10)}`);
+  const factor = await deps.auth.enroll(uniqueFactorName(`Office Space ${deps.now().toISOString().slice(0, 10)}`, existing.map((f) => f.friendlyName)));
   return factor ? { status: "ready", factorId: factor.id, ...factor } : { status: "error", message: "The authenticator couldn't be set up. Try again." };
 }
 

@@ -163,6 +163,9 @@ export interface StaffStore {
   listDevices(userId: string): Promise<StoreResult<StaffDevice[]>>;
   approveDevice(actor: StaffActor, input: { fromHash: string; deviceId: string; code: string }, strength: AuthStrength, meta: RequestMeta): Promise<StoreResult<{ ok: boolean; tries_left?: number }>>;
   revokeDevice(actor: StaffActor, deviceId: string, meta: RequestMeta): Promise<StoreResult<null>>;
+  // The hidden office (migration v44)
+  createDeviceInvite(actor: StaffActor, input: { fromHash: string; codeHash: string }, strength: AuthStrength, meta: RequestMeta): Promise<StoreResult<string>>;
+  redeemDeviceInvite(codeHash: string, device: { hash: string; label: string }, meta: RequestMeta): Promise<StoreResult<boolean>>;
 }
 
 const DeviceCheckSchema = z.object({
@@ -313,5 +316,9 @@ export function createStaffStore(admin: SupabaseClient): StaffStore {
         z.object({ ok: z.boolean(), tries_left: z.number().optional() }),
       ),
     revokeDevice: (a, deviceId, meta) => rpc("app_staff_revoke_device", { p_actor: a.userId, p_session: a.sessionId, p_device: deviceId, ...m(meta) }, nothing),
+    createDeviceInvite: (a, i, strength, meta) =>
+      rpc("app_staff_create_device_invite", { p_actor: a.userId, p_session: a.sessionId, p_from_token_hash: i.fromHash, p_code_hash: i.codeHash, p_auth_strength: strength, ...m(meta) }, z.string()),
+    redeemDeviceInvite: (codeHash, device, meta) =>
+      rpc("app_staff_redeem_device_invite", { p_code_hash: codeHash, p_token_hash: device.hash, p_label: device.label, ...m(meta) }, z.boolean()),
   };
 }

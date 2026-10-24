@@ -5,6 +5,8 @@ import { decideRoute } from "@/server/http/hosts";
 import { newNonce, officeCsp, officeResponseHeaders } from "@/server/http/office-headers";
 import { appHostFromEnv, officeConfig } from "@/server/office/config";
 import { siteDomain } from "@/server/publish/config";
+import { OFFICE_OPEN_PATH, officeDeviceKnown } from "@/server/office/device-gate";
+import { DEVICE_COOKIE } from "@/server/office/device-token";
 import { createOfficeProxyClient } from "@/server/office/supabase";
 import { readSupabaseConfig, siteUrl } from "@/server/supabase/config";
 
@@ -48,6 +50,10 @@ export async function proxy(request: NextRequest) {
     case "office-public":
       return NextResponse.next();
     case "office":
+      // Hidden from devices the office doesn't know (ADR 0072): the same answer as a name nothing uses.
+      if (!OFFICE_OPEN_PATH.test(request.nextUrl.pathname) && !(await officeDeviceKnown(request.cookies.get(DEVICE_COOKIE)?.value))) {
+        return plain(404, "There's nothing at this address.");
+      }
       return officeRequest(request, decision.rewrite, office?.origin.startsWith("https://") ?? true);
     case "app":
       return appRequest(request);

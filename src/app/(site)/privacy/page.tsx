@@ -174,13 +174,14 @@ const SECTIONS: LegalSection[] = [
         <p>You can ask to see, correct, export or delete your personal data, or to restrict or object to how we use it. Most of it you can do yourself:</p>
         <Bullets
           items={[
+            <>Download what we hold about you in Settings, under Your data: one JSON file.</>,
             <>Delete your account in Settings, under Delete your account. You&apos;ll see what happens to each workspace first.</>,
             <>Export a project with its files, tasks, ProofPacks and history: Export everything, on the project&apos;s page.</>,
             <>Turn off emails in Settings, under Email.</>,
           ]}
         />
         <p>
-          For anything else, or a copy of everything we hold about you, write to <DocLink href={`mailto:${LEGAL.support}`}>{LEGAL.support}</DocLink>. We answer within one month. If you&apos;re in the
+          For anything else, write to <DocLink href={`mailto:${LEGAL.support}`}>{LEGAL.support}</DocLink>. We answer within one month. If you&apos;re in the
           EU or UK, you can also complain to your data protection authority.
         </p>
       </>

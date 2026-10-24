@@ -5,6 +5,7 @@
  * office has already limited and screened the request.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { log } from "@/server/observability/log";
 import type { OfficeAuth } from "./sign-in";
 
 export function officeAuth(client: SupabaseClient, sender: SupabaseClient = client): OfficeAuth {
@@ -39,7 +40,11 @@ export function officeAuth(client: SupabaseClient, sender: SupabaseClient = clie
     },
     async enroll(friendlyName) {
       const { data, error } = await client.auth.mfa.enroll({ factorType: "totp", friendlyName, issuer: "Farbaek Office Space" });
-      if (error || !data || data.type !== "totp") return null;
+      if (error || !data || data.type !== "totp") {
+        // The reason Supabase Auth gave, for the server log only: never a secret, and never shown.
+        log("warn", "office.mfa_enroll_failed", { code: error?.code ?? null, status: error?.status ?? null });
+        return null;
+      }
       return { id: data.id, qr: data.totp.qr_code, secret: data.totp.secret, uri: data.totp.uri };
     },
     async unenroll(factorId) {
