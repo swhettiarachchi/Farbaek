@@ -20,7 +20,7 @@ import { checkFeature } from "@/core/billing/entitlements";
 import { RECOVERABLE_STATES } from "@/core/realityloop/recovery";
 import { checksToRun, fallbackChecksWords } from "@/core/realityloop/app-check";
 import { RECOVERY_NOT_IN_PLAN, previewRecovery } from "@/server/workspace/recovery";
-import { Card, TaskStateBadge } from "@/components/app/primitives";
+import { Card, Notice, TaskStateBadge } from "@/components/app/primitives";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { VerificationStatus } from "@/components/tasks/verification-status";
 import { VerifyNow } from "@/components/tasks/verify-now";
@@ -64,7 +64,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
   const showProposal = proposal !== null && (proposal.status !== "discarded" || !canPropose);
   const applied = proposal?.status === "applied" ? proposal : null;
   // Everything below depends only on the reads above, so it loads in one round.
-  const [driftEvents, proposeAi, projectFiles, bases, intact, [recoverySource, recoveries], agents, lensSuggestion, lensAi, verification] = await Promise.all([
+  const [driftEvents, proposeAi, projectFiles, bases, intact, [recoverySource, recoveries], agents, lensSuggestion, lensAi, verification, project] = await Promise.all([
     approvedContract && !TERMINAL_STATES.has(task.state) ? ctx.reader.listFileChangesSince(orgId, task.projectId, approvedContract.approvedAt!) : Promise.resolve(null),
     canPropose ? loadAiAvailability(ctx, ctx.current, "change_proposal") : Promise.resolve(null),
     canPropose || task.state === "VERIFYING" || task.state === "APPROVAL_PENDING" ? ctx.reader.listFiles(orgId, task.projectId) : Promise.resolve([]),
@@ -84,9 +84,13 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
     showProposal && proposal!.status === "pending" ? loadAiAvailability(ctx, ctx.current, "lens_mapping") : Promise.resolve(null),
     // The latest one-step check run of the applied change (ADR 0047).
     task.state === "VERIFYING" ? ctx.reader.getLatestVerification(orgId, task.id).catch(() => null) : Promise.resolve(null),
+    // An archived project stays readable, but the database refuses any change to it.
+    ctx.reader.getProject(orgId, task.projectId).catch(() => null),
   ]);
   const drift = approvedContract && driftEvents ? scopeDrift(approvedContract.body, driftEvents) : [];
-  const writeReason = ctx.writes.enabled ? null : ctx.writes.reason;
+  const archived = Boolean(project?.archivedAt);
+  // Every control that changes the task's work names why it can't; cancelling stays available.
+  const writeReason = (ctx.writes.enabled ? null : ctx.writes.reason) ?? (archived ? "This project is archived, so nothing in it can change." : null);
 
   const recovery = applied && recoverySource && RECOVERABLE_STATES.has(task.state) ? await previewRecovery({ taskId: task.id, proposalId: applied.id, source: recoverySource }) : null;
   const previews: Record<string, { current: string; target: string }> = Object.fromEntries(
@@ -152,6 +156,11 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
         <p className="mt-2 text-sm text-ink-3">
           Created <LocalTime iso={task.createdAt} />. Version <span className="tabular">{task.version}</span>
         </p>
+        {archived ? (
+          <div className="mt-4">
+            <Notice>This task&apos;s project is archived. Everything here stays readable, and nothing in it can change. You can still cancel the task.</Notice>
+          </div>
+        ) : null}
       </div>
 
       <Card>
