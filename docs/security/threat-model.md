@@ -211,3 +211,12 @@ Known limits: other email providers' aliasing schemes aren't normalised; disposa
 | `/api/ready` | Leaking infrastructure details | Answers only ok, "unreachable" or "not configured", never hosts, keys or errors | Route review |
 
 Known limits: no CAPTCHA at sign-in yet (Turnstile needs the owner's Cloudflare widget); GoTrue's per-IP limits see the proxy's address until `GOTRUE_RATE_LIMIT_HEADER` is set.
+
+## Legal documents (2026-10-24, ADR 0066)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| What the Privacy Policy promises | A promise drifting from what the server does (backups kept longer, logs kept longer, an access log turned on) | The facts live in `src/config/legal.ts`; a test reads the backup and Docker log settings and the Caddyfile and fails when they disagree | `src/config/legal.test.ts` |
+| Abuse reports | No way to report a harmful site, or reports lost among support requests | The Acceptable Use Policy names support@farbaek.com and Help's "Report a site or abuse" topic; Office Space filters abuse reports and staff can take a site offline or suspend a workspace | ADR 0032 tests, page review |
+
+Known limits: the documents are drafts until a lawyer reviews them; no DMCA designated agent or EU representative yet.

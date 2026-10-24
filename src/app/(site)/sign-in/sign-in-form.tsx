@@ -1,6 +1,7 @@
 "use client";
 
 import { EnvelopeSimpleIcon } from "@phosphor-icons/react";
+import Link from "next/link";
 import { useActionState, useId } from "react";
 import { buttonClasses } from "@/components/ui/button";
 import { requestSignInLink, type SignInState } from "./actions";
@@ -53,6 +54,21 @@ export function SignInForm({ linkError, next = "/app" }: { linkError: boolean; n
       <button type="submit" disabled={pending} className={buttonClasses("primary", "md", "w-full")}>
         {pending ? "Sending link…" : "Email me a sign-in link"}
       </button>
+      <p className="text-[13px] leading-relaxed text-ink-3">
+        By continuing, you accept the{" "}
+        <Link href="/terms" className="text-ink-2 underline underline-offset-2 hover:text-ink">
+          Terms of Service
+        </Link>{" "}
+        and{" "}
+        <Link href="/acceptable-use" className="text-ink-2 underline underline-offset-2 hover:text-ink">
+          Acceptable Use Policy
+        </Link>
+        . The{" "}
+        <Link href="/privacy" className="text-ink-2 underline underline-offset-2 hover:text-ink">
+          Privacy Policy
+        </Link>{" "}
+        explains how we use your data.
+      </p>
     </form>
   );
 }
