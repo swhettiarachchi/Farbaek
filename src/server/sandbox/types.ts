@@ -147,7 +147,7 @@ export function sessionFromRow(r: z.infer<typeof SessionRowSchema>): SessionReco
 }
 
 export function meteredFrom(s: SessionRecord): MeteredSession {
-  return { billedSeconds: s.billedSeconds, runningSince: s.runningSince, vcpu: s.vcpu ?? s.requestedVcpu, memoryMiB: s.memoryMiB ?? s.requestedMemoryMiB };
+  return { billedSeconds: s.billedSeconds, runningSince: s.runningSince, expiresAt: s.expiresAt, vcpu: s.vcpu ?? s.requestedVcpu, memoryMiB: s.memoryMiB ?? s.requestedMemoryMiB };
 }
 
 export interface ExecutionRecord {

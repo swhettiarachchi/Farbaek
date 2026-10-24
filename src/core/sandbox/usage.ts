@@ -15,12 +15,16 @@ export interface MeteredSession {
   billedSeconds: number;
   /** Start of the current running segment, or null when not running. */
   runningSince: string | null;
+  /** When the runtime kills the sandbox (its timeout), so no running time counts past it. */
+  expiresAt?: string | null;
   vcpu: number | null;
   memoryMiB: number | null;
 }
 
+/** Running time, as the database counts it: never past the session's expiry (migration v35). */
 export function runningSeconds(s: MeteredSession, now: Date): number {
-  const open = s.runningSince ? Math.max(0, Math.floor((now.getTime() - Date.parse(s.runningSince)) / 1000)) : 0;
+  const end = s.expiresAt ? Math.min(now.getTime(), Date.parse(s.expiresAt)) : now.getTime();
+  const open = s.runningSince ? Math.max(0, Math.floor((end - Date.parse(s.runningSince)) / 1000)) : 0;
   return s.billedSeconds + open;
 }
 
