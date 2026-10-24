@@ -97,6 +97,21 @@ A deploy restarts the app. Agent runs going at that moment show as Interrupted.
   - **The plan:** move farbaek.si's DNS to Cloudflare (free plan), with an API token that can edit DNS for that one zone. Build Caddy with the `caddy-dns/cloudflare` module, and add a `*.farbaek.si` block.
   - **Until then,** previews aren't served from this server.
 
+## The check sandbox (ADR 0016)
+
+Checks and builds run in Vercel Sandbox, never on this server. Until it's connected and its isolation is proven, every task page says so and "Check the site now" stays unavailable.
+
+1. **In Vercel** (a free Hobby account; one used only for sandboxes is safest, since a token can manage every project in its account):
+   - a project for the sandboxes, such as `farbaek-sandbox` (nothing is deployed to it);
+   - an access token under Account Settings > Tokens, with an expiry.
+2. **On the owner's PC:** run `scripts/vps/set-sandbox.ps1 -TeamId team_... -ProjectId prj_...`.
+   - It asks for the token (hidden) and checks with Vercel that the token reaches the project.
+   - It saves `SANDBOX_PROVIDER=vercel` and the three Vercel settings on the server and in the checkout's `.env.local`.
+3. **Prove the isolation** from that checkout: `pnpm check:env`, then `pnpm sandbox:smoke`. It starts one small sandbox, checks exit codes, timeouts, files, no Docker socket, no secrets and blocked network, and removes it.
+4. **When it passes:** save `SANDBOX_ISOLATION_VERIFIED_AT=<the time it printed>` with `farbaek-set-env`, then run `farbaek-deploy --again`.
+
+When the token expires, checks stop with that reason on the task page. Make a new token and run step 2 again.
+
 ## The database (ADR 0036)
 
 Self-hosted Supabase runs beside the app:
