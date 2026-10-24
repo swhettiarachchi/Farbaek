@@ -8,6 +8,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { GrantRow } from "@/core/billing/wallet";
+import { platformDailyAiUnits } from "@/server/ai/config";
 import type { AiUsageDeps } from "./ai-usage";
 import type { RpcResult } from "./use-cases";
 
@@ -38,7 +39,8 @@ export function createUsageRpcs(admin: SupabaseClient): Pick<AiUsageDeps, "reser
     reserveUsage: (i) =>
       rpc(
         "app_reserve_usage",
-        { p_org: i.orgId, p_actor: i.actor, p_key: i.key, p_operation: i.operation, p_task: i.taskId, p_units: i.units, p_grant: i.grant },
+        // The platform's daily AI limit rides on every reservation (ADR 0065).
+        { p_org: i.orgId, p_actor: i.actor, p_key: i.key, p_operation: i.operation, p_task: i.taskId, p_units: i.units, p_grant: i.grant, p_platform_daily_units: platformDailyAiUnits() },
         z.string(),
       ),
     settleUsage: (i) =>

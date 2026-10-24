@@ -41,8 +41,19 @@ export const SANDBOX_PLAN_LIMITS: Record<Exclude<PlanId, "enterprise">, SandboxP
   max_3x: tier("max_3x", { maxConcurrentSessions: 12, maxSessionMinutes: 240, idleMinutes: 30, maxCommandSeconds: 1800, previewMinutes: 240 }),
 };
 
-/** The 14-day trial gets Pro's shape with Starter's hours, since trial caps are totals for the whole trial. */
-export const SANDBOX_TRIAL_LIMITS: SandboxPlanLimits = { ...SANDBOX_PLAN_LIMITS.pro, maxConcurrentSessions: 2, minutesPerPeriod: TRIAL.limits.sandboxHours * 60 };
+/**
+ * The 14-day trial (ADR 0065): one small sandbox at a time, sessions up to 45
+ * minutes, and the trial's 2 hours in total, since trial caps are totals for
+ * the whole trial and no card stands behind them.
+ */
+export const SANDBOX_TRIAL_LIMITS: SandboxPlanLimits = {
+  ...SANDBOX_PLAN_LIMITS.pro,
+  maxConcurrentSessions: 1,
+  maxSessionMinutes: 45,
+  previewMinutes: 45,
+  sizes: ["small"],
+  minutesPerPeriod: TRIAL.limits.sandboxHours * 60,
+};
 
 /** Enterprise limits are set by contract; until a contract value exists, Max 3x limits apply. */
 export function sandboxLimitsFor(plan: { planId: PlanId; source: "free" | "trial" | "paid" } | null): SandboxPlanLimits {

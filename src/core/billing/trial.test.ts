@@ -124,7 +124,7 @@ describe("effective plan", () => {
   it("applies Pro features with trial caps during the trial", () => {
     const plan = resolveEffectivePlan(trialing, at(DAY));
     expect(plan).toMatchObject({ source: "trial", planId: "pro" });
-    expect(plan.limits).toMatchObject({ seats: 3, agents: 3, integrations: 3, evaluationsPerMonth: 10_000, aiUnitsPerMonth: TRIAL.limits.aiUnitsTotal, sandboxHours: 5, historyDays: 30 });
+    expect(plan.limits).toMatchObject({ seats: 3, agents: 3, integrations: 3, evaluationsPerMonth: 10_000, aiUnitsPerMonth: TRIAL.limits.aiUnitsTotal, sandboxHours: 2, historyDays: 30 });
   });
 
   it("falls back to Free the moment the trial ends, even before the job runs", () => {

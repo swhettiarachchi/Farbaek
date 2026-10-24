@@ -16,6 +16,8 @@ const OrganizationRow = z.object({
       paid_plan_id: z.enum(PAID_PLAN_IDS).nullable(),
       paid_through: z.string().nullable(),
       suspended_reason: z.enum(["payment", "paused"]).nullable(),
+      // Why a workspace started without a trial (migration v38, ADR 0065).
+      trial_withheld: z.enum(["address_used", "disposable_address"]).nullable().optional(),
     }),
   ),
   trials: OneOrMany(z.object({ started_at: z.string(), ends_at: z.string() })),
@@ -25,13 +27,15 @@ const OrganizationRow = z.object({
 });
 
 export const ORGANIZATION_SELECT =
-  "id, name, created_at, suspended_at, suspended_notice, billing_accounts(state, paid_plan_id, paid_through, suspended_reason), trials(started_at, ends_at)";
+  "id, name, created_at, suspended_at, suspended_notice, billing_accounts(state, paid_plan_id, paid_through, suspended_reason, trial_withheld), trials(started_at, ends_at)";
 
 export interface WorkspaceSummary {
   id: string;
   name: string;
   plan: EffectivePlan;
   trial: { startedAt: string; endsAt: string; phase: TrialPhase } | null;
+  /** Why the workspace started on Free instead of a trial, when it did (ADR 0065). */
+  trialWithheld: "address_used" | "disposable_address" | null;
   /** True when billing state is missing, so entitlements fail closed. */
   billingUnknown: boolean;
   /** Paused by Farbaek staff: members can read but not change anything, and the notice says why. */
@@ -72,6 +76,7 @@ export function summarizeOrganizations(rows: unknown, now: Date): WorkspaceSumma
         name: row.name,
         plan: resolveEffectivePlan(snapshot, now),
         trial: window ? { startedAt: window.startedAt.toISOString(), endsAt: window.endsAt.toISOString(), phase: trialPhase(window, now) } : null,
+        trialWithheld: billing?.trial_withheld ?? null,
         billingUnknown: !billing,
         suspension: row.suspended_at ? { at: row.suspended_at, notice: row.suspended_notice ?? "Farbaek has paused this workspace." } : null,
       };

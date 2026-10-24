@@ -51,7 +51,13 @@ export default async function BillingPage() {
               )}
             </p>
           ) : (
-            <p className="mt-3 text-sm text-ink-2">Trials are one per person. This workspace started on Free.</p>
+            <p className="mt-3 text-sm leading-relaxed text-ink-2">
+              {ws.trialWithheld === "disposable_address"
+                ? "This workspace started on Free. Trials need a lasting email address, and yours is from a disposable-email service. Sign in with another address to start one."
+                : ws.trialWithheld === "address_used"
+                  ? "This workspace started on Free, since your email address has already had its trial. Trials are one per address."
+                  : "Trials are one per person. This workspace started on Free."}
+            </p>
           )}
           {ws.plan.source === "trial" ? (
             <p className="mt-3 text-xs text-ink-3">

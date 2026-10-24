@@ -228,9 +228,10 @@ export function planAllowance(plan: Plan): Allowance | null {
 }
 
 /**
- * The 14-day trial: Pro's features and limits, with AI usage and sandbox time
- * equal to a month of Starter (every trial is paid for from margin). Internal
- * to Farbaek: never a payment provider trial.
+ * The 14-day trial: Pro's features and limits, with AI usage equal to a month
+ * of Starter (every trial is paid for from margin) and 2 sandbox hours, enough
+ * for about 40 to 120 site checks (ADR 0065). Internal to Farbaek: never a
+ * payment provider trial.
  */
 export const TRIAL = {
   lengthDays: 14,
@@ -243,7 +244,7 @@ export const TRIAL = {
     evaluationsTotal: 10_000,
     historyDays: 30,
     aiUnitsTotal: allowanceFor(9.99, 5).aiUnits,
-    sandboxHours: 5,
+    sandboxHours: 2,
   },
   reminderDays: [7, 12, 13] as const,
 };

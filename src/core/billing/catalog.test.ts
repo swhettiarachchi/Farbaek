@@ -65,11 +65,11 @@ describe("plan catalog", () => {
     expect(cheapestPlanWithFeature("fable_models")).toBe("max_2x");
   });
 
-  it("gives the trial Pro features with a month of Starter's usage", () => {
+  it("gives the trial Pro features with a month of Starter's AI usage and 2 sandbox hours", () => {
     expect(TRIAL.lengthDays).toBe(14);
     expect(TRIAL.basePlan).toBe("pro");
     expect(TRIAL.limits.aiUnitsTotal).toBe(getPlan("starter").limits.aiUnitsPerMonth);
-    expect(TRIAL.limits.sandboxHours).toBe(getPlan("starter").limits.sandboxHours);
+    expect(TRIAL.limits.sandboxHours).toBe(2);
     expect(TRIAL.reminderDays).toEqual([7, 12, 13]);
   });
 
