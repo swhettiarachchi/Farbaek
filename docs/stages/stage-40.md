@@ -39,3 +39,18 @@ The first of the launch stages. Teams couldn't change roles, remove people or le
   - server-only functions.
 - **All database tests (269)** pass with the new `create_organization`.
 - **Checks:** `pnpm typecheck` and `pnpm lint` are clean.
+
+**Production database:**
+- v37 applied with the hash-verified pattern (`999dbeea…ca168c6`);
+- read back:
+  - `trial_claims` holds 1 claim, the owner's existing trial, backfilled;
+  - the four new functions are executable by `service_role` only, and `create_organization` stays callable by signed-in users, as before;
+  - the owner's deletion plan reads "Far001: deleted".
+
+The owner is Farbaek staff, so Settings refuses to delete that account, by design.
+
+### Next
+
+- **Abuse guards:** disposable-address check before a trial, a daily AI spend cut-off, and a readiness check that touches the database.
+- **Trial sandbox shape** for Vercel Pro.
+- **Legal pages.**
