@@ -1,11 +1,16 @@
-/** The office's OfficeAuth (./sign-in.ts) on the office's own Supabase client. */
+/**
+ * The office's OfficeAuth (./sign-in.ts) on the office's own Supabase client.
+ * Codes are sent with the server's secret key when one is given (`sender`):
+ * Supabase Auth doesn't ask that key for a browser check (ADR 0067), and the
+ * office has already limited and screened the request.
+ */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { OfficeAuth } from "./sign-in";
 
-export function officeAuth(client: SupabaseClient): OfficeAuth {
+export function officeAuth(client: SupabaseClient, sender: SupabaseClient = client): OfficeAuth {
   return {
     async sendCode(email, shouldCreateUser, redirectTo) {
-      const { error } = await client.auth.signInWithOtp({ email, options: { shouldCreateUser, emailRedirectTo: redirectTo } });
+      const { error } = await sender.auth.signInWithOtp({ email, options: { shouldCreateUser, emailRedirectTo: redirectTo } });
       return error ? { ok: false, rateLimited: error.status === 429 } : { ok: true };
     },
     async verifyCode(email, code) {

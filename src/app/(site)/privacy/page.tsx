@@ -42,7 +42,8 @@ const SECTIONS: LegalSection[] = [
           </>,
           <>
             <strong className="font-medium text-ink">Security records:</strong> our sign-in service logs sign-in attempts with the email address and the IP address they came from. We keep a
-            one-way fingerprint (a SHA-256 hash) of each address that has had a free trial, so the same address can&apos;t start another.
+            one-way fingerprint (a SHA-256 hash) of each address that has had a free trial, so the same address can&apos;t start another. To limit how many sign-in emails can be
+            requested, we count requests by fingerprints of the email address and the network address.
           </>,
         ]}
       />
@@ -159,6 +160,7 @@ const SECTIONS: LegalSection[] = [
             Server and sign-in logs: each service keeps at most {LEGAL.logLimit}, and the oldest lines are overwritten first. While Farbaek is small, that can be several months.
           </>,
           <>Trial fingerprints: kept, because they only exist to stop repeat trials and can&apos;t be turned back into an address.</>,
+          <>Sign-in request counts: deleted within {LEGAL.rateLimitHours} hours.</>,
           <>In workspaces you leave or that others own, what you did there stays, such as tasks, approvals and history, but tied to an ID that no longer points to you.</>,
         ]}
       />

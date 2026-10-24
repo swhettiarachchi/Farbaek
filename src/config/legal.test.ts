@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { LEGAL } from "./legal";
 
@@ -15,6 +15,18 @@ describe("legal facts", () => {
     const opts = read("scripts/vps/bootstrap.sh").match(/"max-size":"(\d+)m","max-file":"(\d+)"/);
     expect(opts).not.toBeNull();
     expect(`${Number(opts![1]) * Number(opts![2])} MB`).toBe(LEGAL.logLimit);
+  });
+
+  it("deletes sign-in request counts as soon as the Privacy Policy says", () => {
+    // The newest migration that defines app_rate_limit is the one in force.
+    const dir = new URL("../../supabase/migrations/", import.meta.url);
+    const latest = readdirSync(dir)
+      .filter((f) => f.endsWith(".sql"))
+      .sort()
+      .map((f) => readFileSync(new URL(f, dir), "utf8"))
+      .filter((sql) => /function public\.app_rate_limit\(/.test(sql))
+      .at(-1);
+    expect(latest).toContain(`window_start < now() - interval '${LEGAL.rateLimitHours / 24} day'`);
   });
 
   it("has Caddy keep no access log", () => {

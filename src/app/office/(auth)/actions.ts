@@ -14,7 +14,7 @@ async function deps(): Promise<SignInDeps | null> {
   const h = await headers();
   const origin = h.get("origin");
   if (origin ? origin !== clients.office.origin : h.get("sec-fetch-site") !== "same-origin") return null;
-  return { auth: officeAuth(clients.client), store: clients.store, office: clients.office, meta: await requestMeta(), now: () => new Date() };
+  return { auth: officeAuth(clients.client, clients.admin), store: clients.store, office: clients.office, meta: await requestMeta(), now: () => new Date() };
 }
 
 const REFUSED = "This request didn't come from Office Space.";
