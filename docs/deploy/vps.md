@@ -76,13 +76,10 @@ A deploy restarts the app. Agent runs going at that moment show as Interrupted.
 
 ## DNS and certificates
 
-- **farbaek.com:** DNS stays at Spaceship, with the email records. `www` and `officespace` are A records to the server, and Caddy gets ordinary certificates for them.
-  - **The apex (`farbaek.com` itself)** should be an A record to the server too. Caddy then redirects every path to the same path on www, so links and the ProofPack type URI (`https://farbaek.com/proofpack/v1`) reach their page.
-  - **Until it is,** Spaceship's URL forwarding answers for it and sends every path to the homepage.
-  - **To switch:**
-    1. Deploy the Caddyfile's `farbaek.com` block.
-    2. At Spaceship, remove the URL forwarding for `@` and add an A record `@` to the server's address (TTL 300). Leave the email records alone.
-    3. On the server, run `docker exec farbaek-caddy caddy reload --config /etc/caddy/Caddyfile --force`, so Caddy fetches the certificate straight away.
+- **farbaek.com:** DNS stays at Spaceship, with the email records. `farbaek.com` itself (`@`), `www`, `officespace` and `api` are A records to the server, and Caddy gets ordinary certificates for each.
+  - **The bare `farbaek.com`** redirects every path and query to the same address on www, so links and the ProofPack type URI (`https://farbaek.com/proofpack/v1`) reach their page. Switched on 2026-10-24.
+  - **Spaceship's URL forwarding** used to answer for it. It sent every path to the homepage, and its `*` record went with it. Don't turn it back on: it would replace the `@` A record.
+  - **If the `@` record ever changes,** run `docker exec farbaek-caddy caddy reload --config /etc/caddy/Caddyfile --force` on the server, so Caddy fetches the certificate straight away instead of waiting out its retry delay.
 - **Published sites on farbaek.si, and people's own domains (ADR 0045).** Caddy makes each site's certificate on its first visit (on-demand TLS), after the app confirms the name is a live site. To turn it on:
   1. **At Hostinger, for farbaek.si,** point three A records at the server's address, replacing Hostinger's parking records:
      - `@` (farbaek.si itself, which redirects to www.farbaek.com);
