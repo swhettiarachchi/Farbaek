@@ -1,6 +1,6 @@
 /**
  * Email settings (ADR 0060). Email is on only when SMTP_PASSWORD is set: the
- * owner types it with scripts/vps/set-secrets.ps1, and no one else ever sees
+ * owner types it with scripts/vps/set-email-password.ps1, and no one else ever sees
  * it. The rest default to the Spacemail account Farbaek's sign-in emails
  * already use (ADR 0036), and each can be overridden.
  */

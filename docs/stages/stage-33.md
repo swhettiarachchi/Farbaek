@@ -40,6 +40,13 @@ In production, finished builds sat unreviewed and applied changes sat unchecked,
 - **The runner** emails how the checks ended, passed or not.
 - **Checks:** `pnpm typecheck` and `pnpm lint` are clean.
 
+### Brought up to date (2026-10-24, later)
+
+- **Merged with main** after #42, #43 and #44. The two conflicts were lines both sides added (the settings template and current-state rows), kept in ADR order. `pnpm typecheck`, `pnpm lint` and the full `pnpm test` (1,360 passed) are clean on the merge.
+- **The password script now stops on a failure.** It reports when the server didn't save the password, or the restart didn't finish, instead of always saying Done. It parses in Windows PowerShell 5.1, and its comment gives a command that runs from any folder.
+- **Comments** now name `set-email-password.ps1`, not `set-secrets.ps1`.
+- **The server can reach Spacemail.** From the VPS, `mail.spacemail.com:465` answers "220 SpaceMail.com Mail Node", and the app container completes a TLS handshake (certificate `*.spacemail.com`). Only the password is missing.
+
 ### Not verified
 
 - **A real email through Spacemail.** It needs the owner to run the password script.
