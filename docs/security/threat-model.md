@@ -211,3 +211,22 @@ Known limits: other email providers' aliasing schemes aren't normalised; disposa
 | `/api/ready` | Leaking infrastructure details | Answers only ok, "unreachable" or "not configured", never hosts, keys or errors | Route review |
 
 Known limits: no CAPTCHA at sign-in yet (Turnstile needs the owner's Cloudflare widget); GoTrue's per-IP limits see the proxy's address until `GOTRUE_RATE_LIMIT_HEADER` is set.
+
+## Legal documents (2026-10-24, ADR 0066)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| What the Privacy Policy promises | A promise drifting from what the server does (backups kept longer, logs kept longer, an access log turned on) | The facts live in `src/config/legal.ts`; a test reads the backup and Docker log settings and the Caddyfile and fails when they disagree | `src/config/legal.test.ts` |
+| Abuse reports | No way to report a harmful site, or reports lost among support requests | The Acceptable Use Policy names support@farbaek.com and Help's "Report a site or abuse" topic; Office Space filters abuse reports and staff can take a site offline or suspend a workspace | ADR 0032 tests, page review |
+
+Known limits: the documents are drafts until a lawyer reviews them; no DMCA designated agent or EU representative yet.
+
+## Sign-in protection (2026-10-24, ADR 0067)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| Sign-in emails | Floods of sign-in emails to one person, or from one network; scripts creating accounts for trials | The server action counts by hashed email and hashed address (from Caddy's `X-Forwarded-For`) before Auth is asked, and refuses when the limiter can't answer | `src/server/auth/sign-in.test.ts` |
+| Calling Auth directly | Skipping the app's form to reach `/auth/v1/otp` | Once switched on, GoTrue requires a Turnstile token it verifies with Cloudflare; only the server's secret key is exempt | GoTrue v2.197.0 source review; first sign-in after `set-turnstile.ps1` |
+| Rate limit records | Hashed addresses kept indefinitely | `app_rate_limit` deletes every window older than a day and refuses longer windows | `tests/db/sign-in-guard.test.ts`, `src/config/legal.test.ts` |
+
+Known limits: until the owner sets the keys, only the app's limits apply, and direct calls to Auth meet only Auth's own limits.

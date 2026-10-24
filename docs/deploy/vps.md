@@ -113,6 +113,21 @@ Checks and builds run in Vercel Sandbox, never on this server. Until it's connec
 
 When the token expires, checks stop with that reason on the task page. Make a new token and run step 2 again.
 
+## The browser check at sign-in (ADR 0067)
+
+Cloudflare Turnstile tells people from bots before Farbaek sends a sign-in email. Supabase Auth checks each token itself, so calling Auth directly can't skip it. Office Space sends its codes with the server's secret key, which Auth doesn't check.
+
+1. **In Cloudflare:** Turnstile > Add widget, named "Farbaek sign-in", hostname `www.farbaek.com`, mode Managed. Copy the site key and the secret key.
+2. **On the owner's PC:** run `scripts/vps/set-turnstile.ps1`. It:
+   - stops if the server doesn't have this change yet;
+   - saves `TURNSTILE_SITE_KEY` and restarts the app, so the page shows the check;
+   - saves `FARBAEK_CAPTCHA_SECRET` and `FARBAEK_CAPTCHA_ENABLED=true` in `/opt/farbaek/supabase/docker/.env`, recreates Auth and reads back that the check is on.
+3. **Sign in once on each:** `https://www.farbaek.com/sign-in` and Office Space.
+
+To switch it off, run the script with `-Off`: Auth stops checking first, then the page drops the check.
+
+Without the site key, sign-in still has its own limits: 3 links per email address every 15 minutes and 20 per network address an hour, counted by hash (`src/config/sign-in.ts`).
+
 ## The database (ADR 0036)
 
 Self-hosted Supabase runs beside the app:

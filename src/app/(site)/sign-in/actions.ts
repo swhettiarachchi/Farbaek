@@ -1,35 +1,46 @@
 "use server";
 
-import { z } from "zod";
+import { headers } from "next/headers";
+import { turnstileSiteKey } from "@/server/auth/captcha";
+import { requestSignIn, signInKey, type SignInState } from "@/server/auth/sign-in";
+import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { safeNextPath, siteUrl } from "@/server/supabase/config";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 
-export type SignInState =
-  | { status: "idle" }
-  | { status: "sent"; email: string }
-  | { status: "error"; message: string; email?: string };
-
-const Email = z.email().max(254);
-
 export async function requestSignInLink(_previous: SignInState, form: FormData): Promise<SignInState> {
-  const raw = String(form.get("email") ?? "").trim().toLowerCase();
-  const parsed = Email.safeParse(raw);
-  if (!parsed.success) return { status: "error", message: "Enter a valid email address.", email: raw };
-
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return { status: "error", message: "Sign-in isn't connected in this environment yet.", email: raw };
+  if (!supabase) return { status: "error", message: "Sign-in isn't connected in this environment yet.", email: String(form.get("email") ?? "").trim() };
+  const admin = createSupabaseAdminClient();
+  const next = safeNextPath(String(form.get("next") ?? ""));
+  // Caddy sets X-Forwarded-For from the connection, so its first entry is the visitor's address.
+  const h = await headers();
+  const address = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip")?.trim() || "unknown";
 
-  const { error } = await supabase.auth.signInWithOtp({
-    email: parsed.data,
-    options: { emailRedirectTo: `${siteUrl()}/auth/callback?next=${encodeURIComponent(safeNextPath(String(form.get("next") ?? "")))}`, shouldCreateUser: true },
-  });
-
-  if (error) {
-    if (error.status === 429) {
-      return { status: "error", message: "Too many sign-in emails were requested. Wait a few minutes and try again.", email: raw };
-    }
-    return { status: "error", message: "The sign-in email couldn't be sent. Try again in a moment.", email: raw };
-  }
-  // Same response whether or not the account already existed.
-  return { status: "sent", email: parsed.data };
+  return requestSignIn(
+    {
+      captchaRequired: turnstileSiteKey() !== null,
+      addressKey: signInKey("address", address),
+      async rateLimit(key, windowSeconds, limit) {
+        if (!admin) return "unavailable";
+        const { data, error } = await admin.rpc("app_rate_limit", { p_key: key, p_window_seconds: windowSeconds, p_limit: limit });
+        if (error) return "unavailable";
+        return data === true ? "ok" : "limited";
+      },
+      async sendLink(email, captchaToken) {
+        const { error } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            emailRedirectTo: `${siteUrl()}/auth/callback?next=${encodeURIComponent(next)}`,
+            shouldCreateUser: true,
+            ...(captchaToken ? { captchaToken } : {}),
+          },
+        });
+        if (!error) return { ok: true };
+        if (error.status === 429) return { ok: false, reason: "rate_limited" };
+        if (error.code === "captcha_failed") return { ok: false, reason: "captcha_failed" };
+        return { ok: false, reason: "failed" };
+      },
+    },
+    { email: form.get("email"), captchaToken: form.get("captchaToken") },
+  );
 }

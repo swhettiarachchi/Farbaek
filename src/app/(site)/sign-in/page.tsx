@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Container } from "@/components/ui/container";
 import { CONTACT } from "@/config/contact";
+import { turnstileSiteKey } from "@/server/auth/captcha";
 import { safeNextPath } from "@/server/supabase/config";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { KeptPrompt } from "./kept-prompt";
@@ -41,7 +42,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
           <div className="rounded-md bg-surface p-5 shadow-e1 sm:p-6">
             <KeptPrompt />
             {supabase ? (
-              <SignInForm linkError={error === "link"} next={next} />
+              <SignInForm linkError={error === "link"} next={next} captchaSiteKey={turnstileSiteKey()} />
             ) : (
               <p className="rounded-sm border border-dashed border-line-strong/60 p-5 text-sm text-ink-2">
                 Sign-in isn&apos;t connected in this environment. Add the Supabase URL and publishable key to <code>.env.local</code>.

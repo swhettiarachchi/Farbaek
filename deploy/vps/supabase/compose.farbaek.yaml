@@ -27,6 +27,13 @@ services:
   # (2.197.0, released 2026-09-09), so auth's tables have the same columns.
   auth:
     image: supabase/gotrue:v2.197.0
+    # The browser check at sign-in (ADR 0067). Off until
+    # scripts/vps/set-turnstile.ps1 puts both values in this folder's .env.
+    # Requests made with the server's secret key skip it.
+    environment:
+      GOTRUE_SECURITY_CAPTCHA_ENABLED: ${FARBAEK_CAPTCHA_ENABLED:-false}
+      GOTRUE_SECURITY_CAPTCHA_PROVIDER: turnstile
+      GOTRUE_SECURITY_CAPTCHA_SECRET: ${FARBAEK_CAPTCHA_SECRET:-}
 
   api-gw:
     ports: !reset []

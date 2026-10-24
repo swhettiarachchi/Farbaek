@@ -1,11 +1,14 @@
 "use client";
 
 import { EnvelopeSimpleIcon } from "@phosphor-icons/react";
+import Link from "next/link";
 import { useActionState, useId } from "react";
+import { TurnstileCheck } from "@/components/auth/turnstile-check";
 import { buttonClasses } from "@/components/ui/button";
-import { requestSignInLink, type SignInState } from "./actions";
+import type { SignInState } from "@/server/auth/sign-in";
+import { requestSignInLink } from "./actions";
 
-export function SignInForm({ linkError, next = "/app" }: { linkError: boolean; next?: string }) {
+export function SignInForm({ linkError, next = "/app", captchaSiteKey = null }: { linkError: boolean; next?: string; captchaSiteKey?: string | null }) {
   const [state, action, pending] = useActionState<SignInState, FormData>(requestSignInLink, { status: "idle" });
   const emailId = useId();
   const errorId = useId();
@@ -50,9 +53,27 @@ export function SignInForm({ linkError, next = "/app" }: { linkError: boolean; n
           </p>
         ) : null}
       </div>
-      <button type="submit" disabled={pending} className={buttonClasses("primary", "md", "w-full")}>
-        {pending ? "Sending link…" : "Email me a sign-in link"}
-      </button>
+      <div>
+        {captchaSiteKey ? <TurnstileCheck siteKey={captchaSiteKey} resetSignal={state} /> : null}
+        <button type="submit" disabled={pending} className={buttonClasses("primary", "md", "w-full")}>
+          {pending ? "Sending link…" : "Email me a sign-in link"}
+        </button>
+      </div>
+      <p className="text-[13px] leading-relaxed text-ink-3">
+        By continuing, you accept the{" "}
+        <Link href="/terms" className="text-ink-2 underline underline-offset-2 hover:text-ink">
+          Terms of Service
+        </Link>{" "}
+        and{" "}
+        <Link href="/acceptable-use" className="text-ink-2 underline underline-offset-2 hover:text-ink">
+          Acceptable Use Policy
+        </Link>
+        . The{" "}
+        <Link href="/privacy" className="text-ink-2 underline underline-offset-2 hover:text-ink">
+          Privacy Policy
+        </Link>{" "}
+        explains how we use your data.
+      </p>
     </form>
   );
 }

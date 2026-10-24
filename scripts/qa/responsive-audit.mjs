@@ -31,6 +31,7 @@ const OUT = flag("out") ?? join(tmpdir(), `farbaek-responsive-${Date.now()}.json
 /** Routes with fixed paths. Dynamic ones are found from their list pages (DISCOVER). */
 const STATIC_ROUTES = [
   "/", "/pricing", "/security", "/sign-in", "/verify", "/this-page-does-not-exist",
+  "/terms", "/privacy", "/acceptable-use", "/proofpack/v1", "/account-deleted",
   "/app", "/app/agents", "/app/approvals", "/app/billing", "/app/build", "/app/help", "/app/help/new", "/app/mesh",
   "/app/more", "/app/new", "/app/projects", "/app/rescue", "/app/sandbox", "/app/sandbox/new", "/app/settings",
   "/app/tasks", "/app/templates", "/app/workspaces/new",

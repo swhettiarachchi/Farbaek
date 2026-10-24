@@ -2,6 +2,7 @@ import Link from "next/link";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { Container } from "@/components/ui/container";
 import { CONTACT } from "@/config/contact";
+import { LEGAL_DOCS } from "@/config/legal";
 import { NAV_LINKS } from "./nav-links";
 
 export function SiteFooter() {
@@ -36,6 +37,19 @@ export function SiteFooter() {
             {[...NAV_LINKS, { href: "/verify", label: "Verify evidence" }, { href: "/security", label: "Security tests" }, { href: "/sign-in", label: "Sign in" }].map((link) => (
               <li key={link.href}>
                 <Link href={link.href} className="text-ink-2 hover:text-ink">
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </Container>
+      <Container>
+        <nav aria-label="Legal" className="border-t border-line py-3">
+          <ul className="flex flex-wrap gap-x-6 text-sm">
+            {LEGAL_DOCS.map((link) => (
+              <li key={link.href}>
+                <Link href={link.href} className="inline-flex min-h-11 items-center text-ink-3 hover:text-ink">
                   {link.label}
                 </Link>
               </li>
