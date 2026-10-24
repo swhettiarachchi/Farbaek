@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AutonomySettings } from "@/components/app/autonomy-settings";
+import { DeleteAccount } from "@/components/app/delete-account";
 import { EmailPreferencesForm } from "@/components/app/email-preferences";
+import { MemberControls } from "@/components/app/member-controls";
+import { createSupabaseAdminClient } from "@/server/supabase/admin";
+import { DELETION_WORDS, deletionPlan, isStaffAccount } from "@/server/workspace/account";
 import { readEmailConfig } from "@/server/email/config";
 import { ExecutionModeBadge } from "@/components/app/execution";
 import { RenameWorkspaceForm } from "@/components/app/forms";
@@ -32,6 +36,19 @@ export default async function SettingsPage() {
     ctx.reader.getEmailPreferences(),
   ]);
   const emailReason = ctx.mode === "demo" ? "The demo workspace is read-only." : readEmailConfig() ? null : "Farbaek isn't sending email from this server yet.";
+  const owners = members.filter((m) => m.role === "owner").length;
+  const peopleReason = ctx.mode === "demo" ? "The demo workspace is read-only." : !ctx.writes.enabled ? ctx.writes.reason : null;
+  // What deleting this account would do, from the database's own plan (ADR 0064).
+  const admin = ctx.mode === "live" ? createSupabaseAdminClient() : null;
+  const [plan, staff] = admin ? await Promise.all([deletionPlan(admin, ctx.user.id).catch(() => null), isStaffAccount(admin, ctx.user.id).catch(() => false)]) : [null, false];
+  const deleteReason =
+    ctx.mode === "demo"
+      ? "The demo workspace is read-only."
+      : staff
+        ? "This is a Farbaek staff account, so it's kept. Write to support to close it."
+        : plan === null
+          ? "Your workspaces couldn't be checked just now, so deleting is off. Try again in a moment."
+          : null;
   const canRename = ctx.mode === "live" && canManage;
   // People who joined through an invitation are shown by the address they were invited at.
   const emailOf = new Map(invitations.flatMap((i) => (i.acceptedBy ? [[i.acceptedBy, i.email] as const] : [])));
@@ -124,17 +141,28 @@ export default async function SettingsPage() {
           </h2>
           <ul className="mt-4 divide-y divide-line">
             {members.map((m) => (
-              <li key={m.userId} className="flex items-center gap-3 py-3">
-                <span className="flex size-9 items-center justify-center rounded-full bg-surface-raised text-sm font-medium text-ink-2">
-                  {m.userId === ctx.user.id ? ctx.user.email.slice(0, 1).toUpperCase() : "·"}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[15px]">{m.userId === ctx.user.id ? `${ctx.user.email} (you)` : (emailOf.get(m.userId) ?? "Teammate")}</span>
-                  <span className="block text-xs text-ink-3">
-                    Joined <RelativeTime iso={m.joinedAt} />
+              <li key={m.userId} className="grid gap-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-raised text-sm font-medium text-ink-2">
+                    {m.userId === ctx.user.id ? ctx.user.email.slice(0, 1).toUpperCase() : "·"}
                   </span>
-                </span>
-                <span className="rounded-full border border-line px-2.5 py-0.5 text-xs text-ink-2">{ROLE_LABEL[m.role]}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px]">{m.userId === ctx.user.id ? `${ctx.user.email} (you)` : (emailOf.get(m.userId) ?? "Teammate")}</span>
+                    <span className="block text-xs text-ink-3">
+                      Joined <RelativeTime iso={m.joinedAt} />
+                    </span>
+                  </span>
+                  <span className="rounded-full border border-line px-2.5 py-0.5 text-xs text-ink-2">{ROLE_LABEL[m.role]}</span>
+                </div>
+                <MemberControls
+                  userId={m.userId}
+                  name={m.userId === ctx.user.id ? "yourself" : (emailOf.get(m.userId) ?? "this teammate")}
+                  role={m.role}
+                  actorRole={ctx.role}
+                  isSelf={m.userId === ctx.user.id}
+                  lastOwner={m.role === "owner" && owners === 1}
+                  disabledReason={peopleReason}
+                />
               </li>
             ))}
           </ul>
@@ -175,6 +203,24 @@ export default async function SettingsPage() {
           )}
         </Card>
       </div>
+
+      <section id="delete-account" aria-labelledby="delete-account-title" className="scroll-mt-24">
+        <Card>
+          <h2 id="delete-account-title" className="text-lg font-medium">
+            Delete your account
+          </h2>
+          <p className="mt-1 max-w-[62ch] text-sm leading-relaxed text-ink-2">
+            Here&apos;s what happens to each workspace you&apos;re in. Want a copy first? Export a project from its page: the Capsule holds its files and history.
+          </p>
+          <div className="mt-5">
+            <DeleteAccount
+              email={ctx.user.email}
+              rows={plan ? plan.map((p) => ({ orgId: p.orgId, orgName: p.orgName, outcome: p.outcome, words: DELETION_WORDS[p.outcome] })) : null}
+              disabledReason={deleteReason}
+            />
+          </div>
+        </Card>
+      </section>
     </div>
   );
 }

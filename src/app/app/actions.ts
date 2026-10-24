@@ -8,6 +8,7 @@ import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { WORKSPACE_COOKIE, isDemoMode, loadAppContext, type AppContext } from "@/server/workspace/context";
 import { mapCreateOrganizationError } from "@/server/workspace/organizations";
+import { deletionPlan, isStaffAccount, peopleError } from "@/server/workspace/account";
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
 import { MANAGER_ROLES } from "@/server/workspace/types";
 import { EMPTY_CONTRACT_FORM, type ContractFormValues } from "@/core/realityloop/contract-form";
@@ -482,6 +483,77 @@ export async function setEmailPreferencesAction(_previous: FormState, form: Form
   if (error) return { status: "error", message: "Your email choices couldn't be saved. Nothing was changed." };
   revalidatePath("/app/settings");
   return { status: "done", message: "Email choices saved." };
+}
+
+const MemberChange = z.object({ userId: z.uuid(), role: z.enum(["owner", "admin", "member", "viewer"]) });
+
+/** Changes someone's role in the current workspace (ADR 0064). The database decides who may. */
+export async function setMemberRoleAction(_previous: FormState, form: FormData): Promise<FormState> {
+  const input = MemberChange.safeParse({ userId: form.get("userId"), role: form.get("role") });
+  if (!input.success) return { status: "error", message: "Choose a role." };
+  const ctx = await requireContext();
+  if (ctx.mode === "demo") return { status: "error", message: "The demo workspace is read-only." };
+  const admin = createSupabaseAdminClient();
+  if (!ctx.current || !admin) return { status: "error", message: "Supabase isn't connected in this environment." };
+  const { error } = await admin.rpc("app_set_member_role", { p_org: ctx.current.id, p_actor: ctx.user.id, p_user: input.data.userId, p_role: input.data.role });
+  if (error) return { status: "error", message: peopleError(error.message) };
+  revalidatePath("/app/settings");
+  return { status: "done", message: "Role changed." };
+}
+
+/** Removes someone from the current workspace, or, for the person themselves, leaves it (ADR 0064). */
+export async function removeMemberAction(_previous: FormState, form: FormData): Promise<FormState> {
+  const userId = z.uuid().safeParse(form.get("userId"));
+  if (!userId.success) return { status: "error", message: "Choose who to remove." };
+  const ctx = await requireContext();
+  if (ctx.mode === "demo") return { status: "error", message: "The demo workspace is read-only." };
+  const admin = createSupabaseAdminClient();
+  if (!ctx.current || !admin) return { status: "error", message: "Supabase isn't connected in this environment." };
+  const { error } = await admin.rpc("app_remove_member", { p_org: ctx.current.id, p_actor: ctx.user.id, p_user: userId.data });
+  if (error) return { status: "error", message: peopleError(error.message) };
+  if (userId.data === ctx.user.id) {
+    // They left: the next page opens one of their other workspaces, or the start.
+    (await cookies()).delete(WORKSPACE_COOKIE);
+    revalidatePath("/app", "layout");
+    redirect("/app");
+  }
+  revalidatePath("/app/settings");
+  return { status: "done", message: "Removed from the workspace." };
+}
+
+/**
+ * Deletes the signed-in person's account (ADR 0064): their solo workspaces,
+ * their place in the others, then the sign-in record. They type their address
+ * to confirm; anything the plan blocks stops it before a thing is deleted.
+ */
+export async function deleteAccountAction(_previous: FormState, form: FormData): Promise<FormState> {
+  const ctx = await requireContext();
+  if (ctx.mode === "demo") return { status: "error", message: "The demo workspace is read-only." };
+  const typed = String(form.get("confirm") ?? "").trim().toLowerCase();
+  if (typed !== ctx.user.email.toLowerCase()) return { status: "error", message: "Type the address you sign in with, exactly, to confirm." };
+  const admin = createSupabaseAdminClient();
+  if (!admin) return { status: "error", message: "Supabase isn't connected in this environment." };
+  try {
+    if (await isStaffAccount(admin, ctx.user.id)) return { status: "error", message: "This is a Farbaek staff account, so it's kept. Write to support to close it." };
+    const blocked = (await deletionPlan(admin, ctx.user.id)).filter((p) => p.outcome.startsWith("blocked"));
+    if (blocked.length) return { status: "error", message: `Nothing was deleted. First sort out: ${blocked.map((b) => b.orgName).join(", ")}.` };
+    const { error } = await admin.rpc("app_delete_account_data", { p_user: ctx.user.id });
+    if (error) return { status: "error", message: /BLOCKED/.test(error.message) ? "Something changed in one of your workspaces. Check the list and try again." : "Your account couldn't be deleted. Nothing was changed." };
+    const { error: authError } = await admin.auth.admin.deleteUser(ctx.user.id);
+    if (authError) {
+      // The workspaces are gone; the sign-in record stays until a retry. Logged without the address.
+      log("error", "account.delete_auth_failed", { user: ctx.user.id, error: authError.message.slice(0, 200) });
+      return { status: "error", message: "Your workspaces were deleted, but your sign-in couldn't be removed yet. Try again, or write to support." };
+    }
+    log("info", "account.deleted", { user: ctx.user.id });
+  } catch (e) {
+    log("error", "account.delete_failed", { user: ctx.user.id, error: e instanceof Error ? e.message.slice(0, 200) : String(e) });
+    return { status: "error", message: "Your account couldn't be deleted. Nothing was changed." };
+  }
+  const supabase = await createSupabaseServerClient();
+  if (supabase) await supabase.auth.signOut().catch(() => undefined);
+  (await cookies()).delete(WORKSPACE_COOKIE);
+  redirect("/account-deleted");
 }
 
 export type InviteState = { status: "idle" } | { status: "error"; message: string } | { status: "created"; link: string; email: string; role: string; expiresAt: string };
