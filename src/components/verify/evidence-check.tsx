@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, CircleDashedIcon, FileArrowUpIcon, FileMagnifyingGlassIcon, PackageIcon, XCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, CircleDashedIcon, FileArrowUpIcon, FileMagnifyingGlassIcon, PackageIcon, SealCheckIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useId, useState, type DragEvent } from "react";
 import { ProofPackSeal } from "@/components/proof/proofpack-seal";
@@ -9,7 +9,8 @@ import { LocalTime } from "@/components/ui/local-time";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { CAPSULE_LIMITS } from "@/config/workspace";
 import { openCapsule, type OpenedCapsule } from "@/core/mesh/capsule";
-import { EVIDENCE_LABELS, inspectEvidence, matchFile, type EvidenceFile, type Inspection } from "@/core/proof/inspect";
+import { EVIDENCE_LABELS, inspectEvidence, matchFile, type EvidenceFile, type EvidenceSignature, type Inspection } from "@/core/proof/inspect";
+import type { PublicSigningKey } from "@/core/trust/dsse";
 import { formatBytes } from "@/core/workspace/files";
 
 type Result = { type: "evidence"; name: string; inspection: Inspection } | { type: "capsule"; name: string; opened: OpenedCapsule } | { type: "error"; message: string };
@@ -45,6 +46,20 @@ const KINDS = [
  * Portable Proof: checks Farbaek evidence in the visitor's browser. Files are
  * read here and never sent anywhere; the page makes no request with them.
  */
+/** Farbaek's published signing keys (ADR 0062), or null when they can't be loaded. */
+async function loadKeys(): Promise<PublicSigningKey[] | null> {
+  try {
+    const r = await fetch("/.well-known/farbaek-keys.json", { cache: "no-store" });
+    if (!r.ok) return null;
+    const body: unknown = await r.json();
+    const keys = typeof body === "object" && body !== null ? (body as { keys?: unknown }).keys : null;
+    if (!Array.isArray(keys)) return null;
+    return keys.filter((k): k is PublicSigningKey => typeof k?.keyid === "string" && typeof k?.publicKey === "string");
+  } catch {
+    return null;
+  }
+}
+
 export function EvidenceCheck() {
   const id = useId();
   const [mode, setMode] = useState<"file" | "paste">("file");
@@ -75,7 +90,7 @@ export function EvidenceCheck() {
         setResult({ type: "error", message: "That file isn't JSON or a Capsule. Evidence files from Farbaek end in .json; Capsules in .capsule.zip." });
         return;
       }
-      setResult({ type: "evidence", name: file.name, inspection: await inspectEvidence(json) });
+      setResult({ type: "evidence", name: file.name, inspection: await inspectEvidence(json, undefined, await loadKeys()) });
     } finally {
       setBusy(false);
     }
@@ -90,7 +105,7 @@ export function EvidenceCheck() {
       return;
     }
     setBusy(true);
-    setResult({ type: "evidence", name: "Pasted statement", inspection: await inspectEvidence(json, digest.trim() || undefined) });
+    setResult({ type: "evidence", name: "Pasted statement", inspection: await inspectEvidence(json, digest.trim() || undefined, await loadKeys()) });
     setBusy(false);
   }
 
@@ -219,29 +234,64 @@ function Failure({ message }: { message: string }) {
   );
 }
 
-function Verdict({ intact, label }: { intact: boolean | null; label: string }) {
-  if (intact === true)
-    return (
-      <p className="flex items-start gap-2.5 text-lg font-medium leading-snug">
-        <CheckCircleIcon size={24} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
-        <span>
-          Intact. This {label} is exactly what Farbaek recorded.
-        </span>
-      </p>
-    );
-  if (intact === false)
-    return (
-      <p className="flex items-start gap-2.5 text-lg font-medium leading-snug text-failed">
-        <XCircleIcon size={24} weight="fill" className="mt-0.5 shrink-0" aria-hidden />
-        <span>Changed. This {label} isn&apos;t what Farbaek recorded: its digest doesn&apos;t match.</span>
-      </p>
-    );
+/**
+ * Only a signature proves Farbaek recorded it (ADR 0062); a digest alone
+ * proves nothing in it changed. A bad signature outweighs a matching digest.
+ */
+function Verdict({ intact, signature, label }: { intact: boolean | null; signature: EvidenceSignature["status"]; label: string }) {
+  const failed = (text: React.ReactNode) => (
+    <p className="flex items-start gap-2.5 text-lg font-medium leading-snug text-failed">
+      <XCircleIcon size={24} weight="fill" className="mt-0.5 shrink-0" aria-hidden />
+      <span>{text}</span>
+    </p>
+  );
+  const passed = (text: React.ReactNode) => (
+    <p className="flex items-start gap-2.5 text-lg font-medium leading-snug">
+      <CheckCircleIcon size={24} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+      <span>{text}</span>
+    </p>
+  );
+  if (intact === false) return failed(<>Changed. This {label} isn&apos;t what Farbaek recorded: its digest doesn&apos;t match.</>);
+  if (signature === "bad") return failed(<>Not what Farbaek signed. Don&apos;t rely on this {label}.</>);
+  if (signature === "signed") return passed(<>Intact. This {label} is exactly what Farbaek recorded.</>);
+  if (intact === true) return passed(<>Intact. This {label} matches its digest, so nothing in it changed.</>);
   return (
     <p className="flex items-start gap-2.5 text-lg font-medium leading-snug">
       <CircleDashedIcon size={24} weight="bold" className="mt-0.5 shrink-0 text-unverified" aria-hidden />
       <span>Read, but not compared. Paste the digest you were given to check it.</span>
     </p>
   );
+}
+
+/** Who signed it, in words and an icon: never by colour alone. */
+function SignatureLine({ signature: s }: { signature: EvidenceSignature }) {
+  const line = (icon: React.ReactNode, text: React.ReactNode, tone = "text-ink-2") => <p className={`flex items-start gap-2 text-sm leading-relaxed ${tone}`}>{icon}<span>{text}</span></p>;
+  switch (s.status) {
+    case "signed":
+      return line(
+        <SealCheckIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />,
+        <>
+          Signed by Farbaek with key <span className="whitespace-nowrap font-mono text-[13px]">{s.keyid}</span>, which only Farbaek&apos;s server holds.
+        </>,
+        "text-ink",
+      );
+    case "bad":
+      return line(<XCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0" aria-hidden />, <>Signature doesn&apos;t check out. {s.reason}</>, "text-failed");
+    case "unknown_key":
+      return line(
+        <WarningCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-approval" aria-hidden />,
+        <>
+          Signed with a key Farbaek doesn&apos;t publish (<span className="font-mono text-[13px]">{s.keyid}</span>), so the signature can&apos;t be trusted.
+        </>,
+      );
+    case "unchecked":
+      return line(<CircleDashedIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-unverified" aria-hidden />, "Signed, but Farbaek's keys couldn't be loaded to check the signature. Try again.");
+    default:
+      return line(
+        <CircleDashedIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-unverified" aria-hidden />,
+        "Not signed. Its digest still shows whether it changed, but not who recorded it.",
+      );
+  }
 }
 
 function DigestRow({ label, value, match }: { label: string; value: string; match: boolean | null }) {
@@ -256,7 +306,8 @@ function DigestRow({ label, value, match }: { label: string; value: string; matc
 function EvidenceResult({ inspection: r }: { inspection: Extract<Inspection, { ok: true }> }) {
   const label = EVIDENCE_LABELS[r.kind];
   const [match, setMatch] = useState<{ name: string; hits: EvidenceFile[] } | null>(null);
-  const sealed = r.intact === true && r.kind === "proofpack" && r.status === "verified";
+  const trusted = r.signature.status !== "bad" && r.signature.status !== "unknown_key";
+  const sealed = (r.intact === true || r.signature.status === "signed") && trusted && r.kind === "proofpack" && r.status === "verified";
 
   async function matchOne(file: File | undefined) {
     if (!file) return;
@@ -272,7 +323,8 @@ function EvidenceResult({ inspection: r }: { inspection: Extract<Inspection, { o
             {label}
             {r.sample ? <StatusBadge status="simulated" label="Sample data" /> : null}
           </p>
-          <Verdict intact={r.intact} label={label} />
+          <Verdict intact={r.intact} signature={r.signature.status} label={label} />
+          <SignatureLine signature={r.signature} />
           {r.recordedAt ? (
             <p className="text-sm text-ink-3">
               Recorded <When iso={r.recordedAt} />

@@ -1,5 +1,6 @@
 import { DownloadSimpleIcon, FingerprintIcon, LockKeyIcon, SealCheckIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Container } from "@/components/ui/container";
 import { EvidenceCheck } from "@/components/verify/evidence-check";
 
@@ -16,8 +17,8 @@ const MEANING = [
   },
   {
     icon: FingerprintIcon,
-    title: "Who recorded it comes next",
-    body: "Farbaek doesn't sign its records yet, so a match proves the record is unchanged, not who made it. Signatures are planned, and this page will check them too.",
+    title: "A signature shows who recorded it",
+    body: "A signed ProofPack carries Farbaek's Ed25519 signature. This page checks it against the keys Farbaek publishes, and says plainly when a record isn't signed: then a match proves it's unchanged, not who made it.",
   },
   {
     icon: LockKeyIcon,
@@ -64,7 +65,11 @@ export default function VerifyPage() {
           </ul>
           <p className="mt-10 max-w-[70ch] text-sm leading-relaxed text-ink-3">
             Evidence files come from Farbaek: download one from a ProofPack, or export a whole project with everything it holds. Each file is an in-toto statement you can also
-            check without this page: compute the SHA-256 of its RFC 8785 canonical JSON and compare it with the digest.
+            check without this page.{" "}
+            <Link href="/proofpack/v1" className="font-medium text-accent underline-offset-2 hover:underline">
+              The ProofPack format, and how to check one with OpenSSL
+            </Link>
+            .
           </p>
         </Container>
       </section>

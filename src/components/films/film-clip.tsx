@@ -26,7 +26,7 @@ import { noSubscribe, useOnScreen, usePlaybackLimits, useVideoControl } from "./
 export function FilmClip({ id, poster, active = true, enabled = true }: { id: FilmId; poster: ReactNode; active?: boolean; enabled?: boolean }) {
   const film = FILMS[id];
   const { reducedMotion, saveData } = usePlaybackLimits();
-  const { ref, inView, hidden } = useOnScreen<HTMLDivElement>();
+  const { ref, inView, near, hidden } = useOnScreen<HTMLDivElement>();
   const video = useRef<HTMLVideoElement>(null);
   const [userPaused, setUserPaused] = useState(false);
   const [userPlayed, setUserPlayed] = useState(false);
@@ -64,7 +64,8 @@ export function FilmClip({ id, poster, active = true, enabled = true }: { id: Fi
           loop
           playsInline
           disablePictureInPicture
-          preload="none"
+          // Downloads a screen and a half ahead, so it's ready when it plays or is switched to (ADR 0061).
+          preload={near && !reducedMotion && !saveData ? "auto" : "none"}
           aria-hidden
           tabIndex={-1}
         />

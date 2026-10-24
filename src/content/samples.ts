@@ -5,6 +5,7 @@
  */
 import { approvalBindingHash, type ApprovalSubject } from "@/core/trust/approval";
 import { canonicalHash, sha256Hex } from "@/core/trust/canonical-json";
+import { PROOFPACK_PREDICATE_TYPE } from "@/core/proof/proofpack";
 import type { IntentContract } from "@/core/realityloop/contract";
 
 export const SAMPLE_CONTRACT: IntentContract = {
@@ -81,8 +82,7 @@ export async function buildSampleProofPack() {
   return {
     _type: "https://in-toto.io/Statement/v1",
     subject: [{ name: SAMPLE_CHANGED_FILE.path, digest: { sha256: fileDigest } }],
-    // Placeholder URI from the spec; replaced once Farbaek owns a domain.
-    predicateType: "https://farbaek.dev/proofpack/v1",
+    predicateType: PROOFPACK_PREDICATE_TYPE,
     predicate: {
       sample: true,
       task: { id: "tsk_sample", outcome: SAMPLE_CONTRACT.outcome },

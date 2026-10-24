@@ -251,13 +251,28 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
 
     async getProofPack(orgId, digest) {
       if (!/^[0-9a-f]{64}$/.test(digest)) return null;
-      const { data, error } = await client.from("proofpacks").select("digest, status, statement, previous, created_at").eq("org_id", orgId).eq("digest", digest).maybeSingle();
+      const { data, error } = await client
+        .from("proofpacks")
+        .select("digest, status, statement, previous, created_at, proofpack_signatures(keyid, sig)")
+        .eq("org_id", orgId)
+        .eq("digest", digest)
+        .maybeSingle();
       if (error) fail("ProofPack", error);
       if (!data) return null;
+      const Signature = z.object({ keyid: z.string(), sig: z.string() });
       const r = z
-        .object({ digest: z.string(), status: z.enum(["unverified", "partially_verified", "verified", "failed"]), statement: z.unknown(), previous: z.string().nullable(), created_at: z.string() })
+        .object({
+          digest: z.string(),
+          status: z.enum(["unverified", "partially_verified", "verified", "failed"]),
+          statement: z.unknown(),
+          previous: z.string().nullable(),
+          created_at: z.string(),
+          // One signature at most: PostgREST embeds it as an object, or a one-item list.
+          proofpack_signatures: z.union([Signature, z.array(Signature), z.null()]).optional(),
+        })
         .parse(data);
-      return { digest: r.digest, status: r.status, statement: r.statement, previous: r.previous, createdAt: r.created_at };
+      const signed = Array.isArray(r.proofpack_signatures) ? (r.proofpack_signatures[0] ?? null) : (r.proofpack_signatures ?? null);
+      return { digest: r.digest, status: r.status, statement: r.statement, previous: r.previous, createdAt: r.created_at, signature: signed };
     },
 
     async listRecentProofPacks(orgId, limit) {

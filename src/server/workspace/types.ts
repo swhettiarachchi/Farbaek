@@ -157,6 +157,8 @@ export interface ProofPackRecord {
   statement: unknown;
   previous: string | null;
   createdAt: string;
+  /** Farbaek's signature, when it was signed (ADR 0062). Only read where it's shown. */
+  signature?: { keyid: string; sig: string } | null;
 }
 
 /** What an applied proposal wrote and what each path holds now, for planning its undo. */
