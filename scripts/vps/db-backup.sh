@@ -13,7 +13,9 @@ RCLONE_IMAGE=rclone/rclone:1.71.1
 
 # Records each run for the Health page and /api/ready (ADR 0071). Never fails the backup itself.
 note_run() {
-  docker exec supabase-db psql -U postgres -d postgres -qAt -v ON_ERROR_STOP=1 \n    -c "select public.app_note_job_run('db_backup', $1, '$2')" >/dev/null 2>&1 || true
+  local detail=${2//\'/\'\'}
+  docker exec supabase-db psql -U postgres -d postgres -qAt -v ON_ERROR_STOP=1 \
+    -c "select public.app_note_job_run('db_backup', $1, '$detail')" >/dev/null 2>&1 || true
 }
 
 main() {
