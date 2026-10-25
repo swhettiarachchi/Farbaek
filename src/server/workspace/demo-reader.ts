@@ -230,6 +230,10 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
       return [];
     },
 
+    async getFirstStepRecords() {
+      return { latestProofPack: null, verifiedTaskId: null, liveSite: null };
+    },
+
     async listFileChangesSince(_orgId, projectId, since) {
       if (projectId !== DEMO_FILES_PROJECT_ID) return [];
       const events = DEMO_FILES.flatMap((f) => {

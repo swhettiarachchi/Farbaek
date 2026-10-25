@@ -202,6 +202,9 @@ const SECTIONS: LegalSection[] = [
               <code className="font-mono text-[13px]">fb_ws</code>: remembers which workspace you had open.
             </>,
             <>
+              <code className="font-mono text-[13px]">fb_steps</code>: remembers the workspaces where you hid the first steps.
+            </>,
+            <>
               <code className="font-mono text-[13px]">__Host-fb-office</code>: Farbaek staff only, for our own console.
             </>,
             <>

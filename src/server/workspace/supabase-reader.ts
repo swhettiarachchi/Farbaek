@@ -298,6 +298,25 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
         .map((r) => ({ digest: r.digest, status: r.status, statement: r.statement, previous: r.previous, createdAt: r.created_at, taskId: r.task_id }));
     },
 
+    async getFirstStepRecords(orgId) {
+      const [latest, verified, site] = await Promise.all([
+        client.from("proofpacks").select("task_id, status").eq("org_id", orgId).order("seq", { ascending: false }).limit(1).maybeSingle(),
+        client.from("proofpacks").select("task_id").eq("org_id", orgId).eq("status", "verified").order("seq", { ascending: false }).limit(1).maybeSingle(),
+        client.from("sites").select("project_id, name").eq("org_id", orgId).not("live_deployment_id", "is", null).is("blocked_at", null).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      ]);
+      if (latest.error) fail("ProofPacks", latest.error);
+      if (verified.error) fail("ProofPacks", verified.error);
+      if (site.error) fail("sites", site.error);
+      const pack = z.object({ task_id: z.string(), status: z.enum(["unverified", "partially_verified", "verified", "failed"]) }).nullable().parse(latest.data);
+      const proven = z.object({ task_id: z.string() }).nullable().parse(verified.data);
+      const live = z.object({ project_id: z.string(), name: z.string() }).nullable().parse(site.data);
+      return {
+        latestProofPack: pack ? { taskId: pack.task_id, status: pack.status } : null,
+        verifiedTaskId: proven?.task_id ?? null,
+        liveSite: live ? { projectId: live.project_id, name: live.name } : null,
+      };
+    },
+
     async listFileChangesSince(orgId, projectId, since) {
       if (!z.uuid().safeParse(projectId).success || Number.isNaN(Date.parse(since))) return [];
       const { data, error } = await client

@@ -286,6 +286,13 @@
   }
 }
 
+/* The first steps track filling up to the next step (motion-safe only). */
+@keyframes steps-fill {
+  from {
+    transform: scaleX(0);
+  }
+}
+
 @keyframes usage-in {
   from {
     opacity: 0;
