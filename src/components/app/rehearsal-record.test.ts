@@ -30,6 +30,17 @@ describe("RehearsalRecord", () => {
     expect(html).toContain("it needed an owner or admin");
   });
 
+  it("labels a replay as predicted from past changes, and says what it assumed", () => {
+    const html = renderToStaticMarkup(
+      createElement(RehearsalRecord, { summary: summarizeRehearsal([row({})]), since: SINCE, replay: { assumption: "It assumes a verified sandbox was connected when each change was made, as one is now.", leftOut: 2 } }),
+    );
+    expect(html).toContain("Replay of the last 30 days");
+    expect(html).toContain("Predicted from past changes");
+    expect(html).toContain("assumes a verified sandbox was connected");
+    expect(html).toContain("2 changes from the desktop agent are left out");
+    expect(html).not.toContain("Rehearsing since");
+  });
+
   it("leads with a failed check, and links to the change", () => {
     const html = render([row({}), row({ taskId: "t9", evidence: "failed" })]);
     expect(html).toContain("Level 2 would have paused itself");

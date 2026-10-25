@@ -297,3 +297,10 @@ Known limits: public repositories only. Private ones need a GitHub connection, w
 | --- | --- | --- | --- |
 | Server checks | SSRF through a watched address | Only a live site's own address on the configured site domain, or a stored https `*.vercel.app` address, is fetched; redirects aren't followed | `outcome-watch.test.ts`, `vercel.test.ts` |
 | Watch records and alerts | Forged or flapping alerts; another workspace's watches | The state is decided in `app_record_watch_result`, two failures in a row to go down, each change returned once and audited; browsers read their workspace's watches and write nothing; alerts go only to the person who turned the watch on | `tests/db/outcome-watch.test.ts`, `outcome-watch.test.ts` |
+
+## Counterfactual policy replay (2026-10-25, ADR 0081)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| Reading past changes | Another workspace's history; file contents leaking into a replay | `app_replay_history` runs as the caller under RLS and returns only paths, kinds, counts and statuses; at most 90 days and 300 changes; not callable signed out | `tests/db/policy-replay.test.ts` |
+| Predictions taken as facts | A replay read as what happened | Labelled "Predicted from past changes", dashed, with its assumption stated; nothing is applied | `rehearsal-record.test.ts`, `replay.test.ts` |

@@ -6,15 +6,19 @@ import { REASON_WORDS, type RehearsalSummary } from "@/core/trust/rehearsal";
 
 const plural = (n: number, one: string, many: string) => `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
 
-function Verdict({ summary, since }: { summary: RehearsalSummary; since: string }) {
+function Verdict({ summary, since, replay }: { summary: RehearsalSummary; since: string; replay: boolean }) {
   const { verdict, total, wouldApply } = summary;
   if (verdict === "nothing_yet")
     return (
       <p className="flex items-start gap-2 text-[15px]">
         <FlaskIcon size={18} className="mt-0.5 shrink-0 text-simulated" aria-hidden />
-        <span>
-          No changes yet since rehearsing began <LocalTime iso={since} />. Each new change notes what level 2 would have done.
-        </span>
+        {replay ? (
+          <span>No changes since <LocalTime iso={since} /> to replay.</span>
+        ) : (
+          <span>
+            No changes yet since rehearsing began <LocalTime iso={since} />. Each new change notes what level 2 would have done.
+          </span>
+        )}
       </p>
     );
   if (verdict === "none_would_apply")
@@ -51,9 +55,11 @@ function Verdict({ summary, since }: { summary: RehearsalSummary; since: string 
 /**
  * Shadow mode's record (ADR 0075) on Settings: what level 2 would have done
  * since rehearsing began, set against what really happened. Every number
- * here is a simulated decision next to a real outcome, and says which.
+ * here is a simulated decision next to a real outcome, and says which. The
+ * replay variant (ADR 0081) shows the same for past changes, predicted now,
+ * with what it had to assume.
  */
-export function RehearsalRecord({ summary, since }: { summary: RehearsalSummary; since: string }) {
+export function RehearsalRecord({ summary, since, replay }: { summary: RehearsalSummary; since: string; replay?: { assumption: string; leftOut: number } }) {
   const o = summary.outcomes;
   const outcomes = [
     { n: o.verified, words: "passed their checks" },
@@ -65,15 +71,15 @@ export function RehearsalRecord({ summary, since }: { summary: RehearsalSummary;
   ].filter((x) => x.n > 0);
 
   return (
-    <section aria-labelledby="rehearsal-heading" className="mt-6 grid gap-4 rounded-md border border-dashed border-simulated/40 bg-simulated/[0.03] p-4 sm:p-5">
+    <section aria-labelledby={replay ? "replay-heading" : "rehearsal-heading"} className="mt-6 grid gap-4 rounded-md border border-dashed border-simulated/40 bg-simulated/[0.03] p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 id="rehearsal-heading" className="text-base font-medium">
-          Rehearsal record
+        <h3 id={replay ? "replay-heading" : "rehearsal-heading"} className="text-base font-medium">
+          {replay ? "Replay of the last 30 days" : "Rehearsal record"}
         </h3>
-        <StatusBadge status="simulated" label="Simulated decisions" />
+        <StatusBadge status="simulated" label={replay ? "Predicted from past changes" : "Simulated decisions"} />
       </div>
 
-      <Verdict summary={summary} since={since} />
+      <Verdict summary={summary} since={since} replay={Boolean(replay)} />
 
       {summary.total > 0 ? (
         <>
@@ -125,9 +131,17 @@ export function RehearsalRecord({ summary, since }: { summary: RehearsalSummary;
         </>
       ) : null}
 
-      <p className="text-xs leading-relaxed text-ink-3">
-        Rehearsing since <LocalTime iso={since} />. Nothing applied on its own: these are the policy&apos;s simulated decisions, next to what people and checks really did.
-      </p>
+      {replay ? (
+        <p className="text-xs leading-relaxed text-ink-3">
+          Replayed now over changes since <LocalTime iso={since} />. {replay.assumption}
+          {replay.leftOut > 0 ? ` ${plural(replay.leftOut, "change", "changes")} from the desktop agent ${replay.leftOut === 1 ? "is" : "are"} left out, since level 2 never applies those.` : ""} Nothing was
+          applied or changed: these are predictions from past changes, next to what really happened.
+        </p>
+      ) : (
+        <p className="text-xs leading-relaxed text-ink-3">
+          Rehearsing since <LocalTime iso={since} />. Nothing applied on its own: these are the policy&apos;s simulated decisions, next to what people and checks really did.
+        </p>
+      )}
     </section>
   );
 }
