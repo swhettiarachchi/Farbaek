@@ -1,8 +1,10 @@
 "use client";
 
-import { CheckCircleIcon, FlaskIcon, LightningIcon, PauseCircleIcon, ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react";
-import { useActionState, useState } from "react";
+import { CheckCircleIcon, ClockCounterClockwiseIcon, FlaskIcon, LightningIcon, PauseCircleIcon, ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { useActionState, useState, useTransition } from "react";
 import { setAutonomyAction, type AutonomyState } from "@/app/app/actions";
+import { replayAutonomyAction, type ReplayState } from "@/app/app/replay-actions";
+import { RehearsalRecord } from "@/components/app/rehearsal-record";
 import { buttonClasses } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/local-time";
 import type { AutonomyView } from "@/server/workspace/autonomy";
@@ -17,12 +19,31 @@ type Mode = "0" | "shadow" | "2";
  * level 2: every change still waits, and each notes what level 2 would have
  * done. The server and the database decide each change.
  */
-export function AutonomySettings({ view, disabledReason, shadowReason, verifiable }: { view: AutonomyView; disabledReason: string | null; shadowReason: string | null; verifiable: boolean }) {
+export function AutonomySettings({
+  view,
+  disabledReason,
+  shadowReason,
+  replayReason,
+  verifiable,
+}: {
+  view: AutonomyView;
+  disabledReason: string | null;
+  shadowReason: string | null;
+  /** Why a replay of past changes can't run here (ADR 0081), or null. */
+  replayReason: string | null;
+  verifiable: boolean;
+}) {
   const [state, action, pending] = useActionState(setAutonomyAction, IDLE);
   const current: Mode = view.level === 2 ? "2" : view.shadowSince ? "shadow" : "0";
   const [mode, setMode] = useState<Mode>(current);
-  const [maxFiles, setMaxFiles] = useState(view.maxFiles);
-  const [allowCreates, setAllowCreates] = useState(view.allowCreates);
+  const [maxFiles, setMaxFilesRaw] = useState(view.maxFiles);
+  const [allowCreates, setAllowCreatesRaw] = useState(view.allowCreates);
+  const [replay, setReplay] = useState<ReplayState | null>(null);
+  const [replaying, startReplay] = useTransition();
+  // A replay answers for the limits it ran with; changing them clears it.
+  const setMaxFiles = (n: number) => (setMaxFilesRaw(n), setReplay(null));
+  const setAllowCreates = (b: boolean) => (setAllowCreatesRaw(b), setReplay(null));
+  const runReplay = () => startReplay(async () => setReplay(await replayAutonomyAction({ maxFiles, allowCreates })));
   const suspended = view.level === 2 && view.suspendedAt !== null;
   const changed = mode !== current || maxFiles !== view.maxFiles || allowCreates !== view.allowCreates;
   const locked = pending || Boolean(disabledReason);
@@ -144,6 +165,12 @@ export function AutonomySettings({ view, disabledReason, shadowReason, verifiabl
             </label>
           </div>
           {!verifiable ? <p className="text-sm text-ink-3">No verified sandbox is connected on this server, so for now every change still waits for a person.</p> : null}
+          <div className="flex flex-wrap items-center gap-3 border-t border-line pt-3">
+            <button type="button" onClick={runReplay} disabled={replaying || Boolean(replayReason)} className={buttonClasses("secondary", "sm")}>
+              <ClockCounterClockwiseIcon size={16} aria-hidden /> {replaying ? "Replaying…" : "Replay the last 30 days"}
+            </button>
+            <span className="text-xs text-ink-3">{replayReason ?? "See what these limits would have done with your past changes, before you choose."}</span>
+          </div>
           <p className="text-xs leading-relaxed text-ink-3">
             {mode === "shadow"
               ? "Nothing applies on its own while rehearsing. Each proposal shows what level 2 would have done, marked as simulated, and the record below sets those verdicts against what really happened."
@@ -153,6 +180,16 @@ export function AutonomySettings({ view, disabledReason, shadowReason, verifiabl
       ) : (
         <input type="hidden" name="maxFiles" value={maxFiles} />
       )}
+
+      {mode !== "0" && replay ? (
+        replay.status === "done" ? (
+          <RehearsalRecord summary={replay.summary} since={replay.since} replay={{ assumption: replay.assumption, leftOut: replay.leftOut }} />
+        ) : (
+          <p role="alert" className="flex items-start gap-2 text-sm text-failed">
+            <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {replay.message}
+          </p>
+        )
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={locked || (!changed && !suspended)} className={buttonClasses("primary", "sm")}>

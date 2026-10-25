@@ -111,6 +111,7 @@ export default async function SettingsPage() {
           view={autonomy}
           verifiable={execution.mode === "sandboxed"}
           shadowReason={shadowReason}
+          replayReason={ctx.mode === "demo" ? "The demo workspace has no past changes to replay." : shadowReason}
           disabledReason={ctx.mode === "demo" ? "The demo workspace is read-only." : !ctx.writes.enabled ? ctx.writes.reason : canManage ? null : "Only owners and admins can change autonomy."}
         />
         {autonomy.shadowSince ? (

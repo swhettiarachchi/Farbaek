@@ -7,7 +7,7 @@
  */
 export const JOBS = [
   { key: "sandbox_sweep", label: "Sandbox sweep", every: "every 15 minutes", lateAfterHours: 1 },
-  { key: "hourly_jobs", label: "Hourly jobs", every: "hourly: trial reminders and alerts", lateAfterHours: 3 },
+  { key: "hourly_jobs", label: "Hourly jobs", every: "hourly: trial reminders, alerts and outcome watch", lateAfterHours: 3 },
   { key: "db_backup", label: "Nightly backup", every: "nightly at 02:30 UTC", lateAfterHours: 30 },
   { key: "restore_test", label: "Backup restore test", every: "weekly on Sundays", lateAfterHours: 8 * 24 },
 ] as const;
