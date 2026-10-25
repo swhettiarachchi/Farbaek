@@ -9,6 +9,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { createSupabaseAgentStore } from "@/server/agent/supabase-store";
 import { sandboxExecutionMode } from "@/server/sandbox/registry";
+import type { SandboxActor, SandboxService } from "@/server/sandbox/service";
 import { sandboxServiceFor } from "@/server/sandbox/wiring";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { readSupabaseConfig } from "@/server/supabase/config";
@@ -19,6 +20,7 @@ import type { VerificationDeps } from "./runner";
 import { createSupabaseVerificationStore } from "./store";
 
 export type VerificationWiring = { ok: true; deps: VerificationDeps } | { ok: false; reason: string };
+export type PersonSandbox = { service: SandboxService; actor: SandboxActor } | { unavailable: string };
 
 async function freshAccessToken(): Promise<string | null> {
   const client = await createSupabaseServerClient();
@@ -27,33 +29,31 @@ async function freshAccessToken(): Promise<string | null> {
   return data.session?.access_token ?? null;
 }
 
+/** The sandbox service acting as the signed-in person, or why there's none. Shared with the Future-State Arena (ADR 0076). */
+export async function sandboxForPerson(person: { orgId: string; userId: string; role: OrgRole }): Promise<PersonSandbox> {
+  const config = readSupabaseConfig();
+  if (!config) return { unavailable: "Accounts aren't configured on this server." };
+  const execution = sandboxExecutionMode();
+  if (execution.mode !== "sandboxed") return { unavailable: execution.reason ?? "No verified sandbox is connected, so checks can't run." };
+  const token = await freshAccessToken();
+  if (!token) return { unavailable: "Your session couldn't be confirmed for the sandbox. Sign in again." };
+  const user = createClient(config.url, config.publishableKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+  return sandboxServiceFor(user, person.userId, person.orgId, person.role);
+}
+
 export async function verificationDeps(person: { orgId: string; userId: string; role: OrgRole }): Promise<VerificationWiring> {
   const admin = createSupabaseAdminClient();
   const config = readSupabaseConfig();
   if (!admin || !config) return { ok: false, reason: "Accounts aren't configured on this server." };
-  const execution = sandboxExecutionMode();
-  const token = execution.mode === "sandboxed" ? await freshAccessToken() : null;
-
-  let sandbox: VerificationDeps["sandbox"];
-  if (execution.mode !== "sandboxed") {
-    sandbox = { unavailable: execution.reason ?? "No verified sandbox is connected, so checks can't run." };
-  } else if (!token) {
-    sandbox = { unavailable: "Your session couldn't be confirmed for the sandbox. Sign in again." };
-  } else {
-    const user = createClient(config.url, config.publishableKey, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-    });
-    const { service, actor } = sandboxServiceFor(user, person.userId, person.orgId, person.role);
-    sandbox = { service, actor };
-  }
-
   return {
     ok: true,
     deps: {
       store: createSupabaseVerificationStore(admin),
       checks: createSupabaseAgentStore(admin),
-      sandbox,
+      sandbox: await sandboxForPerson(person),
       newKey: () => crypto.randomUUID(),
       // Tells the person how the checks ended (ADR 0060); null while email is off.
       notify: serverNotifier(),

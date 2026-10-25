@@ -266,3 +266,11 @@ Known limits: public repositories only. Private ones need a GitHub connection, w
 | --- | --- | --- | --- |
 | Rehearsal decisions | A simulated "would apply" being taken as real, or acted on | The real outcome stays level 0's; the rehearsal is stored apart, under `policy.shadow`, and shown dashed with a flask icon and "Simulated"; nothing reads it to apply a change | `policy.test.ts`, `rehearsal-record.test.ts` |
 | The rehearsal switch | Turning it on without the plan or the role; rehearsal records outside a rehearsal | Owners and admins only, Pro and up (server); `shadow_since` only at level 0; the proposal trigger drops a rehearsal when the workspace isn't rehearsing or the change applies on its own | `autonomy.test.ts`, `tests/db/shadow-mode.test.ts` |
+
+## Future-State Arena (2026-10-25, ADR 0076)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| Trials and evidence | A trial's results taken as verification; a trial writing to the project | `trialChecks` writes no receipt, ProofPack or task transition; the change is written only into a disposable sandbox, which stops at the end; the panel says a trial never counts as verification | `service.test.ts`, `runner.test.ts`, `arena-panel.test.ts` |
+| Starting and recording trials | Trials of applied or other workspaces' proposals; forged results | `app_start_arena_run` needs a contributor and a pending proposal in the workspace, one running per proposal, stale ones closed after 30 minutes; the session must be the workspace's, for the proposal's project; results are written once by the server, at most 20 named checks each | `tests/db/arena-runs.test.ts` |
+| Sandbox use | A trial running commands the person couldn't | The sandbox runs as the person, through the same guard, rate limits and plan limits as their own commands | `service.test.ts` |
