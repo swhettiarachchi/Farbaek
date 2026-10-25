@@ -5,6 +5,7 @@ import { ORGANIZATION_SELECT, summarizeOrganizations } from "./organizations";
 import { readSkillPins } from "./skill-pins";
 import { GRANT_COLUMNS, UsageGrantRowSchema, grantFromRow } from "./usage-store";
 import { readAutonomy } from "./autonomy";
+import { readRuleVersions } from "./workspace-rules";
 import type { RehearsalRow } from "@/core/trust/rehearsal";
 import { VERIFICATION_SELECT, VerificationRow, verificationFromRow } from "@/server/verification/store";
 import {
@@ -545,6 +546,18 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
 
     listSkillPins: (orgId, projectId) => readSkillPins(client, orgId, projectId),
     getAutonomy: (orgId) => readAutonomy(client, orgId),
+    getRuleVersions: (orgId) => readRuleVersions(client, orgId),
+
+    async listProjectPaths(orgId) {
+      const LIMIT = 2_000;
+      const { data, error, count } = await client.from("project_files").select("project_id, path", { count: "exact" }).eq("org_id", orgId).order("path").range(0, LIMIT - 1);
+      if (error) fail("project paths", error);
+      const files = z
+        .array(z.object({ project_id: z.string(), path: z.string() }))
+        .parse(data ?? [])
+        .map((r) => ({ projectId: r.project_id, path: r.path }));
+      return { files, complete: (count ?? files.length) <= files.length };
+    },
 
     async getEmailPreferences() {
       // Row Level Security returns only the signed-in person's own row.

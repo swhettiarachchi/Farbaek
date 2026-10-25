@@ -67,6 +67,7 @@ The trial gets Pro's features with Starter's AI usage (35,050 units across the 1
 | Security review | `security_review` | Reserved for security checks (Phase 4). |
 | Model call from an agent | `model_gateway` | Reserved for the model gateway the desktop agent will use (Phase 2). |
 | Map a change to its contract | `lens_mapping` | One model call, asked for on a proposal in review, that names the contract clause each change serves (ADR 0044). Refunded if it fails or is refused. |
+| Draft a workspace rule | `policy_draft` | One model call on the Policies page that turns a person's description into draft rules (ADR 0082). It only fills the builder; nothing applies until a person tests and activates the rules. Refunded if it fails or is refused. |
 
 ## A run's own cap (ADR 0040)
 

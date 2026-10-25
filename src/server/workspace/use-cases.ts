@@ -73,6 +73,9 @@ export type WriteErrorCode =
   | "WORKSPACE_SUSPENDED"
   | "PAUSED_BY_FARBAEK"
   | "SITE_BLOCKED"
+  | "WORKSPACE_RULES_CHANGED"
+  | "INVALID_RULES"
+  | "RULES_NOT_TESTED"
   | "UNKNOWN";
 
 export type WriteResult<T> = { ok: true; value: T } | { ok: false; code: WriteErrorCode; message: string };
@@ -187,6 +190,9 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   WORKSPACE_SUSPENDED: "Farbaek has paused this workspace, so nothing in it can change right now. The notice at the top of the page says why and how to reach us.",
   PAUSED_BY_FARBAEK: "Farbaek has paused this for everyone for a short while. Your work is safe; try again soon.",
   SITE_BLOCKED: "Farbaek has taken this site offline, so it can't go live again for now. The notice on the project page says why.",
+  WORKSPACE_RULES_CHANGED: "This workspace's rules changed while the change was being prepared, so nothing was saved. Try again.",
+  INVALID_RULES: "These rules aren't valid. Fix the marked fields and try again.",
+  RULES_NOT_TESTED: "These rules changed after they were tested. Test them against past changes again before activating them.",
   UNKNOWN: "Something went wrong and nothing was changed. Try again in a moment.",
 };
 
@@ -238,6 +244,8 @@ export function codeFromDatabaseError(message: string): WriteErrorCode {
     "PAIRING_CLOSED",
     "INVALID_PAIRING",
     "AGENT_REVOKED",
+    "WORKSPACE_RULES_CHANGED",
+    "INVALID_RULES",
   ] as const) {
     if (message.includes(code)) return code;
   }

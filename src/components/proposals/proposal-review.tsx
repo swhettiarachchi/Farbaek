@@ -230,6 +230,15 @@ export function ProposalReview({
             </p>
             <span className="text-xs text-ink-3">
               Rules <span className="font-mono">{short(proposal.policy.version)}</span>
+              {proposal.policy.workspaceRules ? (
+                <>
+                  {" "}
+                  and{" "}
+                  <Link href="/app/policies" className="font-medium text-accent hover:underline">
+                    workspace rules v{proposal.policy.workspaceRules.version}
+                  </Link>
+                </>
+              ) : null}
             </span>
           </div>
           {proposal.policy.findings.filter((f) => f.rule !== "contract").length ? (

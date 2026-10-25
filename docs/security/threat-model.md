@@ -304,3 +304,14 @@ Known limits: public repositories only. Private ones need a GitHub connection, w
 | --- | --- | --- | --- |
 | Reading past changes | Another workspace's history; file contents leaking into a replay | `app_replay_history` runs as the caller under RLS and returns only paths, kinds, counts and statuses; at most 90 days and 300 changes; not callable signed out | `tests/db/policy-replay.test.ts` |
 | Predictions taken as facts | A replay read as what happened | Labelled "Predicted from past changes", dashed, with its assumption stated; nothing is applied | `rehearsal-record.test.ts`, `replay.test.ts` |
+
+## Workspace rules and the policy builder (2026-10-25, ADR 0082)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| Rules loosening the policy | A rule written to let more through | Rules only add BLOCK, ESCALATE or a hold on level 2; the built-in rules, contract checks and autonomy limits still apply; nothing lowers an outcome | `policy.test.ts` |
+| A path that skips the rules | A proposal created without the active rules: a forgotten caller, a race with an activation, a failed read | The rules are a required input to `evaluateChangePolicy` on every path (web, cloud, desktop agent); a read that fails stops the change; a trigger on `change_proposals` refuses any outcome weaker than the active rules need, whichever path inserted it | `tests/db/workspace-rules.test.ts`, `policy.test.ts` |
+| Who changes the rules | A member, a viewer or another workspace activating rules | `app_activate_workspace_rules` is for the service role only and checks an owner or admin of that workspace; every version is kept and audited; members read their own workspace's rules only | `tests/db/workspace-rules.test.ts`, `workspace-rules.test.ts` |
+| Activating something other than what was reviewed | A set changed after the test, or tampered with in the browser | Activation sends the set and its SHA-256; the server recomputes it from the canonical JSON and refuses a mismatch, tests the set again itself and stores that result; the database validates the shape and each expression | `workspace-rules.test.ts`, `tests/db/workspace-rules.test.ts` |
+| AI drafts | A model inventing rules, unsafe patterns, or following instructions in the request | The request and folder names go as JSON data with a system prompt that treats them as text; output is schema-checked; invalid patterns are dropped and listed; drafts only fill the form, never activate; metered and refunded on failure | `rule-draft.test.ts`, `workspace-rules.test.ts` |
+| Patterns as code | A pattern that escapes the project or makes matching slow | Allowed characters only, no `..` or leading `/`, at most 200 characters, 8 wildcards and 3 `**`; the regex is built from tokens and anchored; the database checks each expression when activating | `path-pattern.test.ts`, `tests/db/workspace-rules.test.ts` |

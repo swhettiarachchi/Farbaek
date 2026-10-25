@@ -263,7 +263,7 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
       const files = await demoFiles(found.task.projectId);
       const { changes, dropped } = await buildChanges(DEMO_PROPOSAL_OUTPUT, files, new Set(files.map((f) => f.path)), WORKSPACE_LIMITS.maxFileBytes);
       const violations = checkProposal(contract.body, changes);
-      const decision = await evaluateChangePolicy({ files: changes, contractViolations: violations });
+      const decision = await evaluateChangePolicy({ files: changes, contractViolations: violations, rules: null });
       const record: ProposalRecord = {
         id: DEMO_PROPOSAL_ID,
         status: "pending",
@@ -307,6 +307,9 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
 
     // The demo workspace keeps every change waiting for a person.
     getAutonomy: async () => AUTONOMY_OFF,
+    // The demo workspace has no rules of its own; the builder still shows how they read against its sample files.
+    getRuleVersions: async () => [],
+    listProjectPaths: async () => ({ files: (await demoFiles(DEMO_FILES_PROJECT_ID)).map((f) => ({ projectId: DEMO_FILES_PROJECT_ID, path: f.path })), complete: true }),
     getEmailPreferences: async () => ({ workUpdates: true, trialReminders: true }),
 
     async listSkillPins(_orgId, projectId) {

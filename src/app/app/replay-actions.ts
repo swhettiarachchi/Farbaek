@@ -3,11 +3,13 @@
 import { z } from "zod";
 import { checkFeature } from "@/core/billing/entitlements";
 import { summarizeRehearsal, type RehearsalSummary } from "@/core/trust/rehearsal";
-import { replayLimits, type ReplayChange } from "@/core/trust/replay";
+import { replayLimits } from "@/core/trust/replay";
 import { currentExecutionMode } from "@/server/execution/sandbox";
 import { createSupabaseServerClient } from "@/server/supabase/server";
+import { readChangeHistory } from "@/server/trust/history";
 import { SHADOW_NOT_IN_PLAN } from "@/server/workspace/autonomy";
 import { loadAppContext } from "@/server/workspace/context";
+import { readActiveRules } from "@/server/workspace/workspace-rules";
 
 // A "use server" file exports only its actions, so this stays here.
 const REPLAY_DAYS = 30;
@@ -16,21 +18,10 @@ export type ReplayState =
   | { status: "done"; summary: RehearsalSummary; leftOut: number; since: string; assumption: string; limits: { maxFiles: number; allowCreates: boolean } }
   | { status: "error"; message: string };
 
-const Row = z.object({
-  proposal_id: z.string(),
-  task_id: z.string(),
-  status: z.enum(["pending", "blocked", "applied", "discarded"]),
-  created_at: z.string(),
-  files: z.array(z.object({ path: z.string(), kind: z.enum(["create", "edit"]) })),
-  violations: z.number().int(),
-  from_agent: z.boolean(),
-  has_checks: z.boolean(),
-  evidence: z.enum(["unverified", "partially_verified", "verified", "failed"]).nullable(),
-});
-
 /**
  * Replays autonomy limits over the workspace's last 30 days of changes
- * (ADR 0081), read as the person. It predicts; it changes nothing.
+ * (ADR 0081), read as the person, with its active workspace rules (ADR
+ * 0082). It predicts; it changes nothing.
  */
 export async function replayAutonomyAction(input: { maxFiles: number; allowCreates: boolean }): Promise<ReplayState> {
   const limits = z.object({ maxFiles: z.number().int().min(1).max(5), allowCreates: z.boolean() }).safeParse(input);
@@ -43,24 +34,16 @@ export async function replayAutonomyAction(input: { maxFiles: number; allowCreat
   const client = await createSupabaseServerClient();
   if (!client) return { status: "error", message: "The server isn't configured for this yet." };
 
-  const { data, error } = await client.rpc("app_replay_history", { p_org: ctx.current.id, p_days: REPLAY_DAYS });
-  if (error) return { status: "error", message: "The past changes couldn't be read. Try again." };
-  const parsed = z.array(Row).safeParse(data);
-  if (!parsed.success) return { status: "error", message: "The past changes couldn't be read. Try again." };
-  const changes: ReplayChange[] = parsed.data.map((r) => ({
-    proposalId: r.proposal_id,
-    taskId: r.task_id,
-    createdAt: r.created_at,
-    status: r.status,
-    files: r.files,
-    violations: r.violations,
-    fromAgent: r.from_agent,
-    hasChecks: r.has_checks,
-    evidence: r.evidence,
-  }));
+  let changes;
+  let rules;
+  try {
+    [changes, rules] = await Promise.all([readChangeHistory(client, ctx.current.id, REPLAY_DAYS), readActiveRules(client, ctx.current.id)]);
+  } catch {
+    return { status: "error", message: "The past changes couldn't be read. Try again." };
+  }
 
   const sandbox = currentExecutionMode().mode === "sandboxed";
-  const result = await replayLimits(changes, limits.data, sandbox);
+  const result = await replayLimits(changes, limits.data, sandbox, rules);
   return {
     status: "done",
     summary: summarizeRehearsal(result.rows),

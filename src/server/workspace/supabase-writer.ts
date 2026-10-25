@@ -20,6 +20,7 @@ import type { LensSuggestionDeps } from "./lens-suggestions";
 import type { AutonomyDeps } from "./autonomy";
 import { signRecordedProofPack } from "@/server/proof/record";
 import { policyRecord } from "@/core/trust/policy";
+import { readActiveRules } from "./workspace-rules";
 
 /**
  * WriteDeps backed by Supabase. Reads use the signed-in user's client (Row
@@ -209,6 +210,8 @@ export function createSupabaseWriteDeps(
     },
 
     countEvaluations: (orgId, period) => reader.countEvaluations(orgId, period.start, period.end),
+
+    workspaceRules: (orgId) => readActiveRules(user, orgId),
 
     projectFiles: async (orgId, projectId) => (await reader.listFiles(orgId, projectId)).map((f) => ({ path: f.path, revision: f.revision, sizeBytes: f.sizeBytes })),
 

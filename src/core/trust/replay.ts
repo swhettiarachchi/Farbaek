@@ -9,6 +9,7 @@
  */
 import { evaluateChangePolicy } from "./policy";
 import type { RehearsalRow } from "./rehearsal";
+import type { ActiveRules } from "./workspace-rules";
 
 export interface ReplayChange {
   proposalId: string;
@@ -28,7 +29,13 @@ export interface ReplayResult {
   leftOut: number;
 }
 
-export async function replayLimits(changes: readonly ReplayChange[], limits: { maxFiles: number; allowCreates: boolean }, sandboxConnected: boolean): Promise<ReplayResult> {
+/** With the workspace's active rules (ADR 0082), so a rule that holds files for a person shows as one. */
+export async function replayLimits(
+  changes: readonly ReplayChange[],
+  limits: { maxFiles: number; allowCreates: boolean },
+  sandboxConnected: boolean,
+  rules: ActiveRules | null,
+): Promise<ReplayResult> {
   const rows: RehearsalRow[] = [];
   let leftOut = 0;
   for (const c of changes) {
@@ -41,6 +48,7 @@ export async function replayLimits(changes: readonly ReplayChange[], limits: { m
       contractViolations: c.violations > 0 ? [{ kind: "replay", detail: "It broke its contract." }] : [],
       autonomy: { level: 2, maxFiles: limits.maxFiles, allowCreates: limits.allowCreates, rehearsal: true },
       verifiable: c.hasChecks && sandboxConnected,
+      rules,
     });
     if (!decision.shadow) continue;
     rows.push({ proposalId: c.proposalId, taskId: c.taskId, createdAt: c.createdAt, status: c.status, evidence: c.evidence, shadow: { outcome: decision.shadow.outcome, reasons: decision.shadow.reasons } });

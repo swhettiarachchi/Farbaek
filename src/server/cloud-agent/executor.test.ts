@@ -94,6 +94,7 @@ async function deps(over: { runId?: string; model?: ToolModel; state?: TaskState
       fileContents: async () => new Map([["README.md", README], ...(over.extraFiles ?? []).map((f) => [f.path, f.content] as [string, string])]),
       billing: async () => ({ state: "active", paidPlanId: "pro" }),
       countEvaluations: async () => 0,
+      workspaceRules: async () => null,
       newEventId: () => `ev-${++n}`,
       now: () => new Date("2026-10-18T12:00:00Z"),
     },

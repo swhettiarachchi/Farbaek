@@ -11,6 +11,7 @@ import type { AiUsageDeps } from "./ai-usage";
 import { applyProposal, autoApplyWithinLimits, discardProposal, proposeChange, type ProposalDeps, type StoredProposal } from "./proposals";
 import type { OrgRole } from "./types";
 import type { WriteDeps } from "./use-cases";
+import type { ActiveRules } from "@/core/trust/workspace-rules";
 
 const fake = (...parts: string[]) => parts.join("");
 const USAGE = { model: "claude-sonnet-5-5", inputTokens: 4000, outputTokens: 900 };
@@ -55,7 +56,7 @@ function fakeProposer(result: ProposalOutcome | Error) {
 }
 
 function fakeDeps(
-  over: { state?: TaskState; proposal?: Partial<StoredProposal> | null; createError?: string; applyError?: string; billing?: BillingSnapshot; evaluations?: number; role?: OrgRole } = {},
+  over: { state?: TaskState; proposal?: Partial<StoredProposal> | null; createError?: string; applyError?: string; billing?: BillingSnapshot; evaluations?: number; role?: OrgRole; rules?: ActiveRules } = {},
 ) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the spy records inputs of several shapes
   const calls: { name: string; input: any }[] = [];
@@ -75,6 +76,7 @@ function fakeDeps(
     settleUsage: async (input) => (calls.push({ name: "settle", input }), { ok: true, value: null }),
     approvedContract: async () => ({ version: 1, sha256: "c".repeat(64), body: contract }),
     countEvaluations: async () => over.evaluations ?? 0,
+    workspaceRules: async () => over.rules ?? null,
     projectFiles: async () => Object.entries(FILES).map(([path, f]) => ({ path, revision: f.revision, sizeBytes: f.content.length })),
     fileContent: async (_o, _p, path) => {
       const f = FILES[path as keyof typeof FILES];

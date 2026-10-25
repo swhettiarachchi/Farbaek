@@ -86,7 +86,7 @@ export const FEATURE_STATUS: Record<FeatureKey, "live" | "coming"> = {
   replay_and_recovery: "live",
   opus_models: "live",
   advanced_approvals: "live",
-  policy_builder: "coming",
+  policy_builder: "live",
   shadow_mode: "live",
   team_collaboration: "live",
   advanced_rbac: "coming",

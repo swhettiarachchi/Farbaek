@@ -52,6 +52,7 @@ function fakeStore(over: Partial<AgentStore> = {}) {
     ],
     fileContents: async (_o, _p, files) => new Map(files.map((f) => [f.path, `content of ${f.path}`])),
     countEvaluations: async () => 0,
+    workspaceRules: async () => null,
     createAgentProposal: async (i) => {
       record("create", i);
       return { ok: true, value: "proposal-1" };

@@ -26,6 +26,7 @@ import { checkQuota } from "@/core/billing/entitlements";
 import { resolveEffectivePlan } from "@/core/billing/trial";
 import { usagePeriod, type BillingPeriod } from "@/core/billing/usage";
 import { evaluateChangePolicy, type AutonomyLimits, type PolicyDecision } from "@/core/trust/policy";
+import type { ActiveRules } from "@/core/trust/workspace-rules";
 import type { ExecutionMode } from "@/core/execution/sandbox";
 import { buildProofPack, proofPackDigest } from "@/core/proof/proofpack";
 import { MANAGER_ROLES } from "./types";
@@ -60,6 +61,8 @@ export interface StoredProposal {
 
 export interface ProposalDeps {
   approvedContract(orgId: string, taskId: string): Promise<{ version: number; sha256: string; body: IntentContract } | null>;
+  /** The workspace's active rules (ADR 0082). Throws when they can't be read, so a change never skips them. */
+  workspaceRules(orgId: string): Promise<ActiveRules | null>;
   projectFiles(orgId: string, projectId: string): Promise<{ path: string; revision: number; sizeBytes: number }[]>;
   countEvaluations(orgId: string, period: BillingPeriod): Promise<number>;
   fileContent(orgId: string, projectId: string, path: string): Promise<{ revision: number; sha256: string; content: string } | null>;
@@ -198,7 +201,7 @@ export async function proposeChange(
   const violations = checkProposal(contract.body, changes);
   // Checks run after a change applies only when the contract lists them and a verified sandbox is connected.
   const verifiable = contract.body.requiredChecks.length > 0 && input.execution?.mode === "sandboxed";
-  const policy = await evaluateChangePolicy({ files: changes, contractViolations: violations, autonomy: input.autonomy ?? null, verifiable });
+  const policy = await evaluateChangePolicy({ files: changes, contractViolations: violations, autonomy: input.autonomy ?? null, verifiable, rules: await deps.workspaceRules(input.orgId) });
   const blocked = policy.outcome === "BLOCK";
   const sha256 = await proposalHash({ taskId: task.id, contractVersion: contract.version, contractSha256: contract.sha256, changes });
   const planned = steps(deps, task, input.orgId, input.userId, [

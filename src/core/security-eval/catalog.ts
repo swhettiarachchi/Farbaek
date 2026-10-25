@@ -232,6 +232,13 @@ export const EVAL_SCENARIOS: readonly EvalScenario[] = [
     asserts: "A site goes live only when a check run verified the latest applied change, or when an owner or admin gives a reason that's kept with the version and in the audit log.",
     file: "database.test.ts",
   },
+  {
+    id: "SE-025",
+    title: "A workspace rule bypassed",
+    risks: ["LLM06", "ASI03"],
+    asserts: "A change to files a workspace rule protects is refused unless its outcome is as strict as the rule asks, whichever path made it, and only an owner or admin of that workspace can change the rules.",
+    file: "database.test.ts",
+  },
 ];
 
 /** What isn't tested for each risk, and the reason when a risk doesn't apply. */

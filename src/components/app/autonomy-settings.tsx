@@ -141,6 +141,7 @@ export function AutonomySettings({
               `It changes at most ${maxFiles} ${maxFiles === 1 ? "file" : "files"}${allowCreates ? "" : ", and creates none"}.`,
               "The contract lists checks, and a verified sandbox can run them.",
               "It was made in Farbaek, not by the desktop agent on someone's computer.",
+              "No workspace rule says a person reviews its files.",
             ].map((t) => (
               <li key={t} className="flex items-start gap-2">
                 <CheckCircleIcon size={16} className="mt-0.5 shrink-0 text-verified" aria-hidden /> {t}

@@ -15,6 +15,9 @@
  *   (ALLOW_WITHIN_LIMITS) if it stays within the file limit, creates no
  *   files unless allowed, and has checks a verified sandbox can run.
  *   Autonomy never lowers a BLOCK or an ESCALATE.
+ * - Workspace rules (ADR 0082), version 3: a workspace's own rules add a
+ *   BLOCK, an ESCALATE, or a REQUIRE_APPROVAL that level 2 never lowers,
+ *   for the files they name. They only ever make a change stricter.
  * - Shadow mode (ADR 0075), when the workspace rehearses level 2: every
  *   change still waits for a person, and the decision records what level 2
  *   would have done, with its reasons. The rehearsal never changes the
@@ -22,6 +25,7 @@
  */
 import type { PolicyOutcome } from "../billing/usage";
 import { canonicalHash } from "./canonical-json";
+import { EFFECTS, matchRules, type ActiveRules } from "./workspace-rules";
 
 export interface PolicyFinding {
   rule: string;
@@ -30,7 +34,7 @@ export interface PolicyFinding {
 }
 
 /** Why level 2 would still have waited for a person. */
-export type RehearsalReason = "blocked" | "escalated" | "too_many_files" | "creates_files" | "not_verifiable";
+export type RehearsalReason = "blocked" | "escalated" | "too_many_files" | "creates_files" | "not_verifiable" | "workspace_rule";
 
 /** What level 2 would have decided, recorded in shadow mode only (ADR 0075). Never acted on. */
 export interface ShadowDecision {
@@ -48,6 +52,8 @@ export interface PolicyDecision {
   policyVersion: string;
   /** Present only while the workspace rehearses level 2. */
   shadow?: ShadowDecision;
+  /** The workspace rules that applied (ADR 0082), when the workspace has any. */
+  workspaceRules?: { version: number; sha256: string };
 }
 
 /**
@@ -68,6 +74,8 @@ export interface ChangePolicyInput {
   autonomy?: AutonomyLimits | null;
   /** The contract lists checks and a verified sandbox can run them once the change applies. */
   verifiable?: boolean;
+  /** The workspace's active rules (ADR 0082), or null when it has none. Required, so no caller can leave them out. */
+  rules: ActiveRules | null;
 }
 
 const SENSITIVE: readonly { rule: string; pattern: RegExp; why: string }[] = [
@@ -91,12 +99,15 @@ const SENSITIVE: readonly { rule: string; pattern: RegExp; why: string }[] = [
   },
 ];
 
+/** What the built-in rules escalate, in words, for the Policies page. */
+export const SENSITIVE_WORDS: readonly string[] = SENSITIVE.map((s) => s.why);
+
 /** More files than this in one change needs an owner or admin. */
 export const LARGE_CHANGE_FILES = 10;
 
 /** The rule set, as data. Its canonical hash is the policy version. */
 export const CHANGE_POLICY_RULES = {
-  schema: "farbaek.policy/v2",
+  schema: "farbaek.policy/v3",
   scope: "change_proposal",
   contractViolation: "BLOCK",
   sensitive: SENSITIVE.map((s) => ({ rule: s.rule, pattern: s.pattern.source, outcome: "ESCALATE" })),
@@ -106,8 +117,9 @@ export const CHANGE_POLICY_RULES = {
     level: 2,
     outcome: "ALLOW_WITHIN_LIMITS",
     onlyFrom: "REQUIRE_APPROVAL",
-    requires: ["files within the workspace's limit", "no new files unless the workspace allows them", "checks a verified sandbox can run"],
+    requires: ["files within the workspace's limit", "no new files unless the workspace allows them", "checks a verified sandbox can run", "no workspace rule that holds it for a person"],
   },
+  workspaceRules: { block: "BLOCK", owner_approval: "ESCALATE", person_approval: "REQUIRE_APPROVAL", onlyStricter: true },
 } as const;
 
 let versionPromise: Promise<string> | null = null;
@@ -126,18 +138,28 @@ export async function evaluateChangePolicy(input: ChangePolicyInput): Promise<Po
       if (s.pattern.test(f.path)) findings.push({ rule: s.rule, outcome: "ESCALATE", detail: `${f.path} ${s.why}.` });
     }
   }
+  const ruleSet = input.rules && input.rules.rules.length > 0 ? input.rules : null;
+  if (ruleSet) {
+    for (const f of input.files) {
+      for (const m of matchRules(ruleSet.rules, f.path)) {
+        findings.push({ rule: `workspace:${m.rule.id}`, outcome: EFFECTS[m.rule.effect].outcome, detail: `${f.path} matches ${m.pattern}, a workspace rule (version ${ruleSet.version}): ${m.rule.reason}` });
+      }
+    }
+  }
   if (input.files.length > LARGE_CHANGE_FILES) {
     findings.push({ rule: "large_change", outcome: "ESCALATE", detail: `${input.files.length} files change, more than ${LARGE_CHANGE_FILES}.` });
   }
   // Without autonomy nothing is allowed without a person, so the floor is REQUIRE_APPROVAL.
   let outcome = findings.reduce<PolicyOutcome>((worst, f) => (RANK[f.outcome] > RANK[worst] ? f.outcome : worst), "REQUIRE_APPROVAL");
   const limits = input.autonomy?.level === 2 ? input.autonomy : null;
-  const unmet = limits ? unmetLimits(input, limits) : [];
+  const held = findings.some((f) => f.rule.startsWith("workspace:") && f.outcome === "REQUIRE_APPROVAL");
+  const unmet = limits ? unmetLimits(input, limits, held) : [];
+  const applied = ruleSet ? { workspaceRules: { version: ruleSet.version, sha256: ruleSet.sha256 } } : {};
 
   // In shadow mode, record what level 2 would have done and change nothing.
   if (limits?.rehearsal) {
     const shadow = rehearse(outcome, unmet, input.files.length, limits);
-    return { outcome, findings, policyVersion: await changePolicyVersion(), shadow };
+    return { outcome, findings, policyVersion: await changePolicyVersion(), shadow, ...applied };
   }
   // Level 2 only ever lowers REQUIRE_APPROVAL, and only when every limit holds.
   if (limits && outcome === "REQUIRE_APPROVAL") {
@@ -148,16 +170,17 @@ export async function evaluateChangePolicy(input: ChangePolicyInput): Promise<Po
       findings.push({ rule: "autonomy", outcome: "REQUIRE_APPROVAL", detail: `Autonomy level 2 is on, but this waits for a person: ${unmet.map((u) => u.text).join("; ")}.` });
     }
   }
-  return { outcome, findings, policyVersion: await changePolicyVersion() };
+  return { outcome, findings, policyVersion: await changePolicyVersion(), ...applied };
 }
 
-function unmetLimits(input: ChangePolicyInput, limits: AutonomyLimits): { reason: RehearsalReason; text: string }[] {
+function unmetLimits(input: ChangePolicyInput, limits: AutonomyLimits, held: boolean): { reason: RehearsalReason; text: string }[] {
   const creates = input.files.filter((f) => f.kind === "create").length;
   const unmet: { reason: RehearsalReason; text: string }[] = [];
   if (input.files.length > limits.maxFiles) unmet.push({ reason: "too_many_files", text: `it changes ${input.files.length} files, more than the limit of ${limits.maxFiles}` });
   if (creates > 0 && !limits.allowCreates)
     unmet.push({ reason: "creates_files", text: `it creates ${creates === 1 ? "a new file" : `${creates} new files`}, which this workspace doesn't allow on their own` });
   if (!input.verifiable) unmet.push({ reason: "not_verifiable", text: "nothing could check it: the contract lists no checks, or no verified sandbox is connected" });
+  if (held) unmet.push({ reason: "workspace_rule", text: "a workspace rule says a person always reviews these files" });
   return unmet;
 }
 
@@ -183,9 +206,21 @@ function rehearse(outcome: PolicyOutcome, unmet: { reason: RehearsalReason; text
   };
 }
 
-/** The decision as stored with a proposal; the rehearsal goes with it only in shadow mode. */
+/** The decision as stored with a proposal; the rehearsal goes with it only in shadow mode, the workspace rules only when there are some. */
 export function policyRecord(decision: PolicyDecision) {
-  return { outcome: decision.outcome, version: decision.policyVersion, findings: decision.findings, ...(decision.shadow ? { shadow: decision.shadow } : {}) };
+  return {
+    outcome: decision.outcome,
+    version: decision.policyVersion,
+    findings: decision.findings,
+    ...(decision.shadow ? { shadow: decision.shadow } : {}),
+    ...(decision.workspaceRules ? { workspaceRules: decision.workspaceRules } : {}),
+  };
+}
+
+/** The built-in rule that already escalates a path, or null. */
+export function builtInRuleFor(path: string): { rule: string; why: string } | null {
+  const s = SENSITIVE.find((x) => x.pattern.test(path));
+  return s ? { rule: s.rule, why: s.why } : null;
 }
 
 export const OUTCOME_LABELS: Record<PolicyOutcome, string> = {

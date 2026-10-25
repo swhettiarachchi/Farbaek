@@ -6,6 +6,7 @@ import { currentGrant, walletView, type WalletView } from "@/core/billing/wallet
 import { sandboxForPage } from "@/server/sandbox/page-context";
 import { resolveAiProvider } from "@/server/ai/config";
 import { LENS_MAX_OUTPUT_TOKENS } from "@/server/ai/lens-mapper";
+import { POLICY_DRAFT_MAX_OUTPUT_TOKENS } from "@/server/ai/policy-drafter";
 import { createChangeProposer, createContractDrafter } from "@/server/ai/providers";
 import { aiAvailability, typicalUnits, type AiAvailability } from "./ai-usage";
 import { MANUAL_CONTRACT } from "./ai-drafting";
@@ -13,6 +14,7 @@ import { MANUAL_LENS } from "./lens-suggestions";
 import type { AppContext } from "./context";
 import type { WorkspaceSummary } from "./organizations";
 import { MANUAL_FILES } from "./proposals";
+import { MANUAL_RULES } from "./workspace-rules";
 import type { Project, Task } from "./types";
 
 export interface UsageSummary {
@@ -48,6 +50,7 @@ const MANUAL: Record<ButtonOperation, string> = {
   contract_draft: MANUAL_CONTRACT,
   change_proposal: MANUAL_FILES,
   lens_mapping: MANUAL_LENS,
+  policy_draft: MANUAL_RULES,
 };
 
 /** Whether an AI action works for this person in this workspace, and the share of usage used. */
@@ -55,13 +58,17 @@ export async function loadAiAvailability(ctx: AppContext, ws: WorkspaceSummary, 
   const period = workspacePeriod(ws, now);
   const provider = resolveAiProvider();
   const wallet = await loadWallet(ctx, ws, now);
-  // The AI mapping in the Intent Diff Lens runs on Claude only (ADR 0044).
-  const usable = operation === "lens_mapping" && provider.provider !== "anthropic" ? null : provider.provider;
+  // The AI mapping in the Intent Diff Lens (ADR 0044) and rule drafting (ADR 0082) run on Claude only.
+  const claudeOnly = operation === "lens_mapping" || operation === "policy_draft";
+  const usable = claudeOnly && provider.provider !== "anthropic" ? null : provider.provider;
   let needs = 1;
   if (usable && !ws.billingUnknown) {
     if (operation === "lens_mapping") {
       const choice = route({ plan: ws.plan, family: "anthropic", step: "review", effort: "fast" });
       needs = typicalUnits(operation, choice.model, LENS_MAX_OUTPUT_TOKENS);
+    } else if (operation === "policy_draft") {
+      const choice = route({ plan: ws.plan, family: "anthropic", step: "review", effort: "balanced" });
+      needs = typicalUnits(operation, choice.model, POLICY_DRAFT_MAX_OUTPUT_TOKENS);
     } else {
       // The model a Balanced run would use on this plan.
       const choice = route({ plan: ws.plan, family: usable, step: operation === "contract_draft" ? "plan" : "write", effort: "balanced" });
@@ -73,7 +80,7 @@ export async function loadAiAvailability(ctx: AppContext, ws: WorkspaceSummary, 
     writeReason: ctx.writes.enabled ? null : ctx.writes.reason,
     keyPresent: usable !== null,
     provider: usable && provider.provider ? provider.label : null,
-    notConnectedReason: usable ? undefined : provider.provider ? "AI mapping uses Claude, and this server uses another provider." : provider.reason,
+    notConnectedReason: usable ? undefined : provider.provider ? `${operation === "policy_draft" ? "Drafting rules" : "AI mapping"} uses Claude, and this server uses another provider.` : provider.reason,
     plan: ws.billingUnknown ? null : ws.plan,
     wallet,
     fallback: { resetsAt: period.end.toISOString(), period: period.kind },

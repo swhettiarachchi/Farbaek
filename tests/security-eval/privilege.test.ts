@@ -66,17 +66,17 @@ describe("SE-009 Sensitive files slipping through autonomy", () => {
 
   it("escalates each sensitive file to an owner or admin, even with autonomy on and checks available", async () => {
     for (const path of SENSITIVE) {
-      const d = await evaluateChangePolicy({ files: [{ path, kind: "edit" }], contractViolations: [], autonomy: LEVEL_2, verifiable: true });
+      const d = await evaluateChangePolicy({ rules: null, files: [{ path, kind: "edit" }], contractViolations: [], autonomy: LEVEL_2, verifiable: true });
       expect(d.outcome, path).toBe("ESCALATE");
     }
   });
 
   it("never lowers a block or an escalation, and escalates very large changes", async () => {
-    const blocked = await evaluateChangePolicy({ files: [{ path: "README.md", kind: "edit" }], contractViolations: [{ kind: "scope", detail: "outside the contract" }], autonomy: LEVEL_2, verifiable: true });
+    const blocked = await evaluateChangePolicy({ rules: null, files: [{ path: "README.md", kind: "edit" }], contractViolations: [{ kind: "scope", detail: "outside the contract" }], autonomy: LEVEL_2, verifiable: true });
     expect(blocked.outcome).toBe("BLOCK");
     const many = Array.from({ length: 11 }, (_, i) => ({ path: `docs/page-${i}.md`, kind: "edit" as const }));
-    expect((await evaluateChangePolicy({ files: many, contractViolations: [], autonomy: { ...LEVEL_2, maxFiles: 5 }, verifiable: true })).outcome).toBe("ESCALATE");
+    expect((await evaluateChangePolicy({ rules: null, files: many, contractViolations: [], autonomy: { ...LEVEL_2, maxFiles: 5 }, verifiable: true })).outcome).toBe("ESCALATE");
     // The control: an ordinary small change does apply on its own, so the refusals above come from the risk.
-    expect((await evaluateChangePolicy({ files: [{ path: "docs/intro.md", kind: "edit" }], contractViolations: [], autonomy: LEVEL_2, verifiable: true })).outcome).toBe("ALLOW_WITHIN_LIMITS");
+    expect((await evaluateChangePolicy({ rules: null, files: [{ path: "docs/intro.md", kind: "edit" }], contractViolations: [], autonomy: LEVEL_2, verifiable: true })).outcome).toBe("ALLOW_WITHIN_LIMITS");
   });
 });

@@ -3,12 +3,13 @@
  * ASI10, LLM06), on a real Postgres (PGlite) with every migration:
  * workspaces stay apart, desktop agents' credentials can't be reused,
  * Farbaek's AI switch stops every workspace at once, a failure after an
- * automatic apply pauses autonomy, and nothing goes live without verified
- * evidence or an owner's logged reason.
+ * automatic apply pauses autonomy, nothing goes live without verified
+ * evidence or an owner's logged reason, and workspace rules can't be skipped.
  */
 import { createHash } from "node:crypto";
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { compileRuleSet, parseRuleSet, ruleSetHash } from "@/core/trust/workspace-rules";
 import { USERS, as, createOrg, createTestDb } from "../db/harness";
 
 let db: PGlite;
@@ -200,5 +201,39 @@ describe("SE-024 Deploying without evidence", () => {
     await admin("insert into public.proofpacks (digest, org_id, project_id, task_id, status, statement, previous) values ($1, $2, $3, $4, 'verified', $5, $6)", [sha(JSON.stringify(statement)), orgA, project, t, JSON.stringify(statement), change]);
     const id = await publish(USERS.unverified, null);
     expect(await recorded(id)).toMatchObject({ evidence: "verified", override_reason: null, audit: { evidence: "verified", override: null } });
+  });
+});
+
+describe("SE-025 A workspace rule bypassed", () => {
+  const ruleSet = async (rules: { paths: string[]; effect: string }[]) => {
+    const parsed = parseRuleSet({ rules: rules.map((r, i) => ({ id: `r${i + 1}`, reason: "Docs need an owner.", ...r })) });
+    if (!parsed.ok) throw new Error("rules");
+    const sha256 = await ruleSetHash(parsed.set);
+    return { document: JSON.stringify(parsed.set), compiled: JSON.stringify(compileRuleSet(parsed.set)), sha256, tested: JSON.stringify({ sha256, changes: 0 }) };
+  };
+  const activate = async (actor: string, org: string, rules: { paths: string[]; effect: string }[]) => {
+    const r = await ruleSet(rules);
+    return q("select public.app_activate_workspace_rules($1, $2, $3, $4, $5, $6)", [org, actor, r.document, r.compiled, r.sha256, r.tested]);
+  };
+
+  it("refuses a change to protected files unless its outcome is as strict as the rule asks, whoever made it", async () => {
+    await activate(USERS.alice, orgA, [{ paths: ["docs/"], effect: "owner_approval" }]);
+    try {
+      // The task helper decides every change as needing only a contributor, as a path that skipped the rules would.
+      await expect(task(orgA, USERS.alice, projectA, "Rules skipped")).rejects.toThrow(/WORKSPACE_RULES_CHANGED/);
+      // Another workspace's changes aren't touched by these rules.
+      await expect(task(orgB, USERS.bob, projectB, "Other workspace")).resolves.toMatchObject({ task: expect.any(String) });
+    } finally {
+      await activate(USERS.alice, orgA, []);
+    }
+    await expect(task(orgA, USERS.alice, projectA, "Rules off")).resolves.toMatchObject({ task: expect.any(String) });
+  });
+
+  it("lets only an owner or admin of that workspace change its rules, and never from a browser", async () => {
+    await admin("insert into public.organization_members (org_id, user_id, role) values ($1, $2, 'member') on conflict do nothing", [orgA, USERS.unverified]);
+    await expect(activate(USERS.unverified, orgA, [])).rejects.toThrow(/FORBIDDEN/);
+    await expect(activate(USERS.bob, orgA, [])).rejects.toThrow(/FORBIDDEN/);
+    const r = await ruleSet([]);
+    await expect(asUser(USERS.alice, "select public.app_activate_workspace_rules($1, $2, $3, $4, $5, $6)", [orgA, USERS.alice, r.document, r.compiled, r.sha256, r.tested])).rejects.toThrow(/permission denied/);
   });
 });
