@@ -93,7 +93,7 @@ export const FEATURE_STATUS: Record<FeatureKey, "live" | "coming"> = {
   priority_support: "live",
   fable_models: "live",
   incident_response: "live",
-  impact_analysis: "coming",
+  impact_analysis: "live",
   advanced_autonomy: "coming",
   evidence_exports: "live",
 };

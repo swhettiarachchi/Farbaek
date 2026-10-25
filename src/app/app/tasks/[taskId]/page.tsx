@@ -14,6 +14,7 @@ import { ScopeDriftCard } from "@/components/app/scope-drift-card";
 import { scopeDrift } from "@/core/realityloop/scope-drift";
 import { currentExecutionMode } from "@/server/execution/sandbox";
 import { ProposalReview } from "@/components/proposals/proposal-review";
+import { ImpactCard } from "@/components/proposals/impact-card";
 import { ArenaPanel } from "@/components/arena/arena-panel";
 import { readLatestArenaRun } from "@/server/arena/store";
 import { createSupabaseServerClient } from "@/server/supabase/server";
@@ -110,6 +111,9 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
       ),
     ),
   );
+  // Impact analysis (ADR 0085): Max 2x and up; the demo shows it on its sample files.
+  const impactFeature = checkFeature(ctx.current.billingUnknown ? null : ctx.current.plan, "impact_analysis");
+  const impactReason = ctx.mode === "demo" || impactFeature.allowed ? null : impactFeature.code === "FEATURE_NOT_IN_PLAN" ? "Impact analysis is included in Max 2x and up." : impactFeature.message;
   const recoveryFeature = checkFeature(ctx.current.billingUnknown ? null : ctx.current.plan, "replay_and_recovery");
   const isManager = ctx.role !== null && MANAGER_ROLES.includes(ctx.role);
   const recoveryReason =
@@ -254,6 +258,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
                 checksOnApply={checksForRun.length > 0}
               />
             ) : null}
+            {showProposal ? <ImpactCard taskId={task.id} disabledReason={impactReason} /> : null}
             {trying ? <ArenaPanel proposalId={proposal!.id} taskId={task.id} checks={checksForRun} run={arenaRun} disabledReason={arenaReason} /> : null}
             {canPropose ? (
               <div className={`grid gap-3 rounded-md border border-accent/30 bg-accent/[0.04] p-5 ${showProposal ? "mt-2" : ""}`}>
