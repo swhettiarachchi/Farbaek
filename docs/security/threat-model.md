@@ -274,3 +274,11 @@ Known limits: public repositories only. Private ones need a GitHub connection, w
 | Trials and evidence | A trial's results taken as verification; a trial writing to the project | `trialChecks` writes no receipt, ProofPack or task transition; the change is written only into a disposable sandbox, which stops at the end; the panel says a trial never counts as verification | `service.test.ts`, `runner.test.ts`, `arena-panel.test.ts` |
 | Starting and recording trials | Trials of applied or other workspaces' proposals; forged results | `app_start_arena_run` needs a contributor and a pending proposal in the workspace, one running per proposal, stale ones closed after 30 minutes; the session must be the workspace's, for the proposal's project; results are written once by the server, at most 20 named checks each | `tests/db/arena-runs.test.ts` |
 | Sandbox use | A trial running commands the person couldn't | The sandbox runs as the person, through the same guard, rate limits and plan limits as their own commands | `service.test.ts` |
+
+## LaunchOS with Vercel (2026-10-25, ADR 0078)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| Customers' Vercel tokens | Theft from the database or a browser; a sealed token moved to another workspace; tokens in logs or errors | Sealed with AES-256-GCM on the server, with the workspace and provider as associated data; column grants keep the sealed token from every browser; Vercel's error text is cleaned of the token; deleted on disconnect | `token-vault.test.ts`, `vercel-client.test.ts`, `tests/db/provider-launches.test.ts` |
+| Launching | Deploying without evidence; double deploys; deploying other files than shown | One order per key, for exactly the digest of the current files, under `private.launch_evidence` with an owner's or admin's reason when not verified; one launch per project at a time; the project name typed to confirm | `tests/db/provider-launches.test.ts`, `provider-launch.test.ts` |
+| Server requests | SSRF through stored or returned addresses | Calls go only to api.vercel.com, without following redirects; only https `*.vercel.app` addresses are stored, linked or fetched for the live check | `vercel.test.ts`, `vercel-client.test.ts` |
