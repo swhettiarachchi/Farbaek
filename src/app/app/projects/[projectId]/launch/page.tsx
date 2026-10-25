@@ -20,6 +20,13 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { Card, PageHeader } from "@/components/app/primitives";
 import { LiveCheck } from "@/components/launch/live-check";
+import { VercelPanel } from "@/components/launch/vercel-panel";
+import { deployDigest, vercelFit, vercelProjectName, vercelSettings } from "@/core/launch/vercel";
+import { NO_VAULT, fileSha256, refreshVercelLaunch } from "@/server/launch/provider-launch";
+import { listLaunchOrders, readConnection, type ConnectionView, type LaunchOrderView } from "@/server/launch/provider-store";
+import { launchDeps } from "@/server/launch/provider-wiring";
+import { vaultKey } from "@/server/launch/token-vault";
+import { CONTRIBUTOR_ROLES, MANAGER_ROLES } from "@/server/workspace/types";
 import { buttonClasses } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/local-time";
 import { VERDICT_WORDS } from "@/core/launch/health";
@@ -69,6 +76,30 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
   if (!project) notFound();
   const user = ctx.mode === "live" ? await createSupabaseServerClient() : null;
   const { plan, publish, evidence: proof, checks } = await loadLaunchPage(ctx, user, project);
+
+  // LaunchOS with Vercel (ADR 0078): exactly the files a launch would send, the connection, and the launches so far.
+  const orgId = ctx.current.id;
+  const contents = await ctx.reader.getProjectContents(orgId, project.id);
+  const deployFiles = { count: contents.length, bytes: contents.reduce((n, f) => n + Buffer.byteLength(f.content, "utf8"), 0), digest: await deployDigest(contents.map((f) => ({ path: f.path, sha256: fileSha256(f.content) }))) };
+  let connection: ConnectionView | null = null;
+  let orders: LaunchOrderView[] = [];
+  if (user) {
+    [connection, orders] = await Promise.all([readConnection(user, orgId, "vercel").catch(() => null), listLaunchOrders(user, orgId, project.id).catch(() => [])]);
+    const building = orders.find((o) => o.status === "building");
+    const deps = building ? launchDeps(ctx) : null;
+    if (building && deps) {
+      await refreshVercelLaunch(deps, orgId, building.id).catch(() => undefined);
+      orders = await listLaunchOrders(user, orgId, project.id).catch(() => orders);
+    }
+  }
+  const canManage = ctx.role !== null && MANAGER_ROLES.includes(ctx.role);
+  const readOnly = ctx.mode === "demo" ? "The demo workspace is read-only." : ctx.writes.enabled ? null : ctx.writes.reason;
+  const connectReason = readOnly ?? (!canManage ? "Only an owner or admin can connect a hosting account." : vaultKey() ? null : NO_VAULT);
+  const launchReason =
+    readOnly ??
+    (ctx.role === null || !CONTRIBUTOR_ROLES.includes(ctx.role) ? "Viewers can't launch projects." : null) ??
+    (project.archivedAt ? "This project is archived." : null) ??
+    (deployFiles.count === 0 ? "This project has no files to launch." : null);
 
   const site = publish?.site ?? null;
   const live = publish?.live ?? null;
@@ -292,7 +323,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
           <h2 id="where-title" className="text-lg font-medium">
             Where it can go
           </h2>
-          <p className="mt-1 text-sm text-ink-2">Farbaek Sites works today. Connecting your own hosting account is the next part of LaunchOS; nothing is connected or charged here.</p>
+          <p className="mt-1 text-sm text-ink-2">Farbaek Sites works today, and Vercel connects below with your own account. The others aren&apos;t connected yet. Farbaek charges nothing here.</p>
         </div>
         <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <li className={`grid gap-2 rounded-md border p-5 ${sitesDestination.available ? "border-accent/30 bg-accent/[0.04] shadow-e1" : "border-line bg-surface"}`}>
@@ -311,19 +342,41 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
             <span className="text-sm text-ink-2">{sitesDestination.suits}</span>
           </li>
           {providers.map((p) => (
-            <li key={p.id} className="grid gap-2 rounded-md border border-dashed border-line-strong/50 bg-surface p-5">
+            <li key={p.id} className={`grid gap-2 rounded-md border bg-surface p-5 ${p.id === "vercel" && connection ? "border-verified/30 shadow-e1" : "border-dashed border-line-strong/50"}`}>
               <span className="flex items-center justify-between gap-2">
                 <span className="font-medium text-ink">{p.name}</span>
-                <span className="inline-flex items-center gap-1 text-xs text-ink-3">
-                  <CircleDashedIcon size={14} aria-hidden /> Not connected
-                </span>
+                {p.id === "vercel" && connection ? (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-verified">
+                    <CheckCircleIcon size={14} weight="fill" aria-hidden /> Connected
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-xs text-ink-3">
+                    <CircleDashedIcon size={14} aria-hidden /> Not connected
+                  </span>
+                )}
               </span>
               <span className="text-sm text-ink-2">{p.suits}</span>
-              <span className="text-xs text-ink-3">{p.reason}</span>
+              <span className="text-xs text-ink-3">{p.id === "vercel" ? (connection ? `As ${connection.accountName}. Launch it below.` : "Connect your own account below.") : p.reason}</span>
             </li>
           ))}
         </ul>
       </section>
+
+      <VercelPanel
+        projectId={project.id}
+        launchKey={crypto.randomUUID()}
+        target={vercelProjectName(project.name)}
+        connection={connection}
+        orders={orders}
+        files={deployFiles}
+        evidence={proof.status}
+        settings={vercelSettings(plan)}
+        unfit={vercelFit(plan)}
+        connectReason={connectReason}
+        launchReason={launchReason}
+        canOverride={canManage}
+        canDisconnect={canManage && !readOnly}
+      />
 
       {publish && publish.deployments.length > 0 ? (
         <section aria-labelledby="timeline-title" className="grid gap-4">

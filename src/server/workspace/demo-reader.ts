@@ -230,6 +230,10 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
       return [];
     },
 
+    async listRehearsal() {
+      return [];
+    },
+
     async getFirstStepRecords() {
       return { latestProofPack: null, verifiedTaskId: null, liveSite: null };
     },

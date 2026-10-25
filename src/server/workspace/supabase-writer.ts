@@ -19,6 +19,7 @@ import type { SkillPinDeps } from "./skill-pins";
 import type { LensSuggestionDeps } from "./lens-suggestions";
 import type { AutonomyDeps } from "./autonomy";
 import { signRecordedProofPack } from "@/server/proof/record";
+import { policyRecord } from "@/core/trust/policy";
 
 /**
  * WriteDeps backed by Supabase. Reads use the signed-in user's client (Row
@@ -178,7 +179,7 @@ export function createSupabaseWriteDeps(
     setAutonomy: (i) =>
       rpc(
         "app_set_autonomy",
-        { p_org: i.orgId, p_actor: i.actor, p_level: i.level, p_max_files: i.maxFiles, p_allow_creates: i.allowCreates },
+        { p_org: i.orgId, p_actor: i.actor, p_level: i.level, p_max_files: i.maxFiles, p_allow_creates: i.allowCreates, p_shadow: i.shadow },
         z.null().or(z.literal("")).transform(() => null),
       ),
 
@@ -233,7 +234,7 @@ export function createSupabaseWriteDeps(
           p_output_tokens: i.usage.outputTokens,
           p_expected_task_version: i.expectedTaskVersion,
           p_steps: i.steps,
-          p_policy: { outcome: i.policy.outcome, version: i.policy.policyVersion, findings: i.policy.findings },
+          p_policy: policyRecord(i.policy),
           p_evaluation_limit: i.evaluationLimit,
           p_period_start: i.period.start.toISOString(),
           p_period_end: i.period.end.toISOString(),

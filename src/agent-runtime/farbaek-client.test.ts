@@ -15,7 +15,9 @@ function fakeFetch(handler: (url: string, init: RequestInit) => { status?: numbe
 
 describe("agent API client", () => {
   it("sends tokens only over HTTPS, or HTTP to this computer", () => {
-    expect(checkServerUrl("https://farbaek.com/app")).toBe("https://farbaek.com");
+    expect(checkServerUrl("https://www.farbaek.com/app")).toBe("https://www.farbaek.com");
+    // The bare domain only redirects, so the agent goes straight to www.
+    expect(checkServerUrl("https://farbaek.com/app")).toBe("https://www.farbaek.com");
     expect(checkServerUrl("http://localhost:3000")).toBe("http://localhost:3000");
     for (const bad of ["http://farbaek.com", "ftp://x", "https://user:pw@farbaek.com", "not a url"]) expect(() => checkServerUrl(bad)).toThrow(FarbaekApiError);
   });

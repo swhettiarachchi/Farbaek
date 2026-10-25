@@ -455,6 +455,25 @@ describe("Guard verification receipts", () => {
     const id = await ready();
     expect(await service().runChecks(as(ALICE), id, key())).toMatchObject({ ok: false, code: "INVALID_REQUEST" });
   });
+
+  it("runs a trial's checks without a receipt, a ProofPack or a task event (ADR 0076)", async () => {
+    const id = await ready(ALICE, { taskId: TASK, projectId: PROJECT });
+    const r = await service().trialChecks(as(ALICE), id, ["echo hello", "exit 1", SITE_CHECK_COMMAND], key());
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.value.map((c) => c.exitCode)).toEqual([0, 1, 0]);
+    expect(r.value[2]!.name).toMatch(/^farbaek check-site \(script sha256:[0-9a-f]{12}\)$/);
+    expect(store.receipts.size).toBe(0);
+    expect(verificationPacks).toEqual([]);
+    expect(taskState.applied).toEqual([]);
+  });
+
+  it("keeps a trial to the person's own workspace and a sensible number of checks", async () => {
+    const id = await ready(ALICE, { taskId: TASK, projectId: PROJECT });
+    expect(await service().trialChecks(as(ALICE, "22222222-2222-4222-8222-222222222222"), id, ["echo hello"], key())).toMatchObject({ ok: false, code: "NOT_FOUND" });
+    expect(await service().trialChecks(as(ALICE), id, [], key())).toMatchObject({ ok: false, code: "INVALID_REQUEST" });
+    expect(await service().trialChecks(as(ALICE), id, Array.from({ length: 21 }, () => "echo hi"), key())).toMatchObject({ ok: false, code: "INVALID_REQUEST" });
+  });
 });
 
 describe("overview", () => {

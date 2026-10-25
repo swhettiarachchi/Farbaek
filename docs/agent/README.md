@@ -82,6 +82,17 @@ Signing needs certificates the owner hasn't bought yet:
 
 Until then, Windows SmartScreen shows "Windows protected your PC" (choose More info, then Run anyway), and macOS refuses the app unless opened with right-click → Open.
 
+### Publishing a release (ADR 0077)
+
+People download the installer from the Agents page. It's served at `https://www.farbaek.com/downloads/<file>` from `/opt/farbaek/downloads` on the server.
+
+1. Raise the version in `desktop/app/package.json`, then run `pnpm agent:dist`.
+2. Copy `desktop/release/Farbaek-Agent-Setup-<version>.exe` to `/opt/farbaek/downloads` over SSH. Compare its SHA-256 on the server with the local one.
+3. Set the version, file, size and SHA-256 in `src/config/agent-download.ts`. `src/config/agent-download.test.ts` checks the entry is well formed and matches the app's version.
+4. Merge. The page links the new file once it deploys.
+
+Old installers stay on the server, so earlier links keep working. Remove them by hand when they're no longer needed.
+
 ## Agent API
 
 `/api/v1/agent`, authenticated with `Authorization: Bearer fa_…` (except pairing):

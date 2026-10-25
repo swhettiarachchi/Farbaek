@@ -105,7 +105,7 @@ function Alert({ children }: { children: ReactNode }) {
 /* ------------------------------------------------------------------ pairing */
 
 function PairScreen({ state, onPaired, onNearby }: { state: AppState; onPaired: (s: AppState) => void; onNearby: () => void }) {
-  const [server, setServer] = useState("");
+  const [server, setServer] = useState("https://www.farbaek.com");
   const [code, setCode] = useState("");
   const [name, setName] = useState(state.computerName);
   const [error, setError] = useState<string | null>(null);
@@ -132,7 +132,7 @@ function PairScreen({ state, onPaired, onNearby }: { state: AppState; onPaired: 
         {!state.keychain.available ? <Alert>{state.keychain.reason}</Alert> : null}
         <label className="field">
           <span>Farbaek address</span>
-          <input value={server} onChange={(e) => setServer(e.target.value)} placeholder="https://farbaek.com" inputMode="url" autoComplete="off" required />
+          <input value={server} onChange={(e) => setServer(e.target.value)} placeholder="https://www.farbaek.com" inputMode="url" autoComplete="off" required />
         </label>
         <label className="field">
           <span>Pairing code</span>

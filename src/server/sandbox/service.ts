@@ -658,23 +658,13 @@ export function createSandboxService(deps: SandboxServiceDeps) {
     return out;
   }
 
-  async function runChecks(actor: SandboxActor, sessionId: string, baseKey: string): Promise<SandboxResult<{ digest: string; status: string; taskEvent: string | null; applied: boolean }>> {
-    const session = await visibleSession(actor, sessionId);
-    if (!session) return err("NOT_FOUND", "That session doesn't exist in this workspace.", "invalid_request");
-    if (!session.taskId || !deps.tasks) return err("INVALID_REQUEST", "Link the session to a task to run its contract's checks.", "invalid_request");
-    const checksList = await deps.tasks.requiredChecks(actor.orgId, session.taskId);
-    if (!checksList || checksList.length === 0) return err("INVALID_REQUEST", "The task's approved contract lists no required checks.", "invalid_request");
-
-    // Hash the applied change's files inside the sandbox first: only a run
-    // against exactly that content can verify the change.
-    const appliedPack = await deps.tasks.appliedProofPack(actor.orgId, session.taskId);
-    let appliedFiles: { path: string; expected: string; actual: string | null }[] | null = null;
-    if (appliedPack) {
-      const changes = Array.isArray(appliedPack.statement?.predicate?.changes) ? appliedPack.statement.predicate.changes : [];
-      const actual = runtime && session.providerSandboxId ? await hashInSandbox(session.providerSandboxId, changes.map((c) => c.path)) : new Map<string, string>();
-      appliedFiles = changes.map((c) => ({ path: c.path, expected: c.sha256, actual: actual.get(c.path) ?? null }));
-    }
-
+  /**
+   * Runs each check as a command in the session, in order, and says what each
+   * did; a check that can't start is recorded as not run, and the rest still
+   * run. Writes nothing else: runChecks builds the receipt and ProofPack from
+   * this, and trialChecks returns it as it is.
+   */
+  async function executeChecks(actor: SandboxActor, session: SessionRecord, sessionId: string, checksList: readonly string[], baseKey: string): Promise<ReceiptCheck[]> {
     // Farbaek's site check (ADR 0054) is a script Farbaek writes into the sandbox, outside the project's
     // own folders, after the applied files were hashed. The receipt names it with the script's hash.
     let siteCheckName: string | null = null;
@@ -719,6 +709,39 @@ export function createSandboxService(deps: SandboxServiceDeps) {
       const command = checksList[results.length]!;
       results.push({ name: command, command, exitCode: null, durationMs: null, failure: "control_plane_interrupted", stdoutSha256: null, stderrSha256: null });
     }
+    return results;
+  }
+
+  /**
+   * The Future-State Arena's checks (ADR 0076): the same check run as
+   * runChecks, against whatever files the session holds right now, but no
+   * receipt, no ProofPack and no task transition. Only what each check did.
+   */
+  async function trialChecks(actor: SandboxActor, sessionId: string, checksList: readonly string[], baseKey: string): Promise<SandboxResult<ReceiptCheck[]>> {
+    const session = await visibleSession(actor, sessionId);
+    if (!session) return err("NOT_FOUND", "That session doesn't exist in this workspace.", "invalid_request");
+    if (checksList.length === 0 || checksList.length > 20) return err("INVALID_REQUEST", "Choose from 1 to 20 checks.", "invalid_request");
+    return { ok: true, value: await executeChecks(actor, session, sessionId, checksList, baseKey) };
+  }
+
+  async function runChecks(actor: SandboxActor, sessionId: string, baseKey: string): Promise<SandboxResult<{ digest: string; status: string; taskEvent: string | null; applied: boolean }>> {
+    const session = await visibleSession(actor, sessionId);
+    if (!session) return err("NOT_FOUND", "That session doesn't exist in this workspace.", "invalid_request");
+    if (!session.taskId || !deps.tasks) return err("INVALID_REQUEST", "Link the session to a task to run its contract's checks.", "invalid_request");
+    const checksList = await deps.tasks.requiredChecks(actor.orgId, session.taskId);
+    if (!checksList || checksList.length === 0) return err("INVALID_REQUEST", "The task's approved contract lists no required checks.", "invalid_request");
+
+    // Hash the applied change's files inside the sandbox first: only a run
+    // against exactly that content can verify the change.
+    const appliedPack = await deps.tasks.appliedProofPack(actor.orgId, session.taskId);
+    let appliedFiles: { path: string; expected: string; actual: string | null }[] | null = null;
+    if (appliedPack) {
+      const changes = Array.isArray(appliedPack.statement?.predicate?.changes) ? appliedPack.statement.predicate.changes : [];
+      const actual = runtime && session.providerSandboxId ? await hashInSandbox(session.providerSandboxId, changes.map((c) => c.path)) : new Map<string, string>();
+      appliedFiles = changes.map((c) => ({ path: c.path, expected: c.sha256, actual: actual.get(c.path) ?? null }));
+    }
+
+    const results = await executeChecks(actor, session, sessionId, checksList, baseKey);
 
     const role = await deps.role(actor.orgId);
     const decision = await guard("command.run", actor, role, session);
@@ -897,6 +920,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
     revokePreview,
     sampleMetrics,
     runChecks,
+    trialChecks,
     sweep,
   };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHANGE_POLICY_RULES, LARGE_CHANGE_FILES, changePolicyVersion, evaluateChangePolicy } from "./policy";
+import { CHANGE_POLICY_RULES, LARGE_CHANGE_FILES, changePolicyVersion, evaluateChangePolicy, policyRecord } from "./policy";
 import { canonicalHash } from "./canonical-json";
 
 const edit = (path: string) => ({ path, kind: "edit" as const });
@@ -84,5 +84,43 @@ describe("autonomy level 2 (ADR 0046)", () => {
     expect((await evaluateChangePolicy({ files: [edit("a.ts")], contractViolations: [] })).outcome).toBe("REQUIRE_APPROVAL");
     expect(CHANGE_POLICY_RULES.schema).toBe("farbaek.policy/v2");
     expect(CHANGE_POLICY_RULES.autonomy.outcome).toBe("ALLOW_WITHIN_LIMITS");
+  });
+});
+
+describe("shadow mode (ADR 0075)", () => {
+  const rehearsal = { level: 2 as const, maxFiles: 2, allowCreates: false, rehearsal: true };
+
+  it("records that level 2 would have applied a small, checked change, and still waits for a person", async () => {
+    const d = await evaluateChangePolicy({ files: [edit("src/a.ts")], contractViolations: [], autonomy: rehearsal, verifiable: true });
+    expect(d.outcome).toBe("REQUIRE_APPROVAL");
+    expect(d.findings).toEqual([]);
+    expect(d.shadow).toMatchObject({ outcome: "ALLOW_WITHIN_LIMITS", reasons: [], maxFiles: 2, allowCreates: false });
+    expect(d.shadow!.detail).toMatch(/^Level 2 would have applied this on its own: 1 file/);
+  });
+
+  it("names every limit that would have kept it waiting", async () => {
+    const d = await evaluateChangePolicy({ files: [edit("a.ts"), edit("b.ts"), { path: "c.ts", kind: "create" }], contractViolations: [], autonomy: rehearsal, verifiable: false });
+    expect(d.shadow).toMatchObject({ outcome: "REQUIRE_APPROVAL", reasons: ["too_many_files", "creates_files", "not_verifiable"] });
+  });
+
+  it("says autonomy would never lower a block or an escalation, and leaves them as they are", async () => {
+    const escalated = await evaluateChangePolicy({ files: [edit("package.json")], contractViolations: [], autonomy: rehearsal, verifiable: true });
+    expect(escalated.outcome).toBe("ESCALATE");
+    expect(escalated.shadow).toMatchObject({ outcome: "REQUIRE_APPROVAL", reasons: ["escalated"] });
+    const blocked = await evaluateChangePolicy({ files: [edit("a.ts")], contractViolations: [{ kind: "path", detail: "outside" }], autonomy: rehearsal, verifiable: true });
+    expect(blocked.outcome).toBe("BLOCK");
+    expect(blocked.shadow!.reasons).toEqual(["blocked"]);
+  });
+
+  it("uses the same rules, so the policy version doesn't change", async () => {
+    const d = await evaluateChangePolicy({ files: [edit("a.ts")], contractViolations: [], autonomy: rehearsal, verifiable: true });
+    expect(d.policyVersion).toBe(await changePolicyVersion());
+  });
+
+  it("stores the rehearsal with the decision only in shadow mode", async () => {
+    const plain = await evaluateChangePolicy({ files: [edit("a.ts")], contractViolations: [] });
+    expect(policyRecord(plain)).not.toHaveProperty("shadow");
+    const shadowed = await evaluateChangePolicy({ files: [edit("a.ts")], contractViolations: [], autonomy: rehearsal, verifiable: true });
+    expect(policyRecord(shadowed)).toMatchObject({ outcome: "REQUIRE_APPROVAL", shadow: { outcome: "ALLOW_WITHIN_LIMITS" } });
   });
 });

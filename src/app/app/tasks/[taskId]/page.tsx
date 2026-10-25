@@ -14,6 +14,9 @@ import { ScopeDriftCard } from "@/components/app/scope-drift-card";
 import { scopeDrift } from "@/core/realityloop/scope-drift";
 import { currentExecutionMode } from "@/server/execution/sandbox";
 import { ProposalReview } from "@/components/proposals/proposal-review";
+import { ArenaPanel } from "@/components/arena/arena-panel";
+import { readLatestArenaRun } from "@/server/arena/store";
+import { createSupabaseServerClient } from "@/server/supabase/server";
 import { RecoveryPanel } from "@/components/recovery/recovery-panel";
 import { RecoveryRecordCard } from "@/components/recovery/recovery-record";
 import { checkFeature } from "@/core/billing/entitlements";
@@ -134,6 +137,16 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
   const fallback = planChecks.length === 0 && requiredChecks > 0 ? fallbackChecksWords(checksForRun) : null;
   const siteCheck = fallback?.kind === "site";
   const checking = verification !== null && verificationState(verification, new Date(renderedAt)) === "running";
+  // The Future-State Arena on a change waiting for review (ADR 0076).
+  const trying = showProposal && proposal!.status === "pending";
+  const arenaClient = trying && ctx.mode === "live" ? await createSupabaseServerClient() : null;
+  const arenaRun = arenaClient ? await readLatestArenaRun(arenaClient, orgId, proposal!.id).catch(() => null) : null;
+  const arenaReason =
+    (ctx.mode === "demo" ? "The demo workspace is read-only." : null) ??
+    writeReason ??
+    (execution.mode === "review_only" ? execution.reason : null) ??
+    (ctx.role === null || !CONTRIBUTOR_ROLES.includes(ctx.role) ? "Viewers can't try changes. Ask a member, admin or owner." : null) ??
+    (checksForRun.length === 0 ? "The contract lists no checks, and Farbaek has none for this kind of project." : null);
   const verifyReason =
     writeReason ??
     (execution.mode === "review_only" ? execution.reason : null) ??
@@ -241,6 +254,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
                 checksOnApply={checksForRun.length > 0}
               />
             ) : null}
+            {trying ? <ArenaPanel proposalId={proposal!.id} taskId={task.id} checks={checksForRun} run={arenaRun} disabledReason={arenaReason} /> : null}
             {canPropose ? (
               <div className={`grid gap-3 rounded-md border border-accent/30 bg-accent/[0.04] p-5 ${showProposal ? "mt-2" : ""}`}>
                 <h3 className="flex items-center gap-2 text-base font-medium">

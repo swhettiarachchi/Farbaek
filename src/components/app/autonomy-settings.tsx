@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, LightningIcon, PauseCircleIcon, ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, FlaskIcon, LightningIcon, PauseCircleIcon, ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useState } from "react";
 import { setAutonomyAction, type AutonomyState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -8,19 +8,35 @@ import { RelativeTime } from "@/components/ui/local-time";
 import type { AutonomyView } from "@/server/workspace/autonomy";
 
 const IDLE: AutonomyState = { status: "idle" };
+type Mode = "0" | "shadow" | "2";
 
 /**
  * Autonomy (ADR 0046): level 0, where every change waits for a person, or
  * level 2, where small, checked changes apply on their own within limits
- * an owner or admin sets. The server and the database decide each change.
+ * an owner or admin sets. Between them, shadow mode (ADR 0075) rehearses
+ * level 2: every change still waits, and each notes what level 2 would have
+ * done. The server and the database decide each change.
  */
-export function AutonomySettings({ view, disabledReason, verifiable }: { view: AutonomyView; disabledReason: string | null; verifiable: boolean }) {
+export function AutonomySettings({ view, disabledReason, shadowReason, verifiable }: { view: AutonomyView; disabledReason: string | null; shadowReason: string | null; verifiable: boolean }) {
   const [state, action, pending] = useActionState(setAutonomyAction, IDLE);
-  const [level, setLevel] = useState<0 | 2>(view.level);
+  const current: Mode = view.level === 2 ? "2" : view.shadowSince ? "shadow" : "0";
+  const [mode, setMode] = useState<Mode>(current);
   const [maxFiles, setMaxFiles] = useState(view.maxFiles);
   const [allowCreates, setAllowCreates] = useState(view.allowCreates);
   const suspended = view.level === 2 && view.suspendedAt !== null;
-  const changed = level !== view.level || maxFiles !== view.maxFiles || allowCreates !== view.allowCreates;
+  const changed = mode !== current || maxFiles !== view.maxFiles || allowCreates !== view.allowCreates;
+  const locked = pending || Boolean(disabledReason);
+
+  const options: { value: Mode; title: string; body: string; unavailable: string | null }[] = [
+    { value: "0", title: "Level 0: Every change waits for a person", body: "The agent proposes; someone reviews the diff and approves the exact content.", unavailable: null },
+    {
+      value: "shadow",
+      title: "Rehearse level 2 first",
+      body: "Every change still waits for a person. Each one notes what level 2 would have done, so you can see its record before you trust it.",
+      unavailable: shadowReason,
+    },
+    { value: "2", title: "Level 2: Small, checked changes apply on their own", body: "Within the limits below. Everything else still waits for a person.", unavailable: null },
+  ];
 
   return (
     <form action={action} className="grid gap-4">
@@ -33,6 +49,10 @@ export function AutonomySettings({ view, disabledReason, verifiable }: { view: A
         ) : view.level === 2 ? (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 px-2.5 py-1 text-xs text-accent">
             <LightningIcon size={14} weight="bold" aria-hidden /> Level 2 on
+          </span>
+        ) : view.shadowSince ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-simulated/50 px-2.5 py-1 text-xs text-simulated">
+            <FlaskIcon size={14} weight="bold" aria-hidden /> Rehearsing level 2
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs text-ink-2">
@@ -57,32 +77,43 @@ export function AutonomySettings({ view, disabledReason, verifiable }: { view: A
         </p>
       ) : null}
 
-      <fieldset className="grid gap-2" disabled={pending || Boolean(disabledReason)}>
+      <fieldset className="grid gap-2" disabled={locked}>
         <legend className="sr-only">Autonomy level</legend>
-        {(
-          [
-            { value: 0, title: "Every change waits for a person", body: "The agent proposes; someone reviews the diff and approves the exact content." },
-            { value: 2, title: "Small, checked changes apply on their own", body: "Within the limits below. Everything else still waits for a person." },
-          ] as const
-        ).map((o) => (
+        {options.map((o) => (
           <label
             key={o.value}
-            className="flex min-h-11 cursor-pointer items-start gap-3 rounded-sm border border-line px-4 py-3 has-checked:border-accent has-checked:bg-accent/[0.04] has-focus-visible:outline-2 has-focus-visible:outline-accent has-disabled:cursor-not-allowed"
+            className={`flex min-h-11 cursor-pointer items-start gap-3 rounded-sm border px-4 py-3 has-checked:bg-accent/[0.04] has-focus-visible:outline-2 has-focus-visible:outline-accent has-disabled:cursor-not-allowed ${
+              o.value === "shadow" ? "border-dashed border-line-strong/70 has-checked:border-simulated has-checked:bg-simulated/[0.04]" : "border-line has-checked:border-accent"
+            }`}
           >
-            <input type="radio" name="level" value={o.value} checked={level === o.value} onChange={() => setLevel(o.value)} className="mt-1 size-4 accent-[var(--color-accent)]" />
+            <input
+              type="radio"
+              name="level"
+              value={o.value}
+              checked={mode === o.value}
+              disabled={o.unavailable !== null && mode !== o.value}
+              onChange={() => setMode(o.value)}
+              className="mt-1 size-4 accent-[var(--color-accent)]"
+            />
             <span className="grid gap-0.5">
-              <span className="text-[15px] font-medium">
-                Level {o.value}: {o.title}
+              <span className="flex flex-wrap items-center gap-2 text-[15px] font-medium">
+                {o.title}
+                {o.value === "shadow" ? (
+                  <span className="inline-flex h-5 items-center gap-1 rounded-full border border-simulated/40 px-2 text-xs font-medium text-simulated">
+                    <FlaskIcon size={12} weight="bold" aria-hidden /> Simulated
+                  </span>
+                ) : null}
               </span>
               <span className="text-sm text-ink-2">{o.body}</span>
+              {o.unavailable ? <span className="text-xs text-ink-3">{o.unavailable}</span> : null}
             </span>
           </label>
         ))}
       </fieldset>
 
-      {level === 2 ? (
+      {mode !== "0" ? (
         <div className="grid gap-3 rounded-sm bg-surface-raised/60 px-4 py-3">
-          <p className="text-sm font-medium">A change applies on its own only when all of these hold:</p>
+          <p className="text-sm font-medium">{mode === "shadow" ? "Rehearse with these limits. A change would apply on its own only when all of these hold:" : "A change applies on its own only when all of these hold:"}</p>
           <ul className="grid gap-1.5 text-sm text-ink-2">
             {[
               "It's inside the approved contract, and touches no dependencies, CI, migrations, infrastructure or security code.",
@@ -98,13 +129,7 @@ export function AutonomySettings({ view, disabledReason, verifiable }: { view: A
           <div className="flex flex-wrap items-center gap-4">
             <label className="flex items-center gap-2 text-sm">
               Up to
-              <select
-                name="maxFiles"
-                value={maxFiles}
-                onChange={(e) => setMaxFiles(Number(e.target.value))}
-                disabled={pending || Boolean(disabledReason)}
-                className="min-h-11 rounded-sm border border-line bg-surface px-3 text-base sm:text-sm"
-              >
+              <select name="maxFiles" value={maxFiles} onChange={(e) => setMaxFiles(Number(e.target.value))} disabled={locked} className="min-h-11 rounded-sm border border-line bg-surface px-3 text-base sm:text-sm">
                 {[1, 2, 3, 4, 5].map((n) => (
                   <option key={n} value={n}>
                     {n}
@@ -114,14 +139,15 @@ export function AutonomySettings({ view, disabledReason, verifiable }: { view: A
               {maxFiles === 1 ? "file" : "files"}
             </label>
             <label className="flex min-h-11 items-center gap-2 text-sm">
-              <input type="checkbox" name="allowCreates" checked={allowCreates} onChange={(e) => setAllowCreates(e.target.checked)} disabled={pending || Boolean(disabledReason)} className="size-4 accent-[var(--color-accent)]" />
+              <input type="checkbox" name="allowCreates" checked={allowCreates} onChange={(e) => setAllowCreates(e.target.checked)} disabled={locked} className="size-4 accent-[var(--color-accent)]" />
               Allow new files
             </label>
           </div>
           {!verifiable ? <p className="text-sm text-ink-3">No verified sandbox is connected on this server, so for now every change still waits for a person.</p> : null}
           <p className="text-xs leading-relaxed text-ink-3">
-            Each change applied this way is recorded as approved by this policy, in its ProofPack and history, and can be undone file by file. Its checks run straight away
-            in a sandbox. If any of them fail, autonomy pauses itself for the whole workspace.
+            {mode === "shadow"
+              ? "Nothing applies on its own while rehearsing. Each proposal shows what level 2 would have done, marked as simulated, and the record below sets those verdicts against what really happened."
+              : "Each change applied this way is recorded as approved by this policy, in its ProofPack and history, and can be undone file by file. Its checks run straight away in a sandbox. If any of them fail, autonomy pauses itself for the whole workspace."}
           </p>
         </div>
       ) : (
@@ -129,8 +155,8 @@ export function AutonomySettings({ view, disabledReason, verifiable }: { view: A
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        <button type="submit" disabled={pending || Boolean(disabledReason) || (!changed && !suspended)} className={buttonClasses("primary", "sm")}>
-          {pending ? "Saving…" : suspended && level === 2 && !changed ? "Turn on again" : "Save autonomy"}
+        <button type="submit" disabled={locked || (!changed && !suspended)} className={buttonClasses("primary", "sm")}>
+          {pending ? "Saving…" : suspended && mode === "2" && !changed ? "Turn on again" : "Save autonomy"}
         </button>
         {disabledReason ? <span className="text-sm text-ink-3">{disabledReason}</span> : null}
         {view.updatedAt && !disabledReason ? (

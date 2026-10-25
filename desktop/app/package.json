@@ -1,7 +1,7 @@
 {
   "name": "farbaek-agent",
   "productName": "Farbaek Agent",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Works on a task's approved contract on your computer and hands the change to Farbaek for review.",
   "author": "Farbaek",
   "license": "UNLICENSED",
