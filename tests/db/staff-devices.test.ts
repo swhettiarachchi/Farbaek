@@ -104,6 +104,12 @@ describe("trusted devices", () => {
     await expect(q("select public.app_staff_revoke_device($1, $2, $3, null, 'vitest')", [CEO, session, crypto.randomUUID()])).rejects.toThrow(/DEVICE_NOT_FOUND/);
   });
 
+  it("keeps the last trusted device, so the office can't reopen to anyone", async () => {
+    const laptop = (await su<{ id: string }>("select id from public.staff_devices where token_hash = $1", [LAPTOP]))[0]!.id;
+    await expect(q("select public.app_staff_revoke_device($1, $2, $3, null, 'vitest')", [CEO, session, laptop])).rejects.toThrow(/LAST_DEVICE/);
+    expect(await trusted(CEO, LAPTOP)).toBe(true);
+  });
+
   it("lets only the database owner reset every device, so the next sign-in starts over", async () => {
     await expect(q("select private.reset_staff_devices('info@farbaek.com')")).rejects.toThrow(/permission denied/);
     expect((await su<{ n: number }>("select private.reset_staff_devices('info@farbaek.com') as n"))[0]!.n).toBeGreaterThan(0);

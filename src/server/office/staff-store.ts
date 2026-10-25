@@ -49,6 +49,7 @@ export const OFFICE_ERROR_CODES = [
   "DEVICE_NOT_TRUSTED",
   "DEVICE_NOT_WAITING",
   "DEVICE_NOT_FOUND",
+  "LAST_DEVICE",
   "UNEXPECTED_RESPONSE",
   "UNKNOWN",
 ] as const;
@@ -93,6 +94,7 @@ export const OFFICE_MESSAGES: Record<OfficeErrorCode, string> = {
   DEVICE_NOT_TRUSTED: "Approve devices from one you already trust.",
   DEVICE_NOT_WAITING: "That device isn't waiting any more. On it, sign in again for a new code.",
   DEVICE_NOT_FOUND: "That device isn't on your list any more.",
+  LAST_DEVICE: "This is your only trusted device, so it stays. Add another device first, then remove this one.",
   UNEXPECTED_RESPONSE: "The database sent something unexpected. Nothing was changed.",
   UNKNOWN: "That didn't work, and nothing was changed. Try again in a moment.",
 };
@@ -163,6 +165,9 @@ export interface StaffStore {
   listDevices(userId: string): Promise<StoreResult<StaffDevice[]>>;
   approveDevice(actor: StaffActor, input: { fromHash: string; deviceId: string; code: string }, strength: AuthStrength, meta: RequestMeta): Promise<StoreResult<{ ok: boolean; tries_left?: number }>>;
   revokeDevice(actor: StaffActor, deviceId: string, meta: RequestMeta): Promise<StoreResult<null>>;
+  // The hidden office (migration v44)
+  createDeviceInvite(actor: StaffActor, input: { fromHash: string; codeHash: string }, strength: AuthStrength, meta: RequestMeta): Promise<StoreResult<string>>;
+  redeemDeviceInvite(codeHash: string, device: { hash: string; label: string }, meta: RequestMeta): Promise<StoreResult<boolean>>;
 }
 
 const DeviceCheckSchema = z.object({
@@ -313,5 +318,9 @@ export function createStaffStore(admin: SupabaseClient): StaffStore {
         z.object({ ok: z.boolean(), tries_left: z.number().optional() }),
       ),
     revokeDevice: (a, deviceId, meta) => rpc("app_staff_revoke_device", { p_actor: a.userId, p_session: a.sessionId, p_device: deviceId, ...m(meta) }, nothing),
+    createDeviceInvite: (a, i, strength, meta) =>
+      rpc("app_staff_create_device_invite", { p_actor: a.userId, p_session: a.sessionId, p_from_token_hash: i.fromHash, p_code_hash: i.codeHash, p_auth_strength: strength, ...m(meta) }, z.string()),
+    redeemDeviceInvite: (codeHash, device, meta) =>
+      rpc("app_staff_redeem_device_invite", { p_code_hash: codeHash, p_token_hash: device.hash, p_label: device.label, ...m(meta) }, z.boolean()),
   };
 }

@@ -1,5 +1,6 @@
 import { checkSchedulerToken } from "@/server/jobs/auth";
 import { log } from "@/server/observability/log";
+import { noteJobRun } from "@/server/ops/jobs";
 import { readSandboxConfig } from "@/server/sandbox/config";
 import { json, problem } from "@/server/sandbox/http";
 import { resolveSandboxRuntime } from "@/server/sandbox/registry";
@@ -33,9 +34,12 @@ export async function POST(request: Request) {
     randomKey: () => crypto.randomUUID(),
   });
   try {
-    return json({ data: await service.sweep() });
+    const swept = await service.sweep();
+    await noteJobRun(admin, "sandbox_sweep", true);
+    return json({ data: swept });
   } catch (e) {
     log("error", "sandbox.sweep_failed", { error: e instanceof Error ? e.message : String(e) });
+    await noteJobRun(admin, "sandbox_sweep", false, "The sweep failed; see the app log.");
     return problem(500, "INTERNAL", "The sweep failed; it is safe to run again.");
   }
 }

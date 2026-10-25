@@ -117,7 +117,9 @@ ESLint forbids `src/core` from importing React, Next, Motion or UI code, so ever
 | Platform alerts (ADR 0068): the owner gets an email when the day's AI use reaches 80% of the platform limit and when it's reached, once each a day, claimed and recorded (migration v40); every hourly job runs from one runner | Implemented and tested (PGlite) | `src/server/jobs/platform-alerts.ts`, `src/server/jobs/hourly.ts`, `docs/stages/stage-46.md` |
 | Office Space on trusted devices only (ADR 0069): each browser carries a device cookie (only its hash is stored); the first device is trusted at sign-in, later ones wait with a 6-digit code shown only on them until approved from a trusted device with that code and an authenticator code; checked on every office page and action; removable; reset over SSH (migration v41) | Implemented and tested (PGlite); not yet seen in a browser, since the office needs a real sign-in | `supabase/migrations/20261112090000_staff_devices.sql`, `src/server/office/devices.ts`, `docs/stages/stage-47.md` |
 | Launch Evidence Gate (ADR 0050): publishing needs the latest applied change verified by a check run, with no file changed since, or an owner or admin's reason (10 to 500 characters); each version records its evidence, ProofPack and reason, and so does the audit log; the publish panel and the Launch page read the same rule | Implemented and tested; migration v33; security eval SE-024 | `supabase/migrations/20261104090000_launch_evidence.sql`, `src/core/publish/evidence.ts`, `tests/db/sites.test.ts` |
+| Background jobs report each run (ADR 0071): the sandbox sweep, hourly jobs, nightly backup and weekly restore test record their last success and failure (migration v43); Office Space Health shows each, and /api/ready fails when one is late or failing | Implemented and tested (PGlite); the backup scripts report after install.sh is run again | `src/core/ops/jobs.ts`, `src/server/ops/jobs.ts`, `docs/stages/stage-49.md` |
 | Download your data (ADR 0070): Settings > Your data downloads one JSON file of what Farbaek holds about the person (account, email choices, workspaces, support requests with replies, their actions, AI use, what they created), from their own session, 5 an hour (migration v42) | Implemented and tested (PGlite); seen in the demo | `supabase/migrations/20261113090000_account_export.sql`, `src/app/app/account/export/route.ts`, `docs/stages/stage-48.md` |
+| Office Space hidden from unknown devices (ADR 0072): the proxy answers 404 to any device the office doesn't know, sign-in page included; a new device is added with a one-time 8-character code made on a trusted device with an authenticator code, typed at /add-device (migration v44) | Implemented and tested (PGlite) | `src/server/office/device-gate.ts`, `src/app/office/add-device/`, `docs/stages/stage-50.md` |
 | Mesh on phones (mDNS, mobile apps), remote transfer and relay; LaunchOS providers; Mobile | **Not started** | Roadmap |
 | Payments | **Not connected.** `BILLING_MODE=not_connected` | Spec section 23 |
 
@@ -128,12 +130,9 @@ ESLint forbids `src/core` from importing React, Next, Motion or UI code, so ever
 - **AI providers** (contract drafting and change proposals): Claude (`ANTHROPIC_API_KEY`) and Gemini (`GEMINI_API_KEY`, ADR 0014). Code is in place for both; each runs only when its key is set on the server, and usage is billed to that key. Claude is used when both are set unless `AI_PROVIDER` says otherwise.
 - **Sandbox runtime**: Vercel Sandbox, connected in production on 2026-10-24 and its isolation proven with `pnpm sandbox:smoke` (ADR 0016). E2B stays available.
 - **Email:** Spacemail over SMTP, on in production since 2026-10-24 (ADR 0060).
-- **Not connected:**
-  - payments;
-  - Cloudflare Turnstile (waiting for the owner's widget, ADR 0067);
-  - off-server backup copies (waiting for an R2 bucket).
-
-  `.env.example` lists every variable name and what reads it.
+- **Off-server backups:** each nightly backup is also copied to Cloudflare R2 (`farbaek-backups`, Eastern North America, deleted after 14 days), with a key limited to that bucket and to the server's address. On since 2026-10-25; the first copy (1.35 MB) was read back in the bucket.
+- **Cloudflare Turnstile** at sign-in: on since 2026-10-24 (ADR 0067).
+- **Not connected:** payments. `.env.example` lists every variable name and what reads it.
 
 ## 3. Data model and auth boundaries
 
