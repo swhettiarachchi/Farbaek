@@ -130,12 +130,9 @@ ESLint forbids `src/core` from importing React, Next, Motion or UI code, so ever
 - **AI providers** (contract drafting and change proposals): Claude (`ANTHROPIC_API_KEY`) and Gemini (`GEMINI_API_KEY`, ADR 0014). Code is in place for both; each runs only when its key is set on the server, and usage is billed to that key. Claude is used when both are set unless `AI_PROVIDER` says otherwise.
 - **Sandbox runtime**: Vercel Sandbox, connected in production on 2026-10-24 and its isolation proven with `pnpm sandbox:smoke` (ADR 0016). E2B stays available.
 - **Email:** Spacemail over SMTP, on in production since 2026-10-24 (ADR 0060).
-- **Not connected:**
-  - payments;
-  - Cloudflare Turnstile (waiting for the owner's widget, ADR 0067);
-  - off-server backup copies (waiting for an R2 bucket).
-
-  `.env.example` lists every variable name and what reads it.
+- **Off-server backups:** each nightly backup is also copied to Cloudflare R2 (`farbaek-backups`, Eastern North America, deleted after 14 days), with a key limited to that bucket and to the server's address. On since 2026-10-25; the first copy (1.35 MB) was read back in the bucket.
+- **Cloudflare Turnstile** at sign-in: on since 2026-10-24 (ADR 0067).
+- **Not connected:** payments. `.env.example` lists every variable name and what reads it.
 
 ## 3. Data model and auth boundaries
 
