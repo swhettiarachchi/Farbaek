@@ -138,6 +138,10 @@ const SECTIONS: LegalSection[] = [
           If you connect your own hosting account, such as Vercel, we send your project&apos;s files to that account only when you launch, and the provider handles them under
           your own agreement with it, not ours. We keep the token you gave us encrypted, never show it again, and delete it when you disconnect.
         </p>
+        <p>
+          If you turn on notifications on a device, we send them through that browser&apos;s push service: Google, Apple, Mozilla or Microsoft. Each message is encrypted for
+          your device, so the service sees only that one was sent. Turn them off in Settings, under This device.
+        </p>
       </>
     ),
   },

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { MobileTabBar, SidebarNav } from "@/components/app/app-nav";
 import { CommandPalette, PaletteTrigger } from "@/components/app/command-palette";
+import { ServiceWorker } from "@/components/app/service-worker";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
 import { PAGE_NAV, PageTransition } from "@/components/app/page-transition";
 import { UsagePanel } from "@/components/app/usage-meters";
@@ -189,6 +190,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
         canBuild={canBuild}
         admin={admin}
       />
+      <ServiceWorker />
     </div>
   );
 }

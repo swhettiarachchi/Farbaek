@@ -27,12 +27,23 @@ for (const size of [32, 48]) {
     .toFile(`public/brand/farbaek-icon-${size}.png`);
 }
 
+// Icons on the porcelain surface. Sharp runs its steps in its own order, not call order, so the logo is
+// placed first and the background flattened in a second pass; in one pass, the padding stayed transparent.
+async function appIcon(size, inner, file) {
+  const pad = (size - inner) / 2;
+  const placed = await sharp(SRC)
+    .resize(inner, inner, { fit: "contain", background: transparent })
+    .extend({ top: Math.floor(pad), bottom: Math.ceil(pad), left: Math.floor(pad), right: Math.ceil(pad), background: transparent })
+    .png()
+    .toBuffer();
+  await sharp(placed).flatten({ background: porcelain }).png().toFile(file);
+}
 // iOS renders transparent touch icons on black, so the apple icon sits on the porcelain surface.
-await sharp(SRC)
-  .resize(148, 148, { fit: "contain", background: transparent })
-  .extend({ top: 16, bottom: 16, left: 16, right: 16, background: transparent })
-  .flatten({ background: porcelain })
-  .png()
-  .toFile("public/brand/farbaek-apple-icon.png");
+await appIcon(180, 148, "public/brand/farbaek-apple-icon.png");
+// The installed app's icons (src/app/manifest.ts).
+await appIcon(192, 154, "public/brand/farbaek-app-192.png");
+await appIcon(512, 410, "public/brand/farbaek-app-512.png");
+// Maskable: Android crops to a shape inside the central circle (80% across), so the logo stays well within it.
+await appIcon(512, 320, "public/brand/farbaek-app-maskable.png");
 
-console.log("Wrote farbaek-logo.png, farbaek-icon.png, farbaek-icon-32.png, farbaek-icon-48.png and farbaek-apple-icon.png");
+console.log("Wrote farbaek-logo.png, farbaek-icon.png, farbaek-icon-32.png, farbaek-icon-48.png, farbaek-apple-icon.png and the app icons");

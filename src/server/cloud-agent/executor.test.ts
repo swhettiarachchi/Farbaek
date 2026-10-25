@@ -64,14 +64,20 @@ function scripted(turns: ModelToolCall[][]): ToolModel {
 const edit = { id: "e", name: "edit_file", input: { path: "README.md", edits: [{ find: "Run the tests.", replace: "Run the tests with pnpm test." }], reason: "Name the command." } };
 const finish = { id: "f", name: "finish", input: { summary: "README names pnpm test.", steps: ["Edited README.md"], risks: [], checks: ["pnpm test"] } };
 
-async function deps(over: { model?: ToolModel; state?: TaskState; sandbox?: CommandRunner | null; runError?: string; extraFiles?: { path: string; content: string }[]; taskId?: string; gateway?: ExecutorDeps["gateway"]; pins?: Map<string, SkillPin>; autonomy?: AutonomyLimits | null; applyFails?: string; contract?: IntentContract; verify?: VerificationOutcome | null }) {
+/**
+ * `runId` must differ for each run a test starts. The executor names its
+ * working folder after the run and removes it only after it reports the end
+ * (and stops the sandbox and sends the email), so a second run with the same
+ * id can have its folder removed under it. Production run ids are UUIDs.
+ */
+async function deps(over: { runId?: string; model?: ToolModel; state?: TaskState; sandbox?: CommandRunner | null; runError?: string; extraFiles?: { path: string; content: string }[]; taskId?: string; gateway?: ExecutorDeps["gateway"]; pins?: Map<string, SkillPin>; autonomy?: AutonomyLimits | null; applyFails?: string; contract?: IntentContract; verify?: VerificationOutcome | null }) {
   const patches: RunPatch[] = [];
   const proposals: ProposalInput[] = [];
   const synced: string[][] = [];
   const applied: { orgId: string; userId: string; proposalId: string }[] = [];
   const verified: { path: string; content: string }[][] = [];
   const runs: RunStore = {
-    start: async () => (over.runError ? { ok: false, error: over.runError } : { ok: true, value: "run-1" }),
+    start: async () => (over.runError ? { ok: false, error: over.runError } : { ok: true, value: over.runId ?? "run-1" }),
     update: async (_id, p) => (patches.push(structuredClone(p)), { ok: true, value: null }),
     createRunProposal: async (_id, input) => (proposals.push(input), { ok: true, value: "proposal-1" }),
     interruptStale: async () => 0,
@@ -295,30 +301,30 @@ describe("autonomy level 2 (ADR 0046)", () => {
   });
 
   it("says when the automatic check failed, which pauses autonomy, or couldn't run", async () => {
-    const failed = await deps({ model: scripted([[edit], [finish]]), sandbox, autonomy: LIMITS, contract: checked, verify: { ok: true, result: "failed", receiptDigest: "f".repeat(64) } });
+    const failed = await deps({ runId: "run-failed", model: scripted([[edit], [finish]]), sandbox, autonomy: LIMITS, contract: checked, verify: { ok: true, result: "failed", receiptDigest: "f".repeat(64) } });
     await startCloudRun(failed.d, { person: alice, taskId: "t1", effort: "balanced", skills: [] });
     expect(await failed.ended()).toMatchObject({ outcome: expect.stringMatching(/its checks failed, so autonomy is paused for this workspace/) });
 
-    const lost = await deps({ model: scripted([[edit], [finish]]), sandbox, autonomy: LIMITS, contract: checked, verify: { ok: false, reason: "The checks didn't run: The session isn't running." } });
+    const lost = await deps({ runId: "run-lost", model: scripted([[edit], [finish]]), sandbox, autonomy: LIMITS, contract: checked, verify: { ok: false, reason: "The checks didn't run: The session isn't running." } });
     await startCloudRun(lost.d, { person: alice, taskId: "t1", effort: "balanced", skills: [] });
     expect(await lost.ended()).toMatchObject({ outcome: expect.stringMatching(/^Finished\. The change applied on its own, but its checks couldn't run/) });
     expect(notes(lost)).toContainEqual("The checks didn't run: The session isn't running.");
   });
 
   it("waits for a person when nothing could check the change, and when autonomy is off", async () => {
-    const noSandbox = await deps({ model: scripted([[edit], [finish]]), autonomy: LIMITS, contract: checked });
+    const noSandbox = await deps({ runId: "run-no-sandbox", model: scripted([[edit], [finish]]), autonomy: LIMITS, contract: checked });
     await startCloudRun(noSandbox.d, { person: alice, taskId: "t1", effort: "balanced", skills: [] });
     expect(await noSandbox.ended()).toMatchObject({ status: "finished", outcome: "Finished. The change is waiting for your review." });
     expect(noSandbox.applied).toEqual([]);
     expect(notes(noSandbox)).toContainEqual(expect.stringMatching(/waits for a person: nothing could check it/));
 
     // A sandbox that can't check what applied doesn't count either.
-    const noCheck = await deps({ model: scripted([[edit], [finish]]), sandbox, autonomy: LIMITS, contract: checked, verify: null });
+    const noCheck = await deps({ runId: "run-no-check", model: scripted([[edit], [finish]]), sandbox, autonomy: LIMITS, contract: checked, verify: null });
     await startCloudRun(noCheck.d, { person: alice, taskId: "t1", effort: "balanced", skills: [] });
     await noCheck.ended();
     expect(noCheck.applied).toEqual([]);
 
-    const off = await deps({ model: scripted([[edit], [finish]]), sandbox, contract: checked });
+    const off = await deps({ runId: "run-off", model: scripted([[edit], [finish]]), sandbox, contract: checked });
     await startCloudRun(off.d, { person: alice, taskId: "t1", effort: "balanced", skills: [] });
     await off.ended();
     expect(off.proposals[0]!.policy.outcome).toBe("REQUIRE_APPROVAL");

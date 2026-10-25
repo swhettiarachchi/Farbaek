@@ -20,6 +20,8 @@ export const metadata: Metadata = {
     ],
     apple: "/brand/farbaek-apple-icon.png",
   },
+  // Added to an iPhone's Home Screen, Farbaek opens full screen under its own name (ADR 0079).
+  appleWebApp: { capable: true, title: "Farbaek", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
