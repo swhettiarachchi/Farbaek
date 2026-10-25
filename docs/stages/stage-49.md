@@ -26,5 +26,5 @@
 Rerun the installer once so the backup scripts report:
 
 ```bash
-ssh -t -i ~/.ssh/farbaek_vps farbaek@2.25.88.188 "sudo /opt/farbaek/app/scripts/vps/install.sh"
+ssh -t -i ~/.ssh/farbaek_vps farbaek@2.25.88.188 "sudo bash /opt/farbaek/app/scripts/vps/install.sh"
 ```
