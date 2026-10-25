@@ -76,3 +76,12 @@ export function waitingFor(sinceIso: string, now: Date): string {
   const days = Math.floor(hours / 24);
   return `${days} days`;
 }
+
+/**
+ * Priority support (ADR 0084): requests from workspaces whose plan includes
+ * it go first in the queue waiting on Farbaek; within each group the
+ * queue's own order (longest waiting first) holds.
+ */
+export function priorityFirst<T extends { priority: boolean }>(rows: readonly T[]): T[] {
+  return [...rows.filter((r) => r.priority), ...rows.filter((r) => !r.priority)];
+}
