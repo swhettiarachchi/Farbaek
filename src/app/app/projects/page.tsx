@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CreateProjectForm } from "@/components/app/forms";
+import { GitHubImportForm } from "@/components/files/github-import";
 import { ProjectCard } from "@/components/app/project-card";
 import { Card, EmptyState, PageHeader } from "@/components/app/primitives";
 import { buttonClasses } from "@/components/ui/button";
@@ -49,7 +50,7 @@ export default async function ProjectsPage() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">
         {projects.length === 0 ? (
           <EmptyState icon={FolderSimpleIcon} title="No projects yet">
-            Create a project for the codebase or product you want Farbaek to work on, then import its files from a folder on your computer. GitHub import isn&apos;t built yet.
+            Create a project for the codebase or product you want Farbaek to work on, then import its files from a folder on your computer, or import a public GitHub repository.
           </EmptyState>
         ) : (
           <ul className="grid gap-4 sm:grid-cols-2">
@@ -73,13 +74,22 @@ export default async function ProjectsPage() {
           </ul>
         )}
 
-        <Card>
-          <h2 className="text-lg font-medium">New project</h2>
-          <p className="mt-1 text-sm text-ink-2">Name it after the product or repository.</p>
-          <div className="mt-5">
-            <CreateProjectForm disabledReason={disabledReason} />
-          </div>
-        </Card>
+        <div className="grid gap-6">
+          <Card>
+            <h2 className="text-lg font-medium">New project</h2>
+            <p className="mt-1 text-sm text-ink-2">Name it after the product or repository.</p>
+            <div className="mt-5">
+              <CreateProjectForm disabledReason={disabledReason} />
+            </div>
+          </Card>
+          <Card>
+            <h2 className="text-lg font-medium">Import from GitHub</h2>
+            <p className="mt-1 text-sm text-ink-2">A new project with the repository&apos;s code, ready for a build or a security check.</p>
+            <div className="mt-5">
+              <GitHubImportForm disabledReason={ctx.mode === "demo" ? "The demo workspace is read-only." : disabledReason} />
+            </div>
+          </Card>
+        </div>
       </div>
     </div>
   );

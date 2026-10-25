@@ -10,6 +10,7 @@ import type { SkillPinRecord } from "./skill-pins";
 import type { StoredLensSuggestion } from "@/core/realityloop/lens-suggestion";
 import type { AutonomyView } from "./autonomy";
 import type { VerificationRecord } from "@/core/realityloop/verification";
+import type { FirstStepFacts } from "@/core/workspace/first-steps";
 
 export const ORG_ROLES = ["owner", "admin", "member", "viewer"] as const;
 export type OrgRole = (typeof ORG_ROLES)[number];
@@ -276,6 +277,8 @@ export interface WorkspaceReader {
   getProofPack(orgId: string, digest: string): Promise<ProofPackRecord | null>;
   /** The workspace's most recent ProofPacks, newest first. */
   listRecentProofPacks(orgId: string, limit: number): Promise<(ProofPackRecord & { taskId: string })[]>;
+  /** What the first steps read beyond tasks: the newest ProofPack, the newest verified one and a live site (ADR 0073). */
+  getFirstStepRecords(orgId: string): Promise<Pick<FirstStepFacts, "latestProofPack" | "verifiedTaskId" | "liveSite">>;
   /** Every file change in a project at or after `since`, oldest first (at most 500). */
   listFileChangesSince(orgId: string, projectId: string, since: string): Promise<FileChangeEvent[]>;
   /** The most recent change proposal for a task, or null. */

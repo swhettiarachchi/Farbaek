@@ -171,7 +171,8 @@ describe("packing a folder", () => {
     expect(bigEntry.chunks).toHaveLength(3);
     expect(packed.digest).toBe(manifestDigest(packed.manifest));
     expect(checkManifest(packed.manifest, TRANSFER_LIMITS, { diskPaths: true })).toEqual([]);
-  });
+    // Hashing the multi-chunk file takes over 5 s when the whole suite runs at once.
+  }, 30_000);
 });
 
 describe("nearby transfer between two agents", { timeout: 30_000 }, () => {

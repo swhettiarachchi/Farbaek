@@ -99,6 +99,18 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
         <Notice tone="warning">The project was created, but the zip&apos;s files couldn&apos;t be stored, so there&apos;s nothing to check yet. Import a smaller folder from the Files page, for example src.</Notice>
       ) : null}
 
+      {query.import === "failed" ? (
+        <Notice tone="warning">The project was created, but the repository&apos;s files couldn&apos;t be stored. Import a smaller folder from the Files page, for example src.</Notice>
+      ) : query.import === "github" ? (
+        <Notice>
+          {files.length.toLocaleString("en-US")} {files.length === 1 ? "file" : "files"} imported from GitHub. Describe a change below, or{" "}
+          <Link href={`/app/projects/${project.id}/security`} className="font-medium text-accent hover:underline">
+            check it for security
+          </Link>{" "}
+          first.
+        </Notice>
+      ) : null}
+
       {project.archivedAt ? (
         <Notice tone="warning">
           Archived <LocalTime iso={project.archivedAt} />. This project is read-only: its files, tasks and evidence stay readable, and it doesn&apos;t count toward your plan&apos;s

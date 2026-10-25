@@ -48,6 +48,17 @@
       "port": 3000
     },
     {
+      "name": "farbaek-demo-si",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/start-demo.mjs"
+      ],
+      "env": {
+        "SITES_DOMAIN": "farbaek.si"
+      },
+      "port": 3000
+    },
+    {
       "name": "farbaek-films",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": [

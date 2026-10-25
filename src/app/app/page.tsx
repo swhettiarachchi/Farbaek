@@ -1,5 +1,6 @@
-import { ArrowRightIcon, CheckCircleIcon, CircleDashedIcon, ListChecksIcon, LockSimpleIcon, RobotIcon, SquaresFourIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, ListChecksIcon, RobotIcon, SquaresFourIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, EmptyState, Notice, PageHeader, StatTile, TaskStateBadge } from "@/components/app/primitives";
@@ -9,7 +10,11 @@ import { PromptComposer } from "@/components/build/prompt-composer";
 import { ButtonLink } from "@/components/ui/button";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
 import { TRIAL, getPlan } from "@/core/billing/catalog";
-import { TERMINAL_STATES, type TaskState } from "@/core/realityloop/task-machine";
+import { TERMINAL_STATES } from "@/core/realityloop/task-machine";
+import { firstSteps } from "@/core/workspace/first-steps";
+import { FirstStepsHidden, FirstStepsPanel } from "@/components/app/first-steps";
+import { siteDomain } from "@/server/publish/config";
+import { FIRST_STEPS_COOKIE, hiddenWorkspaces } from "@/server/workspace/first-steps";
 import { shortHash } from "@/core/trust/canonical-json";
 import { loadAppContext } from "@/server/workspace/context";
 import { currentExecutionMode } from "@/server/execution/sandbox";
@@ -23,18 +28,6 @@ import { aiMeter, loadUsageSummary } from "@/server/workspace/usage-summary";
 export const metadata: Metadata = { title: "Mission Control" };
 
 const number = new Intl.NumberFormat("en-US");
-
-const PAST_CONTRACT: ReadonlySet<TaskState> = new Set([
-  "CONTRACT_APPROVED",
-  "PLAN_PROPOSED",
-  "POLICY_EVALUATED",
-  "APPROVAL_PENDING",
-  "EXECUTION_AUTHORIZED",
-  "EXECUTING",
-  "VERIFYING",
-  "VERIFIED",
-  "PARTIALLY_VERIFIED",
-]);
 
 /** Recent runs and the state of their proposals, read as the person. Null when they can't be read. */
 async function loadInbox(orgId: string): Promise<{ runs: RunView[]; proposals: Map<string, ProposalState> } | null> {
@@ -53,10 +46,13 @@ export default async function MissionControl() {
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
   const ws = ctx.current;
-  const [usage, recentEvidence, inbox] = await Promise.all([
+  const [usage, recentEvidence, inbox, stepRecords, jar] = await Promise.all([
     loadUsageSummary(ctx, ws),
     ctx.reader.listRecentProofPacks(ws.id, 5),
     ctx.mode === "live" ? loadInbox(ws.id) : Promise.resolve(null),
+    // Without these records the steps still read tasks; they never claim more than they can see.
+    ctx.reader.getFirstStepRecords(ws.id).catch(() => ({ latestProofPack: null, verifiedTaskId: null, liveSite: null })),
+    cookies(),
   ]);
   const { tasks, projects } = usage;
   const ai = usage.wallet ? aiMeter(usage.wallet) : null;
@@ -74,27 +70,18 @@ export default async function MissionControl() {
   const limits = ws.plan.limits;
   const trialActive = ws.trial?.phase.phase === "active";
 
-  const execution = currentExecutionMode();
-  const verifying = tasks.find((t) => t.state === "VERIFYING");
-  const checklist = [
-    { label: "Create a workspace", done: true, href: "/app/settings", locked: null },
-    { label: "Create a project", done: projects.length > 0, href: "/app/projects", locked: null },
-    { label: "Describe your first task", done: tasks.length > 0, href: projects[0] ? `/app/projects/${projects[0].id}` : "/app/projects", locked: null },
+  const steps = firstSteps(
+    { projects: projects.filter((p) => !p.archivedAt), tasks, ...stepRecords },
     {
-      label: "Approve an intent contract",
-      done: tasks.some((t) => PAST_CONTRACT.has(t.state)),
-      href: tasks.find((t) => ["RECEIVED", "CONTEXT_ASSEMBLED", "CONTRACT_DRAFTED"].includes(t.state)) ? `/app/tasks/${tasks.find((t) => ["RECEIVED", "CONTEXT_ASSEMBLED", "CONTRACT_DRAFTED"].includes(t.state))!.id}` : "/app/tasks",
-      locked: null,
+      checks: currentExecutionMode().mode === "sandboxed" ? null : "Checks can't run on this server yet, so changes stay unverified.",
+      publishing: siteDomain() ? null : "Publishing isn't set up on this server yet.",
     },
-    {
-      label: "Get your first verified ProofPack",
-      done: recentEvidence.some((p) => p.status === "verified"),
-      // A task whose change is applied is the next step: its checks run in a sandbox.
-      href: execution.mode === "sandboxed" ? (verifying ? `/app/tasks/${verifying.id}` : "/app/tasks") : null,
-      locked: execution.mode === "sandboxed" ? null : `Needs checks to run in a sandbox. ${execution.reason}`,
-    },
-  ];
-  const doneCount = checklist.filter((c) => c.done).length;
+  );
+  const stepsHidden = hiddenWorkspaces(jar.get(FIRST_STEPS_COOKIE)?.value).includes(ws.id);
+  const showSteps = !steps.complete && !stepsHidden;
+  // Until something is described, the build box sits inside the first step.
+  const composerInSteps = showSteps && steps.steps[0]!.state === "next";
+  const composer = <PromptComposer mode="app" size="compact" disabledReason={ctx.mode === "demo" ? "The demo workspace is read-only." : ctx.writes.enabled ? null : ctx.writes.reason} />;
 
   return (
     <div className="grid gap-8">
@@ -109,9 +96,13 @@ export default async function MissionControl() {
         actions={<ButtonLink href="/app/projects" size="sm">New project</ButtonLink>}
       />
 
-      <section aria-label="Start a build" className="aurora">
-        <PromptComposer mode="app" size="compact" disabledReason={ctx.mode === "demo" ? "The demo workspace is read-only." : ctx.writes.enabled ? null : ctx.writes.reason} />
-      </section>
+      {composerInSteps ? null : (
+        <section id="start" aria-label="Start a build" className="aurora scroll-mt-24">
+          {composer}
+        </section>
+      )}
+
+      {showSteps ? <FirstStepsPanel data={steps} composer={composerInSteps ? composer : undefined} /> : null}
 
       {trialActive && ws.trial ? (
         <Notice>
@@ -234,49 +225,6 @@ export default async function MissionControl() {
             </p>
           </Card>
 
-          <Card>
-            <div className="flex items-baseline justify-between gap-3">
-              <h2 className="text-lg font-medium">Your first verified change</h2>
-              <span className="text-sm text-ink-3 tabular">
-                {doneCount} of {checklist.length}
-              </span>
-            </div>
-            <ol className="mt-4 grid gap-1">
-              {checklist.map((item) => {
-                const icon = item.done ? (
-                  <CheckCircleIcon size={20} weight="fill" className="shrink-0 text-verified" aria-label="Done" />
-                ) : item.locked ? (
-                  <LockSimpleIcon size={18} className="shrink-0 text-ink-3" aria-label="Not available yet" />
-                ) : (
-                  <CircleDashedIcon size={20} className="shrink-0 text-unverified" aria-label="To do" />
-                );
-                const body = (
-                  <>
-                    {icon}
-                    <span className="min-w-0 flex-1">
-                      <span className={`block text-[15px] ${item.done ? "text-ink-2 line-through decoration-line-strong/60" : "text-ink"}`}>{item.label}</span>
-                      {item.locked && !item.done ? <span className="block text-xs text-ink-3">{item.locked}</span> : null}
-                    </span>
-                  </>
-                );
-                return (
-                  <li key={item.label}>
-                    {item.href && !item.done ? (
-                      <Link href={item.href} className="flex min-h-11 items-center gap-3 rounded-sm px-2 py-2.5 hover:bg-surface-raised">
-                        {body}
-                        <ArrowRightIcon size={14} className="text-ink-3" aria-hidden />
-                      </Link>
-                    ) : (
-                      <div className="flex items-center gap-3 px-2 py-2.5">{body}</div>
-                    )}
-                  </li>
-                );
-              })}
-            </ol>
-            <p className="mt-4 border-t border-line pt-4 text-xs leading-relaxed text-ink-3">
-              Progress comes from your records, not from clicks. The trial gives {getPlan(TRIAL.basePlan).name} features for {TRIAL.lengthDays} days.
-            </p>
-          </Card>
         </div>
       </div>
 
@@ -309,6 +257,8 @@ export default async function MissionControl() {
           </ul>
         )}
       </Card>
+
+      {stepsHidden && !steps.complete ? <FirstStepsHidden data={steps} /> : null}
     </div>
   );
 }

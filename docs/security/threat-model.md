@@ -249,3 +249,13 @@ Known limits: a device cookie copied off a trusted device (by malware there) wor
 | Device-add codes | Guessing a code; reusing one | 8 characters from 31, one live code, 15 minutes, once; 5 tries per address per 15 minutes; stored as a hash nobody can read; made only on a trusted device with step-up | `tests/db/office-hidden.test.ts`, `src/core/office/device-codes.test.ts` |
 
 Known limits: while no device is trusted (a new office or after the SSH reset), the office is open to the first device that signs in with both codes.
+
+## GitHub import (2026-10-25, ADR 0074)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| Server fetching from GitHub | SSRF: a pasted address or a redirect steering the server to another host, port or repository | The pasted text is parsed into owner, repository and ref by strict patterns; the server fetches only `github.com/<owner>/<repo>/archive/<ref>.zip` (redirects not followed) and the `codeload.github.com` address its redirect names, rebuilt from the checked parts for the same repository and ref; the second request refuses redirects | `github.test.ts`, `github-import.test.ts` |
+| The downloaded archive | Zip bombs, oversized repositories, secrets and binaries in the repository, slow responses | 60 MB download cap (declared and counted while streaming), 45-second limit, then the rescue import's unpacking caps and screening, and the server's import limits again on the way in | `github-import.test.ts`, `unzip.test.ts`, `rescue-zip.test.ts` |
+| Abuse of the server's bandwidth | One person starting many large downloads | 10 imports per person an hour (`app_rate_limit`) | the shared rate limit tests |
+
+Known limits: public repositories only. Private ones need a GitHub connection, which isn't built.

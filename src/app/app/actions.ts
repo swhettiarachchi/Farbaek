@@ -8,6 +8,7 @@ import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { WORKSPACE_COOKIE, isDemoMode, loadAppContext, type AppContext } from "@/server/workspace/context";
 import { mapCreateOrganizationError } from "@/server/workspace/organizations";
+import { FIRST_STEPS_COOKIE, withHidden } from "@/server/workspace/first-steps";
 import { deletionPlan, isStaffAccount, peopleError } from "@/server/workspace/account";
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
 import { MANAGER_ROLES } from "@/server/workspace/types";
@@ -87,6 +88,23 @@ export async function switchWorkspace(form: FormData) {
   if (ctx.workspaces.some((w) => w.id === orgId)) (await cookies()).set(WORKSPACE_COOKIE, orgId, COOKIE_OPTIONS);
   revalidatePath("/app", "layout");
   redirect("/app");
+}
+
+/** Puts the first steps away, or brings them back, for the open workspace on this browser (ADR 0073). */
+async function setFirstStepsHidden(hidden: boolean) {
+  const ctx = await requireContext();
+  if (!ctx.current) return;
+  const jar = await cookies();
+  jar.set(FIRST_STEPS_COOKIE, withHidden(jar.get(FIRST_STEPS_COOKIE)?.value, ctx.current.id, hidden), COOKIE_OPTIONS);
+  revalidatePath("/app");
+}
+
+export async function hideFirstStepsAction() {
+  await setFirstStepsHidden(true);
+}
+
+export async function showFirstStepsAction() {
+  await setFirstStepsHidden(false);
 }
 
 export async function createProjectAction(_previous: FormState, form: FormData): Promise<FormState> {

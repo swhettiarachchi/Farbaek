@@ -68,6 +68,7 @@ function memoizeReader(reader: WorkspaceReader): WorkspaceReader {
     listProofPacks: wrap("proofpacks", reader.listProofPacks),
     getProofPack: wrap("proofpack", reader.getProofPack),
     listRecentProofPacks: wrap("recentProofpacks", reader.listRecentProofPacks),
+    getFirstStepRecords: wrap("firstSteps", reader.getFirstStepRecords),
     listFileChangesSince: wrap("changesSince", reader.listFileChangesSince),
     // Not cached: file contents are too large to keep for the request.
     getProjectContents: reader.getProjectContents,
