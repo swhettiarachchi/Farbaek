@@ -282,3 +282,11 @@ Known limits: public repositories only. Private ones need a GitHub connection, w
 | Customers' Vercel tokens | Theft from the database or a browser; a sealed token moved to another workspace; tokens in logs or errors | Sealed with AES-256-GCM on the server, with the workspace and provider as associated data; column grants keep the sealed token from every browser; Vercel's error text is cleaned of the token; deleted on disconnect | `token-vault.test.ts`, `vercel-client.test.ts`, `tests/db/provider-launches.test.ts` |
 | Launching | Deploying without evidence; double deploys; deploying other files than shown | One order per key, for exactly the digest of the current files, under `private.launch_evidence` with an owner's or admin's reason when not verified; one launch per project at a time; the project name typed to confirm | `tests/db/provider-launches.test.ts`, `provider-launch.test.ts` |
 | Server requests | SSRF through stored or returned addresses | Calls go only to api.vercel.com, without following redirects; only https `*.vercel.app` addresses are stored, linked or fetched for the live check | `vercel.test.ts`, `vercel-client.test.ts` |
+
+## Installable app and push notifications (2026-10-25, ADR 0079)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| Push subscriptions | SSRF through a stored endpoint; another person's devices; keys read by browsers | Endpoints accepted, stored and sent to only on the browsers' push services over https (server and database); one person each, at most ten; browsers read their own labels, never the keys | `send.test.ts`, `tests/db/push-subscriptions.test.ts` |
+| Push messages | Content readable in transit; forged sender | RFC 8291 encryption per device (checked against the RFC's example); RFC 8292 VAPID signatures; the payload names only a task title, a sentence and a path | `web-push.test.ts`, `notifier.test.ts` |
+| The service worker | Personal data cached on a device; notifications opening other sites | Only `/offline` and an icon are cached; notifications open only paths on Farbaek | `public/sw.js` (reviewed) |

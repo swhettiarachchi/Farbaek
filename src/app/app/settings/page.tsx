@@ -8,6 +8,10 @@ import { summarizeRehearsal } from "@/core/trust/rehearsal";
 import { SHADOW_NOT_IN_PLAN } from "@/server/workspace/autonomy";
 import { DeleteAccount } from "@/components/app/delete-account";
 import { EmailPreferencesForm } from "@/components/app/email-preferences";
+import { ThisDevice } from "@/components/app/this-device";
+import { readMyDevices } from "@/server/push/store";
+import { vapidPublicKey } from "@/server/push/wiring";
+import { createSupabaseServerClient } from "@/server/supabase/server";
 import { MemberControls } from "@/components/app/member-controls";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { DELETION_WORDS, deletionPlan, isStaffAccount } from "@/server/workspace/account";
@@ -44,6 +48,9 @@ export default async function SettingsPage() {
   const rehearsal = autonomy.shadowSince ? await ctx.reader.listRehearsal(ws.id, autonomy.shadowSince).catch(() => null) : null;
   const shadowFeature = checkFeature(ws.plan, "shadow_mode");
   const shadowReason = shadowFeature.allowed ? null : shadowFeature.code === "FEATURE_NOT_IN_PLAN" ? SHADOW_NOT_IN_PLAN : shadowFeature.message;
+  // Notifications on people's devices (ADR 0079), read as the person.
+  const pushClient = ctx.mode === "live" ? await createSupabaseServerClient() : null;
+  const myDevices = pushClient ? await readMyDevices(pushClient, ctx.user.id).catch(() => []) : [];
   const emailReason = ctx.mode === "demo" ? "The demo workspace is read-only." : readEmailConfig() ? null : "Farbaek isn't sending email from this server yet.";
   const owners = members.filter((m) => m.role === "owner").length;
   const peopleReason = ctx.mode === "demo" ? "The demo workspace is read-only." : !ctx.writes.enabled ? ctx.writes.reason : null;
@@ -134,6 +141,11 @@ export default async function SettingsPage() {
               <div className="mt-4">
                 <EmailPreferencesForm preferences={emailChoices} disabledReason={emailReason} />
               </div>
+            </Card>
+          </section>
+          <section id="device" aria-label="This device" className="scroll-mt-24">
+            <Card>
+              <ThisDevice vapidKey={vapidPublicKey()} devices={myDevices} disabledReason={ctx.mode === "demo" ? "The demo workspace has no account to notify." : null} />
             </Card>
           </section>
           <Card>
