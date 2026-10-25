@@ -21,6 +21,8 @@ import type { ReactNode } from "react";
 import { Card, PageHeader } from "@/components/app/primitives";
 import { LiveCheck } from "@/components/launch/live-check";
 import { VercelPanel } from "@/components/launch/vercel-panel";
+import { OutcomeWatch } from "@/components/launch/outcome-watch";
+import { readWatch, type WatchView } from "@/server/launch/watch-store";
 import { deployDigest, vercelFit, vercelProjectName, vercelSettings } from "@/core/launch/vercel";
 import { NO_VAULT, fileSha256, refreshVercelLaunch } from "@/server/launch/provider-launch";
 import { listLaunchOrders, readConnection, type ConnectionView, type LaunchOrderView } from "@/server/launch/provider-store";
@@ -83,7 +85,9 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
   const deployFiles = { count: contents.length, bytes: contents.reduce((n, f) => n + Buffer.byteLength(f.content, "utf8"), 0), digest: await deployDigest(contents.map((f) => ({ path: f.path, sha256: fileSha256(f.content) }))) };
   let connection: ConnectionView | null = null;
   let orders: LaunchOrderView[] = [];
+  let watch: WatchView | null = null;
   if (user) {
+    watch = await readWatch(user, orgId, project.id).catch(() => null);
     [connection, orders] = await Promise.all([readConnection(user, orgId, "vercel").catch(() => null), listLaunchOrders(user, orgId, project.id).catch(() => [])]);
     const building = orders.find((o) => o.status === "building");
     const deps = building ? launchDeps(ctx) : null;
@@ -377,6 +381,8 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
         canOverride={canManage}
         canDisconnect={canManage && !readOnly}
       />
+
+      <OutcomeWatch projectId={project.id} watch={watch} disabledReason={launchReason} />
 
       {publish && publish.deployments.length > 0 ? (
         <section aria-labelledby="timeline-title" className="grid gap-4">

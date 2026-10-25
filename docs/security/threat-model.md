@@ -290,3 +290,10 @@ Known limits: public repositories only. Private ones need a GitHub connection, w
 | Push subscriptions | SSRF through a stored endpoint; another person's devices; keys read by browsers | Endpoints accepted, stored and sent to only on the browsers' push services over https (server and database); one person each, at most ten; browsers read their own labels, never the keys | `send.test.ts`, `tests/db/push-subscriptions.test.ts` |
 | Push messages | Content readable in transit; forged sender | RFC 8291 encryption per device (checked against the RFC's example); RFC 8292 VAPID signatures; the payload names only a task title, a sentence and a path | `web-push.test.ts`, `notifier.test.ts` |
 | The service worker | Personal data cached on a device; notifications opening other sites | Only `/offline` and an icon are cached; notifications open only paths on Farbaek | `public/sw.js` (reviewed) |
+
+## Outcome watch (2026-10-25, ADR 0080)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| Server checks | SSRF through a watched address | Only a live site's own address on the configured site domain, or a stored https `*.vercel.app` address, is fetched; redirects aren't followed | `outcome-watch.test.ts`, `vercel.test.ts` |
+| Watch records and alerts | Forged or flapping alerts; another workspace's watches | The state is decided in `app_record_watch_result`, two failures in a row to go down, each change returned once and audited; browsers read their workspace's watches and write nothing; alerts go only to the person who turned the watch on | `tests/db/outcome-watch.test.ts`, `outcome-watch.test.ts` |
