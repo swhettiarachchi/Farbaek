@@ -23,8 +23,8 @@ export const TEST_OUTCOME_WORDS: Record<TestOutcome, string> = {
   own: "applied on its own",
 };
 
-const RANK: Record<TestOutcome, number> = { stopped: 3, owner: 2, person: 1, own: 0 };
-const outcomeOf = (o: PolicyOutcome): TestOutcome => (o === "BLOCK" ? "stopped" : o === "ESCALATE" ? "owner" : o === "ALLOW_WITHIN_LIMITS" || o === "ALLOW" ? "own" : "person");
+export const OUTCOME_RANK: Record<TestOutcome, number> = { stopped: 3, owner: 2, person: 1, own: 0 };
+export const outcomeOf = (o: PolicyOutcome): TestOutcome => (o === "BLOCK" ? "stopped" : o === "ESCALATE" ? "owner" : o === "ALLOW_WITHIN_LIMITS" || o === "ALLOW" ? "own" : "person");
 
 export interface RulesTestChange {
   proposalId: string;
@@ -81,11 +81,11 @@ export async function testRules(
     before[was]++;
     after[now]++;
     if (was === now) continue;
-    if (RANK[now] > RANK[was]) stricter++;
+    if (OUTCOME_RANK[now] > OUTCOME_RANK[was]) stricter++;
     else looser++;
     if (changed.length >= SHOWN) continue;
     // The rules behind the difference: the draft's when it's stricter, today's when it's looser.
-    const by = RANK[now] > RANK[was] ? input.draft.rules : (input.current?.rules ?? []);
+    const by = OUTCOME_RANK[now] > OUTCOME_RANK[was] ? input.draft.rules : (input.current?.rules ?? []);
     const matched = c.files.map((f) => ({ path: f.path, rules: matchRules(by, f.path).map((m) => m.rule.id) })).filter((m) => m.rules.length > 0);
     changed.push({
       proposalId: c.proposalId,

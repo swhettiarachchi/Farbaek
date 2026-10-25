@@ -130,6 +130,8 @@ const STATUS: Partial<Record<AgentErrorCode, number>> = {
   TRIAL_CAP_REACHED: 402,
   // The platform's daily AI limit (ADR 0065): retry tomorrow, not a client error.
   PLATFORM_DAILY_LIMIT: 503,
+  // The workspace's emergency pause (ADR 0083): locked until a person resumes agents.
+  AGENTS_PAUSED: 423,
   UNKNOWN: 500,
 };
 

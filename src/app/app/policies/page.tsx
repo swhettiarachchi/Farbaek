@@ -7,6 +7,7 @@ import { RuleBuilder } from "@/components/policies/rule-builder";
 import { RuleList } from "@/components/policies/rule-list";
 import { checkFeature } from "@/core/billing/entitlements";
 import { shortHash } from "@/core/trust/canonical-json";
+import { suggestPreventionRules } from "@/core/trust/incidents";
 import { LARGE_CHANGE_FILES, SENSITIVE_WORDS, changePolicyVersion } from "@/core/trust/policy";
 import { loadAiAvailability } from "@/server/workspace/usage-summary";
 import { loadAppContext } from "@/server/workspace/context";
@@ -19,10 +20,20 @@ export const metadata: Metadata = { title: "Policies" };
  * Policies (ADR 0082): the built-in change policy, the workspace's own rules
  * on top of it, and the builder that drafts, tests and activates them.
  */
-export default async function PoliciesPage() {
+export default async function PoliciesPage({ searchParams }: { searchParams: Promise<{ incident?: string; effect?: string }> }) {
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
   const ws = ctx.current;
+  // Opened from an incident's replay (ADR 0083): its suggested rule goes into the builder, to be tested before it can apply.
+  const query = await searchParams;
+  const incidentNumber = Number(query.incident);
+  let suggested: { incident: number; rule: { effect: "block" | "owner_approval" | "person_approval"; paths: string[]; reason: string } } | null = null;
+  if (Number.isInteger(incidentNumber) && incidentNumber > 0 && incidentNumber <= 1_000_000) {
+    const linked = await ctx.reader.getIncidentChanges(ws.id, incidentNumber).catch(() => null);
+    const rules = linked ? suggestPreventionRules(linked.changes, incidentNumber) : [];
+    const rule = rules.find((r) => r.effect === query.effect) ?? rules[0];
+    if (rule) suggested = { incident: incidentNumber, rule };
+  }
   const [versions, paths, projects, ai, builtIn] = await Promise.all([
     ctx.reader.getRuleVersions(ws.id).catch(() => null),
     ctx.reader.listProjectPaths(ws.id).catch(() => ({ files: [], complete: false })),
@@ -115,6 +126,7 @@ export default async function PoliciesPage() {
               }))}
               files={files}
               filesComplete={paths.complete}
+              suggested={suggested}
               reasons={{
                 readOnly: readOnlyReason,
                 contributor: contributor ? null : "Viewers can read the rules, but not draft or test them.",

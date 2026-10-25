@@ -13,6 +13,8 @@ import { limitsFrom } from "@/server/workspace/autonomy";
 import { loadAppContext, type AppContext } from "@/server/workspace/context";
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
 import { activateRules, draftRules, readActiveRules, testDraftRules, type RulesDeps } from "@/server/workspace/workspace-rules";
+import { recordPrevention } from "@/server/workspace/incidents";
+import { log } from "@/server/observability/log";
 
 export type DraftRulesState =
   | { status: "done"; rules: { paths: string[]; effect: "block" | "owner_approval" | "person_approval"; reason: string }[]; ambiguities: string[]; unsupported: string[]; dropped: string[] }
@@ -48,7 +50,11 @@ async function rulesDeps(ctx: AppContext) {
       return version.success ? { ok: true, value: version.data } : { ok: false, error: "UNEXPECTED_RESPONSE" };
     },
   };
-  return { deps: { ...createSupabaseWriteDeps(user, admin, ctx.user.id), ...rules }, orgId: ctx.current.id } as const;
+  async function addIncidentEvent(i: { orgId: string; actor: string; number: number; kind: "note" | "prevention"; text: string; ref: Record<string, unknown> }) {
+    const { error } = await admin!.rpc("app_add_incident_event", { p_org: i.orgId, p_actor: i.actor, p_number: i.number, p_kind: i.kind, p_text: i.text, p_ref: i.ref });
+    return error ? { ok: false as const, error: error.message } : { ok: true as const, value: null };
+  }
+  return { deps: { ...createSupabaseWriteDeps(user, admin, ctx.user.id), ...rules, addIncidentEvent }, orgId: ctx.current.id } as const;
 }
 
 const tooBig = (document: unknown) => JSON.stringify(document ?? null).length > MAX_DOCUMENT;
@@ -79,8 +85,8 @@ export async function testRulesAction(input: { document: unknown }): Promise<Tes
   return r.ok ? { status: "done", summary: r.value } : { status: "error", message: r.message };
 }
 
-/** Activates the exact set the person reviewed and tested as the workspace's next version. */
-export async function activateRulesAction(input: { document: unknown; sha256: string }): Promise<ActivateRulesState> {
+/** Activates the exact set the person reviewed and tested as the workspace's next version; from an incident's replay, the incident records it. */
+export async function activateRulesAction(input: { document: unknown; sha256: string; incident?: number }): Promise<ActivateRulesState> {
   const sha = z.string().regex(/^[0-9a-f]{64}$/).safeParse(input?.sha256);
   if (!sha.success || tooBig(input?.document)) return { status: "error", message: "Reload the page and test the rules again." };
   const ctx = await loadAppContext();
@@ -89,6 +95,13 @@ export async function activateRulesAction(input: { document: unknown; sha256: st
   if ("error" in w) return { status: "error", message: w.error ?? "This can't run here." };
   const r = await activateRules(w.deps, { orgId: w.orgId, userId: ctx.user.id, document: input.document, sha256: sha.data });
   if (!r.ok) return { status: "error", message: r.message };
+  const incident = z.number().int().min(1).max(1_000_000).safeParse(input.incident);
+  if (incident.success) {
+    // The rules are active either way; a missing record on the incident is logged, not shown as a failure.
+    const recorded = await recordPrevention(w.deps, { orgId: w.orgId, userId: ctx.user.id, number: incident.data, rulesVersion: r.value.version });
+    if (!recorded.ok) log("warn", "incident.prevention_not_recorded", { code: recorded.code });
+    revalidatePath(`/app/incidents/${incident.data}`);
+  }
   revalidatePath("/app/policies");
   return { status: "done", version: r.value.version };
 }

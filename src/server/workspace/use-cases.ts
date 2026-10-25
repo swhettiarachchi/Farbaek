@@ -76,6 +76,9 @@ export type WriteErrorCode =
   | "WORKSPACE_RULES_CHANGED"
   | "INVALID_RULES"
   | "RULES_NOT_TESTED"
+  | "AGENTS_PAUSED"
+  | "INVALID_INCIDENT"
+  | "INCIDENT_RESOLVED"
   | "UNKNOWN";
 
 export type WriteResult<T> = { ok: true; value: T } | { ok: false; code: WriteErrorCode; message: string };
@@ -193,6 +196,9 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   WORKSPACE_RULES_CHANGED: "This workspace's rules changed while the change was being prepared, so nothing was saved. Try again.",
   INVALID_RULES: "These rules aren't valid. Fix the marked fields and try again.",
   RULES_NOT_TESTED: "These rules changed after they were tested. Test them against past changes again before activating them.",
+  AGENTS_PAUSED: "Agents are paused in this workspace, so no agent runs or automatic changes start until an owner or admin resumes them on the Incidents page.",
+  INVALID_INCIDENT: "That incident update isn't valid. Check the marked fields and try again.",
+  INCIDENT_RESOLVED: "This incident is resolved, so it can't change any more. Open a new one if something else went wrong.",
   UNKNOWN: "Something went wrong and nothing was changed. Try again in a moment.",
 };
 
@@ -246,6 +252,9 @@ export function codeFromDatabaseError(message: string): WriteErrorCode {
     "AGENT_REVOKED",
     "WORKSPACE_RULES_CHANGED",
     "INVALID_RULES",
+    "AGENTS_PAUSED",
+    "INVALID_INCIDENT",
+    "INCIDENT_RESOLVED",
   ] as const) {
     if (message.includes(code)) return code;
   }

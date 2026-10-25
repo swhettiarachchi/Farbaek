@@ -24,10 +24,13 @@ const OrganizationRow = z.object({
   // Set by Farbaek staff from Office Space (migration v21, ADR 0032).
   suspended_at: z.string().nullable().optional(),
   suspended_notice: z.string().nullable().optional(),
+  // The workspace's own emergency pause (migration v53, ADR 0083).
+  agents_paused_at: z.string().nullable().optional(),
+  agents_paused_reason: z.string().nullable().optional(),
 });
 
 export const ORGANIZATION_SELECT =
-  "id, name, created_at, suspended_at, suspended_notice, billing_accounts(state, paid_plan_id, paid_through, suspended_reason, trial_withheld), trials(started_at, ends_at)";
+  "id, name, created_at, suspended_at, suspended_notice, agents_paused_at, agents_paused_reason, billing_accounts(state, paid_plan_id, paid_through, suspended_reason, trial_withheld), trials(started_at, ends_at)";
 
 export interface WorkspaceSummary {
   id: string;
@@ -40,6 +43,8 @@ export interface WorkspaceSummary {
   billingUnknown: boolean;
   /** Paused by Farbaek staff: members can read but not change anything, and the notice says why. */
   suspension: { at: string; notice: string } | null;
+  /** The workspace's own emergency pause (ADR 0083): no agent runs or automatic changes until an owner or admin resumes. */
+  agentsPaused: { at: string; reason: string | null } | null;
 }
 
 /** Billing snapshot for one organization row, or null when billing state is missing. */
@@ -79,6 +84,7 @@ export function summarizeOrganizations(rows: unknown, now: Date): WorkspaceSumma
         trialWithheld: billing?.trial_withheld ?? null,
         billingUnknown: !billing,
         suspension: row.suspended_at ? { at: row.suspended_at, notice: row.suspended_notice ?? "Farbaek has paused this workspace." } : null,
+        agentsPaused: row.agents_paused_at ? { at: row.agents_paused_at, reason: row.agents_paused_reason ?? null } : null,
       };
     });
 }

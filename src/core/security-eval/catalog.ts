@@ -239,6 +239,13 @@ export const EVAL_SCENARIOS: readonly EvalScenario[] = [
     asserts: "A change to files a workspace rule protects is refused unless its outcome is as strict as the rule asks, whichever path made it, and only an owner or admin of that workspace can change the rules.",
     file: "database.test.ts",
   },
+  {
+    id: "SE-026",
+    title: "An agent that won't stop",
+    risks: ["ASI10", "ASI08"],
+    asserts: "Anyone who contributes can pause a workspace's agents, which refuses new runs and automatic applies at once while people's own changes go on, and only an owner or admin resumes them.",
+    file: "database.test.ts",
+  },
 ];
 
 /** What isn't tested for each risk, and the reason when a risk doesn't apply. */

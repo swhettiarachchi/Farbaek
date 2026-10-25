@@ -4,7 +4,8 @@
  * workspaces stay apart, desktop agents' credentials can't be reused,
  * Farbaek's AI switch stops every workspace at once, a failure after an
  * automatic apply pauses autonomy, nothing goes live without verified
- * evidence or an owner's logged reason, and workspace rules can't be skipped.
+ * evidence or an owner's logged reason, workspace rules can't be skipped,
+ * and a pause stops agents at once.
  */
 import { createHash } from "node:crypto";
 import type { PGlite } from "@electric-sql/pglite";
@@ -235,5 +236,27 @@ describe("SE-025 A workspace rule bypassed", () => {
     await expect(activate(USERS.bob, orgA, [])).rejects.toThrow(/FORBIDDEN/);
     const r = await ruleSet([]);
     await expect(asUser(USERS.alice, "select public.app_activate_workspace_rules($1, $2, $3, $4, $5, $6)", [orgA, USERS.alice, r.document, r.compiled, r.sha256, r.tested])).rejects.toThrow(/permission denied/);
+  });
+});
+
+describe("SE-026 An agent that won't stop", () => {
+  const pause = (actor: string, paused: boolean) => q("select public.app_set_agents_pause($1, $2, $3, 'Evaluation')", [orgA, actor, paused]);
+
+  it("stops new runs and automatic applies at once when anyone who contributes pauses, but not people's own work", async () => {
+    await q("select public.app_set_autonomy($1, $2, 2, 3, true)", [orgA, USERS.alice]);
+    await admin("insert into public.organization_members (org_id, user_id, role) values ($1, $2, 'member') on conflict do nothing", [orgA, USERS.unverified]);
+    await pause(USERS.unverified, true);
+    try {
+      const t = (await admin<{ id: string }>("select id from public.tasks where org_id = $1 limit 1", [orgA]))[0]!.id;
+      // Checked before anything else about the row: a paused workspace starts no run at all.
+      await expect(admin("insert into public.agent_runs (org_id, task_id, project_id, started_by, effort) values ($1, $2, $3, $4, 'fast')", [orgA, t, projectA, USERS.alice])).rejects.toThrow(/AGENTS_PAUSED/);
+      await expect(task(orgA, USERS.alice, projectA, "Applies on its own while paused", "policy")).rejects.toThrow(/AGENTS_PAUSED/);
+      await expect(task(orgA, USERS.alice, projectA, "A person's change while paused")).resolves.toMatchObject({ task: expect.any(String) });
+      // Only an owner or admin resumes.
+      await expect(pause(USERS.unverified, false)).rejects.toThrow(/FORBIDDEN/);
+    } finally {
+      await pause(USERS.alice, false);
+    }
+    await expect(task(orgA, USERS.alice, projectA, "Applies on its own after resuming", "policy")).resolves.toMatchObject({ task: expect.any(String) });
   });
 });

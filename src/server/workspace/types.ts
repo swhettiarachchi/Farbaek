@@ -10,6 +10,8 @@ import type { SkillPinRecord } from "./skill-pins";
 import type { StoredLensSuggestion } from "@/core/realityloop/lens-suggestion";
 import type { AutonomyView } from "./autonomy";
 import type { RuleVersionView } from "./workspace-rules";
+import type { Incident, IncidentEvent } from "./incidents";
+import type { IncidentChange } from "@/core/trust/incidents";
 import type { VerificationRecord } from "@/core/realityloop/verification";
 import type { FirstStepFacts } from "@/core/workspace/first-steps";
 import type { RehearsalRow } from "@/core/trust/rehearsal";
@@ -292,6 +294,11 @@ export interface WorkspaceReader {
   getFileRevision(orgId: string, projectId: string, path: string, revision: number): Promise<string | null>;
   /** The workspace's autonomy setting (ADR 0046). */
   getAutonomy(orgId: string): Promise<AutonomyView>;
+  /** Incidents, newest first (ADR 0083). */
+  listIncidents(orgId: string): Promise<Incident[]>;
+  getIncident(orgId: string, number: number): Promise<{ incident: Incident; events: IncidentEvent[] } | null>;
+  /** The changes an incident is about, by shape only; `exact` is false when they're only the ones applied just before it. */
+  getIncidentChanges(orgId: string, number: number): Promise<{ changes: IncidentChange[]; exact: boolean }>;
   /** The workspace's rule versions, newest first (ADR 0082). */
   getRuleVersions(orgId: string): Promise<RuleVersionView[]>;
   /** Current file paths across the workspace's projects, for the policy builder. `complete` is false when there were more than were read. */

@@ -13,6 +13,7 @@ import {
   LockSimpleIcon,
   PackageIcon,
   ShieldCheckIcon,
+  SirenIcon,
   SparkleIcon,
   TerminalWindowIcon,
 } from "@phosphor-icons/react";
@@ -43,6 +44,7 @@ const PRIMARY: NavItem[] = [
 
 const SECONDARY: NavItem[] = [
   { href: "/app/policies", label: "Policies", short: "Policies", icon: ShieldCheckIcon },
+  { href: "/app/incidents", label: "Incidents", short: "Incidents", icon: SirenIcon },
   { href: "/app/billing", label: "Billing and usage", short: "Billing", icon: ChartPieSliceIcon },
   { href: "/app/settings", label: "Settings", short: "Settings", icon: GearSixIcon },
   { href: "/app/help", label: "Help and support", short: "Help", icon: LifebuoyIcon },

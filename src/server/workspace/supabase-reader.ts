@@ -6,6 +6,7 @@ import { readSkillPins } from "./skill-pins";
 import { GRANT_COLUMNS, UsageGrantRowSchema, grantFromRow } from "./usage-store";
 import { readAutonomy } from "./autonomy";
 import { readRuleVersions } from "./workspace-rules";
+import { listIncidents, readIncident, readIncidentChanges } from "./incidents";
 import type { RehearsalRow } from "@/core/trust/rehearsal";
 import { VERIFICATION_SELECT, VerificationRow, verificationFromRow } from "@/server/verification/store";
 import {
@@ -547,6 +548,9 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
     listSkillPins: (orgId, projectId) => readSkillPins(client, orgId, projectId),
     getAutonomy: (orgId) => readAutonomy(client, orgId),
     getRuleVersions: (orgId) => readRuleVersions(client, orgId),
+    listIncidents: (orgId) => listIncidents(client, orgId),
+    getIncident: (orgId, number) => readIncident(client, orgId, number),
+    getIncidentChanges: (orgId, number) => readIncidentChanges(client, orgId, number),
 
     async listProjectPaths(orgId) {
       const LIMIT = 2_000;

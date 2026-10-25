@@ -101,15 +101,21 @@ export function RuleBuilder({
   files,
   filesComplete,
   reasons,
+  suggested = null,
 }: {
   active: { version: number; rules: WorkspaceRule[] } | null;
+  /** A rule suggested by an incident's replay (ADR 0083), added to the builder to be tested and activated. */
+  suggested?: { incident: number; rule: { effect: RuleEffect; paths: string[]; reason: string } } | null;
   versions: VersionItem[];
   files: ProjectPath[];
   filesComplete: boolean;
   reasons: Reasons;
 }) {
   const requestId = useId();
-  const [rules, setRules] = useState<DraftRule[]>(() => (active?.rules ?? []).map(toDraft));
+  const [rules, setRules] = useState<DraftRule[]>(() => {
+    const start = (active?.rules ?? []).map(toDraft);
+    return suggested ? [...start, { id: nextRuleId(start), effect: suggested.rule.effect, paths: suggested.rule.paths.join("\n"), reason: suggested.rule.reason }] : start;
+  });
   const [request, setRequest] = useState("");
   const [notes, setNotes] = useState<AiNotes | null>(null);
   const [test, setTest] = useState<{ canon: string; summary: RulesTestSummary } | null>(null);
@@ -191,7 +197,7 @@ export function RuleBuilder({
     if (!parsed.ok) return;
     const set = parsed.set;
     startActivate(async () => {
-      const r = await activateRulesAction({ document: set, sha256: await ruleSetHash(set) });
+      const r = await activateRulesAction({ document: set, sha256: await ruleSetHash(set), incident: suggested?.incident });
       if (r.status === "error") setMessage({ tone: "error", text: r.message });
       else {
         setTest(null);
@@ -229,6 +235,19 @@ export function RuleBuilder({
           <span className="text-xs text-ink-3">{draftReason ?? "AI only fills in the rules below. You check, test and activate them."}</span>
         </div>
       </div>
+
+      {suggested ? (
+        <p className="flex items-start gap-2.5 rounded-sm border border-accent/30 bg-accent/[0.04] px-4 py-3 text-sm leading-relaxed">
+          <ScalesIcon size={18} className="mt-px shrink-0 text-accent" aria-hidden />
+          <span>
+            The rule suggested by{" "}
+            <Link href={`/app/incidents/${suggested.incident}`} className="font-medium text-accent hover:underline">
+              incident #{suggested.incident}
+            </Link>{" "}
+            is added below. Test the set against past changes, then activate it; the incident will record it.
+          </span>
+        </p>
+      ) : null}
 
       {notes ? <AiNotesPanel notes={notes} /> : null}
 

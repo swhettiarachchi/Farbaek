@@ -27,6 +27,7 @@ import {
 } from "@/content/demo-workspace";
 import type { ContractRecord, FileRevision, Project, ProjectFileContent, ProposalRecord, Task, Transition, WorkspaceReader } from "./types";
 import { AUTONOMY_OFF } from "./autonomy";
+import type { Incident, IncidentEvent } from "./incidents";
 
 /**
  * Read-only sample workspace. Timestamps are relative to "now" so the trial
@@ -34,6 +35,31 @@ import { AUTONOMY_OFF } from "./autonomy";
  */
 export function createDemoReader(now: Date = new Date()): WorkspaceReader {
   const ago = (ms: number) => new Date(now.getTime() - ms).toISOString();
+  const demoIncident = (): Incident => ({
+    id: "00000000-0000-4000-8000-0000000d0001",
+    number: 1,
+    title: "A change applied on its own failed its checks",
+    severity: "high",
+    status: "open",
+    source: "autonomy_failure",
+    projectId: DEMO_FILES_PROJECT_ID,
+    proposalId: DEMO_PROPOSAL_ID,
+    openedAt: ago(2 * DEMO_TIME.HOUR),
+    openedBy: null,
+    resolvedAt: null,
+    outcome: null,
+    escalatedAt: null,
+  });
+  const demoIncidentEvents = (): IncidentEvent[] => [
+    {
+      id: 1,
+      at: ago(2 * DEMO_TIME.HOUR),
+      actor: null,
+      kind: "opened",
+      text: "A change that applied on its own failed its checks, so autonomy paused itself for the whole workspace.",
+      ref: { task: DEMO_PROPOSAL_TASK_ID, proposal: DEMO_PROPOSAL_ID },
+    },
+  ];
 
   let files: Promise<ProjectFileContent[]> | null = null;
   const demoFiles = (projectId: string): Promise<ProjectFileContent[]> => {
@@ -137,6 +163,7 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
           trialWithheld: null,
           billingUnknown: false,
           suspension: null,
+          agentsPaused: null,
         },
       ];
     },
@@ -309,6 +336,13 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
     getAutonomy: async () => AUTONOMY_OFF,
     // The demo workspace has no rules of its own; the builder still shows how they read against its sample files.
     getRuleVersions: async () => [],
+    // One sample incident, so the Incidents page and its replay show how they read. The page labels it a sample.
+    listIncidents: async () => [demoIncident()],
+    getIncident: async (_orgId, number) => (number === 1 ? { incident: demoIncident(), events: demoIncidentEvents() } : null),
+    getIncidentChanges: async (_orgId, number) =>
+      number === 1
+        ? { changes: [{ proposalId: DEMO_PROPOSAL_ID, taskId: DEMO_PROPOSAL_TASK_ID, at: ago(3 * DEMO_TIME.HOUR), files: [{ path: "src/lib/cart.ts", kind: "edit" }], outcome: "ALLOW_WITHIN_LIMITS" }], exact: true }
+        : { changes: [], exact: false },
     listProjectPaths: async () => ({ files: (await demoFiles(DEMO_FILES_PROJECT_ID)).map((f) => ({ projectId: DEMO_FILES_PROJECT_ID, path: f.path })), complete: true }),
     getEmailPreferences: async () => ({ workUpdates: true, trialReminders: true }),
 
