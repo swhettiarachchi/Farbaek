@@ -13,13 +13,16 @@ TABLES_SQL="select n.nspname || '.' || c.relname, (xpath('/row/c/text()', query_
 
 # Records each run for the Health page and /api/ready (ADR 0071). Never fails the test itself.
 note_run() {
-  docker exec supabase-db psql -U postgres -d postgres -qAt -v ON_ERROR_STOP=1 \n    -c "select public.app_note_job_run('restore_test', $1, '$2')" >/dev/null 2>&1 || true
+  local detail=${2//\'/\'\'}
+  docker exec supabase-db psql -U postgres -d postgres -qAt -v ON_ERROR_STOP=1 \
+    -c "select public.app_note_job_run('restore_test', $1, '$detail')" >/dev/null 2>&1 || true
 }
 
 main() {
+  trap 'note_run false "The restore test failed; see journalctl -u farbaek-db-restore-test."' ERR
   local latest
   latest=$(ls -1t "$DIR"/farbaek-*.dump 2>/dev/null | head -1)
-  [ -n "$latest" ] || { echo "restore test: no backup to test"; exit 1; }
+  [ -n "$latest" ] || { echo "restore test: no backup to test"; note_run false "There was no backup to test."; exit 1; }
   trap 'docker rm -f "$NAME" >/dev/null 2>&1 || true' EXIT
   docker rm -f "$NAME" >/dev/null 2>&1 || true
 
