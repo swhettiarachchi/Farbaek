@@ -26,11 +26,13 @@ export function checkServerUrl(raw: string): string {
   try {
     url = new URL(raw);
   } catch {
-    throw new FarbaekApiError(0, "INVALID_SERVER", "Enter the Farbaek address, like https://farbaek.com.");
+    throw new FarbaekApiError(0, "INVALID_SERVER", "Enter the Farbaek address, like https://www.farbaek.com.");
   }
   const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
   if (url.protocol !== "https:" && !(url.protocol === "http:" && local)) throw new FarbaekApiError(0, "INVALID_SERVER", "Farbaek must be reached over HTTPS.");
   if (url.username || url.password) throw new FarbaekApiError(0, "INVALID_SERVER", "The address can't contain a user name or password.");
+  // The bare domain only redirects to www, and a redirect to another origin drops the agent's credentials.
+  if (url.hostname === "farbaek.com") return "https://www.farbaek.com";
   return url.origin;
 }
 

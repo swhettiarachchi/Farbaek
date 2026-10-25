@@ -2,8 +2,9 @@ import { DesktopIcon, EyeIcon, LockSimpleIcon, PencilSimpleLineIcon, ShieldCheck
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { revokeAgentAction } from "@/app/app/actions";
+import { AgentDownload } from "@/components/agents/agent-download";
 import { PairAgent } from "@/components/agents/pair-agent";
-import { Card, EmptyState, Notice, PageHeader } from "@/components/app/primitives";
+import { Card, EmptyState, PageHeader } from "@/components/app/primitives";
 import { buttonClasses } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/local-time";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -51,6 +52,8 @@ export default async function AgentsPage() {
         title="Agents"
         description="Farbaek Agent is a desktop app that works on a task's approved contract, using Farbaek's AI. No API key needed: each run uses your workspace's AI usage. Its work arrives here as a change proposal for you to review, apply and verify."
       />
+
+      <AgentDownload />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         <Card>
@@ -144,9 +147,6 @@ export default async function AgentsPage() {
             </li>
           ))}
         </ul>
-        <Notice>
-          The desktop app is in the desktop folder of the Farbaek repository and builds with pnpm agent:dist. Its Windows installer isn&apos;t code-signed yet, so Windows shows a warning before it runs.
-        </Notice>
       </section>
     </div>
   );

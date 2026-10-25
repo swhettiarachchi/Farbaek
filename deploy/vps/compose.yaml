@@ -33,6 +33,8 @@ services:
       - "443:443/udp"
     volumes:
       - ./caddy:/etc/caddy:ro
+      # Desktop agent installers, served at www.farbaek.com/downloads/ (ADR 0077).
+      - /opt/farbaek/downloads:/srv/downloads:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
