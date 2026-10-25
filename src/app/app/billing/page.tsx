@@ -86,7 +86,7 @@ export default async function BillingPage() {
             <UsageMeter label="Projects" used={usage.projects.length} limit={limits.workspaces} detail="Active projects in this workspace." reached="Project limit reached. Archive a project or choose a bigger plan to add another." />
             <UsageMeter label="Seats" used={usage.members} limit={limits.seats} detail="People in this workspace." reached="Seat limit reached. Adding people needs a bigger plan." />
             <UsageMeter label="Registered agents" used={activeAgents} limit={limits.agents} detail="Desktop agents paired with this workspace and not revoked." />
-            <UsageMeter label="Integrations" used={0} limit={limits.integrations} detail="None connected. GitHub import isn't built yet; projects import files from a folder instead." />
+            <UsageMeter label="Integrations" used={0} limit={limits.integrations} detail="None connected. Public GitHub repositories import without one, from Projects; private ones need a connection, which isn't available yet." />
           </div>
         </Card>
       </div>
