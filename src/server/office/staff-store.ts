@@ -49,6 +49,7 @@ export const OFFICE_ERROR_CODES = [
   "DEVICE_NOT_TRUSTED",
   "DEVICE_NOT_WAITING",
   "DEVICE_NOT_FOUND",
+  "LAST_DEVICE",
   "UNEXPECTED_RESPONSE",
   "UNKNOWN",
 ] as const;
@@ -93,6 +94,7 @@ export const OFFICE_MESSAGES: Record<OfficeErrorCode, string> = {
   DEVICE_NOT_TRUSTED: "Approve devices from one you already trust.",
   DEVICE_NOT_WAITING: "That device isn't waiting any more. On it, sign in again for a new code.",
   DEVICE_NOT_FOUND: "That device isn't on your list any more.",
+  LAST_DEVICE: "This is your only trusted device, so it stays. Add another device first, then remove this one.",
   UNEXPECTED_RESPONSE: "The database sent something unexpected. Nothing was changed.",
   UNKNOWN: "That didn't work, and nothing was changed. Try again in a moment.",
 };

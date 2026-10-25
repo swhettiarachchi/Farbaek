@@ -26,6 +26,8 @@ The owner asked that Office Space show itself only on their computer and phone.
 - `src/core/office/device-codes.ts`: codes without look-alikes, made by rejection sampling;
 - `src/server/office/device-token.ts`: hashes usable from the proxy.
 
+**Migration v45** (`20261116090000_keep_one_device.sql`), from a security review: the last trusted device can't be removed. With none left, the office would count as new and open to the first device with both codes. My security shows why instead of a Remove button, and `tests/db/staff-devices.test.ts` covers it. Applied in production.
+
 ### Verified
 
 - `tests/db/office-hidden.test.ts` (6):
