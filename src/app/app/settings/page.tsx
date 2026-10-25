@@ -2,6 +2,10 @@ import { DownloadSimpleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AutonomySettings } from "@/components/app/autonomy-settings";
+import { RehearsalRecord } from "@/components/app/rehearsal-record";
+import { checkFeature } from "@/core/billing/entitlements";
+import { summarizeRehearsal } from "@/core/trust/rehearsal";
+import { SHADOW_NOT_IN_PLAN } from "@/server/workspace/autonomy";
 import { DeleteAccount } from "@/components/app/delete-account";
 import { EmailPreferencesForm } from "@/components/app/email-preferences";
 import { MemberControls } from "@/components/app/member-controls";
@@ -36,6 +40,10 @@ export default async function SettingsPage() {
     ctx.reader.getAutonomy(ws.id),
     ctx.reader.getEmailPreferences(),
   ]);
+  // Shadow mode's record (ADR 0075), only while the workspace rehearses level 2.
+  const rehearsal = autonomy.shadowSince ? await ctx.reader.listRehearsal(ws.id, autonomy.shadowSince).catch(() => null) : null;
+  const shadowFeature = checkFeature(ws.plan, "shadow_mode");
+  const shadowReason = shadowFeature.allowed ? null : shadowFeature.code === "FEATURE_NOT_IN_PLAN" ? SHADOW_NOT_IN_PLAN : shadowFeature.message;
   const emailReason = ctx.mode === "demo" ? "The demo workspace is read-only." : readEmailConfig() ? null : "Farbaek isn't sending email from this server yet.";
   const owners = members.filter((m) => m.role === "owner").length;
   const peopleReason = ctx.mode === "demo" ? "The demo workspace is read-only." : !ctx.writes.enabled ? ctx.writes.reason : null;
@@ -95,8 +103,16 @@ export default async function SettingsPage() {
         <AutonomySettings
           view={autonomy}
           verifiable={execution.mode === "sandboxed"}
+          shadowReason={shadowReason}
           disabledReason={ctx.mode === "demo" ? "The demo workspace is read-only." : !ctx.writes.enabled ? ctx.writes.reason : canManage ? null : "Only owners and admins can change autonomy."}
         />
+        {autonomy.shadowSince ? (
+          rehearsal ? (
+            <RehearsalRecord summary={summarizeRehearsal(rehearsal)} since={autonomy.shadowSince} />
+          ) : (
+            <p className="mt-6 text-sm text-failed">The rehearsal record couldn&apos;t be read. Reload the page to try again.</p>
+          )
+        ) : null}
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] lg:items-start">

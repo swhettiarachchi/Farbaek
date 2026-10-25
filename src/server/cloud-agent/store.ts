@@ -10,6 +10,7 @@ import type { ProposalState } from "@/core/agent/inbox";
 import { EFFORTS, type Effort } from "@/core/agent/routing";
 import type { ProposalInput } from "@/server/agent/service";
 import type { RpcResult } from "@/server/workspace/use-cases";
+import { policyRecord } from "@/core/trust/policy";
 
 export interface RunPatch {
   status?: Exclude<RunStatus, "starting">;
@@ -90,7 +91,7 @@ export function createSupabaseRunStore(admin: SupabaseClient): RunStore {
           p_output_tokens: i.usage.outputTokens,
           p_expected_task_version: i.expectedTaskVersion,
           p_steps: i.steps,
-          p_policy: { outcome: i.policy.outcome, version: i.policy.policyVersion, findings: i.policy.findings },
+          p_policy: policyRecord(i.policy),
           p_evaluation_limit: i.evaluationLimit,
           p_period_start: i.period.start.toISOString(),
           p_period_end: i.period.end.toISOString(),

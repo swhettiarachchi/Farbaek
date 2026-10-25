@@ -5,6 +5,7 @@ import { ORGANIZATION_SELECT, summarizeOrganizations } from "./organizations";
 import { readSkillPins } from "./skill-pins";
 import { GRANT_COLUMNS, UsageGrantRowSchema, grantFromRow } from "./usage-store";
 import { readAutonomy } from "./autonomy";
+import type { RehearsalRow } from "@/core/trust/rehearsal";
 import { VERIFICATION_SELECT, VerificationRow, verificationFromRow } from "@/server/verification/store";
 import {
   MemberRow,
@@ -16,6 +17,7 @@ import {
   type Transition,
   type WorkspaceReader,
   ProposalRowSchema,
+  ShadowSchema,
   proposalFromRow,
 } from "./types";
 
@@ -296,6 +298,46 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
         )
         .parse(data)
         .map((r) => ({ digest: r.digest, status: r.status, statement: r.statement, previous: r.previous, createdAt: r.created_at, taskId: r.task_id }));
+    },
+
+    async listRehearsal(orgId, since) {
+      const { data, error } = await client
+        .from("change_proposals")
+        .select("id, task_id, status, created_at, shadow:policy->shadow")
+        .eq("org_id", orgId)
+        .gte("created_at", since)
+        .not("policy->shadow", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (error) fail("rehearsal", error);
+      const rows = z
+        .array(z.object({ id: z.string(), task_id: z.string(), status: z.enum(["pending", "blocked", "applied", "discarded"]), created_at: z.string(), shadow: z.unknown() }))
+        .parse(data)
+        .flatMap((r) => {
+          const shadow = ShadowSchema.safeParse(r.shadow);
+          return shadow.success ? [{ ...r, shadow: shadow.data }] : [];
+        });
+      if (rows.length === 0) return [];
+      const { data: packs, error: packError } = await client
+        .from("proofpacks")
+        .select("proposal_id, status")
+        .eq("org_id", orgId)
+        .in("proposal_id", rows.map((r) => r.id))
+        .order("seq", { ascending: false });
+      if (packError) fail("ProofPacks", packError);
+      // The newest ProofPack of each proposal says how its checks ended.
+      const evidence = new Map<string, RehearsalRow["evidence"]>();
+      for (const p of z.array(z.object({ proposal_id: z.string(), status: z.enum(["unverified", "partially_verified", "verified", "failed"]) })).parse(packs)) {
+        if (!evidence.has(p.proposal_id)) evidence.set(p.proposal_id, p.status);
+      }
+      return rows.map((r) => ({
+        proposalId: r.id,
+        taskId: r.task_id,
+        createdAt: r.created_at,
+        status: r.status,
+        evidence: evidence.get(r.id) ?? null,
+        shadow: { outcome: r.shadow.outcome, reasons: r.shadow.reasons },
+      }));
     },
 
     async getFirstStepRecords(orgId) {

@@ -13,6 +13,7 @@ import { ORGANIZATION_SELECT, billingSnapshotFromRow } from "@/server/workspace/
 import { ORG_ROLES } from "@/server/workspace/types";
 import type { RpcResult } from "@/server/workspace/use-cases";
 import type { AgentStore } from "./service";
+import { policyRecord } from "@/core/trust/policy";
 
 const isUuid = (s: string) => z.uuid().safeParse(s).success;
 
@@ -204,7 +205,7 @@ export function createSupabaseAgentStore(admin: SupabaseClient): AgentStore {
           p_output_tokens: i.usage.outputTokens,
           p_expected_task_version: i.expectedTaskVersion,
           p_steps: i.steps,
-          p_policy: { outcome: i.policy.outcome, version: i.policy.policyVersion, findings: i.policy.findings },
+          p_policy: policyRecord(i.policy),
           p_evaluation_limit: i.evaluationLimit,
           p_period_start: i.period.start.toISOString(),
           p_period_end: i.period.end.toISOString(),

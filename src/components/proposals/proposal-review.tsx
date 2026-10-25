@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, ClockCountdownIcon, DesktopIcon, FingerprintIcon, HourglassMediumIcon, ProhibitIcon, ScalesIcon, ShieldWarningIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, ClockCountdownIcon, DesktopIcon, FingerprintIcon, FlaskIcon, HourglassMediumIcon, ProhibitIcon, ScalesIcon, ShieldWarningIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -243,6 +243,22 @@ export function ProposalReview({
           ) : (
             <p className="text-ink-2">Autonomy level 0: every change needs a person&apos;s approval. Nothing sensitive was found.</p>
           )}
+        </div>
+      ) : null}
+
+      {proposal.policy?.shadow ? (
+        // Shadow mode (ADR 0075): a simulated decision, never acted on, marked as one.
+        <div className="grid gap-1.5 rounded-sm border border-dashed border-simulated/45 bg-simulated/[0.03] p-4 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="flex items-center gap-2 font-medium">
+              <FlaskIcon size={16} className="text-simulated" aria-hidden />
+              Rehearsal: level 2 {proposal.policy.shadow.outcome === "ALLOW_WITHIN_LIMITS" ? "would have applied this on its own" : "would have waited for a person"}
+            </p>
+            <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-simulated/40 px-2.5 text-xs font-medium text-simulated">
+              <FlaskIcon size={14} weight="bold" aria-hidden /> Simulated
+            </span>
+          </div>
+          <p className="text-ink-2">{proposal.policy.shadow.detail} Nothing applied on its own: this workspace is rehearsing level 2, so the change waits for your review as usual.</p>
         </div>
       ) : null}
 

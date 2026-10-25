@@ -259,3 +259,10 @@ Known limits: while no device is trusted (a new office or after the SSH reset), 
 | Abuse of the server's bandwidth | One person starting many large downloads | 10 imports per person an hour (`app_rate_limit`) | the shared rate limit tests |
 
 Known limits: public repositories only. Private ones need a GitHub connection, which isn't built.
+
+## Shadow mode (2026-10-25, ADR 0075)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| Rehearsal decisions | A simulated "would apply" being taken as real, or acted on | The real outcome stays level 0's; the rehearsal is stored apart, under `policy.shadow`, and shown dashed with a flask icon and "Simulated"; nothing reads it to apply a change | `policy.test.ts`, `rehearsal-record.test.ts` |
+| The rehearsal switch | Turning it on without the plan or the role; rehearsal records outside a rehearsal | Owners and admins only, Pro and up (server); `shadow_since` only at level 0; the proposal trigger drops a rehearsal when the workspace isn't rehearsing or the change applies on its own | `autonomy.test.ts`, `tests/db/shadow-mode.test.ts` |

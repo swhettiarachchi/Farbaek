@@ -15,6 +15,10 @@
  *   (ALLOW_WITHIN_LIMITS) if it stays within the file limit, creates no
  *   files unless allowed, and has checks a verified sandbox can run.
  *   Autonomy never lowers a BLOCK or an ESCALATE.
+ * - Shadow mode (ADR 0075), when the workspace rehearses level 2: every
+ *   change still waits for a person, and the decision records what level 2
+ *   would have done, with its reasons. The rehearsal never changes the
+ *   outcome, so the rule set (and its version) is the same.
  */
 import type { PolicyOutcome } from "../billing/usage";
 import { canonicalHash } from "./canonical-json";
@@ -25,18 +29,37 @@ export interface PolicyFinding {
   detail: string;
 }
 
+/** Why level 2 would still have waited for a person. */
+export type RehearsalReason = "blocked" | "escalated" | "too_many_files" | "creates_files" | "not_verifiable";
+
+/** What level 2 would have decided, recorded in shadow mode only (ADR 0075). Never acted on. */
+export interface ShadowDecision {
+  outcome: "ALLOW_WITHIN_LIMITS" | "REQUIRE_APPROVAL";
+  reasons: RehearsalReason[];
+  detail: string;
+  maxFiles: number;
+  allowCreates: boolean;
+}
+
 export interface PolicyDecision {
   outcome: PolicyOutcome;
   findings: PolicyFinding[];
   /** sha256 of the rule set that decided. */
   policyVersion: string;
+  /** Present only while the workspace rehearses level 2. */
+  shadow?: ShadowDecision;
 }
 
-/** A workspace's autonomy at level 2 (ADR 0046); null or absent means level 0. */
+/**
+ * A workspace's autonomy at level 2 (ADR 0046); null or absent means level 0.
+ * With `rehearsal`, the workspace is in shadow mode (ADR 0075): these limits
+ * are only rehearsed, and every change still waits for a person.
+ */
 export interface AutonomyLimits {
   level: 2;
   maxFiles: number;
   allowCreates: boolean;
+  rehearsal?: boolean;
 }
 
 export interface ChangePolicyInput {
@@ -108,23 +131,61 @@ export async function evaluateChangePolicy(input: ChangePolicyInput): Promise<Po
   }
   // Without autonomy nothing is allowed without a person, so the floor is REQUIRE_APPROVAL.
   let outcome = findings.reduce<PolicyOutcome>((worst, f) => (RANK[f.outcome] > RANK[worst] ? f.outcome : worst), "REQUIRE_APPROVAL");
+  const limits = input.autonomy?.level === 2 ? input.autonomy : null;
+  const unmet = limits ? unmetLimits(input, limits) : [];
+
+  // In shadow mode, record what level 2 would have done and change nothing.
+  if (limits?.rehearsal) {
+    const shadow = rehearse(outcome, unmet, input.files.length, limits);
+    return { outcome, findings, policyVersion: await changePolicyVersion(), shadow };
+  }
   // Level 2 only ever lowers REQUIRE_APPROVAL, and only when every limit holds.
-  if (input.autonomy?.level === 2 && outcome === "REQUIRE_APPROVAL") {
-    const limits = input.autonomy;
-    const creates = input.files.filter((f) => f.kind === "create").length;
-    const unmet = [
-      input.files.length > limits.maxFiles ? `it changes ${input.files.length} files, more than the limit of ${limits.maxFiles}` : null,
-      creates > 0 && !limits.allowCreates ? `it creates ${creates === 1 ? "a new file" : `${creates} new files`}, which this workspace doesn't allow on their own` : null,
-      input.verifiable ? null : "nothing could check it: the contract lists no checks, or no verified sandbox is connected",
-    ].filter((x): x is string => x !== null);
+  if (limits && outcome === "REQUIRE_APPROVAL") {
     if (unmet.length === 0) {
       outcome = "ALLOW_WITHIN_LIMITS";
       findings.push({ rule: "autonomy", outcome, detail: `Within this workspace's autonomy limits (level 2): ${input.files.length} ${input.files.length === 1 ? "file" : "files"}, inside the contract, no sensitive files, and its checks can run in a verified sandbox.` });
     } else {
-      findings.push({ rule: "autonomy", outcome: "REQUIRE_APPROVAL", detail: `Autonomy level 2 is on, but this waits for a person: ${unmet.join("; ")}.` });
+      findings.push({ rule: "autonomy", outcome: "REQUIRE_APPROVAL", detail: `Autonomy level 2 is on, but this waits for a person: ${unmet.map((u) => u.text).join("; ")}.` });
     }
   }
   return { outcome, findings, policyVersion: await changePolicyVersion() };
+}
+
+function unmetLimits(input: ChangePolicyInput, limits: AutonomyLimits): { reason: RehearsalReason; text: string }[] {
+  const creates = input.files.filter((f) => f.kind === "create").length;
+  const unmet: { reason: RehearsalReason; text: string }[] = [];
+  if (input.files.length > limits.maxFiles) unmet.push({ reason: "too_many_files", text: `it changes ${input.files.length} files, more than the limit of ${limits.maxFiles}` });
+  if (creates > 0 && !limits.allowCreates)
+    unmet.push({ reason: "creates_files", text: `it creates ${creates === 1 ? "a new file" : `${creates} new files`}, which this workspace doesn't allow on their own` });
+  if (!input.verifiable) unmet.push({ reason: "not_verifiable", text: "nothing could check it: the contract lists no checks, or no verified sandbox is connected" });
+  return unmet;
+}
+
+function rehearse(outcome: PolicyOutcome, unmet: { reason: RehearsalReason; text: string }[], files: number, limits: AutonomyLimits): ShadowDecision {
+  const base = { maxFiles: limits.maxFiles, allowCreates: limits.allowCreates };
+  if (outcome === "BLOCK" || outcome === "ESCALATE") {
+    const blocked = outcome === "BLOCK";
+    return {
+      ...base,
+      outcome: "REQUIRE_APPROVAL",
+      reasons: [blocked ? "blocked" : "escalated"],
+      detail: `Level 2 would still have waited: the policy ${blocked ? "blocks" : "escalates"} this change, and autonomy never lowers that.`,
+    };
+  }
+  if (unmet.length > 0) {
+    return { ...base, outcome: "REQUIRE_APPROVAL", reasons: unmet.map((u) => u.reason), detail: `Level 2 would still have waited for a person: ${unmet.map((u) => u.text).join("; ")}.` };
+  }
+  return {
+    ...base,
+    outcome: "ALLOW_WITHIN_LIMITS",
+    reasons: [],
+    detail: `Level 2 would have applied this on its own: ${files} ${files === 1 ? "file" : "files"}, inside the contract, no sensitive files, and its checks can run in a verified sandbox.`,
+  };
+}
+
+/** The decision as stored with a proposal; the rehearsal goes with it only in shadow mode. */
+export function policyRecord(decision: PolicyDecision) {
+  return { outcome: decision.outcome, version: decision.policyVersion, findings: decision.findings, ...(decision.shadow ? { shadow: decision.shadow } : {}) };
 }
 
 export const OUTCOME_LABELS: Record<PolicyOutcome, string> = {

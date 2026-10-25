@@ -11,6 +11,8 @@ import type { StoredLensSuggestion } from "@/core/realityloop/lens-suggestion";
 import type { AutonomyView } from "./autonomy";
 import type { VerificationRecord } from "@/core/realityloop/verification";
 import type { FirstStepFacts } from "@/core/workspace/first-steps";
+import type { RehearsalRow } from "@/core/trust/rehearsal";
+import type { ShadowDecision } from "@/core/trust/policy";
 
 export const ORG_ROLES = ["owner", "admin", "member", "viewer"] as const;
 export type OrgRole = (typeof ORG_ROLES)[number];
@@ -104,10 +106,19 @@ export interface ProposalRecord {
   decidedAt: string | null;
   appliedSha256: string | null;
   /** The policy decision that governed it; null for proposals made before policies were recorded. */
-  policy: { outcome: string; version: string; findings: { rule: string; outcome: string; detail: string }[] } | null;
+  policy: { outcome: string; version: string; findings: { rule: string; outcome: string; detail: string }[]; shadow?: ShadowDecision } | null;
   /** The Farbaek Agent that made it, or null when it was made in the web app. */
   agentId: string | null;
 }
+
+/** What level 2 would have decided, as stored under policy -> 'shadow' (ADR 0075). */
+export const ShadowSchema = z.object({
+  outcome: z.enum(["ALLOW_WITHIN_LIMITS", "REQUIRE_APPROVAL"]),
+  reasons: z.array(z.enum(["blocked", "escalated", "too_many_files", "creates_files", "not_verifiable"])),
+  detail: z.string(),
+  maxFiles: z.number().int(),
+  allowCreates: z.boolean(),
+});
 
 /** Shape of change_proposals rows; changes are stored with snake_case keys. */
 export const ProposalRowSchema = z.object({
@@ -130,7 +141,13 @@ export const ProposalRowSchema = z.object({
   applied_sha256: z.string().nullable(),
   agent_id: z.string().nullable().optional(),
   policy: z
-    .object({ outcome: z.string(), version: z.string(), findings: z.array(z.object({ rule: z.string(), outcome: z.string(), detail: z.string() })) })
+    .object({
+      outcome: z.string(),
+      version: z.string(),
+      findings: z.array(z.object({ rule: z.string(), outcome: z.string(), detail: z.string() })),
+      // A rehearsal that can't be read is left out rather than hiding the proposal (ADR 0075).
+      shadow: ShadowSchema.optional().catch(undefined),
+    })
     .nullable()
     .optional(),
 });
@@ -279,6 +296,8 @@ export interface WorkspaceReader {
   listRecentProofPacks(orgId: string, limit: number): Promise<(ProofPackRecord & { taskId: string })[]>;
   /** What the first steps read beyond tasks: the newest ProofPack, the newest verified one and a live site (ADR 0073). */
   getFirstStepRecords(orgId: string): Promise<Pick<FirstStepFacts, "latestProofPack" | "verifiedTaskId" | "liveSite">>;
+  /** Proposals made since `since` that carry a shadow-mode rehearsal, newest first (at most 200), with what became of each (ADR 0075). */
+  listRehearsal(orgId: string, since: string): Promise<RehearsalRow[]>;
   /** Every file change in a project at or after `since`, oldest first (at most 500). */
   listFileChangesSince(orgId: string, projectId: string, since: string): Promise<FileChangeEvent[]>;
   /** The most recent change proposal for a task, or null. */
