@@ -34,8 +34,8 @@ The spec's Stage 2 asks for project import from GitHub and from upload. Upload w
   - not found, a redirect to another host, both size caps, slow, unreachable and busy.
 - `tests/smoke/github.smoke.test.ts` against real GitHub (3 of 3, with `FARBAEK_SMOKE_GITHUB=1`): `octocat/Hello-World` at its exact commit, the `sindresorhus/slugify` tag v2.2.1 with its commit, and a missing repository.
 - `pnpm typecheck`, lint and the design tests are clean.
+- Demo build: the GitHub card at 1280 and 375 px with no sideways scroll; the demo shows the read-only reason. `pnpm qa:a11y` on `/app` and `/app/projects`: 4 page views, 0 findings.
 
 ### Next
 
 Shadow mode (the Stage 3 gap).
-- Demo build: the GitHub card at 1280 and 375 px with no sideways scroll; the demo shows the read-only reason. `pnpm qa:a11y` on `/app` and `/app/projects`: 4 page views, 0 findings.
