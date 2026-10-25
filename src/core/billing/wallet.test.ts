@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getPlan } from "./catalog";
 import { resolveEffectivePlan, trialWindow } from "./trial";
-import { currentGrant, walletView, type GrantRow } from "./wallet";
+import { currentGrant, grantResetsAt, paidPeriodEnd, paidPeriodStart, walletView, type GrantRow } from "./wallet";
 
 const now = new Date("2026-10-18T09:00:00Z");
 
@@ -24,6 +24,37 @@ describe("which grant a period issues", () => {
     const window = trialWindow(new Date("2026-10-10T00:00:00Z"));
     const trial = { state: "trialing" as const, trial: window };
     expect(currentGrant(resolveEffectivePlan(trial, now), window, now)).toMatchObject({ kind: "trial", starts_at: window.startedAt.toISOString(), expires_at: window.endsAt.toISOString() });
+  });
+});
+
+describe("paid periods that follow the subscription", () => {
+  const plus = { state: "active" as const, paidPlanId: "plus" as const };
+
+  it("starts each period on the subscription's day, lasting one more period as rollover", () => {
+    const anchor = new Date("2026-09-14T06:30:00Z");
+    const g = currentGrant(resolveEffectivePlan(plus, now), undefined, now, anchor)!;
+    expect(g).toMatchObject({ starts_at: "2026-10-14T06:30:00.000Z", expires_at: "2026-12-14T06:30:00.000Z", source_key: "plan:plus:2026-10-14" });
+    expect(grantResetsAt({ kind: "plan", startsAt: g.starts_at, expiresAt: g.expires_at })).toBe("2026-11-14T06:30:00.000Z");
+  });
+
+  it("uses the period before when this month's day hasn't come yet, and the anchor itself at first", () => {
+    expect(paidPeriodStart(new Date("2026-08-20T00:00:00Z"), now).toISOString()).toBe("2026-09-20T00:00:00.000Z");
+    expect(paidPeriodStart(new Date("2026-10-15T00:00:00Z"), now).toISOString()).toBe("2026-10-15T00:00:00.000Z");
+    // Across a new year.
+    expect(paidPeriodStart(new Date("2026-11-20T00:00:00Z"), new Date("2027-01-05T00:00:00Z")).toISOString()).toBe("2026-12-20T00:00:00.000Z");
+  });
+
+  it("resets on the 28th for subscriptions started on the 29th to 31st, so no month is skipped", () => {
+    const anchor = new Date("2026-01-31T00:00:00Z");
+    expect(paidPeriodStart(anchor, new Date("2026-02-10T00:00:00Z")).toISOString()).toBe("2026-01-31T00:00:00.000Z");
+    expect(paidPeriodEnd(anchor).toISOString()).toBe("2026-02-28T00:00:00.000Z");
+    expect(paidPeriodStart(anchor, new Date("2026-03-01T00:00:00Z")).toISOString()).toBe("2026-02-28T00:00:00.000Z");
+    expect(paidPeriodEnd(new Date("2026-02-28T00:00:00Z")).toISOString()).toBe("2026-03-28T00:00:00.000Z");
+  });
+
+  it("keeps the calendar month for paid plans until a subscription gives an anchor", () => {
+    const g = currentGrant(resolveEffectivePlan(plus, now), undefined, now)!;
+    expect(grantResetsAt({ kind: "plan", startsAt: g.starts_at, expiresAt: g.expires_at })).toBe("2026-11-01T00:00:00.000Z");
   });
 });
 

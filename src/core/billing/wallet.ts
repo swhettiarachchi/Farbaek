@@ -37,15 +37,41 @@ function monthStart(d: Date, add = 0): Date {
 
 const monthKey = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 
+/** The latest day a paid period can reset on: every month has it, so periods never drift. */
+export const LATEST_RESET_DAY = 28;
+
+/** The same moment `add` months later, on the given day of the month (at most the 28th). */
+function onDay(d: Date, add: number, day: number): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + add, day, d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds(), d.getUTCMilliseconds()));
+}
+
+/**
+ * The start of the paid usage period that contains `now`, for a subscription
+ * that started at `anchor` (go-live checklist: grants follow the subscription,
+ * not the calendar). Periods reset on the anchor's day of the month, or the
+ * 28th for anchors on the 29th to 31st. The first period starts at the anchor.
+ */
+export function paidPeriodStart(anchor: Date, now: Date): Date {
+  const day = Math.min(anchor.getUTCDate(), LATEST_RESET_DAY);
+  let start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), day, anchor.getUTCHours(), anchor.getUTCMinutes(), anchor.getUTCSeconds(), anchor.getUTCMilliseconds()));
+  if (start > now) start = onDay(start, -1, day);
+  return start < anchor ? anchor : start;
+}
+
+/** When a paid period that started at `start` resets: the next month, on its day (at most the 28th). */
+export function paidPeriodEnd(start: Date, periods = 1): Date {
+  return onDay(start, periods, Math.min(start.getUTCDate(), LATEST_RESET_DAY));
+}
+
 /**
  * The grant for the period containing `now`:
  * - trial: the whole trial's usage, ending with the trial;
  * - Free: the calendar month, no rollover;
- * - paid: the calendar month (until payments set a subscription anchor),
- *   lasting one more month as rollover.
+ * - paid: the subscription's own period when there's an anchor (its start),
+ *   otherwise the calendar month, lasting one more period as rollover.
  * Null for contract plans, whose usage is set by the contract.
  */
-export function currentGrant(plan: EffectivePlan, trial: TrialWindow | undefined, now: Date): GrantSpec | null {
+export function currentGrant(plan: EffectivePlan, trial: TrialWindow | undefined, now: Date, anchor: Date | null = null): GrantSpec | null {
   const units = plan.limits.aiUnitsPerMonth;
   if (units === null) return null;
   if (plan.source === "trial" && trial) {
@@ -55,12 +81,20 @@ export function currentGrant(plan: EffectivePlan, trial: TrialWindow | undefined
   if (plan.source === "free") {
     return { kind: "free", units, starts_at: start.toISOString(), expires_at: monthStart(now, 1).toISOString(), source_key: `free:${monthKey(start)}` };
   }
+  if (anchor) {
+    const period = paidPeriodStart(anchor, now);
+    return { kind: "plan", units, starts_at: period.toISOString(), expires_at: paidPeriodEnd(period, 2).toISOString(), source_key: `plan:${plan.planId}:${period.toISOString().slice(0, 10)}` };
+  }
   return { kind: "plan", units, starts_at: start.toISOString(), expires_at: monthStart(now, 2).toISOString(), source_key: `plan:${plan.planId}:${monthKey(start)}` };
 }
 
 /** When a grant's period resets: a paid grant's period is its first month; the rest end when they expire. */
 export function grantResetsAt(grant: Pick<GrantRow, "kind" | "startsAt" | "expiresAt">): string {
-  return grant.kind === "plan" ? monthStart(new Date(grant.startsAt), 1).toISOString() : grant.expiresAt;
+  if (grant.kind !== "plan") return grant.expiresAt;
+  const start = new Date(grant.startsAt);
+  // A calendar-month grant starts at midnight on the 1st; an anchored one on its subscription's day.
+  const calendar = start.getUTCDate() === 1 && start.getUTCHours() === 0 && start.getUTCMinutes() === 0 && start.getUTCSeconds() === 0 && start.getUTCMilliseconds() === 0;
+  return (calendar ? monthStart(start, 1) : paidPeriodEnd(start)).toISOString();
 }
 
 /** One grant as people see it: never units, only the share left and when it expires. */

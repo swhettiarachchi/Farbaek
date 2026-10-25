@@ -11,6 +11,7 @@ Payments stay **not connected** (`BILLING_MODE=not_connected`) until every item 
 - [ ] Annual billing decided: either no discount, or allowances cut so the 40% margin holds
 - [ ] Spend cap built, and top-ups (at the plan's own rate, 12-month expiry) apply only up to it
 - [ ] Paid usage grants anchored to the subscription start instead of the calendar month (`currentGrant` in `src/core/billing/wallet.ts`)
+  - 2026-10-25: built, not yet connected. `currentGrant(plan, trial, now, anchor)` gives a paid plan the period starting on the subscription's day of the month (the 28th for the 29th to 31st), `grantResetsAt` follows it, and `src/core/billing/wallet.test.ts` covers it. Still to do: pass the subscription's start as `anchor` once a provider's subscriptions are stored.
 - [ ] Webhook endpoint verifies signatures on the raw body, rejects stale timestamps, stores a unique `webhook_id`, and re-fetches state for out-of-order events
 - [ ] Billing tests 7, 8, 15 and 18 (spec section 20) pass against test mode with real signed webhooks
 - [ ] The trial is confirmed to be internal only (never a Dodo `trial_period_days` product)
