@@ -24,7 +24,7 @@ describe("legal facts", () => {
       .filter((f) => f.endsWith(".sql"))
       .sort()
       .map((f) => readFileSync(new URL(f, dir), "utf8"))
-      .filter((sql) => /function public\.app_rate_limit\(/.test(sql))
+      .filter((sql) => /create (or replace )?function public\.app_rate_limit\(/.test(sql))
       .at(-1);
     expect(latest).toContain(`window_start < now() - interval '${LEGAL.rateLimitHours / 24} day'`);
   });
