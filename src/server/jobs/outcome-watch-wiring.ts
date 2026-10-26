@@ -5,7 +5,7 @@
  */
 import { z } from "zod";
 import { siteCheckUrl } from "@/core/launch/health";
-import { vercelAppUrl } from "@/core/launch/vercel";
+import { LAUNCH_PROVIDERS, launchAddress } from "@/core/launch/providers";
 import { renderEmail, sendEmail } from "@/server/email/compose";
 import { readEmailConfig } from "@/server/email/config";
 import { isPlainAddress } from "@/server/email/message";
@@ -18,7 +18,7 @@ import { serverPushDeps } from "@/server/push/wiring";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import type { OutcomeWatchDeps } from "./outcome-watch";
 
-const NOTHING_LIVE = "Nothing is live to check yet. Publish it to Farbaek Sites or launch it to Vercel.";
+const NOTHING_LIVE = "Nothing is live to check yet. Publish it to Farbaek Sites, or launch it to Vercel or Netlify.";
 
 export function outcomeWatchDeps(): OutcomeWatchDeps | null {
   const admin = createSupabaseAdminClient();
@@ -46,9 +46,10 @@ export function outcomeWatchDeps(): OutcomeWatchDeps | null {
         const url = siteCheckUrl(live.name, siteDomain());
         if (url) return { kind: "farbaek_site", url, deploymentId: live.live_deployment_id, indexSha256: await deploymentIndexSha(admin, w.orgId, live.live_deployment_id).catch(() => null) };
       }
-      const { data: launch } = await admin.from("launch_orders").select("url").eq("project_id", w.projectId).eq("status", "ready").order("finished_at", { ascending: false }).limit(1).maybeSingle();
-      const url = vercelAppUrl(z.object({ url: z.string().nullable() }).nullable().parse(launch ?? null)?.url ?? null);
-      return url ? { kind: "vercel", url } : { none: NOTHING_LIVE };
+      const { data: launch } = await admin.from("launch_orders").select("provider, url").eq("project_id", w.projectId).eq("status", "ready").order("finished_at", { ascending: false }).limit(1).maybeSingle();
+      const last = z.object({ provider: z.enum(LAUNCH_PROVIDERS), url: z.string().nullable() }).nullable().parse(launch ?? null);
+      const url = last ? launchAddress(last.provider, last.url) : null;
+      return last && url ? { kind: "launch", provider: last.provider, url } : { none: NOTHING_LIVE };
     },
 
     probe: probeSite,

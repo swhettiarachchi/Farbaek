@@ -1,12 +1,14 @@
 /**
- * LaunchOS with Vercel (ADR 0078): connecting a workspace's own Vercel
- * account, authorizing one launch of exactly the project's current files,
- * and carrying it out: upload each file by SHA-1, create a production
- * deployment, follow Vercel's state, then check the live address. The
- * database decides who may do what and under which evidence; this decides
- * nothing it doesn't also check there.
+ * LaunchOS with a workspace's own hosting account (ADR 0078, ADR 0093):
+ * connecting it, authorizing one launch of exactly the project's current
+ * files, and carrying it out. The steps every provider shares live here;
+ * Vercel's run (upload each file by SHA-1, create a production deployment,
+ * follow Vercel's state, check the live address) is here too, and Netlify's
+ * is in netlify-launch.ts. The database decides who may do what and under
+ * which evidence; this decides nothing it doesn't also check there.
  */
 import { createHash } from "node:crypto";
+import { PROVIDER_NAMES, type LaunchProvider } from "@/core/launch/providers";
 import { VERCEL_NAME, deployDigest, publicAddress, statusFromReadyState, vercelFit, type VercelSettings } from "@/core/launch/vercel";
 import { overrideReasonProblem } from "@/core/publish/evidence";
 import { log } from "@/server/observability/log";
@@ -14,6 +16,7 @@ import { CONTRIBUTOR_ROLES, MANAGER_ROLES, type OrgRole } from "@/server/workspa
 import { fail, requirePermission, type WriteResult } from "@/server/workspace/use-cases";
 import type { WithheldPermissions } from "@/core/workspace/permissions";
 import type { LaunchPlan } from "@/core/launch/planner";
+import type { NetlifyClient } from "./netlify-client";
 import type { LaunchStore } from "./provider-store";
 import { openToken, sealToken, type VaultKey } from "./token-vault";
 import type { VercelClient } from "./vercel-client";
@@ -23,6 +26,8 @@ export interface LaunchDeps {
   /** The vault key, or null when this server can't keep tokens. */
   key: VaultKey | null;
   vercel(token: string, teamId: string | null): VercelClient;
+  /** `accountSlug` is the Netlify team the connection was made for, if any. */
+  netlify(token: string, accountSlug: string | null): NetlifyClient;
   /** The project's current files, with their SHA-256s. */
   files(orgId: string, projectId: string): Promise<{ path: string; content: string; sha256: string }[]>;
   /** Fetches the live address once, for the check after it's ready. Returns the HTTP status, or 0 for no answer. */
@@ -38,60 +43,103 @@ export interface LaunchPerson {
   permissions: WithheldPermissions;
 }
 
+export type LaunchFile = { path: string; content: string; sha256: string };
+
 export const NO_VAULT = "Connecting hosting accounts isn't set up on this server yet.";
 const MAX_FILES = 3_000;
 const MAX_BYTES = 25 * 1024 * 1024;
 const UPLOADS_AT_ONCE = 6;
-const POLL_MS = 5_000;
-const POLL_FOR_MS = 20 * 60_000;
+export const POLL_MS = 5_000;
+export const POLL_FOR_MS = 20 * 60_000;
 
-/** Connects (or replaces) the workspace's Vercel account, after Vercel confirms whose token it is. */
-export async function connectVercel(deps: LaunchDeps, person: LaunchPerson, input: { token: string; teamId: string | null; limit: number | null }): Promise<WriteResult<{ accountName: string }>> {
+/**
+ * Connects (or replaces) the workspace's account with a provider, after the
+ * provider confirms whose token it is. The token is sealed to the workspace
+ * and the provider, and never shown again.
+ */
+export async function connectProvider(
+  deps: LaunchDeps,
+  person: LaunchPerson,
+  provider: LaunchProvider,
+  input: { token: string; teamId: string | null; limit: number | null; badToken: string; badTeam: string },
+  whoami: (token: string, teamId: string | null) => Promise<{ ok: true; value: { id: string; name: string } } | { ok: false; message: string }>,
+): Promise<WriteResult<{ accountName: string }>> {
   if (!MANAGER_ROLES.includes(person.role)) return fail("FORBIDDEN", "Only an owner or admin can connect a hosting account.");
   if (!deps.key) return fail("FORBIDDEN", NO_VAULT);
   const token = input.token.trim();
-  if (token.length < 20 || token.length > 400 || /\s/.test(token)) return fail("FORBIDDEN", "That doesn't look like a Vercel token. Create one in Vercel under Account settings, then Tokens, and paste it whole.");
+  if (token.length < 20 || token.length > 400 || /\s/.test(token)) return fail("FORBIDDEN", input.badToken);
   const teamId = input.teamId?.trim() || null;
-  if (teamId && !/^[A-Za-z0-9_-]{1,100}$/.test(teamId)) return fail("FORBIDDEN", "A Vercel team ID looks like team_ followed by letters and numbers.");
-  const who = await deps.vercel(token, teamId).whoami();
+  if (teamId && !/^[A-Za-z0-9_-]{1,100}$/.test(teamId)) return fail("FORBIDDEN", input.badTeam);
+  const who = await whoami(token, teamId);
   if (!who.ok) return fail("FORBIDDEN", who.message);
-  const sealed = sealToken(token, deps.key, { orgId: person.orgId, provider: "vercel" });
-  const r = await deps.store.connect({ orgId: person.orgId, actor: person.userId, provider: "vercel", accountId: who.value.id, accountName: who.value.username, teamId, sealed, limit: input.limit });
+  const sealed = sealToken(token, deps.key, { orgId: person.orgId, provider });
+  const r = await deps.store.connect({ orgId: person.orgId, actor: person.userId, provider, accountId: who.value.id, accountName: who.value.name, teamId, sealed, limit: input.limit });
   if (!r.ok) return r.error.includes("QUOTA_EXCEEDED") ? fail("QUOTA_EXCEEDED", "Your plan's integrations are all in use. Disconnect one, or move to a plan with more.") : fail("FORBIDDEN", "The connection couldn't be saved. Try again.");
-  return { ok: true, value: { accountName: who.value.username } };
+  return { ok: true, value: { accountName: who.value.name } };
 }
 
-export async function disconnectVercel(deps: LaunchDeps, person: LaunchPerson): Promise<WriteResult<null>> {
+export async function disconnectProvider(deps: LaunchDeps, person: LaunchPerson, provider: LaunchProvider): Promise<WriteResult<null>> {
   if (!MANAGER_ROLES.includes(person.role)) return fail("FORBIDDEN", "Only an owner or admin can disconnect a hosting account.");
-  const r = await deps.store.disconnect({ orgId: person.orgId, actor: person.userId, provider: "vercel" });
-  return r.ok ? r : fail("NOT_FOUND", "Vercel isn't connected to this workspace.");
+  const r = await deps.store.disconnect({ orgId: person.orgId, actor: person.userId, provider });
+  return r.ok ? r : fail("NOT_FOUND", `${PROVIDER_NAMES[provider]} isn't connected to this workspace.`);
 }
 
-const AUTHORIZE_ERRORS: [string, string][] = [
+/** Connects (or replaces) the workspace's Vercel account, after Vercel confirms whose token it is. */
+export function connectVercel(deps: LaunchDeps, person: LaunchPerson, input: { token: string; teamId: string | null; limit: number | null }): Promise<WriteResult<{ accountName: string }>> {
+  return connectProvider(
+    deps,
+    person,
+    "vercel",
+    {
+      ...input,
+      badToken: "That doesn't look like a Vercel token. Create one in Vercel under Account settings, then Tokens, and paste it whole.",
+      badTeam: "A Vercel team ID looks like team_ followed by letters and numbers.",
+    },
+    async (token, teamId) => {
+      const who = await deps.vercel(token, teamId).whoami();
+      return who.ok ? { ok: true, value: { id: who.value.id, name: who.value.username } } : who;
+    },
+  );
+}
+
+export const disconnectVercel = (deps: LaunchDeps, person: LaunchPerson) => disconnectProvider(deps, person, "vercel");
+
+const authorizeErrors = (provider: LaunchProvider): [string, string][] => [
   ["EVIDENCE_REQUIRED", "The latest change isn't verified, so an owner or admin has to say why it should go live anyway."],
   ["OVERRIDE_FORBIDDEN", "Only an owner or admin can launch without verified evidence."],
   ["LAUNCH_RUNNING", "A launch of this project is already under way. Wait for it to finish."],
-  ["NOT_CONNECTED", "Connect Vercel first."],
+  ["NOT_CONNECTED", `Connect ${PROVIDER_NAMES[provider]} first.`],
   ["NOT_FOUND", "That project doesn't exist, or it's archived."],
 ];
 
 /**
  * Authorizes one launch of exactly the project's current files, and starts
  * it in the background. The same key returns the same order, so pressing
- * twice can't launch twice.
+ * twice can't launch twice. `unfit`, `nameProblem` and `filesProblem` are
+ * the provider's own reasons it can't take this launch.
  */
-export async function authorizeVercelLaunch(
+export async function authorizeLaunch(
   deps: LaunchDeps,
   person: LaunchPerson,
-  input: { projectId: string; key: string; target: string; confirm: string; overrideReason: string | null; plan: Pick<LaunchPlan, "kind" | "build" | "output">; settings: VercelSettings },
+  input: {
+    provider: LaunchProvider;
+    projectId: string;
+    key: string;
+    target: string;
+    confirm: string;
+    overrideReason: string | null;
+    unfit: string | null;
+    nameProblem: string | null;
+    filesProblem?: (paths: string[]) => string | null;
+  },
+  start: (run: { orgId: string; orderId: string; files: LaunchFile[]; digest: string }) => Promise<unknown>,
 ): Promise<WriteResult<{ orderId: string }>> {
   if (!CONTRIBUTOR_ROLES.includes(person.role)) return fail("FORBIDDEN", "Viewers can't launch projects.");
   const allowed = requirePermission(person.role, person.permissions, "publish");
   if (!allowed.ok) return allowed;
   if (!deps.key) return fail("FORBIDDEN", NO_VAULT);
-  const unfit = vercelFit(input.plan);
-  if (unfit) return fail("FORBIDDEN", unfit);
-  if (!VERCEL_NAME.test(input.target)) return fail("INVALID_NAME", "Use lowercase letters, numbers and hyphens for the Vercel project name.");
+  if (input.unfit) return fail("FORBIDDEN", input.unfit);
+  if (input.nameProblem) return fail("INVALID_NAME", input.nameProblem);
   if (input.confirm.trim() !== input.target) return fail("FORBIDDEN", `Type ${input.target} to confirm.`);
   const reason = input.overrideReason?.trim() || null;
   if (reason) {
@@ -103,25 +151,46 @@ export async function authorizeVercelLaunch(
   if (files.length === 0) return fail("NOTHING_TO_IMPORT", "This project has no files to launch.");
   const bytes = files.reduce((n, f) => n + Buffer.byteLength(f.content, "utf8"), 0);
   if (files.length > MAX_FILES || bytes > MAX_BYTES) return fail("PROJECT_TOO_LARGE", "This project is larger than a launch can send (3,000 files or 25 MB).");
+  const filesProblem = input.filesProblem?.(files.map((f) => f.path)) ?? null;
+  if (filesProblem) return fail("FORBIDDEN", filesProblem);
   const digest = await deployDigest(files);
 
-  const r = await deps.store.authorize({ orgId: person.orgId, actor: person.userId, projectId: input.projectId, provider: "vercel", key: input.key, target: input.target, digest, fileCount: files.length, bytes, overrideReason: reason });
+  const r = await deps.store.authorize({ orgId: person.orgId, actor: person.userId, projectId: input.projectId, provider: input.provider, key: input.key, target: input.target, digest, fileCount: files.length, bytes, overrideReason: reason });
   if (!r.ok) {
-    const known = AUTHORIZE_ERRORS.find(([code]) => r.error.includes(code));
+    const known = authorizeErrors(input.provider).find(([code]) => r.error.includes(code));
     return fail("FORBIDDEN", known ? known[1] : "The launch couldn't be authorized. Try again.");
   }
   const orderId = r.value;
   const order = await deps.store.order(person.orgId, orderId);
   // A repeated press finds the order already under way: it isn't started twice.
   if (order && order.status === "authorized" && order.filesDigest === digest) {
-    void runVercelLaunch(deps, { orgId: person.orgId, orderId, target: input.target, settings: input.settings, files }).catch((e) => {
-      log("error", "launch.crashed", { order: orderId, error: e instanceof Error ? e.message : String(e) });
+    void start({ orgId: person.orgId, orderId, files, digest }).catch((e) => {
+      log("error", "launch.crashed", { order: orderId, provider: input.provider, error: e instanceof Error ? e.message : String(e) });
     });
   }
   return { ok: true, value: { orderId } };
 }
 
-async function mapLimit<T, R>(items: readonly T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+/** Authorizes one launch to Vercel, and starts it in the background. */
+export function authorizeVercelLaunch(
+  deps: LaunchDeps,
+  person: LaunchPerson,
+  input: { projectId: string; key: string; target: string; confirm: string; overrideReason: string | null; plan: Pick<LaunchPlan, "kind" | "build" | "output">; settings: VercelSettings },
+): Promise<WriteResult<{ orderId: string }>> {
+  return authorizeLaunch(
+    deps,
+    person,
+    {
+      ...input,
+      provider: "vercel",
+      unfit: vercelFit(input.plan),
+      nameProblem: VERCEL_NAME.test(input.target) ? null : "Use lowercase letters, numbers and hyphens for the Vercel project name.",
+    },
+    (run) => runVercelLaunch(deps, { orgId: run.orgId, orderId: run.orderId, target: input.target, settings: input.settings, files: run.files }),
+  );
+}
+
+export async function mapLimit<T, R>(items: readonly T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array(items.length);
   let next = 0;
   await Promise.all(
@@ -135,36 +204,44 @@ async function mapLimit<T, R>(items: readonly T[], limit: number, fn: (item: T) 
   return out;
 }
 
+/** The provider's token and team for this workspace, opened on this server, or null when it can't be. */
+export async function openProviderToken(deps: LaunchDeps, orgId: string, provider: LaunchProvider): Promise<{ token: string; teamId: string | null } | null> {
+  const connection = await deps.store.sealedToken(orgId, provider);
+  const token = connection && deps.key ? openToken(connection.sealed, deps.key, { orgId, provider }) : null;
+  return connection && token ? { token, teamId: connection.teamId } : null;
+}
+
+/** Records a failed launch in words, and says so if even that couldn't be recorded. */
+export async function failLaunch(deps: LaunchDeps, id: string, message: string): Promise<"failed"> {
+  const r = await deps.store.update({ id, status: "failed", failure: message });
+  if (!r.ok) log("warn", "launch.update_failed", { order: id, error: r.error });
+  return "failed";
+}
+
 /** Carries out an authorized launch. Exported for tests; authorizeVercelLaunch runs it in the background. */
 export async function runVercelLaunch(
   deps: LaunchDeps,
   input: { orgId: string; orderId: string; target: string; settings: VercelSettings; files: { path: string; content: string }[] },
 ): Promise<"ready" | "failed" | "building"> {
   const id = input.orderId;
-  const failed = async (message: string) => {
-    const r = await deps.store.update({ id, status: "failed", failure: message });
-    if (!r.ok) log("warn", "launch.update_failed", { order: id, error: r.error });
-    return "failed" as const;
-  };
-  const connection = await deps.store.sealedToken(input.orgId, "vercel");
-  const token = connection && deps.key ? openToken(connection.sealed, deps.key, { orgId: input.orgId, provider: "vercel" }) : null;
-  if (!connection || !token) return failed("The Vercel token can't be opened on this server any more. Connect Vercel again, then launch.");
-  const vercel = deps.vercel(token, connection.teamId);
+  const opened = await openProviderToken(deps, input.orgId, "vercel");
+  if (!opened) return failLaunch(deps, id, "The Vercel token can't be opened on this server any more. Connect Vercel again, then launch.");
+  const vercel = deps.vercel(opened.token, opened.teamId);
 
   await deps.store.update({ id, status: "uploading" });
   let uploaded: { file: string; sha: string; size: number }[];
   try {
     const results = await mapLimit(input.files, UPLOADS_AT_ONCE, async (f) => ({ path: f.path, r: await vercel.uploadFile(Buffer.from(f.content, "utf8")) }));
     const bad = results.find((x) => !x.r.ok);
-    if (bad && !bad.r.ok) return failed(`${bad.path} didn't upload: ${bad.r.message}`);
+    if (bad && !bad.r.ok) return failLaunch(deps, id, `${bad.path} didn't upload: ${bad.r.message}`);
     uploaded = results.map((x) => ({ file: x.path, ...(x.r as { ok: true; value: { sha: string; size: number } }).value }));
   } catch (e) {
     log("error", "launch.upload_crashed", { order: id, error: e instanceof Error ? e.message : String(e) });
-    return failed("The files couldn't be sent to Vercel. Try again.");
+    return failLaunch(deps, id, "The files couldn't be sent to Vercel. Try again.");
   }
 
   const created = await vercel.createDeployment({ name: input.target, files: uploaded, settings: input.settings });
-  if (!created.ok) return failed(created.message);
+  if (!created.ok) return failLaunch(deps, id, created.message);
   const inspector = created.value.inspectorUrl?.startsWith("https://vercel.com/") ? created.value.inspectorUrl : null;
   await deps.store.update({ id, status: "building", deploymentId: created.value.id, url: publicAddress(created.value), inspectorUrl: inspector });
 
@@ -196,15 +273,14 @@ async function followVercelLaunch(deps: LaunchDeps, vercel: VercelClient, input:
   }
 }
 
-/** Looks once at a launch still building, for the page, when the background follow has stopped (a restart). */
+/** Looks once at a Vercel launch still building, for the page, when the background follow has stopped (a restart). */
 export async function refreshVercelLaunch(deps: LaunchDeps, orgId: string, orderId: string): Promise<void> {
   const order = await deps.store.order(orgId, orderId);
   if (!order || order.status !== "building" || !order.deploymentId) return;
   if (Date.now() - Date.parse(order.updatedAt) < 15_000) return;
-  const connection = await deps.store.sealedToken(orgId, "vercel");
-  const token = connection && deps.key ? openToken(connection.sealed, deps.key, { orgId, provider: "vercel" }) : null;
-  if (!connection || !token) return;
-  await followVercelLaunch(deps, deps.vercel(token, connection.teamId), { id: orderId, deploymentId: order.deploymentId, until: 0 });
+  const opened = await openProviderToken(deps, orgId, "vercel");
+  if (!opened) return;
+  await followVercelLaunch(deps, deps.vercel(opened.token, opened.teamId), { id: orderId, deploymentId: order.deploymentId, until: 0 });
 }
 
 /** SHA-256 of a file's text, as the launch digest names it. */

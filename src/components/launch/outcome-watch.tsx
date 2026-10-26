@@ -51,7 +51,7 @@ export function OutcomeWatch({ projectId, watch, disabledReason }: { projectId: 
             Outcome watch
           </h2>
           <p className="mt-1 max-w-[68ch] text-sm leading-relaxed text-ink-2">
-            Farbaek checks what&apos;s live every hour: the Farbaek Site against exactly the version that should be live, or the latest Vercel launch&apos;s address. Two failed checks in a
+            Farbaek checks what&apos;s live every hour: the Farbaek Site against exactly the version that should be live, or the address of the latest launch to Vercel or Netlify. Two failed checks in a
             row mean it&apos;s down, and whoever turned the watch on hears by email and on their devices, then again when it&apos;s back.
           </p>
         </div>

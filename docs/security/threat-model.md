@@ -283,6 +283,15 @@ Known limits: public repositories only. Private ones need a GitHub connection, w
 | Launching | Deploying without evidence; double deploys; deploying other files than shown | One order per key, for exactly the digest of the current files, under `private.launch_evidence` with an owner's or admin's reason when not verified; one launch per project at a time; the project name typed to confirm | `tests/db/provider-launches.test.ts`, `provider-launch.test.ts` |
 | Server requests | SSRF through stored or returned addresses | Calls go only to api.vercel.com, without following redirects; only https `*.vercel.app` addresses are stored, linked or fetched for the live check | `vercel.test.ts`, `vercel-client.test.ts` |
 
+## LaunchOS with Netlify (2026-10-26, ADR 0093)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| Customers' Netlify tokens | The same as Vercel's; a sealed Vercel token opened as Netlify's | The same vault, with the provider in the associated data, so a token sealed for one provider doesn't open as another's; the email behind a token is never stored | `netlify-launch.test.ts`, `netlify-client.test.ts`, `tests/db/netlify-launches.test.ts` |
+| Addresses | A Netlify order pointing at Vercel, a lookalike domain or plain http, then linked or fetched | The database holds each provider's orders to its own domain (`*.netlify.app`, `app.netlify.com`); `launchAddress` and `inspectorAddress` refuse anything else before a link or a check; the address is built from the validated site name | `tests/db/netlify-launches.test.ts`, SE-030, `netlify.test.ts` |
+| Calls to Netlify | SSRF; a file uploaded to a path Farbaek didn't choose | Calls go only to api.netlify.com, without following redirects; each path segment is escaped; only files Farbaek sent are uploaded, and a request for any other fails the launch | `netlify-client.test.ts`, `netlify-launch.test.ts` |
+| Claiming it's live | A ready deploy shown as live while the site still serves another | Ready counts only when the site's published deploy is this one; a locked site fails the order with that reason | `netlify-launch.test.ts` |
+
 ## Installable app and push notifications (2026-10-25, ADR 0079)
 
 | Boundary | Threats | Enforcement (built) | Tested by |

@@ -267,6 +267,13 @@ export const EVAL_SCENARIOS: readonly EvalScenario[] = [
     asserts: "A governed workflow starts no step before an owner or admin approves it, while agents are paused, past a checkpoint no person released, or after it's cancelled, and no browser can move it on.",
     file: "database.test.ts",
   },
+  {
+    id: "SE-030",
+    title: "A launch address outside the host's own domain",
+    risks: ["LLM05", "ASI02"],
+    asserts: "A launch's public address and its link to the host stay on that host's own domain: the database refuses a Netlify launch pointing at Vercel, a lookalike domain or plain http, and Farbaek won't link to or check such an address.",
+    file: "database.test.ts",
+  },
 ];
 
 /** What isn't tested for each risk, and the reason when a risk doesn't apply. */

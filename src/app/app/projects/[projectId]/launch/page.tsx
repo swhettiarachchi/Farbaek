@@ -20,12 +20,16 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { Card, PageHeader } from "@/components/app/primitives";
 import { LiveCheck } from "@/components/launch/live-check";
-import { VercelPanel } from "@/components/launch/vercel-panel";
+import { NETLIFY_BUILDS, vercelBuilds } from "@/components/launch/provider-copy";
+import { ProviderPanel } from "@/components/launch/provider-panel";
 import { OutcomeWatch } from "@/components/launch/outcome-watch";
 import { readWatch, type WatchView } from "@/server/launch/watch-store";
+import { netlifyFit, netlifyPathProblem, netlifySiteName } from "@/core/launch/netlify";
 import { deployDigest, vercelFit, vercelProjectName, vercelSettings } from "@/core/launch/vercel";
-import { NO_VAULT, fileSha256, refreshVercelLaunch } from "@/server/launch/provider-launch";
-import { listLaunchOrders, readConnection, type ConnectionView, type LaunchOrderView } from "@/server/launch/provider-store";
+import { NO_VAULT, fileSha256 } from "@/server/launch/provider-launch";
+import { listLaunchOrders, readConnections, type ConnectionView, type LaunchOrderView, type Provider } from "@/server/launch/provider-store";
+import { refreshLaunch } from "@/server/launch/refresh";
+import { LAUNCH_PROVIDERS, type LaunchProvider } from "@/core/launch/providers";
 import { launchDeps } from "@/server/launch/provider-wiring";
 import { vaultKey } from "@/server/launch/token-vault";
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES } from "@/server/workspace/types";
@@ -71,6 +75,8 @@ function Command({ label, value }: { label: string; value: PlanCommand | null })
   );
 }
 
+const isLaunchProvider = (id: string): id is LaunchProvider => (LAUNCH_PROVIDERS as readonly string[]).includes(id);
+
 export default async function LaunchPage({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = await params;
   const ctx = await loadAppContext();
@@ -80,23 +86,25 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
   const user = ctx.mode === "live" ? await createSupabaseServerClient() : null;
   const { plan, publish, evidence: proof, checks } = await loadLaunchPage(ctx, user, project);
 
-  // LaunchOS with Vercel (ADR 0078): exactly the files a launch would send, the connection, and the launches so far.
+  // LaunchOS with your own Vercel or Netlify account (ADR 0078, ADR 0093): exactly the files a launch would send, the connections, and the launches so far.
   const orgId = ctx.current.id;
   const contents = await ctx.reader.getProjectContents(orgId, project.id);
   const deployFiles = { count: contents.length, bytes: contents.reduce((n, f) => n + Buffer.byteLength(f.content, "utf8"), 0), digest: await deployDigest(contents.map((f) => ({ path: f.path, sha256: fileSha256(f.content) }))) };
-  let connection: ConnectionView | null = null;
+  let connections: Partial<Record<Provider, ConnectionView>> = {};
   let orders: LaunchOrderView[] = [];
   let watch: WatchView | null = null;
   if (user) {
     watch = await readWatch(user, orgId, project.id).catch(() => null);
-    [connection, orders] = await Promise.all([readConnection(user, orgId, "vercel").catch(() => null), listLaunchOrders(user, orgId, project.id).catch(() => [])]);
+    [connections, orders] = await Promise.all([readConnections(user, orgId).catch(() => ({})), listLaunchOrders(user, orgId, project.id).catch(() => [])]);
     const building = orders.find((o) => o.status === "building");
     const deps = building ? launchDeps(ctx) : null;
     if (building && deps) {
-      await refreshVercelLaunch(deps, orgId, building.id).catch(() => undefined);
+      await refreshLaunch(deps, orgId, building).catch(() => undefined);
       orders = await listLaunchOrders(user, orgId, project.id).catch(() => orders);
     }
   }
+  // One launch runs at a time per project, whichever provider it went to.
+  const busy = orders.some((o) => o.status === "authorized" || o.status === "uploading" || o.status === "building");
   const canManage = ctx.role !== null && MANAGER_ROLES.includes(ctx.role);
   const readOnly = ctx.mode === "demo" ? "The demo workspace is read-only." : ctx.writes.enabled ? null : ctx.writes.reason;
   const connectReason = readOnly ?? (!canManage ? "Only an owner or admin can connect a hosting account." : vaultKey() ? null : NO_VAULT);
@@ -328,7 +336,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
           <h2 id="where-title" className="text-lg font-medium">
             Where it can go
           </h2>
-          <p className="mt-1 text-sm text-ink-2">Farbaek Sites works today, and Vercel connects below with your own account. The others aren&apos;t connected yet. Farbaek charges nothing here.</p>
+          <p className="mt-1 text-sm text-ink-2">Farbaek Sites works today, and Vercel and Netlify connect below with your own accounts. The others aren&apos;t connected yet. Farbaek charges nothing here.</p>
         </div>
         <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <li className={`grid gap-2 rounded-md border p-5 ${sitesDestination.available ? "border-accent/30 bg-accent/[0.04] shadow-e1" : "border-line bg-surface"}`}>
@@ -346,42 +354,57 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
             </span>
             <span className="text-sm text-ink-2">{sitesDestination.suits}</span>
           </li>
-          {providers.map((p) => (
-            <li key={p.id} className={`grid gap-2 rounded-md border bg-surface p-5 ${p.id === "vercel" && connection ? "border-verified/30 shadow-e1" : "border-dashed border-line-strong/50"}`}>
-              <span className="flex items-center justify-between gap-2">
-                <span className="font-medium text-ink">{p.name}</span>
-                {p.id === "vercel" && connection ? (
-                  <span className="inline-flex items-center gap-1 text-xs font-medium text-verified">
-                    <CheckCircleIcon size={14} weight="fill" aria-hidden /> Connected
-                  </span>
+          {providers.map((p) => {
+            const connectable = isLaunchProvider(p.id);
+            const connection = isLaunchProvider(p.id) ? (connections[p.id] ?? null) : null;
+            return (
+              <li key={p.id} className={`grid content-start gap-2 rounded-md border bg-surface p-5 ${connection ? "border-verified/30 shadow-e1" : "border-dashed border-line-strong/50"}`}>
+                <span className="flex items-center justify-between gap-2">
+                  <span className="font-medium text-ink">{p.name}</span>
+                  {connection ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-verified">
+                      <CheckCircleIcon size={14} weight="fill" aria-hidden /> Connected
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-xs text-ink-3">
+                      <CircleDashedIcon size={14} aria-hidden /> Not connected
+                    </span>
+                  )}
+                </span>
+                <span className="text-sm text-ink-2">{p.suits}</span>
+                {connectable ? (
+                  <a href={`#launch-${p.id}`} className="-my-3 inline-flex min-h-11 w-fit items-center py-3 text-xs font-medium text-accent hover:underline">
+                    {connection ? `As ${connection.accountName}. Launch it below.` : "Connect your own account below."}
+                  </a>
                 ) : (
-                  <span className="inline-flex items-center gap-1 text-xs text-ink-3">
-                    <CircleDashedIcon size={14} aria-hidden /> Not connected
-                  </span>
+                  <span className="text-xs text-ink-3">{p.reason}</span>
                 )}
-              </span>
-              <span className="text-sm text-ink-2">{p.suits}</span>
-              <span className="text-xs text-ink-3">{p.id === "vercel" ? (connection ? `As ${connection.accountName}. Launch it below.` : "Connect your own account below.") : p.reason}</span>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       </section>
 
-      <VercelPanel
-        projectId={project.id}
-        launchKey={crypto.randomUUID()}
-        target={vercelProjectName(project.name)}
-        connection={connection}
-        orders={orders}
-        files={deployFiles}
-        evidence={proof.status}
-        settings={vercelSettings(plan)}
-        unfit={vercelFit(plan)}
-        connectReason={connectReason}
-        launchReason={launchReason ?? withheldFor(ctx.role, ctx.permissions, "publish")}
-        canOverride={canManage}
-        canDisconnect={canManage && !readOnly}
-      />
+      {LAUNCH_PROVIDERS.map((provider) => (
+        <ProviderPanel
+          key={provider}
+          provider={provider}
+          projectId={project.id}
+          launchKey={crypto.randomUUID()}
+          target={provider === "netlify" ? netlifySiteName(project.name) : vercelProjectName(project.name)}
+          connection={connections[provider] ?? null}
+          orders={orders.filter((o) => o.provider === provider)}
+          busy={busy}
+          files={deployFiles}
+          evidence={proof.status}
+          builds={provider === "netlify" ? NETLIFY_BUILDS : vercelBuilds(vercelSettings(plan))}
+          unfit={provider === "netlify" ? (netlifyFit(plan) ?? netlifyPathProblem(contents.map((f) => f.path))) : vercelFit(plan)}
+          connectReason={connectReason}
+          launchReason={launchReason ?? withheldFor(ctx.role, ctx.permissions, "publish")}
+          canOverride={canManage}
+          canDisconnect={canManage && !readOnly}
+        />
+      ))}
 
       <OutcomeWatch projectId={project.id} watch={watch} disabledReason={launchReason} />
 

@@ -12,6 +12,7 @@
 import { createHash } from "node:crypto";
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { inspectorAddress, launchAddress } from "@/core/launch/providers";
 import { compileRuleSet, parseRuleSet, ruleSetHash } from "@/core/trust/workspace-rules";
 import { USERS, as, createOrg, createTestDb } from "../db/harness";
 
@@ -336,5 +337,24 @@ describe("SE-029 A workflow running past its approval", () => {
     expect(await claim(wf)).toBe("cancelled");
     // And a browser can't move a workflow on at all.
     await expect(asUser(USERS.alice, "select public.app_workflow_claim_next($1)", [wf])).rejects.toThrow(/permission denied/);
+  });
+});
+
+describe("SE-030 A launch address outside the host's own domain", () => {
+  it("keeps a Netlify launch's address and link on Netlify, in the database and before Farbaek links to it", async () => {
+    await admin("update public.launch_orders set status = 'failed', failure = 'x', finished_at = now() where project_id = $1 and status not in ('ready', 'failed')", [projectB]);
+    await q("select public.app_connect_provider($1, $2, 'netlify', 'acc_1', 'Bob', null, $3, null)", [orgB, USERS.bob, `v1.k1.${"A".repeat(60)}`]);
+    const order = (await q<{ id: string }>("select public.app_authorize_launch($1, $2, $3, 'netlify', $4, 'ledger', $5, 1, 10, 'Evaluating launch addresses here.') as id", [orgB, USERS.bob, projectB, crypto.randomUUID(), H("d")]))[0]!.id;
+    const update = (url: string | null, inspector: string | null) => q("select public.app_update_launch_order($1, 'building', 'dep_1', $2, $3, null)", [order, url, inspector]);
+    for (const url of ["https://ledger.vercel.app", "https://ledger.netlify.app.evil.example", "http://ledger.netlify.app", "https://evil.example"]) {
+      await expect(update(url, null)).rejects.toThrow(/launch_orders_url_check/);
+      expect(launchAddress("netlify", url)).toBeNull();
+    }
+    for (const link of ["https://vercel.com/bob/ledger", "https://app.netlify.com.evil.example/x"]) {
+      await expect(update(null, link)).rejects.toThrow(/launch_orders_inspector_url_check/);
+      expect(inspectorAddress("netlify", link)).toBeNull();
+    }
+    await update("https://ledger.netlify.app", "https://app.netlify.com/sites/ledger/deploys/dep_1");
+    expect(launchAddress("netlify", "https://ledger.netlify.app")).toBe("https://ledger.netlify.app");
   });
 });

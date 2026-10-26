@@ -51,3 +51,5 @@ States only move forward, and a finished order doesn't change.
 - Projects with a server can go live from Farbaek, on the customer's own account, under the same evidence rule as Farbaek Sites.
 - Farbaek holds customers' Vercel tokens, encrypted. Disconnecting deletes the token; the screen also suggests deleting it in Vercel.
 - Netlify, Render, Railway and Fly.io stay "Not connected". Each would be another adapter behind the same orders.
+
+**Addendum (2026-10-26):** Netlify is now the second provider, for static projects, behind the same connections and orders (ADR 0093, migration v59). The panel, forms and actions are provider-neutral.
