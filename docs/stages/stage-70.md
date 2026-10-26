@@ -78,6 +78,12 @@ Spec §11, "Direct Remote" and the "Optional Secure Relay". Until now, two paire
   - no pairing through the relay;
   - unreachable, then delivered.
 - **`pnpm security:eval`:** 31 scenarios, 31 passed.
+- **Migration v60** applied in production after its hash check. The columns read back, no browser role can run the three functions, and `mesh_relay_days` has row security.
+- **Agent app 0.3.0,** driven over DevTools with a scratch data folder:
+  - the Nearby intro;
+  - the "Through Farbaek" card with its meaning and the unpaired reason;
+  - nothing pairs or connects without a Farbaek pairing.
+- **Demo build, Mesh page:** the card at 1280 and 375. `qa:a11y`: 2 views, 0 findings. `qa:responsive`: 11 views, 0 findings.
 
 ### Not verified
 
