@@ -42,6 +42,14 @@ export const TIER_MODELS: Record<ModelFamily, Record<Tier, ModelId>> = {
   gemini: { fast: "gemini-3.5-flash-lite", standard: "gemini-3.8-flash", strong: "gemini-4-argon", frontier: "gemini-4-argon" },
 };
 
+/** A tier switched to another priced model at runtime (ADR 0090). Applies to Anthropic only. */
+export type TierOverrides = Partial<Record<Tier, ModelId>>;
+
+/** The models each tier routes to, with Farbaek's runtime switches applied. */
+export function tierModels(family: ModelFamily, overrides?: TierOverrides): Record<Tier, ModelId> {
+  return family === "anthropic" && overrides ? { ...TIER_MODELS.anthropic, ...overrides } : TIER_MODELS[family];
+}
+
 /** The most capable tier a plan includes. */
 export function maxTier(plan: EffectivePlan): Tier {
   const features = getPlan(plan.planId).features;
@@ -54,9 +62,10 @@ const rank = (t: Tier) => TIERS.indexOf(t);
 const cap = (t: Tier, max: Tier): Tier => (rank(t) > rank(max) ? max : t);
 
 /** The models a plan may use, cheapest first, without duplicates. */
-export function allowedModels(plan: EffectivePlan, family: ModelFamily): ModelId[] {
+export function allowedModels(plan: EffectivePlan, family: ModelFamily, overrides?: TierOverrides): ModelId[] {
   const max = maxTier(plan);
-  return [...new Set(TIERS.filter((t) => rank(t) <= rank(max)).map((t) => TIER_MODELS[family][t]))];
+  const models = tierModels(family, overrides);
+  return [...new Set(TIERS.filter((t) => rank(t) <= rank(max)).map((t) => models[t]))];
 }
 
 /** The tier a step needs at an effort, before the plan's cap. */
@@ -77,6 +86,8 @@ export interface RouteInput {
   pinned?: string | null;
   /** Failed attempts at this step in a row. */
   failures?: number;
+  /** Farbaek's runtime switches (ADR 0090). */
+  overrides?: TierOverrides;
 }
 
 export interface RouteChoice {
@@ -91,21 +102,22 @@ export interface RouteChoice {
 export function route(input: RouteInput): RouteChoice {
   const max = maxTier(input.plan);
   const thinking = input.effort === "fast" ? "low" : input.effort === "deep" ? "high" : "medium";
-  const allowed = allowedModels(input.plan, input.family);
+  const allowed = allowedModels(input.plan, input.family, input.overrides);
+  const models = tierModels(input.family, input.overrides);
 
   if (input.pinned) {
-    const pinTier = TIERS.find((t) => TIER_MODELS[input.family][t] === input.pinned);
+    const pinTier = TIERS.find((t) => models[t] === input.pinned);
     const canPin = rank(max) >= rank("strong");
-    if (pinTier && canPin && allowed.includes(TIER_MODELS[input.family][pinTier])) {
-      return { model: TIER_MODELS[input.family][pinTier], tier: pinTier, thinking, note: null };
+    if (pinTier && canPin && allowed.includes(models[pinTier])) {
+      return { model: models[pinTier], tier: pinTier, thinking, note: null };
     }
     const tier = cap(wantedTier(input.step, input.effort, input.failures ?? 0), max);
     const why = canPin ? "isn't included in this plan" : "can be chosen from the Pro plan up";
-    return { model: TIER_MODELS[input.family][tier], tier, thinking, note: `That model ${why}, so Farbaek chose one for you.` };
+    return { model: models[tier], tier, thinking, note: `That model ${why}, so Farbaek chose one for you.` };
   }
 
   const wanted = wantedTier(input.step, input.effort, input.failures ?? 0);
   const tier = cap(wanted, max);
   const note = max === "fast" && rank(wanted) > rank(max) ? "Free uses fast models. Paid plans use stronger ones for writing code." : null;
-  return { model: TIER_MODELS[input.family][tier], tier, thinking, note };
+  return { model: models[tier], tier, thinking, note };
 }

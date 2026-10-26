@@ -57,6 +57,7 @@ export async function verificationDeps(person: { orgId: string; userId: string; 
       newKey: () => crypto.randomUUID(),
       // Tells the person how the checks ended (ADR 0060); null while email is off.
       notify: serverNotifier(),
+      afterChecks: async (taskId) => (await import("@/server/workflows/wiring")).settleWorkflowStep(taskId),
     },
   };
 }

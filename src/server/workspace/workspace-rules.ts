@@ -17,7 +17,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { route } from "@/core/agent/routing";
+import { routeModel } from "@/server/ai/routing";
 import { checkFeature } from "@/core/billing/entitlements";
 import { approxTokens, reserveUnits } from "@/core/billing/rate-card";
 import { resolveEffectivePlan } from "@/core/billing/trial";
@@ -174,7 +174,7 @@ export async function draftRules(
 
   const billing = await resolvePlan(deps, input.orgId);
   if (!billing.ok) return billing;
-  const drafter = source.create(route({ plan: billing.value.plan, family: source.family, step: "review", effort: "balanced" }));
+  const drafter = source.create(routeModel({ plan: billing.value.plan, family: source.family, step: "review", effort: "balanced" }));
   const message = { request, folders: foldersOf(await deps.projectPaths(input.orgId)) };
   const units = reserveUnits(drafter.model, approxTokens(POLICY_DRAFTER_SYSTEM_PROMPT) + approxTokens(policyDraftMessage(message)) + 300, drafter.maxOutputTokens);
   const reserved = await reserveUsage(deps, { orgId: input.orgId, userId: input.userId, taskId: null, operation: "policy_draft", units, manual: MANUAL_RULES, billing: billing.value });

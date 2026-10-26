@@ -78,6 +78,8 @@ export interface ExecutorDeps {
   applyWithinLimits(input: { orgId: string; userId: string; proposalId: string }): Promise<{ ok: true } | { ok: false; message: string }>;
   /** Emails the person who started the run once it ends (ADR 0060); null or absent when email is off. */
   notify?: Pick<Notifier, "buildFinished"> | null;
+  /** After the run ends, so a governed workflow can record its step and carry on (ADR 0092). */
+  afterRun?: (taskId: string) => Promise<void>;
   /** Overrides the model, for tests. */
   makeModel?(input: { taskId: string; effort: Effort; step: (r: ModelStepRequest, signal?: AbortSignal) => Promise<ModelStepReply> }): ToolModel;
   workRoot?: string;
@@ -507,6 +509,7 @@ async function execute(
       const end: { status: "finished" | "failed" | "cancelled"; outcome: string } = ended;
       await deps.notify.buildFinished({ userId: person.userId, taskId: r.task.id, taskTitle: r.task.title, ...end }).catch(() => undefined);
     }
+    if (ended && deps.afterRun) await deps.afterRun(r.task.id).catch(() => undefined);
     await fs.rm(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 }).catch(() => undefined);
   }
 }

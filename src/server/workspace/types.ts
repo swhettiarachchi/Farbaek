@@ -16,6 +16,8 @@ import type { VerificationRecord } from "@/core/realityloop/verification";
 import type { FirstStepFacts } from "@/core/workspace/first-steps";
 import type { RehearsalRow } from "@/core/trust/rehearsal";
 import type { ShadowDecision } from "@/core/trust/policy";
+import type { ProjectGraphRecords } from "@/core/insights/project-graph";
+import type { WorkflowView } from "@/core/realityloop/workflow";
 import type { WithheldPermissions } from "@/core/workspace/permissions";
 
 export const ORG_ROLES = ["owner", "admin", "member", "viewer"] as const;
@@ -345,4 +347,9 @@ export interface WorkspaceReader {
   listInvitations(orgId: string): Promise<InvitationRecord[]>;
   /** The workspace's paired agents, revoked ones included, newest first. */
   listAgents(orgId: string): Promise<AgentRecord[]>;
+  /** The records behind a project's graph (ADR 0089): its newest tasks and their evidence. */
+  getProjectGraph(orgId: string, projectId: string): Promise<ProjectGraphRecords>;
+  /** Governed workflows (ADR 0092), newest first. */
+  listWorkflows(orgId: string): Promise<WorkflowView[]>;
+  getWorkflow(orgId: string, id: string): Promise<WorkflowView | null>;
 }

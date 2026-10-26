@@ -57,3 +57,13 @@ describe("Auto routing", () => {
     expect(route({ plan: pro, family: "gemini", step: "write", effort: "deep" }).model).toBe("gemini-4-argon");
   });
 });
+
+describe("Farbaek's runtime switches (ADR 0090)", () => {
+  it("route a tier to its switched model, for Anthropic only, within the plan", () => {
+    const overrides = { standard: "claude-opus-5-5" as const };
+    expect(route({ plan: pro, family: "anthropic", step: "write", effort: "balanced", overrides })).toMatchObject({ model: "claude-opus-5-5", tier: "standard" });
+    expect(route({ plan: pro, family: "anthropic", step: "read", effort: "balanced", overrides }).model).toBe("claude-haiku-5-5");
+    expect(allowedModels(plus, "anthropic", overrides)).toEqual(["claude-haiku-5-5", "claude-opus-5-5"]);
+    expect(route({ plan: pro, family: "gemini", step: "write", effort: "balanced", overrides }).model).toBe("gemini-3.8-flash");
+  });
+});

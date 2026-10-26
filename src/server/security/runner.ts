@@ -13,7 +13,7 @@
  * when someone next looks.
  */
 import { checkFeature } from "@/core/billing/entitlements";
-import { route } from "@/core/agent/routing";
+import { routeModel } from "@/server/ai/routing";
 import { approxTokens, reserveUnits } from "@/core/billing/rate-card";
 import { parseNpmAudit } from "@/core/security/audit";
 import type { Finding } from "@/core/security/findings";
@@ -142,7 +142,7 @@ async function aiReview(
   if (chosen.length === 0) return { ok: false, reason: "There's no code to review.", model: null };
   const billing = await resolvePlan(deps.usage, person.orgId);
   if (!billing.ok) return { ok: false, reason: billing.message, model: null };
-  const reviewer = source.create(route({ plan: billing.value.plan, family: source.family, step: "review", effort: "balanced" }));
+  const reviewer = source.create(routeModel({ plan: billing.value.plan, family: source.family, step: "review", effort: "balanced" }));
   const units = reserveUnits(reviewer.model, approxTokens(SECURITY_REVIEW_SYSTEM_PROMPT) + approxTokens(reviewMessage(chosen)) + 1_500, reviewer.maxOutputTokens);
   const reserved = await reserveUsage(deps.usage, { orgId: person.orgId, userId: person.userId, taskId: null, operation: "security_review", units, manual: "Farbaek's rules and the package audit still ran.", billing: billing.value });
   if (!reserved.ok) return { ok: false, reason: reserved.message, model: reviewer.model };

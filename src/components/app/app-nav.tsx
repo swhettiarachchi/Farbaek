@@ -5,6 +5,7 @@ import {
   CheckSquareOffsetIcon,
   DesktopIcon,
   DotsThreeOutlineIcon,
+  FlowArrowIcon,
   FolderSimpleIcon,
   GearSixIcon,
   HouseSimpleIcon,
@@ -43,6 +44,7 @@ const PRIMARY: NavItem[] = [
 ];
 
 const SECONDARY: NavItem[] = [
+  { href: "/app/workflows", label: "Workflows", short: "Workflows", icon: FlowArrowIcon },
   { href: "/app/policies", label: "Policies", short: "Policies", icon: ShieldCheckIcon },
   { href: "/app/incidents", label: "Incidents", short: "Incidents", icon: SirenIcon },
   { href: "/app/billing", label: "Billing and usage", short: "Billing", icon: ChartPieSliceIcon },

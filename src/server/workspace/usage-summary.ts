@@ -1,5 +1,5 @@
 import type { ButtonOperation } from "@/config/usage";
-import { route } from "@/core/agent/routing";
+import { routeModel } from "@/server/ai/routing";
 import { usagePeriod, type BillingPeriod } from "@/core/billing/usage";
 import { meterState, percentUsed, type UsageMeter } from "@/core/billing/usage-view";
 import { currentGrant, walletView, type WalletView } from "@/core/billing/wallet";
@@ -64,14 +64,14 @@ export async function loadAiAvailability(ctx: AppContext, ws: WorkspaceSummary, 
   let needs = 1;
   if (usable && !ws.billingUnknown) {
     if (operation === "lens_mapping") {
-      const choice = route({ plan: ws.plan, family: "anthropic", step: "review", effort: "fast" });
+      const choice = routeModel({ plan: ws.plan, family: "anthropic", step: "review", effort: "fast" });
       needs = typicalUnits(operation, choice.model, LENS_MAX_OUTPUT_TOKENS);
     } else if (operation === "policy_draft") {
-      const choice = route({ plan: ws.plan, family: "anthropic", step: "review", effort: "balanced" });
+      const choice = routeModel({ plan: ws.plan, family: "anthropic", step: "review", effort: "balanced" });
       needs = typicalUnits(operation, choice.model, POLICY_DRAFT_MAX_OUTPUT_TOKENS);
     } else {
       // The model a Balanced run would use on this plan.
-      const choice = route({ plan: ws.plan, family: usable, step: operation === "contract_draft" ? "plan" : "write", effort: "balanced" });
+      const choice = routeModel({ plan: ws.plan, family: usable, step: operation === "contract_draft" ? "plan" : "write", effort: "balanced" });
       const model = operation === "contract_draft" ? createContractDrafter(usable, choice) : createChangeProposer(usable, choice);
       needs = typicalUnits(operation, model.model, model.maxOutputTokens);
     }

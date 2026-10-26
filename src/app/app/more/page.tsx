@@ -2,6 +2,7 @@ import {
   CaretRightIcon,
   ChartPieSliceIcon,
   DesktopIcon,
+  FlowArrowIcon,
   GearSixIcon,
   LifebuoyIcon,
   ListChecksIcon,
@@ -70,6 +71,12 @@ export default async function MorePage() {
         <li>
           <Link href="/app/mesh" className={`${row} hover:bg-canvas-2`}>
             <PackageIcon size={20} className="text-ink-2" aria-hidden /> Mesh
+            <CaretRightIcon size={16} className="ml-auto text-ink-3" aria-hidden />
+          </Link>
+        </li>
+        <li>
+          <Link href="/app/workflows" className={`${row} hover:bg-canvas-2`}>
+            <FlowArrowIcon size={20} className="text-ink-2" aria-hidden /> Workflows
             <CaretRightIcon size={16} className="ml-auto text-ink-3" aria-hidden />
           </Link>
         </li>

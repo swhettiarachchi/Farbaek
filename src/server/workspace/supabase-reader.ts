@@ -8,6 +8,8 @@ import { GRANT_COLUMNS, UsageGrantRowSchema, grantFromRow } from "./usage-store"
 import { readAutonomy } from "./autonomy";
 import { readRuleVersions } from "./workspace-rules";
 import { listIncidents, readIncident, readIncidentChanges } from "./incidents";
+import { readProjectGraph } from "@/server/insights/project-graph";
+import { readWorkflow, readWorkflows } from "@/server/workflows/read";
 import type { RehearsalRow } from "@/core/trust/rehearsal";
 import { VERIFICATION_SELECT, VerificationRow, verificationFromRow } from "@/server/verification/store";
 import {
@@ -490,6 +492,10 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
         .parse(data)
         .map((r) => ({ id: r.id, email: r.email, role: r.role, createdAt: r.created_at, expiresAt: r.expires_at, acceptedAt: r.accepted_at, acceptedBy: r.accepted_by, revokedAt: r.revoked_at, open: !r.accepted_at && !r.revoked_at && Date.parse(r.expires_at) > Date.now() }));
     },
+
+    getProjectGraph: (orgId, projectId) => readProjectGraph(client, orgId, projectId),
+    listWorkflows: (orgId) => readWorkflows(client, orgId),
+    getWorkflow: (orgId, id) => readWorkflow(client, orgId, id),
 
     async listAgents(orgId) {
       const { data, error } = await client

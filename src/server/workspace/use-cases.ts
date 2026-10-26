@@ -84,6 +84,10 @@ export type WriteErrorCode =
   | "AUTONOMY_DAILY_LIMIT"
   | "PERMISSION_WITHHELD"
   | "INVALID_PERMISSIONS"
+  | "INVALID_WORKFLOW"
+  | "WORKFLOW_CLOSED"
+  | "CONTRACTS_NOT_APPROVED"
+  | "NOT_AT_CHECKPOINT"
   | "UNKNOWN";
 
 export type WriteResult<T> = { ok: true; value: T } | { ok: false; code: WriteErrorCode; message: string };
@@ -208,6 +212,10 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   AUTONOMY_DAILY_LIMIT: "The workspace reached its daily limit of changes applied on their own. This change waits for a person.",
   PERMISSION_WITHHELD: "An owner or admin turned this off for you in this workspace. Ask one of them if you need it.",
   INVALID_PERMISSIONS: "Permissions are set for members only. Owners and admins have them all, and viewers have none.",
+  INVALID_WORKFLOW: "A workflow needs a title and 2 to 8 steps, each with a title of at least 3 characters.",
+  WORKFLOW_CLOSED: "This workflow has already moved on, so it can't do that any more. Reload the page.",
+  CONTRACTS_NOT_APPROVED: "Every step's contract has to be approved before the workflow can be.",
+  NOT_AT_CHECKPOINT: "The workflow isn't waiting at a checkpoint, so there's nothing to continue.",
   UNKNOWN: "Something went wrong and nothing was changed. Try again in a moment.",
 };
 
@@ -268,6 +276,10 @@ export function codeFromDatabaseError(message: string): WriteErrorCode {
     "AUTONOMY_DAILY_LIMIT",
     "PERMISSION_WITHHELD",
     "INVALID_PERMISSIONS",
+    "INVALID_WORKFLOW",
+    "WORKFLOW_CLOSED",
+    "CONTRACTS_NOT_APPROVED",
+    "NOT_AT_CHECKPOINT",
   ] as const) {
     if (message.includes(code)) return code;
   }
