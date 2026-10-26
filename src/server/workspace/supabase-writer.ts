@@ -7,6 +7,7 @@ import { WORKSPACE_LIMITS } from "@/config/workspace";
 import type { AiUsageDeps } from "./ai-usage";
 import { createUsageRpcs } from "./usage-store";
 import { IntentContractSchema } from "@/core/realityloop/contract";
+import { parsePermissions } from "@/core/workspace/permissions";
 import type { FileDeps } from "./files";
 import type { ProposalDeps } from "./proposals";
 import type { RecoveryDeps } from "./recovery";
@@ -18,8 +19,10 @@ import type { ProjectAdminDeps, RpcResult, WriteDeps } from "./use-cases";
 import type { SkillPinDeps } from "./skill-pins";
 import type { LensSuggestionDeps } from "./lens-suggestions";
 import type { AutonomyDeps } from "./autonomy";
+import type { MemberPermissionDeps } from "./member-permissions";
 import { signRecordedProofPack } from "@/server/proof/record";
 import { policyRecord } from "@/core/trust/policy";
+import { readActiveRules } from "./workspace-rules";
 
 /**
  * WriteDeps backed by Supabase. Reads use the signed-in user's client (Row
@@ -29,7 +32,7 @@ export function createSupabaseWriteDeps(
   user: SupabaseClient,
   admin: SupabaseClient,
   userId: string,
-): WriteDeps & AiUsageDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps & AgentAdminDeps & SkillPinDeps & LensSuggestionDeps & AutonomyDeps {
+): WriteDeps & AiUsageDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps & AgentAdminDeps & SkillPinDeps & LensSuggestionDeps & AutonomyDeps & MemberPermissionDeps {
   const reader = createSupabaseReader(user);
   async function rpc<T>(fn: string, args: Record<string, unknown>, schema: z.ZodType<T>): Promise<RpcResult<T>> {
     const { data, error } = await admin.rpc(fn, args);
@@ -44,6 +47,21 @@ export function createSupabaseWriteDeps(
       const parsed = z.object({ role: z.enum(ORG_ROLES) }).safeParse(data);
       return parsed.success ? parsed.data.role : null;
     },
+
+    async permissions(orgId) {
+      const { data, error } = await user.from("organization_members").select("permissions").eq("org_id", orgId).eq("user_id", userId).maybeSingle();
+      // Unreadable counts as withheld; the database decides again either way.
+      if (error || !data) return { approve: false, publish: false, run_agents: false };
+      return parsePermissions(data.permissions);
+    },
+
+    async member(orgId, memberId) {
+      const { data } = await user.from("organization_members").select("role, permissions").eq("org_id", orgId).eq("user_id", memberId).maybeSingle();
+      const parsed = z.object({ role: z.enum(ORG_ROLES), permissions: z.unknown() }).safeParse(data);
+      return parsed.success ? { role: parsed.data.role, permissions: parsePermissions(parsed.data.permissions) } : null;
+    },
+
+    setPermissions: (i) => rpc("app_set_member_permissions", { p_org: i.orgId, p_actor: i.actor, p_user: i.userId, p_permissions: i.permissions }, z.unknown()),
 
     async billing(orgId) {
       const { data, error } = await user.from("organizations").select(ORGANIZATION_SELECT).eq("id", orgId).maybeSingle();
@@ -179,7 +197,7 @@ export function createSupabaseWriteDeps(
     setAutonomy: (i) =>
       rpc(
         "app_set_autonomy",
-        { p_org: i.orgId, p_actor: i.actor, p_level: i.level, p_max_files: i.maxFiles, p_allow_creates: i.allowCreates, p_shadow: i.shadow },
+        { p_org: i.orgId, p_actor: i.actor, p_level: i.level, p_max_files: i.maxFiles, p_allow_creates: i.allowCreates, p_shadow: i.shadow, p_daily_limit: i.dailyLimit },
         z.null().or(z.literal("")).transform(() => null),
       ),
 
@@ -209,6 +227,8 @@ export function createSupabaseWriteDeps(
     },
 
     countEvaluations: (orgId, period) => reader.countEvaluations(orgId, period.start, period.end),
+
+    workspaceRules: (orgId) => readActiveRules(user, orgId),
 
     projectFiles: async (orgId, projectId) => (await reader.listFiles(orgId, projectId)).map((f) => ({ path: f.path, revision: f.revision, sizeBytes: f.sizeBytes })),
 

@@ -34,7 +34,7 @@ describe("SE-011 A dependency change applying on its own", () => {
   it("flags manifests and lockfiles in every ecosystem Farbaek knows, so they wait for an owner or admin", async () => {
     const manifests = ["package.json", "apps/web/package.json", "pnpm-lock.yaml", "package-lock.json", "yarn.lock", "bun.lockb", "requirements.txt", "poetry.lock", "pyproject.toml", "go.mod", "go.sum", "Cargo.toml", "Cargo.lock", "Gemfile", "Gemfile.lock", "composer.json", "composer.lock"];
     for (const path of manifests) {
-      const d = await evaluateChangePolicy({ files: [{ path, kind: "edit" }], contractViolations: [], autonomy: { level: 2, maxFiles: 5, allowCreates: true }, verifiable: true });
+      const d = await evaluateChangePolicy({ rules: null, files: [{ path, kind: "edit" }], contractViolations: [], autonomy: { level: 2, maxFiles: 5, allowCreates: true }, verifiable: true });
       expect(d.outcome, path).toBe("ESCALATE");
       expect(d.findings.some((f) => f.rule === "dependencies"), path).toBe(true);
     }

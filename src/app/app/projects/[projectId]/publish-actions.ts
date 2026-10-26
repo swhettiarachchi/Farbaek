@@ -11,6 +11,7 @@ import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { loadAppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
+import { may, withheldReason } from "@/core/workspace/permissions";
 
 export type PublishState = { status: "idle" } | { status: "error"; message: string } | { status: "done"; message: string };
 
@@ -37,6 +38,7 @@ export async function publishAction(_previous: PublishState, form: FormData): Pr
   if (!parsed.success) return { status: "error", message: "Reload the page and try again." };
   const w = await writer();
   if ("error" in w) return { status: "error", message: w.error! };
+  if (!may(w.ctx.role, w.ctx.permissions, "publish")) return { status: "error", message: withheldReason("publish") };
   const r = await publishSite(publishDeps(w.ctx, w.user, w.admin), {
     orgId: w.orgId,
     userId: w.ctx.user.id,
@@ -61,12 +63,13 @@ export async function setLiveAction(_previous: PublishState, form: FormData): Pr
   if (!parsed.success) return { status: "error", message: "Reload the page and try again." };
   const w = await writer();
   if ("error" in w) return { status: "error", message: w.error! };
+  if (!may(w.ctx.role, w.ctx.permissions, "publish")) return { status: "error", message: withheldReason("publish") };
   // The site is read through Row Level Security, so it must be this workspace's.
   const site = await getSite(w.user, w.orgId, parsed.data.projectId);
   if (!site) return { status: "error", message: "This project has no published site. Reload the page." };
   const offline = !parsed.data.deploymentId;
   const r = await setLiveDeployment(w.admin, { orgId: w.orgId, actor: w.ctx.user.id, siteId: site.id, deploymentId: parsed.data.deploymentId || null });
-  if (!r.ok) return { status: "error", message: r.error === "FORBIDDEN" ? "Your role can view this project but not publish it." : `Couldn't ${offline ? "take the site offline" : "make that version live"}. Reload the page and try again.` };
+  if (!r.ok) return { status: "error", message: r.error.includes("PERMISSION_WITHHELD") ? withheldReason("publish") : r.error === "FORBIDDEN" ? "Your role can view this project but not publish it." : `Couldn't ${offline ? "take the site offline" : "make that version live"}. Reload the page and try again.` };
   revalidatePath(`/app/projects/${parsed.data.projectId}`);
   return { status: "done", message: offline ? "The site is offline. It can take a few seconds to disappear everywhere." : "That version is live again. It can take a few seconds to appear everywhere." };
 }

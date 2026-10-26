@@ -11,7 +11,8 @@ import { VERCEL_NAME, deployDigest, publicAddress, statusFromReadyState, vercelF
 import { overrideReasonProblem } from "@/core/publish/evidence";
 import { log } from "@/server/observability/log";
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES, type OrgRole } from "@/server/workspace/types";
-import { fail, type WriteResult } from "@/server/workspace/use-cases";
+import { fail, requirePermission, type WriteResult } from "@/server/workspace/use-cases";
+import type { WithheldPermissions } from "@/core/workspace/permissions";
 import type { LaunchPlan } from "@/core/launch/planner";
 import type { LaunchStore } from "./provider-store";
 import { openToken, sealToken, type VaultKey } from "./token-vault";
@@ -33,6 +34,8 @@ export interface LaunchPerson {
   orgId: string;
   userId: string;
   role: OrgRole;
+  /** What an owner or admin turned off for them (ADR 0087). */
+  permissions: WithheldPermissions;
 }
 
 export const NO_VAULT = "Connecting hosting accounts isn't set up on this server yet.";
@@ -83,6 +86,8 @@ export async function authorizeVercelLaunch(
   input: { projectId: string; key: string; target: string; confirm: string; overrideReason: string | null; plan: Pick<LaunchPlan, "kind" | "build" | "output">; settings: VercelSettings },
 ): Promise<WriteResult<{ orderId: string }>> {
   if (!CONTRIBUTOR_ROLES.includes(person.role)) return fail("FORBIDDEN", "Viewers can't launch projects.");
+  const allowed = requirePermission(person.role, person.permissions, "publish");
+  if (!allowed.ok) return allowed;
   if (!deps.key) return fail("FORBIDDEN", NO_VAULT);
   const unfit = vercelFit(input.plan);
   if (unfit) return fail("FORBIDDEN", unfit);

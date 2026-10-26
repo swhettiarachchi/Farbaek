@@ -14,7 +14,8 @@ import type { AgentStore } from "@/server/agent/service";
 import { log } from "@/server/observability/log";
 import type { SandboxActor, SandboxService } from "@/server/sandbox/service";
 import { CONTRIBUTOR_ROLES, type OrgRole } from "@/server/workspace/types";
-import { codeFromDatabaseError, fail, type WriteResult } from "@/server/workspace/use-cases";
+import { codeFromDatabaseError, fail, requirePermission, type WriteResult } from "@/server/workspace/use-cases";
+import type { WithheldPermissions } from "@/core/workspace/permissions";
 import type { ArenaProposal, ArenaStore } from "./store";
 
 export type ArenaSandbox = Pick<SandboxService, "overview" | "createSession" | "runCommand" | "trialChecks" | "stopSession" | "writeFile">;
@@ -30,6 +31,8 @@ export interface ArenaPerson {
   orgId: string;
   userId: string;
   role: OrgRole;
+  /** What an owner or admin turned off for them (ADR 0087). */
+  permissions: WithheldPermissions;
 }
 
 /** Room for setup twice and two check passes; the database closes a trial left running after 30 minutes. */
@@ -49,6 +52,8 @@ export async function trialChecksFor(deps: Pick<ArenaDeps, "checks">, orgId: str
 
 export async function startArena(deps: ArenaDeps, person: ArenaPerson, proposalId: string): Promise<WriteResult<{ trialId: string }>> {
   if (!CONTRIBUTOR_ROLES.includes(person.role)) return fail("FORBIDDEN", "Viewers can't try changes. Ask a member, admin or owner.");
+  const allowed = requirePermission(person.role, person.permissions, "run_agents");
+  if (!allowed.ok) return allowed;
   if ("unavailable" in deps.sandbox) return fail("INVALID_TRANSITION", deps.sandbox.unavailable);
   const proposal = await deps.store.proposal(person.orgId, proposalId);
   if (!proposal) return fail("NOT_FOUND");

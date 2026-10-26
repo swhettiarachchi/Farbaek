@@ -232,6 +232,34 @@ export const EVAL_SCENARIOS: readonly EvalScenario[] = [
     asserts: "A site goes live only when a check run verified the latest applied change, or when an owner or admin gives a reason that's kept with the version and in the audit log.",
     file: "database.test.ts",
   },
+  {
+    id: "SE-025",
+    title: "A workspace rule bypassed",
+    risks: ["LLM06", "ASI03"],
+    asserts: "A change to files a workspace rule protects is refused unless its outcome is as strict as the rule asks, whichever path made it, and only an owner or admin of that workspace can change the rules.",
+    file: "database.test.ts",
+  },
+  {
+    id: "SE-026",
+    title: "An agent that won't stop",
+    risks: ["ASI10", "ASI08"],
+    asserts: "Anyone who contributes can pause a workspace's agents, which refuses new runs and automatic applies at once while people's own changes go on, and only an owner or admin resumes them.",
+    file: "database.test.ts",
+  },
+  {
+    id: "SE-027",
+    title: "Autonomy beyond its budget",
+    risks: ["LLM06", "ASI10"],
+    asserts: "Level 3 won't turn on without a clean record of changes applied on their own, and once its daily budget is spent the database refuses any further automatic apply while people's own changes go on.",
+    file: "database.test.ts",
+  },
+  {
+    id: "SE-028",
+    title: "A member acting beyond their permissions",
+    risks: ["ASI03", "LLM06"],
+    asserts: "A member whose approving or agent runs were turned off can't apply a change that needs a person's approval or start a run, whichever server path asks, and only an owner or admin can change their permissions.",
+    file: "database.test.ts",
+  },
 ];
 
 /** What isn't tested for each risk, and the reason when a risk doesn't apply. */

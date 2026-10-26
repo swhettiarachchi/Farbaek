@@ -1,10 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { IntentContractSchema } from "@/core/realityloop/contract";
+import { parsePermissions } from "@/core/workspace/permissions";
 import { ORGANIZATION_SELECT, summarizeOrganizations } from "./organizations";
 import { readSkillPins } from "./skill-pins";
 import { GRANT_COLUMNS, UsageGrantRowSchema, grantFromRow } from "./usage-store";
 import { readAutonomy } from "./autonomy";
+import { readRuleVersions } from "./workspace-rules";
+import { listIncidents, readIncident, readIncidentChanges } from "./incidents";
 import type { RehearsalRow } from "@/core/trust/rehearsal";
 import { VERIFICATION_SELECT, VerificationRow, verificationFromRow } from "@/server/verification/store";
 import {
@@ -71,12 +74,12 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
     },
 
     async listMembers(orgId) {
-      const { data, error } = await client.from("organization_members").select("user_id, role, created_at").eq("org_id", orgId).order("created_at");
+      const { data, error } = await client.from("organization_members").select("user_id, role, created_at, permissions").eq("org_id", orgId).order("created_at");
       if (error) fail("members", error);
       return z
         .array(MemberRow)
         .parse(data)
-        .map((m) => ({ userId: m.user_id, role: m.role, joinedAt: m.created_at }));
+        .map((m) => ({ userId: m.user_id, role: m.role, joinedAt: m.created_at, permissions: parsePermissions(m.permissions) }));
     },
 
     async listProjects(orgId) {
@@ -545,6 +548,21 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
 
     listSkillPins: (orgId, projectId) => readSkillPins(client, orgId, projectId),
     getAutonomy: (orgId) => readAutonomy(client, orgId),
+    getRuleVersions: (orgId) => readRuleVersions(client, orgId),
+    listIncidents: (orgId) => listIncidents(client, orgId),
+    getIncident: (orgId, number) => readIncident(client, orgId, number),
+    getIncidentChanges: (orgId, number) => readIncidentChanges(client, orgId, number),
+
+    async listProjectPaths(orgId) {
+      const LIMIT = 2_000;
+      const { data, error, count } = await client.from("project_files").select("project_id, path", { count: "exact" }).eq("org_id", orgId).order("path").range(0, LIMIT - 1);
+      if (error) fail("project paths", error);
+      const files = z
+        .array(z.object({ project_id: z.string(), path: z.string() }))
+        .parse(data ?? [])
+        .map((r) => ({ projectId: r.project_id, path: r.path }));
+      return { files, complete: (count ?? files.length) <= files.length };
+    },
 
     async getEmailPreferences() {
       // Row Level Security returns only the signed-in person's own row.

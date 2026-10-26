@@ -33,7 +33,7 @@ const contract: IntentContract = {
   requiredChecks: [],
   recovery: "Restore the previous revision.",
 };
-const alice: RunPerson = { orgId: "o1", userId: "u-alice", role: "member" };
+const alice: RunPerson = { orgId: "o1", userId: "u-alice", role: "member", permissions: {} };
 
 let root: string;
 beforeEach(async () => {
@@ -94,6 +94,7 @@ async function deps(over: { runId?: string; model?: ToolModel; state?: TaskState
       fileContents: async () => new Map([["README.md", README], ...(over.extraFiles ?? []).map((f) => [f.path, f.content] as [string, string])]),
       billing: async () => ({ state: "active", paidPlanId: "pro" }),
       countEvaluations: async () => 0,
+      workspaceRules: async () => null,
       newEventId: () => `ev-${++n}`,
       now: () => new Date("2026-10-18T12:00:00Z"),
     },
@@ -249,6 +250,7 @@ describe("cloud runs", () => {
   it("refuses viewers, tasks that aren't approved, and a second live run", async () => {
     const t = await deps({ model: scripted([]) });
     expect(await startCloudRun(t.d, { person: { ...alice, role: "viewer" }, taskId: "t1", effort: "balanced" })).toMatchObject({ ok: false, code: "FORBIDDEN" });
+    expect(await startCloudRun(t.d, { person: { ...alice, permissions: { run_agents: false } }, taskId: "t1", effort: "balanced" })).toMatchObject({ ok: false, code: "PERMISSION_WITHHELD", message: expect.stringMatching(/turned off starting agent runs/) });
     const draft = await deps({ model: scripted([]), state: "CONTRACT_DRAFTED" });
     expect(await startCloudRun(draft.d, { person: alice, taskId: "t1", effort: "balanced" })).toMatchObject({ ok: false, code: "INVALID_TRANSITION" });
     const busy = await deps({ model: scripted([]), runError: "RUN_ACTIVE" });

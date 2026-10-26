@@ -109,7 +109,7 @@ export async function approveAndBuildAction(_previous: ApproveBuildState, form: 
   if (!approved.ok) return { status: "error", message: approved.message };
   revalidatePath("/app", "layout");
 
-  const person = { orgId: ctx.current.id, userId: ctx.user.id, role: ctx.role };
+  const person = { orgId: ctx.current.id, userId: ctx.user.id, role: ctx.role, permissions: ctx.permissions };
   const wiring = await cloudRunDeps(person);
   if (!wiring.ok) return { status: "error", approved: true, message: `The plan is approved. The agent couldn't start: ${wiring.reason}` };
   // Skills chosen on the plan card (ADR 0030): only Farbaek's own ids are accepted.

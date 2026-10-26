@@ -7,7 +7,9 @@ import {
   ListChecksIcon,
   LockSimpleIcon,
   PackageIcon,
+  ShieldCheckIcon,
   ShieldStarIcon,
+  SirenIcon,
   SignOutIcon,
   TerminalWindowIcon,
 } from "@phosphor-icons/react/ssr";
@@ -68,6 +70,18 @@ export default async function MorePage() {
         <li>
           <Link href="/app/mesh" className={`${row} hover:bg-canvas-2`}>
             <PackageIcon size={20} className="text-ink-2" aria-hidden /> Mesh
+            <CaretRightIcon size={16} className="ml-auto text-ink-3" aria-hidden />
+          </Link>
+        </li>
+        <li>
+          <Link href="/app/policies" className={`${row} hover:bg-canvas-2`}>
+            <ShieldCheckIcon size={20} className="text-ink-2" aria-hidden /> Policies
+            <CaretRightIcon size={16} className="ml-auto text-ink-3" aria-hidden />
+          </Link>
+        </li>
+        <li>
+          <Link href="/app/incidents" className={`${row} hover:bg-canvas-2`}>
+            <SirenIcon size={20} className="text-ink-2" aria-hidden /> Incidents
             <CaretRightIcon size={16} className="ml-auto text-ink-3" aria-hidden />
           </Link>
         </li>

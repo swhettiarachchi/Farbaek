@@ -14,6 +14,7 @@ import { ORG_ROLES } from "@/server/workspace/types";
 import type { RpcResult } from "@/server/workspace/use-cases";
 import type { AgentStore } from "./service";
 import { policyRecord } from "@/core/trust/policy";
+import { readActiveRules } from "@/server/workspace/workspace-rules";
 
 const isUuid = (s: string) => z.uuid().safeParse(s).success;
 
@@ -175,6 +176,8 @@ export function createSupabaseAgentStore(admin: SupabaseClient): AgentStore {
       }
       return out;
     },
+
+    workspaceRules: (orgId) => readActiveRules(admin, orgId),
 
     async countEvaluations(orgId, period) {
       const { count, error } = await admin

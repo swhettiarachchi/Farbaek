@@ -9,10 +9,14 @@ import type { WorkspaceSummary } from "./organizations";
 import type { SkillPinRecord } from "./skill-pins";
 import type { StoredLensSuggestion } from "@/core/realityloop/lens-suggestion";
 import type { AutonomyView } from "./autonomy";
+import type { RuleVersionView } from "./workspace-rules";
+import type { Incident, IncidentEvent } from "./incidents";
+import type { IncidentChange } from "@/core/trust/incidents";
 import type { VerificationRecord } from "@/core/realityloop/verification";
 import type { FirstStepFacts } from "@/core/workspace/first-steps";
 import type { RehearsalRow } from "@/core/trust/rehearsal";
 import type { ShadowDecision } from "@/core/trust/policy";
+import type { WithheldPermissions } from "@/core/workspace/permissions";
 
 export const ORG_ROLES = ["owner", "admin", "member", "viewer"] as const;
 export type OrgRole = (typeof ORG_ROLES)[number];
@@ -24,8 +28,10 @@ export const MemberRow = z.object({
   user_id: z.string(),
   role: z.enum(ORG_ROLES),
   created_at: z.string(),
+  permissions: z.unknown().optional(),
 });
-export type Member = { userId: string; role: OrgRole; joinedAt: string };
+/** permissions: what an owner or admin turned off for a member (ADR 0087). */
+export type Member = { userId: string; role: OrgRole; joinedAt: string; permissions: WithheldPermissions };
 
 export const ProjectRowSchema = z.object({
   id: z.string(),
@@ -106,7 +112,16 @@ export interface ProposalRecord {
   decidedAt: string | null;
   appliedSha256: string | null;
   /** The policy decision that governed it; null for proposals made before policies were recorded. */
-  policy: { outcome: string; version: string; findings: { rule: string; outcome: string; detail: string }[]; shadow?: ShadowDecision } | null;
+  policy: {
+    outcome: string;
+    version: string;
+    findings: { rule: string; outcome: string; detail: string }[];
+    shadow?: ShadowDecision;
+    /** The workspace rules that applied (ADR 0082). */
+    workspaceRules?: { version: number; sha256: string };
+    /** The autonomy level that let it apply on its own (ADR 0086). */
+    autonomyLevel?: 2 | 3;
+  } | null;
   /** The Farbaek Agent that made it, or null when it was made in the web app. */
   agentId: string | null;
 }
@@ -114,7 +129,7 @@ export interface ProposalRecord {
 /** What level 2 would have decided, as stored under policy -> 'shadow' (ADR 0075). */
 export const ShadowSchema = z.object({
   outcome: z.enum(["ALLOW_WITHIN_LIMITS", "REQUIRE_APPROVAL"]),
-  reasons: z.array(z.enum(["blocked", "escalated", "too_many_files", "creates_files", "not_verifiable"])),
+  reasons: z.array(z.enum(["blocked", "escalated", "too_many_files", "creates_files", "not_verifiable", "workspace_rule", "daily_limit"])),
   detail: z.string(),
   maxFiles: z.number().int(),
   allowCreates: z.boolean(),
@@ -147,6 +162,8 @@ export const ProposalRowSchema = z.object({
       findings: z.array(z.object({ rule: z.string(), outcome: z.string(), detail: z.string() })),
       // A rehearsal that can't be read is left out rather than hiding the proposal (ADR 0075).
       shadow: ShadowSchema.optional().catch(undefined),
+      workspaceRules: z.object({ version: z.number().int(), sha256: z.string() }).optional().catch(undefined),
+      autonomyLevel: z.union([z.literal(2), z.literal(3)]).optional().catch(undefined),
     })
     .nullable()
     .optional(),
@@ -283,6 +300,15 @@ export interface WorkspaceReader {
   getFileRevision(orgId: string, projectId: string, path: string, revision: number): Promise<string | null>;
   /** The workspace's autonomy setting (ADR 0046). */
   getAutonomy(orgId: string): Promise<AutonomyView>;
+  /** Incidents, newest first (ADR 0083). */
+  listIncidents(orgId: string): Promise<Incident[]>;
+  getIncident(orgId: string, number: number): Promise<{ incident: Incident; events: IncidentEvent[] } | null>;
+  /** The changes an incident is about, by shape only; `exact` is false when they're only the ones applied just before it. */
+  getIncidentChanges(orgId: string, number: number): Promise<{ changes: IncidentChange[]; exact: boolean }>;
+  /** The workspace's rule versions, newest first (ADR 0082). */
+  getRuleVersions(orgId: string): Promise<RuleVersionView[]>;
+  /** Current file paths across the workspace's projects, for the policy builder. `complete` is false when there were more than were read. */
+  listProjectPaths(orgId: string): Promise<{ files: { projectId: string; path: string }[]; complete: boolean }>;
   /** Which emails the signed-in person wants (ADR 0063). Both on until they choose. */
   getEmailPreferences(): Promise<EmailPreferences>;
   /** The approved version of each of the project's own skills (ADR 0043). */

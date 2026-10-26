@@ -11,6 +11,8 @@ import type { AiUsageDeps } from "./ai-usage";
 import { applyProposal, autoApplyWithinLimits, discardProposal, proposeChange, type ProposalDeps, type StoredProposal } from "./proposals";
 import type { OrgRole } from "./types";
 import type { WriteDeps } from "./use-cases";
+import type { ActiveRules } from "@/core/trust/workspace-rules";
+import type { WithheldPermissions } from "@/core/workspace/permissions";
 
 const fake = (...parts: string[]) => parts.join("");
 const USAGE = { model: "claude-sonnet-5-5", inputTokens: 4000, outputTokens: 900 };
@@ -55,13 +57,14 @@ function fakeProposer(result: ProposalOutcome | Error) {
 }
 
 function fakeDeps(
-  over: { state?: TaskState; proposal?: Partial<StoredProposal> | null; createError?: string; applyError?: string; billing?: BillingSnapshot; evaluations?: number; role?: OrgRole } = {},
+  over: { state?: TaskState; proposal?: Partial<StoredProposal> | null; createError?: string; applyError?: string; billing?: BillingSnapshot; evaluations?: number; role?: OrgRole; rules?: ActiveRules; permissions?: WithheldPermissions } = {},
 ) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the spy records inputs of several shapes
   const calls: { name: string; input: any }[] = [];
   let n = 0;
   const deps: WriteDeps & AiUsageDeps & ProposalDeps = {
     role: async () => over.role ?? "member",
+    permissions: async () => over.permissions ?? {},
     billing: async () => over.billing ?? { state: "free" },
     countActiveProjects: async () => 0,
     loadTask: async () => ({ id: "t1", projectId: "p1", state: over.state ?? "CONTRACT_APPROVED", version: 4, eventIds: [] }),
@@ -75,6 +78,7 @@ function fakeDeps(
     settleUsage: async (input) => (calls.push({ name: "settle", input }), { ok: true, value: null }),
     approvedContract: async () => ({ version: 1, sha256: "c".repeat(64), body: contract }),
     countEvaluations: async () => over.evaluations ?? 0,
+    workspaceRules: async () => over.rules ?? null,
     projectFiles: async () => Object.entries(FILES).map(([path, f]) => ({ path, revision: f.revision, sizeBytes: f.content.length })),
     fileContent: async (_o, _p, path) => {
       const f = FILES[path as keyof typeof FILES];
@@ -253,6 +257,16 @@ describe("policy and metering", () => {
     expect(await apply("member")).toMatchObject({ code: "APPROVER_ROLE_REQUIRED" });
     expect(await apply("admin")).toMatchObject({ ok: true });
   });
+
+  it("needs the approve permission for a person's approval, and leaves owners and admins alone", async () => {
+    const files = [{ path: "src/lib/cart.ts", content: "accepted" }];
+    const apply = (deps: Parameters<typeof applyProposal>[0], f: typeof files) => applyProposal(deps, { orgId: "o1", userId: "u1", proposalId: "prop-1", reviewedSha256: "a".repeat(64), files: f, execution: REVIEW_ONLY });
+    const withheld = fakeDeps({ state: "APPROVAL_PENDING", permissions: { approve: false } });
+    expect(await apply(withheld.deps, files)).toMatchObject({ ok: false, code: "PERMISSION_WITHHELD", message: "An owner or admin turned off approving changes for you in this workspace." });
+    expect(withheld.calls.some((c) => c.name === "apply")).toBe(false);
+    expect(await apply(fakeDeps({ state: "APPROVAL_PENDING", permissions: { publish: false } }).deps, files)).toMatchObject({ ok: true });
+    expect(await apply(fakeDeps({ state: "APPROVAL_PENDING", role: "admin", permissions: { approve: false } }).deps, files)).toMatchObject({ ok: true });
+  });
 });
 
 describe("ProofPack on apply", () => {
@@ -303,6 +317,13 @@ describe("autonomy level 2 (ADR 0046)", () => {
     expect(apply.files).toEqual([{ path: "src/lib/cart.ts", content: "x" }]);
     expect(apply.steps[0]).toMatchObject({ event_type: "grant_approval", actor_kind: "system" });
     expect(apply.proofpack.predicate.approval).toMatchObject({ approvedBy: "u1", by: "policy", autonomyLevel: 2 });
+  });
+
+  it("names level 3 in the ProofPack when level 3 allowed it", async () => {
+    const level3 = { ...allowed, policy: { outcome: "ALLOW_WITHIN_LIMITS", version: "e".repeat(64), findings: [], autonomyLevel: 3 as const } };
+    const { deps, calls } = fakeDeps({ state: "APPROVAL_PENDING", proposal: level3 });
+    expect(await autoApplyWithinLimits(deps, { orgId: "o1", userId: "u1", proposalId: "prop-1", execution: SANDBOXED })).toMatchObject({ ok: true });
+    expect(calls.find((c) => c.name === "apply")!.input.proofpack.predicate.approval).toMatchObject({ by: "policy", autonomyLevel: 3 });
   });
 
   it("refuses to apply on its own anything the policy didn't allow, or anything but the proposal's own content", async () => {

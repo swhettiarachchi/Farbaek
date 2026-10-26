@@ -38,6 +38,8 @@ export const REASON_WORDS: Record<RehearsalReason, string> = {
   too_many_files: "it changed more files than the limit",
   creates_files: "it created new files",
   not_verifiable: "nothing could check it",
+  workspace_rule: "a workspace rule holds it for a person",
+  daily_limit: "the daily limit was reached",
 };
 
 export function summarizeRehearsal(rows: readonly RehearsalRow[]): RehearsalSummary {

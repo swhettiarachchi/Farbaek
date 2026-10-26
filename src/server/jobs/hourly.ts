@@ -5,6 +5,8 @@
  * on its own: one failing or not being configured never stops another.
  */
 import { checkSchedulerToken } from "@/server/jobs/auth";
+import { runIncidentEscalation } from "@/server/jobs/incident-escalation";
+import { incidentEscalationDeps } from "@/server/jobs/incident-escalation-wiring";
 import { runOutcomeWatches } from "@/server/jobs/outcome-watch";
 import { outcomeWatchDeps } from "@/server/jobs/outcome-watch-wiring";
 import { runPlatformAlerts } from "@/server/jobs/platform-alerts";
@@ -40,6 +42,8 @@ export async function handleHourlyJobs(request: Request): Promise<Response> {
     trialReminders: await runJob("trial_reminders", trialReminderDeps(), (d) => runTrialReminders(d, now)),
     platformAlerts: await runJob("platform_alerts", platformAlertDeps(), (d) => runPlatformAlerts(d, now)),
     outcomeWatch: await runJob("outcome_watch", outcomeWatchDeps(), (d) => runOutcomeWatches(d)),
+    // After the watch, so an incident it opened this hour is escalated in the same run.
+    incidentEscalation: await runJob("incident_escalation", incidentEscalationDeps(), (d) => runIncidentEscalation(d)),
   };
   const all = Object.values(jobs);
   if (all.every((j) => j.status === "not_configured")) return problem(503, "NOT_CONFIGURED", "Email or the server key for writes isn't set, so no hourly job can run.");

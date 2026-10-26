@@ -26,6 +26,8 @@ import { checkQuota } from "@/core/billing/entitlements";
 import { resolveEffectivePlan } from "@/core/billing/trial";
 import { usagePeriod, type BillingPeriod } from "@/core/billing/usage";
 import { evaluateChangePolicy, type AutonomyLimits, type PolicyDecision } from "@/core/trust/policy";
+import type { ActiveRules } from "@/core/trust/workspace-rules";
+import type { WithheldPermissions } from "@/core/workspace/permissions";
 import type { ExecutionMode } from "@/core/execution/sandbox";
 import { buildProofPack, proofPackDigest } from "@/core/proof/proofpack";
 import { MANAGER_ROLES } from "./types";
@@ -37,7 +39,7 @@ import type { ChangeProposer, ProposalBrief } from "@/server/ai/change-proposer"
 import { proposalPromptTokens } from "@/server/ai/prompts";
 import { route, type Effort } from "@/core/agent/routing";
 import { refundAndFail, reserveUsage, settleUsage, type AiUsageDeps, type ModelSource } from "./ai-usage";
-import { MESSAGES, codeFromDatabaseError, fail, planSteps, requireContributor, type RpcResult, type TransitionStep, type WriteDeps, type WriteResult } from "./use-cases";
+import { MESSAGES, codeFromDatabaseError, fail, planSteps, requireContributor, requirePermission, type RpcResult, type TransitionStep, type WriteDeps, type WriteResult } from "./use-cases";
 
 export const MAX_CONTEXT_FILES = 20;
 export const MAX_CONTEXT_BYTES = 300 * 1024;
@@ -53,13 +55,17 @@ export interface StoredProposal {
   policyOutcome: string | null;
   contractVersion: number;
   model: string | null;
-  policy: { outcome: string; version: string; findings: { rule: string; outcome: string; detail: string }[] } | null;
+  policy: { outcome: string; version: string; findings: { rule: string; outcome: string; detail: string }[]; autonomyLevel?: 2 | 3 } | null;
   /** The end of its approval window (ADR 0042). The database refuses a later approval too. */
   expiresAt: string;
 }
 
 export interface ProposalDeps {
+  /** What an owner or admin turned off for the signed-in person (ADR 0087). */
+  permissions(orgId: string): Promise<WithheldPermissions>;
   approvedContract(orgId: string, taskId: string): Promise<{ version: number; sha256: string; body: IntentContract } | null>;
+  /** The workspace's active rules (ADR 0082). Throws when they can't be read, so a change never skips them. */
+  workspaceRules(orgId: string): Promise<ActiveRules | null>;
   projectFiles(orgId: string, projectId: string): Promise<{ path: string; revision: number; sizeBytes: number }[]>;
   countEvaluations(orgId: string, period: BillingPeriod): Promise<number>;
   fileContent(orgId: string, projectId: string, path: string): Promise<{ revision: number; sha256: string; content: string } | null>;
@@ -198,7 +204,7 @@ export async function proposeChange(
   const violations = checkProposal(contract.body, changes);
   // Checks run after a change applies only when the contract lists them and a verified sandbox is connected.
   const verifiable = contract.body.requiredChecks.length > 0 && input.execution?.mode === "sandboxed";
-  const policy = await evaluateChangePolicy({ files: changes, contractViolations: violations, autonomy: input.autonomy ?? null, verifiable });
+  const policy = await evaluateChangePolicy({ files: changes, contractViolations: violations, autonomy: input.autonomy ?? null, verifiable, rules: await deps.workspaceRules(input.orgId) });
   const blocked = policy.outcome === "BLOCK";
   const sha256 = await proposalHash({ taskId: task.id, contractVersion: contract.version, contractSha256: contract.sha256, changes });
   const planned = steps(deps, task, input.orgId, input.userId, [
@@ -259,6 +265,11 @@ export async function applyProposal(
   const byPolicy = input.by === "policy";
   const role = await requireContributor(deps, input.orgId);
   if (!role.ok) return role;
+  // A change the workspace's autonomy allowed applies under its limits; a person's approval needs the permission.
+  if (!byPolicy) {
+    const allowed = requirePermission(role.value, await deps.permissions(input.orgId), "approve");
+    if (!allowed.ok) return allowed;
+  }
   const proposal = await deps.loadProposal(input.orgId, input.proposalId);
   if (!proposal) return fail("NOT_FOUND");
   if (proposal.status !== "pending") return fail("PROPOSAL_CLOSED");
@@ -305,7 +316,7 @@ export async function applyProposal(
     contract: { version: contract.version, sha256: contract.sha256 },
     proposal: { id: proposal.id, sha256: proposal.sha256, model: proposal.model },
     policy: proposal.policy,
-    approval: { approvedBy: input.userId, approvedAt: deps.now().toISOString(), appliedSha256, ...(byPolicy ? { by: "policy" as const, autonomyLevel: 2 as const } : {}) },
+    approval: { approvedBy: input.userId, approvedAt: deps.now().toISOString(), appliedSha256, ...(byPolicy ? { by: "policy" as const, autonomyLevel: proposal.policy?.autonomyLevel ?? 2 } : {}) },
     files: files.map((f) => {
       const change = byPath.get(f.path)!;
       return { path: f.path, kind: change.kind, baseRevision: change.baseRevision, sha256: f.sha256 };

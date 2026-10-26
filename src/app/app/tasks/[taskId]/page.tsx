@@ -8,12 +8,14 @@ import { CancelTaskControl } from "@/components/app/forms";
 import { ChecksList, ExecutionModeBadge } from "@/components/app/execution";
 import { ProposeChange } from "@/components/proposals/propose-change";
 import { StartRun } from "@/components/build/start-run";
+import { withheldFor } from "@/core/workspace/permissions";
 import { ProofPackCard } from "@/components/proof/proofpack-card";
 import { CheckReceiptCard } from "@/components/proof/check-receipt-card";
 import { ScopeDriftCard } from "@/components/app/scope-drift-card";
 import { scopeDrift } from "@/core/realityloop/scope-drift";
 import { currentExecutionMode } from "@/server/execution/sandbox";
 import { ProposalReview } from "@/components/proposals/proposal-review";
+import { ImpactCard } from "@/components/proposals/impact-card";
 import { ArenaPanel } from "@/components/arena/arena-panel";
 import { readLatestArenaRun } from "@/server/arena/store";
 import { createSupabaseServerClient } from "@/server/supabase/server";
@@ -110,6 +112,9 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
       ),
     ),
   );
+  // Impact analysis (ADR 0085): Max 2x and up; the demo shows it on its sample files.
+  const impactFeature = checkFeature(ctx.current.billingUnknown ? null : ctx.current.plan, "impact_analysis");
+  const impactReason = ctx.mode === "demo" || impactFeature.allowed ? null : impactFeature.code === "FEATURE_NOT_IN_PLAN" ? "Impact analysis is included in Max 2x and up." : impactFeature.message;
   const recoveryFeature = checkFeature(ctx.current.billingUnknown ? null : ctx.current.plan, "replay_and_recovery");
   const isManager = ctx.role !== null && MANAGER_ROLES.includes(ctx.role);
   const recoveryReason =
@@ -146,6 +151,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
     writeReason ??
     (execution.mode === "review_only" ? execution.reason : null) ??
     (ctx.role === null || !CONTRIBUTOR_ROLES.includes(ctx.role) ? "Viewers can't try changes. Ask a member, admin or owner." : null) ??
+    withheldFor(ctx.role, ctx.permissions, "run_agents") ??
     (checksForRun.length === 0 ? "The contract lists no checks, and Farbaek has none for this kind of project." : null);
   const verifyReason =
     writeReason ??
@@ -245,6 +251,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
                 disabledReason={writeReason}
                 executionReason={execution.mode === "review_only" ? execution.reason : null}
                 canApproveEscalated={isManager}
+                approvalWithheldReason={withheldFor(ctx.role, ctx.permissions, "approve")}
                 appliedNote={appliedNote}
                 agentName={proposal!.agentId ? (agents.find((a) => a.id === proposal!.agentId)?.name ?? null) : null}
                 contract={contract?.body ?? null}
@@ -254,6 +261,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
                 checksOnApply={checksForRun.length > 0}
               />
             ) : null}
+            {showProposal ? <ImpactCard taskId={task.id} disabledReason={impactReason} /> : null}
             {trying ? <ArenaPanel proposalId={proposal!.id} taskId={task.id} checks={checksForRun} run={arenaRun} disabledReason={arenaReason} /> : null}
             {canPropose ? (
               <div className={`grid gap-3 rounded-md border border-accent/30 bg-accent/[0.04] p-5 ${showProposal ? "mt-2" : ""}`}>
@@ -263,7 +271,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
                 <p className="text-sm leading-relaxed text-ink-2">
                   The Farbaek Agent works through the whole contract in the cloud: it reads the project, makes the changes and runs the checks, then hands you a proposal to review.
                 </p>
-                <StartRun taskId={task.id} disabledReason={writeReason} />
+                <StartRun taskId={task.id} disabledReason={writeReason ?? withheldFor(ctx.role, ctx.permissions, "run_agents")} />
               </div>
             ) : null}
             {canPropose && proposeAi ? (

@@ -146,7 +146,8 @@ Self-hosted Supabase runs beside the app:
 | Open Studio | On your computer: `ssh -L 54323:127.0.0.1:54323 farbaek@2.25.88.188`, then http://localhost:54323 |
 | Back up now | `farbaek-db-backup` (nightly at 02:30 UTC, keeping 14 days in `/opt/farbaek/backups`) |
 | Prove the newest backup restores | `farbaek-db-restore-test` (weekly on Sundays) |
-| Restore a backup into the live database | Stop the app (`docker stop farbaek-app`), then `docker exec -i supabase-db pg_restore -h localhost -U supabase_admin -d postgres --clean --if-exists < /opt/farbaek/backups/<file>.dump`, then `docker start farbaek-app` |
+| Restore a backup into the live database | Stop the app (`docker stop farbaek-app`), then `docker exec -i supabase-db pg_restore -h localhost -U supabase_admin -d postgres --clean --if-exists < /opt/farbaek/backups/<file>.dump`, then put browsers' privileges back (next row), then `docker start farbaek-app` |
+| Put browsers' privileges back after a restore (ADR 0088) | On your computer: `node scripts/ops/browser-grants.mjs > grants.sql`, copy it to the server, and run `docker exec -i supabase-db psql -U postgres -d postgres -1 -v ON_ERROR_STOP=1 -q < grants.sql`. To compare: `node scripts/ops/browser-grants.mjs --state` with the output of `node scripts/ops/browser-grants.mjs --check` run through `psql -At` on the server. They should match line for line |
 | Point the app back at Supabase Cloud | `farbaek-db-cutover --back` |
 | Change a setting in the database's settings file | `echo "NAME=value" \| farbaek-set-env --file /opt/farbaek/supabase/docker/.env`, then restart the service that reads it |
 

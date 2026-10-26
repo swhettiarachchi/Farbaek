@@ -4,7 +4,7 @@ import type { ExecutionRecord } from "@/server/sandbox/types";
 import { runArena, startArena, type ArenaDeps, type ArenaPerson, type ArenaSandbox } from "./runner";
 import type { ArenaProposal, ArenaStore } from "./store";
 
-const alice: ArenaPerson = { orgId: "o1", userId: "u-alice", role: "member" };
+const alice: ArenaPerson = { orgId: "o1", userId: "u-alice", role: "member", permissions: {} };
 const contract: IntentContract = {
   schema: INTENT_CONTRACT_SCHEMA,
   version: 1,
@@ -74,6 +74,7 @@ const input = (checks = contract.requiredChecks) => ({ id: "a1", proposal: PROPO
 describe("startArena", () => {
   it("refuses viewers, a missing sandbox, a change not waiting for review, nothing to check, and a second trial", async () => {
     expect(await startArena(fakes().deps, { ...alice, role: "viewer" }, "pr1")).toMatchObject({ ok: false, code: "FORBIDDEN" });
+    expect(await startArena(fakes().deps, { ...alice, permissions: { run_agents: false } }, "pr1")).toMatchObject({ ok: false, code: "PERMISSION_WITHHELD" });
     expect(await startArena({ ...fakes().deps, sandbox: { unavailable: "No verified sandbox is connected." } }, alice, "pr1")).toMatchObject({ ok: false, message: "No verified sandbox is connected." });
     expect(await startArena(fakes({ proposal: null }).deps, alice, "pr1")).toMatchObject({ ok: false, code: "NOT_FOUND" });
     expect(await startArena(fakes({ proposal: { status: "applied" } }).deps, alice, "pr1")).toMatchObject({ ok: false, message: expect.stringMatching(/waiting for review/) });

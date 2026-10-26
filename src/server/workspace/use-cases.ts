@@ -11,6 +11,7 @@ import { contractFromForm, type ContractFormValues } from "@/core/realityloop/co
 import { transition, type TaskEventType, type TaskSnapshot, type TaskState } from "@/core/realityloop/task-machine";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
 import { formatBytes } from "@/core/workspace/files";
+import { may, withheldReason, type Permission, type WithheldPermissions } from "@/core/workspace/permissions";
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES, type OrgRole } from "./types";
 
 export type WriteErrorCode =
@@ -73,6 +74,16 @@ export type WriteErrorCode =
   | "WORKSPACE_SUSPENDED"
   | "PAUSED_BY_FARBAEK"
   | "SITE_BLOCKED"
+  | "WORKSPACE_RULES_CHANGED"
+  | "INVALID_RULES"
+  | "RULES_NOT_TESTED"
+  | "AGENTS_PAUSED"
+  | "INVALID_INCIDENT"
+  | "INCIDENT_RESOLVED"
+  | "AUTONOMY_NOT_EARNED"
+  | "AUTONOMY_DAILY_LIMIT"
+  | "PERMISSION_WITHHELD"
+  | "INVALID_PERMISSIONS"
   | "UNKNOWN";
 
 export type WriteResult<T> = { ok: true; value: T } | { ok: false; code: WriteErrorCode; message: string };
@@ -187,6 +198,16 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   WORKSPACE_SUSPENDED: "Farbaek has paused this workspace, so nothing in it can change right now. The notice at the top of the page says why and how to reach us.",
   PAUSED_BY_FARBAEK: "Farbaek has paused this for everyone for a short while. Your work is safe; try again soon.",
   SITE_BLOCKED: "Farbaek has taken this site offline, so it can't go live again for now. The notice on the project page says why.",
+  WORKSPACE_RULES_CHANGED: "This workspace's rules changed while the change was being prepared, so nothing was saved. Try again.",
+  INVALID_RULES: "These rules aren't valid. Fix the marked fields and try again.",
+  RULES_NOT_TESTED: "These rules changed after they were tested. Test them against past changes again before activating them.",
+  AGENTS_PAUSED: "Agents are paused in this workspace, so no agent runs or automatic changes start until an owner or admin resumes them on the Incidents page.",
+  INVALID_INCIDENT: "That incident update isn't valid. Check the marked fields and try again.",
+  INCIDENT_RESOLVED: "This incident is resolved, so it can't change any more. Open a new one if something else went wrong.",
+  AUTONOMY_NOT_EARNED: "Level 3 isn't earned yet: it needs 10 changes applied on their own that passed their checks in the last 30 days, with none failing.",
+  AUTONOMY_DAILY_LIMIT: "The workspace reached its daily limit of changes applied on their own. This change waits for a person.",
+  PERMISSION_WITHHELD: "An owner or admin turned this off for you in this workspace. Ask one of them if you need it.",
+  INVALID_PERMISSIONS: "Permissions are set for members only. Owners and admins have them all, and viewers have none.",
   UNKNOWN: "Something went wrong and nothing was changed. Try again in a moment.",
 };
 
@@ -238,10 +259,24 @@ export function codeFromDatabaseError(message: string): WriteErrorCode {
     "PAIRING_CLOSED",
     "INVALID_PAIRING",
     "AGENT_REVOKED",
+    "WORKSPACE_RULES_CHANGED",
+    "INVALID_RULES",
+    "AGENTS_PAUSED",
+    "INVALID_INCIDENT",
+    "INCIDENT_RESOLVED",
+    "AUTONOMY_NOT_EARNED",
+    "AUTONOMY_DAILY_LIMIT",
+    "PERMISSION_WITHHELD",
+    "INVALID_PERMISSIONS",
   ] as const) {
     if (message.includes(code)) return code;
   }
   return "UNKNOWN";
+}
+
+/** Members can have permissions turned off (ADR 0087); owners and admins have them all, and viewers none. */
+export function requirePermission(role: OrgRole, permissions: WithheldPermissions, permission: Permission): WriteResult<null> {
+  return may(role, permissions, permission) ? { ok: true, value: null } : fail("PERMISSION_WITHHELD", withheldReason(permission));
 }
 
 export async function requireContributor(deps: WriteDeps, orgId: string): Promise<WriteResult<OrgRole>> {

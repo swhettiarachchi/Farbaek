@@ -47,6 +47,7 @@ const DATABASE_MESSAGES: Record<string, string> = {
   CRITICAL_FINDINGS: "The last security check found critical problems. Fix them first.",
   NO_INDEX: "Add an index.html first: it's the page people see.",
   PROJECT_ARCHIVED: "This project is archived, so it can't be published.",
+  PERMISSION_WITHHELD: "An owner or admin turned off publishing and launching for you in this workspace.",
   FORBIDDEN: "Your role can view this project but not publish it.",
   NOT_FOUND: "That project doesn't exist in this workspace.",
 };

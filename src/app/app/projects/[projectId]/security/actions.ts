@@ -19,7 +19,7 @@ async function person() {
   if (!ctx) redirect("/sign-in");
   if (!ctx.writes.enabled) return { error: ctx.writes.reason };
   if (!ctx.current || !ctx.role) return { error: "Create or join a workspace first." };
-  return { ctx, person: { orgId: ctx.current.id, userId: ctx.user.id, role: ctx.role } };
+  return { ctx, person: { orgId: ctx.current.id, userId: ctx.user.id, role: ctx.role, permissions: ctx.permissions } };
 }
 
 /** Starts a security check on a project (ADR 0024). Every check is made again on the server. */

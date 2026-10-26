@@ -32,6 +32,7 @@ import { currentExecutionMode } from "@/server/execution/sandbox";
 import { createAnthropicLensMapper } from "@/server/ai/lens-mapper";
 import { suggestLensMapping, type LensSuggestionDeps } from "@/server/workspace/lens-suggestions";
 import { limitsFrom, setWorkspaceAutonomy, type AutonomyDeps } from "@/server/workspace/autonomy";
+import { setMemberPermissions, type MemberPermissionDeps } from "@/server/workspace/member-permissions";
 import { startTaskVerification } from "@/server/verification/runner";
 import { verificationDeps } from "@/server/verification/wiring";
 import { log } from "@/server/observability/log";
@@ -53,7 +54,7 @@ async function requireContext(): Promise<AppContext> {
 }
 
 /** Resolves write dependencies, or the honest reason writes are unavailable. */
-async function writeDeps(ctx: AppContext): Promise<{ deps: WriteDeps & AiUsageDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps & AgentAdminDeps & LensSuggestionDeps & AutonomyDeps; orgId: string } | { error: string }> {
+async function writeDeps(ctx: AppContext): Promise<{ deps: WriteDeps & AiUsageDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps & AgentAdminDeps & LensSuggestionDeps & AutonomyDeps & MemberPermissionDeps; orgId: string } | { error: string }> {
   if (!ctx.writes.enabled) return { error: ctx.writes.reason };
   if (!ctx.current) return { error: "Create a workspace first." };
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
@@ -367,7 +368,7 @@ export async function proposeChangeAction(input: { taskId: string; contextPaths:
   if (!result.ok) return { status: "error", message: result.message };
   if (result.value.status === "applied" && ctx.role) {
     // A change that applied on its own is checked straight away (ADR 0047). If that can't start, the task says so and waits for a person.
-    const person = { orgId: w.orgId, userId: ctx.user.id, role: ctx.role };
+    const person = { orgId: w.orgId, userId: ctx.user.id, role: ctx.role, permissions: ctx.permissions };
     const wiring = await verificationDeps(person);
     const started = wiring.ok ? await startTaskVerification(wiring.deps, person, found.task.id, "autonomy") : null;
     if (started && !started.ok) log("warn", "verification.autostart_failed", { task: found.task.id, code: started.code });
@@ -398,7 +399,7 @@ export async function applyProposalAction(input: { proposalId: string; reviewedS
   // change applied on its own. If they can't start (no sandbox, nothing to check), the task page says why and offers the button.
   let checking = false;
   if (ctx.role) {
-    const person = { orgId: w.orgId, userId: ctx.user.id, role: ctx.role };
+    const person = { orgId: w.orgId, userId: ctx.user.id, role: ctx.role, permissions: ctx.permissions };
     const wiring = await verificationDeps(person);
     const started = wiring.ok ? await startTaskVerification(wiring.deps, person, result.value.taskId, "person") : null;
     checking = started?.ok === true;
@@ -519,6 +520,25 @@ export async function setMemberRoleAction(_previous: FormState, form: FormData):
   return { status: "done", message: "Role changed." };
 }
 
+/** Turns permissions on or off for a member (ADR 0087). An unticked box turns it off; the database decides who may, and enforces each. */
+export async function setMemberPermissionsAction(_previous: FormState, form: FormData): Promise<FormState> {
+  const userId = z.uuid().safeParse(form.get("userId"));
+  if (!userId.success) return { status: "error", message: "Reload the page and try again." };
+  const ctx = await requireContext();
+  if (ctx.mode === "demo") return { status: "error", message: "The demo workspace is read-only." };
+  const w = await writeDeps(ctx);
+  if ("error" in w) return { status: "error", message: w.error };
+  const r = await setMemberPermissions(w.deps, {
+    orgId: w.orgId,
+    userId: ctx.user.id,
+    memberId: userId.data,
+    permissions: { approve: form.get("approve") === "on", publish: form.get("publish") === "on", run_agents: form.get("run_agents") === "on" },
+  });
+  if (!r.ok) return { status: "error", message: r.message };
+  revalidatePath("/app/settings");
+  return { status: "done", message: "Permissions saved." };
+}
+
 /** Removes someone from the current workspace, or, for the person themselves, leaves it (ADR 0064). */
 export async function removeMemberAction(_previous: FormState, form: FormData): Promise<FormState> {
   const userId = z.uuid().safeParse(form.get("userId"));
@@ -592,22 +612,37 @@ export type AutonomyState = { status: "idle" } | { status: "error"; message: str
 /** Sets the workspace's autonomy (ADR 0046). Owners and admins only; the database checks again. */
 export async function setAutonomyAction(_previous: AutonomyState, form: FormData): Promise<AutonomyState> {
   const parsed = z
-    .object({ level: z.enum(["0", "shadow", "2"]), maxFiles: z.coerce.number().int().min(1).max(5), allowCreates: z.string().optional() })
-    .safeParse({ level: form.get("level"), maxFiles: form.get("maxFiles"), allowCreates: form.get("allowCreates") ?? undefined });
-  if (!parsed.success) return { status: "error", message: "Choose a level and a file limit from 1 to 5." };
+    .object({
+      level: z.enum(["0", "shadow", "2", "3"]),
+      maxFiles: z.coerce.number().int().min(1).max(10),
+      allowCreates: z.string().optional(),
+      dailyLimit: z.coerce.number().int().min(1).max(50).optional(),
+    })
+    .safeParse({ level: form.get("level"), maxFiles: form.get("maxFiles"), allowCreates: form.get("allowCreates") ?? undefined, dailyLimit: form.get("dailyLimit") ?? undefined });
+  if (!parsed.success) return { status: "error", message: "Choose a level and its limits." };
   const ctx = await requireContext();
   const w = await writeDeps(ctx);
   if ("error" in w) return { status: "error", message: w.error };
-  const level = parsed.data.level === "2" ? 2 : 0;
+  const level = parsed.data.level === "3" ? 3 : parsed.data.level === "2" ? 2 : 0;
   // Shadow mode (ADR 0075) rehearses level 2 at level 0: every change still waits for a person.
   const shadow = parsed.data.level === "shadow";
-  const r = await setWorkspaceAutonomy(w.deps, { orgId: w.orgId, userId: ctx.user.id, level, maxFiles: parsed.data.maxFiles, allowCreates: parsed.data.allowCreates === "on", shadow });
+  const r = await setWorkspaceAutonomy(w.deps, {
+    orgId: w.orgId,
+    userId: ctx.user.id,
+    level,
+    maxFiles: parsed.data.maxFiles,
+    allowCreates: parsed.data.allowCreates === "on",
+    shadow,
+    dailyLimit: parsed.data.dailyLimit ?? null,
+  });
   if (!r.ok) return { status: "error", message: r.message };
   revalidatePath("/app/settings");
   return {
     status: "done",
     message:
-      level === 2
+      level === 3
+        ? "Saved. Verified changes now apply on their own within these limits and the daily budget."
+        : level === 2
         ? "Saved. Small, checked changes now apply on their own within these limits."
         : shadow
           ? "Saved. Every change still waits for a person, and each one now notes what level 2 would have done."

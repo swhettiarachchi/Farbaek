@@ -10,6 +10,7 @@ import type { WorkspaceSummary } from "./organizations";
 import { createSupabaseReader } from "./supabase-reader";
 import { refreshPlatformState } from "@/server/platform/state";
 import { CONTRIBUTOR_ROLES, type OrgRole, type WorkspaceReader } from "./types";
+import type { WithheldPermissions } from "@/core/workspace/permissions";
 
 /** Remembers the selected workspace. A preference only: access is still checked on every read. */
 export const WORKSPACE_COOKIE = "fb_ws";
@@ -23,6 +24,8 @@ export interface AppContext {
   workspaces: WorkspaceSummary[];
   current: WorkspaceSummary | null;
   role: OrgRole | null;
+  /** What an owner or admin turned off for the signed-in person (ADR 0087). */
+  permissions: WithheldPermissions;
   writes: WriteAccess;
 }
 
@@ -62,6 +65,11 @@ function memoizeReader(reader: WorkspaceReader): WorkspaceReader {
     getFileRevision: wrap("revision", reader.getFileRevision),
     listSkillPins: wrap("skillPins", reader.listSkillPins),
     getAutonomy: wrap("autonomy", reader.getAutonomy),
+    getRuleVersions: wrap("ruleVersions", reader.getRuleVersions),
+    listIncidents: wrap("incidents", reader.listIncidents),
+    getIncident: wrap("incident", reader.getIncident),
+    getIncidentChanges: wrap("incidentChanges", reader.getIncidentChanges),
+    listProjectPaths: wrap("projectPaths", reader.listProjectPaths),
     getEmailPreferences: wrap("email preferences", reader.getEmailPreferences),
     getLatestProposal: wrap("proposal", reader.getLatestProposal),
     getLensSuggestion: wrap("lensSuggestion", reader.getLensSuggestion),
@@ -106,6 +114,7 @@ export const loadAppContext = cache(async (): Promise<AppContext | null> => {
       workspaces,
       current: pickCurrent(workspaces, preferred),
       role: "owner",
+      permissions: {},
       writes: { enabled: false, reason: "This is the demo workspace with sample data. Nothing you do here is saved." },
     };
   }
@@ -120,7 +129,8 @@ export const loadAppContext = cache(async (): Promise<AppContext | null> => {
   // Office Space's pause switches, so AI, sandbox and publish messages explain a pause (ADR 0032).
   const [workspaces] = await Promise.all([reader.listWorkspaces(), refreshPlatformState()]);
   const current = pickCurrent(workspaces, preferred);
-  const role = current ? ((await reader.listMembers(current.id)).find((m) => m.userId === claims.sub)?.role ?? null) : null;
+  const me = current ? (await reader.listMembers(current.id)).find((m) => m.userId === claims.sub) : undefined;
+  const role = me?.role ?? null;
 
   let writes: WriteAccess = { enabled: true };
   if (!hasServerWriteKey()) {
@@ -142,6 +152,7 @@ export const loadAppContext = cache(async (): Promise<AppContext | null> => {
     workspaces,
     current,
     role,
+    permissions: me?.permissions ?? {},
     writes,
   };
 });

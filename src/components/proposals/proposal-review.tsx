@@ -56,6 +56,7 @@ export function ProposalReview({
   executionReason,
   checksOnApply = false,
   canApproveEscalated,
+  approvalWithheldReason = null,
   appliedNote,
   agentName = null,
   contract = null,
@@ -76,6 +77,8 @@ export function ProposalReview({
   checksOnApply?: boolean;
   /** True when the viewer is an owner or admin. Escalated changes need one; the server enforces it too. */
   canApproveEscalated: boolean;
+  /** Set when an owner or admin turned approving off for this member (ADR 0087). Discarding stays. */
+  approvalWithheldReason?: string | null;
   /** The paired Farbaek Agent's name when an agent made the proposal (it may have been revoked since). */
   agentName?: string | null;
   /** Replaces the "waiting for checks" note on an applied change, once it's being undone or was. */
@@ -103,6 +106,7 @@ export function ProposalReview({
   const escalated = proposal.policy?.outcome === "ESCALATE";
   const approveReason =
     disabledReason ??
+    approvalWithheldReason ??
     (escalated && !canApproveEscalated ? "The policy escalated this change, so an owner or admin has to approve it." : null);
   const kept = proposal.changes.filter((c) => (c.kind === "create" ? finals[c.path] !== "" : finals[c.path] !== bases[c.path]));
   // Each hunk read against the contract: exact flags first, then a pointer to the clause it shares words with.
@@ -230,6 +234,15 @@ export function ProposalReview({
             </p>
             <span className="text-xs text-ink-3">
               Rules <span className="font-mono">{short(proposal.policy.version)}</span>
+              {proposal.policy.workspaceRules ? (
+                <>
+                  {" "}
+                  and{" "}
+                  <Link href="/app/policies" className="font-medium text-accent hover:underline">
+                    workspace rules v{proposal.policy.workspaceRules.version}
+                  </Link>
+                </>
+              ) : null}
             </span>
           </div>
           {proposal.policy.findings.filter((f) => f.rule !== "contract").length ? (

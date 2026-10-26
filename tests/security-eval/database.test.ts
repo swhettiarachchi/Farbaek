@@ -3,12 +3,15 @@
  * ASI10, LLM06), on a real Postgres (PGlite) with every migration:
  * workspaces stay apart, desktop agents' credentials can't be reused,
  * Farbaek's AI switch stops every workspace at once, a failure after an
- * automatic apply pauses autonomy, and nothing goes live without verified
- * evidence or an owner's logged reason.
+ * automatic apply pauses autonomy, nothing goes live without verified
+ * evidence or an owner's logged reason, workspace rules can't be skipped,
+ * a pause stops agents at once, level 3 keeps to its daily budget, and
+ * a member can't act past the permissions an owner or admin turned off.
  */
 import { createHash } from "node:crypto";
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { compileRuleSet, parseRuleSet, ruleSetHash } from "@/core/trust/workspace-rules";
 import { USERS, as, createOrg, createTestDb } from "../db/harness";
 
 let db: PGlite;
@@ -200,5 +203,100 @@ describe("SE-024 Deploying without evidence", () => {
     await admin("insert into public.proofpacks (digest, org_id, project_id, task_id, status, statement, previous) values ($1, $2, $3, $4, 'verified', $5, $6)", [sha(JSON.stringify(statement)), orgA, project, t, JSON.stringify(statement), change]);
     const id = await publish(USERS.unverified, null);
     expect(await recorded(id)).toMatchObject({ evidence: "verified", override_reason: null, audit: { evidence: "verified", override: null } });
+  });
+});
+
+describe("SE-025 A workspace rule bypassed", () => {
+  const ruleSet = async (rules: { paths: string[]; effect: string }[]) => {
+    const parsed = parseRuleSet({ rules: rules.map((r, i) => ({ id: `r${i + 1}`, reason: "Docs need an owner.", ...r })) });
+    if (!parsed.ok) throw new Error("rules");
+    const sha256 = await ruleSetHash(parsed.set);
+    return { document: JSON.stringify(parsed.set), compiled: JSON.stringify(compileRuleSet(parsed.set)), sha256, tested: JSON.stringify({ sha256, changes: 0 }) };
+  };
+  const activate = async (actor: string, org: string, rules: { paths: string[]; effect: string }[]) => {
+    const r = await ruleSet(rules);
+    return q("select public.app_activate_workspace_rules($1, $2, $3, $4, $5, $6)", [org, actor, r.document, r.compiled, r.sha256, r.tested]);
+  };
+
+  it("refuses a change to protected files unless its outcome is as strict as the rule asks, whoever made it", async () => {
+    await activate(USERS.alice, orgA, [{ paths: ["docs/"], effect: "owner_approval" }]);
+    try {
+      // The task helper decides every change as needing only a contributor, as a path that skipped the rules would.
+      await expect(task(orgA, USERS.alice, projectA, "Rules skipped")).rejects.toThrow(/WORKSPACE_RULES_CHANGED/);
+      // Another workspace's changes aren't touched by these rules.
+      await expect(task(orgB, USERS.bob, projectB, "Other workspace")).resolves.toMatchObject({ task: expect.any(String) });
+    } finally {
+      await activate(USERS.alice, orgA, []);
+    }
+    await expect(task(orgA, USERS.alice, projectA, "Rules off")).resolves.toMatchObject({ task: expect.any(String) });
+  });
+
+  it("lets only an owner or admin of that workspace change its rules, and never from a browser", async () => {
+    await admin("insert into public.organization_members (org_id, user_id, role) values ($1, $2, 'member') on conflict do nothing", [orgA, USERS.unverified]);
+    await expect(activate(USERS.unverified, orgA, [])).rejects.toThrow(/FORBIDDEN/);
+    await expect(activate(USERS.bob, orgA, [])).rejects.toThrow(/FORBIDDEN/);
+    const r = await ruleSet([]);
+    await expect(asUser(USERS.alice, "select public.app_activate_workspace_rules($1, $2, $3, $4, $5, $6)", [orgA, USERS.alice, r.document, r.compiled, r.sha256, r.tested])).rejects.toThrow(/permission denied/);
+  });
+});
+
+describe("SE-026 An agent that won't stop", () => {
+  const pause = (actor: string, paused: boolean) => q("select public.app_set_agents_pause($1, $2, $3, 'Evaluation')", [orgA, actor, paused]);
+
+  it("stops new runs and automatic applies at once when anyone who contributes pauses, but not people's own work", async () => {
+    await q("select public.app_set_autonomy($1, $2, 2, 3, true)", [orgA, USERS.alice]);
+    await admin("insert into public.organization_members (org_id, user_id, role) values ($1, $2, 'member') on conflict do nothing", [orgA, USERS.unverified]);
+    await pause(USERS.unverified, true);
+    try {
+      const t = (await admin<{ id: string }>("select id from public.tasks where org_id = $1 limit 1", [orgA]))[0]!.id;
+      // Checked before anything else about the row: a paused workspace starts no run at all.
+      await expect(admin("insert into public.agent_runs (org_id, task_id, project_id, started_by, effort) values ($1, $2, $3, $4, 'fast')", [orgA, t, projectA, USERS.alice])).rejects.toThrow(/AGENTS_PAUSED/);
+      await expect(task(orgA, USERS.alice, projectA, "Applies on its own while paused", "policy")).rejects.toThrow(/AGENTS_PAUSED/);
+      await expect(task(orgA, USERS.alice, projectA, "A person's change while paused")).resolves.toMatchObject({ task: expect.any(String) });
+      // Only an owner or admin resumes.
+      await expect(pause(USERS.unverified, false)).rejects.toThrow(/FORBIDDEN/);
+    } finally {
+      await pause(USERS.alice, false);
+    }
+    await expect(task(orgA, USERS.alice, projectA, "Applies on its own after resuming", "policy")).resolves.toMatchObject({ task: expect.any(String) });
+  });
+});
+
+describe("SE-027 Autonomy beyond its budget", () => {
+  it("won't turn level 3 on without a clean record of changes applied on their own", async () => {
+    await expect(q("select public.app_set_autonomy($1, $2, 3, 8, true, false, 10)", [orgB, USERS.bob])).rejects.toThrow(/AUTONOMY_NOT_EARNED/);
+  });
+
+  it("refuses an automatic apply once the day's budget is spent, whatever the server decided", async () => {
+    const today = async () =>
+      (await admin<{ n: number }>("select count(*)::int as n from public.change_proposals where org_id = $1 and policy ->> 'outcome' = 'ALLOW_WITHIN_LIMITS' and created_at >= now() - interval '24 hours'", [orgA]))[0]!.n;
+    // Set straight in the table, as if earned: the budget is what's under test here.
+    await admin("update public.org_autonomy set level = 3, max_files = 8, daily_limit = $2, suspended_at = null, suspended_reason = null where org_id = $1", [orgA, (await today()) + 1]);
+    try {
+      await expect(task(orgA, USERS.alice, projectA, "Within the budget", "policy")).resolves.toMatchObject({ task: expect.any(String) });
+      await expect(task(orgA, USERS.alice, projectA, "Past the budget", "policy")).rejects.toThrow(/AUTONOMY_DAILY_LIMIT/);
+      await expect(task(orgA, USERS.alice, projectA, "A person's change past the budget")).resolves.toMatchObject({ task: expect.any(String) });
+    } finally {
+      await admin("update public.org_autonomy set level = 2, max_files = 3, daily_limit = null where org_id = $1", [orgA]);
+    }
+  });
+});
+
+describe("SE-028 A member acting beyond their permissions", () => {
+  it("refuses a person's approval and an agent run from a member who had them turned off, and only owners and admins change that", async () => {
+    await admin("insert into public.organization_members (org_id, user_id, role) values ($1, $2, 'member') on conflict do nothing", [orgA, USERS.bob]);
+    try {
+      await expect(q("select public.app_set_member_permissions($1, $2, $3, $4)", [orgA, USERS.bob, USERS.bob, JSON.stringify({ approve: true })])).rejects.toThrow(/FORBIDDEN/);
+      await expect(asUser(USERS.bob, "update public.organization_members set permissions = '{}' where user_id = $1", [USERS.bob])).rejects.toThrow(/permission denied/);
+      await q("select public.app_set_member_permissions($1, $2, $3, $4)", [orgA, USERS.alice, USERS.bob, JSON.stringify({ approve: false, run_agents: false })]);
+      await expect(task(orgA, USERS.bob, projectA, "Approved by a member without it", "person")).rejects.toThrow(/PERMISSION_WITHHELD/);
+      const t = await task(orgA, USERS.alice, projectA, "Built by a member without it");
+      await q("select public.app_discard_proposal($1, $2, $3, $4)", [t.proposal, USERS.alice, await version(t.task), JSON.stringify([step("APPROVAL_PENDING", "CONTRACT_APPROVED", "discard_plan")])]);
+      await expect(q("select public.app_start_agent_run($1, $2, $3, 'balanced', 'sandboxed', 1, $4)", [orgA, USERS.bob, t.task, H("c")])).rejects.toThrow(/PERMISSION_WITHHELD/);
+      // An owner's own work goes on as before.
+      await expect(task(orgA, USERS.alice, projectA, "Approved by an owner", "person")).resolves.toMatchObject({ task: expect.any(String) });
+    } finally {
+      await admin("delete from public.organization_members where org_id = $1 and user_id = $2", [orgA, USERS.bob]);
+    }
   });
 });

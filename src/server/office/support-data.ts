@@ -5,8 +5,11 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { checkFeature } from "@/core/billing/entitlements";
+import { resolveEffectivePlan } from "@/core/billing/trial";
 import { maskEmail } from "@/core/office/permissions";
-import { SUPPORT_STATUSES, SUPPORT_TOPICS, type SupportStatus, type SupportTopic } from "@/core/support/support";
+import { SUPPORT_STATUSES, SUPPORT_TOPICS, priorityFirst, type SupportStatus, type SupportTopic } from "@/core/support/support";
+import { ORGANIZATION_SELECT, billingSnapshotFromRow } from "@/server/workspace/organizations";
 
 const Status = z.enum(SUPPORT_STATUSES);
 const Topic = z.enum(SUPPORT_TOPICS);
@@ -36,9 +39,11 @@ export interface SupportQueueRow {
   assignee: "you" | string | null;
   since: string;
   messages: number;
+  /** The request's workspace has priority support (ADR 0084). */
+  priority: boolean;
 }
 
-export function toQueueRows(rows: z.infer<typeof QueueRow>[], viewer: { userId: string; showEmail: boolean }): SupportQueueRow[] {
+export function toQueueRows(rows: z.infer<typeof QueueRow>[], viewer: { userId: string; showEmail: boolean }, priority: ReadonlySet<string> = new Set()): SupportQueueRow[] {
   return rows.map((r) => ({
     id: r.id,
     subject: r.subject,
@@ -50,13 +55,33 @@ export function toQueueRows(rows: z.infer<typeof QueueRow>[], viewer: { userId: 
     assignee: r.assignedTo === null ? null : r.assignedTo === viewer.userId ? "you" : (r.assignedEmail ?? "A former staff member"),
     since: r.waiting_since,
     messages: r.messages,
+    priority: r.orgId !== null && priority.has(r.orgId),
   }));
+}
+
+/** Which of these workspaces' plans include priority support. None when plans can't be read: the queue still works, in its own order. */
+export async function priorityWorkspaces(admin: SupabaseClient, orgIds: readonly string[], now = new Date()): Promise<Set<string>> {
+  const ids = [...new Set(orgIds)];
+  if (ids.length === 0) return new Set();
+  const { data, error } = await admin.from("organizations").select(ORGANIZATION_SELECT).in("id", ids);
+  if (error || !Array.isArray(data)) return new Set();
+  const out = new Set<string>();
+  for (const row of data) {
+    const id = z.object({ id: z.string() }).safeParse(row);
+    if (!id.success) continue;
+    const snapshot = billingSnapshotFromRow(row);
+    if (checkFeature(snapshot ? resolveEffectivePlan(snapshot, now) : null, "priority_support").allowed) out.add(id.data.id);
+  }
+  return out;
 }
 
 export async function loadSupportQueue(admin: SupabaseClient, status: SupportStatus, abuseOnly: boolean, viewer: { userId: string; showEmail: boolean }): Promise<SupportQueueRow[]> {
   const { data, error } = await admin.rpc("app_office_support_queue", { p_status: status, p_abuse_only: abuseOnly });
   if (error) throw new Error(`Office Space couldn't read the support queue: ${error.message}`);
-  return toQueueRows(z.array(QueueRow).parse(data), viewer);
+  const parsed = z.array(QueueRow).parse(data);
+  const rows = toQueueRows(parsed, viewer, await priorityWorkspaces(admin, parsed.flatMap((r) => (r.orgId ? [r.orgId] : []))));
+  // Priority goes first only where people are waiting on Farbaek; answered and closed lists stay in time order.
+  return status === "waiting_on_farbaek" ? priorityFirst(rows) : rows;
 }
 
 /** How many requests wait on Farbaek, for the nav badge. Zero if it can't be read. */

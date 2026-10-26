@@ -203,9 +203,9 @@ export const DEMO_PROPOSAL_OUTPUT: ProposalOutput = {
 export const DEMO_TRIAL_STARTED_DAYS_AGO = 5;
 export const DEMO_EVALUATIONS_THIS_PERIOD = 318;
 export const DEMO_MEMBERS = [
-  { userId: DEMO_USER.id, role: "owner" as const, joinedDaysAgo: 5 },
-  { userId: "demo-teammate-1", role: "member" as const, joinedDaysAgo: 4 },
-  { userId: "demo-teammate-2", role: "viewer" as const, joinedDaysAgo: 1 },
+  { userId: DEMO_USER.id, role: "owner" as const, joinedDaysAgo: 5, permissions: {} },
+  { userId: "demo-teammate-1", role: "member" as const, joinedDaysAgo: 4, permissions: { publish: false as const } },
+  { userId: "demo-teammate-2", role: "viewer" as const, joinedDaysAgo: 1, permissions: {} },
 ];
 
 export const DEMO_TIME = { DAY, HOUR };

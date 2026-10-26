@@ -16,6 +16,7 @@ import { resolveAiProvider } from "@/server/ai/config";
 import { loadAppContext } from "@/server/workspace/context";
 import { runEstimates } from "@/server/workspace/plan-card-data";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
+import { withheldFor } from "@/core/workspace/permissions";
 
 export const metadata: Metadata = { title: "Your plan" };
 
@@ -86,7 +87,9 @@ export default async function PlanCardPage({ params }: Params) {
         ? "Cloud runs need Claude on this server. You can still approve the plan from the task page."
         : !intact
           ? "The stored plan doesn't match its fingerprint. Open the task to check it."
-          : null;
+          : withheldFor(ctx.role, ctx.permissions, "run_agents")
+            ? `${withheldFor(ctx.role, ctx.permissions, "run_agents")} You can still approve the plan from the task page.`
+            : null;
 
   const c = contract?.body;
   // What the plan keeps as it is: forbidden operations, protected fields and invariants.

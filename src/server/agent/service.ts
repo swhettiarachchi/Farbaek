@@ -21,6 +21,7 @@ import type { IntentContract } from "@/core/realityloop/contract";
 import type { TaskState } from "@/core/realityloop/task-machine";
 import { sha256Hex } from "@/core/trust/canonical-json";
 import { evaluateChangePolicy, type PolicyDecision } from "@/core/trust/policy";
+import type { ActiveRules } from "@/core/trust/workspace-rules";
 import { checkPath, screenFile } from "@/core/workspace/files";
 import { MESSAGES, codeFromDatabaseError, planSteps, type RpcResult, type TransitionStep, type WriteErrorCode } from "@/server/workspace/use-cases";
 import { CONTRIBUTOR_ROLES, type OrgRole } from "@/server/workspace/types";
@@ -81,6 +82,8 @@ export interface AgentStore {
   projectFiles(orgId: string, projectId: string): Promise<AgentProjectFile[]>;
   fileContents(orgId: string, projectId: string, files: readonly { path: string; revision: number }[]): Promise<Map<string, string>>;
   countEvaluations(orgId: string, period: BillingPeriod): Promise<number>;
+  /** The workspace's active rules (ADR 0082). Throws when they can't be read, so a change never skips them. */
+  workspaceRules(orgId: string): Promise<ActiveRules | null>;
   createAgentProposal(input: {
     agentId: string;
     taskId: string;
@@ -127,6 +130,10 @@ const STATUS: Partial<Record<AgentErrorCode, number>> = {
   TRIAL_CAP_REACHED: 402,
   // The platform's daily AI limit (ADR 0065): retry tomorrow, not a client error.
   PLATFORM_DAILY_LIMIT: 503,
+  // The workspace's emergency pause (ADR 0083): locked until a person resumes agents.
+  AGENTS_PAUSED: 423,
+  // Turned off for this person by an owner or admin (ADR 0087).
+  PERMISSION_WITHHELD: 403,
   UNKNOWN: 500,
 };
 
@@ -284,7 +291,7 @@ export type ProposalSource = { kind: "agent"; agentId: string } | { kind: "run";
 export type ProposalInput = Parameters<AgentStore["createAgentProposal"]>[0] extends infer T ? Omit<T, "agentId"> : never;
 
 /** What checking an agent's work needs. AgentStore fits; cloud runs bring their own. */
-export type ProposalChecks = Pick<AgentStore, "loadTask" | "approvedContract" | "project" | "projectFiles" | "billing" | "countEvaluations" | "newEventId" | "now">;
+export type ProposalChecks = Pick<AgentStore, "loadTask" | "approvedContract" | "project" | "projectFiles" | "billing" | "countEvaluations" | "workspaceRules" | "newEventId" | "now">;
 
 /**
  * Checks an agent's finished work exactly like a proposal made in the web
@@ -352,7 +359,7 @@ export async function prepareAgentProposal(
   }
 
   const violations = checkProposal(contract.body, changes);
-  const policy = await evaluateChangePolicy({ files: changes, contractViolations: violations, autonomy: policyContext.autonomy, verifiable: policyContext.verifiable });
+  const policy = await evaluateChangePolicy({ files: changes, contractViolations: violations, autonomy: policyContext.autonomy, verifiable: policyContext.verifiable, rules: await store.workspaceRules(id.orgId) });
   const blocked = policy.outcome === "BLOCK";
   const sha = await proposalHash({ taskId: task.id, contractVersion: contract.version, contractSha256: contract.sha256, changes });
   const planned = planSteps(store, { ...task, orgId: id.orgId }, id.userId, ["propose_plan", "evaluate_policy", blocked ? "block" : "require_approval"]);

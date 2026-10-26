@@ -304,3 +304,42 @@ Known limits: public repositories only. Private ones need a GitHub connection, w
 | --- | --- | --- | --- |
 | Reading past changes | Another workspace's history; file contents leaking into a replay | `app_replay_history` runs as the caller under RLS and returns only paths, kinds, counts and statuses; at most 90 days and 300 changes; not callable signed out | `tests/db/policy-replay.test.ts` |
 | Predictions taken as facts | A replay read as what happened | Labelled "Predicted from past changes", dashed, with its assumption stated; nothing is applied | `rehearsal-record.test.ts`, `replay.test.ts` |
+
+## Workspace rules and the policy builder (2026-10-25, ADR 0082)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| Rules loosening the policy | A rule written to let more through | Rules only add BLOCK, ESCALATE or a hold on level 2; the built-in rules, contract checks and autonomy limits still apply; nothing lowers an outcome | `policy.test.ts` |
+| A path that skips the rules | A proposal created without the active rules: a forgotten caller, a race with an activation, a failed read | The rules are a required input to `evaluateChangePolicy` on every path (web, cloud, desktop agent); a read that fails stops the change; a trigger on `change_proposals` refuses any outcome weaker than the active rules need, whichever path inserted it | `tests/db/workspace-rules.test.ts`, `policy.test.ts` |
+| Who changes the rules | A member, a viewer or another workspace activating rules | `app_activate_workspace_rules` is for the service role only and checks an owner or admin of that workspace; every version is kept and audited; members read their own workspace's rules only | `tests/db/workspace-rules.test.ts`, `workspace-rules.test.ts` |
+| Activating something other than what was reviewed | A set changed after the test, or tampered with in the browser | Activation sends the set and its SHA-256; the server recomputes it from the canonical JSON and refuses a mismatch, tests the set again itself and stores that result; the database validates the shape and each expression | `workspace-rules.test.ts`, `tests/db/workspace-rules.test.ts` |
+| AI drafts | A model inventing rules, unsafe patterns, or following instructions in the request | The request and folder names go as JSON data with a system prompt that treats them as text; output is schema-checked; invalid patterns are dropped and listed; drafts only fill the form, never activate; metered and refunded on failure | `rule-draft.test.ts`, `workspace-rules.test.ts` |
+| Patterns as code | A pattern that escapes the project or makes matching slow | Allowed characters only, no `..` or leading `/`, at most 200 characters, 8 wildcards and 3 `**`; the regex is built from tokens and anchored; the database checks each expression when activating | `path-pattern.test.ts`, `tests/db/workspace-rules.test.ts` |
+
+## Emergency pause and incidents (2026-10-25, ADR 0083)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| An agent that won't stop | Runs, desktop agents' proposals or automatic applies carrying on after someone pulls the brake | `app_set_agents_pause` sets the workspace's pause; triggers refuse new `agent_runs`, proposals from desktop agents or cloud runs, and any automatic outcome while it's set; the server aborts live runs on this server; people's own changes carry on | `tests/db/incidents.test.ts`, SE-026, `incidents.test.ts` |
+| Who pauses and who resumes | A viewer or another workspace pausing; a member restarting agents an owner stopped | Any contributor of that workspace pauses; only an owner or admin resumes; both audited; browsers can't call the function or write the columns | `tests/db/incidents.test.ts`, SE-026 |
+| Overclaiming | A pause read as undoing what happened | Every place the pause is offered, and the banner, says it can't undo changes already applied or anything done outside Farbaek | `pause-control.tsx` copy, ADR 0083 |
+| Incident records | Forged or edited incidents; another workspace's incidents; file contents in the replay | Only server functions write incidents and events (service role), each checking the workspace and the person; members read their own workspace's; `app_incident_changes` returns paths, kinds and outcomes only, as the caller under RLS; resolving is final | `tests/db/incidents.test.ts` |
+| Blaming the wrong change | The replay presenting timing as cause | Changes found by timing are labelled "Farbaek can't tell which, if any, caused it"; suggested rules go to the policy builder and must be tested on past changes before activation | `incidents.test.ts` (core) |
+| Escalation | Repeated or misdirected alerts | Each incident is claimed once before anyone is told; only owners and admins of that workspace, only on plans with incident response tools | `incident-escalation.test.ts`, `tests/db/incidents.test.ts` |
+
+## Autonomy level 3 (2026-10-26, ADR 0086)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| Turning level 3 on | A workspace, or a member, letting more through without a record | Owners and admins only; Max 3x checked on the server; the database refuses level 3 unless 10 changes applied on their own passed their checks in 30 days with none failed, on the way in and after a pause | `tests/db/autonomy-level-3.test.ts`, SE-027, `autonomy.test.ts` |
+| Volume | A run or a burst of tasks applying many changes on their own in a day | A daily budget the workspace sets (5 to 50): the policy holds changes for a person once it's spent, a count that can't be read counts as spent, and a trigger refuses any automatic proposal past it | `tests/db/autonomy-level-3.test.ts`, SE-027, `policy.test.ts` |
+| After a failure | Autonomy carrying on at its widest after a check failed | Any failed or partly passed check after an automatic apply pauses autonomy; the failure keeps level 3 locked for 30 days | `tests/db/autonomy-level-3.test.ts` |
+
+## Permissions per person (2026-10-26, ADR 0087)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| Changing permissions | A member giving themselves back what was turned off; a browser writing the column | Only `app_set_member_permissions` (service role) writes it, for an owner or admin acting on a member; browsers have no write grant; a constraint allows only withheld known permissions; every change is audited | `tests/db/member-permissions.test.ts`, SE-028 |
+| Acting without the permission | A member approving, publishing, launching or starting runs through another server path | Triggers on `change_proposals` (a person's approval), `site_deployments`, `launch_orders`, `agent_runs` and `arena_runs`, and a check in `app_set_live_deployment`, refuse `PERMISSION_WITHHELD` for the person recorded as acting | `tests/db/member-permissions.test.ts`, SE-028 |
+| Stale permissions | A demoted admin keeping old restrictions, or a promoted member keeping them | A role change resets permissions to that role's defaults; owners and admins always have every permission | `tests/db/member-permissions.test.ts` |
+| Lapsed plans | A workspace stuck with members who can do less after its plan ends | Turning a permission back on never needs the plan | `member-permissions.test.ts` |

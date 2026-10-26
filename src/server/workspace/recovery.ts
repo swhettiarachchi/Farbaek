@@ -73,7 +73,8 @@ export interface RecoveryPreview {
 export async function previewRecovery(input: { taskId: string; proposalId: string; source: RecoverySource }): Promise<RecoveryPreview> {
   const items = planRecovery(input.source.applied, new Map(Object.entries(input.source.current)));
   const planSha256 = await recoveryPlanHash({ taskId: input.taskId, proposalId: input.proposalId, items });
-  const policy = await evaluateChangePolicy({ files: items.filter((i) => i.status === "ready"), contractViolations: [] });
+  // Undo restores a state people already reviewed, so it's judged by the built-in policy alone (ADR 0082). A change a workspace rule escalated stays escalated through proposal.policyOutcome.
+  const policy = await evaluateChangePolicy({ files: items.filter((i) => i.status === "ready"), contractViolations: [], rules: null });
   return { items, planSha256, policy };
 }
 
@@ -113,7 +114,7 @@ export async function recoverChange(
   if (!selection.ok) return fail("INVALID_RECOVERY", selection.reason === "empty" ? "Choose at least one file to restore." : MESSAGES.RECOVERY_CHANGED);
   const { operations, complete } = selection;
 
-  const policy = operations.length === items.filter((i) => i.status === "ready").length ? fullPolicy : await evaluateChangePolicy({ files: operations, contractViolations: [] });
+  const policy = operations.length === items.filter((i) => i.status === "ready").length ? fullPolicy : await evaluateChangePolicy({ files: operations, contractViolations: [], rules: null });
   if (policy.outcome === "BLOCK") return fail("POLICY_BLOCKED");
   if ((policy.outcome === "ESCALATE" || proposal.policyOutcome === "ESCALATE") && !MANAGER_ROLES.includes(role.value)) {
     return fail("APPROVER_ROLE_REQUIRED", "Undoing this change touches sensitive files, so an owner or admin has to approve it.");

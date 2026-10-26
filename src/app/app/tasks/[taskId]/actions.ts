@@ -17,7 +17,7 @@ export async function startVerificationAction(_previous: VerifyActionState, form
   if (!ctx) redirect("/sign-in");
   if (!ctx.writes.enabled) return { status: "error", message: ctx.writes.reason };
   if (!ctx.current || !ctx.role) return { status: "error", message: "Create or join a workspace first." };
-  const person = { orgId: ctx.current.id, userId: ctx.user.id, role: ctx.role };
+  const person = { orgId: ctx.current.id, userId: ctx.user.id, role: ctx.role, permissions: ctx.permissions };
   const wiring = await verificationDeps(person);
   if (!wiring.ok) return { status: "error", message: wiring.reason };
   const started = await startTaskVerification(wiring.deps, person, taskId.data, "person");

@@ -1,4 +1,4 @@
-import { CaretRightIcon, ChatsCircleIcon, FlagIcon, UserCircleIcon } from "@phosphor-icons/react/ssr";
+import { CaretRightIcon, ChatsCircleIcon, FlagIcon, LightningIcon, UserCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Chip } from "@/components/admin/table";
@@ -43,7 +43,10 @@ export default async function OfficeSupport({ searchParams }: { searchParams: Pr
 
   return (
     <div className="grid gap-6">
-      <PageHeader title="Support" description="Requests people send from Help in the app. Replies are signed Farbaek support; your name is only in the audit log." />
+      <PageHeader
+        title="Support"
+        description="Requests people send from Help in the app. Replies are signed Farbaek support; your name is only in the audit log. Requests from plans with priority support come first while they wait on us."
+      />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <nav aria-label="Support queues" className="grid w-full grid-cols-3 gap-1 rounded-full border border-line bg-surface-raised/60 p-1 sm:inline-grid sm:w-auto">
@@ -84,6 +87,12 @@ export default async function OfficeSupport({ searchParams }: { searchParams: Pr
                       {r.topic === "abuse" ? <FlagIcon size={12} weight="fill" className="mr-1" aria-hidden /> : null}
                       {TOPIC_LABELS[r.topic]}
                     </Chip>
+                    {r.priority ? (
+                      <Chip tone="accent">
+                        <LightningIcon size={12} weight="fill" className="mr-1" aria-hidden />
+                        Priority
+                      </Chip>
+                    ) : null}
                   </span>
                   <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-3">
                     <span className="break-all">{r.email}</span>

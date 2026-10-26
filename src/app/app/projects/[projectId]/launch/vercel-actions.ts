@@ -20,7 +20,7 @@ async function context() {
   if (!ctx.current || !ctx.role) return { error: "Create or join a workspace first." } as const;
   const deps = launchDeps(ctx);
   if (!deps) return { error: "The server isn't configured for this yet." } as const;
-  return { ctx, deps, person: { orgId: ctx.current.id, userId: ctx.user.id, role: ctx.role } } as const;
+  return { ctx, deps, person: { orgId: ctx.current.id, userId: ctx.user.id, role: ctx.role, permissions: ctx.permissions } } as const;
 }
 
 /** Connects the workspace's own Vercel account (ADR 0078). The token is sealed on the server and never shown again. */

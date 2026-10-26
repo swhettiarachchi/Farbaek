@@ -1,4 +1,4 @@
-import { ShieldStarIcon, SignOutIcon, SparkleIcon } from "@phosphor-icons/react/ssr";
+import { HandPalmIcon, ShieldStarIcon, SignOutIcon, SparkleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MobileTabBar, SidebarNav } from "@/components/app/app-nav";
@@ -162,6 +162,19 @@ export default async function AppLayout({ children }: Readonly<{ children: React
                 </Link>
               </>
             ) : null}
+          </p>
+        ) : null}
+        {current.agentsPaused ? (
+          // The workspace's emergency pause (ADR 0083): said on every page until someone resumes agents.
+          <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-b border-failed/25 bg-failed/[0.05] px-4 py-2.5 text-center text-[13px] text-ink">
+            <HandPalmIcon size={16} weight="bold" className="shrink-0 text-failed" aria-hidden />
+            <span>
+              <span className="font-medium">Agents are paused.</span> No agent runs or automatic changes until an owner or admin resumes them. Changes already applied stay as
+              they are.
+            </span>
+            <Link href="/app/incidents" className="font-medium text-accent underline-offset-4 hover:underline">
+              Incidents
+            </Link>
           </p>
         ) : null}
 

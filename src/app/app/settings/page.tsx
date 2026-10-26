@@ -5,7 +5,8 @@ import { AutonomySettings } from "@/components/app/autonomy-settings";
 import { RehearsalRecord } from "@/components/app/rehearsal-record";
 import { checkFeature } from "@/core/billing/entitlements";
 import { summarizeRehearsal } from "@/core/trust/rehearsal";
-import { SHADOW_NOT_IN_PLAN } from "@/server/workspace/autonomy";
+import { LEVEL_3_NOT_IN_PLAN, SHADOW_NOT_IN_PLAN, readAutonomyRecord } from "@/server/workspace/autonomy";
+import { levelThreeStatus } from "@/core/trust/autonomy-levels";
 import { DeleteAccount } from "@/components/app/delete-account";
 import { EmailPreferencesForm } from "@/components/app/email-preferences";
 import { ThisDevice } from "@/components/app/this-device";
@@ -13,6 +14,8 @@ import { readMyDevices } from "@/server/push/store";
 import { vapidPublicKey } from "@/server/push/wiring";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { MemberControls } from "@/components/app/member-controls";
+import { MemberPermissions } from "@/components/app/member-permissions";
+import { PERMISSIONS_NOT_IN_PLAN } from "@/server/workspace/member-permissions";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { DELETION_WORDS, deletionPlan, isStaffAccount } from "@/server/workspace/account";
 import { readEmailConfig } from "@/server/email/config";
@@ -51,9 +54,26 @@ export default async function SettingsPage() {
   // Notifications on people's devices (ADR 0079), read as the person.
   const pushClient = ctx.mode === "live" ? await createSupabaseServerClient() : null;
   const myDevices = pushClient ? await readMyDevices(pushClient, ctx.user.id).catch(() => []) : [];
+  // Level 3 (ADR 0086): the plan first, then the record it's earned from, read as the person. A running level 3 can always change its limits.
+  const levelThreeFeature = checkFeature(ws.plan, "advanced_autonomy");
+  const levelThreeOn = autonomy.level === 3 && autonomy.suspendedAt === null;
+  const levelThreeRecord = !levelThreeOn && levelThreeFeature.allowed && pushClient ? await readAutonomyRecord(pushClient, ws.id) : null;
+  const levelThreeEarned = levelThreeStatus(levelThreeRecord);
+  const levelThreeReason = levelThreeOn
+    ? null
+    : !levelThreeFeature.allowed
+      ? levelThreeFeature.code === "FEATURE_NOT_IN_PLAN"
+        ? LEVEL_3_NOT_IN_PLAN
+        : levelThreeFeature.message
+      : levelThreeEarned.earned
+        ? null
+        : levelThreeEarned.reason;
   const emailReason = ctx.mode === "demo" ? "The demo workspace is read-only." : readEmailConfig() ? null : "Farbaek isn't sending email from this server yet.";
   const owners = members.filter((m) => m.role === "owner").length;
   const peopleReason = ctx.mode === "demo" ? "The demo workspace is read-only." : !ctx.writes.enabled ? ctx.writes.reason : null;
+  // Permissions per person (ADR 0087): turning one off needs the plan, turning one back on never does.
+  const permissionsFeature = checkFeature(ws.plan, "advanced_rbac");
+  const permissionsPlanReason = permissionsFeature.allowed ? null : permissionsFeature.code === "FEATURE_NOT_IN_PLAN" ? PERMISSIONS_NOT_IN_PLAN : permissionsFeature.message;
   // What deleting this account would do, from the database's own plan (ADR 0064).
   const admin = ctx.mode === "live" ? createSupabaseAdminClient() : null;
   const [plan, staff] = admin ? await Promise.all([deletionPlan(admin, ctx.user.id).catch(() => null), isStaffAccount(admin, ctx.user.id).catch(() => false)]) : [null, false];
@@ -112,6 +132,7 @@ export default async function SettingsPage() {
           verifiable={execution.mode === "sandboxed"}
           shadowReason={shadowReason}
           replayReason={ctx.mode === "demo" ? "The demo workspace has no past changes to replay." : shadowReason}
+          levelThreeReason={levelThreeReason}
           disabledReason={ctx.mode === "demo" ? "The demo workspace is read-only." : !ctx.writes.enabled ? ctx.writes.reason : canManage ? null : "Only owners and admins can change autonomy."}
         />
         {autonomy.shadowSince ? (
@@ -169,6 +190,9 @@ export default async function SettingsPage() {
           <h2 className="text-lg font-medium">
             People <span className="text-ink-3 tabular">{members.length}</span>
           </h2>
+          <p className="mt-1 max-w-[65ch] text-sm text-ink-2">
+            Owners and admins can do everything. Members approve changes, publish and start agent runs unless an owner or admin turns one off. Viewers read everything and change nothing.
+          </p>
           <ul className="mt-4 divide-y divide-line">
             {members.map((m) => (
               <li key={m.userId} className="grid gap-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
@@ -193,6 +217,17 @@ export default async function SettingsPage() {
                   lastOwner={m.role === "owner" && owners === 1}
                   disabledReason={peopleReason}
                 />
+                {m.role === "member" ? (
+                  <MemberPermissions
+                    userId={m.userId}
+                    name={m.userId === ctx.user.id ? "yourself" : (emailOf.get(m.userId) ?? "this teammate")}
+                    permissions={m.permissions}
+                    canManage={canManage}
+                    isSelf={m.userId === ctx.user.id}
+                    planReason={permissionsPlanReason}
+                    disabledReason={peopleReason}
+                  />
+                ) : null}
               </li>
             ))}
           </ul>
