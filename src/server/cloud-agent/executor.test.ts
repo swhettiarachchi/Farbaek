@@ -39,10 +39,22 @@ let root: string;
 beforeEach(async () => {
   root = await fs.mkdtemp(path.join(os.tmpdir(), "farbaek-executor-"));
 });
+/**
+ * A run's last step, after its final status is written, is removing its own
+ * folder. Under load that often hasn't happened when a test ends, and
+ * removing `root` at the same time is what made tests here fail now and
+ * then. So wait for every run to finish cleaning up first.
+ */
+async function whenRunsCleanedUp(dir: string): Promise<void> {
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline && (await fs.readdir(dir).catch(() => [])).length > 0) await new Promise((r) => setTimeout(r, 20));
+}
+
 afterEach(async () => {
-  // The run removes its own folder as it ends; on Windows the two removals can overlap for a moment.
+  await whenRunsCleanedUp(root);
+  // Windows can still hold a just-removed file for a moment (antivirus, the indexer).
   await fs.rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
-});
+}, 20_000);
 
 /** A labelled stand-in for the model: it plays a fixed script of tool calls. */
 function scripted(turns: ModelToolCall[][]): ToolModel {

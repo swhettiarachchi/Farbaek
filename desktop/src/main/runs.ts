@@ -78,6 +78,7 @@ export class RunManager {
   private readonly runs = new Map<string, StoredRun>();
   private readonly live = new Map<string, { controller: AbortController; approvals: Map<string, (answer: ApprovalAnswer) => void> }>();
   private readonly timers = new Map<string, NodeJS.Timeout>();
+  private readonly writing = new Set<Promise<void>>();
 
   constructor(private readonly deps: RunDeps) {}
 
@@ -139,11 +140,37 @@ export class RunManager {
     return detail as RunDetail;
   }
 
-  private async save(run: StoredRun): Promise<void> {
+  /** Writes the run to disk; `flush` waits for every write still under way. */
+  private save(run: StoredRun): Promise<void> {
+    const write = this.write(run);
+    this.writing.add(write);
+    void write.then(
+      () => this.writing.delete(write),
+      () => this.writing.delete(write),
+    );
+    return write;
+  }
+
+  private async write(run: StoredRun): Promise<void> {
     const file = path.join(this.runsDir, `${run.id}.json`);
     await fs.mkdir(this.runsDir, { recursive: true });
     await fs.writeFile(`${file}.tmp`, JSON.stringify(run), "utf8");
     await fs.rename(`${file}.tmp`, file);
+  }
+
+  /**
+   * Writes every run that has a save waiting, and waits for writes already
+   * under way. A run's last save can still be writing just after its state
+   * changes, so call this before the data folder is closed or removed.
+   */
+  async flush(): Promise<void> {
+    for (const [id, timer] of this.timers) {
+      clearTimeout(timer);
+      this.timers.delete(id);
+      const run = this.runs.get(id);
+      if (run) void this.save(run).catch(() => undefined);
+    }
+    while (this.writing.size > 0) await Promise.allSettled([...this.writing]);
   }
 
   /** Tells the window and saves soon (at once when `now`). */
@@ -296,7 +323,8 @@ export class RunManager {
       run.pendingApproval = null;
       run.endedAt = this.now();
       this.live.delete(run.id);
-      await this.touch(run, true);
+      // The window already has the final state. If this write fails, the next save writes it, and until then a restart shows the run as interrupted; it never becomes an unhandled rejection.
+      await Promise.resolve(this.touch(run, true)).catch(() => undefined);
     }
   }
 
