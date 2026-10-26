@@ -40,6 +40,8 @@ export const OFFICE_ACTIONS = [
   "support.read",
   "support.reply",
   "devices.own",
+  "models.canary",
+  "models.switch",
 ] as const;
 export type OfficeAction = (typeof OFFICE_ACTIONS)[number];
 
@@ -63,10 +65,13 @@ export const PERMISSIONS: Record<OfficeAction, readonly StaffRole[]> = {
   "support.reply": ["owner", "admin", "support", "trust_safety"],
   // Approving and removing your own Office Space devices (ADR 0069).
   "devices.own": ALL,
+  // The Model Change Canary (ADR 0090): a canary spends Farbaek's AI credit; switching a tier changes every workspace's model.
+  "models.canary": ["owner", "admin"],
+  "models.switch": ["owner"],
 };
 
 /** Actions that need a fresh authenticator code in the same request, whatever the input. */
-const ALWAYS_STEP_UP: ReadonlySet<OfficeAction> = new Set(["staff.manage", "flags.set"]);
+const ALWAYS_STEP_UP: ReadonlySet<OfficeAction> = new Set(["staff.manage", "flags.set", "models.switch"]);
 
 /** AI usage additions above this many units need a fresh authenticator code too. */
 export const USAGE_STEP_UP_UNITS = 1_000_000;

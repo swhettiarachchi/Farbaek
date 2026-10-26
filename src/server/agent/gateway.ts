@@ -16,7 +16,8 @@
  */
 import { z } from "zod";
 import { worstStepUnits } from "@/core/agent/run-cap";
-import { EFFORTS, route } from "@/core/agent/routing";
+import { EFFORTS } from "@/core/agent/routing";
+import { routeModel } from "@/server/ai/routing";
 import { approxTokens, costUnits } from "@/core/billing/rate-card";
 import type { TaskState } from "@/core/realityloop/task-machine";
 import type { DraftFailure, ProviderUsage } from "@/server/ai/contract-drafter";
@@ -162,7 +163,7 @@ export async function callModel(
 
   const billing = await resolvePlan(deps, agent.orgId);
   if (!billing.ok) return agentFail(billing.code, billing.message);
-  const choice = route({ plan: billing.value.plan, family: model.family, step: body.step, effort: body.effort, pinned: body.pinned });
+  const choice = routeModel({ plan: billing.value.plan, family: model.family, step: body.step, effort: body.effort, pinned: body.pinned });
 
   if (options.remainingUnits !== undefined) {
     const input = approxTokens(JSON.stringify(body.system)) + approxTokens(JSON.stringify(body.tools)) + approxTokens(JSON.stringify(body.messages));

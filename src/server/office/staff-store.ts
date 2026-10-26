@@ -50,6 +50,11 @@ export const OFFICE_ERROR_CODES = [
   "DEVICE_NOT_WAITING",
   "DEVICE_NOT_FOUND",
   "LAST_DEVICE",
+  "CANARY_RUNNING",
+  "CANARY_LIMIT",
+  "CANARY_REQUIRED",
+  "NOTHING_TO_CHANGE",
+  "UNPRICED_MODEL",
   "UNEXPECTED_RESPONSE",
   "UNKNOWN",
 ] as const;
@@ -95,6 +100,11 @@ export const OFFICE_MESSAGES: Record<OfficeErrorCode, string> = {
   DEVICE_NOT_WAITING: "That device isn't waiting any more. On it, sign in again for a new code.",
   DEVICE_NOT_FOUND: "That device isn't on your list any more.",
   LAST_DEVICE: "This is your only trusted device, so it stays. Add another device first, then remove this one.",
+  CANARY_RUNNING: "A canary is already running. Wait for its report.",
+  CANARY_LIMIT: "Three canaries ran in the last 24 hours, which is the most a day. Try again tomorrow.",
+  CANARY_REQUIRED: "Switch only to a candidate a finished canary compared with this tier in the last 7 days. Run one first.",
+  NOTHING_TO_CHANGE: "This tier already uses its default model.",
+  UNPRICED_MODEL: "Farbaek has no price for that model yet, so it can't serve customers. Add it to the rate card first (a code change).",
   UNEXPECTED_RESPONSE: "The database sent something unexpected. Nothing was changed.",
   UNKNOWN: "That didn't work, and nothing was changed. Try again in a moment.",
 };
@@ -152,6 +162,9 @@ export interface StaffStore {
   unblockSite(actor: StaffActor, input: { siteId: string; reason: string }, meta: RequestMeta): Promise<StoreResult<null>>;
   addUsage(actor: StaffActor, input: { orgId: string; units: number; days: number; reason: string }, strength: AuthStrength, meta: RequestMeta): Promise<StoreResult<string>>;
   setFlag(actor: StaffActor, input: { key: string; paused: boolean; message: string | null; reason: string }, strength: AuthStrength, meta: RequestMeta): Promise<StoreResult<null>>;
+  // The Model Change Canary (migration v57, ADR 0090)
+  startCanary(actor: StaffActor, input: { tier: string; current: string; candidate: string; estimateUnits: number; reason: string }, meta: RequestMeta): Promise<StoreResult<string>>;
+  setModel(actor: StaffActor, input: { tier: string; model: string | null; canaryId: string | null; reason: string }, strength: AuthStrength, meta: RequestMeta): Promise<StoreResult<null>>;
   publishAnnouncement(actor: StaffActor, input: { message: string; tone: "info" | "incident"; dismissible: boolean; endsAt: string | null; reason: string }, meta: RequestMeta): Promise<StoreResult<string>>;
   endAnnouncement(actor: StaffActor, input: { id: string; reason: string }, meta: RequestMeta): Promise<StoreResult<null>>;
   // Phase 3 (migration v22)
@@ -265,6 +278,18 @@ export function createStaffStore(admin: SupabaseClient): StaffStore {
       rpc("app_staff_add_usage", { p_actor: a.userId, p_session: a.sessionId, p_org: i.orgId, p_units: i.units, p_days: i.days, p_reason: i.reason, p_auth_strength: strength, ...m(meta) }, z.string().uuid()),
     setFlag: (a, i, strength, meta) =>
       rpc("app_staff_set_flag", { p_actor: a.userId, p_session: a.sessionId, p_key: i.key, p_paused: i.paused, p_message: i.message, p_reason: i.reason, p_auth_strength: strength, ...m(meta) }, nothing),
+    startCanary: (a, i, meta) =>
+      rpc(
+        "app_staff_start_canary",
+        { p_actor: a.userId, p_session: a.sessionId, p_family: "anthropic", p_tier: i.tier, p_current: i.current, p_candidate: i.candidate, p_estimate_units: i.estimateUnits, p_reason: i.reason, ...m(meta) },
+        z.string().uuid(),
+      ),
+    setModel: (a, i, strength, meta) =>
+      rpc(
+        "app_staff_set_model",
+        { p_actor: a.userId, p_session: a.sessionId, p_family: "anthropic", p_tier: i.tier, p_model: i.model, p_canary: i.canaryId, p_reason: i.reason, p_auth_strength: strength, ...m(meta) },
+        nothing,
+      ),
     publishAnnouncement: (a, i, meta) =>
       rpc(
         "app_staff_publish_announcement",

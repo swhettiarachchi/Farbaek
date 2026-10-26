@@ -5,7 +5,8 @@
  */
 import { estimateRunShare, shareOfPeriod } from "@/core/agent/prompt-start";
 import { capShare, capUnitsFor, type CapChoice } from "@/core/agent/run-cap";
-import { EFFORTS, route, type Effort } from "@/core/agent/routing";
+import { EFFORTS, type Effort } from "@/core/agent/routing";
+import { routeModel } from "@/server/ai/routing";
 import { currentGrant } from "@/core/billing/wallet";
 import { resolveAiProvider } from "@/server/ai/config";
 import type { WorkspaceSummary } from "./organizations";
@@ -25,7 +26,7 @@ export function runEstimates(ws: WorkspaceSummary, now = new Date()): RunEstimat
   const periodUnits = ws.billingUnknown ? null : (currentGrant(ws.plan, trial, now)?.units ?? null);
   const out = {} as RunEstimates;
   for (const effort of EFFORTS) {
-    const model = route({ plan: ws.plan, family, step: "write", effort }).model;
+    const model = routeModel({ plan: ws.plan, family, step: "write", effort }).model;
     const share = estimateRunShare({ model, effort, periodUnits });
     out[effort] = share ? { ...share, model } : null;
   }

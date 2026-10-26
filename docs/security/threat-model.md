@@ -343,3 +343,12 @@ Known limits: public repositories only. Private ones need a GitHub connection, w
 | Acting without the permission | A member approving, publishing, launching or starting runs through another server path | Triggers on `change_proposals` (a person's approval), `site_deployments`, `launch_orders`, `agent_runs` and `arena_runs`, and a check in `app_set_live_deployment`, refuse `PERMISSION_WITHHELD` for the person recorded as acting | `tests/db/member-permissions.test.ts`, SE-028 |
 | Stale permissions | A demoted admin keeping old restrictions, or a promoted member keeping them | A role change resets permissions to that role's defaults; owners and admins always have every permission | `tests/db/member-permissions.test.ts` |
 | Lapsed plans | A workspace stuck with members who can do less after its plan ends | Turning a permission back on never needs the plan | `member-permissions.test.ts` |
+
+## Model Change Canary (2026-10-26, ADR 0090)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| Switching a tier | A compromised or careless staff session moving every workspace to an untested or unpriced model | Owners only (`models.switch`), with a fresh authenticator code, checked in SQL; only to a candidate a finished canary compared in the last 7 days; only priced models take effect on the server; every switch and return records one staff event | `tests/db/model-canary.test.ts`, `office-permissions.test.ts`, `routing.test.ts` |
+| Spending | Canaries run repeatedly on Farbaek's key | Owners and admins with a reason; one at a time and three in 24 hours, enforced by the database; the form shows the most it could cost; the platform AI pause stops it | `tests/db/model-canary.test.ts` |
+| Customer data | Customer work sent through a candidate model for testing | The canary only runs Farbaek's own sample tasks (`canary-suite.ts`) | `model-canary-runner.test.ts` |
+| The tables | Browsers or the server key writing switches or reports directly | No browser grants; the server key reads only; writes only through the v57 functions | `tests/db/model-canary.test.ts`, `browser-grants.test.ts` |

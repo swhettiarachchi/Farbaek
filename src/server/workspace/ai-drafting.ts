@@ -6,7 +6,8 @@
 import { draftToForm } from "@/core/realityloop/contract-draft";
 import { isStaticSite, SITE_CHECK_COMMAND } from "@/core/realityloop/site-check";
 import type { ContractFormValues } from "@/core/realityloop/contract-form";
-import { route, type Effort } from "@/core/agent/routing";
+import { type Effort } from "@/core/agent/routing";
+import { routeModel } from "@/server/ai/routing";
 import type { ContractDrafter, DraftBrief } from "@/server/ai/contract-drafter";
 import { contractPromptTokens } from "@/server/ai/prompts";
 import { reserveUnits } from "@/core/billing/rate-card";
@@ -42,7 +43,7 @@ export async function draftContractWithAi(
   const billing = await resolvePlan(deps, input.orgId);
   if (!billing.ok) return billing;
   // Drafting a contract is planning: Auto routing keeps it on a fast model unless Deep is asked for.
-  const choice = route({ plan: billing.value.plan, family: models.family, step: "plan", effort: input.effort ?? "balanced" });
+  const choice = routeModel({ plan: billing.value.plan, family: models.family, step: "plan", effort: input.effort ?? "balanced" });
   const drafter = models.create(choice);
 
   const units = reserveUnits(drafter.model, contractPromptTokens(input.brief), drafter.maxOutputTokens);

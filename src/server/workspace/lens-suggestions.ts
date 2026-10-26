@@ -5,7 +5,7 @@
  * only mappings for hunks that were sent and clauses that exist are kept.
  */
 import { approxTokens, reserveUnits } from "@/core/billing/rate-card";
-import { route } from "@/core/agent/routing";
+import { routeModel } from "@/server/ai/routing";
 import { lensForChange } from "@/core/realityloop/intent-lens";
 import { acceptSuggestion, lensRequest, type LensSuggestionMapping } from "@/core/realityloop/lens-suggestion";
 import { LENS_MAPPER_SYSTEM_PROMPT, lensMessage, type LensMapper } from "@/server/ai/lens-mapper";
@@ -48,7 +48,7 @@ export async function suggestLensMapping(deps: Deps, source: ModelSource<LensMap
 
   const billing = await resolvePlan(deps, input.orgId);
   if (!billing.ok) return billing;
-  const mapper = source.create(route({ plan: billing.value.plan, family: source.family, step: "review", effort: "fast" }));
+  const mapper = source.create(routeModel({ plan: billing.value.plan, family: source.family, step: "review", effort: "fast" }));
   const units = reserveUnits(mapper.model, approxTokens(LENS_MAPPER_SYSTEM_PROMPT) + approxTokens(lensMessage(request)) + 500, mapper.maxOutputTokens);
   const reserved = await reserveUsage(deps, { orgId: input.orgId, userId: input.userId, taskId: proposal.taskId, operation: "lens_mapping", units, manual: MANUAL_LENS, billing: billing.value });
   if (!reserved.ok) return reserved;
