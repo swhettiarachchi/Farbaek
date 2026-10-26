@@ -395,7 +395,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
               const c = checks[d.id];
               const isLive = d.id === live?.id;
               return (
-                <li key={d.id} className="grid gap-2 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-6">
+                <li key={d.id} id={`version-${d.number}`} className="grid scroll-mt-24 gap-2 px-5 py-4 target:bg-accent/[0.05] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-6">
                   <span className="grid gap-1">
                     <span className="flex flex-wrap items-center gap-2">
                       <span className="font-medium text-ink">Version {d.number}</span>

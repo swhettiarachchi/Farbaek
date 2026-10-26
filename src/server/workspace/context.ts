@@ -89,6 +89,7 @@ function memoizeReader(reader: WorkspaceReader): WorkspaceReader {
     getLatestVerification: wrap("verification", reader.getLatestVerification),
     listInvitations: wrap("invitations", reader.listInvitations),
     listAgents: wrap("agents", reader.listAgents),
+    getProjectGraph: wrap("projectGraph", reader.getProjectGraph),
   };
 }
 

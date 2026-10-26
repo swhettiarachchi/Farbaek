@@ -253,6 +253,28 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
       return [];
     },
 
+    // Built from the same sample tasks, contracts, proposal and incident the other demo pages show. The demo applies nothing, so it has no ProofPacks or versions.
+    async getProjectGraph(_orgId, projectId) {
+      const mine = built.filter((b) => b.task.projectId === projectId).map((b) => b.task);
+      const contracts = (await Promise.all(mine.map(async (t) => ({ t, c: await demoContract(t.id) })))).flatMap(({ t, c }) =>
+        c ? [{ taskId: t.id, version: c.version, status: c.status, createdAt: c.createdAt, approvedAt: c.approvedAt }] : [],
+      );
+      const proposal = mine.some((t) => t.id === DEMO_PROPOSAL_TASK_ID) ? await this.getLatestProposal(DEMO_ORG_ID, DEMO_PROPOSAL_TASK_ID) : null;
+      const incident = demoIncident();
+      return {
+        projectId,
+        tasks: mine.map((t) => ({ id: t.id, title: t.title, state: t.state, createdAt: t.createdAt })),
+        contracts,
+        proposals: proposal ? [{ id: proposal.id, taskId: DEMO_PROPOSAL_TASK_ID, status: proposal.status, outcome: proposal.policy?.outcome ?? null, createdAt: proposal.createdAt, decidedAt: proposal.decidedAt }] : [],
+        proofpacks: [],
+        fileChanges: [],
+        deployments: [],
+        launches: [],
+        incidents: incident.projectId === projectId ? [{ number: incident.number, title: incident.title, severity: incident.severity, status: incident.status, proposalId: incident.proposalId, openedAt: incident.openedAt }] : [],
+        truncated: false,
+      };
+    },
+
     async listRecentProofPacks() {
       return [];
     },

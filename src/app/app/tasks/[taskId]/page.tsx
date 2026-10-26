@@ -193,7 +193,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
         </div>
       </Card>
 
-      <Card>
+      <Card id="contract" className="scroll-mt-24">
         <h2 className="text-lg font-medium">Intent contract</h2>
         <p className="mt-1 text-sm text-ink-2">
           The agreement this task works against. Each version is validated, hashed and kept. Approval covers one exact version.
