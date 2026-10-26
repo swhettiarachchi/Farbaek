@@ -35,7 +35,9 @@ export class RelayError extends Error {
 }
 
 const ErrorBody = z.object({ error: z.object({ code: z.string(), message: z.string() }) });
-const Calls = z.object({ data: z.object({ calls: z.array(z.object({ session: z.uuid(), from: z.string().regex(/^[0-9a-f]{16}$/) })).max(20) }) });
+const Calls = z.object({
+  data: z.object({ calls: z.array(z.object({ session: z.uuid(), from: z.string().regex(/^[0-9a-f]{16}$/), mode: z.enum(["relay", "direct"]).default("relay") })).max(20) }),
+});
 const Called = z.object({ data: z.object({ session: z.uuid() }) });
 const Written = z.object({ data: z.object({ end: z.number().int().min(0), full: z.boolean() }) });
 
@@ -45,6 +47,7 @@ const FATAL = new Set(["NOT_FOUND", "CLOSED", "GAP", "FORBIDDEN", "TOO_LARGE", "
 export interface RelayCallView {
   session: string;
   from: string;
+  mode: "relay" | "direct";
 }
 
 /** Calls to the relay with the agent's token. */
@@ -96,9 +99,9 @@ export class RelayClient {
     return body.data.data.calls;
   }
 
-  /** Calls a reachable device of this workspace. */
-  async call(to: string, from: string): Promise<string> {
-    const body = Called.safeParse(await this.post("/calls", { to, from }));
+  /** Calls a reachable device of this workspace, to relay the files or to set up a direct link (ADR 0095). */
+  async call(to: string, from: string, mode: "relay" | "direct" = "relay"): Promise<string> {
+    const body = Called.safeParse(await this.post("/calls", { to, from, mode }));
     if (!body.success) throw new RelayError("INVALID", "Farbaek's relay sent an answer that couldn't be read.");
     return body.data.data.session;
   }

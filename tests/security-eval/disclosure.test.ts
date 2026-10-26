@@ -11,7 +11,9 @@ import { commandEnv } from "@/agent-runtime/broker";
 import { initiate, respond } from "@/agent-runtime/mesh/channel";
 import { fingerprint, generateKeyPair } from "@/agent-runtime/mesh/noise";
 import { MeshNode } from "@/agent-runtime/mesh/node";
+import { fakeDirect } from "@/agent-runtime/mesh/direct-fake";
 import { fakeRelay } from "@/agent-runtime/mesh/relay-fake";
+import { buildResponse, parseRequest } from "../../deploy/vps/stun/stun-server.mjs";
 import { agentSystemPrompt, openingMessage } from "@/agent-runtime/loop";
 import { decide } from "@/core/agent/permissions";
 import { ContractDraftSchema, draftToForm } from "@/core/realityloop/contract-draft";
@@ -195,5 +197,40 @@ describe("SE-031 A relay that could read or redirect a transfer", () => {
     }
     await new Promise((r) => setTimeout(r, 50));
     expect(relay.hub.stats().bufferedBytes).toBe(0);
+  }, 30_000);
+});
+
+describe("SE-032 A direct link set up by an untrusted server", () => {
+  it("carries nothing to a link the server swapped, keeps file bytes off the server, and runs no amplifying STUN", async () => {
+    // The setup messages pass through the server, which hands the caller a link to an impostor instead.
+    const relay = fakeRelay();
+    let impostor: import("node:stream").Duplex | null = null;
+    const direct = fakeDirect({ swap: (end) => (impostor = end) });
+    const caller = relay.client("agent-desk");
+    const callee = relay.client("agent-laptop");
+    const deskKey = generateKeyPair();
+    const laptopKey = generateKeyPair();
+    await callee.setReachable(fingerprint(laptopKey.publicKey), true);
+    const session = await caller.call(fingerprint(laptopKey.publicKey), fingerprint(deskKey.publicKey), "direct");
+    const [call] = await callee.waitForCalls(1);
+    expect(call!.mode).toBe("direct");
+    await callee.join(call!.session);
+    const [deskLink] = await Promise.all([direct(caller.open(session), "offer"), direct(callee.open(session), "answer")]);
+    const fake = respond(impostor!, generateKeyPair(), { v: 1, name: "Laptop" });
+    const channel = await initiate(deskLink, deskKey, { v: 1, name: "Desk", purpose: "transfer" }, 5_000);
+    await fake;
+    // The Noise handshake shows the impostor's key, not the paired one: an agent stops before offering anything.
+    expect(Buffer.compare(channel.peer.publicKey, laptopKey.publicKey)).not.toBe(0);
+    channel.close();
+    // Only the offer and answer crossed the server.
+    expect(relay.carried().length).toBeLessThan(1_024);
+
+    // STUN: junk gets no answer, and an answer is never much larger than what was asked.
+    expect(parseRequest(Buffer.from("x".repeat(40)))).toBeNull();
+    const request = Buffer.alloc(20);
+    request.writeUInt16BE(1, 0);
+    request.writeUInt32BE(0x2112a442, 4);
+    const txid = parseRequest(request)!;
+    expect(buildResponse(txid, "2001:db8::1", 40_000).length).toBeLessThanOrEqual(request.length * 3);
   }, 30_000);
 });

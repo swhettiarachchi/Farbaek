@@ -21,6 +21,7 @@ import { AGENT_MODES } from "@/core/agent/modes";
 import { EFFORTS } from "@/core/agent/routing";
 import { FarbaekAgentClient, FarbaekApiError, checkServerUrl, pairWithFarbaek } from "@/agent-runtime/farbaek-client";
 import type { AppState, Result, RunDetail } from "../shared/api";
+import { DirectBridge } from "./direct";
 import { DesktopMesh } from "./mesh";
 import { RunError, RunManager } from "./runs";
 import { SecretStore } from "./secrets";
@@ -44,12 +45,31 @@ const secrets = () => new SecretStore(path.join(dataDir(), "secrets"));
 let runs: RunManager;
 /** The agent token, read once from the keychain, for Mesh's relay. */
 let agentToken: string | null = null;
+
+/** Development only, ignored in packaged builds: a local relay and token, so two windows can be checked against it. */
+function testRelay(): { server: string; token: string } | null {
+  const raw = app.isPackaged ? undefined : process.env.FARBAEK_AGENT_TEST_RELAY;
+  const [server, token] = raw?.split("|") ?? [];
+  return server && token ? { server, token } : null;
+}
+
+function relayAccess(): { server: string; token: string } | null {
+  return testRelay() ?? (settings.paired && agentToken ? { server: settings.paired.server, token: agentToken } : null);
+}
+
+/** Direct links (ADR 0095): WebRTC in a hidden window, through Farbaek's own STUN server on the paired host. */
+const direct = new DirectBridge({ preload: path.join(__dirname, "rtc-preload.js"), page: path.join(__dirname, "rtc", "rtc.html") }, () => {
+  const access = relayAccess();
+  return access ? [`stun:${new URL(access.server).hostname}:3478`] : [];
+});
+
 const mesh = new DesktopMesh({
   dataDir: dataDir(),
   secrets: () => secrets(),
   name: () => settings.paired?.agentName ?? os.hostname().slice(0, 60),
   window: () => window,
-  relay: () => (settings.paired && agentToken ? { server: settings.paired.server, token: agentToken } : null),
+  relay: relayAccess,
+  direct: (signal, role) => direct.open(signal, role),
 });
 
 async function loadSettings(): Promise<void> {
@@ -233,6 +253,8 @@ function createWindow(): void {
     },
   });
   window.once("ready-to-show", () => window?.show());
+  // The hidden direct-link window would otherwise keep the app open after this one closes.
+  window.on("closed", () => direct.close());
   void window.loadFile(RENDERER);
 }
 

@@ -7,7 +7,9 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CHUNK_BYTES, ChunkHasher, blake3Hex, checkManifest, manifestDigest, type CapsuleManifest } from "@/core/mesh/capsule";
 import { TRANSFER_LIMITS } from "@/core/mesh/protocol";
-import { SecureChannel, initiate } from "./channel";
+import type { Duplex } from "node:stream";
+import { SecureChannel, initiate, respond } from "./channel";
+import { fakeDirect } from "./direct-fake";
 import { FrameError, FramedSocket } from "./framing";
 import type { KeyVault } from "./identity";
 import { generateKeyPair } from "./noise";
@@ -42,16 +44,18 @@ afterEach(async () => {
   await Promise.all(nodes.splice(0).map((n) => n.close()));
 });
 
-async function makeNode(name: string, relay?: () => RelayLink | string): Promise<MeshNode> {
-  const node = new MeshNode({ dataDir: await tmp(`data-${name}`), name: () => name, vault: memoryVault(), discovery: false, listenHost: "127.0.0.1", relay, onUpdate: () => undefined });
+type Direct = (signal: Duplex, role: "offer" | "answer") => Promise<Duplex>;
+
+async function makeNode(name: string, relay?: () => RelayLink | string, direct?: Direct): Promise<MeshNode> {
+  const node = new MeshNode({ dataDir: await tmp(`data-${name}`), name: () => name, vault: memoryVault(), discovery: false, listenHost: "127.0.0.1", relay, direct, onUpdate: () => undefined });
   await node.init();
   nodes.push(node);
   return node;
 }
 
-async function paired(relays: { a?: () => RelayLink | string; b?: () => RelayLink | string } = {}): Promise<{ a: MeshNode; b: MeshNode; port: number }> {
-  const a = await makeNode("Desk", relays.a);
-  const b = await makeNode("Laptop", relays.b);
+async function paired(relays: { a?: () => RelayLink | string; b?: () => RelayLink | string; aDirect?: Direct; bDirect?: Direct } = {}): Promise<{ a: MeshNode; b: MeshNode; port: number }> {
+  const a = await makeNode("Desk", relays.a, relays.aDirect);
+  const b = await makeNode("Laptop", relays.b, relays.bDirect);
   await b.setVisible(true);
   const port = b.snapshot().visible!.port;
   await a.pair("127.0.0.1", port);
@@ -373,11 +377,11 @@ describe("through Farbaek's relay", { timeout: 60_000 }, () => {
 
   it("sends a folder end to end encrypted: the receiver checks every byte, and the relay carried nothing readable", async () => {
     const { a, b, relay } = await apart();
-    expect(b.snapshot().relay).toEqual({ available: true, reachable: true, problem: null });
+    expect(b.snapshot().relay).toEqual({ available: true, reachable: true, problem: null, direct: false });
     const { root, big } = await sourceFolder();
     const parent = await tmp("dest");
     const prepared = await a.prepare(root);
-    const outId = a.sendThroughRelay(prepared.id, b.fingerprint);
+    const outId = a.sendOverInternet(prepared.id, b.fingerprint, "relay");
     await until(() => b.snapshot().transfers.some((t) => t.state === "offered"));
     const incoming = b.snapshot().transfers.find((t) => t.state === "offered")!;
     expect(incoming.via).toBe("relay");
@@ -423,7 +427,7 @@ describe("through Farbaek's relay", { timeout: 60_000 }, () => {
     await b.setReachable(false);
     const { root } = await sourceFolder();
     const prepared = await a.prepare(root);
-    const outId = a.sendThroughRelay(prepared.id, b.fingerprint);
+    const outId = a.sendOverInternet(prepared.id, b.fingerprint, "relay");
     await until(() => stateOf(a, outId) === "interrupted");
     expect(a.snapshot().transfers.find((t) => t.id === outId)!.message).toMatch(/isn't reachable through Farbaek now/);
     await b.setReachable(true);
@@ -432,5 +436,90 @@ describe("through Farbaek's relay", { timeout: 60_000 }, () => {
     const parent = await tmp("dest");
     await b.accept(b.snapshot().transfers[0]!.id, parent);
     await until(() => stateOf(a, outId) === "done", 30_000);
+  });
+});
+
+describe("directly over the internet", { timeout: 60_000 }, () => {
+  /** Paired on one network, then apart; both can open direct links unless told otherwise. */
+  async function apart(options: { aDirect?: Direct; bDirect?: Direct | null } = {}) {
+    const relay = fakeRelay();
+    const shared = fakeDirect();
+    const { a, b } = await paired({ a: () => relay.client("agent-desk"), b: () => relay.client("agent-laptop"), aDirect: options.aDirect ?? shared, bDirect: options.bDirect === null ? undefined : (options.bDirect ?? shared) });
+    await b.setVisible(false);
+    await b.setReachable(true);
+    return { a, b, relay };
+  }
+
+  async function deliver(a: MeshNode, b: MeshNode, outId: string) {
+    await until(() => b.snapshot().transfers.some((t) => t.state === "offered"), 20_000);
+    const incoming = b.snapshot().transfers.find((t) => t.state === "offered")!;
+    await b.accept(incoming.id, await tmp("dest"));
+    await until(() => stateOf(a, outId) === "done" && stateOf(b, incoming.id) === "done", 30_000);
+    return b.snapshot().transfers.find((t) => t.id === incoming.id)!;
+  }
+
+  it("sends straight between the two: the relay only carried the setup", async () => {
+    const { a, b, relay } = await apart();
+    expect(a.snapshot().relay).toMatchObject({ available: true, direct: true });
+    const { root, big } = await sourceFolder();
+    const prepared = await a.prepare(root);
+    const outId = a.sendOverInternet(prepared.id, b.fingerprint);
+    const received = await deliver(a, b, outId);
+    expect(received.via).toBe("direct");
+    expect(a.snapshot().transfers.find((t) => t.id === outId)!.via).toBe("direct");
+    expect(Buffer.compare(await fs.readFile(path.join(received.destination!, "assets", "big.bin")), big)).toBe(0);
+    // A few hundred bytes of offer and answer, and none of the files.
+    expect(relay.carried().length).toBeLessThan(4_096);
+    expect(relay.carried().includes(Buffer.from("README.md"))).toBe(false);
+  });
+
+  it("stops when the networks block a direct link, and goes through the relay only when the person chooses it", async () => {
+    let blocked = true;
+    const direct = fakeDirect({ blocked: () => blocked });
+    const { a, b, relay } = await apart({ aDirect: direct, bDirect: direct });
+    const { root, big } = await sourceFolder();
+    const prepared = await a.prepare(root);
+    const outId = a.sendOverInternet(prepared.id, b.fingerprint);
+    await until(() => stateOf(a, outId) === "interrupted");
+    const stopped = a.snapshot().transfers.find((t) => t.id === outId)!;
+    expect(stopped).toMatchObject({ canUseRelay: true, via: "direct" });
+    expect(stopped.message).toMatch(/Couldn't open a direct link to Laptop/);
+    // Nothing went through the relay without the person choosing it.
+    expect(relay.carried().length).toBeLessThan(4_096);
+    expect(b.snapshot().transfers).toEqual([]);
+
+    a.useRelay(outId);
+    const received = await deliver(a, b, outId);
+    expect(received.via).toBe("relay");
+    expect(relay.carried().length).toBeGreaterThan(big.length);
+    expect(() => a.useRelay(outId)).toThrow(/direct link was blocked/);
+    blocked = false;
+  });
+
+  it("is declined by a computer that can't open direct links, so the sender is offered the relay", async () => {
+    const { a, b } = await apart({ bDirect: null });
+    const { root } = await sourceFolder();
+    const prepared = await a.prepare(root);
+    const outId = a.sendOverInternet(prepared.id, b.fingerprint);
+    await until(() => stateOf(a, outId) === "interrupted");
+    expect(a.snapshot().transfers.find((t) => t.id === outId)!.canUseRelay).toBe(true);
+  });
+
+  it("sends nothing when the link was swapped for someone else's, whatever the server said", async () => {
+    let attacker: Duplex | null = null;
+    const mitm = fakeDirect({ swap: (end) => (attacker = end) });
+    const { a, b } = await apart({ aDirect: mitm, bDirect: mitm });
+    const offers: unknown[] = [];
+    const { root } = await sourceFolder();
+    const prepared = await a.prepare(root);
+    const outId = a.sendOverInternet(prepared.id, b.fingerprint);
+    await until(() => attacker !== null);
+    // The impostor answers the handshake with its own key, and reads whatever comes next.
+    const theirs = await respond(attacker!, generateKeyPair(), { v: 1, name: "Laptop" });
+    void theirs.receive(5_000).then((m) => offers.push(m.message)).catch(() => undefined);
+    await until(() => stateOf(a, outId) === "failed");
+    expect(a.snapshot().transfers.find((t) => t.id === outId)!.message).toMatch(/isn't the Laptop you paired with/);
+    await new Promise((r) => setTimeout(r, 100));
+    expect(offers).toEqual([]);
   });
 });

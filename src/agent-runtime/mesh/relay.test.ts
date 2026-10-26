@@ -14,7 +14,7 @@ async function connected(relay: ReturnType<typeof fakeRelay>) {
   await b.setReachable(FB, true);
   const session = await a.call(FB, FA);
   const calls = await b.waitForCalls(1);
-  expect(calls).toEqual([{ session, from: FA }]);
+  expect(calls).toEqual([{ session, from: FA, mode: "relay" }]);
   await b.join(session);
   return { a: a.open(session), b: b.open(session) };
 }

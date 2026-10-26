@@ -54,10 +54,14 @@ export interface RelayAgent {
   orgId: string;
 }
 
+export type CallMode = "relay" | "direct";
+
 export interface RelayCall {
   session: string;
   /** The caller's mesh fingerprint, as it said. Only a hint: the Noise handshake proves who it is. */
   from: string;
+  /** relay: the files go through this session. direct: it only sets up a direct link between the two (ADR 0095). */
+  mode: CallMode;
 }
 
 export type CloseReason = "done" | "cancelled" | "idle" | "expired" | "allowance" | "unreachable" | "declined";
@@ -203,14 +207,14 @@ export class RelayHub {
     const current = this.presence.get(agent.agentId);
     if (!current) return { ok: true, value: [] };
     current.seenAt = this.now();
-    const calls = current.calls.splice(0).map(({ session, from }) => ({ session, from }));
+    const calls = current.calls.splice(0).map(({ session, from, mode }) => ({ session, from, mode }));
     return { ok: true, value: calls };
   }
 
   // Sessions
 
   /** Calls the reachable agent of this workspace with that fingerprint. */
-  call(agent: RelayAgent, to: string, from: string): RelayResult<{ session: string }> {
+  call(agent: RelayAgent, to: string, from: string, mode: CallMode = "relay"): RelayResult<{ session: string }> {
     this.sweep();
     if (!FINGERPRINT.test(to) || !FINGERPRINT.test(from)) return { ok: false, code: "FORBIDDEN", message: "That isn't a mesh device fingerprint." };
     const target = [...this.presence.values()].find((p) => p.agent.orgId === agent.orgId && p.fingerprint === to && p.agent.agentId !== agent.agentId);
@@ -237,7 +241,7 @@ export class RelayHub {
       reported: false,
     };
     this.sessions.set(session.id, session);
-    target.calls.push({ session: session.id, from, at: now });
+    target.calls.push({ session: session.id, from, mode, at: now });
     this.wake(`calls:${target.agent.agentId}`);
     return { ok: true, value: { session: session.id } };
   }

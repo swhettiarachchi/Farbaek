@@ -40,6 +40,34 @@ services:
     depends_on:
       - app
 
+  # Farbaek's own STUN server (ADR 0095): tells a Farbaek Agent its public
+  # address, so two paired agents can open a direct link. It answers only
+  # Binding requests and relays nothing. Same Node image as the app (already
+  # on the server), its own network, no privileges, read-only.
+  stun:
+    image: node:24.13.1-bookworm-slim
+    container_name: farbaek-stun
+    restart: unless-stopped
+    user: node
+    read_only: true
+    command: ["node", "/srv/stun/stun-server.mjs"]
+    environment:
+      STUN_PORT: "3478"
+    volumes:
+      - ./stun:/srv/stun:ro
+    ports:
+      - "3478:3478/udp"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 64m
+    networks:
+      - stun
+
+networks:
+  stun:
+
 volumes:
   caddy_data:
   caddy_config:

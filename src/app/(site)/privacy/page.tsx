@@ -139,9 +139,11 @@ const SECTIONS: LegalSection[] = [
           your own agreement with it, not ours. We keep the token you gave us encrypted, never show it again, and delete it when you disconnect.
         </p>
         <p>
-          If you send a folder between your computers through Farbaek&apos;s relay, the Farbaek Agent encrypts it end to end before it leaves, so our server passes the bytes
-          along without being able to read them. They&apos;re held in memory only while both computers are connected, and never written to disk. We record which two agents
-          took part, how many bytes passed, and each workspace&apos;s daily total, for its allowance.
+          If you send a folder between your computers over the internet, the Farbaek Agent encrypts it end to end before it leaves. Our server passes the two computers the
+          details they need to connect directly, including each one&apos;s network address, and the files then go between them without touching our server; each computer
+          learns the other&apos;s public address. If you choose Farbaek&apos;s relay instead, our server passes the encrypted bytes along without being able to read them. They&apos;re
+          held in memory only while both computers are connected, and never written to disk. We record which two agents took part, how many bytes passed through the relay,
+          and each workspace&apos;s daily total, for its allowance.
         </p>
         <p>
           If you turn on notifications on a device, we send them through that browser&apos;s push service: Google, Apple, Mozilla or Microsoft. Each message is encrypted for

@@ -44,7 +44,7 @@ export function fakeRelay(options: { limits?: Partial<RelayLimits>; failEvery?: 
     }
     if (path === "/calls" && method === "POST") {
       const b = body();
-      const r = hub.call(agent, String(b.to), String(b.from));
+      const r = hub.call(agent, String(b.to), String(b.from), b.mode === "direct" ? "direct" : "relay");
       return r.ok ? json({ data: r.value }, 201) : fail(r);
     }
     const m = path.match(/^\/sessions\/([0-9a-f-]{36})(\/join|\/data)?$/);
@@ -82,6 +82,8 @@ export function fakeRelay(options: { limits?: Partial<RelayLimits>; failEvery?: 
 
   return {
     hub,
+    /** The routes themselves, for a local HTTP server in a live check. */
+    fetcher,
     /** Every byte agents wrote through the relay. */
     carried: () => Buffer.concat(carried),
     /** A RelayClient for an agent of a workspace, as the desktop app makes one. */
