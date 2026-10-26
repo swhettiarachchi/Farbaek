@@ -62,3 +62,28 @@ The plan catalog's "Advanced roles and permissions" (Max and up), the last plan 
 ### Not checked
 
 - A real Max workspace with members: no workspace has a paid plan while payments aren't connected, so turning a permission off can't be used in production yet. Turning one back on can.
+
+## Found while reading v55 back: browsers' privileges (ADR 0088)
+
+### Done
+
+- Production's privileges compared, line by line, with what the migrations define (`scripts/ops/browser-grants.mjs`).
+  - Every difference was production granting more: 170 function lines, 80 table lines, and table-wide reads where only some columns should be readable.
+  - Nothing the migrations grant was missing.
+  - Row Level Security is on for all 63 tables.
+- Migration v56 sets the intended state. On a freshly migrated database it changes nothing (the state read back is identical).
+- `tests/db/browser-grants.test.ts` (3) pins what browsers' roles may do.
+- The restore runbook in `docs/deploy/vps.md` now puts privileges back after a restore.
+- The live code was checked for anything relying on the extra privileges. The only calls made as the signed-in person are `app_autonomy_record`, `app_incident_changes`, `app_replay_history`, `get_project_file`, `search_project_files` and `create_organization`, and the rename of a workspace. All of them stay granted.
+
+- **v56 applied in production** by the owner (it was blocked for Claude by the permission classifier), then read back by Claude:
+  - signed out, no function runs;
+  - signed in, the seven intended functions run;
+  - no table can be written from a browser;
+  - only a workspace's name can be changed.
+
+  The full comparison (`--check` against `--state`) matches the migrations on all 645 lines. `/api/health` answered `ok` afterwards.
+
+### Not done yet
+
+- **Checking the audit log and the API gateway's logs** for calls to `app_*` functions that didn't come from the server, before v56 closed them. This needs the owner's go-ahead: reading the gateway logs was blocked for Claude.
