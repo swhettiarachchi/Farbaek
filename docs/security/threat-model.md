@@ -16,7 +16,7 @@ Enforced now:
 Known gaps:
 
 - No nonce-based `script-src` yet. It needs the Next.js proxy layer and turns pages dynamic, so it arrives with the authenticated app routes.
-- No `/.well-known/security.txt` until the owner provides a real disclosure contact.
+- `/.well-known/security.txt` is served by the app (`src/app/.well-known/security.txt/route.ts`) with the support contact, the policy page and an expiry a test renews; a static copy that shadowed it was removed on 2026-10-26.
 
 ## Trust boundaries (planned system)
 
