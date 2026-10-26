@@ -500,7 +500,7 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
     async listAgents(orgId) {
       const { data, error } = await client
         .from("agents")
-        .select("id, name, platform, app_version, paired_by, created_at, last_seen_at, revoked_at")
+        .select("id, name, platform, app_version, paired_by, created_at, last_seen_at, revoked_at, mesh_fingerprint, mesh_reachable_at")
         .eq("org_id", orgId)
         .order("created_at", { ascending: false })
         .limit(100);
@@ -516,10 +516,23 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
             created_at: z.string(),
             last_seen_at: z.string().nullable(),
             revoked_at: z.string().nullable(),
+            mesh_fingerprint: z.string().nullable(),
+            mesh_reachable_at: z.string().nullable(),
           }),
         )
         .parse(data)
-        .map((r) => ({ id: r.id, name: r.name, platform: r.platform, appVersion: r.app_version, pairedBy: r.paired_by, createdAt: r.created_at, lastSeenAt: r.last_seen_at, revokedAt: r.revoked_at }));
+        .map((r) => ({
+          id: r.id,
+          name: r.name,
+          platform: r.platform,
+          appVersion: r.app_version,
+          pairedBy: r.paired_by,
+          createdAt: r.created_at,
+          lastSeenAt: r.last_seen_at,
+          revokedAt: r.revoked_at,
+          meshFingerprint: r.mesh_fingerprint,
+          meshReachableAt: r.mesh_reachable_at,
+        }));
     },
 
     async listCheckReceipts(orgId, taskId) {

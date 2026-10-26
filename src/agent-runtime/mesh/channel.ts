@@ -5,7 +5,7 @@
  * the JSON header and an optional binary body, encrypted as one Noise
  * transport message. Anything malformed ends the channel.
  */
-import type { Socket } from "node:net";
+import type { Duplex } from "node:stream";
 import { HANDSHAKE_TIMEOUT_MS, HelloSchema, MESH_PROLOGUE, MessageSchema, type Hello, type MeshMessage } from "@/core/mesh/protocol";
 import { FramedSocket } from "./framing";
 import { MAX_MESSAGE, NoiseError, XXHandshake, type KeyPair, type Transport } from "./noise";
@@ -40,8 +40,9 @@ export class SecureChannel {
     return this.framed.closed;
   }
 
+  /** The other computer's address on a direct connection; none through the relay. */
   get remoteAddress(): string | undefined {
-    return this.framed.socket.remoteAddress;
+    return (this.framed.socket as { remoteAddress?: string }).remoteAddress;
   }
 
   /** Called once the connection has closed, from either side. */
@@ -132,13 +133,13 @@ function readHello(payload: Buffer): Hello {
 
 const encodeHello = (hello: Hello) => Buffer.from(JSON.stringify(hello), "utf8");
 
-/** Calls another device and runs the handshake as the initiator. */
-export async function initiate(socket: Socket, staticKey: KeyPair, hello: Hello): Promise<SecureChannel> {
+/** Calls another device and runs the handshake as the initiator. Through the relay, the other side may take longer to answer. */
+export async function initiate(socket: Duplex, staticKey: KeyPair, hello: Hello, timeoutMs = HANDSHAKE_TIMEOUT_MS): Promise<SecureChannel> {
   const framed = new FramedSocket(socket);
   try {
     const hs = new XXHandshake({ initiator: true, prologue: MESH_PROLOGUE, staticKey });
     await framed.write(hs.writeMessage());
-    const theirs = readHello(hs.readMessage(await framed.read(HANDSHAKE_TIMEOUT_MS)));
+    const theirs = readHello(hs.readMessage(await framed.read(timeoutMs)));
     await framed.write(hs.writeMessage(encodeHello(hello)));
     return new SecureChannel(framed, hs.result(), { publicKey: hs.remoteStatic!, hello: theirs }, hs.handshakeHash);
   } catch (error) {
@@ -148,7 +149,7 @@ export async function initiate(socket: Socket, staticKey: KeyPair, hello: Hello)
 }
 
 /** Answers a call: the handshake as the responder. The caller's purpose arrives in its last message. */
-export async function respond(socket: Socket, staticKey: KeyPair, hello: Hello): Promise<SecureChannel> {
+export async function respond(socket: Duplex, staticKey: KeyPair, hello: Hello): Promise<SecureChannel> {
   const framed = new FramedSocket(socket);
   try {
     const hs = new XXHandshake({ initiator: false, prologue: MESH_PROLOGUE, staticKey });

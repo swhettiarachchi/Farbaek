@@ -12,6 +12,7 @@
 import { randomUUID } from "node:crypto";
 import { createServer, connect as tcpConnect, type Server, type Socket } from "node:net";
 import path from "node:path";
+import type { Duplex } from "node:stream";
 import { FINAL_STATES, PAIRING_WINDOW_MS, VISIBLE_FOR_MS, type MeshMessage } from "@/core/mesh/protocol";
 import { initiate, respond, type SecureChannel } from "./channel";
 import { Discovery, localAddresses, type NearbyDevice } from "./discovery";
@@ -19,6 +20,7 @@ import { TrustStore, loadDeviceKey, type KeyVault, type TrustedDevice } from "./
 import { fingerprint, pairingCode, type KeyPair } from "./noise";
 import { packFolder, type PackedFolder } from "./pack";
 import { IncomingTransfer, OfferError, readOffer, type IncomingView } from "./receive";
+import { RelayError } from "./relay";
 import { OutgoingTransfer, type OutgoingView } from "./send";
 
 const CONNECT_TIMEOUT_MS = 10_000;
@@ -60,7 +62,19 @@ export interface MeshSnapshot {
   devices: Pick<TrustedDevice, "name" | "fingerprint" | "pairedAt">[];
   pairing: PairingView | null;
   prepared: PreparedView[];
-  transfers: (IncomingView | OutgoingView)[];
+  /** Farbaek's secure relay (ADR 0094): whether this app can use it, and whether this computer is reachable through it. */
+  relay: { available: true; reachable: boolean; problem: string | null } | { available: false; reason: string };
+  transfers: ((IncomingView | OutgoingView) & { via: "nearby" | "relay" })[];
+}
+
+/** The relay as MeshNode needs it: RelayClient in the app, an in-process hub in tests. */
+export interface RelayLink {
+  setReachable(fingerprint: string, on: boolean): Promise<void>;
+  waitForCalls(): Promise<{ session: string; from: string }[]>;
+  call(to: string, from: string): Promise<string>;
+  join(session: string): Promise<void>;
+  open(session: string): Duplex;
+  close(session: string, reason: "done" | "cancelled"): Promise<void>;
 }
 
 export interface MeshNodeOptions {
@@ -71,8 +85,14 @@ export interface MeshNodeOptions {
   discovery?: { group?: string; port?: number } | false;
   /** The address the listener binds to. Tests use 127.0.0.1. */
   listenHost?: string;
+  /** Farbaek's relay, or why it isn't available (the app isn't paired with Farbaek). */
+  relay?: () => RelayLink | string;
   onUpdate: () => void;
 }
+
+/** Through the relay the other side's first answer can take a few round trips. */
+const RELAY_HANDSHAKE_MS = 30_000;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 class PairingSession {
   readonly id = randomUUID();
@@ -193,6 +213,11 @@ export class MeshNode {
   private readonly incoming = new Map<string, IncomingTransfer>();
   private readonly outgoing = new Map<string, OutgoingTransfer>();
   private readonly addresses = new Map<string, { address: string; port: number }>();
+  private reachable = false;
+  private relayProblem: string | null = null;
+  private relayLoop: Promise<void> | null = null;
+  /** Transfers that go through the relay. */
+  private readonly relayed = new Set<string>();
 
   constructor(private readonly options: MeshNodeOptions) {
     this.trust = new TrustStore(path.join(options.dataDir, "mesh-devices.json"));
@@ -231,7 +256,13 @@ export class MeshNode {
         excluded: p.manifest.excluded.slice(0, 50),
         excludedCount: p.manifest.excluded.length,
       })),
-      transfers: [...[...this.incoming.values()].map((t) => t.view()), ...[...this.outgoing.values()].map((t) => t.view())].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+      relay: (() => {
+        const link = this.relayLink();
+        return typeof link === "string" ? { available: false as const, reason: link } : { available: true as const, reachable: this.reachable, problem: this.relayProblem };
+      })(),
+      transfers: [...[...this.incoming.values()].map((t) => t.view()), ...[...this.outgoing.values()].map((t) => t.view())]
+        .map((t) => ({ ...t, via: this.relayed.has(t.id) ? ("relay" as const) : ("nearby" as const) }))
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
     };
   }
 
@@ -310,7 +341,7 @@ export class MeshNode {
 
   // Answering calls
 
-  private async answer(socket: Socket): Promise<void> {
+  private async answer(socket: Duplex, via: "nearby" | "relay" = "nearby"): Promise<void> {
     let channel: SecureChannel;
     try {
       channel = await respond(socket, this.key, { v: 1, name: this.name() });
@@ -319,8 +350,9 @@ export class MeshNode {
       return;
     }
     const purpose = channel.peer.hello.purpose;
-    if (purpose === "pair") return this.answerPairing(channel);
-    if (purpose === "transfer") return this.answerTransfer(channel);
+    // Pairing needs both computers on the same network: the relay can never make a device trusted.
+    if (purpose === "pair" && via === "nearby") return this.answerPairing(channel);
+    if (purpose === "transfer") return this.answerTransfer(channel, via);
     channel.close();
   }
 
@@ -334,7 +366,7 @@ export class MeshNode {
     this.update();
   }
 
-  private async answerTransfer(channel: SecureChannel): Promise<void> {
+  private async answerTransfer(channel: SecureChannel, via: "nearby" | "relay"): Promise<void> {
     if (!this.trust.find(channel.peer.publicKey)) {
       await channel.send({ t: "error", code: "not_paired", message: "These computers aren't paired. Pair them first." }).catch(() => undefined);
       channel.close();
@@ -373,6 +405,7 @@ export class MeshNode {
     try {
       const manifest = await readOffer(channel, first);
       const transfer = new IncomingTransfer(channel, first.session, first.digest, manifest, this.update);
+      if (via === "relay") this.relayed.add(transfer.id);
       this.incoming.set(transfer.id, transfer);
       this.update();
     } catch (error) {
@@ -458,6 +491,113 @@ export class MeshNode {
     return transfer.id;
   }
 
+  // Farbaek's secure relay (ADR 0094)
+
+  private relayLink(): RelayLink | string {
+    return this.options.relay?.() ?? "Farbaek's relay isn't available in this app.";
+  }
+
+  /**
+   * Turns "Reachable through Farbaek" on or off: while on and the app is
+   * open, paired computers can send to this one through the relay. Only
+   * devices this computer paired with nearby are answered.
+   */
+  async setReachable(on: boolean): Promise<void> {
+    const link = this.relayLink();
+    if (typeof link === "string") throw new MeshError(link);
+    if (!on) {
+      this.reachable = false;
+      this.relayProblem = null;
+      this.update();
+      await link.setReachable(this.fingerprint, false).catch(() => undefined);
+      return;
+    }
+    try {
+      await link.setReachable(this.fingerprint, true);
+    } catch (error) {
+      throw new MeshError(error instanceof Error ? error.message : "Farbaek's relay couldn't be reached.");
+    }
+    this.reachable = true;
+    this.relayProblem = null;
+    this.update();
+    this.relayLoop ??= this.listenThroughRelay(link).finally(() => {
+      this.relayLoop = null;
+    });
+  }
+
+  private async listenThroughRelay(link: RelayLink): Promise<void> {
+    let failures = 0;
+    while (this.reachable) {
+      try {
+        const calls = await link.waitForCalls();
+        failures = 0;
+        if (this.relayProblem) {
+          this.relayProblem = null;
+          this.update();
+        }
+        for (const call of calls) void this.answerRelayCall(link, call);
+      } catch (error) {
+        if (!this.reachable) break;
+        const code = error instanceof RelayError ? error.code : "";
+        if (code === "UNAUTHENTICATED" || code === "FORBIDDEN") {
+          this.reachable = false;
+          this.relayProblem = "This app isn't paired with your Farbaek workspace any more, so it can't be reached through Farbaek. Pair it again.";
+          this.update();
+          break;
+        }
+        failures++;
+        // The server forgets reachability when it restarts: say it again, then carry on.
+        if (code === "NOT_REACHABLE") await link.setReachable(this.fingerprint, true).catch(() => undefined);
+        else {
+          this.relayProblem = "Farbaek's relay can't be reached right now. Trying again.";
+          this.update();
+        }
+        await sleep(Math.min(30_000, 500 * 2 ** Math.min(failures, 6)));
+      }
+    }
+  }
+
+  private async answerRelayCall(link: RelayLink, call: { session: string; from: string }): Promise<void> {
+    // A computer this one never paired with isn't answered at all. The handshake checks the key again.
+    if (!this.trust.byFingerprint(call.from)) {
+      await link.close(call.session, "cancelled").catch(() => undefined);
+      return;
+    }
+    try {
+      await link.join(call.session);
+    } catch {
+      return;
+    }
+    await this.answer(link.open(call.session), "relay");
+  }
+
+  /** Sends a prepared folder to a paired computer through Farbaek's relay. Only when the person chooses it. */
+  sendThroughRelay(preparedId: string, deviceFingerprint: string): string {
+    const link = this.relayLink();
+    if (typeof link === "string") throw new MeshError(link);
+    const packed = this.prepared.get(preparedId);
+    if (!packed) throw new MeshError("Choose the folder again: it's no longer prepared.");
+    const device = this.trust.byFingerprint(deviceFingerprint);
+    if (!device) throw new MeshError("Pair with that computer first, on the same network.");
+    const transfer = new OutgoingTransfer(
+      randomUUID(),
+      packed,
+      device,
+      async () => {
+        const session = await link.call(device.fingerprint, this.fingerprint);
+        return initiate(link.open(session), this.key, { v: 1, name: this.name(), purpose: "transfer" }, RELAY_HANDSHAKE_MS);
+      },
+      this.update,
+      (error) => (error instanceof RelayError ? error.message : `Couldn't reach ${device.name} through Farbaek. Make sure it's open with Reachable through Farbaek on, then resume.`),
+    );
+    this.relayed.add(transfer.id);
+    this.outgoing.set(transfer.id, transfer);
+    this.prepared.delete(preparedId);
+    void transfer.start();
+    this.update();
+    return transfer.id;
+  }
+
   async accept(id: string, parent: string): Promise<void> {
     const transfer = this.incoming.get(id);
     if (!transfer) throw new MeshError("That transfer isn't waiting any more.");
@@ -498,5 +638,6 @@ export class MeshNode {
     this.dismissPairing();
     await this.setLooking(false);
     await this.setVisible(false);
+    if (this.reachable) await this.setReachable(false).catch(() => undefined);
   }
 }

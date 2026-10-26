@@ -1,4 +1,4 @@
-import { ArrowDownLeftIcon, ArrowRightIcon, ArrowUpRightIcon, DevicesIcon } from "@phosphor-icons/react/ssr";
+import { ArrowDownLeftIcon, ArrowRightIcon, ArrowUpRightIcon, DevicesIcon, GlobeSimpleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -9,11 +9,16 @@ import { RelativeTime } from "@/components/ui/local-time";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatBytes } from "@/core/workspace/files";
 import { listCapsules } from "@/server/mesh/capsules";
+import { relayHub } from "@/server/mesh/relay-http";
+import { relayShareToday } from "@/server/mesh/relay-usage";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { loadAppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
 
 export const metadata: Metadata = { title: "Mesh" };
+
+/** "a1b2c3d4e5f6a7b8" as "a1b2 c3d4 e5f6 a7b8", as the agent shows it. */
+const grouped = (fp: string) => fp.match(/.{1,4}/g)?.join(" ") ?? fp;
 
 const ROUTE = [
   { label: "Pack", body: "Your files, each with a BLAKE3 hash. Credentials, keys and build folders stay behind." },
@@ -27,7 +32,14 @@ export default async function MeshPage() {
   const orgId = ctx.current.id;
   const projects = await ctx.reader.listProjects(orgId);
   const client = ctx.mode === "live" ? await createSupabaseServerClient() : null;
-  const history = client ? await listCapsules(client, orgId) : [];
+  const [history, agents, relayShare] = await Promise.all([
+    client ? listCapsules(client, orgId) : Promise.resolve([]),
+    ctx.reader.listAgents(orgId).catch(() => []),
+    client ? relayShareToday(client, orgId).catch(() => null) : Promise.resolve(null),
+  ]);
+  // Mesh's relay (ADR 0094): agents that turned it on, and whether each is polling this server now.
+  const relayAgents = agents.filter((a) => a.revokedAt === null && a.meshReachableAt && a.meshFingerprint);
+  const hub = ctx.mode === "live" ? relayHub() : null;
   const known = new Set(projects.map((p) => p.id));
   const canImport = ctx.role !== null && CONTRIBUTOR_ROLES.includes(ctx.role);
   const importReason =
@@ -83,6 +95,37 @@ export default async function MeshPage() {
           <p className="mt-3 text-sm leading-relaxed text-ink-2">
             The Farbaek Agent sends a folder straight to your other computer on the same network. Pair the two once with a six-digit code; every piece is then encrypted and checked against its hash as it arrives, and nothing passes through Farbaek. So far it has been checked between two agents on one computer.
           </p>
+          <div className="mt-4 grid gap-3 rounded-sm border border-line bg-surface-raised/50 p-4">
+            <p className="flex items-center gap-2 text-sm font-medium text-ink">
+              <GlobeSimpleIcon size={16} className="text-accent" aria-hidden /> Between your computers, anywhere
+            </p>
+            <p className="text-sm leading-relaxed text-ink-2">
+              Paired computers on different networks can send through Farbaek&apos;s relay instead. The files are encrypted end to end between the two agents, so the server passes the bytes along without being able to read them, only while both apps are open, and keeps nothing afterwards. Each agent turns it on in Nearby.
+            </p>
+            {relayAgents.length === 0 ? (
+              <p className="text-sm text-ink-3">{ctx.mode === "demo" ? "The demo workspace has no agents." : "No agent in this workspace has it turned on."}</p>
+            ) : (
+              <ul className="divide-y divide-line">
+                {relayAgents.map((a) => {
+                  const now = hub?.isReachable(a.id) ?? false;
+                  return (
+                    <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium text-ink">{a.name}</span>
+                        <span className="block font-mono text-xs text-ink-3">{grouped(a.meshFingerprint!)}</span>
+                      </span>
+                      <StatusBadge status={now ? "verified" : "unverified"} label={now ? "Reachable now" : "App not open"} />
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {relayShare !== null ? (
+              <p className="text-xs text-ink-3">
+                {relayShare === 0 ? "None of today's relay allowance used." : `${Math.max(1, Math.round(relayShare * 100))}% of today's relay allowance used.`} It renews at midnight UTC.
+              </p>
+            ) : null}
+          </div>
           <Link href="/app/agents" className="mt-4 inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-accent hover:underline">
             About the Farbaek Agent <ArrowRightIcon size={14} aria-hidden />
           </Link>

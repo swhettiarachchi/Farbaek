@@ -7,10 +7,12 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CHUNK_BYTES, ChunkHasher, blake3Hex, checkManifest, manifestDigest, type CapsuleManifest } from "@/core/mesh/capsule";
 import { TRANSFER_LIMITS } from "@/core/mesh/protocol";
-import { SecureChannel } from "./channel";
+import { SecureChannel, initiate } from "./channel";
 import { FrameError, FramedSocket } from "./framing";
 import type { KeyVault } from "./identity";
-import { MeshNode } from "./node";
+import { generateKeyPair } from "./noise";
+import { MeshNode, type RelayLink } from "./node";
+import { fakeRelay } from "./relay-fake";
 import { packFolder } from "./pack";
 
 const tmp = (name: string) => fs.mkdtemp(path.join(os.tmpdir(), `farbaek-mesh-${name}-`));
@@ -40,16 +42,16 @@ afterEach(async () => {
   await Promise.all(nodes.splice(0).map((n) => n.close()));
 });
 
-async function makeNode(name: string): Promise<MeshNode> {
-  const node = new MeshNode({ dataDir: await tmp(`data-${name}`), name: () => name, vault: memoryVault(), discovery: false, listenHost: "127.0.0.1", onUpdate: () => undefined });
+async function makeNode(name: string, relay?: () => RelayLink | string): Promise<MeshNode> {
+  const node = new MeshNode({ dataDir: await tmp(`data-${name}`), name: () => name, vault: memoryVault(), discovery: false, listenHost: "127.0.0.1", relay, onUpdate: () => undefined });
   await node.init();
   nodes.push(node);
   return node;
 }
 
-async function paired(): Promise<{ a: MeshNode; b: MeshNode; port: number }> {
-  const a = await makeNode("Desk");
-  const b = await makeNode("Laptop");
+async function paired(relays: { a?: () => RelayLink | string; b?: () => RelayLink | string } = {}): Promise<{ a: MeshNode; b: MeshNode; port: number }> {
+  const a = await makeNode("Desk", relays.a);
+  const b = await makeNode("Laptop", relays.b);
   await b.setVisible(true);
   const port = b.snapshot().visible!.port;
   await a.pair("127.0.0.1", port);
@@ -350,5 +352,85 @@ describe("nearby transfer between two agents", { timeout: 30_000 }, () => {
     await until(() => stateOf(a, outId) === "failed");
     expect(a.snapshot().transfers.find((t) => t.id === outId)!.message).toMatch(/aren't paired/);
     expect(b.snapshot().transfers).toEqual([]);
+  });
+});
+
+describe("through Farbaek's relay", { timeout: 60_000 }, () => {
+  /** Paired on one network, then apart: Laptop is reachable only through the relay. */
+  async function apart() {
+    const relay = fakeRelay();
+    const { a, b } = await paired({ a: () => relay.client("agent-desk"), b: () => relay.client("agent-laptop") });
+    await b.setVisible(false);
+    await b.setReachable(true);
+    return { a, b, relay };
+  }
+
+  it("is unavailable, with the reason, when the app isn't paired with Farbaek", async () => {
+    const lone = await makeNode("Alone", () => "Pair this app with your Farbaek workspace first.");
+    expect(lone.snapshot().relay).toEqual({ available: false, reason: "Pair this app with your Farbaek workspace first." });
+    await expect(lone.setReachable(true)).rejects.toThrow(/Pair this app/);
+  });
+
+  it("sends a folder end to end encrypted: the receiver checks every byte, and the relay carried nothing readable", async () => {
+    const { a, b, relay } = await apart();
+    expect(b.snapshot().relay).toEqual({ available: true, reachable: true, problem: null });
+    const { root, big } = await sourceFolder();
+    const parent = await tmp("dest");
+    const prepared = await a.prepare(root);
+    const outId = a.sendThroughRelay(prepared.id, b.fingerprint);
+    await until(() => b.snapshot().transfers.some((t) => t.state === "offered"));
+    const incoming = b.snapshot().transfers.find((t) => t.state === "offered")!;
+    expect(incoming.via).toBe("relay");
+    expect(a.snapshot().transfers.find((t) => t.id === outId)!.via).toBe("relay");
+    await b.accept(incoming.id, parent);
+    await until(() => stateOf(a, outId) === "done" && stateOf(b, incoming.id) === "done", 30_000);
+
+    const dest = b.snapshot().transfers.find((t) => t.id === incoming.id)!.destination!;
+    expect(Buffer.compare(await fs.readFile(path.join(dest, "assets", "big.bin")), big)).toBe(0);
+    expect(await fs.readFile(path.join(dest, "src", "app.ts"), "utf8")).toBe("export const answer = 42;\n");
+    const carried = relay.carried();
+    expect(carried.length).toBeGreaterThan(big.length);
+    for (const plain of [Buffer.from("export const answer = 42;"), Buffer.from("# Harbour Lane"), big.subarray(1_000_000, 1_000_064), Buffer.from("README.md")]) {
+      expect(carried.includes(plain)).toBe(false);
+    }
+    expect(relay.hub.stats().bufferedBytes).toBe(0);
+  });
+
+  it("doesn't answer a computer it never paired with, even one claiming to be a paired device", async () => {
+    const { a, b, relay } = await apart();
+    const stranger = relay.client("agent-stranger");
+    // Claims to be Desk, which Laptop trusts, so Laptop joins; the handshake shows its real key.
+    const session = await stranger.call(b.fingerprint, a.fingerprint);
+    const channel = await initiate(stranger.open(session), generateKeyPair(), { v: 1, name: "Desk", purpose: "transfer" }, 10_000);
+    const answer = await channel.receive(10_000).then((r) => r.message).catch(() => null);
+    expect(answer).toMatchObject({ t: "error", code: "not_paired" });
+    expect(b.snapshot().transfers).toEqual([]);
+  });
+
+  it("never pairs through the relay", async () => {
+    const { a, b, relay } = await apart();
+    const stranger = relay.client("agent-stranger");
+    const session = await stranger.call(b.fingerprint, a.fingerprint);
+    const channel = await initiate(stranger.open(session), generateKeyPair(), { v: 1, name: "Desk", purpose: "pair" }, 10_000);
+    await expect(channel.receive(5_000)).rejects.toThrow();
+    // Still the pairing with Desk from the same network; nothing new started.
+    expect(b.snapshot().pairing).toMatchObject({ state: "paired", peer: { fingerprint: a.fingerprint } });
+    expect(b.snapshot().devices.map((d) => d.name)).toEqual(["Desk"]);
+  });
+
+  it("says so when the other computer isn't reachable, and delivers once it is", async () => {
+    const { a, b } = await apart();
+    await b.setReachable(false);
+    const { root } = await sourceFolder();
+    const prepared = await a.prepare(root);
+    const outId = a.sendThroughRelay(prepared.id, b.fingerprint);
+    await until(() => stateOf(a, outId) === "interrupted");
+    expect(a.snapshot().transfers.find((t) => t.id === outId)!.message).toMatch(/isn't reachable through Farbaek now/);
+    await b.setReachable(true);
+    await a.resume(outId);
+    await until(() => b.snapshot().transfers.some((t) => t.state === "offered"));
+    const parent = await tmp("dest");
+    await b.accept(b.snapshot().transfers[0]!.id, parent);
+    await until(() => stateOf(a, outId) === "done", 30_000);
   });
 });

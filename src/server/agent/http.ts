@@ -47,14 +47,22 @@ export function withAgentStore(request: Request, handler: (store: AgentStore) =>
   return guarded(request, handler);
 }
 
-/** Authenticates the agent token on every request and rate-limits it. */
-export function withAgent(request: Request, handler: (ctx: { store: AgentStore; agent: AgentIdentity }) => Promise<Response>): Promise<Response> {
+/**
+ * Authenticates the agent token on every request and rate-limits it. A route
+ * with many small requests by design (the Mesh relay) uses its own bucket, so
+ * it doesn't use up the limit for tasks.
+ */
+export function withAgent(
+  request: Request,
+  handler: (ctx: { store: AgentStore; agent: AgentIdentity }) => Promise<Response>,
+  limit: { bucket: string; perMinute: number } = { bucket: "agent", perMinute: 120 },
+): Promise<Response> {
   return guarded(request, async (store) => {
     const token = request.headers.get("authorization")?.match(/^Bearer\s+(\S+)$/)?.[1] ?? "";
     if (!AGENT_TOKEN_PATTERN.test(token)) return problem(401, "UNAUTHENTICATED", "Send the agent token as Authorization: Bearer fa_...");
     const agent = await store.session(sha256(token));
     if (!agent) return problem(401, "UNAUTHENTICATED", "This agent token isn't valid or was revoked. Pair the app again.");
-    if (!(await store.rateLimit(`agent:${agent.agentId}`, 60, 120))) return problem(429, "RATE_LIMITED", "Too many requests from this agent in the last minute.", undefined, { "retry-after": "60" });
+    if (!(await store.rateLimit(`${limit.bucket}:${agent.agentId}`, 60, limit.perMinute))) return problem(429, "RATE_LIMITED", "Too many requests from this agent in the last minute.", undefined, { "retry-after": "60" });
     return handler({ store, agent });
   });
 }

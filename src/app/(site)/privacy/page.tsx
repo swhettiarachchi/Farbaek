@@ -139,6 +139,11 @@ const SECTIONS: LegalSection[] = [
           your own agreement with it, not ours. We keep the token you gave us encrypted, never show it again, and delete it when you disconnect.
         </p>
         <p>
+          If you send a folder between your computers through Farbaek&apos;s relay, the Farbaek Agent encrypts it end to end before it leaves, so our server passes the bytes
+          along without being able to read them. They&apos;re held in memory only while both computers are connected, and never written to disk. We record which two agents
+          took part, how many bytes passed, and each workspace&apos;s daily total, for its allowance.
+        </p>
+        <p>
           If you turn on notifications on a device, we send them through that browser&apos;s push service: Google, Apple, Mozilla or Microsoft. Each message is encrypted for
           your device, so the service sees only that one was sent. Turn them off in Settings, under This device.
         </p>

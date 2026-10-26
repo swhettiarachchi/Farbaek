@@ -16,7 +16,7 @@ Enforced now:
 Known gaps:
 
 - No nonce-based `script-src` yet. It needs the Next.js proxy layer and turns pages dynamic, so it arrives with the authenticated app routes.
-- No `/.well-known/security.txt` until the owner provides a real disclosure contact.
+- `/.well-known/security.txt` is served by the app (`src/app/.well-known/security.txt/route.ts`) with the support contact, the policy page and an expiry a test renews; a static copy that shadowed it was removed on 2026-10-26.
 
 ## Trust boundaries (planned system)
 
@@ -371,3 +371,13 @@ Known limits: public repositories only. Private ones need a GitHub connection, w
 | Who a step runs as | A run with more rights than intended, or by someone who left | Each run starts as the approver, whose membership, role and permissions are read again each time; every policy, rule and autonomy limit applies to each step's change | `orchestrator.test.ts` |
 | Spend | A workflow spending past what was approved | Each step's run is capped at its share of the ceiling, and the database refuses a step past it | `tests/db/workflows.test.ts` |
 | Sandbox without a session | A background run reaching another workspace's sandboxes | The sandbox service checks every session against the run's workspace, as for other background work | `src/server/sandbox` tests |
+
+## Mesh's secure relay (2026-10-26, ADR 0094)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| What the server sees | Reading or changing files on the way | Agents run the Noise XX handshake end to end through the relay; the server holds only transport ciphertext, in memory, and drops it once read or when the session ends | `mesh.test.ts`, SE-031 |
+| Who's trusted | The server (or anyone controlling it) introducing a device | A relayed call asking to pair is refused; each side checks the other's static key against devices paired on a shared network; a caller claiming a paired device's fingerprint fails the handshake | `mesh.test.ts`, SE-031 |
+| Routing | A call or session reaching another workspace's agent, or a third agent reading a session | Calls reach only a reachable agent of the caller's workspace; only a session's two agents can read, write or close it; revoked agents and people who left are refused on every request | `relay-hub.test.ts`, SE-031 |
+| Resources | Filling the server's memory or bandwidth | 8 MiB per direction, 2 MiB per write, 3 sessions per workspace and 20 in all, 5 waiting calls per agent, timeouts for calls, quiet agents and sessions, and 5 GB a day per workspace counted in the database (closing when it can't be counted) | `relay-hub.test.ts`, `tests/db/mesh-relay.test.ts` |
+| Records | Keeping more than needed | One audit event per session (the two agents, bytes, how it ended), a daily total per workspace kept 30 days, and each agent's fingerprint and reachability; no file names or contents | `tests/db/mesh-relay.test.ts` |

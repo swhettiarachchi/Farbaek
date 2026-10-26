@@ -42,11 +42,14 @@ let settings: Settings = { paired: null };
 const dataDir = () => app.getPath("userData");
 const secrets = () => new SecretStore(path.join(dataDir(), "secrets"));
 let runs: RunManager;
+/** The agent token, read once from the keychain, for Mesh's relay. */
+let agentToken: string | null = null;
 const mesh = new DesktopMesh({
   dataDir: dataDir(),
   secrets: () => secrets(),
   name: () => settings.paired?.agentName ?? os.hostname().slice(0, 60),
   window: () => window,
+  relay: () => (settings.paired && agentToken ? { server: settings.paired.server, token: agentToken } : null),
 });
 
 async function loadSettings(): Promise<void> {
@@ -77,6 +80,7 @@ async function appState(): Promise<AppState> {
 
 async function forgetPairing(): Promise<void> {
   await secrets().delete("agent-token");
+  agentToken = null;
   settings.paired = null;
   await saveSettings();
 }
@@ -123,6 +127,7 @@ function registerHandlers(): void {
       const platform = process.platform === "win32" ? "windows" : process.platform === "darwin" ? "macos" : "linux";
       const paired = await pairWithFarbaek(server, { code: input.code, name: input.name, platform, appVersion: app.getVersion() });
       await secrets().set("agent-token", paired.token);
+      agentToken = paired.token;
       settings.paired = { server, agentId: paired.agentId, agentName: input.name, workspaceName: paired.workspace.name };
       await saveSettings();
       return appState();
@@ -255,6 +260,7 @@ void app.whenReady().then(async () => {
   harden();
   await loadSettings();
   await secrets().forgetLegacyKeys();
+  if (settings.paired && secrets().availability().available) agentToken = await secrets().get("agent-token").catch(() => null);
   runs = new RunManager({
     dataDir: dataDir(),
     emit: (run: RunDetail) => window?.webContents.send("runs:update", run),
