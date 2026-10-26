@@ -6,6 +6,7 @@ import {
   CheckCircleIcon,
   CircleNotchIcon,
   FolderOpenIcon,
+  GlobeSimpleIcon,
   HourglassMediumIcon,
   LinkSimpleIcon,
   MagnifyingGlassIcon,
@@ -141,7 +142,7 @@ export function NearbyView({ intro }: { intro?: ReactNode }) {
         <h1>Nearby</h1>
         <p className="muted">
           Send a folder straight to another computer on your network. It goes directly between the two, encrypted, and every piece is checked against its hash when it
-          arrives. Nothing passes through Farbaek&apos;s servers.
+          arrives. Nothing passes through Farbaek&apos;s servers unless you choose to send through Farbaek, which carries it encrypted end to end and can&apos;t read it.
         </p>
         {intro}
       </header>
@@ -239,6 +240,8 @@ function Nearby({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: stri
         )}
       </div>
 
+      <RelayCard snapshot={s} busy={busy} act={act} />
+
       <SendCard snapshot={s} busy={busy} act={act} />
 
       {others.length > 0 ? (
@@ -310,6 +313,54 @@ function PairingCard({ pairing: p, now, act, busy }: { pairing: NonNullable<Mesh
   );
 }
 
+/**
+ * Farbaek's secure relay (ADR 0094): paired computers on different networks.
+ * Turning it on is the consent: this computer answers only devices it paired
+ * with nearby, while the app is open, and the server can't read what it carries.
+ */
+function RelayCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: string | null; act: Act }) {
+  const r = s.relay;
+  return (
+    <div className="card stack-sm">
+      <div className="row">
+        <h2>Through Farbaek</h2>
+        {r.available && r.reachable ? (
+          <Badge tone="verified" icon={GlobeSimpleIcon}>
+            Reachable
+          </Badge>
+        ) : (
+          <Badge tone="neutral" icon={ShieldCheckIcon}>
+            Not reachable
+          </Badge>
+        )}
+      </div>
+      <p className="muted">
+        For your paired computers on other networks. Farbaek&apos;s server passes the bytes along while both apps are open: they&apos;re encrypted end to end between the two
+        computers, so the server can&apos;t read them, and it keeps nothing once the transfer ends. Only computers you paired here, on the same network, are answered.
+      </p>
+      {!r.available ? (
+        <p className="small">{r.reason}</p>
+      ) : (
+        <>
+          {r.problem ? <p className="small">{r.problem}</p> : null}
+          <div className="row-start">
+            {r.reachable ? (
+              <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("reachable", () => mesh.setReachable(false))}>
+                Stop being reachable
+              </button>
+            ) : (
+              <button className="btn btn-primary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("reachable", () => mesh.setReachable(true))}>
+                <GlobeSimpleIcon size={16} aria-hidden /> Be reachable through Farbaek
+              </button>
+            )}
+          </div>
+          <p className="small muted">It stays on while this app is open. Each folder still needs you to accept it.</p>
+        </>
+      )}
+    </div>
+  );
+}
+
 function SendCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: string | null; act: Act }) {
   const prepared: PreparedView | undefined = s.prepared[0];
   const [target, setTarget] = useState("");
@@ -361,10 +412,23 @@ function SendCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: st
             >
               <ArrowUpRightIcon size={16} aria-hidden /> Send
             </button>
+            <button
+              className="btn btn-secondary btn-sm"
+              type="button"
+              disabled={busy !== null || !chosen || !s.relay.available}
+              onClick={() => void act("send", () => mesh.sendThroughRelay({ preparedId: prepared.id, fingerprint: chosen }))}
+            >
+              <GlobeSimpleIcon size={16} aria-hidden /> Send through Farbaek
+            </button>
             <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("drop", () => mesh.dropPrepared(prepared.id))}>
               Choose another folder
             </button>
           </div>
+          <p className="small muted">
+            {s.relay.available
+              ? "Send goes over this network. Send through Farbaek reaches the other computer anywhere, if it's open and reachable, encrypted end to end."
+              : `Send through Farbaek is unavailable: ${s.relay.reason}`}
+          </p>
         </>
       )}
     </div>
@@ -396,6 +460,11 @@ function TransferRow({ transfer: t, busy, act }: { transfer: MeshSnapshot["trans
       <p className="small muted">
         {formatBytes(t.bytesDone)} of {formatBytes(t.bytes)} · {t.files.toLocaleString("en-US")} {t.files === 1 ? "file" : "files"}
       </p>
+      {t.via === "relay" ? (
+        <p className="small muted">
+          <GlobeSimpleIcon size={14} aria-hidden /> Through Farbaek, encrypted end to end
+        </p>
+      ) : null}
       {t.message ? <p className="small">{t.message}</p> : null}
       <div className="row-start">
         {t.direction === "in" && t.state === "done" ? (

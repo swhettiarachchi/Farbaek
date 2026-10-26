@@ -3,8 +3,15 @@
  * handling (LLM02, LLM05, LLM07). Secret-shaped values are built at run time
  * so no credential-looking string sits in the repository.
  */
+import { promises as fsp } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { commandEnv } from "@/agent-runtime/broker";
+import { initiate, respond } from "@/agent-runtime/mesh/channel";
+import { fingerprint, generateKeyPair } from "@/agent-runtime/mesh/noise";
+import { MeshNode } from "@/agent-runtime/mesh/node";
+import { fakeRelay } from "@/agent-runtime/mesh/relay-fake";
 import { agentSystemPrompt, openingMessage } from "@/agent-runtime/loop";
 import { decide } from "@/core/agent/permissions";
 import { ContractDraftSchema, draftToForm } from "@/core/realityloop/contract-draft";
@@ -132,4 +139,61 @@ describe("SE-017 Model output trusted as fact", () => {
     expect(form.outcome).not.toMatch(/[\u0000-\u001f]/);
     expect(form.maxRecords).toBe("");
   });
+});
+
+describe("SE-031 A relay that could read or redirect a transfer", () => {
+  it("carries only ciphertext between two agents of one workspace, never pairs, refuses keys it didn't pair, and keeps nothing", async () => {
+    const relay = fakeRelay();
+    const desk = relay.client("agent-desk");
+    const laptop = relay.client("agent-laptop");
+    const deskKey = generateKeyPair();
+    const laptopKey = generateKeyPair();
+    await laptop.setReachable(fingerprint(laptopKey.publicKey), true);
+
+    // A whole Noise channel through the relay: the secret never crosses it in the clear.
+    const secret = "project-secret-" + "s".repeat(24);
+    const session = await desk.call(fingerprint(laptopKey.publicKey), fingerprint(deskKey.publicKey));
+    const [call] = await laptop.waitForCalls(1);
+    await laptop.join(call!.session);
+    const [caller, callee] = await Promise.all([
+      initiate(desk.open(session), deskKey, { v: 1, name: "Desk", purpose: "transfer" }, 10_000),
+      respond(laptop.open(session), laptopKey, { v: 1, name: "Laptop" }),
+    ]);
+    expect(Buffer.compare(callee.peer.publicKey, deskKey.publicKey)).toBe(0);
+    await caller.send({ t: "error", code: "internal", message: secret });
+    expect((await callee.receive(5_000)).message).toMatchObject({ message: secret });
+    expect(relay.carried().includes(Buffer.from(secret))).toBe(false);
+    caller.close();
+    callee.close();
+
+    // No call reaches another workspace's agent, even by its fingerprint.
+    const stranger = relay.client("agent-elsewhere", "org-2");
+    await expect(stranger.call(fingerprint(laptopKey.publicKey), fingerprint(deskKey.publicKey))).rejects.toThrow(/isn't reachable/);
+
+    // A real agent that trusts one device: a caller claiming that device is answered, but gets no pairing and no transfer.
+    const dataDir = await fsp.mkdtemp(path.join(os.tmpdir(), "farbaek-se031-"));
+    const trusted = generateKeyPair();
+    await fsp.writeFile(path.join(dataDir, "mesh-devices.json"), JSON.stringify([{ fingerprint: fingerprint(trusted.publicKey), name: "Desk", publicKey: trusted.publicKey.toString("hex"), pairedAt: new Date().toISOString() }]));
+    let value: string | null = null;
+    const node = new MeshNode({ dataDir, name: () => "Office", vault: { get: async () => value, set: async (v) => void (value = v) }, discovery: false, relay: () => relay.client("agent-office"), onUpdate: () => undefined });
+    await node.init();
+    try {
+      await node.setReachable(true);
+      const impostor = relay.client("agent-impostor");
+      for (const purpose of ["pair", "transfer"] as const) {
+        const s2 = await impostor.call(node.fingerprint, fingerprint(trusted.publicKey));
+        const channel = await initiate(impostor.open(s2), generateKeyPair(), { v: 1, name: "Desk", purpose }, 10_000);
+        const answer = await channel.receive(5_000).then((r) => r.message).catch(() => null);
+        expect(answer === null || (answer.t === "error" && answer.code === "not_paired")).toBe(true);
+        channel.close();
+      }
+      expect(node.snapshot().pairing).toBeNull();
+      expect(node.snapshot().devices.map((d) => d.name)).toEqual(["Desk"]);
+      expect(node.snapshot().transfers).toEqual([]);
+    } finally {
+      await node.close();
+    }
+    await new Promise((r) => setTimeout(r, 50));
+    expect(relay.hub.stats().bufferedBytes).toBe(0);
+  }, 30_000);
 });

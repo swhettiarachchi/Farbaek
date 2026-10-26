@@ -45,7 +45,7 @@ Writes must stay inside the contract's paths and allowed operations, and are ref
 
 ## Nearby: folders between your computers
 
-Nearby (Mesh phase B, ADR 0038) sends a folder straight to another computer on the same network, with no Farbaek account needed and nothing passing through Farbaek's servers.
+Nearby (Mesh phase B, ADR 0038) sends a folder straight to another computer on the same network, with no Farbaek account needed and nothing passing through Farbaek's servers. Paired computers on different networks can also send through Farbaek's relay (below).
 
 1. **Be visible.** On the receiving computer, open Nearby and choose **Be visible**. It lasts five minutes. Windows may ask to allow Farbaek Agent on private networks the first time.
 2. **Pair, once.**
@@ -58,6 +58,18 @@ Nearby (Mesh phase B, ADR 0038) sends a folder straight to another computer on t
 Every 4 MiB piece is checked against its BLAKE3 hash as it arrives, and the sender shows "Delivered" only after the receiver has checked every file. If the connection drops, **Resume** carries on from the last checked piece. **Forget** a paired computer to stop it sending to or receiving from this one. Nothing received is ever run.
 
 **Checked so far:** two agents on one computer. Transfer between two physical computers on a real network is still to be checked.
+
+### Through Farbaek: paired computers on different networks (ADR 0094)
+
+Both apps must be paired with the same Farbaek workspace, and the two computers paired with each other once, on the same network, as above. The relay never pairs computers.
+
+1. On the receiving computer, under **Through Farbaek**, choose **Be reachable through Farbaek**. It stays on while the app is open.
+2. On the sending computer, choose the folder and the paired computer, then **Send through Farbaek**.
+3. Accept on the receiving computer, as for Nearby.
+
+The two agents run the same Noise handshake, offer, checks and resume through Farbaek's server as they do on a network, so the server only passes ciphertext along. Bytes wait in its memory, at most 8 MiB in each direction, only while both apps are connected, and are gone when the transfer ends. Each workspace can relay 5 GB a day; the Mesh page shows how much of today's allowance is used.
+
+**Checked so far:** two agents in one process through the real relay hub (`mesh.test.ts`). A transfer between two computers on different networks is still to be checked.
 
 To check Nearby by script, run two windows with separate scratch data folders (`FARBAEK_AGENT_DATA_DIR`) and the development-only folder overrides `FARBAEK_AGENT_TEST_SEND_FOLDER` and `FARBAEK_AGENT_TEST_SAVE_FOLDER`, which packaged builds ignore.
 

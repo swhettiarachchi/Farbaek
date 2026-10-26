@@ -274,6 +274,13 @@ export const EVAL_SCENARIOS: readonly EvalScenario[] = [
     asserts: "A launch's public address and its link to the host stay on that host's own domain: the database refuses a Netlify launch pointing at Vercel, a lookalike domain or plain http, and Farbaek won't link to or check such an address.",
     file: "database.test.ts",
   },
+  {
+    id: "SE-031",
+    title: "A relay that could read or redirect a transfer",
+    risks: ["LLM02", "ASI07"],
+    asserts: "Mesh's relay carries only Noise ciphertext between two agents of one workspace: no plaintext crosses it, it routes no call to another workspace, it never pairs a device, a key the receiver didn't pair is refused, and nothing is kept once a session ends.",
+    file: "disclosure.test.ts",
+  },
 ];
 
 /** What isn't tested for each risk, and the reason when a risk doesn't apply. */

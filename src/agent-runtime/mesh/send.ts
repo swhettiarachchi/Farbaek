@@ -47,6 +47,8 @@ export class OutgoingTransfer {
     readonly device: TrustedDevice,
     private readonly connect: () => Promise<SecureChannel>,
     private readonly onUpdate: () => void,
+    /** What to say when the other computer can't be reached; nearby by default. */
+    private readonly unreachable?: (error: unknown) => string,
   ) {}
 
   view(): OutgoingView {
@@ -83,8 +85,8 @@ export class OutgoingTransfer {
     let channel: SecureChannel;
     try {
       channel = await this.connect();
-    } catch {
-      this.set("interrupted", `Couldn't reach ${this.device.name}. Make sure it's visible on the same network, then resume.`);
+    } catch (error) {
+      this.set("interrupted", this.unreachable?.(error) ?? `Couldn't reach ${this.device.name}. Make sure it's visible on the same network, then resume.`);
       return;
     }
     this.channel = channel;

@@ -12,6 +12,7 @@ import { z } from "zod";
 import { MeshError, MeshNode } from "@/agent-runtime/mesh/node";
 import { OfferError } from "@/agent-runtime/mesh/receive";
 import { PackError } from "@/agent-runtime/mesh/pack";
+import { RelayClient } from "@/agent-runtime/mesh/relay";
 import type { MeshState, Result } from "../shared/api";
 import type { SecretStore } from "./secrets";
 
@@ -23,7 +24,11 @@ export interface MeshDeps {
   /** The name other computers see: the agent's name once paired, otherwise this computer's. */
   name: () => string;
   window: () => BrowserWindow | null;
+  /** The Farbaek server and agent token for the relay (ADR 0094), or null while this app isn't paired with Farbaek. */
+  relay: () => { server: string; token: string } | null;
 }
+
+const NOT_PAIRED = "Pair this app with your Farbaek workspace first, under Farbaek. The relay goes through that workspace.";
 
 const Fingerprint = z.string().regex(/^[0-9a-f]{16}$/);
 const Id = z.string().min(1).max(64);
@@ -52,6 +57,7 @@ export class DesktopMesh {
         dataDir: this.deps.dataDir,
         name: this.deps.name,
         vault: { get: () => store.get("mesh-device-key"), set: (v) => store.set("mesh-device-key", v) },
+        relay: () => this.relayClient() ?? NOT_PAIRED,
         onUpdate: () => this.push(),
       });
       await node.init();
@@ -59,6 +65,17 @@ export class DesktopMesh {
       return node;
     })();
     return this.starting;
+  }
+
+  private relay: { key: string; client: RelayClient } | null = null;
+
+  /** One client per pairing: a new token makes a new one. */
+  private relayClient(): RelayClient | null {
+    const access = this.deps.relay();
+    if (!access) return null;
+    const key = `${access.server}|${access.token}`;
+    if (this.relay?.key !== key) this.relay = { key, client: new RelayClient(access.server, access.token) };
+    return this.relay.client;
   }
 
   async state(): Promise<MeshState> {
@@ -113,6 +130,8 @@ export class DesktopMesh {
     );
     handle("mesh:drop-prepared", Id, (id) => this.attempt((n) => n.dropPrepared(id)));
     handle("mesh:send", z.object({ preparedId: Id, fingerprint: Fingerprint, at: Address.optional() }), (input) => this.attempt((n) => n.send(input.preparedId, input.fingerprint, input.at)));
+    handle("mesh:reachable", z.boolean(), (on) => this.attempt((n) => n.setReachable(on)));
+    handle("mesh:send-relay", z.object({ preparedId: Id, fingerprint: Fingerprint }), (input) => this.attempt((n) => n.sendThroughRelay(input.preparedId, input.fingerprint)));
 
     handle("mesh:accept", Id, (id) =>
       this.attempt(async (n) => {

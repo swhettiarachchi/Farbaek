@@ -220,6 +220,9 @@ export interface AgentRecord {
   createdAt: string;
   lastSeenAt: string | null;
   revokedAt: string | null;
+  /** Mesh's relay (ADR 0094): the device fingerprint, and since when it turned on "Reachable through Farbaek". */
+  meshFingerprint: string | null;
+  meshReachableAt: string | null;
 }
 
 export interface InvitationRecord {

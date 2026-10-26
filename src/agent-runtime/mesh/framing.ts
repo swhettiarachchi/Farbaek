@@ -1,12 +1,13 @@
 /**
- * Noise messages over TCP: each one prefixed with its length as two bytes,
+ * Noise messages over TCP, or over the Farbaek relay's stream (ADR 0094):
+ * each one prefixed with its length as two bytes,
  * big-endian, so no message exceeds 65,535 bytes (the Noise limit). Reads
  * reassemble messages from however TCP splits or joins them. Both directions
  * apply backpressure: a write waits for the socket to drain, and the socket
  * is paused while unread messages pile up, so a fast sender can't make the
  * receiver hold a large file in memory.
  */
-import type { Socket } from "node:net";
+import type { Duplex } from "node:stream";
 import { MAX_MESSAGE } from "./noise";
 
 /** Unread messages held before the socket is paused. */
@@ -34,8 +35,8 @@ export class FramedSocket {
   private closedHere = false;
   private paused = false;
 
-  constructor(readonly socket: Socket) {
-    socket.setNoDelay(true);
+  constructor(readonly socket: Duplex & { setNoDelay?: (noDelay?: boolean) => unknown }) {
+    socket.setNoDelay?.(true);
     socket.on("data", (chunk: Buffer) => this.onData(chunk));
     socket.on("error", (error) => this.fail(new FrameError(`The connection failed: ${error.message}`)));
     socket.on("close", () => this.fail(new FrameError("The connection closed.")));
