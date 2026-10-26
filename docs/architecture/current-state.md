@@ -138,7 +138,7 @@ ESLint forbids `src/core` from importing React, Next, Motion or UI code, so ever
 | Project graph (ADR 0089): each task as a lane from intent to contract, change, proof and live, every node linked to its record, with versions published without verified evidence listed with their reasons; analytics from the same records (time from ask to verified, approval wait, checks passed, evidence on releases, policy outcomes, rework, most-changed files, incidents); every plan, read as the person, no migration | Implemented and tested | `src/core/insights/project-graph.ts`, `src/app/app/projects/[projectId]/graph/page.tsx`, `docs/stages/stage-66.md` |
 | Model Change Canary (ADR 0090): a daily check of Anthropic's model list finds a model in use that's gone or a newer one and emails the owner; staff run a canary of a candidate against a tier's model on Farbaek's own sample tasks (never customer work), at a shown maximum cost, with a report of the differences; only an owner switches a tier, with a fresh authenticator code, to a priced model a canary compared in the last 7 days; every server model choice applies the switch | Implemented and tested; v57 applied in production | `src/core/ai/model-canary.ts`, `src/app/office/(console)/models/page.tsx`, `docs/stages/stage-67.md` |
 | Governed workflows, autonomy level 4 (ADR 0092): 2 to 8 steps, each a task with its own approved contract, approved once by an owner or admin (bound by hash) and run in order by the cloud agent as the approver; each step's run capped at its share of the ceiling; stops at checkpoints, for review, on any failure, while paused and at the ceiling, never retrying on its own; every existing policy, rule, autonomy limit and permission still applies; Max 3x and up. The egress ledger can't list blocked attempts until the provider reports them (ADR 0091) | Implemented and tested; v58 applied in production | `src/core/realityloop/workflow.ts`, `src/server/workflows/`, `docs/stages/stage-68.md` |
-| Mesh on phones (mDNS, mobile apps), remote transfer and relay; LaunchOS providers; Mobile | **Not started** | Roadmap |
+| Mesh on phones (mDNS, mobile apps), remote transfer and relay; hosting providers beyond Vercel (Netlify, Render, Railway, Fly.io); Mobile | **Not started** | Roadmap |
 | Payments | **Not connected.** `BILLING_MODE=not_connected` | Spec section 23 |
 
 ### Integrations
@@ -170,7 +170,7 @@ Postgres on Supabase with Row Level Security on every table. The browser can onl
 - Auth and tenant isolation are in place (Supabase email sign-in, RLS, cross-tenant database tests). The live write path hasn't been exercised end to end against the hosted project yet.
 - AI drafting sends task titles, project details and the person's notes to Anthropic. They are sent as data with a system prompt that says so; the output only prefills the editor.
 - CSP covers framing, base URI, forms and objects; a nonce-based `script-src` arrives with the app routes.
-- No `security.txt` yet: it needs a real contact address from the owner.
+- `/.well-known/security.txt` (RFC 9116) points to support@farbaek.com and the `/security` page, and expires 2027-10-26; a test fails 30 days before, so it's renewed on purpose.
 
 ## 6. Cost drivers
 
