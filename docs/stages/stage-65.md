@@ -84,6 +84,9 @@ The plan catalog's "Advanced roles and permissions" (Max and up), the last plan 
 
   The full comparison (`--check` against `--state`) matches the migrations on all 645 lines. `/api/health` answered `ok` afterwards.
 
-### Not done yet
+- **The API gateway's log was checked** for calls before v56 closed the functions. The owner ran a read-only script, since reading the logs was blocked for Claude.
+  - The log covers the whole time on the VPS: from 2026-10-22 09:01, when the gateway (Envoy) started, 4,646 lines.
+  - Every function call came through Caddy with the client `node`, Farbaek's own server.
+  - Every function called is one the server uses (jobs, sandboxes, staff sessions, file reads). No browser or script client called any.
 
-- **Checking the audit log and the API gateway's logs** for calls to `app_*` functions that didn't come from the server, before v56 closed them. This needs the owner's go-ahead: reading the gateway logs was blocked for Claude.
+  A client can claim to be `node`, so this rules out the obvious misuse rather than proving there was none. The data API's own log keeps errors only, so it has no per-call record.
