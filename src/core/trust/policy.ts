@@ -15,6 +15,9 @@
  *   (ALLOW_WITHIN_LIMITS) if it stays within the file limit, creates no
  *   files unless allowed, and has checks a verified sandbox can run.
  *   Autonomy never lowers a BLOCK or an ESCALATE.
+ * - Autonomy level 3 (ADR 0086): the same rules with wider limits (up to
+ *   10 files) and a daily budget of changes applied on their own; once it's
+ *   spent, changes wait for a person.
  * - Workspace rules (ADR 0082), version 3: a workspace's own rules add a
  *   BLOCK, an ESCALATE, or a REQUIRE_APPROVAL that level 2 never lowers,
  *   for the files they name. They only ever make a change stricter.
@@ -34,7 +37,7 @@ export interface PolicyFinding {
 }
 
 /** Why level 2 would still have waited for a person. */
-export type RehearsalReason = "blocked" | "escalated" | "too_many_files" | "creates_files" | "not_verifiable" | "workspace_rule";
+export type RehearsalReason = "blocked" | "escalated" | "too_many_files" | "creates_files" | "not_verifiable" | "workspace_rule" | "daily_limit";
 
 /** What level 2 would have decided, recorded in shadow mode only (ADR 0075). Never acted on. */
 export interface ShadowDecision {
@@ -62,10 +65,12 @@ export interface PolicyDecision {
  * are only rehearsed, and every change still waits for a person.
  */
 export interface AutonomyLimits {
-  level: 2;
+  level: 2 | 3;
   maxFiles: number;
   allowCreates: boolean;
   rehearsal?: boolean;
+  /** Level 3 only (ADR 0086): changes it may still apply on its own in the last 24 hours. */
+  dailyLeft?: number | null;
 }
 
 export interface ChangePolicyInput {
@@ -120,6 +125,7 @@ export const CHANGE_POLICY_RULES = {
     requires: ["files within the workspace's limit", "no new files unless the workspace allows them", "checks a verified sandbox can run", "no workspace rule that holds it for a person"],
   },
   workspaceRules: { block: "BLOCK", owner_approval: "ESCALATE", person_approval: "REQUIRE_APPROVAL", onlyStricter: true },
+  levelThree: { maxFiles: 10, dailyBudget: true, earned: "10 changes applied on their own verified in 30 days, none failed" },
 } as const;
 
 let versionPromise: Promise<string> | null = null;
@@ -151,7 +157,7 @@ export async function evaluateChangePolicy(input: ChangePolicyInput): Promise<Po
   }
   // Without autonomy nothing is allowed without a person, so the floor is REQUIRE_APPROVAL.
   let outcome = findings.reduce<PolicyOutcome>((worst, f) => (RANK[f.outcome] > RANK[worst] ? f.outcome : worst), "REQUIRE_APPROVAL");
-  const limits = input.autonomy?.level === 2 ? input.autonomy : null;
+  const limits = input.autonomy?.level === 2 || input.autonomy?.level === 3 ? input.autonomy : null;
   const held = findings.some((f) => f.rule.startsWith("workspace:") && f.outcome === "REQUIRE_APPROVAL");
   const unmet = limits ? unmetLimits(input, limits, held) : [];
   const applied = ruleSet ? { workspaceRules: { version: ruleSet.version, sha256: ruleSet.sha256 } } : {};
@@ -165,9 +171,9 @@ export async function evaluateChangePolicy(input: ChangePolicyInput): Promise<Po
   if (limits && outcome === "REQUIRE_APPROVAL") {
     if (unmet.length === 0) {
       outcome = "ALLOW_WITHIN_LIMITS";
-      findings.push({ rule: "autonomy", outcome, detail: `Within this workspace's autonomy limits (level 2): ${input.files.length} ${input.files.length === 1 ? "file" : "files"}, inside the contract, no sensitive files, and its checks can run in a verified sandbox.` });
+      findings.push({ rule: "autonomy", outcome, detail: `Within this workspace's autonomy limits (level ${limits.level}): ${input.files.length} ${input.files.length === 1 ? "file" : "files"}, inside the contract, no sensitive files, and its checks can run in a verified sandbox.` });
     } else {
-      findings.push({ rule: "autonomy", outcome: "REQUIRE_APPROVAL", detail: `Autonomy level 2 is on, but this waits for a person: ${unmet.map((u) => u.text).join("; ")}.` });
+      findings.push({ rule: "autonomy", outcome: "REQUIRE_APPROVAL", detail: `Autonomy level ${limits.level} is on, but this waits for a person: ${unmet.map((u) => u.text).join("; ")}.` });
     }
   }
   return { outcome, findings, policyVersion: await changePolicyVersion(), ...applied };
@@ -181,6 +187,7 @@ function unmetLimits(input: ChangePolicyInput, limits: AutonomyLimits, held: boo
     unmet.push({ reason: "creates_files", text: `it creates ${creates === 1 ? "a new file" : `${creates} new files`}, which this workspace doesn't allow on their own` });
   if (!input.verifiable) unmet.push({ reason: "not_verifiable", text: "nothing could check it: the contract lists no checks, or no verified sandbox is connected" });
   if (held) unmet.push({ reason: "workspace_rule", text: "a workspace rule says a person always reviews these files" });
+  if (limits.level === 3 && limits.dailyLeft === 0) unmet.push({ reason: "daily_limit", text: "the workspace reached its daily limit of changes applied on their own" });
   return unmet;
 }
 

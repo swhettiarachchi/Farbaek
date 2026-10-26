@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { trialWindow, type BillingSnapshot } from "@/core/billing/trial";
 import type { FileDeps } from "./files";
-import { AUTONOMY_OFF, SHADOW_NOT_IN_PLAN, limitsFrom, setWorkspaceAutonomy, type AutonomyDeps } from "./autonomy";
+import { AUTONOMY_OFF, LEVEL_3_NOT_IN_PLAN, SHADOW_NOT_IN_PLAN, limitsFrom, setWorkspaceAutonomy, type AutonomyDeps } from "./autonomy";
 import type { WriteDeps } from "./use-cases";
 
 const NOW = new Date("2026-10-25T10:00:00.000Z");
@@ -58,5 +58,31 @@ describe("shadow mode settings (ADR 0075)", () => {
     expect(calls[0]).toMatchObject({ level: 2, shadow: false });
     const member = fakeDeps({ state: "trialing", trial: trialWindow(NOW) }, "member");
     expect(await setWorkspaceAutonomy(member.deps, { ...input, level: 0, shadow: true })).toMatchObject({ ok: false, code: "FORBIDDEN" });
+  });
+});
+
+describe("level 3 settings (ADR 0086)", () => {
+  const MAX_3X: BillingSnapshot = { state: "active", paidPlanId: "max_3x" };
+
+  it("is for Max 3x and up, with up to 10 files and a daily limit from the list", async () => {
+    const { deps, calls } = fakeDeps(MAX_3X);
+    expect(await setWorkspaceAutonomy(deps, { ...input, level: 3, maxFiles: 8, dailyLimit: 20 })).toEqual({ ok: true, value: null });
+    expect(calls[0]).toMatchObject({ level: 3, maxFiles: 8, dailyLimit: 20 });
+    expect(await setWorkspaceAutonomy(deps, { ...input, level: 3, maxFiles: 11, dailyLimit: 20 })).toMatchObject({ ok: false, message: "Choose a file limit from 1 to 10." });
+    expect(await setWorkspaceAutonomy(deps, { ...input, level: 3, maxFiles: 8, dailyLimit: 7 })).toMatchObject({ ok: false, message: expect.stringContaining("5, 10, 20, 50") });
+    expect(await setWorkspaceAutonomy(deps, { ...input, level: 2, maxFiles: 8 })).toMatchObject({ ok: false, message: "Choose a file limit from 1 to 5." });
+
+    const pro = fakeDeps({ state: "active", paidPlanId: "pro" });
+    expect(await setWorkspaceAutonomy(pro.deps, { ...input, level: 3, maxFiles: 8, dailyLimit: 20 })).toEqual({ ok: false, code: "FEATURE_NOT_IN_PLAN", message: LEVEL_3_NOT_IN_PLAN });
+    expect(pro.calls).toEqual([]);
+  });
+
+  it("sends no daily limit below level 3, and gives the policy what's left of today's budget", async () => {
+    const { deps, calls } = fakeDeps(MAX_3X);
+    await setWorkspaceAutonomy(deps, { ...input, level: 2, dailyLimit: 20 });
+    expect(calls[0]).toMatchObject({ level: 2, dailyLimit: null });
+    expect(limitsFrom({ ...AUTONOMY_OFF, level: 3, maxFiles: 8, allowCreates: true, dailyLimit: 10, appliedToday: 7 })).toEqual({ level: 3, maxFiles: 8, allowCreates: true, dailyLeft: 3 });
+    expect(limitsFrom({ ...AUTONOMY_OFF, level: 3, maxFiles: 8, dailyLimit: 10, appliedToday: 12 })).toMatchObject({ dailyLeft: 0 });
+    expect(limitsFrom({ ...AUTONOMY_OFF, level: 3, dailyLimit: 10, suspendedAt: NOW.toISOString(), suspendedReason: "x" })).toBeNull();
   });
 });

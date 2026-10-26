@@ -5,7 +5,8 @@ import { AutonomySettings } from "@/components/app/autonomy-settings";
 import { RehearsalRecord } from "@/components/app/rehearsal-record";
 import { checkFeature } from "@/core/billing/entitlements";
 import { summarizeRehearsal } from "@/core/trust/rehearsal";
-import { SHADOW_NOT_IN_PLAN } from "@/server/workspace/autonomy";
+import { LEVEL_3_NOT_IN_PLAN, SHADOW_NOT_IN_PLAN, readAutonomyRecord } from "@/server/workspace/autonomy";
+import { levelThreeStatus } from "@/core/trust/autonomy-levels";
 import { DeleteAccount } from "@/components/app/delete-account";
 import { EmailPreferencesForm } from "@/components/app/email-preferences";
 import { ThisDevice } from "@/components/app/this-device";
@@ -51,6 +52,20 @@ export default async function SettingsPage() {
   // Notifications on people's devices (ADR 0079), read as the person.
   const pushClient = ctx.mode === "live" ? await createSupabaseServerClient() : null;
   const myDevices = pushClient ? await readMyDevices(pushClient, ctx.user.id).catch(() => []) : [];
+  // Level 3 (ADR 0086): the plan first, then the record it's earned from, read as the person. A running level 3 can always change its limits.
+  const levelThreeFeature = checkFeature(ws.plan, "advanced_autonomy");
+  const levelThreeOn = autonomy.level === 3 && autonomy.suspendedAt === null;
+  const levelThreeRecord = !levelThreeOn && levelThreeFeature.allowed && pushClient ? await readAutonomyRecord(pushClient, ws.id) : null;
+  const levelThreeEarned = levelThreeStatus(levelThreeRecord);
+  const levelThreeReason = levelThreeOn
+    ? null
+    : !levelThreeFeature.allowed
+      ? levelThreeFeature.code === "FEATURE_NOT_IN_PLAN"
+        ? LEVEL_3_NOT_IN_PLAN
+        : levelThreeFeature.message
+      : levelThreeEarned.earned
+        ? null
+        : levelThreeEarned.reason;
   const emailReason = ctx.mode === "demo" ? "The demo workspace is read-only." : readEmailConfig() ? null : "Farbaek isn't sending email from this server yet.";
   const owners = members.filter((m) => m.role === "owner").length;
   const peopleReason = ctx.mode === "demo" ? "The demo workspace is read-only." : !ctx.writes.enabled ? ctx.writes.reason : null;
@@ -112,6 +127,7 @@ export default async function SettingsPage() {
           verifiable={execution.mode === "sandboxed"}
           shadowReason={shadowReason}
           replayReason={ctx.mode === "demo" ? "The demo workspace has no past changes to replay." : shadowReason}
+          levelThreeReason={levelThreeReason}
           disabledReason={ctx.mode === "demo" ? "The demo workspace is read-only." : !ctx.writes.enabled ? ctx.writes.reason : canManage ? null : "Only owners and admins can change autonomy."}
         />
         {autonomy.shadowSince ? (

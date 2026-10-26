@@ -5,7 +5,7 @@
  * Farbaek's AI switch stops every workspace at once, a failure after an
  * automatic apply pauses autonomy, nothing goes live without verified
  * evidence or an owner's logged reason, workspace rules can't be skipped,
- * and a pause stops agents at once.
+ * a pause stops agents at once, and level 3 keeps to its daily budget.
  */
 import { createHash } from "node:crypto";
 import type { PGlite } from "@electric-sql/pglite";
@@ -258,5 +258,25 @@ describe("SE-026 An agent that won't stop", () => {
       await pause(USERS.alice, false);
     }
     await expect(task(orgA, USERS.alice, projectA, "Applies on its own after resuming", "policy")).resolves.toMatchObject({ task: expect.any(String) });
+  });
+});
+
+describe("SE-027 Autonomy beyond its budget", () => {
+  it("won't turn level 3 on without a clean record of changes applied on their own", async () => {
+    await expect(q("select public.app_set_autonomy($1, $2, 3, 8, true, false, 10)", [orgB, USERS.bob])).rejects.toThrow(/AUTONOMY_NOT_EARNED/);
+  });
+
+  it("refuses an automatic apply once the day's budget is spent, whatever the server decided", async () => {
+    const today = async () =>
+      (await admin<{ n: number }>("select count(*)::int as n from public.change_proposals where org_id = $1 and policy ->> 'outcome' = 'ALLOW_WITHIN_LIMITS' and created_at >= now() - interval '24 hours'", [orgA]))[0]!.n;
+    // Set straight in the table, as if earned: the budget is what's under test here.
+    await admin("update public.org_autonomy set level = 3, max_files = 8, daily_limit = $2, suspended_at = null, suspended_reason = null where org_id = $1", [orgA, (await today()) + 1]);
+    try {
+      await expect(task(orgA, USERS.alice, projectA, "Within the budget", "policy")).resolves.toMatchObject({ task: expect.any(String) });
+      await expect(task(orgA, USERS.alice, projectA, "Past the budget", "policy")).rejects.toThrow(/AUTONOMY_DAILY_LIMIT/);
+      await expect(task(orgA, USERS.alice, projectA, "A person's change past the budget")).resolves.toMatchObject({ task: expect.any(String) });
+    } finally {
+      await admin("update public.org_autonomy set level = 2, max_files = 3, daily_limit = null where org_id = $1", [orgA]);
+    }
   });
 });

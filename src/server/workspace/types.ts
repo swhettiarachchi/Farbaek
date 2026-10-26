@@ -124,7 +124,7 @@ export interface ProposalRecord {
 /** What level 2 would have decided, as stored under policy -> 'shadow' (ADR 0075). */
 export const ShadowSchema = z.object({
   outcome: z.enum(["ALLOW_WITHIN_LIMITS", "REQUIRE_APPROVAL"]),
-  reasons: z.array(z.enum(["blocked", "escalated", "too_many_files", "creates_files", "not_verifiable", "workspace_rule"])),
+  reasons: z.array(z.enum(["blocked", "escalated", "too_many_files", "creates_files", "not_verifiable", "workspace_rule", "daily_limit"])),
   detail: z.string(),
   maxFiles: z.number().int(),
   allowCreates: z.boolean(),

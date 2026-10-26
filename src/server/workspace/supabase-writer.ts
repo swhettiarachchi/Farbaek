@@ -180,7 +180,7 @@ export function createSupabaseWriteDeps(
     setAutonomy: (i) =>
       rpc(
         "app_set_autonomy",
-        { p_org: i.orgId, p_actor: i.actor, p_level: i.level, p_max_files: i.maxFiles, p_allow_creates: i.allowCreates, p_shadow: i.shadow },
+        { p_org: i.orgId, p_actor: i.actor, p_level: i.level, p_max_files: i.maxFiles, p_allow_creates: i.allowCreates, p_shadow: i.shadow, p_daily_limit: i.dailyLimit },
         z.null().or(z.literal("")).transform(() => null),
       ),
 

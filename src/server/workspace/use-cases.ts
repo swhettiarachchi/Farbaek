@@ -79,6 +79,8 @@ export type WriteErrorCode =
   | "AGENTS_PAUSED"
   | "INVALID_INCIDENT"
   | "INCIDENT_RESOLVED"
+  | "AUTONOMY_NOT_EARNED"
+  | "AUTONOMY_DAILY_LIMIT"
   | "UNKNOWN";
 
 export type WriteResult<T> = { ok: true; value: T } | { ok: false; code: WriteErrorCode; message: string };
@@ -199,6 +201,8 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   AGENTS_PAUSED: "Agents are paused in this workspace, so no agent runs or automatic changes start until an owner or admin resumes them on the Incidents page.",
   INVALID_INCIDENT: "That incident update isn't valid. Check the marked fields and try again.",
   INCIDENT_RESOLVED: "This incident is resolved, so it can't change any more. Open a new one if something else went wrong.",
+  AUTONOMY_NOT_EARNED: "Level 3 isn't earned yet: it needs 10 changes applied on their own that passed their checks in the last 30 days, with none failing.",
+  AUTONOMY_DAILY_LIMIT: "The workspace reached its daily limit of changes applied on their own. This change waits for a person.",
   UNKNOWN: "Something went wrong and nothing was changed. Try again in a moment.",
 };
 
@@ -255,6 +259,8 @@ export function codeFromDatabaseError(message: string): WriteErrorCode {
     "AGENTS_PAUSED",
     "INVALID_INCIDENT",
     "INCIDENT_RESOLVED",
+    "AUTONOMY_NOT_EARNED",
+    "AUTONOMY_DAILY_LIMIT",
   ] as const) {
     if (message.includes(code)) return code;
   }

@@ -326,3 +326,11 @@ Known limits: public repositories only. Private ones need a GitHub connection, w
 | Incident records | Forged or edited incidents; another workspace's incidents; file contents in the replay | Only server functions write incidents and events (service role), each checking the workspace and the person; members read their own workspace's; `app_incident_changes` returns paths, kinds and outcomes only, as the caller under RLS; resolving is final | `tests/db/incidents.test.ts` |
 | Blaming the wrong change | The replay presenting timing as cause | Changes found by timing are labelled "Farbaek can't tell which, if any, caused it"; suggested rules go to the policy builder and must be tested on past changes before activation | `incidents.test.ts` (core) |
 | Escalation | Repeated or misdirected alerts | Each incident is claimed once before anyone is told; only owners and admins of that workspace, only on plans with incident response tools | `incident-escalation.test.ts`, `tests/db/incidents.test.ts` |
+
+## Autonomy level 3 (2026-10-26, ADR 0086)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| Turning level 3 on | A workspace, or a member, letting more through without a record | Owners and admins only; Max 3x checked on the server; the database refuses level 3 unless 10 changes applied on their own passed their checks in 30 days with none failed, on the way in and after a pause | `tests/db/autonomy-level-3.test.ts`, SE-027, `autonomy.test.ts` |
+| Volume | A run or a burst of tasks applying many changes on their own in a day | A daily budget the workspace sets (5 to 50): the policy holds changes for a person once it's spent, a count that can't be read counts as spent, and a trigger refuses any automatic proposal past it | `tests/db/autonomy-level-3.test.ts`, SE-027, `policy.test.ts` |
+| After a failure | Autonomy carrying on at its widest after a check failed | Any failed or partly passed check after an automatic apply pauses autonomy; the failure keeps level 3 locked for 30 days | `tests/db/autonomy-level-3.test.ts` |

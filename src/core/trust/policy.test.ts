@@ -169,3 +169,27 @@ describe("workspace rules (ADR 0082)", () => {
     expect(policyRecord(none)).not.toHaveProperty("workspaceRules");
   });
 });
+
+describe("autonomy level 3 (ADR 0086)", () => {
+  const level3 = { level: 3 as const, maxFiles: 8, allowCreates: true, dailyLeft: 4 };
+  const files = (n: number) => Array.from({ length: n }, (_, i) => edit(`src/page-${i}.tsx`));
+
+  it("applies wider changes on its own, within its own limits", async () => {
+    const d = await evaluateChangePolicy({ rules: null, files: files(8), contractViolations: [], autonomy: level3, verifiable: true });
+    expect(d.outcome).toBe("ALLOW_WITHIN_LIMITS");
+    expect(d.findings.at(-1)?.detail).toContain("(level 3)");
+    const over = await evaluateChangePolicy({ rules: null, files: files(9), contractViolations: [], autonomy: level3, verifiable: true });
+    expect(over.outcome).toBe("REQUIRE_APPROVAL");
+  });
+
+  it("waits for a person once the day's budget is spent", async () => {
+    const d = await evaluateChangePolicy({ rules: null, files: files(1), contractViolations: [], autonomy: { ...level3, dailyLeft: 0 }, verifiable: true });
+    expect(d.outcome).toBe("REQUIRE_APPROVAL");
+    expect(d.findings.at(-1)?.detail).toContain("the workspace reached its daily limit of changes applied on their own");
+  });
+
+  it("never lowers what the built-in rules escalate", async () => {
+    const d = await evaluateChangePolicy({ rules: null, files: [edit("package.json")], contractViolations: [], autonomy: level3, verifiable: true });
+    expect(d.outcome).toBe("ESCALATE");
+  });
+});

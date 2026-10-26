@@ -592,22 +592,37 @@ export type AutonomyState = { status: "idle" } | { status: "error"; message: str
 /** Sets the workspace's autonomy (ADR 0046). Owners and admins only; the database checks again. */
 export async function setAutonomyAction(_previous: AutonomyState, form: FormData): Promise<AutonomyState> {
   const parsed = z
-    .object({ level: z.enum(["0", "shadow", "2"]), maxFiles: z.coerce.number().int().min(1).max(5), allowCreates: z.string().optional() })
-    .safeParse({ level: form.get("level"), maxFiles: form.get("maxFiles"), allowCreates: form.get("allowCreates") ?? undefined });
-  if (!parsed.success) return { status: "error", message: "Choose a level and a file limit from 1 to 5." };
+    .object({
+      level: z.enum(["0", "shadow", "2", "3"]),
+      maxFiles: z.coerce.number().int().min(1).max(10),
+      allowCreates: z.string().optional(),
+      dailyLimit: z.coerce.number().int().min(1).max(50).optional(),
+    })
+    .safeParse({ level: form.get("level"), maxFiles: form.get("maxFiles"), allowCreates: form.get("allowCreates") ?? undefined, dailyLimit: form.get("dailyLimit") ?? undefined });
+  if (!parsed.success) return { status: "error", message: "Choose a level and its limits." };
   const ctx = await requireContext();
   const w = await writeDeps(ctx);
   if ("error" in w) return { status: "error", message: w.error };
-  const level = parsed.data.level === "2" ? 2 : 0;
+  const level = parsed.data.level === "3" ? 3 : parsed.data.level === "2" ? 2 : 0;
   // Shadow mode (ADR 0075) rehearses level 2 at level 0: every change still waits for a person.
   const shadow = parsed.data.level === "shadow";
-  const r = await setWorkspaceAutonomy(w.deps, { orgId: w.orgId, userId: ctx.user.id, level, maxFiles: parsed.data.maxFiles, allowCreates: parsed.data.allowCreates === "on", shadow });
+  const r = await setWorkspaceAutonomy(w.deps, {
+    orgId: w.orgId,
+    userId: ctx.user.id,
+    level,
+    maxFiles: parsed.data.maxFiles,
+    allowCreates: parsed.data.allowCreates === "on",
+    shadow,
+    dailyLimit: parsed.data.dailyLimit ?? null,
+  });
   if (!r.ok) return { status: "error", message: r.message };
   revalidatePath("/app/settings");
   return {
     status: "done",
     message:
-      level === 2
+      level === 3
+        ? "Saved. Verified changes now apply on their own within these limits and the daily budget."
+        : level === 2
         ? "Saved. Small, checked changes now apply on their own within these limits."
         : shadow
           ? "Saved. Every change still waits for a person, and each one now notes what level 2 would have done."

@@ -246,6 +246,13 @@ export const EVAL_SCENARIOS: readonly EvalScenario[] = [
     asserts: "Anyone who contributes can pause a workspace's agents, which refuses new runs and automatic applies at once while people's own changes go on, and only an owner or admin resumes them.",
     file: "database.test.ts",
   },
+  {
+    id: "SE-027",
+    title: "Autonomy beyond its budget",
+    risks: ["LLM06", "ASI10"],
+    asserts: "Level 3 won't turn on without a clean record of changes applied on their own, and once its daily budget is spent the database refuses any further automatic apply while people's own changes go on.",
+    file: "database.test.ts",
+  },
 ];
 
 /** What isn't tested for each risk, and the reason when a risk doesn't apply. */
