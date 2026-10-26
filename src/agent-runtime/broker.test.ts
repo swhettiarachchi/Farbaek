@@ -68,15 +68,18 @@ describe("cmd.exe shims", () => {
     }
   });
 
+  // npm takes a few seconds to start through cmd.exe, and on a busy machine more than vitest's default 5 s.
+  // The command allows itself 60 s, so the test allows a little longer and the command's own limit decides.
   it.runIf(win)("runs npm.cmd through cmd.exe and refuses an unsafe argument before starting it", async () => {
     const r = await runCommand({ program: "npm", args: ["--version"], cwd, timeoutMs: 60_000 });
     expect(r.exitCode).toBe(0);
     expect(r.stdout.trim()).toMatch(/^\d+\.\d+\.\d+/);
     await expect(runCommand({ program: "npm", args: ["run", "x&calc"], cwd })).rejects.toMatchObject({ code: "UNSAFE_ARGUMENT" });
-  });
+  }, 70_000);
 });
 
-describe("running commands", () => {
+// Each test starts real processes, which a busy machine can slow past vitest's default 5 s.
+describe("running commands", { timeout: 20_000 }, () => {
   it("passes arguments as-is, with no shell to interpret them", async () => {
     const r = await runCommand({ program: "node", args: ["-e", "console.log(JSON.stringify(process.argv.slice(1)))", "a b", "&&", "$(whoami)", "; echo hi"], cwd });
     expect(r.exitCode).toBe(0);

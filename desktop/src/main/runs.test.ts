@@ -74,12 +74,18 @@ function scripted(turns: ModelToolCall[][]): ToolModel {
 const edit = { id: "e", name: "edit_file", input: { path: "README.md", edits: [{ find: "Run the tests.", replace: "Run the tests with pnpm test." }], reason: "Name the command." } };
 const finish = { id: "f", name: "finish", input: { summary: "README names pnpm test.", steps: ["Edited README.md"], risks: [], checks: ["pnpm test"] } };
 
+let managers: RunManager[];
+
 function manager(model: ToolModel, runner?: CommandRunner) {
-  return new RunManager({ dataDir: dir, makeModel: () => model, emit: (r) => updates.push(r), makeRunner: runner ? () => runner : undefined });
+  const m = new RunManager({ dataDir: dir, makeModel: () => model, emit: (r) => updates.push(r), makeRunner: runner ? () => runner : undefined });
+  managers.push(m);
+  return m;
 }
 
+// Waits by the clock, not by a count of polls: on a busy machine copying the project and saving the run take longer.
 async function settle(m: RunManager, id: string, until: (r: RunDetail) => boolean) {
-  for (let i = 0; i < 100; i += 1) {
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
     const r = m.get(id);
     if (r && until(r)) return r;
     await new Promise((resolve) => setTimeout(resolve, 20));
@@ -91,13 +97,18 @@ beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), "farbaek-runs-"));
   submitted = [];
   updates = [];
+  managers = [];
 });
 
 afterEach(async () => {
-  await fs.rm(dir, { recursive: true, force: true });
+  // A run's last save can still be writing when its state changes, so let every save finish before removing the folder.
+  await Promise.all(managers.map((m) => m.flush()));
+  // Windows can hold a just-written file for a moment (antivirus, the indexer).
+  await fs.rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 });
 
-describe("desktop runs", () => {
+// Longer than settle's 10 s, so a slow run fails with its state rather than vitest's default 5 s.
+describe("desktop runs", { timeout: 20_000 }, () => {
   it("works on a copy, waits for the person, then submits exactly the finished change", async () => {
     const m = manager(scripted([[edit], [finish]]));
     const id = await m.start({ api: await api(), taskId: "t1", mode: "review_only", effort: "balanced" });
