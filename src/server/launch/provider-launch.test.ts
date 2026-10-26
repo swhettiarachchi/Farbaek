@@ -56,7 +56,7 @@ function fakes(over: { states?: string[]; uploadFails?: boolean; createFails?: b
         return { ok: true, value: deployment(state, state === "READY" ? { aliases: ["storefront.vercel.app"] } : state === "ERROR" ? { errorMessage: "Command \"npm run build\" exited with 1" } : {}) };
       },
     }) as unknown as VercelClient;
-  const deps: LaunchDeps = { store, key: KEY, vercel, files: async () => FILES, probe: async () => 200, sleep: async () => undefined };
+  const deps: LaunchDeps = { store, key: KEY, vercel, netlify: () => { throw new Error("Netlify isn't part of these tests."); }, files: async () => FILES, probe: async () => 200, sleep: async () => undefined };
   return { deps, calls, updates, health, sealed: () => stored };
 }
 

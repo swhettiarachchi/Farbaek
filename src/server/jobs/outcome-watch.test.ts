@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ProbeResult } from "@/core/launch/health";
-import { judgeVercel, runOutcomeWatches, type OutcomeWatchDeps, type WatchTarget, type WatchedProject } from "./outcome-watch";
+import { judgeLaunch, runOutcomeWatches, type OutcomeWatchDeps, type WatchTarget, type WatchedProject } from "./outcome-watch";
 
 const probe = (status: number | null, extra: Partial<ProbeResult> = {}): ProbeResult => ({ status, ms: 120, deploymentHeader: null, etag: null, ...extra });
 const W = (id: string): WatchedProject => ({ projectId: id, orgId: "o1", projectName: `Project ${id}`, enabledBy: "u1" });
@@ -32,7 +32,7 @@ describe("outcome watch", () => {
   });
 
   it("tells the person who turned it on when it goes down or comes back, and only then", async () => {
-    const v: WatchTarget = { kind: "vercel", url: "https://shop.vercel.app" };
+    const v: WatchTarget = { kind: "launch", provider: "vercel", url: "https://shop.vercel.app" };
     const f = fakes({ p1: v, p2: v, p3: v }, { [v.url]: probe(null, { error: "timeout" }) }, { p1: "down", p2: null, p3: "recovered" });
     expect(await runOutcomeWatches(f.deps)).toEqual({ checked: 3, nothingLive: 0, down: 1, recovered: 1 });
     expect(f.alerts).toEqual([
@@ -47,11 +47,14 @@ describe("outcome watch", () => {
     expect(f.recorded).toEqual([["p1", null, "Nothing is live to check yet."]]);
   });
 
-  it("counts Vercel's sign-in protection as answering, and errors as not", () => {
-    expect(judgeVercel(probe(200))).toMatchObject({ ok: true });
-    expect(judgeVercel(probe(401))).toMatchObject({ ok: true, detail: expect.stringMatching(/Vercel's sign-in/) });
-    expect(judgeVercel(probe(404))).toEqual({ ok: false, detail: "It answered 404." });
-    expect(judgeVercel(probe(503))).toMatchObject({ ok: false });
-    expect(judgeVercel(probe(null, { error: "network" }))).toMatchObject({ ok: false });
+  it("counts a host's own protection as answering, and errors as not", () => {
+    expect(judgeLaunch("vercel", probe(200))).toMatchObject({ ok: true });
+    expect(judgeLaunch("vercel", probe(401))).toMatchObject({ ok: true, detail: expect.stringMatching(/Vercel's sign-in/) });
+    expect(judgeLaunch("vercel", probe(404))).toEqual({ ok: false, detail: "It answered 404." });
+    expect(judgeLaunch("vercel", probe(503))).toMatchObject({ ok: false });
+    expect(judgeLaunch("vercel", probe(null, { error: "network" }))).toMatchObject({ ok: false });
+    expect(judgeLaunch("netlify", probe(401))).toMatchObject({ ok: true, detail: expect.stringMatching(/Netlify's password protection/) });
+    expect(judgeLaunch("netlify", probe(403))).toEqual({ ok: false, detail: "It answered 403." });
+    expect(judgeLaunch("netlify", probe(200))).toMatchObject({ ok: true });
   });
 });

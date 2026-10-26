@@ -1,16 +1,17 @@
 /**
- * Provider connections and launch orders in the database (migration v48,
- * ADR 0078). Writes go through the service-role functions, which re-check
+ * Provider connections and launch orders in the database (migrations v48 and v59,
+ * ADR 0078, ADR 0093). Writes go through the service-role functions, which re-check
  * the person; pages read through the person's own client, whose column
  * grants leave the sealed token out.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { LAUNCH_PROVIDERS, type LaunchProvider } from "@/core/launch/providers";
 import type { OrderStatus } from "@/core/launch/vercel";
 import type { EvidenceStatus } from "@/core/publish/evidence";
 import type { RpcResult } from "@/server/workspace/use-cases";
 
-export type Provider = "vercel";
+export type Provider = LaunchProvider;
 
 export interface ConnectionView {
   provider: Provider;
@@ -22,6 +23,7 @@ export interface ConnectionView {
 
 export interface LaunchOrderView {
   id: string;
+  provider: Provider;
   status: OrderStatus;
   targetName: string;
   accountName: string;
@@ -44,12 +46,15 @@ export interface LaunchOrderView {
 }
 
 const CONNECTION_COLUMNS = "provider, account_name, team_id, created_at, last_used_at";
-const ConnectionRow = z.object({ provider: z.literal("vercel"), account_name: z.string(), team_id: z.string().nullable(), created_at: z.string(), last_used_at: z.string().nullable() });
+const ConnectionRow = z.object({ provider: z.enum(LAUNCH_PROVIDERS), account_name: z.string(), team_id: z.string().nullable(), created_at: z.string(), last_used_at: z.string().nullable() });
+
+const toConnection = (r: z.infer<typeof ConnectionRow>): ConnectionView => ({ provider: r.provider, accountName: r.account_name, teamId: r.team_id, createdAt: r.created_at, lastUsedAt: r.last_used_at });
 
 const ORDER_COLUMNS =
-  "id, status, target_name, account_name, files_digest, file_count, total_bytes, evidence, evidence_proofpack, override_reason, authorized_by, authorized_at, provider_deployment_id, url, inspector_url, failure, health_status, health_checked_at, updated_at, finished_at";
+  "id, provider, status, target_name, account_name, files_digest, file_count, total_bytes, evidence, evidence_proofpack, override_reason, authorized_by, authorized_at, provider_deployment_id, url, inspector_url, failure, health_status, health_checked_at, updated_at, finished_at";
 const OrderRow = z.object({
   id: z.string(),
+  provider: z.enum(LAUNCH_PROVIDERS),
   status: z.enum(["authorized", "uploading", "building", "ready", "failed"]),
   target_name: z.string(),
   account_name: z.string(),
@@ -73,6 +78,7 @@ const OrderRow = z.object({
 
 const toOrder = (r: z.infer<typeof OrderRow>): LaunchOrderView => ({
   id: r.id,
+  provider: r.provider,
   status: r.status,
   targetName: r.target_name,
   accountName: r.account_name,
@@ -99,8 +105,16 @@ export async function readConnection(client: SupabaseClient, orgId: string, prov
   const { data, error } = await client.from("provider_connections").select(CONNECTION_COLUMNS).eq("org_id", orgId).eq("provider", provider).maybeSingle();
   if (error) throw new Error(`Couldn't read the connection: ${error.message}`);
   if (!data) return null;
-  const r = ConnectionRow.parse(data);
-  return { provider: r.provider, accountName: r.account_name, teamId: r.team_id, createdAt: r.created_at, lastUsedAt: r.last_used_at };
+  return toConnection(ConnectionRow.parse(data));
+}
+
+/** The workspace's connections with every provider, read as the person. */
+export async function readConnections(client: SupabaseClient, orgId: string): Promise<Partial<Record<Provider, ConnectionView>>> {
+  const { data, error } = await client.from("provider_connections").select(CONNECTION_COLUMNS).eq("org_id", orgId);
+  if (error) throw new Error(`Couldn't read the connections: ${error.message}`);
+  const out: Partial<Record<Provider, ConnectionView>> = {};
+  for (const row of z.array(ConnectionRow).parse(data)) out[row.provider] = toConnection(row);
+  return out;
 }
 
 /** A project's launches, newest first, read as the person. */
