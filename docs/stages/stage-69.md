@@ -65,6 +65,14 @@ The roadmap's "More hosting providers", and spec Stage 8 LaunchOS. Until now Lau
   | `provider-panel.test.ts` | 4 Netlify cases added |
   | `judgeLaunch` in `outcome-watch.test.ts` | 3 Netlify assertions added |
 - **`pnpm security:eval`:** 30 scenarios, 30 passed.
+- **Demo build, Launch page:**
+  - Storefront (Next.js) shows the Vercel connect form and Netlify's reason it suits Vercel better.
+  - The project Farbaek can't place shows each provider's own sentence.
+  - The Vercel and Netlify cards link to their panels with 44px targets.
+  - No sideways scroll at 375.
+  - `qa:a11y`: 4 views, 0 findings. `qa:responsive`: 22 views, 0 findings.
+  - No demo project is static, so the Netlify connect and launch forms were checked by `provider-panel.test.ts` only.
+- **Migration v59** applied in production after its hash check. The four checks and the new stale-launch text were read back with psql.
 
 ### Not verified
 
