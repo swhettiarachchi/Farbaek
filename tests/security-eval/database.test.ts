@@ -6,7 +6,8 @@
  * automatic apply pauses autonomy, nothing goes live without verified
  * evidence or an owner's logged reason, workspace rules can't be skipped,
  * a pause stops agents at once, level 3 keeps to its daily budget, and
- * a member can't act past the permissions an owner or admin turned off.
+ * a member can't act past the permissions an owner or admin turned off, and
+ * a workflow can't run past its approval.
  */
 import { createHash } from "node:crypto";
 import type { PGlite } from "@electric-sql/pglite";
@@ -298,5 +299,42 @@ describe("SE-028 A member acting beyond their permissions", () => {
     } finally {
       await admin("delete from public.organization_members where org_id = $1 and user_id = $2", [orgA, USERS.bob]);
     }
+  });
+});
+
+describe("SE-029 A workflow running past its approval", () => {
+  it("won't start a step before approval, after cancelling, while paused, or past a checkpoint no one released", async () => {
+    const create = async () => {
+      const wf = (await q<{ id: string }>("select public.app_create_workflow($1, $2, $3, 'Eval workflow', $4, 2000) as id", [orgA, USERS.alice, projectA, JSON.stringify([{ title: "First step", checkpoint: true }, { title: "Second step" }])]))[0]!.id;
+      return wf;
+    };
+    const claim = async (wf: string) => (await q<{ result: string }>("select result from public.app_workflow_claim_next($1)", [wf]))[0]!.result;
+    const approveAll = async (wf: string) => {
+      for (const s of await admin<{ task_id: string }>("select task_id from public.workflow_steps where workflow_id = $1 order by position", [wf])) {
+        await q("select public.app_save_contract($1, $2, $3, $4, 0, 0, $5)", [s.task_id, USERS.alice, JSON.stringify({ schema: "farbaek.intent-contract/v1", version: 1 }), H("c"), JSON.stringify([step("RECEIVED", "CONTEXT_ASSEMBLED", "assemble_context"), step("CONTEXT_ASSEMBLED", "CONTRACT_DRAFTED", "draft_contract")])]);
+        await q("select public.app_approve_contract($1, $2, 1, $3, 2, $4)", [s.task_id, USERS.alice, H("c"), JSON.stringify([step("CONTRACT_DRAFTED", "CONTRACT_APPROVED", "approve_contract")])]);
+      }
+      await q("select public.app_approve_workflow($1, $2, $3)", [wf, USERS.alice, H("a")]);
+    };
+
+    const draft = await create();
+    expect(await claim(draft)).toBe("draft");
+
+    const wf = await create();
+    await approveAll(wf);
+    await admin("update public.organizations set agents_paused_at = now(), agents_paused_by = $2, agents_paused_reason = 'Evaluating the pause.' where id = $1", [orgA, USERS.alice]);
+    try {
+      expect(await claim(wf)).toBe("paused");
+    } finally {
+      await admin("update public.organizations set agents_paused_at = null, agents_paused_by = null, agents_paused_reason = null where id = $1", [orgA]);
+    }
+    expect(await claim(wf)).toBe("started");
+    await q("select public.app_workflow_step_result($1, 1::smallint, 'verified', null)", [wf]);
+    expect(await claim(wf)).toBe("checkpoint");
+    expect(await claim(wf)).toBe("waiting");
+    await q("select public.app_cancel_workflow($1, $2)", [wf, USERS.alice]);
+    expect(await claim(wf)).toBe("cancelled");
+    // And a browser can't move a workflow on at all.
+    await expect(asUser(USERS.alice, "select public.app_workflow_claim_next($1)", [wf])).rejects.toThrow(/permission denied/);
   });
 });

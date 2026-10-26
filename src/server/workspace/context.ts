@@ -90,6 +90,8 @@ function memoizeReader(reader: WorkspaceReader): WorkspaceReader {
     listInvitations: wrap("invitations", reader.listInvitations),
     listAgents: wrap("agents", reader.listAgents),
     getProjectGraph: wrap("projectGraph", reader.getProjectGraph),
+    listWorkflows: wrap("workflows", reader.listWorkflows),
+    getWorkflow: wrap("workflow", reader.getWorkflow),
   };
 }
 

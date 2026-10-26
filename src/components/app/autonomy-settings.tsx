@@ -1,6 +1,7 @@
 "use client";
 
-import { CheckCircleIcon, ClockCounterClockwiseIcon, FlaskIcon, LightningIcon, LockSimpleIcon, PauseCircleIcon, ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, ClockCounterClockwiseIcon, FlaskIcon, FlowArrowIcon, LightningIcon, PauseCircleIcon, ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import Link from "next/link";
 import { useActionState, useState, useTransition } from "react";
 import { setAutonomyAction, type AutonomyState } from "@/app/app/actions";
 import { replayAutonomyAction, type ReplayState } from "@/app/app/replay-actions";
@@ -149,13 +150,15 @@ export function AutonomySettings({
             </span>
           </label>
         ))}
-        {/* Visibly not built, with what it would be, so nobody looks for it elsewhere. */}
-        <div className="flex items-start gap-3 rounded-sm border border-dashed border-line px-4 py-3 text-ink-3">
-          <LockSimpleIcon size={16} className="mt-1 shrink-0" aria-hidden />
+        {/* Level 4 isn't a setting: each workflow is approved on its own (ADR 0092). */}
+        <div className="flex items-start gap-3 rounded-sm border border-line px-4 py-3">
+          <FlowArrowIcon size={16} className="mt-1 shrink-0 text-ink-3" aria-hidden />
           <span className="grid gap-0.5">
-            <span className="text-[15px] font-medium">Level 4: Governed multi-step workflows</span>
-            <span className="text-sm">Agents carry out an approved plan across several changes, with a person at set checkpoints.</span>
-            <span className="text-xs">Not built yet.</span>
+            <span className="text-[15px] font-medium">Level 4: Governed workflows</span>
+            <span className="text-sm text-ink-2">The agent carries out an approved plan of several steps in order, stopping for a person at checkpoints and whenever a change needs review.</span>
+            <Link href="/app/workflows" className="inline-flex min-h-11 items-center text-sm font-medium text-accent hover:underline">
+              Open Workflows
+            </Link>
           </span>
         </div>
       </fieldset>

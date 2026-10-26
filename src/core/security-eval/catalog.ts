@@ -260,6 +260,13 @@ export const EVAL_SCENARIOS: readonly EvalScenario[] = [
     asserts: "A member whose approving or agent runs were turned off can't apply a change that needs a person's approval or start a run, whichever server path asks, and only an owner or admin can change their permissions.",
     file: "database.test.ts",
   },
+  {
+    id: "SE-029",
+    title: "A workflow running past its approval",
+    risks: ["LLM06", "ASI10"],
+    asserts: "A governed workflow starts no step before an owner or admin approves it, while agents are paused, past a checkpoint no person released, or after it's cancelled, and no browser can move it on.",
+    file: "database.test.ts",
+  },
 ];
 
 /** What isn't tested for each risk, and the reason when a risk doesn't apply. */

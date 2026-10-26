@@ -2,6 +2,7 @@ import { TRIAL } from "@/core/billing/catalog";
 import { resolveEffectivePlan, trialPhase, trialWindow } from "@/core/billing/trial";
 import { contractHash, type IntentContract } from "@/core/realityloop/contract";
 import type { TaskState } from "@/core/realityloop/task-machine";
+import type { WorkflowView } from "@/core/realityloop/workflow";
 import { sha256Hex } from "@/core/trust/canonical-json";
 import { SAMPLE_CONTRACT } from "@/content/samples";
 import { DEMO_FILES, DEMO_FILES_PROJECT_ID, DEMO_SKILL_PINS } from "@/content/demo-files";
@@ -22,6 +23,7 @@ import {
   DEMO_LENS_SUGGESTION,
   DEMO_PROPOSAL_ID,
   DEMO_PROPOSAL_TASK_ID,
+  DEMO_WORKFLOW_ID,
   DEMO_VERIFICATION,
   demoEventType,
 } from "@/content/demo-workspace";
@@ -150,6 +152,41 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
     return record;
   }
 
+  async function demoWorkflow(): Promise<WorkflowView | null> {
+    const ids = [DEMO_PROPOSAL_TASK_ID, "00000000-0000-4000-8000-00000000b008", "00000000-0000-4000-8000-00000000b009"];
+    const found = ids.map((id) => built.find((b) => b.task.id === id)?.task);
+    if (found.some((t) => !t)) return null;
+    const contracts = await Promise.all(ids.map((id) => demoContract(id)));
+    const created = ago(5 * DEMO_TIME.HOUR);
+    return {
+      id: DEMO_WORKFLOW_ID,
+      projectId: found[0]!.projectId,
+      title: "Harden the cart and checkout",
+      status: "waiting",
+      waitingReason: "review",
+      haltedReason: null,
+      // About the estimate per step (9% of the sample period's usage), as the New workflow form sets it.
+      ceilingUnits: 9_450,
+      approvedBy: DEMO_USER.id,
+      approvedAt: ago(4.5 * DEMO_TIME.HOUR),
+      approvedSha256: "5a1e".repeat(16),
+      createdAt: created,
+      steps: found.map((t, i) => ({
+        position: i + 1,
+        title: t!.title,
+        notes: "",
+        checkpoint: i === 1,
+        taskId: t!.id,
+        runId: null,
+        status: i === 0 ? "waiting" : "pending",
+        detail: i === 0 ? "The change is waiting for review." : null,
+        contract: contracts[i] ? { status: contracts[i]!.status, sha256: contracts[i]!.sha256, version: contracts[i]!.version } : null,
+        startedAt: i === 0 ? ago(4 * DEMO_TIME.HOUR) : null,
+        finishedAt: null,
+      })),
+    };
+  }
+
   return {
     mode: "demo",
 
@@ -251,6 +288,17 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
 
     async listAgents() {
       return [];
+    },
+
+    // One sample workflow over the Storefront's sample tasks (ADR 0092): approved, its first change waiting for review.
+    async listWorkflows() {
+      const w = await demoWorkflow();
+      return w ? [w] : [];
+    },
+
+    async getWorkflow(_orgId, id) {
+      const w = await demoWorkflow();
+      return w && w.id === id ? w : null;
     },
 
     // Built from the same sample tasks, contracts, proposal and incident the other demo pages show. The demo applies nothing, so it has no ProofPacks or versions.

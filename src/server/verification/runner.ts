@@ -32,6 +32,8 @@ export interface VerificationDeps {
   newKey(): string;
   /** Emails the person when the checks end (ADR 0060); null or absent when email is off. */
   notify?: Pick<Notifier, "checksFinished"> | null;
+  /** After the checks end, so a governed workflow can record its step and carry on (ADR 0092). */
+  afterChecks?: (taskId: string) => Promise<void>;
 }
 
 export interface VerifyPerson {
@@ -80,6 +82,7 @@ export async function runTaskVerification(deps: VerificationDeps, person: Verify
     const ended = outcome.ok ? { result: outcome.result } : { result: null, reason: outcome.reason };
     await deps.notify.checksFinished({ userId: person.userId, taskId: input.task.id, taskTitle: input.task.title, ...ended }).catch(() => undefined);
   }
+  if (deps.afterChecks) await deps.afterChecks(input.task.id).catch(() => undefined);
   return outcome;
 }
 

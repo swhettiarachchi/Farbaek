@@ -9,6 +9,7 @@ import { readAutonomy } from "./autonomy";
 import { readRuleVersions } from "./workspace-rules";
 import { listIncidents, readIncident, readIncidentChanges } from "./incidents";
 import { readProjectGraph } from "@/server/insights/project-graph";
+import { readWorkflow, readWorkflows } from "@/server/workflows/read";
 import type { RehearsalRow } from "@/core/trust/rehearsal";
 import { VERIFICATION_SELECT, VerificationRow, verificationFromRow } from "@/server/verification/store";
 import {
@@ -493,6 +494,8 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
     },
 
     getProjectGraph: (orgId, projectId) => readProjectGraph(client, orgId, projectId),
+    listWorkflows: (orgId) => readWorkflows(client, orgId),
+    getWorkflow: (orgId, id) => readWorkflow(client, orgId, id),
 
     async listAgents(orgId) {
       const { data, error } = await client

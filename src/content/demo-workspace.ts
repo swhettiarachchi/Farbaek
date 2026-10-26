@@ -168,6 +168,8 @@ export const DEMO_VERIFICATION = {
 
 /** The sample model output behind the demo's pending proposal (task b007). Sample data, not a real model call. */
 export const DEMO_PROPOSAL_TASK_ID = "00000000-0000-4000-8000-00000000b007";
+/** The demo's sample governed workflow (ADR 0092), over three of the Storefront's sample tasks. */
+export const DEMO_WORKFLOW_ID = "00000000-0000-4000-8000-0000000f0001";
 export const DEMO_PROPOSAL_OUTPUT: ProposalOutput = {
   summary: "addToCart accepts fractional quantities today. Reject anything that isn't a whole number and cover it with a test.",
   steps: ["Check the quantity is a whole number in addToCart.", "Add a test for a fractional quantity."],

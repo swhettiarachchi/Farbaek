@@ -44,7 +44,12 @@ async function freshAccessToken(): Promise<string | null> {
   return data.session?.access_token ?? null;
 }
 
-export async function cloudRunDeps(person: { orgId: string; userId: string; role: OrgRole }): Promise<CloudRunWiring> {
+/**
+ * `system`: a run started by the server rather than a page (a governed workflow's step, ADR 0092). It has no
+ * session, so the sandbox acts for the person through the server's client, scoped to their workspace by the
+ * sandbox service as other background work is.
+ */
+export async function cloudRunDeps(person: { orgId: string; userId: string; role: OrgRole }, options: { system?: boolean } = {}): Promise<CloudRunWiring> {
   const ai = resolveAiProvider();
   if (ai.provider !== "anthropic") return { ok: false, reason: ai.provider ? "Cloud runs need Claude on this server." : ai.reason };
   const admin = createSupabaseAdminClient();
@@ -53,15 +58,18 @@ export async function cloudRunDeps(person: { orgId: string; userId: string; role
 
   const agentStore = createSupabaseAgentStore(admin);
   const sandboxed = sandboxExecutionMode().mode === "sandboxed";
-  const token = sandboxed ? await freshAccessToken() : null;
+  const token = sandboxed && !options.system ? await freshAccessToken() : null;
+  const canSandbox = sandboxed && (token !== null || options.system === true);
 
   const deps: ExecutorDeps = {
     runs: createSupabaseRunStore(admin),
     checks: agentStore,
     gateway: { deps: { ...agentStore, ...createServerUsageDeps(admin) }, model: createAnthropicGatewayModel() },
-    sandboxAvailable: () => sandboxed && token !== null,
+    sandboxAvailable: () => canSandbox,
     // Tells the person who started the run when it ends (ADR 0060); null while email is off.
     notify: serverNotifier(),
+    // A governed workflow's step records how it went and carries on (ADR 0092). Loaded lazily: the workflow wiring starts runs too.
+    afterRun: async (taskId) => (await import("@/server/workflows/wiring")).settleWorkflowStep(taskId),
     skillPins: async (orgId, projectId) => pinMap(await readSkillPins(admin, orgId, projectId)),
     autonomy: async (orgId) => limitsFrom(await readAutonomy(admin, orgId)),
     async applyWithinLimits(input) {
@@ -70,11 +78,13 @@ export async function cloudRunDeps(person: { orgId: string; userId: string; role
       return r.ok ? { ok: true } : { ok: false, message: r.message };
     },
     async sandbox(input) {
-      if (!token) return null;
-      const user = createClient(config.url, config.publishableKey, {
-        global: { headers: { Authorization: `Bearer ${token}` } },
-        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-      });
+      if (!canSandbox) return null;
+      const user = token
+        ? createClient(config.url, config.publishableKey, {
+            global: { headers: { Authorization: `Bearer ${token}` } },
+            auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+          })
+        : admin;
       const { service, actor } = sandboxServiceFor(user, person.userId, person.orgId, person.role);
       const overview = await service.overview(actor);
       const limits = overview.limits.limits;
