@@ -169,7 +169,7 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
     },
 
     async listMembers() {
-      return DEMO_MEMBERS.map((m) => ({ userId: m.userId, role: m.role, joinedAt: ago(m.joinedDaysAgo * DEMO_TIME.DAY) }));
+      return DEMO_MEMBERS.map((m) => ({ userId: m.userId, role: m.role, joinedAt: ago(m.joinedDaysAgo * DEMO_TIME.DAY), permissions: m.permissions }));
     },
 
     async listProjects() {

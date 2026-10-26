@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { IntentContractSchema } from "@/core/realityloop/contract";
+import { parsePermissions } from "@/core/workspace/permissions";
 import { ORGANIZATION_SELECT, summarizeOrganizations } from "./organizations";
 import { readSkillPins } from "./skill-pins";
 import { GRANT_COLUMNS, UsageGrantRowSchema, grantFromRow } from "./usage-store";
@@ -73,12 +74,12 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
     },
 
     async listMembers(orgId) {
-      const { data, error } = await client.from("organization_members").select("user_id, role, created_at").eq("org_id", orgId).order("created_at");
+      const { data, error } = await client.from("organization_members").select("user_id, role, created_at, permissions").eq("org_id", orgId).order("created_at");
       if (error) fail("members", error);
       return z
         .array(MemberRow)
         .parse(data)
-        .map((m) => ({ userId: m.user_id, role: m.role, joinedAt: m.created_at }));
+        .map((m) => ({ userId: m.user_id, role: m.role, joinedAt: m.created_at, permissions: parsePermissions(m.permissions) }));
     },
 
     async listProjects(orgId) {

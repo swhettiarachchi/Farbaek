@@ -253,6 +253,13 @@ export const EVAL_SCENARIOS: readonly EvalScenario[] = [
     asserts: "Level 3 won't turn on without a clean record of changes applied on their own, and once its daily budget is spent the database refuses any further automatic apply while people's own changes go on.",
     file: "database.test.ts",
   },
+  {
+    id: "SE-028",
+    title: "A member acting beyond their permissions",
+    risks: ["ASI03", "LLM06"],
+    asserts: "A member whose approving or agent runs were turned off can't apply a change that needs a person's approval or start a run, whichever server path asks, and only an owner or admin can change their permissions.",
+    file: "database.test.ts",
+  },
 ];
 
 /** What isn't tested for each risk, and the reason when a risk doesn't apply. */

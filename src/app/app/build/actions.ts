@@ -18,12 +18,12 @@ import { runCapUnits } from "@/server/workspace/plan-card-data";
 
 export type BuildActionState = { status: "idle" } | { status: "error"; message: string } | { status: "done" };
 
-async function person(): Promise<{ ctx: AppContext; person: { orgId: string; userId: string; role: NonNullable<AppContext["role"]> } } | { error: string }> {
+async function person(): Promise<{ ctx: AppContext; person: { orgId: string; userId: string; role: NonNullable<AppContext["role"]>; permissions: AppContext["permissions"] } } | { error: string }> {
   const ctx = await loadAppContext();
   if (!ctx) redirect("/sign-in");
   if (!ctx.writes.enabled) return { error: ctx.writes.reason };
   if (!ctx.current || !ctx.role) return { error: "Create or join a workspace first." };
-  return { ctx, person: { orgId: ctx.current.id, userId: ctx.user.id, role: ctx.role } };
+  return { ctx, person: { orgId: ctx.current.id, userId: ctx.user.id, role: ctx.role, permissions: ctx.permissions } };
 }
 
 export async function startBuildRunAction(_previous: BuildActionState, form: FormData): Promise<BuildActionState> {

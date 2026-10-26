@@ -43,7 +43,7 @@ const FIELDS: { name: string; body: string }[] = [
   { name: "contract", body: "The version and SHA-256 of the intent contract that was approved." },
   { name: "proposal", body: "The change proposal's id and SHA-256, and the model that drafted it, or null." },
   { name: "policy", body: "The policy decision, the policy's version and its findings, or null when none was recorded." },
-  { name: "approval", body: 'Who approved, when, and the SHA-256 of what was applied. by: "policy" with autonomyLevel: 2 means the workspace\'s policy approved it.' },
+  { name: "approval", body: 'Who approved, when, and the SHA-256 of what was applied. by: "policy" with autonomyLevel: 2 or 3 means the workspace\'s policy approved it, at that level of autonomy.' },
   { name: "changes", body: "Each file written: its path, create or edit, the revision it was based on, and the SHA-256 of its content." },
   { name: "checks", body: "Each required check: its name, command, exit code (null when it didn't run) and passed, failed or not_run." },
   { name: "execution", body: "sandboxed, with the sandbox provider, or review_only, with the reason checks didn't run." },

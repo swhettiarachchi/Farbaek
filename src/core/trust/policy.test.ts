@@ -178,8 +178,11 @@ describe("autonomy level 3 (ADR 0086)", () => {
     const d = await evaluateChangePolicy({ rules: null, files: files(8), contractViolations: [], autonomy: level3, verifiable: true });
     expect(d.outcome).toBe("ALLOW_WITHIN_LIMITS");
     expect(d.findings.at(-1)?.detail).toContain("(level 3)");
+    // The level goes with the stored decision, so its ProofPack can say which one applied it.
+    expect(policyRecord(d)).toMatchObject({ outcome: "ALLOW_WITHIN_LIMITS", autonomyLevel: 3 });
     const over = await evaluateChangePolicy({ rules: null, files: files(9), contractViolations: [], autonomy: level3, verifiable: true });
     expect(over.outcome).toBe("REQUIRE_APPROVAL");
+    expect(policyRecord(over)).not.toHaveProperty("autonomyLevel");
   });
 
   it("waits for a person once the day's budget is spent", async () => {

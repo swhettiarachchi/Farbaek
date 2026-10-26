@@ -39,7 +39,7 @@ export async function rescueImportAction(input: { name: string; files: { path: s
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
   if (!user || !admin) return { status: "error", message: "The server isn't configured for writes." };
 
-  const person = { orgId: ctx.current.id, userId: ctx.user.id, role: ctx.role };
+  const person = { orgId: ctx.current.id, userId: ctx.user.id, role: ctx.role, permissions: ctx.permissions };
   const wiring = await securityCheckDeps(person);
   const startCheck = wiring.ok ? (projectId: string) => startSecurityCheck(wiring.deps, person, projectId) : { unavailable: wiring.reason };
 

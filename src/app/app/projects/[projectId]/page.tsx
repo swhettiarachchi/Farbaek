@@ -23,6 +23,7 @@ import { TaskList } from "@/components/app/task-list";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { formatBytes } from "@/core/workspace/files";
 import { loadAppContext } from "@/server/workspace/context";
+import { withheldFor } from "@/core/workspace/permissions";
 
 export const metadata: Metadata = { title: "Project" };
 
@@ -133,7 +134,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
         </section>
       ) : null}
 
-      {publish ? <PublishPanel projectId={project.id} data={publish} disabledReason={publishReason} /> : null}
+      {publish ? <PublishPanel projectId={project.id} data={publish} disabledReason={publishReason ?? withheldFor(ctx.role, ctx.permissions, "publish")} /> : null}
 
       <ProjectSkills projectId={project.id} skills={skills} disabledReason={publishReason} />
 

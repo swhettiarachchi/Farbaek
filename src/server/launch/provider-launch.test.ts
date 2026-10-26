@@ -5,7 +5,7 @@ import { openToken, vaultKey } from "./token-vault";
 import type { VercelClient, VercelDeployment, VercelResult } from "./vercel-client";
 
 const KEY = vaultKey({ PROVIDER_TOKEN_KEY: Buffer.alloc(32, 3).toString("base64") })!;
-const owner: LaunchPerson = { orgId: "o1", userId: "u-owner", role: "owner" };
+const owner: LaunchPerson = { orgId: "o1", userId: "u-owner", role: "owner", permissions: {} };
 const TOKEN = "vercel_token_abcdefghijklmnop";
 const FILES = [
   { path: "index.html", content: "<h1>Hi</h1>" },
@@ -89,6 +89,7 @@ describe("authorizing a launch", () => {
     expect(await authorizeVercelLaunch(d, owner, { ...authorizeInput, confirm: "store" })).toMatchObject({ ok: false, message: "Type storefront to confirm." });
     expect(await authorizeVercelLaunch(d, owner, { ...authorizeInput, overrideReason: "soon" })).toMatchObject({ ok: false, message: expect.stringMatching(/at least 10/) });
     expect(await authorizeVercelLaunch(d, { ...owner, role: "viewer" }, authorizeInput)).toMatchObject({ ok: false, code: "FORBIDDEN" });
+    expect(await authorizeVercelLaunch(d, { ...owner, role: "member", permissions: { publish: false } }, authorizeInput)).toMatchObject({ ok: false, code: "PERMISSION_WITHHELD" });
   });
 
   it("says plainly why the database refused it", async () => {

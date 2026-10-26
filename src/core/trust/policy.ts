@@ -57,6 +57,8 @@ export interface PolicyDecision {
   shadow?: ShadowDecision;
   /** The workspace rules that applied (ADR 0082), when the workspace has any. */
   workspaceRules?: { version: number; sha256: string };
+  /** The autonomy level that let it apply on its own; only with ALLOW_WITHIN_LIMITS. */
+  autonomyLevel?: 2 | 3;
 }
 
 /**
@@ -172,6 +174,7 @@ export async function evaluateChangePolicy(input: ChangePolicyInput): Promise<Po
     if (unmet.length === 0) {
       outcome = "ALLOW_WITHIN_LIMITS";
       findings.push({ rule: "autonomy", outcome, detail: `Within this workspace's autonomy limits (level ${limits.level}): ${input.files.length} ${input.files.length === 1 ? "file" : "files"}, inside the contract, no sensitive files, and its checks can run in a verified sandbox.` });
+      return { outcome, findings, policyVersion: await changePolicyVersion(), ...applied, autonomyLevel: limits.level };
     } else {
       findings.push({ rule: "autonomy", outcome: "REQUIRE_APPROVAL", detail: `Autonomy level ${limits.level} is on, but this waits for a person: ${unmet.map((u) => u.text).join("; ")}.` });
     }
@@ -221,6 +224,7 @@ export function policyRecord(decision: PolicyDecision) {
     findings: decision.findings,
     ...(decision.shadow ? { shadow: decision.shadow } : {}),
     ...(decision.workspaceRules ? { workspaceRules: decision.workspaceRules } : {}),
+    ...(decision.autonomyLevel ? { autonomyLevel: decision.autonomyLevel } : {}),
   };
 }
 

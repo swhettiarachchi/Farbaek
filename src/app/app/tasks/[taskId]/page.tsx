@@ -8,6 +8,7 @@ import { CancelTaskControl } from "@/components/app/forms";
 import { ChecksList, ExecutionModeBadge } from "@/components/app/execution";
 import { ProposeChange } from "@/components/proposals/propose-change";
 import { StartRun } from "@/components/build/start-run";
+import { withheldFor } from "@/core/workspace/permissions";
 import { ProofPackCard } from "@/components/proof/proofpack-card";
 import { CheckReceiptCard } from "@/components/proof/check-receipt-card";
 import { ScopeDriftCard } from "@/components/app/scope-drift-card";
@@ -150,6 +151,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
     writeReason ??
     (execution.mode === "review_only" ? execution.reason : null) ??
     (ctx.role === null || !CONTRIBUTOR_ROLES.includes(ctx.role) ? "Viewers can't try changes. Ask a member, admin or owner." : null) ??
+    withheldFor(ctx.role, ctx.permissions, "run_agents") ??
     (checksForRun.length === 0 ? "The contract lists no checks, and Farbaek has none for this kind of project." : null);
   const verifyReason =
     writeReason ??
@@ -249,6 +251,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
                 disabledReason={writeReason}
                 executionReason={execution.mode === "review_only" ? execution.reason : null}
                 canApproveEscalated={isManager}
+                approvalWithheldReason={withheldFor(ctx.role, ctx.permissions, "approve")}
                 appliedNote={appliedNote}
                 agentName={proposal!.agentId ? (agents.find((a) => a.id === proposal!.agentId)?.name ?? null) : null}
                 contract={contract?.body ?? null}
@@ -268,7 +271,7 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
                 <p className="text-sm leading-relaxed text-ink-2">
                   The Farbaek Agent works through the whole contract in the cloud: it reads the project, makes the changes and runs the checks, then hands you a proposal to review.
                 </p>
-                <StartRun taskId={task.id} disabledReason={writeReason} />
+                <StartRun taskId={task.id} disabledReason={writeReason ?? withheldFor(ctx.role, ctx.permissions, "run_agents")} />
               </div>
             ) : null}
             {canPropose && proposeAi ? (

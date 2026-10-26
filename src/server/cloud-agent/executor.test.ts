@@ -33,7 +33,7 @@ const contract: IntentContract = {
   requiredChecks: [],
   recovery: "Restore the previous revision.",
 };
-const alice: RunPerson = { orgId: "o1", userId: "u-alice", role: "member" };
+const alice: RunPerson = { orgId: "o1", userId: "u-alice", role: "member", permissions: {} };
 
 let root: string;
 beforeEach(async () => {
@@ -250,6 +250,7 @@ describe("cloud runs", () => {
   it("refuses viewers, tasks that aren't approved, and a second live run", async () => {
     const t = await deps({ model: scripted([]) });
     expect(await startCloudRun(t.d, { person: { ...alice, role: "viewer" }, taskId: "t1", effort: "balanced" })).toMatchObject({ ok: false, code: "FORBIDDEN" });
+    expect(await startCloudRun(t.d, { person: { ...alice, permissions: { run_agents: false } }, taskId: "t1", effort: "balanced" })).toMatchObject({ ok: false, code: "PERMISSION_WITHHELD", message: expect.stringMatching(/turned off starting agent runs/) });
     const draft = await deps({ model: scripted([]), state: "CONTRACT_DRAFTED" });
     expect(await startCloudRun(draft.d, { person: alice, taskId: "t1", effort: "balanced" })).toMatchObject({ ok: false, code: "INVALID_TRANSITION" });
     const busy = await deps({ model: scripted([]), runError: "RUN_ACTIVE" });

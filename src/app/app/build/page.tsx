@@ -17,6 +17,7 @@ import { sandboxExecutionMode } from "@/server/sandbox/registry";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { loadAppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
+import { withheldFor } from "@/core/workspace/permissions";
 
 export const metadata: Metadata = { title: "Build" };
 
@@ -134,7 +135,7 @@ export default async function BuildPage() {
                   </Link>
                   <p className="mt-1 text-sm text-ink-3">Contract approved. Waiting for a change.</p>
                 </div>
-                <StartRun taskId={t.id} disabledReason={busy.has(t.id) ? "The agent is already working on this task." : startReason} />
+                <StartRun taskId={t.id} disabledReason={busy.has(t.id) ? "The agent is already working on this task." : (startReason ?? withheldFor(ctx.role, ctx.permissions, "run_agents"))} />
               </li>
             ))}
           </ul>

@@ -132,6 +132,8 @@ const STATUS: Partial<Record<AgentErrorCode, number>> = {
   PLATFORM_DAILY_LIMIT: 503,
   // The workspace's emergency pause (ADR 0083): locked until a person resumes agents.
   AGENTS_PAUSED: 423,
+  // Turned off for this person by an owner or admin (ADR 0087).
+  PERMISSION_WITHHELD: 403,
   UNKNOWN: 500,
 };
 

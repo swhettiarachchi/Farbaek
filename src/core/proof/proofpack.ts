@@ -34,7 +34,7 @@ export interface ProofPackInput {
    * Who approved: a person, or the workspace's policy at autonomy level 2
    * (ADR 0046), in which case approvedBy is the person whose work it was.
    */
-  approval: { approvedBy: string; approvedAt: string; appliedSha256: string; by?: "policy"; autonomyLevel?: 2 };
+  approval: { approvedBy: string; approvedAt: string; appliedSha256: string; by?: "policy"; autonomyLevel?: 2 | 3 };
   /** The files written, with the digest of the exact content applied. */
   files: { path: string; kind: "create" | "edit"; baseRevision: number; sha256: string }[];
   /** The contract's required checks and what happened to each. exitCode null means it didn't run. */

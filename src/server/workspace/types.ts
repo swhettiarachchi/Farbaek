@@ -16,6 +16,7 @@ import type { VerificationRecord } from "@/core/realityloop/verification";
 import type { FirstStepFacts } from "@/core/workspace/first-steps";
 import type { RehearsalRow } from "@/core/trust/rehearsal";
 import type { ShadowDecision } from "@/core/trust/policy";
+import type { WithheldPermissions } from "@/core/workspace/permissions";
 
 export const ORG_ROLES = ["owner", "admin", "member", "viewer"] as const;
 export type OrgRole = (typeof ORG_ROLES)[number];
@@ -27,8 +28,10 @@ export const MemberRow = z.object({
   user_id: z.string(),
   role: z.enum(ORG_ROLES),
   created_at: z.string(),
+  permissions: z.unknown().optional(),
 });
-export type Member = { userId: string; role: OrgRole; joinedAt: string };
+/** permissions: what an owner or admin turned off for a member (ADR 0087). */
+export type Member = { userId: string; role: OrgRole; joinedAt: string; permissions: WithheldPermissions };
 
 export const ProjectRowSchema = z.object({
   id: z.string(),
@@ -116,6 +119,8 @@ export interface ProposalRecord {
     shadow?: ShadowDecision;
     /** The workspace rules that applied (ADR 0082). */
     workspaceRules?: { version: number; sha256: string };
+    /** The autonomy level that let it apply on its own (ADR 0086). */
+    autonomyLevel?: 2 | 3;
   } | null;
   /** The Farbaek Agent that made it, or null when it was made in the web app. */
   agentId: string | null;
@@ -158,6 +163,7 @@ export const ProposalRowSchema = z.object({
       // A rehearsal that can't be read is left out rather than hiding the proposal (ADR 0075).
       shadow: ShadowSchema.optional().catch(undefined),
       workspaceRules: z.object({ version: z.number().int(), sha256: z.string() }).optional().catch(undefined),
+      autonomyLevel: z.union([z.literal(2), z.literal(3)]).optional().catch(undefined),
     })
     .nullable()
     .optional(),

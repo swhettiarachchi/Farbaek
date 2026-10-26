@@ -5,7 +5,8 @@
  * Farbaek's AI switch stops every workspace at once, a failure after an
  * automatic apply pauses autonomy, nothing goes live without verified
  * evidence or an owner's logged reason, workspace rules can't be skipped,
- * a pause stops agents at once, and level 3 keeps to its daily budget.
+ * a pause stops agents at once, level 3 keeps to its daily budget, and
+ * a member can't act past the permissions an owner or admin turned off.
  */
 import { createHash } from "node:crypto";
 import type { PGlite } from "@electric-sql/pglite";
@@ -277,6 +278,25 @@ describe("SE-027 Autonomy beyond its budget", () => {
       await expect(task(orgA, USERS.alice, projectA, "A person's change past the budget")).resolves.toMatchObject({ task: expect.any(String) });
     } finally {
       await admin("update public.org_autonomy set level = 2, max_files = 3, daily_limit = null where org_id = $1", [orgA]);
+    }
+  });
+});
+
+describe("SE-028 A member acting beyond their permissions", () => {
+  it("refuses a person's approval and an agent run from a member who had them turned off, and only owners and admins change that", async () => {
+    await admin("insert into public.organization_members (org_id, user_id, role) values ($1, $2, 'member') on conflict do nothing", [orgA, USERS.bob]);
+    try {
+      await expect(q("select public.app_set_member_permissions($1, $2, $3, $4)", [orgA, USERS.bob, USERS.bob, JSON.stringify({ approve: true })])).rejects.toThrow(/FORBIDDEN/);
+      await expect(asUser(USERS.bob, "update public.organization_members set permissions = '{}' where user_id = $1", [USERS.bob])).rejects.toThrow(/permission denied/);
+      await q("select public.app_set_member_permissions($1, $2, $3, $4)", [orgA, USERS.alice, USERS.bob, JSON.stringify({ approve: false, run_agents: false })]);
+      await expect(task(orgA, USERS.bob, projectA, "Approved by a member without it", "person")).rejects.toThrow(/PERMISSION_WITHHELD/);
+      const t = await task(orgA, USERS.alice, projectA, "Built by a member without it");
+      await q("select public.app_discard_proposal($1, $2, $3, $4)", [t.proposal, USERS.alice, await version(t.task), JSON.stringify([step("APPROVAL_PENDING", "CONTRACT_APPROVED", "discard_plan")])]);
+      await expect(q("select public.app_start_agent_run($1, $2, $3, 'balanced', 'sandboxed', 1, $4)", [orgA, USERS.bob, t.task, H("c")])).rejects.toThrow(/PERMISSION_WITHHELD/);
+      // An owner's own work goes on as before.
+      await expect(task(orgA, USERS.alice, projectA, "Approved by an owner", "person")).resolves.toMatchObject({ task: expect.any(String) });
+    } finally {
+      await admin("delete from public.organization_members where org_id = $1 and user_id = $2", [orgA, USERS.bob]);
     }
   });
 });

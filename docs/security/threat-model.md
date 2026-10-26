@@ -334,3 +334,12 @@ Known limits: public repositories only. Private ones need a GitHub connection, w
 | Turning level 3 on | A workspace, or a member, letting more through without a record | Owners and admins only; Max 3x checked on the server; the database refuses level 3 unless 10 changes applied on their own passed their checks in 30 days with none failed, on the way in and after a pause | `tests/db/autonomy-level-3.test.ts`, SE-027, `autonomy.test.ts` |
 | Volume | A run or a burst of tasks applying many changes on their own in a day | A daily budget the workspace sets (5 to 50): the policy holds changes for a person once it's spent, a count that can't be read counts as spent, and a trigger refuses any automatic proposal past it | `tests/db/autonomy-level-3.test.ts`, SE-027, `policy.test.ts` |
 | After a failure | Autonomy carrying on at its widest after a check failed | Any failed or partly passed check after an automatic apply pauses autonomy; the failure keeps level 3 locked for 30 days | `tests/db/autonomy-level-3.test.ts` |
+
+## Permissions per person (2026-10-26, ADR 0087)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| Changing permissions | A member giving themselves back what was turned off; a browser writing the column | Only `app_set_member_permissions` (service role) writes it, for an owner or admin acting on a member; browsers have no write grant; a constraint allows only withheld known permissions; every change is audited | `tests/db/member-permissions.test.ts`, SE-028 |
+| Acting without the permission | A member approving, publishing, launching or starting runs through another server path | Triggers on `change_proposals` (a person's approval), `site_deployments`, `launch_orders`, `agent_runs` and `arena_runs`, and a check in `app_set_live_deployment`, refuse `PERMISSION_WITHHELD` for the person recorded as acting | `tests/db/member-permissions.test.ts`, SE-028 |
+| Stale permissions | A demoted admin keeping old restrictions, or a promoted member keeping them | A role change resets permissions to that role's defaults; owners and admins always have every permission | `tests/db/member-permissions.test.ts` |
+| Lapsed plans | A workspace stuck with members who can do less after its plan ends | Turning a permission back on never needs the plan | `member-permissions.test.ts` |

@@ -34,7 +34,8 @@ import type { IntentContract } from "@/core/realityloop/contract";
 import { callModel, stepUnits, type GatewayDeps, type GatewayModel } from "@/server/agent/gateway";
 import { prepareAgentProposal, type AgentStore, type ProposalChecks } from "@/server/agent/service";
 import { log } from "@/server/observability/log";
-import { codeFromDatabaseError, fail, MESSAGES, type WriteResult } from "@/server/workspace/use-cases";
+import { codeFromDatabaseError, fail, MESSAGES, requirePermission, type WriteResult } from "@/server/workspace/use-cases";
+import type { WithheldPermissions } from "@/core/workspace/permissions";
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES, type OrgRole } from "@/server/workspace/types";
 import type { RunPatch, RunStore } from "./store";
 import type { AutonomyLimits } from "@/core/trust/policy";
@@ -46,6 +47,8 @@ export interface RunPerson {
   orgId: string;
   userId: string;
   role: OrgRole;
+  /** What an owner or admin turned off for them (ADR 0087). */
+  permissions: WithheldPermissions;
 }
 
 export interface ExecutorDeps {
@@ -118,6 +121,8 @@ export interface StartRunInput {
 export async function startCloudRun(deps: ExecutorDeps, input: StartRunInput): Promise<WriteResult<{ runId: string; mode: CloudRunMode }>> {
   const { person } = input;
   if (!CONTRIBUTOR_ROLES.includes(person.role)) return fail("FORBIDDEN");
+  const allowed = requirePermission(person.role, person.permissions, "run_agents");
+  if (!allowed.ok) return allowed;
   const task = await deps.checks.loadTask(person.orgId, input.taskId);
   if (!task) return fail("NOT_FOUND");
   if (task.state !== "CONTRACT_APPROVED") return fail("INVALID_TRANSITION", "The agent works on a task once its contract is approved and no proposal is open.");

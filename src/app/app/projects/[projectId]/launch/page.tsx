@@ -39,6 +39,7 @@ import { formatBytes } from "@/core/workspace/files";
 import { loadLaunchPage } from "@/server/launch/plan-data";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { loadAppContext } from "@/server/workspace/context";
+import { withheldFor } from "@/core/workspace/permissions";
 
 export const metadata: Metadata = { title: "Launch" };
 
@@ -377,7 +378,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
         settings={vercelSettings(plan)}
         unfit={vercelFit(plan)}
         connectReason={connectReason}
-        launchReason={launchReason}
+        launchReason={launchReason ?? withheldFor(ctx.role, ctx.permissions, "publish")}
         canOverride={canManage}
         canDisconnect={canManage && !readOnly}
       />

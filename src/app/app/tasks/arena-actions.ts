@@ -18,7 +18,7 @@ export async function tryChangeAction(_previous: ArenaState, form: FormData): Pr
   if (ctx.mode === "demo") return { status: "error", message: "The demo workspace is read-only. Sign in to try your own changes." };
   if (!ctx.writes.enabled) return { status: "error", message: ctx.writes.reason };
   if (!ctx.current || !ctx.role) return { status: "error", message: "Create or join a workspace first." };
-  const person = { orgId: ctx.current.id, userId: ctx.user.id, role: ctx.role };
+  const person = { orgId: ctx.current.id, userId: ctx.user.id, role: ctx.role, permissions: ctx.permissions };
   const wiring = await arenaDeps(person);
   if (!wiring.ok) return { status: "error", message: wiring.reason };
   const r = await startArena(wiring.deps, person, parsed.data.proposalId);
