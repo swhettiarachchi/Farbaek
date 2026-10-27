@@ -1,6 +1,8 @@
-# Farbaek Agent installers. Built unsigned: there's no Windows Authenticode
-# certificate or Apple Developer ID yet (see docs/agent/README.md), so
-# Windows SmartScreen and macOS Gatekeeper warn before the app runs.
+# Farbaek Agent installers. There's no Windows Authenticode certificate or
+# Apple Developer ID yet (see docs/agent/README.md), so Windows SmartScreen and
+# macOS Gatekeeper warn before the app first runs. Windows is built on the dev
+# PC; the Mac app on GitHub's macOS runner (.github/workflows/agent-mac.yml,
+# ADR 0098).
 appId: dev.farbaek.agent
 productName: Farbaek Agent
 electronVersion: 43.7.7
@@ -24,9 +26,22 @@ nsis:
   createDesktopShortcut: true
   artifactName: Farbaek-Agent-Setup-${version}.${ext}
 mac:
-  target: dmg
+  # One app for Apple silicon and Intel.
+  target:
+    - target: dmg
+      arch: [universal]
   category: public.app-category.developer-tools
   icon: public/brand/farbaek-icon.png
+  # Ad-hoc signed: free, and Apple silicon won't open an unsigned app at all
+  # ("damaged"). Not notarized, so Gatekeeper asks once (Open Anyway).
+  identity: "-"
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  extendInfo:
+    # macOS asks before an app uses the local network; without this, Nearby would fail silently.
+    NSLocalNetworkUsageDescription: Farbaek Agent finds your other computers on this network for Nearby, and sends folders to them when you choose.
+dmg:
+  artifactName: Farbaek-Agent-${version}-mac.${ext}
 linux:
   target: AppImage
   category: Development
