@@ -1,12 +1,18 @@
-# Farbaek Agent installers. Built unsigned: there's no Windows Authenticode
-# certificate or Apple Developer ID yet (see docs/agent/README.md), so
-# Windows SmartScreen and macOS Gatekeeper warn before the app runs.
+# Farbaek Agent installers (ADR 0098).
+# - Mac: built on GitHub's macOS runner (.github/workflows/agent-mac.yml),
+#   signed with the owner's Developer ID and notarized by Apple, so it opens
+#   without a warning.
+# - Windows: the Microsoft Store package (appx, signed by Microsoft when it's
+#   published: pnpm agent:store), and the direct installer (nsis), which isn't
+#   code-signed, so SmartScreen asks once.
 appId: dev.farbaek.agent
 productName: Farbaek Agent
 electronVersion: 43.7.7
 directories:
   app: desktop/app
   output: desktop/release
+  # The Microsoft Store tiles (desktop/build/appx), made by scripts/brand-assets.mjs.
+  buildResources: desktop/build
 files:
   - "**/*"
   # The app is fully bundled by esbuild (desktop/build.mjs), so no node_modules ship with it.
@@ -24,9 +30,36 @@ nsis:
   createDesktopShortcut: true
   artifactName: Farbaek-Agent-Setup-${version}.${ext}
 mac:
-  target: dmg
+  # One app for Apple silicon and Intel.
+  target:
+    - target: dmg
+      arch: [universal]
   category: public.app-category.developer-tools
   icon: public/brand/farbaek-icon.png
+  # Signed with the Developer ID certificate the workflow imports (CSC_LINK),
+  # with the hardened runtime notarization needs; notarized with the App Store
+  # Connect API key (APPLE_API_KEY, APPLE_API_KEY_ID, APPLE_API_ISSUER).
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  notarize: true
+  extendInfo:
+    # macOS asks before an app uses the local network; without this, Nearby would fail silently.
+    NSLocalNetworkUsageDescription: Farbaek Agent finds your other computers on this network for Nearby, and sends folders to them when you choose.
+dmg:
+  artifactName: Farbaek-Agent-${version}-mac.${ext}
+  # The disk image is signed too; the app inside is notarized and stapled.
+  sign: true
+# The Microsoft Store package. Its identity comes from Partner Center
+# (desktop/store-identity.json, set by desktop/store.mjs); the Store signs it.
+appx:
+  displayName: Farbaek Agent
+  backgroundColor: "#FEFEFE"
+  showNameOnTiles: false
+  languages: [en-US]
+  # runFullTrust: an Electron app; internetClient: Farbaek and model steps;
+  # privateNetworkClientServer: Nearby on the local network.
+  capabilities: [runFullTrust, internetClient, privateNetworkClientServer]
+  artifactName: Farbaek-Agent-${version}.${ext}
 linux:
   target: AppImage
   category: Development

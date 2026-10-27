@@ -14,3 +14,13 @@ export const AGENT_DOWNLOAD = {
 } as const;
 
 export const agentDownloadUrl = `/downloads/${AGENT_DOWNLOAD.file}`;
+
+/**
+ * Where people install without a warning (ADR 0098). Farbaek Agent's
+ * Microsoft Store listing, which Microsoft signs; and the Mac disk image,
+ * signed with the owner's Developer ID and notarized by Apple. Each stays
+ * null until it's published; the Agents page then offers it first.
+ */
+export const AGENT_STORE_URL: string | null = null;
+
+export const AGENT_MAC: { version: string; file: string; bytes: number; sha256: string; builtOn: string } | null = null;

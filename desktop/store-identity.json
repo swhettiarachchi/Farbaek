@@ -1,0 +1,6 @@
+{
+  "$comment": "Farbaek Agent's identity in the Microsoft Store (ADR 0098): Partner Center > the app > Product management > Product identity. Public values, not secrets. Null until the app's name is reserved.",
+  "identityName": null,
+  "publisher": null,
+  "publisherDisplayName": null
+}

@@ -50,6 +50,9 @@ const REASONS: Record<string, string> = {
   link: "Links",
 };
 
+/** Which system's permission prompt to describe. The window's user agent names it in Electron. */
+const IS_MAC = typeof navigator !== "undefined" && /Macintosh|Mac OS X/.test(navigator.userAgent);
+
 /** "a1b2c3d4e5f6a7b8" as "a1b2 c3d4 e5f6 a7b8", easier to compare aloud. */
 const grouped = (fp: string) => fp.match(/.{1,4}/g)?.join(" ") ?? fp;
 
@@ -230,7 +233,8 @@ function Nearby({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: stri
           </>
         ) : (
           <>
-            <p className="muted">To receive a folder or be paired, make this computer visible. It stops after five minutes. Windows may ask to allow Farbaek Agent on private networks.</p>
+            <p className="muted">To receive a folder or be paired, make this computer visible. It stops after five minutes.{" "}
+              {IS_MAC ? "macOS may ask to let Farbaek Agent find devices on your local network: choose Allow." : "Windows may ask to allow Farbaek Agent on private networks."}</p>
             <div className="row-start">
               <button className="btn btn-primary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("visible", () => mesh.setVisible(true))}>
                 <BroadcastIcon size={16} aria-hidden /> Be visible for 5 minutes

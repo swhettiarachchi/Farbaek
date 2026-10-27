@@ -1,6 +1,7 @@
 # ADR 0077: Downloading the desktop agent
 
 - Status: accepted (2026-10-25).
+- Its notes that the agent is Windows only and unsigned are superseded by ADR 0098: the Microsoft Store for Windows, and a Mac build signed and notarized by Apple.
 - Builds on ADR 0018 (the Farbaek Agent) and ADR 0035 (hosting on the VPS).
 
 ## Context
