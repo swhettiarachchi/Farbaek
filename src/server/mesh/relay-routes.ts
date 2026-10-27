@@ -13,6 +13,27 @@ export interface RelayContext {
   hub: RelayHub;
 }
 
+/**
+ * POST presence for a browser: reachable (with its mesh fingerprint) or not.
+ * Kept in the hub's memory only: a browser is reachable while its page
+ * polls, and a server restart forgets it until the page says so again.
+ */
+export async function handleBrowserPresence(request: Request, { relay, hub }: RelayContext): Promise<Response> {
+  const body = await readJson(request, 1024);
+  if (!body.ok) return body.response;
+  const on = body.value.on === true;
+  const fingerprint = typeof body.value.fingerprint === "string" ? body.value.fingerprint : null;
+  if (on && !fingerprint) return problem(400, "INVALID_REQUEST", "Send this device's mesh fingerprint to turn reachability on.");
+  const r = hub.setReachable(relay, on ? fingerprint : null);
+  return r.ok ? json({ data: { reachable: on } }) : relayError(r);
+}
+
+/** GET presence?wait=25: waits for calls. Polling is what keeps a device reachable. */
+export async function handleWaitForCalls(request: Request, { relay, hub }: RelayContext): Promise<Response> {
+  const r = await hub.waitForCalls(relay, waitFrom(new URL(request.url)));
+  return r.ok ? json({ data: { calls: r.value } }) : relayError(r);
+}
+
 /** POST calls: a reachable computer of the same workspace, by its mesh fingerprint. */
 export async function handleCall(request: Request, { relay, hub }: RelayContext): Promise<Response> {
   const body = await readJson(request, 1024);

@@ -36,6 +36,9 @@ export interface RelayEndpoint {
 
 const ErrorBody = z.object({ error: z.object({ code: z.string(), message: z.string() }) });
 const Called = z.object({ data: z.object({ session: z.uuid() }) });
+const Calls = z.object({
+  data: z.object({ calls: z.array(z.object({ session: z.uuid(), from: z.string().regex(/^[0-9a-f]{16}$/), mode: z.enum(["relay", "direct", "pair"]).default("relay") })).max(20) }),
+});
 const Written = z.object({ data: z.object({ end: z.number().int().min(0), full: z.boolean() }) });
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -66,6 +69,23 @@ export class WebRelay {
     const body = Called.safeParse(await res.json().catch(() => null));
     if (!body.success) throw new WebRelayError("INVALID", "Farbaek's answer couldn't be read.");
     return body.data.data.session;
+  }
+
+  /** Turns this browser's reachability on (with its device fingerprint) or off. */
+  async setReachable(fingerprint: string, on: boolean): Promise<void> {
+    await this.request("/presence", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fingerprint, on }) });
+  }
+
+  /** Waits for computers calling this browser. Polling is what keeps it reachable. */
+  async waitForCalls(waitSeconds = POLL_WAIT_S): Promise<{ session: string; from: string; mode: "relay" | "direct" | "pair" }[]> {
+    const res = await this.request(`/presence?wait=${waitSeconds}`, { method: "GET", timeoutMs: (waitSeconds + 15) * 1000 });
+    const body = Calls.safeParse(await res.json().catch(() => null));
+    if (!body.success) throw new WebRelayError("INVALID", "Farbaek's answer couldn't be read.");
+    return body.data.data.calls;
+  }
+
+  async join(session: string): Promise<void> {
+    await this.request(`/sessions/${encodeURIComponent(session)}/join`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
   }
 
   async close(session: string, reason: "done" | "cancelled"): Promise<void> {

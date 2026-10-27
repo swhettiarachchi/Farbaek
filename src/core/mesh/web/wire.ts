@@ -174,6 +174,21 @@ export class WebSecureChannel {
   }
 }
 
+/** Answers a call: the handshake as the responder, as the agent's `respond`. The caller's purpose arrives in its last message. */
+export async function respondWeb(pipe: BytePipe, staticKey: WebKeyPair, hello: Hello, timeoutMs = HANDSHAKE_TIMEOUT_MS): Promise<WebSecureChannel> {
+  const reader = new FrameReader(pipe);
+  try {
+    const hs = new WebXXHandshake({ initiator: false, prologue: MESH_PROLOGUE, staticKey });
+    await hs.readMessage(await reader.read(timeoutMs));
+    await pipe.write(frame(await hs.writeMessage(encodeHello(hello))));
+    const theirs = readHello(await hs.readMessage(await reader.read(timeoutMs)));
+    return new WebSecureChannel(pipe, reader, hs.result(), { publicKey: hs.remoteStatic!, hello: theirs }, hs.handshakeHash);
+  } catch (error) {
+    pipe.close();
+    throw error;
+  }
+}
+
 /** Calls another device and runs the handshake as the initiator, as the agent's `initiate`. */
 export async function initiateWeb(pipe: BytePipe, staticKey: WebKeyPair, hello: Hello, timeoutMs = HANDSHAKE_TIMEOUT_MS): Promise<WebSecureChannel> {
   const reader = new FrameReader(pipe);

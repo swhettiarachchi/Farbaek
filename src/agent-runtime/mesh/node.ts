@@ -60,7 +60,8 @@ export interface MeshSnapshot {
   visible: { until: string; port: number; addresses: string[] } | null;
   looking: boolean;
   nearby: (Omit<NearbyDevice, "seenAt"> & { paired: boolean })[];
-  devices: Pick<TrustedDevice, "name" | "fingerprint" | "pairedAt">[];
+  /** `via` "farbaek": a phone or browser, reached only over the internet. */
+  devices: (Pick<TrustedDevice, "name" | "fingerprint" | "pairedAt"> & { via: "nearby" | "farbaek" })[];
   pairing: PairingView | null;
   prepared: PreparedView[];
   /** Farbaek's secure relay (ADR 0094): whether this app can use it, and whether this computer is reachable through it. */
@@ -121,6 +122,7 @@ class PairingSession {
     private readonly channel: SecureChannel,
     private readonly trust: TrustStore,
     private readonly onUpdate: () => void,
+    private readonly via: "nearby" | "farbaek" = "nearby",
   ) {
     this.code = pairingCode(channel.handshakeHash);
     this.timer = setTimeout(() => this.end("expired", "The code wasn't confirmed within two minutes. Start again."), PAIRING_WINDOW_MS);
@@ -171,7 +173,7 @@ class PairingSession {
     if (this.mine === false) return this.end("declined", "You said the codes don't match, so the computers weren't paired.");
     if (this.theirs === false) return this.end("declined", `${this.channel.peer.hello.name} said the codes don't match, so the computers weren't paired.`);
     if (this.mine && this.theirs) {
-      await this.trust.add(this.channel.peer.publicKey, this.channel.peer.hello.name);
+      await this.trust.add(this.channel.peer.publicKey, this.channel.peer.hello.name, this.via);
       return this.end("paired", `Paired with ${this.channel.peer.hello.name}.`);
     }
     if (this.mine) {
@@ -261,7 +263,7 @@ export class MeshNode {
       visible: this.visibleUntil ? { until: new Date(this.visibleUntil).toISOString(), port: this.serverPort, addresses: localAddresses() } : null,
       looking: this.looking,
       nearby,
-      devices: this.trust.list().map(({ name, fingerprint: fp, pairedAt }) => ({ name, fingerprint: fp, pairedAt })),
+      devices: this.trust.list().map(({ name, fingerprint: fp, pairedAt, via }) => ({ name, fingerprint: fp, pairedAt, via: via ?? "nearby" })),
       pairing: this.pairing?.view() ?? null,
       prepared: [...this.prepared.entries()].map(([id, p]) => ({
         id,
@@ -375,18 +377,18 @@ export class MeshNode {
     }
     const purpose = channel.peer.hello.purpose;
     // Pairing happens on the same network, or through Farbaek only while the person opened a window here (ADR 0096).
-    if (purpose === "pair" && allowPairing) return this.answerPairing(channel);
+    if (purpose === "pair" && allowPairing) return this.answerPairing(channel, via === "nearby" ? "nearby" : "farbaek");
     if (purpose === "transfer") return this.answerTransfer(channel, via);
     channel.close();
   }
 
-  private async answerPairing(channel: SecureChannel): Promise<void> {
+  private async answerPairing(channel: SecureChannel, via: "nearby" | "farbaek"): Promise<void> {
     if (this.pairing?.active) {
       await channel.send({ t: "error", code: "busy", message: "This computer is already pairing." }).catch(() => undefined);
       channel.close();
       return;
     }
-    this.pairing = new PairingSession("answerer", channel, this.trust, this.update);
+    this.pairing = new PairingSession("answerer", channel, this.trust, this.update, via);
     this.update();
   }
 
@@ -496,6 +498,7 @@ export class MeshNode {
     if (!packed) throw new MeshError("Choose the folder again: it's no longer prepared.");
     const device = this.trust.byFingerprint(deviceFingerprint);
     if (!device) throw new MeshError("Pair with that computer first.");
+    if (device.via === "farbaek") throw new MeshError(`${device.name} is a phone or browser: phones and browsers receive over the internet. Choose Send over the internet.`);
     if (at) this.addresses.set(device.fingerprint, at);
     if (!this.addresses.has(device.fingerprint)) throw new MeshError(`${device.name} isn't visible. On that computer, open Nearby and choose Be visible.`);
     const transfer = new OutgoingTransfer(
@@ -661,7 +664,7 @@ export class MeshNode {
       device,
       () => this.dialOverInternet(link, id, device.fingerprint),
       this.update,
-      (error) => this.unreachableOverInternet(id, device.name, error),
+      (error) => this.unreachableOverInternet(id, device, error),
     );
     this.via.set(id, mode);
     this.outgoing.set(id, transfer);
@@ -688,7 +691,9 @@ export class MeshNode {
     return initiate(stream, this.key, hello, DIRECT_HANDSHAKE_MS);
   }
 
-  private unreachableOverInternet(id: string, name: string, error: unknown): string {
+  private unreachableOverInternet(id: string, device: TrustedDevice, error: unknown): string {
+    const name = device.name;
+    if (device.via === "farbaek" && error instanceof RelayError && error.code === "NOT_REACHABLE") return `${name} isn't reachable now. On it, open Mesh in Farbaek, turn on Be reachable and keep the page open, then resume.`;
     if (error instanceof DirectError) {
       this.directBlocked.add(id);
       return `Couldn't open a direct link to ${name}. ${error.message} Some networks block direct links, such as phone hotspots and many offices. You can send it through Farbaek's relay instead: still encrypted end to end, so the server can't read it.`;

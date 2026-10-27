@@ -3,7 +3,8 @@
  * a long-term X25519 key pair made on first use; its private half is kept by
  * a vault (the system keychain in the desktop app) and never leaves the main
  * process. Trusted devices are stored by public key, with the name they gave
- * when the person paired them, in a plain JSON file: nothing in it is secret.
+ * when the person paired them and how (on the same network, or a phone or
+ * browser through Farbaek), in a plain JSON file: nothing in it is secret.
  */
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -30,6 +31,8 @@ const TrustedSchema = z.object({
   name: z.string().min(1).max(60),
   publicKey: z.string().regex(/^[0-9a-f]{64}$/),
   pairedAt: z.string(),
+  /** "farbaek": a phone or browser paired through a window (ADR 0096), reached only over the internet. Older entries say nothing: nearby. */
+  via: z.enum(["nearby", "farbaek"]).optional(),
 });
 export type TrustedDevice = z.infer<typeof TrustedSchema>;
 
@@ -60,8 +63,8 @@ export class TrustStore {
     return this.devices.find((d) => d.fingerprint === value) ?? null;
   }
 
-  async add(publicKey: Uint8Array, name: string, now = new Date()): Promise<TrustedDevice> {
-    const device: TrustedDevice = { fingerprint: fingerprint(publicKey), name: name.slice(0, 60), publicKey: Buffer.from(publicKey).toString("hex"), pairedAt: now.toISOString() };
+  async add(publicKey: Uint8Array, name: string, via: "nearby" | "farbaek" = "nearby", now = new Date()): Promise<TrustedDevice> {
+    const device: TrustedDevice = { fingerprint: fingerprint(publicKey), name: name.slice(0, 60), publicKey: Buffer.from(publicKey).toString("hex"), pairedAt: now.toISOString(), via };
     this.devices = [...this.devices.filter((d) => d.fingerprint !== device.fingerprint), device];
     await this.save();
     return device;

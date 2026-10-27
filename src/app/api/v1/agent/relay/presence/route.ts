@@ -1,6 +1,7 @@
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { json, problem, readJson } from "@/server/agent/http";
-import { relayError, waitFrom, withRelayAgent } from "@/server/mesh/relay-http";
+import { relayError, withRelayAgent } from "@/server/mesh/relay-http";
+import { handleWaitForCalls } from "@/server/mesh/relay-routes";
 
 export const dynamic = "force-dynamic";
 
@@ -30,8 +31,5 @@ export function POST(request: Request) {
 
 /** GET /api/v1/agent/relay/presence?wait=25: waits for calls to this agent. Polling is what keeps it reachable. */
 export function GET(request: Request) {
-  return withRelayAgent(request, async ({ relay, hub }) => {
-    const r = await hub.waitForCalls(relay, waitFrom(new URL(request.url)));
-    return r.ok ? json({ data: { calls: r.value } }) : relayError(r);
-  });
+  return withRelayAgent(request, (ctx) => handleWaitForCalls(request, ctx));
 }

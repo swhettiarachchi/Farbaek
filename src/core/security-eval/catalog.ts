@@ -295,6 +295,13 @@ export const EVAL_SCENARIOS: readonly EvalScenario[] = [
     asserts: "A phone or browser pairs with a computer through Farbaek only while the person opened a pairing window on that computer, a pairing the server relayed through itself shows different codes on the two screens, and a browser reaches only its own workspace's computers.",
     file: "disclosure.test.ts",
   },
+  {
+    id: "SE-034",
+    title: "A phone receiving from someone it didn't pair with",
+    risks: ["ASI03", "ASI07"],
+    asserts: "A phone or browser that's reachable doesn't join calls from computers it didn't pair with, refuses a caller whose key isn't the paired one, refuses a list of files naming a path outside its folder before anyone is asked, and keeps nothing when a chunk doesn't match its hash.",
+    file: "disclosure.test.ts",
+  },
 ];
 
 /** What isn't tested for each risk, and the reason when a risk doesn't apply. */

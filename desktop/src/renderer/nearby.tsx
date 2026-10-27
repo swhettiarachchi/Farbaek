@@ -388,6 +388,7 @@ function SendCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: st
   const [target, setTarget] = useState("");
   const nearbyPaired = new Set(s.nearby.filter((n) => n.paired).map((n) => n.fingerprint));
   const chosen = target || s.devices.find((d) => nearbyPaired.has(d.fingerprint))?.fingerprint || s.devices[0]?.fingerprint || "";
+  const toPhone = s.devices.find((d) => d.fingerprint === chosen)?.via === "farbaek";
 
   return (
     <div className="card stack-sm">
@@ -419,7 +420,7 @@ function SendCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: st
                 {s.devices.map((d) => (
                   <option key={d.fingerprint} value={d.fingerprint}>
                     {d.name}
-                    {nearbyPaired.has(d.fingerprint) ? " (visible now)" : ""}
+                    {d.via === "farbaek" ? " (phone or browser)" : nearbyPaired.has(d.fingerprint) ? " (visible now)" : ""}
                   </option>
                 ))}
               </select>
@@ -429,7 +430,8 @@ function SendCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: st
             <button
               className="btn btn-primary btn-sm"
               type="button"
-              disabled={busy !== null || !chosen}
+              disabled={busy !== null || !chosen || toPhone}
+              title={toPhone ? "Phones and browsers receive over the internet." : undefined}
               onClick={() => void act("send", () => mesh.send({ preparedId: prepared.id, fingerprint: chosen }))}
             >
               <ArrowUpRightIcon size={16} aria-hidden /> Send
@@ -447,10 +449,13 @@ function SendCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: st
             </button>
           </div>
           <p className="small muted">
-            {s.relay.available
-              ? "Send goes over this network. Send over the internet reaches the other computer anywhere, if it's open and reachable: directly when both networks allow it."
-              : `Send over the internet is unavailable: ${s.relay.reason}`}
+            {toPhone
+              ? "Send is unavailable: phones and browsers receive over the internet. On the phone, open Mesh in Farbaek and turn on Be reachable, then choose Send over the internet."
+              : s.relay.available
+                ? "Send goes over this network. Send over the internet reaches the other computer anywhere, if it's open and reachable: directly when both networks allow it."
+                : `Send over the internet is unavailable: ${s.relay.reason}`}
           </p>
+          {toPhone && !s.relay.available ? <p className="small muted">Send over the internet is unavailable: {s.relay.reason}</p> : null}
         </>
       )}
     </div>
@@ -586,7 +591,8 @@ function ComputersCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; bus
           {s.devices.map((d) => (
             <li key={d.fingerprint} className="row">
               <span>
-                {d.name} <span className="mono small muted">{grouped(d.fingerprint)}</span>
+                {d.name}
+                {d.via === "farbaek" ? <span className="small muted"> phone or browser</span> : null} <span className="mono small muted">{grouped(d.fingerprint)}</span>
               </span>
               {forgetting === d.fingerprint ? (
                 <span className="row-start">
