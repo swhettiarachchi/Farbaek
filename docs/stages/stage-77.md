@@ -82,12 +82,17 @@ The owner asked to connect Dodo Payments. Their Dodo business is set up but not 
   - `/app/billing` itself in the demo (not connected, ignoring `?choose=`) with no console errors;
   - `qa:responsive` on `/app/billing`: 11 views, 0 findings. `qa:a11y`: 0 findings at 1280 and 375.
   - The band's link was widened to 44 px after the audit found it 38 px wide.
+- **Migration v62 applied in production** (2026-10-28), before the code, since the new code reads its columns. The file's SHA-256 (`9b1fbfa7…a9204c`) was checked on the server, and it ran in one transaction. Read back:
+  - the three tables have row security, and browsers can't read them;
+  - the seven new columns are on `billing_accounts`;
+  - only the server role can run the seven functions;
+  - `staff_can` gives `billing.products` to owners only and `billing.replay` to admins too.
+  - `/api/health` and `/api/ready` stayed OK.
 
 ### Not verified yet
 
 - **A real test-mode checkout, webhook and renewal.** They need the owner's Dodo test keys (`docs/billing/dodo-test-mode.md`); then billing tests 7, 8, 15 and 18 run for real. Also still to confirm: that the subscription carries the checkout's metadata, and Dodo's test cards.
 - **Office Space → Payments in a browser.** It needs a staff session. Its data and actions are covered by the tests above.
-- **Migration v62 in production.** It goes in with this branch's merge, after its hash check.
 - **Not built:** live mode (KYC and the rest of the go-live checklist), annual prices, emails on billing changes, and state changes from refunds and disputes. Those are stored and listed, not acted on.
 
 ### Next (the owner)
