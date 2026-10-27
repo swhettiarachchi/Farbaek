@@ -91,25 +91,40 @@ pnpm agent:dev
 pnpm agent:dist
 ```
 
-`agent:dev` bundles the app into `desktop/app` and opens it. `agent:dist` builds the production bundle and an unsigned NSIS installer in `desktop/release` (about 114 MB, almost all of it the Electron runtime). The window's fonts (Geist, SIL Open Font License) are downloaded once at build time; without network, the app uses system fonts.
+`agent:dev` bundles the app into `desktop/app` and opens it. `agent:dist` builds the production bundle and the direct Windows installer (NSIS, not code-signed) in `desktop/release` (about 114 MB, almost all of it the Electron runtime). The window's fonts (Geist, SIL Open Font License) are downloaded once at build time; without network, the app uses system fonts.
 
-### Not signed yet
+### Installing without a warning (ADR 0098)
 
-Signing needs certificates the owner hasn't bought yet:
+- **Windows, from the Microsoft Store.** Microsoft signs the Store package, so people choose Get and it installs with no warning, and updates itself. `pnpm agent:store` builds the package (`desktop/store.mjs`), unsigned, with the identity in `desktop/store-identity.json`. Installed from the Store, the agent keeps its data in `%USERPROFILE%\.farbaek-agent`, because Windows redirects a package's writes under AppData, and the commands a run starts must see its working copy (`desktop/src/main/data-dir.ts`).
+- **Windows, the direct installer.** `pnpm agent:dist` builds an NSIS installer that isn't code-signed: SmartScreen shows "Windows protected your PC" until people choose More info, then Run anyway. The Agents page shows these steps, folded away once the Store listing is up.
+- **Mac.** `.github/workflows/agent-mac.yml` builds one DMG for Apple silicon and Intel on GitHub's macOS runner, signs it with the owner's Developer ID (team 65BULQ4657) and has Apple notarize it, then checks Gatekeeper accepts it as notarized before keeping it. It runs only once the five signing secrets are set.
 
-- **Windows:** an Authenticode code-signing certificate (an EV certificate avoids the SmartScreen reputation warm-up). Set `CSC_LINK` and `CSC_KEY_PASSWORD` before `agent:dist`.
-- **macOS:** an Apple Developer ID Application certificate, plus notarization with an app-specific password or API key.
+### Mac signing, once (the owner)
 
-Until then, Windows SmartScreen shows "Windows protected your PC" (choose More info, then Run anyway), and macOS refuses the app unless opened with right-click → Open.
+1. Accept the latest Apple Developer Program License Agreement at developer.apple.com/account when Apple asks: certificates and notarization stop until it's accepted.
+2. In PowerShell: `powershell -ExecutionPolicy Bypass -File scripts\release\mac-signing.ps1 -Step request`. It makes a private key and a certificate request in `%USERPROFILE%\FarbaekMacSigning` and opens Apple's page: choose Developer ID Application, then G2 Sub-CA, upload `developer-id.csr`, and download the certificate into that folder.
+3. At appstoreconnect.apple.com: Users and Access, Integrations, App Store Connect API, Team Keys, Generate, with Developer access. Download the `AuthKey_….p8` (offered once).
+4. `powershell -ExecutionPolicy Bypass -File scripts\release\mac-signing.ps1 -Step github`. It checks the certificate is a Developer ID Application for the team and belongs to the key, makes the `.p12`, and copies each of the five secrets to the clipboard in turn while GitHub's New secret page is open. Nothing secret is shown on screen.
 
-### Publishing a release (ADR 0077)
+Keep `%USERPROFILE%\FarbaekMacSigning` private and out of the repository: it holds the key that signs the Mac app.
 
-People download the installer from the Agents page. It's served at `https://www.farbaek.com/downloads/<file>` from `/opt/farbaek/downloads` on the server.
+### Microsoft Store, once (the owner)
 
-1. Raise the version in `desktop/app/package.json`, then run `pnpm agent:dist`.
-2. Copy `desktop/release/Farbaek-Agent-Setup-<version>.exe` to `/opt/farbaek/downloads` over SSH. Compare its SHA-256 on the server with the local one.
-3. Set the version, file, size and SHA-256 in `src/config/agent-download.ts`. `src/config/agent-download.test.ts` checks the entry is well formed and matches the app's version.
-4. Merge. The page links the new file once it deploys.
+1. Register at storedeveloper.microsoft.com as an individual (free; Microsoft checks an ID and a selfie).
+2. In Partner Center, reserve the name "Farbaek Agent". Under the app's Product management, Product identity, copy `Package/Identity/Name`, `Package/Identity/Publisher` and `Package/Properties/PublisherDisplayName` into `desktop/store-identity.json`. They're public.
+3. `pnpm agent:store`, then upload the `.appx` from `desktop/release` in a new submission, with the listing from `docs/agent/store-listing.md`. Submit to a private audience first and install it from the Store to check it, then make it public.
+4. Set `AGENT_STORE_URL` in `src/config/agent-download.ts` to the listing's apps.microsoft.com address.
+
+### Publishing a release (ADR 0077, ADR 0098)
+
+People get the agent from the Agents page. Direct downloads are served at `https://www.farbaek.com/downloads/<file>` from `/opt/farbaek/downloads` on the server.
+
+1. Raise the version in `desktop/app/package.json`. Pushing it starts the Mac build.
+2. Windows: `pnpm agent:dist`, then copy `desktop/release/Farbaek-Agent-Setup-<version>.exe` to `/opt/farbaek/downloads` over SSH in one connection, and compare its SHA-256 on the server with the local one.
+3. Mac: download the run's artifact, check its SHA-256 against the run's summary, and copy the DMG to `/opt/farbaek/downloads` the same way.
+4. Store: `pnpm agent:store`, and submit the package as an update in Partner Center.
+5. Set the files, sizes and SHA-256s in `src/config/agent-download.ts` (`AGENT_DOWNLOAD`, `AGENT_MAC`). `src/config/agent-download.test.ts` checks the entries are well formed and match the app's version.
+6. Merge. The page links the new files once it deploys.
 
 Old installers stay on the server, so earlier links keep working. Remove them by hand when they're no longer needed.
 

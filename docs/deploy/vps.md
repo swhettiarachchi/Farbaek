@@ -173,7 +173,7 @@ The settings it writes are:
 
 ## Is it up?
 
-- **`.github/workflows/uptime.yml`:** every 30 minutes, GitHub asks `https://www.farbaek.com/api/ready`, three times a minute apart. If all three fail, the run fails and GitHub emails the repository owner. It needs no other account, and it uses about 1,440 of a private repository's 2,000 free Action minutes a month.
+- **`.github/workflows/uptime.yml`:** every hour, GitHub asks `https://www.farbaek.com/api/ready`, three times a minute apart. If all three fail, the run fails and GitHub emails the repository owner. It needs no other account, and it uses about 720 of the account's 2,000 free Action minutes a month, leaving room for the Mac agent builds (macOS minutes count ten times). The allowance is shared with the owner's other repositories.
 - **`/api/ready`** fails when the app, the database or the disk isn't ready (under 10% or 5 GB free).
 - **For alerts within minutes,** add a free external monitor (UptimeRobot or Better Stack) on the same address.
 
