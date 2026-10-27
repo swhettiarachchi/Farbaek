@@ -52,6 +52,7 @@ Stage 72 let a phone send to a paired computer. This stage adds the other direct
 ### Verified
 
 - `pnpm typecheck` and `pnpm lint`: clean.
+- **Full suite:** 1,914 passed, 17 skipped.
 - **New tests:**
 
   | Tests | What they cover |
@@ -80,6 +81,10 @@ Stage 72 let a phone send to a paired computer. This stage adds the other direct
   - `qa:a11y` on that route and `/app/mesh` (1280 and 375) found only the temporary route's missing h1.
   - `qa:responsive` on `/app/mesh`, `/privacy` and that route (11 widths each): 0 sideways scroll, 0 cut off, 0 small targets.
   - It found one real bug: the offer card read the browser's storage support during render, so a server render and the browser's disagreed (React error 418). It now reads it with `useSyncExternalStore`, and a rebuild showed no errors.
+
+- **Agent 0.6.0 published:** `Farbaek-Agent-Setup-0.6.0.exe`, 113,873,285 bytes, SHA-256 `220118bf…80f37e`. It was uploaded in 14 hashed pieces, every piece and the whole file were checked on the server, and the download is served.
+  - The first upload stalled after 8 pieces. SSH timed out, and the server then refused new connections for a while.
+  - After waiting, the other 6 went up in a single connection.
 
 ### Not verified
 
