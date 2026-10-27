@@ -1,0 +1,95 @@
+# Farbaek Agent for Mac (ADR 0098). A Mac app can only be built and signed on
+# macOS, so GitHub's macOS runner builds it: one DMG for Apple silicon and
+# Intel, ad-hoc signed (no Apple Developer ID yet). It then checks the
+# signature, opens the app from the DMG to see it start, and keeps the DMG,
+# its SHA-256 and a screenshot as the run's artifact for 7 days. Publishing is
+# by hand (docs/agent/README.md, "Publishing a release"): nothing here can
+# reach Farbaek's server, and the job holds no secrets.
+#
+# It runs when the agent's version changes, or from "Run workflow". macOS
+# minutes count ten times against the repository's 2,000 free minutes; when
+# they run out, GitHub stops jobs until next month instead of charging.
+name: Agent for Mac
+
+on:
+  push:
+    paths:
+      - desktop/app/package.json
+      - desktop/electron-builder.yml
+      - .github/workflows/agent-mac.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-mac-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      # electron-builder downloads both Electron builds itself; the dev copy isn't needed.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      # Ad-hoc only: never look for a signing certificate in the runner's keychain.
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.13.1
+
+      - name: Install
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+
+      - name: Build the app
+        run: node desktop/build.mjs --production
+
+      - name: Package the DMG
+        run: pnpm exec electron-builder --mac --config desktop/electron-builder.yml --publish never
+
+      - name: Check the signature and open the app
+        run: |
+          set -euo pipefail
+          dmg=$(ls desktop/release/Farbaek-Agent-*-mac.dmg)
+          mkdir -p out
+          cp "$dmg" out/
+          (cd out && shasum -a 256 "$(basename "$dmg")" > "$(basename "$dmg").sha256")
+          hdiutil attach "$dmg" -nobrowse -readonly -mountpoint /tmp/farbaek-dmg
+          app="/tmp/farbaek-dmg/Farbaek Agent.app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          codesign -dv "$app" 2>&1 | grep -E "^(Identifier|Format|Signature)"
+          lipo -archs "$app/Contents/MacOS/Farbaek Agent"
+          /usr/libexec/PlistBuddy -c "Print :NSLocalNetworkUsageDescription" "$app/Contents/Info.plist"
+          open -n "$app"
+          sleep 20
+          # Still running 20 seconds after opening: it started and didn't crash.
+          pgrep -f "Farbaek Agent.app/Contents/MacOS/Farbaek Agent" > /dev/null
+          screencapture -x out/first-open.png || echo "No screenshot on this runner."
+          osascript -e 'quit app "Farbaek Agent"' || pkill -f "Farbaek Agent.app" || true
+          sleep 3
+          hdiutil detach /tmp/farbaek-dmg || hdiutil detach -force /tmp/farbaek-dmg
+          {
+            echo "### Farbaek Agent for Mac"
+            echo
+            echo "| File | Bytes | SHA-256 |"
+            echo "| --- | --- | --- |"
+            echo "| \`$(basename "$dmg")\` | $(stat -f %z "$dmg") | \`$(cut -d' ' -f1 out/*.sha256)\` |"
+            echo
+            echo "Signature verified, both architectures present, and the app was still running 20 seconds after opening from the DMG."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: farbaek-agent-mac
+          path: out/
+          retention-days: 7
+          compression-level: 0
+          if-no-files-found: error

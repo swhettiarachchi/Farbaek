@@ -1,13 +1,14 @@
-# Is Farbaek up? Every 30 minutes GitHub asks https://www.farbaek.com/api/ready,
+# Is Farbaek up? Every hour GitHub asks https://www.farbaek.com/api/ready,
 # which answers 200 only when the app runs, the database answers and the
 # server's disk has room. Three tries a minute apart ride out a deploy. When
 # all three fail the run fails, and GitHub emails the repository owner.
-# Private repositories get 2,000 free minutes a month; this uses about 1,440.
+# Private repositories get 2,000 free minutes a month; this uses about 720,
+# leaving room for the Mac agent builds (agent-mac.yml, which count ten times).
 name: Uptime
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "17 * * * *"
   workflow_dispatch:
 
 permissions: {}
