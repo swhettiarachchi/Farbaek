@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { PAID_PLAN_IDS } from "@/core/billing/catalog";
 import { resolveEffectivePlan, trialPhase, trialWindow, type BillingSnapshot, type EffectivePlan, type TrialPhase } from "@/core/billing/trial";
+import { currentGrant, type GrantSpec } from "@/core/billing/wallet";
 
 /** Shape returned by `organizations` with embedded one-to-one billing and trial rows. */
 const OneOrMany = <T extends z.ZodType>(schema: T) =>
@@ -18,6 +19,8 @@ const OrganizationRow = z.object({
       suspended_reason: z.enum(["payment", "paused"]).nullable(),
       // Why a workspace started without a trial (migration v38, ADR 0065).
       trial_withheld: z.enum(["address_used", "disposable_address"]).nullable().optional(),
+      // The paid subscription's start (migration v62, ADR 0100).
+      subscription_started_at: z.string().nullable().optional(),
     }),
   ),
   trials: OneOrMany(z.object({ started_at: z.string(), ends_at: z.string() })),
@@ -30,7 +33,7 @@ const OrganizationRow = z.object({
 });
 
 export const ORGANIZATION_SELECT =
-  "id, name, created_at, suspended_at, suspended_notice, agents_paused_at, agents_paused_reason, billing_accounts(state, paid_plan_id, paid_through, suspended_reason, trial_withheld), trials(started_at, ends_at)";
+  "id, name, created_at, suspended_at, suspended_notice, agents_paused_at, agents_paused_reason, billing_accounts(state, paid_plan_id, paid_through, suspended_reason, trial_withheld, subscription_started_at), trials(started_at, ends_at)";
 
 export interface WorkspaceSummary {
   id: string;
@@ -45,6 +48,14 @@ export interface WorkspaceSummary {
   suspension: { at: string; notice: string } | null;
   /** The workspace's own emergency pause (ADR 0083): no agent runs or automatic changes until an owner or admin resumes. */
   agentsPaused: { at: string; reason: string | null } | null;
+  /** When the paid subscription started, so paid usage periods follow it (ADR 0100). */
+  paidAnchor: string | null;
+}
+
+/** This period's usage grant for a workspace: the trial, the calendar month on Free, or the subscription's own period. */
+export function workspaceGrant(ws: WorkspaceSummary, now: Date): GrantSpec | null {
+  const trial = ws.trial ? { startedAt: new Date(ws.trial.startedAt), endsAt: new Date(ws.trial.endsAt) } : undefined;
+  return currentGrant(ws.plan, trial, now, ws.paidAnchor ? new Date(ws.paidAnchor) : null);
 }
 
 /** Billing snapshot for one organization row, or null when billing state is missing. */
@@ -64,6 +75,7 @@ function toSnapshot(row: z.infer<typeof OrganizationRow>): BillingSnapshot {
         paidThrough: billing.paid_through ? new Date(billing.paid_through) : undefined,
         suspendedReason: billing.suspended_reason ?? undefined,
         trial: window,
+        subscriptionStartedAt: billing.subscription_started_at ? new Date(billing.subscription_started_at) : undefined,
       }
     : { state: "free" };
 }
@@ -85,6 +97,7 @@ export function summarizeOrganizations(rows: unknown, now: Date): WorkspaceSumma
         billingUnknown: !billing,
         suspension: row.suspended_at ? { at: row.suspended_at, notice: row.suspended_notice ?? "Farbaek has paused this workspace." } : null,
         agentsPaused: row.agents_paused_at ? { at: row.agents_paused_at, reason: row.agents_paused_reason ?? null } : null,
+        paidAnchor: billing?.subscription_started_at ?? null,
       };
     });
 }

@@ -145,7 +145,7 @@ export async function reserveUsage(
   const { snapshot, plan } = resolved.value;
   const trial = plan.source === "trial";
   const units = Math.min(MAX_UNITS_PER_CALL, Math.max(1, Math.ceil(input.units)));
-  const grant = currentGrant(plan, snapshot.trial, now);
+  const grant = currentGrant(plan, snapshot.trial, now, snapshot.subscriptionStartedAt ?? null);
 
   const reserved = await deps.reserveUsage({ orgId: input.orgId, actor: input.userId, key: deps.newEventId(), operation: input.operation, taskId: input.taskId, units, grant });
   if (!reserved.ok) {

@@ -4,6 +4,8 @@
  * which copies of jobs.sh installed before ADR 0068 still call. Each job runs
  * on its own: one failing or not being configured never stops another.
  */
+import { processWebhooks } from "@/server/billing/webhooks";
+import { billingWebhookDeps } from "@/server/billing/wiring";
 import { checkSchedulerToken } from "@/server/jobs/auth";
 import { runIncidentEscalation } from "@/server/jobs/incident-escalation";
 import { incidentEscalationDeps } from "@/server/jobs/incident-escalation-wiring";
@@ -51,6 +53,8 @@ export async function handleHourlyJobs(request: Request): Promise<Response> {
     modelWatch: await runJob("model_watch", await modelWatchDeps().catch(() => null), (d) => runModelWatch(d, now)),
     // Governed workflows (ADR 0092): a missed hook is caught here.
     workflows: await runJob("workflows", createSupabaseAdminClient(), (admin) => sweepWorkflows(admin)),
+    // Payment webhooks that failed or arrived while processing was busy (ADR 0100).
+    billingWebhooks: await runJob("billing_webhooks", billingWebhookDeps(), (d) => processWebhooks(d)),
   };
   const all = Object.values(jobs);
   if (all.every((j) => j.status === "not_configured")) return problem(503, "NOT_CONFIGURED", "Email or the server key for writes isn't set, so no hourly job can run.");

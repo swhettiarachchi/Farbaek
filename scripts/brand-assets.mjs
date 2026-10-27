@@ -55,4 +55,19 @@ await icon(150, "desktop/build/appx/Square150x150Logo.png", { compressionLevel: 
 await icon(310, "desktop/build/appx/LargeTile.png", { compressionLevel: 9 });
 await paddedIcon(310, 150, 150, "desktop/build/appx/Wide310x150Logo.png");
 
-console.log("Wrote farbaek-logo.png from the logo, and the favicons, app icons and Store tiles from the app icon");
+// Farbaek for Android (ADR 0099): the legacy launcher icon (48dp), and the adaptive icon's foreground
+// (108dp, the artwork inside the 66dp every launcher shape keeps; its background is the art's own white).
+const densities = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };
+for (const [name, scale] of Object.entries(densities)) {
+  const dir = `android/app/src/main/res/mipmap-${name}`;
+  await mkdir(dir, { recursive: true });
+  await icon(Math.round(48 * scale), `${dir}/ic_launcher.png`, { compressionLevel: 9 });
+  const canvas = Math.round(108 * scale);
+  const art = await sharp(ICON).resize(Math.round(66 * scale), Math.round(66 * scale)).png().toBuffer();
+  await sharp({ create: { width: canvas, height: canvas, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+    .composite([{ input: art, gravity: "centre" }])
+    .png({ compressionLevel: 9 })
+    .toFile(`${dir}/ic_launcher_foreground.png`);
+}
+
+console.log("Wrote farbaek-logo.png from the logo, and the favicons, app icons, Store tiles and Android icons from the app icon");

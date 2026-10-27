@@ -19,7 +19,9 @@ param(
   [Parameter(Mandatory = $true)][ValidateSet("request", "github")][string]$Step,
   [string]$Name = "Suvin Hettiarachchi",
   [string]$TeamId = "65BULQ4657",
-  [string]$Folder = "$HOME\FarbaekMacSigning"
+  [string]$Folder = "$HOME\FarbaekMacSigning",
+  # App Store Connect's Issuer ID (not secret); asked for when it isn't given here.
+  [string]$IssuerId = ""
 )
 
 # Every OpenSSL step's exit code is checked; its progress output on stderr isn't an error.
@@ -46,16 +48,20 @@ if ($Step -eq "request") {
 }
 
 # Step github: the certificate Apple gave back, with the private key, as a password-protected .p12.
-$cer = Get-ChildItem -Path $Folder, "$HOME\Downloads" -Filter "*.cer" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-if (-not $cer) { Write-Host "No .cer file in $Folder or Downloads. Download the Developer ID Application certificate first." -ForegroundColor Red; exit 1 }
 if (-not (Test-Path $key)) { Write-Host "developer-id.key isn't in $Folder. Run -Step request first, then make the certificate from that request." -ForegroundColor Red; exit 1 }
+# The newest .cer that is this team's Developer ID Application certificate. Apple's own intermediate
+# certificate (saved by an earlier run) and any other certificates are passed over.
 $pem = Join-Path $Folder "developer-id.pem"
-& $openssl x509 -inform DER -in $cer.FullName -out $pem 2>$null
-if ($LASTEXITCODE -ne 0) { & $openssl x509 -in $cer.FullName -out $pem 2>$null }
-$subject = (& $openssl x509 -in $pem -noout -subject 2>$null) -join " "
-if ($subject -notmatch "Developer ID Application" -or $subject -notmatch [regex]::Escape($TeamId)) {
-  Write-Host "$($cer.Name) isn't a Developer ID Application certificate for team $TeamId ($subject). Make that kind, then run this again." -ForegroundColor Red; exit 1
+$cer = $null; $subject = ""
+$candidates = Get-ChildItem -Path $Folder, "$HOME\Downloads" -Filter "*.cer" -ErrorAction SilentlyContinue | Where-Object { $_.Name -notlike "DeveloperIDG2CA*" } | Sort-Object LastWriteTime -Descending
+foreach ($c in $candidates) {
+  & $openssl x509 -inform DER -in $c.FullName -out $pem 2>$null
+  if ($LASTEXITCODE -ne 0) { & $openssl x509 -in $c.FullName -out $pem 2>$null }
+  if ($LASTEXITCODE -ne 0) { continue }
+  $s = (& $openssl x509 -in $pem -noout -subject 2>$null) -join " "
+  if ($s -match "Developer ID Application" -and $s -match [regex]::Escape($TeamId)) { $cer = $c; $subject = $s; break }
 }
+if (-not $cer) { Write-Host "No Developer ID Application certificate for team $TeamId in $Folder or Downloads. Download it from Apple first." -ForegroundColor Red; exit 1 }
 # The certificate must belong to this key: compare the public halves only.
 $fromCert = (& $openssl x509 -in $pem -noout -pubkey 2>$null) -join "`n"
 $fromKey = (& $openssl pkey -in $key -pubout 2>$null) -join "`n"
@@ -63,7 +69,7 @@ if ($fromCert -ne $fromKey) { Write-Host "That certificate was made from a diffe
 Write-Host "Certificate: $subject" -ForegroundColor Green
 
 # Apple's Developer ID intermediate, so the chain is complete on the build machine.
-$g2 = Join-Path $Folder "DeveloperIDG2CA.cer"
+$g2 = Join-Path $Folder "DeveloperIDG2CA.der"
 try { Invoke-WebRequest -UseBasicParsing -Uri "https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer" -OutFile $g2 }
 catch { Write-Host "Apple's Developer ID intermediate certificate couldn't be downloaded. Check the internet connection, then run this again." -ForegroundColor Red; exit 1 }
 $g2pem = Join-Path $Folder "DeveloperIDG2CA.pem"
@@ -84,7 +90,8 @@ $p8 = Get-ChildItem -Path "$HOME\Downloads", $Folder -Filter "AuthKey_*.p8" -Err
 if (-not $p8) { Write-Host "No AuthKey_....p8 in Downloads. Make the App Store Connect API key first (step 2 at the top of this script)." -ForegroundColor Red; exit 1 }
 if ($p8.DirectoryName -ne $Folder) { Move-Item $p8.FullName (Join-Path $Folder $p8.Name) -Force; $p8 = Get-Item (Join-Path $Folder $p8.Name) }
 $keyId = $p8.BaseName -replace '^AuthKey_', ''
-$issuer = (Read-Host -Prompt "Paste the Issuer ID shown above the keys in App Store Connect").Trim()
+$issuer = $IssuerId.Trim()
+if (-not $issuer) { $issuer = (Read-Host -Prompt "Paste the Issuer ID shown above the keys in App Store Connect").Trim() }
 if ($issuer -notmatch '^[0-9a-f-]{36}$') { Write-Host "That isn't an Issuer ID (36 characters with dashes), so nothing was copied." -ForegroundColor Red; exit 1 }
 
 $values = [ordered]@{
@@ -95,12 +102,19 @@ $values = [ordered]@{
   "APPLE_API_ISSUER"    = $issuer
 }
 Start-Process "https://github.com/swhettiarachchi/Farbaek/settings/secrets/actions/new"
-Write-Host "GitHub's New secret page is open. For each of the five below: press Enter here to copy its value, then in GitHub type the name, paste the value, and choose Add secret. Open New repository secret again for the next one." -ForegroundColor Cyan
+Write-Host "GitHub's New secret page is open. For each of the five secrets, this copies its name, then its value: paste each into GitHub with Ctrl+V. Don't copy anything else meanwhile." -ForegroundColor Cyan
+$n = 0
 foreach ($name in $values.Keys) {
-  Read-Host -Prompt "Press Enter to copy $name"
+  $n++
+  # The name goes on the clipboard too, so nothing is typed or copied by hand (which would replace the value).
+  Read-Host -Prompt "Secret $n of 5. Press Enter to copy its NAME"
+  Set-Clipboard -Value $name
+  Write-Host "Copied the name. In GitHub, click the Name box and press Ctrl+V." -ForegroundColor Green
+  Read-Host -Prompt "Then press Enter here to copy its VALUE"
   Set-Clipboard -Value $values[$name]
-  Write-Host "Copied $name. Paste it into GitHub with the name $name." -ForegroundColor Green
+  Write-Host "Copied the value. Click the Secret box, press Ctrl+V, choose Add secret, then New repository secret." -ForegroundColor Green
 }
+Read-Host -Prompt "When the last one is added in GitHub, press Enter to clear the clipboard"
 Set-Clipboard -Value " "
 $values = $null; $password = $null
 Write-Host "Done. The clipboard is cleared. Keep $Folder private: it holds the key that signs Farbaek Agent for Mac." -ForegroundColor Green

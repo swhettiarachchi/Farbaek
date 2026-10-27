@@ -7,15 +7,16 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { currentGrant, walletView } from "@/core/billing/wallet";
+import { walletView } from "@/core/billing/wallet";
 import { resolveAiProvider } from "@/server/ai/config";
 import { deploymentInfo } from "@/server/deployment";
 import { sandboxExecutionMode } from "@/server/sandbox/registry";
 import { hasServerWriteKey } from "@/server/supabase/admin";
-import { ORGANIZATION_SELECT, summarizeOrganizations, type WorkspaceSummary } from "@/server/workspace/organizations";
+import { ORGANIZATION_SELECT, summarizeOrganizations, workspaceGrant, type WorkspaceSummary } from "@/server/workspace/organizations";
 import { GRANT_COLUMNS, UsageGrantRowSchema, grantFromRow } from "@/server/workspace/usage-store";
 import { aiCostUsd, countBy, latestBy, monthStartUtc, planLabel, trialDaysLeft } from "./summaries";
 import { emailStatus } from "@/server/email/config";
+import { billingStatus } from "@/server/billing/config";
 
 const LIST_CAP = 1000;
 const ACTIVITY_LIMIT = 25;
@@ -131,9 +132,8 @@ export async function loadWorkspaces(admin: SupabaseClient, now = new Date()): P
   const grantRows = z.array(UsageGrantRowSchema.extend({ org_id: z.string() })).parse(must(grants, "AI usage"));
 
   return ws.map((w) => {
-    const trial = w.trial ? { startedAt: new Date(w.trial.startedAt), endsAt: new Date(w.trial.endsAt) } : undefined;
     const own = grantRows.filter((g) => g.org_id === w.id).map(grantFromRow);
-    const wallet = w.billingUnknown ? null : walletView(own, currentGrant(w.plan, trial, now), now);
+    const wallet = w.billingUnknown ? null : walletView(own, workspaceGrant(w, now), now);
     return {
       id: w.id,
       name: w.name,
@@ -230,7 +230,6 @@ export interface Connection {
 export function deploymentConnections(env: Record<string, string | undefined> = process.env): Connection[] {
   const ai = resolveAiProvider();
   const sandbox = sandboxExecutionMode();
-  const billing = (env.BILLING_MODE ?? "").trim() || "not_connected";
   return [
     { name: "Database writes", on: hasServerWriteKey(), detail: hasServerWriteKey() ? "Server key set" : "SUPABASE_SECRET_KEY isn't set" },
     { name: "AI", on: ai.provider !== null, detail: ai.provider ? ai.label : ai.reason },
@@ -240,7 +239,7 @@ export function deploymentConnections(env: Record<string, string | undefined> = 
       on: Boolean(env.SANDBOX_PREVIEW_DOMAIN && env.SANDBOX_PREVIEW_SECRET),
       detail: env.SANDBOX_PREVIEW_DOMAIN && env.SANDBOX_PREVIEW_SECRET ? "Preview host and secret set" : "Needs SANDBOX_PREVIEW_DOMAIN and SANDBOX_PREVIEW_SECRET",
     },
-    { name: "Payments", on: billing !== "not_connected", detail: billing === "not_connected" ? "Not connected until go-live" : `BILLING_MODE is ${billing.slice(0, 30)}` },
+    { name: "Payments", ...billingStatus(env) },
     { name: "Email", ...emailStatus(env) },
   ];
 }

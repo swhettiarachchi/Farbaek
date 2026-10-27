@@ -137,6 +137,8 @@ export interface BillingSnapshot {
   /** End of the paid-through period (cancellation_scheduled keeps access until then). */
   paidThrough?: Date;
   suspendedReason?: "payment" | "paused";
+  /** When the paid subscription started: its usage periods follow this day of the month (ADR 0100). */
+  subscriptionStartedAt?: Date;
 }
 
 export interface EffectivePlan {

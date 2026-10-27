@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The web app's canvas token (src/styles/tokens.css), as in src/app/manifest.ts. -->
+    <color name="canvas">#FBFBFC</color>
+    <!-- The app icon artwork's own background, behind the adaptive icon. -->
+    <color name="icon_paper">#FEFEFE</color>
+</resources>

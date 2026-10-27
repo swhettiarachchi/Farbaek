@@ -18,7 +18,7 @@ export const ROLE_LABELS: Record<StaffRole, string> = {
 
 export const ROLE_SUMMARIES: Record<StaffRole, string> = {
   owner: "Everything, including staff, kill switches and large usage additions. Severe actions need a fresh authenticator code.",
-  admin: "Reads everything, suspends workspaces, takes sites offline, adds AI usage up to a cap and runs announcements.",
+  admin: "Reads everything, suspends workspaces, takes sites offline, adds AI usage up to a cap, runs announcements and replays payment events.",
   support: "Reads workspaces and people, answers support requests, and can extend a trial once.",
   trust_safety: "Reads everything and handles abuse: answers reports, suspends workspaces and takes sites offline.",
   viewer: "Reads the console and the audit log, not support requests. Email addresses are masked.",
@@ -42,6 +42,8 @@ export const OFFICE_ACTIONS = [
   "devices.own",
   "models.canary",
   "models.switch",
+  "billing.products",
+  "billing.replay",
 ] as const;
 export type OfficeAction = (typeof OFFICE_ACTIONS)[number];
 
@@ -68,6 +70,9 @@ export const PERMISSIONS: Record<OfficeAction, readonly StaffRole[]> = {
   // The Model Change Canary (ADR 0090): a canary spends Farbaek's AI credit; switching a tier changes every workspace's model.
   "models.canary": ["owner", "admin"],
   "models.switch": ["owner"],
+  // Payments (ADR 0100): creating provider products sets what checkout charges; a replay re-reads a subscription from the provider.
+  "billing.products": ["owner"],
+  "billing.replay": ["owner", "admin"],
 };
 
 /** Actions that need a fresh authenticator code in the same request, whatever the input. */

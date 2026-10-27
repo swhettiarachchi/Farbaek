@@ -201,6 +201,7 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
           billingUnknown: false,
           suspension: null,
           agentsPaused: null,
+          paidAnchor: null,
         },
       ];
     },

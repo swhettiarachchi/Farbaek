@@ -302,6 +302,13 @@ export const EVAL_SCENARIOS: readonly EvalScenario[] = [
     asserts: "A phone or browser that's reachable doesn't join calls from computers it didn't pair with, refuses a caller whose key isn't the paired one, refuses a list of files naming a path outside its folder before anyone is asked, and keeps nothing when a chunk doesn't match its hash.",
     file: "disclosure.test.ts",
   },
+  {
+    id: "SE-035",
+    title: "A forged or replayed payment webhook",
+    risks: ["ASI03"],
+    asserts: "A payment webhook signed with the wrong secret, or not at all, is refused before anything is stored; a genuinely signed one grants nothing the provider doesn't confirm when Farbaek reads the subscription back; and the same delivery twice is stored once.",
+    file: "privilege.test.ts",
+  },
 ];
 
 /** What isn't tested for each risk, and the reason when a risk doesn't apply. */

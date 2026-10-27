@@ -61,3 +61,24 @@ The full knight logo is unchanged and stays the logo everywhere else. `CLAUDE.md
 2. Mac signing: the two script steps and the API key (agent README, "Mac signing, once").
 3. Register in Partner Center, reserve "Farbaek Agent", and send the three identity values.
 4. Free 5 to 10 GB on C:.
+
+## 2026-10-27, later
+
+### Done
+
+- **Mac signing:** the five secrets are set in GitHub (APPLE_API_KEY, APPLE_API_KEY_ID, APPLE_API_ISSUER, CSC_LINK, CSC_KEY_PASSWORD), through `scripts/release/mac-signing.ps1`. Along the way the script learned to:
+  - find the Developer ID certificate, not Apple's intermediate;
+  - take the Issuer ID as `-IssuerId`;
+  - copy each secret's name, then its value;
+  - wait for Enter before clearing the clipboard.
+- **Microsoft Store:**
+  - Farbaek Agent is reserved in Partner Center (Store ID 9N4GNB94KH9M); Submission 1 is a draft;
+  - the Store identity is in `desktop/store-identity.json` (`Svanflok.FarbaekAgent`, publisher `CN=853330BD-1743-4854-B24A-5FCC5F8DBA90`);
+  - `pnpm agent:store` builds `Farbaek-Agent-0.7.0.appx` (SHA-256 `6c47dc7b…`), after working around makeappx's side-by-side error by copying the kit to the home folder.
+- **Agent 0.7.0** is the direct download (114,100,130 bytes, SHA-256 `7374925e…`).
+- **The owner's steps:** `docs/agent/store-submission.md`, with the package and screenshots on the Desktop.
+
+### Not verified yet
+
+- The Store's certification: it needs the owner to upload the appx (it's over the browser tool's 10 MB limit) and submit.
+- The notarized Mac build: GitHub Actions minutes reset on November 1.

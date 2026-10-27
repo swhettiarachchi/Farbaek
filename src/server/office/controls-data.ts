@@ -7,10 +7,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { USD_PER_UNIT } from "@/core/billing/rate-card";
-import { currentGrant, walletView, type GrantRow } from "@/core/billing/wallet";
+import { walletView, type GrantRow } from "@/core/billing/wallet";
 import { PLATFORM_FLAGS, type PlatformFlag } from "@/core/office/flags";
 import { monthStartUtc, planLabel, trialDaysLeft } from "@/server/admin/summaries";
-import { ORGANIZATION_SELECT, summarizeOrganizations } from "@/server/workspace/organizations";
+import { ORGANIZATION_SELECT, summarizeOrganizations, workspaceGrant } from "@/server/workspace/organizations";
 import { GRANT_COLUMNS, UsageGrantRowSchema, grantFromRow } from "@/server/workspace/usage-store";
 
 function must<T>(result: { data: T | null; error: { message: string } | null }, what: string): T {
@@ -72,8 +72,7 @@ export async function loadWorkspace360(admin: SupabaseClient, orgId: string, now
   );
   const grantRows = z.array(UsageGrantRowSchema).parse(must(grants, "AI usage"));
   const own = grantRows.map(grantFromRow);
-  const trial = summary.trial ? { startedAt: new Date(summary.trial.startedAt), endsAt: new Date(summary.trial.endsAt) } : undefined;
-  const wallet = summary.billingUnknown ? null : walletView(own, currentGrant(summary.plan, trial, now), now);
+  const wallet = summary.billingUnknown ? null : walletView(own, workspaceGrant(summary, now), now);
   const units = z.array(z.object({ credits: z.coerce.number() })).parse(must(ledger, "AI cost")).reduce((sum, r) => sum + r.credits, 0);
 
   return {

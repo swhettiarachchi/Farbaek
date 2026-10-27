@@ -2,7 +2,7 @@ import type { ButtonOperation } from "@/config/usage";
 import { routeModel } from "@/server/ai/routing";
 import { usagePeriod, type BillingPeriod } from "@/core/billing/usage";
 import { meterState, percentUsed, type UsageMeter } from "@/core/billing/usage-view";
-import { currentGrant, walletView, type WalletView } from "@/core/billing/wallet";
+import { walletView, type WalletView } from "@/core/billing/wallet";
 import { sandboxForPage } from "@/server/sandbox/page-context";
 import { resolveAiProvider } from "@/server/ai/config";
 import { LENS_MAX_OUTPUT_TOKENS } from "@/server/ai/lens-mapper";
@@ -12,7 +12,7 @@ import { aiAvailability, typicalUnits, type AiAvailability } from "./ai-usage";
 import { MANUAL_CONTRACT } from "./ai-drafting";
 import { MANUAL_LENS } from "./lens-suggestions";
 import type { AppContext } from "./context";
-import type { WorkspaceSummary } from "./organizations";
+import { workspaceGrant, type WorkspaceSummary } from "./organizations";
 import { MANUAL_FILES } from "./proposals";
 import { MANUAL_RULES } from "./workspace-rules";
 import type { Project, Task } from "./types";
@@ -42,8 +42,7 @@ export async function loadWallet(ctx: AppContext, ws: WorkspaceSummary, now = ne
   if (ws.billingUnknown) return null;
   const grants = await ctx.reader.listUsageGrants(ws.id).catch(() => null);
   if (!grants) return null;
-  const trial = ws.trial ? { startedAt: new Date(ws.trial.startedAt), endsAt: new Date(ws.trial.endsAt) } : undefined;
-  return walletView(grants, currentGrant(ws.plan, trial, now), now);
+  return walletView(grants, workspaceGrant(ws, now), now);
 }
 
 const MANUAL: Record<ButtonOperation, string> = {
