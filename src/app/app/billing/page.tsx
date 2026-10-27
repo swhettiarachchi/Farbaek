@@ -1,34 +1,104 @@
 import { ReceiptIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, Notice, PageHeader, UsageMeter } from "@/components/app/primitives";
+import { LiveRefresh } from "@/components/app/live-refresh";
 import { LocalTime } from "@/components/ui/local-time";
+import { buttonClasses } from "@/components/ui/button";
 import { WalletCard } from "@/components/app/wallet-card";
 import { sessionsLine } from "@/components/pricing/pricing-plans";
+import { CancelStep, ChangePlanStep, ChoosePlanStep, SubscriptionSummary } from "@/components/billing/billing-steps";
 import { SELF_SERVE_PLANS, TRIAL, formatUsd, getPlan } from "@/core/billing/catalog";
+import { isPaidPlanId, planChangeDirection } from "@/core/billing/provider-state";
+import { billingDeps } from "@/server/billing/wiring";
+import { billingErrorMessage, previewPlanChange } from "@/server/billing/use-cases";
+import { loadBillingView } from "@/server/billing/view";
 import { loadAppContext } from "@/server/workspace/context";
+import { MANAGER_ROLES } from "@/server/workspace/types";
 import { UsageMeterList } from "@/components/app/usage-meters";
 import { loadUsageMeters, loadUsageSummary } from "@/server/workspace/usage-summary";
 
 export const metadata: Metadata = { title: "Billing and usage" };
 
-export default async function BillingPage() {
+type Search = Record<string, string | string[] | undefined>;
+const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+
+export default async function BillingPage({ searchParams }: { searchParams: Promise<Search> }) {
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
   const ws = ctx.current;
-  const [usage, meters, agents] = await Promise.all([loadUsageSummary(ctx, ws), loadUsageMeters(ctx, ws), ctx.reader.listAgents(ws.id)]);
+  const sp = await searchParams;
+  const [usage, meters, agents, billing] = await Promise.all([
+    loadUsageSummary(ctx, ws),
+    loadUsageMeters(ctx, ws),
+    ctx.reader.listAgents(ws.id),
+    loadBillingView(ws.id, ctx.mode === "demo"),
+  ]);
   const activeAgents = agents.filter((a) => !a.revokedAt).length;
   const plan = getPlan(ws.plan.planId);
   const limits = ws.plan.limits;
+  const canManage = Boolean(ctx.role && MANAGER_ROLES.includes(ctx.role)) && ctx.writes.enabled;
+  const onTrial = ws.plan.source === "trial";
+  const sub = billing.subscription;
+  const error = billingErrorMessage(one(sp.error));
+  const done = one(sp.done);
+  const donePlan = one(sp.plan);
+
+  // The one step in progress, from the address: choosing a plan, switching, or cancelling.
+  const choose = one(sp.choose);
+  const change = one(sp.change);
+  const step =
+    billing.open && canManage
+      ? !sub && isPaidPlanId(choose)
+        ? { kind: "choose" as const, planId: choose }
+        : sub && isPaidPlanId(change) && change !== sub.planId
+          ? { kind: "change" as const, preview: await previewPlanChange(billingDeps(), { id: ws.id, onTrial }, { userId: ctx.user.id, email: ctx.user.email, role: ctx.role }, change) }
+          : sub && one(sp.cancel) === "1" && sub.state !== "cancellation_scheduled"
+            ? { kind: "cancel" as const }
+            : null
+      : null;
+  // Back from checkout: the page refreshes itself until the webhook has applied the plan.
+  const returned = billing.open && !sub && one(sp.checkout) === "done";
 
   return (
     <div className="grid gap-8">
       <PageHeader title="Billing and usage" description="Your plan, its limits and what this workspace has used. Usage comes from your records." />
 
-      <Notice tone="warning">
-        Payments aren&apos;t connected yet, so no plan can be bought and nothing is ever charged. Paid plans open once checkout is live and
-        verified.
-      </Notice>
+      {!billing.open ? (
+        <Notice tone="warning">
+          Payments aren&apos;t connected yet, so no plan can be bought and nothing is ever charged. Paid plans open once checkout is live and verified.
+        </Notice>
+      ) : (
+        <Notice>
+          Payments are in test mode for this workspace. Checkout takes Dodo Payments&apos; test cards only, and nothing real is charged.
+        </Notice>
+      )}
+
+      {error && !step ? <Notice tone="warning">{error}</Notice> : null}
+      {done === "cancelled" && sub ? (
+        <Notice>
+          {sub.planName} is cancelled. It keeps working until {sub.paidThrough ? <LocalTime iso={sub.paidThrough} /> : "the end of the period"}, then this workspace moves to Free.
+        </Notice>
+      ) : null}
+      {done === "resumed" && sub ? <Notice>{sub.planName} continues and renews as before.</Notice> : null}
+      {done === "upgraded" && isPaidPlanId(donePlan) ? <Notice>Switching to {getPlan(donePlan).name}. Its limits apply as soon as Dodo Payments confirms the payment.</Notice> : null}
+      {done === "downgrade_scheduled" && isPaidPlanId(donePlan) ? <Notice>You&apos;ll move to {getPlan(donePlan).name} when this period ends. Until then nothing changes.</Notice> : null}
+      {returned ? (
+        <Notice>
+          Waiting for Dodo Payments to confirm your checkout. This page updates by itself, usually within a minute. If you closed the checkout, nothing was charged.
+          <LiveRefresh active />
+        </Notice>
+      ) : billing.openCheckout && !step ? (
+        <Notice>
+          A checkout for {getPlan(billing.openCheckout.planId).name} was started <LocalTime iso={billing.openCheckout.startedAt} /> and isn&apos;t confirmed. If you didn&apos;t finish it,
+          nothing was charged, and you can choose a plan again below.
+        </Notice>
+      ) : null}
+
+      {step?.kind === "choose" ? <ChoosePlanStep planId={step.planId} onTrial={onTrial} error={error} /> : null}
+      {step?.kind === "change" ? <ChangePlanStep preview={step.preview.ok ? step.preview.value : null} error={step.preview.ok ? error : step.preview.message} /> : null}
+      {step?.kind === "cancel" && sub ? <CancelStep subscription={sub} error={error} /> : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] lg:items-start">
         <Card>
@@ -37,36 +107,42 @@ export default async function BillingPage() {
             {plan.name}
             {ws.plan.source === "trial" ? " trial" : ""}
           </p>
-          {ws.trial ? (
-            <p className="mt-3 text-sm leading-relaxed text-ink-2">
-              {ws.trial.phase.phase === "active" ? (
-                <>
-                  {ws.trial.phase.daysRemaining} {ws.trial.phase.daysRemaining === 1 ? "day" : "days"} left. Ends <LocalTime iso={ws.trial.endsAt} />. Then
-                  this workspace moves to Free automatically and nothing is charged.
-                </>
-              ) : (
-                <>
-                  Your trial ended <LocalTime iso={ws.trial.endsAt} />. You&apos;re on Free and nothing was charged.
-                </>
-              )}
-            </p>
+          {sub ? (
+            <SubscriptionSummary subscription={sub} canManage={canManage} />
           ) : (
-            <p className="mt-3 text-sm leading-relaxed text-ink-2">
-              {ws.trialWithheld === "disposable_address"
-                ? "This workspace started on Free. Trials need a lasting email address, and yours is from a disposable-email service. Sign in with another address to start one."
-                : ws.trialWithheld === "address_used"
-                  ? "This workspace started on Free, since your email address has already had its trial. Trials are one per address."
-                  : "Trials are one per person. This workspace started on Free."}
-            </p>
+            <>
+              {ws.trial ? (
+                <p className="mt-3 text-sm leading-relaxed text-ink-2">
+                  {ws.trial.phase.phase === "active" ? (
+                    <>
+                      {ws.trial.phase.daysRemaining} {ws.trial.phase.daysRemaining === 1 ? "day" : "days"} left. Ends <LocalTime iso={ws.trial.endsAt} />. Then
+                      this workspace moves to Free automatically and nothing is charged.
+                    </>
+                  ) : (
+                    <>
+                      Your trial ended <LocalTime iso={ws.trial.endsAt} />. You&apos;re on Free and nothing was charged.
+                    </>
+                  )}
+                </p>
+              ) : (
+                <p className="mt-3 text-sm leading-relaxed text-ink-2">
+                  {ws.trialWithheld === "disposable_address"
+                    ? "This workspace started on Free. Trials need a lasting email address, and yours is from a disposable-email service. Sign in with another address to start one."
+                    : ws.trialWithheld === "address_used"
+                      ? "This workspace started on Free, since your email address has already had its trial. Trials are one per address."
+                      : "Trials are one per person. This workspace started on Free."}
+                </p>
+              )}
+              {ws.plan.source === "trial" ? (
+                <p className="mt-3 text-xs text-ink-3">
+                  Trial caps: {TRIAL.limits.seats} seats, {TRIAL.limits.agents} agents and {TRIAL.limits.integrations} integration{TRIAL.limits.integrations === 1 ? "" : "s"}. AI usage and governed evaluations are counted across the whole trial.
+                </p>
+              ) : null}
+              <div className="mt-5 flex items-center gap-2 border-t border-line pt-4 text-sm text-ink-3">
+                <ReceiptIcon size={18} aria-hidden /> {billing.open ? "No invoices yet. They appear in Dodo Payments' portal after a checkout." : "No invoices. Payments aren't connected."}
+              </div>
+            </>
           )}
-          {ws.plan.source === "trial" ? (
-            <p className="mt-3 text-xs text-ink-3">
-              Trial caps: {TRIAL.limits.seats} seats, {TRIAL.limits.agents} agents and {TRIAL.limits.integrations} integration{TRIAL.limits.integrations === 1 ? "" : "s"}. AI usage and governed evaluations are counted across the whole trial.
-            </p>
-          ) : null}
-          <div className="mt-5 flex items-center gap-2 border-t border-line pt-4 text-sm text-ink-3">
-            <ReceiptIcon size={18} aria-hidden /> No invoices. Payments aren&apos;t connected.
-          </div>
         </Card>
 
         <Card>
@@ -97,7 +173,7 @@ export default async function BillingPage() {
         </h2>
         <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {SELF_SERVE_PLANS.map((p) => {
-            const isCurrent = p.id === ws.plan.planId && ws.plan.source !== "trial";
+            const isCurrent = sub ? p.id === sub.planId : p.id === ws.plan.planId && ws.plan.source !== "trial";
             return (
               <li key={p.id} className={`flex flex-col rounded-md border bg-surface p-5 shadow-e1 ${isCurrent ? "border-accent/50" : "border-line"}`}>
                 <div className="flex items-center justify-between gap-2">
@@ -115,19 +191,42 @@ export default async function BillingPage() {
                   </li>
                   <li>{p.limits.seats === 1 ? "1 seat" : `${p.limits.seats} seats`}</li>
                 </ul>
-                <p className="mt-auto pt-5">
-                  <span
-                    className="block rounded-full border border-dashed border-line-strong/50 px-3 py-2 text-center text-xs text-ink-3"
-                  >
-                    {isCurrent ? "Your current plan" : p.pricing.kind === "paid" ? "Unavailable until payments open" : "Available after the trial"}
-                  </span>
-                </p>
+                <div className="mt-auto pt-5">
+                  <PlanAction planId={p.id} isCurrent={isCurrent} open={billing.open} canManage={canManage} currentPaid={sub?.planId ?? null} cancelling={sub?.state === "cancellation_scheduled"} />
+                </div>
               </li>
             );
           })}
         </ul>
-        <p className="text-xs text-ink-3">Prices in USD. Applicable taxes are calculated at checkout once payments open.</p>
+        <p className="text-xs text-ink-3">Prices in USD. Applicable taxes are calculated at checkout{billing.open ? "" : " once payments open"}.</p>
       </section>
     </div>
+  );
+}
+
+function Unavailable({ children }: { children: string }) {
+  return <span className="block rounded-full border border-dashed border-line-strong/50 px-3 py-2 text-center text-xs text-ink-3">{children}</span>;
+}
+
+/** What a plan card offers: a real next step when payments are open to this workspace, otherwise the honest reason there isn't one. */
+function PlanAction({ planId, isCurrent, open, canManage, currentPaid, cancelling }: { planId: string; isCurrent: boolean; open: boolean; canManage: boolean; currentPaid: string | null; cancelling: boolean }) {
+  if (isCurrent) return <Unavailable>Your current plan</Unavailable>;
+  if (planId === "free") return <Unavailable>{currentPaid ? "Cancel a plan to move to Free" : "Available after the trial"}</Unavailable>;
+  if (!open) return <Unavailable>Unavailable until payments open</Unavailable>;
+  if (!canManage) return <Unavailable>Owners and admins choose plans</Unavailable>;
+  const name = getPlan(planId as Parameters<typeof getPlan>[0]).name;
+  if (currentPaid && isPaidPlanId(currentPaid) && isPaidPlanId(planId)) {
+    if (cancelling) return <Unavailable>Keep your plan to switch</Unavailable>;
+    const direction = planChangeDirection(currentPaid, planId);
+    return (
+      <Link href={`/app/billing?change=${planId}#billing-step`} className={buttonClasses(direction === "upgrade" ? "primary" : "secondary", "sm", "w-full")}>
+        {direction === "upgrade" ? `Upgrade to ${name}` : `Switch to ${name}`}
+      </Link>
+    );
+  }
+  return (
+    <Link href={`/app/billing?choose=${planId}#billing-step`} className={buttonClasses("primary", "sm", "w-full")}>
+      Choose {name}
+    </Link>
   );
 }

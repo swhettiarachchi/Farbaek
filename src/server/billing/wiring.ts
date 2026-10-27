@@ -117,7 +117,7 @@ export function billingDeps(fetchImpl?: Fetch): BillingDeps | null {
   const config = readBillingConfig();
   const admin = createSupabaseAdminClient();
   if (!config || !admin) return null;
-  const { rpc, planForProduct, apply } = shared(config, admin);
+  const { planForProduct, apply } = shared(config, admin);
   return {
     config,
     provider: createDodoClient({ apiKey: config.apiKey, baseUrl: config.baseUrl, mode: config.mode, fetch: fetchImpl }),

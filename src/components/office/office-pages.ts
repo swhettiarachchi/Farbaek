@@ -13,6 +13,7 @@ export const OFFICE_PAGES = [
   { segment: "health", href: "/health", label: "Health", short: "Health", group: "platform" },
   { segment: "controls", href: "/controls", label: "Controls", short: "Controls", group: "platform" },
   { segment: "models", href: "/models", label: "Models", short: "Models", group: "platform" },
+  { segment: "payments", href: "/payments", label: "Payments", short: "Payments", group: "platform" },
   { segment: "announcements", href: "/announcements", label: "Announcements", short: "News", group: "platform" },
   { segment: "staff", href: "/staff", label: "Staff", short: "Staff", group: "you" },
   { segment: "audit", href: "/audit", label: "Audit log", short: "Audit", group: "you" },

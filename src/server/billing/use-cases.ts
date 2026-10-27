@@ -28,9 +28,9 @@ export type BillingErrorCode =
   | "PROVIDER"
   | "UNKNOWN";
 
-export type BillingResult<T> = { ok: true; value: T } | { ok: false; code: BillingErrorCode; message: string };
+export type BillingResult<T> = { ok: true; value: T } | { ok: false; code: BillingErrorCode; message: string; detail?: ProviderErrorCode };
 
-const PROVIDER_MESSAGES: Record<ProviderErrorCode, string> = {
+export const PROVIDER_MESSAGES: Record<ProviderErrorCode, string> = {
   NOT_CONNECTED: "Payments aren't connected on this server.",
   UNAUTHORIZED: "Dodo Payments refused Farbaek's key. Nothing was charged. Farbaek has been told.",
   NOT_FOUND: "Dodo Payments doesn't know that subscription. Nothing was charged.",
@@ -55,7 +55,19 @@ export const BILLING_MESSAGES: Record<Exclude<BillingErrorCode, "PROVIDER">, str
 };
 
 const fail = <T>(code: Exclude<BillingErrorCode, "PROVIDER">): BillingResult<T> => ({ ok: false, code, message: BILLING_MESSAGES[code] });
-const providerFail = <T>(code: ProviderErrorCode): BillingResult<T> => ({ ok: false, code: "PROVIDER", message: PROVIDER_MESSAGES[code] });
+const providerFail = <T>(code: ProviderErrorCode): BillingResult<T> => ({ ok: false, code: "PROVIDER", message: PROVIDER_MESSAGES[code], detail: code });
+
+/** A failure as a short key for a redirect's query string: never free text. */
+export function billingErrorKey(result: { code: BillingErrorCode; detail?: ProviderErrorCode }): string {
+  return result.code === "PROVIDER" ? `PROVIDER_${result.detail ?? "UNAVAILABLE"}` : result.code;
+}
+
+/** The message for a key from billingErrorKey, or null for anything else. */
+export function billingErrorMessage(key: string | undefined): string | null {
+  if (!key) return null;
+  if (key.startsWith("PROVIDER_")) return (PROVIDER_MESSAGES as Record<string, string>)[key.slice(9)] ?? null;
+  return key !== "PROVIDER" && key in BILLING_MESSAGES ? BILLING_MESSAGES[key as keyof typeof BILLING_MESSAGES] : null;
+}
 
 export interface BillingAccount {
   state: SubscriptionState;

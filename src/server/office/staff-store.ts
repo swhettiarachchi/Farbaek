@@ -55,6 +55,8 @@ export const OFFICE_ERROR_CODES = [
   "CANARY_REQUIRED",
   "NOTHING_TO_CHANGE",
   "UNPRICED_MODEL",
+  "PRODUCT_EXISTS",
+  "NOT_REPLAYABLE",
   "UNEXPECTED_RESPONSE",
   "UNKNOWN",
 ] as const;
@@ -105,6 +107,8 @@ export const OFFICE_MESSAGES: Record<OfficeErrorCode, string> = {
   CANARY_REQUIRED: "Switch only to a candidate a finished canary compared with this tier in the last 7 days. Run one first.",
   NOTHING_TO_CHANGE: "This tier already uses its default model.",
   UNPRICED_MODEL: "Farbaek has no price for that model yet, so it can't serve customers. Add it to the rate card first (a code change).",
+  PRODUCT_EXISTS: "This plan already has a product for the current price list. Nothing was added.",
+  NOT_REPLAYABLE: "Only a failed or dead event can be replayed. This one is already queued or done.",
   UNEXPECTED_RESPONSE: "The database sent something unexpected. Nothing was changed.",
   UNKNOWN: "That didn't work, and nothing was changed. Try again in a moment.",
 };
@@ -165,6 +169,9 @@ export interface StaffStore {
   // The Model Change Canary (migration v57, ADR 0090)
   startCanary(actor: StaffActor, input: { tier: string; current: string; candidate: string; estimateUnits: number; reason: string }, meta: RequestMeta): Promise<StoreResult<string>>;
   setModel(actor: StaffActor, input: { tier: string; model: string | null; canaryId: string | null; reason: string }, strength: AuthStrength, meta: RequestMeta): Promise<StoreResult<null>>;
+  // Payments (migration v62, ADR 0100)
+  recordBillingProduct(actor: StaffActor, input: { mode: "test" | "live"; planId: string; productId: string; amountCents: number; currency: string; catalogVersion: string }, meta: RequestMeta): Promise<StoreResult<null>>;
+  replayWebhook(actor: StaffActor, input: { id: string }, meta: RequestMeta): Promise<StoreResult<null>>;
   publishAnnouncement(actor: StaffActor, input: { message: string; tone: "info" | "incident"; dismissible: boolean; endsAt: string | null; reason: string }, meta: RequestMeta): Promise<StoreResult<string>>;
   endAnnouncement(actor: StaffActor, input: { id: string; reason: string }, meta: RequestMeta): Promise<StoreResult<null>>;
   // Phase 3 (migration v22)
@@ -290,6 +297,13 @@ export function createStaffStore(admin: SupabaseClient): StaffStore {
         { p_actor: a.userId, p_session: a.sessionId, p_family: "anthropic", p_tier: i.tier, p_model: i.model, p_canary: i.canaryId, p_reason: i.reason, p_auth_strength: strength, ...m(meta) },
         nothing,
       ),
+    recordBillingProduct: (a, i, meta) =>
+      rpc(
+        "app_staff_record_billing_product",
+        { p_actor: a.userId, p_session: a.sessionId, p_provider: "dodo", p_mode: i.mode, p_plan: i.planId, p_product: i.productId, p_amount_cents: i.amountCents, p_currency: i.currency, p_catalog_version: i.catalogVersion, ...m(meta) },
+        nothing,
+      ),
+    replayWebhook: (a, i, meta) => rpc("app_staff_replay_webhook", { p_actor: a.userId, p_session: a.sessionId, p_id: i.id, ...m(meta) }, nothing),
     publishAnnouncement: (a, i, meta) =>
       rpc(
         "app_staff_publish_announcement",

@@ -21,6 +21,8 @@ import { unreadSupportCount } from "@/server/workspace/support";
 import { TRIAL, getPlan } from "@/core/billing/catalog";
 import { isAdminEmail } from "@/server/admin/access";
 import { loadAppContext } from "@/server/workspace/context";
+import { TestModeBand } from "@/components/billing/test-mode-band";
+import { checkoutOpenFor, readBillingConfig } from "@/server/billing/config";
 import { signOut } from "./actions";
 
 export const metadata: Metadata = {
@@ -177,6 +179,8 @@ export default async function AppLayout({ children }: Readonly<{ children: React
             </Link>
           </p>
         ) : null}
+
+        {ctx.mode === "live" && checkoutOpenFor(readBillingConfig(), current.id) ? <TestModeBand /> : null}
 
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-canvas/85 px-4 backdrop-blur-xl lg:hidden">
           <Brand />
