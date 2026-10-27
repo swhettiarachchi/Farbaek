@@ -58,7 +58,9 @@ Billing has been `not_connected` since the start. The plan catalog, the internal
 - **Downgrades:** `effective_at: next_billing_date` with `do_not_bill`, shown with the date.
 - **Cancellation:** sets `cancel_at_next_billing_date`, shown with the date access ends. "Keep my plan" clears it.
 
-**8. Usage grants follow the subscription.** `subscription_started_at` is the anchor for `currentGrant`, so a paid period resets on the subscription's day of the month. Evaluation limits still use calendar months.
+**8. Owners and admins are emailed when the plan changes state:** active, a failed payment, paused, cancelling (with the end date), ended, or kept. A renewal that changes no state sends nothing. Billing emails go out whatever a person's email choices, since they're about the account.
+
+**9. Usage grants follow the subscription.** `subscription_started_at` is the anchor for `currentGrant`, so a paid period resets on the subscription's day of the month. Evaluation limits still use calendar months.
 
 ## Consequences
 
@@ -76,6 +78,5 @@ Billing has been `not_connected` since the start. The plan catalog, the internal
 **Not done yet:**
 - live mode, which needs the go-live checklist, including KYC;
 - annual prices;
-- emails on billing changes;
 - refunds and disputes, which are stored and shown in Office Space but don't change state;
 - billing tests 7, 8, 15 and 18 against real Dodo test-mode webhooks, which need the owner's keys.

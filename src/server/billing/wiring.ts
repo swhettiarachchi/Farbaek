@@ -8,7 +8,9 @@ import { PLAN_CATALOG_VERSION } from "@/core/billing/catalog";
 import type { NormalizedSubscription, PaidPlanId, ProviderEvent, ProviderMode } from "@/core/billing/provider";
 import { isPaidPlanId, type AppliedState } from "@/core/billing/provider-state";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
+import type { SubscriptionState } from "@/core/billing/trial";
 import { readBillingConfig, type BillingConfig } from "./config";
+import { sendBillingNotice } from "./notices";
 import { createDodoClient, type Fetch } from "./providers/dodo/client";
 import type { BillingAccount, BillingDeps } from "./use-cases";
 import type { ApplyResult, ClaimedEvent, WebhookDeps } from "./webhooks";
@@ -52,6 +54,8 @@ function shared(config: BillingConfig, admin: Admin) {
   }
 
   async function apply(orgId: string, sub: NormalizedSubscription, state: AppliedState, syncedAt: Date, source: string): Promise<ApplyResult> {
+    const before = await admin.from("billing_accounts").select("state").eq("org_id", orgId).maybeSingle();
+    const previous = (before.data as { state?: SubscriptionState } | null)?.state ?? null;
     const result = await rpc("app_billing_apply_subscription", {
       p_org: orgId,
       p_provider: config.provider,
@@ -67,7 +71,10 @@ function shared(config: BillingConfig, admin: Admin) {
       p_synced_at: syncedAt.toISOString(),
       p_source: source.slice(0, 80),
     });
-    return z.enum(APPLY_RESULTS).parse(result);
+    const applied = z.enum(APPLY_RESULTS).parse(result);
+    // The owners and admins hear about a change of state, whichever path made it.
+    if (applied === "applied" && previous !== state.state) await sendBillingNotice(admin, orgId, previous, state);
+    return applied;
   }
 
   return { rpc, planForProduct, apply };

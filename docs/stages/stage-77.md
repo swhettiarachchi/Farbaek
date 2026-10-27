@@ -37,6 +37,8 @@ The owner asked to connect Dodo Payments. Their Dodo business is set up but not 
   - upgrades shown with Dodo's prorated amount, and downgrades with the date they take effect.
 - **Everyone else** sees "Payments aren't connected" as before.
 
+**Emails:** owners and admins are told when the plan changes state (active, payment due, paused, cancelling with its end date, ended, kept), from either the webhook or a person's own action. Renewals send nothing (`src/server/billing/notices.ts`).
+
 **Usage grants:** paid periods follow the subscription's start day (`workspaceGrant`). The go-live checklist's anchor item is now connected.
 
 **Office Space → Payments:**
@@ -60,7 +62,7 @@ The owner asked to connect Dodo Payments. Their Dodo business is set up but not 
 
 - **Unit tests,** all on mocks with signed fixtures:
   - `src/core/billing/provider-state.test.ts` (10);
-  - `src/server/billing/billing.test.ts` (21): signatures (valid, tampered, wrong secret, stale and future timestamps, several `v1` entries, with and without `whsec_`); the route (503, 401, 413, a replay is a no-op, state from the provider); the client's request bodies (no trial, no `subscription_data`, tax-exclusive monthly products); the use cases (role, allowlist, consent, price mismatch, a second subscription, cancel and keep, preview, upgrade and downgrade bodies, the portal);
+  - `src/server/billing/billing.test.ts` (23, with the notices): signatures (valid, tampered, wrong secret, stale and future timestamps, several `v1` entries, with and without `whsec_`); the route (503, 401, 413, a replay is a no-op, state from the provider); the client's request bodies (no trial, no `subscription_data`, tax-exclusive monthly products); the use cases (role, allowlist, consent, price mismatch, a second subscription, cancel and keep, preview, upgrade and downgrade bodies, the portal);
   - config and status (live refused, names only).
 - **Migration v62 in PGlite** (`tests/db/payments.test.ts`, 10):
   - browsers can't reach the functions or the tables;
@@ -93,7 +95,7 @@ The owner asked to connect Dodo Payments. Their Dodo business is set up but not 
 
 - **A real test-mode checkout, webhook and renewal.** They need the owner's Dodo test keys (`docs/billing/dodo-test-mode.md`); then billing tests 7, 8, 15 and 18 run for real. Also still to confirm: that the subscription carries the checkout's metadata, and Dodo's test cards.
 - **Office Space → Payments in a browser.** It needs a staff session. Its data and actions are covered by the tests above.
-- **Not built:** live mode (KYC and the rest of the go-live checklist), annual prices, emails on billing changes, and state changes from refunds and disputes. Those are stored and listed, not acted on.
+- **Not built:** live mode (KYC and the rest of the go-live checklist), annual prices, and state changes from refunds and disputes. Those are stored and listed, not acted on.
 
 ### Next (the owner)
 

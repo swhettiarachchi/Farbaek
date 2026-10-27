@@ -10,6 +10,7 @@ import { billingStatus, checkoutOpenFor, readBillingConfig, type BillingConfig }
 import { createDodoClient, type Fetch } from "./providers/dodo/client";
 import { signWebhook, verifyDodoWebhook } from "./providers/dodo/webhook";
 import { changePlan, openPortal, previewPlanChange, setCancelAtPeriodEnd, startCheckout, type BillingAccount, type BillingDeps } from "./use-cases";
+import { billingNotice } from "./notices";
 import { processWebhooks, receiveWebhook, type ClaimedEvent, type WebhookDeps } from "./webhooks";
 
 const MOCK_SECRET = `whsec_${Buffer.from("mock-signing-key-for-tests-only-32b").toString("base64")}`;
@@ -366,5 +367,24 @@ describe("billing config", () => {
     const on = billingStatus({ ...env, DODO_PAYMENTS_API_KEY: "secret_value_mock" });
     expect(on).toEqual({ on: true, detail: "Dodo test mode, open to 1 workspace" });
     expect(JSON.stringify(on)).not.toContain("secret_value_mock");
+  });
+});
+
+describe("billing notices (mock states)", () => {
+  const base: AppliedState = { state: "active", paidPlanId: "pro", paidThrough: new Date("2026-12-03T09:00:00Z"), suspendedReason: null, cancelAtPeriodEnd: false, startedAt: NOW };
+  it("tells owners and admins about a change of state, and nothing on a renewal", () => {
+    expect(billingNotice("trialing", base, "Mock Studio")).toMatchObject({ subject: "Mock Studio is on Pro", link: { path: "/app/billing" } });
+    expect(billingNotice("trialing", base, "Mock Studio")!.lines[0]).toContain("renewing on December 3, 2026");
+    expect(billingNotice("active", base, "Mock Studio")).toBeNull();
+    expect(billingNotice("cancellation_scheduled", base, "Mock Studio")!.subject).toBe("Mock Studio keeps Pro");
+  });
+
+  it("says when a cancelled plan ends, and what a failed payment means", () => {
+    const cancelling = billingNotice("active", { ...base, state: "cancellation_scheduled", cancelAtPeriodEnd: true }, "Mock Studio")!;
+    expect(cancelling.lines[0]).toBe("Pro keeps working until December 3, 2026. Then Mock Studio moves to Free and nothing more is charged.");
+    expect(billingNotice("active", { ...base, state: "past_due" }, "Mock Studio")).toMatchObject({ subject: "Mock Studio: a payment didn't go through", link: { label: "Update payment method" } });
+    expect(billingNotice("past_due", { ...base, state: "suspended", suspendedReason: "payment" }, "Mock Studio")!.lines[1]).toContain("data are kept");
+    expect(billingNotice("cancellation_scheduled", { ...base, state: "expired", paidPlanId: null, paidThrough: null }, "Mock Studio")!.subject).toBe("Mock Studio is on Free");
+    for (const n of [cancelling]) expect(JSON.stringify(n)).not.toContain("—");
   });
 });
