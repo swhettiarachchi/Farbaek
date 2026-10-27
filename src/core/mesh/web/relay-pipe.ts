@@ -51,12 +51,15 @@ export class WebRelay {
       res = await (this.endpoint.fetcher ?? fetch)(`${this.endpoint.base}${path}`, {
         ...init,
         credentials: "same-origin",
+        // The relay never redirects; a redirect is the app sending a signed-out browser to sign in.
+        redirect: "manual",
         signal: AbortSignal.timeout(init.timeoutMs ?? 30_000),
         headers: { ...this.endpoint.headers, ...(init.headers as Record<string, string> | undefined) },
       });
     } catch {
       throw new WebRelayError("UNAVAILABLE", "Farbaek couldn't be reached. Check this device's internet connection.");
     }
+    if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) throw new WebRelayError("UNAUTHENTICATED", "You're signed out. Sign in again, then try again.");
     if (res.ok) return res;
     const body = ErrorBody.safeParse(await res.json().catch(() => null));
     if (body.success) throw new WebRelayError(body.data.error.code, body.data.error.message);

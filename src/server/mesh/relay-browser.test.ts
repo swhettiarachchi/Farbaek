@@ -1,7 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const state = vi.hoisted(() => ({ ctx: null as unknown, allowed: true as boolean, rpcError: null as { message: string } | null }));
-vi.mock("@/server/workspace/context", () => ({ loadAppContext: async () => state.ctx }));
+const state = vi.hoisted(() => ({ ctx: null as unknown, signedIn: true as boolean, contextLoads: 0, allowed: true as boolean, rpcError: null as { message: string } | null }));
+vi.mock("@/server/workspace/context", () => ({
+  isDemoMode: () => false,
+  loadAppContext: async () => {
+    state.contextLoads++;
+    return state.ctx;
+  },
+}));
+vi.mock("@/server/supabase/server", () => ({
+  createSupabaseServerClient: async () => ({ auth: { getClaims: async () => ({ data: state.signedIn ? { claims: { sub: USER } } : null }) } }),
+}));
 vi.mock("@/server/supabase/admin", () => ({
   createSupabaseAdminClient: () => ({ rpc: async () => ({ data: state.allowed, error: state.rpcError }) }),
 }));
@@ -27,6 +36,8 @@ const call = async (r: Request) => {
 
 beforeEach(() => {
   state.ctx = live;
+  state.signedIn = true;
+  state.contextLoads = 0;
   state.allowed = true;
   state.rpcError = null;
 });
@@ -76,6 +87,13 @@ describe("a browser's relay routes", () => {
 
     expect((await presence.POST(new Request(url, { method: "POST", headers, body: JSON.stringify({ on: false }) }))).status).toBe(200);
     expect(relayHub().isReachable(`browser:${USER}:${DEVICE}`)).toBe(false);
+  });
+
+  it("answer 401 in words when the session has ended, instead of a page helper's redirect to sign-in", async () => {
+    state.signedIn = false;
+    expect(await call(request())).toMatchObject({ status: 401, body: "UNAUTHENTICATED", seen: null });
+    expect(await call(request("GET"))).toMatchObject({ status: 401, body: "UNAUTHENTICATED" });
+    expect(state.contextLoads).toBe(0);
   });
 
   it("let a read through without an origin, since it can't change anything or be read by another site", async () => {
