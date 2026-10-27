@@ -17,7 +17,7 @@ const trialBase = getPlan(TRIAL.basePlan).name;
 /** What makes a Farbaek plan worth more than its price elsewhere. Each line is a rule the platform enforces. */
 const PROMISES = [
   { icon: ArrowsClockwiseIcon, title: "Nothing expires at the end of the month", body: "Unused AI usage rolls over for two months, oldest first." },
-  { icon: SparkleIcon, title: "Failed attempts are given back", body: "When an AI call fails, times out or returns nothing usable, its usage returns to you automatically." },
+  { icon: SparkleIcon, title: "Failed attempts are given back", body: "When an AI call fails, or the agent's fix for failed checks doesn't pass them either, that usage returns to you, up to a monthly cap." },
   { icon: WalletIcon, title: "No surprise bills", body: "Plans never run into overage. You see the share used and when it resets." },
   { icon: ShieldCheckIcon, title: "Security checks from Plus", body: "Others keep them for business plans. Farbaek includes them at $19.99." },
 ] as const;
@@ -37,7 +37,7 @@ const PRICING_FAQ: FaqItem[] = [
   },
   {
     q: "What if the AI gets it wrong?",
-    a: "When a call fails, times out or returns nothing usable, its usage is given back automatically. Paid plans also set aside about 5% of each month's AI budget for free retries when the agent fixes what failed checks found. That part is coming soon.",
+    a: "When a call fails, times out or returns nothing usable, its usage is given back automatically. And when you ask the agent to fix what failed checks found and the fix doesn't pass them either, the fix's usage is given back too, up to about 5% of your monthly AI usage, on paid plans and during the trial.",
   },
   {
     q: "What happens when I reach a limit?",

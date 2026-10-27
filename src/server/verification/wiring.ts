@@ -57,7 +57,11 @@ export async function verificationDeps(person: { orgId: string; userId: string; 
       newKey: () => crypto.randomUUID(),
       // Tells the person how the checks ended (ADR 0060); null while email is off.
       notify: serverNotifier(),
-      afterChecks: async (taskId) => (await import("@/server/workflows/wiring")).settleWorkflowStep(taskId),
+      afterChecks: async (taskId) => {
+        await (await import("@/server/workflows/wiring")).settleWorkflowStep(taskId);
+        // A fix whose checks failed too gets its AI usage back (ADR 0101).
+        await (await import("@/server/workspace/fix-retry")).settleFixRetry(taskId);
+      },
     },
   };
 }

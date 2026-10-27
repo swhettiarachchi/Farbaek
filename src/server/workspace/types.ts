@@ -56,6 +56,8 @@ export const TaskRowSchema = z.object({
   project_id: z.string(),
   created_at: z.string(),
   updated_at: z.string(),
+  // The task this one fixes (migration v63, ADR 0101).
+  fix_of_task_id: z.string().nullable().optional(),
 });
 export type Task = {
   id: string;
@@ -66,7 +68,12 @@ export type Task = {
   projectName?: string;
   createdAt: string;
   updatedAt: string;
+  /** The task whose failed checks this one fixes (ADR 0101). */
+  fixOf?: string | null;
 };
+
+/** A fix started for a task whose checks failed (ADR 0101). */
+export type TaskFix = { id: string; title: string; state: (typeof TASK_STATES)[number] };
 
 export const TransitionRowSchema = z.object({
   event_id: z.string(),
@@ -346,6 +353,8 @@ export interface WorkspaceReader {
   listCheckReceipts(orgId: string, taskId: string): Promise<CheckReceiptRecord[]>;
   /** The newest attempt to verify a task's applied change in one step, or null (ADR 0047). */
   getLatestVerification(orgId: string, taskId: string): Promise<VerificationRecord | null>;
+  /** The newest fix started for this task, if any (ADR 0101). */
+  getFixFor(orgId: string, taskId: string): Promise<TaskFix | null>;
   /** The workspace's invitations, newest first. Empty unless the reader is an owner or admin. */
   listInvitations(orgId: string): Promise<InvitationRecord[]>;
   /** The workspace's paired agents, revoked ones included, newest first. */
