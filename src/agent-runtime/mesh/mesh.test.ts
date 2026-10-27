@@ -185,6 +185,7 @@ describe("nearby transfer between two agents", { timeout: 30_000 }, () => {
   it("pairs only when both people confirm the same code", async () => {
     const { a, b } = await paired();
     expect(a.snapshot().devices.map((d) => d.name)).toEqual(["Laptop"]);
+    expect(a.snapshot().devices[0]!.via).toBe("nearby");
     expect(b.snapshot().devices.map((d) => d.name)).toEqual(["Desk"]);
 
     const c = await makeNode("Stranger");

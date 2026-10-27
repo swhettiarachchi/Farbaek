@@ -402,3 +402,14 @@ Known limits: public repositories only. Private ones need a GitHub connection, w
 | Browser routes | Another site driving a person's relay; a browser reaching another workspace | The person's session in the live app, same origin for writes, a device id, 600 requests a minute per person; in the hub the browser belongs to the person's current workspace only | `relay-browser.test.ts`, SE-033 |
 | What the phone sends | Credentials or secrets sent by mistake | The agent's rules: names checked, credentials files and secret-looking text left out (not guaranteed), sizes capped; the computer accepts each folder and checks every chunk | `browser-mesh.test.ts` |
 | Records | Keeping more than needed | One audit event per session with a browser, as the person, with the two parties, bytes and how it ended (v61) | `tests/db/mesh-relay.test.ts` |
+
+## Receiving on a phone or browser (2026-10-27, ADR 0097)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| Being reachable | A browser reachable without the person knowing, or for longer than they meant | A switch, off on every page load; presence only in the relay's memory, gone once the page stops polling; signed-out or lost-workspace sessions stop the loop | `relay-browser.test.ts`, `browser-receive.test.ts` |
+| Who can send | Someone else in the workspace, or the server, sending files to a person's phone | Calls from computers the browser didn't pair with are closed unjoined; pair calls closed; after the handshake the key must be the paired one, whatever the call claimed | `browser-receive.test.ts`, SE-034 |
+| What's offered | A list of files that climbs out of its folder, or is malformed or too large | The agent's checks: size, Capsule schema, digest, `checkManifest` with disk-path rules, before the person is asked | `browser-receive.test.ts`, SE-034 |
+| What's kept | Altered or partial files kept as if they were whole | Every 4 MiB chunk and every file checked against its BLAKE3 hash; a mismatch, cancel or drop removes everything; only a fully checked transfer is sealed, and unsealed folders are removed after a reload | `browser-receive.test.ts`, SE-034, the live check |
+| Running what arrives | A received file run or opened by Farbaek | Files are only handed to the browser's download or share sheet; nothing is opened, previewed or run | Design |
+| The browser's storage | Filling the device | The Origin Private File System after a space check with 64 MB spare; otherwise memory capped at 200 MB, with Accept unavailable above it | Design; the live check |

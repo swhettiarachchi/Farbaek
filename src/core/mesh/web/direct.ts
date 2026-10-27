@@ -164,3 +164,62 @@ export async function openDirectWeb(signal: BytePipe, iceServers: string[]): Pro
   answered.catch(() => undefined);
   return new ChannelPipe(channel, pc);
 }
+
+/** Answers a direct link from a paired computer, set up over `signal` (a relay session). Throws WebDirectError when the networks don't allow it. */
+export async function answerDirectWeb(signal: BytePipe, iceServers: string[]): Promise<BytePipe> {
+  const lines = new SignalLines(signal);
+  const pc = new RTCPeerConnection({ iceServers: iceServers.map((urls) => ({ urls })) });
+  pc.onicecandidate = (e) => {
+    if (e.candidate) void lines.send({ t: "ice", candidate: e.candidate.toJSON() as { candidate: string; sdpMid?: string | null; sdpMLineIndex?: number | null } }).catch(() => undefined);
+  };
+  const opened = new Promise<ChannelPipe>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new WebDirectError("The two networks didn't let a direct link through within 20 seconds.")), OPEN_TIMEOUT_MS);
+    pc.ondatachannel = (e) => {
+      const channel = e.channel;
+      // Handlers go on at once: the computer starts its handshake as soon as the channel opens.
+      const pipe = new ChannelPipe(channel, pc);
+      const ready = () => {
+        clearTimeout(timer);
+        resolve(pipe);
+      };
+      if (channel.readyState === "open") ready();
+      else channel.onopen = ready;
+    };
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === "failed") {
+        clearTimeout(timer);
+        reject(new WebDirectError("The two networks didn't let a direct link through."));
+      }
+    };
+  });
+  const negotiated = (async () => {
+    let remoteSet = false;
+    const early: RTCIceCandidateInit[] = [];
+    for (;;) {
+      const s = await lines.next();
+      if (s === null) return;
+      if (s.t === "bye") throw new WebDirectError("The computer couldn't open a direct link.");
+      if (s.t === "sdp" && s.type === "offer" && !remoteSet) {
+        await pc.setRemoteDescription({ type: "offer", sdp: s.sdp });
+        remoteSet = true;
+        for (const c of early.splice(0)) await pc.addIceCandidate(c).catch(() => undefined);
+        await pc.setLocalDescription(await pc.createAnswer());
+        await lines.send({ t: "sdp", type: "answer", sdp: pc.localDescription!.sdp });
+      } else if (s.t === "ice") {
+        if (remoteSet) await pc.addIceCandidate(s.candidate).catch(() => undefined);
+        else early.push(s.candidate);
+      }
+    }
+  })();
+  let pipe: ChannelPipe;
+  try {
+    pipe = await Promise.race([opened, negotiated.then(() => opened)]);
+  } catch (error) {
+    pc.close();
+    signal.close();
+    throw error instanceof WebDirectError ? error : new WebDirectError("The direct link couldn't be set up.");
+  }
+  // The computer closes the setup once its side is open; nothing else goes through the server.
+  negotiated.catch(() => undefined);
+  return pipe;
+}

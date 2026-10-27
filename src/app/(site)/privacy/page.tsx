@@ -147,7 +147,9 @@ const SECTIONS: LegalSection[] = [
         </p>
         <p>
           If you use Mesh on a phone or in a browser, that browser keeps its own device key and the computers you paired it with in its storage on that device; the key&apos;s
-          private half can&apos;t be read out of the browser. Clearing the site&apos;s data there forgets them.
+          private half can&apos;t be read out of the browser. Clearing the site&apos;s data there forgets them. While you make that browser reachable, our server remembers it
+          in memory only, and forgets it once the page closes. Files you receive there are kept in that browser&apos;s own storage on the device, or in the page&apos;s memory,
+          until you clear them; we don&apos;t keep a copy.
         </p>
         <p>
           If you turn on notifications on a device, we send them through that browser&apos;s push service: Google, Apple, Mozilla or Microsoft. Each message is encrypted for

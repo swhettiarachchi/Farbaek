@@ -5,7 +5,9 @@ vi.mock("@/server/workspace/context", () => ({ loadAppContext: async () => state
 vi.mock("@/server/supabase/admin", () => ({
   createSupabaseAdminClient: () => ({ rpc: async () => ({ data: state.allowed, error: state.rpcError }) }),
 }));
-const { withRelayBrowser } = await import("./relay-http");
+const { relayHub, withRelayBrowser } = await import("./relay-http");
+const presence = await import("@/app/api/v1/mesh/relay/presence/route");
+const joinRoute = await import("@/app/api/v1/mesh/relay/sessions/[id]/join/route");
 
 const USER = "11111111-1111-4111-8111-111111111111";
 const ORG = "22222222-2222-4222-8222-222222222222";
@@ -49,6 +51,31 @@ describe("a browser's relay routes", () => {
     state.allowed = true;
     state.rpcError = { message: "down" };
     expect((await call(request())).status).toBe(503);
+  });
+
+  it("keep a browser reachable in memory only, hand it calls from its workspace, and let it join (ADR 0097)", async () => {
+    const url = "https://www.farbaek.com/api/v1/mesh/relay/presence";
+    const headers = { origin: "https://www.farbaek.com", "x-farbaek-device": DEVICE, "content-type": "application/json" };
+    const phone = "0123456789abcdef";
+    const on = await presence.POST(new Request(url, { method: "POST", headers, body: JSON.stringify({ fingerprint: phone, on: true }) }));
+    expect(on.status).toBe(200);
+    expect(relayHub().isReachable(`browser:${USER}:${DEVICE}`)).toBe(true);
+    expect((await presence.POST(new Request(url, { method: "POST", headers, body: JSON.stringify({ on: true }) }))).status).toBe(400);
+
+    // A computer of another workspace can't reach it; one of the same workspace can.
+    expect(relayHub().call({ agentId: "agent-elsewhere", orgId: "44444444-4444-4444-8444-444444444444" }, phone, "fedcba9876543210", "relay")).toMatchObject({ ok: false, code: "NOT_REACHABLE" });
+    const called = relayHub().call({ agentId: "agent-studio", orgId: ORG }, phone, "fedcba9876543210", "direct");
+    if (!called.ok) throw new Error(called.message);
+    const waited = await presence.GET(new Request(`${url}?wait=0`, { headers: { "x-farbaek-device": DEVICE } }));
+    expect(((await waited.json()) as { data: unknown }).data).toEqual({ calls: [{ session: called.value.session, from: "fedcba9876543210", mode: "direct" }] });
+
+    const join = (id: string, h: Record<string, string> = headers) => joinRoute.POST(new Request(`https://www.farbaek.com/api/v1/mesh/relay/sessions/${id}/join`, { method: "POST", headers: h, body: "{}" }), { params: Promise.resolve({ id }) });
+    expect((await join(called.value.session, { ...headers, origin: "https://evil.example" })).status).toBe(403);
+    expect((await join(called.value.session)).status).toBe(200);
+    expect((await join("55555555-5555-4555-8555-555555555555")).status).toBe(404);
+
+    expect((await presence.POST(new Request(url, { method: "POST", headers, body: JSON.stringify({ on: false }) }))).status).toBe(200);
+    expect(relayHub().isReachable(`browser:${USER}:${DEVICE}`)).toBe(false);
   });
 
   it("let a read through without an origin, since it can't change anything or be read by another site", async () => {

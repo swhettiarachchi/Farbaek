@@ -11,7 +11,14 @@ import { commandEnv } from "@/agent-runtime/broker";
 import { initiate, respond } from "@/agent-runtime/mesh/channel";
 import { XXHandshake, fingerprint, generateKeyPair, pairingCode } from "@/agent-runtime/mesh/noise";
 import { MESH_PROLOGUE } from "@/core/mesh/protocol";
-import { WebXXHandshake, generateWebKeyPair, webPairingCode } from "@/core/mesh/web/noise";
+import { WebXXHandshake, generateWebKeyPair, webFingerprint, webPairingCode } from "@/core/mesh/web/noise";
+import { WebMeshListener, type TrustedComputer } from "@/core/mesh/web/listen";
+import { packPicked } from "@/core/mesh/web/pack";
+import type { WebIncoming } from "@/core/mesh/web/receive";
+import { WebRelay } from "@/core/mesh/web/relay-pipe";
+import { memorySink } from "@/core/mesh/web/sinks";
+import { initiateWeb } from "@/core/mesh/web/wire";
+import { manifestDigest } from "@/core/mesh/capsule";
 import { MeshNode } from "@/agent-runtime/mesh/node";
 import { fakeDirect } from "@/agent-runtime/mesh/direct-fake";
 import { fakeRelay } from "@/agent-runtime/mesh/relay-fake";
@@ -271,4 +278,77 @@ describe("SE-033 A phone paired by someone in the middle", () => {
       await node.close();
     }
   }, 30_000);
+});
+
+async function until(check: () => boolean, ms = 15_000): Promise<void> {
+  const end = Date.now() + ms;
+  while (!check()) {
+    if (Date.now() > end) throw new Error("Timed out waiting");
+    await new Promise((r) => setTimeout(r, 10));
+  }
+}
+
+describe("SE-034 A phone receiving from someone it didn't pair with", () => {
+  it("ignores unpaired computers, refuses another key and a climbing path, and keeps nothing that doesn't match", async () => {
+    const relay = fakeRelay();
+    relay.client("browser-phone");
+    const web = new WebRelay({ base: "http://localhost:3000/api/v1/agent/relay", headers: { Authorization: "Bearer token-browser-phone" }, fetcher: relay.fetcher });
+    const key = await generateWebKeyPair();
+    const me = await webFingerprint(key.publicKey);
+    const paired = generateKeyPair();
+    const trusted: TrustedComputer[] = [{ name: "Studio PC", fingerprint: fingerprint(paired.publicKey), publicKey: new Uint8Array(paired.publicKey) }];
+    const offers: WebIncoming[] = [];
+    const listener = new WebMeshListener({ relay: web, key, fingerprint: me, name: () => "Phone", trusted: async () => trusted, iceServers: [], onIncoming: (i) => offers.push(i), onUpdate: () => undefined });
+    await listener.setReachable(true);
+    try {
+      // A computer the phone never paired with: its call is closed without being joined.
+      const stranger = generateKeyPair();
+      const strangerLink = relay.client("agent-stranger");
+      const unjoined = await strangerLink.call(me, fingerprint(stranger.publicKey), "relay");
+      await expect(initiate(strangerLink.open(unjoined), stranger, { v: 1, name: "Studio PC", purpose: "transfer" }, 3_000)).rejects.toThrow();
+
+      // One that claims the paired computer's fingerprint but holds another key: refused after the handshake.
+      relay.client("browser-other");
+      const other = new WebRelay({ base: "http://localhost:3000/api/v1/agent/relay", headers: { Authorization: "Bearer token-browser-other" }, fetcher: relay.fetcher });
+      const claimed = await initiateWeb(other.open(await other.call(me, trusted[0]!.fingerprint, "relay")), await generateWebKeyPair(), { v: 1, name: "Studio PC", purpose: "transfer" }, 10_000);
+      expect((await claimed.receive(10_000)).message).toMatchObject({ t: "error", code: "not_paired" });
+
+      // The paired computer, lying: a path outside the folder is refused before anyone is asked.
+      const link = relay.client("agent-studio");
+      const call = async () => initiate(link.open(await link.call(me, trusted[0]!.fingerprint, "relay")), paired, { v: 1, name: "Studio PC", purpose: "transfer" }, 10_000);
+      const bytes = Buffer.alloc(5 * 1024 * 1024, 7);
+      const packed = await packPicked([new File([bytes], "startup.cmd.txt")], "Folder");
+      const climbing = { ...packed.manifest, files: packed.manifest.files.map((f) => ({ ...f, path: "../Startup/run.txt" })) };
+      const first = await call();
+      const climbingBody = Buffer.from(JSON.stringify(climbing));
+      await first.sendBlob({ t: "offer", session: crypto.randomUUID(), digest: manifestDigest(climbing), size: climbingBody.length }, climbingBody);
+      expect((await first.receive(10_000)).message).toMatchObject({ t: "error", code: "bad_offer" });
+      expect(offers).toEqual([]);
+
+      // A chunk that doesn't match: the phone stops and keeps nothing.
+      const second = await call();
+      const body = Buffer.from(JSON.stringify(packed.manifest));
+      await second.sendBlob({ t: "offer", session: crypto.randomUUID(), digest: packed.digest, size: body.length }, body);
+      await until(() => offers.length === 1);
+      const sink = memorySink();
+      const accepted = offers[0]!.accept(sink);
+      const accept = (await second.receive(10_000)).message;
+      if (accept.t !== "accept") throw new Error("Expected accept");
+      await second.receiveBlob(accept.size, 10_000);
+      await second.send({ t: "file", f: 0, from: 0 });
+      const changed = Buffer.from(bytes);
+      changed[4_000_000] = 8;
+      try {
+        for (let at = 0; at < changed.length; at += 60 * 1024) await second.send({ t: "data" }, changed.subarray(at, at + 60 * 1024));
+      } catch {
+        // The phone stopped listening.
+      }
+      await accepted;
+      expect(offers[0]!.state).toBe("failed");
+      expect(await sink.files()).toEqual([]);
+      expect((await second.receive(10_000)).message).toMatchObject({ t: "error", code: "chunk_mismatch" });
+    } finally {
+      await listener.setReachable(false);
+    }
+  }, 60_000);
 });

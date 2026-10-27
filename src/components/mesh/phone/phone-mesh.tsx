@@ -13,6 +13,7 @@ import { WebOutgoing, type WebOutgoingView } from "@/core/mesh/web/send";
 import { initiateWeb, type WebSecureChannel } from "@/core/mesh/web/wire";
 import { formatBytes } from "@/core/workspace/files";
 import { forgetComputer, listComputers, loadDevice, renameDevice, saveComputer, type BrowserDevice, type StoredComputer } from "./device-store";
+import { ReceiveFiles } from "./receive-files";
 
 /** A computer of this workspace with Farbaek's relay on, and whether it's reachable this moment. */
 export interface WorkspaceComputer {
@@ -51,7 +52,8 @@ function Note({ tone = "text-ink-2", icon: NoteIcon = WarningCircleIcon, childre
 /**
  * This phone or browser in Mesh (ADR 0096): pair once with one of the
  * workspace's computers through Farbaek, comparing the same code on both
- * screens, then send it files, directly when the networks allow it.
+ * screens, then send it files, directly when the networks allow it, and
+ * receive folders from it while this page is open (ADR 0097).
  */
 export function PhoneMesh({ computers, unavailable }: { computers: WorkspaceComputer[]; unavailable: string | null }) {
   const [device, setDevice] = useState<BrowserDevice | null>(null);
@@ -291,6 +293,8 @@ export function PhoneMesh({ computers, unavailable }: { computers: WorkspaceComp
       ) : null}
 
       {problem ? <Note tone="text-failed">{problem}</Note> : null}
+
+      <ReceiveFiles device={device} stun={stun} pairedCount={paired.length} />
 
       {paired.length > 0 ? (
         <div className="grid gap-2">

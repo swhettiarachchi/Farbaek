@@ -75,6 +75,8 @@ Through the relay, the two agents run the same Noise handshake, offer, checks an
 
 A phone needs no app. On the computer, with **Be reachable over the internet** on, choose **Pair a phone or browser**: it waits two minutes. On the phone, sign in to Farbaek, open **Mesh**, and under **This phone or browser** choose the computer and **Pair**. The same six-digit code shows on both screens; confirm on both. Then pick files on the phone and **Send over the internet**, and accept them on the computer.
 
+To send to the phone (ADR 0097), turn on **Be reachable while this page is open** under **Receive files** on the phone, and keep the page open. On the computer, choose the folder, pick the phone in **Send to** (it shows "(phone or browser)") and choose **Send over the internet**; **Send** on this network is unavailable for phones. Accept on the phone. Every piece is checked there, and the files stay in the browser until you save or clear them. Phones paired with Agent 0.5.0 show as computers until paired again.
+
 **Checked so far:** the relay with two agents in one process through the real hub (`mesh.test.ts`); a direct link between two real agent windows on one computer, through a local relay and Farbaek's STUN server, in Chromium's WebRTC. A transfer between two computers on different networks is still to be checked.
 
 To check Nearby by script, run two windows with separate scratch data folders (`FARBAEK_AGENT_DATA_DIR`) and the development-only folder overrides `FARBAEK_AGENT_TEST_SEND_FOLDER` and `FARBAEK_AGENT_TEST_SAVE_FOLDER`, which packaged builds ignore.
