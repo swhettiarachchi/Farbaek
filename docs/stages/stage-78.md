@@ -49,5 +49,7 @@ Paid plans hold back about 5% of their AI budget for free retries, and the prici
 
 ### Not verified yet
 
+- **The fix card in a browser:** the demo workspace has no failed task, and the PC was under 1 GB free, too little for a local build. The card uses only existing primitives (Card, Notice, TaskStateBadge, the shared submit button), and the design tests pass.
+
 - **A real fix end to end in production:** a task whose checks fail, then a fix whose checks fail, then the usage returning. It needs a connected sandbox and a real task, which the owner's own work will produce.
 
