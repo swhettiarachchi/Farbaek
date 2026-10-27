@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Farbaek</string>
+    <!-- The site this app may open full screen; the site names the app back in /.well-known/assetlinks.json. -->
+    <string name="asset_statements" translatable="false">[{\"relation\": [\"delegate_permission/common.handle_all_urls\"], \"target\": {\"namespace\": \"web\", \"site\": \"https://www.farbaek.com\"}}]</string>
+</resources>

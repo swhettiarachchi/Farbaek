@@ -1,0 +1,6 @@
+# Gradle and Android build output, and the SDK path Android Studio writes.
+build/
+.gradle/
+local.properties
+*.keystore
+*.p12
