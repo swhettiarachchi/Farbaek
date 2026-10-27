@@ -592,7 +592,7 @@ function ComputersCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; bus
             <li key={d.fingerprint} className="row">
               <span>
                 {d.name}
-                {d.via === "farbaek" ? <span className="small muted"> phone or browser</span> : null} <span className="mono small muted">{grouped(d.fingerprint)}</span>
+                {d.via === "farbaek" ? <span className="small muted"> (phone or browser)</span> : null} <span className="mono small muted">{grouped(d.fingerprint)}</span>
               </span>
               {forgetting === d.fingerprint ? (
                 <span className="row-start">

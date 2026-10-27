@@ -2,7 +2,7 @@
 
 import { CheckCircleIcon, CircleNotchIcon, DownloadSimpleIcon, GlobeSimpleIcon, HourglassMediumIcon, PauseCircleIcon, ProhibitIcon, ShareNetworkIcon, TrashIcon, TrayArrowDownIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, useSyncExternalStore } from "react";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
 import type { TransferState } from "@/core/mesh/protocol";
@@ -38,6 +38,7 @@ const REASONS: Record<string, string> = {
 };
 
 const grouped = (fp: string) => fp.match(/.{1,4}/g)?.join(" ") ?? fp;
+const noSubscribe = () => () => undefined;
 const baseName = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 const STORAGE_WORDS = {
   browser: "Kept in this browser until you clear them, even if you close the page.",
@@ -202,7 +203,8 @@ export function ReceiveFiles({ device, stun, pairedCount }: { device: BrowserDev
 function IncomingCard({ incoming, onDismiss }: { incoming: WebIncoming; onDismiss: () => void }) {
   const v = incoming.view();
   const st = STATE[v.state];
-  const memoryOnly = !opfsAvailable();
+  // A browser fact: read after hydration, so the server's first render and the browser's agree.
+  const memoryOnly = !useSyncExternalStore(noSubscribe, opfsAvailable, () => true);
   const tooBig = memoryOnly && v.bytes > MEMORY_LIMIT;
   const pct = v.bytes === 0 ? 100 : Math.min(100, Math.round((v.bytesDone / v.bytes) * 100));
   const byReason = new Map<string, string[]>();
