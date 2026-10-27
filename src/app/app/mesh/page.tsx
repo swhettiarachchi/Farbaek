@@ -100,7 +100,7 @@ export default async function MeshPage() {
               <GlobeSimpleIcon size={16} className="text-accent" aria-hidden /> Between your computers, anywhere
             </p>
             <p className="text-sm leading-relaxed text-ink-2">
-              Paired computers on different networks can send through Farbaek&apos;s relay instead. The files are encrypted end to end between the two agents, so the server passes the bytes along without being able to read them, only while both apps are open, and keeps nothing afterwards. Each agent turns it on in Nearby.
+              Paired computers on different networks can send over the internet too, while both apps are open. Farbaek helps the two find each other, then the files go directly between them when both networks allow it. When a direct link is blocked, the person sending can choose Farbaek&apos;s relay instead, which passes the bytes along without being able to read them and keeps nothing. Everything is encrypted end to end. Each agent turns it on in Nearby.
             </p>
             {relayAgents.length === 0 ? (
               <p className="text-sm text-ink-3">{ctx.mode === "demo" ? "The demo workspace has no agents." : "No agent in this workspace has it turned on."}</p>

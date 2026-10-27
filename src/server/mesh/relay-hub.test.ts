@@ -26,7 +26,7 @@ async function connected(h: RelayHub) {
   const call = h.call(A, FB, FA);
   if (!call.ok) throw new Error(call.message);
   const calls = await h.waitForCalls(B, 0);
-  expect(calls).toEqual({ ok: true, value: [{ session: call.value.session, from: FA }] });
+  expect(calls).toEqual({ ok: true, value: [{ session: call.value.session, from: FA, mode: "relay" }] });
   expect(h.join(B, call.value.session)).toEqual({ ok: true, value: null });
   return call.value.session;
 }

@@ -17,6 +17,11 @@ It's still one long-lived Node server with one replica, because agent runs live 
   - gets and renews HTTPS certificates itself;
   - passes each request, Host header unchanged, to the app; `src/proxy.ts` decides what every name serves.
 - **The app** (`farbaek-app`): the image built from `Dockerfile`. It's reachable only inside Docker's network.
+- **STUN** (`farbaek-stun`, ADR 0095): Farbaek's own STUN server on UDP 3478, so two paired Farbaek Agents can open a direct link.
+  - It runs `deploy/vps/stun/stun-server.mjs` in the same Node image as the app, as `node`, read-only, with no capabilities and its own network.
+  - It answers only STUN Binding requests, 30 per address every 10 seconds, and keeps no record.
+  - Docker publishes the port, which bypasses ufw. If the provider's own firewall (Hostinger's panel) filters traffic, UDP 3478 must be open there.
+  - **Check it** from any computer: `node scripts/ops/stun-check.mjs` prints the public address Farbaek's STUN server sees.
 - **Deploys:**
   - `farbaek-deploy.timer` runs `/usr/local/bin/farbaek-deploy` every 2 minutes;
   - when `origin/main` has moved, it builds `farbaek-app:<commit>`, starts it, and waits up to 90 s for `/api/health`;

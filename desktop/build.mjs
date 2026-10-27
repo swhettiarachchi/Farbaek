@@ -19,6 +19,9 @@ const production = process.argv.includes("--production");
 await fs.rm(path.join(out, "renderer"), { recursive: true, force: true });
 await fs.rm(path.join(out, "main.js"), { force: true });
 await fs.rm(path.join(out, "preload.js"), { force: true });
+await fs.rm(path.join(out, "rtc-preload.js"), { force: true });
+await fs.rm(path.join(out, "rtc"), { recursive: true, force: true });
+await fs.mkdir(path.join(out, "rtc"), { recursive: true });
 await fs.mkdir(path.join(out, "renderer"), { recursive: true });
 
 const common = {
@@ -33,9 +36,12 @@ const common = {
 
 await build({ ...common, entryPoints: [path.join(src, "main", "main.ts")], outfile: path.join(out, "main.js"), platform: "node", target: "node22", format: "cjs", external: ["electron"] });
 await build({ ...common, entryPoints: [path.join(src, "preload", "preload.ts")], outfile: path.join(out, "preload.js"), platform: "node", target: "node22", format: "cjs", external: ["electron"] });
+// The hidden window for direct links (ADR 0095): its preload owns the WebRTC connections.
+await build({ ...common, entryPoints: [path.join(src, "rtc", "rtc-preload.ts")], outfile: path.join(out, "rtc-preload.js"), platform: "node", target: "node22", format: "cjs", external: ["electron"] });
 await build({ ...common, entryPoints: [path.join(src, "renderer", "main.tsx")], outfile: path.join(out, "renderer", "renderer.js"), platform: "browser", target: "chrome140", format: "iife", jsx: "automatic" });
 
 await fs.copyFile(path.join(src, "renderer", "index.html"), path.join(out, "renderer", "index.html"));
+await fs.copyFile(path.join(src, "rtc", "rtc.html"), path.join(out, "rtc", "rtc.html"));
 await fs.copyFile(path.join(root, "public", "brand", "farbaek-logo.webp"), path.join(out, "renderer", "logo.webp"));
 await fs.copyFile(path.join(root, "public", "brand", "farbaek-icon.png"), path.join(out, "renderer", "icon.png"));
 

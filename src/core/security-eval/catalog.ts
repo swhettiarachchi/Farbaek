@@ -281,6 +281,13 @@ export const EVAL_SCENARIOS: readonly EvalScenario[] = [
     asserts: "Mesh's relay carries only Noise ciphertext between two agents of one workspace: no plaintext crosses it, it routes no call to another workspace, it never pairs a device, a key the receiver didn't pair is refused, and nothing is kept once a session ends.",
     file: "disclosure.test.ts",
   },
+  {
+    id: "SE-032",
+    title: "A direct link set up by an untrusted server",
+    risks: ["ASI07", "LLM02"],
+    asserts: "When Farbaek's server sets up a direct link between two agents, a link it swapped for someone else's carries no offer, no file byte crosses the server on a direct transfer, and its STUN server answers only well-formed requests, with at most 52 bytes, from each address at most 30 times in 10 seconds.",
+    file: "disclosure.test.ts",
+  },
 ];
 
 /** What isn't tested for each risk, and the reason when a risk doesn't apply. */

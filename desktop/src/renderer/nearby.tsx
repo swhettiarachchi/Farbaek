@@ -142,7 +142,7 @@ export function NearbyView({ intro }: { intro?: ReactNode }) {
         <h1>Nearby</h1>
         <p className="muted">
           Send a folder straight to another computer on your network. It goes directly between the two, encrypted, and every piece is checked against its hash when it
-          arrives. Nothing passes through Farbaek&apos;s servers unless you choose to send through Farbaek, which carries it encrypted end to end and can&apos;t read it.
+          arrives. Over the internet it goes directly between your computers too when the networks allow it, and through Farbaek&apos;s relay only if you choose it: encrypted end to end either way.
         </p>
         {intro}
       </header>
@@ -314,16 +314,17 @@ function PairingCard({ pairing: p, now, act, busy }: { pairing: NonNullable<Mesh
 }
 
 /**
- * Farbaek's secure relay (ADR 0094): paired computers on different networks.
+ * Paired computers on different networks (ADR 0094, ADR 0095): directly when
+ * the networks allow it, through Farbaek's relay when the person chooses it.
  * Turning it on is the consent: this computer answers only devices it paired
- * with nearby, while the app is open, and the server can't read what it carries.
+ * with nearby, while the app is open, and Farbaek can't read what it carries.
  */
 function RelayCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: string | null; act: Act }) {
   const r = s.relay;
   return (
     <div className="card stack-sm">
       <div className="row">
-        <h2>Through Farbaek</h2>
+        <h2>Over the internet</h2>
         {r.available && r.reachable ? (
           <Badge tone="verified" icon={GlobeSimpleIcon}>
             Reachable
@@ -335,8 +336,9 @@ function RelayCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: s
         )}
       </div>
       <p className="muted">
-        For your paired computers on other networks. Farbaek&apos;s server passes the bytes along while both apps are open: they&apos;re encrypted end to end between the two
-        computers, so the server can&apos;t read them, and it keeps nothing once the transfer ends. Only computers you paired here, on the same network, are answered.
+        For your paired computers on other networks, while both apps are open. Farbaek helps the two find each other, then the files go directly between them when both networks
+        allow it. If a direct link is blocked, you can choose to send through Farbaek&apos;s relay instead, which can&apos;t read them either and keeps nothing. Everything is
+        encrypted end to end, and only computers you paired here, on the same network, are answered.
       </p>
       {!r.available ? (
         <p className="small">{r.reason}</p>
@@ -350,7 +352,7 @@ function RelayCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: s
               </button>
             ) : (
               <button className="btn btn-primary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("reachable", () => mesh.setReachable(true))}>
-                <GlobeSimpleIcon size={16} aria-hidden /> Be reachable through Farbaek
+                <GlobeSimpleIcon size={16} aria-hidden /> Be reachable over the internet
               </button>
             )}
           </div>
@@ -416,9 +418,9 @@ function SendCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: st
               className="btn btn-secondary btn-sm"
               type="button"
               disabled={busy !== null || !chosen || !s.relay.available}
-              onClick={() => void act("send", () => mesh.sendThroughRelay({ preparedId: prepared.id, fingerprint: chosen }))}
+              onClick={() => void act("send", () => mesh.sendOverInternet({ preparedId: prepared.id, fingerprint: chosen }))}
             >
-              <GlobeSimpleIcon size={16} aria-hidden /> Send through Farbaek
+              <GlobeSimpleIcon size={16} aria-hidden /> Send over the internet
             </button>
             <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("drop", () => mesh.dropPrepared(prepared.id))}>
               Choose another folder
@@ -426,8 +428,8 @@ function SendCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: st
           </div>
           <p className="small muted">
             {s.relay.available
-              ? "Send goes over this network. Send through Farbaek reaches the other computer anywhere, if it's open and reachable, encrypted end to end."
-              : `Send through Farbaek is unavailable: ${s.relay.reason}`}
+              ? "Send goes over this network. Send over the internet reaches the other computer anywhere, if it's open and reachable: directly when both networks allow it."
+              : `Send over the internet is unavailable: ${s.relay.reason}`}
           </p>
         </>
       )}
@@ -460,9 +462,9 @@ function TransferRow({ transfer: t, busy, act }: { transfer: MeshSnapshot["trans
       <p className="small muted">
         {formatBytes(t.bytesDone)} of {formatBytes(t.bytes)} · {t.files.toLocaleString("en-US")} {t.files === 1 ? "file" : "files"}
       </p>
-      {t.via === "relay" ? (
+      {t.via !== "nearby" ? (
         <p className="small muted">
-          <GlobeSimpleIcon size={14} aria-hidden /> Through Farbaek, encrypted end to end
+          <GlobeSimpleIcon size={14} aria-hidden /> {t.via === "direct" ? "Directly over the internet, encrypted end to end" : "Through Farbaek, encrypted end to end"}
         </p>
       ) : null}
       {t.message ? <p className="small">{t.message}</p> : null}
@@ -472,9 +474,14 @@ function TransferRow({ transfer: t, busy, act }: { transfer: MeshSnapshot["trans
             <FolderOpenIcon size={16} aria-hidden /> Open folder
           </button>
         ) : null}
+        {t.direction === "out" && t.state === "interrupted" && t.canUseRelay ? (
+          <button className="btn btn-primary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("relay", () => mesh.useRelay(t.id))}>
+            <GlobeSimpleIcon size={16} aria-hidden /> Send through Farbaek instead
+          </button>
+        ) : null}
         {t.direction === "out" && t.state === "interrupted" ? (
-          <button className="btn btn-primary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("resume", () => mesh.resume(t.id))}>
-            <ArrowCounterClockwiseIcon size={16} aria-hidden /> Resume
+          <button className={`btn ${t.canUseRelay ? "btn-secondary" : "btn-primary"} btn-sm`} type="button" disabled={busy !== null} onClick={() => void act("resume", () => mesh.resume(t.id))}>
+            <ArrowCounterClockwiseIcon size={16} aria-hidden /> {t.canUseRelay ? "Try directly again" : "Resume"}
           </button>
         ) : null}
         {ACTIVE.has(t.state) ? (

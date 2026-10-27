@@ -20,6 +20,7 @@ import { TrustStore, loadDeviceKey, type KeyVault, type TrustedDevice } from "./
 import { fingerprint, pairingCode, type KeyPair } from "./noise";
 import { packFolder, type PackedFolder } from "./pack";
 import { IncomingTransfer, OfferError, readOffer, type IncomingView } from "./receive";
+import { DirectError } from "./direct-signal";
 import { RelayError } from "./relay";
 import { OutgoingTransfer, type OutgoingView } from "./send";
 
@@ -63,15 +64,18 @@ export interface MeshSnapshot {
   pairing: PairingView | null;
   prepared: PreparedView[];
   /** Farbaek's secure relay (ADR 0094): whether this app can use it, and whether this computer is reachable through it. */
-  relay: { available: true; reachable: boolean; problem: string | null } | { available: false; reason: string };
-  transfers: ((IncomingView | OutgoingView) & { via: "nearby" | "relay" })[];
+  relay: { available: true; reachable: boolean; problem: string | null; direct: boolean } | { available: false; reason: string };
+  /** `via`: how the bytes go. `canUseRelay`: a direct link was blocked, and the person can choose the relay instead (ADR 0095). */
+  transfers: ((IncomingView | OutgoingView) & { via: Via; canUseRelay: boolean })[];
 }
+
+export type Via = "nearby" | "relay" | "direct";
 
 /** The relay as MeshNode needs it: RelayClient in the app, an in-process hub in tests. */
 export interface RelayLink {
   setReachable(fingerprint: string, on: boolean): Promise<void>;
-  waitForCalls(): Promise<{ session: string; from: string }[]>;
-  call(to: string, from: string): Promise<string>;
+  waitForCalls(): Promise<{ session: string; from: string; mode: "relay" | "direct" }[]>;
+  call(to: string, from: string, mode?: "relay" | "direct"): Promise<string>;
   join(session: string): Promise<void>;
   open(session: string): Duplex;
   close(session: string, reason: "done" | "cancelled"): Promise<void>;
@@ -87,11 +91,19 @@ export interface MeshNodeOptions {
   listenHost?: string;
   /** Farbaek's relay, or why it isn't available (the app isn't paired with Farbaek). */
   relay?: () => RelayLink | string;
+  /**
+   * Opens a direct link to the other agent (ADR 0095), set up over `signal`
+   * (a relay session), and returns its byte stream, or throws DirectError.
+   * The desktop app uses WebRTC; without it, only the relay is offered.
+   */
+  direct?: (signal: Duplex, role: "offer" | "answer") => Promise<Duplex>;
   onUpdate: () => void;
 }
 
 /** Through the relay the other side's first answer can take a few round trips. */
 const RELAY_HANDSHAKE_MS = 30_000;
+/** Over a direct link the handshake is quick; this only bounds a link that opened and then went quiet. */
+const DIRECT_HANDSHAKE_MS = 15_000;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 class PairingSession {
@@ -216,8 +228,10 @@ export class MeshNode {
   private reachable = false;
   private relayProblem: string | null = null;
   private relayLoop: Promise<void> | null = null;
-  /** Transfers that go through the relay. */
-  private readonly relayed = new Set<string>();
+  /** How each transfer over the internet goes now: through the relay or directly. Absent means nearby. */
+  private readonly via = new Map<string, "relay" | "direct">();
+  /** Outgoing transfers whose direct link was blocked: the person may choose the relay. */
+  private readonly directBlocked = new Set<string>();
 
   constructor(private readonly options: MeshNodeOptions) {
     this.trust = new TrustStore(path.join(options.dataDir, "mesh-devices.json"));
@@ -258,10 +272,12 @@ export class MeshNode {
       })),
       relay: (() => {
         const link = this.relayLink();
-        return typeof link === "string" ? { available: false as const, reason: link } : { available: true as const, reachable: this.reachable, problem: this.relayProblem };
+        return typeof link === "string"
+          ? { available: false as const, reason: link }
+          : { available: true as const, reachable: this.reachable, problem: this.relayProblem, direct: this.options.direct !== undefined };
       })(),
       transfers: [...[...this.incoming.values()].map((t) => t.view()), ...[...this.outgoing.values()].map((t) => t.view())]
-        .map((t) => ({ ...t, via: this.relayed.has(t.id) ? ("relay" as const) : ("nearby" as const) }))
+        .map((t) => ({ ...t, via: this.via.get(t.id) ?? ("nearby" as const), canUseRelay: t.state === "interrupted" && this.directBlocked.has(t.id) }))
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
     };
   }
@@ -341,7 +357,7 @@ export class MeshNode {
 
   // Answering calls
 
-  private async answer(socket: Duplex, via: "nearby" | "relay" = "nearby"): Promise<void> {
+  private async answer(socket: Duplex, via: Via = "nearby"): Promise<void> {
     let channel: SecureChannel;
     try {
       channel = await respond(socket, this.key, { v: 1, name: this.name() });
@@ -350,7 +366,7 @@ export class MeshNode {
       return;
     }
     const purpose = channel.peer.hello.purpose;
-    // Pairing needs both computers on the same network: the relay can never make a device trusted.
+    // Pairing needs both computers on the same network: the internet can never make a device trusted.
     if (purpose === "pair" && via === "nearby") return this.answerPairing(channel);
     if (purpose === "transfer") return this.answerTransfer(channel, via);
     channel.close();
@@ -366,7 +382,7 @@ export class MeshNode {
     this.update();
   }
 
-  private async answerTransfer(channel: SecureChannel, via: "nearby" | "relay"): Promise<void> {
+  private async answerTransfer(channel: SecureChannel, via: Via): Promise<void> {
     if (!this.trust.find(channel.peer.publicKey)) {
       await channel.send({ t: "error", code: "not_paired", message: "These computers aren't paired. Pair them first." }).catch(() => undefined);
       channel.close();
@@ -405,7 +421,7 @@ export class MeshNode {
     try {
       const manifest = await readOffer(channel, first);
       const transfer = new IncomingTransfer(channel, first.session, first.digest, manifest, this.update);
-      if (via === "relay") this.relayed.add(transfer.id);
+      if (via !== "nearby") this.via.set(transfer.id, via);
       this.incoming.set(transfer.id, transfer);
       this.update();
     } catch (error) {
@@ -557,9 +573,10 @@ export class MeshNode {
     }
   }
 
-  private async answerRelayCall(link: RelayLink, call: { session: string; from: string }): Promise<void> {
+  private async answerRelayCall(link: RelayLink, call: { session: string; from: string; mode: "relay" | "direct" }): Promise<void> {
     // A computer this one never paired with isn't answered at all. The handshake checks the key again.
-    if (!this.trust.byFingerprint(call.from)) {
+    // Without direct links here, a direct call is declined, so the sender is offered the relay.
+    if (!this.trust.byFingerprint(call.from) || (call.mode === "direct" && !this.options.direct)) {
       await link.close(call.session, "cancelled").catch(() => undefined);
       return;
     }
@@ -568,34 +585,84 @@ export class MeshNode {
     } catch {
       return;
     }
-    await this.answer(link.open(call.session), "relay");
+    const signal = link.open(call.session);
+    if (call.mode === "relay") return this.answer(signal, "relay");
+    let stream: Duplex;
+    try {
+      stream = await this.options.direct!(signal, "answer");
+    } catch {
+      signal.destroy();
+      return;
+    }
+    await this.answer(stream, "direct");
   }
 
-  /** Sends a prepared folder to a paired computer through Farbaek's relay. Only when the person chooses it. */
-  sendThroughRelay(preparedId: string, deviceFingerprint: string): string {
+  /**
+   * Sends a prepared folder to a paired computer over the internet (ADR
+   * 0095): directly between the two when their networks allow it, set up
+   * through Farbaek. When a direct link is blocked, the transfer stops and
+   * the person can choose Farbaek's relay instead; it's never used silently.
+   * `first` "relay" goes through the relay from the start.
+   */
+  sendOverInternet(preparedId: string, deviceFingerprint: string, first: "direct" | "relay" = "direct"): string {
     const link = this.relayLink();
     if (typeof link === "string") throw new MeshError(link);
+    const mode = first === "direct" && this.options.direct ? "direct" : "relay";
     const packed = this.prepared.get(preparedId);
     if (!packed) throw new MeshError("Choose the folder again: it's no longer prepared.");
     const device = this.trust.byFingerprint(deviceFingerprint);
     if (!device) throw new MeshError("Pair with that computer first, on the same network.");
+    const id = randomUUID();
     const transfer = new OutgoingTransfer(
-      randomUUID(),
+      id,
       packed,
       device,
-      async () => {
-        const session = await link.call(device.fingerprint, this.fingerprint);
-        return initiate(link.open(session), this.key, { v: 1, name: this.name(), purpose: "transfer" }, RELAY_HANDSHAKE_MS);
-      },
+      () => this.dialOverInternet(link, id, device.fingerprint),
       this.update,
-      (error) => (error instanceof RelayError ? error.message : `Couldn't reach ${device.name} through Farbaek. Make sure it's open with Reachable through Farbaek on, then resume.`),
+      (error) => this.unreachableOverInternet(id, device.name, error),
     );
-    this.relayed.add(transfer.id);
-    this.outgoing.set(transfer.id, transfer);
+    this.via.set(id, mode);
+    this.outgoing.set(id, transfer);
     this.prepared.delete(preparedId);
     void transfer.start();
     this.update();
-    return transfer.id;
+    return id;
+  }
+
+  private async dialOverInternet(link: RelayLink, id: string, deviceFingerprint: string): Promise<SecureChannel> {
+    const mode = this.via.get(id) ?? "relay";
+    const session = await link.call(deviceFingerprint, this.fingerprint, mode);
+    const signal = link.open(session);
+    const hello = { v: 1 as const, name: this.name(), purpose: "transfer" as const };
+    if (mode === "relay") return initiate(signal, this.key, hello, RELAY_HANDSHAKE_MS);
+    let stream: Duplex;
+    try {
+      stream = await this.options.direct!(signal, "offer");
+    } catch (error) {
+      signal.destroy();
+      throw error;
+    }
+    this.directBlocked.delete(id);
+    return initiate(stream, this.key, hello, DIRECT_HANDSHAKE_MS);
+  }
+
+  private unreachableOverInternet(id: string, name: string, error: unknown): string {
+    if (error instanceof DirectError) {
+      this.directBlocked.add(id);
+      return `Couldn't open a direct link to ${name}. ${error.message} Some networks block direct links, such as phone hotspots and many offices. You can send it through Farbaek's relay instead: still encrypted end to end, so the server can't read it.`;
+    }
+    if (error instanceof RelayError) return error.message;
+    return `Couldn't reach ${name} over the internet. Make sure it's open and reachable over the internet, then resume.`;
+  }
+
+  /** The person chose Farbaek's relay for a transfer whose direct link was blocked: it carries on through the relay. */
+  useRelay(id: string): void {
+    const transfer = this.outgoing.get(id);
+    if (!transfer || transfer.state !== "interrupted" || !this.directBlocked.has(id)) throw new MeshError("Only a transfer whose direct link was blocked can switch to the relay.");
+    this.directBlocked.delete(id);
+    this.via.set(id, "relay");
+    void transfer.start();
+    this.update();
   }
 
   async accept(id: string, parent: string): Promise<void> {

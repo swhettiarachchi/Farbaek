@@ -381,3 +381,14 @@ Known limits: public repositories only. Private ones need a GitHub connection, w
 | Routing | A call or session reaching another workspace's agent, or a third agent reading a session | Calls reach only a reachable agent of the caller's workspace; only a session's two agents can read, write or close it; revoked agents and people who left are refused on every request | `relay-hub.test.ts`, SE-031 |
 | Resources | Filling the server's memory or bandwidth | 8 MiB per direction, 2 MiB per write, 3 sessions per workspace and 20 in all, 5 waiting calls per agent, timeouts for calls, quiet agents and sessions, and 5 GB a day per workspace counted in the database (closing when it can't be counted) | `relay-hub.test.ts`, `tests/db/mesh-relay.test.ts` |
 | Records | Keeping more than needed | One audit event per session (the two agents, bytes, how it ended), a daily total per workspace kept 30 days, and each agent's fingerprint and reachability; no file names or contents | `tests/db/mesh-relay.test.ts` |
+
+## Mesh direct over the internet (2026-10-26, ADR 0095)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| Signaling through Farbaek | The server swapping the link's DTLS fingerprints to stand in the middle | Noise XX over the data channel proves the other side holds the key paired on a shared network; a swapped link fails before any offer | `mesh.test.ts`, SE-032 |
+| What crosses the server | Files on the server during a direct transfer | The relay session carries only checked setup messages (an SDP of at most 16 KB, 64 candidates) and closes when the channel opens | `mesh.test.ts`, `direct-signal.test.ts`, SE-032, the live check |
+| Silent fallback | Bytes going through the server when the person chose a direct link | A blocked link stops the transfer; the relay is used only after the person chooses it | `mesh.test.ts` |
+| The STUN server | Amplification or reflection attacks, or reaching the rest of the server | Only well-formed Binding requests answered, at most 52 bytes, 30 per address every 10 seconds; its own container, read-only, no capabilities, its own network, no records | `tests/stun/stun-server.test.ts`, SE-032 |
+| The WebRTC window | Untrusted code with access to the peer connections | A hidden, sandboxed, context-isolated window with no Node, a page that loads nothing, and a preload that only moves already-encrypted bytes | Live check |
+| Addresses | Exposing where a computer is | The other paired computer learns its public and local addresses; the server sees them in the setup messages, as it does for any request | Documented on the privacy page |

@@ -8,6 +8,7 @@
  */
 import { BrowserWindow, app, dialog, shell } from "electron";
 import os from "node:os";
+import type { Duplex } from "node:stream";
 import { z } from "zod";
 import { MeshError, MeshNode } from "@/agent-runtime/mesh/node";
 import { OfferError } from "@/agent-runtime/mesh/receive";
@@ -26,6 +27,8 @@ export interface MeshDeps {
   window: () => BrowserWindow | null;
   /** The Farbaek server and agent token for the relay (ADR 0094), or null while this app isn't paired with Farbaek. */
   relay: () => { server: string; token: string } | null;
+  /** Opens a direct WebRTC link set up over a relay session (ADR 0095). */
+  direct: (signal: Duplex, role: "offer" | "answer") => Promise<Duplex>;
 }
 
 const NOT_PAIRED = "Pair this app with your Farbaek workspace first, under Farbaek. The relay goes through that workspace.";
@@ -58,6 +61,7 @@ export class DesktopMesh {
         name: this.deps.name,
         vault: { get: () => store.get("mesh-device-key"), set: (v) => store.set("mesh-device-key", v) },
         relay: () => this.relayClient() ?? NOT_PAIRED,
+        direct: this.deps.direct,
         onUpdate: () => this.push(),
       });
       await node.init();
@@ -131,7 +135,8 @@ export class DesktopMesh {
     handle("mesh:drop-prepared", Id, (id) => this.attempt((n) => n.dropPrepared(id)));
     handle("mesh:send", z.object({ preparedId: Id, fingerprint: Fingerprint, at: Address.optional() }), (input) => this.attempt((n) => n.send(input.preparedId, input.fingerprint, input.at)));
     handle("mesh:reachable", z.boolean(), (on) => this.attempt((n) => n.setReachable(on)));
-    handle("mesh:send-relay", z.object({ preparedId: Id, fingerprint: Fingerprint }), (input) => this.attempt((n) => n.sendThroughRelay(input.preparedId, input.fingerprint)));
+    handle("mesh:send-internet", z.object({ preparedId: Id, fingerprint: Fingerprint }), (input) => this.attempt((n) => n.sendOverInternet(input.preparedId, input.fingerprint)));
+    handle("mesh:use-relay", Id, (id) => this.attempt((n) => n.useRelay(id)));
 
     handle("mesh:accept", Id, (id) =>
       this.attempt(async (n) => {

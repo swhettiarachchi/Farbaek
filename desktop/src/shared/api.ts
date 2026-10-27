@@ -144,10 +144,12 @@ export interface FarbaekAgentBridge {
     prepare(): Promise<Result<PreparedView | null>>;
     dropPrepared(id: string): Promise<Result<void>>;
     send(input: { preparedId: string; fingerprint: string; at?: { address: string; port: number } }): Promise<Result<string>>;
-    /** Farbaek's relay (ADR 0094): be reachable by paired computers anywhere while the app is open. */
+    /** Be reachable by paired computers over the internet while the app is open (ADR 0094, ADR 0095). */
     setReachable(on: boolean): Promise<Result<void>>;
-    /** Sends through Farbaek's relay, end to end encrypted. Only when the person chooses it. */
-    sendThroughRelay(input: { preparedId: string; fingerprint: string }): Promise<Result<string>>;
+    /** Sends over the internet (ADR 0095): directly when the networks allow it, end to end encrypted. */
+    sendOverInternet(input: { preparedId: string; fingerprint: string }): Promise<Result<string>>;
+    /** The person chose Farbaek's relay for a transfer whose direct link was blocked. */
+    useRelay(id: string): Promise<Result<void>>;
     /** Opens the folder dialog for where to save it; false when the person cancels it. */
     accept(id: string): Promise<Result<boolean>>;
     decline(id: string): Promise<Result<void>>;
