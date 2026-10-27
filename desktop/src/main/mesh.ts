@@ -137,6 +137,7 @@ export class DesktopMesh {
     handle("mesh:reachable", z.boolean(), (on) => this.attempt((n) => n.setReachable(on)));
     handle("mesh:send-internet", z.object({ preparedId: Id, fingerprint: Fingerprint }), (input) => this.attempt((n) => n.sendOverInternet(input.preparedId, input.fingerprint)));
     handle("mesh:use-relay", Id, (id) => this.attempt((n) => n.useRelay(id)));
+    handle("mesh:pair-remote", z.boolean(), (open) => this.attempt((n) => (open ? n.openRelayPairing() : n.closeRelayPairing())));
 
     handle("mesh:accept", Id, (id) =>
       this.attempt(async (n) => {

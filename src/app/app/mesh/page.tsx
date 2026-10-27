@@ -1,10 +1,11 @@
-import { ArrowDownLeftIcon, ArrowRightIcon, ArrowUpRightIcon, DevicesIcon, GlobeSimpleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowDownLeftIcon, ArrowRightIcon, ArrowUpRightIcon, DeviceMobileIcon, DevicesIcon, GlobeSimpleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, PageHeader } from "@/components/app/primitives";
 import { CapsuleOpen } from "@/components/mesh/capsule-open";
 import { CapsuleSend } from "@/components/mesh/capsule-send";
+import { PhoneMesh } from "@/components/mesh/phone/phone-mesh";
 import { RelativeTime } from "@/components/ui/local-time";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatBytes } from "@/core/workspace/files";
@@ -83,6 +84,22 @@ export default async function MeshPage() {
           <CapsuleOpen destinations={projects.filter((p) => p.archivedAt === null).map((p) => ({ id: p.id, name: p.name }))} disabledReason={importReason} />
         </Card>
       </div>
+
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="flex items-center gap-2 text-lg font-medium">
+            <DeviceMobileIcon size={20} className="text-ink-3" aria-hidden /> This phone or browser
+          </h2>
+          <StatusBadge status="info" label="No app to install" />
+        </div>
+        <p className="mt-2 mb-5 max-w-[68ch] text-sm leading-relaxed text-ink-2">
+          Pair this device once with one of your computers, then send it photos and files from here. They go directly between the two when the networks allow it, encrypted end to end, and the computer checks every piece.
+        </p>
+        <PhoneMesh
+          computers={relayAgents.map((a) => ({ id: a.id, name: a.name, fingerprint: a.meshFingerprint!, reachableNow: hub?.isReachable(a.id) ?? false }))}
+          unavailable={ctx.mode === "demo" ? "The demo workspace has no computers to reach. Sign in to your own workspace." : null}
+        />
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start">
         <Card>

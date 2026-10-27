@@ -150,6 +150,8 @@ export interface FarbaekAgentBridge {
     sendOverInternet(input: { preparedId: string; fingerprint: string }): Promise<Result<string>>;
     /** The person chose Farbaek's relay for a transfer whose direct link was blocked. */
     useRelay(id: string): Promise<Result<void>>;
+    /** Opens (or closes) a two-minute window for a phone or browser to pair through Farbaek (ADR 0096). */
+    pairRemote(open: boolean): Promise<Result<void>>;
     /** Opens the folder dialog for where to save it; false when the person cancels it. */
     accept(id: string): Promise<Result<boolean>>;
     decline(id: string): Promise<Result<void>>;

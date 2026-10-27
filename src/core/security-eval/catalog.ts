@@ -288,6 +288,13 @@ export const EVAL_SCENARIOS: readonly EvalScenario[] = [
     asserts: "When Farbaek's server sets up a direct link between two agents, a link it swapped for someone else's carries no offer, no file byte crosses the server on a direct transfer, and its STUN server answers only well-formed requests, with at most 52 bytes, from each address at most 30 times in 10 seconds.",
     file: "disclosure.test.ts",
   },
+  {
+    id: "SE-033",
+    title: "A phone paired by someone in the middle",
+    risks: ["ASI03", "ASI07"],
+    asserts: "A phone or browser pairs with a computer through Farbaek only while the person opened a pairing window on that computer, a pairing the server relayed through itself shows different codes on the two screens, and a browser reaches only its own workspace's computers.",
+    file: "disclosure.test.ts",
+  },
 ];
 
 /** What isn't tested for each risk, and the reason when a risk doesn't apply. */

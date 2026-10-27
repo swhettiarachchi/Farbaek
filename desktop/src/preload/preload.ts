@@ -43,6 +43,7 @@ const bridge: FarbaekAgentBridge = {
     setReachable: (on) => invoke("mesh:reachable", on),
     sendOverInternet: (input) => invoke("mesh:send-internet", input),
     useRelay: (id) => invoke("mesh:use-relay", id),
+    pairRemote: (open) => invoke("mesh:pair-remote", open),
     accept: (id) => invoke("mesh:accept", id),
     decline: (id) => invoke("mesh:decline", id),
     cancel: (id) => invoke("mesh:cancel", id),

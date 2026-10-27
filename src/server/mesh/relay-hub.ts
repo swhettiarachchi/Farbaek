@@ -54,13 +54,17 @@ export interface RelayAgent {
   orgId: string;
 }
 
-export type CallMode = "relay" | "direct";
+export type CallMode = "relay" | "direct" | "pair";
 
 export interface RelayCall {
   session: string;
   /** The caller's mesh fingerprint, as it said. Only a hint: the Noise handshake proves who it is. */
   from: string;
-  /** relay: the files go through this session. direct: it only sets up a direct link between the two (ADR 0095). */
+  /**
+   * relay: the files go through this session. direct: it only sets up a
+   * direct link (ADR 0095). pair: a phone or browser pairing with a computer
+   * that opened a pairing window (ADR 0096).
+   */
   mode: CallMode;
 }
 

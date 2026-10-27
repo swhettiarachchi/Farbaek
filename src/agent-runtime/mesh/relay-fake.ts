@@ -44,7 +44,7 @@ export function fakeRelay(options: { limits?: Partial<RelayLimits>; failEvery?: 
     }
     if (path === "/calls" && method === "POST") {
       const b = body();
-      const r = hub.call(agent, String(b.to), String(b.from), b.mode === "direct" ? "direct" : "relay");
+      const r = hub.call(agent, String(b.to), String(b.from), b.mode === "direct" || b.mode === "pair" ? b.mode : "relay");
       return r.ok ? json({ data: r.value }, 201) : fail(r);
     }
     const m = path.match(/^\/sessions\/([0-9a-f-]{36})(\/join|\/data)?$/);

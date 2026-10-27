@@ -157,4 +157,12 @@ describe("the relay hub", () => {
     if (!later.ok) throw new Error();
     expect(h.join(B, later.value.session)).toMatchObject({ ok: false });
   });
+
+  it("carries a call's mode, including a phone pairing", async () => {
+    const { h } = hub();
+    h.setReachable(B, FB);
+    const call = h.call(A, FB, FA, "pair");
+    expect(call.ok).toBe(true);
+    expect(await h.waitForCalls(B, 0)).toMatchObject({ ok: true, value: [{ from: FA, mode: "pair" }] });
+  });
 });

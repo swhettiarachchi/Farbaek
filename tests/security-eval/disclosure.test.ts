@@ -9,7 +9,9 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { commandEnv } from "@/agent-runtime/broker";
 import { initiate, respond } from "@/agent-runtime/mesh/channel";
-import { fingerprint, generateKeyPair } from "@/agent-runtime/mesh/noise";
+import { XXHandshake, fingerprint, generateKeyPair, pairingCode } from "@/agent-runtime/mesh/noise";
+import { MESH_PROLOGUE } from "@/core/mesh/protocol";
+import { WebXXHandshake, generateWebKeyPair, webPairingCode } from "@/core/mesh/web/noise";
 import { MeshNode } from "@/agent-runtime/mesh/node";
 import { fakeDirect } from "@/agent-runtime/mesh/direct-fake";
 import { fakeRelay } from "@/agent-runtime/mesh/relay-fake";
@@ -232,5 +234,41 @@ describe("SE-032 A direct link set up by an untrusted server", () => {
     request.writeUInt32BE(0x2112a442, 4);
     const txid = parseRequest(request)!;
     expect(buildResponse(txid, "2001:db8::1", 40_000).length).toBeLessThanOrEqual(request.length * 3);
+  }, 30_000);
+});
+
+describe("SE-033 A phone paired by someone in the middle", () => {
+  it("pairs only in the computer's window, shows different codes when relayed through someone, and stays in its workspace", async () => {
+    // Someone in the middle runs one handshake with the phone and another with the computer.
+    const phone = new WebXXHandshake({ initiator: true, prologue: MESH_PROLOGUE, staticKey: await generateWebKeyPair() });
+    const middleToPhone = new XXHandshake({ initiator: false, prologue: MESH_PROLOGUE, staticKey: generateKeyPair() });
+    middleToPhone.readMessage(Buffer.from(await phone.writeMessage()));
+    await phone.readMessage(middleToPhone.writeMessage());
+    middleToPhone.readMessage(Buffer.from(await phone.writeMessage()));
+    const middleToComputer = new XXHandshake({ initiator: true, prologue: MESH_PROLOGUE, staticKey: generateKeyPair() });
+    const computer = new XXHandshake({ initiator: false, prologue: MESH_PROLOGUE, staticKey: generateKeyPair() });
+    computer.readMessage(middleToComputer.writeMessage());
+    middleToComputer.readMessage(computer.writeMessage());
+    computer.readMessage(middleToComputer.writeMessage());
+    // The two people see different codes, so they don't confirm.
+    expect(await webPairingCode(phone.handshakeHash)).not.toBe(pairingCode(computer.handshakeHash));
+
+    // A computer with no pairing window open doesn't answer a pairing call.
+    const relay = fakeRelay();
+    let value: string | null = null;
+    const dataDir = await fsp.mkdtemp(path.join(os.tmpdir(), "farbaek-se033-"));
+    const node = new MeshNode({ dataDir, name: () => "Studio PC", vault: { get: async () => value, set: async (v) => void (value = v) }, discovery: false, relay: () => relay.client("agent-studio"), onUpdate: () => undefined });
+    await node.init();
+    try {
+      await node.setReachable(true);
+      const phoneLink = relay.client("browser-phone");
+      const session = await phoneLink.call(node.fingerprint, "0123456789abcdef", "pair");
+      await expect(initiate(phoneLink.open(session), generateKeyPair(), { v: 1, name: "Phone", purpose: "pair" }, 3_000)).rejects.toThrow();
+      expect(node.snapshot().pairing).toBeNull();
+      // A browser of another workspace can't call it at all.
+      await expect(relay.client("browser-elsewhere", "org-2").call(node.fingerprint, "0123456789abcdef", "pair")).rejects.toThrow(/isn't reachable/);
+    } finally {
+      await node.close();
+    }
   }, 30_000);
 });
