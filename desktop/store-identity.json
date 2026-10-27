@@ -1,6 +1,6 @@
 {
-  "$comment": "Farbaek Agent's identity in the Microsoft Store (ADR 0098): Partner Center > the app > Product management > Product identity. Public values, not secrets. Null until the app's name is reserved.",
-  "identityName": null,
-  "publisher": null,
-  "publisherDisplayName": null
+  "$comment": "Farbaek Agent in the Microsoft Store (ADR 0098): Partner Center > Farbaek Agent (Store ID 9N4GNB94KH9M) > Product management > Product identity. Public values, not secrets.",
+  "identityName": "Svanflok.FarbaekAgent",
+  "publisher": "CN=853330BD-1743-4854-B24A-5FCC5F8DBA90",
+  "publisherDisplayName": "Svanflok"
 }

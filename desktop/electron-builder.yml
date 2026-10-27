@@ -59,6 +59,9 @@ appx:
   # runFullTrust: an Electron app; internetClient: Farbaek and model steps;
   # privateNetworkClientServer: Nearby on the local network.
   capabilities: [runFullTrust, internetClient, privateNetworkClientServer]
+  # Windows 10 1809 (the first with MSIX) and up; tested on Windows 11.
+  minVersion: 10.0.17763.0
+  maxVersionTested: 10.0.26100.0
   artifactName: Farbaek-Agent-${version}.${ext}
 linux:
   target: AppImage

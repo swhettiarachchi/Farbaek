@@ -2,7 +2,7 @@
 // .appx with the identity Partner Center reserved; the Store signs it when
 // it's published, so people install it with no warning. Run: pnpm agent:store
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { cpSync, existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -18,8 +18,25 @@ if (problems.length > 0) {
   process.exit(1);
 }
 
+// On Windows, makeappx.exe won't start from anywhere under AppData, where electron-builder caches it
+// ("side-by-side configuration is incorrect": its helper manifests aren't found), but does from the home
+// folder. So the cached Windows SDK tools are copied to %USERPROFILE%.farbaek-buildappxkit, and
+// electron-builder is pointed at that.
+const env = { ...process.env };
+if (process.platform === "win32" && !env.ELECTRON_BUILDER_WINDOWS_KITS_PATH && env.LOCALAPPDATA && env.USERPROFILE) {
+  const cache = path.join(env.LOCALAPPDATA, "electron-builder", "Cache", "win-codesign@1.1.0");
+  const bundle = existsSync(cache) ? readdirSync(cache).find((d) => d.startsWith("windows-kits-bundle-") && statSync(path.join(cache, d)).isDirectory()) : undefined;
+  if (bundle) {
+    const plain = path.join(env.USERPROFILE, ".farbaek-build", "appxkit");
+    cpSync(path.join(cache, bundle, "x64"), plain, { recursive: true });
+    env.ELECTRON_BUILDER_WINDOWS_KITS_PATH = plain;
+  } else {
+    console.log("The Windows SDK tools aren't downloaded yet. If packaging fails with 'spawn UNKNOWN', run pnpm agent:store again: the tools are then in place.");
+  }
+}
+
 const run = (cmd, args) => {
-  const r = spawnSync(cmd, args, { cwd: root, stdio: "inherit", shell: process.platform === "win32" });
+  const r = spawnSync(cmd, args, { cwd: root, stdio: "inherit", shell: process.platform === "win32", env });
   if (r.status !== 0) process.exit(r.status ?? 1);
 };
 run("node", ["desktop/build.mjs", "--production"]);
@@ -29,4 +46,7 @@ run("pnpm", [
   `-c.appx.identityName=${id.identityName}`,
   `-c.appx.publisher=${id.publisher}`,
   `-c.appx.publisherDisplayName=${id.publisherDisplayName}`,
+  // The Windows 10.0.26100 SDK tools (checksums pinned by electron-builder): the 2019 bundle's
+  // makeappx.exe won't start on current Windows ("side-by-side configuration is incorrect").
+  "-c.toolsets.winCodeSign=1.1.0",
 ]);
