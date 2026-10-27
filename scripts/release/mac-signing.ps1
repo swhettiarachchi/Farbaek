@@ -102,11 +102,17 @@ $values = [ordered]@{
   "APPLE_API_ISSUER"    = $issuer
 }
 Start-Process "https://github.com/swhettiarachchi/Farbaek/settings/secrets/actions/new"
-Write-Host "GitHub's New secret page is open. For each of the five below: press Enter here to copy its value, then in GitHub type the name, paste the value, and choose Add secret. Open New repository secret again for the next one." -ForegroundColor Cyan
+Write-Host "GitHub's New secret page is open. For each of the five secrets, this copies its name, then its value: paste each into GitHub with Ctrl+V. Don't copy anything else meanwhile." -ForegroundColor Cyan
+$n = 0
 foreach ($name in $values.Keys) {
-  Read-Host -Prompt "Press Enter to copy $name"
+  $n++
+  # The name goes on the clipboard too, so nothing is typed or copied by hand (which would replace the value).
+  Read-Host -Prompt "Secret $n of 5. Press Enter to copy its NAME"
+  Set-Clipboard -Value $name
+  Write-Host "Copied the name. In GitHub, click the Name box and press Ctrl+V." -ForegroundColor Green
+  Read-Host -Prompt "Then press Enter here to copy its VALUE"
   Set-Clipboard -Value $values[$name]
-  Write-Host "Copied $name. Paste it into GitHub with the name $name." -ForegroundColor Green
+  Write-Host "Copied the value. Click the Secret box, press Ctrl+V, choose Add secret, then New repository secret." -ForegroundColor Green
 }
 Set-Clipboard -Value " "
 $values = $null; $password = $null
