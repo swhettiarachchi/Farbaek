@@ -64,7 +64,7 @@ export interface MeshSnapshot {
   pairing: PairingView | null;
   prepared: PreparedView[];
   /** Farbaek's secure relay (ADR 0094): whether this app can use it, and whether this computer is reachable through it. */
-  relay: { available: true; reachable: boolean; problem: string | null; direct: boolean } | { available: false; reason: string };
+  relay: { available: true; reachable: boolean; problem: string | null; direct: boolean; pairingUntil: string | null } | { available: false; reason: string };
   /** `via`: how the bytes go. `canUseRelay`: a direct link was blocked, and the person can choose the relay instead (ADR 0095). */
   transfers: ((IncomingView | OutgoingView) & { via: Via; canUseRelay: boolean })[];
 }
@@ -74,8 +74,8 @@ export type Via = "nearby" | "relay" | "direct";
 /** The relay as MeshNode needs it: RelayClient in the app, an in-process hub in tests. */
 export interface RelayLink {
   setReachable(fingerprint: string, on: boolean): Promise<void>;
-  waitForCalls(): Promise<{ session: string; from: string; mode: "relay" | "direct" }[]>;
-  call(to: string, from: string, mode?: "relay" | "direct"): Promise<string>;
+  waitForCalls(): Promise<{ session: string; from: string; mode: "relay" | "direct" | "pair" }[]>;
+  call(to: string, from: string, mode?: "relay" | "direct" | "pair"): Promise<string>;
   join(session: string): Promise<void>;
   open(session: string): Duplex;
   close(session: string, reason: "done" | "cancelled"): Promise<void>;
@@ -230,6 +230,8 @@ export class MeshNode {
   private relayLoop: Promise<void> | null = null;
   /** How each transfer over the internet goes now: through the relay or directly. Absent means nearby. */
   private readonly via = new Map<string, "relay" | "direct">();
+  /** Until when this computer answers a phone or browser pairing through Farbaek (ADR 0096); 0 when closed. */
+  private relayPairingUntil = 0;
   /** Outgoing transfers whose direct link was blocked: the person may choose the relay. */
   private readonly directBlocked = new Set<string>();
 
@@ -274,7 +276,13 @@ export class MeshNode {
         const link = this.relayLink();
         return typeof link === "string"
           ? { available: false as const, reason: link }
-          : { available: true as const, reachable: this.reachable, problem: this.relayProblem, direct: this.options.direct !== undefined };
+          : {
+              available: true as const,
+              reachable: this.reachable,
+              problem: this.relayProblem,
+              direct: this.options.direct !== undefined,
+              pairingUntil: this.reachable && this.relayPairingUntil > Date.now() ? new Date(this.relayPairingUntil).toISOString() : null,
+            };
       })(),
       transfers: [...[...this.incoming.values()].map((t) => t.view()), ...[...this.outgoing.values()].map((t) => t.view())]
         .map((t) => ({ ...t, via: this.via.get(t.id) ?? ("nearby" as const), canUseRelay: t.state === "interrupted" && this.directBlocked.has(t.id) }))
@@ -357,7 +365,7 @@ export class MeshNode {
 
   // Answering calls
 
-  private async answer(socket: Duplex, via: Via = "nearby"): Promise<void> {
+  private async answer(socket: Duplex, via: Via = "nearby", allowPairing = via === "nearby"): Promise<void> {
     let channel: SecureChannel;
     try {
       channel = await respond(socket, this.key, { v: 1, name: this.name() });
@@ -366,8 +374,8 @@ export class MeshNode {
       return;
     }
     const purpose = channel.peer.hello.purpose;
-    // Pairing needs both computers on the same network: the internet can never make a device trusted.
-    if (purpose === "pair" && via === "nearby") return this.answerPairing(channel);
+    // Pairing happens on the same network, or through Farbaek only while the person opened a window here (ADR 0096).
+    if (purpose === "pair" && allowPairing) return this.answerPairing(channel);
     if (purpose === "transfer") return this.answerTransfer(channel, via);
     channel.close();
   }
@@ -573,7 +581,8 @@ export class MeshNode {
     }
   }
 
-  private async answerRelayCall(link: RelayLink, call: { session: string; from: string; mode: "relay" | "direct" }): Promise<void> {
+  private async answerRelayCall(link: RelayLink, call: { session: string; from: string; mode: "relay" | "direct" | "pair" }): Promise<void> {
+    if (call.mode === "pair") return this.answerRelayPairing(link, call.session);
     // A computer this one never paired with isn't answered at all. The handshake checks the key again.
     // Without direct links here, a direct call is declined, so the sender is offered the relay.
     if (!this.trust.byFingerprint(call.from) || (call.mode === "direct" && !this.options.direct)) {
@@ -595,6 +604,39 @@ export class MeshNode {
       return;
     }
     await this.answer(stream, "direct");
+  }
+
+  /**
+   * Lets a phone or browser pair with this computer through Farbaek for two
+   * minutes (ADR 0096). Only while reachable over the internet. The same
+   * six-digit code must show on both screens and both people confirm, so
+   * Farbaek's server can't pair anyone in the middle.
+   */
+  openRelayPairing(): void {
+    if (!this.reachable) throw new MeshError("Turn on Be reachable over the internet first.");
+    this.relayPairingUntil = Date.now() + PAIRING_WINDOW_MS;
+    setTimeout(() => this.update(), PAIRING_WINDOW_MS + 50).unref?.();
+    this.update();
+  }
+
+  closeRelayPairing(): void {
+    this.relayPairingUntil = 0;
+    this.update();
+  }
+
+  private async answerRelayPairing(link: RelayLink, session: string): Promise<void> {
+    if (Date.now() > this.relayPairingUntil || this.pairing?.active) {
+      await link.close(session, "cancelled").catch(() => undefined);
+      return;
+    }
+    // One pairing per window.
+    this.relayPairingUntil = 0;
+    try {
+      await link.join(session);
+    } catch {
+      return;
+    }
+    await this.answer(link.open(session), "relay", true);
   }
 
   /**

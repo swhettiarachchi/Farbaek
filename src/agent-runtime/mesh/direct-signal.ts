@@ -10,7 +10,7 @@
  * key its person paired, so a link to anyone else carries nothing readable.
  */
 import type { Duplex } from "node:stream";
-import { z } from "zod";
+import { SIGNAL_LIMITS, SignalSchema, type Signal } from "@/core/mesh/direct-protocol";
 
 /** A direct link couldn't be opened: the words say why, and the sender is offered the relay. */
 export class DirectError extends Error {
@@ -20,22 +20,10 @@ export class DirectError extends Error {
   }
 }
 
-const MAX_LINE = 20 * 1024;
-const MAX_CANDIDATES = 64;
+const MAX_LINE = SIGNAL_LIMITS.line;
+const MAX_CANDIDATES = SIGNAL_LIMITS.candidates;
 
-export const SignalSchema = z.discriminatedUnion("t", [
-  z.object({ t: z.literal("sdp"), type: z.enum(["offer", "answer"]), sdp: z.string().min(1).max(16 * 1024) }),
-  z.object({
-    t: z.literal("ice"),
-    candidate: z.object({
-      candidate: z.string().max(1024),
-      sdpMid: z.string().max(64).nullable().optional(),
-      sdpMLineIndex: z.number().int().min(0).max(64).nullable().optional(),
-    }),
-  }),
-  z.object({ t: z.literal("bye") }),
-]);
-export type Signal = z.infer<typeof SignalSchema>;
+export { SignalSchema, type Signal };
 
 interface Waiter {
   resolve: (signal: Signal) => void;

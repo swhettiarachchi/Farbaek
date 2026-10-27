@@ -71,6 +71,10 @@ Farbaek first tries a **direct link**. Its own STUN server (UDP 3478 on the Farb
 
 Through the relay, the two agents run the same Noise handshake, offer, checks and resume through Farbaek's server as they do on a network, so the server only passes ciphertext along. Bytes wait in its memory, at most 8 MiB in each direction, only while both apps are connected, and are gone when the transfer ends. Each workspace can relay 5 GB a day; the Mesh page shows how much of today's allowance is used.
 
+### A phone or browser (ADR 0096)
+
+A phone needs no app. On the computer, with **Be reachable over the internet** on, choose **Pair a phone or browser**: it waits two minutes. On the phone, sign in to Farbaek, open **Mesh**, and under **This phone or browser** choose the computer and **Pair**. The same six-digit code shows on both screens; confirm on both. Then pick files on the phone and **Send over the internet**, and accept them on the computer.
+
 **Checked so far:** the relay with two agents in one process through the real hub (`mesh.test.ts`); a direct link between two real agent windows on one computer, through a local relay and Farbaek's STUN server, in Chromium's WebRTC. A transfer between two computers on different networks is still to be checked.
 
 To check Nearby by script, run two windows with separate scratch data folders (`FARBAEK_AGENT_DATA_DIR`) and the development-only folder overrides `FARBAEK_AGENT_TEST_SEND_FOLDER` and `FARBAEK_AGENT_TEST_SAVE_FOLDER`, which packaged builds ignore.

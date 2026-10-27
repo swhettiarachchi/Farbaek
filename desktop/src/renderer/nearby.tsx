@@ -159,7 +159,7 @@ export function NearbyView({ intro }: { intro?: ReactNode }) {
 type Act = <T>(label: string, run: () => Promise<Result<T>>) => Promise<T | undefined>;
 
 function Nearby({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: string | null; act: Act }) {
-  const now = useNow(Boolean(s.visible || s.pairing));
+  const now = useNow(Boolean(s.visible || s.pairing || (s.relay.available && s.relay.pairingUntil)));
   const incoming = s.transfers.filter((t) => t.direction === "in" && t.state === "offered");
   const others = s.transfers.filter((t) => !(t.direction === "in" && t.state === "offered"));
 
@@ -240,7 +240,7 @@ function Nearby({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: stri
         )}
       </div>
 
-      <RelayCard snapshot={s} busy={busy} act={act} />
+      <RelayCard snapshot={s} now={now} busy={busy} act={act} />
 
       <SendCard snapshot={s} busy={busy} act={act} />
 
@@ -319,7 +319,7 @@ function PairingCard({ pairing: p, now, act, busy }: { pairing: NonNullable<Mesh
  * Turning it on is the consent: this computer answers only devices it paired
  * with nearby, while the app is open, and Farbaek can't read what it carries.
  */
-function RelayCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: string | null; act: Act }) {
+function RelayCard({ snapshot: s, now, busy, act }: { snapshot: MeshSnapshot; now: number; busy: string | null; act: Act }) {
   const r = s.relay;
   return (
     <div className="card stack-sm">
@@ -338,7 +338,7 @@ function RelayCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: s
       <p className="muted">
         For your paired computers on other networks, while both apps are open. Farbaek helps the two find each other, then the files go directly between them when both networks
         allow it. If a direct link is blocked, you can choose to send through Farbaek&apos;s relay instead, which can&apos;t read them either and keeps nothing. Everything is
-        encrypted end to end, and only computers you paired here, on the same network, are answered.
+        encrypted end to end, and only devices you paired are answered: computers on the same network, and phones or browsers while you open a pairing window here.
       </p>
       {!r.available ? (
         <p className="small">{r.reason}</p>
@@ -357,6 +357,26 @@ function RelayCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: s
             )}
           </div>
           <p className="small muted">It stays on while this app is open. Each folder still needs you to accept it.</p>
+          {r.reachable ? (
+            r.pairingUntil && Date.parse(r.pairingUntil) > now ? (
+              <div className="stack-sm">
+                <p className="small">
+                  Open for a phone or browser for {left(r.pairingUntil, now)}. On it, open Farbaek&apos;s Mesh page, sign in, and choose this computer. The same code shows on both screens when it calls.
+                </p>
+                <div className="row-start">
+                  <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("pair-remote", () => mesh.pairRemote(false))}>
+                    Stop waiting
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="row-start">
+                <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("pair-remote", () => mesh.pairRemote(true))}>
+                  <LinkSimpleIcon size={16} aria-hidden /> Pair a phone or browser
+                </button>
+              </div>
+            )
+          ) : null}
         </>
       )}
     </div>

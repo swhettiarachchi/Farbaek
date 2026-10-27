@@ -77,4 +77,18 @@ describe("Mesh's secure relay", () => {
     await expect(q("select public.app_mesh_relay_session_ended($1, $2, $3, 1, 'whatever')", [org, a, b])).rejects.toThrow(/INVALID_REQUEST/);
     await expect(asUser(USERS.alice, "select public.app_mesh_relay_use($1, 1, 10)", [org])).rejects.toThrow(/permission denied/);
   });
+
+  it("records a session with a browser as the person whose browser it was (v61)", async () => {
+    const agentId = await agent(org, USERS.alice, "Office");
+    const browser = `browser:${USERS.alice}:00000000-0000-4000-8000-000000000001`;
+    await q("select public.app_mesh_relay_party_session_ended($1, $2, $3, $4, 2048, 'done')", [org, USERS.alice, browser, agentId]);
+    const [event] = await admin<{ actor_id: string; metadata: Record<string, unknown> }>("select actor_id, metadata from public.audit_events where action = 'mesh.relay_session' order by id desc limit 1");
+    expect(event).toEqual({ actor_id: USERS.alice, metadata: { caller: browser, callee: agentId, bytes: 2048, ended: "done" } });
+    // The browser must be the actor's own, and the actor in the workspace.
+    await expect(q("select public.app_mesh_relay_party_session_ended($1, $2, $3, $4, 1, 'done')", [org, USERS.bob, browser, agentId])).rejects.toThrow(/INVALID_REQUEST/);
+    const bobs = `browser:${USERS.bob}:00000000-0000-4000-8000-000000000002`;
+    await expect(q("select public.app_mesh_relay_party_session_ended($1, $2, $3, $4, 1, 'done')", [org, USERS.bob, bobs, agentId])).rejects.toThrow(/NOT_FOUND/);
+    await expect(q("select public.app_mesh_relay_party_session_ended($1, $2, 'not a party', $3, 1, 'done')", [org, USERS.alice, agentId])).rejects.toThrow(/INVALID_REQUEST/);
+    await expect(asUser(USERS.alice, "select public.app_mesh_relay_party_session_ended($1, $2, $3, $4, 1, 'done')", [org, USERS.alice, browser, agentId])).rejects.toThrow(/permission denied/);
+  });
 });

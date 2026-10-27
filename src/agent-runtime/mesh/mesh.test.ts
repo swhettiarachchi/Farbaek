@@ -377,7 +377,7 @@ describe("through Farbaek's relay", { timeout: 60_000 }, () => {
 
   it("sends a folder end to end encrypted: the receiver checks every byte, and the relay carried nothing readable", async () => {
     const { a, b, relay } = await apart();
-    expect(b.snapshot().relay).toEqual({ available: true, reachable: true, problem: null, direct: false });
+    expect(b.snapshot().relay).toEqual({ available: true, reachable: true, problem: null, direct: false, pairingUntil: null });
     const { root, big } = await sourceFolder();
     const parent = await tmp("dest");
     const prepared = await a.prepare(root);

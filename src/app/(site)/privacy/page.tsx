@@ -146,6 +146,10 @@ const SECTIONS: LegalSection[] = [
           and each workspace&apos;s daily total, for its allowance.
         </p>
         <p>
+          If you use Mesh on a phone or in a browser, that browser keeps its own device key and the computers you paired it with in its storage on that device; the key&apos;s
+          private half can&apos;t be read out of the browser. Clearing the site&apos;s data there forgets them.
+        </p>
+        <p>
           If you turn on notifications on a device, we send them through that browser&apos;s push service: Google, Apple, Mozilla or Microsoft. Each message is encrypted for
           your device, so the service sees only that one was sent. Turn them off in Settings, under This device.
         </p>
