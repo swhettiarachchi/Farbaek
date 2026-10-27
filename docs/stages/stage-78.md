@@ -44,9 +44,10 @@ Paid plans hold back about 5% of their AI budget for free retries, and the prici
   - one open fix;
   - title and note limits;
   - the cap per plan.
-- `browser-grants` passes unchanged. `pnpm typecheck` and lint are clean. Related suites: 369 passed.
+- **Migration v63 applied in production** (2026-10-28), before the code. The SHA-256 (`88143e99…92e1e`) was checked on the server, and it ran in one transaction. Read back: both columns exist; only the server role can run the two functions; browsers can't write `fix_of_task_id`. `/api/health` and `/api/ready` stayed OK.
+- `browser-grants` passes unchanged. `pnpm typecheck` and `pnpm lint` are clean. `pnpm test`: 1,975 passed, 17 skipped.
 
 ### Not verified yet
 
 - **A real fix end to end in production:** a task whose checks fail, then a fix whose checks fail, then the usage returning. It needs a connected sandbox and a real task, which the owner's own work will produce.
-- **Migration v63 in production:** applied before the merge (below, when done).
+
