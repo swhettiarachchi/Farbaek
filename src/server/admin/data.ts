@@ -16,6 +16,7 @@ import { ORGANIZATION_SELECT, summarizeOrganizations, type WorkspaceSummary } fr
 import { GRANT_COLUMNS, UsageGrantRowSchema, grantFromRow } from "@/server/workspace/usage-store";
 import { aiCostUsd, countBy, latestBy, monthStartUtc, planLabel, trialDaysLeft } from "./summaries";
 import { emailStatus } from "@/server/email/config";
+import { billingStatus } from "@/server/billing/config";
 
 const LIST_CAP = 1000;
 const ACTIVITY_LIMIT = 25;
@@ -230,7 +231,6 @@ export interface Connection {
 export function deploymentConnections(env: Record<string, string | undefined> = process.env): Connection[] {
   const ai = resolveAiProvider();
   const sandbox = sandboxExecutionMode();
-  const billing = (env.BILLING_MODE ?? "").trim() || "not_connected";
   return [
     { name: "Database writes", on: hasServerWriteKey(), detail: hasServerWriteKey() ? "Server key set" : "SUPABASE_SECRET_KEY isn't set" },
     { name: "AI", on: ai.provider !== null, detail: ai.provider ? ai.label : ai.reason },
@@ -240,7 +240,7 @@ export function deploymentConnections(env: Record<string, string | undefined> = 
       on: Boolean(env.SANDBOX_PREVIEW_DOMAIN && env.SANDBOX_PREVIEW_SECRET),
       detail: env.SANDBOX_PREVIEW_DOMAIN && env.SANDBOX_PREVIEW_SECRET ? "Preview host and secret set" : "Needs SANDBOX_PREVIEW_DOMAIN and SANDBOX_PREVIEW_SECRET",
     },
-    { name: "Payments", on: billing !== "not_connected", detail: billing === "not_connected" ? "Not connected until go-live" : `BILLING_MODE is ${billing.slice(0, 30)}` },
+    { name: "Payments", ...billingStatus(env) },
     { name: "Email", ...emailStatus(env) },
   ];
 }
