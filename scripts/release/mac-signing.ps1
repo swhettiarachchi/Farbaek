@@ -46,16 +46,20 @@ if ($Step -eq "request") {
 }
 
 # Step github: the certificate Apple gave back, with the private key, as a password-protected .p12.
-$cer = Get-ChildItem -Path $Folder, "$HOME\Downloads" -Filter "*.cer" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-if (-not $cer) { Write-Host "No .cer file in $Folder or Downloads. Download the Developer ID Application certificate first." -ForegroundColor Red; exit 1 }
 if (-not (Test-Path $key)) { Write-Host "developer-id.key isn't in $Folder. Run -Step request first, then make the certificate from that request." -ForegroundColor Red; exit 1 }
+# The newest .cer that is this team's Developer ID Application certificate. Apple's own intermediate
+# certificate (saved by an earlier run) and any other certificates are passed over.
 $pem = Join-Path $Folder "developer-id.pem"
-& $openssl x509 -inform DER -in $cer.FullName -out $pem 2>$null
-if ($LASTEXITCODE -ne 0) { & $openssl x509 -in $cer.FullName -out $pem 2>$null }
-$subject = (& $openssl x509 -in $pem -noout -subject 2>$null) -join " "
-if ($subject -notmatch "Developer ID Application" -or $subject -notmatch [regex]::Escape($TeamId)) {
-  Write-Host "$($cer.Name) isn't a Developer ID Application certificate for team $TeamId ($subject). Make that kind, then run this again." -ForegroundColor Red; exit 1
+$cer = $null; $subject = ""
+$candidates = Get-ChildItem -Path $Folder, "$HOME\Downloads" -Filter "*.cer" -ErrorAction SilentlyContinue | Where-Object { $_.Name -notlike "DeveloperIDG2CA*" } | Sort-Object LastWriteTime -Descending
+foreach ($c in $candidates) {
+  & $openssl x509 -inform DER -in $c.FullName -out $pem 2>$null
+  if ($LASTEXITCODE -ne 0) { & $openssl x509 -in $c.FullName -out $pem 2>$null }
+  if ($LASTEXITCODE -ne 0) { continue }
+  $s = (& $openssl x509 -in $pem -noout -subject 2>$null) -join " "
+  if ($s -match "Developer ID Application" -and $s -match [regex]::Escape($TeamId)) { $cer = $c; $subject = $s; break }
 }
+if (-not $cer) { Write-Host "No Developer ID Application certificate for team $TeamId in $Folder or Downloads. Download it from Apple first." -ForegroundColor Red; exit 1 }
 # The certificate must belong to this key: compare the public halves only.
 $fromCert = (& $openssl x509 -in $pem -noout -pubkey 2>$null) -join "`n"
 $fromKey = (& $openssl pkey -in $key -pubout 2>$null) -join "`n"
@@ -63,7 +67,7 @@ if ($fromCert -ne $fromKey) { Write-Host "That certificate was made from a diffe
 Write-Host "Certificate: $subject" -ForegroundColor Green
 
 # Apple's Developer ID intermediate, so the chain is complete on the build machine.
-$g2 = Join-Path $Folder "DeveloperIDG2CA.cer"
+$g2 = Join-Path $Folder "DeveloperIDG2CA.der"
 try { Invoke-WebRequest -UseBasicParsing -Uri "https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer" -OutFile $g2 }
 catch { Write-Host "Apple's Developer ID intermediate certificate couldn't be downloaded. Check the internet connection, then run this again." -ForegroundColor Red; exit 1 }
 $g2pem = Join-Path $Folder "DeveloperIDG2CA.pem"
