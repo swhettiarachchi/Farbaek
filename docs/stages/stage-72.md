@@ -75,6 +75,10 @@ The device and its pairings live in IndexedDB (`device-store.ts`). The demo show
   - **Sending:** the page sent three files (3 MB, 50 KB, 1 KB) "Directly over the internet". The agent accepted and checked them.
   - **Result:** all three SHA-256s matched what the page sent. The relay carried 2,812 bytes for the pairing handshake and the link setup, and no file content.
 
+- **Demo build, Mesh page:** the "This phone or browser" card with its demo reason at 1280 and 375, with no sideways scroll. `qa:a11y`: 2 views, 0 findings. `qa:responsive`: 11 views, 0 findings.
+- **Migration v61** applied in production after its hash check, and read back: only the server role can run it.
+- **Stage 71's production STUN server, once #85 deployed.** `node scripts/ops/stun-check.mjs` from this computer got its public address back from `www.farbaek.com:3478`. UDP 3478 is open from the internet, with no change to Hostinger's firewall.
+
 ### Not verified
 
 - **A real phone on a mobile network,** which needs the owner's phone and workspace.
