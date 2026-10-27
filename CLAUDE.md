@@ -58,6 +58,7 @@ The dev PC has 3.8 GB of RAM. Run checks one at a time, and stop any dev or prev
 - Fonts: Geist (UI and display, weight 500 headlines, tight tracking) and Geist Mono for code and data only (hashes, paths, commands, IDs, keys). No serif.
 - Small text (ADR 0049): sentence-case Geist labels, no `//` labels or eyebrows over titles, at least 12px (11px only for tab labels and badges), one `·` per line at most. `tests/design/type-tells.test.ts` checks it.
 - Logo: `public/brand/farbaek-logo.webp`, used unaltered through `BrandLogo` or `LOGO`, directly on the page: no plate, frame or filter.
+- App icon and favicon only: `public/brand/farbaek-app-icon.webp` (the cat knight). It's never used anywhere else. `node scripts/brand-assets.mjs` makes every size from it.
 - 3D and film load lazily, pause off-screen, and fall back to static under reduced motion, Save-Data, weak hardware or a touch-first screen (ADR 0052). Film content is labelled sample data. Measure phone changes with `pnpm qa:vitals`.
 - Motion only for live state, hierarchy, storytelling or feedback; always honour `prefers-reduced-motion`.
 - No CSS filters (`blur`, `drop-shadow`, `brightness`): on iOS 26 they paint a black square at the top left (ADR 0055). Draw soft light with gradients; `backdrop-filter` is fine. `tests/design/no-filters.test.ts` checks it.
