@@ -19,7 +19,9 @@ param(
   [Parameter(Mandatory = $true)][ValidateSet("request", "github")][string]$Step,
   [string]$Name = "Suvin Hettiarachchi",
   [string]$TeamId = "65BULQ4657",
-  [string]$Folder = "$HOME\FarbaekMacSigning"
+  [string]$Folder = "$HOME\FarbaekMacSigning",
+  # App Store Connect's Issuer ID (not secret); asked for when it isn't given here.
+  [string]$IssuerId = ""
 )
 
 # Every OpenSSL step's exit code is checked; its progress output on stderr isn't an error.
@@ -88,7 +90,8 @@ $p8 = Get-ChildItem -Path "$HOME\Downloads", $Folder -Filter "AuthKey_*.p8" -Err
 if (-not $p8) { Write-Host "No AuthKey_....p8 in Downloads. Make the App Store Connect API key first (step 2 at the top of this script)." -ForegroundColor Red; exit 1 }
 if ($p8.DirectoryName -ne $Folder) { Move-Item $p8.FullName (Join-Path $Folder $p8.Name) -Force; $p8 = Get-Item (Join-Path $Folder $p8.Name) }
 $keyId = $p8.BaseName -replace '^AuthKey_', ''
-$issuer = (Read-Host -Prompt "Paste the Issuer ID shown above the keys in App Store Connect").Trim()
+$issuer = $IssuerId.Trim()
+if (-not $issuer) { $issuer = (Read-Host -Prompt "Paste the Issuer ID shown above the keys in App Store Connect").Trim() }
 if ($issuer -notmatch '^[0-9a-f-]{36}$') { Write-Host "That isn't an Issuer ID (36 characters with dashes), so nothing was copied." -ForegroundColor Red; exit 1 }
 
 $values = [ordered]@{
