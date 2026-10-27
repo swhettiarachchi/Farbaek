@@ -27,7 +27,7 @@ Known gaps:
 | API to model providers | Data exfiltration, prompt injection (LLM01), unbounded consumption (LLM10) | Server-side keys only, bounded context, token and time budgets, model output treated as untrusted |
 | Agent to tools / sandbox | Tool misuse (ASI02), unexpected code execution (ASI05), goal hijack (ASI01) | Typed tool schemas, path canonicalization, policy check before every side effect, microVM sandbox with deny-by-default egress |
 | Approvals | Replay, stale approval, payload swap | Approval bound to SHA-256 of the RFC 8785 canonical payload plus contract, policy and resource versions (implemented in `src/core/trust/approval.ts`), expiry, server-side reviewer authorization |
-| Webhooks (payments) | Spoofing, replay, out-of-order delivery | Signature verification on the raw body, timestamp tolerance, unique `webhook_id`, re-fetch provider state |
+| Webhooks (payments) | Spoofing, replay, out-of-order delivery | Signature verification on the raw body, timestamp tolerance, unique `webhook_id`, re-fetch provider state (built, ADR 0100; see Payments below) |
 | Desktop / mobile / Mesh | Device spoofing, path traversal on import, archive bombs | PAKE or Noise pairing, short-lived scoped tokens, manifest and hash validation, no auto-execution on import |
 | Previews | Credential theft from generated code | Separate registrable domain, restrictive CSP, no shared cookies |
 
@@ -134,6 +134,17 @@ Known limits: preview pages may load `https:` images and fonts, so a page could 
 | The server itself | Password guessing on SSH, unpatched packages, services exposed by accident | ufw allows only 22, 80 and 443; SSH is keys only with root login off; fail2ban on SSH; unattended security upgrades. Only Caddy publishes ports, and the app container is reachable inside Docker's network alone | `scripts/vps/bootstrap.sh`; `ufw status` and a refused password login, checked on the server |
 | Production secrets | A secret in the repo, an image layer, a log or a CI system | Values live only in `/opt/farbaek/env/production.env` (mode 600), typed in by the owner. The build mounts the file as a BuildKit secret. Deploy scripts check names only. The sweep runs inside the container that already holds its secret. `.dockerignore` keeps every `.env*` file out of the build context | `Dockerfile`, `.dockerignore`, `scripts/vps/deploy.sh`, code review |
 | Deploys | A compromised CI or webhook pushing code to production | Deploys pull: the server fetches `main` with a read-only deploy key. Nothing outside can trigger or push a deploy. An unhealthy build is rolled back | `scripts/vps/deploy.sh`, a deliberately broken ref on the server |
+
+## Payments (2026-10-28, ADR 0100)
+
+| Boundary | Threats | Enforcement (built) | Tested by |
+| --- | --- | --- | --- |
+| `POST /api/webhooks/dodo` | A forged delivery granting a plan; replays; old deliveries; oversized bodies | Standard Webhooks HMAC-SHA256 on the raw body before anything is parsed, every `v1` entry compared in constant time, timestamps more than 5 minutes off refused, 1 MB cap, 503 while not connected; stored once by `(provider, webhook_id)` | `src/server/billing/billing.test.ts`, SE-035 |
+| Webhook to billing state | A genuine webhook carrying a stale or crafted state; out-of-order delivery | State is never taken from the payload: processing reads the subscription back from Dodo with the server's key and applies it with `app_billing_apply_subscription`, where an older read can't overwrite a newer one; the workspace comes from metadata Farbaek set at checkout; an unknown product changes nothing | `tests/db/payments.test.ts`, SE-035 |
+| Test mode in production | A Dodo test card buying a real workspace a paid plan | Checkout and webhook processing both require the workspace to be listed in `BILLING_TEST_WORKSPACES`; `BILLING_MODE=live` is refused in code until the go-live checklist is complete | `src/server/billing/billing.test.ts` (config, use cases) |
+| Checkout and plan changes | A member buying or changing a plan; a price different from the catalog; a second subscription | Owners and admins only, checked in TypeScript and again in SQL (`private.require_manager`); a product's stored price must equal the catalog's or checkout pauses; one live subscription per workspace; consent words stored with their SHA-256 | `tests/db/payments.test.ts`, `billing.test.ts` |
+| Provider keys | Keys in the repo, logs or error messages | Set by the owner over SSH with `scripts/vps/set-dodo.ps1`, typed hidden and checked silently; the client never logs requests; errors become codes; connection lists show names only | Code review, `billingStatus` test |
+| Payment records | Customer names and emails kept longer than needed | Webhook payloads are readable only by the server key, never shown in Office Space, and deleted 90 days after processing | `tests/db/payments.test.ts` (grants) |
 
 ## Workspace Capsules (2026-10-22, ADR 0037)
 

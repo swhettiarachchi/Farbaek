@@ -38,9 +38,9 @@ export function ChoosePlanStep({ planId, onTrial, error }: { planId: PaidPlanId;
   if (plan.pricing.kind !== "paid") return null;
   return (
     <StepShell title={`Choose ${plan.name}`}>
-      <p className="mt-2 text-2xl font-medium tracking-[-0.02em] tabular">
-        {formatUsd(plan.pricing.monthlyCents)}
-        <span className="ml-1 text-sm font-normal text-ink-3">a month, plus applicable tax, calculated at checkout</span>
+      <p className="mt-2 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+        <span className="text-2xl font-medium tracking-[-0.02em] tabular">{formatUsd(plan.pricing.monthlyCents)}</span>
+        <span className="text-sm text-ink-3">a month, plus applicable tax, calculated at checkout</span>
       </p>
       <ul className="mt-4 grid gap-1.5 text-sm text-ink-2 tabular">
         <li className="font-medium text-ink">{sessionsLine(plan)}</li>

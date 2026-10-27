@@ -2,19 +2,30 @@
 
 Payments stay **not connected** (`BILLING_MODE=not_connected`) until every item below is checked and recorded with a date. Live mode needs an environment flag plus an audited admin confirmation.
 
+Since 2026-10-28 (ADR 0100), test mode can be switched on for listed workspaces with `scripts/vps/set-dodo.ps1` (steps in `docs/billing/dodo-test-mode.md`). `BILLING_MODE=live` is still refused in code: `readBillingConfig` treats it as not connected.
+
 - [ ] Dodo Payments KYC approved for the owner's business (Sri Lanka is listed as eligible; approval is not guaranteed)
-- [ ] Current Dodo API, SDK version, webhook format and cancellation semantics re-verified against the official docs, with notes in `docs/research/`
+- [x] Current Dodo API, SDK version, webhook format and cancellation semantics re-verified against the official docs, with notes in `docs/research/`
+  - 2026-10-27: `docs/research/2026-10-27-dodo-payments.md`. Farbaek uses the REST API directly, not the SDK (ADR 0100). Re-read before going live.
 - [ ] Test-mode keys stored in the secrets store (never in git)
+  - 2026-10-28: `scripts/vps/set-dodo.ps1` is ready; the owner runs it with keys from Dodo's dashboard.
 - [ ] One Dodo product per plan and interval, with amounts reconciled against `src/core/billing/catalog.ts`
+  - 2026-10-28: built. Office Space → Payments creates a monthly product per paid plan and reads each price back; checkout refuses a plan whose price differs. Still to do: create them in test mode, then live.
 - [ ] The processor's real fee per payment is at most `ECONOMICS` in `src/core/billing/allowance.ts` (5% + $0.50, Paddle's rate, which the cost research uses), or `ECONOMICS` is updated and the catalog tests still hold the 40% margin (ADR 0020)
 - [ ] Prices are shown without tax and tax is added at checkout (tax-inclusive prices take the tax out of each plan's budget)
+  - 2026-10-28: products are created with `tax_inclusive: false`, and Billing says tax is calculated at checkout. Confirm on a test checkout.
 - [ ] Annual billing decided: either no discount, or allowances cut so the 40% margin holds
 - [ ] Spend cap built, and top-ups (at the plan's own rate, 12-month expiry) apply only up to it
-- [ ] Paid usage grants anchored to the subscription start instead of the calendar month (`currentGrant` in `src/core/billing/wallet.ts`)
-  - 2026-10-25: built, not yet connected. `currentGrant(plan, trial, now, anchor)` gives a paid plan the period starting on the subscription's day of the month (the 28th for the 29th to 31st), `grantResetsAt` follows it, and `src/core/billing/wallet.test.ts` covers it. Still to do: pass the subscription's start as `anchor` once a provider's subscriptions are stored.
-- [ ] Webhook endpoint verifies signatures on the raw body, rejects stale timestamps, stores a unique `webhook_id`, and re-fetches state for out-of-order events
+- [x] Paid usage grants anchored to the subscription start instead of the calendar month (`currentGrant` in `src/core/billing/wallet.ts`)
+  - 2026-10-25: built, not yet connected. `currentGrant(plan, trial, now, anchor)` gives a paid plan the period starting on the subscription's day of the month (the 28th for the 29th to 31st), `grantResetsAt` follows it, and `src/core/billing/wallet.test.ts` covers it.
+  - 2026-10-28: connected. `billing_accounts.subscription_started_at` (migration v62) comes from the provider's subscription and is the anchor everywhere a grant is made (`workspaceGrant`).
+- [x] Webhook endpoint verifies signatures on the raw body, rejects stale timestamps, stores a unique `webhook_id`, and re-fetches state for out-of-order events
+  - 2026-10-28: `POST /api/webhooks/dodo` (ADR 0100). Covered with signed mock fixtures in `src/server/billing/billing.test.ts`, `tests/db/payments.test.ts` and SE-035. Real deliveries are the next item.
 - [ ] Billing tests 7, 8, 15 and 18 (spec section 20) pass against test mode with real signed webhooks
-- [ ] The trial is confirmed to be internal only (never a Dodo `trial_period_days` product)
+  - Mock versions pass (2026-10-28): consent before checkout (7), a replayed webhook-id is a no-op (8), cancellation states its date (15). The Billing page is built mobile first (18). Needs the owner's test keys to run for real.
+- [x] The trial is confirmed to be internal only (never a Dodo `trial_period_days` product)
+  - 2026-10-28: products are created with `trial_period_days: 0`, checkout never sends `subscription_data`, and Office Space flags a product with trial days. Tests assert all three.
 - [ ] Tax, refund and auto-renewal terms published, with legal review
 - [ ] Cancellation flow is as easy as signup, and consent records are stored
+  - 2026-10-28: built. Cancel is two clicks from Billing and shows the date the plan ends; Keep undoes it. Checkout stores the exact words agreed to and their SHA-256 (`billing_checkouts`). Still to do: legal review of the wording.
 - [ ] Owner sign-off recorded in the audit log

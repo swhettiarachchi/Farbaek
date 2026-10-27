@@ -13,7 +13,7 @@ export function TestModeBand() {
       <span>
         <span className="font-medium">Payments test mode.</span> Checkout takes Dodo Payments&apos; test cards only, and nothing is charged.
       </span>
-      <Link href="/app/billing" className="inline-flex min-h-11 items-center font-medium text-accent underline-offset-4 hover:underline">
+      <Link href="/app/billing" className="inline-flex min-h-11 min-w-11 items-center justify-center px-1 font-medium text-accent underline-offset-4 hover:underline">
         Billing
       </Link>
     </p>
