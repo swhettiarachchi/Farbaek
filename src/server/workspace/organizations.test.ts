@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapCreateOrganizationError, summarizeOrganizations } from "./organizations";
+import { mapCreateOrganizationError, summarizeOrganizations, workspaceGrant } from "./organizations";
 
 const now = new Date("2026-10-15T09:30:00.000Z");
 
@@ -36,6 +36,23 @@ describe("summarizeOrganizations", () => {
     );
     expect(ws!.plan.source).toBe("free");
     expect(ws!.trial!.phase).toEqual({ phase: "ended" });
+  });
+
+  it("anchors a paid plan's usage period to its subscription start (mock subscription)", () => {
+    const [ws] = summarizeOrganizations(
+      [
+        {
+          id: "o1",
+          name: "Paid",
+          created_at: "2026-09-01T00:00:00.000Z",
+          billing_accounts: { state: "active", paid_plan_id: "pro", paid_through: "2026-11-03T09:00:00.000Z", suspended_reason: null, subscription_started_at: "2026-09-03T09:00:00.000Z" },
+          trials: null,
+        },
+      ],
+      now,
+    );
+    expect(ws!.paidAnchor).toBe("2026-09-03T09:00:00.000Z");
+    expect(workspaceGrant(ws!, now)).toMatchObject({ kind: "plan", starts_at: "2026-10-03T09:00:00.000Z", source_key: "plan:pro:2026-10-03" });
   });
 
   it("falls back to Free and flags missing billing state", () => {

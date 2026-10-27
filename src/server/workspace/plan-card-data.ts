@@ -7,7 +7,7 @@ import { estimateRunShare, shareOfPeriod } from "@/core/agent/prompt-start";
 import { capShare, capUnitsFor, type CapChoice } from "@/core/agent/run-cap";
 import { EFFORTS, type Effort } from "@/core/agent/routing";
 import { routeModel } from "@/server/ai/routing";
-import { currentGrant } from "@/core/billing/wallet";
+import { workspaceGrant } from "./organizations";
 import { resolveAiProvider } from "@/server/ai/config";
 import type { WorkspaceSummary } from "./organizations";
 
@@ -16,14 +16,12 @@ export type RunEstimates = Record<Effort, { low: number; high: number; model: st
 /** This period's allowance in units (server-side only), or null when there's none or billing is unknown. */
 export function periodUnits(ws: WorkspaceSummary, now = new Date()): number | null {
   if (ws.billingUnknown) return null;
-  const trial = ws.trial ? { startedAt: new Date(ws.trial.startedAt), endsAt: new Date(ws.trial.endsAt) } : undefined;
-  return currentGrant(ws.plan, trial, now)?.units ?? null;
+  return workspaceGrant(ws, now)?.units ?? null;
 }
 
 export function runEstimates(ws: WorkspaceSummary, now = new Date()): RunEstimates {
   const family = resolveAiProvider().provider ?? "anthropic";
-  const trial = ws.trial ? { startedAt: new Date(ws.trial.startedAt), endsAt: new Date(ws.trial.endsAt) } : undefined;
-  const periodUnits = ws.billingUnknown ? null : (currentGrant(ws.plan, trial, now)?.units ?? null);
+  const periodUnits = ws.billingUnknown ? null : (workspaceGrant(ws, now)?.units ?? null);
   const out = {} as RunEstimates;
   for (const effort of EFFORTS) {
     const model = routeModel({ plan: ws.plan, family, step: "write", effort }).model;

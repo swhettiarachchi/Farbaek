@@ -7,12 +7,12 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { currentGrant, walletView } from "@/core/billing/wallet";
+import { walletView } from "@/core/billing/wallet";
 import { resolveAiProvider } from "@/server/ai/config";
 import { deploymentInfo } from "@/server/deployment";
 import { sandboxExecutionMode } from "@/server/sandbox/registry";
 import { hasServerWriteKey } from "@/server/supabase/admin";
-import { ORGANIZATION_SELECT, summarizeOrganizations, type WorkspaceSummary } from "@/server/workspace/organizations";
+import { ORGANIZATION_SELECT, summarizeOrganizations, workspaceGrant, type WorkspaceSummary } from "@/server/workspace/organizations";
 import { GRANT_COLUMNS, UsageGrantRowSchema, grantFromRow } from "@/server/workspace/usage-store";
 import { aiCostUsd, countBy, latestBy, monthStartUtc, planLabel, trialDaysLeft } from "./summaries";
 import { emailStatus } from "@/server/email/config";
@@ -132,9 +132,8 @@ export async function loadWorkspaces(admin: SupabaseClient, now = new Date()): P
   const grantRows = z.array(UsageGrantRowSchema.extend({ org_id: z.string() })).parse(must(grants, "AI usage"));
 
   return ws.map((w) => {
-    const trial = w.trial ? { startedAt: new Date(w.trial.startedAt), endsAt: new Date(w.trial.endsAt) } : undefined;
     const own = grantRows.filter((g) => g.org_id === w.id).map(grantFromRow);
-    const wallet = w.billingUnknown ? null : walletView(own, currentGrant(w.plan, trial, now), now);
+    const wallet = w.billingUnknown ? null : walletView(own, workspaceGrant(w, now), now);
     return {
       id: w.id,
       name: w.name,
