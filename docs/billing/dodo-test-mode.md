@@ -4,17 +4,10 @@ Payments run through Dodo Payments (ADR 0100). In test mode nothing real is char
 
 ## 1. In Dodo's dashboard (about 5 minutes)
 
-Turn on **Test Mode** at the top of app.dodopayments.com first. Everything below is the test-mode version.
+Switch to **Test Mode** with the toggle at the bottom left of app.dodopayments.com first (Claude left it there). Everything below is the test-mode version.
 
 1. **The API key.** Choose **Developer → API Keys → Add API Key**, name it "Farbaek server (test)", and keep the page open. You'll paste it once in step 2.
-2. **The webhook.** Choose **Developer → Webhooks → Add Endpoint**.
-   - URL: `https://www.farbaek.com/api/webhooks/dodo`
-   - Events (the full list is also on Office Space → Payments):
-     - `subscription.active`, `subscription.updated`, `subscription.renewed`, `subscription.plan_changed`;
-     - `subscription.past_due`, `subscription.on_hold`, `subscription.paused`, `subscription.unpaused`;
-     - `subscription.cancelled`, `subscription.expired`, `subscription.failed`;
-     - `payment.succeeded`, `payment.failed`.
-   - Create it, open it, and keep its **Signing Secret** (it starts with `whsec_`) ready for step 2.
+2. **The webhook** is already there: Claude added it on 2026-10-28, in test mode, at `https://www.farbaek.com/api/webhooks/dodo`, with every `subscription.*` event plus `payment.succeeded` and `payment.failed`. Open **Developer → Webhooks**, click it, and keep its **Signing Secret** (it starts with `whsec_`) ready for step 2. Claude never opened that page, so the secret stays yours.
 3. **Your workspace's id.** In Office Space, open **Workspaces**, then your workspace. The id is the last part of the address: 8-4-4-4-12 letters and digits.
 
 ## 2. On your computer (3 to 5 minutes)
