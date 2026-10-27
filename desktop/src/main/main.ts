@@ -25,8 +25,12 @@ import { DirectBridge } from "./direct";
 import { DesktopMesh } from "./mesh";
 import { RunError, RunManager } from "./runs";
 import { SecretStore } from "./secrets";
+import { storeDataDir } from "./data-dir";
 
 app.setName("Farbaek Agent");
+// Installed from the Microsoft Store: data outside AppData, which Windows redirects for packages (ADR 0098).
+const fromStore = storeDataDir({ windowsStore: process.windowsStore === true, home: os.homedir() });
+if (fromStore) app.setPath("userData", fromStore);
 // Development only: a separate data folder, so a test run never touches the real one.
 if (!app.isPackaged && process.env.FARBAEK_AGENT_DATA_DIR) app.setPath("userData", process.env.FARBAEK_AGENT_DATA_DIR);
 if (!app.requestSingleInstanceLock()) app.quit();
