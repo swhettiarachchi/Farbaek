@@ -26,6 +26,7 @@ Since 2026-10-28 (ADR 0100), test mode can be switched on for listed workspaces 
 - [x] The trial is confirmed to be internal only (never a Dodo `trial_period_days` product)
   - 2026-10-28: products are created with `trial_period_days: 0`, checkout never sends `subscription_data`, and Office Space flags a product with trial days. Tests assert all three.
 - [ ] Tax, refund and auto-renewal terms published, with legal review
+  - 2026-10-28: drafted in `docs/legal/paid-plans-terms-draft.md`, matched to what the code does. Needs the owner's refund and price-change decisions and a legal review, then it becomes a section of `/terms`. Dodo Payments is listed on the privacy page's processors.
 - [ ] Cancellation flow is as easy as signup, and consent records are stored
   - 2026-10-28: built. Cancel is two clicks from Billing and shows the date the plan ends; Keep undoes it. Checkout stores the exact words agreed to and their SHA-256 (`billing_checkouts`). Still to do: legal review of the wording.
 - [ ] Owner sign-off recorded in the audit log
