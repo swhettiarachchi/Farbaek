@@ -114,6 +114,7 @@ foreach ($name in $values.Keys) {
   Set-Clipboard -Value $values[$name]
   Write-Host "Copied the value. Click the Secret box, press Ctrl+V, choose Add secret, then New repository secret." -ForegroundColor Green
 }
+Read-Host -Prompt "When the last one is added in GitHub, press Enter to clear the clipboard"
 Set-Clipboard -Value " "
 $values = $null; $password = $null
 Write-Host "Done. The clipboard is cleared. Keep $Folder private: it holds the key that signs Farbaek Agent for Mac." -ForegroundColor Green
