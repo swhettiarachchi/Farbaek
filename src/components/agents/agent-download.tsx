@@ -1,4 +1,5 @@
 import { DownloadSimpleIcon, ShieldWarningIcon, WindowsLogoIcon } from "@phosphor-icons/react/ssr";
+import type { ReactNode } from "react";
 import { AGENT_DOWNLOAD, agentDownloadUrl } from "@/config/agent-download";
 
 const mb = (bytes: number) => `${Math.round(bytes / 1024 / 1024)} MB`;
@@ -37,21 +38,33 @@ export function AgentDownload() {
           </a>
         </div>
 
-        <div className="grid gap-4 border-t border-line pt-5 md:grid-cols-2">
-          <div className="grid content-start gap-2">
+        <div className="grid gap-4 border-t border-line pt-5">
+          <div className="grid gap-1">
             <p className="flex items-center gap-2 text-sm font-medium">
-              <ShieldWarningIcon size={18} weight="bold" className="text-approval" aria-hidden /> Not code-signed yet
+              <ShieldWarningIcon size={18} weight="bold" className="text-approval" aria-hidden /> Opening it the first time
             </p>
-            <p className="text-sm leading-relaxed text-ink-2">
-              Windows SmartScreen shows &quot;Windows protected your PC&quot; the first time. Check the file&apos;s fingerprint first, then choose More info and Run anyway.
+            <p className="max-w-[68ch] text-sm leading-relaxed text-ink-2">
+              The installer isn&apos;t code-signed yet, so Windows shows a blue &quot;Windows protected your PC&quot; screen with only Don&apos;t run on it. That&apos;s expected, and it asks only once.
             </p>
           </div>
-          <div className="grid min-w-0 content-start gap-2">
-            <p className="text-sm font-medium">Its SHA-256 fingerprint</p>
-            <p className="break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[12.5px] leading-relaxed text-ink">{d.sha256}</p>
-            <p className="text-xs leading-relaxed text-ink-3">In PowerShell, in your Downloads folder, run this. The two must match.</p>
-            <code className="block overflow-x-auto whitespace-nowrap rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[12px] text-ink-2">Get-FileHash {d.file}</code>
-          </div>
+          <ol className="grid gap-3 lg:grid-cols-3">
+            <li className="grid min-w-0 content-start gap-2 rounded-md border border-line p-4">
+              <Step n={1}>Check it&apos;s the real file</Step>
+              <p className="text-xs leading-relaxed text-ink-3">In PowerShell, in your Downloads folder, run this. The hash it prints must match this one; capital letters don&apos;t matter.</p>
+              <code className="block break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[12px] text-ink-2">Get-FileHash {d.file}</code>
+              <p className="break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[12px] leading-relaxed text-ink">{d.sha256}</p>
+            </li>
+            <li className="grid min-w-0 content-start gap-2 rounded-md border border-line p-4">
+              <Step n={2}>Open it, then choose More info</Step>
+              <p className="text-xs leading-relaxed text-ink-3">It&apos;s the underlined link under the warning.</p>
+              <ScreenSketch highlight="more" />
+            </li>
+            <li className="grid min-w-0 content-start gap-2 rounded-md border border-line p-4">
+              <Step n={3}>Choose Run anyway</Step>
+              <p className="text-xs leading-relaxed text-ink-3">It appears beside Don&apos;t run, under the file&apos;s name and &quot;Unknown publisher&quot;. Then install as usual.</p>
+              <ScreenSketch highlight="run" />
+            </li>
+          </ol>
         </div>
 
         <p className="text-xs leading-relaxed text-ink-3">
@@ -59,5 +72,41 @@ export function AgentDownload() {
         </p>
       </div>
     </section>
+  );
+}
+
+function Step({ n, children }: { n: number; children: ReactNode }) {
+  return (
+    <p className="flex items-center gap-2.5 text-sm font-medium text-ink">
+      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xs font-medium text-accent" aria-hidden>
+        {n}
+      </span>
+      {children}
+    </p>
+  );
+}
+
+/** A sketch of the SmartScreen screen, not a copy of it: where to click, marked with the accent. Words for it are in the step. */
+function ScreenSketch({ highlight }: { highlight: "more" | "run" }) {
+  const mark = "rounded-[6px] ring-2 ring-accent ring-offset-2 ring-offset-surface-sunken";
+  return (
+    <div aria-hidden className="grid gap-2 rounded-sm border border-line bg-surface-sunken p-3 text-[12px] leading-snug text-ink-2">
+      <span className="text-[13px] font-medium text-ink">Windows protected your PC</span>
+      {highlight === "more" ? (
+        <span>
+          Microsoft Defender SmartScreen prevented an unrecognized app from starting.{" "}
+          <span className={`px-0.5 text-accent underline ${mark}`}>More info</span>
+        </span>
+      ) : (
+        <span className="grid gap-0.5 font-mono text-[12px] text-ink-3">
+          <span>App: Farbaek-Agent-Setup….exe</span>
+          <span>Publisher: Unknown publisher</span>
+        </span>
+      )}
+      <span className="flex justify-end gap-2 pt-1">
+        {highlight === "run" ? <span className={`border border-line-strong bg-surface px-2.5 py-1 text-ink ${mark}`}>Run anyway</span> : null}
+        <span className="rounded-[6px] border border-line-strong bg-surface px-2.5 py-1 text-ink">Don&apos;t run</span>
+      </span>
+    </div>
   );
 }
