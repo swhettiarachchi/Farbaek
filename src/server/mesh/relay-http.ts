@@ -10,7 +10,8 @@ import type { AgentIdentity, AgentStore } from "@/server/agent/service";
 import { log } from "@/server/observability/log";
 import { sameOrigin } from "@/server/sandbox/wiring";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
-import { loadAppContext } from "@/server/workspace/context";
+import { createSupabaseServerClient } from "@/server/supabase/server";
+import { isDemoMode, loadAppContext } from "@/server/workspace/context";
 import { RELAY_LIMITS, RelayHub, type RelayAgent, type RelayErrorCode } from "./relay-hub";
 
 const STATUS: Record<RelayErrorCode, number> = { NOT_FOUND: 404, FORBIDDEN: 403, NOT_REACHABLE: 409, BUSY: 429, GAP: 409, TOO_LARGE: 413, CLOSED: 410 };
@@ -76,6 +77,20 @@ export function offsetFrom(url: URL, name: string): number | null {
 const DeviceId = z.uuid();
 
 /**
+ * Whether the request has a session, without loadAppContext's redirect to
+ * sign-in: an API answers 401 in words, so a browser whose session ended
+ * says "sign in" instead of retrying a page it can't read.
+ */
+async function hasSession(): Promise<boolean> {
+  // The demo, and a server without Supabase, are answered by loadAppContext itself.
+  if (isDemoMode()) return true;
+  const client = await createSupabaseServerClient();
+  if (!client) return true;
+  const { data } = await client.auth.getClaims().catch(() => ({ data: null }));
+  return typeof data?.claims?.sub === "string";
+}
+
+/**
  * A browser's route of the relay (ADR 0096): the person's own session in
  * the live app, a request from Farbaek's own pages (same origin) for
  * anything but reading, the browser's device id, and a rate limit of the
@@ -83,6 +98,7 @@ const DeviceId = z.uuid();
  * person's current workspace, so it reaches only that workspace's computers.
  */
 export async function withRelayBrowser(request: Request, handler: (ctx: { relay: RelayAgent; hub: RelayHub; userId: string }) => Promise<Response>): Promise<Response> {
+  if (!(await hasSession())) return problem(401, "UNAUTHENTICATED", "You're signed out. Sign in to reach your computers.");
   const ctx = await loadAppContext();
   if (!ctx) return problem(401, "UNAUTHENTICATED", "Sign in to reach your computers.");
   if (ctx.mode !== "live") return problem(403, "FORBIDDEN", "The demo workspace can't reach your computers. Sign in to your own workspace.");

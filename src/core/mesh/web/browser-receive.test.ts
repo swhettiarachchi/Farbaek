@@ -301,5 +301,9 @@ describe("a Farbaek Agent sending to a phone or browser", { timeout: 60_000 }, (
     });
     await expect(signedOut.setReachable(true)).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
     expect(signedOut.reachable).toBe(false);
+
+    // A server that sends a signed-out browser to the sign-in page: never followed, and read as signed out.
+    const redirecting = new WebRelay({ base: "https://www.farbaek.com/api/v1/mesh/relay", headers: {}, fetcher: async (_url, init) => (init.redirect === "manual" ? new Response(null, { status: 307, headers: { location: "/sign-in" } }) : new Response("<html>", { status: 200 })) });
+    await expect(redirecting.waitForCalls(0)).rejects.toMatchObject({ code: "UNAUTHENTICATED", message: "You're signed out. Sign in again, then try again." });
   });
 });
