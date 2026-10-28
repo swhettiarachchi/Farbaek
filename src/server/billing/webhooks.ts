@@ -37,6 +37,10 @@ export interface WebhookDeps {
   orgForSubscription(subscriptionId: string): Promise<string | null>;
   apply(orgId: string, sub: NormalizedSubscription, state: AppliedState, syncedAt: Date, source: string): Promise<ApplyResult>;
   now(): Date;
+  /** For a one-time payment event: the payment it names and whether Farbaek marked it a top-up (ADR 0102). */
+  paymentOf?(eventId: string): Promise<{ paymentId: string; topup: boolean } | null>;
+  /** Turns a top-up paid through this checkout session into usage, once. */
+  completeTopup?(orgId: string, sessionId: string, paymentId: string): Promise<"paid" | "already">;
 }
 
 function respond(status: number, body: Record<string, unknown>): Response {
@@ -80,6 +84,7 @@ async function processOne(deps: WebhookDeps, event: ClaimedEvent): Promise<strin
   const finish = (status: "processed" | "ignored" | "failed", error: string | null, org: string | null = event.orgId) => deps.finish(event.id, status, error, org);
   try {
     if (event.mode !== deps.config.mode) return finish("ignored", `A ${event.mode} event on a ${deps.config.mode} server.`);
+    if (event.type === "payment.succeeded" && !event.subscriptionId) return await processTopup(deps, event, finish);
     if (!ACTED_ON.test(event.type) || !event.subscriptionId) return finish("ignored", null);
 
     const read = await deps.provider.getSubscription(event.subscriptionId);
@@ -101,6 +106,25 @@ async function processOne(deps: WebhookDeps, event: ClaimedEvent): Promise<strin
     log("error", "billing.webhook_failed", { event: event.id, error: e instanceof Error ? e.message.slice(0, 200) : "unknown" });
     return finish("failed", "Processing failed on Farbaek's side.").catch(() => "failed");
   }
+}
+
+/**
+ * A one-time payment: a top-up when Farbaek marked its checkout as one. The
+ * payment is read back from the provider, and the top-up is found by the
+ * checkout session it was paid through, never by anything in the webhook.
+ */
+async function processTopup(deps: WebhookDeps, event: ClaimedEvent, finish: (status: "processed" | "ignored" | "failed", error: string | null, org?: string | null) => Promise<string>): Promise<string> {
+  const ref = deps.paymentOf ? await deps.paymentOf(event.id) : null;
+  if (!ref?.topup || !deps.completeTopup) return finish("ignored", null);
+  const read = await deps.provider.getPayment(ref.paymentId);
+  if (!read.ok) return finish("failed", `Reading the payment failed: ${read.code}.`);
+  const payment = read.value;
+  if (payment.status !== "succeeded") return finish("failed", `The payment isn't succeeded yet (${payment.status ?? "no status"}).`);
+  if (!payment.topup || !payment.orgId || !payment.checkoutSessionId) return finish("failed", "The payment doesn't name a Farbaek top-up checkout.");
+  if (!checkoutOpenFor(deps.config, payment.orgId)) return finish("ignored", "Test checkout isn't open to this workspace.", payment.orgId);
+  const result = await deps.completeTopup(payment.orgId, payment.checkoutSessionId, payment.id);
+  log("info", "billing.topup_applied", { event: event.id, result });
+  return finish("processed", null, payment.orgId);
 }
 
 /** Claims and processes due events: one by id right after it arrives, or up to `limit` from the hourly sweep. */

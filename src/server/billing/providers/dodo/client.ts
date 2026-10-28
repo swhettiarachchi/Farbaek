@@ -5,7 +5,7 @@
  * logs or returns the API key.
  */
 import { z } from "zod";
-import { PROVIDER_STATUSES, type CheckoutInput, type NormalizedSubscription, type PaymentProvider, type PlanChangeTiming, type ProviderErrorCode, type ProviderMode, type ProviderResult } from "@/core/billing/provider";
+import { PROVIDER_STATUSES, type CheckoutInput, type NormalizedPayment, type NormalizedSubscription, type PaymentProvider, type PlanChangeTiming, type ProviderErrorCode, type ProviderMode, type ProviderResult } from "@/core/billing/provider";
 
 export type Fetch = (input: string, init: RequestInit) => Promise<Response>;
 
@@ -30,6 +30,29 @@ const ProductPrice = z.object({
   is_recurring: z.boolean(),
   price: z.object({ price: z.number().int(), currency: z.string(), trial_period_days: z.number().int().nullable().optional() }).passthrough(),
 });
+const Payment = z.object({
+  payment_id: z.string().min(1).max(200),
+  status: z.string().nullable().optional(),
+  checkout_session_id: z.string().max(200).nullable().optional(),
+  metadata: z.record(z.string(), z.unknown()).nullable().optional(),
+  product_cart: z.array(z.object({ product_id: z.string() }).passthrough()).nullable().optional(),
+});
+
+export function normalizePayment(raw: unknown): NormalizedPayment | null {
+  const parsed = Payment.safeParse(raw);
+  if (!parsed.success) return null;
+  const p = parsed.data;
+  const org = p.metadata?.farbaek_org;
+  return {
+    id: p.payment_id,
+    status: p.status ?? null,
+    checkoutSessionId: p.checkout_session_id ?? null,
+    orgId: typeof org === "string" && org.length === 36 ? org : null,
+    topup: p.metadata?.farbaek_topup === "1",
+    productIds: (p.product_cart ?? []).map((i) => i.product_id),
+  };
+}
+
 const Preview = z.object({ immediate_charge: z.object({ summary: z.object({ total_amount: z.number().int(), currency: z.string() }).passthrough() }).passthrough() });
 
 const date = (v: string | null | undefined): Date | null => {
@@ -125,7 +148,7 @@ export function createDodoClient(opts: { apiKey: string; baseUrl: string; mode: 
         product_cart: [{ product_id: input.productId, quantity: 1 }],
         customer: { email: input.customer.email, ...(input.customer.name ? { name: input.customer.name } : {}) },
         return_url: input.returnUrl,
-        metadata: { farbaek_org: input.orgId, farbaek_plan: input.planId },
+        metadata: { farbaek_org: input.orgId, farbaek_plan: input.planId, ...(input.topup ? { farbaek_topup: "1" } : {}) },
       };
       // People pay in US dollars or a currency they pick at checkout (Dodo's adaptive currency, ADR 0100). The
       // consent says so, and Dodo shows the exact amount, with tax and any conversion fee, before they pay.
@@ -159,7 +182,26 @@ export function createDodoClient(opts: { apiKey: string; baseUrl: string; mode: 
 
     getSubscription: (id) => subscription("GET", id),
 
+    async getPayment(id) {
+      if (!ID.test(id)) return { ok: false, code: "REJECTED" };
+      const r = await call("GET", `/payments/${id}`, z.unknown());
+      if (!r.ok) return r;
+      const payment = normalizePayment(r.value);
+      return payment ? { ok: true, value: payment } : { ok: false, code: "BAD_RESPONSE" };
+    },
+
     async createProduct(input) {
+      if (input.once) {
+        // A top-up pack: one payment, tax added at checkout (ADR 0102).
+        const once = await call("POST", "/products", Product, {
+          name: input.name,
+          description: input.description,
+          tax_category: "saas",
+          price: { type: "one_time_price", price: input.amountCents, currency: input.currency, tax_inclusive: false },
+          metadata: { farbaek_topup: String(input.amountCents) },
+        });
+        return once.ok ? { ok: true, value: { productId: once.value.product_id } } : once;
+      }
       // Twenty years with monthly charges is Dodo's documented setting for "renews until cancelled".
       const r = await call("POST", "/products", Product, {
         name: input.name,
@@ -176,7 +218,7 @@ export function createDodoClient(opts: { apiKey: string; baseUrl: string; mode: 
           tax_inclusive: false,
           trial_period_days: 0,
         },
-        metadata: { farbaek_plan: input.planId },
+        metadata: { farbaek_plan: input.planId ?? "" },
       });
       return r.ok ? { ok: true, value: { productId: r.value.product_id } } : r;
     },

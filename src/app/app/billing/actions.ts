@@ -1,7 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { billingDeps } from "@/server/billing/wiring";
+import { billingDeps, topupDeps } from "@/server/billing/wiring";
+import { setTopupCap, startTopup, topupErrorKey } from "@/server/billing/topups";
 import { billingErrorKey, changePlan, openPortal, setCancelAtPeriodEnd, startCheckout, type BillingActor, type BillingWorkspace } from "@/server/billing/use-cases";
 import { log } from "@/server/observability/log";
 import { loadAppContext } from "@/server/workspace/context";
@@ -57,4 +58,23 @@ export async function changePlanAction(form: FormData): Promise<void> {
   const r = await changePlan(billingDeps(), ws, actor, plan);
   if (!r.ok) redirect(`${BILLING}?change=${encodeURIComponent(plan)}&error=${billingErrorKey(r)}#billing-step`);
   redirect(`${BILLING}?done=${r.value.direction === "upgrade" ? "upgraded" : "downgrade_scheduled"}&plan=${encodeURIComponent(plan)}`);
+}
+
+/** Sets or clears the workspace's monthly top-up limit (ADR 0102). */
+export async function setTopupCapAction(form: FormData): Promise<void> {
+  const { ws, actor } = await who();
+  const r = await setTopupCap(topupDeps(), ws, actor, String(form.get("dollars") ?? ""));
+  redirect(r.ok ? `${BILLING}?done=topup_cap#topups` : `${BILLING}?topup_error=${topupErrorKey(r)}#topups`);
+}
+
+/** Agreed in the form, then on to the provider's checkout for one top-up pack. */
+export async function startTopupAction(form: FormData): Promise<void> {
+  const { ws, actor } = await who();
+  const pack = Number(form.get("pack"));
+  const r = await startTopup(topupDeps(), ws, actor, pack, form.get("consent") === "yes");
+  if (!r.ok) {
+    log("warn", "billing.topup_refused", { org: ws.id, code: topupErrorKey(r) });
+    redirect(`${BILLING}?topup=${encodeURIComponent(String(pack))}&topup_error=${topupErrorKey(r)}#billing-step`);
+  }
+  redirect(r.value.url);
 }

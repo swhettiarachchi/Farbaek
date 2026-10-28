@@ -12,6 +12,7 @@ import type { SubscriptionState } from "@/core/billing/trial";
 import { readBillingConfig, type BillingConfig } from "./config";
 import { sendBillingNotice } from "./notices";
 import { createDodoClient, type Fetch } from "./providers/dodo/client";
+import type { TopupDeps } from "./topups";
 import type { BillingAccount, BillingDeps } from "./use-cases";
 import type { ApplyResult, ClaimedEvent, WebhookDeps } from "./webhooks";
 
@@ -117,6 +118,17 @@ export function billingWebhookDeps(fetchImpl?: Fetch): WebhookDeps | null {
     },
     apply,
     now: () => new Date(),
+    async paymentOf(eventId) {
+      const { data, error } = await admin.from("provider_webhook_events").select("payload").eq("id", eventId).maybeSingle();
+      if (error) throw new Error(`provider_webhook_events: ${error.message}`);
+      const d = ((data as { payload?: { data?: Record<string, unknown> } } | null)?.payload?.data ?? {}) as Record<string, unknown>;
+      const meta = (d.metadata && typeof d.metadata === "object" ? d.metadata : {}) as Record<string, unknown>;
+      return typeof d.payment_id === "string" ? { paymentId: d.payment_id, topup: meta.farbaek_topup === "1" } : null;
+    },
+    async completeTopup(orgId, sessionId, paymentId) {
+      const r = await rpc("app_billing_complete_topup", { p_org: orgId, p_session: sessionId, p_payment: paymentId });
+      return r === "already" ? "already" : "paid";
+    },
   };
 }
 
@@ -179,5 +191,51 @@ export function billingDeps(fetchImpl?: Fetch): BillingDeps | null {
     },
     apply,
     now: () => new Date(),
+  };
+}
+
+/** Top-ups on this server (ADR 0102): the billing deps plus the top-up functions from migration v64. */
+export function topupDeps(fetchImpl?: Fetch): TopupDeps | null {
+  const base = billingDeps(fetchImpl);
+  const admin = createSupabaseAdminClient();
+  if (!base || !admin) return null;
+  const { config } = base;
+  const code = (message: string, known: readonly string[]) => known.find((k) => message.includes(k)) ?? "UNKNOWN";
+  return {
+    config,
+    provider: base.provider,
+    account: base.account,
+    async topupProduct(pack) {
+      const { data, error } = await admin
+        .from("billing_topup_products")
+        .select("product_id")
+        .eq("provider", config.provider)
+        .eq("mode", config.mode)
+        .eq("pack_cents", pack)
+        .eq("catalog_version", PLAN_CATALOG_VERSION)
+        .maybeSingle();
+      if (error) throw new Error(`billing_topup_products: ${error.message}`);
+      const id = (data as { product_id?: unknown } | null)?.product_id;
+      return typeof id === "string" ? id : null;
+    },
+    async setCap(input) {
+      const { error } = await admin.rpc("app_billing_set_topup_cap", { p_org: input.orgId, p_actor: input.actorId, p_cents: input.cents });
+      return error ? { ok: false, code: code(error.message, ["FORBIDDEN"]) as "FORBIDDEN" | "UNKNOWN" } : { ok: true };
+    },
+    async recordTopup(input) {
+      const { error } = await admin.rpc("app_billing_start_topup", {
+        p_org: input.orgId,
+        p_actor: input.actorId,
+        p_provider: config.provider,
+        p_mode: config.mode,
+        p_session: input.sessionId,
+        p_product: input.productId,
+        p_pack_cents: input.packCents,
+        p_units: input.units,
+        p_consent: input.consentText,
+      });
+      if (!error) return { ok: true };
+      return { ok: false, code: code(error.message, ["FORBIDDEN", "NOT_SUBSCRIBED", "NO_CAP", "CAP_REACHED"]) as "FORBIDDEN" | "NOT_SUBSCRIBED" | "NO_CAP" | "CAP_REACHED" | "UNKNOWN" };
+    },
   };
 }

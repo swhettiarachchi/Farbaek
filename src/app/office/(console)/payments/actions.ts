@@ -2,7 +2,8 @@
 
 import { refresh } from "next/cache";
 import type { OfficeFormState } from "@/components/office/action-form";
-import { PLAN_CATALOG_VERSION, SELF_SERVE_PLANS } from "@/core/billing/catalog";
+import { PLAN_CATALOG_VERSION, SELF_SERVE_PLANS, formatUsd } from "@/core/billing/catalog";
+import { TOPUP_PACKS_CENTS } from "@/core/billing/topups";
 import { isPaidPlanId } from "@/core/billing/provider-state";
 import { readBillingConfig } from "@/server/billing/config";
 import { createDodoClient } from "@/server/billing/providers/dodo/client";
@@ -30,7 +31,9 @@ export async function createProductsAction(): Promise<OfficeFormState> {
   if (!page) return { ok: false, message: OFFICE_MESSAGES.UNKNOWN };
   const have = new Set(page.products.filter((p) => p.mode === config.mode && p.catalogVersion === PLAN_CATALOG_VERSION).map((p) => p.planId));
   const missing = SELF_SERVE_PLANS.filter((p) => p.pricing.kind === "paid" && isPaidPlanId(p.id) && !have.has(p.id));
-  if (missing.length === 0) return { ok: true, message: "Every paid plan already has a product for the current price list." };
+  const havePacks = new Set(page.topups.filter((t) => t.mode === config.mode && t.catalogVersion === PLAN_CATALOG_VERSION).map((t) => t.packCents));
+  const missingPacks = TOPUP_PACKS_CENTS.filter((c) => !havePacks.has(c));
+  if (missing.length === 0 && missingPacks.length === 0) return { ok: true, message: "Every paid plan and top-up pack already has a product for the current price list." };
 
   const dodo = createDodoClient({ apiKey: config.apiKey, baseUrl: config.baseUrl, mode: config.mode });
   const meta = await requestMeta();
@@ -53,6 +56,20 @@ export async function createProductsAction(): Promise<OfficeFormState> {
       return { ok: false, message: `${plan.name} was created at Dodo Payments (${created.value.productId}) but couldn't be recorded: ${OFFICE_MESSAGES[recorded.code]} Archive it in Dodo's dashboard before trying again.` };
     }
     made.push(plan.name);
+  }
+  // Top-up packs (ADR 0102): one-time products, tax added at checkout.
+  for (const cents of missingPacks) {
+    const created = await dodo.createProduct({ once: true, name: `Farbaek AI usage top-up ${formatUsd(cents)}`, description: "More AI usage for a paid Farbaek plan, at the plan's own rate, lasting 12 months.", amountCents: cents, currency: "USD" });
+    if (!created.ok) {
+      refresh();
+      return { ok: false, message: `${made.length ? `Created ${made.join(", ")}. ` : ""}Dodo Payments refused the ${formatUsd(cents)} top-up (${created.code}). Try again; products that exist are skipped.` };
+    }
+    const recorded = await gate.ctx.store.recordTopupProduct({ userId: gate.ctx.user.id, sessionId: gate.ctx.sessionId }, { mode: config.mode, packCents: cents, productId: created.value.productId, catalogVersion: PLAN_CATALOG_VERSION }, meta);
+    if (!recorded.ok) {
+      refresh();
+      return { ok: false, message: `The ${formatUsd(cents)} top-up was created at Dodo Payments (${created.value.productId}) but couldn't be recorded: ${OFFICE_MESSAGES[recorded.code]} Archive it in Dodo's dashboard before trying again.` };
+    }
+    made.push(`${formatUsd(cents)} top-up`);
   }
   refresh();
   return { ok: true, message: `Created ${made.length} ${made.length === 1 ? "product" : "products"} in Dodo's ${config.mode} mode: ${made.join(", ")}.` };
