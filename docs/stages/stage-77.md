@@ -110,7 +110,7 @@ The owner asked to connect Dodo Payments. Their Dodo business is set up but not 
 - The owner set the test keys with `set-dodo.ps1`. The API key is limited to the server's address and to checkout sessions, subscriptions, customers and products.
 - Office Space → Payments created the seven monthly products. Each price read back from Dodo matches the catalog.
 - **The owner bought Pro** with Dodo's test card. Four webhooks arrived and were all applied to the workspace: `subscription.renewed` (before `active`, the out-of-order case), `subscription.active`, `payment.succeeded` and `subscription.updated`. Billing showed Pro with its date.
-- **Fix: checkout now asks Dodo for US dollars.** The first test charge came out in NZ$, because the business has adaptive pricing and Dodo picked a currency from the billing country. The consent says US dollars, so checkout now sends `billing_currency: "USD"` with the currency picker off. If Dodo refuses that (adaptive pricing off), it retries without them, and the product's own currency is USD anyway.
+- **Fix: checkout now asks Dodo for US dollars.** The first test charge came out in NZ$: adaptive pricing is on, and Dodo's checkout showed a currency picker, which the owner tried. The consent says US dollars, so checkout now sends `billing_currency: "USD"` with the currency picker off. If Dodo refuses that (adaptive pricing off), it retries without them, and the product's own currency is USD anyway.
 
 ### Found
 
