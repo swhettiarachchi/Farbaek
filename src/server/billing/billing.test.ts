@@ -6,7 +6,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { NormalizedSubscription, PaidPlanId } from "@/core/billing/provider";
 import type { AppliedState } from "@/core/billing/provider-state";
-import { billingStatus, checkoutOpenFor, readBillingConfig, type BillingConfig } from "./config";
+import { billingStatus, checkoutOpenFor, readBillingConfig, readProviderConfig, type BillingConfig } from "./config";
 import { createDodoClient, type Fetch } from "./providers/dodo/client";
 import { signWebhook, verifyDodoWebhook } from "./providers/dodo/webhook";
 import { changePlan, openPortal, previewPlanChange, setCancelAtPeriodEnd, startCheckout, type BillingAccount, type BillingDeps } from "./use-cases";
@@ -363,9 +363,22 @@ describe("billing config", () => {
     expect(checkoutOpenFor(c, OTHER_ORG)).toBe(false);
   });
 
+  it("goes live only with the keys and an owner's confirmation, then opens checkout to every workspace", () => {
+    const live = { ...env, BILLING_MODE: "live" };
+    expect(readBillingConfig(live, { confirmed: false })).toBeNull();
+    const c = readBillingConfig(live, { confirmed: true })!;
+    expect(c).toMatchObject({ mode: "live", baseUrl: "https://live.dodopayments.com" });
+    expect(checkoutOpenFor(c, OTHER_ORG)).toBe(true);
+    expect(readBillingConfig({ BILLING_MODE: "live", DODO_PAYMENTS_API_KEY: "mock" }, { confirmed: true })).toBeNull();
+    // Office Space reads the keys before the confirmation, to make live products first.
+    expect(readProviderConfig(live)?.mode).toBe("live");
+  });
+
   it("describes its state by name only, never a value", () => {
-    expect(billingStatus({})).toEqual({ on: false, detail: "Not connected until go-live" });
+    expect(billingStatus({})).toEqual({ on: false, detail: "Not connected" });
     expect(billingStatus({ BILLING_MODE: "live" }).on).toBe(false);
+    expect(billingStatus({ ...env, BILLING_MODE: "live" }, false)).toEqual({ on: false, detail: "Live keys are set; an owner confirms Go live in Office Space" });
+    expect(billingStatus({ ...env, BILLING_MODE: "live" }, true)).toEqual({ on: true, detail: "Live payments, open to every workspace" });
     expect(billingStatus({ BILLING_MODE: "test" }).detail).toBe("Test mode needs DODO_PAYMENTS_API_KEY and DODO_PAYMENTS_WEBHOOK_KEY");
     const on = billingStatus({ ...env, DODO_PAYMENTS_API_KEY: "secret_value_mock" });
     expect(on).toEqual({ on: true, detail: "Dodo test mode, open to 1 workspace" });

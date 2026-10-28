@@ -44,6 +44,7 @@ export const OFFICE_ACTIONS = [
   "models.switch",
   "billing.products",
   "billing.replay",
+  "billing.go_live",
 ] as const;
 export type OfficeAction = (typeof OFFICE_ACTIONS)[number];
 
@@ -73,10 +74,12 @@ export const PERMISSIONS: Record<OfficeAction, readonly StaffRole[]> = {
   // Payments (ADR 0100): creating provider products sets what checkout charges; a replay re-reads a subscription from the provider.
   "billing.products": ["owner"],
   "billing.replay": ["owner", "admin"],
+  // Turning live payments on or off (ADR 0104): owners, with a fresh authenticator code.
+  "billing.go_live": ["owner"],
 };
 
 /** Actions that need a fresh authenticator code in the same request, whatever the input. */
-const ALWAYS_STEP_UP: ReadonlySet<OfficeAction> = new Set(["staff.manage", "flags.set", "models.switch"]);
+const ALWAYS_STEP_UP: ReadonlySet<OfficeAction> = new Set(["staff.manage", "flags.set", "models.switch", "billing.go_live"]);
 
 /** AI usage additions above this many units need a fresh authenticator code too. */
 export const USAGE_STEP_UP_UNITS = 1_000_000;

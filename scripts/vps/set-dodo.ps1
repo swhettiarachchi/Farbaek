@@ -1,6 +1,6 @@
-# Connects Farbaek to Dodo Payments in TEST mode (ADR 0100). Live payments
-# stay off in the code until docs/billing/go-live.md is complete, whatever
-# this script sets.
+# Connects Farbaek to Dodo Payments in TEST mode (ADR 0100), or with -Live sets
+# the live keys (ADR 0104; see below). Live payments start only when an owner
+# confirms Go live in Office Space.
 #
 # It asks for three things:
 #   1. Dodo's TEST API key (stars as you paste). Dodo dashboard, Test Mode on,
@@ -21,8 +21,17 @@
 # To switch payments off again:
 #
 #   powershell -ExecutionPolicy Bypass -File "C:\Users\INTEL\Documents\FarBaek\scripts\vps\set-dodo.ps1" -Off
+# LIVE payments (ADR 0104), after Dodo has verified the business:
+#
+#   powershell -ExecutionPolicy Bypass -File "C:\Users\INTEL\Documents\FarBaek\scripts\vps\set-dodo.ps1" -Live
+#
+# It asks for the LIVE API key and the LIVE webhook's signing secret (Dodo
+# dashboard with Live Mode on). Saving them doesn't take a single payment:
+# an owner then confirms Go live in Office Space > Payments, with an
+# authenticator code, and that's recorded in the audit log.
 param(
   [switch]$Off,
+  [switch]$Live,
   [string]$Workspace = "",
   [string]$Server = "2.25.88.188",
   [string]$Key = "$HOME\.ssh\farbaek_vps"
@@ -46,6 +55,23 @@ function Read-Secret([string]$Prompt) {
   $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
   try { return ([Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)).Trim() }
   finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr) }
+}
+
+if ($Live) {
+  $apiKey = Read-Secret "Dodo LIVE API key"
+  if ($apiKey.Length -lt 20 -or $apiKey.Length -gt 400 -or $apiKey -match '\s' -or $apiKey -like 'whsec_*') { $apiKey = $null; Write-Host "That doesn't look like an API key, so nothing changed." -ForegroundColor Red; exit 1 }
+  $webhookKey = Read-Secret "LIVE webhook signing secret (starts with whsec_)"
+  if ($webhookKey -notmatch '^whsec_[A-Za-z0-9+/=]{20,300}$') { $apiKey = $null; $webhookKey = $null; Write-Host "That doesn't look like a webhook signing secret (it starts with whsec_), so nothing changed." -ForegroundColor Red; exit 1 }
+  Write-Host "Saving the live keys and restarting the app (3 to 5 minutes)..." -ForegroundColor Cyan
+  "BILLING_MODE=live`nDODO_PAYMENTS_API_KEY=$apiKey`nDODO_PAYMENTS_WEBHOOK_KEY=$webhookKey" | ssh @ssh "farbaek-set-env && farbaek-deploy --again"
+  $saved = $LASTEXITCODE
+  $apiKey = $null; $webhookKey = $null
+  if ($saved -ne 0) { Write-Host "The keys may be saved, but the app didn't restart. Run this script again with -Live." -ForegroundColor Red; exit 1 }
+  Write-Host "Done. The live keys are saved; no payment can be taken yet." -ForegroundColor Green
+  Write-Host "Next, in officespace.farbaek.com > Payments:"
+  Write-Host "  1. Create live products."
+  Write-Host "  2. Go live: tick the terms box, write a reason, enter your authenticator code."
+  exit 0
 }
 
 $ws = if ($Workspace) { $Workspace.Trim() } else { (Read-Host -Prompt "Your workspace id (public, from Office Space > Workspaces)").Trim() }

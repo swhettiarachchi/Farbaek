@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Bullets, DocLink, LegalDocument, type LegalSection } from "@/components/site/legal-document";
 import { TRIAL } from "@/core/billing/catalog";
-import { LEGAL } from "@/config/legal";
+import { LEGAL, PAID_TERMS_VERSION } from "@/config/legal";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
@@ -47,10 +47,64 @@ const SECTIONS: LegalSection[] = [
             </>,
             <>One trial per email address. Addresses from disposable-email services don&apos;t get a trial; their workspaces start on Free.</>,
             <>When the trial ends, the workspace moves to Free automatically. Nothing is charged, and your projects stay.</>,
-            <>Payments aren&apos;t connected yet, so no plan can be bought. Paid plans will start only when you choose one and confirm the price, with their own terms shown first.</>,
+            <>A paid plan starts only when you choose one and agree to its price; the terms for paid plans are below.</>,
           ]}
         />
         <p>Plans have limits on AI use, sandbox time and more. When a limit is reached, the work it covers pauses until the limit resets or the plan changes. To keep Farbaek running for everyone, we may also pause AI work across the platform for the rest of a day.</p>
+      </>
+    ),
+  },
+  {
+    id: "paid-plans",
+    title: "Paid plans",
+    body: (
+      <>
+        <p>This section, version {PAID_TERMS_VERSION}, applies when you buy a plan or more AI usage.</p>
+        <Bullets
+          items={[
+            <>
+              <strong>Who you pay.</strong> Dodo Payments is the merchant of record for Farbaek&apos;s paid plans. You pay Dodo Payments, which runs the checkout, works out and collects sales
+              tax or VAT, issues your receipts and invoices, and keeps your payment method. Farbaek never sees your card details.
+            </>,
+            <>
+              <strong>Price, currency and tax.</strong> Prices on the <DocLink href="/pricing">pricing page</DocLink> are in US dollars, without tax. At checkout you can pay in US dollars or
+              another currency you choose; paying in another currency adds Dodo Payments&apos; conversion fee of up to 4%. Applicable tax is added based on where you are. Dodo Payments shows the
+              exact amount before you pay.
+            </>,
+            <>
+              <strong>Renewal.</strong> A plan renews every month on the day you subscribed and charges your payment method until you cancel. Before checkout you agree to the exact price and
+              these renewal terms, and we keep a record of what you agreed to and when.
+            </>,
+            <>
+              <strong>Cancelling.</strong> You can cancel at any time from Billing. Your plan keeps working until the end of the period you paid for, then the workspace moves to Free and
+              nothing more is charged. Until then you can keep the plan instead. Your projects and data stay; anything over Free&apos;s limits is kept, but you can&apos;t add more until
+              you&apos;re under them.
+            </>,
+            <>
+              <strong>Refunds.</strong> Payments aren&apos;t refunded for part of a period once it has started, except where the law requires a refund. If something went wrong on Farbaek&apos;s
+              side, write to <DocLink href={`mailto:${LEGAL.support}`}>{LEGAL.support}</DocLink> and we&apos;ll put it right.
+            </>,
+            <>
+              <strong>Changing plans.</strong> An upgrade takes effect once its payment goes through, and you pay the difference for the rest of the current period; Billing shows the amount
+              first. A downgrade takes effect at the end of the current period, with nothing extra charged.
+            </>,
+            <>
+              <strong>Failed payments.</strong> If a renewal payment fails, paid features keep working while you update your payment method from Billing. If it still can&apos;t be collected,
+              paid features pause until it is. Your data is kept, and exports, billing and safety controls always work.
+            </>,
+            <>
+              <strong>More AI usage.</strong> On a paid plan you can buy more AI usage at the plan&apos;s own rate, never past the monthly limit your workspace sets. It lasts 12 months, is
+              used after your plan&apos;s own usage, has no cash value and can&apos;t be transferred.
+            </>,
+            <>
+              <strong>The free trial.</strong> The trial is Farbaek&apos;s own: it needs no card and never turns into a paid plan by itself. Choosing a paid plan during the trial ends the trial
+              that day.
+            </>,
+            <>
+              <strong>Price changes.</strong> We tell you by email at least 30 days before a new price applies to your plan, and you can cancel before then.
+            </>,
+          ]}
+        />
       </>
     ),
   },

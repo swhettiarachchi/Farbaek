@@ -19,6 +19,7 @@ import { platformAlertDeps } from "@/server/jobs/platform-alerts-wiring";
 import { runTrialReminders } from "@/server/jobs/trial-reminders";
 import { trialReminderDeps } from "@/server/jobs/trial-reminders-wiring";
 import { log } from "@/server/observability/log";
+import { refreshPlatformState } from "@/server/platform/state";
 import { noteJobRun } from "@/server/ops/jobs";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { readSandboxConfig } from "@/server/sandbox/config";
@@ -54,7 +55,7 @@ export async function handleHourlyJobs(request: Request): Promise<Response> {
     // Governed workflows (ADR 0092): a missed hook is caught here.
     workflows: await runJob("workflows", createSupabaseAdminClient(), (admin) => sweepWorkflows(admin)),
     // Payment webhooks that failed or arrived while processing was busy (ADR 0100).
-    billingWebhooks: await runJob("billing_webhooks", billingWebhookDeps(), (d) => processWebhooks(d)),
+    billingWebhooks: await runJob("billing_webhooks", await refreshPlatformState().then(() => billingWebhookDeps()), (d) => processWebhooks(d)),
   };
   const all = Object.values(jobs);
   if (all.every((j) => j.status === "not_configured")) return problem(503, "NOT_CONFIGURED", "Email or the server key for writes isn't set, so no hourly job can run.");

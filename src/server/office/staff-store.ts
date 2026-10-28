@@ -172,6 +172,9 @@ export interface StaffStore {
   // Payments (migration v62, ADR 0100)
   recordBillingProduct(actor: StaffActor, input: { mode: "test" | "live"; planId: string; productId: string; amountCents: number; currency: string; catalogVersion: string }, meta: RequestMeta): Promise<StoreResult<null>>;
   replayWebhook(actor: StaffActor, input: { id: string }, meta: RequestMeta): Promise<StoreResult<null>>;
+  // Live payments (migration v65, ADR 0104)
+  confirmPaymentsLive(actor: StaffActor, input: { termsVersion: string; reason: string }, meta: RequestMeta): Promise<StoreResult<{ testPlansEnded: number; testTopupsEnded: number }>>;
+  endPaymentsLive(actor: StaffActor, input: { reason: string }, meta: RequestMeta): Promise<StoreResult<null>>;
   // Top-up packs (migration v64, ADR 0102)
   recordTopupProduct(actor: StaffActor, input: { mode: "test" | "live"; packCents: number; productId: string; catalogVersion: string }, meta: RequestMeta): Promise<StoreResult<null>>;
   publishAnnouncement(actor: StaffActor, input: { message: string; tone: "info" | "incident"; dismissible: boolean; endsAt: string | null; reason: string }, meta: RequestMeta): Promise<StoreResult<string>>;
@@ -306,6 +309,13 @@ export function createStaffStore(admin: SupabaseClient): StaffStore {
         nothing,
       ),
     replayWebhook: (a, i, meta) => rpc("app_staff_replay_webhook", { p_actor: a.userId, p_session: a.sessionId, p_id: i.id, ...m(meta) }, nothing),
+    confirmPaymentsLive: (a, i, meta) =>
+      rpc(
+        "app_staff_confirm_payments_live",
+        { p_actor: a.userId, p_session: a.sessionId, p_auth_strength: "step_up", p_terms_version: i.termsVersion, p_reason: i.reason, ...m(meta) },
+        z.object({ test_plans_ended: z.number(), test_topups_ended: z.number() }).transform((v) => ({ testPlansEnded: v.test_plans_ended, testTopupsEnded: v.test_topups_ended })),
+      ),
+    endPaymentsLive: (a, i, meta) => rpc("app_staff_end_payments_live", { p_actor: a.userId, p_session: a.sessionId, p_auth_strength: "step_up", p_reason: i.reason, ...m(meta) }, nothing),
     recordTopupProduct: (a, i, meta) =>
       rpc(
         "app_staff_record_topup_product",

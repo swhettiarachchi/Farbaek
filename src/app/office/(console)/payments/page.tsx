@@ -8,11 +8,14 @@ import { LocalTime, RelativeTime } from "@/components/ui/local-time";
 import { PLAN_CATALOG_VERSION, SELF_SERVE_PLANS, formatUsd } from "@/core/billing/catalog";
 import { isPaidPlanId } from "@/core/billing/provider-state";
 import { TOPUP_PACKS_CENTS } from "@/core/billing/topups";
-import { billingStatus, readBillingConfig, requestedBillingMode } from "@/server/billing/config";
+import { billingStatus, readProviderConfig, requestedBillingMode } from "@/server/billing/config";
+import { ReasonField, StepUpField } from "@/components/office/fields";
+import { PAID_TERMS_VERSION } from "@/config/legal";
+import { paymentsLiveSince, refreshPlatformState } from "@/server/platform/state";
 import { createDodoClient } from "@/server/billing/providers/dodo/client";
 import { requireStaff } from "@/server/office/access";
 import { readPaymentsPage, type WebhookEventRow } from "@/server/office/payments-data";
-import { createProductsAction, replayWebhookAction } from "./actions";
+import { createProductsAction, endLiveAction, goLiveAction, replayWebhookAction } from "./actions";
 
 export const metadata: Metadata = { title: "Payments" };
 
@@ -47,8 +50,12 @@ type Check = { kind: "match" } | { kind: "differs"; text: string } | { kind: "un
 export default async function OfficePayments() {
   const staff = await requireStaff();
   const page = await readPaymentsPage(staff.admin);
-  const config = readBillingConfig();
+  await refreshPlatformState(true);
+  // The provider's keys whether or not live is confirmed yet, so live products can be made and checked first.
+  const config = readProviderConfig();
   const status = billingStatus();
+  const liveSince = paymentsLiveSince();
+  const canGoLive = staff.can("billing.go_live");
   const requested = requestedBillingMode();
   const canCreate = staff.can("billing.products");
   const canReplay = staff.can("billing.replay");
@@ -128,6 +135,74 @@ export default async function OfficePayments() {
           </ul>
         </Card>
       </div>
+
+      <Card>
+        <h2 className="text-lg font-medium">Go live</h2>
+        {liveSince ? (
+          <>
+            <p className="mt-3 flex items-start gap-2 text-sm text-ink">
+              <CheckCircleIcon size={18} weight="fill" className="mt-px shrink-0 text-verified" aria-hidden />
+              <span>
+                <span className="font-medium">Live payments since <LocalTime iso={liveSince} />.</span> Checkout is open to every workspace, and real money is charged.
+              </span>
+            </p>
+            {canGoLive ? (
+              <div className="mt-5">
+                <OfficeActionForm action={endLiveAction} submit="Turn off live payments" tone="danger" className="grid gap-4 sm:max-w-md">
+                  <p className="text-sm text-ink-2">New checkouts stop at once. Subscriptions already running continue at Dodo Payments until they&apos;re cancelled there or in Billing.</p>
+                  <ReasonField id="end-live-reason" />
+                  <StepUpField id="end-live-totp" />
+                </OfficeActionForm>
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <p className="mt-1 text-sm text-ink-2">Live payments need all four, then an owner&apos;s confirmation here. It&apos;s recorded in the audit log.</p>
+            <ul className="mt-4 grid gap-2 text-sm">
+              {[
+                { done: requested === "live" && config?.mode === "live", text: "Live Dodo keys on the server", how: "Run scripts/vps/set-dodo.ps1 -Live" },
+                {
+                  done: (page?.products ?? []).filter((p) => p.mode === "live" && p.catalogVersion === PLAN_CATALOG_VERSION).length >= paidPlans.length && (page?.topups ?? []).filter((t) => t.mode === "live").length >= TOPUP_PACKS_CENTS.length,
+                  text: "Live products for every plan and top-up",
+                  how: "Create them below, once the live keys are set",
+                },
+                { done: null, text: "The live webhook endpoint in Dodo (Live Mode, Developer, Webhooks)", how: "https://www.farbaek.com/api/webhooks/dodo, the same events as test" },
+                { done: null, text: `The Terms' Paid plans section, version ${PAID_TERMS_VERSION}`, how: "Read it at www.farbaek.com/terms#paid-plans" },
+              ].map((item) => (
+                <li key={item.text} className="flex items-start gap-2">
+                  {item.done === true ? (
+                    <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+                  ) : item.done === false ? (
+                    <CircleDashedIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
+                  ) : (
+                    <WarningCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-approval" aria-hidden />
+                  )}
+                  <span>
+                    <span className="text-ink">{item.text}</span>
+                    <span className="block text-xs text-ink-3">{item.done === true ? "Done" : item.done === false ? item.how : `Check by hand: ${item.how}`}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {canGoLive && config?.mode === "live" ? (
+              <div className="mt-5">
+                <OfficeActionForm action={goLiveAction} submit="Turn on live payments" tone="danger" className="grid gap-4 sm:max-w-md">
+                  <p className="text-sm text-ink-2">Checkout opens to every workspace and charges real money. Every test-mode plan and test top-up ends, so a test card never counts as a payment.</p>
+                  <label className="flex min-h-11 items-start gap-3 text-sm text-ink">
+                    <input type="checkbox" name="terms" value={PAID_TERMS_VERSION} required className="mt-0.5 size-5 shrink-0 accent-[var(--color-accent)]" />
+                    <span>I approve the Terms&apos; Paid plans section, version {PAID_TERMS_VERSION}, and the go-live checklist.</span>
+                  </label>
+                  <ReasonField id="go-live-reason" />
+                  <StepUpField id="go-live-totp" />
+                </OfficeActionForm>
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-ink-3">{!canGoLive ? "Only an owner turns on live payments." : "Set the live keys first: scripts/vps/set-dodo.ps1 -Live."}</p>
+            )}
+          </>
+        )}
+      </Card>
 
       {!page ? <Notice tone="warning">The payment tables couldn&apos;t be read. Migration v62 may not be applied on this database yet.</Notice> : null}
 
@@ -210,9 +285,9 @@ export default async function OfficePayments() {
         </AdminTable>
         {toCreate > 0 ? (
           canCreate && config ? (
-            <OfficeActionForm action={createProductsAction} submit={`Create ${toCreate} test ${toCreate === 1 ? "product" : "products"} in Dodo`} className="grid gap-3">
+            <OfficeActionForm action={createProductsAction} submit={`Create ${toCreate} ${config?.mode ?? "test"} ${toCreate === 1 ? "product" : "products"} in Dodo`} className="grid gap-3">
               <p className="text-sm text-ink-2">
-                Creates {[...missing.map((p) => p.name), ...missingPacks.map((c) => `the ${formatUsd(c)} top-up`)].join(", ")} at Dodo Payments in test mode. Plans are monthly, renewing until cancelled, with no provider trial; top-ups are paid once. Tax is added at checkout.
+                Creates {[...missing.map((p) => p.name), ...missingPacks.map((c) => `the ${formatUsd(c)} top-up`)].join(", ")} at Dodo Payments in {config?.mode ?? "test"} mode. Plans are monthly, renewing until cancelled, with no provider trial; top-ups are paid once. Tax is added at checkout.
               </p>
             </OfficeActionForm>
           ) : (

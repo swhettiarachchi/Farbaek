@@ -15,8 +15,10 @@ import { checkoutOpenFor, readBillingConfig } from "./config";
 export const LIVE_SUBSCRIPTION_STATES: ReadonlySet<SubscriptionState> = new Set(["active", "past_due", "cancellation_scheduled", "suspended"]);
 
 export interface BillingView {
-  /** Checkout works for this workspace (test mode, on the allowlist, with a server key). */
+  /** Checkout works for this workspace: live for everyone, or test mode on the allowlist, with a server key. */
   open: boolean;
+  /** Which kind of payments are open, when they are. */
+  mode: "test" | "live" | null;
   /** The provider's subscription as last applied, when there is one. */
   subscription: {
     state: SubscriptionState;
@@ -32,7 +34,7 @@ export interface BillingView {
   topups: { capCents: number | null; spentCents: number; openCents: number } | null;
 }
 
-const CLOSED: BillingView = { open: false, subscription: null, openCheckout: null, topups: null };
+const CLOSED: BillingView = { open: false, mode: null, subscription: null, openCheckout: null, topups: null };
 
 const Account = z.object({
   state: z.string(),
@@ -61,7 +63,7 @@ export async function loadBillingView(orgId: string, demo: boolean): Promise<Bil
       .limit(1)
       .maybeSingle(),
   ]);
-  if (account.error || checkout.error) return { ...CLOSED, open: true };
+  if (account.error || checkout.error) return { ...CLOSED, open: true, mode: config!.mode };
 
   const a = account.data ? Account.safeParse(account.data) : null;
   const state = a?.success ? (a.data.state as SubscriptionState) : null;
@@ -78,7 +80,7 @@ export async function loadBillingView(orgId: string, demo: boolean): Promise<Bil
       : null;
   const c = checkout.data as { plan_id?: unknown; created_at?: unknown } | null;
   const openCheckout = !subscription && c && isPaidPlanId(c.plan_id) && typeof c.created_at === "string" ? { planId: c.plan_id, startedAt: c.created_at } : null;
-  return { open: true, subscription, openCheckout, topups: subscription && a?.success ? await topupSummary(admin, orgId, a.data.topup_cap_cents ?? null) : null };
+  return { open: true, mode: config!.mode, subscription, openCheckout, topups: subscription && a?.success ? await topupSummary(admin, orgId, a.data.topup_cap_cents ?? null) : null };
 }
 
 /** This calendar month's paid top-ups, and checkouts opened in the last day: the same count the database checks the limit with. */
