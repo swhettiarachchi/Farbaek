@@ -39,7 +39,12 @@ Dodo verified the business on 2026-10-28. This stage builds the safe way to swit
   - live config needs keys and confirmation, then opens to all;
   - the provider config for Office;
   - status wording.
-- Typecheck, lint and design tests are clean.
+- `pnpm test`: 1,998 passed, 17 skipped. `pnpm typecheck` and `pnpm lint` are clean.
+- **Migration v65 applied in production** (2026-10-28), before the code. The SHA-256 (`782c305c…602871`) was checked on the server, and it ran in one transaction. Read back:
+  - row security on, and no row yet, so live is off;
+  - only the server role can run both functions;
+  - `billing.go_live` is owner-only.
+  - `/api/health` stayed OK.
 
 ### Not verified yet
 
