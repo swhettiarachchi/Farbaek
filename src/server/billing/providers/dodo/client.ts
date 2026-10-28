@@ -127,10 +127,9 @@ export function createDodoClient(opts: { apiKey: string; baseUrl: string; mode: 
         return_url: input.returnUrl,
         metadata: { farbaek_org: input.orgId, farbaek_plan: input.planId },
       };
-      // People agree to a price in US dollars, so checkout charges in US dollars. Dodo accepts a fixed currency only
-      // while adaptive pricing is on (otherwise it charges the product's own currency, also USD), so a refusal retries without it.
-      let r = await call("POST", "/checkouts", Checkout, { ...body, billing_currency: "USD", feature_flags: { allow_currency_selection: false } });
-      if (!r.ok && r.code === "REJECTED") r = await call("POST", "/checkouts", Checkout, body);
+      // People pay in US dollars or a currency they pick at checkout (Dodo's adaptive currency, ADR 0100). The
+      // consent says so, and Dodo shows the exact amount, with tax and any conversion fee, before they pay.
+      const r = await call("POST", "/checkouts", Checkout, { ...body, feature_flags: { allow_currency_selection: true } });
       if (!r.ok) return r;
       return r.value.checkout_url ? { ok: true, value: { url: r.value.checkout_url, sessionId: r.value.session_id } } : { ok: false, code: "BAD_RESPONSE" };
     },

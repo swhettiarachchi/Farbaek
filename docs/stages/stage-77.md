@@ -115,3 +115,11 @@ The owner asked to connect Dodo Payments. Their Dodo business is set up but not 
 ### Found
 
 - Dodo lists the subscription as "Scheduled for cancellation" on 28 Nov, and Farbaek shows it the same way. The owner cancelled it on purpose. A test-mode plan grants real paid limits, paid for by Farbaek's own AI key, which is why only listed workspaces can check out in test mode. The cancel flow worked as designed: Pro runs until 28 Nov, then Free.
+
+## 2026-10-28, people choose their currency
+
+At the owner's request, checkout offers Dodo's currency picker again (ADR 0100, decision 10).
+- **Disclosure:** the consent words now read "…or the same amount in the currency I choose at checkout with Dodo Payments' conversion fee of up to 4% added…". The consent step, Billing and the pricing page say the same.
+- **Fees Inclusive** is off in Dodo (checked in the owner's dashboard, test mode), so the customer pays the fee and the margin holds. Checking the same in Live mode is a go-live item.
+- **Plan-change previews** show Dodo's amount in its own currency (`formatMinorUnits`, tested for USD, NZD, JPY and an unknown code).
+- **Verified:** the billing and provider-state tests and the design tests pass (172), and typecheck and lint are clean.

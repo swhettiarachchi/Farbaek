@@ -198,7 +198,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
             );
           })}
         </ul>
-        <p className="text-xs text-ink-3">Prices in USD. Applicable taxes are calculated at checkout{billing.open ? "" : " once payments open"}.</p>
+        <p className="text-xs text-ink-3">Prices in USD. {billing.open ? "At checkout you can pay in your own currency for a conversion fee of up to 4%, and tax is added there." : "Applicable taxes are calculated at checkout once payments open."}</p>
       </section>
     </div>
   );

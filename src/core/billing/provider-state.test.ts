@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedSubscription } from "./provider";
-import { checkoutConsentText, isPaidPlanId, mapSubscription, planChangeDirection } from "./provider-state";
+import { checkoutConsentText, formatMinorUnits, isPaidPlanId, mapSubscription, planChangeDirection } from "./provider-state";
 import { resolveEffectivePlan } from "./trial";
 
 const now = new Date("2026-11-10T12:00:00Z");
@@ -91,11 +91,22 @@ describe("plan ids and changes", () => {
 describe("checkoutConsentText", () => {
   it("states the amount, tax, cancellation and, on a trial, that it ends now", () => {
     const text = checkoutConsentText("pro", true);
-    expect(text).toContain("$50.00 USD a month");
+    expect(text).toContain("$50.00 USD a month, or the same amount in the currency I choose at checkout with Dodo Payments' conversion fee of up to 4% added");
     expect(text).toContain("tax calculated at checkout");
     expect(text).toContain("cancel at any time");
     expect(text).toContain("remaining trial days end now");
     expect(checkoutConsentText("pro", false)).not.toContain("trial");
     expect(text).not.toContain("—");
+  });
+});
+
+describe("formatMinorUnits", () => {
+  it("formats what Dodo charged in the currency the person chose", () => {
+    expect(formatMinorUnits(3333, "USD")).toBe("$33.33");
+    expect(formatMinorUnits(9261, "NZD")).toBe("NZ$92.61");
+    expect(formatMinorUnits(5000, "JPY")).toBe("¥5,000");
+    expect(formatMinorUnits(1234, "XXQ")).toMatch(/^XXQ\s12\.34$/);
+    // Not a currency code at all: the plain amount and the code as given.
+    expect(formatMinorUnits(1234, "U$")).toBe("12.34 U$");
   });
 });
