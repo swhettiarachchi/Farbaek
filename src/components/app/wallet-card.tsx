@@ -80,8 +80,10 @@ export function WalletCard({ wallet, paid }: { wallet: WalletView | null; paid: 
         <Rule icon={<ArrowCounterClockwiseIcon size={15} weight="bold" />} title="Failed AI calls are given back">
           When a model refuses, times out or returns nothing usable, its usage is returned automatically.
         </Rule>
-        <Rule icon={<ClockCounterClockwiseIcon size={15} weight="bold" />} title="Free retries after failed checks" coming>
-          Paid plans include a reserve for asking the agent to fix what failed checks found, so retries don&apos;t use your usage.
+        <Rule icon={<ClockCounterClockwiseIcon size={15} weight="bold" />} title="Free retries after failed checks">
+          {paid
+            ? "When the agent's fix for failed checks doesn't pass them either, the fix's usage is given back, up to about 5% of your plan's AI usage a month."
+            : "On paid plans and during the trial, a fix for failed checks that doesn't pass them either gets its usage back. Start one from a task whose checks failed."}
         </Rule>
         <Rule icon={<ShieldCheckIcon size={15} weight="bold" />} title="Spend cap">
           Not available until payments are connected. Until then nothing can be billed. Once top-ups exist, they only apply up to a cap you set.

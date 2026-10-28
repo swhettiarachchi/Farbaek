@@ -266,6 +266,10 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
       return [];
     },
 
+    async getFixFor() {
+      return null;
+    },
+
     async getLatestVerification(_orgId, taskId) {
       if (taskId !== DEMO_VERIFICATION.taskId) return null;
       return {

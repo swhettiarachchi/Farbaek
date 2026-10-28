@@ -58,9 +58,10 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
       projectName: project?.name,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
+      fixOf: r.fix_of_task_id ?? null,
     };
   };
-  const TASK_SELECT = "id, title, state, version, project_id, created_at, updated_at, projects(name)";
+  const TASK_SELECT = "id, title, state, version, project_id, created_at, updated_at, fix_of_task_id, projects(name)";
 
   function fail(what: string, error: { message: string } | null): never {
     throw new Error(`Couldn't load ${what}: ${error?.message ?? "unknown error"}`);
@@ -549,6 +550,13 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
         .array(z.object({ digest: z.string(), session_id: z.string(), status: z.enum(["verified", "partially_verified", "failed", "unverified"]), statement: z.unknown(), created_at: z.string() }))
         .parse(data)
         .map((r) => ({ digest: r.digest, sessionId: r.session_id, status: r.status, statement: r.statement, createdAt: r.created_at }));
+    },
+
+    async getFixFor(orgId, taskId) {
+      if (!z.uuid().safeParse(taskId).success) return null;
+      const { data, error } = await client.from("tasks").select("id, title, state").eq("org_id", orgId).eq("fix_of_task_id", taskId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (error) fail("the task's fix", error);
+      return data ? z.object({ id: z.string(), title: z.string(), state: TaskRowSchema.shape.state }).parse(data) : null;
     },
 
     async getLatestVerification(orgId, taskId) {

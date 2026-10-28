@@ -38,6 +38,8 @@ import { TERMINAL_STATES, type TaskState } from "@/core/realityloop/task-machine
 import { loadAppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES } from "@/server/workspace/types";
 import { loadAiAvailability } from "@/server/workspace/usage-summary";
+import { FixCard, freeRetryWords } from "@/components/tasks/fix-card";
+import { FIXABLE_STATES, fixIsOpen } from "@/server/workspace/fixes";
 
 export const metadata: Metadata = { title: "Task" };
 
@@ -45,8 +47,10 @@ const ACTOR: Record<"user" | "agent" | "system", string> = { user: "By a person"
 const CAN_START_CONTRACT: ReadonlySet<TaskState> = new Set(["RECEIVED", "CONTEXT_ASSEMBLED"]);
 const CAN_REVISE: ReadonlySet<TaskState> = new Set(["CONTRACT_DRAFTED", "CONTRACT_APPROVED", "BLOCKED"]);
 
-export default async function TaskPage({ params }: { params: Promise<{ taskId: string }> }) {
+export default async function TaskPage({ params, searchParams }: { params: Promise<{ taskId: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { taskId } = await params;
+  const sp = await searchParams;
+  const fixError = typeof sp.fix_error === "string" ? sp.fix_error.slice(0, 160) : null;
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
   const found = await ctx.reader.getTask(ctx.current.id, taskId);
@@ -92,6 +96,13 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
     // An archived project stays readable, but the database refuses any change to it.
     ctx.reader.getProject(orgId, task.projectId).catch(() => null),
   ]);
+  // Fixing what failed checks found (ADR 0101): the fix started for this task, and the task this one fixes.
+  const fixable = FIXABLE_STATES.has(task.state) && approvedContract !== null;
+  const [fix, fixSource] = await Promise.all([
+    fixable ? ctx.reader.getFixFor(orgId, task.id).catch(() => null) : Promise.resolve(null),
+    task.fixOf ? ctx.reader.getTask(orgId, task.fixOf).then((r) => r?.task ?? null).catch(() => null) : Promise.resolve(null),
+  ]);
+  const retryIncluded = (ctx.current.plan.limits.retryUnitsPerMonth ?? 0) > 0;
   const drift = approvedContract && driftEvents ? scopeDrift(approvedContract.body, driftEvents) : [];
   const archived = Boolean(project?.archivedAt);
   // Every control that changes the task's work names why it can't; cancelling stays available.
@@ -158,6 +169,11 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
     (execution.mode === "review_only" ? execution.reason : null) ??
     (ctx.role === null || !CONTRIBUTOR_ROLES.includes(ctx.role) ? "Viewers can't run checks. Ask a member, admin or owner." : null);
 
+  const fixReason =
+    (ctx.mode === "demo" ? "The demo workspace is read-only." : null) ??
+    writeReason ??
+    (ctx.role === null || !CONTRIBUTOR_ROLES.includes(ctx.role) ? "Viewers can't start a fix. Ask a member, admin or owner." : null) ??
+    withheldFor(ctx.role, ctx.permissions, "run_agents");
   const stages = lifecycleProgress(task.state, history);
   const finished = TERMINAL_STATES.has(task.state);
   const cancelReason = !ctx.writes.enabled ? ctx.writes.reason : null;
@@ -175,12 +191,25 @@ export default async function TaskPage({ params }: { params: Promise<{ taskId: s
         <p className="mt-2 text-sm text-ink-3">
           Created <LocalTime iso={task.createdAt} />. Version <span className="tabular">{task.version}</span>
         </p>
+        {fixSource ? (
+          <div className="mt-4">
+            <Notice>
+              This task fixes what failed in{" "}
+              <Link href={`/app/tasks/${fixSource.id}`} className="font-medium text-accent underline-offset-4 hover:underline">
+                {fixSource.title}
+              </Link>
+              . {freeRetryWords(retryIncluded)}
+            </Notice>
+          </div>
+        ) : null}
         {archived ? (
           <div className="mt-4">
             <Notice>This task&apos;s project is archived. Everything here stays readable, and nothing in it can change. You can still cancel the task.</Notice>
           </div>
         ) : null}
       </div>
+
+      {fixable ? <FixCard taskId={task.id} fix={fix} open={fixIsOpen(fix)} retryIncluded={retryIncluded} disabledReason={fixReason} error={fixError} /> : null}
 
       <Card>
         <h2 className="text-lg font-medium">Lifecycle</h2>

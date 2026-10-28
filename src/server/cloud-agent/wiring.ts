@@ -69,7 +69,11 @@ export async function cloudRunDeps(person: { orgId: string; userId: string; role
     // Tells the person who started the run when it ends (ADR 0060); null while email is off.
     notify: serverNotifier(),
     // A governed workflow's step records how it went and carries on (ADR 0092). Loaded lazily: the workflow wiring starts runs too.
-    afterRun: async (taskId) => (await import("@/server/workflows/wiring")).settleWorkflowStep(taskId),
+    afterRun: async (taskId) => {
+      await (await import("@/server/workflows/wiring")).settleWorkflowStep(taskId);
+      // A fix whose checks failed too gets its AI usage back (ADR 0101).
+      await (await import("@/server/workspace/fix-retry")).settleFixRetry(taskId);
+    },
     skillPins: async (orgId, projectId) => pinMap(await readSkillPins(admin, orgId, projectId)),
     autonomy: async (orgId) => limitsFrom(await readAutonomy(admin, orgId)),
     async applyWithinLimits(input) {
