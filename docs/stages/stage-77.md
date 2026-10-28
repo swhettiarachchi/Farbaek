@@ -114,4 +114,4 @@ The owner asked to connect Dodo Payments. Their Dodo business is set up but not 
 
 ### Found
 
-- Dodo lists the subscription as "Scheduled for cancellation" on 28 Nov, and Farbaek shows it the same way. Its record doesn't say who scheduled it. Asked the owner whether they pressed Cancel. "Keep Pro" in Billing undoes it.
+- Dodo lists the subscription as "Scheduled for cancellation" on 28 Nov, and Farbaek shows it the same way. The owner cancelled it on purpose. A test-mode plan grants real paid limits, paid for by Farbaek's own AI key, which is why only listed workspaces can check out in test mode. The cancel flow worked as designed: Pro runs until 28 Nov, then Free.
