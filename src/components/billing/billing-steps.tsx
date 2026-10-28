@@ -74,7 +74,11 @@ export function ChoosePlanStep({ planId, onTrial, error }: { planId: PaidPlanId;
         </div>
       </form>
       <p className="mt-4 text-xs leading-relaxed text-ink-3">
-        Checkout opens on Dodo Payments, which takes the payment as Farbaek&apos;s merchant of record. Your plan changes once Dodo Payments confirms it, usually within a minute.
+        Checkout opens on Dodo Payments, which takes the payment as Farbaek&apos;s merchant of record. Your plan changes once Dodo Payments confirms it, usually within a minute. See the{" "}
+        <Link href="/terms#paid-plans" className="text-accent underline-offset-4 hover:underline">
+          terms for paid plans
+        </Link>
+        .
       </p>
     </StepShell>
   );

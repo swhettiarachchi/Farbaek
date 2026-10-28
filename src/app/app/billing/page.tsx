@@ -77,11 +77,11 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         <Notice tone="warning">
           Payments aren&apos;t connected yet, so no plan can be bought and nothing is ever charged. Paid plans open once checkout is live and verified.
         </Notice>
-      ) : (
+      ) : billing.mode === "test" ? (
         <Notice>
           Payments are in test mode for this workspace. Checkout takes Dodo Payments&apos; test cards only, and nothing real is charged.
         </Notice>
-      )}
+      ) : null}
 
       {error && !step ? <Notice tone="warning">{error}</Notice> : null}
       {done === "cancelled" && sub ? (

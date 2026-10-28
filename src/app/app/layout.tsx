@@ -180,7 +180,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           </p>
         ) : null}
 
-        {ctx.mode === "live" && checkoutOpenFor(readBillingConfig(), current.id) ? <TestModeBand /> : null}
+        {ctx.mode === "live" && readBillingConfig()?.mode === "test" && checkoutOpenFor(readBillingConfig(), current.id) ? <TestModeBand /> : null}
 
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-canvas/85 px-4 backdrop-blur-xl lg:hidden">
           <Brand />

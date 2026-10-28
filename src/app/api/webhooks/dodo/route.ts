@@ -1,6 +1,7 @@
 import { after } from "next/server";
 import { receiveWebhook } from "@/server/billing/webhooks";
 import { billingWebhookDeps } from "@/server/billing/wiring";
+import { refreshPlatformState } from "@/server/platform/state";
 
 /**
  * Dodo Payments' webhooks (ADR 0100). Verified on the raw body, stored once
@@ -9,6 +10,8 @@ import { billingWebhookDeps } from "@/server/billing/wiring";
  */
 export const dynamic = "force-dynamic";
 
-export function POST(request: Request): Promise<Response> {
+export async function POST(request: Request): Promise<Response> {
+  // Live payments need the owner's confirmation (ADR 0104), read fresh here.
+  await refreshPlatformState();
   return receiveWebhook(request, billingWebhookDeps(), (work) => after(work));
 }

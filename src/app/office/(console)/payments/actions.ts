@@ -5,7 +5,7 @@ import type { OfficeFormState } from "@/components/office/action-form";
 import { PLAN_CATALOG_VERSION, SELF_SERVE_PLANS, formatUsd } from "@/core/billing/catalog";
 import { TOPUP_PACKS_CENTS } from "@/core/billing/topups";
 import { isPaidPlanId } from "@/core/billing/provider-state";
-import { readBillingConfig } from "@/server/billing/config";
+import { readProviderConfig } from "@/server/billing/config";
 import { createDodoClient } from "@/server/billing/providers/dodo/client";
 import { processWebhooks } from "@/server/billing/webhooks";
 import { billingWebhookDeps } from "@/server/billing/wiring";
@@ -13,6 +13,9 @@ import { log } from "@/server/observability/log";
 import { staffAction } from "@/server/office/access";
 import { readPaymentsPage } from "@/server/office/payments-data";
 import { requestMeta } from "@/server/office/request-meta";
+import { verifyStepUp } from "@/server/office/step-up";
+import { notePaymentsLive } from "@/server/platform/state";
+import { PAID_TERMS_VERSION } from "@/config/legal";
 import { OFFICE_MESSAGES } from "@/server/office/staff-store";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -25,8 +28,9 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export async function createProductsAction(): Promise<OfficeFormState> {
   const gate = await staffAction("billing.products");
   if (!gate.ok) return { ok: false, message: gate.message };
-  const config = readBillingConfig();
-  if (!config) return { ok: false, message: "Payments aren't connected on this server, so no product can be created. Nothing changed." };
+  // Before going live too, so live products exist when checkout opens (ADR 0104).
+  const config = readProviderConfig();
+  if (!config) return { ok: false, message: "This server has no Dodo keys, so no product can be created. Nothing changed." };
   const page = await readPaymentsPage(gate.ctx.admin);
   if (!page) return { ok: false, message: OFFICE_MESSAGES.UNKNOWN };
   const have = new Set(page.products.filter((p) => p.mode === config.mode && p.catalogVersion === PLAN_CATALOG_VERSION).map((p) => p.planId));
@@ -88,4 +92,38 @@ export async function replayWebhookAction(_prev: OfficeFormState, form: FormData
   refresh();
   if (!deps) return { ok: true, message: "Queued again. Payments aren't connected on this server, so it runs once they are." };
   return { ok: true, message: result && result.claimed > 0 ? `Replayed: ${Object.entries(result.outcomes).map(([k, n]) => `${n} ${k}`).join(", ")}.` : "Queued again. The hourly run picks it up." };
+}
+
+/**
+ * Turns live payments on (ADR 0104): owners only, with the Terms version they approve, a reason and a fresh
+ * authenticator code, all checked again in the database. It ends every test-mode plan and test top-up.
+ */
+export async function goLiveAction(_prev: OfficeFormState, form: FormData): Promise<OfficeFormState> {
+  const gate = await staffAction("billing.go_live");
+  if (!gate.ok) return { ok: false, message: gate.message };
+  if (form.get("terms") !== PAID_TERMS_VERSION) return { ok: false, message: `Tick the box to approve the Terms' Paid plans section, version ${PAID_TERMS_VERSION}.` };
+  if (!readProviderConfig() || readProviderConfig()!.mode !== "live") return { ok: false, message: "This server doesn't have live Dodo keys yet. Run set-dodo.ps1 -Live first. Nothing changed." };
+  const meta = await requestMeta();
+  const step = await verifyStepUp(gate.ctx, form.get("totp"), meta);
+  if (!step.ok) return { ok: false, message: step.message };
+  const r = await gate.ctx.store.confirmPaymentsLive({ userId: gate.ctx.user.id, sessionId: gate.ctx.sessionId }, { termsVersion: PAID_TERMS_VERSION, reason: String(form.get("reason") ?? "").trim() }, meta);
+  if (!r.ok) return { ok: false, message: OFFICE_MESSAGES[r.code] };
+  notePaymentsLive(new Date().toISOString());
+  log("info", "billing.payments_live", { by: gate.ctx.user.id, ...r.value });
+  refresh();
+  return { ok: true, message: `Live payments are on: checkout is open to every workspace. ${r.value.testPlansEnded} test ${r.value.testPlansEnded === 1 ? "plan" : "plans"} and ${r.value.testTopupsEnded} test ${r.value.testTopupsEnded === 1 ? "top-up" : "top-ups"} ended.` };
+}
+
+/** Turns live payments off: new checkouts stop; subscriptions already running stay at Dodo. Owners, with a reason and a code. */
+export async function endLiveAction(_prev: OfficeFormState, form: FormData): Promise<OfficeFormState> {
+  const gate = await staffAction("billing.go_live");
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const meta = await requestMeta();
+  const step = await verifyStepUp(gate.ctx, form.get("totp"), meta);
+  if (!step.ok) return { ok: false, message: step.message };
+  const r = await gate.ctx.store.endPaymentsLive({ userId: gate.ctx.user.id, sessionId: gate.ctx.sessionId }, { reason: String(form.get("reason") ?? "").trim() }, meta);
+  if (!r.ok) return { ok: false, message: OFFICE_MESSAGES[r.code] };
+  notePaymentsLive(null);
+  refresh();
+  return { ok: true, message: "Live payments are off. New checkouts stopped; subscriptions already running continue at Dodo Payments." };
 }

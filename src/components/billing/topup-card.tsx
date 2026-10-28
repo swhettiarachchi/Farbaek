@@ -93,7 +93,11 @@ export function TopupStep({ planId, pack, error }: { planId: PaidPlanId; pack: T
           Buy {formatUsd(pack)} of AI usage
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-ink-2">
-          Paid once, plus applicable tax. Pay in US dollars or your own currency: Dodo Payments shows the exact amount before you pay, and another currency adds its conversion fee of up to 4%.
+          Paid once, plus applicable tax. Pay in US dollars or your own currency: Dodo Payments shows the exact amount before you pay, and another currency adds its conversion fee of up to 4%. See the{" "}
+          <Link href="/terms#paid-plans" className="text-accent underline-offset-4 hover:underline">
+            terms for paid plans
+          </Link>
+          .
         </p>
         {error ? (
           <div className="mt-4">

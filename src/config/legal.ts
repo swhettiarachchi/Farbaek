@@ -30,6 +30,9 @@ export const LEGAL_DOCS = [
   { href: "/acceptable-use", label: "Acceptable Use Policy" },
 ] as const;
 
+/** The version of the Terms' Paid plans section people agree to at checkout (ADR 0104). Change it with the section. */
+export const PAID_TERMS_VERSION = "2026-10-28";
+
 /** Everyone who handles personal data for Farbaek, and why (keep in step with the services actually used). */
 export const SUBPROCESSORS = [
   { name: "Anthropic", purpose: "AI models (Claude) that draft plans and code changes from what you write and the files you choose", data: "Prompts, chosen file contents, AI output", where: "United States" },
@@ -45,7 +48,7 @@ export const SUBPROCESSORS = [
   { name: "Spaceship (Spacemail)", purpose: "Sending sign-in links and the emails you choose to get, and DNS for farbaek.com", data: "Your email address and the email's content", where: "A United States company; we're confirming where its mail servers are" },
   {
     name: "Dodo Payments",
-    purpose: "Merchant of record for paid plans: checkout, tax, receipts and invoices, and the portal for your payment method, once payments are switched on (only test payments so far)",
+    purpose: "Merchant of record for paid plans: checkout, tax, receipts and invoices, and the portal for your payment method",
     data: "Your email address, the plan you choose, your billing country and payment details, which you enter on Dodo Payments' own page and never reach Farbaek",
     where: "We're confirming where it processes data",
   },
