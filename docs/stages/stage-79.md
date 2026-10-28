@@ -37,7 +37,8 @@ The last billing item on the go-live checklist: buying more AI usage, at the pla
 - **Unit:**
   - `src/core/billing/topups.test.ts` (4): the plan's rate, never more than the plan's own budget would give, consent words;
   - `src/server/billing/topups.test.ts`: checkout body and recorded units, gates before the provider, limit refusals, limit parsing, one-time product body, `getPayment`, and the webhook path (succeeded applied by session, not yet succeeded retried, non-top-ups ignored, no session refused).
-- Billing suites: 121 passed. Design and office permissions: 140 passed. `pnpm typecheck` and lint are clean.
+- `pnpm test`: 1,993 passed, 17 skipped. `pnpm typecheck` and `pnpm lint` are clean.
+- **Migration v64 applied in production** (2026-10-28), before the code. The SHA-256 (`f6a077c5…364d7f`) was checked on the server, and it ran in one transaction. Read back: the limit column; row security on both tables; only the server role can run the four functions. `/api/health` stayed OK.
 
 ### Not verified yet
 
