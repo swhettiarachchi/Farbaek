@@ -11,7 +11,8 @@ Since 2026-10-28 (ADR 0100), test mode can be switched on for listed workspaces 
   - 2026-10-28: `scripts/vps/set-dodo.ps1` is ready; the owner runs it with keys from Dodo's dashboard.
 - [ ] One Dodo product per plan and interval, with amounts reconciled against `src/core/billing/catalog.ts`
   - 2026-10-28: built. Office Space → Payments creates a monthly product per paid plan and reads each price back; checkout refuses a plan whose price differs. Still to do: create them in test mode, then live.
-- [ ] The processor's real fee per payment is at most `ECONOMICS` in `src/core/billing/allowance.ts` (5% + $0.50, Paddle's rate, which the cost research uses), or `ECONOMICS` is updated and the catalog tests still hold the 40% margin (ADR 0020)
+- [x] The processor's real fee per payment is at most `ECONOMICS` in `src/core/billing/allowance.ts`, and the catalog tests hold the margin
+  - 2026-10-28: `ECONOMICS` uses Dodo Payments' worst case, 9% + $0.40 (4% + 40 cents, +1.5% outside the US, +0.5% for subscriptions, +3% for PayPal or Klarna), with the owner's 57% net margin (ADR 0103). Re-check Dodo's pricing page before going live.
 - [ ] Prices are shown without tax and tax is added at checkout (tax-inclusive prices take the tax out of each plan's budget)
 - [ ] In Live mode, Dodo's Settings → Pricing has the same choices as test mode: Adaptive Currency on, **Adaptive Currency Fees Inclusive off** (the customer pays the up-to-4% conversion fee; on, it comes out of Farbaek's margin), Charm Pricing off
   - 2026-10-28: checked in test mode. Checkout offers Dodo's currency picker, and the consent words disclose the fee.

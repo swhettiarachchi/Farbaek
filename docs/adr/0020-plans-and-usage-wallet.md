@@ -1,5 +1,7 @@
 # 0020. Eight plans priced from costs, and a usage wallet
 
+> Updated by ADR 0103 (2026-10-28): the margin is now 57%, after Dodo Payments' worst-case 9% + $0.40.
+
 - Status: accepted
 - Date: 2026-10-18
 - Updates: ADR 0009 and ADR 0011 (fixed credits per action), ADR 0019 (what pricing compares)

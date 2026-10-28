@@ -2,7 +2,7 @@
  * The versioned plan catalog: the one source of truth for the pricing page,
  * Billing, entitlement checks and (later) checkout. Prices are the owner's
  * (2026-10-18). Every AI and sandbox allowance comes from allowance.ts, so a
- * plan keeps a 40% margin after payment fees even when fully used.
+ * plan keeps a 57% net margin after payment fees even when fully used (ADR 0103).
  *
  * Prices are integer cents, monthly. Annual billing waits for payments: a
  * discount would cut the margin unless allowances shrink, and that choice

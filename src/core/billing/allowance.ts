@@ -3,22 +3,28 @@
  * drift from the cost research (reports/AI coding platform costs and
  * pricing.md, October 2026).
  *
- * Profit is 40% of the price after payment fees. Paddle (the processor that
- * works for a Sri Lanka-based seller) takes 5% + $0.50, so a plan can spend
- * 0.55 × price − $0.50 on everything it includes. From that come, in order:
- * a share of fixed costs, snapshot storage, the plan's sandbox hours, and a
- * 5% hold-back that pays for free retries. What's left is AI usage, metered
- * in units at provider list prices (rate-card.ts).
+ * Net profit is 57% of the price, after every fee and cost (the owner's
+ * target, 2026-10-28, ADR 0103). Payments go through Dodo Payments, which
+ * takes 4% + 40 cents, plus 1.5% for cards outside the US, 0.5% on
+ * subscriptions and 3% for PayPal or Klarna: at worst 9% + 40 cents. So a
+ * plan can spend 0.34 × price − $0.40 on everything it includes. From that
+ * come, in order: a share of fixed costs, snapshot storage, the plan's
+ * sandbox hours, and a 5% hold-back that pays for free retries. What's left
+ * is AI usage, metered in units at provider list prices (rate-card.ts).
  */
 import { USD_PER_UNIT, sampleSessionUnits, type ModelId } from "./rate-card";
 
 export const ECONOMICS = {
-  /** Profit as a share of the price. */
-  margin: 0.4,
-  /** Paddle: 5% + $0.50 per payment, sales tax included. */
-  paymentPercent: 0.05,
-  paymentFixedUsd: 0.5,
-  /** About $80 a month of fixed costs (Vercel Pro, Supabase Pro, email, payout wire) over an assumed 200 subscribers. */
+  /** Net profit as a share of the price, after every fee and cost (ADR 0103). */
+  margin: 0.57,
+  /**
+   * Dodo Payments' worst case per payment (dodopayments.com/pricing, read 2026-10-28): 4% + 40 cents, +1.5% outside
+   * the US, +0.5% for subscriptions, +3% for PayPal or Klarna. Tax is added on top at checkout, and the currency
+   * conversion fee is the customer's (Fees Inclusive off), so neither comes out of the price.
+   */
+  paymentPercent: 0.09,
+  paymentFixedUsd: 0.4,
+  /** About $80 a month of fixed costs (the server, email, domains, Dodo's $25 SWIFT payout) over an assumed 200 subscribers. */
   fixedShareUsd: 0.4,
   /** 2 GB of sandbox snapshot storage per subscriber. */
   snapshotUsd: 0.16,

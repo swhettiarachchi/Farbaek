@@ -9,12 +9,13 @@ describe("plan catalog", () => {
     expect(prices).toEqual({ free: "free", starter: 999, plus: 1_999, pro: 5_000, studio: 7_999, max: 10_000, max_2x: 20_000, max_3x: 30_000, enterprise: "contract" });
   });
 
-  it("reproduces the cost budgets in the pricing research (40% margin after Paddle's 5% + 50 cents)", () => {
-    // reports/AI coding platform costs and pricing.md, "Every plan can spend 55% of its price minus 50 cents".
-    const budgets = { 9.99: 4.99, 19.99: 10.49, 50: 27.0, 79.99: 43.49, 100: 54.5, 200: 109.5, 300: 164.5 };
-    for (const [price, budget] of Object.entries(budgets)) expect(costBudgetUsd(Number(price))).toBeCloseTo(budget, 2);
-    const models = { 9.99: [5, 3.69], 19.99: [10, 8.45], 50: [25, 22.72], 100: [50, 46.5], 300: [150, 141.62] } as const;
-    for (const [price, [hours, model]] of Object.entries(models)) expect(allowanceFor(Number(price), hours).modelBudgetUsd).toBeCloseTo(model, 1);
+  it("spends at most 34% of the price minus 40 cents, for a 57% net margin after Dodo's worst-case 9% + 40 cents (ADR 0103)", () => {
+    expect(ECONOMICS.margin).toBe(0.57);
+    const budgets = { 9.99: 2.9966, 19.99: 6.3966, 50: 16.6, 79.99: 26.7966, 100: 33.6, 200: 67.6, 300: 101.6 };
+    for (const [price, budget] of Object.entries(budgets)) expect(costBudgetUsd(Number(price))).toBeCloseTo(budget, 3);
+    // Then fixed costs ($0.40), snapshots ($0.16) and the plan's sandbox hours ($0.149 each).
+    const models = { 9.99: [5, 1.6916], 19.99: [10, 4.3466], 50: [25, 12.315], 100: [50, 25.59], 300: [150, 78.69] } as const;
+    for (const [price, [hours, model]] of Object.entries(models)) expect(allowanceFor(Number(price), hours).modelBudgetUsd).toBeCloseTo(model, 3);
   });
 
   it("keeps the margin even when a subscriber uses everything", () => {
@@ -24,7 +25,20 @@ describe("plan catalog", () => {
       const price = plan.pricing.monthlyCents / 100;
       const cost = (plan.limits.aiUnitsPerMonth! + plan.limits.retryUnitsPerMonth!) * USD_PER_UNIT + a.sandboxUsd + ECONOMICS.fixedShareUsd + ECONOMICS.snapshotUsd;
       const fee = price * ECONOMICS.paymentPercent + ECONOMICS.paymentFixedUsd;
-      expect((price - fee - cost) / price, plan.id).toBeGreaterThanOrEqual(0.4 - 1e-6);
+      expect((price - fee - cost) / price, plan.id).toBeGreaterThanOrEqual(0.57 - 1e-6);
+    }
+  });
+
+  it("keeps the margin on top-ups too, at the worst-case fee for a one-time payment", () => {
+    // A top-up pays Dodo's fee without the subscription surcharge, and adds AI usage at the plan's own rate (ADR 0102).
+    for (const plan of PLANS) {
+      if (plan.pricing.kind !== "paid") continue;
+      for (const cents of [1000, 2500, 5000]) {
+        const price = cents / 100;
+        const units = Math.floor((cents / plan.pricing.monthlyCents) * plan.limits.aiUnitsPerMonth!);
+        const fee = price * ECONOMICS.paymentPercent + ECONOMICS.paymentFixedUsd;
+        expect((price - fee - units * USD_PER_UNIT) / price, `${plan.id} ${cents}`).toBeGreaterThanOrEqual(0.57);
+      }
     }
   });
 
@@ -48,7 +62,7 @@ describe("plan catalog", () => {
       for (const f of paidPlans[i - 1]!.features) expect(paidPlans[i]!.features).toContain(f);
     }
     expect(planSessionsGuide(getPlan("plus"))).toBe(sessionsGuide(getPlan("plus").limits.aiUnitsPerMonth!));
-    expect(planSessionsGuide(getPlan("plus"))).toBeGreaterThan(20);
+    expect(planSessionsGuide(getPlan("plus"))).toBeGreaterThan(10);
   });
 
   it("never offers unlimited usage on self-serve plans", () => {
