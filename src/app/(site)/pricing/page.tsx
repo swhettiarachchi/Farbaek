@@ -104,7 +104,7 @@ export default function PricingPage() {
               <a href={`mailto:${CONTACT.hello}`} className="font-medium text-accent hover:underline">
                 {CONTACT.hello}
               </a>
-              . Prices in {BILLING_CURRENCY}; tax is added at checkout.
+              . Prices in {BILLING_CURRENCY}; tax is added at checkout, and you can pay in your own currency for a conversion fee of up to 4%.
             </p>
           </div>
         </Container>

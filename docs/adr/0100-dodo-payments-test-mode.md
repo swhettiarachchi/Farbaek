@@ -62,6 +62,12 @@ Billing has been `not_connected` since the start. The plan catalog, the internal
 
 **9. Usage grants follow the subscription.** `subscription_started_at` is the anchor for `currentGrant`, so a paid period resets on the subscription's day of the month. Evaluation limits still use calendar months.
 
+**10. People may pay in their own currency** (added 2026-10-28, at the owner's request). Checkout shows Dodo's currency picker (adaptive currency, `feature_flags.allow_currency_selection`).
+- **The fee:** Dodo's conversion fee is 4% on orders under $500, which covers every self-serve plan.
+- **Who pays it:** with the business setting "Fees Inclusive" off (checked 2026-10-28), the customer pays it, and Farbaek settles the full USD price, so the margin (ADR 0020) holds.
+- **Disclosure:** the consent words, the consent step, Billing and the pricing page all say so before anyone pays.
+- **Amounts:** a plan-change preview shows Dodo's amount in whatever currency it charges (`formatMinorUnits`).
+
 ## Consequences
 
 **What people see:**

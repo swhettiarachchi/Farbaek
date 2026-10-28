@@ -16,7 +16,12 @@ When approved, it becomes a "Paid plans" section in `/terms` (`src/app/(site)/te
 
 Farbaek never sees your card details.
 
-**Price and tax.** Prices on the pricing page are in US dollars, without tax. Applicable tax is added at checkout, based on where you are, and shown before you pay.
+**Price, currency and tax.** Prices on the pricing page are in US dollars, without tax. At checkout:
+- you can pay in US dollars or another currency you choose;
+- paying in another currency adds Dodo Payments' conversion fee, up to 4%;
+- applicable tax is added, based on where you are.
+
+Dodo Payments shows the exact amount before you pay.
 
 **Renewal.** A plan renews every month, on the day you subscribed, and charges your payment method until you cancel. Before checkout you tick a box with the exact price and these renewal terms. Farbaek keeps a record of what you agreed to and when.
 

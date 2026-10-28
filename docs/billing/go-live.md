@@ -13,6 +13,8 @@ Since 2026-10-28 (ADR 0100), test mode can be switched on for listed workspaces 
   - 2026-10-28: built. Office Space → Payments creates a monthly product per paid plan and reads each price back; checkout refuses a plan whose price differs. Still to do: create them in test mode, then live.
 - [ ] The processor's real fee per payment is at most `ECONOMICS` in `src/core/billing/allowance.ts` (5% + $0.50, Paddle's rate, which the cost research uses), or `ECONOMICS` is updated and the catalog tests still hold the 40% margin (ADR 0020)
 - [ ] Prices are shown without tax and tax is added at checkout (tax-inclusive prices take the tax out of each plan's budget)
+- [ ] In Live mode, Dodo's Settings → Pricing has the same choices as test mode: Adaptive Currency on, **Adaptive Currency Fees Inclusive off** (the customer pays the up-to-4% conversion fee; on, it comes out of Farbaek's margin), Charm Pricing off
+  - 2026-10-28: checked in test mode. Checkout offers Dodo's currency picker, and the consent words disclose the fee.
   - 2026-10-28: products are created with `tax_inclusive: false`, and Billing says tax is calculated at checkout. Confirm on a test checkout.
 - [ ] Annual billing decided: either no discount, or allowances cut so the 40% margin holds
 - [ ] Spend cap built, and top-ups (at the plan's own rate, 12-month expiry) apply only up to it

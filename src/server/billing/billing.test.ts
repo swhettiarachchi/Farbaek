@@ -234,26 +234,13 @@ describe("the Dodo client's requests (fake fetch)", () => {
     expect(checkoutBody).not.toHaveProperty("subscription_data");
     expect(JSON.stringify(checkoutBody)).not.toContain("trial");
     expect(checkoutBody.metadata).toEqual({ farbaek_org: ORG, farbaek_plan: "pro" });
-    // People agree to US dollars, so checkout charges US dollars, with no currency picker.
-    expect(checkoutBody).toMatchObject({ billing_currency: "USD", feature_flags: { allow_currency_selection: false } });
+    // People may pay in a currency they choose at checkout; the consent names the conversion fee.
+    expect(checkoutBody).toMatchObject({ feature_flags: { allow_currency_selection: true } });
+    expect(checkoutBody).not.toHaveProperty("billing_currency");
 
     await client.createProduct({ planId: "pro", name: "Farbaek Pro", description: "x", amountCents: 5000, currency: "USD" });
     const price = (dodo.calls[1]!.body as { price: Record<string, unknown> }).price;
     expect(price).toMatchObject({ type: "recurring_price", price: 5000, currency: "USD", payment_frequency_interval: "Month", subscription_period_count: 20, subscription_period_interval: "Year", tax_inclusive: false, trial_period_days: 0 });
-  });
-
-  it("retries a refused checkout without the fixed currency, for a business without adaptive pricing", async () => {
-    const bodies: Record<string, unknown>[] = [];
-    const fetchImpl: Fetch = async (_url, init) => {
-      const body = JSON.parse(String(init.body)) as Record<string, unknown>;
-      bodies.push(body);
-      return "billing_currency" in body ? new Response("{}", { status: 422 }) : new Response(JSON.stringify({ session_id: "cks_mock", checkout_url: "https://test.checkout.dodopayments.com/session/cks_mock" }));
-    };
-    const client = createDodoClient({ apiKey: "k", baseUrl: config.baseUrl, mode: "test", fetch: fetchImpl });
-    const r = await client.createCheckoutSession({ orgId: ORG, planId: "pro", productId: "pdt_mock_pro", customer: { email: "owner@example.test" }, returnUrl: "https://www.farbaek.com/app/billing?checkout=done" });
-    expect(r.ok).toBe(true);
-    expect(bodies).toHaveLength(2);
-    expect(bodies[1]).not.toHaveProperty("billing_currency");
   });
 
   it("maps provider errors to codes and refuses odd ids before calling", async () => {

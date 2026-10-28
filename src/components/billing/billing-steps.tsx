@@ -7,7 +7,7 @@ import { sessionsLine } from "@/components/pricing/pricing-plans";
 import { LocalTime } from "@/components/ui/local-time";
 import { buttonClasses } from "@/components/ui/button";
 import { formatUsd, getPlan } from "@/core/billing/catalog";
-import { checkoutConsentText } from "@/core/billing/provider-state";
+import { checkoutConsentText, formatMinorUnits } from "@/core/billing/provider-state";
 import type { PaidPlanId } from "@/core/billing/provider";
 import type { PlanChangePreview } from "@/server/billing/use-cases";
 import type { BillingView } from "@/server/billing/view";
@@ -49,6 +49,9 @@ export function ChoosePlanStep({ planId, onTrial, error }: { planId: PaidPlanId;
         </li>
         <li>{plan.limits.seats === 1 ? "1 seat" : `${plan.limits.seats} seats`}</li>
       </ul>
+      <p className="mt-4 text-sm leading-relaxed text-ink-2">
+        Pay in US dollars or your own currency: Dodo Payments shows the exact amount before you pay. Another currency adds its conversion fee of up to 4%.
+      </p>
       {onTrial ? (
         <p className="mt-4 text-sm text-ink">
           <span className="font-medium">Billing starts today, and your remaining trial days end now.</span> Your projects and usage history stay as they are.
@@ -96,9 +99,9 @@ export function ChangePlanStep({ preview, error }: { preview: PlanChangePreview 
     <StepShell title={`Switch to ${to.name}`}>
       {upgrade ? (
         <p className="mt-2 text-sm leading-relaxed text-ink">
-          {preview.amountCents !== null && preview.currency === "USD" ? (
+          {preview.amountCents !== null && preview.currency ? (
             <>
-              Dodo Payments charges <span className="font-medium tabular">{formatUsd(preview.amountCents)}</span> today for the rest of this period,
+              Dodo Payments charges <span className="font-medium tabular">{formatMinorUnits(preview.amountCents, preview.currency)}</span> today for the rest of this period,
             </>
           ) : (
             <>Dodo Payments charges the difference for the rest of this period today,</>

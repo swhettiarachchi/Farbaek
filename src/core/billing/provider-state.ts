@@ -53,6 +53,21 @@ export function mapSubscription(sub: NormalizedSubscription, planId: PaidPlanId,
   }
 }
 
+/**
+ * An amount in a currency's smallest unit (cents, or whole yen), formatted
+ * for that currency: what Dodo charged or will charge, in whatever currency
+ * the person chose at checkout.
+ */
+export function formatMinorUnits(amount: number, currency: string): string {
+  try {
+    const f = new Intl.NumberFormat("en-US", { style: "currency", currency });
+    const digits = f.resolvedOptions().maximumFractionDigits ?? 2;
+    return f.format(amount / 10 ** digits);
+  } catch {
+    return `${(amount / 100).toFixed(2)} ${currency.slice(0, 3).toUpperCase()}`;
+  }
+}
+
 /** Whether moving from one plan to another is an upgrade (charged now, prorated) or a downgrade (at the period's end). */
 export function planChangeDirection(from: PaidPlanId, to: PaidPlanId): "upgrade" | "downgrade" | "same" {
   const a = PLAN_ORDER.indexOf(from);
@@ -67,5 +82,5 @@ export function checkoutConsentText(planId: PaidPlanId, onTrial: boolean): strin
   if (plan.pricing.kind !== "paid") throw new Error(`Not a paid plan: ${planId}`);
   const amount = (plan.pricing.monthlyCents / 100).toFixed(2);
   const trial = onTrial ? " Billing starts today, and my remaining trial days end now." : "";
-  return `I agree to pay $${amount} USD a month, plus any applicable tax calculated at checkout, for Farbaek ${plan.name} until I cancel. I can cancel at any time in Billing, and my plan then runs to the end of the period I paid for.${trial}`;
+  return `I agree to pay $${amount} USD a month, or the same amount in the currency I choose at checkout with Dodo Payments' conversion fee of up to 4% added, plus any applicable tax calculated at checkout, for Farbaek ${plan.name} until I cancel. I can cancel at any time in Billing, and my plan then runs to the end of the period I paid for.${trial}`;
 }

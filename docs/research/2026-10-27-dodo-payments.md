@@ -64,6 +64,20 @@ Read on 2026-10-27 from the official documentation at docs.dodopayments.com: the
 
 `cancel_at_next_billing_date: true` keeps the subscription `active` until the next billing date, then it ends. Farbaek shows this as "Cancelled, runs until {date}". A merchant cancellation can end it at once. Farbaek still keeps access to `next_billing_date` when that's in the future, since the period was paid for.
 
+## Adaptive currency (read 2026-10-28)
+
+Source: `docs.dodopayments.com/features/adaptive-currency.md`.
+- **How it charges:** the customer pays in their local currency at live exchange rates.
+- **The fee:** 4% under $500, 3% from $500 to $1,500, 2% over $1,500.
+- **Who pays ("Exclusive", the default):** the fee is added on top for the customer, and the merchant settles the full base price.
+- **"Fees Inclusive":** the merchant absorbs it.
+- **Per request:** the default can be overridden per payment, plan change or on-demand charge with `adaptive_currency_fees_inclusive`. Farbaek never sends it, so the business default applies.
+- **Checkout:** `billing_currency` fixes a currency while adaptive pricing is on; the picker is `feature_flags.allow_currency_selection` (default true).
+
+**Confirmed in test mode:**
+- the first test checkout let the owner pick NZD and charged NZ$92.61;
+- the webhooks still applied (the subscription's product and dates don't depend on the currency).
+
 ## Still to confirm in test mode
 
 Each needs the owner's test keys:
