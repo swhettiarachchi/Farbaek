@@ -28,9 +28,11 @@ export interface BillingView {
   } | null;
   /** A checkout started in the last 24 hours and not yet confirmed. */
   openCheckout: { planId: PaidPlanId; startedAt: string } | null;
+  /** Top-ups (ADR 0102): the monthly limit, and this month's paid top-ups plus checkouts open in the last day. */
+  topups: { capCents: number | null; spentCents: number; openCents: number } | null;
 }
 
-const CLOSED: BillingView = { open: false, subscription: null, openCheckout: null };
+const CLOSED: BillingView = { open: false, subscription: null, openCheckout: null, topups: null };
 
 const Account = z.object({
   state: z.string(),
@@ -39,6 +41,7 @@ const Account = z.object({
   suspended_reason: z.enum(["payment", "paused"]).nullable(),
   provider_subscription_id: z.string().nullable(),
   provider_customer_id: z.string().nullable(),
+  topup_cap_cents: z.number().int().nullable().optional(),
 });
 
 export async function loadBillingView(orgId: string, demo: boolean): Promise<BillingView> {
@@ -47,7 +50,7 @@ export async function loadBillingView(orgId: string, demo: boolean): Promise<Bil
   if (demo || !admin || !checkoutOpenFor(config, orgId)) return CLOSED;
 
   const [account, checkout] = await Promise.all([
-    admin.from("billing_accounts").select("state, paid_plan_id, paid_through, suspended_reason, provider_subscription_id, provider_customer_id").eq("org_id", orgId).maybeSingle(),
+    admin.from("billing_accounts").select("state, paid_plan_id, paid_through, suspended_reason, provider_subscription_id, provider_customer_id, topup_cap_cents").eq("org_id", orgId).maybeSingle(),
     admin
       .from("billing_checkouts")
       .select("plan_id, created_at")
@@ -75,5 +78,20 @@ export async function loadBillingView(orgId: string, demo: boolean): Promise<Bil
       : null;
   const c = checkout.data as { plan_id?: unknown; created_at?: unknown } | null;
   const openCheckout = !subscription && c && isPaidPlanId(c.plan_id) && typeof c.created_at === "string" ? { planId: c.plan_id, startedAt: c.created_at } : null;
-  return { open: true, subscription, openCheckout };
+  return { open: true, subscription, openCheckout, topups: subscription && a?.success ? await topupSummary(admin, orgId, a.data.topup_cap_cents ?? null) : null };
+}
+
+/** This calendar month's paid top-ups, and checkouts opened in the last day: the same count the database checks the limit with. */
+async function topupSummary(admin: NonNullable<ReturnType<typeof createSupabaseAdminClient>>, orgId: string, capCents: number | null): Promise<BillingView["topups"]> {
+  const now = new Date();
+  const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+  const { data, error } = await admin.from("billing_topups").select("status, pack_cents, created_at, paid_at").eq("org_id", orgId).gte("created_at", new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)).toISOString());
+  if (error) return { capCents, spentCents: 0, openCents: 0 };
+  const rows = (data ?? []) as { status: string; pack_cents: number; created_at: string; paid_at: string | null }[];
+  const dayAgo = now.getTime() - 86_400_000;
+  return {
+    capCents,
+    spentCents: rows.filter((t) => t.status === "paid" && t.paid_at !== null && Date.parse(t.paid_at) >= Date.parse(month)).reduce((n, t) => n + t.pack_cents, 0),
+    openCents: rows.filter((t) => t.status === "open" && new Date(t.created_at).getTime() > dayAgo).reduce((n, t) => n + t.pack_cents, 0),
+  };
 }

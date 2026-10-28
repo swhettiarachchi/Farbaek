@@ -17,7 +17,8 @@ Since 2026-10-28 (ADR 0100), test mode can be switched on for listed workspaces 
   - 2026-10-28: checked in test mode. Checkout offers Dodo's currency picker, and the consent words disclose the fee.
   - 2026-10-28: products are created with `tax_inclusive: false`, and Billing says tax is calculated at checkout. Confirm on a test checkout.
 - [ ] Annual billing decided: either no discount, or allowances cut so the 40% margin holds
-- [ ] Spend cap built, and top-ups (at the plan's own rate, 12-month expiry) apply only up to it
+- [x] Spend cap built, and top-ups (at the plan's own rate, 12-month expiry) apply only up to it
+  - 2026-10-28: ADR 0102, migration v64. A monthly limit set by an owner or admin (none set means no top-ups), counting checkouts still open. Usage arrives only from a payment read back from Dodo, once.
 - [x] Paid usage grants anchored to the subscription start instead of the calendar month (`currentGrant` in `src/core/billing/wallet.ts`)
   - 2026-10-25: built, not yet connected. `currentGrant(plan, trial, now, anchor)` gives a paid plan the period starting on the subscription's day of the month (the 28th for the 29th to 31st), `grantResetsAt` follows it, and `src/core/billing/wallet.test.ts` covers it.
   - 2026-10-28: connected. `billing_accounts.subscription_started_at` (migration v62) comes from the provider's subscription and is the anchor everywhere a grant is made (`workspaceGrant`).

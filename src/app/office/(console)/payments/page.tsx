@@ -7,6 +7,7 @@ import { OfficeActionForm } from "@/components/office/action-form";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
 import { PLAN_CATALOG_VERSION, SELF_SERVE_PLANS, formatUsd } from "@/core/billing/catalog";
 import { isPaidPlanId } from "@/core/billing/provider-state";
+import { TOPUP_PACKS_CENTS } from "@/core/billing/topups";
 import { billingStatus, readBillingConfig, requestedBillingMode } from "@/server/billing/config";
 import { createDodoClient } from "@/server/billing/providers/dodo/client";
 import { requireStaff } from "@/server/office/access";
@@ -72,6 +73,22 @@ export default async function OfficePayments() {
     ),
   );
   const missing = paidPlans.filter((p) => !current.some((c) => c.planId === p.id));
+  // Top-up packs (ADR 0102): one-time products, checked the same way.
+  const packs = (page?.topups ?? []).filter((t) => t.mode === (mode ?? "test") && t.catalogVersion === PLAN_CATALOG_VERSION);
+  const missingPacks = TOPUP_PACKS_CENTS.filter((c) => !packs.some((t) => t.packCents === c));
+  const packChecks = new Map<string, Check>(
+    await Promise.all(
+      packs.map(async (t): Promise<[string, Check]> => {
+        if (!dodo) return [t.productId, { kind: "unknown", text: "Not connected" }];
+        const r = await dodo.getProductPrice(t.productId);
+        if (!r.ok) return [t.productId, { kind: "unknown", text: `Couldn't check (${r.code})` }];
+        const v = r.value;
+        if (v.amountCents !== t.packCents || v.currency !== "USD" || v.recurring) return [t.productId, { kind: "differs", text: `Dodo has ${v.currency} ${(v.amountCents / 100).toFixed(2)}${v.recurring ? ", recurring" : ""}` }];
+        return [t.productId, { kind: "match" }];
+      }),
+    ),
+  );
+  const toCreate = missing.length + missingPacks.length;
 
   return (
     <div className="grid gap-8">
@@ -158,12 +175,44 @@ export default async function OfficePayments() {
               </tr>
             );
           })}
+          {TOPUP_PACKS_CENTS.map((cents) => {
+            const row = packs.find((t) => t.packCents === cents);
+            const check = row ? packChecks.get(row.productId) : undefined;
+            return (
+              <tr key={`topup-${cents}`} className="border-b border-line last:border-0">
+                <Cell>Top-up {formatUsd(cents)}</Cell>
+                <Cell mono>{formatUsd(cents)} once</Cell>
+                <Cell mono muted={!row}>
+                  {row ? row.productId : "Not created"}
+                </Cell>
+                <Cell>
+                  {!row ? (
+                    <Chip>
+                      <CircleDashedIcon size={14} className="mr-1" aria-hidden /> Missing
+                    </Chip>
+                  ) : check?.kind === "match" ? (
+                    <Chip tone="verified">
+                      <CheckCircleIcon size={14} weight="fill" className="mr-1" aria-hidden /> Matches
+                    </Chip>
+                  ) : check?.kind === "differs" ? (
+                    <Chip tone="failed">
+                      <XCircleIcon size={14} weight="fill" className="mr-1" aria-hidden /> {check.text}
+                    </Chip>
+                  ) : (
+                    <Chip>
+                      <CircleDashedIcon size={14} className="mr-1" aria-hidden /> {check?.text ?? "Couldn't check"}
+                    </Chip>
+                  )}
+                </Cell>
+              </tr>
+            );
+          })}
         </AdminTable>
-        {missing.length > 0 ? (
+        {toCreate > 0 ? (
           canCreate && config ? (
-            <OfficeActionForm action={createProductsAction} submit={`Create ${missing.length} test ${missing.length === 1 ? "product" : "products"} in Dodo`} className="grid gap-3">
+            <OfficeActionForm action={createProductsAction} submit={`Create ${toCreate} test ${toCreate === 1 ? "product" : "products"} in Dodo`} className="grid gap-3">
               <p className="text-sm text-ink-2">
-                Creates {missing.map((p) => p.name).join(", ")} at Dodo Payments in test mode: monthly, renewing until cancelled, tax added at checkout, no provider trial.
+                Creates {[...missing.map((p) => p.name), ...missingPacks.map((c) => `the ${formatUsd(c)} top-up`)].join(", ")} at Dodo Payments in test mode. Plans are monthly, renewing until cancelled, with no provider trial; top-ups are paid once. Tax is added at checkout.
               </p>
             </OfficeActionForm>
           ) : (

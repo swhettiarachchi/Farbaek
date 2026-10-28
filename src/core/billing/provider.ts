@@ -51,6 +51,18 @@ export interface CheckoutInput {
   productId: string;
   customer: { email: string; name?: string };
   returnUrl: string;
+  /** A one-time AI usage top-up rather than a subscription (ADR 0102). */
+  topup?: boolean;
+}
+
+/** A one-time payment as the provider reports it now (top-ups, ADR 0102). */
+export interface NormalizedPayment {
+  id: string;
+  status: string | null;
+  checkoutSessionId: string | null;
+  orgId: string | null;
+  topup: boolean;
+  productIds: string[];
 }
 
 export type PlanChangeTiming = "now" | "period_end";
@@ -68,6 +80,8 @@ export interface PaymentProvider {
   previewPlanChange(subscriptionId: string, productId: string): Promise<ProviderResult<{ amountCents: number | null; currency: string | null }>>;
   changePlan(subscriptionId: string, productId: string, timing: PlanChangeTiming): Promise<ProviderResult<void>>;
   getSubscription(subscriptionId: string): Promise<ProviderResult<NormalizedSubscription>>;
-  createProduct(input: { planId: PaidPlanId; name: string; description: string; amountCents: number; currency: string }): Promise<ProviderResult<{ productId: string }>>;
+  getPayment(paymentId: string): Promise<ProviderResult<NormalizedPayment>>;
+  /** A monthly plan product, or with `once` a one-time top-up pack. */
+  createProduct(input: { planId?: PaidPlanId; once?: boolean; name: string; description: string; amountCents: number; currency: string }): Promise<ProviderResult<{ productId: string }>>;
   getProductPrice(productId: string): Promise<ProviderResult<{ amountCents: number; currency: string; recurring: boolean; trialDays: number }>>;
 }

@@ -86,7 +86,9 @@ export function WalletCard({ wallet, paid }: { wallet: WalletView | null; paid: 
             : "On paid plans and during the trial, a fix for failed checks that doesn't pass them either gets its usage back. Start one from a task whose checks failed."}
         </Rule>
         <Rule icon={<ShieldCheckIcon size={15} weight="bold" />} title="Spend cap">
-          Not available until payments are connected. Until then nothing can be billed. Once top-ups exist, they only apply up to a cap you set.
+          {paid
+            ? "Buying more AI usage never goes past the monthly limit an owner or admin sets in Billing, and nothing is ever bought on its own."
+            : "On paid plans, buying more AI usage never goes past a monthly limit an owner or admin sets, and nothing is ever bought on its own."}
         </Rule>
       </ul>
     </Card>

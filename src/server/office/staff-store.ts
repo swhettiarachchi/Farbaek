@@ -172,6 +172,8 @@ export interface StaffStore {
   // Payments (migration v62, ADR 0100)
   recordBillingProduct(actor: StaffActor, input: { mode: "test" | "live"; planId: string; productId: string; amountCents: number; currency: string; catalogVersion: string }, meta: RequestMeta): Promise<StoreResult<null>>;
   replayWebhook(actor: StaffActor, input: { id: string }, meta: RequestMeta): Promise<StoreResult<null>>;
+  // Top-up packs (migration v64, ADR 0102)
+  recordTopupProduct(actor: StaffActor, input: { mode: "test" | "live"; packCents: number; productId: string; catalogVersion: string }, meta: RequestMeta): Promise<StoreResult<null>>;
   publishAnnouncement(actor: StaffActor, input: { message: string; tone: "info" | "incident"; dismissible: boolean; endsAt: string | null; reason: string }, meta: RequestMeta): Promise<StoreResult<string>>;
   endAnnouncement(actor: StaffActor, input: { id: string; reason: string }, meta: RequestMeta): Promise<StoreResult<null>>;
   // Phase 3 (migration v22)
@@ -304,6 +306,12 @@ export function createStaffStore(admin: SupabaseClient): StaffStore {
         nothing,
       ),
     replayWebhook: (a, i, meta) => rpc("app_staff_replay_webhook", { p_actor: a.userId, p_session: a.sessionId, p_id: i.id, ...m(meta) }, nothing),
+    recordTopupProduct: (a, i, meta) =>
+      rpc(
+        "app_staff_record_topup_product",
+        { p_actor: a.userId, p_session: a.sessionId, p_provider: "dodo", p_mode: i.mode, p_pack_cents: i.packCents, p_product: i.productId, p_catalog_version: i.catalogVersion, ...m(meta) },
+        nothing,
+      ),
     publishAnnouncement: (a, i, meta) =>
       rpc(
         "app_staff_publish_announcement",

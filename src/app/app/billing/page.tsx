@@ -9,6 +9,9 @@ import { buttonClasses } from "@/components/ui/button";
 import { WalletCard } from "@/components/app/wallet-card";
 import { sessionsLine } from "@/components/pricing/pricing-plans";
 import { CancelStep, ChangePlanStep, ChoosePlanStep, SubscriptionSummary } from "@/components/billing/billing-steps";
+import { TopupCard, TopupStep } from "@/components/billing/topup-card";
+import { isTopupPack } from "@/core/billing/topups";
+import { topupErrorMessage } from "@/server/billing/topups";
 import { SELF_SERVE_PLANS, TRIAL, formatUsd, getPlan } from "@/core/billing/catalog";
 import { isPaidPlanId, planChangeDirection } from "@/core/billing/provider-state";
 import { billingDeps } from "@/server/billing/wiring";
@@ -56,8 +59,13 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
           ? { kind: "change" as const, preview: await previewPlanChange(billingDeps(), { id: ws.id, onTrial }, { userId: ctx.user.id, email: ctx.user.email, role: ctx.role }, change) }
           : sub && one(sp.cancel) === "1" && sub.state !== "cancellation_scheduled"
             ? { kind: "cancel" as const }
-            : null
+            : sub && billing.topups && isTopupPack(Number(one(sp.topup)))
+              ? { kind: "topup" as const, pack: Number(one(sp.topup)) as 1000 | 2500 | 5000 }
+              : null
       : null;
+  const topupError = topupErrorMessage(one(sp.topup_error));
+  // Back from a top-up checkout: the page refreshes itself until the payment's webhook has added the usage.
+  const topupReturned = billing.open && one(sp.topup) === "done";
   // Back from checkout: the page refreshes itself until the webhook has applied the plan.
   const returned = billing.open && !sub && one(sp.checkout) === "done";
 
@@ -99,6 +107,14 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       {step?.kind === "choose" ? <ChoosePlanStep planId={step.planId} onTrial={onTrial} error={error} /> : null}
       {step?.kind === "change" ? <ChangePlanStep preview={step.preview.ok ? step.preview.value : null} error={step.preview.ok ? error : step.preview.message} /> : null}
       {step?.kind === "cancel" && sub ? <CancelStep subscription={sub} error={error} /> : null}
+      {step?.kind === "topup" && sub ? <TopupStep planId={sub.planId} pack={step.pack} error={topupError} /> : null}
+      {done === "topup_cap" ? <Notice>Top-up limit saved.</Notice> : null}
+      {topupReturned ? (
+        <Notice>
+          Waiting for Dodo Payments to confirm your top-up. It shows in the usage wallet as soon as it does, usually within a minute. If you closed the checkout, nothing was charged.
+          <LiveRefresh active />
+        </Notice>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] lg:items-start">
         <Card>
@@ -166,6 +182,10 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
           </div>
         </Card>
       </div>
+
+      {sub && billing.topups && sub.state !== "suspended" ? (
+        <TopupCard planId={sub.planId} planName={sub.planName} topups={billing.topups} canManage={canManage} error={step?.kind === "topup" ? null : topupError} />
+      ) : null}
 
       <section aria-labelledby="plans-heading" className="grid gap-4">
         <h2 id="plans-heading" className="text-lg font-medium">
