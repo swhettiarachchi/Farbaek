@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { SITE_ROUTE } from "@/core/publish/site";
 import { decideRoute } from "@/server/http/hosts";
+import { APP_CSP_PATH, appCsp, appCspHeaders } from "@/server/http/app-headers";
 import { newNonce, officeCsp, officeResponseHeaders } from "@/server/http/office-headers";
 import { appHostFromEnv, officeConfig } from "@/server/office/config";
 import { siteDomain } from "@/server/publish/config";
@@ -97,8 +98,18 @@ async function officeRequest(request: NextRequest, rewrite: string, https: boole
 async function appRequest(request: NextRequest) {
   if (!SESSION_PATH.test(request.nextUrl.pathname)) return NextResponse.next();
 
+  // The app's nonce CSP (ADR 0107): Next.js reads the nonce from this request header and puts it on its scripts.
+  const csp = APP_CSP_PATH.test(request.nextUrl.pathname)
+    ? appCsp(newNonce(), { dev: process.env.NODE_ENV === "development", https: siteUrl().startsWith("https://"), previewDomain: process.env.SANDBOX_PREVIEW_DOMAIN || null })
+    : null;
+  if (csp) request.headers.set("content-security-policy", csp);
+  const withCsp = (response: NextResponse) => {
+    if (csp) for (const [key, value] of Object.entries(appCspHeaders(csp, process.env.APP_CSP_ENFORCE === "1"))) response.headers.set(key, value);
+    return response;
+  };
+
   const config = readSupabaseConfig();
-  if (!config) return NextResponse.next({ request });
+  if (!config) return withCsp(NextResponse.next({ request }));
 
   let response = NextResponse.next({ request });
   const supabase = createServerClient(config.url, config.publishableKey, {
@@ -117,7 +128,7 @@ async function appRequest(request: NextRequest) {
 
   // Validates the JWT and refreshes it when needed.
   await supabase.auth.getClaims();
-  return response;
+  return withCsp(response);
 }
 
 // Where the customer app's session cookie is refreshed; every other page passes straight through.
