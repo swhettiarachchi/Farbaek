@@ -62,6 +62,13 @@ The owner asked for $0.99 and $1.99 plans with the 57% margin kept. Dodo's 40-ce
 - **Full suite:** 2,012 tests; typecheck and lint clean.
 - **Also fixed:** the pricing page still said "Payments aren't open yet". It now says how Lite, Maker and the monthly plans are charged.
 
+- **Migration v66 applied in production** (2026-10-29), before the code. The SHA-256 (`1ea4f470…4fc5c3`) was checked on the server, and it ran in one transaction. Read back:
+  - the plan checks list `lite` and `maker`, and the interval check allows `year`;
+  - `billing_renewal_reminders` has row security on, with 0 rows;
+  - the three reminder functions and the new `app_staff_record_billing_product` are server-key only;
+  - the 14 existing products are all monthly and unchanged;
+  - the API's schema cache was reloaded.
+
 ### Not verified yet
 
 - **A real yearly-to-monthly change at Dodo:** the preview runs first and nobody is charged if Dodo refuses.
