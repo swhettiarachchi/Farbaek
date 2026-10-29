@@ -14,6 +14,7 @@ struct FarbaekApp: App {
                 .preferredColorScheme(.light)
                 .tint(Palette.accent)
                 .onAppear { delegate.model = model }
+                .onOpenURL { model.open(url: $0) }
         }
     }
 }

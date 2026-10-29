@@ -159,7 +159,17 @@ final class AppModel {
         revision += 1
     }
 
-    // MARK: Links from notifications
+    // MARK: Links
+
+    /// farbaek:// links the system opens. farbaek://connected arrives this way when the
+    /// sign-in email was opened in Safari and the person connected there.
+    func open(url: URL) {
+        guard url.scheme == "farbaek", url.host == "connected" else { return }
+        if !web.receive(url), phase == .signedOut {
+            signInError = "That sign-in started earlier and was closed. Tap Sign in with Farbaek again: you're signed in on the web now, so it takes one tap."
+        }
+    }
+
 
     /// Opens a Farbaek path, such as /app/tasks/<id>, in the tab it belongs to.
     func openPath(_ path: String) {
