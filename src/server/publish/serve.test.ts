@@ -66,6 +66,20 @@ describe("serving published sites", () => {
     expect((await get("sunrise-bakery.farbaek.si", "/../secret")).status).toBe(404);
   });
 
+  it("serves an image's exact bytes with its image type (ADR 0108)", async () => {
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+    const withImage: SiteServeDeps = {
+      ...deps,
+      liveSite: async () => ({ state: "live", deploymentId: "d1", projectId: "p1", files: [...FILES, { path: "assets/logo.png", revision: 1, sha256: "d".repeat(64), size: png.length }] }),
+      content: async (_p, path, revision) => (path === "assets/logo.png" ? new Uint8Array(png) : (CONTENT[`${path}:${revision}`] ?? null)),
+    };
+    const r = await handleSiteRequest(new Request("http://localhost:3000/site-serve/assets/logo.png", { headers: { host: "sunrise-bakery.farbaek.si" } }), withImage);
+    expect(r.status).toBe(200);
+    expect(r.headers.get("content-type")).toBe("image/png");
+    expect(r.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(Buffer.from(await r.arrayBuffer()).equals(png)).toBe(true);
+  });
+
   it("keeps hidden folders like the project's skills private, but serves .well-known", async () => {
     const withHidden: SiteServeDeps = {
       ...deps,

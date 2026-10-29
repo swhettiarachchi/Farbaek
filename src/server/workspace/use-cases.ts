@@ -35,6 +35,8 @@ export type WriteErrorCode =
   | "IMPORT_TOO_LARGE"
   | "PROJECT_TOO_LARGE"
   | "FILE_CHANGED"
+  | "IMAGE_PATH"
+  | "INVALID_IMAGE"
   | "NOTHING_TO_IMPORT"
   | "SECRET_IN_CONTENT"
   | "NO_CONTEXT"
@@ -163,6 +165,8 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   IMPORT_TOO_LARGE: `One import can hold up to ${formatBytes(WORKSPACE_LIMITS.maxImportBytes)} of text. Import a smaller folder, for example src.`,
   PROJECT_TOO_LARGE: `A project can hold up to ${formatBytes(WORKSPACE_LIMITS.maxProjectBytes)} in ${WORKSPACE_LIMITS.maxProjectFiles.toLocaleString("en-US")} files. Nothing was changed.`,
   FILE_CHANGED: "Someone changed this file while you were looking at it. Reload to see the latest version.",
+  IMAGE_PATH: "That name ends like an image's, so it can only hold an image. Add images with Add an image, or choose another name.",
+  INVALID_IMAGE: "That isn't an image Farbaek can store. Use a PNG, JPEG, GIF, WebP, AVIF or icon file up to 2 MB.",
   NOTHING_TO_IMPORT: "None of the selected files can be imported.",
   SECRET_IN_CONTENT: "This looks like it contains a secret, such as a private key or an API token. Remove it and try again. Keep secrets in environment variables.",
   NO_CONTEXT: "Choose the files the change needs, up to 20.",
@@ -243,6 +247,7 @@ export function codeFromDatabaseError(message: string): WriteErrorCode {
     "IMPORT_TOO_LARGE",
     "PROJECT_TOO_LARGE",
     "FILE_CHANGED",
+    "IMAGE_PATH",
     "INVALID_PROPOSAL",
     "PROPOSAL_CLOSED",
     "PROPOSAL_EXPIRED",

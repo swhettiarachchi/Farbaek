@@ -270,6 +270,8 @@ export interface ProjectFile {
   sizeBytes: number;
   sha256: string;
   updatedAt: string;
+  /** "base64" for an image (ADR 0108): its content is base64 and its size and hash are over the bytes. Absent for text. */
+  encoding?: "base64";
 }
 
 export interface ProjectFileContent extends ProjectFile {
@@ -306,8 +308,10 @@ export interface WorkspaceReader {
   getFile(orgId: string, projectId: string, path: string): Promise<ProjectFileContent | null>;
   /** Every revision of one path, newest first (including deletions). */
   listFileRevisions(orgId: string, projectId: string, path: string): Promise<FileRevision[]>;
-  /** Every current file with its content, sorted by path: for downloads and previews. */
+  /** Every current text file with its content, sorted by path. Images aren't here (ADR 0108): see getProjectImages. */
   getProjectContents(orgId: string, projectId: string): Promise<{ path: string; content: string }[]>;
+  /** Every current image as base64, sorted by path: for previews, the published site and downloads (ADR 0108). */
+  getProjectImages(orgId: string, projectId: string): Promise<{ path: string; base64: string }[]>;
   /** One revision's content, or null when it doesn't exist or is a deletion. */
   getFileRevision(orgId: string, projectId: string, path: string, revision: number): Promise<string | null>;
   /** The workspace's autonomy setting (ADR 0046). */

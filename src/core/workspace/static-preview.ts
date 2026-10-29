@@ -53,16 +53,50 @@ export function sitePages(files: Readonly<Record<string, string>>): string[] {
 
 const escapeClosing = (code: string, tag: "style" | "script") => code.replace(new RegExp(`</${tag}`, "gi"), `<\\/${tag}`);
 
-/** One self-contained document for `page`, or null when the page doesn't exist. */
-export function buildStaticSrcdoc(files: Readonly<Record<string, string>>, page = "index.html"): string | null {
+/** CSS `url(...)` references to the project's images, as data URLs, resolved from the stylesheet's own path (ADR 0108). */
+function inlineCssImages(css: string, fromPath: string, images: Readonly<Record<string, string>>): string {
+  return css.replace(/url\(\s*(["']?)([^"')]+)\1\s*\)/gi, (whole, quote: string, ref: string) => {
+    const target = resolveSitePath(fromPath, ref);
+    return target && images[target] ? `url(${quote}${images[target]}${quote})` : whole;
+  });
+}
+
+/** HTML attributes that point at the project's images (src, href, poster, srcset), as data URLs (ADR 0108). */
+function inlineHtmlImages(html: string, page: string, images: Readonly<Record<string, string>>): string {
+  const one = (ref: string) => {
+    const target = resolveSitePath(page, ref);
+    return target && images[target] ? images[target] : null;
+  };
+  let out = html.replace(/(\s(?:src|href|poster)\s*=\s*)(["'])([^"']+)\2/gi, (whole, attr: string, quote: string, ref: string) => {
+    const data = one(ref);
+    return data ? `${attr}${quote}${data}${quote}` : whole;
+  });
+  out = out.replace(/(\ssrcset\s*=\s*)(["'])([^"']+)\2/gi, (whole, attr: string, quote: string, value: string) => {
+    const parts = value.split(",").map((part) => {
+      const [ref = "", ...rest] = part.trim().split(/\s+/);
+      const data = one(ref);
+      return data ? [data, ...rest].join(" ") : part.trim();
+    });
+    return `${attr}${quote}${parts.join(", ")}${quote}`;
+  });
+  return inlineCssImages(out, page, images);
+}
+
+/**
+ * One self-contained document for `page`, or null when the page doesn't
+ * exist. `images` maps the project's image paths to data URLs, so pictures
+ * the site links by path show in the frame, which has no network (ADR 0108).
+ */
+export function buildStaticSrcdoc(files: Readonly<Record<string, string>>, page = "index.html", images: Readonly<Record<string, string>> = {}): string | null {
   const html = files[page];
   if (html === undefined) return null;
+  const hasImages = Object.keys(images).length > 0;
 
   let doc = html.replace(/<link\b[^>]*>/gi, (tag) => {
     if (!/\brel\s*=\s*["']?stylesheet/i.test(tag)) return tag;
     const href = /\bhref\s*=\s*["']([^"']+)["']/i.exec(tag)?.[1];
     const target = href ? resolveSitePath(page, href) : null;
-    if (target && files[target] !== undefined) return `<style>${escapeClosing(files[target]!, "style")}</style>`;
+    if (target && files[target] !== undefined) return `<style>${escapeClosing(hasImages ? inlineCssImages(files[target]!, target, images) : files[target]!, "style")}</style>`;
     return tag;
   });
   doc = doc.replace(/<script\b([^>]*)\bsrc\s*=\s*["']([^"']+)["']([^>]*)>\s*<\/script>/gi, (whole, before: string, src: string, after: string) => {
@@ -70,6 +104,8 @@ export function buildStaticSrcdoc(files: Readonly<Record<string, string>>, page 
     if (target && files[target] !== undefined) return `<script${before}${after}>${escapeClosing(files[target]!, "script")}</script>`;
     return whole;
   });
+
+  if (hasImages) doc = inlineHtmlImages(doc, page, images);
 
   const head = `<meta http-equiv="Content-Security-Policy" content="${CSP}"><meta name="referrer" content="no-referrer">${NAV_SCRIPT}`;
   if (/<head\b[^>]*>/i.test(doc)) return doc.replace(/<head\b[^>]*>/i, (m) => `${m}${head}`);

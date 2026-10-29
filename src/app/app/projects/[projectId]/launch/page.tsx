@@ -18,7 +18,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
-import { Card, PageHeader } from "@/components/app/primitives";
+import { Card, Notice, PageHeader } from "@/components/app/primitives";
 import { LiveCheck } from "@/components/launch/live-check";
 import { NETLIFY_BUILDS, vercelBuilds } from "@/components/launch/provider-copy";
 import { ProviderPanel } from "@/components/launch/provider-panel";
@@ -88,7 +88,10 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
 
   // LaunchOS with your own Vercel or Netlify account (ADR 0078, ADR 0093): exactly the files a launch would send, the connections, and the launches so far.
   const orgId = ctx.current.id;
-  const contents = await ctx.reader.getProjectContents(orgId, project.id);
+  const [contents, imageCount] = await Promise.all([
+    ctx.reader.getProjectContents(orgId, project.id),
+    ctx.reader.listFiles(orgId, project.id).then((all) => all.filter((f) => f.encoding === "base64").length),
+  ]);
   const deployFiles = { count: contents.length, bytes: contents.reduce((n, f) => n + Buffer.byteLength(f.content, "utf8"), 0), digest: await deployDigest(contents.map((f) => ({ path: f.path, sha256: fileSha256(f.content) }))) };
   let connections: Partial<Record<Provider, ConnectionView>> = {};
   let orders: LaunchOrderView[] = [];
@@ -384,6 +387,13 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
           })}
         </ul>
       </section>
+
+      {imageCount > 0 ? (
+        <Notice tone="warning">
+          Launches to Vercel and Netlify send the project&apos;s text files only for now, so its {imageCount === 1 ? "image" : `${imageCount} images`} won&apos;t be there. Farbaek Sites serves
+          them.
+        </Notice>
+      ) : null}
 
       {LAUNCH_PROVIDERS.map((provider) => (
         <ProviderPanel

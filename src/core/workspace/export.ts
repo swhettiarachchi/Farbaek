@@ -37,7 +37,8 @@ export interface ExportTask {
 export interface ExportInput {
   project: { id: string; name: string; description: string | null; createdAt: string };
   exportedAt: string;
-  files: readonly { path: string; content: string }[];
+  /** The project's current files: text, and images as bytes (ADR 0108). */
+  files: readonly { path: string; content: string | Uint8Array }[];
   tasks: readonly ExportTask[];
   history: { events: readonly FileChangeEvent[]; truncated: boolean };
 }
@@ -54,7 +55,8 @@ const json = (value: unknown) => `${JSON.stringify(value, null, 2)}\n`;
 
 function readme(input: ExportInput, folder: string, index: ExportIndexEntry[]): string {
   const paths = input.files.map((f) => f.path);
-  const byPath = new Map(input.files.map((f) => [f.path, f.content]));
+  // Only text files tell the launch plan anything; images are skipped.
+  const byPath = new Map(input.files.flatMap((f) => (typeof f.content === "string" ? [[f.path, f.content] as const] : [])));
   const texts = Object.fromEntries(filesToRead(paths).flatMap((p) => (byPath.has(p) ? [[p, byPath.get(p)!]] : [])));
   const plan = planLaunch({ paths, texts });
   const install = paths.includes("pnpm-lock.yaml")
@@ -117,10 +119,10 @@ function readme(input: ExportInput, folder: string, index: ExportIndexEntry[]): 
 }
 
 /** The export's files: the project as it is, then the `.farbaek/` folder. */
-export function buildExport(input: ExportInput): { files: { path: string; content: string }[]; folder: string; index: ExportIndexEntry[] } {
+export function buildExport(input: ExportInput): { files: { path: string; content: string | Uint8Array }[]; folder: string; index: ExportIndexEntry[] } {
   // A project with its own `.farbaek` folder keeps it; the export uses another name.
   const folder = input.files.some((f) => f.path === ".farbaek" || f.path.startsWith(".farbaek/")) ? ".farbaek-export" : ".farbaek";
-  const out: { path: string; content: string }[] = [...input.files];
+  const out: { path: string; content: string | Uint8Array }[] = [...input.files];
   const index: ExportIndexEntry[] = [];
 
   for (const task of input.tasks) {

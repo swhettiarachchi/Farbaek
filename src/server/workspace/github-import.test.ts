@@ -46,6 +46,7 @@ function fakeDeps() {
     approveContract: async () => ({ ok: true, value: null }),
     importFiles: async (input) => (log.push(`import:${input.files.map((f) => f.path).join(",")}`), { ok: true, value: { created: input.files.length, updated: 0, unchanged: 0 } }),
     saveFile: async () => ({ ok: true, value: 1 }),
+    saveImage: async () => ({ ok: true, value: 1 }),
     deleteFile: async () => ({ ok: true, value: null }),
     newEventId: () => "key-1",
     now: () => new Date("2026-10-25T10:00:00.000Z"),

@@ -193,10 +193,12 @@ export async function siteForServingAsSystem(admin: SupabaseClient, name: string
 }
 
 /** For serving: one stored revision's text, which never changes once written. */
-export async function revisionContentAsSystem(admin: SupabaseClient, projectId: string, path: string, revision: number): Promise<string | null> {
-  const { data, error } = await admin.from("project_file_revisions").select("content").eq("project_id", projectId).eq("path", path).eq("revision", revision).maybeSingle();
+/** One revision's content: text, or an image's bytes (ADR 0108). */
+export async function revisionContentAsSystem(admin: SupabaseClient, projectId: string, path: string, revision: number): Promise<string | Uint8Array | null> {
+  const { data, error } = await admin.from("project_file_revisions").select("content, encoding").eq("project_id", projectId).eq("path", path).eq("revision", revision).maybeSingle();
   if (error) throw new Error(`Couldn't load the file: ${error.message}`);
-  return typeof data?.content === "string" ? data.content : null;
+  if (typeof data?.content !== "string") return null;
+  return data.encoding === "base64" ? new Uint8Array(Buffer.from(data.content, "base64")) : data.content;
 }
 
 // ------------------------------------------------ custom domains (ADR 0045)

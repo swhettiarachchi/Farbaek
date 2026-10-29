@@ -9,8 +9,8 @@ export const dynamic = "force-dynamic";
 const sites = new Map<string, { live: ServedSite; until: number }>();
 // Custom domains (ADR 0045), looked up again every few seconds so a removed domain stops quickly.
 const domains = new Map<string, { name: string | null; until: number }>();
-// A stored revision never changes, so its text can be kept as long as there's room.
-const contents = new Map<string, string>();
+// A stored revision never changes, so its text or an image's bytes can be kept as long as there's room.
+const contents = new Map<string, string | Uint8Array>();
 const MAX_CONTENT_ENTRIES = 400;
 
 /**
@@ -43,12 +43,12 @@ async function handle(request: Request): Promise<Response> {
       const key = `${projectId}:${revision}:${path}`;
       const hit = contents.get(key);
       if (hit !== undefined) return hit;
-      const text = await revisionContentAsSystem(admin, projectId, path, revision);
-      if (text !== null && text.length < 512 * 1024) {
+      const content = await revisionContentAsSystem(admin, projectId, path, revision);
+      if (content !== null && content.length < 512 * 1024) {
         if (contents.size >= MAX_CONTENT_ENTRIES) contents.delete(contents.keys().next().value!);
-        contents.set(key, text);
+        contents.set(key, content);
       }
-      return text;
+      return content;
     },
   });
 }

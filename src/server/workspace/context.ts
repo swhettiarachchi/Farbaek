@@ -82,6 +82,7 @@ function memoizeReader(reader: WorkspaceReader): WorkspaceReader {
     listFileChangesSince: wrap("changesSince", reader.listFileChangesSince),
     // Not cached: file contents are too large to keep for the request.
     getProjectContents: reader.getProjectContents,
+    getProjectImages: reader.getProjectImages,
     // Not cached: its argument carries file contents, too large for a cache key.
     getRecoverySource: reader.getRecoverySource,
     listRecoveries: wrap("recoveries", reader.listRecoveries),

@@ -22,6 +22,7 @@ import { Card, EmptyState, Notice, PageHeader } from "@/components/app/primitive
 import { TaskList } from "@/components/app/task-list";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { formatBytes } from "@/core/workspace/files";
+import { imageMime } from "@/core/workspace/images";
 import { loadAppContext } from "@/server/workspace/context";
 import { withheldFor } from "@/core/workspace/permissions";
 
@@ -37,11 +38,18 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
   const project = await ctx.reader.getProject(ctx.current.id, projectId);
   if (!project) notFound();
   const [tasks, files] = await Promise.all([ctx.reader.listTasks(ctx.current.id, { projectId: project.id }), ctx.reader.listFiles(ctx.current.id, project.id)]);
-  const filesBytes = files.reduce((n, f) => n + f.sizeBytes, 0);
+  // Text and images are counted apart: a few photos shouldn't turn the instant preview off (ADR 0108).
+  const filesBytes = files.filter((f) => f.encoding !== "base64").reduce((n, f) => n + f.sizeBytes, 0);
+  const imageBytes = files.filter((f) => f.encoding === "base64").reduce((n, f) => n + f.sizeBytes, 0);
   const previewReason = ctx.mode === "demo" ? "Previews need a real workspace." : previewUnavailableReason(readSandboxConfig());
   // Static sites preview instantly in a locked-down frame; apps with a server use the sandbox preview.
   const isStatic = runProfile(files.map((f) => f.path)).kind === "static" && filesBytes <= 3 * 1024 * 1024;
   const contents = isStatic ? await ctx.reader.getProjectContents(ctx.current.id, project.id).catch(() => null) : null;
+  // The site's own images, inlined as data URLs while they total 8 MB or less; past that the preview shows them as missing.
+  const previewImages =
+    isStatic && imageBytes > 0 && imageBytes <= 8 * 1024 * 1024
+      ? Object.fromEntries((await ctx.reader.getProjectImages(ctx.current.id, project.id).catch(() => [])).map((i) => [i.path, `data:${imageMime(i.path) ?? "application/octet-stream"};base64,${i.base64}`]))
+      : undefined;
   const canChange = ctx.mode === "live" && ctx.writes.enabled && !project.archivedAt;
   const user = ctx.mode === "live" ? await createSupabaseServerClient() : null;
   const publish = user ? await loadPublishPanel(ctx, user, project).catch(() => null) : null;
@@ -135,7 +143,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
           <h2 id="preview-heading" className="flex items-center gap-2 text-lg font-medium">
             <EyeIcon size={20} weight="bold" className="text-accent" aria-hidden /> Live preview
           </h2>
-          <StaticPreview versions={[{ id: "now", label: "Current", files: Object.fromEntries(contents.map((f) => [f.path, f.content])) }]} />
+          <StaticPreview versions={[{ id: "now", label: "Current", files: Object.fromEntries(contents.map((f) => [f.path, f.content])), images: previewImages }]} />
         </section>
       ) : null}
 
@@ -172,7 +180,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
           {files.length > 0 ? (
             <>
               <p className="mt-2 text-sm text-ink-2">
-                <span className="tabular">{files.length.toLocaleString("en-US")}</span> {files.length === 1 ? "file" : "files"} · <span className="tabular">{formatBytes(filesBytes)}</span>
+                <span className="tabular">{files.length.toLocaleString("en-US")}</span> {files.length === 1 ? "file" : "files"} · <span className="tabular">{formatBytes(filesBytes + imageBytes)}</span>
               </p>
               <div className="mt-4 flex flex-wrap items-start gap-3">
                 <PreviewButton projectId={project.id} disabledReason={previewReason} variant="primary" />

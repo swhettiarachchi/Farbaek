@@ -6,6 +6,7 @@
  */
 import { WORKSPACE_LIMITS } from "@/config/workspace";
 import { checkPath, screenFile, type SkipReason } from "@/core/workspace/files";
+import { IMAGE_LIMITS, checkImage, isImagePath } from "@/core/workspace/images";
 import { codeFromDatabaseError, fail, requireContributor, type RpcResult, type WriteDeps, type WriteResult } from "./use-cases";
 
 export interface ImportCounts {
@@ -17,6 +18,8 @@ export interface ImportCounts {
 export interface FileDeps {
   importFiles(input: { projectId: string; actor: string; files: { path: string; content: string }[] }): Promise<RpcResult<ImportCounts>>;
   saveFile(input: { projectId: string; actor: string; path: string; content: string; expectedRevision: number }): Promise<RpcResult<number>>;
+  /** An image (ADR 0108): base64 in; the database hashes and sizes the decoded bytes. */
+  saveImage(input: { projectId: string; actor: string; path: string; base64: string; expectedRevision: number }): Promise<RpcResult<number>>;
   deleteFile(input: { projectId: string; actor: string; path: string; expectedRevision: number }): Promise<RpcResult<null>>;
 }
 
@@ -67,6 +70,7 @@ export async function saveProjectFile(
   if (!role.ok) return role;
   const path = checkPath(input.path);
   if (!path.ok) return fail("INVALID_PATH", `That file path isn't allowed. ${path.reason}`);
+  if (isImagePath(path.path)) return fail("IMAGE_PATH");
   const screened = screenFile(path.path, input.content, utf8Length(input.content), WORKSPACE_LIMITS.maxFileBytes);
   if (!screened.ok) {
     if (screened.reason === "too_large") return fail("FILE_TOO_LARGE");
@@ -76,6 +80,27 @@ export async function saveProjectFile(
     return fail("INVALID_PATH", "Files can't be saved inside dependency or build folders.");
   }
   const result = await deps.saveFile({ projectId: input.projectId, actor: input.userId, path: path.path, content: input.content, expectedRevision: input.expectedRevision });
+  if (!result.ok) return fail(codeFromDatabaseError(result.error));
+  return result;
+}
+
+/**
+ * Saves an image into a project (ADR 0108): an image path, bytes that are the
+ * kind the extension names, up to 2 MB. The database checks the path, hashes
+ * the bytes and applies the project's limits again.
+ */
+export async function saveProjectImage(
+  deps: WriteDeps & FileDeps,
+  input: { orgId: string; userId: string; projectId: string; path: string; bytes: Uint8Array; expectedRevision: number },
+): Promise<WriteResult<number>> {
+  const role = await requireContributor(deps, input.orgId);
+  if (!role.ok) return role;
+  const path = checkPath(input.path);
+  if (!path.ok) return fail("INVALID_PATH", `That file path isn't allowed. ${path.reason}`);
+  const image = checkImage(path.path, input.bytes);
+  if (!image.ok) return image.reason === "too_large" ? fail("FILE_TOO_LARGE", image.detail) : fail("INVALID_IMAGE", image.detail);
+  if (input.bytes.length > IMAGE_LIMITS.maxImageBytes) return fail("FILE_TOO_LARGE");
+  const result = await deps.saveImage({ projectId: input.projectId, actor: input.userId, path: path.path, base64: Buffer.from(input.bytes).toString("base64"), expectedRevision: input.expectedRevision });
   if (!result.ok) return fail(codeFromDatabaseError(result.error));
   return result;
 }

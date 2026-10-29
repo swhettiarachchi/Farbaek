@@ -12,7 +12,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pro
   if (!ctx?.current) return new Response("Not found", { status: 404 });
   const project = await ctx.reader.getProject(ctx.current.id, projectId);
   if (!project) return new Response("Not found", { status: 404 });
-  const files = await ctx.reader.getProjectContents(ctx.current.id, project.id);
+  const [text, images] = await Promise.all([ctx.reader.getProjectContents(ctx.current.id, project.id), ctx.reader.getProjectImages(ctx.current.id, project.id)]);
+  // Images go in as their bytes (ADR 0108), in path order with the text files.
+  const files = [...text, ...images.map((i) => ({ path: i.path, content: new Uint8Array(Buffer.from(i.base64, "base64")) }))].sort((a, b) => a.path.localeCompare(b.path));
   const name = project.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "project";
   return new Response(zipFiles(files), {
     headers: {

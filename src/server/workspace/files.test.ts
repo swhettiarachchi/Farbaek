@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
 import type { OrgRole } from "./types";
-import { deleteProjectFile, importProjectFiles, saveProjectFile, type FileDeps } from "./files";
+import { deleteProjectFile, importProjectFiles, saveProjectFile, saveProjectImage, type FileDeps } from "./files";
 import type { WriteDeps } from "./use-cases";
 
 const fake = (...parts: string[]) => parts.join("");
@@ -24,6 +24,7 @@ function fakeDeps(over: { role?: OrgRole | null; rpcError?: string } = {}) {
     approveContract: async () => ({ ok: true, value: null }),
     importFiles: async (input) => result("import", input, { created: input.files.length, updated: 0, unchanged: 0 }),
     saveFile: async (input) => result("save", input, input.expectedRevision + 1),
+    saveImage: async (input) => result("image", input, input.expectedRevision + 1),
     deleteFile: async (input) => result("delete", input, null),
     newEventId: () => "e1",
     now: () => new Date("2026-10-15T10:00:00Z"),
@@ -111,5 +112,32 @@ describe("deleteProjectFile", () => {
     expect(calls[0]!.input).toEqual({ projectId: "p1", actor: "u1", path: "a.ts", expectedRevision: 2 });
     expect(await deleteProjectFile(fakeDeps({ rpcError: "NOT_FOUND" }).deps, { ...base, path: "a.ts", expectedRevision: 2 })).toMatchObject({ code: "NOT_FOUND" });
     expect(await deleteProjectFile(fakeDeps({ role: "viewer" }).deps, { ...base, path: "a.ts", expectedRevision: 2 })).toMatchObject({ code: "FORBIDDEN" });
+  });
+});
+
+describe("saveProjectImage (ADR 0108)", () => {
+  const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+
+  it("sends a real image at an image path as base64", async () => {
+    const { deps, calls } = fakeDeps();
+    expect(await saveProjectImage(deps, { ...base, path: "assets/dot.png", bytes: PNG, expectedRevision: 0 })).toEqual({ ok: true, value: 1 });
+    expect(calls).toEqual([{ name: "image", input: { projectId: "p1", actor: "u1", path: "assets/dot.png", base64: PNG.toString("base64"), expectedRevision: 0 } }]);
+  });
+
+  it("refuses viewers, renamed files, non-images and text paths before anything reaches the database", async () => {
+    const viewer = fakeDeps({ role: "viewer" });
+    expect((await saveProjectImage(viewer.deps, { ...base, path: "a.png", bytes: PNG, expectedRevision: 0 })).ok).toBe(false);
+    const { deps, calls } = fakeDeps();
+    expect(await saveProjectImage(deps, { ...base, path: "a.jpg", bytes: PNG, expectedRevision: 0 })).toMatchObject({ ok: false, code: "INVALID_IMAGE" });
+    expect(await saveProjectImage(deps, { ...base, path: "a.png", bytes: new TextEncoder().encode("hi"), expectedRevision: 0 })).toMatchObject({ ok: false, code: "INVALID_IMAGE" });
+    expect(await saveProjectImage(deps, { ...base, path: "notes.txt", bytes: PNG, expectedRevision: 0 })).toMatchObject({ ok: false, code: "INVALID_IMAGE" });
+    expect(await saveProjectImage(deps, { ...base, path: "../a.png", bytes: PNG, expectedRevision: 0 })).toMatchObject({ ok: false, code: "INVALID_PATH" });
+    expect(calls).toEqual([]);
+  });
+
+  it("keeps text saves off image paths", async () => {
+    const { deps, calls } = fakeDeps();
+    expect(await saveProjectFile(deps, { ...base, path: "assets/dot.png", content: "text", expectedRevision: 0 })).toMatchObject({ ok: false, code: "IMAGE_PATH" });
+    expect(calls).toEqual([]);
   });
 });

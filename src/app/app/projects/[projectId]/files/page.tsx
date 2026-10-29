@@ -1,8 +1,9 @@
-import { ArrowLeftIcon, ClockCounterClockwiseIcon, FileDashedIcon, FilePlusIcon, FolderOpenIcon, MagnifyingGlassIcon, PencilSimpleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, ArrowsClockwiseIcon, ClockCounterClockwiseIcon, FileDashedIcon, FilePlusIcon, FolderOpenIcon, ImageIcon, MagnifyingGlassIcon, PencilSimpleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, EmptyState, Notice } from "@/components/app/primitives";
+import { AddImage } from "@/components/files/add-image";
 import { CodeView } from "@/components/files/code-view";
 import { DeleteFile } from "@/components/files/delete-file";
 import { FileEditor } from "@/components/files/file-editor";
@@ -14,6 +15,7 @@ import { RelativeTime } from "@/components/ui/local-time";
 import { shortHash } from "@/core/trust/canonical-json";
 import { buildTree, formatBytes, languageOf } from "@/core/workspace/files";
 import { loadAppContext } from "@/server/workspace/context";
+import { imageMime } from "@/core/workspace/images";
 import type { FileRevision, SearchHit } from "@/server/workspace/types";
 
 export const metadata: Metadata = { title: "Files" };
@@ -40,7 +42,7 @@ export default async function FilesPage({
   searchParams,
 }: {
   params: Promise<{ projectId: string }>;
-  searchParams: Promise<{ path?: string | string[]; q?: string | string[]; edit?: string | string[]; new?: string | string[]; history?: string | string[]; rev?: string | string[] }>;
+  searchParams: Promise<{ image?: string | string[]; path?: string | string[]; q?: string | string[]; edit?: string | string[]; new?: string | string[]; history?: string | string[]; rev?: string | string[] }>;
 }) {
   const [{ projectId }, sp] = await Promise.all([params, searchParams]);
   const ctx = await loadAppContext();
@@ -53,6 +55,7 @@ export default async function FilesPage({
   const query = typeof sp.q === "string" ? sp.q.trim().slice(0, 200) : "";
   const editing = sp.edit === "1" && path !== null;
   const creating = sp.new === "1";
+  const addingImage = sp.image === "1";
   const historyMode = sp.history === "1" && path !== null;
   const rev = typeof sp.rev === "string" && /^\d{1,9}$/.test(sp.rev) ? Number(sp.rev) : null;
   const [files, file, hits, revisions, revContent] = await Promise.all([
@@ -69,7 +72,9 @@ export default async function FilesPage({
   const grouped = new Map<string, SearchHit[]>();
   for (const h of hits) grouped.set(h.path, [...(grouped.get(h.path) ?? []), h]);
   const base = `/app/projects/${project.id}/files`;
-  const focused = Boolean(file) || creating || historyMode;
+  const focused = Boolean(file) || creating || historyMode || addingImage;
+  // An image (ADR 0108) is shown as a picture, replaced rather than edited, and has no line-by-line history.
+  const isImage = file?.encoding === "base64";
   const CHANGE_LABEL = { import: "Imported", edit: "Edited", delete: "Deleted" } as const;
 
   return (
@@ -107,9 +112,14 @@ export default async function FilesPage({
       ) : (
         <div className="grid gap-6 lg:grid-cols-[minmax(240px,300px)_minmax(0,1fr)] lg:items-start">
           <aside className={`grid gap-4 lg:sticky lg:top-6 ${focused ? "order-2 lg:order-none" : ""}`} aria-label="Project files">
-            <Link href={`${base}?new=1`} className={buttonClasses("secondary", "sm", "w-full")}>
-              <FilePlusIcon size={16} aria-hidden /> New file
-            </Link>
+            <div className="grid grid-cols-2 gap-2">
+              <Link href={`${base}?new=1`} className={buttonClasses("secondary", "sm", "w-full")}>
+                <FilePlusIcon size={16} aria-hidden /> New file
+              </Link>
+              <Link href={`${base}?image=1`} className={buttonClasses("secondary", "sm", "w-full")}>
+                <ImageIcon size={16} aria-hidden /> Add an image
+              </Link>
+            </div>
             <form action={base} className="flex gap-2" role="search">
               {path ? <input type="hidden" name="path" value={path} /> : null}
               <label htmlFor="file-search" className="sr-only">
@@ -208,7 +218,29 @@ export default async function FilesPage({
 
             {creating ? <FileEditor projectId={project.id} path={null} initialContent="" revision={0} disabledReason={writeReason} /> : null}
 
-            {file && editing && !creating ? (
+            {addingImage && !creating ? (
+              <Card>
+                <h2 className="text-lg font-medium">Add an image</h2>
+                <p className="mt-1 text-sm text-ink-2">It becomes part of the project: the preview shows it, and publishing serves it with the site.</p>
+                <div className="mt-4">
+                  <AddImage projectId={project.id} disabledReason={writeReason} />
+                </div>
+              </Card>
+            ) : null}
+
+            {file && editing && !creating && isImage ? (
+              <Card>
+                <h2 className="text-lg font-medium">
+                  Replace <span className="font-mono text-[15px] break-all">{file.path}</span>
+                </h2>
+                <p className="mt-1 text-sm text-ink-2">The new image becomes the next revision. Pages that link to this path show it straight away.</p>
+                <div className="mt-4">
+                  <AddImage projectId={project.id} replacePath={file.path} disabledReason={writeReason} />
+                </div>
+              </Card>
+            ) : null}
+
+            {file && editing && !creating && !isImage ? (
               <FileEditor key={`${file.path}@${file.revision}`} projectId={project.id} path={file.path} initialContent={file.content} revision={file.revision} disabledReason={writeReason} />
             ) : null}
 
@@ -282,7 +314,7 @@ export default async function FilesPage({
                     <h2 className="font-mono text-[15px] font-medium break-all">{file.path}</h2>
                     <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-ink-3">
                       <span>
-                        {languageOf(file.path)}, {formatBytes(file.sizeBytes)}
+                        {isImage ? "Image" : languageOf(file.path)}, {formatBytes(file.sizeBytes)}
                       </span>
                       <span>
                         Revision <span className="tabular">{file.revision}</span>, updated <RelativeTime iso={file.updatedAt} />
@@ -295,17 +327,32 @@ export default async function FilesPage({
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
                     {/* Opens even when changes aren't allowed: the editor explains why it can't save. */}
-                    <Link href={`${fileHref(project.id, file.path)}&edit=1`} className={buttonClasses("secondary", "sm")}>
-                      <PencilSimpleIcon size={16} aria-hidden /> {writeReason ? "Try the editor" : "Edit"}
-                    </Link>
-                    <Link href={`${fileHref(project.id, file.path)}&history=1`} className={buttonClasses("ghost", "sm")}>
-                      <ClockCounterClockwiseIcon size={16} aria-hidden /> History
-                    </Link>
+                    {isImage ? (
+                      <Link href={`${fileHref(project.id, file.path)}&edit=1`} className={buttonClasses("secondary", "sm")}>
+                        <ArrowsClockwiseIcon size={16} aria-hidden /> Replace image
+                      </Link>
+                    ) : (
+                      <>
+                        <Link href={`${fileHref(project.id, file.path)}&edit=1`} className={buttonClasses("secondary", "sm")}>
+                          <PencilSimpleIcon size={16} aria-hidden /> {writeReason ? "Try the editor" : "Edit"}
+                        </Link>
+                        <Link href={`${fileHref(project.id, file.path)}&history=1`} className={buttonClasses("ghost", "sm")}>
+                          <ClockCounterClockwiseIcon size={16} aria-hidden /> History
+                        </Link>
+                      </>
+                    )}
                     <DeleteFile projectId={project.id} path={file.path} revision={file.revision} disabledReason={writeReason} />
                   </div>
                 </div>
-                <CodeView content={file.content} label={`Contents of ${file.path}`} />
-                <p className="text-xs text-ink-3">Every saved change becomes a new revision, after you review it as a diff.</p>
+                {isImage ? (
+                  <div className="grid place-items-center overflow-hidden rounded-md border border-line bg-[repeating-conic-gradient(var(--color-canvas-2)_0_25%,var(--color-surface)_0_50%)] bg-[length:20px_20px] p-4">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- the project's own image, inlined from its stored bytes */}
+                    <img src={`data:${imageMime(file.path) ?? "application/octet-stream"};base64,${file.content}`} alt={file.path} className="max-h-[28rem] max-w-full object-contain" />
+                  </div>
+                ) : (
+                  <CodeView content={file.content} label={`Contents of ${file.path}`} />
+                )}
+                <p className="text-xs text-ink-3">{isImage ? "Replacing it saves a new revision; earlier ones are kept." : "Every saved change becomes a new revision, after you review it as a diff."}</p>
               </div>
             ) : null}
 

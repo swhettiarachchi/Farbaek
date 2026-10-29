@@ -20,12 +20,15 @@ export async function GET(_request: Request, { params }: { params: Promise<{ pro
   const project = await ctx.reader.getProject(orgId, projectId);
   if (!project) return new Response("Not found", { status: 404 });
 
-  const [files, taskList, events] = await Promise.all([
+  const [text, images, taskList, events] = await Promise.all([
     ctx.reader.getProjectContents(orgId, project.id),
+    ctx.reader.getProjectImages(orgId, project.id),
     ctx.reader.listTasks(orgId, { projectId: project.id, limit: MAX_TASKS }),
     ctx.reader.listFileChangesSince(orgId, project.id, project.createdAt),
   ]);
 
+  // Images go in as their bytes (ADR 0108), so an exported site is whole.
+  const files = [...text, ...images.map((i) => ({ path: i.path, content: new Uint8Array(Buffer.from(i.base64, "base64")) }))].sort((a, b) => a.path.localeCompare(b.path));
   const tasks: ExportTask[] = [];
   for (const t of taskList) {
     const [detail, contract, proofPacks, recoveries, checks] = await Promise.all([
