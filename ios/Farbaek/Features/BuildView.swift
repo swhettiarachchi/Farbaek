@@ -32,6 +32,8 @@ struct BuildView: View {
     @State private var projects: [ProjectItem] = []
     @State private var working = false
     @State private var failure: String?
+    /// The plan refused it (402): in the US App Store, the way to see plans on the web.
+    @State private var planBlocked = false
     @FocusState private var focused: Bool
 
     private var ready: Bool { prompt.trimmingCharacters(in: .whitespacesAndNewlines).count >= 8 }
@@ -78,6 +80,7 @@ struct BuildView: View {
                 .panel()
 
                 if let failure { Notice(text: failure, tone: .failed, symbol: "exclamationmark.triangle.fill") }
+                if planBlocked && model.canBuyOnWeb { SeePlansLink() }
                 if let blocker = model.writeBlocker {
                     Notice(text: blocker, symbol: "lock")
                 }
@@ -152,6 +155,7 @@ struct BuildView: View {
             model.buildPath.append(Destination.plan(started.taskId))
         } catch {
             failure = error.localizedDescription
+            planBlocked = (error as? APIError)?.status == 402
         }
     }
 }
@@ -165,6 +169,8 @@ struct PlanReviewView: View {
     @State private var effort: Effort = .balanced
     @State private var working = false
     @State private var failure: String?
+    /// The plan refused it (402): in the US App Store, the way to see plans on the web.
+    @State private var planBlocked = false
     @State private var note: String?
 
     var body: some View {
@@ -262,6 +268,7 @@ struct PlanReviewView: View {
     @ViewBuilder private func actions(_ detail: PlanDetail) -> some View {
         VStack(spacing: 10) {
             if let failure { Notice(text: failure, tone: .failed, symbol: "exclamationmark.triangle.fill") }
+            if planBlocked && model.canBuyOnWeb { SeePlansLink() }
             if detail.canApprove {
                 Picker("Effort", selection: $effort) {
                     ForEach(Effort.allCases) { Text($0.title).tag($0) }
@@ -320,6 +327,17 @@ struct PlanReviewView: View {
             }
         } catch {
             failure = error.localizedDescription
+            planBlocked = (error as? APIError)?.status == 402
         }
+    }
+}
+
+/// Opens Billing on www.farbaek.com in Safari. Shown only in the US App Store (WebPurchase).
+struct SeePlansLink: View {
+    var body: some View {
+        Link(destination: WebPurchase.billingURL) {
+            Label("See plans on www.farbaek.com", systemImage: "arrow.up.right.square")
+        }
+        .buttonStyle(PillButtonStyle(kind: .secondary))
     }
 }

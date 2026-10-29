@@ -45,6 +45,23 @@ struct YouView: View {
                 }
             }
 
+            if !model.isSample, let workspace = model.currentWorkspace {
+                Section {
+                    LabeledContent("Plan") { Text(workspace.plan).foregroundStyle(Palette.ink2) }
+                    if model.canBuyOnWeb {
+                        Link(destination: WebPurchase.billingURL) {
+                            Label("Upgrade or manage your plan", systemImage: "arrow.up.right.square")
+                        }
+                    }
+                } header: {
+                    Text("Plan")
+                } footer: {
+                    if model.canBuyOnWeb {
+                        Text("Opens Billing on www.farbaek.com in Safari, where plans are bought and managed.")
+                    }
+                }
+            }
+
             if !model.isSample { notifications }
 
             Section("Farbaek") {

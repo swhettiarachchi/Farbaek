@@ -38,6 +38,8 @@ final class AppModel {
     var signingIn = false
     var signInError: String?
     var pushNote: String?
+    /// The US App Store only: the app may open Billing on the web (WebPurchase).
+    var canBuyOnWeb = false
 
     let api = APIClient(base: AppConfig.baseURL)
     private let web = WebSignIn()
@@ -78,6 +80,7 @@ final class AppModel {
         do {
             let me: Me = try await api.get("me")
             self.me = me
+            canBuyOnWeb = await WebPurchase.allowed()
             if !me.workspaces.contains(where: { $0.id == api.workspaceId }) { api.workspaceId = me.current }
             phase = next
             if let path = pendingPath {

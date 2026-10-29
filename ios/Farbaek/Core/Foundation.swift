@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import Security
+import StoreKit
 
 /// Where the app talks to, and the links it opens. The site is set in Info.plist (FarbaekBaseURL).
 enum AppConfig {
@@ -114,5 +115,19 @@ enum FarbaekDate {
         let three = String(digits.prefix(3)).padding(toLength: 3, withPad: "0", startingAt: 0)
         let trimmed: String = String(text[..<dot]) + "." + three + rest
         return fractional.date(from: trimmed)
+    }
+}
+
+/// Buying a plan happens on www.farbaek.com (ADR 0110). Apple lets an app
+/// link to buying on the web only in the United States App Store (guideline
+/// 3.1.1(a), since May 2025). Everywhere else the app shows the plan with no
+/// way to buy, as a free companion app must (guideline 3.1.3(f)).
+enum WebPurchase {
+    static let billingURL = URL(string: "https://www.farbaek.com/app/billing")!
+
+    /// True only when this person's App Store is the United States one.
+    static func allowed() async -> Bool {
+        guard let storefront = await Storefront.current else { return false }
+        return storefront.countryCode == "USA"
     }
 }
