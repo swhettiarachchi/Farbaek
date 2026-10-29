@@ -25,8 +25,8 @@ export default async function AdminOverview() {
           <p className="text-sm text-ink-2">AI list cost since {monthName(o.aiCost.since)} (UTC)</p>
           <p className="mt-2 text-[clamp(2.5rem,6vw,4rem)] font-medium leading-none tracking-[-0.04em] tabular">{usd(o.aiCost.usd)}</p>
           <p className="mt-3 max-w-[60ch] text-sm leading-relaxed text-ink-2">
-            From {number.format(o.aiCost.settledCalls)} settled AI calls at the providers&apos; list prices, before any discounts. Refunded calls aren&apos;t counted. Payments
-            aren&apos;t connected yet, so there&apos;s no revenue to set against it.
+            From {number.format(o.aiCost.settledCalls)} settled AI calls at the providers&apos; list prices, before any discounts. Refunded calls aren&apos;t counted. Revenue
+            and margin are on Office Space&apos;s overview.
           </p>
         </div>
         <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm md:text-right">
