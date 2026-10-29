@@ -1,5 +1,5 @@
 import { CheckIcon, MinusIcon } from "@phosphor-icons/react/ssr";
-import { FEATURE_LABELS, FEATURE_STATUS, SELF_SERVE_PLANS, planSessionsGuide, type FeatureKey, type Plan, type PlanLimits } from "@/core/billing/catalog";
+import { FEATURE_LABELS, FEATURE_STATUS, SELF_SERVE_PLANS, chargeLine, planSessionsGuide, type FeatureKey, type Plan, type PlanLimits } from "@/core/billing/catalog";
 
 const number = new Intl.NumberFormat("en-US");
 
@@ -39,6 +39,7 @@ const GROUPS: { title: string; rows: Row[] }[] = [
   {
     title: "Usage",
     rows: [
+      { label: "Charged", value: (plan) => (plan.pricing.kind === "paid" ? chargeLine(plan) : "Nothing") },
       { label: "Agent sessions a month (about)", value: (plan) => { const n = planSessionsGuide(plan); return n === null ? "Contract" : number.format(n); } },
       limitRow("Sandbox hours a month", "sandboxHours"),
       { label: "Unused usage rolls over", value: (plan) => (plan.features.includes("usage_rollover") ? "2 months" : "No") },
@@ -68,11 +69,11 @@ export function ComparisonTable() {
             <span className="hidden text-sm font-normal text-ink-3 group-open:inline">Hide</span>
           </summary>
           <div className="overflow-x-auto border-t border-line [contain:paint]">
-            <table className="w-full min-w-[960px] border-collapse text-sm">
+            <table className="w-full min-w-[1120px] border-collapse text-sm">
               <caption className="sr-only">{group.title} by plan</caption>
               <thead>
                 <tr className="text-left">
-                  <th scope="col" className="sticky left-0 w-[38%] bg-surface px-4 py-3 font-normal text-ink-3 sm:px-5">
+                  <th scope="col" className="sticky left-0 w-[30%] bg-surface px-4 py-3 font-normal text-ink-3 sm:px-5">
                     <span className="sr-only">Feature</span>
                   </th>
                   {SELF_SERVE_PLANS.map((plan) => (

@@ -12,7 +12,7 @@ import { CancelStep, ChangePlanStep, ChoosePlanStep, SubscriptionSummary } from 
 import { TopupCard, TopupStep } from "@/components/billing/topup-card";
 import { isTopupPack } from "@/core/billing/topups";
 import { topupErrorMessage } from "@/server/billing/topups";
-import { SELF_SERVE_PLANS, TRIAL, formatUsd, getPlan } from "@/core/billing/catalog";
+import { SELF_SERVE_PLANS, TRIAL, getPlan, priceWords } from "@/core/billing/catalog";
 import { isPaidPlanId, planChangeDirection } from "@/core/billing/provider-state";
 import { billingDeps } from "@/server/billing/wiring";
 import { billingErrorMessage, previewPlanChange } from "@/server/billing/use-cases";
@@ -201,9 +201,10 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                   {isCurrent ? <span className="rounded-full bg-accent/[0.08] px-2.5 py-0.5 text-xs font-medium text-accent">Current</span> : null}
                 </div>
                 <p className="mt-2 text-2xl font-medium tracking-[-0.02em] tabular">
-                  {p.pricing.kind === "paid" ? formatUsd(p.pricing.monthlyCents) : "$0"}
-                  <span className="ml-1 text-sm font-normal text-ink-3">{p.pricing.kind === "paid" ? "per month" : "forever"}</span>
+                  {priceWords(p).price}
+                  <span className="ml-1 text-sm font-normal text-ink-3">{priceWords(p).per}</span>
                 </p>
+                {priceWords(p).billed ? <p className="mt-1 text-xs text-ink-3 tabular">{priceWords(p).billed}</p> : null}
                 <ul className="mt-4 grid gap-1.5 text-sm text-ink-2 tabular">
                   <li className="font-medium text-ink">{sessionsLine(p)}</li>
                   <li>

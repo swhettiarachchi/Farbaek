@@ -4,18 +4,18 @@
  * (2026-10-18). Every AI and sandbox allowance comes from allowance.ts, so a
  * plan keeps a 57% net margin after payment fees even when fully used (ADR 0103).
  *
- * Prices are integer cents, monthly. Annual billing waits for payments: a
- * discount would cut the margin unless allowances shrink, and that choice
- * belongs at go-live (docs/billing/go-live.md).
+ * Prices are integer cents a month. The monthly plans are billed monthly.
+ * Lite and Maker (ADR 0105) are billed once a year: on a 99-cent monthly
+ * charge, Dodo's 40-cent fee alone would leave less than the 57% margin.
  */
-import { allowanceFor, sessionsGuide, type Allowance } from "./allowance";
+import { allowanceFor, lightAllowance, sessionsGuide, type Allowance } from "./allowance";
 import { USD_PER_UNIT } from "./rate-card";
 
 export const PLAN_CATALOG_VERSION = "2026-10-18.1";
 export const BILLING_CURRENCY = "USD";
 
-export type PlanId = "free" | "starter" | "plus" | "pro" | "studio" | "max" | "max_2x" | "max_3x" | "enterprise";
-export const PAID_PLAN_IDS = ["starter", "plus", "pro", "studio", "max", "max_2x", "max_3x", "enterprise"] as const satisfies readonly PlanId[];
+export type PlanId = "free" | "lite" | "maker" | "starter" | "plus" | "pro" | "studio" | "max" | "max_2x" | "max_3x" | "enterprise";
+export const PAID_PLAN_IDS = ["lite", "maker", "starter", "plus", "pro", "studio", "max", "max_2x", "max_3x", "enterprise"] as const satisfies readonly PlanId[];
 
 export type FeatureKey =
   | "cloud_agent"
@@ -115,7 +115,10 @@ export interface PlanLimits {
   sandboxHours: number | null;
 }
 
-export type PlanPricing = { kind: "free" } | { kind: "paid"; monthlyCents: number } | { kind: "contract" };
+/** How often a paid plan is charged. A yearly plan's price is still shown a month, with the yearly charge beside it. */
+export type BillingInterval = "month" | "year";
+
+export type PlanPricing = { kind: "free" } | { kind: "paid"; monthlyCents: number; interval: BillingInterval } | { kind: "contract" };
 
 export interface Plan {
   id: PlanId;
@@ -129,7 +132,9 @@ export interface Plan {
 }
 
 const FREE_FEATURES = ["cloud_agent", "basic_policies", "action_receipts", "community_support", "live_previews"] as const satisfies readonly FeatureKey[];
-const STARTER_FEATURES = [...FREE_FEATURES, "usage_rollover", "free_retries", "developer_api", "usage_alerts"] as const satisfies readonly FeatureKey[];
+const LITE_FEATURES = [...FREE_FEATURES, "usage_alerts", "developer_api", "usage_rollover"] as const satisfies readonly FeatureKey[];
+const MAKER_FEATURES = [...LITE_FEATURES, "free_retries"] as const satisfies readonly FeatureKey[];
+const STARTER_FEATURES = MAKER_FEATURES;
 const PLUS_FEATURES = [...STARTER_FEATURES, "security_checks", "replay_and_recovery"] as const satisfies readonly FeatureKey[];
 const PRO_FEATURES = [...PLUS_FEATURES, "opus_models", "advanced_approvals", "policy_builder", "shadow_mode"] as const satisfies readonly FeatureKey[];
 const STUDIO_FEATURES = [...PRO_FEATURES, "team_collaboration"] as const satisfies readonly FeatureKey[];
@@ -148,10 +153,31 @@ function paid(id: PlanId, name: string, summary: string, priceCents: number, san
     id,
     name,
     summary,
-    pricing: { kind: "paid", monthlyCents: priceCents },
+    pricing: { kind: "paid", monthlyCents: priceCents, interval: "month" },
     limits: { ...rest, aiUnitsPerMonth: a.aiUnits, retryUnitsPerMonth: a.retryUnits, sandboxHours },
     features,
     ...(recommendedFor ? { recommendedFor } : {}),
+  };
+}
+
+const FREE_BASE = { aiUnits: Math.floor(FREE_AI_USD / USD_PER_UNIT), sandboxHours: 1 };
+
+/** Lite and Maker: Free plus what a yearly charge pays for at a 57% margin (ADR 0105). */
+const LIGHT: Partial<Record<PlanId, { extraSandboxHours: number; retries: boolean }>> = {
+  lite: { extraSandboxHours: 0, retries: false },
+  maker: { extraSandboxHours: 1, retries: true },
+};
+
+function light(id: "lite" | "maker", name: string, summary: string, monthlyCents: number, rest: FixedLimits, features: readonly FeatureKey[]): Plan {
+  const spec = LIGHT[id]!;
+  const a = lightAllowance((monthlyCents * 12) / 100, FREE_BASE, spec.extraSandboxHours, spec.retries);
+  return {
+    id,
+    name,
+    summary,
+    pricing: { kind: "paid", monthlyCents, interval: "year" },
+    limits: { ...rest, aiUnitsPerMonth: a.aiUnits, retryUnitsPerMonth: a.retryUnits, sandboxHours: a.sandboxHours },
+    features,
   };
 }
 
@@ -170,10 +196,12 @@ export const PLANS: readonly Plan[] = [
       integrations: 1,
       aiUnitsPerMonth: Math.floor(FREE_AI_USD / USD_PER_UNIT),
       retryUnitsPerMonth: 0,
-      sandboxHours: 1,
+      sandboxHours: FREE_BASE.sandboxHours,
     },
     features: FREE_FEATURES,
   },
+  light("lite", "Lite", "More than Free, for a small site or two.", 99, { workspaces: 2, seats: 1, agents: 1, evaluationsPerMonth: 2_000, historyDays: 30, integrations: 1 }, LITE_FEATURES),
+  light("maker", "Maker", "More room to build, with an extra sandbox hour.", 199, { workspaces: 3, seats: 1, agents: 1, evaluationsPerMonth: 3_000, historyDays: 30, integrations: 1 }, MAKER_FEATURES),
   paid("starter", "Starter", "For a first site or side project.", 999, 5, { workspaces: 3, seats: 1, agents: 1, evaluationsPerMonth: 5_000, historyDays: 30, integrations: 1 }, STARTER_FEATURES),
   paid("plus", "Plus", "For building and shipping on your own.", 1_999, 10, { workspaces: 10, seats: 1, agents: 2, evaluationsPerMonth: 10_000, historyDays: 30, integrations: 2 }, PLUS_FEATURES),
   paid(
@@ -210,7 +238,7 @@ export function getPlan(id: PlanId): Plan {
 export const SELF_SERVE_PLANS = PLANS.filter((p) => p.pricing.kind !== "contract");
 
 /** The order plans step up in, for upgrade hints. */
-export const PLAN_ORDER: readonly PlanId[] = ["free", "starter", "plus", "pro", "studio", "max", "max_2x", "max_3x"];
+export const PLAN_ORDER: readonly PlanId[] = ["free", "lite", "maker", "starter", "plus", "pro", "studio", "max", "max_2x", "max_3x"];
 
 /** The smallest self-serve plan that includes a feature, for upgrade hints. */
 export function cheapestPlanWithFeature(feature: FeatureKey): PlanId | null {
@@ -224,7 +252,37 @@ export function planSessionsGuide(plan: Plan): number | null {
 
 /** The allowance behind a paid plan, for Billing and the tests. */
 export function planAllowance(plan: Plan): Allowance | null {
-  return plan.pricing.kind === "paid" && plan.limits.sandboxHours !== null ? allowanceFor(plan.pricing.monthlyCents / 100, plan.limits.sandboxHours) : null;
+  if (plan.pricing.kind !== "paid" || plan.limits.sandboxHours === null) return null;
+  const spec = LIGHT[plan.id];
+  if (spec) return lightAllowance(chargeCents(plan) / 100, FREE_BASE, spec.extraSandboxHours, spec.retries);
+  return allowanceFor(plan.pricing.monthlyCents / 100, plan.limits.sandboxHours);
+}
+
+/** Plans charged once a year (ADR 0105). */
+export const YEARLY_PLAN_IDS = PLANS.filter((p) => p.pricing.kind === "paid" && p.pricing.interval === "year").map((p) => p.id);
+
+/** Whether a plan is charged once a year. */
+export function isYearly(id: PlanId): boolean {
+  const plan = PLANS.find((p) => p.id === id);
+  return plan?.pricing.kind === "paid" && plan.pricing.interval === "year";
+}
+
+/** What one charge of a paid plan is, in cents: a month's price, or twelve for a yearly plan. Zero for Free and contracts. */
+export function chargeCents(plan: Plan): number {
+  if (plan.pricing.kind !== "paid") return 0;
+  return plan.pricing.interval === "year" ? plan.pricing.monthlyCents * 12 : plan.pricing.monthlyCents;
+}
+
+/** "$0.99 a month", with "billed $11.88 a year" for a yearly plan: the words every price sentence uses. */
+export function priceWords(plan: Plan): { price: string; per: string; billed: string | null } {
+  if (plan.pricing.kind !== "paid") return { price: plan.pricing.kind === "free" ? "$0" : "Custom", per: plan.pricing.kind === "free" ? "forever" : "", billed: null };
+  return { price: formatUsd(plan.pricing.monthlyCents), per: "a month", billed: plan.pricing.interval === "year" ? `Billed ${formatUsd(chargeCents(plan))} a year` : null };
+}
+
+/** The price as one sentence part: "$9.99 a month" or "$11.88 a year". */
+export function chargeLine(plan: Plan): string {
+  if (plan.pricing.kind !== "paid") return "";
+  return plan.pricing.interval === "year" ? `${formatUsd(chargeCents(plan))} a year` : `${formatUsd(plan.pricing.monthlyCents)} a month`;
 }
 
 /**

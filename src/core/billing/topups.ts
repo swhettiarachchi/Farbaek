@@ -1,9 +1,10 @@
 /**
  * AI usage top-ups (ADR 0102): more of a paid plan's AI usage, bought in
  * packs at the plan's own rate, lasting 12 months, never past the monthly
- * limit an owner or admin sets. Pure; the database enforces the limit.
+ * limit an owner or admin sets. Lite and Maker buy at Starter's rate (ADR
+ * 0105). Pure; the database enforces the limit.
  */
-import { getPlan } from "./catalog";
+import { getPlan, isYearly } from "./catalog";
 import type { PaidPlanId } from "./provider";
 import type { SubscriptionState } from "./trial";
 
@@ -28,17 +29,20 @@ export function isTopupPack(value: unknown): value is TopupPack {
  * Units a pack adds: the plan's own rate (its monthly AI usage per dollar of
  * its price), so a top-up keeps the plan's margin. The plan's price already
  * paid for its sandbox time and fixed costs, so this rate is conservative.
+ * Lite and Maker use Starter's rate: their own allowance includes Free's,
+ * which their price doesn't pay for, so their rate would lose money.
  */
 export function topupUnits(planId: PaidPlanId, cents: number): number {
-  const plan = getPlan(planId);
-  if (plan.pricing.kind !== "paid" || plan.limits.aiUnitsPerMonth === null) return 0;
-  return Math.floor((cents / plan.pricing.monthlyCents) * plan.limits.aiUnitsPerMonth);
+  const rate = getPlan(isYearly(planId) ? "starter" : planId);
+  if (rate.pricing.kind !== "paid" || rate.limits.aiUnitsPerMonth === null) return 0;
+  return Math.floor((cents / rate.pricing.monthlyCents) * rate.limits.aiUnitsPerMonth);
 }
 
 /** About what share of a month of the plan's AI usage a pack adds, as a whole percent, for display: units are never shown. */
 export function topupSharePercent(planId: PaidPlanId, cents: number): number {
   const plan = getPlan(planId);
   if (plan.pricing.kind !== "paid") return 0;
+  if (isYearly(planId)) return plan.limits.aiUnitsPerMonth ? Math.round((topupUnits(planId, cents) / plan.limits.aiUnitsPerMonth) * 100) : 0;
   return Math.round((cents / plan.pricing.monthlyCents) * 100);
 }
 

@@ -23,7 +23,7 @@ Paste the live API key, then the live signing secret; both show as stars. No pay
 
 ## 3. In Office Space → Payments
 
-1. **Create live products:** seven plans and three top-up packs. Each should say **Matches**.
+1. **Create live products:** nine plans (Lite and Maker are yearly, ADR 0105) and three top-up packs. Each should say **Matches**. Clicking it again later adds only what's missing.
 2. **Go live:** tick the box approving the Terms' Paid plans section, write a reason, enter your authenticator code, and click **Turn on live payments**.
 
 **What happens:**

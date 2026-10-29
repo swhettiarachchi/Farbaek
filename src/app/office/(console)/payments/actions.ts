@@ -2,7 +2,7 @@
 
 import { refresh } from "next/cache";
 import type { OfficeFormState } from "@/components/office/action-form";
-import { PLAN_CATALOG_VERSION, SELF_SERVE_PLANS, formatUsd } from "@/core/billing/catalog";
+import { PLAN_CATALOG_VERSION, SELF_SERVE_PLANS, chargeCents, formatUsd } from "@/core/billing/catalog";
 import { TOPUP_PACKS_CENTS } from "@/core/billing/topups";
 import { isPaidPlanId } from "@/core/billing/provider-state";
 import { readProviderConfig } from "@/server/billing/config";
@@ -44,7 +44,7 @@ export async function createProductsAction(): Promise<OfficeFormState> {
   const made: string[] = [];
   for (const plan of missing) {
     if (plan.pricing.kind !== "paid" || !isPaidPlanId(plan.id)) continue;
-    const created = await dodo.createProduct({ planId: plan.id, name: `Farbaek ${plan.name}`, description: plan.summary, amountCents: plan.pricing.monthlyCents, currency: "USD" });
+    const created = await dodo.createProduct({ planId: plan.id, interval: plan.pricing.interval, name: `Farbaek ${plan.name}`, description: plan.summary, amountCents: chargeCents(plan), currency: "USD" });
     if (!created.ok) {
       log("warn", "billing.product_create_failed", { plan: plan.id, code: created.code });
       refresh();
@@ -52,7 +52,7 @@ export async function createProductsAction(): Promise<OfficeFormState> {
     }
     const recorded = await gate.ctx.store.recordBillingProduct(
       { userId: gate.ctx.user.id, sessionId: gate.ctx.sessionId },
-      { mode: config.mode, planId: plan.id, productId: created.value.productId, amountCents: plan.pricing.monthlyCents, currency: "USD", catalogVersion: PLAN_CATALOG_VERSION },
+      { mode: config.mode, planId: plan.id, interval: plan.pricing.interval, productId: created.value.productId, amountCents: chargeCents(plan), currency: "USD", catalogVersion: PLAN_CATALOG_VERSION },
       meta,
     );
     if (!recorded.ok) {

@@ -32,6 +32,8 @@ export const ECONOMICS = {
   sandboxHourUsd: 0.149,
   /** Share of the AI budget held back to refund failed attempts. */
   retryHoldback: 0.05,
+  /** What one more Lite or Maker account adds to running costs a month: site storage, backups and email (ADR 0105). */
+  lightMarginalUsd: 0.05,
 } as const;
 
 export interface Allowance {
@@ -64,6 +66,29 @@ export function allowanceFor(priceUsd: number, sandboxHours: number): Allowance 
     aiUnits: Math.floor((modelBudgetUsd - retryUsd) / USD_PER_UNIT),
     retryUnits: Math.floor(retryUsd / USD_PER_UNIT),
     sandboxHours,
+  };
+}
+
+/**
+ * Lite and Maker (ADR 0105): billed once a year, so the 40-cent fee is paid
+ * once a year, not every month. They pay for what they add on top of Free,
+ * whose allowance Farbaek gives everyone anyway, plus their own small running
+ * cost; the server's fixed costs are already carried by the monthly plans'
+ * share. Free's units and sandbox hours come in as `base`.
+ */
+export function lightAllowance(yearlyPriceUsd: number, base: { aiUnits: number; sandboxHours: number }, extraSandboxHours: number, retries: boolean): Allowance {
+  const budget = costBudgetUsd(yearlyPriceUsd) / 12 - ECONOMICS.lightMarginalUsd;
+  const sandboxUsd = extraSandboxHours * ECONOMICS.sandboxHourUsd;
+  const modelBudgetUsd = budget - sandboxUsd;
+  if (modelBudgetUsd <= 0) throw new Error(`A $${yearlyPriceUsd} yearly plan can't add ${extraSandboxHours} sandbox hours at a ${ECONOMICS.margin * 100}% margin.`);
+  const retryUsd = retries ? modelBudgetUsd * ECONOMICS.retryHoldback : 0;
+  return {
+    costBudgetUsd: budget,
+    sandboxUsd,
+    modelBudgetUsd,
+    aiUnits: base.aiUnits + Math.floor((modelBudgetUsd - retryUsd) / USD_PER_UNIT),
+    retryUnits: Math.floor(retryUsd / USD_PER_UNIT),
+    sandboxHours: base.sandboxHours + extraSandboxHours,
   };
 }
 

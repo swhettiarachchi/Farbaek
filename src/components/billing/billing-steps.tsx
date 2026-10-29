@@ -6,7 +6,7 @@ import { Notice } from "@/components/app/primitives";
 import { sessionsLine } from "@/components/pricing/pricing-plans";
 import { LocalTime } from "@/components/ui/local-time";
 import { buttonClasses } from "@/components/ui/button";
-import { formatUsd, getPlan } from "@/core/billing/catalog";
+import { chargeCents, chargeLine, formatUsd, getPlan, isYearly } from "@/core/billing/catalog";
 import { checkoutConsentText, formatMinorUnits } from "@/core/billing/provider-state";
 import type { PaidPlanId } from "@/core/billing/provider";
 import type { PlanChangePreview } from "@/server/billing/use-cases";
@@ -39,9 +39,14 @@ export function ChoosePlanStep({ planId, onTrial, error }: { planId: PaidPlanId;
   return (
     <StepShell title={`Choose ${plan.name}`}>
       <p className="mt-2 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-        <span className="text-2xl font-medium tracking-[-0.02em] tabular">{formatUsd(plan.pricing.monthlyCents)}</span>
-        <span className="text-sm text-ink-3">a month, plus applicable tax, calculated at checkout</span>
+        <span className="text-2xl font-medium tracking-[-0.02em] tabular">{formatUsd(chargeCents(plan))}</span>
+        <span className="text-sm text-ink-3">
+          {plan.pricing.interval === "year" ? `a year (${formatUsd(plan.pricing.monthlyCents)} a month), plus applicable tax, calculated at checkout` : "a month, plus applicable tax, calculated at checkout"}
+        </span>
       </p>
+      {plan.pricing.interval === "year" ? (
+        <p className="mt-2 text-sm text-ink-2">Charged once a year. We email you about 30 days before it renews, so you can cancel first.</p>
+      ) : null}
       <ul className="mt-4 grid gap-1.5 text-sm text-ink-2 tabular">
         <li className="font-medium text-ink">{sessionsLine(plan)}</li>
         <li>
@@ -97,25 +102,28 @@ export function ChangePlanStep({ preview, error }: { preview: PlanChangePreview 
   }
   const to = getPlan(preview.to);
   const from = getPlan(preview.from);
-  const monthly = to.pricing.kind === "paid" ? formatUsd(to.pricing.monthlyCents) : "";
+  const price = chargeLine(to);
   const upgrade = preview.direction === "upgrade";
+  // Yearly to monthly (ADR 0105): Dodo takes the unused part of the year off the new plan's price.
+  const fromYear = isYearly(preview.from) && !isYearly(preview.to);
   return (
     <StepShell title={`Switch to ${to.name}`}>
       {upgrade ? (
         <p className="mt-2 text-sm leading-relaxed text-ink">
           {preview.amountCents !== null && preview.currency ? (
             <>
-              Dodo Payments charges <span className="font-medium tabular">{formatMinorUnits(preview.amountCents, preview.currency)}</span> today for the rest of this period,
+              Dodo Payments charges <span className="font-medium tabular">{formatMinorUnits(preview.amountCents, preview.currency)}</span> today{" "}
+              {fromYear ? `for a month of ${to.name}, less the unused part of your ${from.name} year,` : "for the rest of this period,"}
             </>
           ) : (
-            <>Dodo Payments charges the difference for the rest of this period today,</>
+            <>{fromYear ? `Dodo Payments takes the unused part of your ${from.name} year off a month of ${to.name} and charges the rest today,` : "Dodo Payments charges the difference for the rest of this period today,"}</>
           )}{" "}
-          then {monthly} a month, plus applicable tax. {to.name}&apos;s limits apply as soon as the payment goes through.
+          then {price}, plus applicable tax.{fromYear ? " Anything left over goes toward later renewals." : ""} {to.name}&apos;s limits apply as soon as the payment goes through.
         </p>
       ) : (
         <p className="mt-2 text-sm leading-relaxed text-ink">
           You keep {from.name} until{" "}
-          {preview.effectiveAt ? <LocalTime iso={preview.effectiveAt.toISOString()} /> : "the end of this period"}, then move to {to.name} at {monthly} a month. Nothing extra is
+          {preview.effectiveAt ? <LocalTime iso={preview.effectiveAt.toISOString()} /> : "the end of this period"}, then move to {to.name} at {price}. Nothing extra is
           charged. Projects and data over {to.name}&apos;s limits are kept; you can&apos;t add more until you&apos;re under them.
         </p>
       )}

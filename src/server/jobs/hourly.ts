@@ -16,6 +16,8 @@ import { runOutcomeWatches } from "@/server/jobs/outcome-watch";
 import { outcomeWatchDeps } from "@/server/jobs/outcome-watch-wiring";
 import { runPlatformAlerts } from "@/server/jobs/platform-alerts";
 import { platformAlertDeps } from "@/server/jobs/platform-alerts-wiring";
+import { runRenewalReminders } from "@/server/jobs/renewal-reminders";
+import { renewalReminderDeps } from "@/server/jobs/renewal-reminders-wiring";
 import { runTrialReminders } from "@/server/jobs/trial-reminders";
 import { trialReminderDeps } from "@/server/jobs/trial-reminders-wiring";
 import { log } from "@/server/observability/log";
@@ -48,6 +50,8 @@ export async function handleHourlyJobs(request: Request): Promise<Response> {
   await refreshPlatformState();
   const jobs = {
     trialReminders: await runJob("trial_reminders", trialReminderDeps(), (d) => runTrialReminders(d, now)),
+    // Before a Lite or Maker plan renews for another year (ADR 0105).
+    renewalReminders: await runJob("renewal_reminders", renewalReminderDeps(), (d) => runRenewalReminders(d, now)),
     platformAlerts: await runJob("platform_alerts", platformAlertDeps(), (d) => runPlatformAlerts(d, now)),
     outcomeWatch: await runJob("outcome_watch", outcomeWatchDeps(), (d) => runOutcomeWatches(d)),
     // After the watch, so an incident it opened this hour is escalated in the same run.

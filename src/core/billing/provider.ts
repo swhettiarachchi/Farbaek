@@ -82,6 +82,6 @@ export interface PaymentProvider {
   getSubscription(subscriptionId: string): Promise<ProviderResult<NormalizedSubscription>>;
   getPayment(paymentId: string): Promise<ProviderResult<NormalizedPayment>>;
   /** A monthly plan product, or with `once` a one-time top-up pack. */
-  createProduct(input: { planId?: PaidPlanId; once?: boolean; name: string; description: string; amountCents: number; currency: string }): Promise<ProviderResult<{ productId: string }>>;
-  getProductPrice(productId: string): Promise<ProviderResult<{ amountCents: number; currency: string; recurring: boolean; trialDays: number }>>;
+  createProduct(input: { planId?: PaidPlanId; once?: boolean; interval?: "month" | "year"; name: string; description: string; amountCents: number; currency: string }): Promise<ProviderResult<{ productId: string }>>;
+  getProductPrice(productId: string): Promise<ProviderResult<{ amountCents: number; currency: string; recurring: boolean; trialDays: number; interval: "month" | "year" | null }>>;
 }

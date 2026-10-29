@@ -98,6 +98,12 @@ describe("checkoutConsentText", () => {
     expect(checkoutConsentText("pro", false)).not.toContain("trial");
     expect(text).not.toContain("—");
   });
+
+  it("states a yearly plan's yearly charge (ADR 0105)", () => {
+    expect(checkoutConsentText("lite", false)).toContain("I agree to pay $11.88 USD a year, or the same amount in the currency I choose");
+    expect(checkoutConsentText("maker", false)).toContain("$23.88 USD a year");
+    expect(checkoutConsentText("starter", false)).toContain("$9.99 USD a month");
+  });
 });
 
 describe("formatMinorUnits", () => {

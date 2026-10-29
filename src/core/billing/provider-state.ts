@@ -3,7 +3,7 @@
  * ADR 0100). Pure: the webhook processor re-fetches the subscription and
  * passes it here, so the order events arrive in never matters.
  */
-import { PAID_PLAN_IDS, PLAN_ORDER, getPlan } from "./catalog";
+import { PAID_PLAN_IDS, PLAN_ORDER, chargeCents, getPlan } from "./catalog";
 import type { NormalizedSubscription, PaidPlanId } from "./provider";
 import type { SubscriptionState } from "./trial";
 
@@ -80,7 +80,8 @@ export function planChangeDirection(from: PaidPlanId, to: PaidPlanId): "upgrade"
 export function checkoutConsentText(planId: PaidPlanId, onTrial: boolean): string {
   const plan = getPlan(planId);
   if (plan.pricing.kind !== "paid") throw new Error(`Not a paid plan: ${planId}`);
-  const amount = (plan.pricing.monthlyCents / 100).toFixed(2);
+  const yearly = plan.pricing.interval === "year";
+  const amount = (chargeCents(plan) / 100).toFixed(2);
   const trial = onTrial ? " Billing starts today, and my remaining trial days end now." : "";
-  return `I agree to pay $${amount} USD a month, or the same amount in the currency I choose at checkout with Dodo Payments' conversion fee of up to 4% added, plus any applicable tax calculated at checkout, for Farbaek ${plan.name} until I cancel. I can cancel at any time in Billing, and my plan then runs to the end of the period I paid for.${trial}`;
+  return `I agree to pay $${amount} USD a ${yearly ? "year" : "month"}, or the same amount in the currency I choose at checkout with Dodo Payments' conversion fee of up to 4% added, plus any applicable tax calculated at checkout, for Farbaek ${plan.name} until I cancel. I can cancel at any time in Billing, and my plan then runs to the end of the period I paid for.${trial}`;
 }

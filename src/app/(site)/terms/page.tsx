@@ -72,7 +72,8 @@ const SECTIONS: LegalSection[] = [
               exact amount before you pay.
             </>,
             <>
-              <strong>Renewal.</strong> A plan renews every month on the day you subscribed and charges your payment method until you cancel. Before checkout you agree to the exact price and
+              <strong>Renewal.</strong> A monthly plan renews every month on the day you subscribed and charges your payment method until you cancel. Lite and Maker are billed once a
+              year and renew every year on that day; we email you about 30 days before each yearly renewal, so you can cancel first. Before checkout you agree to the exact price and
               these renewal terms, and we keep a record of what you agreed to and when.
             </>,
             <>
@@ -86,14 +87,16 @@ const SECTIONS: LegalSection[] = [
             </>,
             <>
               <strong>Changing plans.</strong> An upgrade takes effect once its payment goes through, and you pay the difference for the rest of the current period; Billing shows the amount
-              first. A downgrade takes effect at the end of the current period, with nothing extra charged.
+              first. Moving from a yearly plan to a monthly one takes the unused part of the year off the new plan&apos;s price, and anything left over goes toward later renewals. A downgrade takes
+              effect at the end of the current period, with nothing extra charged.
             </>,
             <>
               <strong>Failed payments.</strong> If a renewal payment fails, paid features keep working while you update your payment method from Billing. If it still can&apos;t be collected,
               paid features pause until it is. Your data is kept, and exports, billing and safety controls always work.
             </>,
             <>
-              <strong>More AI usage.</strong> On a paid plan you can buy more AI usage at the plan&apos;s own rate, never past the monthly limit your workspace sets. It lasts 12 months, is
+              <strong>More AI usage.</strong> On a paid plan you can buy more AI usage at the plan&apos;s own rate (Lite and Maker at Starter&apos;s), never past the monthly limit your
+              workspace sets. It lasts 12 months, is
               used after your plan&apos;s own usage, has no cash value and can&apos;t be transferred.
             </>,
             <>
