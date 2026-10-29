@@ -395,7 +395,7 @@ export function createVercelRuntime(config: SandboxServerConfig): SandboxRuntime
     },
 
     async writeFiles(sandboxId, files) {
-      const entries: { path: string; content: string }[] = [];
+      const entries: { path: string; content: string | Uint8Array }[] = [];
       const dirs = new Set<string>([SANDBOX_WORKSPACE_ROOT]);
       for (const f of files) {
         const p = resolveSandboxPath(f.path);

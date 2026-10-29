@@ -7,7 +7,8 @@
  */
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import type { AppContext } from "@/server/workspace/context";
-import { fileSha256, type LaunchDeps } from "./provider-launch";
+import { projectLaunchFiles } from "./files";
+import type { LaunchDeps } from "./provider-launch";
 import { createNetlifyClient } from "./netlify-client";
 import { createSupabaseLaunchStore } from "./provider-store";
 import { vaultKey } from "./token-vault";
@@ -31,7 +32,8 @@ export function launchDeps(ctx: AppContext): LaunchDeps | null {
     key: vaultKey(),
     vercel: (token, teamId) => createVercelClient(token, { teamId }),
     netlify: (token, accountSlug) => createNetlifyClient(token, { accountSlug }),
-    files: async (orgId, projectId) => (await ctx.reader.getProjectContents(orgId, projectId)).map((f) => ({ ...f, sha256: fileSha256(f.content) })),
+    // Text and images, exactly as the Launch page fingerprints them (ADR 0108).
+    files: (orgId, projectId) => projectLaunchFiles(ctx.reader, orgId, projectId),
     probe,
     sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
   };

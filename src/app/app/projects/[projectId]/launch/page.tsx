@@ -18,7 +18,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
-import { Card, Notice, PageHeader } from "@/components/app/primitives";
+import { Card, PageHeader } from "@/components/app/primitives";
 import { LiveCheck } from "@/components/launch/live-check";
 import { NETLIFY_BUILDS, vercelBuilds } from "@/components/launch/provider-copy";
 import { ProviderPanel } from "@/components/launch/provider-panel";
@@ -26,7 +26,8 @@ import { OutcomeWatch } from "@/components/launch/outcome-watch";
 import { readWatch, type WatchView } from "@/server/launch/watch-store";
 import { netlifyFit, netlifyPathProblem, netlifySiteName } from "@/core/launch/netlify";
 import { deployDigest, vercelFit, vercelProjectName, vercelSettings } from "@/core/launch/vercel";
-import { NO_VAULT, fileSha256 } from "@/server/launch/provider-launch";
+import { NO_VAULT, launchBytes } from "@/server/launch/provider-launch";
+import { projectLaunchFiles } from "@/server/launch/files";
 import { listLaunchOrders, readConnections, type ConnectionView, type LaunchOrderView, type Provider } from "@/server/launch/provider-store";
 import { refreshLaunch } from "@/server/launch/refresh";
 import { LAUNCH_PROVIDERS, type LaunchProvider } from "@/core/launch/providers";
@@ -88,11 +89,9 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
 
   // LaunchOS with your own Vercel or Netlify account (ADR 0078, ADR 0093): exactly the files a launch would send, the connections, and the launches so far.
   const orgId = ctx.current.id;
-  const [contents, imageCount] = await Promise.all([
-    ctx.reader.getProjectContents(orgId, project.id),
-    ctx.reader.listFiles(orgId, project.id).then((all) => all.filter((f) => f.encoding === "base64").length),
-  ]);
-  const deployFiles = { count: contents.length, bytes: contents.reduce((n, f) => n + Buffer.byteLength(f.content, "utf8"), 0), digest: await deployDigest(contents.map((f) => ({ path: f.path, sha256: fileSha256(f.content) }))) };
+  // Exactly what a launch sends, images included (ADR 0108): the same list the authorized launch uses.
+  const contents = await projectLaunchFiles(ctx.reader, orgId, project.id);
+  const deployFiles = { count: contents.length, bytes: contents.reduce((n, f) => n + launchBytes(f).length, 0), digest: await deployDigest(contents.map((f) => ({ path: f.path, sha256: f.sha256 }))) };
   let connections: Partial<Record<Provider, ConnectionView>> = {};
   let orders: LaunchOrderView[] = [];
   let watch: WatchView | null = null;
@@ -387,13 +386,6 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
           })}
         </ul>
       </section>
-
-      {imageCount > 0 ? (
-        <Notice tone="warning">
-          Launches to Vercel and Netlify send the project&apos;s text files only for now, so its {imageCount === 1 ? "image" : `${imageCount} images`} won&apos;t be there. Farbaek Sites serves
-          them.
-        </Notice>
-      ) : null}
 
       {LAUNCH_PROVIDERS.map((provider) => (
         <ProviderPanel

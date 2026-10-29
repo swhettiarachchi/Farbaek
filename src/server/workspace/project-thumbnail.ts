@@ -7,6 +7,7 @@
  */
 import { runProfile } from "@/content/starters";
 import { buildStaticSrcdoc, pictureSrcdoc, resolveSitePath } from "@/core/workspace/static-preview";
+import { referencedImageRefs, someImages } from "./preview-images";
 import type { WorkspaceReader } from "./types";
 
 export type ProjectThumbnail =
@@ -18,6 +19,9 @@ export type ProjectThumbnail =
 /** At most this much HTML and CSS goes into one picture. */
 export const THUMBNAIL_BUDGET_BYTES = 600 * 1024;
 const MAX_STYLESHEETS = 4;
+/** Images a thumbnail may inline, and their total size (ADR 0108). */
+const MAX_IMAGES = 6;
+const THUMBNAIL_IMAGE_BUDGET = 1_500 * 1024;
 
 type Reader = Pick<WorkspaceReader, "listFiles" | "getFile">;
 
@@ -51,6 +55,16 @@ export async function projectThumbnail(reader: Reader, orgId: string, projectId:
     parts[path] = css;
     budget -= size;
   }
-  const srcdoc = buildStaticSrcdoc(parts, "index.html");
+  // The images the page and its stylesheets show (ADR 0108), within their own budget.
+  const imageSizes = new Map(files.filter((f) => f.encoding === "base64").map((f) => [f.path, f.sizeBytes]));
+  const wantedImages =
+    imageSizes.size === 0
+      ? []
+      : [...new Set(Object.entries(parts).flatMap(([from, text]) => referencedImageRefs(text).map((ref) => resolveSitePath(from, ref))))]
+          .filter((p): p is string => p !== null && imageSizes.has(p))
+          .slice(0, MAX_IMAGES)
+          .map((p) => ({ path: p, sizeBytes: imageSizes.get(p)! }));
+  const images = wantedImages.length > 0 ? await someImages(reader, orgId, projectId, wantedImages, THUMBNAIL_IMAGE_BUDGET) : {};
+  const srcdoc = buildStaticSrcdoc(parts, "index.html", images);
   return srcdoc ? { kind: "static", srcdoc: pictureSrcdoc(srcdoc) } : { kind: "empty" };
 }

@@ -276,6 +276,8 @@ export interface ProjectSnapshotFile {
   path: string;
   sha256: string;
   content: string;
+  /** "base64" for an image (ADR 0108): written into the sandbox as its bytes. */
+  encoding?: "base64";
 }
 
 /** Everything sandbox code needs from the database. Reads respect Row Level Security; writes call app_* functions. */

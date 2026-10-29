@@ -260,7 +260,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
     if (!runtime) return err("NOT_CONNECTED", resolution.reason ?? "No runtime is connected.", "provider_rejected");
     if (await rateLimited(actor, "create")) return err("RATE_LIMITED", "Too many sessions started in the last minute. Try again shortly.", "quota_exceeded");
 
-    let snapshot: { path: string; sha256: string; content: string }[] = [];
+    let snapshot: { path: string; sha256: string; content: string; encoding?: "base64" }[] = [];
     if (spec.spec.projectId) {
       const files = await store.projectSnapshot(actor.orgId, spec.spec.projectId, SANDBOX_HARD_LIMITS.maxUploadFiles, SANDBOX_HARD_LIMITS.maxUploadBytes);
       if (files === "too_large") return err("PROJECT_TOO_LARGE", "The project is larger than a session can copy in (3,000 files or 25 MB). Choose folders to include.", "invalid_request");
@@ -306,7 +306,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
         metadata: { farbaek: config.deploymentId, session: sessionId, org: actor.orgId },
       });
       sandboxId = sandbox.sandboxId;
-      if (snapshot.length) await runtime.writeFiles(sandbox.sandboxId, snapshot.map((f) => ({ path: f.path, content: f.content })));
+      if (snapshot.length) await runtime.writeFiles(sandbox.sandboxId, snapshot.map((f) => ({ path: f.path, content: f.encoding === "base64" ? new Uint8Array(Buffer.from(f.content, "base64")) : f.content })));
       const digest = snapshot.length ? await snapshotDigest(snapshot) : null;
       const ready = await store.transition(sessionId, actor.userId, 1, "provisioned", {
         provider_sandbox_id: sandbox.sandboxId,

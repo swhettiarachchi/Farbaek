@@ -144,6 +144,8 @@ export function createSupabaseAgentStore(admin: SupabaseClient): AgentStore {
           .select("path, revision, sha256, size_bytes")
           .eq("org_id", orgId)
           .eq("project_id", projectId)
+          // Agents work on text: images (ADR 0108) aren't in their snapshot, and the database refuses text on an image path.
+          .eq("encoding", "utf8")
           .order("path")
           .range(from, from + 999);
         if (error) fail("project files", error);
@@ -163,6 +165,7 @@ export function createSupabaseAgentStore(admin: SupabaseClient): AgentStore {
           .select("path, revision, content")
           .eq("org_id", orgId)
           .eq("project_id", projectId)
+          .eq("encoding", "utf8")
           .in(
             "path",
             chunk.map((f) => f.path),

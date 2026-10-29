@@ -113,7 +113,8 @@ export interface SandboxRuntime {
   kill(sandboxId: string, pid: number): Promise<boolean>;
   listFiles(sandboxId: string, relativeDir: string): Promise<RuntimeFileEntry[]>;
   readFile(sandboxId: string, relativePath: string): Promise<string>;
-  writeFiles(sandboxId: string, files: { path: string; content: string }[]): Promise<void>;
+  /** Text as UTF-8, or bytes as they are (images, ADR 0108). */
+  writeFiles(sandboxId: string, files: { path: string; content: string | Uint8Array }[]): Promise<void>;
   metrics(sandboxId: string): Promise<ResourceSample | null>;
   /** Where to send one preview request. The method and path let a runtime sign it (the relay, ADR 0023). */
   previewTarget(sandboxId: string, port: number, request: { method: string; path: string }): Promise<PreviewTarget>;

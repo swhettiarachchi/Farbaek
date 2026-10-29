@@ -152,3 +152,11 @@ describe("carrying out a launch", () => {
     expect(f.updates.map((u) => u.status)).toEqual(["ready"]);
   });
 });
+
+describe("launchBytes (ADR 0108)", () => {
+  it("sends text as UTF-8 and an image as its decoded bytes", async () => {
+    const { launchBytes } = await import("./provider-launch");
+    expect(launchBytes({ content: "héllo" }).equals(Buffer.from("héllo", "utf8"))).toBe(true);
+    expect([...launchBytes({ content: "AAEC/w==", encoding: "base64" })]).toEqual([0, 1, 2, 255]);
+  });
+});

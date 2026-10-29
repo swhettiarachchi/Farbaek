@@ -43,7 +43,13 @@ export interface LaunchPerson {
   permissions: WithheldPermissions;
 }
 
-export type LaunchFile = { path: string; content: string; sha256: string };
+/** One file a launch sends: text, or an image as base64 (ADR 0108). `sha256` is over the bytes sent. */
+export type LaunchFile = { path: string; content: string; sha256: string; encoding?: "base64" };
+
+/** The bytes a launch sends for a file: UTF-8 for text, the decoded bytes for an image. */
+export function launchBytes(f: { content: string; encoding?: "base64" }): Buffer {
+  return f.encoding === "base64" ? Buffer.from(f.content, "base64") : Buffer.from(f.content, "utf8");
+}
 
 export const NO_VAULT = "Connecting hosting accounts isn't set up on this server yet.";
 const MAX_FILES = 3_000;
@@ -149,7 +155,7 @@ export async function authorizeLaunch(
 
   const files = await deps.files(person.orgId, input.projectId);
   if (files.length === 0) return fail("NOTHING_TO_IMPORT", "This project has no files to launch.");
-  const bytes = files.reduce((n, f) => n + Buffer.byteLength(f.content, "utf8"), 0);
+  const bytes = files.reduce((n, f) => n + launchBytes(f).length, 0);
   if (files.length > MAX_FILES || bytes > MAX_BYTES) return fail("PROJECT_TOO_LARGE", "This project is larger than a launch can send (3,000 files or 25 MB).");
   const filesProblem = input.filesProblem?.(files.map((f) => f.path)) ?? null;
   if (filesProblem) return fail("FORBIDDEN", filesProblem);
@@ -221,7 +227,7 @@ export async function failLaunch(deps: LaunchDeps, id: string, message: string):
 /** Carries out an authorized launch. Exported for tests; authorizeVercelLaunch runs it in the background. */
 export async function runVercelLaunch(
   deps: LaunchDeps,
-  input: { orgId: string; orderId: string; target: string; settings: VercelSettings; files: { path: string; content: string }[] },
+  input: { orgId: string; orderId: string; target: string; settings: VercelSettings; files: { path: string; content: string; encoding?: "base64" }[] },
 ): Promise<"ready" | "failed" | "building"> {
   const id = input.orderId;
   const opened = await openProviderToken(deps, input.orgId, "vercel");
@@ -231,7 +237,7 @@ export async function runVercelLaunch(
   await deps.store.update({ id, status: "uploading" });
   let uploaded: { file: string; sha: string; size: number }[];
   try {
-    const results = await mapLimit(input.files, UPLOADS_AT_ONCE, async (f) => ({ path: f.path, r: await vercel.uploadFile(Buffer.from(f.content, "utf8")) }));
+    const results = await mapLimit(input.files, UPLOADS_AT_ONCE, async (f) => ({ path: f.path, r: await vercel.uploadFile(launchBytes(f)) }));
     const bad = results.find((x) => !x.r.ok);
     if (bad && !bad.r.ok) return failLaunch(deps, id, `${bad.path} didn't upload: ${bad.r.message}`);
     uploaded = results.map((x) => ({ file: x.path, ...(x.r as { ok: true; value: { sha: string; size: number } }).value }));

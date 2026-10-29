@@ -8,6 +8,7 @@ function reader(files: Record<string, string>, sizes: Record<string, number> = {
     path,
     revision: 1,
     sizeBytes: sizes[path] ?? content.length,
+    ...(/.(png|jpe?g|webp|gif)$/.test(path) ? { encoding: "base64" as const } : {}),
     sha256: "0".repeat(64),
     updatedAt: "2026-10-20T00:00:00Z",
   }));
@@ -25,6 +26,23 @@ function reader(files: Record<string, string>, sizes: Record<string, number> = {
 }
 
 describe("project thumbnails", () => {
+  it("show the images the page and its stylesheet use (ADR 0108)", async () => {
+    const { r, read } = reader({
+      "index.html": '<link rel="stylesheet" href="css/site.css"><img src="assets/logo.png" alt=""><img src="assets/unused.png" hidden>',
+      "css/site.css": "body{background:url(../assets/bg.jpg)}",
+      "assets/logo.png": "TE9HTw==",
+      "assets/bg.jpg": "QkdCRw==",
+      "assets/other.webp": "T1RIRVI=",
+    });
+    const t = await projectThumbnail(r, "o1", "p1");
+    expect(t.kind).toBe("static");
+    const doc = t.kind === "static" ? t.srcdoc : "";
+    expect(doc).toContain('src="data:image/png;base64,TE9HTw=="');
+    expect(doc).toContain("url(data:image/jpeg;base64,QkdCRw==)");
+    // Only images the page refers to are read.
+    expect(read).not.toContain("assets/other.webp");
+  });
+
   it("fold the home page and the stylesheets it links into one locked-down document", async () => {
     const { r, read } = reader({
       "index.html": '<html><head><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="https://cdn.example.com/x.css"><script src="script.js"></script></head><body><h1>Hi</h1></body></html>',
