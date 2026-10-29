@@ -63,4 +63,5 @@ Stage 90 put Sign in with Apple in the iPhone app. This stage finishes the owner
 
 ### Next
 
-- Then: sign in with Apple on www.farbaek.com, and revoke Farbaek in the Apple Account's settings to see the account-notice sign-out.
+- Sign in with Apple on www.farbaek.com with a real Apple Account, then remove Farbaek in that Apple Account's settings to see the account-notice sign-out.
+- When Apple confirms the Small Business Program: switch on `APPLE_IAP` once the app's first build is out (docs/mobile/ios.md, step 8).
