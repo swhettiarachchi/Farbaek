@@ -47,6 +47,7 @@ function deps(options: { expiresAt?: number; ctx?: Partial<AppContext>; revoked?
     messageRun: () => ({ ok: true, value: null }),
     setPush: async () => true,
     signOut: async () => (calls.push("signOut"), "signed_out"),
+    appleTransaction: async () => (calls.push("apple"), { ok: true, value: { state: "active", planId: "starter", paidThrough: null } }),
   };
   const d: PhoneApiDeps = {
     auth,
@@ -57,6 +58,7 @@ function deps(options: { expiresAt?: number; ctx?: Partial<AppContext>; revoked?
     execution: () => ({ mode: "sandboxed" }),
     writes,
     pushAvailable: () => false,
+    billing: async () => ({ managedBy: null, live: false, applePurchases: true }),
     clientKey: () => "client",
     now: () => NOW,
   };
@@ -150,6 +152,16 @@ describe("the phone API (ADR 0110)", () => {
     expect(token.status).toBe(200);
     expect(await data(token)).toMatchObject({ accessToken: JWT, deviceId: "device-1" });
     expect((await call(d, "POST", "token", { token: false, body: { code, verifier: VERIFIER } })).status).toBe(400);
+  });
+
+  it("takes an App Store purchase from a connected phone, never from the sample (ADR 0112)", async () => {
+    const { deps: d, calls } = deps();
+    const me = await data(await call(d, "GET", "me"));
+    expect(me.billing).toMatchObject({ managedBy: null, applePurchases: true, canManage: true });
+    expect((await call(d, "POST", "apple/transactions", { body: { jws: "a".repeat(40) } })).status).toBe(200);
+    expect(calls).toEqual(["apple"]);
+    expect((await call(d, "POST", "sample/apple/transactions", { token: false, body: { jws: "a".repeat(40) } })).status).toBe(403);
+    expect((await call(d, "POST", "apple/transactions", { body: { jws: "short" } })).status).toBe(400);
   });
 
   it("signs out by disconnecting the phone itself", async () => {

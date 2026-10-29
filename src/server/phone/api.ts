@@ -22,7 +22,7 @@ import type { AppContext } from "@/server/workspace/context";
 import { MANAGER_ROLES } from "@/server/workspace/types";
 import { authenticate, connectFromBrowser, exchangeCode, refreshPhone, type PhoneAuthDeps, type PhoneCaller } from "./auth";
 import { PUSH_TOKEN_PATTERN } from "./tokens";
-import { approvalView, approvalsView, homeView, isTaskFilter, meView, planView, projectsView, runDetail, taskView, tasksView, type RunReader } from "./views";
+import { approvalView, approvalsView, homeView, isTaskFilter, meView, planView, projectsView, runDetail, taskView, tasksView, type BillingFacts, type RunReader } from "./views";
 
 export type PhoneOutcome<T> = { ok: true; value: T } | { ok: false; status: number; code: string; message: string };
 
@@ -43,6 +43,8 @@ export interface PhoneWrites {
   messageRun(p: PhonePerson, input: { runId: string; text: string }): PhoneOutcome<null>;
   setPush(caller: PhoneCaller, token: string | null, environment: "production" | "development"): Promise<boolean>;
   signOut(caller: PhoneCaller): Promise<"signed_out" | "refused" | "not_found">;
+  /** A purchase the app made with Apple's In-App Purchase (ADR 0112): its signed transaction. */
+  appleTransaction(p: PhonePerson, jws: string): Promise<PhoneOutcome<{ state: string; planId: string | null; paidThrough: string | null }>>;
 }
 
 export interface PhoneApiDeps {
@@ -56,6 +58,8 @@ export interface PhoneApiDeps {
   execution(): { mode: string; reason?: string };
   writes: PhoneWrites;
   pushAvailable(): boolean;
+  /** Who bills a workspace, and whether App Store purchases are open on this server (ADR 0112). */
+  billing(orgId: string): Promise<BillingFacts>;
   clientKey(request: Request): string;
   now(): Date;
 }
@@ -119,7 +123,13 @@ const ROUTES: Route[] = [
   {
     method: "GET",
     path: "me",
-    run: async (s) => ok(meView(s.ctx, { push: { available: s.caller !== null && s.deps.pushAvailable(), on: s.caller?.push ?? false } })),
+    run: async (s) =>
+      ok(
+        meView(s.ctx, {
+          push: { available: s.caller !== null && s.deps.pushAvailable(), on: s.caller?.push ?? false },
+          billing: s.caller && s.ctx.current ? await s.deps.billing(s.ctx.current.id) : null,
+        }),
+      ),
   },
   {
     method: "GET",
@@ -292,6 +302,18 @@ const ROUTES: Route[] = [
     run: async (s) => {
       const org = orgOf(s);
       return typeof org === "string" ? ok(await projectsView(s.ctx.reader, org)) : org;
+    },
+  },
+  {
+    method: "POST",
+    path: "apple/transactions",
+    write: true,
+    run: async (s) => {
+      const p = person(s);
+      if (p instanceof Response) return p;
+      const parsed = z.object({ jws: z.string().min(20).max(64_000) }).safeParse(await body(s.request));
+      if (!parsed.success) return badBody();
+      return fromOutcome(await s.deps.writes.appleTransaction(p, parsed.data.jws));
     },
   },
   {

@@ -116,6 +116,17 @@ const SECTIONS: LegalSection[] = [
     ),
   },
   {
+    id: "app-store",
+    title: "Plans bought in the iPhone app",
+    body: (
+      <p>
+        If you subscribe in Farbaek for iPhone, Apple bills your Apple account under Apple&apos;s own terms, at the price the App Store shows, which can differ from the price on our
+        website. The plan renews monthly until you cancel it on your iPhone, in Settings, your name, Subscriptions, at least 24 hours before it renews. Refunds for these
+        purchases are Apple&apos;s to decide, at reportaproblem.apple.com. Everything else in these terms applies to the plan as if you&apos;d bought it from us.
+      </p>
+    ),
+  },
+  {
     id: "ownership",
     title: "Your work is yours",
     body: (

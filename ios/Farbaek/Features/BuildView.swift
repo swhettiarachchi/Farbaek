@@ -80,7 +80,7 @@ struct BuildView: View {
                 .panel()
 
                 if let failure { Notice(text: failure, tone: .failed, symbol: "exclamationmark.triangle.fill") }
-                if planBlocked && model.canBuyOnWeb { SeePlansLink() }
+                if planBlocked { SeePlansLink() }
                 if let blocker = model.writeBlocker {
                     Notice(text: blocker, symbol: "lock")
                 }
@@ -268,7 +268,7 @@ struct PlanReviewView: View {
     @ViewBuilder private func actions(_ detail: PlanDetail) -> some View {
         VStack(spacing: 10) {
             if let failure { Notice(text: failure, tone: .failed, symbol: "exclamationmark.triangle.fill") }
-            if planBlocked && model.canBuyOnWeb { SeePlansLink() }
+            if planBlocked { SeePlansLink() }
             if detail.canApprove {
                 Picker("Effort", selection: $effort) {
                     ForEach(Effort.allCases) { Text($0.title).tag($0) }
@@ -332,12 +332,26 @@ struct PlanReviewView: View {
     }
 }
 
-/// Opens Billing on www.farbaek.com in Safari. Shown only in the US App Store (WebPurchase).
+/// The way to a bigger plan after the plan refused something (402): the App Store's plans when
+/// they're open to this person, otherwise Billing on the web in the US App Store, otherwise nothing.
 struct SeePlansLink: View {
+    @Environment(AppModel.self) private var model
+    @State private var showPlans = false
+
     var body: some View {
-        Link(destination: WebPurchase.billingURL) {
-            Label("See plans on www.farbaek.com", systemImage: "arrow.up.right.square")
+        if let billing = model.me?.billing, billing.applePurchases, billing.canManage, billing.managedBy != "web" {
+            Button {
+                showPlans = true
+            } label: {
+                Label("See plans", systemImage: "sparkles")
+            }
+            .buttonStyle(PillButtonStyle(kind: .secondary))
+            .sheet(isPresented: $showPlans) { PlansView().environment(model) }
+        } else if model.canBuyOnWeb {
+            Link(destination: WebPurchase.billingURL) {
+                Label("See plans on www.farbaek.com", systemImage: "arrow.up.right.square")
+            }
+            .buttonStyle(PillButtonStyle(kind: .secondary))
         }
-        .buttonStyle(PillButtonStyle(kind: .secondary))
     }
 }

@@ -4,6 +4,8 @@ import SwiftUI
 struct YouView: View {
     @Environment(AppModel.self) private var model
     @State private var confirmSignOut = false
+    @State private var showPlans = false
+    @State private var manageSubscription = false
 
     var body: some View {
         List {
@@ -48,7 +50,23 @@ struct YouView: View {
             if !model.isSample, let workspace = model.currentWorkspace {
                 Section {
                     LabeledContent("Plan") { Text(workspace.plan).foregroundStyle(Palette.ink2) }
-                    if model.canBuyOnWeb {
+                    if let billing = model.me?.billing, billing.applePurchases, billing.canManage, billing.managedBy != "web" {
+                        Button {
+                            showPlans = true
+                        } label: {
+                            Label(billing.managedBy == "apple" ? "Change plan" : "Choose a plan", systemImage: "sparkles")
+                        }
+                        if billing.managedBy == "apple" {
+                            Button {
+                                manageSubscription = true
+                            } label: {
+                                Label("Manage subscription", systemImage: "creditcard")
+                            }
+                        }
+                    } else if model.me?.billing?.managedBy == "web" {
+                        Text("Billed on www.farbaek.com, so it's changed there.").font(.footnote).foregroundStyle(Palette.ink2)
+                    }
+                    if model.canBuyOnWeb, model.me?.billing?.managedBy != "apple" {
                         Link(destination: WebPurchase.billingURL) {
                             Label("Upgrade or manage your plan", systemImage: "arrow.up.right.square")
                         }
@@ -99,6 +117,8 @@ struct YouView: View {
             Text("This phone is disconnected and stops getting notifications. Sign in again any time.")
         }
         .refreshable { await model.loadMe(as: model.phase) }
+        .sheet(isPresented: $showPlans) { PlansView().environment(model) }
+        .manageSubscriptionsSheet(isPresented: $manageSubscription)
     }
 
     @ViewBuilder private var notifications: some View {

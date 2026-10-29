@@ -36,6 +36,7 @@ const Account = z.object({
   paid_through: z.string().nullable(),
   provider_subscription_id: z.string().nullable(),
   provider_customer_id: z.string().nullable(),
+  provider: z.enum(["dodo", "apple"]).nullable().optional(),
 });
 
 const APPLY_RESULTS = ["applied", "unchanged", "stale", "other_subscription"] as const;
@@ -143,13 +144,14 @@ export function billingDeps(fetchImpl?: Fetch): BillingDeps | null {
     async account(orgId): Promise<BillingAccount | null> {
       const { data, error } = await admin
         .from("billing_accounts")
-        .select("state, paid_plan_id, paid_through, provider_subscription_id, provider_customer_id")
+        .select("state, paid_plan_id, paid_through, provider_subscription_id, provider_customer_id, provider")
         .eq("org_id", orgId)
         .maybeSingle();
       if (error) throw new Error(`billing_accounts: ${error.message}`);
       if (!data) return null;
       const a = Account.parse(data);
       return {
+        provider: a.provider ?? null,
         state: a.state,
         planId: isPaidPlanId(a.paid_plan_id) ? a.paid_plan_id : null,
         subscriptionId: a.provider_subscription_id,

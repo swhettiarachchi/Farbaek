@@ -61,6 +61,10 @@ const SECTIONS: LegalSection[] = [
             <>To keep Farbaek safe and fair: security logs, rate limits, one trial per address. That&apos;s our legitimate interest, and yours.</>,
             <>To send emails about your own work and your trial. You can turn both off in Settings, under Email.</>,
             <>To keep tax and payment records for paid plans, because the law requires it. Dodo Payments keeps your payment details; Farbaek never sees your card.</>,
+            <>
+              When you subscribe in Farbaek for iPhone, Apple handles the payment. Apple sends us the purchase&apos;s product, dates and the workspace it&apos;s for, signed by Apple,
+              never your payment details.
+            </>,
           ]}
         />
         <p>We don&apos;t sell your personal data, share it for advertising, or use it to train AI models. We don&apos;t make decisions about you that are based only on automated processing and have legal or similarly significant effects.</p>

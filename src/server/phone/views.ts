@@ -67,8 +67,18 @@ function projectItem(p: Project) {
   return { id: p.id, name: p.name, description: p.description, createdAt: p.createdAt, archived: p.archivedAt !== null };
 }
 
+/**
+ * Who bills the open workspace (ADR 0112): "web" (Dodo), "apple" (the App Store) or null while it
+ * has no paid plan; whether its plan is live; and whether App Store purchases are open on this server.
+ */
+export interface BillingFacts {
+  managedBy: "web" | "apple" | null;
+  live: boolean;
+  applePurchases: boolean;
+}
+
 /** Who's signed in, the workspaces they can open, and what this phone can do. */
-export function meView(ctx: AppContext, phone: { push: { available: boolean; on: boolean } }) {
+export function meView(ctx: AppContext, phone: { push: { available: boolean; on: boolean }; billing?: BillingFacts | null }) {
   return {
     sample: ctx.mode === "demo",
     user: { id: ctx.user.id, email: ctx.user.email },
@@ -83,6 +93,9 @@ export function meView(ctx: AppContext, phone: { push: { available: boolean; on:
     role: ctx.role,
     writes: ctx.writes.enabled ? { enabled: true as const, reason: null } : { enabled: false as const, reason: ctx.writes.reason },
     push: phone.push,
+    billing: phone.billing
+      ? { ...phone.billing, canManage: ctx.role !== null && MANAGER_ROLES.includes(ctx.role), accountToken: ctx.current?.id ?? null }
+      : null,
   };
 }
 

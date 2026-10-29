@@ -27,6 +27,7 @@ export type BillingErrorCode =
   | "PRICE_MISMATCH"
   | "SAME_PLAN"
   | "YEARLY_SWITCH"
+  | "MANAGED_BY_APPLE"
   | "PROVIDER"
   | "UNKNOWN";
 
@@ -54,6 +55,7 @@ export const BILLING_MESSAGES: Record<Exclude<BillingErrorCode, "PROVIDER">, str
   PRICE_MISMATCH: "This plan's price at Dodo Payments doesn't match Farbaek's price list, so checkout is paused. Nothing was charged.",
   SAME_PLAN: "That's already your plan.",
   YEARLY_SWITCH: `Dodo Payments couldn't move this yearly plan to a monthly one, and nothing was charged. Write to ${LEGAL.support} and we'll switch it for you.`,
+  MANAGED_BY_APPLE: "This workspace's plan is billed through the App Store, so it's changed or cancelled on the iPhone: Settings, your name, Subscriptions. Nothing was charged here.",
   UNKNOWN: "That didn't work. Nothing was charged. Try again in a moment.",
 };
 
@@ -78,6 +80,8 @@ export interface BillingAccount {
   subscriptionId: string | null;
   customerId: string | null;
   paidThrough: Date | null;
+  /** Who bills the plan (ADR 0112): Dodo on the web, or Apple through the iPhone app. */
+  provider?: "dodo" | "apple" | null;
 }
 
 export interface BillingDeps {
@@ -113,6 +117,8 @@ function gate(deps: BillingDeps | null, ws: BillingWorkspace, actor: BillingActo
 async function subscribed(deps: BillingDeps, orgId: string): Promise<BillingResult<BillingAccount & { subscriptionId: string; planId: PaidPlanId }>> {
   const account = await deps.account(orgId);
   if (!account || !account.subscriptionId || !account.planId || !LIVE_STATES.has(account.state)) return fail("NOT_SUBSCRIBED");
+  // Apple bills it: changing or cancelling happens in the App Store, never through Dodo.
+  if (account.provider === "apple") return fail("MANAGED_BY_APPLE");
   return { ok: true, value: { ...account, subscriptionId: account.subscriptionId, planId: account.planId } };
 }
 
@@ -135,7 +141,7 @@ export async function startCheckout(deps: BillingDeps | null, ws: BillingWorkspa
   if (!consented) return fail("CONSENT_REQUIRED");
   if (!actor.email) return fail("NO_EMAIL");
   const account = await d.account(ws.id);
-  if (account && account.subscriptionId && LIVE_STATES.has(account.state)) return fail("ALREADY_SUBSCRIBED");
+  if (account && account.subscriptionId && LIVE_STATES.has(account.state)) return fail(account.provider === "apple" ? "MANAGED_BY_APPLE" : "ALREADY_SUBSCRIBED");
   const plan = getPlan(planId);
   if (plan.pricing.kind !== "paid") return fail("INVALID_PLAN");
   const product = await d.productFor(planId);
@@ -168,6 +174,7 @@ export async function openPortal(deps: BillingDeps | null, ws: BillingWorkspace,
   const g = gate(deps, ws, actor);
   if (!g.ok) return g;
   const account = await g.value.account(ws.id);
+  if (account?.provider === "apple") return fail("MANAGED_BY_APPLE");
   if (!account?.customerId) return fail("NOT_SUBSCRIBED");
   const r = await g.value.provider.createPortalSession(account.customerId, `${g.value.config.siteUrl}/app/billing`);
   return r.ok ? { ok: true, value: r.value } : providerFail(r.code);

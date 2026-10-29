@@ -82,12 +82,44 @@ The app is in `ios/` and its decision is ADR 0110. GitHub's Mac builds and tests
 2. Fill in **App Privacy**, then **Data types**, each "Used for App Functionality", "Linked to you", and not used for tracking:
    - Contact Info: Email Address;
    - User Content: Other User Content;
-   - Identifiers: Device ID (the notification token).
+   - Identifiers: User ID (the Farbaek account) and Device ID (the notification token);
+   - Purchases: Purchase History (the plan bought in the app, ADR 0112).
 3. Fill in **App Review Information**:
    - untick **Sign-in required**;
-   - **Notes:** "Tap Look around with sample data on the first screen to see every screen with sample data. Signing in uses a one-time email link from www.farbaek.com in the system browser sheet. The app has no purchases."
+   - **Notes:** "Tap Look around with sample data on the first screen to see every screen with sample data. Signing in uses a one-time email link from www.farbaek.com in the system browser sheet. Plans can be bought with In-App Purchase in You, Choose a plan; a sandbox purchase applies to the signed-in workspace."
 4. Leave **Pricing and Availability**, then **iPhone and iPad Apps on Apple Silicon Macs** switched on: Macs with Apple silicon get the same app from the Mac App Store.
 5. Choose **Add for Review**, then **Submit**.
+
+## 8. Selling plans in the app (ADR 0112)
+
+Buying in the app is one tap with Face ID, in every country. Do these in order; until the last one, the app doesn't offer plans.
+
+1. **Paid Apps Agreement.** In App Store Connect, go to **Business**, then **Paid Apps Agreement**. Add your bank account, the tax forms (W-8BEN, as a non-US individual) and contacts, then accept it.
+2. **Small Business Program.** Go to developer.apple.com/app-store/small-business-program and choose **Enroll**. It's free, and Apple keeps 15% instead of 30%. The iPhone prices are set for 15%.
+3. **The plans.** In App Store Connect, open **Farbaek**, then **Subscriptions**, then **+**. Make a group named `Farbaek plans` and add five subscriptions, each with duration **1 month**:
+
+   | Reference name | Product ID | US price |
+   | --- | --- | --- |
+   | Lite | `com.farbaek.app.lite.monthly` | $0.99 |
+   | Maker | `com.farbaek.app.maker.monthly` | $1.99 |
+   | Starter | `com.farbaek.app.starter.monthly` | $10.49 |
+   | Plus | `com.farbaek.app.plus.monthly` | $20.99 |
+   | Pro | `com.farbaek.app.pro.monthly` | $53.99 |
+
+   Each needs:
+   - a **display name** (the plan's name);
+   - a **description**, for example "More AI usage and sandbox time each month.";
+   - a **review screenshot** (the You tab from the build's screenshots).
+
+   Order them in the group from Pro (level 1) down to Lite.
+4. **Notifications from Apple.** In **App Information**, under **App Store Server Notifications**, set both URLs to `https://www.farbaek.com/api/webhooks/apple` with **Version 2**.
+5. **Turn it on.** Ask Claude, or run:
+
+   ```bash
+   ssh -i "$HOME\.ssh\farbaek_vps" farbaek@2.25.88.188 "echo APPLE_IAP=on | farbaek-set-env && farbaek-deploy --again"
+   ```
+
+6. Submit the five subscriptions with the next app version.
 
 ## What's already done
 

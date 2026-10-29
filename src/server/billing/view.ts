@@ -27,6 +27,8 @@ export interface BillingView {
     paidThrough: string | null;
     suspendedReason: "payment" | "paused" | null;
     hasCustomer: boolean;
+    /** Who bills it (ADR 0112): Apple's are changed or cancelled on the iPhone, never here. */
+    provider: "dodo" | "apple";
   } | null;
   /** A checkout started in the last 24 hours and not yet confirmed. */
   openCheckout: { planId: PaidPlanId; startedAt: string } | null;
@@ -44,6 +46,7 @@ const Account = z.object({
   provider_subscription_id: z.string().nullable(),
   provider_customer_id: z.string().nullable(),
   topup_cap_cents: z.number().int().nullable().optional(),
+  provider: z.enum(["dodo", "apple"]).nullable().optional(),
 });
 
 export async function loadBillingView(orgId: string, demo: boolean): Promise<BillingView> {
@@ -52,7 +55,7 @@ export async function loadBillingView(orgId: string, demo: boolean): Promise<Bil
   if (demo || !admin || !checkoutOpenFor(config, orgId)) return CLOSED;
 
   const [account, checkout] = await Promise.all([
-    admin.from("billing_accounts").select("state, paid_plan_id, paid_through, suspended_reason, provider_subscription_id, provider_customer_id, topup_cap_cents").eq("org_id", orgId).maybeSingle(),
+    admin.from("billing_accounts").select("state, paid_plan_id, paid_through, suspended_reason, provider_subscription_id, provider_customer_id, topup_cap_cents, provider").eq("org_id", orgId).maybeSingle(),
     admin
       .from("billing_checkouts")
       .select("plan_id, created_at")
@@ -76,6 +79,7 @@ export async function loadBillingView(orgId: string, demo: boolean): Promise<Bil
           paidThrough: a.data.paid_through,
           suspendedReason: a.data.suspended_reason,
           hasCustomer: Boolean(a.data.provider_customer_id),
+          provider: a.data.provider === "apple" ? ("apple" as const) : ("dodo" as const),
         }
       : null;
   const c = checkout.data as { plan_id?: unknown; created_at?: unknown } | null;

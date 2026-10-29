@@ -23,6 +23,7 @@
     "push": {
       "available": false,
       "on": false
-    }
+    },
+    "billing": null
   }
 }

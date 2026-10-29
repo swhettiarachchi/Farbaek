@@ -216,9 +216,9 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                   <li>{p.limits.seats === 1 ? "1 seat" : `${p.limits.seats} seats`}</li>
                 </ul>
                 <div className="mt-auto grid gap-2 pt-5">
-                  <PlanAction planId={p.id} isCurrent={isCurrent && !onYearly} open={billing.open} canManage={canManage} currentPaid={sub?.planId ?? null} cancelling={sub?.state === "cancellation_scheduled"} />
+                  <PlanAction planId={p.id} isCurrent={isCurrent && !onYearly} open={billing.open} canManage={canManage} currentPaid={sub?.planId ?? null} cancelling={sub?.state === "cancellation_scheduled"} appleBilled={sub?.provider === "apple"} />
                   {yearlyId && billing.open && canManage ? (
-                    <PlanAction planId={yearlyId} isCurrent={onYearly} open={billing.open} canManage={canManage} currentPaid={sub?.planId ?? null} cancelling={sub?.state === "cancellation_scheduled"} />
+                    <PlanAction planId={yearlyId} isCurrent={onYearly} open={billing.open} canManage={canManage} currentPaid={sub?.planId ?? null} cancelling={sub?.state === "cancellation_scheduled"} appleBilled={sub?.provider === "apple"} />
                   ) : null}
                 </div>
               </li>
@@ -236,8 +236,10 @@ function Unavailable({ children }: { children: string }) {
 }
 
 /** What a plan card offers: a real next step when payments are open to this workspace, otherwise the honest reason there isn't one. */
-function PlanAction({ planId, isCurrent, open, canManage, currentPaid, cancelling }: { planId: string; isCurrent: boolean; open: boolean; canManage: boolean; currentPaid: string | null; cancelling: boolean }) {
+function PlanAction({ planId, isCurrent, open, canManage, currentPaid, cancelling, appleBilled = false }: { planId: string; isCurrent: boolean; open: boolean; canManage: boolean; currentPaid: string | null; cancelling: boolean; appleBilled?: boolean }) {
   if (isCurrent) return <Unavailable>Your current plan</Unavailable>;
+  // Billed through the App Store (ADR 0112): plans change in the iPhone's Subscriptions, never here.
+  if (appleBilled) return <Unavailable>Change it on the iPhone, in Subscriptions</Unavailable>;
   if (planId === "free") return <Unavailable>{currentPaid ? "Cancel a plan to move to Free" : "Available after the trial"}</Unavailable>;
   if (!open) return <Unavailable>Unavailable until payments open</Unavailable>;
   if (!canManage) return <Unavailable>Owners and admins choose plans</Unavailable>;
