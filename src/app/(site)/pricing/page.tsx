@@ -2,14 +2,14 @@ import { ArrowsClockwiseIcon, InfoIcon, ShieldCheckIcon, SparkleIcon, WalletIcon
 import type { Metadata } from "next";
 import { FaqList, type FaqItem } from "@/components/marketing/faq";
 import { ComparisonTable } from "@/components/pricing/comparison-table";
-import { PricingPlans, SessionsNote } from "@/components/pricing/pricing-plans";
+import { PricingPlans } from "@/components/pricing/pricing-plans";
 import { Container } from "@/components/ui/container";
 import { CONTACT } from "@/config/contact";
-import { BILLING_CURRENCY, TRIAL, getPlan } from "@/core/billing/catalog";
+import { TRIAL, chargeCents, formatUsd, getPlan } from "@/core/billing/catalog";
 
 export const metadata: Metadata = {
   title: "Pricing",
-  description: "Farbaek plans from $9.99 to $300 a month, with AI, sandboxes and previews included, usage that rolls over, and a 14-day Pro trial with no card.",
+  description: "Farbaek plans from $0.99 to $300 a month, with AI, sandboxes and previews included, usage that rolls over, and a 14-day Pro trial with no card.",
 };
 
 const trialBase = getPlan(TRIAL.basePlan).name;
@@ -48,12 +48,20 @@ const PRICING_FAQ: FaqItem[] = [
     a: `Every eligible new workspace gets ${TRIAL.lengthDays} days of ${trialBase} features, with ${TRIAL.limits.sandboxHours} sandbox hours and AI usage equal to a month of Starter. No card is needed. At the end you move to Free automatically, and nothing is charged.`,
   },
   {
-    q: "Is there an annual price?",
-    a: "Not yet. Plans are monthly, and you can cancel any month. If an annual price comes, it will be on this page first.",
+    q: "Can I pay yearly or monthly?",
+    a: `Lite and Maker are billed yearly, at ${formatUsd(chargeCents(getPlan("lite")))} and ${formatUsd(chargeCents(getPlan("maker")))} a year, and we email you about 30 days before each renewal. You can pay them monthly instead, with less AI usage. Every other plan is billed monthly.`,
   },
   {
-    q: "What about refunds?",
-    a: "Refund terms will be published before payments open.",
+    q: "What currency are prices in, and is tax included?",
+    a: "Prices are in US dollars, without tax. Tax is added at checkout based on where you are. You can also pay in your own currency, for Dodo Payments' conversion fee of up to 4%; you see the exact amount before you pay.",
+  },
+  {
+    q: "Can I cancel, and what about refunds?",
+    a: `Cancel any time in Billing. Your plan keeps working to the end of the period you paid for, then the workspace moves to Free. Payments aren't refunded for part of a period once it has started, except where the law requires a refund. If something went wrong on Farbaek's side, write to ${CONTACT.support} and we'll put it right.`,
+  },
+  {
+    q: "Is there a plan for larger teams?",
+    a: `Enterprise: committed usage at a custom rate, with governance and evidence exports. Write to ${CONTACT.hello}.`,
   },
 ];
 
@@ -98,16 +106,6 @@ export default function PricingPage() {
             <PricingPlans />
           </div>
 
-          <div className="mt-8 grid gap-6 border-t border-line pt-6 md:grid-cols-[1.4fr_1fr]">
-            <SessionsNote />
-            <p className="text-sm text-ink-2 md:text-right">
-              <span className="font-medium text-ink">Enterprise:</span> committed usage at a custom rate, with governance and evidence exports. Write to{" "}
-              <a href={`mailto:${CONTACT.hello}`} className="font-medium text-accent hover:underline">
-                {CONTACT.hello}
-              </a>
-              . Prices in {BILLING_CURRENCY}; tax is added at checkout, and you can pay in your own currency for a conversion fee of up to 4%.
-            </p>
-          </div>
         </Container>
       </section>
 

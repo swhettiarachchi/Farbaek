@@ -1,4 +1,4 @@
-import { CheckIcon, ClockCounterClockwiseIcon, InfoIcon } from "@phosphor-icons/react/ssr";
+import { CheckIcon, ClockCounterClockwiseIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { FEATURE_LABELS, FEATURE_STATUS, SELF_SERVE_PLANS, getPlan, monthlyVersionOf, planSessionsGuide, priceWords, type FeatureKey, type Plan } from "@/core/billing/catalog";
 import { buttonClasses } from "@/components/ui/button";
@@ -122,12 +122,3 @@ export function PricingPlans() {
   );
 }
 
-/** Small print under the cards: what "agent session" means. */
-export function SessionsNote() {
-  return (
-    <p className="flex items-start gap-2 text-sm text-ink-2">
-      <InfoIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
-      An agent session is a typical stretch of work on Claude Sonnet: reading the project, writing code and checking it. Real sessions vary with the task. Fast models stretch your usage further, and stronger models use it faster.
-    </p>
-  );
-}

@@ -101,6 +101,16 @@ The owner asked for $0.99 and $1.99 plans with the 57% margin kept. Dodo's 40-ce
 - On this build: 0 at 320 to 1440px.
 - The full audit beforehand: 210 page views with no sideways scroll, cut-off content, small targets or errors.
 
+### Pricing small print into the FAQ (the owner's request, 2026-10-29)
+
+- The notes under the plan cards (what an agent session is, Enterprise, currency and tax) are gone.
+- The FAQ already explained agent sessions, and gains three answers: yearly or monthly, currency and tax, and larger teams.
+- Two stale answers were replaced:
+  - "Refund terms will be published before payments open" now says what the Terms say;
+  - "Is there an annual price? Not yet" became "Can I pay yearly or monthly?".
+- The page description now starts at $0.99.
+- The responsive audit of `/pricing` at 11 widths is clean.
+
 ### Not verified yet
 
 - **A real yearly-to-monthly change at Dodo:** the preview runs first and nobody is charged if Dodo refuses.
