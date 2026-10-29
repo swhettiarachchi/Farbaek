@@ -7,6 +7,7 @@ Live payments charge real money. They start only after the three steps below. Th
 1. **The API key.** Choose **Developer → API Keys → Add API Key**:
    - name: "Farbaek server (live)";
    - IP Allowlist: `2.25.88.188/32`;
+   - **Read** on Payments (top-ups check each payment with Dodo before adding usage);
    - **Write** on Subscriptions, Products, Customers and Checkout Sessions, and **None** on the rest;
    - click **Create Key** and keep the page open.
 2. **The webhook.** Claude adds it in test mode the same way. In Live Mode, check that **Developer → Webhooks** has `https://www.farbaek.com/api/webhooks/dodo`, with every `subscription.*` event plus `payment.succeeded` and `payment.failed`. Open it and keep its **Signing Secret** ready.
