@@ -1,4 +1,4 @@
-import { ArrowsLeftRightIcon, CaretRightIcon, CircleDashedIcon, DeviceMobileIcon, FingerprintIcon, RobotIcon, RocketLaunchIcon } from "@phosphor-icons/react/ssr";
+import { ArrowsLeftRightIcon, CaretRightIcon, DeviceMobileIcon, FingerprintIcon, FlaskIcon, RobotIcon, RocketLaunchIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { DiffView } from "@/components/code/diff-view";
 import { Container } from "@/components/ui/container";
@@ -11,15 +11,15 @@ function Cell({
   body,
   icon: CellIcon,
   className = "",
-  later = false,
+  beta = false,
   children,
 }: {
   title: string;
   body: string;
   icon?: Icon;
   className?: string;
-  /** Not built yet: says so in words and icon, so the tile never reads as a product that exists. */
-  later?: boolean;
+  /** Built and tested, not yet proven on real accounts and devices: says so in words and icon, never by colour alone. */
+  beta?: boolean;
   children?: React.ReactNode;
 }) {
   return (
@@ -33,9 +33,9 @@ function Cell({
       ) : null}
       <h3 className={`flex flex-wrap items-center gap-2 text-[17px] font-medium tracking-[-0.01em] ${CellIcon ? "mt-4" : ""}`}>
         {title}
-        {later ? (
+        {beta ? (
           <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-line-strong/50 px-2 py-0.5 text-xs font-normal text-ink-3">
-            <CircleDashedIcon size={12} aria-hidden /> Later
+            <FlaskIcon size={12} aria-hidden /> Beta
           </span>
         ) : null}
       </h3>
@@ -111,9 +111,27 @@ export function ModulesBento() {
           </Cell>
 
           <Cell title="Core" body="Identity, organizations, projects, tasks and entitlements." icon={FingerprintIcon} className="bg-surface" />
-          <Cell title="Mesh" body="Local-first transfer of Workspace Capsules between your own devices." icon={ArrowsLeftRightIcon} className="bg-surface" later />
-          <Cell title="LaunchOS" body="Deploys with a cost preview, explicit authorization and real health checks." icon={RocketLaunchIcon} className="bg-surface" later />
-          <Cell title="Mobile" body="Review, approve and hand work to your desktop from your phone." icon={DeviceMobileIcon} className="bg-surface" later />
+          <Cell
+            title="Mesh"
+            body="Send projects between your own devices: nearby, directly over the internet, or through Farbaek's relay, encrypted end to end and checked byte for byte."
+            icon={ArrowsLeftRightIcon}
+            className="bg-surface"
+            beta
+          />
+          <Cell
+            title="LaunchOS"
+            body="Launch to your own Vercel or Netlify account, with what goes named first, your typed confirmation, and live checks after."
+            icon={RocketLaunchIcon}
+            className="bg-surface"
+            beta
+          />
+          <Cell
+            title="Mobile"
+            body="Install Farbaek on your phone: approve work, get told when builds finish, and send files to your computer."
+            icon={DeviceMobileIcon}
+            className="bg-surface"
+            beta
+          />
         </ul>
       </Container>
     </section>

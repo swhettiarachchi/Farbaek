@@ -60,7 +60,7 @@ const SECTIONS: LegalSection[] = [
             <>To provide Farbaek: your account, your workspaces, the AI work you ask for, checks, publishing and support. That&apos;s needed for our agreement with you.</>,
             <>To keep Farbaek safe and fair: security logs, rate limits, one trial per address. That&apos;s our legitimate interest, and yours.</>,
             <>To send emails about your own work and your trial. You can turn both off in Settings, under Email.</>,
-            <>To keep tax and payment records once payments start, because the law requires it.</>,
+            <>To keep tax and payment records for paid plans, because the law requires it. Dodo Payments keeps your payment details; Farbaek never sees your card.</>,
           ]}
         />
         <p>We don&apos;t sell your personal data, share it for advertising, or use it to train AI models. We don&apos;t make decisions about you that are based only on automated processing and have legal or similarly significant effects.</p>
