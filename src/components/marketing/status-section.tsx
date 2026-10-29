@@ -49,6 +49,7 @@ const GROUPS: Group[] = [
       "Farbaek installed on your phone, with notifications",
       "Previews of running apps in isolated sandboxes",
       "Your own domain for a published site",
+      "Image generation from a description, and your own images in projects",
     ],
   },
   {
@@ -56,7 +57,7 @@ const GROUPS: Group[] = [
     note: "Planned next, in no fixed order.",
     icon: HourglassMediumIcon,
     iconClass: "text-unverified",
-    items: ["Image generation", "The Android app on Google Play", "An iPhone app (Farbaek installs from Safari today)", "Launches from a repository (Render, Railway, Fly.io)"],
+    items: ["The Android app on Google Play", "An iPhone app (Farbaek installs from Safari today)", "Launches from a repository (Render, Railway, Fly.io)"],
   },
 ];
 

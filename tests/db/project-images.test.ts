@@ -79,3 +79,12 @@ describe("images in projects (v68)", () => {
     await expect(as(db, "anon", null, () => db.query("select public.app_save_binary_file($1, $2, 'assets/x.png', $3, 0, 10, 10, 10)", [project, USERS.alice, PNG]))).rejects.toThrow(/permission denied/);
   });
 });
+
+describe("image generation in the usage ledger (v69, ADR 0109)", () => {
+  it("accepts image_generation as an operation, and still refuses unknown ones", async () => {
+    const grant = JSON.stringify({ kind: "free", units: 10_000, starts_at: new Date(Date.now() - 86_400_000).toISOString(), expires_at: new Date(Date.now() + 30 * 86_400_000).toISOString(), source_key: "free:2026-10" });
+    const id = await asService(async () => (await db.query<{ id: string }>("select public.app_reserve_usage($1, $2, 'img-1', 'image_generation', null, 400, $3) as id", [org, USERS.alice, grant])).rows[0]!.id);
+    expect(id).toMatch(/^[0-9a-f-]{36}$/);
+    await expect(asService(() => db.query("select public.app_reserve_usage($1, $2, 'img-2', 'video_generation', null, 400, $3)", [org, USERS.alice, grant]))).rejects.toThrow();
+  });
+});
