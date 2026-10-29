@@ -19,6 +19,7 @@ import { Container } from "@/components/ui/container";
 import { CAPABILITIES, CAPABILITY_STATUS_LABEL, type CapabilityStatus } from "@/content/showcase";
 import { siteDomain } from "@/server/publish/config";
 import { previewUnavailableReason, readSandboxConfig } from "@/server/sandbox/config";
+import { imageGeneration } from "@/server/ai/image-config";
 import { SectionHeading } from "@/components/marketing/section-heading";
 import { Showroom } from "./showroom";
 
@@ -44,11 +45,19 @@ const STATUS: Record<CapabilityStatus, { icon: Icon; className: string; pattern:
 /**
  * "What you can build": the homepage showroom of concept mockups (ADR 0031),
  * and what Farbaek does around the design. Statuses that depend on this
- * deployment (publishing, app previews) are read from its configuration.
+ * deployment (publishing, app previews, image generation) are read from its configuration.
  */
 export function ShowcaseSection() {
   const status = (s: (typeof CAPABILITIES)[number]["status"]): CapabilityStatus =>
-    s === "site-domain" ? (siteDomain() ? "working" : "turning-on") : s === "app-previews" ? (previewUnavailableReason(readSandboxConfig()) ? "turning-on" : "working") : s;
+    s === "site-domain" ? (siteDomain() ? "working" : "turning-on") : s === "app-previews"
+        ? previewUnavailableReason(readSandboxConfig())
+          ? "turning-on"
+          : "working"
+        : s === "image-generation"
+          ? imageGeneration().generator
+            ? "working"
+            : "turning-on"
+          : s;
 
   return (
     <section id="showcase" aria-labelledby="showcase-title" className="overflow-x-clip py-20 lg:py-28">
