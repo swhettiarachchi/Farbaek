@@ -1,24 +1,35 @@
-import { CheckCircleIcon, CircleDashedIcon, HandWavingIcon, ProhibitIcon, StopCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, CircleDashedIcon, HandWavingIcon, ProhibitIcon, StopCircleIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Card, PageHeader } from "@/components/app/primitives";
+import { AdminTable, Cell } from "@/components/admin/table";
+import { Card, Notice, PageHeader } from "@/components/app/primitives";
 import { KpiTile, Sparkline } from "@/components/office/kpi";
 import { deploymentConnections, loadOverview } from "@/server/admin/data";
 import { usd } from "@/server/admin/summaries";
 import { requireStaff } from "@/server/office/access";
 import { loadOfficeMetrics } from "@/server/office/metrics";
+import { loadRevenue } from "@/server/office/revenue-data";
+import { paymentsLiveSince, refreshPlatformState } from "@/server/platform/state";
+import { ECONOMICS } from "@/core/billing/allowance";
 
 export const metadata: Metadata = { title: "Overview" };
 
 const number = new Intl.NumberFormat("en-US");
 const monthName = (iso: string) => new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", timeZone: "UTC" }).format(new Date(iso));
 
-/** Money that needs payments connected. Shown as unavailable, never as zero (billing stays not_connected until go-live). */
-const BILLING_TILES = ["Monthly recurring revenue", "Trial to paid", "Churn", "Gross margin"] as const;
+/** Shown as unavailable, never as zero, while live payments are off (ADR 0104). */
+const BILLING_TILES = ["Monthly recurring revenue", "Top-ups this month", "Trial to paid", "Margin this month"] as const;
+
+const dollars = (cents: number) => usd(cents / 100);
+const percent = (share: number) => `${Math.round(share * 100)}%`;
 
 export default async function OfficeOverview({ searchParams }: { searchParams: Promise<{ welcome?: string }> }) {
   const staff = await requireStaff();
-  const [o, m, { welcome }] = await Promise.all([loadOverview(staff.admin), loadOfficeMetrics(staff.admin), searchParams]);
+  const [o, m, { welcome }] = await Promise.all([loadOverview(staff.admin), loadOfficeMetrics(staff.admin), searchParams, refreshPlatformState(true)]);
+  // Revenue sets this month's money against this month's AI list cost (ADR 0106).
+  const revenue = await loadRevenue(staff.admin, o.aiCost.usd);
+  const liveSince = paymentsLiveSince();
+  const target = ECONOMICS.margin;
   const connections = deploymentConnections();
   const aiWeek = m.aiUsdByDay.slice(-7).reduce((a, b) => a + b, 0);
   const trialsTotal = m.trials.active + m.trials.ended;
@@ -165,20 +176,97 @@ export default async function OfficeOverview({ searchParams }: { searchParams: P
       </section>
 
       <section aria-labelledby="billing-title" className="grid gap-3">
-        <h2 id="billing-title" className="text-lg font-medium">
-          Revenue
-        </h2>
-        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {BILLING_TILES.map((label) => (
-            <li key={label} className="rounded-md border border-dashed border-line-strong/40 bg-surface px-5 py-4">
-              <p className="text-sm text-ink-2">{label}</p>
-              <p className="mt-2 flex items-center gap-1.5 text-sm font-medium text-ink-3">
-                <CircleDashedIcon size={16} aria-hidden /> Billing not connected
-              </p>
-            </li>
-          ))}
-        </ul>
-        <p className="text-xs text-ink-3">These appear once payments go live and real payments exist. Until then there&apos;s nothing honest to show.</p>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <h2 id="billing-title" className="text-lg font-medium">
+            Revenue
+          </h2>
+          <Link href="/payments" className="inline-flex min-h-11 items-center text-sm text-accent underline-offset-4 hover:underline">
+            Payments and webhooks
+          </Link>
+        </div>
+        {!liveSince && (!revenue || revenue.payingWorkspaces === 0) ? (
+          <>
+            <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {BILLING_TILES.map((label) => (
+                <li key={label} className="rounded-md border border-dashed border-line-strong/40 bg-surface px-5 py-4">
+                  <p className="text-sm text-ink-2">{label}</p>
+                  <p className="mt-2 flex items-center gap-1.5 text-sm font-medium text-ink-3">
+                    <CircleDashedIcon size={16} aria-hidden /> Live payments are off
+                  </p>
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs text-ink-3">These appear once an owner turns live payments on in Payments. Test-mode payments are never counted.</p>
+          </>
+        ) : !revenue ? (
+          <Notice tone="warning">The billing records couldn&apos;t be read just now, so no figure is shown. Reload to try again.</Notice>
+        ) : (
+          <>
+            <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <li>
+                <KpiTile
+                  label="Monthly recurring revenue"
+                  value={dollars(revenue.mrrCents)}
+                  detail={`${number.format(revenue.payingWorkspaces)} paying ${revenue.payingWorkspaces === 1 ? "workspace" : "workspaces"}, at list price before tax. A yearly plan counts a twelfth.`}
+                  className="h-full"
+                />
+              </li>
+              <li>
+                <KpiTile
+                  label="Top-ups this month"
+                  value={dollars(revenue.topupsCents)}
+                  detail={`${number.format(revenue.topupsCount)} paid since ${monthName(o.aiCost.since)}.`}
+                  className="h-full"
+                />
+              </li>
+              <li>
+                <KpiTile
+                  label="Trial to paid"
+                  value={revenue.trials.ended > 0 ? `${revenue.trials.converted} of ${revenue.trials.ended}` : "None yet"}
+                  detail="Trials that ended in the last 90 days, and how many of those workspaces pay now."
+                  className="h-full"
+                />
+              </li>
+              <li>
+                <KpiTile
+                  label="Margin this month, estimated"
+                  value={revenue.margin ? percent(revenue.margin.share) : "No revenue yet"}
+                  trend={
+                    revenue.margin ? (
+                      revenue.margin.share >= target ? (
+                        <CheckCircleIcon size={22} weight="fill" className="text-verified" aria-label={`At or above the ${percent(target)} target`} />
+                      ) : (
+                        <WarningCircleIcon size={22} weight="fill" className="text-approval" aria-label={`Below the ${percent(target)} target`} />
+                      )
+                    ) : null
+                  }
+                  detail={
+                    revenue.margin
+                      ? `${revenue.margin.share >= target ? "At or above" : "Below"} the ${percent(target)} target. ${dollars(revenue.margin.revenueCents)} in, less ${dollars(revenue.margin.feesCents)} of Dodo's worst-case fees and ${dollars(revenue.margin.aiCents)} of AI list cost, free and trial users included. Before fixed costs.`
+                      : "Shown once a live plan or top-up is paid for."
+                  }
+                  className="h-full"
+                />
+              </li>
+            </ul>
+            {revenue.byPlan.length > 0 ? (
+              <AdminTable caption="Paying workspaces by plan" columns={["Plan", "Workspaces", "A month, at list price"]}>
+                {revenue.byPlan.map((p) => (
+                  <tr key={p.planId} className="border-b border-line last:border-0">
+                    <Cell>{p.name}</Cell>
+                    <Cell mono>{number.format(p.workspaces)}</Cell>
+                    <Cell mono>{dollars(p.monthlyCents)}</Cell>
+                  </tr>
+                ))}
+              </AdminTable>
+            ) : null}
+            <p className="text-xs leading-relaxed text-ink-3">
+              Estimates from Farbaek&apos;s own records: live plans and top-ups only. Dodo Payments adds tax and converts currencies, so its payouts are the exact figures.
+              {revenue.cancellationsScheduled > 0 ? ` ${number.format(revenue.cancellationsScheduled)} set to cancel at the end of their period.` : ""}
+              {revenue.pastDue > 0 ? ` ${number.format(revenue.pastDue)} with a payment overdue.` : ""}
+            </p>
+          </>
+        )}
       </section>
 
       <Card>

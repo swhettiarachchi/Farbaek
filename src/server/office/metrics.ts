@@ -1,8 +1,8 @@
 /**
  * The owner's numbers for the Office Space overview (migration v22), read in
  * one call on the server. AI cost is list cost, an estimate until it's
- * reconciled with the providers' invoices; revenue isn't here at all while
- * billing is not connected.
+ * reconciled with the providers' invoices. Revenue is read separately
+ * (revenue-data.ts, ADR 0106).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
