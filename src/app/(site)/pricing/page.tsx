@@ -49,7 +49,7 @@ const PRICING_FAQ: FaqItem[] = [
   },
   {
     q: "Can I pay yearly or monthly?",
-    a: `Lite and Maker are billed yearly, at ${formatUsd(chargeCents(getPlan("lite")))} and ${formatUsd(chargeCents(getPlan("maker")))} a year, and we email you about 30 days before each renewal. You can pay them monthly instead, with less AI usage. Every other plan is billed monthly.`,
+    a: `Every plan is billed monthly. Lite and Maker can also be paid yearly, at ${formatUsd(chargeCents(getPlan("lite")))} and ${formatUsd(chargeCents(getPlan("maker")))} a year, with more AI usage; we email you about 30 days before each yearly renewal.`,
   },
   {
     q: "What currency are prices in, and is tax included?",
@@ -96,8 +96,8 @@ export default function PricingPage() {
 
           <p className="mt-6 flex items-start gap-2.5 rounded-sm border border-info/30 bg-info/[0.06] px-4 py-3 text-sm text-ink">
             <InfoIcon size={18} weight="bold" className="mt-px shrink-0 text-info" aria-hidden />
-            Lite and Maker are charged once a year, or monthly with less AI usage if you prefer; we email you before each yearly renewal. Every other plan is charged monthly.
-            Cancel any time in Billing, and your plan runs to the end of the period you paid for.
+            Every plan is charged monthly. Lite and Maker can also be paid yearly, with more AI usage, and we email you before each yearly renewal. Cancel any time in
+            Billing, and your plan runs to the end of the period you paid for.
           </p>
 
           <div className="mt-10">

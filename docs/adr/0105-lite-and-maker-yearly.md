@@ -89,6 +89,17 @@ The owner then asked that people may pay Lite and Maker monthly as well: "if use
 - top-ups for both monthly plans use Starter's rate;
 - the renewal reminder stays yearly only.
 
+## Amendment (2026-10-29): monthly first
+
+The owner asked that Lite and Maker be shown as monthly plans: low-cost plans where people try Farbaek, then upgrade.
+
+**Plan ids and products are unchanged.** `lite_monthly` and `maker_monthly` are now the plans on the cards, named "Lite" and "Maker". `lite` and `maker` are their yearly versions, "Lite yearly" and "Maker yearly", offered as "Pay yearly instead" with how much more AI usage they include (about 51% and 61%).
+
+**Elsewhere:**
+- Upgrade hints and the comparison's defaults point at the monthly plans.
+- Billing shows "Current, yearly" for a yearly subscriber.
+- The renewal reminder, top-ups and margins are as above.
+
 ## Consequences
 
 - The pricing page's first row is Free, Lite, Maker and Starter. The cards' buttons now go to sign-in, and on to Billing for a paid plan, replacing "Sign-up opens at launch".

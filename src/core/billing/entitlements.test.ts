@@ -32,7 +32,7 @@ describe("checkFeature", () => {
 describe("checkQuota", () => {
   it("allows usage up to the limit and refuses the unit beyond it", () => {
     expect(checkQuota(free, "evaluations", { used: 999 })).toEqual({ allowed: true });
-    expect(checkQuota(free, "evaluations", { used: 1_000 })).toMatchObject({ allowed: false, code: "QUOTA_EXCEEDED", upgradeTo: "lite" });
+    expect(checkQuota(free, "evaluations", { used: 1_000 })).toMatchObject({ allowed: false, code: "QUOTA_EXCEEDED", upgradeTo: "lite_monthly" });
   });
 
   it("checks multi-unit requests against the remaining allowance", () => {

@@ -1,6 +1,6 @@
 import { CheckIcon, ClockCounterClockwiseIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
-import { FEATURE_LABELS, FEATURE_STATUS, SELF_SERVE_PLANS, getPlan, monthlyVersionOf, planSessionsGuide, priceWords, type FeatureKey, type Plan } from "@/core/billing/catalog";
+import { FEATURE_LABELS, FEATURE_STATUS, SELF_SERVE_PLANS, chargeCents, formatUsd, getPlan, planSessionsGuide, priceWords, yearlyVersionOf, type FeatureKey, type Plan } from "@/core/billing/catalog";
 import { buttonClasses } from "@/components/ui/button";
 
 const number = new Intl.NumberFormat("en-US");
@@ -16,8 +16,8 @@ export function sessionsLine(plan: Plan): string {
   return n < 2 ? "A taste of the agent each month" : `About ${number.format(n)} agent sessions a month`;
 }
 
-/** How much less AI usage the monthly version has than the yearly plan, as a whole percent. */
-const lessUsagePercent = (yearly: Plan, monthly: Plan) => Math.round((1 - (monthly.limits.aiUnitsPerMonth ?? 0) / (yearly.limits.aiUnitsPerMonth ?? 1)) * 100);
+/** How much more AI usage the yearly version has than the monthly plan, as a whole percent. */
+const moreUsagePercent = (monthly: Plan, yearly: Plan) => Math.round(((yearly.limits.aiUnitsPerMonth ?? 0) / (monthly.limits.aiUnitsPerMonth ?? 1) - 1) * 100);
 
 /** Sign in first, then straight to the plan's step in Billing. */
 const choosePath = (id: string) => `/sign-in?next=${encodeURIComponent(`/app/billing?choose=${id}#billing-step`)}`;
@@ -51,8 +51,8 @@ export function PricingPlans() {
         const featured = plan.recommendedFor !== undefined;
         const l = plan.limits;
         const price = priceWords(plan);
-        const monthlyId = monthlyVersionOf(plan.id);
-        const monthly = monthlyId ? getPlan(monthlyId) : null;
+        const yearlyId = yearlyVersionOf(plan.id);
+        const yearly = yearlyId ? getPlan(yearlyId) : null;
         const added = newFeatures(plan, i).filter((f) => f !== "usage_rollover");
         return (
           <li
@@ -103,14 +103,16 @@ export function PricingPlans() {
                 href={plan.pricing.kind === "paid" ? choosePath(plan.id) : "/sign-in"}
                 className={buttonClasses(featured ? "primary" : "secondary", "md", "min-h-11 w-full")}
               >
-                {plan.pricing.kind === "paid" ? `Choose ${plan.name}${monthly ? " yearly" : ""}` : "Start free"}
+                {plan.pricing.kind === "paid" ? `Choose ${plan.name}` : "Start free"}
               </Link>
-              {monthly ? (
+              {yearly ? (
                 <>
-                  <Link href={choosePath(monthly.id)} className={buttonClasses("ghost", "md", "min-h-11 w-full")}>
-                    Pay monthly instead
+                  <Link href={choosePath(yearly.id)} className={buttonClasses("ghost", "md", "min-h-11 w-full")}>
+                    Pay yearly instead
                   </Link>
-                  <p className="text-center text-xs leading-relaxed text-ink-3">Paid monthly: about {lessUsagePercent(plan, monthly)}% less AI usage, everything else the same.</p>
+                  <p className="text-center text-xs leading-relaxed text-ink-3">
+                    Paid yearly ({formatUsd(chargeCents(yearly))} a year): about {moreUsagePercent(plan, yearly)}% more AI usage, everything else the same.
+                  </p>
                 </>
               ) : null}
             </div>

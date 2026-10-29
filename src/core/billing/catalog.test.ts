@@ -1,23 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { ECONOMICS, allowanceFor, costBudgetUsd, sessionsGuide } from "./allowance";
-import { BILLABLE_PLANS, PLANS, PLAN_ORDER, SELF_SERVE_PLANS, TRIAL, YEARLY_PLAN_IDS, chargeCents, chargeLine, cheapestPlanWithFeature, formatUsd, getPlan, isLight, isYearly, monthlyVersionOf, planAllowance, planSessionsGuide, priceWords } from "./catalog";
+import { BILLABLE_PLANS, PLANS, PLAN_ORDER, SELF_SERVE_PLANS, TRIAL, YEARLY_PLAN_IDS, chargeCents, chargeLine, cheapestPlanWithFeature, formatUsd, getPlan, isLight, isYearly, yearlyVersionOf, planAllowance, planSessionsGuide, priceWords } from "./catalog";
 import { isPaidPlanId as isPaidPlan } from "./provider-state";
 import { topupSharePercent, topupUnits } from "./topups";
 import { USD_PER_UNIT, costUsd, sampleSessionUnits } from "./rate-card";
 
 describe("plan catalog", () => {
-  it("has the owner's prices, with Lite and Maker billed yearly", () => {
+  it("has the owner's prices, with Lite and Maker monthly first and also yearly", () => {
     const prices = Object.fromEntries(PLANS.map((p) => [p.id, p.pricing.kind === "paid" ? p.pricing.monthlyCents : p.pricing.kind]));
     expect(prices).toEqual({ free: "free", lite: 99, lite_monthly: 99, maker: 199, maker_monthly: 199, starter: 999, plus: 1_999, pro: 5_000, studio: 7_999, max: 10_000, max_2x: 20_000, max_3x: 30_000, enterprise: "contract" });
     expect(YEARLY_PLAN_IDS).toEqual(["lite", "maker"]);
     expect(PLANS.filter((p) => p.pricing.kind === "paid" && !isYearly(p.id)).every((p) => p.pricing.kind === "paid" && p.pricing.interval === "month")).toBe(true);
     expect([chargeCents(getPlan("lite")), chargeCents(getPlan("maker")), chargeCents(getPlan("starter")), chargeCents(getPlan("free"))]).toEqual([1188, 2388, 999, 0]);
-    expect(priceWords(getPlan("lite"))).toEqual({ price: "$0.99", per: "a month", billed: "Billed $11.88 a year, or monthly" });
+    expect(priceWords(getPlan("lite"))).toEqual({ price: "$0.99", per: "a month", billed: "Billed $11.88 a year" });
     expect(priceWords(getPlan("lite_monthly"))).toEqual({ price: "$0.99", per: "a month", billed: null });
     expect([chargeCents(getPlan("lite_monthly")), chargeLine(getPlan("maker_monthly"))]).toEqual([99, "$1.99 a month"]);
-    expect([monthlyVersionOf("lite"), monthlyVersionOf("maker"), monthlyVersionOf("starter")]).toEqual(["lite_monthly", "maker_monthly", null]);
+    expect([yearlyVersionOf("lite_monthly"), yearlyVersionOf("maker_monthly"), yearlyVersionOf("starter")]).toEqual(["lite", "maker", null]);
+    expect([getPlan("lite_monthly").name, getPlan("lite").name]).toEqual(["Lite", "Lite yearly"]);
     // The cards show Lite and Maker once; Office Space makes a product for every way to pay.
-    expect(SELF_SERVE_PLANS.map((p) => p.id)).not.toContain("lite_monthly");
+    expect(SELF_SERVE_PLANS.map((p) => p.id).slice(0, 4)).toEqual(["free", "lite_monthly", "maker_monthly", "starter"]);
     expect(BILLABLE_PLANS.map((p) => p.id)).toEqual(expect.arrayContaining(["lite", "lite_monthly", "maker", "maker_monthly"]));
     expect(priceWords(getPlan("starter"))).toEqual({ price: "$9.99", per: "a month", billed: null });
     expect([chargeLine(getPlan("maker")), chargeLine(getPlan("pro"))]).toEqual(["$23.88 a year", "$50 a month"]);
@@ -112,8 +113,8 @@ describe("plan catalog", () => {
   });
 
   it("steps every allowance up with the price", () => {
-    // The plans on the cards, in order; the monthly versions are checked against their yearly plans above.
-    const paidPlans = PLAN_ORDER.map(getPlan).filter((p) => !p.monthlyOf);
+    // The plans on the cards, in order; the yearly versions are checked against their monthly plans above.
+    const paidPlans = PLAN_ORDER.map(getPlan).filter((p) => !p.yearlyOf);
     expect(paidPlans.map((p) => p.id)).toEqual(SELF_SERVE_PLANS.map((p) => p.id));
     for (let i = 1; i < paidPlans.length; i++) {
       const lower = paidPlans[i - 1]!.limits;
@@ -135,9 +136,9 @@ describe("plan catalog", () => {
 
   it("points upgrade hints at the cheapest plan with the feature", () => {
     expect(cheapestPlanWithFeature("cloud_agent")).toBe("free");
-    expect(cheapestPlanWithFeature("usage_alerts")).toBe("lite");
-    expect(cheapestPlanWithFeature("usage_rollover")).toBe("lite");
-    expect(cheapestPlanWithFeature("free_retries")).toBe("maker");
+    expect(cheapestPlanWithFeature("usage_alerts")).toBe("lite_monthly");
+    expect(cheapestPlanWithFeature("usage_rollover")).toBe("lite_monthly");
+    expect(cheapestPlanWithFeature("free_retries")).toBe("maker_monthly");
     expect(cheapestPlanWithFeature("security_checks")).toBe("plus");
     expect(cheapestPlanWithFeature("opus_models")).toBe("pro");
     expect(cheapestPlanWithFeature("fable_models")).toBe("max_2x");
