@@ -41,13 +41,18 @@ services:
       GOTRUE_MAILER_TEMPLATES_CONFIRMATION: https://www.farbaek.com/auth-email/confirmation.html
       GOTRUE_MAILER_SUBJECTS_MAGIC_LINK: Sign in to Farbaek
       GOTRUE_MAILER_SUBJECTS_CONFIRMATION: Confirm your email for Farbaek
-      # Sign in with Apple (ADR 0113). Auth checks the identity token the
-      # iPhone app gets from Apple: Apple's signature, the nonce, and an
-      # audience from this list (the app's bundle id; the website's Services
-      # ID joins it later). Tokens from the app need no secret. Off until
+      # Sign in with Apple (ADR 0113, ADR 0114). Auth checks the identity
+      # token the iPhone app gets from Apple: Apple's signature, the nonce, and
+      # an audience from this list. The website's flow uses the list's first
+      # id, so FARBAEK_APPLE_CLIENT_IDS is "com.farbaek.web,com.farbaek.app".
+      # Tokens from the app need no secret; the website's flow needs a client
+      # secret that lasts at most six months, which
+      # scripts/vps/apple-web-secret.sh renews. Off until
       # FARBAEK_APPLE_SIGN_IN=true is in this folder's .env.
       GOTRUE_EXTERNAL_APPLE_ENABLED: ${FARBAEK_APPLE_SIGN_IN:-false}
       GOTRUE_EXTERNAL_APPLE_CLIENT_ID: ${FARBAEK_APPLE_CLIENT_IDS:-com.farbaek.app}
+      GOTRUE_EXTERNAL_APPLE_SECRET: ${FARBAEK_APPLE_SECRET:-}
+      GOTRUE_EXTERNAL_APPLE_REDIRECT_URI: https://api.farbaek.com/auth/v1/callback
 
   api-gw:
     ports: !reset []

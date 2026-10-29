@@ -1,6 +1,6 @@
 "use client";
 
-import { EnvelopeSimpleIcon } from "@phosphor-icons/react";
+import { AppleLogoIcon, EnvelopeSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useActionState, useId } from "react";
 import { PhoneLinkPaste } from "@/components/auth/phone-link-paste";
@@ -9,8 +9,23 @@ import { buttonClasses } from "@/components/ui/button";
 import type { SignInState } from "@/server/auth/sign-in";
 import { requestSignInLink } from "./actions";
 
-/** `phone`: set while the Farbaek app signs in (ADR 0110), so a link opened in another browser can still finish here. */
-export function SignInForm({ linkError, next = "/app", captchaSiteKey = null, phone = null }: { linkError: boolean; next?: string; captchaSiteKey?: string | null; phone?: { siteOrigin: string; authOrigin: string | null } | null }) {
+/**
+ * `phone`: set while the Farbaek app signs in (ADR 0110), so a link opened in another browser can still finish here.
+ * `apple`: Sign in with Apple is offered (ADR 0114); a plain link starts it.
+ */
+export function SignInForm({
+  notice = null,
+  apple = false,
+  next = "/app",
+  captchaSiteKey = null,
+  phone = null,
+}: {
+  notice?: string | null;
+  apple?: boolean;
+  next?: string;
+  captchaSiteKey?: string | null;
+  phone?: { siteOrigin: string; authOrigin: string | null } | null;
+}) {
   const [state, action, pending] = useActionState<SignInState, FormData>(requestSignInLink, { status: "idle" });
   const emailId = useId();
   const errorId = useId();
@@ -29,11 +44,32 @@ export function SignInForm({ linkError, next = "/app", captchaSiteKey = null, ph
     );
   }
 
-  const message = state.status === "error" ? state.message : linkError ? "That sign-in link has expired or was already used. Request a new one." : null;
+  // The email's own problem sits under the field; why the last sign-in didn't finish sits above the form.
+  const message = state.status === "error" ? state.message : null;
+  const formNotice = state.status === "error" ? null : notice;
 
   return (
     <form action={action} className="grid gap-5" noValidate>
       <input type="hidden" name="next" value={next} />
+      {formNotice ? (
+        <p role="alert" className="flex gap-2 rounded-sm border border-failed/30 bg-failed/5 px-3 py-2.5 text-sm text-failed">
+          <WarningCircleIcon size={18} weight="bold" className="mt-px shrink-0" aria-hidden />
+          {formNotice}
+        </p>
+      ) : null}
+      {apple ? (
+        <>
+          <a href={`/auth/apple?${new URLSearchParams({ next })}`} className={buttonClasses("outline", "md", "w-full")}>
+            <AppleLogoIcon size={19} weight="fill" aria-hidden />
+            Continue with Apple
+          </a>
+          <div className="flex items-center gap-3 text-[13px] text-ink-3" aria-hidden>
+            <span className="h-px flex-1 bg-line" />
+            or with email
+            <span className="h-px flex-1 bg-line" />
+          </div>
+        </>
+      ) : null}
       <div className="grid gap-2">
         <label htmlFor={emailId} className="text-sm font-medium">
           Email address

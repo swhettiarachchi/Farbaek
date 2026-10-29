@@ -8,7 +8,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { log } from "@/server/observability/log";
-import { appleSignInKey, exchangeAppleCode, revokeAppleToken } from "./apple";
+import { createSupabaseAdminClient } from "@/server/supabase/admin";
+import { readSupabaseConfig, siteUrl } from "@/server/supabase/config";
+import { appleSignInKey, appleSignInOn, appleWebReady, exchangeAppleCode, revokeAppleToken } from "./apple";
+import { appleIdKeys, type AppleIdNotificationDeps } from "./apple-notifications";
 
 /** Exchanges the sign-in's authorization code and keeps Apple's refresh token. */
 export async function keepAppleSignIn(admin: SupabaseClient, userId: string, code: string): Promise<void> {
@@ -59,4 +62,28 @@ async function revoke(admin: SupabaseClient, userId: string): Promise<"revoked" 
   }
   log("error", "apple_sign_in.revoke_failed", { user: userId });
   return "failed";
+}
+
+/** Whether the website offers Sign in with Apple now (ADR 0114): switched on, and Auth's flow answers. */
+export async function appleWebAvailable(): Promise<boolean> {
+  const config = readSupabaseConfig();
+  if (!config || !appleSignInOn()) return false;
+  return appleWebReady({ authUrl: config.url, publishableKey: config.publishableKey, returnTo: `${siteUrl()}/auth/callback` });
+}
+
+const keys = appleIdKeys();
+
+/** Apple's account notices on this server: Apple's published keys, and v73's sign-out. */
+export function appleIdNotificationDeps(): AppleIdNotificationDeps | null {
+  const admin = createSupabaseAdminClient();
+  if (!admin) return null;
+  return {
+    keys,
+    async ended(sub) {
+      const { data, error } = await admin.rpc("app_apple_sign_in_ended", { p_sub: sub });
+      if (error) throw new Error(`app_apple_sign_in_ended: ${error.message}`);
+      return typeof data === "string" ? data : null;
+    },
+    now: () => new Date(),
+  };
 }

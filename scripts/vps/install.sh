@@ -21,6 +21,8 @@ main() {
   install -m 755 "$app/scripts/vps/db-backup.sh" /usr/local/bin/farbaek-db-backup
   install -m 755 "$app/scripts/vps/db-restore-test.sh" /usr/local/bin/farbaek-db-restore-test
   install -m 755 "$app/scripts/vps/db-cutover.sh" /usr/local/bin/farbaek-db-cutover
+  # Sign in with Apple on the website (ADR 0114): Auth's six-month secret, renewed when due.
+  install -m 755 "$app/scripts/vps/apple-web-secret.sh" /usr/local/bin/farbaek-apple-secret
   install -m 644 "$app"/deploy/vps/systemd/farbaek-*.service "$app"/deploy/vps/systemd/farbaek-*.timer /etc/systemd/system/
   if [ ! -f /opt/farbaek/env/production.env ]; then
     install -m 600 -o farbaek -g farbaek "$app/deploy/vps/production.env.example" /opt/farbaek/env/production.env
@@ -34,10 +36,12 @@ main() {
       --enable-timers) systemctl enable --now farbaek-deploy.timer farbaek-sweep.timer farbaek-jobs.timer ;;
       # Once the database runs here: nightly backups and a weekly restore test.
       --enable-db-timers) systemctl enable --now farbaek-db-backup.timer farbaek-db-restore-test.timer ;;
+      # Once Sign in with Apple is set up: the hourly check on Auth's secret.
+      --enable-apple-timer) systemctl enable --now farbaek-apple-secret.timer ;;
     esac
   done
   local t
-  for t in deploy sweep jobs db-backup db-restore-test; do echo "timer $t: $(systemctl is-enabled farbaek-$t.timer 2>/dev/null || true)"; done
+  for t in deploy sweep jobs db-backup db-restore-test apple-secret; do echo "timer $t: $(systemctl is-enabled farbaek-$t.timer 2>/dev/null || true)"; done
 }
 
 main "$@"
