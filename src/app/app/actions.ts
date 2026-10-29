@@ -17,6 +17,8 @@ import { approveContract, archiveProject, cancelTask, createProject, createTask,
 import { draftContractWithAi, type AiUsageDeps } from "@/server/workspace/ai-drafting";
 import { deleteProjectFile, importProjectFiles, saveProjectFile, saveProjectImage, type FileDeps, type ImportSummary } from "@/server/workspace/files";
 import { IMAGE_LIMITS, isImagePath } from "@/core/workspace/images";
+import { imageGeneration } from "@/server/ai/image-config";
+import { generateProjectImage } from "@/server/workspace/image-generation";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
 import { EFFORTS, type Effort } from "@/core/agent/routing";
 import { createChangeProposer, createContractDrafter } from "@/server/ai/providers";
@@ -318,6 +320,31 @@ export async function addImageAction(_previous: FormState, form: FormData): Prom
   if (!result.ok) return { status: "error", message: result.message, values: { path } };
   revalidatePath(`/app/projects/${project.id}`, "layout");
   return { status: "done", message: current ? `Replaced ${path}.` : `Added ${path}.` };
+}
+
+/**
+ * Generates an image into a project with Gemini (ADR 0109). It counts toward
+ * the workspace's AI usage like any AI call, and nothing is counted when no
+ * image is saved.
+ */
+export async function generateImageAction(_previous: FormState, form: FormData): Promise<FormState> {
+  const projectId = String(form.get("projectId") ?? "");
+  const prompt = String(form.get("prompt") ?? "");
+  const aspectRatio = String(form.get("aspectRatio") ?? "1:1");
+  const name = String(form.get("name") ?? "");
+  const values = { prompt: prompt.slice(0, 1_000), aspectRatio, name: name.slice(0, 300) };
+  if (!z.uuid().safeParse(projectId).success) return { status: "error", message: "Reload the page and try again.", values };
+
+  const ctx = await requireContext();
+  const w = await writeDeps(ctx);
+  if ("error" in w) return { status: "error", message: w.error, values };
+  const project = await ctx.reader.getProject(w.orgId, projectId);
+  if (!project) return { status: "error", message: "That project doesn't exist or isn't in this workspace." };
+  const existingPaths = new Set((await ctx.reader.listFiles(w.orgId, project.id)).map((f) => f.path));
+  const result = await generateProjectImage(w.deps, imageGeneration().generator, { orgId: w.orgId, userId: ctx.user.id, projectId: project.id, prompt, aspectRatio, name, existingPaths });
+  if (!result.ok) return { status: "error", message: result.message, values };
+  revalidatePath(`/app/projects/${project.id}`, "layout");
+  return { status: "done", message: result.value.path };
 }
 
 /** Restores an earlier revision by saving its content as the next revision. History is never rewritten. */

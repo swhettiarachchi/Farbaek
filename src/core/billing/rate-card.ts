@@ -19,7 +19,8 @@ export type ModelId =
   | "claude-fable-5-1"
   | "gemini-3.5-flash-lite"
   | "gemini-3.8-flash"
-  | "gemini-4-argon";
+  | "gemini-4-argon"
+  | "gemini-3.1-flash-lite-image";
 
 export interface ModelRate {
   label: string;
@@ -42,6 +43,8 @@ export const RATE_CARD: Record<ModelId, ModelRate> = {
   "gemini-3.5-flash-lite": { label: "Gemini 3.5 Flash-Lite", provider: "gemini", input: 0.3, output: 2.5, cacheWrite: 0.3, cacheRead: 0.03 },
   "gemini-3.8-flash": { label: "Gemini 3.8 Flash", provider: "gemini", input: 1.5, output: 7.5, cacheWrite: 1.5, cacheRead: 0.15 },
   "gemini-4-argon": { label: "Gemini 4 Argon", provider: "gemini", input: 4, output: 20, cacheWrite: 4, cacheRead: 0.2 },
+  // Image generation (ADR 0109): output is image tokens, $30 per million, so a 1K image (1,120 tokens) is $0.0336. Google's pricing page, 2026-10-28.
+  "gemini-3.1-flash-lite-image": { label: "Gemini 3.1 Flash Lite Image", provider: "gemini", input: 0.25, output: 30, cacheWrite: 0.25, cacheRead: 0.025 },
 };
 
 export interface TokenUsage {

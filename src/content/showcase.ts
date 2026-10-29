@@ -195,7 +195,7 @@ export interface Capability {
   title: string;
   body: string;
   /** Fixed, or worked out from this server's configuration. */
-  status: CapabilityStatus | "site-domain" | "app-previews";
+  status: CapabilityStatus | "site-domain" | "app-previews" | "image-generation";
 }
 
 export const CAPABILITIES: readonly Capability[] = [
@@ -208,7 +208,7 @@ export const CAPABILITIES: readonly Capability[] = [
   { id: "proof", title: "Approval and proof", body: "Approvals bind to the exact change, and a ProofPack records what ran and what it doesn't prove.", status: "working" },
   { id: "publish", title: "Publish to your own address", body: "A static site goes live on its own address after a security check finds nothing critical.", status: "site-domain" },
   { id: "bring", title: "Bring your project, take your code", body: "Import a .zip of an app built elsewhere for a security report, and download your code at any time.", status: "working" },
-  { id: "images", title: "Image generation", body: "Not connected yet. Today the agent draws visuals in code and marks any photo it still needs.", status: "not-yet" },
+  { id: "images", title: "Image generation", body: "Describe a picture and Gemini makes it straight into your project, counted against your AI usage. Or add your own images.", status: "image-generation" },
 ];
 
 export const CAPABILITY_STATUS_LABEL: Record<CapabilityStatus, string> = {

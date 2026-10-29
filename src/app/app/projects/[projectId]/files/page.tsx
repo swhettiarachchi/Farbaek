@@ -4,6 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, EmptyState, Notice } from "@/components/app/primitives";
 import { AddImage } from "@/components/files/add-image";
+import { GenerateImage } from "@/components/files/generate-image";
+import { imageGeneration } from "@/server/ai/image-config";
 import { CodeView } from "@/components/files/code-view";
 import { DeleteFile } from "@/components/files/delete-file";
 import { FileEditor } from "@/components/files/file-editor";
@@ -224,6 +226,13 @@ export default async function FilesPage({
                 <p className="mt-1 text-sm text-ink-2">It becomes part of the project: the preview shows it, and publishing serves it with the site.</p>
                 <div className="mt-4">
                   <AddImage projectId={project.id} disabledReason={writeReason} />
+                </div>
+                <div className="mt-6 border-t border-line pt-5">
+                  <h3 className="text-[15px] font-medium">Or generate one</h3>
+                  <p className="mt-1 text-sm text-ink-2">Describe it, and Gemini makes it straight into the project.</p>
+                  <div className="mt-4">
+                    <GenerateImage projectId={project.id} disabledReason={writeReason ?? imageGeneration().reason} />
+                  </div>
                 </div>
               </Card>
             ) : null}
