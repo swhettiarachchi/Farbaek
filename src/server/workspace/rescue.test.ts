@@ -19,6 +19,7 @@ function fakeDeps(over: { importFails?: boolean; createFails?: string } = {}) {
     approveContract: async () => ({ ok: true, value: null }),
     importFiles: async (input) => (log.push(`import:${input.files.length}`), over.importFails ? { ok: false, error: "PROJECT_TOO_LARGE" } : { ok: true, value: { created: input.files.length, updated: 0, unchanged: 0 } }),
     saveFile: async () => ({ ok: true, value: 1 }),
+    saveImage: async () => ({ ok: true, value: 1 }),
     deleteFile: async () => ({ ok: true, value: null }),
     newEventId: () => "key-1",
     now: () => NOW,

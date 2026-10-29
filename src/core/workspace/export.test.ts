@@ -64,7 +64,7 @@ describe("buildExport", () => {
       ]),
     );
     expect(new Set(paths).size).toBe(paths.length);
-    const project = JSON.parse(out.files.find((f) => f.path === ".farbaek/project.json")!.content);
+    const project = JSON.parse(out.files.find((f) => f.path === ".farbaek/project.json")!.content as string);
     expect(project).toMatchObject({ format: EXPORT_FORMAT, name: "Harbour Lane", files: 2, tasks: 1 });
   });
 
@@ -72,7 +72,7 @@ describe("buildExport", () => {
     const out = buildExport(await base());
     expect(out.index).toHaveLength(1);
     for (const entry of out.index) {
-      const file = JSON.parse(out.files.find((f) => f.path === entry.path)!.content);
+      const file = JSON.parse(out.files.find((f) => f.path === entry.path)!.content as string);
       expect(await inspectEvidence(file)).toMatchObject({ ok: true, kind: entry.kind, intact: true });
     }
   });

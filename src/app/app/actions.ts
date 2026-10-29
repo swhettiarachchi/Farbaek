@@ -15,7 +15,8 @@ import { MANAGER_ROLES } from "@/server/workspace/types";
 import { EMPTY_CONTRACT_FORM, type ContractFormValues } from "@/core/realityloop/contract-form";
 import { approveContract, archiveProject, cancelTask, createProject, createTask, saveContract, type ProjectAdminDeps, type WriteDeps } from "@/server/workspace/use-cases";
 import { draftContractWithAi, type AiUsageDeps } from "@/server/workspace/ai-drafting";
-import { deleteProjectFile, importProjectFiles, saveProjectFile, type FileDeps, type ImportSummary } from "@/server/workspace/files";
+import { deleteProjectFile, importProjectFiles, saveProjectFile, saveProjectImage, type FileDeps, type ImportSummary } from "@/server/workspace/files";
+import { IMAGE_LIMITS, isImagePath } from "@/core/workspace/images";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
 import { EFFORTS, type Effort } from "@/core/agent/routing";
 import { createChangeProposer, createContractDrafter } from "@/server/ai/providers";
@@ -287,6 +288,38 @@ export async function saveFileAction(input: { projectId: string; path: string; c
   return { status: "done", revision: result.value, path: parsed.data.path.trim().replace(/^\.\//, "") };
 }
 
+/**
+ * Adds an image to a project, or replaces one (ADR 0108). The bytes are
+ * checked on the server (an image path, the kind its extension names, 2 MB
+ * at most) and again by the database, which hashes them.
+ */
+export async function addImageAction(_previous: FormState, form: FormData): Promise<FormState> {
+  const projectId = String(form.get("projectId") ?? "");
+  const path = String(form.get("path") ?? "")
+    .trim()
+    .replace(/^\.?\/+/, "");
+  const replace = form.get("replace") === "1";
+  const file = form.get("image");
+  if (!z.uuid().safeParse(projectId).success || !path || path.length > 300) return { status: "error", message: "Choose an image and a name for it.", values: { path } };
+  if (!(file instanceof File) || file.size === 0) return { status: "error", message: "Choose an image to add.", values: { path } };
+  if (file.size > IMAGE_LIMITS.maxImageBytes) return { status: "error", message: "Images can be up to 2 MB. Make it smaller or save it as WebP or JPEG.", values: { path } };
+
+  const ctx = await requireContext();
+  const w = await writeDeps(ctx);
+  if ("error" in w) return { status: "error", message: w.error, values: { path } };
+  const project = await ctx.reader.getProject(w.orgId, projectId);
+  if (!project) return { status: "error", message: "That project doesn't exist or isn't in this workspace." };
+  const current = (await ctx.reader.listFiles(w.orgId, project.id)).find((f) => f.path === path);
+  if (current && !replace) return { status: "error", message: `There's already a file at ${path}. Choose another name, or open it and replace it.`, values: { path } };
+  if (current && current.encoding !== "base64") return { status: "error", message: `${path} is a text file, so an image can't replace it.`, values: { path } };
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const result = await saveProjectImage(w.deps, { orgId: w.orgId, userId: ctx.user.id, projectId: project.id, path, bytes, expectedRevision: current?.revision ?? 0 });
+  if (!result.ok) return { status: "error", message: result.message, values: { path } };
+  revalidatePath(`/app/projects/${project.id}`, "layout");
+  return { status: "done", message: current ? `Replaced ${path}.` : `Added ${path}.` };
+}
+
 /** Restores an earlier revision by saving its content as the next revision. History is never rewritten. */
 export async function restoreRevisionAction(input: { projectId: string; path: string; revision: number; expectedRevision: number }): Promise<SaveFileState> {
   const parsed = z
@@ -302,7 +335,10 @@ export async function restoreRevisionAction(input: { projectId: string; path: st
   const content = await ctx.reader.getFileRevision(w.orgId, project.id, parsed.data.path, parsed.data.revision);
   if (content === null) return { status: "error", message: "That revision has no content to restore." };
 
-  const result = await saveProjectFile(w.deps, {
+  // An image revision is base64; it goes back through the image write (ADR 0108).
+  const result = isImagePath(parsed.data.path)
+    ? await saveProjectImage(w.deps, { orgId: w.orgId, userId: ctx.user.id, projectId: project.id, path: parsed.data.path, bytes: new Uint8Array(Buffer.from(content, "base64")), expectedRevision: parsed.data.expectedRevision })
+    : await saveProjectFile(w.deps, {
     orgId: w.orgId,
     userId: ctx.user.id,
     projectId: project.id,

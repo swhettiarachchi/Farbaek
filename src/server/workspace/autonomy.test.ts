@@ -20,6 +20,7 @@ function fakeDeps(billing: BillingSnapshot, role: "owner" | "member" = "owner") 
     approveContract: async () => ({ ok: true, value: null }),
     importFiles: async () => ({ ok: true, value: { created: 0, updated: 0, unchanged: 0 } }),
     saveFile: async () => ({ ok: true, value: 1 }),
+    saveImage: async () => ({ ok: true, value: 1 }),
     deleteFile: async () => ({ ok: true, value: null }),
     newEventId: () => "key-1",
     now: () => NOW,

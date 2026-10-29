@@ -30,7 +30,8 @@ function dosDateTime(d: Date): { time: number; date: number } {
   };
 }
 
-export function zipFiles(files: readonly { path: string; content: string }[], modified: Date = new Date()): Uint8Array<ArrayBuffer> {
+/** Stored (uncompressed) ZIP. Text is written as UTF-8; an image (ADR 0108) as its bytes. */
+export function zipFiles(files: readonly { path: string; content: string | Uint8Array }[], modified: Date = new Date()): Uint8Array<ArrayBuffer> {
   if (files.length > 65_535) throw new Error("Too many files for a ZIP without ZIP64.");
   const enc = new TextEncoder();
   const { time, date } = dosDateTime(modified);
@@ -40,7 +41,7 @@ export function zipFiles(files: readonly { path: string; content: string }[], mo
 
   for (const f of files) {
     const name = enc.encode(f.path);
-    const data = enc.encode(f.content);
+    const data = typeof f.content === "string" ? enc.encode(f.content) : f.content;
     const crc = crc32(data);
 
     const local = new Uint8Array(30 + name.length + data.length);

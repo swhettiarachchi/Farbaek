@@ -80,3 +80,35 @@ describe("pictureSrcdoc", () => {
     expect(picture).toContain("tomato");
   });
 });
+
+describe("images in the preview (ADR 0108)", () => {
+  const DOT = "data:image/png;base64,iVBORw0KGgo=";
+  const images = { "assets/dot.png": DOT, "img/bg.webp": "data:image/webp;base64,UklGRg==" };
+
+  it("swaps image paths for data URLs in src, srcset, href and inline styles", () => {
+    const doc = buildStaticSrcdoc(
+      {
+        "index.html": `<html><head><link rel="icon" href="assets/dot.png"></head><body><img src="./assets/dot.png" srcset="assets/dot.png 1x, /img/bg.webp 2x" alt=""><div style="background:url('img/bg.webp')"></div><img src="https://example.com/a.png"><img src="missing.png"></body></html>`,
+      },
+      "index.html",
+      images,
+    )!;
+    expect(doc).toContain(`<link rel="icon" href="${DOT}">`);
+    expect(doc).toContain(`<img src="${DOT}" srcset="${DOT} 1x, data:image/webp;base64,UklGRg== 2x"`);
+    expect(doc).toContain(`url('data:image/webp;base64,UklGRg==')`);
+    // Outside addresses and images the project doesn't have stay as they are.
+    expect(doc).toContain(`src="https://example.com/a.png"`);
+    expect(doc).toContain(`src="missing.png"`);
+  });
+
+  it("resolves a stylesheet's url() from the stylesheet's own folder", () => {
+    const doc = buildStaticSrcdoc({ "index.html": `<link rel="stylesheet" href="css/site.css"><p>hi</p>`, "css/site.css": "body{background:url(../img/bg.webp)}" }, "index.html", images)!;
+    expect(doc).toContain("body{background:url(data:image/webp;base64,UklGRg==)}");
+  });
+
+  it("leaves a page without images exactly as before", () => {
+    const files = { "index.html": `<img src="assets/dot.png">` };
+    expect(buildStaticSrcdoc(files, "index.html", {})).toBe(buildStaticSrcdoc(files, "index.html"));
+    expect(buildStaticSrcdoc(files, "index.html")).toContain(`src="assets/dot.png"`);
+  });
+});

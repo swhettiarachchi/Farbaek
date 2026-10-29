@@ -42,3 +42,17 @@ describe("project zip", () => {
     expect(new DataView(empty.buffer).getUint32(0, true)).toBe(0x06054b50);
   });
 });
+
+describe("images in a ZIP (ADR 0108)", () => {
+  it("writes an image's bytes as they are, beside text written as UTF-8", async () => {
+    const { readZip } = await import("./unzip");
+    const png = new Uint8Array(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64"));
+    const zip = zipFiles([
+      { path: "assets/dot.png", content: png },
+      { path: "index.html", content: "<img src=\"assets/dot.png\">" },
+    ]);
+    const read = await readZip(zip, { maxFileBytes: 1024 * 1024 });
+    expect(read.entries.find((e) => e.path === "assets/dot.png")?.bytes).toEqual(png);
+    expect(new TextDecoder().decode(read.entries.find((e) => e.path === "index.html")!.bytes)).toBe("<img src=\"assets/dot.png\">");
+  });
+});

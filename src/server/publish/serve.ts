@@ -8,6 +8,7 @@
 import { DEPLOYMENT_HEADER } from "@/core/launch/health";
 import { SITE_ROUTE, siteNameFromHost, type PublishedFile } from "@/core/publish/site";
 import { contentTypeFor, staticCandidates } from "@/server/sandbox/gateway";
+import { imageMime } from "@/core/workspace/images";
 
 export { SITE_ROUTE, siteNameFromHost };
 
@@ -17,7 +18,8 @@ export interface SiteServeDeps {
   domain: string | null;
   /** What the name is doing right now (ADR 0029; blocked, paused and suspended from ADR 0032). */
   liveSite: (name: string) => Promise<ServedSite>;
-  content: (projectId: string, path: string, revision: number) => Promise<string | null>;
+  /** A revision's text, or an image's bytes (ADR 0108). */
+  content: (projectId: string, path: string, revision: number) => Promise<string | Uint8Array | null>;
   /** The site a verified custom domain belongs to (ADR 0045), or null. */
   nameForDomain?: (hostname: string) => Promise<string | null>;
 }
@@ -62,11 +64,11 @@ export async function handleSiteRequest(request: Request, deps: SiteServeDeps): 
     if (!file) continue;
     const etag = `"${file.sha256}"`;
     // The deployment id lets Farbaek's live check confirm exactly which version is answering (ADR 0033). It isn't a secret.
-    const headers = { ...BASE_HEADERS, "content-type": contentTypeFor(candidate), "cache-control": "public, max-age=30, must-revalidate", etag, [DEPLOYMENT_HEADER]: site.deploymentId };
+    const headers = { ...BASE_HEADERS, "content-type": imageMime(candidate) ?? contentTypeFor(candidate), "cache-control": "public, max-age=30, must-revalidate", etag, [DEPLOYMENT_HEADER]: site.deploymentId };
     if (request.headers.get("if-none-match") === etag) return new Response(null, { status: 304, headers });
     const content = await deps.content(site.projectId, file.path, file.revision);
     if (content === null) continue;
-    return new Response(method === "HEAD" ? null : content, { status: 200, headers });
+    return new Response(method === "HEAD" ? null : typeof content === "string" ? content : new Blob([content as Uint8Array<ArrayBuffer>]), { status: 200, headers });
   }
   return notFound("Page not found", "This site has no page at this address.");
 }

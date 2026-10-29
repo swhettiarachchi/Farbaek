@@ -4,6 +4,7 @@ import { TASK_STATES } from "@/core/realityloop/task-machine";
 import { ORGANIZATION_SELECT, billingSnapshotFromRow } from "./organizations";
 import { ORG_ROLES } from "./types";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
+import { IMAGE_LIMITS } from "@/core/workspace/images";
 import type { AiUsageDeps } from "./ai-usage";
 import { createUsageRpcs } from "./usage-store";
 import { IntentContractSchema } from "@/core/realityloop/contract";
@@ -162,6 +163,21 @@ export function createSupabaseWriteDeps(
         z.object({ created: z.number().int(), updated: z.number().int(), unchanged: z.number().int() }),
       ),
 
+    saveImage: (i) =>
+      rpc(
+        "app_save_binary_file",
+        {
+          p_project: i.projectId,
+          p_actor: i.actor,
+          p_path: i.path,
+          p_base64: i.base64,
+          p_expected_revision: i.expectedRevision,
+          p_max_file_bytes: IMAGE_LIMITS.maxImageBytes,
+          p_max_project_bytes: WORKSPACE_LIMITS.maxProjectBytes,
+          p_max_files: WORKSPACE_LIMITS.maxProjectFiles,
+        },
+        z.number().int(),
+      ),
     saveFile: (i) =>
       rpc(
         "app_save_file",

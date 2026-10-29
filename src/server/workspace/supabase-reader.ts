@@ -183,14 +183,14 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
 
     async listFiles(orgId, projectId) {
       if (!z.uuid().safeParse(projectId).success) return [];
-      const Row = z.object({ path: z.string(), revision: z.number().int(), size_bytes: z.number().int(), sha256: z.string(), updated_at: z.string() });
+      const Row = z.object({ path: z.string(), revision: z.number().int(), size_bytes: z.number().int(), sha256: z.string(), updated_at: z.string(), encoding: z.string().optional() });
       // PostgREST returns at most 1,000 rows per request, so read in pages.
       const PAGE = 1000;
       const rows: z.infer<typeof Row>[] = [];
       for (let from = 0; ; from += PAGE) {
         const { data, error } = await client
           .from("project_files")
-          .select("path, revision, size_bytes, sha256, updated_at")
+          .select("path, revision, size_bytes, sha256, updated_at, encoding")
           .eq("org_id", orgId)
           .eq("project_id", projectId)
           .order("path")
@@ -200,11 +200,12 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
         rows.push(...page);
         if (page.length < PAGE) break;
       }
-      return rows.map((r) => ({ path: r.path, revision: r.revision, sizeBytes: r.size_bytes, sha256: r.sha256, updatedAt: r.updated_at }));
+      return rows.map((r) => ({ path: r.path, revision: r.revision, sizeBytes: r.size_bytes, sha256: r.sha256, updatedAt: r.updated_at, ...(r.encoding === "base64" ? { encoding: "base64" as const } : {}) }));
     },
 
     async getProjectContents(orgId, projectId) {
-      const files = await self.listFiles(orgId, projectId);
+      // Text files only: images are read on purpose, where they belong (ADR 0108).
+      const files = (await self.listFiles(orgId, projectId)).filter((f) => f.encoding !== "base64");
       const out: { path: string; content: string }[] = [];
       // Current revisions only, read in chunks so each request stays small.
       for (let i = 0; i < files.length; i += 150) {
@@ -229,6 +230,36 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
       return out;
     },
 
+    async getProjectImages(orgId, projectId) {
+      const images = (await self.listFiles(orgId, projectId)).filter((f) => f.encoding === "base64");
+      const out: { path: string; base64: string }[] = [];
+      // A few at a time: each can be up to 2 MB of bytes.
+      for (let i = 0; i < images.length; i += 10) {
+        const chunk = images.slice(i, i + 10);
+        const { data, error } = await client
+          .from("project_file_revisions")
+          .select("path, revision, content")
+          .eq("org_id", orgId)
+          .eq("project_id", projectId)
+          .eq("encoding", "base64")
+          .in(
+            "path",
+            chunk.map((f) => f.path),
+          )
+          .in(
+            "revision",
+            chunk.map((f) => f.revision),
+          );
+        if (error) fail("images", error);
+        const byKey = new Map(z.array(z.object({ path: z.string(), revision: z.number().int(), content: z.string() })).parse(data ?? []).map((r) => [`${r.path}@${r.revision}`, r.content]));
+        for (const f of chunk) {
+          const base64 = byKey.get(`${f.path}@${f.revision}`);
+          if (base64 !== undefined) out.push({ path: f.path, base64 });
+        }
+      }
+      return out;
+    },
+
     async getFile(orgId, projectId, path) {
       if (!z.uuid().safeParse(projectId).success) return null;
       const project = await client.from("projects").select("id").eq("org_id", orgId).eq("id", projectId).maybeSingle();
@@ -236,9 +267,11 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
       if (!project.data) return null;
       const { data, error } = await client.rpc("get_project_file", { p_project: projectId, p_path: path });
       if (error) fail("file", error);
-      const Row = z.object({ path: z.string(), revision: z.number().int(), size_bytes: z.number().int(), sha256: z.string(), content: z.string(), updated_at: z.string() });
+      const Row = z.object({ path: z.string(), revision: z.number().int(), size_bytes: z.number().int(), sha256: z.string(), content: z.string(), updated_at: z.string(), encoding: z.string().optional() });
       const row = z.array(Row).parse(data)[0];
-      return row ? { path: row.path, revision: row.revision, sizeBytes: row.size_bytes, sha256: row.sha256, content: row.content, updatedAt: row.updated_at } : null;
+      return row
+        ? { path: row.path, revision: row.revision, sizeBytes: row.size_bytes, sha256: row.sha256, content: row.content, updatedAt: row.updated_at, ...(row.encoding === "base64" ? { encoding: "base64" as const } : {}) }
+        : null;
     },
 
     async listProofPacks(orgId, taskId) {

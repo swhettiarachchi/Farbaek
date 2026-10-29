@@ -239,6 +239,11 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
       return (await demoFiles(projectId)).find((f) => f.path === path) ?? null;
     },
 
+    // The demo's projects are text only.
+    async getProjectImages() {
+      return [];
+    },
+
     async listProofPacks() {
       // The demo has no applied changes, so it has no evidence records.
       return [];

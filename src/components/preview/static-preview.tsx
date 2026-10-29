@@ -15,6 +15,8 @@ export interface PreviewVersion {
   id: string;
   label: string;
   files: Record<string, string>;
+  /** The project's images as data URLs, by path (ADR 0108). */
+  images?: Record<string, string>;
 }
 
 /**
@@ -40,7 +42,7 @@ export function StaticPreview({
   const page = pages.includes(chosen) ? chosen : (pages[0] ?? "index.html");
   const [device, setDevice] = useState<(typeof DEVICES)[number]["id"]>("desktop");
   const frame = useRef<HTMLIFrameElement>(null);
-  const doc = useMemo(() => buildStaticSrcdoc(version.files, page), [version.files, page]);
+  const doc = useMemo(() => buildStaticSrcdoc(version.files, page, version.images), [version.files, version.images, page]);
 
   // Same-site links inside the preview arrive here; only messages from this frame count.
   useEffect(() => {
@@ -145,8 +147,8 @@ export function StaticPreview({
         )}
       </div>
       <p className="text-xs text-ink-3">
-        Runs in a locked-down frame with no access to Farbaek, and its scripts can&apos;t reach the network. Images and fonts from https addresses load; image files by path
-        don&apos;t show here yet.
+        Runs in a locked-down frame with no access to Farbaek, and its scripts can&apos;t reach the network. The project&apos;s own images show, and so do images and fonts
+        from https addresses.
       </p>
     </div>
   );
