@@ -22,23 +22,23 @@ USD per million tokens, list prices retrieved 2026-10-18 (sources in `reports/AI
 
 `src/core/billing/allowance.ts` turns a price into an allowance, so plans can't drift from the research:
 
-- Cost budget = 0.55 × price − $0.50. That keeps a 40% margin after Paddle's 5% + $0.50.
-- Minus the fixed share ($0.40 a month: about $80 of hosting, database, email and payout costs over an assumed 200 subscribers), snapshot storage ($0.16 for 2 GB) and sandbox time ($0.149 an hour × the plan's hours).
+- Cost budget = 0.34 × price − $0.40. That keeps a **57% net margin** (ADR 0103) after Dodo Payments' worst-case fee of 9% + $0.40: 4% + 40 cents, +1.5% for cards outside the US, +0.5% for subscriptions, and +3% for PayPal or Klarna. Tax and the currency conversion fee are paid by the customer on top.
+- Minus the fixed share ($0.40 a month: about $80 of server, email, domain and payout costs, including Dodo's $25 SWIFT payout, over an assumed 200 subscribers), snapshot storage ($0.16 for 2 GB) and sandbox time ($0.149 an hour × the plan's hours).
 - 5% of what's left is held back for free retries. The rest is the AI allowance.
 
 | Plan | Price | AI units a month | Retry reserve | Sandbox hours | About this many Sonnet sessions |
 | --- | --- | --- | --- | --- | --- |
 | Free | $0 | 5,000 (about $0.50) | none | 1 | 1 |
-| Starter | $9.99 | 35,050 | 1,844 | 5 | 9 |
-| Plus | $19.99 | 80,222 | 4,222 | 10 | 22 |
-| Pro | $50 | 215,792 | 11,357 | 25 | 60 |
-| Studio | $79.99 | 351,257 | 18,487 | 40 | 98 |
-| Max | $100 | 441,654 | 23,245 | 50 | 123 |
-| Max 2x | $200 | 893,379 | 47,020 | 100 | 250 |
-| Max 3x | $300 | 1,345,104 | 70,794 | 150 | 376 |
+| Starter | $9.99 | 16,070 | 845 | 5 | 4 |
+| Plus | $19.99 | 41,292 | 2,173 | 10 | 11 |
+| Pro | $50 | 116,992 | 6,157 | 25 | 32 |
+| Studio | $79.99 | 192,627 | 10,138 | 40 | 53 |
+| Max | $100 | 243,105 | 12,795 | 50 | 68 |
+| Max 2x | $200 | 495,330 | 26,070 | 100 | 138 |
+| Max 3x | $300 | 747,555 | 39,345 | 150 | 209 |
 | Enterprise | Custom | by contract | by contract | by contract | |
 
-The trial gets Pro's features with Starter's AI usage (35,050 units across the 14 days) and 5 sandbox hours. A "session" is Anthropic's published sample Claude Code session with a 30% tokenizer uplift: 3,568 units on Sonnet, 240 on Haiku, 7,135 on Opus. It's guidance on the pricing cards, never a promise.
+The trial gets Pro's features with Starter's AI usage (16,070 units across the 14 days) and 2 sandbox hours. Top-ups (ADR 0102) add usage at the plan's own rate, which keeps 57% even at the worst-case fee on a one-time payment (`catalog.test.ts`).
 
 ## The wallet
 
