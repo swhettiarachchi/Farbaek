@@ -46,11 +46,21 @@ Stage 90 put Sign in with Apple in the iPhone app. This stage finishes the owner
   - an Apple id nobody has does nothing;
   - only the server can call it.
 
+### Live in production (2026-10-29)
+
+- **Merged:** PR #117 (`fb2f867`, with #116 inside). The owner ran `set-apple-sign-in-web.ps1`. `farbaek-apple-secret.timer` is enabled, and its first run said "renewed; good until 2027-04-27".
+- **Read back:**
+  - `/sign-in` shows "Continue with Apple" (`/auth/apple?next=%2Fapp`);
+  - `/auth/apple` answers 303 to Auth's authorize address, with a PKCE challenge and the verifier cookie;
+  - Auth answers 302 to `appleid.apple.com/auth/authorize?client_id=com.farbaek.web`;
+  - Apple shows its normal "Sign in to Apple Account" page, with no client or return-address error.
+- **Not tried:** a real Apple Account signing in to the website, and Apple's account notices arriving. Both need a person's Apple Account.
+- **App Store:** the owner submitted the Small Business Program enrollment the same evening; Apple confirms by email. `APPLE_IAP` stays off until then.
+
 ### Not done, and why
 
 - **The server's settings and timer:** auto mode refused Claude's attempts to change Auth's settings and to install the timer on the server. The owner runs `set-apple-sign-in-web.ps1` once after the merge. Until then the website's button stays hidden, and iPhone sign-in is unaffected.
 
 ### Next
 
-- The owner: merge, then run `scripts/vps/set-apple-sign-in-web.ps1`.
 - Then: sign in with Apple on www.farbaek.com, and revoke Farbaek in the Apple Account's settings to see the account-notice sign-out.
