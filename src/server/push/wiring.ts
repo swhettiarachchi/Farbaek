@@ -7,6 +7,9 @@ import type { Notifier } from "@/server/email/notify";
 import { createPushNotifier, type PushDeps } from "./notifier";
 import { createSupabasePushStore } from "./store";
 import { vapidKeys } from "./web-push";
+import { apnsConfig } from "./apns";
+import { createPhonePushNotifier } from "./phone-notifier";
+import { createSupabasePhoneStore } from "@/server/phone/store";
 
 export function serverPushDeps(): PushDeps | null {
   const keys = vapidKeys();
@@ -24,4 +27,13 @@ export function serverPushNotifier(): Notifier | null {
 /** The public key browsers subscribe with, or null when push is off on this server. */
 export function vapidPublicKey(): string | null {
   return vapidKeys()?.publicKey ?? null;
+}
+
+/** Notifications to connected iPhones (ADR 0110), once the owner's APNs key is set. */
+export function serverPhoneNotifier(): Notifier | null {
+  const config = apnsConfig();
+  const admin = createSupabaseAdminClient();
+  if (!config || !admin) return null;
+  const store = createSupabasePhoneStore(admin);
+  return createPhonePushNotifier({ config, targets: (u) => store.targets(u), note: (t, o) => store.note(t, o) });
 }

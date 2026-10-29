@@ -33,6 +33,17 @@ export async function pushToPerson(deps: PushDeps, userId: string, message: Push
   return sent;
 }
 
+/** The words for a finished build, as its email says them; null when there's nothing to say. */
+export function buildFinishedMessage(n: Parameters<Notifier["buildFinished"]>[0]): PushMessage | null {
+  const email = runEmail(n);
+  return email ? { title: email.subject, body: line(email.lines[0] ?? "", 160), url: `/app/tasks/${encodeURIComponent(n.taskId)}`, tag: `task:${n.taskId}` } : null;
+}
+
+export function checksFinishedMessage(n: Parameters<Notifier["checksFinished"]>[0]): PushMessage {
+  const email = checksEmail(n);
+  return { title: email.subject, body: line(email.lines[0] ?? "", 160), url: `/app/tasks/${encodeURIComponent(n.taskId)}`, tag: `checks:${n.taskId}` };
+}
+
 export function createPushNotifier(deps: PushDeps): Notifier {
   async function deliver(kind: string, userId: string, message: PushMessage | null) {
     if (!message) return;
@@ -44,14 +55,8 @@ export function createPushNotifier(deps: PushDeps): Notifier {
     }
   }
   return {
-    buildFinished: (n) => {
-      const email = runEmail(n);
-      return deliver("build_finished", n.userId, email ? { title: email.subject, body: line(email.lines[0] ?? "", 160), url: `/app/tasks/${encodeURIComponent(n.taskId)}`, tag: `task:${n.taskId}` } : null);
-    },
-    checksFinished: (n) => {
-      const email = checksEmail(n);
-      return deliver("checks_finished", n.userId, { title: email.subject, body: line(email.lines[0] ?? "", 160), url: `/app/tasks/${encodeURIComponent(n.taskId)}`, tag: `checks:${n.taskId}` });
-    },
+    buildFinished: (n) => deliver("build_finished", n.userId, buildFinishedMessage(n)),
+    checksFinished: (n) => deliver("checks_finished", n.userId, checksFinishedMessage(n)),
   };
 }
 

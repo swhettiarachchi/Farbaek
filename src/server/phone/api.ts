@@ -1,0 +1,403 @@
+/**
+ * Farbaek's API for its phone apps, /api/v1/app (ADR 0110). One router so
+ * every route gets the same checks in the same order:
+ *
+ * - sign-in steps (connect, token, refresh) carry their own credential;
+ * - everything else needs a connected phone's access token, checked against
+ *   its device record on every request;
+ * - /api/v1/app/sample/... answers the same reads from the sample workspace,
+ *   with no account, and refuses every write;
+ * - a write says why it can't happen (view-only, paused, no workspace) with
+ *   the web app's own words, before any use case runs.
+ *
+ * Reads go through the WorkspaceReader as the person, so Row Level Security
+ * decides what's visible; writes go through the same use cases as the web.
+ */
+import { z } from "zod";
+import { CAP_CHOICES, type CapChoice } from "@/core/agent/run-cap";
+import { EFFORTS, type Effort } from "@/core/agent/routing";
+import { CLOUD_RUN_MAX_MINUTES } from "@/core/agent/cloud-run";
+import { json, problem } from "@/server/sandbox/http";
+import type { AppContext } from "@/server/workspace/context";
+import { MANAGER_ROLES } from "@/server/workspace/types";
+import { authenticate, connectFromBrowser, exchangeCode, refreshPhone, type PhoneAuthDeps, type PhoneCaller } from "./auth";
+import { PUSH_TOKEN_PATTERN } from "./tokens";
+import { approvalView, approvalsView, homeView, isTaskFilter, meView, planView, projectsView, runDetail, taskView, tasksView, type RunReader } from "./views";
+
+export type PhoneOutcome<T> = { ok: true; value: T } | { ok: false; status: number; code: string; message: string };
+
+/** The person a write acts for: their context, their phone, and their session for Row Level Security. */
+export interface PhonePerson {
+  ctx: AppContext;
+  orgId: string;
+  caller: PhoneCaller;
+}
+
+export interface PhoneWrites {
+  approve(p: PhonePerson, input: { taskId: string; proposalId: string; sha256: string }): Promise<PhoneOutcome<{ written: number; checking: boolean }>>;
+  discard(p: PhonePerson, input: { taskId: string; proposalId: string }): Promise<PhoneOutcome<null>>;
+  build(p: PhonePerson, input: { prompt: string; projectId: string | null; effort: Effort }): Promise<PhoneOutcome<{ taskId: string; projectId: string; planned: boolean; planNote: string | null }>>;
+  approvePlan(p: PhonePerson, input: { taskId: string; version: number; sha256: string; expectedTaskVersion: number; effort: Effort; cap: CapChoice }): Promise<PhoneOutcome<{ runId: string | null; startNote: string | null }>>;
+  answerRun(p: PhonePerson, input: { runId: string; requestId: string; approved: boolean; bindingHash: string }): PhoneOutcome<null>;
+  stopRun(p: PhonePerson, runId: string): PhoneOutcome<null>;
+  messageRun(p: PhonePerson, input: { runId: string; text: string }): PhoneOutcome<null>;
+  setPush(caller: PhoneCaller, token: string | null, environment: "production" | "development"): Promise<boolean>;
+  signOut(caller: PhoneCaller): Promise<"signed_out" | "refused" | "not_found">;
+}
+
+export interface PhoneApiDeps {
+  /** Null when accounts aren't configured on this server: only the sample works. */
+  auth: PhoneAuthDeps | null;
+  siteOrigin: string;
+  /** The person signed in in this browser, for the connect form. */
+  browserUser(): Promise<string | null>;
+  live(caller: PhoneCaller, workspaceId: string | null): Promise<{ ctx: AppContext; runs: RunReader }>;
+  sample(): Promise<{ ctx: AppContext; runs: RunReader }>;
+  execution(): { mode: string; reason?: string };
+  writes: PhoneWrites;
+  pushAvailable(): boolean;
+  clientKey(request: Request): string;
+  now(): Date;
+}
+
+type Params = Record<string, string>;
+interface Scope {
+  request: Request;
+  params: Params;
+  url: URL;
+  ctx: AppContext;
+  runs: RunReader;
+  caller: PhoneCaller | null;
+  deps: PhoneApiDeps;
+}
+
+type Handler = (s: Scope) => Promise<Response>;
+interface Route {
+  method: "GET" | "POST" | "PUT" | "DELETE";
+  path: string;
+  /** A write: refused in the sample, and when the person can't change this workspace. */
+  write?: boolean;
+  /** A write that starts sandbox work, which runs on the phone's access token, so it must outlast a run. */
+  long?: boolean;
+  run: Handler;
+}
+
+const SAMPLE_READ_ONLY = "This is sample data, so nothing here can change. Sign in to approve and build for real.";
+const ok = (data: unknown, status = 200) => json({ data }, status);
+const fromOutcome = <T>(r: PhoneOutcome<T>, status = 200) => (r.ok ? ok(r.value, status) : problem(r.status, r.code, r.message));
+const notFound = (what: string) => problem(404, "NOT_FOUND", `That ${what} doesn't exist or isn't in this workspace.`);
+const Uuid = z.uuid();
+const Sha = z.string().regex(/^[0-9a-f]{64}$/);
+
+async function body(request: Request): Promise<Record<string, unknown> | null> {
+  if (!(request.headers.get("content-type") ?? "").includes("application/json")) return null;
+  const text = await request.text();
+  if (text.length > 64 * 1024) return null;
+  try {
+    const value = JSON.parse(text) as unknown;
+    return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+const badBody = () => problem(400, "INVALID_REQUEST", "That request isn't valid. Update the app and try again.");
+
+/** The person behind a write, or why they can't write here. */
+function person(s: Scope): PhonePerson | Response {
+  if (!s.caller) return problem(403, "SAMPLE_READ_ONLY", SAMPLE_READ_ONLY);
+  if (!s.ctx.current) return problem(409, "NO_WORKSPACE", "Create a workspace on the web first.");
+  if (!s.ctx.writes.enabled) return problem(403, "READ_ONLY", s.ctx.writes.reason);
+  return { ctx: s.ctx, orgId: s.ctx.current.id, caller: s.caller };
+}
+
+function orgOf(s: Scope): string | Response {
+  return s.ctx.current?.id ?? problem(409, "NO_WORKSPACE", "Create a workspace on the web first.");
+}
+
+const ROUTES: Route[] = [
+  {
+    method: "GET",
+    path: "me",
+    run: async (s) => ok(meView(s.ctx, { push: { available: s.caller !== null && s.deps.pushAvailable(), on: s.caller?.push ?? false } })),
+  },
+  {
+    method: "GET",
+    path: "home",
+    run: async (s) => {
+      const org = orgOf(s);
+      return typeof org === "string" ? ok(await homeView(s.ctx.reader, org, s.runs)) : org;
+    },
+  },
+  {
+    method: "GET",
+    path: "approvals",
+    run: async (s) => {
+      const org = orgOf(s);
+      return typeof org === "string" ? ok(await approvalsView(s.ctx, org, s.deps.execution())) : org;
+    },
+  },
+  {
+    method: "GET",
+    path: "approvals/:taskId",
+    run: async (s) => {
+      const org = orgOf(s);
+      if (typeof org !== "string") return org;
+      if (!Uuid.safeParse(s.params.taskId).success) return notFound("change");
+      const view = await approvalView(s.ctx, org, s.params.taskId!, s.deps.execution());
+      return view ? ok(view) : notFound("change");
+    },
+  },
+  {
+    method: "POST",
+    path: "approvals/:taskId/approve",
+    write: true,
+    long: true,
+    run: async (s) => {
+      const p = person(s);
+      if (p instanceof Response) return p;
+      const parsed = z.object({ proposalId: Uuid, sha256: Sha }).safeParse(await body(s.request));
+      if (!parsed.success || !Uuid.safeParse(s.params.taskId).success) return badBody();
+      return fromOutcome(await s.deps.writes.approve(p, { taskId: s.params.taskId!, ...parsed.data }));
+    },
+  },
+  {
+    method: "POST",
+    path: "approvals/:taskId/discard",
+    write: true,
+    run: async (s) => {
+      const p = person(s);
+      if (p instanceof Response) return p;
+      const parsed = z.object({ proposalId: Uuid }).safeParse(await body(s.request));
+      if (!parsed.success || !Uuid.safeParse(s.params.taskId).success) return badBody();
+      return fromOutcome(await s.deps.writes.discard(p, { taskId: s.params.taskId!, ...parsed.data }));
+    },
+  },
+  {
+    method: "GET",
+    path: "tasks",
+    run: async (s) => {
+      const org = orgOf(s);
+      if (typeof org !== "string") return org;
+      const filter = s.url.searchParams.get("filter") ?? "all";
+      return ok(await tasksView(s.ctx.reader, org, isTaskFilter(filter) ? filter : "all"));
+    },
+  },
+  {
+    method: "GET",
+    path: "tasks/:taskId",
+    run: async (s) => {
+      const org = orgOf(s);
+      if (typeof org !== "string") return org;
+      if (!Uuid.safeParse(s.params.taskId).success) return notFound("task");
+      const view = await taskView(s.ctx.reader, org, s.params.taskId!, s.runs);
+      return view ? ok(view) : notFound("task");
+    },
+  },
+  {
+    method: "GET",
+    path: "tasks/:taskId/plan",
+    run: async (s) => {
+      const org = orgOf(s);
+      if (typeof org !== "string") return org;
+      if (!Uuid.safeParse(s.params.taskId).success) return notFound("task");
+      const view = await planView(s.ctx, org, s.params.taskId!);
+      return view ? ok(view) : notFound("task");
+    },
+  },
+  {
+    method: "POST",
+    path: "tasks/:taskId/plan/approve",
+    write: true,
+    long: true,
+    run: async (s) => {
+      const p = person(s);
+      if (p instanceof Response) return p;
+      const parsed = z
+        .object({
+          version: z.number().int().positive(),
+          sha256: Sha,
+          expectedTaskVersion: z.number().int().nonnegative(),
+          effort: z.enum(EFFORTS).catch("balanced"),
+          cap: z.enum(CAP_CHOICES).catch("double"),
+        })
+        .safeParse(await body(s.request));
+      if (!parsed.success || !Uuid.safeParse(s.params.taskId).success) return badBody();
+      return fromOutcome(await s.deps.writes.approvePlan(p, { taskId: s.params.taskId!, ...parsed.data }));
+    },
+  },
+  {
+    method: "POST",
+    path: "builds",
+    write: true,
+    run: async (s) => {
+      const p = person(s);
+      if (p instanceof Response) return p;
+      const parsed = z
+        .object({ prompt: z.string().min(1).max(4_000), projectId: Uuid.nullable().optional(), effort: z.enum(EFFORTS).catch("balanced") })
+        .safeParse(await body(s.request));
+      if (!parsed.success) return badBody();
+      return fromOutcome(await s.deps.writes.build(p, { prompt: parsed.data.prompt, projectId: parsed.data.projectId ?? null, effort: parsed.data.effort }), 201);
+    },
+  },
+  {
+    method: "GET",
+    path: "runs/:runId",
+    run: async (s) => {
+      if (!Uuid.safeParse(s.params.runId).success) return notFound("run");
+      const after = z.coerce.number().int().nonnegative().catch(0).parse(s.url.searchParams.get("after") ?? 0);
+      const manager = s.ctx.role !== null && MANAGER_ROLES.includes(s.ctx.role);
+      const view = await runDetail(s.runs, s.params.runId!, after, { userId: s.ctx.user.id, manager });
+      return view ? ok(view) : notFound("run");
+    },
+  },
+  {
+    method: "POST",
+    path: "runs/:runId/answer",
+    write: true,
+    run: async (s) => {
+      const p = person(s);
+      if (p instanceof Response) return p;
+      const parsed = z.object({ requestId: z.string().min(1).max(200), approved: z.boolean(), bindingHash: Sha }).safeParse(await body(s.request));
+      if (!parsed.success || !Uuid.safeParse(s.params.runId).success) return badBody();
+      return fromOutcome(s.deps.writes.answerRun(p, { runId: s.params.runId!, ...parsed.data }));
+    },
+  },
+  {
+    method: "POST",
+    path: "runs/:runId/stop",
+    write: true,
+    run: async (s) => {
+      const p = person(s);
+      if (p instanceof Response) return p;
+      if (!Uuid.safeParse(s.params.runId).success) return badBody();
+      return fromOutcome(s.deps.writes.stopRun(p, s.params.runId!));
+    },
+  },
+  {
+    method: "POST",
+    path: "runs/:runId/message",
+    write: true,
+    run: async (s) => {
+      const p = person(s);
+      if (p instanceof Response) return p;
+      const parsed = z.object({ text: z.string().min(1).max(2_000) }).safeParse(await body(s.request));
+      if (!parsed.success || !Uuid.safeParse(s.params.runId).success) return badBody();
+      return fromOutcome(s.deps.writes.messageRun(p, { runId: s.params.runId!, text: parsed.data.text }));
+    },
+  },
+  {
+    method: "GET",
+    path: "projects",
+    run: async (s) => {
+      const org = orgOf(s);
+      return typeof org === "string" ? ok(await projectsView(s.ctx.reader, org)) : org;
+    },
+  },
+  {
+    method: "PUT",
+    path: "push",
+    run: async (s) => {
+      if (!s.caller) return problem(403, "SAMPLE_READ_ONLY", SAMPLE_READ_ONLY);
+      if (!s.deps.pushAvailable()) return problem(503, "PUSH_UNAVAILABLE", "Notifications on iPhone aren't set up on Farbaek's server yet. You'll still see everything when you open the app.");
+      const parsed = z.object({ token: z.string().regex(PUSH_TOKEN_PATTERN), environment: z.enum(["production", "development"]) }).safeParse(await body(s.request));
+      if (!parsed.success) return badBody();
+      return (await s.deps.writes.setPush(s.caller, parsed.data.token.toLowerCase(), parsed.data.environment)) ? ok({ on: true }) : problem(401, "DISCONNECTED", "This phone was disconnected. Sign in again.");
+    },
+  },
+  {
+    method: "DELETE",
+    path: "push",
+    run: async (s) => {
+      if (!s.caller) return problem(403, "SAMPLE_READ_ONLY", SAMPLE_READ_ONLY);
+      await s.deps.writes.setPush(s.caller, null, "production");
+      return ok({ on: false });
+    },
+  },
+  {
+    method: "DELETE",
+    path: "session",
+    run: async (s) => {
+      if (!s.caller) return ok({ signedOut: true });
+      const r = await s.deps.writes.signOut(s.caller);
+      return ok({ signedOut: r !== "not_found" });
+    },
+  },
+];
+
+function match(route: Route, method: string, segments: readonly string[]): Params | null {
+  if (route.method !== method) return null;
+  const parts = route.path.split("/");
+  if (parts.length !== segments.length) return null;
+  const params: Params = {};
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i]!;
+    if (part.startsWith(":")) params[part.slice(1)] = segments[i]!;
+    else if (part !== segments[i]) return null;
+  }
+  return params;
+}
+
+/** Long enough for a cloud run and its checks: a phone refreshes first when its token is closer to expiring. */
+const LONG_TOKEN_MS = (CLOUD_RUN_MAX_MINUTES + 5) * 60_000;
+
+export async function handlePhoneApi(request: Request, segments: readonly string[], deps: PhoneApiDeps): Promise<Response> {
+  const method = request.method.toUpperCase();
+  const [first] = segments;
+
+  // Sign-in steps carry their own credential.
+  if (segments.length === 1 && method === "POST" && (first === "connect" || first === "token" || first === "refresh")) {
+    if (!deps.auth) return problem(503, "NOT_CONFIGURED", "Accounts aren't configured on this server.");
+    if (first === "connect") {
+      const form = await request.formData().catch(() => null);
+      const answer = await connectFromBrowser(deps.auth, {
+        userId: await deps.browserUser(),
+        requestOrigin: request.headers.get("origin"),
+        siteOrigin: deps.siteOrigin,
+        fields: { challenge: form?.get("challenge"), state: form?.get("state"), platform: form?.get("platform"), device: form?.get("device") },
+      });
+      if (answer.kind === "refused") return new Response(answer.message, { status: answer.status, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } });
+      const location = answer.kind === "app" ? `/auth/connect/done?${new URLSearchParams(answer.params)}` : answer.location;
+      return new Response(null, { status: 303, headers: { location, "cache-control": "no-store", "referrer-policy": "no-referrer" } });
+    }
+    const input = await body(request);
+    if (!input) return badBody();
+    const clientKey = deps.clientKey(request);
+    const grant = first === "token" ? await exchangeCode(deps.auth, { code: input.code, verifier: input.verifier, appVersion: input.appVersion, clientKey }) : await refreshPhone(deps.auth, { refreshToken: input.refreshToken, clientKey });
+    return fromOutcome(grant);
+  }
+
+  const sample = first === "sample";
+  const path = sample ? segments.slice(1) : segments;
+  let route: Route | undefined;
+  let params: Params | null = null;
+  for (const r of ROUTES) {
+    params = match(r, method, path);
+    if (params) {
+      route = r;
+      break;
+    }
+  }
+  if (!route || !params) {
+    const known = ROUTES.some((r) => match(r, r.method, path) !== null);
+    return known ? problem(405, "METHOD_NOT_ALLOWED", "That method isn't allowed here.") : problem(404, "NOT_FOUND", "There's nothing at this address.");
+  }
+
+  if (sample) {
+    if (route.write || method !== "GET") return problem(403, "SAMPLE_READ_ONLY", SAMPLE_READ_ONLY);
+    if (deps.auth && !(await deps.auth.store.rateLimit(`phone-sample:${deps.clientKey(request)}`, 60, 120))) return problem(429, "RATE_LIMITED", "Too many requests in the last minute.");
+    const { ctx, runs } = await deps.sample();
+    return route.run({ request, params, url: new URL(request.url), ctx, runs, caller: null, deps });
+  }
+
+  if (!deps.auth) return problem(503, "NOT_CONFIGURED", "Accounts aren't configured on this server.");
+  const caller = await authenticate(deps.auth, request.headers.get("authorization"));
+  if (!caller.ok) return problem(caller.status, caller.code, caller.message);
+  if (route.long && caller.value.expiresAt * 1000 - deps.now().getTime() < LONG_TOKEN_MS) {
+    return problem(409, "REFRESH_FIRST", "Your sign-in needs refreshing before the agent starts. The app does this by itself; try again.");
+  }
+  const workspace = request.headers.get("x-farbaek-workspace");
+  const { ctx, runs } = await deps.live(caller.value, workspace && Uuid.safeParse(workspace).success ? workspace : null);
+  if (workspace && ctx.current?.id !== workspace) return problem(404, "NOT_FOUND", "That workspace doesn't exist or you're not a member.");
+  return route.run({ request, params, url: new URL(request.url), ctx, runs, caller: caller.value, deps });
+}

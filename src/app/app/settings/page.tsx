@@ -10,6 +10,8 @@ import { levelThreeStatus } from "@/core/trust/autonomy-levels";
 import { DeleteAccount } from "@/components/app/delete-account";
 import { EmailPreferencesForm } from "@/components/app/email-preferences";
 import { ThisDevice } from "@/components/app/this-device";
+import { Phones } from "@/components/app/phones";
+import { readMyPhones } from "@/server/phone/store";
 import { readMyDevices } from "@/server/push/store";
 import { vapidPublicKey } from "@/server/push/wiring";
 import { createSupabaseServerClient } from "@/server/supabase/server";
@@ -54,6 +56,8 @@ export default async function SettingsPage() {
   // Notifications on people's devices (ADR 0079), read as the person.
   const pushClient = ctx.mode === "live" ? await createSupabaseServerClient() : null;
   const myDevices = pushClient ? await readMyDevices(pushClient, ctx.user.id).catch(() => []) : [];
+  // Phones signed in with the Farbaek app (ADR 0110), read as the person.
+  const myPhones = pushClient ? await readMyPhones(pushClient, ctx.user.id).catch(() => []) : [];
   // Level 3 (ADR 0086): the plan first, then the record it's earned from, read as the person. A running level 3 can always change its limits.
   const levelThreeFeature = checkFeature(ws.plan, "advanced_autonomy");
   const levelThreeOn = autonomy.level === 3 && autonomy.suspendedAt === null;
@@ -168,6 +172,11 @@ export default async function SettingsPage() {
           <section id="device" aria-label="This device" className="scroll-mt-24">
             <Card>
               <ThisDevice vapidKey={vapidPublicKey()} devices={myDevices} disabledReason={ctx.mode === "demo" ? "The demo workspace has no account to notify." : null} />
+            </Card>
+          </section>
+          <section id="phones" aria-labelledby="phones-title" className="scroll-mt-24">
+            <Card>
+              <Phones phones={myPhones} disabledReason={ctx.mode === "demo" ? "The demo workspace has no account for phones to sign in to." : null} />
             </Card>
           </section>
           <Card>

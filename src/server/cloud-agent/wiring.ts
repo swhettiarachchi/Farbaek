@@ -49,7 +49,7 @@ async function freshAccessToken(): Promise<string | null> {
  * session, so the sandbox acts for the person through the server's client, scoped to their workspace by the
  * sandbox service as other background work is.
  */
-export async function cloudRunDeps(person: { orgId: string; userId: string; role: OrgRole }, options: { system?: boolean } = {}): Promise<CloudRunWiring> {
+export async function cloudRunDeps(person: { orgId: string; userId: string; role: OrgRole }, options: { system?: boolean; accessToken?: string } = {}): Promise<CloudRunWiring> {
   const ai = resolveAiProvider();
   if (ai.provider !== "anthropic") return { ok: false, reason: ai.provider ? "Cloud runs need Claude on this server." : ai.reason };
   const admin = createSupabaseAdminClient();
@@ -58,7 +58,8 @@ export async function cloudRunDeps(person: { orgId: string; userId: string; role
 
   const agentStore = createSupabaseAgentStore(admin);
   const sandboxed = sandboxExecutionMode().mode === "sandboxed";
-  const token = sandboxed && !options.system ? await freshAccessToken() : null;
+  // A phone passes its own token (ADR 0110), checked to outlast the run; a page's session is refreshed for it.
+  const token = sandboxed && !options.system ? (options.accessToken ?? (await freshAccessToken())) : null;
   const canSandbox = sandboxed && (token !== null || options.system === true);
 
   const deps: ExecutorDeps = {

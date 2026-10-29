@@ -3,12 +3,14 @@
 import { EnvelopeSimpleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useActionState, useId } from "react";
+import { PhoneLinkPaste } from "@/components/auth/phone-link-paste";
 import { TurnstileCheck } from "@/components/auth/turnstile-check";
 import { buttonClasses } from "@/components/ui/button";
 import type { SignInState } from "@/server/auth/sign-in";
 import { requestSignInLink } from "./actions";
 
-export function SignInForm({ linkError, next = "/app", captchaSiteKey = null }: { linkError: boolean; next?: string; captchaSiteKey?: string | null }) {
+/** `phone`: set while the Farbaek app signs in (ADR 0110), so a link opened in another browser can still finish here. */
+export function SignInForm({ linkError, next = "/app", captchaSiteKey = null, phone = null }: { linkError: boolean; next?: string; captchaSiteKey?: string | null; phone?: { siteOrigin: string; authOrigin: string | null } | null }) {
   const [state, action, pending] = useActionState<SignInState, FormData>(requestSignInLink, { status: "idle" });
   const emailId = useId();
   const errorId = useId();
@@ -22,6 +24,7 @@ export function SignInForm({ linkError, next = "/app", captchaSiteKey = null }: 
           If <span className="font-medium text-ink">{state.email}</span> can receive mail, a sign-in link is on its way. The link works
           once and confirms your email address.
         </p>
+        {phone ? <PhoneLinkPaste next={next} siteOrigin={phone.siteOrigin} authOrigin={phone.authOrigin} /> : null}
       </div>
     );
   }
