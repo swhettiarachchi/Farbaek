@@ -30,6 +30,8 @@ Everything else (editing files, billing, members, settings) stays on the web. Th
 
 A link opened in another browser would sign that browser in instead of the sheet. So during a phone sign-in, the "check your inbox" state also offers "I opened the link in Safari, continue", and a field to paste the link, which finishes it in the sheet. Only Farbaek's own sign-in links are followed.
 
+If the person connects in Safari instead (the email link opened there, so the consent page did too), the done page's `farbaek://connected` link opens the app. The app finishes the sign-in still waiting for it, when the state matches, and closes the sheet. With nothing waiting, for example after the app was closed, the app says to tap Sign in again. That takes one tap, because the web is signed in by then.
+
 **Every request is the person, checked on every call** (`src/server/phone/api.ts`):
 - The phone sends its access token. The server verifies it with `getClaims`, then looks up the session in `phone_devices`. A disconnected phone is refused at once, with `DISCONNECTED`, even while its token hasn't expired.
 - Reads use `createSupabaseReader` with the person's token, so Row Level Security decides what's visible, exactly as on the web. `liveContext` (shared with `loadAppContext`) gives the same role, permissions and reasons a write is unavailable.

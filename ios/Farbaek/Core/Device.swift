@@ -44,24 +44,24 @@ final class WebSignIn: NSObject, ASWebAuthenticationPresentationContextProviding
         return Request(url: components.url!, verifier: verifier, state: state)
     }
 
+    /// The sign-in waiting for its answer, and the state it expects back.
+    private var waiting: CheckedContinuation<URL, Error>?
+    private var expectedState: String?
+
     /// Opens the sheet and returns the code Farbaek answered with.
     @MainActor
     func code(for request: Request) async throws -> String {
+        expectedState = request.state
         let callback: URL = try await withCheckedThrowingContinuation { continuation in
-            let session = ASWebAuthenticationSession(url: request.url, callbackURLScheme: "farbaek") { url, error in
-                if let url {
-                    continuation.resume(returning: url)
-                } else if let error = error as? ASWebAuthenticationSessionError, error.code == .canceledLogin {
-                    continuation.resume(throwing: SignInError.cancelled)
-                } else {
-                    continuation.resume(throwing: SignInError.refused(error?.localizedDescription ?? "The sign-in didn't finish. Try again."))
-                }
+            self.waiting = continuation
+            let session = ASWebAuthenticationSession(url: request.url, callbackURLScheme: "farbaek") { [weak self] url, error in
+                DispatchQueue.main.async { self?.finish(url, error) }
             }
             session.presentationContextProvider = self
             session.prefersEphemeralWebBrowserSession = false
             self.session = session
             if !session.start() {
-                continuation.resume(throwing: SignInError.couldNotStart)
+                self.finish(nil, SignInError.couldNotStart)
             }
         }
         let items = URLComponents(url: callback, resolvingAgainstBaseURL: false)?.queryItems ?? []
@@ -76,6 +76,36 @@ final class WebSignIn: NSObject, ASWebAuthenticationPresentationContextProviding
         }
         guard let code = value("code") else { throw SignInError.refused("Farbaek didn't send a sign-in code. Try again.") }
         return code
+    }
+
+    /// A farbaek://connected link the system opened: the sign-in email was
+    /// opened in Safari and the person connected there. It finishes the
+    /// sign-in waiting for it, when its state matches. False when nothing
+    /// was waiting for it.
+    @MainActor
+    func receive(_ url: URL) -> Bool {
+        guard url.scheme == "farbaek", url.host == "connected", waiting != nil else { return false }
+        let state = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "state" })?.value
+        guard state == expectedState else { return false }
+        finish(url, nil)
+        session?.cancel()
+        return true
+    }
+
+    /// Answers the waiting sign-in once: the sheet's answer, a link from Safari, or why it ended.
+    private func finish(_ url: URL?, _ error: Error?) {
+        guard let continuation = waiting else { return }
+        waiting = nil
+        expectedState = nil
+        if let url {
+            continuation.resume(returning: url)
+        } else if let error = error as? ASWebAuthenticationSessionError, error.code == .canceledLogin {
+            continuation.resume(throwing: SignInError.cancelled)
+        } else if let error = error as? SignInError {
+            continuation.resume(throwing: error)
+        } else {
+            continuation.resume(throwing: SignInError.refused(error?.localizedDescription ?? "The sign-in didn't finish. Try again."))
+        }
     }
 
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
