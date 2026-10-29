@@ -1,0 +1,84 @@
+# Farbaek Agent for Linux (ADR 0111): an AppImage for x64, built on GitHub's
+# Linux runner, opened under a virtual display to see it start and stay up,
+# and kept with its SHA-256 as the run's artifact for 7 days. Publishing it on
+# www.farbaek.com/downloads is by hand (docs/agent/README.md, "Publishing a
+# release"); nothing here can reach Farbaek's server. Linux needs no signing
+# for people to open it.
+#
+# It runs when the agent's version or build settings change, or from "Run
+# workflow". Linux minutes count once against the repository's free minutes.
+name: Agent for Linux
+
+on:
+  push:
+    paths:
+      - desktop/app/package.json
+      - desktop/electron-builder.yml
+      - .github/workflows/agent-linux.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-linux-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # electron-builder downloads the Electron build it packages; the dev copy isn't needed.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.13.1
+
+      - name: Install
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+
+      - name: Build the app
+        run: node desktop/build.mjs --production
+
+      - name: Package the AppImage
+        run: pnpm exec electron-builder --linux --config desktop/electron-builder.yml --publish never
+
+      - name: Open it and check it stays up
+        run: |
+          set -euo pipefail
+          image=$(ls desktop/release/Farbaek-Agent-*-linux-x86_64.AppImage)
+          chmod +x "$image"
+          mkdir -p out
+          cp "$image" out/
+          (cd out && sha256sum "$(basename "$image")" > "$(basename "$image").sha256")
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb gnome-keyring dbus-x11 > /dev/null
+          # The runner has no FUSE, so the AppImage runs from its extracted copy; Chromium's sandbox needs root setup a runner lacks.
+          export APPIMAGE_EXTRACT_AND_RUN=1
+          dbus-run-session -- bash -c "echo '' | gnome-keyring-daemon --unlock --components=secrets >/dev/null; xvfb-run -a \"$image\" --no-sandbox > /tmp/agent.log 2>&1 &"
+          sleep 25
+          if pgrep -f "farbaek-agent" > /dev/null; then echo "Still running after 25 seconds."; else echo "It stopped:"; tail -n 40 /tmp/agent.log; exit 1; fi
+          pkill -f "farbaek-agent" || true
+          {
+            echo "### Farbaek Agent for Linux"
+            echo
+            echo "| File | Bytes | SHA-256 |"
+            echo "| --- | --- | --- |"
+            echo "| \`$(basename "$image")\` | $(stat -c %s "$image") | \`$(cut -d' ' -f1 out/*.sha256)\` |"
+            echo
+            echo "An AppImage for x64; opened under a virtual display and still running 25 seconds later."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: farbaek-agent-linux
+          path: out/
+          retention-days: 7

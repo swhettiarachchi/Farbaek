@@ -1,6 +1,6 @@
-import { AppleLogoIcon, ArrowUpRightIcon, DownloadSimpleIcon, SealCheckIcon, ShieldWarningIcon, WindowsLogoIcon } from "@phosphor-icons/react/ssr";
+import { AppleLogoIcon, ArrowUpRightIcon, DownloadSimpleIcon, LinuxLogoIcon, SealCheckIcon, ShieldWarningIcon, WindowsLogoIcon } from "@phosphor-icons/react/ssr";
 import type { ReactNode } from "react";
-import { AGENT_DOWNLOAD, AGENT_MAC, AGENT_STORE_URL, agentDownloadUrl } from "@/config/agent-download";
+import { AGENT_DOWNLOAD, AGENT_LINUX, AGENT_MAC, AGENT_STORE_URL, agentDownloadUrl } from "@/config/agent-download";
 
 const mb = (bytes: number) => `${Math.round(bytes / 1024 / 1024)} MB`;
 
@@ -101,9 +101,29 @@ export function AgentDownload() {
             </PrimaryLink>
           </div>
         ) : (
-          <p className="text-xs leading-relaxed text-ink-3">
-            The Mac version is on its way, signed and notarized by Apple so it opens without a warning. A Linux version isn&apos;t available yet.
-          </p>
+          <p className="text-xs leading-relaxed text-ink-3">The Mac version is on its way, signed and notarized by Apple so it opens without a warning.</p>
+        )}
+
+        {AGENT_LINUX ? (
+          <div className="grid gap-4 border-t border-line pt-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+            <div className="grid min-w-0 gap-2">
+              <p className="flex items-start gap-2 text-sm text-ink-2">
+                <LinuxLogoIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
+                <span>
+                  For 64-bit Linux with a desktop keyring (GNOME Keyring or KWallet), which keeps the agent&apos;s token safe. Version {AGENT_LINUX.version}, {mb(AGENT_LINUX.bytes)}. An
+                  AppImage: allow it to run as a program, then open it.
+                </span>
+              </p>
+              <p className="text-xs leading-relaxed text-ink-3">To check it&apos;s the real file, run this in a terminal, in your Downloads folder. It must print this fingerprint.</p>
+              <code className="block break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[12px] text-ink-2">sha256sum {AGENT_LINUX.file}</code>
+              <p className="break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[12px] leading-relaxed text-ink">{AGENT_LINUX.sha256}</p>
+            </div>
+            <PrimaryLink href={`/downloads/${AGENT_LINUX.file}`} download icon={<DownloadSimpleIcon size={17} weight="bold" aria-hidden />}>
+              Download for Linux
+            </PrimaryLink>
+          </div>
+        ) : (
+          <p className="text-xs leading-relaxed text-ink-3">The Linux version is on its way, as an AppImage for 64-bit Linux.</p>
         )}
       </div>
     </section>

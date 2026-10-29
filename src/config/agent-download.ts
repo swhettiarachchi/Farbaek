@@ -24,3 +24,11 @@ export const agentDownloadUrl = `/downloads/${AGENT_DOWNLOAD.file}`;
 export const AGENT_STORE_URL: string | null = null;
 
 export const AGENT_MAC: { version: string; file: string; bytes: number; sha256: string; builtOn: string } | null = null;
+
+/**
+ * The Linux AppImage (ADR 0111), built on GitHub's Linux runner
+ * (.github/workflows/agent-linux.yml) and published on Farbaek's own server
+ * like the Windows installer. Null until it's on the server with this exact
+ * SHA-256; the Agents page then offers it.
+ */
+export const AGENT_LINUX: { version: string; file: string; bytes: number; sha256: string; builtOn: string } | null = null;
