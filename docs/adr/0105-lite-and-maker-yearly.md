@@ -66,6 +66,29 @@ Sandboxes on Lite and Maker stay on the small size, one at a time.
 
 The owner approved this text with the plan for this stage.
 
+## Amendment (2026-10-29): monthly too
+
+The owner then asked that people may pay Lite and Maker monthly as well: "if user want pay monthly, its okay".
+
+**Separate plans.** The monthly versions are plans of their own, `lite_monthly` and `maker_monthly`, named "Lite monthly" and "Maker monthly":
+- each has its own monthly product;
+- checkout, plan changes, entitlements and the webhook mapping work unchanged;
+- migration v67 adds them to the plan checks.
+
+**Where they show up:**
+- the cards and Billing show them on their yearly plan's card, as "Pay monthly instead";
+- the comparison lists them as columns of their own, because their usage differs;
+- upgrade hints skip them.
+
+**What a monthly charge pays for.** It pays Dodo's 40-cent fee every month, so it pays for less:
+- **Maker monthly** ($1.99) keeps 57%, with the same 2 sandbox hours and about 1.15x Free's AI usage (5,737 units, 38 for retries).
+- **Lite monthly** ($0.99) can't reach 57% at any cost. It has Free's AI usage plus what costs nothing (2 projects, 30-day history, alerts, API, rollover, top-ups). That's the most a 99-cent charge can keep: about 45.5% at the worst-case fee, and about 50% for a US card. The owner accepted this.
+- **Everything except AI usage** is the same as paying yearly. Paying yearly is how people get more AI usage.
+
+**Unchanged:**
+- top-ups for both monthly plans use Starter's rate;
+- the renewal reminder stays yearly only.
+
 ## Consequences
 
 - The pricing page's first row is Free, Lite, Maker and Starter. The cards' buttons now go to sign-in, and on to Billing for a paid plan, replacing "Sign-up opens at launch".

@@ -1,6 +1,6 @@
 import { CheckIcon, ClockCounterClockwiseIcon, InfoIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
-import { FEATURE_LABELS, FEATURE_STATUS, SELF_SERVE_PLANS, planSessionsGuide, priceWords, type FeatureKey, type Plan } from "@/core/billing/catalog";
+import { FEATURE_LABELS, FEATURE_STATUS, SELF_SERVE_PLANS, getPlan, monthlyVersionOf, planSessionsGuide, priceWords, type FeatureKey, type Plan } from "@/core/billing/catalog";
 import { buttonClasses } from "@/components/ui/button";
 
 const number = new Intl.NumberFormat("en-US");
@@ -15,6 +15,12 @@ export function sessionsLine(plan: Plan): string {
   if (n === null) return "Custom AI usage";
   return n < 2 ? "A taste of the agent each month" : `About ${number.format(n)} agent sessions a month`;
 }
+
+/** How much less AI usage the monthly version has than the yearly plan, as a whole percent. */
+const lessUsagePercent = (yearly: Plan, monthly: Plan) => Math.round((1 - (monthly.limits.aiUnitsPerMonth ?? 0) / (yearly.limits.aiUnitsPerMonth ?? 1)) * 100);
+
+/** Sign in first, then straight to the plan's step in Billing. */
+const choosePath = (id: string) => `/sign-in?next=${encodeURIComponent(`/app/billing?choose=${id}#billing-step`)}`;
 
 function Feature({ feature }: { feature: FeatureKey }) {
   const coming = FEATURE_STATUS[feature] === "coming";
@@ -45,6 +51,8 @@ export function PricingPlans() {
         const featured = plan.recommendedFor !== undefined;
         const l = plan.limits;
         const price = priceWords(plan);
+        const monthlyId = monthlyVersionOf(plan.id);
+        const monthly = monthlyId ? getPlan(monthlyId) : null;
         const added = newFeatures(plan, i).filter((f) => f !== "usage_rollover");
         return (
           <li
@@ -90,13 +98,21 @@ export function PricingPlans() {
                 ))}
             </ul>
 
-            <div className="mt-auto pt-8">
+            <div className="mt-auto grid gap-2 pt-8">
               <Link
-                href={plan.pricing.kind === "paid" ? `/sign-in?next=${encodeURIComponent(`/app/billing?choose=${plan.id}#billing-step`)}` : "/sign-in"}
+                href={plan.pricing.kind === "paid" ? choosePath(plan.id) : "/sign-in"}
                 className={buttonClasses(featured ? "primary" : "secondary", "md", "min-h-11 w-full")}
               >
-                {plan.pricing.kind === "paid" ? `Choose ${plan.name}` : "Start free"}
+                {plan.pricing.kind === "paid" ? `Choose ${plan.name}${monthly ? " yearly" : ""}` : "Start free"}
               </Link>
+              {monthly ? (
+                <>
+                  <Link href={choosePath(monthly.id)} className={buttonClasses("ghost", "md", "min-h-11 w-full")}>
+                    Pay monthly instead
+                  </Link>
+                  <p className="text-center text-xs leading-relaxed text-ink-3">Paid monthly: about {lessUsagePercent(plan, monthly)}% less AI usage, everything else the same.</p>
+                </>
+              ) : null}
             </div>
             </div>
           </li>

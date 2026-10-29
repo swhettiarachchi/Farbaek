@@ -4,7 +4,7 @@
  * limit an owner or admin sets. Lite and Maker buy at Starter's rate (ADR
  * 0105). Pure; the database enforces the limit.
  */
-import { getPlan, isYearly } from "./catalog";
+import { getPlan, isLight } from "./catalog";
 import type { PaidPlanId } from "./provider";
 import type { SubscriptionState } from "./trial";
 
@@ -33,7 +33,7 @@ export function isTopupPack(value: unknown): value is TopupPack {
  * which their price doesn't pay for, so their rate would lose money.
  */
 export function topupUnits(planId: PaidPlanId, cents: number): number {
-  const rate = getPlan(isYearly(planId) ? "starter" : planId);
+  const rate = getPlan(isLight(planId) ? "starter" : planId);
   if (rate.pricing.kind !== "paid" || rate.limits.aiUnitsPerMonth === null) return 0;
   return Math.floor((cents / rate.pricing.monthlyCents) * rate.limits.aiUnitsPerMonth);
 }
@@ -42,7 +42,7 @@ export function topupUnits(planId: PaidPlanId, cents: number): number {
 export function topupSharePercent(planId: PaidPlanId, cents: number): number {
   const plan = getPlan(planId);
   if (plan.pricing.kind !== "paid") return 0;
-  if (isYearly(planId)) return plan.limits.aiUnitsPerMonth ? Math.round((topupUnits(planId, cents) / plan.limits.aiUnitsPerMonth) * 100) : 0;
+  if (isLight(planId)) return plan.limits.aiUnitsPerMonth ? Math.round((topupUnits(planId, cents) / plan.limits.aiUnitsPerMonth) * 100) : 0;
   return Math.round((cents / plan.pricing.monthlyCents) * 100);
 }
 

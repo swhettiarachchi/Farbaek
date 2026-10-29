@@ -1,48 +1,38 @@
-import { CheckIcon, MinusIcon } from "@phosphor-icons/react/ssr";
-import { FEATURE_LABELS, FEATURE_STATUS, SELF_SERVE_PLANS, chargeLine, planSessionsGuide, type FeatureKey, type Plan, type PlanLimits } from "@/core/billing/catalog";
+import { ArrowsLeftRightIcon } from "@phosphor-icons/react/ssr";
+import { COMPARE_PLANS, FEATURE_LABELS, FEATURE_STATUS, chargeLine, planSessionsGuide, type FeatureKey, type Plan, type PlanLimits } from "@/core/billing/catalog";
+import { CompareCellView, type CompareCell, type CompareGroup, type CompareRow } from "./compare-cell";
+import { ComparePlans } from "./compare-plans";
 
 const number = new Intl.NumberFormat("en-US");
+const text = (t: string): CompareCell => ({ kind: "text", text: t });
 
-type Row = { label: string; value: (plan: Plan) => React.ReactNode };
-
-function limitRow(label: string, key: keyof PlanLimits, unit = ""): Row {
-  return {
-    label,
-    value: (plan) => {
-      const v = plan.limits[key];
-      return v === null ? "Contract" : `${number.format(v)}${unit}`;
-    },
-  };
+function row(label: string, value: (plan: Plan) => CompareCell): CompareRow {
+  return { label, cells: Object.fromEntries(COMPARE_PLANS.map((p) => [p.id, value(p)])) };
 }
 
-function featureRow(feature: FeatureKey): Row {
-  return {
-    label: FEATURE_LABELS[feature],
-    value: (plan) =>
-      plan.features.includes(feature) && FEATURE_STATUS[feature] === "coming" ? (
-        <span className="text-xs text-ink-3">Coming soon</span>
-      ) : plan.features.includes(feature) ? (
-        <>
-          <CheckIcon size={18} weight="bold" className="inline text-verified" aria-hidden />
-          <span className="sr-only">Included</span>
-        </>
-      ) : (
-        <>
-          <MinusIcon size={18} className="inline text-ink-3" aria-hidden />
-          <span className="sr-only">Not included</span>
-        </>
-      ),
-  };
+function limitRow(label: string, key: keyof PlanLimits, unit = ""): CompareRow {
+  return row(label, (plan) => {
+    const v = plan.limits[key];
+    return text(v === null ? "Contract" : `${number.format(v)}${unit}`);
+  });
 }
 
-const GROUPS: { title: string; rows: Row[] }[] = [
+function featureRow(feature: FeatureKey): CompareRow {
+  return row(FEATURE_LABELS[feature], (plan) => (!plan.features.includes(feature) ? { kind: "no" } : FEATURE_STATUS[feature] === "coming" ? { kind: "soon" } : { kind: "yes" }));
+}
+
+const charged = (plan: Plan) => (plan.pricing.kind === "paid" ? chargeLine(plan) : "Nothing");
+
+const GROUPS: CompareGroup[] = [
   {
     title: "Usage",
     rows: [
-      { label: "Charged", value: (plan) => (plan.pricing.kind === "paid" ? chargeLine(plan) : "Nothing") },
-      { label: "Agent sessions a month (about)", value: (plan) => { const n = planSessionsGuide(plan); return n === null ? "Contract" : number.format(n); } },
+      row("Agent sessions a month (about)", (plan) => {
+        const n = planSessionsGuide(plan);
+        return text(n === null ? "Contract" : number.format(n));
+      }),
       limitRow("Sandbox hours a month", "sandboxHours"),
-      { label: "Unused usage rolls over", value: (plan) => (plan.features.includes("usage_rollover") ? "2 months" : "No") },
+      row("Unused usage rolls over", (plan) => text(plan.features.includes("usage_rollover") ? "2 months" : "No")),
       limitRow("Projects", "workspaces"),
       limitRow("Seats", "seats"),
       limitRow("Desktop agents", "agents"),
@@ -58,49 +48,66 @@ const GROUPS: { title: string; rows: Row[] }[] = [
   { title: "Team and support", rows: (["team_collaboration", "community_support", "priority_support"] as const).map(featureRow) },
 ];
 
+/**
+ * Every plan side by side. On a phone, ten columns can't fit, so people pick
+ * two plans to compare (ComparePlans). From tablet width up it's the full
+ * table: a narrow label column stays put while the plans scroll sideways
+ * inside their own frame, never the page.
+ */
 export function ComparisonTable() {
+  const plans = COMPARE_PLANS.map((p) => ({ id: p.id, name: p.name, charge: charged(p) }));
   return (
-    <div className="grid gap-4">
-      {GROUPS.map((group) => (
-        <details key={group.title} open className="group min-w-0 rounded-md border border-line bg-surface">
-          <summary className="flex min-h-13 cursor-pointer list-none items-center justify-between px-4 py-3 text-[17px] font-medium sm:px-5 [&::-webkit-details-marker]:hidden">
-            {group.title}
-            <span className="text-sm font-normal text-ink-3 group-open:hidden">Show</span>
-            <span className="hidden text-sm font-normal text-ink-3 group-open:inline">Hide</span>
-          </summary>
-          <div className="overflow-x-auto border-t border-line [contain:paint]">
-            <table className="w-full min-w-[1120px] border-collapse text-sm">
-              <caption className="sr-only">{group.title} by plan</caption>
-              <thead>
-                <tr className="text-left">
-                  <th scope="col" className="sticky left-0 w-[30%] bg-surface px-4 py-3 font-normal text-ink-3 sm:px-5">
-                    <span className="sr-only">Feature</span>
-                  </th>
-                  {SELF_SERVE_PLANS.map((plan) => (
-                    <th key={plan.id} scope="col" className="px-3 py-3 text-center font-medium">
-                      {plan.name}
+    <>
+      <div className="md:hidden">
+        <ComparePlans plans={plans} groups={GROUPS} initial={["lite", "maker"]} />
+      </div>
+
+      <div className="hidden gap-4 md:grid">
+        <p className="flex items-center gap-2 text-sm text-ink-3">
+          <ArrowsLeftRightIcon size={16} aria-hidden /> Scroll a table sideways to see all {COMPARE_PLANS.length} plans. The feature names stay in place.
+        </p>
+        {GROUPS.map((group) => (
+          <details key={group.title} open className="group min-w-0 rounded-md border border-line bg-surface">
+            <summary className="flex min-h-13 cursor-pointer list-none items-center justify-between px-5 py-3 text-[17px] font-medium [&::-webkit-details-marker]:hidden">
+              {group.title}
+              <span className="text-sm font-normal text-ink-3 group-open:hidden">Show</span>
+              <span className="hidden text-sm font-normal text-ink-3 group-open:inline">Hide</span>
+            </summary>
+            <div className="overflow-x-auto overscroll-x-contain border-t border-line [contain:paint]">
+              <table className="w-max min-w-full border-collapse text-sm">
+                <caption className="sr-only">{group.title} by plan</caption>
+                <thead>
+                  <tr className="text-left">
+                    <th scope="col" className="sticky left-0 z-10 w-52 min-w-52 bg-surface px-5 py-3 font-normal text-ink-3 shadow-[inset_-1px_0_0_var(--color-line)] lg:w-60 lg:min-w-60">
+                      <span className="sr-only">Feature</span>
                     </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {group.rows.map((row) => (
-                  <tr key={row.label} className="border-t border-line">
-                    <th scope="row" className="sticky left-0 bg-surface px-4 py-3 text-left font-normal text-ink-2 sm:px-5">
-                      {row.label}
-                    </th>
-                    {SELF_SERVE_PLANS.map((plan) => (
-                      <td key={plan.id} className="px-3 py-3 text-center tabular">
-                        {row.value(plan)}
-                      </td>
+                    {COMPARE_PLANS.map((plan) => (
+                      <th key={plan.id} scope="col" className="min-w-26 px-3 py-3 text-center align-bottom">
+                        <span className="block font-medium">{plan.name}</span>
+                        <span className="mt-0.5 block text-xs font-normal text-ink-3 tabular">{plan.pricing.kind === "paid" ? chargeLine(plan) : "$0"}</span>
+                      </th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </details>
-      ))}
-    </div>
+                </thead>
+                <tbody>
+                  {group.rows.map((r) => (
+                    <tr key={r.label} className="border-t border-line">
+                      <th scope="row" className="sticky left-0 z-10 w-52 min-w-52 bg-surface px-5 py-3 text-left font-normal text-ink-2 shadow-[inset_-1px_0_0_var(--color-line)] lg:w-60 lg:min-w-60">
+                        {r.label}
+                      </th>
+                      {COMPARE_PLANS.map((plan) => (
+                        <td key={plan.id} className="px-3 py-3 text-center tabular">
+                          <CompareCellView cell={r.cells[plan.id]} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        ))}
+      </div>
+    </>
   );
 }

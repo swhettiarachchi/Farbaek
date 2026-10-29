@@ -12,7 +12,7 @@ import { CancelStep, ChangePlanStep, ChoosePlanStep, SubscriptionSummary } from 
 import { TopupCard, TopupStep } from "@/components/billing/topup-card";
 import { isTopupPack } from "@/core/billing/topups";
 import { topupErrorMessage } from "@/server/billing/topups";
-import { SELF_SERVE_PLANS, TRIAL, getPlan, priceWords } from "@/core/billing/catalog";
+import { SELF_SERVE_PLANS, TRIAL, getPlan, monthlyVersionOf, priceWords } from "@/core/billing/catalog";
 import { isPaidPlanId, planChangeDirection } from "@/core/billing/provider-state";
 import { billingDeps } from "@/server/billing/wiring";
 import { billingErrorMessage, previewPlanChange } from "@/server/billing/use-cases";
@@ -193,12 +193,15 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         </h2>
         <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {SELF_SERVE_PLANS.map((p) => {
-            const isCurrent = sub ? p.id === sub.planId : p.id === ws.plan.planId && ws.plan.source !== "trial";
+            const monthlyId = monthlyVersionOf(p.id);
+            // Lite monthly and Maker monthly live on their yearly plan's card (ADR 0105).
+            const onMonthly = monthlyId !== null && sub?.planId === monthlyId;
+            const isCurrent = sub ? p.id === sub.planId || onMonthly : p.id === ws.plan.planId && ws.plan.source !== "trial";
             return (
               <li key={p.id} className={`flex flex-col rounded-md border bg-surface p-5 shadow-e1 ${isCurrent ? "border-accent/50" : "border-line"}`}>
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-medium">{p.name}</p>
-                  {isCurrent ? <span className="rounded-full bg-accent/[0.08] px-2.5 py-0.5 text-xs font-medium text-accent">Current</span> : null}
+                  {isCurrent ? <span className="rounded-full bg-accent/[0.08] px-2.5 py-0.5 text-xs font-medium text-accent">{onMonthly ? "Current, monthly" : "Current"}</span> : null}
                 </div>
                 <p className="mt-2 text-2xl font-medium tracking-[-0.02em] tabular">
                   {priceWords(p).price}
@@ -212,8 +215,11 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                   </li>
                   <li>{p.limits.seats === 1 ? "1 seat" : `${p.limits.seats} seats`}</li>
                 </ul>
-                <div className="mt-auto pt-5">
-                  <PlanAction planId={p.id} isCurrent={isCurrent} open={billing.open} canManage={canManage} currentPaid={sub?.planId ?? null} cancelling={sub?.state === "cancellation_scheduled"} />
+                <div className="mt-auto grid gap-2 pt-5">
+                  <PlanAction planId={p.id} isCurrent={isCurrent && !onMonthly} open={billing.open} canManage={canManage} currentPaid={sub?.planId ?? null} cancelling={sub?.state === "cancellation_scheduled"} />
+                  {monthlyId && billing.open && canManage ? (
+                    <PlanAction planId={monthlyId} isCurrent={onMonthly} open={billing.open} canManage={canManage} currentPaid={sub?.planId ?? null} cancelling={sub?.state === "cancellation_scheduled"} />
+                  ) : null}
                 </div>
               </li>
             );

@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { USERS, as, createOrg, createTestDb } from "./harness";
 
 /**
- * Migration v66 (ADR 0105): Lite and Maker, billed yearly. The plan checks
+ * Migrations v66 and v67 (ADR 0105): Lite and Maker, billed yearly or monthly. The plan checks
  * take the two new plans, a product records its interval, and the renewal
  * reminder goes once per renewal date, only to workspaces on a yearly plan
  * that's still set to renew in 16 to 30 days. Mock data.
@@ -34,7 +34,8 @@ beforeAll(async () => {
   proOrg = await createOrg(db, CAROL, "Mock Pro Studio");
   await subscribe(liteOrg, "lite", "20 days");
   await subscribe(cancellingOrg, "maker", "20 days", true);
-  await subscribe(proOrg, "pro", "20 days");
+  // Paid monthly (v67): renews too, but monthly plans get no yearly reminder.
+  await subscribe(proOrg, "maker_monthly", "20 days");
   await su("insert into auth.users (id, email, email_confirmed_at) values ($1, 'info@farbaek.com', now())", [OWNER]);
   await su("insert into public.staff_members (user_id, email, role) values ($1, 'info@farbaek.com', 'owner')", [OWNER]);
   session = crypto.randomUUID();
@@ -54,6 +55,7 @@ describe("Lite and Maker", () => {
 
   it("accepts the two plans and records a yearly product", async () => {
     expect((await su<{ paid_plan_id: string }>("select paid_plan_id from public.billing_accounts where org_id = $1", [liteOrg]))[0]!.paid_plan_id).toBe("lite");
+    expect((await su<{ paid_plan_id: string }>("select paid_plan_id from public.billing_accounts where org_id = $1", [proOrg]))[0]!.paid_plan_id).toBe("maker_monthly");
     await expect(su("update public.billing_accounts set paid_plan_id = 'mini' where org_id = $1", [liteOrg])).rejects.toThrow(/check constraint/);
     await q("select public.app_staff_record_billing_product($1, $2, 'dodo', 'live', 'lite', 'pdt_mock_lite', 1188, 'USD', '2026-10-18.1', null, null, 'year')", [OWNER, session]);
     // Without an interval it's monthly, as before.

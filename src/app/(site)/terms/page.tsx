@@ -72,8 +72,8 @@ const SECTIONS: LegalSection[] = [
               exact amount before you pay.
             </>,
             <>
-              <strong>Renewal.</strong> A monthly plan renews every month on the day you subscribed and charges your payment method until you cancel. Lite and Maker are billed once a
-              year and renew every year on that day; we email you about 30 days before each yearly renewal, so you can cancel first. Before checkout you agree to the exact price and
+              <strong>Renewal.</strong> A monthly plan renews every month on the day you subscribed and charges your payment method until you cancel. Lite and Maker can be paid yearly or
+              monthly; paid yearly, they renew every year on that day, and we email you about 30 days before each yearly renewal, so you can cancel first. Before checkout you agree to the exact price and
               these renewal terms, and we keep a record of what you agreed to and when.
             </>,
             <>
