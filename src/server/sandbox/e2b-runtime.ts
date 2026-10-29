@@ -253,11 +253,12 @@ export function createE2bRuntime(config: SandboxServerConfig): SandboxRuntime {
     },
 
     async writeFiles(sandboxId, files) {
-      const entries: { path: string; data: string }[] = [];
+      const entries: { path: string; data: string | ArrayBuffer }[] = [];
       for (const f of files) {
         const p = resolveSandboxPath(f.path);
         if (!p.ok || p.relative === "") throw new RuntimeError("invalid_request", p.ok ? "Choose a file." : p.reason);
-        entries.push({ path: p.absolute, data: f.content });
+        // E2B takes text or an ArrayBuffer; an image's bytes go as they are (ADR 0108).
+        entries.push({ path: p.absolute, data: typeof f.content === "string" ? f.content : (f.content.buffer.slice(f.content.byteOffset, f.content.byteOffset + f.content.byteLength) as ArrayBuffer) });
       }
       if (entries.length === 0) return;
       const sandbox = await connect(sandboxId);

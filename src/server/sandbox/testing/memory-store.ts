@@ -17,7 +17,7 @@ export interface MemoryStore extends SandboxStore {
   receipts: Map<string, ReceiptRecord>;
   events: { session: string; event: string; actor: string | null }[];
   members: Map<string, Map<string, Role>>;
-  files: Map<string, { path: string; sha256: string; content: string }[]>;
+  files: Map<string, { path: string; sha256: string; content: string; encoding?: "base64" }[]>;
   /** Which workspace each project belongs to, for project previews. */
   projectOrgs: Map<string, string>;
   rateHits: Map<string, number>;
@@ -36,7 +36,7 @@ export function createMemoryStore(now: () => Date, viewer: () => string | null =
   const receipts = new Map<string, ReceiptRecord>();
   const events: { session: string; event: string; actor: string | null }[] = [];
   const members = new Map<string, Map<string, Role>>();
-  const files = new Map<string, { path: string; sha256: string; content: string }[]>();
+  const files = new Map<string, { path: string; sha256: string; content: string; encoding?: "base64" }[]>();
   const projectOrgs = new Map<string, string>();
   const rateHits = new Map<string, number>();
   const idem = new Map<string, string>();

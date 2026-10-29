@@ -206,21 +206,23 @@ export function createSupabaseSandboxStore(user: SupabaseClient | null, admin: S
       if (error) fail("project files", error);
       const files = z.array(z.object({ path: z.string(), revision: z.number().int(), sha256: z.string(), size_bytes: z.number().int() })).parse(data ?? []);
       if (files.length > maxFiles || files.reduce((n, f) => n + f.size_bytes, 0) > maxBytes) return "too_large";
-      const out: { path: string; sha256: string; content: string }[] = [];
+      const out: { path: string; sha256: string; content: string; encoding?: "base64" }[] = [];
       for (let i = 0; i < files.length; i += 150) {
         const chunk = files.slice(i, i + 150);
         const { data: revs, error: revError } = await reader
           .from("project_file_revisions")
-          .select("path, revision, content")
+          .select("path, revision, content, encoding")
           .eq("org_id", orgId)
           .eq("project_id", projectId)
           .in("path", chunk.map((f) => f.path))
           .not("content", "is", null);
         if (revError) fail("project files", revError);
-        const byKey = new Map(z.array(z.object({ path: z.string(), revision: z.number().int(), content: z.string() })).parse(revs ?? []).map((r) => [`${r.path}@${r.revision}`, r.content]));
+        const Rev = z.object({ path: z.string(), revision: z.number().int(), content: z.string(), encoding: z.string().optional() });
+        const byKey = new Map(z.array(Rev).parse(revs ?? []).map((r) => [`${r.path}@${r.revision}`, r]));
         for (const f of chunk) {
-          const content = byKey.get(`${f.path}@${f.revision}`);
-          if (content !== undefined) out.push({ path: f.path, sha256: f.sha256, content });
+          const rev = byKey.get(`${f.path}@${f.revision}`);
+          // An image (ADR 0108) keeps its encoding, so the sandbox gets its bytes, not base64 text.
+          if (rev !== undefined) out.push({ path: f.path, sha256: f.sha256, content: rev.content, ...(rev.encoding === "base64" ? { encoding: "base64" as const } : {}) });
         }
       }
       return out;

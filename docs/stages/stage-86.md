@@ -22,6 +22,10 @@ Stage 84 left images out of a few places: project thumbnails, a run's preview, a
   - the Launch page's fingerprint and the authorized launch both use it;
   - Vercel and Netlify uploads send an image's decoded bytes (`launchBytes`);
   - the "images won't be there" notice is gone.
+- **Sandboxes:**
+  - the snapshot keeps each file's encoding, and an image is written into the sandbox as its bytes;
+  - the Vercel and E2B runtimes take text or bytes; their SDKs accept both (`string | Uint8Array` and `string | ArrayBuffer`);
+  - before this, a project with an image would have put it into a sandbox as base64 text.
 
 ### Verified
 
@@ -30,10 +34,11 @@ Stage 84 left images out of a few places: project thumbnails, a run's preview, a
   - the thumbnail with images (1);
   - `files.test.ts` (1);
   - `launchBytes` (1);
-  - a Netlify launch with an image named by the SHA-1 of its bytes, uploaded once (1).
+  - a Netlify launch with an image named by the SHA-1 of its bytes, uploaded once (1);
+  - a sandbox session gets an image's exact bytes (1).
 - **Existing tests:** launch (38) and workspace tests are unchanged.
 
 ### Not verified yet
 
 - **A launch with an image to a real Vercel or Netlify account:** the owner's check, with a connected account.
-- **Sandboxes and Capsules** still carry text only.
+- **Capsules** still carry text only.

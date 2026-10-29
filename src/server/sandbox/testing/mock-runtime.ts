@@ -115,7 +115,8 @@ export function createMockRuntime(capabilities: Partial<RuntimeCapabilities> = {
       if (state.failWrite) throw state.failWrite;
       const s = state.live.get(sandboxId);
       if (!s) throw new RuntimeError("sandbox_gone", "gone");
-      for (const f of files) s.files.set(f.path, f.content);
+      // Bytes are kept one character per byte (latin1), so a test can read the exact bytes back.
+      for (const f of files) s.files.set(f.path, typeof f.content === "string" ? f.content : Buffer.from(f.content).toString("latin1"));
     },
     async metrics() {
       return { at: "2026-10-17T10:00:00.000Z", cpuPct: 12.5, cpuCount: 1, memUsedBytes: 100, memTotalBytes: 1000, diskUsedBytes: 10, diskTotalBytes: 100 };

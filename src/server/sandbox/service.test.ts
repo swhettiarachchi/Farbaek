@@ -142,6 +142,19 @@ describe("starting a session", () => {
     expect([...live.files.keys()].sort()).toEqual(["package.json", "src/index.ts"]);
   });
 
+  it("writes a project's image into the sandbox as its bytes, not base64 text (ADR 0108)", async () => {
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+    store.files.set(PROJECT, [
+      { path: "index.html", sha256: "1".repeat(64), content: "<img src=\"logo.png\">" },
+      { path: "logo.png", sha256: "2".repeat(64), content: png.toString("base64"), encoding: "base64" },
+    ]);
+    const r = await service().createSession(as(ALICE), request({ projectId: PROJECT }), key());
+    const s = store.sessions.get(r.ok ? r.value.sessionId : "")!;
+    const live = runtime.state.live.get(s.providerSandboxId!)!;
+    expect(Buffer.from(live.files.get("logo.png")!, "latin1").equals(png)).toBe(true);
+    expect(live.files.get("index.html")).toBe("<img src=\"logo.png\">");
+  });
+
   it("is idempotent: a retried request returns the same session and starts nothing new", async () => {
     const k = key();
     const a = await service().createSession(as(ALICE), request(), k);
