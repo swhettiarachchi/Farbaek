@@ -27,7 +27,10 @@ export default async function ConnectDonePage({ searchParams }: { searchParams: 
   return (
     <main className="mx-auto grid min-h-[100dvh] w-full max-w-[480px] content-center gap-8 px-4 py-10">
       {target ? <meta httpEquiv="refresh" content={`0;url=${target}`} /> : null}
-      <BrandLogo height={30} />
+      <div className="flex items-center gap-2">
+        <BrandLogo height={40} preload />
+        <span className="text-[18px] font-semibold tracking-[-0.02em]">Farbaek</span>
+      </div>
       <div className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
         <div className="rounded-md bg-surface p-6 shadow-e1" role="status">
           {code ? <CheckCircleIcon size={28} weight="fill" className="text-verified" aria-hidden /> : <WarningCircleIcon size={28} className="text-failed" aria-hidden />}

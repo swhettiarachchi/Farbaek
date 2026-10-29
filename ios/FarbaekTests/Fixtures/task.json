@@ -1,0 +1,118 @@
+{
+  "data": {
+    "task": {
+      "id": "00000000-0000-4000-8000-00000000b007",
+      "title": "Reject fractional quantities in the cart",
+      "state": "APPROVAL_PENDING",
+      "stateLabel": "Awaiting approval",
+      "tone": "approval",
+      "projectId": "00000000-0000-4000-8000-00000000a001",
+      "projectName": "Storefront",
+      "createdAt": "2026-10-29T08:00:00.000Z",
+      "updatedAt": "2026-10-29T11:25:42.857Z"
+    },
+    "stages": [
+      {
+        "key": "contract",
+        "label": "Contract",
+        "status": "verified",
+        "note": "done"
+      },
+      {
+        "key": "plan",
+        "label": "Plan",
+        "status": "verified",
+        "note": "done"
+      },
+      {
+        "key": "policy",
+        "label": "Policy",
+        "status": "verified",
+        "note": "done"
+      },
+      {
+        "key": "approval",
+        "label": "Approval",
+        "status": "approval",
+        "note": "waiting for approval"
+      },
+      {
+        "key": "execution",
+        "label": "Execution",
+        "status": "unverified",
+        "note": "not started"
+      },
+      {
+        "key": "verification",
+        "label": "Verification",
+        "status": "unverified",
+        "note": "not started"
+      }
+    ],
+    "history": [
+      {
+        "id": "00000000-0000-4000-8000-00000000b007-e1",
+        "from": "RECEIVED",
+        "to": "CONTEXT_ASSEMBLED",
+        "toLabel": "Context assembled",
+        "actor": "agent",
+        "at": "2026-10-29T08:34:17.142Z"
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000b007-e2",
+        "from": "CONTEXT_ASSEMBLED",
+        "to": "CONTRACT_DRAFTED",
+        "toLabel": "Contract drafted",
+        "actor": "agent",
+        "at": "2026-10-29T09:08:34.285Z"
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000b007-e3",
+        "from": "CONTRACT_DRAFTED",
+        "to": "CONTRACT_APPROVED",
+        "toLabel": "Contract approved",
+        "actor": "user",
+        "at": "2026-10-29T09:42:51.428Z"
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000b007-e4",
+        "from": "CONTRACT_APPROVED",
+        "to": "PLAN_PROPOSED",
+        "toLabel": "Plan proposed",
+        "actor": "agent",
+        "at": "2026-10-29T10:17:08.571Z"
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000b007-e5",
+        "from": "PLAN_PROPOSED",
+        "to": "POLICY_EVALUATED",
+        "toLabel": "Policy evaluated",
+        "actor": "system",
+        "at": "2026-10-29T10:51:25.714Z"
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000b007-e6",
+        "from": "POLICY_EVALUATED",
+        "to": "APPROVAL_PENDING",
+        "toLabel": "Awaiting approval",
+        "actor": "agent",
+        "at": "2026-10-29T11:25:42.857Z"
+      }
+    ],
+    "contract": {
+      "version": 1,
+      "status": "approved",
+      "outcome": "Reject fractional quantities in the cart"
+    },
+    "proposal": {
+      "id": "00000000-0000-4000-8000-0000000c0001",
+      "status": "pending",
+      "files": 2,
+      "sha256": "fe04241d5d7b6e05d71f945f840f0d80381898051e2e602daed19a3fde04d597",
+      "expiresAt": "2026-11-01T10:17:08.571Z"
+    },
+    "proofs": [],
+    "verification": null,
+    "runs": []
+  }
+}

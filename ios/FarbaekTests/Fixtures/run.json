@@ -1,0 +1,63 @@
+{
+  "data": {
+    "run": {
+      "id": "00000000-0000-4000-8000-0000000000f1",
+      "taskId": "00000000-0000-4000-8000-00000000b007",
+      "taskTitle": "Add a contact form",
+      "projectName": "Sample bakery site",
+      "status": "waiting",
+      "statusLabel": "Waiting for you",
+      "live": true,
+      "effort": "balanced",
+      "effortLabel": "Balanced",
+      "model": "claude-sonnet-5-5",
+      "steps": 4,
+      "outcome": null,
+      "proposalId": null,
+      "startedAt": "2026-10-29T11:58:00.123456+00:00",
+      "endedAt": null
+    },
+    "steps": [
+      {
+        "id": 11,
+        "kind": "note",
+        "title": "Started an isolated sandbox for tests and builds.",
+        "detail": "",
+        "at": "2026-10-29T11:58:01.5+00:00"
+      },
+      {
+        "id": 12,
+        "kind": "model",
+        "title": "Thinking",
+        "detail": "Reading the contact page.",
+        "at": "2026-10-29T11:58:03Z"
+      },
+      {
+        "id": 13,
+        "kind": "command",
+        "title": "pnpm test",
+        "detail": "2 passed",
+        "exitCode": 0,
+        "at": "2026-10-29T11:58:20Z"
+      },
+      {
+        "id": 14,
+        "kind": "approval",
+        "title": "pnpm add zod",
+        "detail": "Installs a package from the registry.",
+        "at": "2026-10-29T11:58:30Z"
+      }
+    ],
+    "cursor": 14,
+    "question": {
+      "requestId": "req-1",
+      "bindingHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "display": "pnpm add zod",
+      "risk": "install",
+      "reason": "Installs a package from the registry.",
+      "why": "To check the form's input.",
+      "canAnswer": true
+    },
+    "finish": null
+  }
+}

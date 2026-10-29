@@ -1,0 +1,28 @@
+{
+  "data": {
+    "sample": true,
+    "user": {
+      "id": "demo-user",
+      "email": "you@demo.farbaek"
+    },
+    "workspaces": [
+      {
+        "id": "00000000-0000-4000-8000-0000000de300",
+        "name": "Harbour Lane Studio",
+        "plan": "Pro",
+        "paused": null,
+        "agentsPaused": false
+      }
+    ],
+    "current": "00000000-0000-4000-8000-0000000de300",
+    "role": "owner",
+    "writes": {
+      "enabled": false,
+      "reason": "This is sample data, so nothing here can change."
+    },
+    "push": {
+      "available": false,
+      "on": false
+    }
+  }
+}

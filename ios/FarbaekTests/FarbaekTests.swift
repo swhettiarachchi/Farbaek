@@ -1,0 +1,90 @@
+import XCTest
+@testable import Farbaek
+
+/// The app's own checks (ADR 0110). The fixtures are the server's real sample
+/// answers (src/server/phone/fixtures.test.ts), so decoding them proves the
+/// models still read what Farbaek sends.
+final class FarbaekTests: XCTestCase {
+    private func fixture<T: Decodable>(_ name: String, as type: T.Type) throws -> T {
+        let url = try XCTUnwrap(Bundle(for: FarbaekTests.self).url(forResource: name, withExtension: "json"), "Missing fixture \(name).json")
+        return try JSONDecoder().decode(Envelope<T>.self, from: Data(contentsOf: url)).data
+    }
+
+    func testPKCEMatchesRFC7636() {
+        // The example in RFC 7636, appendix B.
+        XCTAssertEqual(PKCE.challenge(for: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"), "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
+        let verifier = PKCE.random()
+        XCTAssertEqual(verifier.count, 43)
+        XCTAssertNil(verifier.rangeOfCharacter(from: CharacterSet(charactersIn: "+/=")))
+        XCTAssertNotEqual(verifier, PKCE.random())
+    }
+
+    func testReadsFarbaeksTimes() throws {
+        let micro = try XCTUnwrap(FarbaekDate.parse("2026-10-29T11:58:00.123456+00:00"))
+        let milli = try XCTUnwrap(FarbaekDate.parse("2026-10-29T11:58:00.123Z"))
+        XCTAssertEqual(micro.timeIntervalSince1970, milli.timeIntervalSince1970, accuracy: 0.001)
+        XCTAssertNotNil(FarbaekDate.parse("2026-10-29T11:58:01Z"))
+        XCTAssertNotNil(FarbaekDate.parse("2026-10-29T11:58:01.5+00:00"))
+        XCTAssertNil(FarbaekDate.parse("yesterday"))
+    }
+
+    func testSaysHowLongAnApprovalStaysOpen() {
+        XCTAssertEqual(ClosesIn.words(72 * 3600), "Closes in 72 h")
+        XCTAssertEqual(ClosesIn.words(30 * 60), "Closes in 30 min")
+        XCTAssertEqual(ClosesIn.words(-5), "Closed")
+    }
+
+    func testDecodesTheSampleAccount() throws {
+        let me = try fixture("me", as: Me.self)
+        XCTAssertTrue(me.sample)
+        XCTAssertFalse(me.writes.enabled)
+        XCTAssertNotNil(me.writes.reason)
+        XCTAssertEqual(me.workspaces.first?.id, me.current)
+    }
+
+    func testDecodesHomeTasksAndProjects() throws {
+        let home = try fixture("home", as: Home.self)
+        XCTAssertGreaterThan(home.waiting, 0)
+        XCTAssertFalse(home.recent.isEmpty)
+        XCTAssertFalse(try fixture("tasks", as: Listing<TaskItem>.self).items.isEmpty)
+        XCTAssertFalse(try fixture("projects", as: Listing<ProjectItem>.self).items.isEmpty)
+    }
+
+    func testDecodesAnApprovalWithItsDiff() throws {
+        let approvals = try fixture("approvals", as: Approvals.self)
+        let card = try XCTUnwrap(approvals.items.first)
+        XCTAssertEqual(card.sha256.count, 64)
+        let detail = try fixture("approval", as: ApprovalDetail.self)
+        XCTAssertEqual(detail.task.id, card.taskId)
+        XCTAssertFalse(detail.canApprove)
+        let lines = detail.proposal.files.flatMap { $0.hunks.flatMap(\.lines) }
+        XCTAssertTrue(lines.contains { $0.kind == "add" && $0.new != nil })
+    }
+
+    func testDecodesATaskAndItsPlan() throws {
+        let task = try fixture("task", as: TaskDetail.self)
+        XCTAssertFalse(task.stages.isEmpty)
+        XCTAssertFalse(task.history.isEmpty)
+        let plan = try fixture("plan", as: PlanDetail.self)
+        XCTAssertEqual(plan.plan?.sha256.count, 64)
+        XCTAssertGreaterThan(plan.task.version, 0)
+    }
+
+    func testDecodesARunWaitingOnAQuestion() throws {
+        let run = try fixture("run", as: RunDetail.self)
+        XCTAssertTrue(run.run.live)
+        XCTAssertEqual(run.steps.count, 4)
+        XCTAssertEqual(run.steps.first { $0.kind == "command" }?.exitCode, 0)
+        let question = try XCTUnwrap(run.question)
+        XCTAssertEqual(question.bindingHash.count, 64)
+        XCTAssertTrue(question.canAnswer)
+    }
+
+    func testReadsFarbaeksErrors() throws {
+        let body = #"{"error":{"code":"READ_ONLY","message":"You have view-only access to this workspace."}}"#
+        let decoded = try JSONDecoder().decode(ErrorEnvelope.self, from: Data(body.utf8))
+        XCTAssertEqual(decoded.error.code, "READ_ONLY")
+        let nothing = try JSONDecoder().decode(Envelope<Nothing?>.self, from: Data(#"{"data":null}"#.utf8))
+        XCTAssertNil(nothing.data)
+    }
+}

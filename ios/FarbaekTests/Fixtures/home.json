@@ -1,0 +1,108 @@
+{
+  "data": {
+    "waiting": 2,
+    "live": [],
+    "recent": [
+      {
+        "id": "00000000-0000-4000-8000-00000000b009",
+        "title": "Validate postcodes at checkout",
+        "state": "VERIFYING",
+        "stateLabel": "Verifying",
+        "tone": "info",
+        "projectId": "00000000-0000-4000-8000-00000000a001",
+        "projectName": "Storefront",
+        "createdAt": "2026-10-29T11:00:00.000Z",
+        "updatedAt": "2026-10-29T11:54:00.000Z"
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000b007",
+        "title": "Reject fractional quantities in the cart",
+        "state": "APPROVAL_PENDING",
+        "stateLabel": "Awaiting approval",
+        "tone": "approval",
+        "projectId": "00000000-0000-4000-8000-00000000a001",
+        "projectName": "Storefront",
+        "createdAt": "2026-10-29T08:00:00.000Z",
+        "updatedAt": "2026-10-29T11:25:42.857Z"
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000b003",
+        "title": "Fix the timezone in booking confirmation emails",
+        "state": "EXECUTING",
+        "stateLabel": "Executing",
+        "tone": "info",
+        "projectId": "00000000-0000-4000-8000-00000000a002",
+        "projectName": "Docs site",
+        "createdAt": "2026-10-29T06:00:00.000Z",
+        "updatedAt": "2026-10-29T11:15:00.000Z"
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000b008",
+        "title": "Show stock levels on product cards",
+        "state": "CONTRACT_APPROVED",
+        "stateLabel": "Contract approved",
+        "tone": "info",
+        "projectId": "00000000-0000-4000-8000-00000000a001",
+        "projectName": "Storefront",
+        "createdAt": "2026-10-29T09:00:00.000Z",
+        "updatedAt": "2026-10-29T11:15:00.000Z"
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000b005",
+        "title": "Refresh the pricing page copy",
+        "state": "RECEIVED",
+        "stateLabel": "Received",
+        "tone": "info",
+        "projectId": "00000000-0000-4000-8000-00000000a002",
+        "projectName": "Docs site",
+        "createdAt": "2026-10-29T10:00:00.000Z",
+        "updatedAt": "2026-10-29T10:00:00.000Z"
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000b004",
+        "title": "Upgrade the payment SDK to the next major version",
+        "state": "BLOCKED",
+        "stateLabel": "Blocked by policy",
+        "tone": "failed",
+        "projectId": "00000000-0000-4000-8000-00000000a003",
+        "projectName": "Billing service",
+        "createdAt": "2026-10-28T16:00:00.000Z",
+        "updatedAt": "2026-10-29T09:08:34.285Z"
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000b001",
+        "title": "Rewrite 100 product descriptions in the house style",
+        "state": "APPROVAL_PENDING",
+        "stateLabel": "Awaiting approval",
+        "tone": "approval",
+        "projectId": "00000000-0000-4000-8000-00000000a001",
+        "projectName": "Storefront",
+        "createdAt": "2026-10-28T06:00:00.000Z",
+        "updatedAt": "2026-10-29T07:42:51.428Z"
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000b002",
+        "title": "Add order export to CSV",
+        "state": "VERIFIED",
+        "stateLabel": "Verified",
+        "tone": "verified",
+        "projectId": "00000000-0000-4000-8000-00000000a001",
+        "projectName": "Storefront",
+        "createdAt": "2026-10-26T14:00:00.000Z",
+        "updatedAt": "2026-10-29T05:38:10.909Z"
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000b006",
+        "title": "Remove the legacy coupon system",
+        "state": "CANCELLED",
+        "stateLabel": "Cancelled",
+        "tone": "unverified",
+        "projectId": "00000000-0000-4000-8000-00000000a001",
+        "projectName": "Storefront",
+        "createdAt": "2026-10-25T12:00:00.000Z",
+        "updatedAt": "2026-10-28T04:00:00.000Z"
+      }
+    ],
+    "projects": 3
+  }
+}

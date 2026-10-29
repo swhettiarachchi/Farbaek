@@ -70,4 +70,12 @@ for (const [name, scale] of Object.entries(densities)) {
     .toFile(`${dir}/ic_launcher_foreground.png`);
 }
 
-console.log("Wrote farbaek-logo.png from the logo, and the favicons, app icons, Store tiles and Android icons from the app icon");
+// Farbaek for iPhone (ADR 0110): one 1024px icon, which Xcode scales for every size. The App Store refuses
+// transparency, so it sits on the artwork's own white. The welcome screen shows the logo, as pages do.
+const xcassets = "ios/Farbaek/Resources/Assets.xcassets";
+await mkdir(`${xcassets}/AppIcon.appiconset`, { recursive: true });
+await sharp(ICON).resize(1024, 1024).flatten({ background: iconPaper }).png({ compressionLevel: 9 }).toFile(`${xcassets}/AppIcon.appiconset/AppIcon-1024.png`);
+await mkdir(`${xcassets}/Logo.imageset`, { recursive: true });
+await sharp(LOGO).resize({ height: 240 }).png({ compressionLevel: 9 }).toFile(`${xcassets}/Logo.imageset/farbaek-logo.png`);
+
+console.log("Wrote farbaek-logo.png from the logo, and the favicons, app icons, Store tiles, Android and iPhone icons from the app icon");

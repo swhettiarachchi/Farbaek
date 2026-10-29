@@ -1,0 +1,34 @@
+{
+  "data": {
+    "items": [
+      {
+        "taskId": "00000000-0000-4000-8000-00000000b007",
+        "proposalId": "00000000-0000-4000-8000-0000000c0001",
+        "title": "Reject fractional quantities in the cart",
+        "projectName": "Storefront",
+        "sha256": "fe04241d5d7b6e05d71f945f840f0d80381898051e2e602daed19a3fde04d597",
+        "createdAt": "2026-10-29T10:17:08.571Z",
+        "expiresAt": "2026-11-01T10:17:08.571Z",
+        "byAgent": false,
+        "facts": [
+          {
+            "kind": "matched",
+            "tone": "neutral",
+            "label": "2 changes match a clause by its words"
+          },
+          {
+            "kind": "files",
+            "tone": "neutral",
+            "label": "2 edited files"
+          }
+        ],
+        "checks": [
+          "pnpm test"
+        ],
+        "checksNote": null,
+        "canApprove": true
+      }
+    ],
+    "more": 0
+  }
+}
