@@ -38,6 +38,8 @@ The second half of image generation. Built on stage 84 (images in projects); app
 - **PGlite:** the ledger accepts `image_generation` and refuses unknown operations.
 - **Typecheck, lint, and the design, billing, AI and workspace tests** (437) are clean.
 
+- **Migration v69 applied in production** (2026-10-29). The SHA-256 (`95024830…993a07`) was checked on the server, it ran in one transaction, and the ledger check was read back with `image_generation` in it.
+
 ### Not verified yet
 
 - **A real image from Google.** Claude never handles API keys. After the merge:
