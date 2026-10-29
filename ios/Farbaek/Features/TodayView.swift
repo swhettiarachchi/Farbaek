@@ -9,11 +9,15 @@ struct TodayView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 header
-                LoadView(load: load, retry: read) { home in
-                    VStack(alignment: .leading, spacing: 20) {
-                        waitingPanel(home)
-                        if !home.live.isEmpty { liveRuns(home.live) }
-                        recent(home.recent)
+                if needsWorkspace {
+                    firstWorkspace
+                } else {
+                    LoadView(load: load, retry: read) { home in
+                        VStack(alignment: .leading, spacing: 20) {
+                            waitingPanel(home)
+                            if !home.live.isEmpty { liveRuns(home.live) }
+                            recent(home.recent)
+                        }
                     }
                 }
             }
@@ -25,6 +29,40 @@ struct TodayView: View {
         .toolbar { WorkspaceMenu(model: model) }
         .refreshable { await read() }
         .task(id: model.revision) { await read() }
+    }
+
+    /// Signed in with no workspace yet, as after a first Sign in with Apple.
+    private var needsWorkspace: Bool {
+        model.phase == .signedIn && model.me != nil && model.currentWorkspace == nil
+    }
+
+    private var firstWorkspace: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            AgentOrb(live: false, size: 40)
+            Text("Make your workspace")
+                .font(.title2.weight(.medium))
+                .tracking(-0.5)
+                .foregroundStyle(Palette.ink)
+            Text("Your projects, plans and approvals live in a workspace. Farbaek makes one called My workspace. You can rename it and invite people on the web.")
+                .font(.subheadline)
+                .foregroundStyle(Palette.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+            Button {
+                Task { await model.createWorkspace() }
+            } label: {
+                if model.creatingWorkspace {
+                    ProgressView().tint(Palette.onPrimary)
+                } else {
+                    Text("Make my workspace")
+                }
+            }
+            .buttonStyle(PillButtonStyle(kind: .primary))
+            .disabled(model.creatingWorkspace)
+            if let error = model.workspaceError {
+                Notice(text: error, tone: .failed, symbol: "exclamationmark.triangle.fill")
+            }
+        }
+        .panel()
     }
 
     @ViewBuilder private var header: some View {
@@ -114,6 +152,7 @@ struct TodayView: View {
     }
 
     private func read() async {
+        guard !needsWorkspace else { return }
         do {
             let home: Home = try await model.api.get("home")
             model.waiting = home.waiting

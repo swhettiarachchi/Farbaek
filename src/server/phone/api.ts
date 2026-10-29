@@ -2,7 +2,8 @@
  * Farbaek's API for its phone apps, /api/v1/app (ADR 0110). One router so
  * every route gets the same checks in the same order:
  *
- * - sign-in steps (connect, token, refresh) carry their own credential;
+ * - sign-in steps (connect, token, apple, refresh) carry their own credential,
+ *   and GET sign-in-options says which ways to sign in this server offers;
  * - everything else needs a connected phone's access token, checked against
  *   its device record on every request;
  * - /api/v1/app/sample/... answers the same reads from the sample workspace,
@@ -20,7 +21,7 @@ import { CLOUD_RUN_MAX_MINUTES } from "@/core/agent/cloud-run";
 import { json, problem } from "@/server/sandbox/http";
 import type { AppContext } from "@/server/workspace/context";
 import { MANAGER_ROLES } from "@/server/workspace/types";
-import { authenticate, connectFromBrowser, exchangeCode, refreshPhone, type PhoneAuthDeps, type PhoneCaller } from "./auth";
+import { authenticate, connectFromBrowser, exchangeCode, refreshPhone, signInWithApple, type PhoneAuthDeps, type PhoneCaller } from "./auth";
 import { PUSH_TOKEN_PATTERN } from "./tokens";
 import { approvalView, approvalsView, homeView, isTaskFilter, meView, planView, projectsView, runDetail, taskView, tasksView, type BillingFacts, type RunReader } from "./views";
 
@@ -43,6 +44,8 @@ export interface PhoneWrites {
   messageRun(p: PhonePerson, input: { runId: string; text: string }): PhoneOutcome<null>;
   setPush(caller: PhoneCaller, token: string | null, environment: "production" | "development"): Promise<boolean>;
   signOut(caller: PhoneCaller): Promise<"signed_out" | "refused" | "not_found">;
+  /** The person's first workspace, "My workspace", made the way the web's build box makes it (the database applies the trial rules). */
+  createWorkspace(caller: PhoneCaller): Promise<PhoneOutcome<{ workspaceId: string }>>;
   /** A purchase the app made with Apple's In-App Purchase (ADR 0112): its signed transaction. */
   appleTransaction(p: PhonePerson, jws: string): Promise<PhoneOutcome<{ state: string; planId: string | null; paidThrough: string | null }>>;
 }
@@ -58,6 +61,8 @@ export interface PhoneApiDeps {
   execution(): { mode: string; reason?: string };
   writes: PhoneWrites;
   pushAvailable(): boolean;
+  /** Whether Sign in with Apple is open on this server (ADR 0113). */
+  appleSignIn(): boolean;
   /** Who bills a workspace, and whether App Store purchases are open on this server (ADR 0112). */
   billing(orgId: string): Promise<BillingFacts>;
   clientKey(request: Request): string;
@@ -306,6 +311,15 @@ const ROUTES: Route[] = [
   },
   {
     method: "POST",
+    path: "workspaces",
+    run: async (s) => {
+      if (!s.caller) return problem(403, "SAMPLE_READ_ONLY", SAMPLE_READ_ONLY);
+      if (s.ctx.workspaces.length > 0) return problem(409, "HAS_WORKSPACE", "You already have a workspace. Pull to refresh to open it.");
+      return fromOutcome(await s.deps.writes.createWorkspace(s.caller), 201);
+    },
+  },
+  {
+    method: "POST",
     path: "apple/transactions",
     write: true,
     run: async (s) => {
@@ -367,8 +381,12 @@ export async function handlePhoneApi(request: Request, segments: readonly string
   const method = request.method.toUpperCase();
   const [first] = segments;
 
+  if (segments.length === 1 && method === "GET" && first === "sign-in-options") {
+    return ok({ apple: deps.auth !== null && deps.appleSignIn() });
+  }
+
   // Sign-in steps carry their own credential.
-  if (segments.length === 1 && method === "POST" && (first === "connect" || first === "token" || first === "refresh")) {
+  if (segments.length === 1 && method === "POST" && (first === "connect" || first === "token" || first === "apple" || first === "refresh")) {
     if (!deps.auth) return problem(503, "NOT_CONFIGURED", "Accounts aren't configured on this server.");
     if (first === "connect") {
       const form = await request.formData().catch(() => null);
@@ -385,6 +403,11 @@ export async function handlePhoneApi(request: Request, segments: readonly string
     const input = await body(request);
     if (!input) return badBody();
     const clientKey = deps.clientKey(request);
+    if (first === "apple") {
+      if (!deps.appleSignIn()) return problem(503, "APPLE_SIGN_IN_OFF", "Sign in with Apple isn't open yet. Use Sign in with email instead.");
+      const { identityToken, nonce, authorizationCode, device, appVersion } = input;
+      return fromOutcome(await signInWithApple(deps.auth, { identityToken, nonce, authorizationCode, device, appVersion, clientKey }));
+    }
     const grant = first === "token" ? await exchangeCode(deps.auth, { code: input.code, verifier: input.verifier, appVersion: input.appVersion, clientKey }) : await refreshPhone(deps.auth, { refreshToken: input.refreshToken, clientKey });
     return fromOutcome(grant);
   }

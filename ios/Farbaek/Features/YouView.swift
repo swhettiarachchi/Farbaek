@@ -16,7 +16,7 @@ struct YouView: View {
                         Text("You're looking at a sample workspace. Nothing here is real, and nothing can change.").font(.subheadline).foregroundStyle(Palette.ink2)
                     }
                     .padding(.vertical, 4)
-                    Button("Sign in with Farbaek") { Task { await model.signOut(); await model.signIn() } }
+                    Button("Sign in or make an account") { Task { await model.signOut() } }
                 }
             } else if let me = model.me {
                 Section("Account") {

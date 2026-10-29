@@ -1,0 +1,62 @@
+import { generateKeyPairSync, verify } from "node:crypto";
+import { describe, expect, it } from "vitest";
+import { IOS_APP } from "@/config/ios-app";
+import { appleClientSecret, appleSignInKey, appleSignInOn, exchangeAppleCode, revokeAppleToken } from "./apple";
+
+// A throwaway P-256 key made for this test, never Apple's.
+const pair = generateKeyPairSync("ec", { namedCurve: "P-256" });
+const PEM = pair.privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+const ENV = { APPLE_SIGN_IN_KEY_ID: "ABCDE12345", APPLE_SIGN_IN_KEY_P8: PEM };
+const NOW = new Date("2026-10-29T12:00:00Z");
+
+function apple(answer: Response) {
+  const sent: { url: string; form: URLSearchParams }[] = [];
+  const fetcher = async (url: string, init: RequestInit) => {
+    sent.push({ url, form: new URLSearchParams(String(init.body)) });
+    return answer;
+  };
+  return { sent, fetcher };
+}
+
+describe("Sign in with Apple's REST API (ADR 0113)", () => {
+  it("reads the key pasted as the file, with escaped newlines or as base64, and stays off without it", () => {
+    expect(appleSignInKey(ENV)?.keyId).toBe("ABCDE12345");
+    expect(appleSignInKey({ ...ENV, APPLE_SIGN_IN_KEY_P8: PEM.replace(/\n/g, "\\n") })).not.toBeNull();
+    expect(appleSignInKey({ ...ENV, APPLE_SIGN_IN_KEY_P8: Buffer.from(PEM).toString("base64") })).not.toBeNull();
+    expect(appleSignInKey({ ...ENV, APPLE_SIGN_IN_KEY_ID: "short" })).toBeNull();
+    expect(appleSignInKey({ ...ENV, APPLE_SIGN_IN_KEY_P8: "not a key" })).toBeNull();
+    expect(appleSignInOn(ENV)).toBe(false);
+    expect(appleSignInOn({ ...ENV, APPLE_SIGN_IN: "on" })).toBe(true);
+    expect(appleSignInOn({ APPLE_SIGN_IN: "on" })).toBe(false);
+  });
+
+  it("signs a five-minute client secret Apple can check with the key", () => {
+    const key = appleSignInKey(ENV)!;
+    const [header, claims, signature] = appleClientSecret(key, NOW).split(".") as [string, string, string];
+    expect(JSON.parse(Buffer.from(header, "base64url").toString())).toEqual({ alg: "ES256", kid: "ABCDE12345" });
+    const iat = NOW.getTime() / 1000;
+    expect(JSON.parse(Buffer.from(claims, "base64url").toString())).toEqual({ iss: IOS_APP.teamId, iat, exp: iat + 300, aud: "https://appleid.apple.com", sub: IOS_APP.bundleId });
+    expect(verify("sha256", Buffer.from(`${header}.${claims}`), { key: pair.publicKey, dsaEncoding: "ieee-p1363" }, Buffer.from(signature, "base64url"))).toBe(true);
+  });
+
+  it("exchanges an authorization code for Apple's refresh token, and only Apple's host is called", async () => {
+    const key = appleSignInKey(ENV)!;
+    const ok = apple(Response.json({ access_token: "a", refresh_token: "r.0.refresh-token", id_token: "x.y.z" }));
+    expect(await exchangeAppleCode(key, "c0de.0.abc", { now: NOW, fetch: ok.fetcher })).toBe("r.0.refresh-token");
+    expect(ok.sent[0]!.url).toBe("https://appleid.apple.com/auth/token");
+    expect(Object.fromEntries(ok.sent[0]!.form)).toMatchObject({ client_id: IOS_APP.bundleId, code: "c0de.0.abc", grant_type: "authorization_code" });
+    expect(ok.sent[0]!.form.get("client_secret")?.split(".")).toHaveLength(3);
+
+    expect(await exchangeAppleCode(key, "used", { now: NOW, fetch: apple(Response.json({ error: "invalid_grant" }, { status: 400 })).fetcher })).toBeNull();
+    expect(await exchangeAppleCode(key, "odd", { now: NOW, fetch: apple(Response.json({ refresh_token: "has spaces in it" })).fetcher })).toBeNull();
+  });
+
+  it("revokes the refresh token when the account is deleted", async () => {
+    const key = appleSignInKey(ENV)!;
+    const ok = apple(new Response(null, { status: 200 }));
+    expect(await revokeAppleToken(key, "r.0.refresh-token", { now: NOW, fetch: ok.fetcher })).toBe(true);
+    expect(ok.sent[0]!.url).toBe("https://appleid.apple.com/auth/revoke");
+    expect(Object.fromEntries(ok.sent[0]!.form)).toMatchObject({ client_id: IOS_APP.bundleId, token: "r.0.refresh-token", token_type_hint: "refresh_token" });
+    expect(await revokeAppleToken(key, "r.0.refresh-token", { now: NOW, fetch: apple(new Response(null, { status: 400 })).fetcher })).toBe(false);
+  });
+});

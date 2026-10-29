@@ -66,7 +66,7 @@ The app is in `ios/` and its decision is ADR 0110. GitHub's Mac builds and tests
 1. In App Store Connect, open **Farbaek**, then **TestFlight**, then **Internal Testing**, then **+**. Make a group and add yourself.
 2. Install **TestFlight** from the App Store on your iPhone, and open the invitation email.
 3. In the app, check each of these:
-   - **Sign in with Farbaek**. The sheet opens www.farbaek.com: sign in, then **Connect this iPhone**.
+   - **Sign in with email**. The sheet opens www.farbaek.com: sign in, then **Connect this iPhone**.
    - **You**, then **Turn on notifications**. Start a build on the web; the notification arrives when it finishes.
    - **Approvals**. Open a change and approve it with Face ID.
    - On the web, **Settings**, then **Phones**. The phone is listed; **Disconnect** signs the app out.
@@ -121,9 +121,25 @@ Buying in the app is one tap with Face ID, in every country. Do these in order; 
 
 6. Submit the five subscriptions with the next app version.
 
+## 9. Sign in with Apple (ADR 0113, 5 minutes)
+
+The app shows **Continue with Apple** only once these are done.
+
+1. **The capability.** In **Identifiers**, open `com.farbaek.app`, tick **Sign in with Apple** (leave it as a primary App ID), then **Save** and **Confirm**. The next build's profile picks it up.
+2. **The key.** In **Keys**, choose **+**, name it `Farbaek sign in`, tick **Sign in with Apple**, choose **Configure**, pick the App ID `com.farbaek.app`, then **Save**, **Continue**, **Register** and **Download**. Apple lets you download it once, as `AuthKey_XXXXXXXXXX.p8`. Keep it with the push key, out of the repository.
+3. **Turn it on.** In your own PowerShell window, run the line below and drag the file in when it asks. It switches on Apple in Supabase Auth, saves the key on the server and restarts the app. Nothing is shown on screen.
+
+   ```bash
+   powershell -ExecutionPolicy Bypass -File "C:UsersINTELDocumentsFarBaekscriptspsset-apple-sign-in.ps1"
+   ```
+
+The key lets the server revoke a person's Apple sign-in when they delete their account, as Apple requires. That's why the button stays hidden until the key is in place.
+
+Someone who chooses **Hide My Email** gets a separate account from one they already made with their real address. To use the existing account, they choose **Share My Email**, or sign in with email.
+
 ## What's already done
 
-- **The app:** sign-in through the web with PKCE, approvals with diffs and Face ID, builds from one sentence, live runs and their questions, tasks, notifications, the sample, sign-out and account deletion through the web.
+- **The app:** Sign in with Apple (waiting for step 9), sign-in through the web with PKCE, approvals with diffs and Face ID, builds from one sentence, live runs and their questions, tasks, notifications, the sample, sign-out and account deletion through the web.
 - **The server:** `/api/v1/app`, migration v70, Settings > Phones, and APNs, which waits for your key.
 - **Tests:** the server's tests, and the app's tests against the server's real sample answers.
 - **Not yet:** the app hasn't been compiled. The first run of step 5 is its first build.

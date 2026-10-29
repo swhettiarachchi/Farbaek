@@ -26,6 +26,8 @@ import { createSupabasePhoneStore } from "./store";
 import { NO_RUNS, type RunReader } from "./views";
 import { createPhoneWrites } from "./writes";
 import { appleDeps, appleIapOn } from "@/server/billing/apple/wiring";
+import { appleSignInOn } from "@/server/auth/apple";
+import { keepAppleSignIn } from "@/server/auth/apple-wiring";
 
 type Config = { url: string; publishableKey: string };
 const NO_PERSISTENCE = { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } as const;
@@ -70,6 +72,15 @@ export function createSupabaseSessionAuth(admin: SupabaseClient, config: Config)
       }
       return null;
     },
+    async appleSession(identityToken, nonce) {
+      // Auth checks Apple's signature, that the token is for com.farbaek.app, and that the nonce hashes to the token's.
+      const { data, error } = await anon()
+        .auth.signInWithIdToken({ provider: "apple", token: identityToken, nonce })
+        .catch(() => ({ data: { session: null, user: null }, error: true }));
+      if (error || !data.user) return null;
+      const session = await toPhoneSession(data.session);
+      return session ? { userId: data.user.id, session } : null;
+    },
     async refresh(refreshToken) {
       const { data } = await anon()
         .auth.refreshSession({ refresh_token: refreshToken })
@@ -109,7 +120,7 @@ export function phoneApiDeps(): PhoneApiDeps {
   const admin = createSupabaseAdminClient();
   const config = readSupabaseConfig();
   const store = admin ? createSupabasePhoneStore(admin) : null;
-  const auth = admin && config && store ? { store, auth: createSupabaseSessionAuth(admin, config) } : null;
+  const auth = admin && config && store ? { store, auth: createSupabaseSessionAuth(admin, config), keepApple: (userId: string, code: string) => keepAppleSignIn(admin, userId, code) } : null;
   return {
     auth,
     siteOrigin: new URL(siteUrl()).origin,
@@ -128,6 +139,7 @@ export function phoneApiDeps(): PhoneApiDeps {
     execution: () => currentExecutionMode(),
     writes: createPhoneWrites({ userClient: (token) => bearerClient(config!, token), store: store! }),
     pushAvailable: () => apnsConfig() !== null,
+    appleSignIn: () => appleSignInOn(),
     async billing(orgId) {
       const account = await appleDeps()?.account(orgId);
       const live = Boolean(account?.subscriptionId) && ["active", "past_due", "cancellation_scheduled", "suspended"].includes(account?.state ?? "");

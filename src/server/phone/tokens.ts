@@ -19,6 +19,9 @@ export const CHALLENGE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 export const STATE_PATTERN = /^[A-Za-z0-9._~-]{8,128}$/;
 export const PUSH_TOKEN_PATTERN = /^[0-9a-fA-F]{64,200}$/;
 export const APP_VERSION_PATTERN = /^[0-9A-Za-z.+-]{1,32}$/;
+/** Sign in with Apple (ADR 0113): the app's raw nonce (Apple's token carries its SHA-256) and Apple's one-time authorization code. */
+export const APPLE_NONCE_PATTERN = /^[A-Za-z0-9_-]{32,128}$/;
+export const APPLE_CODE_PATTERN = /^[A-Za-z0-9._-]{8,1024}$/;
 
 export function sha256Hex(text: string): string {
   return createHash("sha256").update(text, "utf8").digest("hex");

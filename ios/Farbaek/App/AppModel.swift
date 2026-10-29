@@ -1,3 +1,4 @@
+import AuthenticationServices
 import Observation
 import SwiftUI
 import UIKit
@@ -40,16 +41,25 @@ final class AppModel {
     var pushNote: String?
     /// The US App Store only: the app may open Billing on the web (WebPurchase).
     var canBuyOnWeb = false
+    /// Sign in with Apple is open on Farbaek's server (ADR 0113).
+    var appleOffered = false
+    var creatingWorkspace = false
+    var workspaceError: String?
 
     let api = APIClient(base: AppConfig.baseURL)
     private let web = WebSignIn()
     @ObservationIgnored private var pendingPath: String?
     /// App Store renewals and changes StoreKit delivers, told to Farbaek (ADR 0112).
     @ObservationIgnored private var transactionUpdates: Task<Void, Never>?
+    @ObservationIgnored private var appleAttempt: AppleSignIn.Attempt?
 
     init() {
         api.workspaceId = UserDefaults.standard.string(forKey: "workspace")
         api.onSignedOut = { [weak self] in self?.signedOutElsewhere() }
+        // Removing Farbaek from the Apple Account's Sign in with Apple list signs this phone out.
+        NotificationCenter.default.addObserver(forName: ASAuthorizationAppleIDProvider.credentialRevokedNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in await self?.appleRevoked() }
+        }
         Task { await self.start() }
     }
 
@@ -60,7 +70,7 @@ final class AppModel {
     var writeBlocker: String? {
         if phase == .sample { return "This is sample data, so nothing here can change. Sign in to approve and build for real." }
         guard let me else { return "Farbaek couldn't load your account yet. Pull to refresh." }
-        if currentWorkspace == nil { return "Create a workspace on www.farbaek.com first." }
+        if currentWorkspace == nil { return "You don't have a workspace yet. Make one on Today." }
         return me.writes.enabled ? nil : me.writes.reason
     }
 
@@ -72,6 +82,10 @@ final class AppModel {
         }
         guard api.hasSession else {
             phase = .signedOut
+            return
+        }
+        if await AppleSignIn.revoked() {
+            await appleRevoked()
             return
         }
         await loadMe(as: .signedIn)
@@ -122,6 +136,81 @@ final class AppModel {
         }
     }
 
+    /// Which ways to sign in to offer. Without an answer, only email shows.
+    func loadSignInOptions() async {
+        appleOffered = (try? await api.signInOptions())?.apple ?? false
+    }
+
+    /// Apple's request: the email only, and this attempt's nonce hash.
+    func prepareApple(_ request: ASAuthorizationAppleIDRequest) {
+        let attempt = AppleSignIn.newAttempt()
+        appleAttempt = attempt
+        request.requestedScopes = [.email]
+        request.nonce = attempt.hashedNonce
+    }
+
+    func finishApple(_ result: Result<ASAuthorization, Error>) async {
+        signInError = nil
+        guard let attempt = appleAttempt else { return }
+        appleAttempt = nil
+        let credential: ASAuthorizationAppleIDCredential
+        switch result {
+        case .failure(let error):
+            if let failure = error as? ASAuthorizationError, failure.code == .canceled { return }
+            signInError = "Apple didn't finish signing you in. Try again, or sign in with email."
+            return
+        case .success(let authorization):
+            guard let found = authorization.credential as? ASAuthorizationAppleIDCredential else {
+                signInError = "Apple didn't send what Farbaek needs to sign you in. Try again, or sign in with email."
+                return
+            }
+            credential = found
+        }
+        guard let tokenData = credential.identityToken, let identityToken = String(data: tokenData, encoding: .utf8) else {
+            signInError = "Apple didn't send what Farbaek needs to sign you in. Try again, or sign in with email."
+            return
+        }
+        var body: [String: Any] = ["identityToken": identityToken, "nonce": attempt.nonce, "device": UIDevice.current.model, "appVersion": AppConfig.appVersion]
+        if let codeData = credential.authorizationCode, let code = String(data: codeData, encoding: .utf8) {
+            body["authorizationCode"] = code
+        }
+        signingIn = true
+        defer { signingIn = false }
+        do {
+            let grant: TokenGrant = try await api.signInStep("apple", body: body)
+            AppleSignIn.rememberedUser = credential.user
+            api.sample = false
+            api.adopt(grant)
+            await loadMe(as: .signedIn)
+        } catch {
+            signInError = error.localizedDescription
+        }
+    }
+
+    private func appleRevoked() async {
+        guard AppleSignIn.rememberedUser != nil, api.hasSession, !api.sample else { return }
+        // Disconnect this phone on Farbaek too. signOut does that itself once the app is past loading.
+        if phase != .signedIn { _ = try? await api.send("DELETE", "session", as: SignedOut.self) }
+        await signOut()
+        signInError = "Farbaek was removed from Sign in with Apple on this iPhone, so you're signed out. Sign in again to continue."
+    }
+
+    /// The person's first workspace, made on Farbaek the way the web's build box makes one.
+    func createWorkspace() async {
+        workspaceError = nil
+        creatingWorkspace = true
+        defer { creatingWorkspace = false }
+        do {
+            let created: CreatedWorkspace = try await api.send("POST", "workspaces", as: CreatedWorkspace.self)
+            api.workspaceId = created.workspaceId
+            UserDefaults.standard.set(created.workspaceId, forKey: "workspace")
+            await loadMe(as: .signedIn)
+            changed()
+        } catch {
+            workspaceError = error.localizedDescription
+        }
+    }
+
     func trySample() async {
         signInError = nil
         api.sample = true
@@ -134,6 +223,7 @@ final class AppModel {
         }
         api.forget()
         api.sample = false
+        AppleSignIn.rememberedUser = nil
         transactionUpdates?.cancel()
         transactionUpdates = nil
         resetScreens()
@@ -142,6 +232,7 @@ final class AppModel {
     }
 
     private func signedOutElsewhere() {
+        AppleSignIn.rememberedUser = nil
         transactionUpdates?.cancel()
         transactionUpdates = nil
         resetScreens()
@@ -178,7 +269,7 @@ final class AppModel {
     func open(url: URL) {
         guard url.scheme == "farbaek", url.host == "connected" else { return }
         if !web.receive(url), phase == .signedOut {
-            signInError = "That sign-in started earlier and was closed. Tap Sign in with Farbaek again: you're signed in on the web now, so it takes one tap."
+            signInError = "That sign-in started earlier and was closed. Tap Sign in with email again: you're signed in on the web now, so it takes one tap."
         }
     }
 

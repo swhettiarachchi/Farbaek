@@ -25,6 +25,15 @@ struct TokenGrant: Decodable {
     let deviceId: String?
 }
 
+/// The ways to sign in this server offers (ADR 0113).
+struct SignInOptions: Decodable {
+    let apple: Bool
+}
+
+struct CreatedWorkspace: Decodable {
+    let workspaceId: String
+}
+
 struct Me: Decodable {
     struct User: Decodable {
         let id: String
