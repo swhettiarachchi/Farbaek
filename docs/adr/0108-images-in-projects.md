@@ -34,7 +34,8 @@ SVG stays a text file.
 ## Not yet
 
 - **Capsules and Mesh** carry text files only. Their format has a text manifest, and changing it is its own decision.
-- **Sandboxes** (app previews and checks) and **launches to Vercel or Netlify** get text files only, so images are missing there until those uploads send bytes.
+- **Sandboxes** (app previews and checks) get text files only, so images are missing there until those uploads send bytes.
+- **Launches to Vercel and Netlify** send images as bytes since 2026-10-29 (stage 86). The Launch page's fingerprint and the authorized launch come from one list (`server/launch/files.ts`).
 - **The agent can't read images.** It sees their paths in the file list.
 
 ## Consequences

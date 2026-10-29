@@ -14,7 +14,7 @@ import { shortHash } from "@/core/trust/canonical-json";
 import { log } from "@/server/observability/log";
 import type { WriteResult } from "@/server/workspace/use-cases";
 import type { NetlifyClient, NetlifyDeploy } from "./netlify-client";
-import { POLL_FOR_MS, POLL_MS, authorizeLaunch, connectProvider, disconnectProvider, failLaunch, mapLimit, openProviderToken, type LaunchDeps, type LaunchPerson } from "./provider-launch";
+import { POLL_FOR_MS, POLL_MS, authorizeLaunch, connectProvider, disconnectProvider, failLaunch, launchBytes, mapLimit, openProviderToken, type LaunchDeps, type LaunchPerson } from "./provider-launch";
 
 const UPLOADS_AT_ONCE = 5;
 /** Netlify's own client compares the files in the background above this many. */
@@ -65,7 +65,7 @@ const deployFailure = (d: NetlifyDeploy) =>
 /** Carries out an authorized launch. Exported for tests; authorizeNetlifyLaunch runs it in the background. */
 export async function runNetlifyLaunch(
   deps: LaunchDeps,
-  input: { orgId: string; orderId: string; target: string; digest: string; files: { path: string; content: string }[] },
+  input: { orgId: string; orderId: string; target: string; digest: string; files: { path: string; content: string; encoding?: "base64" }[] },
 ): Promise<"ready" | "failed" | "building"> {
   const id = input.orderId;
   const opened = await openProviderToken(deps, input.orgId, "netlify");
@@ -77,7 +77,7 @@ export async function runNetlifyLaunch(
   const digests: Record<string, string> = {};
   const bySha = new Map<string, { path: string; content: Buffer }>();
   for (const f of input.files) {
-    const content = Buffer.from(f.content, "utf8");
+    const content = launchBytes(f);
     const sha = sha1(content);
     digests[`/${f.path}`] = sha;
     if (!bySha.has(sha)) bySha.set(sha, { path: f.path, content });

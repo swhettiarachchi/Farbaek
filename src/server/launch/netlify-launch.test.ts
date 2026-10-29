@@ -171,3 +171,15 @@ describe("a Netlify launch", () => {
     expect(f.updates).toEqual([{ id: "ord_1", status: "ready", url: "https://storefront.netlify.app" }]);
   });
 });
+
+describe("images in a launch (ADR 0108)", () => {
+  it("names an image by the SHA-1 of its bytes and uploads it, beside the text files", async () => {
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+    const pngSha1 = createHash("sha1").update(png).digest("hex");
+    const f = fakes({ required: [pngSha1] });
+    const files = [...FILES, { path: "assets/dot.png", content: png.toString("base64"), encoding: "base64" as const, sha256: createHash("sha256").update(png).digest("hex") }];
+    expect(await runNetlifyLaunch(f.deps, { orgId: "o1", orderId: "ord_1", target: "storefront", digest: "a".repeat(64), files })).toBe("ready");
+    expect(f.calls).toContain("deploy:site_1:/about/index.html,/assets/dot.png,/index.html,/styles.css:false:true");
+    expect(f.calls.filter((c) => c.startsWith("upload:"))).toEqual(["upload:assets/dot.png"]);
+  });
+});

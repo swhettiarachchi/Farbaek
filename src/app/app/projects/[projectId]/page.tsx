@@ -22,7 +22,7 @@ import { Card, EmptyState, Notice, PageHeader } from "@/components/app/primitive
 import { TaskList } from "@/components/app/task-list";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { formatBytes } from "@/core/workspace/files";
-import { imageMime } from "@/core/workspace/images";
+import { previewImages } from "@/server/workspace/preview-images";
 import { loadAppContext } from "@/server/workspace/context";
 import { withheldFor } from "@/core/workspace/permissions";
 
@@ -45,11 +45,8 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
   // Static sites preview instantly in a locked-down frame; apps with a server use the sandbox preview.
   const isStatic = runProfile(files.map((f) => f.path)).kind === "static" && filesBytes <= 3 * 1024 * 1024;
   const contents = isStatic ? await ctx.reader.getProjectContents(ctx.current.id, project.id).catch(() => null) : null;
-  // The site's own images, inlined as data URLs while they total 8 MB or less; past that the preview shows them as missing.
-  const previewImages =
-    isStatic && imageBytes > 0 && imageBytes <= 8 * 1024 * 1024
-      ? Object.fromEntries((await ctx.reader.getProjectImages(ctx.current.id, project.id).catch(() => [])).map((i) => [i.path, `data:${imageMime(i.path) ?? "application/octet-stream"};base64,${i.base64}`]))
-      : undefined;
+  // The site's own images, inlined as data URLs while they fit the preview budget; past that the preview shows them as missing.
+  const images = isStatic && imageBytes > 0 ? await previewImages(ctx.reader, ctx.current.id, project.id) : undefined;
   const canChange = ctx.mode === "live" && ctx.writes.enabled && !project.archivedAt;
   const user = ctx.mode === "live" ? await createSupabaseServerClient() : null;
   const publish = user ? await loadPublishPanel(ctx, user, project).catch(() => null) : null;
@@ -143,7 +140,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
           <h2 id="preview-heading" className="flex items-center gap-2 text-lg font-medium">
             <EyeIcon size={20} weight="bold" className="text-accent" aria-hidden /> Live preview
           </h2>
-          <StaticPreview versions={[{ id: "now", label: "Current", files: Object.fromEntries(contents.map((f) => [f.path, f.content])), images: previewImages }]} />
+          <StaticPreview versions={[{ id: "now", label: "Current", files: Object.fromEntries(contents.map((f) => [f.path, f.content])), images }]} />
         </section>
       ) : null}
 
