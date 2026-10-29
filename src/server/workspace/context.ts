@@ -130,11 +130,19 @@ export const loadAppContext = cache(async (): Promise<AppContext | null> => {
   const claims = data?.claims;
   if (!claims?.sub) redirect("/sign-in");
 
-  const reader = memoizeReader(createSupabaseReader(client));
+  return liveContext(createSupabaseReader(client), { id: claims.sub, email: typeof claims.email === "string" ? claims.email : "your account" }, preferred);
+});
+
+/**
+ * The signed-in context from a reader that acts as the person, wherever the
+ * session came from: the browser's cookies, or a phone's access token (ADR 0110).
+ */
+export async function liveContext(source: WorkspaceReader, user: { id: string; email: string }, preferred: string | undefined): Promise<AppContext> {
+  const reader = memoizeReader(source);
   // Office Space's pause switches, so AI, sandbox and publish messages explain a pause (ADR 0032).
   const [workspaces] = await Promise.all([reader.listWorkspaces(), refreshPlatformState()]);
   const current = pickCurrent(workspaces, preferred);
-  const me = current ? (await reader.listMembers(current.id)).find((m) => m.userId === claims.sub) : undefined;
+  const me = current ? (await reader.listMembers(current.id)).find((m) => m.userId === user.id) : undefined;
   const role = me?.role ?? null;
 
   let writes: WriteAccess = { enabled: true };
@@ -152,7 +160,7 @@ export const loadAppContext = cache(async (): Promise<AppContext | null> => {
 
   return {
     mode: "live",
-    user: { id: claims.sub, email: typeof claims.email === "string" ? claims.email : "your account" },
+    user,
     reader,
     workspaces,
     current,
@@ -160,4 +168,4 @@ export const loadAppContext = cache(async (): Promise<AppContext | null> => {
     permissions: me?.permissions ?? {},
     writes,
   };
-});
+}

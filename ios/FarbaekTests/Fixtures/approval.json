@@ -1,0 +1,134 @@
+{
+  "data": {
+    "task": {
+      "id": "00000000-0000-4000-8000-00000000b007",
+      "title": "Reject fractional quantities in the cart",
+      "state": "APPROVAL_PENDING",
+      "stateLabel": "Awaiting approval",
+      "tone": "approval",
+      "projectId": "00000000-0000-4000-8000-00000000a001",
+      "projectName": "Storefront",
+      "createdAt": "2026-10-29T08:00:00.000Z",
+      "updatedAt": "2026-10-29T11:25:42.857Z"
+    },
+    "proposal": {
+      "id": "00000000-0000-4000-8000-0000000c0001",
+      "status": "pending",
+      "sha256": "fe04241d5d7b6e05d71f945f840f0d80381898051e2e602daed19a3fde04d597",
+      "createdAt": "2026-10-29T10:17:08.571Z",
+      "expiresAt": "2026-11-01T10:17:08.571Z",
+      "model": "sample (no model call)",
+      "byAgent": false,
+      "summary": "addToCart accepts fractional quantities today. Reject anything that isn't a whole number and cover it with a test.",
+      "steps": [
+        "Check the quantity is a whole number in addToCart.",
+        "Add a test for a fractional quantity."
+      ],
+      "risks": [
+        "Callers that pass a quantity as a string will now get an error; the cart UI already sends numbers."
+      ],
+      "checks": [
+        "pnpm test"
+      ],
+      "checksNote": null,
+      "policy": {
+        "outcome": "REQUIRE_APPROVAL",
+        "findings": []
+      },
+      "dropped": [],
+      "files": [
+        {
+          "path": "src/lib/cart.ts",
+          "kind": "edit",
+          "reason": "Reject fractional quantities where items are added.",
+          "added": 1,
+          "removed": 1,
+          "hunks": [
+            {
+              "lines": [
+                {
+                  "kind": "ctx",
+                  "text": "",
+                  "old": 7,
+                  "new": 7
+                },
+                {
+                  "kind": "ctx",
+                  "text": "export function addToCart(lines: CartLine[], product: Product, quantity = 1): CartLine[] {",
+                  "old": 8,
+                  "new": 8
+                },
+                {
+                  "kind": "del",
+                  "text": "  if (quantity < 1) throw new Error(\"Quantity must be at least 1\");",
+                  "old": 9,
+                  "new": null
+                },
+                {
+                  "kind": "add",
+                  "text": "  if (!Number.isInteger(quantity) || quantity < 1) throw new Error(\"Quantity must be a whole number of at least 1\");",
+                  "old": null,
+                  "new": 9
+                }
+              ]
+            }
+          ],
+          "truncated": false
+        },
+        {
+          "path": "src/lib/cart.test.ts",
+          "kind": "edit",
+          "reason": "Cover the new rule.",
+          "added": 4,
+          "removed": 0,
+          "hunks": [
+            {
+              "lines": [
+                {
+                  "kind": "ctx",
+                  "text": "  });",
+                  "old": 10,
+                  "new": 10
+                },
+                {
+                  "kind": "ctx",
+                  "text": "",
+                  "old": 11,
+                  "new": 11
+                },
+                {
+                  "kind": "add",
+                  "text": "  it(\"rejects fractional quantities\", () => {",
+                  "old": null,
+                  "new": 12
+                },
+                {
+                  "kind": "add",
+                  "text": "    expect(() => addToCart([], mug, 1.5)).toThrow(\"whole number\");",
+                  "old": null,
+                  "new": 13
+                },
+                {
+                  "kind": "add",
+                  "text": "  });",
+                  "old": null,
+                  "new": 14
+                },
+                {
+                  "kind": "add",
+                  "text": "",
+                  "old": null,
+                  "new": 15
+                }
+              ]
+            }
+          ],
+          "truncated": false
+        }
+      ]
+    },
+    "canApprove": false,
+    "approveReason": "This is sample data, so nothing here can change.",
+    "canDiscard": false
+  }
+}

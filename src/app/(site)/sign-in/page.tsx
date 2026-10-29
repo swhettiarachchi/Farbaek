@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { Container } from "@/components/ui/container";
 import { CONTACT } from "@/config/contact";
 import { turnstileSiteKey } from "@/server/auth/captcha";
-import { safeNextPath } from "@/server/supabase/config";
+import { readSupabaseConfig, safeNextPath, siteUrl } from "@/server/supabase/config";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { KeptPrompt } from "./kept-prompt";
 import { SignInForm } from "./sign-in-form";
@@ -22,6 +22,13 @@ const NEXT_STEPS: { icon: Icon; title: string; body: string }[] = [
   { icon: RobotIcon, title: "The agent builds it", body: "In the cloud, on Farbaek's AI, designed to the Studio standard. You can message it while it works." },
   { icon: SealCheckIcon, title: "Review, apply, publish", body: "See every change before it lands, then put a static site live at its own address." },
 ];
+
+/** While the Farbaek app signs in (ADR 0110): the origins its sign-in links may come from. */
+function phoneSignIn(next: string) {
+  if (!next.startsWith("/auth/connect")) return null;
+  const config = readSupabaseConfig();
+  return { siteOrigin: new URL(siteUrl()).origin, authOrigin: config ? new URL(config.url).origin : null };
+}
 
 export default async function SignInPage({ searchParams }: { searchParams: Promise<{ error?: string; next?: string }> }) {
   const { error, next: rawNext } = await searchParams;
@@ -42,7 +49,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
           <div className="rounded-md bg-surface p-5 shadow-e1 sm:p-6">
             <KeptPrompt />
             {supabase ? (
-              <SignInForm linkError={error === "link"} next={next} captchaSiteKey={turnstileSiteKey()} />
+              <SignInForm linkError={error === "link"} next={next} captchaSiteKey={turnstileSiteKey()} phone={phoneSignIn(next)} />
             ) : (
               <p className="rounded-sm border border-dashed border-line-strong/60 p-5 text-sm text-ink-2">
                 Sign-in isn&apos;t connected in this environment. Add the Supabase URL and publishable key to <code>.env.local</code>.

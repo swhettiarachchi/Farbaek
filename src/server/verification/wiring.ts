@@ -30,12 +30,13 @@ async function freshAccessToken(): Promise<string | null> {
 }
 
 /** The sandbox service acting as the signed-in person, or why there's none. Shared with the Future-State Arena (ADR 0076). */
-export async function sandboxForPerson(person: { orgId: string; userId: string; role: OrgRole }): Promise<PersonSandbox> {
+/** `accessToken`: a phone's own token (ADR 0110), used as it is; otherwise the browser session is refreshed for it. */
+export async function sandboxForPerson(person: { orgId: string; userId: string; role: OrgRole }, accessToken?: string): Promise<PersonSandbox> {
   const config = readSupabaseConfig();
   if (!config) return { unavailable: "Accounts aren't configured on this server." };
   const execution = sandboxExecutionMode();
   if (execution.mode !== "sandboxed") return { unavailable: execution.reason ?? "No verified sandbox is connected, so checks can't run." };
-  const token = await freshAccessToken();
+  const token = accessToken ?? (await freshAccessToken());
   if (!token) return { unavailable: "Your session couldn't be confirmed for the sandbox. Sign in again." };
   const user = createClient(config.url, config.publishableKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
@@ -44,7 +45,7 @@ export async function sandboxForPerson(person: { orgId: string; userId: string; 
   return sandboxServiceFor(user, person.userId, person.orgId, person.role);
 }
 
-export async function verificationDeps(person: { orgId: string; userId: string; role: OrgRole }): Promise<VerificationWiring> {
+export async function verificationDeps(person: { orgId: string; userId: string; role: OrgRole }, options: { accessToken?: string } = {}): Promise<VerificationWiring> {
   const admin = createSupabaseAdminClient();
   const config = readSupabaseConfig();
   if (!admin || !config) return { ok: false, reason: "Accounts aren't configured on this server." };
@@ -53,7 +54,7 @@ export async function verificationDeps(person: { orgId: string; userId: string; 
     deps: {
       store: createSupabaseVerificationStore(admin),
       checks: createSupabaseAgentStore(admin),
-      sandbox: await sandboxForPerson(person),
+      sandbox: await sandboxForPerson(person, options.accessToken),
       newKey: () => crypto.randomUUID(),
       // Tells the person how the checks ended (ADR 0060); null while email is off.
       notify: serverNotifier(),

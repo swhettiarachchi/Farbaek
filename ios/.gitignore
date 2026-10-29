@@ -1,0 +1,6 @@
+Farbaek.xcodeproj/
+Farbaek/Info.plist
+Farbaek/Farbaek.entitlements
+build/
+DerivedData/
+*.xcresult

@@ -1,0 +1,208 @@
+# Farbaek for iPhone (ADR 0110). An iPhone app can only be built on macOS,
+# so GitHub's macOS runner builds it.
+#
+# - check: makes the Xcode project from ios/project.yml with XcodeGen (a
+#   pinned release, checked against its SHA-256), builds the app for the
+#   simulator and runs its tests, which decode the server's real sample
+#   answers. No signing, no secrets.
+# - testflight: only when started by hand with "Upload to TestFlight" and
+#   once the owner's App Store Connect key is set: archives, signs with
+#   Apple's cloud-managed certificate for team 65BULQ4657, and uploads the
+#   build to TestFlight. Releasing it to the App Store is by hand in App
+#   Store Connect (docs/mobile/ios.md); nothing here can.
+#
+# Secrets for testflight (repository settings, set by the owner; docs/mobile/ios.md):
+# IOS_ASC_KEY_P8, IOS_ASC_KEY_ID, IOS_ASC_ISSUER.
+#
+# macOS minutes count ten times against the repository's free minutes, so
+# this runs only when ios/ or this file changes, or from "Run workflow".
+name: iPhone app
+
+on:
+  push:
+    paths:
+      - ios/**
+      - .github/workflows/ios.yml
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: Upload to TestFlight (needs the App Store Connect key)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  XCODEGEN_VERSION: "2.46.0"
+  XCODEGEN_SHA256: 4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806
+
+jobs:
+  check:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: The newest Xcode on the runner
+        run: |
+          set -euo pipefail
+          xcode=$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
+
+      - name: XcodeGen, pinned and checked
+        run: |
+          set -euo pipefail
+          curl -fsSL -o "$RUNNER_TEMP/xcodegen.zip" "https://github.com/yonaskolb/XcodeGen/releases/download/${XCODEGEN_VERSION}/xcodegen.zip"
+          echo "${XCODEGEN_SHA256}  $RUNNER_TEMP/xcodegen.zip" | shasum -a 256 -c -
+          unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP/xcodegen"
+          echo "XCODEGEN=$(find "$RUNNER_TEMP/xcodegen" -type f -name xcodegen -perm -u+x | head -1)" >> "$GITHUB_ENV"
+
+      - name: Make the project
+        run: '"$XCODEGEN" generate --spec ios/project.yml'
+
+      - name: Pick the biggest iPhone simulator (the App Store's 6.9-inch screenshots)
+        run: |
+          set -euo pipefail
+          udid=$(xcrun simctl list devices available -j | python3 -c "
+          import json, sys
+          devices = json.load(sys.stdin)['devices']
+          phones = [d for runtime, ds in sorted(devices.items(), reverse=True) if 'iOS' in runtime for d in ds if d['name'].startswith('iPhone')]
+          best = [d for d in phones if 'Pro Max' in d['name']] or phones
+          print(best[0]['udid'])
+          ")
+          echo "SIMULATOR=$udid" >> "$GITHUB_ENV"
+
+      - name: Build and run the unit tests
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -project ios/Farbaek.xcodeproj \
+            -scheme Farbaek \
+            -destination "platform=iOS Simulator,id=$SIMULATOR" \
+            -only-testing:FarbaekTests \
+            -resultBundlePath "$RUNNER_TEMP/unit.xcresult" \
+            CODE_SIGNING_ALLOWED=NO | tail -n 150
+          {
+            echo "### Farbaek for iPhone"
+            echo
+            echo "Built for the simulator and its unit tests passed on $(xcodebuild -version | head -1)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # The tour reads the sample from www.farbaek.com, so it waits until the server has the phone API.
+      - name: Tour the sample and take screenshots
+        run: |
+          set -euo pipefail
+          if ! curl -fsS -o /dev/null https://www.farbaek.com/api/v1/app/sample/me; then
+            echo "::notice::www.farbaek.com doesn't answer /api/v1/app/sample yet, so the UI tour didn't run."
+            exit 0
+          fi
+          xcodebuild test \
+            -project ios/Farbaek.xcodeproj \
+            -scheme Farbaek \
+            -destination "platform=iOS Simulator,id=$SIMULATOR" \
+            -only-testing:FarbaekUITests \
+            -resultBundlePath "$RUNNER_TEMP/tour.xcresult" \
+            CODE_SIGNING_ALLOWED=NO | tail -n 80
+          mkdir -p out/screenshots
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/tour.xcresult" --output-path out/screenshots
+          echo "The sample tour passed; its screenshots are in this run's artifact." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: farbaek-iphone-screenshots
+          path: out/screenshots
+          if-no-files-found: ignore
+
+  ready:
+    if: github.event_name == 'workflow_dispatch' && inputs.upload
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      signing: ${{ steps.check.outputs.signing }}
+    steps:
+      - id: check
+        env:
+          P8: ${{ secrets.IOS_ASC_KEY_P8 }}
+          KEY_ID: ${{ secrets.IOS_ASC_KEY_ID }}
+          ISSUER: ${{ secrets.IOS_ASC_ISSUER }}
+        run: |
+          if [ -n "$P8" ] && [ -n "$KEY_ID" ] && [ -n "$ISSUER" ]; then
+            echo "signing=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "signing=no" >> "$GITHUB_OUTPUT"
+            echo "::warning::The App Store Connect key isn't set, so nothing was uploaded. See docs/mobile/ios.md."
+          fi
+
+  testflight:
+    needs: [check, ready]
+    if: needs.ready.outputs.signing == 'yes'
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      ASC_KEY_ID: ${{ secrets.IOS_ASC_KEY_ID }}
+      ASC_ISSUER: ${{ secrets.IOS_ASC_ISSUER }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: The newest Xcode on the runner
+        run: |
+          set -euo pipefail
+          xcode=$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
+
+      - name: XcodeGen, pinned and checked
+        run: |
+          set -euo pipefail
+          curl -fsSL -o "$RUNNER_TEMP/xcodegen.zip" "https://github.com/yonaskolb/XcodeGen/releases/download/${XCODEGEN_VERSION}/xcodegen.zip"
+          echo "${XCODEGEN_SHA256}  $RUNNER_TEMP/xcodegen.zip" | shasum -a 256 -c -
+          unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP/xcodegen"
+          "$(find "$RUNNER_TEMP/xcodegen" -type f -name xcodegen -perm -u+x | head -1)" generate --spec ios/project.yml
+
+      - name: The App Store Connect key, as a file only this job can read
+        env:
+          P8: ${{ secrets.IOS_ASC_KEY_P8 }}
+        run: |
+          umask 077
+          printf '%s\n' "$P8" > "$RUNNER_TEMP/AuthKey.p8"
+
+      - name: Archive, sign and upload to TestFlight
+        run: |
+          set -euo pipefail
+          auth=(-allowProvisioningUpdates -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER")
+          # Each upload needs a new build number: this workflow's run number.
+          xcodebuild archive \
+            -project ios/Farbaek.xcodeproj \
+            -scheme Farbaek \
+            -configuration Release \
+            -destination generic/platform=iOS \
+            -archivePath "$RUNNER_TEMP/Farbaek.xcarchive" \
+            CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}" \
+            "${auth[@]}" | tail -n 60
+          test "${PIPESTATUS[0]}" -eq 0
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Farbaek.xcarchive" \
+            -exportOptionsPlist ios/ExportOptions.plist \
+            -exportPath "$RUNNER_TEMP/export" \
+            "${auth[@]}" | tail -n 60
+          test "${PIPESTATUS[0]}" -eq 0
+          {
+            echo "### Farbaek for iPhone"
+            echo
+            echo "Build ${GITHUB_RUN_NUMBER} uploaded to App Store Connect. It appears in TestFlight once Apple has processed it."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove the key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/AuthKey.p8"

@@ -1,0 +1,55 @@
+{
+  "data": {
+    "task": {
+      "id": "00000000-0000-4000-8000-00000000b007",
+      "title": "Reject fractional quantities in the cart",
+      "state": "APPROVAL_PENDING",
+      "stateLabel": "Awaiting approval",
+      "tone": "approval",
+      "projectId": "00000000-0000-4000-8000-00000000a001",
+      "projectName": "Storefront",
+      "createdAt": "2026-10-29T08:00:00.000Z",
+      "updatedAt": "2026-10-29T11:25:42.857Z",
+      "version": 6
+    },
+    "plan": {
+      "version": 1,
+      "status": "approved",
+      "sha256": "cf8d832429be705db1b8f6ad500876c7cc8af0b51099b93112bdcae9196fb889",
+      "outcome": "Reject fractional quantities in the cart",
+      "files": [
+        "src/lib",
+        "src/components"
+      ],
+      "allowed": [
+        "files.edit",
+        "files.create"
+      ],
+      "forbidden": [
+        "files.delete"
+      ],
+      "criteria": [
+        {
+          "id": "ac-1",
+          "statement": "Adding a fractional quantity throws a clear error.",
+          "verification": "test"
+        },
+        {
+          "id": "ac-2",
+          "statement": "Existing cart tests still pass.",
+          "verification": "test"
+        }
+      ],
+      "checks": [
+        "pnpm test"
+      ],
+      "assumptions": [
+        "Quantities come from the cart UI as numbers."
+      ],
+      "questions": [],
+      "recovery": "Restore the previous file revisions from history."
+    },
+    "canApprove": false,
+    "approveReason": "This is sample data, so nothing here can change."
+  }
+}

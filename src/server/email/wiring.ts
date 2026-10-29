@@ -7,7 +7,7 @@ import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { readEmailConfig } from "./config";
 import { createNotifier, type EmailPreference, type Notifier } from "./notify";
 import { combineNotifiers } from "@/server/push/notifier";
-import { serverPushNotifier } from "@/server/push/wiring";
+import { serverPhoneNotifier, serverPushNotifier } from "@/server/push/wiring";
 
 /** Only a confirmed address: the one the person signed in with. */
 export async function confirmedEmail(admin: SupabaseClient, userId: string): Promise<string | null> {
@@ -36,5 +36,5 @@ export function serverNotifier(): Notifier | null {
           wants: (userId, kind) => wantsEmail(admin, userId, kind),
         })
       : null;
-  return combineNotifiers(email, serverPushNotifier());
+  return combineNotifiers(email, serverPushNotifier(), serverPhoneNotifier());
 }
