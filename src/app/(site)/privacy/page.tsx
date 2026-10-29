@@ -251,7 +251,11 @@ const SECTIONS: LegalSection[] = [
   {
     id: "children",
     title: "Age",
-    body: <p>Farbaek is for people aged {LEGAL.minimumAge} and over. We don&apos;t knowingly collect data from anyone younger. If you think a child has signed up, tell us and we&apos;ll delete the account.</p>,
+    body: (
+      <p>
+        Farbaek is for people aged {LEGAL.minimumAge} and over; under 18, with a parent&apos;s or guardian&apos;s agreement. We don&apos;t knowingly collect data from anyone younger than {LEGAL.minimumAge}. If you think a child has signed up, tell us and we&apos;ll delete the account.
+      </p>
+    ),
   },
   {
     id: "changes",

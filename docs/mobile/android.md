@@ -35,7 +35,7 @@ Download the run's **farbaek-android** artifact. It holds `farbaek-1.0.0.aab` an
    - **App access:** "All or some functionality is restricted", with a note that reviewers can sign up at https://www.farbaek.com/sign-in.
    - **Ads:** No.
    - **Content rating:** the questionnaire, answering No to everything (category Utility, productivity, communication or other).
-   - **Target audience:** 18 and over.
+   - **Target audience:** 13 and over, matching the Terms and the App Store's 13+.
    - **Data safety:** email address (account), app interactions; encrypted in transit; people can delete their account (Settings in Farbaek).
    - **Category:** Productivity.
    - **Contact email:** `support@farbaek.com`

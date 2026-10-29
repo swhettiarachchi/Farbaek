@@ -23,7 +23,11 @@ const SECTIONS: LegalSection[] = [
   {
     id: "eligibility",
     title: "Who can use Farbaek",
-    body: <p>You must be at least {LEGAL.minimumAge}, and allowed to enter into this agreement where you live. One person, one account: keep your sign-in to yourself.</p>,
+    body: (
+      <p>
+        You must be at least {LEGAL.minimumAge}. If you&apos;re under 18, or under the age where you live at which you can use online services on your own (16 in some countries), a parent or guardian must agree to these terms for you. Only someone 18 or over can buy a paid plan. One person, one account: keep your sign-in to yourself.
+      </p>
+    ),
   },
   {
     id: "workspaces",
