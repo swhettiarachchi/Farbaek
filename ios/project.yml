@@ -55,6 +55,8 @@ targets:
       path: Farbaek/Farbaek.entitlements
       properties:
         aps-environment: development
+        # Sign in with Apple (ADR 0113).
+        com.apple.developer.applesignin: [Default]
   FarbaekTests:
     type: bundle.unit-test
     platform: iOS

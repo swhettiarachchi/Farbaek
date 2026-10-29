@@ -19,6 +19,15 @@ final class FarbaekTests: XCTestCase {
         XCTAssertNotEqual(verifier, PKCE.random())
     }
 
+    func testAppleNonceHashesTheWayAuthChecksIt() {
+        // Supabase Auth compares the token's nonce with the lowercase hex SHA-256 of the raw nonce (FIPS 180-2 example).
+        XCTAssertEqual(AppleSignIn.sha256Hex("abc"), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+        let attempt = AppleSignIn.newAttempt()
+        XCTAssertEqual(attempt.nonce.count, 43)
+        XCTAssertEqual(attempt.hashedNonce, AppleSignIn.sha256Hex(attempt.nonce))
+        XCTAssertNotEqual(attempt.nonce, AppleSignIn.newAttempt().nonce)
+    }
+
     func testReadsFarbaeksTimes() throws {
         let micro = try XCTUnwrap(FarbaekDate.parse("2026-10-29T11:58:00.123456+00:00"))
         let milli = try XCTUnwrap(FarbaekDate.parse("2026-10-29T11:58:00.123Z"))

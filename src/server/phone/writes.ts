@@ -21,6 +21,7 @@ import { verificationDeps } from "@/server/verification/wiring";
 import { runCapUnits } from "@/server/workspace/plan-card-data";
 import { applyProposal, discardProposal } from "@/server/workspace/proposals";
 import { startFromPrompt } from "@/server/workspace/start-from-prompt";
+import { mapCreateOrganizationError } from "@/server/workspace/organizations";
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
 import { approveContract, type WriteErrorCode, type WriteResult } from "@/server/workspace/use-cases";
 import { claimAppleTransaction } from "@/server/billing/apple/service";
@@ -150,6 +151,15 @@ export function createPhoneWrites(options: { userClient: (accessToken: string) =
       if (!deps) return notConfigured;
       const r = await claimAppleTransaction(deps, { orgId: p.orgId, role: p.ctx.role, jws });
       return r.ok ? r : refuse(r.status, r.code, r.message);
+    },
+
+    async createWorkspace(caller) {
+      const { data, error } = await options.userClient(caller.accessToken).rpc("create_organization", { p_name: "My workspace" });
+      if (error) {
+        const mapped = mapCreateOrganizationError(error.message);
+        return refuse(mapped.code === "NOT_AUTHENTICATED" ? 401 : mapped.code === "PAUSED" ? 503 : 422, mapped.code, mapped.message);
+      }
+      return typeof data === "string" ? { ok: true, value: { workspaceId: data } } : refuse(422, "UNKNOWN", mapCreateOrganizationError(undefined).message);
     },
 
     setPush: (caller, token, environment) => options.store.setPush(caller.sessionId, token, environment),

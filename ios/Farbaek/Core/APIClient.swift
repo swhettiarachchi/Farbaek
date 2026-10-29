@@ -149,7 +149,18 @@ final class APIClient {
         }
     }
 
-    /// The sign-in steps (token, refresh), which carry their own credential.
+    /// Which ways to sign in this server offers, asked before anyone is signed in.
+    func signInOptions() async throws -> SignInOptions {
+        let (data, status) = try await perform("GET", "sign-in-options", query: [], body: nil, token: nil)
+        guard (200..<300).contains(status) else { throw Self.error(from: data, status: status) }
+        do {
+            return try JSONDecoder().decode(Envelope<SignInOptions>.self, from: data).data
+        } catch {
+            throw APIError.unreadable
+        }
+    }
+
+    /// The sign-in steps (token, apple, refresh), which carry their own credential.
     func signInStep<T: Decodable>(_ step: String, body: [String: Any]) async throws -> T {
         let (data, status) = try await perform("POST", step, query: [], body: body, token: nil)
         guard (200..<300).contains(status) else { throw Self.error(from: data, status: status) }

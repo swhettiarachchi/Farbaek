@@ -47,6 +47,7 @@ function fakeDeps(options: { limit?: boolean; session?: PhoneSession | null } = 
       newSession: async () => (options.session === undefined ? session : options.session),
       refresh: async (t) => (t === "refresh-abc123" ? session : null),
       verify: async (t) => (t === JWT ? { userId: ALICE, email: "alice@example.test", sessionId: "session-1", expiresAt: 2_000_000_000 } : null),
+      appleSession: async () => null,
     },
   };
   return { deps, codes, devices };

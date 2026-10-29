@@ -39,6 +39,7 @@ import { setMemberPermissions, type MemberPermissionDeps } from "@/server/worksp
 import { startTaskVerification } from "@/server/verification/runner";
 import { verificationDeps } from "@/server/verification/wiring";
 import { log } from "@/server/observability/log";
+import { revokeAppleSignIn } from "@/server/auth/apple-wiring";
 
 export type FormState = { status: "idle" } | { status: "error"; message: string; values?: Record<string, string> } | { status: "done"; message: string };
 
@@ -640,6 +641,8 @@ export async function deleteAccountAction(_previous: FormState, form: FormData):
     if (blocked.length) return { status: "error", message: `Nothing was deleted. First sort out: ${blocked.map((b) => b.orgName).join(", ")}.` };
     const { error } = await admin.rpc("app_delete_account_data", { p_user: ctx.user.id });
     if (error) return { status: "error", message: /BLOCKED/.test(error.message) ? "Something changed in one of your workspaces. Check the list and try again." : "Your account couldn't be deleted. Nothing was changed." };
+    // Apple requires ending the Apple ID's link when the account goes (ADR 0113). It never blocks the deletion.
+    await revokeAppleSignIn(admin, ctx.user.id);
     const { error: authError } = await admin.auth.admin.deleteUser(ctx.user.id);
     if (authError) {
       // The workspaces are gone; the sign-in record stays until a retry. Logged without the address.

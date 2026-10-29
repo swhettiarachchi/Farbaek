@@ -12,8 +12,12 @@
  * 4. Every request after that carries the session's access token, and the
  *    phone's record is checked each time, so disconnecting it in Settings
  *    takes effect at once.
+ *
+ * On iPhone, Sign in with Apple (ADR 0113) replaces steps 1 to 3: the app
+ * sends Apple's identity token and the nonce it hashed into the request, and
+ * Supabase Auth checks both and makes (or finds) the account.
  */
-import { CHALLENGE_PATTERN, CODE_PATTERN, STATE_PATTERN, VERIFIER_PATTERN, APP_VERSION_PATTERN, challengeFor, cleanDeviceName, isPhonePlatform, newConnectCode, sha256Hex, type PhonePlatform } from "./tokens";
+import { APPLE_CODE_PATTERN, APPLE_NONCE_PATTERN, CHALLENGE_PATTERN, CODE_PATTERN, STATE_PATTERN, VERIFIER_PATTERN, APP_VERSION_PATTERN, challengeFor, cleanDeviceName, isPhonePlatform, newConnectCode, sha256Hex, type PhonePlatform } from "./tokens";
 
 export type PhoneResult<T> = { ok: true; value: T } | { ok: false; status: number; code: string; message: string };
 
@@ -50,11 +54,15 @@ export interface SessionAuth {
   refresh(refreshToken: string): Promise<PhoneSession | null>;
   /** The person behind a valid access token, or null. */
   verify(accessToken: string): Promise<{ userId: string; email: string; sessionId: string; expiresAt: number } | null>;
+  /** A new session from Apple's identity token, once Auth has checked it and its nonce. Null when Auth refused it. */
+  appleSession(identityToken: string, nonce: string): Promise<{ userId: string; session: PhoneSession } | null>;
 }
 
 export interface PhoneAuthDeps {
   store: PhoneStore;
   auth: SessionAuth;
+  /** Keeps Apple's refresh token for the sign-in's authorization code, so deleting the account can revoke it. Never throws. */
+  keepApple?: (userId: string, authorizationCode: string) => Promise<void>;
 }
 
 export interface PhoneCaller {
@@ -84,6 +92,7 @@ export const PHONE_MESSAGES = {
   expired: "Your sign-in has expired. Open the app again to refresh it.",
   disconnected: "This phone was disconnected from Farbaek. Sign in again to use it.",
   busy: "Too many requests from this phone in the last minute. Wait a moment and try again.",
+  apple: "Apple's sign-in couldn't be checked, so you're not signed in. Try Continue with Apple again.",
 } as const;
 
 const ACCESS_TOKEN = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
@@ -130,6 +139,25 @@ export async function exchangeCode(deps: PhoneAuthDeps, input: { code: unknown; 
   if (!session) return refuse(503, "SIGN_IN_UNAVAILABLE", PHONE_MESSAGES.unavailable);
   const appVersion = typeof input.appVersion === "string" && APP_VERSION_PATTERN.test(input.appVersion) ? input.appVersion : null;
   const deviceId = await deps.store.register({ userId: redeemed.userId, sessionId: session.sessionId, platform: redeemed.platform, name: redeemed.deviceName, appVersion });
+  return { ok: true, value: { accessToken: session.accessToken, refreshToken: session.refreshToken, expiresAt: session.expiresAt, deviceId } };
+}
+
+/** Sign in with Apple on iPhone: Auth checks Apple's token, then the phone is recorded like any other. */
+export async function signInWithApple(
+  deps: PhoneAuthDeps,
+  input: { identityToken: unknown; nonce: unknown; authorizationCode: unknown; device: unknown; appVersion: unknown; clientKey: string },
+): Promise<PhoneResult<TokenGrant>> {
+  if (!(await deps.store.rateLimit(`phone-apple:${input.clientKey}`, 60, 20))) return refuse(429, "RATE_LIMITED", PHONE_MESSAGES.limited);
+  const { identityToken, nonce } = input;
+  if (typeof identityToken !== "string" || identityToken.length > 4096 || !ACCESS_TOKEN.test(identityToken) || typeof nonce !== "string" || !APPLE_NONCE_PATTERN.test(nonce)) {
+    return refuse(400, "APPLE_REFUSED", PHONE_MESSAGES.apple);
+  }
+  const signedIn = await deps.auth.appleSession(identityToken, nonce);
+  if (!signedIn) return refuse(400, "APPLE_REFUSED", PHONE_MESSAGES.apple);
+  const appVersion = typeof input.appVersion === "string" && APP_VERSION_PATTERN.test(input.appVersion) ? input.appVersion : null;
+  const deviceId = await deps.store.register({ userId: signedIn.userId, sessionId: signedIn.session.sessionId, platform: "ios", name: cleanDeviceName(input.device, "ios"), appVersion });
+  if (deps.keepApple && typeof input.authorizationCode === "string" && APPLE_CODE_PATTERN.test(input.authorizationCode)) await deps.keepApple(signedIn.userId, input.authorizationCode);
+  const { session } = signedIn;
   return { ok: true, value: { accessToken: session.accessToken, refreshToken: session.refreshToken, expiresAt: session.expiresAt, deviceId } };
 }
 

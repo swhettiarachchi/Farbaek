@@ -29,6 +29,8 @@ const SECTIONS: LegalSection[] = [
         items={[
           <>
             <strong className="font-medium text-ink">Your account:</strong> your email address, when you signed in, and the workspaces you belong to with your role in each.
+            If you use Sign in with Apple, Apple gives us an ID for you and your email address, or a relay address if you choose to hide yours. We don&apos;t ask Apple
+            for your name. We keep Apple&apos;s sign-in token so that deleting your account also ends your Apple sign-in with Farbaek.
           </>,
           <>
             <strong className="font-medium text-ink">Your work:</strong> what you write to plan software, the files in your projects and their history, AI drafts and changes, approvals, check results,

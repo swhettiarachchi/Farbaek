@@ -18,7 +18,9 @@ async function demoContext(over: Partial<AppContext> = {}): Promise<AppContext> 
   return { mode: "live", user: { ...DEMO_USER }, reader, workspaces, current: workspaces[0]!, role: "owner", permissions: {}, writes: { enabled: true }, ...over };
 }
 
-function deps(options: { expiresAt?: number; ctx?: Partial<AppContext>; revoked?: boolean } = {}) {
+const NONCE = "n0nce-n0nce-n0nce-n0nce-n0nce-n0nce";
+
+function deps(options: { expiresAt?: number; ctx?: Partial<AppContext>; revoked?: boolean; apple?: boolean } = {}) {
   const calls: string[] = [];
   const codes = new Map<string, string>();
   const auth: PhoneAuthDeps = {
@@ -35,7 +37,10 @@ function deps(options: { expiresAt?: number; ctx?: Partial<AppContext>; revoked?
       newSession: async () => ({ accessToken: JWT, refreshToken: "refresh-abc123", expiresAt: 2_000_000_000, sessionId: "s1" }),
       refresh: async () => null,
       verify: async (t) => (t === JWT ? { userId: DEMO_USER.id, email: DEMO_USER.email, sessionId: "s1", expiresAt: options.expiresAt ?? NOW.getTime() / 1000 + 3600 } : null),
+      // Auth checks Apple's token and nonce; here only one pair passes.
+      appleSession: async (token, nonce) => (token === JWT && nonce === NONCE ? { userId: DEMO_USER.id, session: { accessToken: JWT, refreshToken: "refresh-apple1", expiresAt: 2_000_000_000, sessionId: "s2" } } : null),
     },
+    keepApple: async (_user, code) => void calls.push(`keepApple:${code}`),
   };
   const writes: PhoneWrites = {
     approve: async (_p, i) => (calls.push(`approve:${i.sha256.slice(0, 6)}`), { ok: true, value: { written: 1, checking: true } }),
@@ -47,6 +52,7 @@ function deps(options: { expiresAt?: number; ctx?: Partial<AppContext>; revoked?
     messageRun: () => ({ ok: true, value: null }),
     setPush: async () => true,
     signOut: async () => (calls.push("signOut"), "signed_out"),
+    createWorkspace: async () => (calls.push("createWorkspace"), { ok: true, value: { workspaceId: "w" } }),
     appleTransaction: async () => (calls.push("apple"), { ok: true, value: { state: "active", planId: "starter", paidThrough: null } }),
   };
   const d: PhoneApiDeps = {
@@ -58,6 +64,7 @@ function deps(options: { expiresAt?: number; ctx?: Partial<AppContext>; revoked?
     execution: () => ({ mode: "sandboxed" }),
     writes,
     pushAvailable: () => false,
+    appleSignIn: () => options.apple ?? true,
     billing: async () => ({ managedBy: null, live: false, applePurchases: true }),
     clientKey: () => "client",
     now: () => NOW,
@@ -162,6 +169,37 @@ describe("the phone API (ADR 0110)", () => {
     expect(calls).toEqual(["apple"]);
     expect((await call(d, "POST", "sample/apple/transactions", { token: false, body: { jws: "a".repeat(40) } })).status).toBe(403);
     expect((await call(d, "POST", "apple/transactions", { body: { jws: "short" } })).status).toBe(400);
+  });
+
+  it("signs in with Apple only when it's open, and records the phone like any other (ADR 0113)", async () => {
+    expect(await data(await call(deps({ apple: false }).deps, "GET", "sign-in-options", { token: false }))).toEqual({ apple: false });
+    const off = await call(deps({ apple: false }).deps, "POST", "apple", { token: false, body: { identityToken: JWT, nonce: NONCE } });
+    expect(off.status).toBe(503);
+
+    const { deps: d, calls } = deps();
+    expect(await data(await call(d, "GET", "sign-in-options", { token: false }))).toEqual({ apple: true });
+    const signedIn = await call(d, "POST", "apple", { token: false, body: { identityToken: JWT, nonce: NONCE, authorizationCode: "c0de.0.abc", device: "Ada's iPhone", appVersion: "1.0" } });
+    expect(signedIn.status).toBe(200);
+    expect(await data(signedIn)).toMatchObject({ accessToken: JWT, refreshToken: "refresh-apple1", deviceId: "device-1" });
+    expect(calls).toEqual(["keepApple:c0de.0.abc"]);
+
+    // A token or nonce Auth won't accept signs nobody in, and the code isn't kept.
+    for (const body of [{ identityToken: JWT, nonce: "x".repeat(40) }, { identityToken: JWT, nonce: "short" }, { identityToken: "not-a-token", nonce: NONCE }]) {
+      const r = await call(d, "POST", "apple", { token: false, body: { ...body, authorizationCode: "c0de.0.xyz" } });
+      expect(r.status).toBe(400);
+      expect(((await r.json()) as { error: { code: string } }).error.code).toBe("APPLE_REFUSED");
+    }
+    expect(calls).toEqual(["keepApple:c0de.0.abc"]);
+  });
+
+  it("makes a first workspace from the phone, never a second, never in the sample", async () => {
+    const empty = deps({ ctx: { workspaces: [], current: null, role: null } });
+    expect((await call(empty.deps, "POST", "workspaces")).status).toBe(201);
+    expect(empty.calls).toEqual(["createWorkspace"]);
+    const has = deps();
+    expect((await call(has.deps, "POST", "workspaces")).status).toBe(409);
+    expect((await call(has.deps, "POST", "sample/workspaces", { token: false })).status).toBe(403);
+    expect(has.calls).toEqual([]);
   });
 
   it("signs out by disconnecting the phone itself", async () => {

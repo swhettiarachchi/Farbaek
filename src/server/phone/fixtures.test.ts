@@ -34,6 +34,7 @@ const deps = {
   execution: () => ({ mode: "sandboxed" }),
   writes: {} as PhoneApiDeps["writes"],
   pushAvailable: () => false,
+  appleSignIn: () => false,
   billing: async () => ({ managedBy: null, live: false, applePurchases: false }),
   clientKey: () => "fixtures",
   now: () => NOW,

@@ -1,7 +1,9 @@
+import AuthenticationServices
 import SwiftUI
 
-/// The first screen: what the app is for, signing in through www.farbaek.com,
-/// or looking around the sample workspace with no account.
+/// The first screen: what the app is for, signing in with Apple (when the
+/// server offers it) or through www.farbaek.com, or looking around the sample
+/// workspace with no account.
 struct WelcomeView: View {
     @Environment(AppModel.self) private var model
     @State private var appeared = false
@@ -60,16 +62,30 @@ struct WelcomeView: View {
                 }
 
                 VStack(spacing: 12) {
+                    if model.appleOffered {
+                        // Apple's own button, first and full width (ADR 0113). It asks for the email only.
+                        SignInWithAppleButton(.continue) { request in
+                            model.prepareApple(request)
+                        } onCompletion: { result in
+                            Task { await model.finishApple(result) }
+                        }
+                        .signInWithAppleButtonStyle(.black)
+                        .frame(height: 50)
+                        .clipShape(Capsule())
+                        .disabled(model.signingIn)
+                        .opacity(model.signingIn ? 0.5 : 1)
+                    }
+
                     Button {
                         Task { await model.signIn() }
                     } label: {
                         if model.signingIn {
-                            ProgressView().tint(Palette.onPrimary)
+                            ProgressView().tint(model.appleOffered ? Palette.ink : Palette.onPrimary)
                         } else {
-                            Text("Sign in with Farbaek")
+                            Text("Sign in with email")
                         }
                     }
-                    .buttonStyle(PillButtonStyle(kind: .primary))
+                    .buttonStyle(PillButtonStyle(kind: model.appleOffered ? .secondary : .primary))
                     .disabled(model.signingIn)
 
                     Button("Look around with sample data") {
@@ -81,17 +97,25 @@ struct WelcomeView: View {
                     if let error = model.signInError {
                         Notice(text: error, tone: .failed, symbol: "exclamationmark.triangle.fill")
                     }
-                    Text("Signing in opens www.farbaek.com. If you're new, the same page makes your account.")
+                    Text(model.appleOffered
+                        ? "Continue with Apple makes your account from your Apple Account, and you can hide your email from Farbaek. Email sign-in opens www.farbaek.com."
+                        : "Signing in opens www.farbaek.com. If you're new, the same page makes your account.")
                         .font(.footnote)
                         .foregroundStyle(Palette.ink3)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
-                HStack(spacing: 20) {
-                    Link("Privacy", destination: AppConfig.privacyURL)
-                    Link("Terms", destination: AppConfig.termsURL)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("By continuing, you accept the Terms and the Privacy Policy.")
+                        .font(.footnote)
+                        .foregroundStyle(Palette.ink3)
+                    HStack(spacing: 20) {
+                        Link("Privacy", destination: AppConfig.privacyURL)
+                        Link("Terms", destination: AppConfig.termsURL)
+                    }
+                    .font(.footnote.weight(.medium))
                 }
-                .font(.footnote.weight(.medium))
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 28)
@@ -100,5 +124,6 @@ struct WelcomeView: View {
         }
         .background(Palette.canvas.ignoresSafeArea())
         .onAppear { appeared = true }
+        .task { await model.loadSignInOptions() }
     }
 }
