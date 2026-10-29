@@ -63,7 +63,16 @@ appx:
   minVersion: 10.0.17763.0
   maxVersionTested: 10.0.26100.0
   artifactName: Farbaek-Agent-${version}.${ext}
+# Linux (ADR 0111): an AppImage for x64, built on GitHub's Linux runner
+# (.github/workflows/agent-linux.yml) and published on Farbaek's own server.
 linux:
-  target: AppImage
+  target:
+    - target: AppImage
+      arch: [x64]
   category: Development
+  icon: public/brand/farbaek-icon.png
+  executableName: farbaek-agent
+  synopsis: Works on a task's approved contract on your computer.
+appImage:
+  artifactName: Farbaek-Agent-${version}-linux-x86_64.${ext}
 publish: null

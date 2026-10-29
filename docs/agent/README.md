@@ -122,9 +122,10 @@ People get the agent from the Agents page. Direct downloads are served at `https
 1. Raise the version in `desktop/app/package.json`. Pushing it starts the Mac build.
 2. Windows: `pnpm agent:dist`, then copy `desktop/release/Farbaek-Agent-Setup-<version>.exe` to `/opt/farbaek/downloads` over SSH in one connection, and compare its SHA-256 on the server with the local one.
 3. Mac: download the run's artifact, check its SHA-256 against the run's summary, and copy the DMG to `/opt/farbaek/downloads` the same way.
-4. Store: `pnpm agent:store`, and submit the package as an update in Partner Center.
-5. Set the files, sizes and SHA-256s in `src/config/agent-download.ts` (`AGENT_DOWNLOAD`, `AGENT_MAC`). `src/config/agent-download.test.ts` checks the entries are well formed and match the app's version.
-6. Merge. The page links the new files once it deploys.
+4. Linux (ADR 0111): the same push starts the Linux build (`.github/workflows/agent-linux.yml`). Download its artifact, check the AppImage's SHA-256 against the run's summary, and copy it to `/opt/farbaek/downloads` the same way.
+5. Store: `pnpm agent:store`, and submit the package as an update in Partner Center.
+6. Set the files, sizes and SHA-256s in `src/config/agent-download.ts` (`AGENT_DOWNLOAD`, `AGENT_MAC`, `AGENT_LINUX`). `src/config/agent-download.test.ts` checks the entries are well formed and match the app's version.
+7. Merge. The page links the new files once it deploys.
 
 Old installers stay on the server, so earlier links keep working. Remove them by hand when they're no longer needed.
 

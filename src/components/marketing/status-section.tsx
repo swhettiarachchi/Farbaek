@@ -57,7 +57,12 @@ const GROUPS: Group[] = [
     note: "Planned next, in no fixed order.",
     icon: HourglassMediumIcon,
     iconClass: "text-unverified",
-    items: ["The Android app on Google Play", "An iPhone app (Farbaek installs from Safari today)", "Launches from a repository (Render, Railway, Fly.io)"],
+    items: [
+      "The Android app on Google Play",
+      "Farbaek for iPhone on the App Store, approving changes with Face ID (Farbaek installs from Safari today)",
+      "Farbaek Agent for Mac and Linux",
+      "Launches from a repository (Render, Railway, Fly.io)",
+    ],
   },
 ];
 
