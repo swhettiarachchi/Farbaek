@@ -86,7 +86,8 @@ The app is in `ios/` and its decision is ADR 0110. GitHub's Mac builds and tests
 3. Fill in **App Review Information**:
    - untick **Sign-in required**;
    - **Notes:** "Tap Look around with sample data on the first screen to see every screen with sample data. Signing in uses a one-time email link from www.farbaek.com in the system browser sheet. The app has no purchases."
-4. Choose **Add for Review**, then **Submit**.
+4. Leave **Pricing and Availability**, then **iPhone and iPad Apps on Apple Silicon Macs** switched on: Macs with Apple silicon get the same app from the Mac App Store.
+5. Choose **Add for Review**, then **Submit**.
 
 ## What's already done
 

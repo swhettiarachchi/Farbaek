@@ -67,6 +67,20 @@ The owner asked for the mobile apps. Android already had its Trusted Web Activit
 - **Existing tests:** design, workspace, cloud agent, verification and email (361 tests) are unchanged.
 - **Swift:** reviewed by hand for compile errors. Three were fixed: `try` in a ternary, a `String?` and `NSNull` with no common type, and a heavy `String` plus `Substring` chain. `Tab` was renamed `AppTab`, away from SwiftUI's own `Tab`.
 
+### In production
+
+- **v70:** applied before the merge with its hash checked (ff17a46b…e79808). The read-back showed:
+  - seven `app_phone_*` functions;
+  - row security on both tables;
+  - the function owner can delete from `auth.sessions`, so Disconnect ends a phone's sign-in.
+- **PR #110:** merged; production serves `fa3d1e9`. Checked live:
+  - `/api/v1/app/sample/me` and `/sample/approvals` answer;
+  - `/api/v1/app/me` without a token gets 401;
+  - `/auth/connect` sends a signed-out browser to sign in and back;
+  - a connect post from another Origin is refused;
+  - a made-up code gets `INVALID_GRANT`, which means the v70 functions answer through PostgREST.
+- **The iPhone workflow:** it ran on the push and the merge. GitHub didn't start its job ("recent account payments have failed or your spending limit needs to be increased"): the minutes block until 1 November, not the code.
+
 ### Not verified yet
 
 - **The Swift compile and the app's tests:** this PC has no Mac, and GitHub's free macOS minutes return on 1 November. The first run of `ios.yml` is the first compile.
