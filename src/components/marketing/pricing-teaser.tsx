@@ -2,7 +2,7 @@ import { ArrowRightIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { Container } from "@/components/ui/container";
 import { sessionsLine } from "@/components/pricing/pricing-plans";
-import { SELF_SERVE_PLANS, TRIAL, formatUsd, getPlan } from "@/core/billing/catalog";
+import { SELF_SERVE_PLANS, TRIAL, getPlan, priceWords } from "@/core/billing/catalog";
 import { SectionHeading } from "./section-heading";
 
 export function PricingTeaser() {
@@ -15,7 +15,7 @@ export function PricingTeaser() {
         </SectionHeading>
 
         {/* gap-px over the line colour draws the dividers for any number of plans. */}
-        <dl className="mt-12 grid gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="mt-12 grid gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-2 lg:grid-cols-5">
           {SELF_SERVE_PLANS.map((plan) => (
             <div key={plan.id} className="bg-surface p-5 sm:p-6">
               <dt className="flex items-center justify-between gap-2 text-[15px] font-medium">
@@ -23,8 +23,9 @@ export function PricingTeaser() {
                 {plan.recommendedFor ? <span className="rounded-full bg-accent/[0.08] px-2 py-0.5 text-xs font-medium text-accent">Recommended</span> : null}
               </dt>
               <dd className="mt-3">
-                <span className="text-3xl font-medium tracking-[-0.02em] tabular">{plan.pricing.kind === "paid" ? formatUsd(plan.pricing.monthlyCents) : "$0"}</span>
-                <span className="ml-1 text-sm text-ink-3">{plan.pricing.kind === "paid" ? "per month" : "forever"}</span>
+                <span className="text-3xl font-medium tracking-[-0.02em] tabular">{priceWords(plan).price}</span>
+                <span className="ml-1 text-sm text-ink-3">{priceWords(plan).per}</span>
+                {priceWords(plan).billed ? <span className="mt-1 block text-xs text-ink-3 tabular">{priceWords(plan).billed}</span> : null}
               </dd>
               <dd className="mt-4 grid gap-1 text-sm text-ink-2 tabular">
                 <span>{sessionsLine(plan)}</span>

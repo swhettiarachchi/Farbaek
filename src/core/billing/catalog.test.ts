@@ -1,12 +1,40 @@
 import { describe, expect, it } from "vitest";
 import { ECONOMICS, allowanceFor, costBudgetUsd, sessionsGuide } from "./allowance";
-import { PLANS, PLAN_ORDER, TRIAL, cheapestPlanWithFeature, formatUsd, getPlan, planAllowance, planSessionsGuide } from "./catalog";
+import { PLANS, PLAN_ORDER, TRIAL, YEARLY_PLAN_IDS, chargeCents, chargeLine, cheapestPlanWithFeature, formatUsd, getPlan, isYearly, planAllowance, planSessionsGuide, priceWords } from "./catalog";
+import { isPaidPlanId as isPaidPlan } from "./provider-state";
+import { topupSharePercent, topupUnits } from "./topups";
 import { USD_PER_UNIT, costUsd, sampleSessionUnits } from "./rate-card";
 
 describe("plan catalog", () => {
-  it("has the owner's eight prices", () => {
+  it("has the owner's prices, with Lite and Maker billed yearly", () => {
     const prices = Object.fromEntries(PLANS.map((p) => [p.id, p.pricing.kind === "paid" ? p.pricing.monthlyCents : p.pricing.kind]));
-    expect(prices).toEqual({ free: "free", starter: 999, plus: 1_999, pro: 5_000, studio: 7_999, max: 10_000, max_2x: 20_000, max_3x: 30_000, enterprise: "contract" });
+    expect(prices).toEqual({ free: "free", lite: 99, maker: 199, starter: 999, plus: 1_999, pro: 5_000, studio: 7_999, max: 10_000, max_2x: 20_000, max_3x: 30_000, enterprise: "contract" });
+    expect(YEARLY_PLAN_IDS).toEqual(["lite", "maker"]);
+    expect(PLANS.filter((p) => p.pricing.kind === "paid" && !isYearly(p.id)).every((p) => p.pricing.kind === "paid" && p.pricing.interval === "month")).toBe(true);
+    expect([chargeCents(getPlan("lite")), chargeCents(getPlan("maker")), chargeCents(getPlan("starter")), chargeCents(getPlan("free"))]).toEqual([1188, 2388, 999, 0]);
+    expect(priceWords(getPlan("lite"))).toEqual({ price: "$0.99", per: "a month", billed: "Billed $11.88 a year" });
+    expect(priceWords(getPlan("starter"))).toEqual({ price: "$9.99", per: "a month", billed: null });
+    expect([chargeLine(getPlan("maker")), chargeLine(getPlan("pro"))]).toEqual(["$23.88 a year", "$50 a month"]);
+  });
+
+  it("keeps 57% of a yearly charge on what Lite and Maker add to Free, at Dodo's worst-case fee (ADR 0105)", () => {
+    const free = getPlan("free").limits;
+    for (const id of YEARLY_PLAN_IDS) {
+      const plan = getPlan(id);
+      const year = chargeCents(plan) / 100;
+      const fee = year * ECONOMICS.paymentPercent + ECONOMICS.paymentFixedUsd;
+      // Everything the plan adds, for twelve months: AI and retries over Free's, extra sandbox hours, and its own running cost.
+      const monthly = (plan.limits.aiUnitsPerMonth! - free.aiUnitsPerMonth! + plan.limits.retryUnitsPerMonth!) * USD_PER_UNIT + (plan.limits.sandboxHours! - free.sandboxHours!) * ECONOMICS.sandboxHourUsd + ECONOMICS.lightMarginalUsd;
+      const margin = (year - fee - 12 * monthly) / year;
+      expect(margin, id).toBeGreaterThanOrEqual(0.57 - 1e-6);
+      expect(margin, id).toBeLessThan(0.575);
+    }
+    // At a monthly charge the fee alone would break the rule: 99 cents can't keep 57%.
+    expect(0.99 - (0.99 * ECONOMICS.paymentPercent + ECONOMICS.paymentFixedUsd)).toBeLessThan(0.99 * 0.57);
+    expect(getPlan("lite").limits.aiUnitsPerMonth! / free.aiUnitsPerMonth!).toBeCloseTo(1.5, 1);
+    expect(getPlan("maker").limits.aiUnitsPerMonth! / free.aiUnitsPerMonth!).toBeCloseTo(1.84, 1);
+    expect([getPlan("lite").limits.sandboxHours, getPlan("maker").limits.sandboxHours]).toEqual([1, 2]);
+    expect([getPlan("lite").limits.retryUnitsPerMonth, getPlan("maker").limits.retryUnitsPerMonth! > 0]).toEqual([0, true]);
   });
 
   it("spends at most 34% of the price minus 40 cents, for a 57% net margin after Dodo's worst-case 9% + 40 cents (ADR 0103)", () => {
@@ -21,7 +49,7 @@ describe("plan catalog", () => {
   it("keeps the margin even when a subscriber uses everything", () => {
     for (const plan of PLANS) {
       const a = planAllowance(plan);
-      if (!a || plan.pricing.kind !== "paid") continue;
+      if (!a || plan.pricing.kind !== "paid" || isYearly(plan.id)) continue;
       const price = plan.pricing.monthlyCents / 100;
       const cost = (plan.limits.aiUnitsPerMonth! + plan.limits.retryUnitsPerMonth!) * USD_PER_UNIT + a.sandboxUsd + ECONOMICS.fixedShareUsd + ECONOMICS.snapshotUsd;
       const fee = price * ECONOMICS.paymentPercent + ECONOMICS.paymentFixedUsd;
@@ -32,10 +60,12 @@ describe("plan catalog", () => {
   it("keeps the margin on top-ups too, at the worst-case fee for a one-time payment", () => {
     // A top-up pays Dodo's fee without the subscription surcharge, and adds AI usage at the plan's own rate (ADR 0102).
     for (const plan of PLANS) {
-      if (plan.pricing.kind !== "paid") continue;
+      if (plan.pricing.kind !== "paid" || !isPaidPlan(plan.id)) continue;
       for (const cents of [1000, 2500, 5000]) {
         const price = cents / 100;
-        const units = Math.floor((cents / plan.pricing.monthlyCents) * plan.limits.aiUnitsPerMonth!);
+        // Lite and Maker buy at Starter's rate (ADR 0105): their own would include Free's allowance.
+        const units = topupUnits(plan.id, cents);
+        if (!isYearly(plan.id)) expect(units).toBe(Math.floor((cents / plan.pricing.monthlyCents) * plan.limits.aiUnitsPerMonth!));
         const fee = price * ECONOMICS.paymentPercent + ECONOMICS.paymentFixedUsd;
         expect((price - fee - units * USD_PER_UNIT) / price, `${plan.id} ${cents}`).toBeGreaterThanOrEqual(0.57);
       }
@@ -73,7 +103,9 @@ describe("plan catalog", () => {
 
   it("points upgrade hints at the cheapest plan with the feature", () => {
     expect(cheapestPlanWithFeature("cloud_agent")).toBe("free");
-    expect(cheapestPlanWithFeature("usage_rollover")).toBe("starter");
+    expect(cheapestPlanWithFeature("usage_alerts")).toBe("lite");
+    expect(cheapestPlanWithFeature("usage_rollover")).toBe("lite");
+    expect(cheapestPlanWithFeature("free_retries")).toBe("maker");
     expect(cheapestPlanWithFeature("security_checks")).toBe("plus");
     expect(cheapestPlanWithFeature("opus_models")).toBe("pro");
     expect(cheapestPlanWithFeature("fable_models")).toBe("max_2x");
@@ -85,6 +117,13 @@ describe("plan catalog", () => {
     expect(TRIAL.limits.aiUnitsTotal).toBe(getPlan("starter").limits.aiUnitsPerMonth);
     expect(TRIAL.limits.sandboxHours).toBe(2);
     expect(TRIAL.reminderDays).toEqual([7, 12, 13]);
+  });
+
+  it("prices Lite and Maker top-ups at Starter's rate and shows the share of their own month", () => {
+    expect(topupUnits("lite", 1000)).toBe(topupUnits("starter", 1000));
+    expect(topupUnits("maker", 2500)).toBe(topupUnits("starter", 2500));
+    expect(topupSharePercent("lite", 1000)).toBe(Math.round((topupUnits("starter", 1000) / getPlan("lite").limits.aiUnitsPerMonth!) * 100));
+    expect(topupSharePercent("starter", 1000)).toBe(100);
   });
 
   it("formats whole and fractional dollars", () => {

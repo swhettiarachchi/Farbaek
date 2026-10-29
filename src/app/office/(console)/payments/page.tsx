@@ -5,7 +5,7 @@ import { Card, Notice, PageHeader } from "@/components/app/primitives";
 import { AdminTable, Cell, Chip } from "@/components/admin/table";
 import { OfficeActionForm } from "@/components/office/action-form";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
-import { PLAN_CATALOG_VERSION, SELF_SERVE_PLANS, formatUsd } from "@/core/billing/catalog";
+import { PLAN_CATALOG_VERSION, SELF_SERVE_PLANS, chargeLine, formatUsd, getPlan } from "@/core/billing/catalog";
 import { isPaidPlanId } from "@/core/billing/provider-state";
 import { TOPUP_PACKS_CENTS } from "@/core/billing/topups";
 import { billingStatus, readProviderConfig, requestedBillingMode } from "@/server/billing/config";
@@ -73,8 +73,10 @@ export default async function OfficePayments() {
         const r = await dodo.getProductPrice(p.productId);
         if (!r.ok) return [p.productId, { kind: "unknown", text: `Couldn't check (${r.code})` }];
         const v = r.value;
-        if (v.amountCents !== p.amountCents || v.currency !== p.currency || !v.recurring || v.trialDays !== 0)
-          return [p.productId, { kind: "differs", text: `Dodo has ${v.currency} ${(v.amountCents / 100).toFixed(2)}${v.recurring ? "" : ", one-time"}${v.trialDays ? `, ${v.trialDays} trial days` : ""}` }];
+        const plan = isPaidPlanId(p.planId) ? getPlan(p.planId) : null;
+        const every = plan?.pricing.kind === "paid" ? plan.pricing.interval : "month";
+        if (v.amountCents !== p.amountCents || v.currency !== p.currency || !v.recurring || v.trialDays !== 0 || (v.interval !== null && v.interval !== every))
+          return [p.productId, { kind: "differs", text: `Dodo has ${v.currency} ${(v.amountCents / 100).toFixed(2)}${v.recurring ? (v.interval ? ` a ${v.interval}` : "") : ", one-time"}${v.trialDays ? `, ${v.trialDays} trial days` : ""}` }];
         return [p.productId, { kind: "match" }];
       }),
     ),
@@ -222,7 +224,7 @@ export default async function OfficePayments() {
               Products
             </h2>
             <p className="mt-1 text-sm text-ink-2">
-              One monthly product per paid plan, for price list <span className="font-mono text-[13px]">{PLAN_CATALOG_VERSION}</span>. Checkout pauses for a plan whose price at Dodo differs.
+              One product per paid plan (Lite and Maker charged yearly), for price list <span className="font-mono text-[13px]">{PLAN_CATALOG_VERSION}</span>. Checkout pauses for a plan whose price at Dodo differs.
             </p>
           </div>
         </div>
@@ -233,7 +235,7 @@ export default async function OfficePayments() {
             return (
               <tr key={p.id} className="border-b border-line last:border-0">
                 <Cell>{p.name}</Cell>
-                <Cell mono>{p.pricing.kind === "paid" ? formatUsd(p.pricing.monthlyCents) : ""}</Cell>
+                <Cell mono>{p.pricing.kind === "paid" ? chargeLine(p) : ""}</Cell>
                 <Cell mono muted={!row}>
                   {row ? row.productId : "Not created"}
                 </Cell>

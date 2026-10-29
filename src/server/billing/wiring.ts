@@ -4,7 +4,7 @@
  * or there's no server key, so every caller shows the honest reason instead.
  */
 import { z } from "zod";
-import { PLAN_CATALOG_VERSION } from "@/core/billing/catalog";
+import { PLAN_CATALOG_VERSION, isYearly } from "@/core/billing/catalog";
 import type { NormalizedSubscription, PaidPlanId, ProviderEvent, ProviderMode } from "@/core/billing/provider";
 import { isPaidPlanId, type AppliedState } from "@/core/billing/provider-state";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
@@ -164,7 +164,7 @@ export function billingDeps(fetchImpl?: Fetch): BillingDeps | null {
         .eq("provider", config.provider)
         .eq("mode", config.mode)
         .eq("plan_id", planId)
-        .eq("interval", "month")
+        .eq("interval", isYearly(planId) ? "year" : "month")
         .eq("catalog_version", PLAN_CATALOG_VERSION)
         .maybeSingle();
       if (error) throw new Error(`billing_products: ${error.message}`);

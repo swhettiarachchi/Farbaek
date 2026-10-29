@@ -170,7 +170,7 @@ export interface StaffStore {
   startCanary(actor: StaffActor, input: { tier: string; current: string; candidate: string; estimateUnits: number; reason: string }, meta: RequestMeta): Promise<StoreResult<string>>;
   setModel(actor: StaffActor, input: { tier: string; model: string | null; canaryId: string | null; reason: string }, strength: AuthStrength, meta: RequestMeta): Promise<StoreResult<null>>;
   // Payments (migration v62, ADR 0100)
-  recordBillingProduct(actor: StaffActor, input: { mode: "test" | "live"; planId: string; productId: string; amountCents: number; currency: string; catalogVersion: string }, meta: RequestMeta): Promise<StoreResult<null>>;
+  recordBillingProduct(actor: StaffActor, input: { mode: "test" | "live"; planId: string; interval: "month" | "year"; productId: string; amountCents: number; currency: string; catalogVersion: string }, meta: RequestMeta): Promise<StoreResult<null>>;
   replayWebhook(actor: StaffActor, input: { id: string }, meta: RequestMeta): Promise<StoreResult<null>>;
   // Live payments (migration v65, ADR 0104)
   confirmPaymentsLive(actor: StaffActor, input: { termsVersion: string; reason: string }, meta: RequestMeta): Promise<StoreResult<{ testPlansEnded: number; testTopupsEnded: number }>>;
@@ -305,7 +305,7 @@ export function createStaffStore(admin: SupabaseClient): StaffStore {
     recordBillingProduct: (a, i, meta) =>
       rpc(
         "app_staff_record_billing_product",
-        { p_actor: a.userId, p_session: a.sessionId, p_provider: "dodo", p_mode: i.mode, p_plan: i.planId, p_product: i.productId, p_amount_cents: i.amountCents, p_currency: i.currency, p_catalog_version: i.catalogVersion, ...m(meta) },
+        { p_actor: a.userId, p_session: a.sessionId, p_provider: "dodo", p_mode: i.mode, p_plan: i.planId, p_product: i.productId, p_amount_cents: i.amountCents, p_currency: i.currency, p_catalog_version: i.catalogVersion, p_interval: i.interval, ...m(meta) },
         nothing,
       ),
     replayWebhook: (a, i, meta) => rpc("app_staff_replay_webhook", { p_actor: a.userId, p_session: a.sessionId, p_id: i.id, ...m(meta) }, nothing),

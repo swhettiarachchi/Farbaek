@@ -31,7 +31,7 @@ export const LEGAL_DOCS = [
 ] as const;
 
 /** The version of the Terms' Paid plans section people agree to at checkout (ADR 0104). Change it with the section. */
-export const PAID_TERMS_VERSION = "2026-10-28";
+export const PAID_TERMS_VERSION = "2026-10-29";
 
 /** Everyone who handles personal data for Farbaek, and why (keep in step with the services actually used). */
 export const SUBPROCESSORS = [

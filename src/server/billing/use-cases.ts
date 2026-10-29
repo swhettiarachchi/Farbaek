@@ -6,7 +6,8 @@
  * before asking the provider, and after a change re-reads the subscription
  * and applies it, so the page shows the provider's state right away.
  */
-import { getPlan } from "@/core/billing/catalog";
+import { chargeCents, getPlan, isYearly } from "@/core/billing/catalog";
+import { LEGAL } from "@/config/legal";
 import { checkoutConsentText, isPaidPlanId, mapSubscription, planChangeDirection, type AppliedState } from "@/core/billing/provider-state";
 import type { NormalizedSubscription, PaidPlanId, PaymentProvider, ProviderErrorCode } from "@/core/billing/provider";
 import type { SubscriptionState } from "@/core/billing/trial";
@@ -25,6 +26,7 @@ export type BillingErrorCode =
   | "NO_PRODUCT"
   | "PRICE_MISMATCH"
   | "SAME_PLAN"
+  | "YEARLY_SWITCH"
   | "PROVIDER"
   | "UNKNOWN";
 
@@ -51,6 +53,7 @@ export const BILLING_MESSAGES: Record<Exclude<BillingErrorCode, "PROVIDER">, str
   NO_PRODUCT: "This plan isn't set up for checkout yet. Nothing was charged.",
   PRICE_MISMATCH: "This plan's price at Dodo Payments doesn't match Farbaek's price list, so checkout is paused. Nothing was charged.",
   SAME_PLAN: "That's already your plan.",
+  YEARLY_SWITCH: `Dodo Payments couldn't move this yearly plan to a monthly one, and nothing was charged. Write to ${LEGAL.support} and we'll switch it for you.`,
   UNKNOWN: "That didn't work. Nothing was charged. Try again in a moment.",
 };
 
@@ -138,7 +141,7 @@ export async function startCheckout(deps: BillingDeps | null, ws: BillingWorkspa
   const product = await d.productFor(planId);
   if (!product) return fail("NO_PRODUCT");
   // Fail closed: checkout charges what Dodo has, so it must be Farbaek's price.
-  if (product.amountCents !== plan.pricing.monthlyCents) return fail("PRICE_MISMATCH");
+  if (product.amountCents !== chargeCents(plan)) return fail("PRICE_MISMATCH");
 
   const session = await d.provider.createCheckoutSession({
     orgId: ws.id,
@@ -206,7 +209,7 @@ export async function previewPlanChange(deps: BillingDeps | null, ws: BillingWor
   const product = await g.value.productFor(to);
   if (!product) return fail("NO_PRODUCT");
   const target = getPlan(to);
-  if (target.pricing.kind !== "paid" || product.amountCents !== target.pricing.monthlyCents) return fail("PRICE_MISMATCH");
+  if (target.pricing.kind !== "paid" || product.amountCents !== chargeCents(target)) return fail("PRICE_MISMATCH");
   if (direction === "downgrade") return { ok: true, value: { from: s.value.planId, to, direction, amountCents: null, currency: null, effectiveAt: s.value.paidThrough } };
   const p = await g.value.provider.previewPlanChange(s.value.subscriptionId, product.productId);
   return { ok: true, value: { from: s.value.planId, to, direction, amountCents: p.ok ? p.value.amountCents : null, currency: p.ok ? p.value.currency : null, effectiveAt: null } };
@@ -220,6 +223,8 @@ export async function changePlan(deps: BillingDeps | null, ws: BillingWorkspace,
   const product = await d.productFor(preview.value.to);
   if (!account?.subscriptionId || !product) return fail("NOT_SUBSCRIBED");
   const r = await d.provider.changePlan(account.subscriptionId, product.productId, preview.value.direction === "upgrade" ? "now" : "period_end");
+  // Dodo documents refusing some moves from a yearly plan to a monthly one (ADR 0105): say what to do instead.
+  if (!r.ok && r.code === "REJECTED" && isYearly(preview.value.from) && !isYearly(preview.value.to)) return fail("YEARLY_SWITCH");
   if (!r.ok) return providerFail(r.code);
   await sync(d, ws.id, account.subscriptionId, "billing.change_plan");
   return { ok: true, value: { direction: preview.value.direction, effectiveAt: preview.value.effectiveAt } };

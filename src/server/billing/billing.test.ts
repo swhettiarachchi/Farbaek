@@ -241,6 +241,16 @@ describe("the Dodo client's requests (fake fetch)", () => {
     await client.createProduct({ planId: "pro", name: "Farbaek Pro", description: "x", amountCents: 5000, currency: "USD" });
     const price = (dodo.calls[1]!.body as { price: Record<string, unknown> }).price;
     expect(price).toMatchObject({ type: "recurring_price", price: 5000, currency: "USD", payment_frequency_interval: "Month", subscription_period_count: 20, subscription_period_interval: "Year", tax_inclusive: false, trial_period_days: 0 });
+
+    // Lite and Maker are charged once a year (ADR 0105).
+    await client.createProduct({ planId: "lite", interval: "year", name: "Farbaek Lite", description: "x", amountCents: 1188, currency: "USD" });
+    expect((dodo.calls[2]!.body as { price: Record<string, unknown> }).price).toMatchObject({ price: 1188, payment_frequency_interval: "Year", trial_period_days: 0 });
+  });
+
+  it("reads a product's interval for the office's check", async () => {
+    const dodo = fakeDodo({ "GET /products/pdt_mock_lite": () => ({ json: { product_id: "pdt_mock_lite", is_recurring: true, price: { price: 1188, currency: "USD", trial_period_days: 0, payment_frequency_interval: "Year" } } }) });
+    const client = createDodoClient({ apiKey: "mock_api_key", baseUrl: config.baseUrl, mode: "test", fetch: dodo.fetchImpl });
+    expect(await client.getProductPrice("pdt_mock_lite")).toEqual({ ok: true, value: { amountCents: 1188, currency: "USD", recurring: true, trialDays: 0, interval: "year" } });
   });
 
   it("maps provider errors to codes and refuses odd ids before calling", async () => {
@@ -265,7 +275,13 @@ function billingDeps(account: BillingAccount | null, over: Partial<BillingDeps> 
   });
   const checkouts: unknown[] = [];
   const applied: AppliedState[] = [];
-  const products: Record<string, { productId: string; amountCents: number }> = { pro: { productId: "pdt_mock_pro", amountCents: 5000 }, max: { productId: "pdt_mock_max", amountCents: 10_000 }, starter: { productId: "pdt_mock_starter", amountCents: 999 } };
+  const products: Record<string, { productId: string; amountCents: number }> = {
+    pro: { productId: "pdt_mock_pro", amountCents: 5000 },
+    max: { productId: "pdt_mock_max", amountCents: 10_000 },
+    starter: { productId: "pdt_mock_starter", amountCents: 999 },
+    lite: { productId: "pdt_mock_lite", amountCents: 1188 },
+    maker: { productId: "pdt_mock_maker", amountCents: 2388 },
+  };
   const deps: BillingDeps = {
     config,
     provider: createDodoClient({ apiKey: config.apiKey, baseUrl: config.baseUrl, mode: "test", fetch: dodo.fetchImpl }),
@@ -339,6 +355,27 @@ describe("billing use cases (mock provider)", () => {
     expect(up.calls.find((c) => c.url.endsWith("/change-plan"))!.body).toMatchObject({ proration_billing_mode: "prorated_immediately", effective_at: "immediately", on_payment_failure: "prevent_change" });
     // After the change, the subscription is read again and applied.
     expect(up.applied.at(-1)).toMatchObject({ state: "active", paidPlanId: "max" });
+  });
+
+  it("charges Lite and Maker their yearly price, and says what to do when Dodo won't move a yearly plan to a monthly one (ADR 0105)", async () => {
+    const fresh = billingDeps(null);
+    expect(await startCheckout(fresh.deps, ws, owner, "lite", true)).toMatchObject({ ok: true });
+    expect(fresh.checkouts[0]).toMatchObject({ planId: "lite", amountCents: 1188 });
+    // A product priced monthly by mistake pauses checkout.
+    const wrong = billingDeps(null, { productFor: async () => ({ productId: "pdt_mock_lite", amountCents: 99 }) });
+    expect(await startCheckout(wrong.deps, ws, owner, "lite", true)).toMatchObject({ ok: false, code: "PRICE_MISMATCH" });
+
+    const lite: BillingAccount = { ...active, planId: "lite" };
+    const refused = billingDeps(lite, {}, { "POST /subscriptions/sub_mock1/change-plan": () => ({ status: 422, json: { message: "interval" } }) });
+    const r = await changePlan(refused.deps, ws, owner, "starter");
+    expect(r).toMatchObject({ ok: false, code: "YEARLY_SWITCH" });
+    expect(r.ok ? "" : r.message).toContain("nothing was charged");
+    // Between the two yearly plans, or down to one, it's an ordinary change.
+    const toMaker = billingDeps(lite, {}, { "POST /subscriptions/sub_mock1/change-plan": () => ({ status: 422, json: {} }) });
+    expect(await changePlan(toMaker.deps, ws, owner, "maker")).toMatchObject({ ok: false, code: "PROVIDER", detail: "REJECTED" });
+    const down = billingDeps(active);
+    expect(await changePlan(down.deps, ws, owner, "lite")).toMatchObject({ ok: true, value: { direction: "downgrade" } });
+    expect(down.calls.find((c) => c.url.endsWith("/change-plan"))!.body).toMatchObject({ product_id: "pdt_mock_lite", effective_at: "next_billing_date" });
   });
 
   it("opens the portal for the workspace's own customer", async () => {

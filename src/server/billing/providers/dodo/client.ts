@@ -28,7 +28,9 @@ const Product = z.object({ product_id: z.string().min(1).max(200) });
 const ProductPrice = z.object({
   product_id: z.string(),
   is_recurring: z.boolean(),
-  price: z.object({ price: z.number().int(), currency: z.string(), trial_period_days: z.number().int().nullable().optional() }).passthrough(),
+  price: z
+    .object({ price: z.number().int(), currency: z.string(), trial_period_days: z.number().int().nullable().optional(), payment_frequency_interval: z.string().nullable().optional() })
+    .passthrough(),
 });
 const Payment = z.object({
   payment_id: z.string().min(1).max(200),
@@ -202,7 +204,7 @@ export function createDodoClient(opts: { apiKey: string; baseUrl: string; mode: 
         });
         return once.ok ? { ok: true, value: { productId: once.value.product_id } } : once;
       }
-      // Twenty years with monthly charges is Dodo's documented setting for "renews until cancelled".
+      // Twenty years of charges is Dodo's documented setting for "renews until cancelled"; Lite and Maker are charged yearly (ADR 0105).
       const r = await call("POST", "/products", Product, {
         name: input.name,
         description: input.description,
@@ -212,7 +214,7 @@ export function createDodoClient(opts: { apiKey: string; baseUrl: string; mode: 
           price: input.amountCents,
           currency: input.currency,
           payment_frequency_count: 1,
-          payment_frequency_interval: "Month",
+          payment_frequency_interval: input.interval === "year" ? "Year" : "Month",
           subscription_period_count: 20,
           subscription_period_interval: "Year",
           tax_inclusive: false,
@@ -227,7 +229,9 @@ export function createDodoClient(opts: { apiKey: string; baseUrl: string; mode: 
       if (!ID.test(productId)) return { ok: false, code: "REJECTED" };
       const r = await call("GET", `/products/${productId}`, ProductPrice);
       if (!r.ok) return r;
-      return { ok: true, value: { amountCents: r.value.price.price, currency: r.value.price.currency, recurring: r.value.is_recurring, trialDays: r.value.price.trial_period_days ?? 0 } };
+      const every = r.value.price.payment_frequency_interval?.toLowerCase();
+      const interval = every === "month" || every === "year" ? every : null;
+      return { ok: true, value: { amountCents: r.value.price.price, currency: r.value.price.currency, recurring: r.value.is_recurring, trialDays: r.value.price.trial_period_days ?? 0, interval } };
     },
   };
 }
