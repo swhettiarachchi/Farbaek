@@ -42,13 +42,23 @@ The owner asked for "Apple register and login to Farbaek". Farbaek for iPhone no
 - `tests/db/apple-sign-in.test.ts` (3, PGlite): the latest token per person, removed with the account, no access for anon or authenticated.
 - `pnpm typecheck`.
 
+### Live in production (2026-10-29)
+
+- **Merged:** PR #115 (`26fbf35`). Migration v72 was applied before the merge, hash-checked, and read back: RLS on, and no access for anon or authenticated.
+- **Apple portal:** Claude ticked Sign in with Apple on the App ID `com.farbaek.app` (primary App ID). The owner made the key "Farbaek sign in" (`UD8W6KR35C`) and ran `set-apple-sign-in.ps1`.
+- **Read back from production:**
+  - `/api/v1/app/sign-in-options` answers `{"apple": true}`;
+  - Auth runs with `GOTRUE_EXTERNAL_APPLE_ENABLED=true` and `GOTRUE_EXTERNAL_APPLE_CLIENT_ID=com.farbaek.app`;
+  - a made-up token sent to `/api/v1/app/apple` reached Auth's id_token grant and was refused ("not an Apple ID token issuer"), and the app answered `APPLE_REFUSED`.
+- **Apple accepts the key:** a client secret signed inside the app container, sent with a made-up code, got `invalid_grant` ("The code has expired or has been revoked"). A wrong key gets `invalid_client`. The key was never printed.
+- **Script fix:** an empty answer to the file prompt now gets a plain message, not a PowerShell error.
+
 ### Not verified yet
 
 - The Swift hasn't been compiled. That waits for GitHub's Mac minutes on 1 November. `FarbaekTests` has a new nonce test.
-- No real Apple sign-in has been tried. It waits for the owner's key and capability (step 9) and the first build.
+- No real Apple sign-in from a phone has been tried. It needs the first build.
 
 ### Next
 
-- The owner: step 9 (the capability, the key, then the script).
 - After the first build: try Continue with Apple on a phone, then delete the test account and check that the token was revoked.
 - Later: Sign in with Apple on the website (Services ID, return address, a client secret renewed every six months), and Apple's server-to-server notifications.

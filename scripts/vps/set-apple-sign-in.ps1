@@ -47,7 +47,7 @@ if ($Off) {
 }
 
 $path = if ($File) { $File } else { (Read-Host -Prompt "Path to the AuthKey_....p8 file for Sign in with Apple (drag it here)").Trim().Trim('"') }
-if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { Write-Host "There's no file at that path, so nothing changed." -ForegroundColor Red; exit 1 }
+if (-not $path -or -not (Test-Path -LiteralPath $path -PathType Leaf)) { Write-Host "There's no file at that path, so nothing changed. Run it again and drag the file in before pressing Enter." -ForegroundColor Red; exit 1 }
 $name = [IO.Path]::GetFileName($path)
 if ($name -notmatch '^AuthKey_([A-Z0-9]{10})\.p8$') { Write-Host "The file should be named AuthKey_ followed by ten letters and digits, then .p8. Nothing changed." -ForegroundColor Red; exit 1 }
 $keyId = $Matches[1]

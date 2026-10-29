@@ -12,11 +12,20 @@
  *
  * Only Apple's own host is called. Off until APPLE_SIGN_IN=on and the key is
  * set (scripts/vps/set-apple-sign-in.ps1); the app shows the button only then.
+ *
+ * The website (ADR 0114) signs in through Auth's own Apple flow, under the
+ * Services ID below. Auth needs a client secret for it that Apple lets live
+ * at most six months, so the server makes a 180-day one here and
+ * scripts/vps/apple-web-secret.sh renews it well before it ends.
  */
 import { createPrivateKey, sign, type KeyObject } from "node:crypto";
 import { IOS_APP } from "@/config/ios-app";
 
 export const APPLE_ID_HOST = "https://appleid.apple.com";
+/** The website's Services ID. Auth's web flow uses the first id in GOTRUE_EXTERNAL_APPLE_CLIENT_ID, so it goes first there. */
+export const APPLE_SERVICES_ID = "com.farbaek.web";
+/** Apple's longest allowed client secret is 15,777,000 seconds; Auth's lasts 180 days. */
+export const APPLE_WEB_SECRET_SECONDS = 180 * 86_400;
 
 export interface AppleSignInKey {
   key: KeyObject;
@@ -48,16 +57,53 @@ export function appleSignInOn(env: Record<string, string | undefined> = process.
 
 const b64url = (data: Buffer | string) => Buffer.from(data).toString("base64url");
 
-/** The client secret: an ES256 JSON Web Token for appleid.apple.com, good for five minutes. */
-export function appleClientSecret(config: AppleSignInKey, now: Date): string {
+/** The client secret: an ES256 JSON Web Token for appleid.apple.com, good for five minutes unless asked otherwise. */
+export function appleClientSecret(config: AppleSignInKey, now: Date, options: { subject?: string; lifetimeSeconds?: number } = {}): string {
   const iat = Math.floor(now.getTime() / 1000);
   const header = b64url(JSON.stringify({ alg: "ES256", kid: config.keyId }));
-  const claims = b64url(JSON.stringify({ iss: config.teamId, iat, exp: iat + 300, aud: APPLE_ID_HOST, sub: config.clientId }));
+  const claims = b64url(JSON.stringify({ iss: config.teamId, iat, exp: iat + (options.lifetimeSeconds ?? 300), aud: APPLE_ID_HOST, sub: options.subject ?? config.clientId }));
   const signature = sign("sha256", Buffer.from(`${header}.${claims}`), { key: config.key, dsaEncoding: "ieee-p1363" });
   return `${header}.${claims}.${b64url(signature)}`;
 }
 
+/** Auth's client secret for the website's flow, and when it ends (seconds since 1970). */
+export function appleWebSecret(config: AppleSignInKey, now: Date): { secret: string; expiresAt: number } {
+  return {
+    secret: appleClientSecret(config, now, { subject: APPLE_SERVICES_ID, lifetimeSeconds: APPLE_WEB_SECRET_SECONDS }),
+    expiresAt: Math.floor(now.getTime() / 1000) + APPLE_WEB_SECRET_SECONDS,
+  };
+}
+
 type Fetch = (input: string, init: RequestInit) => Promise<Response>;
+
+let webReady: { at: number; value: boolean } | null = null;
+
+/**
+ * Whether Auth's Apple flow for the website is fully set up: its authorize
+ * address must send the browser to Apple under the website's Services ID.
+ * Asked at most every five minutes (every minute after a failure), so the
+ * button shows only while the whole flow works.
+ */
+export async function appleWebReady(options: { authUrl: string; publishableKey: string; returnTo: string; fetch?: Fetch; now?: number }): Promise<boolean> {
+  const now = options.now ?? Date.now();
+  if (webReady && now - webReady.at < (webReady.value ? 300_000 : 60_000)) return webReady.value;
+  let value = false;
+  try {
+    const url = `${options.authUrl.replace(/\/$/, "")}/auth/v1/authorize?${new URLSearchParams({ provider: "apple", redirect_to: options.returnTo })}`;
+    const r = await (options.fetch ?? fetch)(url, { headers: { apikey: options.publishableKey }, redirect: "manual", signal: AbortSignal.timeout(5_000) });
+    const location = r.headers.get("location") ?? "";
+    value = r.status >= 300 && r.status < 400 && location.startsWith(`${APPLE_ID_HOST}/auth/authorize?`) && new URL(location).searchParams.get("client_id") === APPLE_SERVICES_ID;
+  } catch {
+    value = false;
+  }
+  webReady = { at: now, value };
+  return value;
+}
+
+/** For tests: forget the last answer. */
+export function resetAppleWebReady(): void {
+  webReady = null;
+}
 const TIMEOUT_MS = 8_000;
 
 function post(fetcher: Fetch, path: string, form: Record<string, string>): Promise<Response> {
