@@ -39,4 +39,4 @@ Auth makes the account, or finds it: an Apple ID whose verified email matches an
 - **Hide My Email** gives Farbaek a relay address that is unique to the person. It isn't on the disposable-address list, so it gets the trial the same way as any other new address. One Apple Account gets one relay address for Farbaek.
 - **The website** doesn't offer Sign in with Apple yet. That needs a Services ID, a return address and a client secret Auth keeps, renewed every six months. `GOTRUE_EXTERNAL_APPLE_CLIENT_ID` already takes a list, so the Services ID joins the bundle id there.
 - **Apple's server-to-server notifications** for Sign in with Apple (consent revoked, account deleted) aren't handled yet. The app's own check covers the phone, but the web session stays until it expires.
-- **Not verified end to end yet.** The app compiles first on 1 November, and the owner makes the Sign in with Apple key. The server side is covered by tests with a throwaway key and a stubbed Apple.
+- **On since 2026-10-29,** with the key in place and accepted by Apple. A real sign-in from a phone waits for the app's first compile on 1 November.

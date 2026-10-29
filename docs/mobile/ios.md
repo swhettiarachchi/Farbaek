@@ -139,7 +139,7 @@ Someone who chooses **Hide My Email** gets a separate account from one they alre
 
 ## What's already done
 
-- **The app:** Sign in with Apple (waiting for step 9), sign-in through the web with PKCE, approvals with diffs and Face ID, builds from one sentence, live runs and their questions, tasks, notifications, the sample, sign-out and account deletion through the web.
+- **The app:** Sign in with Apple (step 9 done 2026-10-29), sign-in through the web with PKCE, approvals with diffs and Face ID, builds from one sentence, live runs and their questions, tasks, notifications, the sample, sign-out and account deletion through the web.
 - **The server:** `/api/v1/app`, migration v70, Settings > Phones, and APNs, which waits for your key.
 - **Tests:** the server's tests, and the app's tests against the server's real sample answers.
 - **Not yet:** the app hasn't been compiled. The first run of step 5 is its first build.
