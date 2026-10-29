@@ -5,7 +5,7 @@ import { Card, Notice, PageHeader } from "@/components/app/primitives";
 import { AdminTable, Cell, Chip } from "@/components/admin/table";
 import { OfficeActionForm } from "@/components/office/action-form";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
-import { PLAN_CATALOG_VERSION, SELF_SERVE_PLANS, chargeLine, formatUsd, getPlan } from "@/core/billing/catalog";
+import { BILLABLE_PLANS, PLAN_CATALOG_VERSION, chargeLine, formatUsd, getPlan } from "@/core/billing/catalog";
 import { isPaidPlanId } from "@/core/billing/provider-state";
 import { TOPUP_PACKS_CENTS } from "@/core/billing/topups";
 import { billingStatus, readProviderConfig, requestedBillingMode } from "@/server/billing/config";
@@ -61,7 +61,7 @@ export default async function OfficePayments() {
   const canReplay = staff.can("billing.replay");
   const mode = config?.mode ?? null;
 
-  const paidPlans = SELF_SERVE_PLANS.filter((p) => p.pricing.kind === "paid" && isPaidPlanId(p.id));
+  const paidPlans = BILLABLE_PLANS.filter((p) => p.pricing.kind === "paid" && isPaidPlanId(p.id));
   const current = (page?.products ?? []).filter((p) => p.mode === (mode ?? "test") && p.catalogVersion === PLAN_CATALOG_VERSION);
 
   // Reconciliation: each product's price as Dodo has it, against the catalog. Read live, only when connected.
@@ -224,7 +224,7 @@ export default async function OfficePayments() {
               Products
             </h2>
             <p className="mt-1 text-sm text-ink-2">
-              One product per paid plan (Lite and Maker charged yearly), for price list <span className="font-mono text-[13px]">{PLAN_CATALOG_VERSION}</span>. Checkout pauses for a plan whose price at Dodo differs.
+              One product per paid plan (Lite and Maker yearly, plus their monthly versions), for price list <span className="font-mono text-[13px]">{PLAN_CATALOG_VERSION}</span>. Checkout pauses for a plan whose price at Dodo differs.
             </p>
           </div>
         </div>

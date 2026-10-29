@@ -5,6 +5,9 @@
 //     edge, even where an overflow-x: clip hides the scroll;
 //   - small touch targets on touch screens (under 44 by 44 CSS pixels,
 //     ignoring links inside running text);
+//   - crowded side-scrolling frames: a pinned (sticky) column wider than
+//     half its frame, so what scrolls behind it can't be seen (a 10-plan
+//     table on a phone did this);
 //   - console errors and uncaught exceptions.
 // Run it against a production build, usually the demo workspace:
 //
@@ -14,7 +17,7 @@
 //   pnpm qa:responsive --shots=<folder>      also save a screenshot of each
 //
 // It writes a JSON report (--out, default the system temp folder) and exits 1
-// when a page scrolls sideways or logs an error. These are emulated screens;
+// when a page scrolls sideways, has a crowded scroll frame or logs an error. These are emulated screens;
 // they don't stand in for real phones.
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -135,7 +138,19 @@ function inspect(touch) {
       small.push({ el: describe(el), w: Math.round(w), h: Math.round(h) });
     }
   }
-  return { scrollWidth: document.documentElement.scrollWidth, viewport: vw, cut: cut.slice(0, 15), cutCount: cut.length, small: small.slice(0, 15), smallCount: small.length };
+  // A side-scrolling frame whose pinned column takes most of it: people see the labels and almost nothing they scroll to.
+  const crowded = [];
+  for (const el of document.body.querySelectorAll("*")) {
+    const ox = getComputedStyle(el).overflowX;
+    if (!(ox === "auto" || ox === "scroll") || el.scrollWidth <= el.clientWidth + 1 || !visible(el)) continue;
+    let pinned = 0;
+    for (const c of el.querySelectorAll("*")) {
+      const cs = getComputedStyle(c);
+      if (cs.position === "sticky" && cs.left !== "auto" && visible(c)) pinned = Math.max(pinned, c.getBoundingClientRect().width);
+    }
+    if (pinned > el.clientWidth * 0.5) crowded.push({ el: describe(el), frame: el.clientWidth, pinned: Math.round(pinned) });
+  }
+  return { scrollWidth: document.documentElement.scrollWidth, viewport: vw, cut: cut.slice(0, 15), cutCount: cut.length, small: small.slice(0, 15), smallCount: small.length, crowded: crowded.slice(0, 5), crowdedCount: crowded.length };
 }
 
 const browser = await chromium.launch({ executablePath: chromePath(), headless: true });
@@ -175,7 +190,7 @@ try {
       const found = await page.evaluate(inspect, device.hasTouch);
       const entry = { route, width, status: res?.status?.() ?? null, overflow: found.scrollWidth - found.viewport, ...found, errors: errors.filter((e) => !/Download the React DevTools/.test(e) && !(route === "/this-page-does-not-exist" && /status of 404/.test(e))) };
       report.pages.push(entry);
-      const marks = [entry.overflow > 0 ? `SCROLLS SIDEWAYS by ${entry.overflow}px` : "", entry.cutCount ? `${entry.cutCount} cut off` : "", entry.smallCount ? `${entry.smallCount} small targets` : "", entry.errors.length ? `${entry.errors.length} errors` : ""].filter(Boolean);
+      const marks = [entry.overflow > 0 ? `SCROLLS SIDEWAYS by ${entry.overflow}px` : "", entry.cutCount ? `${entry.cutCount} cut off` : "", entry.smallCount ? `${entry.smallCount} small targets` : "", entry.crowdedCount ? `${entry.crowdedCount} crowded scroll frames` : "", entry.errors.length ? `${entry.errors.length} errors` : ""].filter(Boolean);
       console.log(`${String(width).padStart(4)} ${route}${marks.length ? `: ${marks.join(", ")}` : ": ok"}`);
       if (SHOTS) await page.screenshot({ path: join(SHOTS, `${width}-${route.replace(/[^a-z0-9]+/gi, "_") || "home"}.png`), fullPage: true });
     }
@@ -186,7 +201,7 @@ try {
 }
 
 writeFileSync(OUT, JSON.stringify(report, null, 2));
-const failing = report.pages.filter((p) => p.overflow > 0 || p.errors.length);
-console.log(`\n${report.pages.length} page views: ${report.pages.filter((p) => p.overflow > 0).length} scroll sideways, ${report.pages.filter((p) => p.cutCount).length} cut content off, ${report.pages.filter((p) => p.smallCount).length} have small touch targets, ${report.pages.filter((p) => p.errors.length).length} log errors.`);
+const failing = report.pages.filter((p) => p.overflow > 0 || p.errors.length || p.crowdedCount);
+console.log(`\n${report.pages.length} page views: ${report.pages.filter((p) => p.overflow > 0).length} scroll sideways, ${report.pages.filter((p) => p.cutCount).length} cut content off, ${report.pages.filter((p) => p.smallCount).length} have small touch targets, ${report.pages.filter((p) => p.crowdedCount).length} have crowded scroll frames, ${report.pages.filter((p) => p.errors.length).length} log errors.`);
 console.log(`Report: ${OUT}`);
 process.exitCode = failing.length ? 1 : 0;

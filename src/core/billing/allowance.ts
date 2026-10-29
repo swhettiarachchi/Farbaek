@@ -70,17 +70,21 @@ export function allowanceFor(priceUsd: number, sandboxHours: number): Allowance 
 }
 
 /**
- * Lite and Maker (ADR 0105): billed once a year, so the 40-cent fee is paid
- * once a year, not every month. They pay for what they add on top of Free,
- * whose allowance Farbaek gives everyone anyway, plus their own small running
- * cost; the server's fixed costs are already carried by the monthly plans'
- * share. Free's units and sandbox hours come in as `base`.
+ * Lite and Maker (ADR 0105). They pay for what they add on top of Free, whose
+ * allowance Farbaek gives everyone anyway, plus their own small running cost;
+ * the server's fixed costs are already carried by the monthly plans' share.
+ * Free's units and sandbox hours come in as `base`.
+ *
+ * Billed yearly (`months` 12), the 40-cent fee is paid once a year, leaving
+ * room for more AI usage. Billed monthly, the fee is paid every month: Maker
+ * still keeps 57%, but a 99-cent charge can't, so monthly Lite adds no AI
+ * usage at all (the owner accepted its lower margin, 2026-10-29).
  */
-export function lightAllowance(yearlyPriceUsd: number, base: { aiUnits: number; sandboxHours: number }, extraSandboxHours: number, retries: boolean): Allowance {
-  const budget = costBudgetUsd(yearlyPriceUsd) / 12 - ECONOMICS.lightMarginalUsd;
+export function lightAllowance(chargeUsd: number, months: 1 | 12, base: { aiUnits: number; sandboxHours: number }, extraSandboxHours: number, retries: boolean): Allowance {
+  const budget = costBudgetUsd(chargeUsd) / months - ECONOMICS.lightMarginalUsd;
   const sandboxUsd = extraSandboxHours * ECONOMICS.sandboxHourUsd;
-  const modelBudgetUsd = budget - sandboxUsd;
-  if (modelBudgetUsd <= 0) throw new Error(`A $${yearlyPriceUsd} yearly plan can't add ${extraSandboxHours} sandbox hours at a ${ECONOMICS.margin * 100}% margin.`);
+  if (extraSandboxHours > 0 && budget - sandboxUsd <= 0) throw new Error(`A $${chargeUsd} charge can't add ${extraSandboxHours} sandbox hours at a ${ECONOMICS.margin * 100}% margin.`);
+  const modelBudgetUsd = Math.max(0, budget - sandboxUsd);
   const retryUsd = retries ? modelBudgetUsd * ECONOMICS.retryHoldback : 0;
   return {
     costBudgetUsd: budget,

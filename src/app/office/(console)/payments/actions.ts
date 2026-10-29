@@ -2,7 +2,7 @@
 
 import { refresh } from "next/cache";
 import type { OfficeFormState } from "@/components/office/action-form";
-import { PLAN_CATALOG_VERSION, SELF_SERVE_PLANS, chargeCents, formatUsd } from "@/core/billing/catalog";
+import { BILLABLE_PLANS, PLAN_CATALOG_VERSION, chargeCents, formatUsd } from "@/core/billing/catalog";
 import { TOPUP_PACKS_CENTS } from "@/core/billing/topups";
 import { isPaidPlanId } from "@/core/billing/provider-state";
 import { readProviderConfig } from "@/server/billing/config";
@@ -34,7 +34,7 @@ export async function createProductsAction(): Promise<OfficeFormState> {
   const page = await readPaymentsPage(gate.ctx.admin);
   if (!page) return { ok: false, message: OFFICE_MESSAGES.UNKNOWN };
   const have = new Set(page.products.filter((p) => p.mode === config.mode && p.catalogVersion === PLAN_CATALOG_VERSION).map((p) => p.planId));
-  const missing = SELF_SERVE_PLANS.filter((p) => p.pricing.kind === "paid" && isPaidPlanId(p.id) && !have.has(p.id));
+  const missing = BILLABLE_PLANS.filter((p) => p.pricing.kind === "paid" && isPaidPlanId(p.id) && !have.has(p.id));
   const havePacks = new Set(page.topups.filter((t) => t.mode === config.mode && t.catalogVersion === PLAN_CATALOG_VERSION).map((t) => t.packCents));
   const missingPacks = TOPUP_PACKS_CENTS.filter((c) => !havePacks.has(c));
   if (missing.length === 0 && missingPacks.length === 0) return { ok: true, message: "Every paid plan and top-up pack already has a product for the current price list." };

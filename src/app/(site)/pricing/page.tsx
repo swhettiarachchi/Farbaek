@@ -88,8 +88,8 @@ export default function PricingPage() {
 
           <p className="mt-6 flex items-start gap-2.5 rounded-sm border border-info/30 bg-info/[0.06] px-4 py-3 text-sm text-ink">
             <InfoIcon size={18} weight="bold" className="mt-px shrink-0 text-info" aria-hidden />
-            Lite and Maker are charged once a year, and we email you before each renewal. Every other plan is charged monthly. Cancel any time in Billing, and your plan runs
-            to the end of the period you paid for.
+            Lite and Maker are charged once a year, or monthly with less AI usage if you prefer; we email you before each yearly renewal. Every other plan is charged monthly.
+            Cancel any time in Billing, and your plan runs to the end of the period you paid for.
           </p>
 
           <div className="mt-10">

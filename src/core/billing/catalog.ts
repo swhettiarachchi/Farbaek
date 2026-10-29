@@ -14,8 +14,8 @@ import { USD_PER_UNIT } from "./rate-card";
 export const PLAN_CATALOG_VERSION = "2026-10-18.1";
 export const BILLING_CURRENCY = "USD";
 
-export type PlanId = "free" | "lite" | "maker" | "starter" | "plus" | "pro" | "studio" | "max" | "max_2x" | "max_3x" | "enterprise";
-export const PAID_PLAN_IDS = ["lite", "maker", "starter", "plus", "pro", "studio", "max", "max_2x", "max_3x", "enterprise"] as const satisfies readonly PlanId[];
+export type PlanId = "free" | "lite" | "lite_monthly" | "maker" | "maker_monthly" | "starter" | "plus" | "pro" | "studio" | "max" | "max_2x" | "max_3x" | "enterprise";
+export const PAID_PLAN_IDS = ["lite", "lite_monthly", "maker", "maker_monthly", "starter", "plus", "pro", "studio", "max", "max_2x", "max_3x", "enterprise"] as const satisfies readonly PlanId[];
 
 export type FeatureKey =
   | "cloud_agent"
@@ -129,6 +129,8 @@ export interface Plan {
   /** Cumulative: every feature this plan includes. */
   features: readonly FeatureKey[];
   recommendedFor?: string;
+  /** Lite monthly and Maker monthly: the same plan paid monthly, shown on its yearly plan's card (ADR 0105). */
+  monthlyOf?: PlanId;
 }
 
 const FREE_FEATURES = ["cloud_agent", "basic_policies", "action_receipts", "community_support", "live_previews"] as const satisfies readonly FeatureKey[];
@@ -162,23 +164,35 @@ function paid(id: PlanId, name: string, summary: string, priceCents: number, san
 
 const FREE_BASE = { aiUnits: Math.floor(FREE_AI_USD / USD_PER_UNIT), sandboxHours: 1 };
 
-/** Lite and Maker: Free plus what a yearly charge pays for at a 57% margin (ADR 0105). */
+/** Lite and Maker: Free plus what their charge pays for (ADR 0105). Each also comes paid monthly, with less AI usage. */
 const LIGHT: Partial<Record<PlanId, { extraSandboxHours: number; retries: boolean }>> = {
   lite: { extraSandboxHours: 0, retries: false },
+  lite_monthly: { extraSandboxHours: 0, retries: false },
   maker: { extraSandboxHours: 1, retries: true },
+  maker_monthly: { extraSandboxHours: 1, retries: true },
 };
 
-function light(id: "lite" | "maker", name: string, summary: string, monthlyCents: number, rest: FixedLimits, features: readonly FeatureKey[]): Plan {
+function lightAllowanceOf(id: PlanId, monthlyCents: number, interval: BillingInterval): Allowance {
   const spec = LIGHT[id]!;
-  const a = lightAllowance((monthlyCents * 12) / 100, FREE_BASE, spec.extraSandboxHours, spec.retries);
-  return {
-    id,
-    name,
-    summary,
-    pricing: { kind: "paid", monthlyCents, interval: "year" },
-    limits: { ...rest, aiUnitsPerMonth: a.aiUnits, retryUnitsPerMonth: a.retryUnits, sandboxHours: a.sandboxHours },
-    features,
+  return interval === "year"
+    ? lightAllowance((monthlyCents * 12) / 100, 12, FREE_BASE, spec.extraSandboxHours, spec.retries)
+    : lightAllowance(monthlyCents / 100, 1, FREE_BASE, spec.extraSandboxHours, spec.retries);
+}
+
+function light(id: "lite" | "maker", name: string, summary: string, monthlyCents: number, rest: FixedLimits, features: readonly FeatureKey[]): Plan[] {
+  const plan = (pid: PlanId, interval: BillingInterval): Plan => {
+    const a = lightAllowanceOf(pid, monthlyCents, interval);
+    return {
+      id: pid,
+      name: interval === "year" ? name : `${name} monthly`,
+      summary,
+      pricing: { kind: "paid", monthlyCents, interval },
+      limits: { ...rest, aiUnitsPerMonth: a.aiUnits, retryUnitsPerMonth: a.retryUnits, sandboxHours: a.sandboxHours },
+      features,
+      ...(interval === "month" ? { monthlyOf: id } : {}),
+    };
   };
+  return [plan(id, "year"), plan(`${id}_monthly` as PlanId, "month")];
 }
 
 export const PLANS: readonly Plan[] = [
@@ -200,8 +214,8 @@ export const PLANS: readonly Plan[] = [
     },
     features: FREE_FEATURES,
   },
-  light("lite", "Lite", "More than Free, for a small site or two.", 99, { workspaces: 2, seats: 1, agents: 1, evaluationsPerMonth: 2_000, historyDays: 30, integrations: 1 }, LITE_FEATURES),
-  light("maker", "Maker", "More room to build, with an extra sandbox hour.", 199, { workspaces: 3, seats: 1, agents: 1, evaluationsPerMonth: 3_000, historyDays: 30, integrations: 1 }, MAKER_FEATURES),
+  ...light("lite", "Lite", "More than Free, for a small site or two.", 99, { workspaces: 2, seats: 1, agents: 1, evaluationsPerMonth: 2_000, historyDays: 30, integrations: 1 }, LITE_FEATURES),
+  ...light("maker", "Maker", "More room to build, with an extra sandbox hour.", 199, { workspaces: 3, seats: 1, agents: 1, evaluationsPerMonth: 3_000, historyDays: 30, integrations: 1 }, MAKER_FEATURES),
   paid("starter", "Starter", "For a first site or side project.", 999, 5, { workspaces: 3, seats: 1, agents: 1, evaluationsPerMonth: 5_000, historyDays: 30, integrations: 1 }, STARTER_FEATURES),
   paid("plus", "Plus", "For building and shipping on your own.", 1_999, 10, { workspaces: 10, seats: 1, agents: 2, evaluationsPerMonth: 10_000, historyDays: 30, integrations: 2 }, PLUS_FEATURES),
   paid(
@@ -235,10 +249,26 @@ export function getPlan(id: PlanId): Plan {
 }
 
 /** Plans shown as self-serve cards (everything except Enterprise). */
-export const SELF_SERVE_PLANS = PLANS.filter((p) => p.pricing.kind !== "contract");
+export const SELF_SERVE_PLANS = PLANS.filter((p) => p.pricing.kind !== "contract" && !p.monthlyOf);
+
+/** Every plan that can be bought, monthly versions included: what Office Space creates products for. */
+export const BILLABLE_PLANS = PLANS.filter((p) => p.pricing.kind === "paid");
+
+/** The plans the comparison shows: the cards' plans plus the monthly versions, whose usage differs. */
+export const COMPARE_PLANS = PLANS.filter((p) => p.pricing.kind !== "contract");
+
+/** The monthly version of a yearly plan, when it has one. */
+export function monthlyVersionOf(id: PlanId): PlanId | null {
+  return PLANS.find((p) => p.monthlyOf === id)?.id ?? null;
+}
+
+/** Lite and Maker, either way they're paid (ADR 0105). Their allowance includes Free's. */
+export function isLight(id: PlanId): boolean {
+  return LIGHT[id] !== undefined;
+}
 
 /** The order plans step up in, for upgrade hints. */
-export const PLAN_ORDER: readonly PlanId[] = ["free", "lite", "maker", "starter", "plus", "pro", "studio", "max", "max_2x", "max_3x"];
+export const PLAN_ORDER: readonly PlanId[] = ["free", "lite_monthly", "lite", "maker_monthly", "maker", "starter", "plus", "pro", "studio", "max", "max_2x", "max_3x"];
 
 /** The smallest self-serve plan that includes a feature, for upgrade hints. */
 export function cheapestPlanWithFeature(feature: FeatureKey): PlanId | null {
@@ -253,8 +283,7 @@ export function planSessionsGuide(plan: Plan): number | null {
 /** The allowance behind a paid plan, for Billing and the tests. */
 export function planAllowance(plan: Plan): Allowance | null {
   if (plan.pricing.kind !== "paid" || plan.limits.sandboxHours === null) return null;
-  const spec = LIGHT[plan.id];
-  if (spec) return lightAllowance(chargeCents(plan) / 100, FREE_BASE, spec.extraSandboxHours, spec.retries);
+  if (isLight(plan.id)) return lightAllowanceOf(plan.id, plan.pricing.monthlyCents, plan.pricing.interval);
   return allowanceFor(plan.pricing.monthlyCents / 100, plan.limits.sandboxHours);
 }
 
@@ -276,7 +305,8 @@ export function chargeCents(plan: Plan): number {
 /** "$0.99 a month", with "billed $11.88 a year" for a yearly plan: the words every price sentence uses. */
 export function priceWords(plan: Plan): { price: string; per: string; billed: string | null } {
   if (plan.pricing.kind !== "paid") return { price: plan.pricing.kind === "free" ? "$0" : "Custom", per: plan.pricing.kind === "free" ? "forever" : "", billed: null };
-  return { price: formatUsd(plan.pricing.monthlyCents), per: "a month", billed: plan.pricing.interval === "year" ? `Billed ${formatUsd(chargeCents(plan))} a year` : null };
+  const monthly = monthlyVersionOf(plan.id) !== null;
+  return { price: formatUsd(plan.pricing.monthlyCents), per: "a month", billed: plan.pricing.interval === "year" ? `Billed ${formatUsd(chargeCents(plan))} a year${monthly ? ", or monthly" : ""}` : null };
 }
 
 /** The price as one sentence part: "$9.99 a month" or "$11.88 a year". */

@@ -34,7 +34,9 @@ export const SANDBOX_PLAN_LIMITS: Record<Exclude<PlanId, "enterprise">, SandboxP
   free: { ...tier("free", { maxConcurrentSessions: 1, maxSessionMinutes: 30, idleMinutes: 10, maxCommandSeconds: 300, previewMinutes: 30 }), sizes: ["small"] },
   // Lite and Maker (ADR 0105) stay on the small size: their budget is cents a month.
   lite: { ...tier("lite", { maxConcurrentSessions: 1, maxSessionMinutes: 30, idleMinutes: 10, maxCommandSeconds: 300, previewMinutes: 30 }), sizes: ["small"] },
+  lite_monthly: { ...tier("lite_monthly", { maxConcurrentSessions: 1, maxSessionMinutes: 30, idleMinutes: 10, maxCommandSeconds: 300, previewMinutes: 30 }), sizes: ["small"] },
   maker: { ...tier("maker", { maxConcurrentSessions: 1, maxSessionMinutes: 45, idleMinutes: 10, maxCommandSeconds: 600, previewMinutes: 60 }), sizes: ["small"] },
+  maker_monthly: { ...tier("maker_monthly", { maxConcurrentSessions: 1, maxSessionMinutes: 45, idleMinutes: 10, maxCommandSeconds: 600, previewMinutes: 60 }), sizes: ["small"] },
   starter: tier("starter", { maxConcurrentSessions: 1, maxSessionMinutes: 45, idleMinutes: 10, maxCommandSeconds: 600, previewMinutes: 60 }),
   plus: tier("plus", { maxConcurrentSessions: 2, maxSessionMinutes: 60, idleMinutes: 15, maxCommandSeconds: 600, previewMinutes: 60 }),
   pro: tier("pro", { maxConcurrentSessions: 3, maxSessionMinutes: 120, idleMinutes: 20, maxCommandSeconds: 900, previewMinutes: 120 }),

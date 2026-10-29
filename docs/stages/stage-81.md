@@ -69,6 +69,38 @@ The owner asked for $0.99 and $1.99 plans with the 57% margin kept. Dodo's 40-ce
   - the 14 existing products are all monthly and unchanged;
   - the API's schema cache was reloaded.
 
+### Monthly too (the owner's request, 2026-10-29)
+
+- **Plans:** `lite_monthly` and `maker_monthly` (ADR 0105 amendment). Maker monthly keeps 57%; Lite monthly has Free's AI usage, about 45.5% at the worst-case fee, which the owner accepted.
+- **Migration v67** (`20261208090000_light_monthly.sql`) adds them to the plan checks.
+- **UI:**
+  - the cards have "Choose Lite yearly" and "Pay monthly instead", with what changes;
+  - Billing has a second button on the Lite and Maker cards, and "Current, monthly";
+  - the comparison has both monthly columns;
+  - Office Space creates their products.
+- **Tests:**
+  - Maker monthly keeps 57%;
+  - Lite monthly adds no AI and sits at about 45.5%;
+  - each monthly plan matches its yearly plan except for AI usage;
+  - top-ups at Starter's rate;
+  - hints skip the monthly plans;
+  - PGlite accepts `maker_monthly` and leaves it out of yearly reminders.
+
+- **Migration v67 applied in production** (2026-10-29), before the code. The SHA-256 (`07457024…d108c7`) was checked on the server, and it ran in one transaction. Read back: all three plan checks list `lite_monthly` and `maker_monthly`, no account is on a light plan yet, and the schema cache was reloaded.
+
+### The comparison on phones (the owner's report, 2026-10-29)
+
+**The fault:** on a phone, the comparison table's pinned label column was 336 of 341 pixels wide, so none of the plans could be seen. It had been 365 pixels before this stage.
+
+**The fix:**
+- **Phones:** pick two plans to compare (`compare-plans.tsx`). Choosing the plan already in the other box swaps them. Each section heads its two columns with the plans' names.
+- **Tablet and desktop:** the label column is 208 to 240 pixels, each plan column shows its price under its name, and a line says the tables scroll sideways.
+
+**Catching it next time:** `pnpm qa:responsive` now reports "crowded scroll frames", where a pinned column takes more than half its frame.
+- Run against the live site, it flagged all four tables at 375px.
+- On this build: 0 at 320 to 1440px.
+- The full audit beforehand: 210 page views with no sideways scroll, cut-off content, small targets or errors.
+
 ### Not verified yet
 
 - **A real yearly-to-monthly change at Dodo:** the preview runs first and nobody is charged if Dodo refuses.

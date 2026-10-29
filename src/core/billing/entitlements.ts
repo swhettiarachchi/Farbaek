@@ -133,6 +133,8 @@ function limitMessage(meter: Meter, limit: number, whose: string): string | null
 function nextPlanWithHigherLimit(current: PlanId, meter: Meter, needed: number): PlanId | undefined {
   const start = PLAN_ORDER.indexOf(current);
   for (const id of PLAN_ORDER.slice(start + 1)) {
+    // Hints name the plans on the pricing cards; a monthly version is chosen from its yearly plan's card.
+    if (getPlan(id).monthlyOf) continue;
     const limit = getPlan(id).limits[METER_LIMIT[meter]];
     if (limit !== null && limit >= needed) return id;
   }
