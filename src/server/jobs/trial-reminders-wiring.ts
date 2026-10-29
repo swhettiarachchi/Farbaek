@@ -5,6 +5,7 @@
  */
 import { z } from "zod";
 import { trialWindow, type TrialReminderKind } from "@/core/billing/trial";
+import { readBillingConfig } from "@/server/billing/config";
 import { readEmailConfig } from "@/server/email/config";
 import { confirmedEmail, wantsEmail } from "@/server/email/wiring";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
@@ -35,6 +36,7 @@ export function trialReminderDeps(): TrialReminderDeps | null {
 
   return {
     config,
+    plansOnSale: readBillingConfig()?.mode === "live",
     async candidates(now) {
       const rows = z.array(Candidate).parse(await rpc("app_trial_reminder_candidates", { p_now: now.toISOString() }));
       return rows.map((r) => ({

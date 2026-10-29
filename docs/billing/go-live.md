@@ -37,5 +37,5 @@ Since 2026-10-28 (ADR 0100), test mode can be switched on for listed workspaces 
 - [x] Cancellation flow is as easy as signup, and consent records are stored
   - 2026-10-28: tested for real in test mode (the owner cancelled a Pro subscription from Billing; Dodo and Farbaek both showed the end date).
   - 2026-10-28: built. Cancel is two clicks from Billing and shows the date the plan ends; Keep undoes it. Checkout stores the exact words agreed to and their SHA-256 (`billing_checkouts`). Still to do: legal review of the wording.
-- [ ] Owner sign-off recorded in the audit log
-  - Built (ADR 0104): Office Space → Payments → Go live records it, with the Terms version, a reason and an authenticator code. Done when the owner confirms.
+- [x] Owner sign-off recorded in the audit log
+  - 2026-10-29, 08:51 Sri Lanka time: the owner confirmed Go live in Office Space → Payments (ADR 0104), with Terms version 2026-10-28, a reason and an authenticator code. Office Space shows "Live payments since Oct 29, 2026, 8:51 AM".

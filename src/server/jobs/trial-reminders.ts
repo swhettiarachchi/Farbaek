@@ -32,6 +32,8 @@ export interface TrialReminderDeps {
   emailOf(userId: string): Promise<string | null>;
   wants(userId: string, kind: EmailPreference): Promise<boolean>;
   send?: typeof sendSmtp;
+  /** Live payments are on, so the emails can point to the plans (ADR 0104). */
+  plansOnSale?: boolean;
 }
 
 export interface TrialReminderRun {
@@ -71,7 +73,7 @@ export async function runTrialReminders(deps: TrialReminderDeps, now: Date): Pro
         continue;
       }
 
-      const content = trialReminderEmail(claimed, c.window, now, c.orgName);
+      const content = trialReminderEmail(claimed, c.window, now, c.orgName, deps.plansOnSale ?? false);
       const refused: string[] = [];
       let accepted = 0;
       for (const address of to) {

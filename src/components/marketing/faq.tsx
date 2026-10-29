@@ -30,7 +30,7 @@ export function FaqList({ items }: { items: FaqItem[] }) {
 const HOME_FAQ: FaqItem[] = [
   {
     q: "Can I sign up today?",
-    a: "Yes. Sign in with your email and your workspace starts a 14-day Pro trial, with no card. Payments aren't connected yet, so nothing is charged; when the trial ends you move to Free.",
+    a: "Yes. Sign in with your email and your workspace starts a 14-day Pro trial, with no card. When the trial ends you move to Free, and nothing is charged unless you choose a paid plan.",
   },
   {
     q: "Does Farbaek run my code safely?",

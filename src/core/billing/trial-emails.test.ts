@@ -30,6 +30,13 @@ describe("trial reminder emails", () => {
     expect(trialReminderEmail("day_13", w, at(14 * DAY + 1), "x").subject).toBe("Your Farbaek trial has ended");
   });
 
+  it("point to the plans only once live payments are on", () => {
+    const live = trialReminderEmail("day_7", w, at(10 * DAY), "Alice Studio", true);
+    expect(live.lines.slice(1)).toEqual(["Then the workspace moves to Free automatically, and nothing is charged unless you choose a plan.", "Compare the plans and what Free includes on the Billing page."]);
+    expect(live.lines.join(" ")).not.toMatch(/aren't connected/);
+    expect(trialReminderEmail("expiry", w, at(14 * DAY + 60_000), "Alice Studio", true).lines[1]).toBe("Choose a plan on the Billing page to get Pro's features back, or see what Free includes.");
+  });
+
   it("name the time zone, keep long workspace names short, and use no em dashes", () => {
     expect(trialEndLabel(new Date("2026-01-05T00:05:00Z"))).toBe("Mon 5 Jan 2026, 00:05 UTC");
     const long = trialReminderEmail("day_7", w, at(7 * DAY), "A".repeat(100));
