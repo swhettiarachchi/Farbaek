@@ -36,7 +36,7 @@ A policy is only honest if the system does what it says, so the documents were w
 - The privacy policy is information, not something people agree to.
 
 **What the Terms say:**
-- 18 and over.
+- 13 and over (changed from 18 on 2026-10-29, with the App Store rating 13+): under 18, or under the local age for using online services alone, a parent or guardian agrees; only adults buy paid plans.
 - People own their inputs and what Farbaek makes for them; Farbaek gets only the permission it needs to store, run, back up and publish.
 - AI output can be wrong, so review it before relying on it. Checks and ProofPacks record what ran; they don't prove software is fault-free.
 - The trial as built: 14 days, no card, one per address, none for disposable addresses, then Free automatically, with nothing charged.

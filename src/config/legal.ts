@@ -20,7 +20,8 @@ export const LEGAL = {
   logLimit: "30 MB",
   /** app_rate_limit deletes every window that started longer ago than this (migration v39). */
   rateLimitHours: 24,
-  minimumAge: 18,
+  /** The youngest age that can use Farbaek; under 18 needs a parent or guardian, and paid plans need an adult. The App Store rating (13+) matches it. */
+  minimumAge: 13,
 } as const;
 
 /** The three documents, for the footer and each document's own links. */
