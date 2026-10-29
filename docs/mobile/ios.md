@@ -94,7 +94,7 @@ The app is in `ios/` and its decision is ADR 0110. GitHub's Mac builds and tests
 
 Buying in the app is one tap with Face ID, in every country. Do these in order; until the last one, the app doesn't offer plans.
 
-**Where it stands (2026-10-29):** steps 1, 3 and 4 are done. The Paid Apps Agreement, bank account and tax forms are Active. Claude made the group and the five plans in App Store Connect, with prices, all 175 countries, names, descriptions, and App Store only (no multiseat, so every purchase goes through the app and names its workspace). Claude also set both notification URLs. Still to do: step 2 (yours), each plan's review screenshot (after the first build), then step 5 and step 6.
+**Where it stands (2026-10-29):** steps 1, 3 and 4 are done. The Paid Apps Agreement, bank account and tax forms are Active. Claude made the group and the five plans in App Store Connect, with prices, all 175 countries, names, descriptions, and App Store only (no multiseat, so every purchase goes through the app and names its workspace). Claude also set both notification URLs. Step 2 was submitted by the owner on 2026-10-29; Apple confirms by email. Still to do: each plan's review screenshot (after the first build), then step 5 and step 6.
 
 1. **Paid Apps Agreement** (done, Active from 2026-10-29). In App Store Connect, go to **Business**, then **Paid Apps Agreement**. Add your bank account, the tax forms (W-8BEN, as a non-US individual) and contacts, then accept it.
 2. **Small Business Program.** Go to developer.apple.com/app-store/small-business-program and choose **Enroll**. It's free, and Apple keeps 15% instead of 30%. The iPhone prices are set for 15%.
