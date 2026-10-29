@@ -111,6 +111,16 @@ The owner asked for $0.99 and $1.99 plans with the 57% margin kept. Dodo's 40-ce
 - The page description now starts at $0.99.
 - The responsive audit of `/pricing` at 11 widths is clean.
 
+### Monthly first (the owner's request, 2026-10-29)
+
+- **The cards:** Lite and Maker show as monthly plans ($0.99 and $1.99, "Billed monthly", "Choose Lite"). Paying yearly is the second button, "Pay yearly instead", with $11.88 or $23.88 and about 51% or 61% more AI usage.
+- **The plans:**
+  - the monthly plans are named Lite and Maker, and the yearly ones Lite yearly and Maker yearly;
+  - upgrade hints point at the monthly plans;
+  - Billing has the yearly option as a second button and says "Current, yearly";
+  - the FAQ and the note under the cards say every plan is monthly, with Lite and Maker also yearly.
+- **Unchanged:** plan ids, products and the database.
+
 ### Not verified yet
 
 - **A real yearly-to-monthly change at Dodo:** the preview runs first and nobody is charged if Dodo refuses.

@@ -59,7 +59,7 @@ export function ComparisonTable() {
   return (
     <>
       <div className="md:hidden">
-        <ComparePlans plans={plans} groups={GROUPS} initial={["lite", "maker"]} />
+        <ComparePlans plans={plans} groups={GROUPS} initial={["lite_monthly", "maker_monthly"]} />
       </div>
 
       <div className="hidden gap-4 md:grid">

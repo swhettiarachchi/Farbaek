@@ -40,8 +40,8 @@ const plain = (data: string) => Buffer.from(data.split('Content-Type: text/plain
 describe("the yearly renewal reminder (ADR 0105)", () => {
   it("says the date, the yearly amount and how to stop it, with no em dashes", () => {
     const e = renewalReminderEmail("maker", RENEWS, "Alice Studio");
-    expect(e.subject).toBe("Your Farbaek Maker plan renews soon");
-    expect(e.lines[0]).toBe("Alice Studio's Maker plan renews on Fri 29 Oct 2027, 08:51 UTC for $23.88 USD plus any applicable tax, for another year.");
+    expect(e.subject).toBe("Your Farbaek Maker yearly plan renews soon");
+    expect(e.lines[0]).toBe("Alice Studio's Maker yearly plan renews on Fri 29 Oct 2027, 08:51 UTC for $23.88 USD plus any applicable tax, for another year.");
     expect(e.lines[1]).toContain("cancel in Billing before then");
     expect([e.subject, ...e.lines].join(" ")).not.toMatch(/—/);
   });
@@ -51,7 +51,7 @@ describe("the yearly renewal reminder (ADR 0105)", () => {
     expect(await runRenewalReminders(deps, NOW)).toEqual({ workspaces: 1, accepted: 1, failed: 0, noRecipient: 0 });
     expect(sends.map((s) => s.to)).toEqual(["ada@example.com", "grace@example.com"]);
     const text = plain(sends[0]!.data);
-    expect(text).toContain("Alice Studio's Lite plan renews on Fri 29 Oct 2027, 08:51 UTC for $11.88 USD");
+    expect(text).toContain("Alice Studio's Lite yearly plan renews on Fri 29 Oct 2027, 08:51 UTC for $11.88 USD");
     expect(text).toContain("See your plan: https://www.farbaek.com/app/billing");
     expect([...rows.values()]).toEqual([{ status: "accepted", recipients: 2, detail: null }]);
     expect(await runRenewalReminders(deps, NOW)).toEqual({ workspaces: 0, accepted: 0, failed: 0, noRecipient: 0 });

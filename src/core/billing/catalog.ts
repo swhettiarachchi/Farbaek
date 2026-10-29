@@ -129,8 +129,8 @@ export interface Plan {
   /** Cumulative: every feature this plan includes. */
   features: readonly FeatureKey[];
   recommendedFor?: string;
-  /** Lite monthly and Maker monthly: the same plan paid monthly, shown on its yearly plan's card (ADR 0105). */
-  monthlyOf?: PlanId;
+  /** Lite yearly and Maker yearly: the same plan paid once a year, offered on its monthly plan's card (ADR 0105). */
+  yearlyOf?: PlanId;
 }
 
 const FREE_FEATURES = ["cloud_agent", "basic_policies", "action_receipts", "community_support", "live_previews"] as const satisfies readonly FeatureKey[];
@@ -164,7 +164,7 @@ function paid(id: PlanId, name: string, summary: string, priceCents: number, san
 
 const FREE_BASE = { aiUnits: Math.floor(FREE_AI_USD / USD_PER_UNIT), sandboxHours: 1 };
 
-/** Lite and Maker: Free plus what their charge pays for (ADR 0105). Each also comes paid monthly, with less AI usage. */
+/** Lite and Maker: Free plus what their charge pays for (ADR 0105). Monthly first, so people can try Farbaek for little; paid yearly, they include more AI usage. */
 const LIGHT: Partial<Record<PlanId, { extraSandboxHours: number; retries: boolean }>> = {
   lite: { extraSandboxHours: 0, retries: false },
   lite_monthly: { extraSandboxHours: 0, retries: false },
@@ -184,15 +184,15 @@ function light(id: "lite" | "maker", name: string, summary: string, monthlyCents
     const a = lightAllowanceOf(pid, monthlyCents, interval);
     return {
       id: pid,
-      name: interval === "year" ? name : `${name} monthly`,
+      name: interval === "month" ? name : `${name} yearly`,
       summary,
       pricing: { kind: "paid", monthlyCents, interval },
       limits: { ...rest, aiUnitsPerMonth: a.aiUnits, retryUnitsPerMonth: a.retryUnits, sandboxHours: a.sandboxHours },
       features,
-      ...(interval === "month" ? { monthlyOf: id } : {}),
+      ...(interval === "year" ? { yearlyOf: `${id}_monthly` as PlanId } : {}),
     };
   };
-  return [plan(id, "year"), plan(`${id}_monthly` as PlanId, "month")];
+  return [plan(`${id}_monthly` as PlanId, "month"), plan(id, "year")];
 }
 
 export const PLANS: readonly Plan[] = [
@@ -214,7 +214,7 @@ export const PLANS: readonly Plan[] = [
     },
     features: FREE_FEATURES,
   },
-  ...light("lite", "Lite", "More than Free, for a small site or two.", 99, { workspaces: 2, seats: 1, agents: 1, evaluationsPerMonth: 2_000, historyDays: 30, integrations: 1 }, LITE_FEATURES),
+  ...light("lite", "Lite", "A low-cost way to get to know Farbaek.", 99, { workspaces: 2, seats: 1, agents: 1, evaluationsPerMonth: 2_000, historyDays: 30, integrations: 1 }, LITE_FEATURES),
   ...light("maker", "Maker", "More room to build, with an extra sandbox hour.", 199, { workspaces: 3, seats: 1, agents: 1, evaluationsPerMonth: 3_000, historyDays: 30, integrations: 1 }, MAKER_FEATURES),
   paid("starter", "Starter", "For a first site or side project.", 999, 5, { workspaces: 3, seats: 1, agents: 1, evaluationsPerMonth: 5_000, historyDays: 30, integrations: 1 }, STARTER_FEATURES),
   paid("plus", "Plus", "For building and shipping on your own.", 1_999, 10, { workspaces: 10, seats: 1, agents: 2, evaluationsPerMonth: 10_000, historyDays: 30, integrations: 2 }, PLUS_FEATURES),
@@ -249,17 +249,17 @@ export function getPlan(id: PlanId): Plan {
 }
 
 /** Plans shown as self-serve cards (everything except Enterprise). */
-export const SELF_SERVE_PLANS = PLANS.filter((p) => p.pricing.kind !== "contract" && !p.monthlyOf);
+export const SELF_SERVE_PLANS = PLANS.filter((p) => p.pricing.kind !== "contract" && !p.yearlyOf);
 
-/** Every plan that can be bought, monthly versions included: what Office Space creates products for. */
+/** Every plan that can be bought, yearly versions included: what Office Space creates products for. */
 export const BILLABLE_PLANS = PLANS.filter((p) => p.pricing.kind === "paid");
 
-/** The plans the comparison shows: the cards' plans plus the monthly versions, whose usage differs. */
+/** The plans the comparison shows: the cards' plans plus the yearly versions, whose usage differs. */
 export const COMPARE_PLANS = PLANS.filter((p) => p.pricing.kind !== "contract");
 
-/** The monthly version of a yearly plan, when it has one. */
-export function monthlyVersionOf(id: PlanId): PlanId | null {
-  return PLANS.find((p) => p.monthlyOf === id)?.id ?? null;
+/** The yearly version of a monthly plan, when it has one. */
+export function yearlyVersionOf(id: PlanId): PlanId | null {
+  return PLANS.find((p) => p.yearlyOf === id)?.id ?? null;
 }
 
 /** Lite and Maker, either way they're paid (ADR 0105). Their allowance includes Free's. */
@@ -305,8 +305,7 @@ export function chargeCents(plan: Plan): number {
 /** "$0.99 a month", with "billed $11.88 a year" for a yearly plan: the words every price sentence uses. */
 export function priceWords(plan: Plan): { price: string; per: string; billed: string | null } {
   if (plan.pricing.kind !== "paid") return { price: plan.pricing.kind === "free" ? "$0" : "Custom", per: plan.pricing.kind === "free" ? "forever" : "", billed: null };
-  const monthly = monthlyVersionOf(plan.id) !== null;
-  return { price: formatUsd(plan.pricing.monthlyCents), per: "a month", billed: plan.pricing.interval === "year" ? `Billed ${formatUsd(chargeCents(plan))} a year${monthly ? ", or monthly" : ""}` : null };
+  return { price: formatUsd(plan.pricing.monthlyCents), per: "a month", billed: plan.pricing.interval === "year" ? `Billed ${formatUsd(chargeCents(plan))} a year` : null };
 }
 
 /** The price as one sentence part: "$9.99 a month" or "$11.88 a year". */
