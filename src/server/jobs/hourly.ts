@@ -44,6 +44,8 @@ export async function handleHourlyJobs(request: Request): Promise<Response> {
   if (auth === "missing") return problem(503, "NOT_CONFIGURED", "SANDBOX_CRON_SECRET isn't set on this server.");
   if (auth === "denied") return problem(401, "UNAUTHENTICATED", "Not allowed.");
   const now = new Date();
+  // Whether live payments are on (ADR 0104), read fresh: trial emails and payment webhooks depend on it.
+  await refreshPlatformState();
   const jobs = {
     trialReminders: await runJob("trial_reminders", trialReminderDeps(), (d) => runTrialReminders(d, now)),
     platformAlerts: await runJob("platform_alerts", platformAlertDeps(), (d) => runPlatformAlerts(d, now)),
@@ -55,7 +57,7 @@ export async function handleHourlyJobs(request: Request): Promise<Response> {
     // Governed workflows (ADR 0092): a missed hook is caught here.
     workflows: await runJob("workflows", createSupabaseAdminClient(), (admin) => sweepWorkflows(admin)),
     // Payment webhooks that failed or arrived while processing was busy (ADR 0100).
-    billingWebhooks: await runJob("billing_webhooks", await refreshPlatformState().then(() => billingWebhookDeps()), (d) => processWebhooks(d)),
+    billingWebhooks: await runJob("billing_webhooks", billingWebhookDeps(), (d) => processWebhooks(d)),
   };
   const all = Object.values(jobs);
   if (all.every((j) => j.status === "not_configured")) return problem(503, "NOT_CONFIGURED", "Email or the server key for writes isn't set, so no hourly job can run.");

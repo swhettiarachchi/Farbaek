@@ -48,4 +48,26 @@ Dodo verified the business on 2026-10-28. This stage builds the safe way to swit
 
 ### Not verified yet
 
-- **Live itself:** the owner's three steps in `docs/billing/dodo-live.md`, then a first real checkout, which is the owner's call.
+- **A first real checkout:** the owner's call, since it charges real money.
+
+## 2026-10-29: live
+
+### Done
+
+- **The owner's steps** (`docs/billing/dodo-live.md`):
+  - in Dodo's Live Mode, an API key (IP `2.25.88.188/32`; Read on Payments, which top-ups need; Write on Subscriptions, Products, Customers and Checkout Sessions) and the webhook endpoint (every `subscription.*` event, `payment.succeeded` and `payment.failed`);
+  - `set-dodo.ps1 -Live`;
+  - in Office Space → Payments, **Create live products**, then **Go live** at 08:51 Sri Lanka time.
+- **Wording that said payments weren't connected:**
+  - the home page FAQ now says nothing is charged unless you choose a paid plan;
+  - the pricing FAQ on annual prices no longer promises them;
+  - the trial reminder emails point to the plans when live payments are on, and keep the old wording otherwise. The hourly job reads the live switch first.
+- **Office Space → Payments:** the connection card says "Live mode." with a verified icon, instead of "Test mode.".
+
+### Verified
+
+- Production on `af35d04` (PRs #97 and #98), `/api/health` ok.
+- The webhook endpoint answered 503 before Go live and 401 to an unsigned call after it, so live deliveries are accepted and signatures are checked.
+- Office Space showed all four checklist items, then "Live payments since Oct 29, 2026, 8:51 AM".
+- `/terms` has the `paid-plans` section.
+- Typecheck, lint and the billing, jobs and design tests (284) are clean.

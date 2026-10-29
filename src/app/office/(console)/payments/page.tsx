@@ -99,15 +99,24 @@ export default async function OfficePayments() {
 
   return (
     <div className="grid gap-8">
-      <PageHeader title="Payments" description="Dodo Payments: the products checkout charges for, and every webhook Farbaek received. Live payments stay off until the go-live checklist is complete." />
+      <PageHeader
+        title="Payments"
+        description={`Dodo Payments: the products checkout charges for, and every webhook Farbaek received.${liveSince ? "" : " Live payments stay off until the go-live checklist is complete."}`}
+      />
 
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <Card>
           <h2 className="text-lg font-medium">Connection</h2>
           <p className="mt-3 flex items-start gap-2 text-sm text-ink">
-            {status.on ? <FlaskIcon size={18} weight="bold" className="mt-px shrink-0 text-approval" aria-hidden /> : <CircleDashedIcon size={18} weight="bold" className="mt-px shrink-0 text-ink-3" aria-hidden />}
+            {status.on && requested === "live" ? (
+              <CheckCircleIcon size={18} weight="fill" className="mt-px shrink-0 text-verified" aria-hidden />
+            ) : status.on ? (
+              <FlaskIcon size={18} weight="bold" className="mt-px shrink-0 text-approval" aria-hidden />
+            ) : (
+              <CircleDashedIcon size={18} weight="bold" className="mt-px shrink-0 text-ink-3" aria-hidden />
+            )}
             <span>
-              <span className="font-medium">{status.on ? "Test mode." : requested === "live" ? "Live refused." : "Not connected."}</span> {status.detail}.
+              <span className="font-medium">{status.on ? (requested === "live" ? "Live mode." : "Test mode.") : requested === "live" ? "Not live yet." : "Not connected."}</span> {status.detail}.
             </span>
           </p>
           <dl className="mt-5 grid gap-3 text-sm">
@@ -292,7 +301,7 @@ export default async function OfficePayments() {
             </OfficeActionForm>
           ) : (
             <p className="text-sm text-ink-3">
-              {!config ? "Products can be created once payments are connected in test mode." : "Only an owner creates products, since they set what checkout charges."}
+              {!config ? "Products can be created once the Dodo keys are set on the server." : "Only an owner creates products, since they set what checkout charges."}
             </p>
           )
         ) : null}

@@ -49,7 +49,7 @@ const PRICING_FAQ: FaqItem[] = [
   },
   {
     q: "Is there an annual price?",
-    a: "Not yet. Plans are monthly while payments are prepared. Annual billing will be offered once checkout is live.",
+    a: "Not yet. Plans are monthly, and you can cancel any month. If an annual price comes, it will be on this page first.",
   },
   {
     q: "What about refunds?",
