@@ -50,6 +50,11 @@ The first half of image generation, which the owner approved on 2026-10-29 ("do 
 - **Full suite:** 2,039 tests; typecheck and lint clean.
 - **Demo production build:** the Files page with "Add an image" and the project page at 320 to 1280 pixels, 12 page views with no sideways scroll, cut-off content, small targets or errors.
 
+- **Migration v68 applied in production** (2026-10-29), before the code. The SHA-256 (`b34dbfef…4def0c`) was checked on the server, and it ran in one transaction. Read back:
+  - both encoding columns default to `utf8`, and every existing revision is text;
+  - `app_save_binary_file` is server only, and `get_project_file` and search are open to members as before;
+  - the schema cache was reloaded, and the live site stayed up.
+
 ### Not verified yet
 
 - **Adding an image on the live site:** the demo is read-only. After the merge: Files > Add an image, then the project page preview, then Publish, and the image on farbaek.si.
