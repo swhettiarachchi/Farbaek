@@ -86,6 +86,8 @@ The owner asked for $0.99 and $1.99 plans with the 57% margin kept. Dodo's 40-ce
   - hints skip the monthly plans;
   - PGlite accepts `maker_monthly` and leaves it out of yearly reminders.
 
+- **Migration v67 applied in production** (2026-10-29), before the code. The SHA-256 (`07457024…d108c7`) was checked on the server, and it ran in one transaction. Read back: all three plan checks list `lite_monthly` and `maker_monthly`, no account is on a light plan yet, and the schema cache was reloaded.
+
 ### The comparison on phones (the owner's report, 2026-10-29)
 
 **The fault:** on a phone, the comparison table's pinned label column was 336 of 341 pixels wide, so none of the plans could be seen. It had been 365 pixels before this stage.
