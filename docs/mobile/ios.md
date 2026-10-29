@@ -94,9 +94,11 @@ The app is in `ios/` and its decision is ADR 0110. GitHub's Mac builds and tests
 
 Buying in the app is one tap with Face ID, in every country. Do these in order; until the last one, the app doesn't offer plans.
 
-1. **Paid Apps Agreement.** In App Store Connect, go to **Business**, then **Paid Apps Agreement**. Add your bank account, the tax forms (W-8BEN, as a non-US individual) and contacts, then accept it.
+**Where it stands (2026-10-29):** steps 1, 3 and 4 are done. The Paid Apps Agreement, bank account and tax forms are Active. Claude made the group and the five plans in App Store Connect, with prices, all 175 countries, names, descriptions, and App Store only (no multiseat, so every purchase goes through the app and names its workspace). Claude also set both notification URLs. Still to do: step 2 (yours), each plan's review screenshot (after the first build), then step 5 and step 6.
+
+1. **Paid Apps Agreement** (done, Active from 2026-10-29). In App Store Connect, go to **Business**, then **Paid Apps Agreement**. Add your bank account, the tax forms (W-8BEN, as a non-US individual) and contacts, then accept it.
 2. **Small Business Program.** Go to developer.apple.com/app-store/small-business-program and choose **Enroll**. It's free, and Apple keeps 15% instead of 30%. The iPhone prices are set for 15%.
-3. **The plans.** In App Store Connect, open **Farbaek**, then **Subscriptions**, then **+**. Make a group named `Farbaek plans` and add five subscriptions, each with duration **1 month**:
+3. **The plans** (done by Claude, 2026-10-29; group id 22526396). In App Store Connect, open **Farbaek**, then **Subscriptions**, then **+**. Make a group named `Farbaek plans` and add five subscriptions, each with duration **1 month**:
 
    | Reference name | Product ID | US price |
    | --- | --- | --- |
@@ -112,7 +114,7 @@ Buying in the app is one tap with Face ID, in every country. Do these in order; 
    - a **review screenshot** (the You tab from the build's screenshots).
 
    Order them in the group from Pro (level 1) down to Lite.
-4. **Notifications from Apple.** In **App Information**, under **App Store Server Notifications**, set both URLs to `https://www.farbaek.com/api/webhooks/apple` with **Version 2**.
+4. **Notifications from Apple** (done by Claude, 2026-10-29; Apple now always uses Version 2). In **App Information**, under **App Store Server Notifications**, set both URLs to `https://www.farbaek.com/api/webhooks/apple` with **Version 2**.
 5. **Turn it on.** Ask Claude, or run:
 
    ```bash
