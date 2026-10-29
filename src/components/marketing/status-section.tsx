@@ -1,6 +1,7 @@
-import { CheckCircleIcon, CircleDashedIcon, HourglassMediumIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, FlaskIcon, HourglassMediumIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { Container } from "@/components/ui/container";
+import { PLANS, formatUsd } from "@/core/billing/catalog";
 import { SectionHeading } from "./section-heading";
 
 interface Group {
@@ -11,9 +12,13 @@ interface Group {
   items: string[];
 }
 
+/** The lowest price a plan can be bought for, from the catalog. */
+const FROM = formatUsd(Math.min(...PLANS.flatMap((p) => (p.pricing.kind === "paid" ? [p.pricing.monthlyCents] : []))));
+
 // Keep in step with docs/stages/. Only list something under "Built and working"
 // when it is implemented, covered by tests in this repository and has been
-// used end to end on a real setup.
+// used end to end on a real setup. "Beta" is built and tested here, waiting
+// for its first use on real accounts and devices.
 const GROUPS: Group[] = [
   {
     title: "Built and working",
@@ -30,21 +35,28 @@ const GROUPS: Group[] = [
       "Signed ProofPacks anyone can check, in the browser or with OpenSSL",
       "Publishing static sites to their own address",
       "14-day trial and plan limits that fail closed",
+      `Paid plans from ${FROM} a month, through Dodo Payments`,
+    ],
+  },
+  {
+    title: "Beta",
+    note: "Built and tested, being proven on real accounts and devices.",
+    icon: FlaskIcon,
+    iconClass: "text-approval",
+    items: [
+      "Mesh: projects between your own devices, nearby or over the internet",
+      "LaunchOS: launches to your own Vercel or Netlify account",
+      "Farbaek installed on your phone, with notifications",
+      "Previews of running apps in isolated sandboxes",
+      "Your own domain for a published site",
     ],
   },
   {
     title: "Next",
     note: "Planned next, in no fixed order.",
     icon: HourglassMediumIcon,
-    iconClass: "text-approval",
-    items: ["Payments, so plans can be bought", "Trial reminder emails", "Previews of apps in isolated sandboxes", "Image generation", "Your own domain for a published site"],
-  },
-  {
-    title: "Later",
-    note: "As each one is proven.",
-    icon: CircleDashedIcon,
     iconClass: "text-unverified",
-    items: ["Mesh device transfer", "LaunchOS deployments", "iOS and Android apps"],
+    items: ["Image generation", "The Android app on Google Play", "An iPhone app (Farbaek installs from Safari today)", "Launches from a repository (Render, Railway, Fly.io)"],
   },
 ];
 
@@ -53,7 +65,7 @@ export function StatusSection() {
     <section id="status" aria-labelledby="status-title" className="py-20 lg:py-28">
       <Container>
         <SectionHeading id="status-title" title="What works today, and what doesn't yet.">
-          Anyone can sign in and start a 14-day trial. Payments aren&apos;t connected yet, so nothing is charged.
+          Anyone can sign in and start a 14-day trial with no card. After it, stay on Free or choose a plan from {FROM} a month.
         </SectionHeading>
 
         <div className="mt-12 grid gap-10 lg:grid-cols-[1.25fr_1fr_1fr] lg:gap-0 lg:divide-x lg:divide-line">

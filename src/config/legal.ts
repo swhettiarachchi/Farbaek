@@ -7,7 +7,7 @@ import { CONTACT } from "./contact";
 
 export const LEGAL = {
   /** Shown as "Last updated" on each document. */
-  updated: "24 October 2026",
+  updated: "29 October 2026",
   operator: "Suvin Hettiarachchi, trading as Farbaek",
   country: "Sri Lanka",
   /** Where the app, database, sign-in and backups run. */
