@@ -26,6 +26,7 @@ Stage 84 left images out of a few places: project thumbnails, a run's preview, a
   - the snapshot keeps each file's encoding, and an image is written into the sandbox as its bytes;
   - the Vercel and E2B runtimes take text or bytes; their SDKs accept both (`string | Uint8Array` and `string | ArrayBuffer`);
   - before this, a project with an image would have put it into a sandbox as base64 text.
+- **Agents:** the desktop agent's and the cloud agent's file reads list and read text files only. Before this, an image would have reached them as base64 text, which a desktop agent would write to disk as is.
 
 ### Verified
 
