@@ -192,7 +192,11 @@ export function SubscriptionSummary({ subscription, canManage }: { subscription:
             : null}
         </span>
       </p>
-      {canManage ? (
+      {subscription.provider === "apple" ? (
+        <p className="text-sm leading-relaxed text-ink-2">
+          Billed through the App Store, bought in Farbaek for iPhone. Change or cancel it on the iPhone: Settings, your name, Subscriptions. Apple sends its receipts.
+        </p>
+      ) : canManage ? (
         <div className="flex flex-wrap gap-2">
           {subscription.hasCustomer ? (
             <form action={openPortalAction}>

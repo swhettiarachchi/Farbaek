@@ -38,10 +38,14 @@ final class AppModel {
     var signingIn = false
     var signInError: String?
     var pushNote: String?
+    /// The US App Store only: the app may open Billing on the web (WebPurchase).
+    var canBuyOnWeb = false
 
     let api = APIClient(base: AppConfig.baseURL)
     private let web = WebSignIn()
     @ObservationIgnored private var pendingPath: String?
+    /// App Store renewals and changes StoreKit delivers, told to Farbaek (ADR 0112).
+    @ObservationIgnored private var transactionUpdates: Task<Void, Never>?
 
     init() {
         api.workspaceId = UserDefaults.standard.string(forKey: "workspace")
@@ -78,6 +82,10 @@ final class AppModel {
         do {
             let me: Me = try await api.get("me")
             self.me = me
+            canBuyOnWeb = await WebPurchase.allowed()
+            if next == .signedIn, me.billing?.applePurchases == true, transactionUpdates == nil {
+                transactionUpdates = Purchases.listen(api: api)
+            }
             if !me.workspaces.contains(where: { $0.id == api.workspaceId }) { api.workspaceId = me.current }
             phase = next
             if let path = pendingPath {
@@ -126,12 +134,16 @@ final class AppModel {
         }
         api.forget()
         api.sample = false
+        transactionUpdates?.cancel()
+        transactionUpdates = nil
         resetScreens()
         me = nil
         phase = .signedOut
     }
 
     private func signedOutElsewhere() {
+        transactionUpdates?.cancel()
+        transactionUpdates = nil
         resetScreens()
         me = nil
         phase = .signedOut

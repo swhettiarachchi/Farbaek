@@ -45,6 +45,18 @@ struct Me: Decodable {
     let role: String?
     let writes: Writes
     let push: Push
+    /// Who bills the open workspace, and whether App Store purchases are open (ADR 0112). Null in the sample.
+    let billing: Billing?
+}
+
+struct Billing: Decodable {
+    /// "web", "apple", or null while the workspace has no paid plan.
+    let managedBy: String?
+    let live: Bool
+    let applePurchases: Bool
+    let canManage: Bool
+    /// The workspace id, sent with a purchase so Apple's record names the workspace it pays for.
+    let accountToken: String?
 }
 
 struct Workspace: Decodable, Identifiable, Hashable {

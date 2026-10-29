@@ -23,6 +23,8 @@ import { applyProposal, discardProposal } from "@/server/workspace/proposals";
 import { startFromPrompt } from "@/server/workspace/start-from-prompt";
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
 import { approveContract, type WriteErrorCode, type WriteResult } from "@/server/workspace/use-cases";
+import { claimAppleTransaction } from "@/server/billing/apple/service";
+import { appleDeps, appleIapOn } from "@/server/billing/apple/wiring";
 import type { PhoneOutcome, PhonePerson, PhoneWrites } from "./api";
 import type { PhoneStore } from "./auth";
 
@@ -140,6 +142,14 @@ export function createPhoneWrites(options: { userClient: (accessToken: string) =
     messageRun(p, input) {
       const person = runPerson(p);
       return person ? fromWrite(sendRunMessage(person, input)) : refuse(403, "FORBIDDEN", "You're not a member of this workspace.");
+    },
+
+    async appleTransaction(p, jws) {
+      if (!appleIapOn()) return refuse(503, "NOT_OPEN", "App Store purchases aren't open yet.");
+      const deps = appleDeps();
+      if (!deps) return notConfigured;
+      const r = await claimAppleTransaction(deps, { orgId: p.orgId, role: p.ctx.role, jws });
+      return r.ok ? r : refuse(r.status, r.code, r.message);
     },
 
     setPush: (caller, token, environment) => options.store.setPush(caller.sessionId, token, environment),

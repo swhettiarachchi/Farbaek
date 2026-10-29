@@ -14,5 +14,8 @@
 export const IOS_APP = {
   bundleId: "com.farbaek.app",
   teamId: "65BULQ4657",
+  /** The app's Apple ID in App Store Connect; App Store notifications name it. */
+  appleId: 6828344835,
+  /** Set once the listing is public: https://apps.apple.com/app/id6828344835 */
   appStoreUrl: null as string | null,
 };

@@ -25,6 +25,7 @@ import type { PhoneSession, SessionAuth } from "./auth";
 import { createSupabasePhoneStore } from "./store";
 import { NO_RUNS, type RunReader } from "./views";
 import { createPhoneWrites } from "./writes";
+import { appleDeps, appleIapOn } from "@/server/billing/apple/wiring";
 
 type Config = { url: string; publishableKey: string };
 const NO_PERSISTENCE = { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } as const;
@@ -127,6 +128,11 @@ export function phoneApiDeps(): PhoneApiDeps {
     execution: () => currentExecutionMode(),
     writes: createPhoneWrites({ userClient: (token) => bearerClient(config!, token), store: store! }),
     pushAvailable: () => apnsConfig() !== null,
+    async billing(orgId) {
+      const account = await appleDeps()?.account(orgId);
+      const live = Boolean(account?.subscriptionId) && ["active", "past_due", "cancellation_scheduled", "suspended"].includes(account?.state ?? "");
+      return { managedBy: live ? (account?.provider === "apple" ? "apple" : "web") : null, live, applePurchases: appleIapOn() };
+    },
     clientKey,
     now: () => new Date(),
   };
