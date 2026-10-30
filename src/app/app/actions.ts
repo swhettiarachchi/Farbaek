@@ -25,7 +25,7 @@ import { createChangeProposer, createContractDrafter } from "@/server/ai/provide
 import { MAX_CONTEXT_FILES, applyProposal, discardProposal, proposeChange, type ProposalDeps } from "@/server/workspace/proposals";
 import { recoverChange, type RecoveryDeps } from "@/server/workspace/recovery";
 import { acceptInvitation, createInvitation, revokeInvitation, type InvitationDeps } from "@/server/workspace/invitations";
-import { createAgentPairing, revokeAgent, type AgentAdminDeps } from "@/server/workspace/agents";
+import { createAgentPairing, revokeAgent, setAgentLease, type AgentAdminDeps } from "@/server/workspace/agents";
 import { loadUsageMeters } from "@/server/workspace/usage-summary";
 import { STARTERS, getStarter } from "@/content/starters";
 import type { UsageMeter } from "@/core/billing/usage-view";
@@ -39,6 +39,8 @@ import { setMemberPermissions, type MemberPermissionDeps } from "@/server/worksp
 import { startTaskVerification } from "@/server/verification/runner";
 import { verificationDeps } from "@/server/verification/wiring";
 import { log } from "@/server/observability/log";
+import { passportBrief } from "@/core/realityloop/context-passport";
+import { loadPassport } from "@/server/workspace/context-readiness";
 import { revokeAppleSignIn } from "@/server/auth/apple-wiring";
 
 export type FormState = { status: "idle" } | { status: "error"; message: string; values?: Record<string, string> } | { status: "done"; message: string };
@@ -221,7 +223,12 @@ export async function draftContractWithAiAction(form: FormData): Promise<AiDraft
   // Read through Row Level Security: the task and project must be visible to this user.
   const found = await ctx.reader.getTask(w.orgId, taskId);
   if (!found) return { status: "error", message: "That task doesn't exist or isn't in this workspace." };
-  const [project, files] = await Promise.all([ctx.reader.getProject(w.orgId, found.task.projectId), ctx.reader.listFiles(w.orgId, found.task.projectId).catch(() => [])]);
+  const [project, files, passport] = await Promise.all([
+    ctx.reader.getProject(w.orgId, found.task.projectId),
+    ctx.reader.listFiles(w.orgId, found.task.projectId).catch(() => []),
+    // Context Readiness (ADR 0116): the drafter sees which commands really exist and what isn't confirmed.
+    loadPassport(ctx.reader, w.orgId, found.task.id).catch(() => null),
+  ]);
 
   const provider = ai.provider;
   const effort = z.enum(EFFORTS).catch("balanced").parse(form.get("effort"));
@@ -229,7 +236,14 @@ export async function draftContractWithAiAction(form: FormData): Promise<AiDraft
     orgId: w.orgId,
     userId: ctx.user.id,
     taskId: found.task.id,
-    brief: { taskTitle: found.task.title, projectName: project?.name ?? "Project", projectDescription: project?.description ?? null, paths: files.map((f) => f.path), notes },
+    brief: {
+      taskTitle: found.task.title,
+      projectName: project?.name ?? "Project",
+      projectDescription: project?.description ?? null,
+      paths: files.map((f) => f.path),
+      notes,
+      ...(passport ? { facts: passportBrief(passport, 30) } : {}),
+    },
     effort,
   });
   if (!result.ok) return { status: "error", message: result.message };
@@ -762,6 +776,44 @@ export async function revokeAgentAction(form: FormData): Promise<void> {
   if ("error" in w) return;
   await revokeAgent(w.deps, { orgId: w.orgId, userId: ctx.user.id, agentId: parsed.data });
   revalidatePath("/app/agents");
+}
+
+export type AgentLeaseState = { status: "idle" } | { status: "error"; message: string } | { status: "saved"; expiresAt: string };
+
+/** Renews an agent's permission lease for 90 days and keeps what it allows (ADR 0117). */
+export async function renewAgentLeaseAction(_previous: AgentLeaseState, form: FormData): Promise<AgentLeaseState> {
+  const parsed = z.uuid().safeParse(form.get("agentId"));
+  if (!parsed.success) return { status: "error", message: "That agent isn't in this workspace." };
+  const ctx = await requireContext();
+  const w = await writeDeps(ctx);
+  if ("error" in w) return { status: "error", message: w.error };
+  // The scope comes from the database, not the form, so renewing never widens it.
+  const agent = (await ctx.reader.listAgents(w.orgId)).find((a) => a.id === parsed.data);
+  if (!agent) return { status: "error", message: "That agent isn't in this workspace." };
+  const { projects, capabilities, actionsPerHour } = agent.lease;
+  const r = await setAgentLease(w.deps, { orgId: w.orgId, userId: ctx.user.id, agentId: agent.id, lease: { days: 90, projects, capabilities, actionsPerHour } });
+  if (!r.ok) return { status: "error", message: r.message };
+  revalidatePath("/app/agents");
+  return { status: "saved", expiresAt: r.value.expiresAt };
+}
+
+/** Sets an agent's permission lease from the Agents page form: how long, which projects, what it may do and how often. */
+export async function setAgentLeaseAction(_previous: AgentLeaseState, form: FormData): Promise<AgentLeaseState> {
+  const parsed = z.uuid().safeParse(form.get("agentId"));
+  if (!parsed.success) return { status: "error", message: "That agent isn't in this workspace." };
+  const ctx = await requireContext();
+  const w = await writeDeps(ctx);
+  if ("error" in w) return { status: "error", message: w.error };
+  const lease = {
+    days: form.get("days"),
+    projects: form.get("scope") === "some" ? form.getAll("project").map(String) : null,
+    capabilities: form.getAll("capability").map(String),
+    actionsPerHour: form.get("actionsPerHour"),
+  };
+  const r = await setAgentLease(w.deps, { orgId: w.orgId, userId: ctx.user.id, agentId: parsed.data, lease });
+  if (!r.ok) return { status: "error", message: r.message };
+  revalidatePath("/app/agents");
+  return { status: "saved", expiresAt: r.value.expiresAt };
 }
 
 /** Usage for the sidebar panel, read when it opens. Percentages and reset times only; counts stay on the server. */

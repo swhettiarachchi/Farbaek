@@ -6,6 +6,7 @@
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { log } from "@/server/observability/log";
 import { json, problem } from "@/server/sandbox/http";
+import { LEASE_HELP, countsAgainstLease, leaseRefusal, type LeaseNeed } from "@/core/agent/lease";
 import { type AgentIdentity, type AgentResult, type AgentStore } from "./service";
 import { createSupabaseAgentStore } from "./supabase-store";
 import { AGENT_TOKEN_PATTERN, sha256 } from "./tokens";
@@ -48,21 +49,31 @@ export function withAgentStore(request: Request, handler: (store: AgentStore) =>
 }
 
 /**
- * Authenticates the agent token on every request and rate-limits it. A route
- * with many small requests by design (the Mesh relay) uses its own bucket, so
- * it doesn't use up the limit for tasks.
+ * Authenticates the agent token on every request, checks its permission
+ * lease (ADR 0117) and rate-limits it. `need` is what the route does with the
+ * lease: a route that needs nothing (the agent's profile, unpairing) still
+ * needs a lease that hasn't ended, except unpairing, which always works. A
+ * route with many small requests by design (the Mesh relay) uses its own
+ * bucket, so it doesn't use up the limit for tasks, and doesn't count
+ * against the lease's hourly limit.
  */
 export function withAgent(
   request: Request,
   handler: (ctx: { store: AgentStore; agent: AgentIdentity }) => Promise<Response>,
   limit: { bucket: string; perMinute: number } = { bucket: "agent", perMinute: 120 },
+  need: LeaseNeed = "read",
 ): Promise<Response> {
   return guarded(request, async (store) => {
     const token = request.headers.get("authorization")?.match(/^Bearer\s+(\S+)$/)?.[1] ?? "";
     if (!AGENT_TOKEN_PATTERN.test(token)) return problem(401, "UNAUTHENTICATED", "Send the agent token as Authorization: Bearer fa_...");
     const agent = await store.session(sha256(token));
     if (!agent) return problem(401, "UNAUTHENTICATED", "This agent token isn't valid or was revoked. Pair the app again.");
+    const refused = leaseRefusal(agent.lease, need, store.now());
+    if (refused) return problem(403, refused.code, refused.message);
     if (!(await store.rateLimit(`${limit.bucket}:${agent.agentId}`, 60, limit.perMinute))) return problem(429, "RATE_LIMITED", "Too many requests from this agent in the last minute.", undefined, { "retry-after": "60" });
+    if (countsAgainstLease(need) && !(await store.rateLimit(`lease:${agent.agentId}`, 3600, agent.lease.actionsPerHour))) {
+      return problem(429, "LEASE_LIMIT", `This agent used its ${agent.lease.actionsPerHour} requests for this hour. ${LEASE_HELP}`, undefined, { "retry-after": "600" });
+    }
     return handler({ store, agent });
   });
 }

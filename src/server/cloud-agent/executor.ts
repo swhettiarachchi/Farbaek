@@ -31,6 +31,7 @@ import { heldSkillsNote, splitByPins, type SkillPin } from "@/core/agent/skill-p
 import { projectSkills, type Skill } from "@/core/agent/skills";
 import { getBuiltInSkill } from "@/content/skills";
 import type { IntentContract } from "@/core/realityloop/contract";
+import { passportBrief, type ContextPassport } from "@/core/realityloop/context-passport";
 import { callModel, stepUnits, type GatewayDeps, type GatewayModel } from "@/server/agent/gateway";
 import { prepareAgentProposal, type AgentStore, type ProposalChecks } from "@/server/agent/service";
 import { log } from "@/server/observability/log";
@@ -74,6 +75,8 @@ export interface ExecutorDeps {
   skillPins(orgId: string, projectId: string): Promise<Map<string, SkillPin>>;
   /** The workspace's autonomy at level 2, or null when changes wait for a person (ADR 0046). */
   autonomy(orgId: string): Promise<AutonomyLimits | null>;
+  /** The task's Context Passport, read before the run (ADR 0116); absent or null when it can't be read. */
+  context?(orgId: string, taskId: string): Promise<ContextPassport | null>;
   /** Applies a just-made proposal the workspace's autonomy allowed, exactly as proposed. */
   applyWithinLimits(input: { orgId: string; userId: string; proposalId: string }): Promise<{ ok: true } | { ok: false; message: string }>;
   /** Emails the person who started the run once it ends (ADR 0060); null or absent when email is off. */
@@ -328,9 +331,12 @@ async function execute(
 
     // What the run's settled steps have cost so far; refused steps were refunded and cost nothing.
     let spentUnits = 0;
+    const startedAt = Date.now();
     const step = async (request: ModelStepRequest, signal?: AbortSignal): Promise<ModelStepReply> => {
       const budget = r.capUnits === null ? {} : { remainingUnits: Math.max(0, r.capUnits - spentUnits) };
-      const result = await callModel(deps.gateway.deps, deps.gateway.model, { agentId: `run:${runId}`, orgId: person.orgId, userId: person.userId, role: person.role, name: "Farbaek Agent" }, request, signal, budget);
+      // The run's own lease (ADR 0117): this task's project and Farbaek's AI, for as long as a run can last.
+      const lease = { expiresAt: new Date(startedAt + 2 * CLOUD_RUN_MAX_MINUTES * 60_000).toISOString(), projects: [r.task.projectId], capabilities: ["model" as const], actionsPerHour: 5_000 };
+      const result = await callModel(deps.gateway.deps, deps.gateway.model, { agentId: `run:${runId}`, orgId: person.orgId, userId: person.userId, role: person.role, name: "Farbaek Agent", lease }, request, signal, budget);
       if (!result.ok) throw new FarbaekApiError(result.status, result.code, result.message);
       if (result.value.message.stop_reason !== "refusal") spentUnits += stepUnits(result.value.message);
       // The gateway's reply is Claude's message as it came; its content blocks all carry a type.
@@ -360,9 +366,11 @@ async function execute(
       }
     };
 
+    // What Farbaek knows about the task, with each fact's status, so the agent doesn't take a stale or missing one as given.
+    const passport = deps.context ? await deps.context(person.orgId, r.task.id).catch(() => null) : null;
     const report = await runAgent({
       runId,
-      task: { id: r.task.id, title: r.task.title, contractVersion: r.contract.version, contract: r.contract.body },
+      task: { id: r.task.id, title: r.task.title, contractVersion: r.contract.version, contract: r.contract.body, ...(passport ? { context: passportBrief(passport, 30) } : {}) },
       mode: commands ? "sandboxed_autopilot" : "review_only",
       sandboxVerified: commands !== null,
       model,

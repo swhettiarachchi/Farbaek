@@ -25,5 +25,5 @@ export function POST(request: Request) {
     if (!body.ok) return body.response;
     const deps = { ...store, ...createServerUsageDeps(admin) };
     return fromAgentResult(await callModel(deps, createAnthropicGatewayModel(), agent, body.value, request.signal));
-  });
+  }, { bucket: "agent", perMinute: 120 }, "model");
 }

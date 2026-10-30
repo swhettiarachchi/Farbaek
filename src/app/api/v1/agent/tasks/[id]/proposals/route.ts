@@ -12,5 +12,5 @@ export function POST(request: Request, { params }: Params) {
     const body = await readJson(request, WORKSPACE_LIMITS.maxImportBytes + 64 * 1024);
     if (!body.ok) return body.response;
     return fromAgentResult(await submitAgentProposal(store, agent, (await params).id, body.value), 201);
-  });
+  }, { bucket: "agent", perMinute: 120 }, "propose");
 }

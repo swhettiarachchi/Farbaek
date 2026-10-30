@@ -142,7 +142,7 @@ describe("pairing", () => {
 describe("agent sessions", () => {
   it("resolves a token to the agent and its person's current role, and stops after revoke", async () => {
     const agent = await redeem(await pairingCode());
-    expect(await session(agent.token)).toEqual([{ agent_id: agent.agent_id, org_id: org, user_id: USERS.alice, role: "owner", name: "Office PC" }]);
+    expect(await session(agent.token)).toEqual([expect.objectContaining({ agent_id: agent.agent_id, org_id: org, user_id: USERS.alice, role: "owner", name: "Office PC" })]);
     expect((await q<{ last_seen_at: string | null }>("select last_seen_at from public.agents where id = $1", [agent.agent_id]))[0]!.last_seen_at).not.toBeNull();
     expect(await session("fa_unknown")).toEqual([]);
 

@@ -56,6 +56,7 @@ export function withRelayAgent(request: Request, handler: (ctx: { store: AgentSt
       return handler({ store, agent, relay: { agentId: agent.agentId, orgId: agent.orgId }, hub: relayHub() });
     },
     { bucket: "relay", perMinute: 600 },
+    "mesh",
   );
 }
 

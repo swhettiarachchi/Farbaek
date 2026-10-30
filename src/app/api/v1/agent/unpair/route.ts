@@ -5,5 +5,6 @@ export const dynamic = "force-dynamic";
 
 /** POST /api/v1/agent/unpair: the app revokes its own token. */
 export function POST(request: Request) {
-  return withAgent(request, async ({ store, agent }) => fromAgentResult(await unpairAgent(store, agent)));
+  // Unpairing always works, even after the lease ends.
+  return withAgent(request, async ({ store, agent }) => fromAgentResult(await unpairAgent(store, agent)), { bucket: "agent", perMinute: 120 }, "unpair");
 }

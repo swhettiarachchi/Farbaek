@@ -309,6 +309,13 @@ export const EVAL_SCENARIOS: readonly EvalScenario[] = [
     asserts: "A payment webhook signed with the wrong secret, or not at all, is refused before anything is stored; a genuinely signed one grants nothing the provider doesn't confirm when Farbaek reads the subscription back; and the same delivery twice is stored once.",
     file: "privilege.test.ts",
   },
+  {
+    id: "SE-036",
+    title: "An agent past or outside its lease",
+    risks: ["ASI03", "ASI10", "LLM06"],
+    asserts: "A paired agent whose lease has ended can do nothing but unpair; one whose lease doesn't allow a capability or a project is refused it, and never sees that project's tasks; and the model gateway refuses a task outside the lease before reserving any usage.",
+    file: "privilege.test.ts",
+  },
 ];
 
 /** What isn't tested for each risk, and the reason when a risk doesn't apply. */

@@ -31,6 +31,8 @@ import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
 import { verifyInRunSession } from "@/server/verification/runner";
 import { createSupabaseVerificationStore } from "@/server/verification/store";
 import { serverNotifier } from "@/server/email/wiring";
+import { loadPassport } from "@/server/workspace/context-readiness";
+import { createSupabaseReader } from "@/server/workspace/supabase-reader";
 
 const SESSION_MINUTES = 45;
 
@@ -77,6 +79,8 @@ export async function cloudRunDeps(person: { orgId: string; userId: string; role
     },
     skillPins: async (orgId, projectId) => pinMap(await readSkillPins(admin, orgId, projectId)),
     autonomy: async (orgId) => limitsFrom(await readAutonomy(admin, orgId)),
+    // Read with the server's client, scoped by workspace and task in every query, as a background run has no session.
+    context: (orgId, taskId) => loadPassport(createSupabaseReader(admin), orgId, taskId),
     async applyWithinLimits(input) {
       // The server's client, scoped by workspace and person in every query, as a background run has no session.
       const r = await autoApplyWithinLimits(createSupabaseWriteDeps(admin, admin, input.userId), { ...input, execution: sandboxExecutionMode() });

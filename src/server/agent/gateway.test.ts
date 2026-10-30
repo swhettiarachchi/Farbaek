@@ -7,7 +7,7 @@ import { STEP_MAX_OUTPUT_TOKENS, callModel, stepReserveUnits, type GatewayCallRe
 import type { AgentIdentity } from "./service";
 
 const TASK = "22222222-2222-4222-8222-222222222222";
-const agent: AgentIdentity = { agentId: "agent-1", orgId: "o1", userId: "user-1", role: "member", name: "Office PC" };
+const agent: AgentIdentity = { agentId: "agent-1", orgId: "o1", userId: "user-1", role: "member", name: "Office PC", lease: { expiresAt: "2099-01-01T00:00:00Z", projects: null, capabilities: ["read", "propose", "model", "mesh"], actionsPerHour: 600 } };
 const PRO: BillingSnapshot = { state: "active", paidPlanId: "pro" };
 
 const reply = (over: Partial<{ stop: string; model: string }> = {}): GatewayCallResult => ({
@@ -39,14 +39,14 @@ function fakeModel(result: GatewayCallResult | Error) {
   return m satisfies GatewayModel & { requests: GatewayRequest[] };
 }
 
-function fakeDeps(over: { billing?: BillingSnapshot | null; state?: TaskState | null; reserveError?: string; limited?: boolean } = {}) {
+function fakeDeps(over: { billing?: BillingSnapshot | null; state?: TaskState | null; reserveError?: string; limited?: boolean; projectId?: string } = {}) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the spy records inputs of several shapes
   const calls: { name: string; input: any }[] = [];
   const deps: GatewayDeps = {
     billing: async () => (over.billing === undefined ? PRO : over.billing),
     now: () => new Date("2026-10-18T12:00:00Z"),
     newEventId: () => "key-1",
-    loadTask: async () => (over.state === null ? null : { id: TASK, state: over.state ?? "CONTRACT_APPROVED" }),
+    loadTask: async () => (over.state === null ? null : { id: TASK, state: over.state ?? "CONTRACT_APPROVED", ...(over.projectId ? { projectId: over.projectId } : {}) }),
     rateLimit: async () => !over.limited,
     listUsageGrants: async () => [{ id: "g", kind: "plan", units: 215_792, used: 21_000, startsAt: "2026-10-01T00:00:00.000Z", expiresAt: "2026-12-01T00:00:00.000Z" }],
     reserveUsage: async (input) => (calls.push({ name: "reserve", input }), over.reserveError ? { ok: false, error: over.reserveError } : { ok: true, value: "entry-1" }),
@@ -87,6 +87,24 @@ describe("a run's cap (ADR 0040)", () => {
   it("works as before when no cap is given", async () => {
     const { deps } = fakeDeps();
     expect(await callModel(deps, fakeModel(reply()), agent, b)).toMatchObject({ ok: true });
+  });
+});
+
+describe("a permission lease on the gateway (ADR 0117)", () => {
+  const P = "33333333-3333-4333-8333-333333333333";
+  const only = (projects: string[]): AgentIdentity => ({ ...agent, lease: { ...agent.lease, projects } });
+
+  it("refuses a task outside the lease's projects, and one whose project isn't known, before reserving anything", async () => {
+    for (const deps of [fakeDeps({ projectId: "44444444-4444-4444-8444-444444444444" }), fakeDeps()]) {
+      const model = fakeModel(reply());
+      expect(await callModel(deps.deps, model, only([P]), body())).toMatchObject({ ok: false, status: 403, code: "FORBIDDEN" });
+      expect(deps.calls).toEqual([]);
+      expect(model.requests).toEqual([]);
+    }
+  });
+
+  it("lets a task in the lease's projects through", async () => {
+    expect(await callModel(fakeDeps({ projectId: P }).deps, fakeModel(reply()), only([P]), body())).toMatchObject({ ok: true });
   });
 });
 

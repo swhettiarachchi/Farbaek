@@ -3,11 +3,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { revokeAgentAction } from "@/app/app/actions";
 import { AgentDownload } from "@/components/agents/agent-download";
+import { AgentLeasePanel } from "@/components/agents/agent-lease";
 import { PairAgent } from "@/components/agents/pair-agent";
-import { Card, EmptyState, PageHeader } from "@/components/app/primitives";
+import { Card, EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { buttonClasses } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/local-time";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { LEASE_WARNING_DAYS, leaseDaysLeft, leaseState } from "@/core/agent/lease";
 import { AGENT_MODE_LABELS } from "@/core/agent/modes";
 import { loadAppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES } from "@/server/workspace/types";
@@ -23,8 +25,19 @@ export default async function AgentsPage() {
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
   const ws = ctx.current;
-  const agents = await ctx.reader.listAgents(ws.id);
+  const [agents, projects] = await Promise.all([ctx.reader.listAgents(ws.id), ctx.reader.listProjects(ws.id)]);
   const active = agents.filter((a) => !a.revokedAt);
+  const now = new Date();
+  const ended = active.filter((a) => leaseState(a.lease, now) === "ended");
+  const endingSoon = active.filter((a) => leaseState(a.lease, now) === "ending_soon");
+  const leaseNotice =
+    ended.length > 0
+      ? `${ended.length === 1 ? `${ended[0]!.name}'s lease has` : `${ended.length} agents' leases have`} ended, so ${ended.length === 1 ? "it" : "they"} can't do anything until someone renews ${ended.length === 1 ? "it" : "them"} below.`
+      : endingSoon.length > 0
+        ? `${endingSoon.length === 1 ? `${endingSoon[0]!.name}'s lease ends` : `${endingSoon.length} agents' leases end`} within ${LEASE_WARNING_DAYS} days. Renew below to keep ${endingSoon.length === 1 ? "it" : "them"} working.`
+        : null;
+  const openProjects = projects.filter((p) => !p.archivedAt).map((p) => ({ id: p.id, name: p.name }));
+  const leaseReason = ctx.mode === "demo" ? "The demo workspace is read-only." : !ctx.writes.enabled ? ctx.writes.reason : null;
   const limit = ws.plan.limits.agents;
   const canManage = ctx.role !== null && MANAGER_ROLES.includes(ctx.role);
   const canPair = ctx.role !== null && CONTRIBUTOR_ROLES.includes(ctx.role);
@@ -59,7 +72,7 @@ export default async function AgentsPage() {
         <Card>
           <h2 className="text-lg font-medium">Pair a computer</h2>
           <p className="mt-2 text-sm leading-relaxed text-ink-2">
-            Create a code, then type it into Farbaek Agent. The agent acts for you, only while you can contribute to this workspace. {usage}
+            Create a code, then type it into Farbaek Agent. The agent acts for you, only while you can contribute to this workspace, under a lease: 90 days on every project to start, which you can narrow or renew below. {usage}
           </p>
           <div className="mt-5">
             <PairAgent disabledReason={pairReason} />
@@ -83,6 +96,7 @@ export default async function AgentsPage() {
         <h2 id="agents-heading" className="text-lg font-medium">
           Paired agents <span className="text-ink-3 tabular">{active.length}</span>
         </h2>
+        {leaseNotice ? <Notice tone="warning">{leaseNotice}</Notice> : null}
         {agents.length === 0 ? (
           <EmptyState icon={DesktopIcon} title="No agents yet">
             Pair a computer with a code above. Each paired agent shows here with when it was last seen, and you can revoke it at any time.
@@ -124,6 +138,18 @@ export default async function AgentsPage() {
                       </button>
                     </form>
                   ) : null}
+                  {a.revokedAt ? null : (
+                    <AgentLeasePanel
+                      agentId={a.id}
+                      agentName={a.name}
+                      lease={a.lease}
+                      state={leaseState(a.lease, now)}
+                      daysLeft={leaseDaysLeft(a.lease, now)}
+                      projects={openProjects}
+                      canEdit={canManage || mine}
+                      disabledReason={leaseReason}
+                    />
+                  )}
                 </li>
               );
             })}
