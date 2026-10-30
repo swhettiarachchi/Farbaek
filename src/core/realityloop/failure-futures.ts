@@ -196,6 +196,16 @@ const deps = (manifest: string | null): Set<string> => {
   }
 };
 
+/** The project's own test runner for a source file: pytest for Python, Vitest or Jest from package.json; null when it has none. */
+export function testFramework(sourcePath: string, read: (path: string) => string | null): LabFramework | null {
+  if (/\.py$/i.test(sourcePath)) {
+    const python = ["requirements.txt", "requirements-dev.txt", "pyproject.toml"].map(read).join("\n");
+    return /\bpytest\b/i.test(python) ? "pytest" : null;
+  }
+  const installed = deps(read("package.json"));
+  return installed.has("vitest") ? "vitest" : installed.has("jest") ? "jest" : null;
+}
+
 /** The project's test runner and the trial's test file, or the reason a trial can't run. */
 export function labRunner(kind: FailureKind, evidence: FailureEvidence, paths: readonly string[], read: (path: string) => string | null): { ok: true; runner: LabRunner } | { ok: false; reason: string } {
   const dir = evidence.path.includes("/") ? evidence.path.slice(0, evidence.path.lastIndexOf("/") + 1) : "";
@@ -206,15 +216,12 @@ export function labRunner(kind: FailureKind, evidence: FailureEvidence, paths: r
     for (const n of ["", "-2", "-3", "-4"]) if (!taken.has(make(n))) return make(n);
     return null;
   };
-  if (/\.py$/i.test(file)) {
-    const python = ["requirements.txt", "requirements-dev.txt", "pyproject.toml"].map(read).join("\n");
-    if (!/\bpytest\b/i.test(python)) return { ok: false, reason: LAB_NO_RUNNER };
+  const framework = testFramework(evidence.path, read);
+  if (!framework) return { ok: false, reason: LAB_NO_RUNNER };
+  if (framework === "pytest") {
     const testPath = free((n) => `${dir}test_failure_${kind}_${stem}${n.replace("-", "_")}.py`);
     return testPath ? { ok: true, runner: { framework: "pytest", testPath, command: `python3 -m pytest -q -p no:cacheprovider ${testPath}` } } : { ok: false, reason: "The test file's name is taken." };
   }
-  const installed = deps(read("package.json"));
-  const framework: LabFramework | null = installed.has("vitest") ? "vitest" : installed.has("jest") ? "jest" : null;
-  if (!framework) return { ok: false, reason: LAB_NO_RUNNER };
   const ext = (file.match(/\.(m?[jt]sx?|cjs)$/i)?.[1] ?? "ts").toLowerCase();
   const testPath = free((n) => `${dir}${stem}.failure-${kind.replace(/_/g, "-")}${n}.test.${ext}`);
   if (!testPath) return { ok: false, reason: "The test file's name is taken." };

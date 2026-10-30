@@ -27,7 +27,7 @@ function fakeReviewer(outcome: ReviewOutcome) {
   return { source, r };
 }
 
-function deps(over: { billing?: BillingSnapshot; reviewer?: SecurityCheckDeps["reviewer"]; audit?: SecurityCheckDeps["audit"]; osv?: SecurityCheckDeps["osv"]; files?: Record<string, string> } = {}) {
+function deps(over: { billing?: BillingSnapshot; reviewer?: SecurityCheckDeps["reviewer"]; audit?: SecurityCheckDeps["audit"]; osv?: SecurityCheckDeps["osv"]; staticScan?: SecurityCheckDeps["staticScan"]; files?: Record<string, string> } = {}) {
   const files = over.files ?? FILES;
   const finished: { id: string; outcome: { status: "done"; statement: SecurityReportStatement; digest: string } | { status: "failed"; error: string } }[] = [];
   const usage: { name: string; input: unknown }[] = [];
@@ -51,6 +51,7 @@ function deps(over: { billing?: BillingSnapshot; reviewer?: SecurityCheckDeps["r
     reviewer: over.reviewer ?? { unavailable: "AI isn't connected on this server yet." },
     audit: over.audit ?? { unavailable: "No verified sandbox is connected." },
     osv: over.osv,
+    staticScan: over.staticScan,
   };
   return { d, finished, usage };
 }
@@ -83,6 +84,8 @@ describe("security checks", () => {
       { name: "rules", ran: true, findings: 2 },
       { name: "dependencies", ran: false, reason: expect.stringMatching(/no package-lock.json/) },
       { name: "osv", ran: false, reason: expect.stringMatching(/no lockfile/) },
+      { name: "sast", ran: false, reason: "Static analysis isn't connected on this server." },
+      { name: "secrets", ran: false, reason: "Static analysis isn't connected on this server." },
       { name: "ai_review", ran: true, findings: 2, detail: "2 files reviewed." },
     ]);
     expect(p).toMatchObject({ score: 60, grade: "C", model: "claude-sonnet-5-5" });
@@ -105,7 +108,7 @@ describe("security checks", () => {
     const { source } = fakeReviewer({ ok: false, failure: "PROVIDER_BUSY", usage: null });
     const t = deps({ reviewer: source });
     await runSecurityCheck(t.d, alice, { id: "p1", name: "Site" }, "report-1");
-    expect(report(t.finished).checks[3]).toEqual({ name: "ai_review", ran: false, reason: expect.stringMatching(/wasn't counted/) });
+    expect(report(t.finished).checks.find((c) => c.name === "ai_review")).toEqual({ name: "ai_review", ran: false, reason: expect.stringMatching(/wasn't counted/) });
     expect(t.usage.at(-1)).toMatchObject({ name: "settle", input: { status: "refunded", refundReason: "failed" } });
   });
 
@@ -113,6 +116,41 @@ describe("security checks", () => {
     expect(await startSecurityCheck(deps({ billing: { state: "free" } }).d, alice, "p1")).toMatchObject({ ok: false, code: "FEATURE_NOT_IN_PLAN", message: expect.stringMatching(/from the Plus plan up/) });
     expect(await startSecurityCheck(deps().d, { ...alice, role: "viewer" }, "p1")).toMatchObject({ ok: false, code: "FORBIDDEN" });
     expect(await startSecurityCheck(deps().d, alice, "p1")).toEqual({ ok: true, value: { reportId: "report-1" } });
+  });
+});
+
+describe("Semgrep and detect-secrets (ADR 0137)", () => {
+  const compact = (results: { rule: string; path: string; line: number }[], exit = 0) => JSON.stringify({ ok: true, exit, version: "x", results, total: results.length, errors: [], scanned: 3 });
+
+  it("adds their findings, without counting a line another check already reported", async () => {
+    const asked: string[] = [];
+    const staticScan: SecurityCheckDeps["staticScan"] = async (i) => (
+      asked.push(i.reportId),
+      {
+        ok: true,
+        // The hardcoded key at route.ts:1 is already a rules finding, so the secret scan's copy is dropped.
+        semgrep: compact([{ rule: "farbaek.js.tls-off", path: "src/app/api/login/route.ts", line: 2 }]),
+        secrets: compact([{ rule: "Secret Keyword", path: "src/app/api/login/route.ts", line: 1 }]),
+      }
+    );
+    const t = deps({ staticScan });
+    await runSecurityCheck(t.d, alice, { id: "p1", name: "Site" }, "report-1");
+    const p = report(t.finished);
+    expect(asked).toEqual(["report-1"]);
+    expect(p.checks.find((c) => c.name === "sast")).toMatchObject({ ran: true, findings: 1 });
+    expect(p.checks.find((c) => c.name === "secrets")).toMatchObject({ ran: true, findings: 0 });
+    expect(p.findings.filter((f) => f.source === "sast").map((f) => [f.rule, f.line])).toEqual([["farbaek.js.tls-off", 2]]);
+  });
+
+  it("reports each tool that didn't run, with the reason", async () => {
+    const t = deps({ staticScan: async () => ({ ok: true, semgrep: compact([], 7), secrets: JSON.stringify({ ok: false, exit: -1, error: "The sandbox stopped." }) }) });
+    await runSecurityCheck(t.d, alice, { id: "p1", name: "Site" }, "report-1");
+    const p = report(t.finished);
+    expect(p.checks.find((c) => c.name === "sast")).toEqual({ name: "sast", ran: false, reason: "Semgrep stopped (exit 7)." });
+    expect(p.checks.find((c) => c.name === "secrets")).toEqual({ name: "secrets", ran: false, reason: "detect-secrets didn't finish: The sandbox stopped." });
+    const off = deps({ staticScan: { unavailable: "No verified sandbox is connected, so Semgrep and the secret scan can't run." } });
+    await runSecurityCheck(off.d, alice, { id: "p1", name: "Site" }, "report-1");
+    expect(report(off.finished).checks.filter((c) => c.name === "sast" || c.name === "secrets").map((c) => c.ran)).toEqual([false, false]);
   });
 });
 

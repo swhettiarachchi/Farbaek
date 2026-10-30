@@ -29,7 +29,7 @@ const SEVERITY_STYLE: Record<Severity, { icon: Icon; className: string }> = {
   info: { icon: CircleDashedIcon, className: "text-ink-3 border-line-strong/50 border-dashed" },
 };
 
-const SOURCE_LABEL: Record<Finding["source"], string> = { rules: "Rule", dependencies: "Packages", ai: "AI review" };
+const SOURCE_LABEL: Record<Finding["source"], string> = { rules: "Rule", dependencies: "Packages", sast: "Semgrep", secrets: "Secret scan", ai: "AI review" };
 
 function SeverityBadge({ severity }: { severity: Severity }) {
   const s = SEVERITY_STYLE[severity];

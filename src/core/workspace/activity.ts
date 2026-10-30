@@ -104,6 +104,8 @@ const VERBS: Record<string, string> = {
   "arena.finished": "finished an Arena comparison",
   "failure_future.started": "started a failure trial",
   "failure_future.finished": "finished a failure trial",
+  "mutation.started": "started a mutation trial",
+  "mutation.finished": "finished a mutation trial",
   "watch.on": "turned on outcome watching",
   "watch.off": "turned off outcome watching",
   "agent.pairing_created": "created an agent pairing code",

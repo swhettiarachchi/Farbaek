@@ -55,8 +55,12 @@ import { workspaceGrant } from "@/server/workspace/organizations";
 import { loadPassport } from "@/server/workspace/context-readiness";
 import { FIXABLE_STATES, fixIsOpen } from "@/server/workspace/fixes";
 import { FailureFuturesCard } from "@/components/failure-futures/failure-futures-card";
-import { LAB_MANIFESTS, labRunner, suggestFailureFutures } from "@/core/realityloop/failure-futures";
+import { LAB_MANIFESTS, labRunner, suggestFailureFutures, testFramework } from "@/core/realityloop/failure-futures";
 import { readFailureTrials } from "@/server/failure-futures/store";
+import { MutationCard } from "@/components/mutation/mutation-card";
+import { MUTATION_MAX, planMutants } from "@/core/realityloop/mutation";
+import { NO_TEST_RUNNER } from "@/server/mutation/runner";
+import { readLatestMutationRun } from "@/server/mutation/store";
 
 export const metadata: Metadata = { title: "Task" };
 
@@ -192,17 +196,29 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
     withheldFor(ctx.role, ctx.permissions, "run_agents") ??
     (checksForRun.length === 0 ? "The contract lists no checks, and Farbaek has none for this kind of project." : null);
   // The Failure Futures Lab (ADR 0135) on the same change: scenarios from the lines it adds.
-  const futures = trying ? suggestFailureFutures(proposal!.changes.map((c) => ({ path: c.path, content: c.content, before: c.kind === "edit" ? (bases[c.path] ?? null) : null }))) : [];
-  const [failureTrials, failureAi, labFiles] =
-    futures.length > 0
+  const added = trying ? proposal!.changes.map((c) => ({ path: c.path, content: c.content, before: c.kind === "edit" ? (bases[c.path] ?? null) : null })) : [];
+  const futures = suggestFailureFutures(added);
+  // Mutation trials (ADR 0136) on the same lines.
+  const mutants = planMutants(added, MUTATION_MAX);
+  const [failureTrials, failureAi, labFiles, mutationRun] =
+    futures.length > 0 || mutants.length > 0
       ? await Promise.all([
-          arenaClient ? readFailureTrials(arenaClient, orgId, proposal!.id).catch(() => []) : Promise.resolve([]),
-          loadAiAvailability(ctx, ctx.current, "failure_test"),
+          arenaClient && futures.length > 0 ? readFailureTrials(arenaClient, orgId, proposal!.id).catch(() => []) : Promise.resolve([]),
+          futures.length > 0 ? loadAiAvailability(ctx, ctx.current, "failure_test") : Promise.resolve(null),
           Promise.all(LAB_MANIFESTS.map(async (p) => [p, proposal!.changes.find((c) => c.path === p)?.content ?? (await ctx.reader.getFile(orgId, task.projectId, p).catch(() => null))?.content ?? null] as const)),
+          arenaClient && mutants.length > 0 ? readLatestMutationRun(arenaClient, orgId, proposal!.id).catch(() => null) : Promise.resolve(null),
         ])
-      : [[], null, []];
+      : [[], null, [], null];
+  const labRead = (p: string) => labFiles.find(([path]) => path === p)?.[1] ?? null;
   const labPaths = [...new Set([...projectFiles.map((f) => f.path), ...(proposal?.changes.map((c) => c.path) ?? [])])];
-  const labRun = futures.length > 0 ? labRunner(futures[0]!.kind, futures[0]!.evidence[0]!, labPaths, (p) => labFiles.find(([path]) => path === p)?.[1] ?? null) : null;
+  const labRun = futures.length > 0 ? labRunner(futures[0]!.kind, futures[0]!.evidence[0]!, labPaths, labRead) : null;
+  const mutationReason =
+    (ctx.mode === "demo" ? "The demo workspace is read-only." : null) ??
+    writeReason ??
+    (execution.mode === "review_only" ? execution.reason : null) ??
+    (ctx.role === null || !CONTRIBUTOR_ROLES.includes(ctx.role) ? "Viewers can't run mutation trials. Ask a member, admin or owner." : null) ??
+    withheldFor(ctx.role, ctx.permissions, "run_agents") ??
+    (mutants.length > 0 && !testFramework(mutants[0]!.path, labRead) ? NO_TEST_RUNNER : null);
   const failureReason =
     (ctx.mode === "demo" ? "The demo workspace is read-only." : null) ??
     writeReason ??
@@ -393,6 +409,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
             {showProposal ? <ImpactCard taskId={task.id} disabledReason={impactReason} /> : null}
             {trying ? <ArenaPanel proposalId={proposal!.id} taskId={task.id} checks={checksForRun} run={arenaRun} disabledReason={arenaReason} /> : null}
             {trying ? <FailureFuturesCard proposalId={proposal!.id} taskId={task.id} futures={futures} trials={failureTrials} disabledReason={failureReason} /> : null}
+            {trying ? <MutationCard proposalId={proposal!.id} taskId={task.id} planned={mutants} run={mutationRun} disabledReason={mutationReason} /> : null}
             {canPropose ? (
               <div className={`grid gap-3 rounded-md border border-accent/30 bg-accent/[0.04] p-5 ${showProposal ? "mt-2" : ""}`}>
                 <h3 className="flex items-center gap-2 text-base font-medium">
