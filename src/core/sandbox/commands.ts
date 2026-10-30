@@ -36,7 +36,7 @@ export const DEFAULT_PROCESS_LIMITS: ProcessLimits = { maxProcesses: 512, maxOpe
  * runaway forks and huge files early, while the microVM's fixed CPU, memory
  * and disk are the hard ceiling.
  */
-export function wrapCommand(command: string, limits: ProcessLimits = DEFAULT_PROCESS_LIMITS): string {
+export function wrapCommand(command: string, limits: ProcessLimits = DEFAULT_PROCESS_LIMITS, prelude?: string): string {
   const fileBlocks = limits.maxFileSizeMiB * 1024;
   return [
     `ulimit -u ${limits.maxProcesses} 2>/dev/null`,
@@ -44,6 +44,7 @@ export function wrapCommand(command: string, limits: ProcessLimits = DEFAULT_PRO
     `ulimit -f ${fileBlocks} 2>/dev/null`,
     `mkdir -p ${SANDBOX_WORKSPACE_ROOT}`,
     `cd ${SANDBOX_WORKSPACE_ROOT}`,
+    ...(prelude ? [prelude] : []),
     command,
   ].join("\n");
 }

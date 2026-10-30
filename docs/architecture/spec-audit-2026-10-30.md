@@ -122,9 +122,9 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 
 ### 25. Innovation backlog
 
-- **Built:** Cost-Before-Compute caps, Intent Diff Lens, Portable Proof (signed ProofPacks, `/verify` and the "Farbaek ProofPack" status on GitHub, stage 103), Eject (project export), Approval Wallet, Model Change Canary, Incident Replay Theatre, the publish evidence gate.
+- **Built:** Cost-Before-Compute caps, Intent Diff Lens, Portable Proof (signed ProofPacks, `/verify` and the "Farbaek ProofPack" status on GitHub, stage 103), the Sandbox Egress Ledger (stage 104, recorded by a proxy inside the sandbox), Eject (project export), Approval Wallet, Model Change Canary, Incident Replay Theatre, the publish evidence gate.
 - **Partly built:** Real-Project Loom (the 2D project graph; no 3D view).
-- **Not built:** Continue-on-Desktop handoff, Tool Definition Pinning, Sandbox Egress Ledger.
+- **Not built:** Continue-on-Desktop handoff, Tool Definition Pinning.
 
 ## Claims on the public site that aren't true yet
 

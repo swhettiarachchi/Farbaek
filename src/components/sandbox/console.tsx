@@ -22,6 +22,9 @@ function outcome(e: Execution): { text: string; className: string } {
   }
 }
 
+/** An address from the Egress Ledger (ADR 0127), with how many times it was asked for. */
+const hostName = (h: { host: string; port: number; attempts: number }) => `${h.port === 443 || h.port === 80 ? h.host : `${h.host}:${h.port}`} ×${h.attempts}`;
+
 interface LiveRun {
   command: string;
   executionId: string | null;
@@ -137,6 +140,18 @@ export function SandboxConsole({
                 {r.durationMs !== null ? `, ${(r.durationMs / 1000).toFixed(1)} s` : ""}
                 {r.truncated.stdout || r.truncated.stderr ? ", output shortened" : ""}]
               </p>
+              {r.egress && (r.egress.allowed.length > 0 || r.egress.blocked.length > 0) ? (
+                <p className="break-words text-xs text-media-ink-2">
+                  [network
+                  {r.egress.allowed.length ? `: reached ${r.egress.allowed.map(hostName).join(", ")}` : ""}
+                  {r.egress.blocked.length ? (
+                    <span className="text-media-amber">
+                      {r.egress.allowed.length ? "; " : ": "}blocked {r.egress.blocked.map(hostName).join(", ")}
+                    </span>
+                  ) : null}
+                  {r.egress.truncated ? "; more not recorded" : ""}]
+                </p>
+              ) : null}
             </div>
           );
         })}

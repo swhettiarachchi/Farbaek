@@ -27,6 +27,8 @@ export interface SandboxServerConfig {
   cronSecret: string | null;
   /** Labels this deployment's sandboxes, so cleanup never touches another environment's. */
   deploymentId: string;
+  /** The Egress Ledger's proxy (ADR 0127); on unless SANDBOX_EGRESS_LEDGER is "off". */
+  egressLedger?: boolean;
 }
 
 function env(name: string): string | null {
@@ -83,6 +85,7 @@ export function readSandboxConfig(): SandboxServerConfig {
       secret: previewSecret && previewSecret.length >= 32 ? previewSecret : null,
       protocol: previewDomain?.includes("localhost") ? "http" : "https",
     },
+    egressLedger: env("SANDBOX_EGRESS_LEDGER") !== "off",
     deploymentId: (env("SANDBOX_DEPLOYMENT_ID") ?? "farbaek").replace(/[^a-z0-9-]/gi, "").slice(0, 40) || "farbaek",
     cronSecret: (() => {
       const s = env("SANDBOX_CRON_SECRET");

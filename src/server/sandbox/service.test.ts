@@ -506,3 +506,48 @@ describe("overview", () => {
     expect(none.capabilities).toEqual({ pauseResume: false, metrics: false, previews: false, cancel: false, filesystem: false });
   });
 });
+
+describe("the egress ledger (ADR 0127)", () => {
+  const entry = (host: string, decision: "allowed" | "blocked") => JSON.stringify({ t: 1, host, port: 443, decision });
+
+  it("starts the proxy before each command with the session's own list, and keeps the person's command as they wrote it", async () => {
+    const id = await ready(ALICE, { network: "package_registries" });
+    await service().runCommand(as(ALICE), id, { command: "npm view react version" }, key());
+    expect(runtime.state.executed).toEqual(["npm view react version"]);
+    expect(runtime.state.preludes[0]).toContain('"registry.npmjs.org"');
+    expect(store.executions.size).toBeGreaterThan(0);
+    const none = await ready(ALICE);
+    await service().runCommand(as(ALICE), none, { command: "curl https://example.com" }, key());
+    expect(runtime.state.preludes[1]).toContain("FARBAEK_EGRESS_ALLOW='[]'");
+  });
+
+  it("records what the command asked to reach, checked and grouped", async () => {
+    const id = await ready(ALICE, { network: "package_registries" });
+    runtime.state.egressLog = [entry("registry.npmjs.org", "allowed"), entry("registry.npmjs.org", "allowed"), entry("evil.example", "blocked"), "{not json"].join("\n");
+    const r = await service().runCommand(as(ALICE), id, { command: "npm install" }, key());
+    expect(r).toMatchObject({
+      ok: true,
+      value: {
+        command: "npm install",
+        egress: { allowed: [{ host: "registry.npmjs.org", port: 443, attempts: 2 }], blocked: [{ host: "evil.example", port: 443, attempts: 1 }], unreadable: 1, truncated: false },
+      },
+    });
+  });
+
+  it("can be turned off for the whole server", async () => {
+    const id = await ready();
+    const r = await service({ config: { egressLedger: false } }).runCommand(as(ALICE), id, { command: "echo hello" }, key());
+    expect(runtime.state.preludes).toEqual([null]);
+    expect(runtime.state.egressReads).toBe(0);
+    expect(r).toMatchObject({ ok: true, value: { egress: null } });
+  });
+
+  it("puts every blocked address the checks asked for in the verification ProofPack", async () => {
+    const id = await ready(ALICE, { taskId: TASK, projectId: PROJECT });
+    runtime.state.egressLog = [entry("evil.example", "blocked")].join("\n");
+    await service().runChecks(as(ALICE), id, key());
+    const pack = verificationPacks[0]!;
+    expect(pack.statement.predicate.egress).toEqual({ observedBy: "farbaek-proxy-in-sandbox", allowed: [], blocked: [{ host: "evil.example", port: 443, attempts: 2 }], unreadable: 0, truncated: false });
+    expect(pack.statement.predicate.limits.join(" ")).toMatch(/recorded by Farbaek's proxy inside the sandbox/);
+  });
+});

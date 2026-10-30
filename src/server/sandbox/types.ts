@@ -2,6 +2,7 @@
  * Read models and the store contract for sandboxes. Rows are parsed with Zod
  * at the edge, so the rest of the code works with checked values.
  */
+import { EgressSummarySchema, type EgressSummary } from "@/core/sandbox/egress-ledger";
 import { z } from "zod";
 import { EXECUTION_STATES, SESSION_STATES, type EndReason, type ExecutionState, type SessionEvent, type SessionState } from "@/core/sandbox/lifecycle";
 import { NETWORK_PROFILES, type NetworkProfile } from "@/core/sandbox/network";
@@ -172,10 +173,12 @@ export interface ExecutionRecord {
   stderrSha256: string | null;
   failureCategory: string | null;
   cancelRequestedAt: string | null;
+  /** What the command asked to reach on the network (ADR 0127); null when it wasn't recorded. */
+  egress: EgressSummary | null;
 }
 
 export const EXECUTION_SELECT =
-  "id, session_id, actor_id, kind, label, command, state, exit_code, timeout_seconds, started_at, deadline_at, ended_at, duration_ms, stdout, stderr, stdout_truncated, stderr_truncated, stdout_sha256, stderr_sha256, failure_category, cancel_requested_at";
+  "id, session_id, actor_id, kind, label, command, state, exit_code, timeout_seconds, started_at, deadline_at, ended_at, duration_ms, stdout, stderr, stdout_truncated, stderr_truncated, stdout_sha256, stderr_sha256, failure_category, cancel_requested_at, egress";
 
 export const ExecutionRowSchema = z.object({
   id: z.string(),
@@ -199,6 +202,7 @@ export const ExecutionRowSchema = z.object({
   stderr_sha256: z.string().nullable(),
   failure_category: z.string().nullable(),
   cancel_requested_at: z.string().nullable(),
+  egress: z.unknown().optional(),
 });
 
 export function executionFromRow(r: z.infer<typeof ExecutionRowSchema>): ExecutionRecord {
@@ -224,6 +228,8 @@ export function executionFromRow(r: z.infer<typeof ExecutionRowSchema>): Executi
     stderrSha256: r.stderr_sha256,
     failureCategory: r.failure_category,
     cancelRequestedAt: r.cancel_requested_at,
+    // Written by the server from an untrusted record; anything that doesn't fit reads as not recorded.
+    egress: r.egress == null ? null : (EgressSummarySchema.safeParse(r.egress).data ?? null),
   };
 }
 
@@ -343,6 +349,8 @@ export interface SandboxStore {
     stderrSha256: string | null;
     failure: string | null;
   }): Promise<RpcResult<null>>;
+  /** Stores what a finished command asked to reach on the network, once (ADR 0127). */
+  recordEgress(executionId: string, egress: EgressSummary): Promise<RpcResult<null>>;
   requestCancel(executionId: string, actor: string): Promise<RpcResult<{ pid: number | null; providerSandboxId: string | null; alreadyFinished: boolean }>>;
   touchSession(sessionId: string, actor: string): Promise<RpcResult<null>>;
   createPreview(input: { sessionId: string; actor: string; id: string; port: number; ttlSeconds: number }): Promise<RpcResult<string>>;

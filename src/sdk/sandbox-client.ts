@@ -62,6 +62,14 @@ export interface Execution {
   digests: { stdout: string | null; stderr: string | null };
   cancelRequestedAt: string | null;
   actorId: string;
+  /** What the command asked to reach on the network, recorded by Farbaek's proxy in the sandbox; null when it wasn't recorded. */
+  egress: { allowed: EgressHost[]; blocked: EgressHost[]; unreadable: number; truncated: boolean } | null;
+}
+
+export interface EgressHost {
+  host: string;
+  port: number;
+  attempts: number;
 }
 
 export interface ResourceSample {

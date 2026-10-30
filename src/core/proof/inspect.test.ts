@@ -4,7 +4,7 @@ import { buildSandboxReceipt, sandboxReceiptDigest } from "../sandbox/receipts";
 import { buildSecurityReport, securityReportDigest } from "../security/report";
 import { canonicalHash, sha256Hex } from "../trust/canonical-json";
 import { inspectEvidence, matchFile } from "./inspect";
-import { buildProofPack, proofPackDigest, type ProofPackInput } from "./proofpack";
+import { buildProofPack, buildVerificationProofPack, proofPackDigest, type ProofPackInput } from "./proofpack";
 import { buildRecoveryReceipt, recoveryReceiptDigest } from "./recovery-receipt";
 
 const H = (c: string) => c.repeat(64);
@@ -105,5 +105,35 @@ describe("inspectEvidence", () => {
     delete gutted.predicate.changes;
     expect(await inspectEvidence(gutted)).toMatchObject({ ok: false, message: expect.stringMatching(/missing parts/) });
     expect(await inspectEvidence(statement, "nope")).toMatchObject({ ok: false, message: expect.stringMatching(/64 hexadecimal/) });
+  });
+});
+
+describe("the egress ledger in a ProofPack (ADR 0127)", () => {
+  it("names what the checks reached and what was blocked, and says how it was recorded", async () => {
+    const { statement: applied, digest: appliedDigest } = await packFor("export const total = 1;\n");
+    const pack = buildVerificationProofPack({
+      applied,
+      appliedDigest,
+      receiptDigest: H("f"),
+      checks: [{ name: "test", command: "pnpm test", exitCode: 0 }],
+      provider: "Vercel Sandbox",
+      egress: { allowed: [{ host: "registry.npmjs.org", port: 443, attempts: 12 }], blocked: [{ host: "evil.example", port: 8443, attempts: 1 }], unreadable: 0, truncated: false },
+      createdAt: "2026-10-13T11:00:00.000Z",
+      previous: appliedDigest,
+    });
+    expect(pack.predicate.limits.join(" ")).toMatch(/recorded by Farbaek's proxy inside the sandbox/);
+    const r = await inspectEvidence({ digest: await proofPackDigest(pack), statement: pack });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.intact).toBe(true);
+    expect(r.summary.facts).toEqual(
+      expect.arrayContaining([
+        { label: "Network reached", value: "registry.npmjs.org (12×)", mono: true },
+        { label: "Network blocked", value: "evil.example:8443 (1×)", mono: true },
+      ]),
+    );
+    // Without a record, a ProofPack says nothing about the network.
+    const plain = buildVerificationProofPack({ applied, appliedDigest, receiptDigest: H("f"), checks: [], provider: "Vercel Sandbox", createdAt: "2026-10-13T11:00:00.000Z", previous: null });
+    expect(plain.predicate.egress).toBeUndefined();
   });
 });

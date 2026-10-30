@@ -14,6 +14,7 @@
  * stated assumptions. It doesn't prove that external claims are true, and an
  * unverified ProofPack never earns the Seal.
  */
+import { EGRESS_LIMIT_TEXT, type EgressSummary } from "../sandbox/egress-ledger";
 import type { CheckResult } from "../realityloop/task-machine";
 import { canonicalHash } from "../trust/canonical-json";
 
@@ -69,6 +70,11 @@ export interface ProofPackStatement {
      * that the sandbox held exactly the applied content.
      */
     verification?: { receipt: string; appliedProofPack: string; filesMatched: true };
+    /**
+     * The Egress Ledger (ADR 0127): the addresses the checks asked to reach,
+     * allowed or blocked, as Farbaek's proxy inside the sandbox recorded them.
+     */
+    egress?: EgressSummary & { observedBy: "farbaek-proxy-in-sandbox" };
   };
 }
 
@@ -132,6 +138,8 @@ export function buildVerificationProofPack(input: {
   receiptDigest: string;
   checks: CheckResult[];
   provider: string;
+  /** What the checks asked to reach on the network; null when it wasn't recorded. */
+  egress?: EgressSummary | null;
   createdAt: string;
   previous: string | null;
 }): ProofPackStatement {
@@ -155,8 +163,10 @@ export function buildVerificationProofPack(input: {
       limits: [
         ...base.predicate.limits,
         `Checks ran in ${input.provider} against the applied content: every changed file's SHA-256 matched inside the sandbox before the checks.`,
+        ...(input.egress ? [EGRESS_LIMIT_TEXT] : []),
       ],
       verification: { receipt: input.receiptDigest, appliedProofPack: input.appliedDigest, filesMatched: true },
+      ...(input.egress ? { egress: { observedBy: "farbaek-proxy-in-sandbox" as const, ...input.egress } } : {}),
     },
   };
 }

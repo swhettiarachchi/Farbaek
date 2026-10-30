@@ -115,6 +115,7 @@ export function executionDto(e: ExecutionRecord) {
     digests: { stdout: e.stdoutSha256, stderr: e.stderrSha256 },
     cancelRequestedAt: e.cancelRequestedAt,
     actorId: e.actorId,
+    egress: e.egress,
   };
 }
 
