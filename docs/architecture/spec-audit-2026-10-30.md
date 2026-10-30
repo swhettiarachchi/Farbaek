@@ -97,8 +97,8 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
   - browser and phone receiving;
   - compare and keep-both on conflicts.
 - **Not built:**
-  - sending only changed files against a shared baseline;
-  - an offline receiver's queue;
+  - sending only changed files: built in stage 115 (ADR 0138), against an earlier copy the receiver chooses;
+  - an offline receiver's queue: built in stage 115 (ADR 0138), on the sender, for up to a day, across restarts;
   - phone-native transports (Nearby Connections, MultipeerConnectivity, Wi-Fi Aware). The spec defers these until hardware testing.
 
 ### 12. LaunchOS

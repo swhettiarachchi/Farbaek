@@ -16,6 +16,7 @@ import { generateKeyPair } from "./noise";
 import { MeshNode, type RelayLink } from "./node";
 import { fakeRelay } from "./relay-fake";
 import { packFolder } from "./pack";
+import type { IncomingView } from "./receive";
 
 const tmp = (name: string) => fs.mkdtemp(path.join(os.tmpdir(), `farbaek-mesh-${name}-`));
 const fakeKey = () => "AKIA" + "Q".repeat(16);
@@ -46,10 +47,15 @@ afterEach(async () => {
 
 type Direct = (signal: Duplex, role: "offer" | "answer") => Promise<Duplex>;
 
-async function makeNode(name: string, relay?: () => RelayLink | string, direct?: Direct): Promise<MeshNode> {
-  const node = new MeshNode({ dataDir: await tmp(`data-${name}`), name: () => name, vault: memoryVault(), discovery: false, listenHost: "127.0.0.1", relay, direct, onUpdate: () => undefined });
+/** Each node's data folder, so a test can start the same device again. */
+const dataDirs = new Map<MeshNode, string>();
+
+async function makeNode(name: string, relay?: () => RelayLink | string, direct?: Direct, dataDir?: string): Promise<MeshNode> {
+  const dir = dataDir ?? (await tmp(`data-${name}`));
+  const node = new MeshNode({ dataDir: dir, name: () => name, vault: memoryVault(), discovery: false, listenHost: "127.0.0.1", relay, direct, onUpdate: () => undefined });
   await node.init();
   nodes.push(node);
+  dataDirs.set(node, dir);
   return node;
 }
 
@@ -230,6 +236,57 @@ describe("nearby transfer between two agents", { timeout: 30_000 }, () => {
     expect(await fs.readFile(path.join(parent, path.basename(root), "mine.txt"), "utf8")).toBe("keep me");
   });
 
+  it("sends only what changed when the receiver points at an earlier copy, and leaves that copy as it was (ADR 0138)", async () => {
+    const { a, b, port } = await paired();
+    const { root, big } = await sourceFolder();
+    const parent = await tmp("dest");
+    const first = await offerTo(a, b, port, root);
+    await b.accept(first.inId, parent);
+    await until(() => stateOf(b, first.inId) === "done");
+    const earlier = b.snapshot().transfers.find((t) => t.id === first.inId)!.destination!;
+
+    // One file edited, the big one grown at its end, one added.
+    await fs.writeFile(path.join(root, "src", "app.ts"), "export const answer = 43;\n");
+    await fs.appendFile(path.join(root, "assets", "big.bin"), "0123456789");
+    await fs.writeFile(path.join(root, "src", "new.ts"), "export const fresh = true;\n");
+    const sent: number[] = [];
+    const real = SecureChannel.prototype.send;
+    vi.spyOn(SecureChannel.prototype, "send").mockImplementation(function (this: SecureChannel, message, body) {
+      if (message.t === "data" && body) sent.push(body.length);
+      // The manifest and the resume points travel as data too: they aren't file bytes.
+      if (message.t === "offer" || message.t === "accept") sent.push(-message.size);
+      return real.call(this, message, body);
+    });
+    const second = await offerTo(a, b, port, root);
+    await b.accept(second.inId, parent, earlier);
+    await until(() => stateOf(a, second.outId) === "done" && stateOf(b, second.inId) === "done");
+
+    const view = b.snapshot().transfers.find((t) => t.id === second.inId) as IncomingView;
+    // README.md and empty.txt whole, and the first two 4 MiB chunks of big.bin.
+    expect(view.reused).toEqual({ files: 2, bytes: "# Harbour Lane\n".length + 2 * 4 * 1024 * 1024 });
+    expect(view.message).toMatch(/2 of them were already on this computer/);
+    const total = sent.reduce((n, x) => n + x, 0);
+    expect(total).toBe(big.length - 2 * 4 * 1024 * 1024 + 10 + "export const answer = 43;\n".length + "export const fresh = true;\n".length);
+    const dest = view.destination!;
+    expect(Buffer.compare(await fs.readFile(path.join(dest, "assets", "big.bin")), Buffer.concat([big, Buffer.from("0123456789")]))).toBe(0);
+    expect(await fs.readFile(path.join(dest, "src", "app.ts"), "utf8")).toBe("export const answer = 43;\n");
+    expect(await fs.readFile(path.join(dest, "README.md"), "utf8")).toBe("# Harbour Lane\n");
+    expect(await fs.readFile(path.join(earlier, "src", "app.ts"), "utf8")).toBe("export const answer = 42;\n");
+    expect(Buffer.compare(await fs.readFile(path.join(earlier, "assets", "big.bin")), big)).toBe(0);
+  });
+
+  it("sends everything when the earlier copy has nothing in common", async () => {
+    const { a, b, port } = await paired();
+    const { root } = await sourceFolder();
+    const parent = await tmp("dest");
+    const unrelated = await tmp("other");
+    await fs.writeFile(path.join(unrelated, "README.md"), "# Something else\n");
+    const { outId, inId } = await offerTo(a, b, port, root);
+    await b.accept(inId, parent, unrelated);
+    await until(() => stateOf(a, outId) === "done" && stateOf(b, inId) === "done");
+    expect((b.snapshot().transfers.find((t) => t.id === inId) as IncomingView).reused).toEqual({ files: 0, bytes: 0 });
+  });
+
   it("writes nothing when the person declines", async () => {
     const { a, b, port } = await paired();
     const { root } = await sourceFolder();
@@ -399,6 +456,40 @@ describe("through Farbaek's relay", { timeout: 60_000 }, () => {
       expect(carried.includes(plain)).toBe(false);
     }
     expect(relay.hub.stats().bufferedBytes).toBe(0);
+  });
+
+  it("waits for a device that's offline, sends once it's back, and keeps waiting across a restart (ADR 0138)", async () => {
+    const { a, b, relay } = await apart();
+    await b.setReachable(false);
+    const { root } = await sourceFolder();
+    const parent = await tmp("dest");
+    const outId = a.sendOverInternet((await a.prepare(root)).id, b.fingerprint, "relay");
+    await until(() => stateOf(a, outId) === "interrupted");
+    await expect(a.queue("not-a-transfer")).rejects.toThrow(/couldn't reach/);
+    await a.queue(outId);
+    const waiting = a.snapshot().transfers.find((t) => t.id === outId)!;
+    expect(waiting.queuedUntil).not.toBeNull();
+    expect(Date.parse(waiting.queuedUntil!) - Date.now()).toBeGreaterThan(23 * 60 * 60_000);
+    expect(waiting.message).toMatch(/Waiting for Laptop\. Farbaek tries again every minute/);
+
+    // A restart of the sending app finds it still waiting, packed again from disk.
+    const again = await makeNode("Desk", () => relay.client("agent-desk"), undefined, dataDirs.get(a));
+    expect(again.snapshot().transfers).toEqual([expect.objectContaining({ direction: "out", state: "interrupted", queuedUntil: expect.any(String), message: expect.stringMatching(/Waiting for Laptop/) })]);
+    await again.close();
+
+    // Still offline: it stays waiting.
+    await a.retryQueued();
+    await until(() => stateOf(a, outId) === "interrupted");
+    expect(a.snapshot().transfers.find((t) => t.id === outId)!.message).toMatch(/Waiting for Laptop/);
+
+    await b.setReachable(true);
+    await a.retryQueued();
+    await until(() => b.snapshot().transfers.some((t) => t.state === "offered"), 20_000);
+    await b.accept(b.snapshot().transfers.find((t) => t.state === "offered")!.id, parent);
+    await until(() => stateOf(a, outId) === "done", 30_000);
+    await a.retryQueued();
+    expect(a.snapshot().transfers.find((t) => t.id === outId)!.queuedUntil).toBeNull();
+    expect(JSON.parse(await fs.readFile(path.join(dataDirs.get(a)!, "mesh-queue.json"), "utf8"))).toEqual({ v: 1, entries: [] });
   });
 
   it("doesn't answer a computer it never paired with, even one claiming to be a paired device", async () => {

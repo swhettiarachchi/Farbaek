@@ -169,9 +169,18 @@ export interface FarbaekAgentBridge {
     pairRemote(open: boolean): Promise<Result<void>>;
     /** Opens the folder dialog for where to save it; false when the person cancels it. */
     accept(id: string): Promise<Result<boolean>>;
+    /**
+     * Opens the folder dialog for an earlier copy of what's arriving (ADR 0138): files it already
+     * has aren't sent again, and the new copy is saved beside it. False when the person cancels it.
+     */
+    acceptUpdate(id: string): Promise<Result<boolean>>;
     decline(id: string): Promise<Result<void>>;
     cancel(id: string): Promise<Result<void>>;
     resume(id: string): Promise<Result<void>>;
+    /** Keeps a transfer that couldn't reach its device waiting for it, for up to a day (ADR 0138). */
+    queue(id: string): Promise<Result<void>>;
+    unqueue(id: string): Promise<Result<void>>;
+    retryQueued(): Promise<Result<void>>;
     dismiss(id: string): Promise<Result<void>>;
     openFolder(id: string): Promise<Result<void>>;
     onUpdate(listener: (snapshot: MeshSnapshot) => void): () => void;

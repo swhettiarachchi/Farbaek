@@ -8,6 +8,7 @@
  */
 import { BrowserWindow, app, dialog, shell } from "electron";
 import os from "node:os";
+import path from "node:path";
 import type { Duplex } from "node:stream";
 import { z } from "zod";
 import { MeshError, MeshNode } from "@/agent-runtime/mesh/node";
@@ -107,9 +108,9 @@ export class DesktopMesh {
     }
   }
 
-  private async chooseFolder(title: string, buttonLabel: string, purpose: "send" | "save"): Promise<string | null> {
+  private async chooseFolder(title: string, buttonLabel: string, purpose: "send" | "save" | "earlier"): Promise<string | null> {
     // Development only, like FARBAEK_AGENT_DATA_DIR: a fixed folder instead of the dialog, so an automated check can drive two windows.
-    const fixed = app.isPackaged ? undefined : process.env[purpose === "send" ? "FARBAEK_AGENT_TEST_SEND_FOLDER" : "FARBAEK_AGENT_TEST_SAVE_FOLDER"];
+    const fixed = app.isPackaged ? undefined : process.env[purpose === "send" ? "FARBAEK_AGENT_TEST_SEND_FOLDER" : purpose === "earlier" ? "FARBAEK_AGENT_TEST_EARLIER_FOLDER" : "FARBAEK_AGENT_TEST_SAVE_FOLDER"];
     if (fixed) return fixed;
     const window = this.deps.window();
     const options = { title, buttonLabel, defaultPath: os.homedir(), properties: ["openDirectory", "createDirectory"] as ("openDirectory" | "createDirectory")[] };
@@ -147,9 +148,21 @@ export class DesktopMesh {
         return true;
       }),
     );
+    // Update an earlier copy (ADR 0138): the earlier copy is only read, and the new copy goes beside it.
+    handle("mesh:accept-update", Id, (id) =>
+      this.attempt(async (n) => {
+        const earlier = await this.chooseFolder("Choose the earlier copy", "Use this copy", "earlier");
+        if (!earlier) return false;
+        await n.accept(id, path.dirname(earlier), earlier);
+        return true;
+      }),
+    );
     handle("mesh:decline", Id, (id) => this.attempt((n) => n.decline(id)));
     handle("mesh:cancel", Id, (id) => this.attempt((n) => n.cancel(id)));
     handle("mesh:resume", Id, (id) => this.attempt((n) => n.resume(id)));
+    handle("mesh:queue", Id, (id) => this.attempt((n) => n.queue(id)));
+    handle("mesh:unqueue", Id, (id) => this.attempt((n) => n.unqueue(id)));
+    handle("mesh:retry-queued", z.undefined(), () => this.attempt((n) => n.retryQueued()));
     handle("mesh:dismiss", Id, (id) => this.attempt((n) => n.dismiss(id)));
     handle("mesh:open-folder", Id, (id) =>
       this.attempt(async (n) => {

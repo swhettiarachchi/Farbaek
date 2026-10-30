@@ -2,7 +2,9 @@ import {
   ArrowCounterClockwiseIcon,
   ArrowDownLeftIcon,
   ArrowUpRightIcon,
+  ArrowsClockwiseIcon,
   BroadcastIcon,
+  ClockCountdownIcon,
   CheckCircleIcon,
   CircleNotchIcon,
   FolderOpenIcon,
@@ -183,9 +185,16 @@ function Nearby({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: stri
             in it runs.
           </p>
           <Excluded items={t.excluded} count={t.excludedCount} />
+          <p className="small muted">
+            Already have an earlier copy of it on this computer? Choose Update an earlier copy: only what changed is sent, the new copy is saved beside the earlier one, and the
+            earlier one isn&apos;t changed.
+          </p>
           <div className="row-start">
             <button className="btn btn-primary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("accept", () => mesh.accept(t.id))}>
               <FolderOpenIcon size={16} aria-hidden /> Accept and choose folder
+            </button>
+            <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("accept-update", () => mesh.acceptUpdate(t.id))}>
+              <ArrowsClockwiseIcon size={16} aria-hidden /> Update an earlier copy
             </button>
             <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("decline", () => mesh.decline(t.id))}>
               Decline
@@ -467,7 +476,8 @@ function SendCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: st
 }
 
 function TransferRow({ transfer: t, busy, act }: { transfer: MeshSnapshot["transfers"][number]; busy: string | null; act: Act }) {
-  const st = STATE[t.state];
+  // A transfer waiting for its device (ADR 0138) isn't stuck: it says so.
+  const st = t.queuedUntil && t.state === "interrupted" ? { label: "Waiting for it", icon: ClockCountdownIcon, tone: "approval", spin: false } : STATE[t.state];
   const pct = t.bytes === 0 ? (t.state === "done" ? 100 : 0) : Math.min(100, Math.round((t.bytesDone / t.bytes) * 100));
   const DirIcon = t.direction === "out" ? ArrowUpRightIcon : ArrowDownLeftIcon;
   return (
@@ -496,8 +506,33 @@ function TransferRow({ transfer: t, busy, act }: { transfer: MeshSnapshot["trans
           <GlobeSimpleIcon size={14} aria-hidden /> {t.via === "direct" ? "Directly over the internet, encrypted end to end" : "Through Farbaek, encrypted end to end"}
         </p>
       ) : null}
+      {t.direction === "in" && t.reused.bytes > 0 ? (
+        <p className="small muted">
+          <ArrowsClockwiseIcon size={14} aria-hidden /> {formatBytes(t.reused.bytes)} copied from the earlier copy on this computer instead of sent
+        </p>
+      ) : null}
+      {t.queuedUntil ? (
+        <p className="small muted">
+          <ClockCountdownIcon size={14} aria-hidden /> Waits until <time dateTime={t.queuedUntil}>{new Date(t.queuedUntil).toLocaleString()}</time>
+        </p>
+      ) : null}
       {t.message ? <p className="small">{t.message}</p> : null}
       <div className="row-start">
+        {t.direction === "out" && t.state === "interrupted" && t.queuedUntil ? (
+          <>
+            <button className="btn btn-primary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("retry", () => mesh.retryQueued())}>
+              <ArrowCounterClockwiseIcon size={16} aria-hidden /> Try now
+            </button>
+            <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("unqueue", () => mesh.unqueue(t.id))}>
+              Stop waiting
+            </button>
+          </>
+        ) : null}
+        {t.direction === "out" && t.state === "interrupted" && !t.queuedUntil && !t.canUseRelay ? (
+          <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("queue", () => mesh.queue(t.id))}>
+            <ClockCountdownIcon size={16} aria-hidden /> Send when it&apos;s back
+          </button>
+        ) : null}
         {t.direction === "in" && t.state === "done" ? (
           <button className="btn btn-secondary btn-sm" type="button" onClick={() => void act("open", () => mesh.openFolder(t.id))}>
             <FolderOpenIcon size={16} aria-hidden /> Open folder
@@ -508,7 +543,7 @@ function TransferRow({ transfer: t, busy, act }: { transfer: MeshSnapshot["trans
             <GlobeSimpleIcon size={16} aria-hidden /> Send through Farbaek instead
           </button>
         ) : null}
-        {t.direction === "out" && t.state === "interrupted" ? (
+        {t.direction === "out" && t.state === "interrupted" && !t.queuedUntil ? (
           <button className={`btn ${t.canUseRelay ? "btn-secondary" : "btn-primary"} btn-sm`} type="button" disabled={busy !== null} onClick={() => void act("resume", () => mesh.resume(t.id))}>
             <ArrowCounterClockwiseIcon size={16} aria-hidden /> {t.canUseRelay ? "Try directly again" : "Resume"}
           </button>
