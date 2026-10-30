@@ -99,6 +99,12 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
                 <Link href={`/app/projects/${project.id}/github`} className={buttonClasses("secondary", "sm")}>
                   <GithubLogoIcon size={16} aria-hidden /> GitHub
                 </Link>
+                {/* Apps with a build step get the component editor (ADR 0129); static sites open it from the live preview below. */}
+                {!isStatic && files.some((f) => /.(tsx|jsx)$/.test(f.path)) ? (
+                  <Link href={`/app/projects/${project.id}/design`} className={buttonClasses("secondary", "sm")}>
+                    <PaintBrushIcon size={16} aria-hidden /> Edit components
+                  </Link>
+                ) : null}
               </div>
             }
           />

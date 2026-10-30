@@ -3,7 +3,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EmptyState, Notice, PageHeader } from "@/components/app/primitives";
+import { ComponentEditor } from "@/components/studio/component-editor";
 import { VisualEditor } from "@/components/studio/visual-editor";
+import { componentFiles, isTailwindProject } from "@/core/studio/jsx-edit";
 import { ButtonLink } from "@/components/ui/button";
 import { runProfile } from "@/content/starters";
 import { sitePages } from "@/core/workspace/static-preview";
@@ -35,6 +37,17 @@ export default async function DesignPage({ params, searchParams }: { params: Pro
   const text = contents ? Object.fromEntries(contents.map((f) => [f.path, f.content])) : null;
   const pages = text ? sitePages(text) : [];
   const images = pages.length > 0 && files.some((f) => f.encoding === "base64") ? await previewImages(ctx.reader, ctx.current.id, project.id) : undefined;
+  // Apps with a build step (ADR 0129): their components, plus the files that say whether Tailwind is in use.
+  const components = isStatic ? [] : componentFiles(files.filter((f) => f.encoding !== "base64").map((f) => f.path));
+  const componentBytes = files.filter((f) => components.includes(f.path)).reduce((n, f) => n + f.sizeBytes, 0);
+  const componentText =
+    components.length && componentBytes <= MAX_TEXT_BYTES
+      ? await ctx.reader
+          .getProjectContents(ctx.current.id, project.id)
+          .catch(() => null)
+      : null;
+  const componentContents = componentText ? Object.fromEntries(componentText.filter((f) => components.includes(f.path)).map((f) => [f.path, f.content])) : null;
+  const tailwind = componentText ? isTailwindProject(Object.fromEntries(componentText.filter((f) => f.path === "package.json" || /.css$|tailwind.config./.test(f.path)).map((f) => [f.path, f.content]))) : false;
   const saved = Number(typeof query.saved === "string" ? query.saved : 0);
   const initialPage = typeof query.page === "string" ? query.page : null;
 
@@ -50,7 +63,11 @@ export default async function DesignPage({ params, searchParams }: { params: Pro
             : null;
 
   const unavailable = !isStatic
-    ? "The visual editor works on static sites made of HTML and CSS. This project has a build step, so change it in code or describe the change to the agent."
+    ? components.length === 0
+      ? "This project has a build step but no React components (.tsx or .jsx) to edit. Change it in code or describe the change to the agent."
+      : componentBytes > MAX_TEXT_BYTES
+        ? "This app's components are over 3 MB, more than the component editor loads at once. Change it in code or describe the change to the agent."
+        : null
     : textBytes > MAX_TEXT_BYTES
       ? "This site's text files are over 3 MB, more than the visual editor loads at once. Change it in code or describe the change to the agent."
       : pages.length === 0
@@ -63,10 +80,17 @@ export default async function DesignPage({ params, searchParams }: { params: Pro
         <Link href={`/app/projects/${project.id}`} className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
           <ArrowLeftIcon size={16} aria-hidden /> {project.name}
         </Link>
-        <PageHeader
-          title="Visual editor"
-          description="Pick an element in the page and change its words, link or style. Each change is an edit to the site's own HTML and CSS, which you review as a diff before it's saved."
-        />
+        {isStatic ? (
+          <PageHeader
+            title="Visual editor"
+            description="Pick an element in the page and change its words, link or style. Each change is an edit to the site's own HTML and CSS, which you review as a diff before it's saved."
+          />
+        ) : (
+          <PageHeader
+            title="Component editor"
+            description="Choose a component and an element in it, then change its words or Tailwind classes. Each change is an edit to the component's own JSX, which you review as a diff before it's saved."
+          />
+        )}
       </div>
 
       {saved > 0 ? (
@@ -75,7 +99,16 @@ export default async function DesignPage({ params, searchParams }: { params: Pro
         </Notice>
       ) : null}
 
-      {unavailable || !text ? (
+      {!isStatic && !unavailable && componentContents ? (
+        <ComponentEditor
+          key={files.map((f) => `${f.path}@${f.revision}`).join("|")}
+          projectId={project.id}
+          files={componentContents}
+          revisions={Object.fromEntries(files.map((f) => [f.path, f.revision]))}
+          tailwind={tailwind}
+          disabledReason={saveReason}
+        />
+      ) : unavailable || !text ? (
         <EmptyState
           icon={PaintBrushIcon}
           title="Not available for this project"
@@ -85,7 +118,7 @@ export default async function DesignPage({ params, searchParams }: { params: Pro
             </ButtonLink>
           }
         >
-          {unavailable ?? "The site's files couldn't be read just now. Reload the page to try again."}
+          {unavailable ?? "The project's files couldn't be read just now. Reload the page to try again."}
         </EmptyState>
       ) : (
         <VisualEditor
