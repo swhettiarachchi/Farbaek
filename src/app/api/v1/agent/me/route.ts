@@ -10,5 +10,5 @@ export function GET(request: Request) {
     const profile = await agentProfile(store, agent);
     if (!profile.ok) return fromAgentResult(profile);
     return json({ data: { ...profile.value, sandbox: sandboxExecutionMode() } });
-  });
+  }, { bucket: "agent", perMinute: 120 }, "none");
 }

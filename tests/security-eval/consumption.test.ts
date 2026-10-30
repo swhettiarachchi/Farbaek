@@ -11,7 +11,7 @@ import type { AgentIdentity } from "@/server/agent/service";
 import { obedientModel, project, recordingRunner, run, tool, type Project } from "./support";
 
 const TASK = "22222222-2222-4222-8222-222222222222";
-const agent: AgentIdentity = { agentId: "agent-1", orgId: "o1", userId: "user-1", role: "member", name: "Eval PC" };
+const agent: AgentIdentity = { agentId: "agent-1", orgId: "o1", userId: "user-1", role: "member", name: "Eval PC", lease: { expiresAt: "2099-01-01T00:00:00Z", projects: null, capabilities: ["read", "propose", "model", "mesh"], actionsPerHour: 600 } };
 
 let p: Project | null = null;
 afterEach(async () => {

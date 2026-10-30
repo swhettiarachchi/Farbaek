@@ -12,7 +12,7 @@ import { TASK_STATES } from "@/core/realityloop/task-machine";
 import { ORGANIZATION_SELECT, billingSnapshotFromRow } from "@/server/workspace/organizations";
 import { ORG_ROLES } from "@/server/workspace/types";
 import type { RpcResult } from "@/server/workspace/use-cases";
-import type { AgentStore } from "./service";
+import { AGENT_CAPABILITIES, type AgentStore } from "./service";
 import { policyRecord } from "@/core/trust/policy";
 import { readActiveRules } from "@/server/workspace/workspace-rules";
 
@@ -34,11 +34,32 @@ export function createSupabaseAgentStore(admin: SupabaseClient): AgentStore {
       const r = await rpc(
         "app_agent_session",
         { p_token_sha256: tokenSha256 },
-        z.array(z.object({ agent_id: z.string(), org_id: z.string(), user_id: z.string(), role: z.enum(ORG_ROLES).nullable(), name: z.string() })),
+        z.array(
+          z.object({
+            agent_id: z.string(),
+            org_id: z.string(),
+            user_id: z.string(),
+            role: z.enum(ORG_ROLES).nullable(),
+            name: z.string(),
+            lease_expires_at: z.string(),
+            lease_projects: z.array(z.string()).nullable(),
+            lease_capabilities: z.array(z.enum(AGENT_CAPABILITIES)),
+            lease_actions_per_hour: z.number().int(),
+          }),
+        ),
       );
       if (!r.ok) throw new Error(`Couldn't resolve the agent: ${r.error}`);
       const row = r.value[0];
-      return row ? { agentId: row.agent_id, orgId: row.org_id, userId: row.user_id, role: row.role, name: row.name } : null;
+      return row
+        ? {
+            agentId: row.agent_id,
+            orgId: row.org_id,
+            userId: row.user_id,
+            role: row.role,
+            name: row.name,
+            lease: { expiresAt: row.lease_expires_at, projects: row.lease_projects, capabilities: row.lease_capabilities, actionsPerHour: row.lease_actions_per_hour },
+          }
+        : null;
     },
 
     async rateLimit(key, windowSeconds, limit) {

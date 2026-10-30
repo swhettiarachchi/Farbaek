@@ -30,6 +30,8 @@ export interface Profile {
   role: string;
   canPropose: boolean;
   sandbox: { mode: "sandboxed"; provider: string } | { mode: "review_only"; reason: string };
+  /** What this agent may do, where and until when (ADR 0117). Missing from older servers. */
+  lease?: { expiresAt: string; projects: string[] | null; capabilities: string[]; actionsPerHour: number };
 }
 
 export interface TaskSummary {

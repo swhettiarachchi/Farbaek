@@ -93,6 +93,12 @@ function StateBadge({ run }: { run: Pick<RunDetail, "state" | "discarded" | "pro
   );
 }
 
+/** A lease within 14 days of its end (ADR 0117), the same warning the Agents page shows. */
+function leaseEndsSoon(expiresAt: string): boolean {
+  const left = Date.parse(expiresAt) - Date.now();
+  return Number.isFinite(left) && left < 14 * 86_400_000;
+}
+
 function Alert({ children }: { children: ReactNode }) {
   return (
     <p role="alert" className="alert">
@@ -205,7 +211,16 @@ function TasksView({ state, onRunStarted }: { state: AppState; onRunStarted: (ru
         </button>
       </header>
       {error ? <Alert>{error}</Alert> : null}
-      {profile && !profile.canPropose ? <Alert>You can only view this workspace, so the agent can&apos;t propose changes. Ask an owner for a member role.</Alert> : null}
+      {profile && !profile.canPropose ? (
+        <Alert>
+          {profile.lease && !profile.lease.capabilities.includes("propose")
+            ? "This agent's lease doesn't allow proposing changes. An owner, an admin or the person who paired it can change the lease on the Agents page in Farbaek."
+            : "You can only view this workspace, so the agent can't propose changes. Ask an owner for a member role."}
+        </Alert>
+      ) : null}
+      {profile?.lease && leaseEndsSoon(profile.lease.expiresAt) ? (
+        <Alert>This agent&apos;s lease ends on {time(profile.lease.expiresAt)}. Renew it on the Agents page in Farbaek to keep the agent working.</Alert>
+      ) : null}
       {tasks === null && !error ? <p className="muted">Loading tasks…</p> : null}
       {tasks?.length === 0 ? (
         <div className="empty">
@@ -257,7 +272,9 @@ function TaskPanel({ taskId, profile, onRunStarted }: { taskId: string; profile:
     : !task.ready || !task.contract
       ? "This task isn't waiting for a change anymore. Refresh the list."
       : profile && !profile.canPropose
-        ? "Your role can't propose changes."
+        ? profile.lease && !profile.lease.capabilities.includes("propose")
+          ? "This agent's lease doesn't allow proposing changes."
+          : "Your role can't propose changes."
         : null;
 
   async function start() {

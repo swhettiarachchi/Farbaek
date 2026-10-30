@@ -79,7 +79,7 @@ export function ModulesBento() {
 
           <Cell
             title="Trust"
-            body="Policy, approvals, autonomy limits and audit, enforced on the server. A prompt is never a security boundary."
+            body="Policy, approvals, agent leases, autonomy limits and audit, enforced on the server. A prompt is never a security boundary."
             className="bg-canvas-2 md:col-span-2"
           >
             <div aria-hidden className="dot-grid pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_bottom,transparent,black)]" />

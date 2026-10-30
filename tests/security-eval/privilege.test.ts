@@ -1,11 +1,15 @@
 /**
- * Identity and privilege abuse, and trust in approvals (ASI03, ASI08, ASI09):
- * an approval reused for something else, sensitive changes slipping through
- * autonomy, and a payment webhook forged to buy a plan.
+ * Identity and privilege abuse, and trust in approvals (ASI03, ASI08, ASI09,
+ * ASI10): an approval reused for something else, sensitive changes slipping
+ * through autonomy, a payment webhook forged to buy a plan, and a paired agent
+ * acting past or outside its permission lease.
  */
 import { afterEach, describe, expect, it } from "vitest";
 import { approvalBindingHash, checkApprovalForExecution, type ApprovalSubject } from "@/core/trust/approval";
 import { evaluateChangePolicy, type AutonomyLimits } from "@/core/trust/policy";
+import { leaseRefusal, type AgentLease } from "@/core/agent/lease";
+import { callModel, type GatewayDeps, type GatewayModel } from "@/server/agent/gateway";
+import { agentTask, listAgentTasks, type AgentIdentity, type AgentStore } from "@/server/agent/service";
 import type { AppliedState } from "@/core/billing/provider-state";
 import { createDodoClient } from "@/server/billing/providers/dodo/client";
 import { signWebhook } from "@/server/billing/providers/dodo/webhook";
@@ -82,6 +86,66 @@ describe("SE-009 Sensitive files slipping through autonomy", () => {
     expect((await evaluateChangePolicy({ rules: null, files: many, contractViolations: [], autonomy: { ...LEVEL_2, maxFiles: 5 }, verifiable: true })).outcome).toBe("ESCALATE");
     // The control: an ordinary small change does apply on its own, so the refusals above come from the risk.
     expect((await evaluateChangePolicy({ rules: null, files: [{ path: "docs/intro.md", kind: "edit" }], contractViolations: [], autonomy: LEVEL_2, verifiable: true })).outcome).toBe("ALLOW_WITHIN_LIMITS");
+  });
+});
+
+describe("SE-036 An agent past or outside its lease", () => {
+  const MINE = "33333333-3333-4333-8333-333333333333";
+  const THEIRS = "44444444-4444-4444-8444-444444444444";
+  const TASK_ID = "22222222-2222-4222-8222-222222222222";
+  const lease: AgentLease = { expiresAt: "2026-12-01T00:00:00Z", projects: [MINE], capabilities: ["read"], actionsPerHour: 100 };
+  const agent: AgentIdentity = { agentId: "agent-1", orgId: "o1", userId: "user-1", role: "member", name: "Eval PC", lease };
+  const tasks = [
+    { id: "t-mine", title: "Mine", projectId: MINE, projectName: "Mine", updatedAt: "2026-10-23T09:00:00Z" },
+    { id: "t-theirs", title: "Theirs", projectId: THEIRS, projectName: "Theirs", updatedAt: "2026-10-23T09:00:00Z" },
+  ];
+  // Only what these calls read; anything else would throw.
+  const store = {
+    readyTasks: async () => tasks,
+    loadTask: async (_o: string, id: string) => {
+      const t = tasks.find((x) => x.id === id);
+      return t ? { id: t.id, title: t.title, projectId: t.projectId, state: "CONTRACT_APPROVED" as const, version: 1 } : null;
+    },
+  } as unknown as AgentStore;
+
+  it("does nothing but unpair once the lease ends, and fails closed on a bad end date", () => {
+    const later = new Date("2026-12-02T00:00:00Z");
+    for (const need of ["read", "propose", "model", "mesh", "none"] as const) expect(leaseRefusal(lease, need, later)).toMatchObject({ code: "LEASE_EXPIRED" });
+    expect(leaseRefusal(lease, "unpair", later)).toBeNull();
+    expect(leaseRefusal({ ...lease, expiresAt: "soon" }, "read", NOW)).toMatchObject({ code: "LEASE_EXPIRED" });
+  });
+
+  it("refuses what the lease doesn't allow", () => {
+    expect(leaseRefusal(lease, "read", NOW)).toBeNull();
+    for (const need of ["propose", "model", "mesh"] as const) expect(leaseRefusal(lease, need, NOW)).toMatchObject({ code: "OUTSIDE_LEASE" });
+  });
+
+  it("hides and refuses tasks in projects outside the lease", async () => {
+    expect(await listAgentTasks(store, agent)).toMatchObject({ ok: true, value: [{ id: "t-mine" }] });
+    expect(await agentTask(store, agent, "t-theirs")).toMatchObject({ ok: false, status: 403 });
+  });
+
+  it("refuses a model step for a task outside the lease before reserving usage or calling the model", async () => {
+    const used: string[] = [];
+    const deps = {
+      loadTask: async () => ({ id: TASK_ID, state: "CONTRACT_APPROVED" as const, projectId: THEIRS }),
+      rateLimit: async () => true,
+      billing: async () => ({ state: "active" as const, paidPlanId: "pro" as const }),
+      now: () => NOW,
+      newEventId: () => "k",
+      listUsageGrants: async () => [],
+      reserveUsage: async () => (used.push("reserve"), { ok: true as const, value: "e" }),
+      settleUsage: async () => (used.push("settle"), { ok: true as const, value: null }),
+    } satisfies GatewayDeps;
+    const model: GatewayModel = { family: "anthropic", call: async () => (used.push("model"), { ok: false, error: "unreachable" }) as never };
+    const r = await callModel(deps, model, { ...agent, lease: { ...lease, capabilities: ["read", "model"] } }, {
+      taskId: TASK_ID,
+      system: "You are the Farbaek Agent.",
+      tools: [{ name: "read_file", description: "Read a file.", input_schema: { type: "object", properties: { path: { type: "string" } } } }],
+      messages: [{ role: "user", content: "Rename the checkout button." }],
+    });
+    expect(r).toMatchObject({ ok: false, status: 403 });
+    expect(used).toEqual([]);
   });
 });
 

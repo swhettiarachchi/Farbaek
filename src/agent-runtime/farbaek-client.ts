@@ -44,6 +44,8 @@ const Profile = z.object({
   role: z.enum(["owner", "admin", "member", "viewer"]),
   canPropose: z.boolean(),
   sandbox: z.union([z.object({ mode: z.literal("sandboxed"), provider: z.string() }), z.object({ mode: z.literal("review_only"), reason: z.string() })]),
+  // The agent's permission lease (ADR 0117). Older servers don't send it.
+  lease: z.object({ expiresAt: z.string(), projects: z.array(z.string()).nullable(), capabilities: z.array(z.string()), actionsPerHour: z.number().int() }).optional(),
 });
 export type AgentProfile = z.infer<typeof Profile>;
 

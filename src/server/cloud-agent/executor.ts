@@ -331,9 +331,12 @@ async function execute(
 
     // What the run's settled steps have cost so far; refused steps were refunded and cost nothing.
     let spentUnits = 0;
+    const startedAt = Date.now();
     const step = async (request: ModelStepRequest, signal?: AbortSignal): Promise<ModelStepReply> => {
       const budget = r.capUnits === null ? {} : { remainingUnits: Math.max(0, r.capUnits - spentUnits) };
-      const result = await callModel(deps.gateway.deps, deps.gateway.model, { agentId: `run:${runId}`, orgId: person.orgId, userId: person.userId, role: person.role, name: "Farbaek Agent" }, request, signal, budget);
+      // The run's own lease (ADR 0117): this task's project and Farbaek's AI, for as long as a run can last.
+      const lease = { expiresAt: new Date(startedAt + 2 * CLOUD_RUN_MAX_MINUTES * 60_000).toISOString(), projects: [r.task.projectId], capabilities: ["model" as const], actionsPerHour: 5_000 };
+      const result = await callModel(deps.gateway.deps, deps.gateway.model, { agentId: `run:${runId}`, orgId: person.orgId, userId: person.userId, role: person.role, name: "Farbaek Agent", lease }, request, signal, budget);
       if (!result.ok) throw new FarbaekApiError(result.status, result.code, result.message);
       if (result.value.message.stop_reason !== "refusal") spentUnits += stepUnits(result.value.message);
       // The gateway's reply is Claude's message as it came; its content blocks all carry a type.

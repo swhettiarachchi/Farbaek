@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { INTENT_CONTRACT_SCHEMA, type IntentContract } from "@/core/realityloop/contract";
 import { sha256Hex } from "@/core/trust/canonical-json";
-import { agentProposal, agentTaskFiles, pairAgent, submitAgentProposal, type AgentIdentity, type AgentProposalStatus, type AgentStore } from "./service";
+import { agentProfile, agentProposal, agentTask, agentTaskFiles, listAgentTasks, pairAgent, submitAgentProposal, type AgentIdentity, type AgentProposalStatus, type AgentStore } from "./service";
 import { newPairingCode, normalizePairingCode, sha256 } from "./tokens";
 
 const ORG = "11111111-1111-4111-8111-111111111111";
@@ -67,7 +67,7 @@ function fakeStore(over: Partial<AgentStore> = {}) {
   return { store, calls };
 }
 
-const agent: AgentIdentity = { agentId: "agent-1", orgId: ORG, userId: "user-1", role: "member", name: "Office PC" };
+const agent: AgentIdentity = { agentId: "agent-1", orgId: ORG, userId: "user-1", role: "member", name: "Office PC", lease: { expiresAt: "2099-01-01T00:00:00Z", projects: null, capabilities: ["read", "propose", "model", "mesh"], actionsPerHour: 600 } };
 
 const OWN: AgentProposalStatus = {
   id: "44444444-4444-4444-8444-444444444444",
@@ -194,5 +194,36 @@ describe("proposal status (ADR 0042)", () => {
   it("refuses once the person who paired it has left the workspace", async () => {
     const { store } = fakeStore();
     expect(await agentProposal(store, { ...agent, role: null }, OWN.id)).toMatchObject({ ok: false, status: 401, code: "UNAUTHENTICATED" });
+  });
+});
+
+describe("permission leases (ADR 0117)", () => {
+  const OTHER = "55555555-5555-4555-8555-555555555555";
+  const elsewhere: AgentIdentity = { ...agent, lease: { ...agent.lease, projects: [OTHER] } };
+
+  it("lists only the tasks in the lease's projects", async () => {
+    const { store } = fakeStore({
+      readyTasks: async () => [
+        { id: TASK, title: "Docs", projectId: PROJECT, projectName: "Storefront", updatedAt: "2026-10-18T10:00:00Z" },
+        { id: "t-2", title: "Logo", projectId: OTHER, projectName: "Brand", updatedAt: "2026-10-18T10:00:00Z" },
+      ],
+    });
+    expect(await listAgentTasks(store, agent)).toMatchObject({ ok: true, value: [{ id: TASK }, { id: "t-2" }] });
+    expect(await listAgentTasks(store, elsewhere)).toMatchObject({ ok: true, value: [{ id: "t-2" }] });
+  });
+
+  it("refuses a task, its files and a proposal outside the lease's projects", async () => {
+    const { store, calls } = fakeStore();
+    expect(await agentTask(store, elsewhere, TASK)).toMatchObject({ ok: false, status: 403, code: "FORBIDDEN", message: expect.stringContaining("lease") });
+    expect(await agentTaskFiles(store, elsewhere, TASK, null)).toMatchObject({ ok: false, status: 403, code: "FORBIDDEN" });
+    expect(await submitAgentProposal(store, elsewhere, TASK, await body())).toMatchObject({ ok: false, status: 403, code: "FORBIDDEN" });
+    expect(calls.create).toBeUndefined();
+    expect(await agentTask(store, { ...agent, lease: { ...agent.lease, projects: [PROJECT] } }, TASK)).toMatchObject({ ok: true });
+  });
+
+  it("tells the app its lease, and that it can't propose without the capability", async () => {
+    const { store } = fakeStore();
+    expect(await agentProfile(store, agent)).toMatchObject({ ok: true, value: { canPropose: true, lease: agent.lease } });
+    expect(await agentProfile(store, { ...agent, lease: { ...agent.lease, capabilities: ["read"] } })).toMatchObject({ ok: true, value: { canPropose: false } });
   });
 });

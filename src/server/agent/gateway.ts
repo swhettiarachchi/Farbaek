@@ -22,7 +22,7 @@ import { approxTokens, costUnits } from "@/core/billing/rate-card";
 import type { TaskState } from "@/core/realityloop/task-machine";
 import type { DraftFailure, ProviderUsage } from "@/server/ai/contract-drafter";
 import { percentAfter, refundUsage, reserveUsage, resolvePlan, settleUsage, unitsFor, type AiUsageDeps, type UsageContext } from "@/server/workspace/ai-usage";
-import { agentFail, requireAgentContributor, type AgentIdentity, type AgentResult } from "./service";
+import { OUTSIDE_LEASE, agentFail, requireAgentContributor, type AgentIdentity, type AgentResult } from "./service";
 
 /** The most a step may write, thinking included. */
 export const STEP_MAX_OUTPUT_TOKENS = 32_000;
@@ -93,7 +93,7 @@ export interface GatewayModel {
 }
 
 export interface GatewayDeps extends UsageContext, AiUsageDeps {
-  loadTask(orgId: string, taskId: string): Promise<{ id: string; state: TaskState } | null>;
+  loadTask(orgId: string, taskId: string): Promise<{ id: string; state: TaskState; projectId?: string } | null>;
   rateLimit(key: string, windowSeconds: number, limit: number): Promise<boolean>;
 }
 
@@ -159,6 +159,8 @@ export async function callModel(
 
   const task = await deps.loadTask(agent.orgId, body.taskId);
   if (!task) return agentFail("NOT_FOUND", "That task doesn't exist or isn't in this workspace.");
+  // A lease limited to some projects (ADR 0117) covers only their tasks; a task whose project isn't known isn't covered.
+  if (agent.lease.projects !== null && (!task.projectId || !agent.lease.projects.includes(task.projectId))) return agentFail("FORBIDDEN", OUTSIDE_LEASE);
   if (task.state !== "CONTRACT_APPROVED") return agentFail("INVALID_TRANSITION", "The agent works on a task once its contract is approved and no other proposal is open.");
 
   const billing = await resolvePlan(deps, agent.orgId);

@@ -12,6 +12,7 @@
  */
 import { z } from "zod";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
+import type { AgentLease } from "@/core/agent/lease";
 import { AGENT_MODES } from "@/core/agent/modes";
 import { checkQuota } from "@/core/billing/entitlements";
 import { resolveEffectivePlan, type BillingSnapshot } from "@/core/billing/trial";
@@ -35,6 +36,17 @@ export interface AgentIdentity {
   /** The paired person's role now; null once they've left the workspace. */
   role: OrgRole | null;
   name: string;
+  /** What the agent may do, where, and until when (ADR 0117). Checked on every request. */
+  lease: AgentLease;
+}
+
+export { AGENT_CAPABILITIES, type AgentCapability, type AgentLease } from "@/core/agent/lease";
+
+export const OUTSIDE_LEASE = "This agent's lease doesn't cover that project. An owner, an admin or the person who paired it can widen the lease on the Agents page.";
+
+/** Whether the agent's lease covers a project. */
+export function leaseCoversProject(id: Pick<AgentIdentity, "lease">, projectId: string): boolean {
+  return id.lease.projects === null || id.lease.projects.includes(projectId);
 }
 
 export interface AgentTaskSummary {
@@ -203,7 +215,8 @@ export async function agentProfile(store: AgentStore, id: AgentIdentity) {
       agent: { id: id.agentId, name: id.name },
       workspace: { id: id.orgId, name: (await store.workspaceName(id.orgId)) ?? "Workspace" },
       role: member.value,
-      canPropose: CONTRIBUTOR_ROLES.includes(member.value),
+      canPropose: CONTRIBUTOR_ROLES.includes(member.value) && id.lease.capabilities.includes("propose"),
+      lease: id.lease,
     },
   };
 }
@@ -211,7 +224,7 @@ export async function agentProfile(store: AgentStore, id: AgentIdentity) {
 export async function listAgentTasks(store: AgentStore, id: AgentIdentity): Promise<AgentResult<AgentTaskSummary[]>> {
   const member = requireMember(id);
   if (!member.ok) return member;
-  return { ok: true, value: await store.readyTasks(id.orgId) };
+  return { ok: true, value: (await store.readyTasks(id.orgId)).filter((t) => leaseCoversProject(id, t.projectId)) };
 }
 
 export async function agentTask(store: AgentStore, id: AgentIdentity, taskId: string) {
@@ -219,6 +232,7 @@ export async function agentTask(store: AgentStore, id: AgentIdentity, taskId: st
   if (!member.ok) return member;
   const task = await store.loadTask(id.orgId, taskId);
   if (!task) return agentFail("NOT_FOUND", "There's no such task in this workspace.");
+  if (!leaseCoversProject(id, task.projectId)) return agentFail("FORBIDDEN", OUTSIDE_LEASE);
   const [contract, project, files] = await Promise.all([store.approvedContract(id.orgId, task.id), store.project(id.orgId, task.projectId), store.projectFiles(id.orgId, task.projectId)]);
   if (!project) return agentFail("NOT_FOUND", "The task's project doesn't exist anymore.");
   return {
@@ -246,6 +260,7 @@ export async function agentTaskFiles(store: AgentStore, id: AgentIdentity, taskI
   if (!member.ok) return member;
   const task = await store.loadTask(id.orgId, taskId);
   if (!task) return agentFail("NOT_FOUND", "There's no such task in this workspace.");
+  if (!leaseCoversProject(id, task.projectId)) return agentFail("FORBIDDEN", OUTSIDE_LEASE);
   const all = await store.projectFiles(id.orgId, task.projectId);
   const rest = after === null ? all : all.filter((f) => f.path > after);
   const page: AgentProjectFile[] = [];
@@ -405,6 +420,8 @@ export async function submitAgentProposal(store: AgentStore, id: AgentIdentity, 
   const role = requireAgentContributor(id);
   if (!role.ok) return role;
   if (!(await store.rateLimit(`agent:propose:${id.agentId}`, 60, 10))) return agentFail("RATE_LIMITED", "Too many proposals from this agent in the last minute.");
+  const task = await store.loadTask(id.orgId, taskId);
+  if (task && !leaseCoversProject(id, task.projectId)) return agentFail("FORBIDDEN", OUTSIDE_LEASE);
   const prepared = await prepareAgentProposal(store, id, { kind: "agent", agentId: id.agentId }, taskId, body);
   if (!prepared.ok) return prepared;
   const created = await store.createAgentProposal({ agentId: id.agentId, ...prepared.value.input });

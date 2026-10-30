@@ -69,6 +69,7 @@ export type WriteErrorCode =
   | "PAIRING_CLOSED"
   | "INVALID_PAIRING"
   | "AGENT_REVOKED"
+  | "INVALID_LEASE"
   | "AI_UNAVAILABLE"
   | "AI_REFUSED"
   | "AI_INCOMPLETE"
@@ -203,6 +204,7 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   PAIRING_CLOSED: "This pairing code was already used or has expired. Create a new code in Farbaek.",
   INVALID_PAIRING: "The pairing code isn't valid. Create a new code and try again.",
   AGENT_REVOKED: "This agent was revoked. Pair the app again to keep using it.",
+  INVALID_LEASE: "This lease isn't valid. It lasts 1 to 90 days, allows at least one thing, covers projects in this workspace and 10 to 5,000 requests an hour.",
   WORKSPACE_SUSPENDED: "Farbaek has paused this workspace, so nothing in it can change right now. The notice at the top of the page says why and how to reach us.",
   PAUSED_BY_FARBAEK: "Farbaek has paused this for everyone for a short while. Your work is safe; try again soon.",
   SITE_BLOCKED: "Farbaek has taken this site offline, so it can't go live again for now. The notice on the project page says why.",
@@ -272,6 +274,7 @@ export function codeFromDatabaseError(message: string): WriteErrorCode {
     "PAIRING_CLOSED",
     "INVALID_PAIRING",
     "AGENT_REVOKED",
+    "INVALID_LEASE",
     "WORKSPACE_RULES_CHANGED",
     "INVALID_RULES",
     "AGENTS_PAUSED",

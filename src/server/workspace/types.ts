@@ -19,6 +19,7 @@ import type { ShadowDecision } from "@/core/trust/policy";
 import type { ProjectGraphRecords } from "@/core/insights/project-graph";
 import type { WorkflowView } from "@/core/realityloop/workflow";
 import type { WithheldPermissions } from "@/core/workspace/permissions";
+import type { AgentLease } from "@/core/agent/lease";
 
 export const ORG_ROLES = ["owner", "admin", "member", "viewer"] as const;
 export type OrgRole = (typeof ORG_ROLES)[number];
@@ -230,6 +231,8 @@ export interface AgentRecord {
   /** Mesh's relay (ADR 0094): the device fingerprint, and since when it turned on "Reachable through Farbaek". */
   meshFingerprint: string | null;
   meshReachableAt: string | null;
+  /** What the agent may do, where, and until when (ADR 0117). */
+  lease: AgentLease & { setAt: string | null };
 }
 
 export interface InvitationRecord {

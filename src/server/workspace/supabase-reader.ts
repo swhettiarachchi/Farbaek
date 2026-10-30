@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { IntentContractSchema } from "@/core/realityloop/contract";
+import { AGENT_CAPABILITIES } from "@/core/agent/lease";
 import { parsePermissions } from "@/core/workspace/permissions";
 import { ORGANIZATION_SELECT, summarizeOrganizations } from "./organizations";
 import { readSkillPins } from "./skill-pins";
@@ -534,7 +535,7 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
     async listAgents(orgId) {
       const { data, error } = await client
         .from("agents")
-        .select("id, name, platform, app_version, paired_by, created_at, last_seen_at, revoked_at, mesh_fingerprint, mesh_reachable_at")
+        .select("id, name, platform, app_version, paired_by, created_at, last_seen_at, revoked_at, mesh_fingerprint, mesh_reachable_at, lease_expires_at, lease_projects, lease_capabilities, lease_actions_per_hour, lease_set_at")
         .eq("org_id", orgId)
         .order("created_at", { ascending: false })
         .limit(100);
@@ -552,6 +553,11 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
             revoked_at: z.string().nullable(),
             mesh_fingerprint: z.string().nullable(),
             mesh_reachable_at: z.string().nullable(),
+            lease_expires_at: z.string(),
+            lease_projects: z.array(z.string()).nullable(),
+            lease_capabilities: z.array(z.enum(AGENT_CAPABILITIES)),
+            lease_actions_per_hour: z.number().int(),
+            lease_set_at: z.string().nullable(),
           }),
         )
         .parse(data)
@@ -566,6 +572,7 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
           revokedAt: r.revoked_at,
           meshFingerprint: r.mesh_fingerprint,
           meshReachableAt: r.mesh_reachable_at,
+          lease: { expiresAt: r.lease_expires_at, projects: r.lease_projects, capabilities: r.lease_capabilities, actionsPerHour: r.lease_actions_per_hour, setAt: r.lease_set_at },
         }));
     },
 

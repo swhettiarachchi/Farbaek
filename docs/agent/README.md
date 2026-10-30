@@ -40,6 +40,7 @@ Writes must stay inside the contract's paths and allowed operations, and are ref
 
 - **Pairing:** in Farbaek, open Agents and create a code. Type it into the app with Farbaek's address. The code works once, for 10 minutes. The app gets a token that only it stores, encrypted with the system keychain; Farbaek keeps only its hash. Your plan sets how many agents can be paired.
 - **The model:** each step goes to `POST /api/v1/agent/model`. Farbaek picks the model for your plan and the effort (Auto routing), calls Claude with its own key, and meters the step from the workspace's AI usage at its real token cost. Refusals and provider failures are given back. Farbaek doesn't keep the conversation; the usage ledger records the model and token counts. Versions before the gateway stored a personal key; the app now deletes it on start.
+- **The lease (ADR 0117):** each agent holds a permission lease that ends at most 90 days ahead and names its projects, what it may do (read tasks and files, propose changes, use Farbaek's AI, Mesh) and how many requests an hour. A new agent gets 90 days on every project with everything. Owners, admins and the person who paired it renew or change the lease on the Agents page; each change is in the audit log. Once it ends, the agent can only unpair until someone renews it. The app warns 14 days ahead.
 - **Revoking:** from Agents in Farbaek (owners, admins, or the person who paired it), or Settings → Unpair in the app. A revoked token stops working on the next request, and the app forgets it.
 - If the system keychain isn't available (for example Linux without a running keyring), the app refuses to store anything secret.
 
@@ -136,7 +137,7 @@ Old installers stay on the server, so earlier links keep working. Remove them by
 | Method and path | What it does |
 | --- | --- |
 | `POST /pair` | Redeems a pairing code; returns the token once |
-| `GET /me` | The agent, workspace, the person's role, and whether a verified sandbox is connected |
+| `GET /me` | The agent, workspace, the person's role, its lease, and whether a verified sandbox is connected |
 | `GET /tasks` | Tasks whose contract is approved and that are waiting for a change |
 | `GET /tasks/{id}` | The task, its approved contract and the project's file list |
 | `GET /tasks/{id}/files?after=` | File contents in pages of up to 2 MB or 300 files |
@@ -144,7 +145,16 @@ Old installers stay on the server, so earlier links keep working. Remove them by
 | `POST /model` | One model step through the model gateway (task with an approved contract, effort, conversation); metered from the workspace's AI usage |
 | `POST /unpair` | Revokes the calling agent |
 
-Requests are rate-limited per agent (120 a minute; 10 proposals and 30 model steps a minute) and pairing per client and globally.
+Requests are rate-limited per agent (120 a minute; 10 proposals and 30 model steps a minute; the lease's hourly limit) and pairing per client and globally.
+
+Every request but `/pair` and `/unpair` checks the lease. The answers when it refuses:
+
+| Status and code | When |
+| --- | --- |
+| `403 LEASE_EXPIRED` | The lease has ended. Only `/unpair` still works. |
+| `403 OUTSIDE_LEASE` | The lease doesn't allow this (proposing, the model or Mesh). |
+| `403 FORBIDDEN` | The task's project isn't in the lease. Such tasks are also left out of `GET /tasks`. |
+| `429 LEASE_LIMIT` | The agent used its requests for this hour. Mesh's relay isn't counted. |
 
 ## Checking it
 

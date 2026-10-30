@@ -386,6 +386,13 @@ export function createSupabaseWriteDeps(
 
     revokeAgent: (i) => rpc("app_revoke_agent", { p_agent: i.agentId, p_actor: i.actor }, z.null().or(z.literal("")).transform(() => null)),
 
+    setAgentLease: (i) =>
+      rpc(
+        "app_agent_lease_set",
+        { p_agent: i.agentId, p_actor: i.actor, p_days: i.days, p_projects: i.projects, p_capabilities: i.capabilities, p_actions_per_hour: i.actionsPerHour },
+        z.string(),
+      ),
+
     async invitationPreview(tokenSha256) {
       const { data, error } = await admin.rpc("app_invitation_preview", { p_token_sha256: tokenSha256 });
       if (error) throw new Error(`Couldn't read the invitation: ${error.message}`);
