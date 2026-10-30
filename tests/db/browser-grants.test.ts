@@ -29,6 +29,8 @@ describe("browsers' roles", () => {
     expect(await callable("anon")).toEqual([]);
     expect(await callable("authenticated")).toEqual([
       "ai_credits_used",
+      // Tool Definition Pinning (ADR 0133): the identifier an approval binds to, for members of the agent's workspace.
+      "app_agent_tools_pending_id",
       "app_autonomy_record",
       "app_incident_changes",
       "app_replay_history",

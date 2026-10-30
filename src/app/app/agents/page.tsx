@@ -4,6 +4,9 @@ import { notFound } from "next/navigation";
 import { revokeAgentAction } from "@/app/app/actions";
 import { AgentDownload } from "@/components/agents/agent-download";
 import { AgentLeasePanel } from "@/components/agents/agent-lease";
+import { ToolPinPanel } from "@/components/agents/tool-pin";
+import { readToolPins } from "@/server/agent/tool-pins";
+import { createSupabaseServerClient } from "@/server/supabase/server";
 import { PairAgent } from "@/components/agents/pair-agent";
 import { Card, EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { buttonClasses } from "@/components/ui/button";
@@ -26,6 +29,9 @@ export default async function AgentsPage() {
   if (!ctx?.current) notFound();
   const ws = ctx.current;
   const [agents, projects] = await Promise.all([ctx.reader.listAgents(ws.id), ctx.reader.listProjects(ws.id)]);
+  // Tool Definition Pinning (ADR 0133): each agent's pinned tools, and any change waiting for review.
+  const pinClient = ctx.mode === "live" ? await createSupabaseServerClient() : null;
+  const pins = pinClient ? await readToolPins(pinClient, ws.id).catch(() => new Map()) : new Map();
   const active = agents.filter((a) => !a.revokedAt);
   const now = new Date();
   const ended = active.filter((a) => leaseState(a.lease, now) === "ended");
@@ -138,6 +144,9 @@ export default async function AgentsPage() {
                       </button>
                     </form>
                   ) : null}
+                  {a.revokedAt ? null : (
+                    <ToolPinPanel agentId={a.id} pin={pins.get(a.id) ?? null} canApprove={canManage} disabledReason={leaseReason} />
+                  )}
                   {a.revokedAt ? null : (
                     <AgentLeasePanel
                       agentId={a.id}

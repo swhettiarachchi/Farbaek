@@ -73,7 +73,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
   - permission leases (scoped, expiring, revocable grants): built in stage 94 (ADR 0117);
   - the second-checker model: built in stage 98 (ADR 0121);
   - the trust graph: built in stage 109 (ADR 0132), with agent teams in stage 105 (ADR 0128); no tools or policies as nodes yet;
-  - MCP support (tool-definition pinning, a third-party tool registry).
+  - MCP support: a third-party tool registry (tool definitions are pinned per agent since stage 110, ADR 0133).
 
 ### 10. Dev Intelligence
 
@@ -124,7 +124,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 
 - **Built:** Cost-Before-Compute caps, Intent Diff Lens, Portable Proof (signed ProofPacks, `/verify` and the "Farbaek ProofPack" status on GitHub, stage 103), the Sandbox Egress Ledger (stage 104, recorded by a proxy inside the sandbox), Eject (project export), Approval Wallet, Model Change Canary, Incident Replay Theatre, the publish evidence gate.
 - **Partly built:** Real-Project Loom (the 2D project graph; no 3D view).
-- **Not built:** Continue-on-Desktop handoff, Tool Definition Pinning.
+- **Not built:** Continue-on-Desktop handoff. (Tool Definition Pinning: built in stage 110, ADR 0133.)
 
 ## Claims on the public site that aren't true yet
 

@@ -180,3 +180,28 @@ describe("one model step through the gateway", () => {
     expect(model.requests).toHaveLength(1);
   });
 });
+
+describe("Tool Definition Pinning (ADR 0133)", () => {
+  it("lets pinned tools through, and refuses changed ones before reserving anything", async () => {
+    const seen: { agentId: string; names: string[]; shas: string[]; known: readonly string[] }[] = [];
+    const pins = (answer: "pinned_now" | "match" | "quarantined") => async (agentId: string, manifest: { name: string; sha256: string }[], known: readonly string[]) => (seen.push({ agentId, names: manifest.map((t) => t.name), shas: manifest.map((t) => t.sha256), known }), answer);
+    const ok = fakeDeps();
+    expect(await callModel({ ...ok.deps, checkTools: pins("match") }, fakeModel(reply()), agent, body())).toMatchObject({ ok: true });
+    expect(seen[0]).toMatchObject({ agentId: "agent-1", names: ["read_file"] });
+    expect(seen[0]!.shas[0]).toMatch(/^[0-9a-f]{64}$/);
+    expect(seen[0]!.known).toContain("write_file");
+
+    const changed = fakeDeps();
+    const model = fakeModel(reply());
+    expect(await callModel({ ...changed.deps, checkTools: pins("quarantined") }, model, agent, body())).toMatchObject({ ok: false, status: 423, code: "TOOLS_CHANGED" });
+    expect(changed.calls).toEqual([]);
+    expect(model.requests).toEqual([]);
+  });
+
+  it("doesn't pin Farbaek's own cloud runs, which bring Farbaek's tools", async () => {
+    const seen: string[] = [];
+    const { deps } = fakeDeps();
+    await callModel({ ...deps, checkTools: async (id) => (seen.push(id), "quarantined") }, fakeModel(reply()), { ...agent, agentId: "run:r1" }, body());
+    expect(seen).toEqual([]);
+  });
+});
