@@ -14,7 +14,7 @@ const SECTIONS: LegalSection[] = [
     title: "This agreement",
     body: (
       <p>
-        These terms are an agreement between you and {LEGAL.operator} (&quot;Farbaek&quot;, &quot;we&quot;). By creating an account or using Farbaek, you accept them, the{" "}
+        These terms are an agreement between you and {LEGAL.operator} (&quot;we&quot;, &quot;us&quot;). By creating an account or using Farbaek, you accept them, the{" "}
         <DocLink href="/acceptable-use">Acceptable Use Policy</DocLink> and the <DocLink href="/privacy">Privacy Policy</DocLink>. If you use Farbaek for an organisation, you accept them for it and
         confirm you&apos;re allowed to.
       </p>

@@ -7,8 +7,8 @@ import { CONTACT } from "./contact";
 
 export const LEGAL = {
   /** Shown as "Last updated" on each document. */
-  updated: "29 October 2026",
-  operator: "Suvin Hettiarachchi, trading as Farbaek",
+  updated: "30 October 2026",
+  operator: "Farbaek",
   country: "Sri Lanka",
   /** Where the app, database, sign-in and backups run. */
   hosting: "a server rented from Hostinger in Boston, United States",

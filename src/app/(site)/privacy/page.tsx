@@ -14,7 +14,7 @@ const SECTIONS: LegalSection[] = [
     body: (
       <>
         <p>
-          Farbaek is run by {LEGAL.operator}, in {LEGAL.country}. We decide how your personal data is used, which makes us its controller. Write to{" "}
+          {LEGAL.operator} is based in {LEGAL.country}. We decide how your personal data is used, which makes us its controller. Write to{" "}
           <DocLink href={`mailto:${LEGAL.contact}`}>{LEGAL.contact}</DocLink> about anything in this policy.
         </p>
         <p>This policy covers www.farbaek.com, the Farbaek app, sites people publish on farbaek.si, and the Farbaek desktop app.</p>
