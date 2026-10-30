@@ -44,7 +44,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 - **Partly built:**
   - Templates: there's nothing yet for e-commerce, SaaS app, CRM, booking, REST API or Next.js. The spec says to match the stack actually implemented, and published sites are static.
   - Git: GitHub import only; no branch or pull-request workflow.
-- **Not built:** the visual builder (visual edit to diff).
+- **Partly built:** the visual builder (visual edit to diff): built for static sites in stage 95 (ADR 0118); apps with a build step aren't covered yet.
 
 ### 7. Native agent
 
