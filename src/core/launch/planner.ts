@@ -89,6 +89,9 @@ export const KEY_FILES = [
   "pyproject.toml",
   "Procfile",
   "Dockerfile",
+  // Read for what will cost money (ADR 0141): scheduled jobs.
+  "vercel.json",
+  "netlify.toml",
 ] as const;
 
 /** Source files scanned for setting names. */

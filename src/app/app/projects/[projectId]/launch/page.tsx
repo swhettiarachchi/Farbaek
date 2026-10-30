@@ -4,6 +4,7 @@ import {
   CheckCircleIcon,
   CircleDashedIcon,
   CubeIcon,
+  CurrencyCircleDollarIcon,
   EyeIcon,
   FingerprintIcon,
   GlobeIcon,
@@ -38,6 +39,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/local-time";
 import { VERDICT_WORDS } from "@/core/launch/health";
 import { KIND_LABELS, type PlanCommand, type ServiceKind } from "@/core/launch/planner";
+import { PRICING_PAGES } from "@/core/launch/costs";
 import { EVIDENCE_WORDS } from "@/core/publish/evidence";
 import { shortHash } from "@/core/trust/canonical-json";
 import { formatBytes } from "@/core/workspace/files";
@@ -85,7 +87,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
   const project = await ctx.reader.getProject(ctx.current.id, projectId);
   if (!project) notFound();
   const user = ctx.mode === "live" ? await createSupabaseServerClient() : null;
-  const { plan, publish, evidence: proof, checks } = await loadLaunchPage(ctx, user, project);
+  const { plan, costs, publish, evidence: proof, checks } = await loadLaunchPage(ctx, user, project);
 
   // LaunchOS with your own Vercel or Netlify account (ADR 0078, ADR 0093): exactly the files a launch would send, the connections, and the launches so far.
   const orgId = ctx.current.id;
@@ -303,6 +305,39 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
                 ))}
               </div>
             ) : null}
+          </Card>
+
+          <Card>
+            <h2 className="flex items-center gap-2 text-lg font-medium">
+              <CurrencyCircleDollarIcon size={18} aria-hidden /> What will cost money
+            </h2>
+            <p className="mt-1 text-sm leading-relaxed text-ink-2">
+              Farbaek doesn&apos;t charge for launches. These bill your own accounts at the host and at each service. Farbaek can&apos;t see your plans or traffic there, so there are no prices here.
+            </p>
+            {costs.length === 0 ? (
+              <p className="mt-4 text-sm text-ink-3">Nothing found in the files yet.</p>
+            ) : (
+              <ul className="mt-4 divide-y divide-line">
+                {costs.map((c) => (
+                  <li key={c.id} className="grid gap-1 py-3">
+                    <p className="text-[15px] font-medium text-ink">{c.title}</p>
+                    <p className="text-sm leading-relaxed text-ink-2">{c.detail}</p>
+                    {c.evidence ? <p className="break-all font-mono text-[12.5px] text-ink-3">{c.evidence}</p> : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-3 flex flex-wrap items-center gap-x-1 border-t border-line pt-3 text-sm text-ink-3">
+              Prices:
+              {PRICING_PAGES.map((p, i) => (
+                <span key={p.name}>
+                  <a href={p.url} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-1 underline decoration-line-strong underline-offset-4 hover:text-ink">
+                    {p.name} <ArrowSquareOutIcon size={13} aria-hidden />
+                  </a>
+                  {i < PRICING_PAGES.length - 1 ? "," : null}
+                </span>
+              ))}
+            </p>
           </Card>
 
           <Card>

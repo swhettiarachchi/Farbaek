@@ -104,7 +104,8 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 ### 12. LaunchOS
 
 - **Built:** the Launch Planner, Vercel and Netlify adapters, explicit deploy authorization, health checks, and custom domains for published sites.
-- **Partly built:** the planner shows no cost estimates. It says so honestly rather than guessing.
+- **Built:** what will cost money at launch (stage 118, ADR 0141): the drivers in the project's own files, with evidence and each host's pricing page.
+- **Partly built:** no dollar estimates. Farbaek can't see a person's plan or traffic at a host, so it says so rather than guessing.
 
 ### 13. Native apps
 

@@ -6,6 +6,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PLAN_LIMITS, filesToRead, planLaunch, type LaunchPlan } from "@/core/launch/planner";
+import { costDrivers, type CostDriver } from "@/core/launch/costs";
 import { evidenceFromPacks, verifiedChange, type LaunchEvidence } from "@/core/publish/evidence";
 import { loadPublishPanel, type PublishPanelData } from "@/server/publish/panel";
 import type { AppContext } from "@/server/workspace/context";
@@ -13,6 +14,8 @@ import { latestChecksBySite, type HealthRecord } from "./health";
 
 export interface LaunchPageData {
   plan: LaunchPlan;
+  /** What will cost money at the host and each service (ADR 0141): drivers, never prices. */
+  costs: CostDriver[];
   publish: PublishPanelData | null;
   /** The same evidence the publish gate reads. */
   evidence: LaunchEvidence;
@@ -34,6 +37,7 @@ export async function loadLaunchPage(ctx: AppContext, user: SupabaseClient | nul
   const wanted = new Set(filesToRead(paths));
   const texts = Object.fromEntries(contents.filter((f) => wanted.has(f.path)).map((f) => [f.path, f.content.slice(0, PLAN_LIMITS.bytesPerFile)]));
   const plan = planLaunch({ paths, texts });
+  const costs = costDrivers(plan, { paths, texts });
 
   // The publish panel reads the evidence exactly as the database does; without it, the same rule over the recent ProofPacks.
   const taskIds = new Set(tasks.map((t) => t.id));
@@ -46,5 +50,5 @@ export async function loadLaunchPage(ctx: AppContext, user: SupabaseClient | nul
     );
   const checks = user && publish?.site ? Object.fromEntries(await latestChecksBySite(user, orgId, publish.site.id)) : {};
 
-  return { plan, publish, evidence, checks };
+  return { plan, costs, publish, evidence, checks };
 }
