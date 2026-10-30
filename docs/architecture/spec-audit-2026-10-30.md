@@ -79,7 +79,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 
 - **Built:** IntentLock for code (scope drift against the contract), the developer ProofPack, and Farbaek's own security scan of a project.
 - **Not built:**
-  - Semgrep, OSV-Scanner and gitleaks findings;
+  - Semgrep and gitleaks findings (dependency findings from OSV.dev, the database behind OSV-Scanner, for every lockfile: stage 107, ADR 0130);
   - Failure Futures Lab;
   - mutation testing;
   - Architecture Why-Graph: built per file in stage 100 (ADR 0123);
@@ -128,13 +128,11 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 
 ## Claims on the public site that aren't true yet
 
-`src/components/marketing/modules-bento.tsx` says:
+The three claims this section listed in `src/components/marketing/modules-bento.tsx` are now true:
 
-- "A visual builder and a real code workspace on one source of truth. Every visual edit is a reviewable diff." There is no visual builder.
-- "Policy, approvals, permission leases and audit, enforced on the server." There are no permission leases.
-- "Intent contracts, context readiness and outcome tracking for every task." There is no context readiness.
-
-These break non-negotiable rule 1 (never fabricate) and should be corrected first.
+- the visual builder (stages 95 and 106, ADRs 0118 and 0129);
+- permission leases (stage 94, ADR 0117);
+- context readiness (ADR 0116).
 
 ## Not yet proven live
 

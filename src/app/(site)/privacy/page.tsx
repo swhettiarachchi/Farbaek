@@ -156,6 +156,10 @@ const SECTIONS: LegalSection[] = [
           your own agreement with it, not ours. We keep the token you gave us encrypted, never show it again, and delete it when you disconnect.
         </p>
         <p>
+          When someone runs a security check on a project, we send the names and versions of the packages its lockfiles list to OSV.dev, the open
+          vulnerability database run by Google, to look up known vulnerabilities. No code, file contents or account details go there.
+        </p>
+        <p>
           If an owner or admin connects GitHub with a token, we send the files of a change to the linked repository only when someone opens a pull request for it, with
           the change&apos;s summary and its ProofPack result. GitHub handles them under your own agreement with it. We keep the token encrypted, never show it again, and
           delete it when you disconnect.
