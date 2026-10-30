@@ -42,6 +42,10 @@ import { CONTRIBUTOR_ROLES, MANAGER_ROLES } from "@/server/workspace/types";
 import { loadAiAvailability } from "@/server/workspace/usage-summary";
 import { FixCard, freeRetryWords } from "@/components/tasks/fix-card";
 import { ContextReadinessCard } from "@/components/tasks/context-readiness";
+import { CostCard, ReversibilityCard } from "@/components/tasks/task-insights";
+import { taskCost } from "@/core/insights/cost-brain";
+import { reversibilityRadar } from "@/core/insights/reversibility";
+import { workspaceGrant } from "@/server/workspace/organizations";
 import { loadPassport } from "@/server/workspace/context-readiness";
 import { FIXABLE_STATES, fixIsOpen } from "@/server/workspace/fixes";
 
@@ -77,7 +81,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
   const showProposal = proposal !== null && (proposal.status !== "discarded" || !canPropose);
   const applied = proposal?.status === "applied" ? proposal : null;
   // Everything below depends only on the reads above, so it loads in one round.
-  const [driftEvents, proposeAi, projectFiles, bases, intact, [recoverySource, recoveries], agents, lensSuggestion, lensAi, verification, project, secondCheck, secondCheckAi] = await Promise.all([
+  const [driftEvents, proposeAi, projectFiles, bases, intact, [recoverySource, recoveries], agents, lensSuggestion, lensAi, verification, project, secondCheck, secondCheckAi, usage, sandboxes] = await Promise.all([
     approvedContract && !TERMINAL_STATES.has(task.state) ? ctx.reader.listFileChangesSince(orgId, task.projectId, approvedContract.approvedAt!) : Promise.resolve(null),
     canPropose ? loadAiAvailability(ctx, ctx.current, "change_proposal") : Promise.resolve(null),
     canPropose || task.state === "VERIFYING" || task.state === "APPROVAL_PENDING" ? ctx.reader.listFiles(orgId, task.projectId) : Promise.resolve([]),
@@ -102,7 +106,12 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
     // The second check (ADR 0121): kept after the change is decided, asked for only while it waits.
     showProposal ? ctx.reader.getSecondCheck(orgId, proposal!.id).catch(() => null) : Promise.resolve(null),
     showProposal && proposal!.status === "pending" ? loadAiAvailability(ctx, ctx.current, "second_check") : Promise.resolve(null),
+    // The Cost Brain (ADR 0122): this task's usage ledger and sandbox time, read as the person.
+    ctx.reader.listTaskUsage(orgId, task.id).catch(() => []),
+    ctx.reader.listTaskSandboxes(orgId, task.id).catch(() => []),
   ]);
+  const grant = ctx.current.billingUnknown ? null : workspaceGrant(ctx.current, new Date(renderedAt));
+  const cost = taskCost(usage, sandboxes, grant?.units ?? null);
   // Fixing what failed checks found (ADR 0101): the fix started for this task, and the task this one fixes.
   const fixable = FIXABLE_STATES.has(task.state) && approvedContract !== null;
   const [fix, fixSource] = await Promise.all([
@@ -310,6 +319,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
                 disabledReason={ctx.mode === "demo" ? "The demo workspace is read-only." : (secondCheckAi?.disabledReason ?? null)}
               />
             ) : null}
+            {showProposal ? <ReversibilityCard {...reversibilityRadar(proposal!.changes, bases)} /> : null}
             {showProposal ? <ImpactCard taskId={task.id} disabledReason={impactReason} /> : null}
             {trying ? <ArenaPanel proposalId={proposal!.id} taskId={task.id} checks={checksForRun} run={arenaRun} disabledReason={arenaReason} /> : null}
             {canPropose ? (
@@ -332,6 +342,10 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
           </div>
         </Card>
       ) : null}
+
+      <Card>
+        <CostCard cost={cost} period={grant ? (grant.kind === "trial" ? "trial" : "month") : null} />
+      </Card>
 
       {showVerification ? (
         <Card>

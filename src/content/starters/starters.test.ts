@@ -36,7 +36,7 @@ describe("starters", () => {
   });
 
   it("give the gallery templates that preview instantly, link only to their own pages and fetch nothing", () => {
-    expect(TEMPLATE_STARTERS.map((t) => t.id)).toEqual(["landing-page", "saas-site", "portfolio", "local-business", "event-page", "blog"]);
+    expect(TEMPLATE_STARTERS.map((t) => t.id)).toEqual(["landing-page", "saas-site", "portfolio", "local-business", "event-page", "blog", "online-store", "booking", "dashboard"]);
     for (const t of TEMPLATE_STARTERS) {
       const paths = new Set(t.files.map((f) => f.path));
       expect(runProfile([...paths]), t.id).toEqual({ kind: "static" });
@@ -59,6 +59,8 @@ describe("starters", () => {
       expect(reviewSite(files).findings, t.id).toEqual([]);
       const css = t.files.filter((f) => f.path.endsWith(".css")).map((f) => f.content.replace(/\/\*[\s\S]*?\*\//g, "")).join("\n");
       expect(css, t.id).toContain("prefers-reduced-motion: reduce");
+      // No CSS filters: on iOS 26 they paint a black square (ADR 0055). backdrop-filter is a different path and stays allowed.
+      expect(css.replace(/backdrop-filters*:/g, ""), t.id).not.toMatch(/(^|[s;{])filters*:/);
       // Content hidden for an entrance waits for script.js to say it's running (the .js class), so a page without scripts, like a gallery thumbnail, shows everything.
       for (const [, selector, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
         const s = selector!.trim();

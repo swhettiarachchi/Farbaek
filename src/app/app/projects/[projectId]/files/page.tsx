@@ -17,6 +17,8 @@ import { RelativeTime } from "@/components/ui/local-time";
 import { shortHash } from "@/core/trust/canonical-json";
 import { buildTree, formatBytes, languageOf } from "@/core/workspace/files";
 import { loadAppContext } from "@/server/workspace/context";
+import { loadWhyGraph } from "@/server/insights/why-graph";
+import { WhyCard } from "@/components/files/why-card";
 import { imageMime } from "@/core/workspace/images";
 import type { FileRevision, SearchHit } from "@/server/workspace/types";
 
@@ -67,6 +69,8 @@ export default async function FilesPage({
     historyMode ? ctx.reader.listFileRevisions(orgId, project.id, path!) : Promise.resolve([] as FileRevision[]),
     historyMode && rev ? ctx.reader.getFileRevision(orgId, project.id, path!, rev) : Promise.resolve(null),
   ]);
+  // Why this file is like this (ADR 0123), with its history.
+  const why = historyMode && revisions.length > 0 ? await loadWhyGraph(ctx, orgId, project.id, path!, revisions) : null;
   const totalBytes = files.reduce((n, f) => n + f.sizeBytes, 0);
   const writeReason = !ctx.writes.enabled ? ctx.writes.reason : project.archivedAt ? "This project is archived, so its files are read-only." : null;
   const tree = buildTree(files.map((f) => f.path));
@@ -264,6 +268,7 @@ export default async function FilesPage({
                   </h2>
                   <p className="mt-0.5 font-mono text-[13px] break-all text-ink-2">{path}</p>
                 </div>
+                {why ? <WhyCard graph={why} scanned={why.scanned} /> : null}
                 <ol className="overflow-hidden rounded-md border border-line bg-surface">
                   {revisions.map((r) => {
                     const isCurrent = file?.revision === r.revision;

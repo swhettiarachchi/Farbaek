@@ -40,9 +40,9 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
   - preview from an isolated origin;
   - sandbox terminal and checks;
   - public GitHub import;
-  - six static-site templates.
+  - nine static-site templates (three added in stage 101: online store, booking, dashboard).
 - **Partly built:**
-  - Templates: there's nothing yet for e-commerce, SaaS app, CRM, booking, REST API or Next.js. The spec says to match the stack actually implemented, and published sites are static.
+  - Templates: e-commerce, booking and an admin dashboard were added in stage 101 (ADR 0124); there's still nothing for a SaaS app with sign-in, CRM or REST API. The spec says to match the stack actually implemented, and published sites are static.
   - Git: GitHub import only; no branch or pull-request workflow.
 - **Partly built:** the visual builder (visual edit to diff): built for static sites in stage 95 (ADR 0118); apps with a build step aren't covered yet.
 
@@ -81,9 +81,9 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
   - Semgrep, OSV-Scanner and gitleaks findings;
   - Failure Futures Lab;
   - mutation testing;
-  - Architecture Why-Graph;
-  - Reversibility Radar;
-  - a per-project Cost Brain view (usage is metered per run);
+  - Architecture Why-Graph: built per file in stage 100 (ADR 0123);
+  - Reversibility Radar: built in stage 99 (ADR 0122);
+  - a Cost Brain view: built per task in stage 99 (ADR 0122);
   - the Learn / Pair / Build / Audit operating modes.
 
 ### 11. Mesh
