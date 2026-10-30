@@ -1,3 +1,7 @@
+import { execFileSync } from "node:child_process";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
 import { setupReport } from "@/core/agent/setup-report";
@@ -36,7 +40,7 @@ describe("starters", () => {
   });
 
   it("give the gallery templates that preview instantly, link only to their own pages and fetch nothing", () => {
-    expect(TEMPLATE_STARTERS.map((t) => t.id)).toEqual(["landing-page", "saas-site", "portfolio", "local-business", "event-page", "blog", "online-store", "booking", "dashboard"]);
+    expect(TEMPLATE_STARTERS.map((t) => t.id)).toEqual(["landing-page", "saas-site", "portfolio", "local-business", "event-page", "blog", "online-store", "booking", "dashboard", "crm"]);
     for (const t of TEMPLATE_STARTERS) {
       const paths = new Set(t.files.map((f) => f.path));
       expect(runProfile([...paths]), t.id).toEqual({ kind: "static" });
@@ -92,5 +96,27 @@ describe("starters", () => {
 
   it("use plain copy with no em dashes", () => {
     for (const starter of STARTERS) for (const f of starter.files) expect(f.content, `${starter.id}/${f.path}`).not.toMatch(/[—–]/);
+  });
+
+  it("give the REST API starter no dependencies, and tests of its own that pass on Node (ADR 0140)", { timeout: 30_000 }, async () => {
+    const api = getStarter("rest-api")!;
+    const pkg = JSON.parse(api.files.find((f) => f.path === "package.json")!.content) as Record<string, unknown>;
+    expect(pkg.dependencies).toBeUndefined();
+    expect(pkg.devDependencies).toBeUndefined();
+    expect(Object.keys(pkg.scripts as object)).toEqual(["dev", "start", "test"]);
+    expect(runProfile(api.files.map((f) => f.path))).toMatchObject({ kind: "node", port: 3000 });
+    const dir = await mkdtemp(path.join(os.tmpdir(), "farbaek-rest-api-"));
+    try {
+      for (const f of api.files) {
+        await mkdir(path.dirname(path.join(dir, f.path)), { recursive: true });
+        await writeFile(path.join(dir, f.path), f.content);
+      }
+      // The starter's own suite: it starts the server on a free port and calls every route.
+      const out = execFileSync(process.execPath, ["--test"], { cwd: dir, encoding: "utf8", timeout: 25_000 });
+      expect(out).toMatch(/# pass 5|ℹ pass 5/);
+      expect(out).toMatch(/# fail 0|ℹ fail 0/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

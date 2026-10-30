@@ -38,6 +38,9 @@ describe("starterForPrompt", () => {
     expect(starterForPrompt("A dashboard where users log in and see orders")).toBe("nextjs-app");
     expect(starterForPrompt("Build a booking system for my salon")).toBe("nextjs-app");
     expect(starterForPrompt("Make a todo app")).toBe("nextjs-app");
+    expect(starterForPrompt("A REST API for my product catalogue")).toBe("rest-api");
+    expect(starterForPrompt("A JSON API service with endpoints for orders")).toBe("rest-api");
+    expect(starterForPrompt("An app with an API for my team")).toBe("nextjs-app");
   });
 });
 
