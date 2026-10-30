@@ -34,7 +34,17 @@ The owner asked for Google login. www.farbaek.com now offers **Continue with Goo
 - `src/server/phone/api.test.ts`: sign-in options include `google`.
 - `pnpm typecheck`, `pnpm lint`.
 
-### Not done yet
+### Live in production (2026-10-30)
 
-- **Google's side:** the Cloud project, the consent screen and the OAuth client. The owner first accepts Google Cloud's Terms of Service, which Claude can't do for them. The owner then creates the client and downloads its file, because Google shows the secret only then.
-- **Turning it on:** `set-google-sign-in.ps1`, after the merge.
+- **Merged:** PR #119 (`975b038`).
+- **Google's side, done by the owner with Claude's steps:**
+  - a new Google account for Farbaek, and the Cloud project `farbaek`;
+  - the consent screen: External, In production, support email info@farbaek.com, home page, privacy policy, terms, `farbaek.com` authorized;
+  - the web client "Farbaek website", whose only redirect URI is `https://api.farbaek.com/auth/v1/callback`;
+  - the owner ran `set-google-sign-in.ps1` with the downloaded client file.
+- **Read back:**
+  - Auth answers 302 to `accounts.google.com/o/oauth2/v2/auth` under the new client id;
+  - `/sign-in` shows Continue with Google, then Apple, and "No password: continue with Google or Apple";
+  - `/api/v1/app/sign-in-options` answers `{"apple": true, "google": true}`;
+  - `/auth/google` leads to Google's normal "Sign in - Google Accounts" page, with no client or redirect error.
+- **Not yet:** a real Google account signing in end to end. Google shows the site's address instead of "Farbaek" and its logo until it verifies the branding: `farbaek.com` proven in Search Console, then Google's review. A logo is uploaded, which is what asks for that review.
