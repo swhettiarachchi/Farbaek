@@ -68,7 +68,7 @@ export function ModulesBento() {
         <ul className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Cell
             title="Studio"
-            body="A visual builder and a real code workspace on one source of truth. Every visual edit is a reviewable diff."
+            body="A real code workspace with files, an editor and live previews on one source of truth. Every change the agent proposes is a reviewable diff."
             className="bg-surface md:col-span-2 lg:row-span-2"
           >
             <div className="mt-6">
@@ -79,7 +79,7 @@ export function ModulesBento() {
 
           <Cell
             title="Trust"
-            body="Policy, approvals, permission leases and audit, enforced on the server. A prompt is never a security boundary."
+            body="Policy, approvals, autonomy limits and audit, enforced on the server. A prompt is never a security boundary."
             className="bg-canvas-2 md:col-span-2"
           >
             <div aria-hidden className="dot-grid pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_bottom,transparent,black)]" />
@@ -99,7 +99,7 @@ export function ModulesBento() {
             className="border-accent/20 bg-[linear-gradient(150deg,rgb(36_80_240/0.09),rgb(10_110_133/0.06)_60%,transparent)]"
           />
 
-          <Cell title="RealityLoop" body="Intent contracts, context readiness and outcome tracking for every task." className="bg-surface">
+          <Cell title="RealityLoop" body="Intent contracts, outcome tracking and replay for every task." className="bg-surface">
             <ol className="mt-4 flex flex-wrap items-center gap-x-1 gap-y-1 text-[13px] text-ink-3" aria-label="A task's lifecycle">
               {LIFECYCLE.map((step, i) => (
                 <li key={step} className="flex items-center gap-1">
