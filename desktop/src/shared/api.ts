@@ -9,6 +9,10 @@ import type { RunState } from "@/core/agent/operations";
 import type { ApprovalRequest } from "@/agent-runtime/loop";
 import type { Effort } from "@/core/agent/routing";
 import type { MeshSnapshot, PreparedView } from "@/agent-runtime/mesh/node";
+import type { AgentHandoff } from "@/agent-runtime/farbaek-client";
+import type { HandoffRun } from "../main/handoffs";
+
+export type { AgentHandoff, HandoffRun };
 
 export type { Effort, MeshSnapshot, PreparedView };
 
@@ -136,6 +140,11 @@ export interface FarbaekAgentBridge {
   localModels(base: string): Promise<Result<string[]>>;
   /** Sets or clears the local model. */
   setLocalModel(input: LocalModelSetting | null): Promise<Result<AppState>>;
+  /** Tasks handed to this computer from a phone or browser (ADR 0139). */
+  handoffs(): Promise<Result<AgentHandoff[]>>;
+  /** Runs one here: a copy with the change, its checks, and the report back to Farbaek. */
+  startHandoff(id: string): Promise<Result<void>>;
+  handoffRuns(): Promise<HandoffRun[]>;
   runs(): Promise<RunSummary[]>;
   run(id: string): Promise<RunDetail | null>;
   answerApproval(input: { runId: string; requestId: string; approved: boolean; bindingHash: string }): Promise<void>;

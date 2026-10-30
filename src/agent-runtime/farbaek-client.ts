@@ -8,6 +8,7 @@ import { z } from "zod";
 import { IntentContractSchema } from "@/core/realityloop/contract";
 import type { ProposedChange } from "@/core/realityloop/change-proposal";
 import type { AgentMode } from "@/core/agent/modes";
+import type { HandoffReport } from "@/core/agent/handoff";
 
 export class FarbaekApiError extends Error {
   constructor(
@@ -221,7 +222,52 @@ export class FarbaekAgentClient {
     return this.post("/api/v1/agent/model", request, ModelStepReply, signal ? AbortSignal.any([signal, timeout]) : timeout);
   }
 
+  /** Tasks handed to this computer from a phone or browser (ADR 0139). */
+  handoffs(signal?: AbortSignal): Promise<AgentHandoff[]> {
+    return this.get("/api/v1/agent/handoffs", z.array(HandoffSummarySchema), signal);
+  }
+
+  handoff(id: string, signal?: AbortSignal): Promise<AgentHandoffDetail> {
+    return this.get(`/api/v1/agent/handoffs/${encodeURIComponent(id)}`, HandoffDetailSchema, signal);
+  }
+
+  async openHandoff(id: string, signal?: AbortSignal): Promise<void> {
+    await this.post(`/api/v1/agent/handoffs/${encodeURIComponent(id)}/open`, {}, z.null(), signal);
+  }
+
+  /** Reports once what the checks did here; Farbaek answers with the report's digest. */
+  finishHandoff(id: string, body: { status: "done"; report: HandoffReport } | { status: "failed"; reason: string }, signal?: AbortSignal): Promise<{ digest: string | null }> {
+    return this.post(`/api/v1/agent/handoffs/${encodeURIComponent(id)}/result`, body, z.object({ digest: z.string().nullable() }), signal);
+  }
+
   async unpair(): Promise<void> {
     await this.post("/api/v1/agent/unpair", {}, z.null());
   }
 }
+
+const HandoffSummarySchema = z.object({
+  id: z.string(),
+  taskId: z.string(),
+  taskTitle: z.string(),
+  projectId: z.string(),
+  projectName: z.string(),
+  note: z.string().nullable(),
+  checks: z.array(z.string()),
+  proposal: z.object({ id: z.string(), sha256: z.string() }).nullable(),
+  status: z.enum(["waiting", "opened", "done", "failed", "cancelled", "expired"]),
+  createdAt: z.string(),
+  expiresAt: z.string(),
+});
+export type AgentHandoff = z.infer<typeof HandoffSummarySchema>;
+
+const HandoffDetailSchema = HandoffSummarySchema.extend({
+  change: z
+    .object({
+      summary: z.string(),
+      steps: z.array(z.string()),
+      risks: z.array(z.string()),
+      files: z.array(z.object({ path: z.string(), kind: z.enum(["create", "edit"]), content: z.string() })),
+    })
+    .nullable(),
+});
+export type AgentHandoffDetail = z.infer<typeof HandoffDetailSchema>;

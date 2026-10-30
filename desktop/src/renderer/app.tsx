@@ -28,7 +28,7 @@ import { EFFORTS, EFFORT_LABELS, type Effort } from "@/core/agent/routing";
 import { approvalWindow } from "@/core/trust/approval-wallet";
 import { shortHash } from "@/core/trust/canonical-json";
 import { relativeLabel, useNow } from "@/components/ui/use-now";
-import type { AppState, Profile, ProposalReview, RunDetail, RunSummary, TaskSummary, TaskView } from "../shared/api";
+import type { AgentHandoff, AppState, HandoffRun, Profile, ProposalReview, RunDetail, RunSummary, TaskSummary, TaskView } from "../shared/api";
 import { NearbyView } from "./nearby";
 
 const api = window.farbaek;
@@ -172,6 +172,110 @@ const MODES: { id: AgentMode; icon: Icon }[] = [
 ];
 const AUTOPILOT_REASON = "Not available yet: the desktop agent can't run commands in a Farbaek sandbox until that link is built.";
 
+/**
+ * Continue on my computer (ADR 0139): tasks handed here from a phone or
+ * browser. Nothing runs until the person here starts one; each shows the
+ * commands it will run first.
+ */
+function HandoffsPanel() {
+  const [list, setList] = useState<AgentHandoff[] | null>(null);
+  const [runs, setRuns] = useState<HandoffRun[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    const [h, r] = await Promise.all([api.handoffs(), api.handoffRuns()]);
+    if (h.ok) setList(h.value);
+    else setError(h.message);
+    setRuns(r);
+  }, []);
+
+  useEffect(() => {
+    let live = true;
+    const tick = () =>
+      void Promise.all([api.handoffs(), api.handoffRuns()]).then(([h, r]) => {
+        if (!live) return;
+        if (h.ok) setList(h.value);
+        setRuns(r);
+      });
+    tick();
+    // New handoffs arrive from Farbaek; a running one changes here.
+    const timer = window.setInterval(tick, 5_000);
+    return () => {
+      live = false;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  const shown = [...(list ?? []).map((h) => h.id), ...runs.map((r) => r.id)].filter((id, i, all) => all.indexOf(id) === i);
+  if (shown.length === 0) return error ? <Alert>{error}</Alert> : null;
+
+  async function start(id: string) {
+    setError(null);
+    const r = await api.startHandoff(id);
+    if (!r.ok) setError(r.message);
+    await refresh();
+  }
+
+  return (
+    <div className="card stack-sm">
+      <h2>From your phone or browser</h2>
+      <p className="muted small">
+        Tasks you sent to this computer. Each runs the listed checks on a copy of the project with the change waiting for review written in, on this computer and not
+        isolated, only when you start it here. The results go back to Farbaek, labelled as reported by this computer.
+      </p>
+      {error ? <Alert>{error}</Alert> : null}
+      <ul className="list">
+        {shown.map((id) => {
+          const h = list?.find((x) => x.id === id) ?? null;
+          const run = runs.find((r) => r.id === id) ?? null;
+          return (
+            <li key={id} className="handoff stack-sm">
+              <p className="row">
+                <strong>{h?.taskTitle ?? "Handoff"}</strong>
+                {h ? <span className="muted small">{h.projectName}</span> : null}
+              </p>
+              {h?.note ? <p className="small">Your note: {h.note}</p> : null}
+              {h ? (
+                <div className="small">
+                  <p className="muted">{h.proposal ? "With the change waiting for review. It runs:" : "There's no change waiting, so it runs on the project as it is:"}</p>
+                  <ul className="mono">
+                    {h.checks.map((c) => (
+                      <li key={c}>{c}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {run?.step ? <p className="small">{run.step}…</p> : null}
+              {run && run.checks.length > 0 ? (
+                <ul className="small">
+                  {run.checks.map((c, i) => (
+                    <li key={`${c.command}-${i}`}>
+                      <span className="mono">{c.command}</span>: {c.skipped ? `didn't run (${c.skipped})` : c.timedOut ? "ran out of time" : c.exitCode === 0 ? "passed" : `failed (exit ${c.exitCode})`}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {run?.message ? (
+                <p className="small">
+                  {run.message}
+                  {run.digest ? <span className="mono"> sha256:{run.digest.slice(0, 12)}</span> : null}
+                </p>
+              ) : null}
+              {h && run?.state !== "running" && run?.state !== "reported" ? (
+                <div className="row-start">
+                  <button className="btn btn-primary btn-sm" type="button" onClick={() => void start(id)}>
+                    Run the checks here
+                  </button>
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function TasksView({ state, onRunStarted }: { state: AppState; onRunStarted: (runId: string) => void }) {
   const [tasks, setTasks] = useState<TaskSummary[] | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -211,6 +315,7 @@ function TasksView({ state, onRunStarted }: { state: AppState; onRunStarted: (ru
         </button>
       </header>
       {error ? <Alert>{error}</Alert> : null}
+      <HandoffsPanel />
       {profile && !profile.canPropose ? (
         <Alert>
           {profile.lease && !profile.lease.capabilities.includes("propose")

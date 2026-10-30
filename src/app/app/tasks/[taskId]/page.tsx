@@ -61,6 +61,8 @@ import { MutationCard } from "@/components/mutation/mutation-card";
 import { MUTATION_MAX, planMutants } from "@/core/realityloop/mutation";
 import { NO_TEST_RUNNER } from "@/server/mutation/runner";
 import { readLatestMutationRun } from "@/server/mutation/store";
+import { HandoffCard } from "@/components/tasks/handoff-card";
+import { readHandoffs } from "@/server/agent/handoffs";
 
 export const metadata: Metadata = { title: "Task" };
 
@@ -228,6 +230,22 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
     (labRun && !labRun.ok ? labRun.reason : null) ??
     failureAi?.disabledReason ??
     null;
+  // Continue on my computer (ADR 0139): any task with an approved contract that isn't finished.
+  const handingOff = approvedContract !== null && !TERMINAL_STATES.has(task.state);
+  const [computers, handoffs] = handingOff
+    ? await Promise.all([
+        ctx.reader
+          .listAgents(orgId)
+          .then((all) => all.filter((a) => !a.revokedAt).map((a) => ({ id: a.id, name: a.name })))
+          .catch(() => []),
+        ctx.mode === "live" ? createSupabaseServerClient().then((c) => (c ? readHandoffs(c, orgId, task.id) : [])).catch(() => []) : Promise.resolve([]),
+      ])
+    : [[], []];
+  const handoffReason =
+    (ctx.mode === "demo" ? "The demo workspace is read-only." : null) ??
+    writeReason ??
+    (ctx.role === null || !CONTRIBUTOR_ROLES.includes(ctx.role) ? "Viewers can't hand tasks to a computer. Ask a member, admin or owner." : null) ??
+    withheldFor(ctx.role, ctx.permissions, "run_agents");
   const verifyReason =
     writeReason ??
     (execution.mode === "review_only" ? execution.reason : null) ??
@@ -410,6 +428,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
             {trying ? <ArenaPanel proposalId={proposal!.id} taskId={task.id} checks={checksForRun} run={arenaRun} disabledReason={arenaReason} /> : null}
             {trying ? <FailureFuturesCard proposalId={proposal!.id} taskId={task.id} futures={futures} trials={failureTrials} disabledReason={failureReason} /> : null}
             {trying ? <MutationCard proposalId={proposal!.id} taskId={task.id} planned={mutants} run={mutationRun} disabledReason={mutationReason} /> : null}
+            {handingOff ? <HandoffCard taskId={task.id} computers={computers} handoffs={handoffs} disabledReason={handoffReason} /> : null}
             {canPropose ? (
               <div className={`grid gap-3 rounded-md border border-accent/30 bg-accent/[0.04] p-5 ${showProposal ? "mt-2" : ""}`}>
                 <h3 className="flex items-center gap-2 text-base font-medium">
