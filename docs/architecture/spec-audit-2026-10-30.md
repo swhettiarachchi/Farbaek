@@ -40,9 +40,9 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
   - preview from an isolated origin;
   - sandbox terminal and checks;
   - public GitHub import;
-  - six static-site templates.
+  - nine static-site templates (three added in stage 101: online store, booking, dashboard).
 - **Partly built:**
-  - Templates: there's nothing yet for e-commerce, SaaS app, CRM, booking, REST API or Next.js. The spec says to match the stack actually implemented, and published sites are static.
+  - Templates: e-commerce, booking and an admin dashboard were added in stage 101 (ADR 0124); there's still nothing for a SaaS app with sign-in, CRM or REST API. The spec says to match the stack actually implemented, and published sites are static.
   - Git: GitHub import only; no branch or pull-request workflow.
 - **Partly built:** the visual builder (visual edit to diff): built for static sites in stage 95 (ADR 0118); apps with a build step aren't covered yet.
 

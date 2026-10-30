@@ -10,6 +10,9 @@ import { BLOG_FILES } from "./blog";
 import { EVENT_PAGE_FILES } from "./event-page";
 import { LANDING_PAGE_FILES } from "./landing-page";
 import { LOCAL_BUSINESS_FILES } from "./local-business";
+import { ONLINE_STORE_FILES } from "./online-store";
+import { BOOKING_FILES } from "./booking";
+import { DASHBOARD_FILES } from "./dashboard";
 import { PORTFOLIO_FILES } from "./portfolio";
 import { SAAS_SITE_FILES } from "./saas-site";
 
@@ -57,5 +60,26 @@ export const TEMPLATES: readonly Starter[] = [
     summary: "Writing first: drawings that draw themselves, a reading-progress line and light and dark themes.",
     files: BLOG_FILES,
     examplePrompt: "Make this my cooking blog called Kitchen Table, with three recipe posts.",
+  }),
+  site({
+    id: "online-store",
+    name: "Online store",
+    summary: "A small shop: drawn products in their own glaze, filters and sorting, and a cart that remembers what's in it.",
+    files: ONLINE_STORE_FILES,
+    examplePrompt: "Make this the store for my handmade candle shop, with six scents at $18 to $32 and free delivery over $50.",
+  }),
+  site({
+    id: "booking",
+    name: "Booking",
+    summary: "Appointments: pick a treatment, a day and an open time on a day ribbon, then add it to a calendar.",
+    files: BOOKING_FILES,
+    examplePrompt: "Make this the booking site for my barber shop, with a 30 minute cut at $25 and a beard trim at $15, open Tuesday to Saturday.",
+  }),
+  site({
+    id: "dashboard",
+    name: "Dashboard",
+    summary: "A back office: key numbers, a revenue chart you can read by day, and an orders table with search and CSV export.",
+    files: DASHBOARD_FILES,
+    examplePrompt: "Turn this into a dashboard for my tutoring business: lessons, students and monthly income.",
   }),
 ];
