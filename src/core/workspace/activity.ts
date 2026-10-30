@@ -58,6 +58,8 @@ const VERBS: Record<string, string> = {
   "invitation.revoked": "withdrew an invitation",
   "workspace.suspended": "paused the workspace",
   "workspace.restored": "restored the workspace",
+  "workspace.model_key_set": "set the workspace's own AI key",
+  "workspace.model_key_removed": "removed the workspace's own AI key",
   "project.created": "created a project",
   "project.archived": "archived a project",
   "project.files_imported": "imported files into a project",

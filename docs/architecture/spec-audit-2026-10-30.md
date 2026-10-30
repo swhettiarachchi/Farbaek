@@ -113,7 +113,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 ### 14. AI provider and privacy
 
 - **Built:** Claude and Gemini behind adapters, the model-change canary, usage metering at real cost, data export and account deletion.
-- **Not built:** organization gateways and local models.
+- **Partly built:** a workspace's own Anthropic key and company gateway (stage 102, ADR 0125). Local models aren't built.
 
 ### 15. Subscriptions
 

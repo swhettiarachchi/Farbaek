@@ -10,7 +10,7 @@
  * person in the database.
  */
 import { createClient } from "@supabase/supabase-js";
-import { resolveAiProvider } from "@/server/ai/config";
+import { aiForWorkspace } from "@/server/ai/workspace-ai";
 import { createAnthropicGatewayModel } from "@/server/ai/gateway-model";
 import { createSupabaseAgentStore } from "@/server/agent/supabase-store";
 import { sandboxExecutionMode } from "@/server/sandbox/registry";
@@ -52,13 +52,14 @@ async function freshAccessToken(): Promise<string | null> {
  * sandbox service as other background work is.
  */
 export async function cloudRunDeps(person: { orgId: string; userId: string; role: OrgRole }, options: { system?: boolean; accessToken?: string } = {}): Promise<CloudRunWiring> {
-  const ai = resolveAiProvider();
-  if (ai.provider !== "anthropic") return { ok: false, reason: ai.provider ? "Cloud runs need Claude on this server." : ai.reason };
   const admin = createSupabaseAdminClient();
   const config = readSupabaseConfig();
   if (!admin || !config) return { ok: false, reason: "Accounts aren't configured on this server." };
 
   const agentStore = createSupabaseAgentStore(admin);
+  // The workspace's own AI key when it has one (ADR 0125); otherwise Farbaek's, which must be Claude.
+  const ai = await aiForWorkspace(person.orgId, { ...agentStore, ...createServerUsageDeps(admin) }, { timeout: 600_000, claudeOnly: "Cloud runs" });
+  if ("error" in ai) return { ok: false, reason: ai.error };
   const sandboxed = sandboxExecutionMode().mode === "sandboxed";
   // A phone passes its own token (ADR 0110), checked to outlast the run; a page's session is refreshed for it.
   const token = sandboxed && !options.system ? (options.accessToken ?? (await freshAccessToken())) : null;
@@ -67,7 +68,7 @@ export async function cloudRunDeps(person: { orgId: string; userId: string; role
   const deps: ExecutorDeps = {
     runs: createSupabaseRunStore(admin),
     checks: agentStore,
-    gateway: { deps: { ...agentStore, ...createServerUsageDeps(admin) }, model: createAnthropicGatewayModel() },
+    gateway: { deps: ai.deps, model: createAnthropicGatewayModel(ai.client) },
     sandboxAvailable: () => canSandbox,
     // Tells the person who started the run when it ends (ADR 0060); null while email is off.
     notify: serverNotifier(),

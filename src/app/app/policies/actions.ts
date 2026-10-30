@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { RulesTestSummary } from "@/core/trust/rules-test";
-import { resolveAiProvider } from "@/server/ai/config";
 import { createAnthropicPolicyDrafter } from "@/server/ai/policy-drafter";
+import { aiForWorkspace } from "@/server/ai/workspace-ai";
 import { currentExecutionMode } from "@/server/execution/sandbox";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
@@ -67,9 +67,9 @@ export async function draftRulesAction(input: { request: string }): Promise<Draf
   if (!ctx) return { status: "error", message: "Sign in again to draft rules." };
   const w = await rulesDeps(ctx);
   if ("error" in w) return { status: "error", message: w.error ?? "This can't run here." };
-  const ai = resolveAiProvider();
-  if (ai.provider !== "anthropic") return { status: "error", message: ai.provider ? "Drafting rules uses Claude, and this server uses another provider. Add rules by hand instead." : ai.reason };
-  const r = await draftRules(w.deps, { family: "anthropic", create: (s) => createAnthropicPolicyDrafter({ model: s.model, effort: s.thinking }) }, { orgId: w.orgId, userId: ctx.user.id, request: parsed.data.request });
+  const ai = await aiForWorkspace(w.orgId, w.deps, { timeout: 90_000, claudeOnly: "Drafting rules" });
+  if ("error" in ai) return { status: "error", message: `${ai.error} Add rules by hand instead.` };
+  const r = await draftRules(ai.deps, { family: "anthropic", create: (s) => createAnthropicPolicyDrafter({ model: s.model, effort: s.thinking, client: ai.client }) }, { orgId: w.orgId, userId: ctx.user.id, request: parsed.data.request });
   if (!r.ok) return { status: "error", message: r.message };
   return { status: "done", rules: r.value.rules, ambiguities: r.value.ambiguities, unsupported: r.value.unsupported, dropped: r.value.dropped };
 }

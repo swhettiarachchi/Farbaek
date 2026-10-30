@@ -9,6 +9,8 @@ import { LEVEL_3_NOT_IN_PLAN, SHADOW_NOT_IN_PLAN, readAutonomyRecord } from "@/s
 import { levelThreeStatus } from "@/core/trust/autonomy-levels";
 import { DeleteAccount } from "@/components/app/delete-account";
 import { EmailPreferencesForm } from "@/components/app/email-preferences";
+import { ModelKeyCard } from "@/components/app/model-key";
+import { readModelKey } from "@/server/ai/workspace-ai";
 import { ThisDevice } from "@/components/app/this-device";
 import { Phones } from "@/components/app/phones";
 import { readMyPhones } from "@/server/phone/store";
@@ -58,6 +60,9 @@ export default async function SettingsPage() {
   const myDevices = pushClient ? await readMyDevices(pushClient, ctx.user.id).catch(() => []) : [];
   // Phones signed in with the Farbaek app (ADR 0110), read as the person.
   const myPhones = pushClient ? await readMyPhones(pushClient, ctx.user.id).catch(() => []) : [];
+  // The workspace's own AI key (ADR 0125): whether one is set and which, never the key.
+  const modelKey = pushClient ? await readModelKey(pushClient, ws.id) : null;
+  const modelKeyReason = ctx.mode === "demo" ? "The demo workspace is read-only." : ctx.writes.enabled ? null : ctx.writes.reason;
   // Level 3 (ADR 0086): the plan first, then the record it's earned from, read as the person. A running level 3 can always change its limits.
   const levelThreeFeature = checkFeature(ws.plan, "advanced_autonomy");
   const levelThreeOn = autonomy.level === 3 && autonomy.suspendedAt === null;
@@ -277,6 +282,16 @@ export default async function SettingsPage() {
           )}
         </Card>
       </div>
+
+      <section id="ai-key" aria-labelledby="ai-key-title" className="scroll-mt-24">
+        <Card>
+          <h2 id="ai-key-title" className="text-lg font-medium">
+            Your own AI key
+          </h2>
+          <p className="mt-1 mb-4 text-sm text-ink-2">Use this workspace&apos;s own Anthropic account, directly or through your company&apos;s gateway, instead of Farbaek&apos;s.</p>
+          <ModelKeyCard current={modelKey} canManage={canManage} disabledReason={modelKeyReason} />
+        </Card>
+      </section>
 
       <section id="your-data" aria-labelledby="your-data-title" className="scroll-mt-24">
         <Card>

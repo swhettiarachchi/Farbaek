@@ -117,10 +117,12 @@ export default async function IntegrationsPage() {
       id: "ai",
       icon: SparkleIcon,
       name: "AI models",
-      does: "Plans, drafting and agent runs use Farbaek's AI. No API key needed.",
-      status: { tone: "verified", label: "Included" },
-      detail: "Each step counts against this workspace's AI usage, at the model's real token cost.",
-      action: { href: "/app/billing", label: "See usage" },
+      does: v.modelKey ? "Plans, drafting and agent runs use this workspace's own Anthropic key." : "Plans, drafting and agent runs use Farbaek's AI. No API key needed.",
+      status: v.modelKey ? { tone: "verified", label: "Your key" } : { tone: "verified", label: "Included" },
+      detail: v.modelKey
+        ? `The key ends ${v.modelKey.hint}${v.modelKey.gateway ? `, through ${v.modelKey.gateway}` : ""}. Calls on it don't count against this workspace's AI usage.`
+        : "Each step counts against this workspace's AI usage, at the model's real token cost. Owners and admins can use their own Anthropic key instead.",
+      action: { href: "/app/settings#ai-key", label: v.modelKey ? "AI key settings" : "Use your own key" },
     },
   ];
 
@@ -159,7 +161,7 @@ export default async function IntegrationsPage() {
         </h2>
         <ul className="grid gap-1.5 text-sm leading-relaxed text-ink-2">
           <li>GitHub pull requests and status checks, and private repositories.</li>
-          <li>Your own model keys, local models or a company AI gateway.</li>
+          <li>Local models running on your own computer.</li>
           <li>Streaming the activity log to your own systems.</li>
         </ul>
       </section>

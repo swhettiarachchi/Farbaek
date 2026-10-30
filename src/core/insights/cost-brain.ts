@@ -18,6 +18,8 @@ export interface LedgerEntry {
   outputTokens: number | null;
   cacheReadTokens: number | null;
   cacheWriteTokens: number | null;
+  /** Made on the workspace's own model key (ADR 0125): its tokens count, its units are always 0. */
+  ownKey?: boolean;
 }
 
 export interface SandboxUse {
@@ -34,6 +36,8 @@ export interface OperationCost {
   percent: number | null;
   /** True when part of it is a reservation not yet settled: an estimate. */
   estimated: boolean;
+  /** Calls made on the workspace's own key, which don't count against the allowance. */
+  ownKeyCalls: number;
   tokens: { input: number; output: number; cached: number };
   models: string[];
 }
@@ -64,6 +68,7 @@ export function taskCost(entries: readonly LedgerEntry[], sandboxes: readonly Sa
       calls: counted.length,
       percent: share(units),
       estimated: counted.some((e) => e.status === "reserved"),
+      ownKeyCalls: counted.filter((e) => e.ownKey).length,
       tokens: {
         input: list.reduce((n, e) => n + (e.inputTokens ?? 0), 0),
         output: list.reduce((n, e) => n + (e.outputTokens ?? 0), 0),
