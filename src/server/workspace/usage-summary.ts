@@ -11,6 +11,9 @@ import { createChangeProposer, createContractDrafter } from "@/server/ai/provide
 import { aiAvailability, typicalUnits, type AiAvailability } from "./ai-usage";
 import { MANUAL_CONTRACT } from "./ai-drafting";
 import { MANUAL_LENS } from "./lens-suggestions";
+import { MANUAL_SECOND_CHECK } from "./second-check";
+import { OPENAI_SECOND_CHECK_MODEL, openAiKey } from "@/server/ai/openai-second-checker";
+import { SECOND_CHECK_MAX_OUTPUT_TOKENS } from "@/server/ai/second-checker";
 import type { AppContext } from "./context";
 import { workspaceGrant, type WorkspaceSummary } from "./organizations";
 import { MANUAL_FILES } from "./proposals";
@@ -50,6 +53,7 @@ const MANUAL: Record<ButtonOperation, string> = {
   change_proposal: MANUAL_FILES,
   lens_mapping: MANUAL_LENS,
   policy_draft: MANUAL_RULES,
+  second_check: MANUAL_SECOND_CHECK,
 };
 
 /** Whether an AI action works for this person in this workspace, and the share of usage used. */
@@ -59,10 +63,15 @@ export async function loadAiAvailability(ctx: AppContext, ws: WorkspaceSummary, 
   const wallet = await loadWallet(ctx, ws, now);
   // The AI mapping in the Intent Diff Lens (ADR 0044) and rule drafting (ADR 0082) run on Claude only.
   const claudeOnly = operation === "lens_mapping" || operation === "policy_draft";
-  const usable = claudeOnly && provider.provider !== "anthropic" ? null : provider.provider;
+  // The second check (ADR 0121) runs on OpenAI when this server has its key, otherwise on Claude.
+  const secondOnOpenAi = operation === "second_check" && openAiKey() !== null;
+  const usable = secondOnOpenAi ? "anthropic" : (claudeOnly || operation === "second_check") && provider.provider !== "anthropic" ? null : provider.provider;
   let needs = 1;
   if (usable && !ws.billingUnknown) {
-    if (operation === "lens_mapping") {
+    if (operation === "second_check") {
+      const model = secondOnOpenAi ? OPENAI_SECOND_CHECK_MODEL : routeModel({ plan: ws.plan, family: "anthropic", step: "review", effort: "balanced" }).model;
+      needs = typicalUnits(operation, model, SECOND_CHECK_MAX_OUTPUT_TOKENS);
+    } else if (operation === "lens_mapping") {
       const choice = routeModel({ plan: ws.plan, family: "anthropic", step: "review", effort: "fast" });
       needs = typicalUnits(operation, choice.model, LENS_MAX_OUTPUT_TOKENS);
     } else if (operation === "policy_draft") {
@@ -78,8 +87,12 @@ export async function loadAiAvailability(ctx: AppContext, ws: WorkspaceSummary, 
   return aiAvailability({
     writeReason: ctx.writes.enabled ? null : ctx.writes.reason,
     keyPresent: usable !== null,
-    provider: usable && provider.provider ? provider.label : null,
-    notConnectedReason: usable ? undefined : provider.provider ? `${operation === "policy_draft" ? "Drafting rules" : "AI mapping"} uses Claude, and this server uses another provider.` : provider.reason,
+    provider: secondOnOpenAi ? "OpenAI" : usable && provider.provider ? provider.label : null,
+    notConnectedReason: usable
+      ? undefined
+      : provider.provider
+        ? `${operation === "policy_draft" ? "Drafting rules" : operation === "second_check" ? "The second check" : "AI mapping"} uses Claude, and this server uses another provider.`
+        : provider.reason,
     plan: ws.billingUnknown ? null : ws.plan,
     wallet,
     fallback: { resetsAt: period.end.toISOString(), period: period.kind },

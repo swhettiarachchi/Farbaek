@@ -16,6 +16,8 @@ import { scopeDrift } from "@/core/realityloop/scope-drift";
 import { currentExecutionMode } from "@/server/execution/sandbox";
 import { ProposalReview } from "@/components/proposals/proposal-review";
 import { ImpactCard } from "@/components/proposals/impact-card";
+import { SecondCheckCard } from "@/components/proposals/second-check-card";
+import { secondCheckRecommended } from "@/core/trust/second-check";
 import { ArenaPanel } from "@/components/arena/arena-panel";
 import { readLatestArenaRun } from "@/server/arena/store";
 import { createSupabaseServerClient } from "@/server/supabase/server";
@@ -75,7 +77,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
   const showProposal = proposal !== null && (proposal.status !== "discarded" || !canPropose);
   const applied = proposal?.status === "applied" ? proposal : null;
   // Everything below depends only on the reads above, so it loads in one round.
-  const [driftEvents, proposeAi, projectFiles, bases, intact, [recoverySource, recoveries], agents, lensSuggestion, lensAi, verification, project] = await Promise.all([
+  const [driftEvents, proposeAi, projectFiles, bases, intact, [recoverySource, recoveries], agents, lensSuggestion, lensAi, verification, project, secondCheck, secondCheckAi] = await Promise.all([
     approvedContract && !TERMINAL_STATES.has(task.state) ? ctx.reader.listFileChangesSince(orgId, task.projectId, approvedContract.approvedAt!) : Promise.resolve(null),
     canPropose ? loadAiAvailability(ctx, ctx.current, "change_proposal") : Promise.resolve(null),
     canPropose || task.state === "VERIFYING" || task.state === "APPROVAL_PENDING" ? ctx.reader.listFiles(orgId, task.projectId) : Promise.resolve([]),
@@ -97,6 +99,9 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
     task.state === "VERIFYING" ? ctx.reader.getLatestVerification(orgId, task.id).catch(() => null) : Promise.resolve(null),
     // An archived project stays readable, but the database refuses any change to it.
     ctx.reader.getProject(orgId, task.projectId).catch(() => null),
+    // The second check (ADR 0121): kept after the change is decided, asked for only while it waits.
+    showProposal ? ctx.reader.getSecondCheck(orgId, proposal!.id).catch(() => null) : Promise.resolve(null),
+    showProposal && proposal!.status === "pending" ? loadAiAvailability(ctx, ctx.current, "second_check") : Promise.resolve(null),
   ]);
   // Fixing what failed checks found (ADR 0101): the fix started for this task, and the task this one fixes.
   const fixable = FIXABLE_STATES.has(task.state) && approvedContract !== null;
@@ -294,6 +299,15 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
                 lensSuggestion={lensSuggestion}
                 lensAiReason={lensAi?.disabledReason ?? null}
                 checksOnApply={checksForRun.length > 0}
+              />
+            ) : null}
+            {showProposal ? (
+              <SecondCheckCard
+                proposalId={proposal!.id}
+                initial={secondCheck}
+                pending={proposal!.status === "pending"}
+                recommended={secondCheckRecommended(proposal!.policy)}
+                disabledReason={ctx.mode === "demo" ? "The demo workspace is read-only." : (secondCheckAi?.disabledReason ?? null)}
               />
             ) : null}
             {showProposal ? <ImpactCard taskId={task.id} disabledReason={impactReason} /> : null}

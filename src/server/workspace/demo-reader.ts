@@ -426,6 +426,9 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
       return proposalId === DEMO_PROPOSAL_ID ? { ...DEMO_LENS_SUGGESTION, createdAt: ago(DEMO_TIME.HOUR) } : null;
     },
 
+    // The demo has no second checks: asking for one needs a real workspace.
+    getSecondCheck: async () => null,
+
     // The demo workspace keeps every change waiting for a person.
     getAutonomy: async () => AUTONOMY_OFF,
     // The demo workspace has no rules of its own; the builder still shows how they read against its sample files.

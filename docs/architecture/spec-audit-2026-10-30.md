@@ -70,7 +70,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
   - the security evaluation suite.
 - **Not built:**
   - permission leases (scoped, expiring, revocable grants): built in stage 94 (ADR 0117);
-  - the second-checker model;
+  - the second-checker model: built in stage 98 (ADR 0121);
   - multi-agent coordination and the trust graph;
   - MCP support (tool-definition pinning, a third-party tool registry).
 

@@ -21,6 +21,7 @@ import type { SkillPinDeps } from "./skill-pins";
 import type { LensSuggestionDeps } from "./lens-suggestions";
 import type { AutonomyDeps } from "./autonomy";
 import type { MemberPermissionDeps } from "./member-permissions";
+import type { SecondCheckDeps } from "./second-check";
 import { signRecordedProofPack } from "@/server/proof/record";
 import { policyRecord } from "@/core/trust/policy";
 import { readActiveRules } from "./workspace-rules";
@@ -33,7 +34,7 @@ export function createSupabaseWriteDeps(
   user: SupabaseClient,
   admin: SupabaseClient,
   userId: string,
-): WriteDeps & AiUsageDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps & AgentAdminDeps & SkillPinDeps & LensSuggestionDeps & AutonomyDeps & MemberPermissionDeps {
+): WriteDeps & AiUsageDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps & AgentAdminDeps & SkillPinDeps & LensSuggestionDeps & AutonomyDeps & MemberPermissionDeps & SecondCheckDeps {
   const reader = createSupabaseReader(user);
   async function rpc<T>(fn: string, args: Record<string, unknown>, schema: z.ZodType<T>): Promise<RpcResult<T>> {
     const { data, error } = await admin.rpc(fn, args);
@@ -224,6 +225,21 @@ export function createSupabaseWriteDeps(
         z.null().or(z.literal("")).transform(() => null),
       ),
 
+    recordSecondCheck: (i) =>
+      rpc(
+        "app_record_second_check",
+        {
+          p_proposal: i.proposalId,
+          p_actor: i.actor,
+          p_verdict: i.result.verdict,
+          // Who checked is kept in its own columns; the rest is the answer as shown.
+          p_result: { summary: i.result.summary, findings: i.result.findings, uncertainty: i.result.uncertainty, verdict: i.result.verdict, truncated: i.result.truncated },
+          p_model: i.result.model,
+          p_independent: i.result.independent,
+        },
+        z.null().or(z.literal("")).transform(() => null),
+      ),
+
     unpinSkill: (i) => rpc("app_unpin_skill", { p_project: i.projectId, p_actor: i.actor, p_path: i.path }, z.null().or(z.literal("")).transform(() => null)),
 
     async approvedContract(orgId, taskId) {
@@ -302,6 +318,8 @@ export function createSupabaseWriteDeps(
         model: record.model,
         policy: record.policy,
         expiresAt: record.expiresAt,
+        plan: record.plan,
+        violations: record.violations,
       };
     },
 

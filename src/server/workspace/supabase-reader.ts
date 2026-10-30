@@ -3,6 +3,7 @@ import { z } from "zod";
 import { IntentContractSchema } from "@/core/realityloop/contract";
 import { AGENT_CAPABILITIES } from "@/core/agent/lease";
 import { CATEGORY_PREFIXES } from "@/core/workspace/activity";
+import { SecondCheckOutputSchema } from "@/core/trust/second-check";
 import { parsePermissions } from "@/core/workspace/permissions";
 import { ORGANIZATION_SELECT, summarizeOrganizations } from "./organizations";
 import { readSkillPins } from "./skill-pins";
@@ -426,6 +427,17 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
         .nullable()
         .parse(data);
       return row ? { mappings: row.suggestion.mappings, model: row.model, createdAt: row.created_at } : null;
+    },
+
+    async getSecondCheck(orgId, proposalId) {
+      if (!z.uuid().safeParse(proposalId).success) return null;
+      const { data, error } = await client.from("proposal_second_checks").select("result, model, independent, created_at").eq("org_id", orgId).eq("proposal_id", proposalId).maybeSingle();
+      if (error) fail("second check", error);
+      const row = z
+        .object({ result: SecondCheckOutputSchema.extend({ truncated: z.array(z.string()).default([]) }), model: z.string(), independent: z.boolean(), created_at: z.string() })
+        .nullable()
+        .parse(data);
+      return row ? { ...row.result, model: row.model, independent: row.independent, createdAt: row.created_at } : null;
     },
 
     async getLatestProposal(orgId, taskId) {

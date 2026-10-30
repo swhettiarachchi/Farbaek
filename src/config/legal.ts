@@ -38,6 +38,12 @@ export const PAID_TERMS_VERSION = "2026-10-29";
 export const SUBPROCESSORS = [
   { name: "Anthropic", purpose: "AI models (Claude) that draft plans and code changes from what you write and the files you choose", data: "Prompts, chosen file contents, AI output", where: "United States" },
   { name: "Google", purpose: "AI models (Gemini): image generation, and drafting when the server uses them instead of Claude, on a paid account only", data: "Prompts, chosen file contents, image descriptions, AI output and generated images", where: "United States" },
+  {
+    name: "OpenAI",
+    purpose: "A second AI model that checks a proposed change against its contract, when someone in your workspace asks for a second check",
+    data: "The change's contract, plan, policy decision and file diffs, and the model's answer",
+    where: "United States",
+  },
   { name: "Vercel", purpose: "Isolated sandboxes that run your project's checks and builds", data: "Project files, commands and their output", where: "United States" },
   { name: "Hostinger", purpose: "The server for the app, database, sign-in and backups, and DNS for farbaek.si", data: "Everything Farbaek stores", where: "United States" },
   {
