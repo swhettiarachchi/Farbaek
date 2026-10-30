@@ -18,6 +18,7 @@ import { classifyExit, FAILURE_LABELS, type FailureCategory } from "@/core/sandb
 import { blockReason, evaluateSandboxAction, type SandboxAction } from "@/core/sandbox/guard";
 import { TERMINAL_SESSION_STATES, type SessionState } from "@/core/sandbox/lifecycle";
 import { egressRules, validPreviewPort } from "@/core/sandbox/network";
+import { EGRESS_READ_BYTES, READ_EGRESS_COMMAND, commandPrelude, mergeEgress, parseEgressLog, summarizeEgress, type EgressSummary } from "@/core/sandbox/egress-ledger";
 import { MAX_SANDBOX_FILE_BYTES, resolveSandboxPath } from "@/core/sandbox/paths";
 import { newPreviewId, previewOrigin, PREVIEW_LAUNCH_PATH, PREVIEW_LAUNCH_SECONDS, signPreviewToken } from "@/core/sandbox/preview";
 import { buildSandboxReceipt, sandboxReceiptDigest, snapshotDigest, toCheckResult, type ReceiptCheck } from "@/core/sandbox/receipts";
@@ -380,9 +381,12 @@ export function createSandboxService(deps: SandboxServiceDeps) {
     const stdout = new BoundedOutput();
     const stderr = new BoundedOutput();
     const t0 = Date.now();
+    // The Egress Ledger (ADR 0127): Farbaek's proxy records what the command asks to reach. The stored command stays the person's own.
+    const ledger = config.egressLedger !== false;
+    const prelude = ledger ? commandPrelude(egressRules(session.network).allowOut) : undefined;
     const outcome = await runtime.exec(
       session.providerSandboxId,
-      { command: cmd.command, timeoutSeconds },
+      { command: cmd.command, timeoutSeconds, prelude },
       {
         onStart: async (pid) => {
           await store.setExecutionPid(executionId, pid);
@@ -433,8 +437,26 @@ export function createSandboxService(deps: SandboxServiceDeps) {
       await store.transition(sessionId, null, session.version, "fail", { failure_category: "sandbox_gone", failure_message: FAILURE_LABELS.sandbox_gone.title, cleaned_up: true });
     }
     log(state === "succeeded" ? "info" : "warn", "sandbox.execution_finished", { session: sessionId, execution: executionId, state, exitCode: outcome.exitCode, durationMs, category });
+    if (ledger && !outcome.runtimeError) {
+      const egress = await readEgress(session.providerSandboxId);
+      if (egress) {
+        const kept = await store.recordEgress(executionId, egress);
+        if (!kept.ok) log("warn", "sandbox.egress_record_failed", { execution: executionId, error: kept.error });
+      }
+    }
     const record = await store.getExecution(executionId);
     return record ? { ok: true, value: record } : err("UNKNOWN", "The command ran, but its record couldn't be read back.", "control_plane_interrupted");
+  }
+
+  /** What the proxy recorded during the last command, checked and grouped; null when it can't be read. */
+  async function readEgress(sandboxId: string): Promise<EgressSummary | null> {
+    if (!runtime) return null;
+    let text = "";
+    const r = await runtime
+      .exec(sandboxId, { command: READ_EGRESS_COMMAND, timeoutSeconds: 20 }, { onStdout: (c) => void (text.length <= EGRESS_READ_BYTES ? (text += c) : null) })
+      .catch(() => null);
+    if (!r || r.runtimeError) return null;
+    return summarizeEgress(parseEgressLog(text.slice(-EGRESS_READ_BYTES)));
   }
 
   async function cancelExecution(actor: SandboxActor, executionId: string): Promise<SandboxResult<{ alreadyFinished: boolean; killed: boolean }>> {
@@ -664,7 +686,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
    * run. Writes nothing else: runChecks builds the receipt and ProofPack from
    * this, and trialChecks returns it as it is.
    */
-  async function executeChecks(actor: SandboxActor, session: SessionRecord, sessionId: string, checksList: readonly string[], baseKey: string): Promise<ReceiptCheck[]> {
+  async function executeChecks(actor: SandboxActor, session: SessionRecord, sessionId: string, checksList: readonly string[], baseKey: string, egress: (EgressSummary | null)[] = []): Promise<ReceiptCheck[]> {
     // Farbaek's site check (ADR 0054) is a script Farbaek writes into the sandbox, outside the project's
     // own folders, after the applied files were hashed. The receipt names it with the script's hash.
     let siteCheckName: string | null = null;
@@ -695,6 +717,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
         continue;
       }
       const e = run.value;
+      egress.push(e.egress);
       results.push({
         name,
         command,
@@ -741,7 +764,8 @@ export function createSandboxService(deps: SandboxServiceDeps) {
       appliedFiles = changes.map((c) => ({ path: c.path, expected: c.sha256, actual: actual.get(c.path) ?? null }));
     }
 
-    const results = await executeChecks(actor, session, sessionId, checksList, baseKey);
+    const checkEgress: (EgressSummary | null)[] = [];
+    const results = await executeChecks(actor, session, sessionId, checksList, baseKey, checkEgress);
 
     const role = await deps.role(actor.orgId);
     const decision = await guard("command.run", actor, role, session);
@@ -777,6 +801,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
         receiptDigest: digest,
         checks: results.map(toCheckResult),
         provider: runtime?.capabilities.provider ?? session.provider,
+        egress: mergeEgress(checkEgress),
         createdAt: deps.now().toISOString(),
         previous: await deps.tasks.latestProjectProofPackDigest(actor.orgId, session.projectId),
       });

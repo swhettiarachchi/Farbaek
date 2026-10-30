@@ -44,6 +44,8 @@ export interface RuntimeSandbox {
 export interface ExecRequest {
   command: string;
   timeoutSeconds: number;
+  /** Farbaek's own lines run first in the same shell, such as the egress proxy's settings (ADR 0127). */
+  prelude?: string;
 }
 
 export interface ExecHandlers {

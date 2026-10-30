@@ -78,10 +78,15 @@ export default async function IntegrationsPage() {
       id: "github",
       icon: GithubLogoIcon,
       name: "GitHub",
-      does: "Imports a public repository as a new project, screened like any import.",
-      status: { tone: "info", label: "Import only" },
-      detail: "Private repositories, pull requests and status checks aren't available yet.",
-      action: { href: "/app/projects", label: "Import from GitHub" },
+      does: "Imports a public repository as a new project, and opens a pull request for each applied change, with a Farbaek ProofPack status check.",
+      status: v.github === null ? { tone: "unverified", label: "Not read" } : v.github.login ? { tone: "verified", label: "Connected" } : { tone: "info", label: "Import only" },
+      detail:
+        v.github === null
+          ? unread
+          : v.github.login
+            ? `Connected as ${v.github.login}. ${v.github.linked === 1 ? "1 project is" : `${v.github.linked} projects are`} linked to a repository.`
+            : "Connect a fine-grained token in Settings to open pull requests. Importing public repositories needs nothing.",
+      action: v.github?.login ? { href: "/app/projects", label: "Choose a project" } : { href: "/app/settings#github", label: "Connect GitHub" },
     },
     {
       id: "agents",
@@ -117,10 +122,12 @@ export default async function IntegrationsPage() {
       id: "ai",
       icon: SparkleIcon,
       name: "AI models",
-      does: "Plans, drafting and agent runs use Farbaek's AI. No API key needed.",
-      status: { tone: "verified", label: "Included" },
-      detail: "Each step counts against this workspace's AI usage, at the model's real token cost.",
-      action: { href: "/app/billing", label: "See usage" },
+      does: v.modelKey ? "Plans, drafting and agent runs use this workspace's own Anthropic key." : "Plans, drafting and agent runs use Farbaek's AI. No API key needed.",
+      status: v.modelKey ? { tone: "verified", label: "Your key" } : { tone: "verified", label: "Included" },
+      detail: v.modelKey
+        ? `The key ends ${v.modelKey.hint}${v.modelKey.gateway ? `, through ${v.modelKey.gateway}` : ""}. Calls on it don't count against this workspace's AI usage.`
+        : "Each step counts against this workspace's AI usage, at the model's real token cost. Owners and admins can use their own Anthropic key instead.",
+      action: { href: "/app/settings#ai-key", label: v.modelKey ? "AI key settings" : "Use your own key" },
     },
   ];
 
@@ -158,8 +165,8 @@ export default async function IntegrationsPage() {
           <LockSimpleIcon size={18} aria-hidden /> Not available yet
         </h2>
         <ul className="grid gap-1.5 text-sm leading-relaxed text-ink-2">
-          <li>GitHub pull requests and status checks, and private repositories.</li>
-          <li>Your own model keys, local models or a company AI gateway.</li>
+          <li>Importing private GitHub repositories.</li>
+          <li>Local models running on your own computer.</li>
           <li>Streaming the activity log to your own systems.</li>
         </ul>
       </section>

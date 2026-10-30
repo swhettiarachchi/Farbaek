@@ -279,6 +279,8 @@ export function createSupabaseSandboxStore(user: SupabaseClient | null, admin: S
 
     setExecutionPid: (id, pid) => rpc("app_set_sandbox_execution_pid", { p_execution: id, p_pid: pid }, voidResult),
 
+    recordEgress: (id, egress) => rpc("app_record_sandbox_egress", { p_execution: id, p_egress: egress }, voidResult),
+
     finishExecution: (i) =>
       rpc(
         "app_finish_sandbox_execution",

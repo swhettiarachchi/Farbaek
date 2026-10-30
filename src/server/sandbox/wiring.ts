@@ -23,6 +23,7 @@ import { createSandboxService, type SandboxActor, type SandboxService, type Task
 import { createSupabaseSandboxStore } from "./supabase-store";
 import type { SandboxStore } from "./types";
 import { signRecordedProofPack } from "@/server/proof/record";
+import { refreshPullStatusAfterProof } from "@/server/github/pull-requests";
 
 export interface SandboxRequest {
   actor: SandboxActor;
@@ -74,6 +75,8 @@ function taskBridge(user: SupabaseClient, admin: SupabaseClient | null, userId: 
       if (typeof data !== "string") return { ok: false, error: "UNEXPECTED_RESPONSE" };
       // Farbaek signs the verification ProofPack it just recorded (ADR 0062).
       await signRecordedProofPack(admin, i.digest, i.statement);
+      // The change's pull request on GitHub says what the checks found (ADR 0126); never in the way.
+      void refreshPullStatusAfterProof(admin, i.digest);
       return { ok: true, value: data };
     },
     applyTransition: async (i) => (writes ? writes.applyTransition(i) : { ok: false, error: "WRITES_UNAVAILABLE" }),

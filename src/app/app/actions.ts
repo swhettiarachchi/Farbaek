@@ -36,6 +36,7 @@ import { createAnthropicLensMapper } from "@/server/ai/lens-mapper";
 import { createOpenAiSecondChecker, openAiKey } from "@/server/ai/openai-second-checker";
 import { createAnthropicSecondChecker } from "@/server/ai/second-checker";
 import { runSecondCheck, type SecondCheckDeps } from "@/server/workspace/second-check";
+import { aiForWorkspace } from "@/server/ai/workspace-ai";
 import type { SecondCheckResult } from "@/core/trust/second-check";
 import { suggestLensMapping, type LensSuggestionDeps } from "@/server/workspace/lens-suggestions";
 import { limitsFrom, setWorkspaceAutonomy, type AutonomyDeps } from "@/server/workspace/autonomy";
@@ -221,8 +222,8 @@ export async function draftContractWithAiAction(form: FormData): Promise<AiDraft
   const ctx = await requireContext();
   const w = await writeDeps(ctx);
   if ("error" in w) return { status: "error", message: w.error };
-  const ai = resolveAiProvider();
-  if (!ai.provider) return { status: "error", message: `${ai.reason} You can still write the contract yourself.` };
+  const ai = await aiForWorkspace(w.orgId, w.deps, { timeout: 90_000 });
+  if ("error" in ai) return { status: "error", message: `${ai.error} You can still write the contract yourself.` };
 
   // Read through Row Level Security: the task and project must be visible to this user.
   const found = await ctx.reader.getTask(w.orgId, taskId);
@@ -236,7 +237,7 @@ export async function draftContractWithAiAction(form: FormData): Promise<AiDraft
 
   const provider = ai.provider;
   const effort = z.enum(EFFORTS).catch("balanced").parse(form.get("effort"));
-  const result = await draftContractWithAi(w.deps, { family: provider, create: (s) => createContractDrafter(provider, s) }, {
+  const result = await draftContractWithAi(ai.deps, { family: provider, create: (s) => createContractDrafter(provider, s, ai.client) }, {
     orgId: w.orgId,
     userId: ctx.user.id,
     taskId: found.task.id,
@@ -427,14 +428,14 @@ export async function proposeChangeAction(input: { taskId: string; contextPaths:
   const ctx = await requireContext();
   const w = await writeDeps(ctx);
   if ("error" in w) return { status: "error", message: w.error };
-  const ai = resolveAiProvider();
-  if (!ai.provider) return { status: "error", message: `${ai.reason} You can still edit the files yourself.` };
+  const ai = await aiForWorkspace(w.orgId, w.deps, { timeout: 300_000 });
+  if ("error" in ai) return { status: "error", message: `${ai.error} You can still edit the files yourself.` };
   const found = await ctx.reader.getTask(w.orgId, parsed.data.taskId);
   if (!found) return { status: "error", message: "That task doesn't exist or isn't in this workspace." };
   const project = await ctx.reader.getProject(w.orgId, found.task.projectId);
 
   const provider = ai.provider;
-  const result = await proposeChange(w.deps, { family: provider, create: (s) => createChangeProposer(provider, s) }, {
+  const result = await proposeChange(ai.deps, { family: provider, create: (s) => createChangeProposer(provider, s, ai.client) }, {
     orgId: w.orgId,
     userId: ctx.user.id,
     taskId: found.task.id,
@@ -500,9 +501,9 @@ export async function suggestLensMappingAction(input: { proposalId: string }): P
   const ctx = await requireContext();
   const w = await writeDeps(ctx);
   if ("error" in w) return { status: "error", message: w.error };
-  const ai = resolveAiProvider();
-  if (ai.provider !== "anthropic") return { status: "error", message: ai.provider ? "AI mapping uses Claude, and this server uses another provider." : ai.reason };
-  const result = await suggestLensMapping(w.deps, { family: "anthropic", create: (s) => createAnthropicLensMapper({ model: s.model, effort: "low" }) }, { orgId: w.orgId, userId: ctx.user.id, proposalId: parsed.data.proposalId });
+  const ai = await aiForWorkspace(w.orgId, w.deps, { timeout: 120_000, claudeOnly: "AI mapping" });
+  if ("error" in ai) return { status: "error", message: ai.error };
+  const result = await suggestLensMapping(ai.deps, { family: "anthropic", create: (s) => createAnthropicLensMapper({ model: s.model, effort: "low", client: ai.client }) }, { orgId: w.orgId, userId: ctx.user.id, proposalId: parsed.data.proposalId });
   if (!result.ok) return { status: "error", message: result.message };
   revalidatePath("/app", "layout");
   return { status: "done", mapped: result.value.mapped, hunks: result.value.hunks };

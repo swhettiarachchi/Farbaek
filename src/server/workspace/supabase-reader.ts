@@ -462,6 +462,30 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
 
     // Read through the person's session: members read their workspace's ledger and sandboxes.
     async listTaskUsage(orgId, taskId) {
+      const ownKeyUsage = async (org: string, task: string) => {
+        const { data } = await client
+          .from("model_key_usage")
+          .select("operation, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens")
+          .eq("org_id", org)
+          .eq("task_id", task)
+          .limit(2_000);
+        return z
+          .array(z.object({ operation: z.enum(USAGE_OPERATIONS).catch("agent_step"), model: z.string(), input_tokens: z.number().int(), output_tokens: z.number().int(), cache_read_tokens: z.number().int(), cache_write_tokens: z.number().int() }))
+          .catch([])
+          .parse(data ?? [])
+          .map((r) => ({
+            operation: r.operation,
+            status: "settled" as const,
+            refundReason: null,
+            model: r.model,
+            units: 0,
+            inputTokens: r.input_tokens,
+            outputTokens: r.output_tokens,
+            cacheReadTokens: r.cache_read_tokens,
+            cacheWriteTokens: r.cache_write_tokens,
+            ownKey: true,
+          }));
+      };
       if (!z.uuid().safeParse(taskId).success) return [];
       const { data, error } = await client
         .from("ai_credit_ledger")
@@ -496,9 +520,11 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
           outputTokens: r.output_tokens,
           cacheReadTokens: r.cache_read_tokens,
           cacheWriteTokens: r.cache_write_tokens,
-        }));
+        }))
+        .concat(await ownKeyUsage(orgId, taskId));
     },
 
+    // Calls on the workspace's own model key (ADR 0125): tokens only, never units.
     async listTaskSandboxes(orgId, taskId) {
       if (!z.uuid().safeParse(taskId).success) return [];
       const { data, error } = await client.from("sandbox_sessions").select("billed_seconds, state").eq("org_id", orgId).eq("task_id", taskId).limit(500);

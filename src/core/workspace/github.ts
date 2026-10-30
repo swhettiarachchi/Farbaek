@@ -13,8 +13,8 @@ export interface GitHubSource {
   ref: string | null;
 }
 
-const OWNER = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
-const REPO = /^[A-Za-z0-9._-]{1,100}$/;
+export const OWNER = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
+export const REPO = /^[A-Za-z0-9._-]{1,100}$/;
 const REF = /^[A-Za-z0-9._/-]{1,200}$/;
 
 function validRef(ref: string): boolean {

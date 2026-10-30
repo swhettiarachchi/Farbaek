@@ -7,11 +7,17 @@
  * in the app; real execution only happens on a configured, verified runtime.
  */
 import { createHash } from "node:crypto";
+import { READ_EGRESS_COMMAND } from "@/core/sandbox/egress-ledger";
 import { RuntimeError, type ExecOutcome, type RuntimeCapabilities, type SandboxRuntime } from "@/core/sandbox/runtime";
 
 export interface MockRuntimeState {
   live: Map<string, { image: string; metadata: Record<string, string>; paused: boolean; files: Map<string, string> }>;
   executed: string[];
+  /** The prelude Farbaek sent with each executed command, in the same order. */
+  preludes: (string | null)[];
+  /** What the egress proxy recorded, read back after each command (ADR 0127). */
+  egressLog: string;
+  egressReads: number;
   killed: number[];
   destroyed: string[];
   failCreate: RuntimeError | null;
@@ -35,7 +41,7 @@ export const MOCK_CAPABILITIES: RuntimeCapabilities = {
 };
 
 export function createMockRuntime(capabilities: Partial<RuntimeCapabilities> = {}): SandboxRuntime & { state: MockRuntimeState } {
-  const state: MockRuntimeState = { live: new Map(), executed: [], killed: [], destroyed: [], failCreate: null, failDestroy: null, failWrite: null };
+  const state: MockRuntimeState = { live: new Map(), executed: [], preludes: [], egressLog: "", egressReads: 0, killed: [], destroyed: [], failCreate: null, failDestroy: null, failWrite: null };
   let counter = 0;
 
   const scripted = (command: string): ExecOutcome & { out?: string; err?: string } => {
@@ -89,7 +95,13 @@ export function createMockRuntime(capabilities: Partial<RuntimeCapabilities> = {
         if (lines.length) handlers.onStdout?.(`${lines.join("\n")}\n`);
         return { exitCode: 0, timedOut: false, runtimeError: null };
       }
+      if (request.command === READ_EGRESS_COMMAND) {
+        state.egressReads += 1;
+        if (state.egressLog) handlers.onStdout?.(state.egressLog);
+        return { exitCode: 0, timedOut: false, runtimeError: null };
+      }
       state.executed.push(request.command);
+      state.preludes.push(request.prelude ?? null);
       await handlers.onStart?.(100 + state.executed.length);
       const r = scripted(request.command);
       if (r.out) handlers.onStdout?.(r.out);

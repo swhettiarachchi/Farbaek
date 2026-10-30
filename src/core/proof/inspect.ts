@@ -10,6 +10,7 @@
  * ProofPack Farbaek signed (ADR 0062) carries a DSSE envelope too, and its
  * signature, checked against Farbaek's published keys, proves who recorded it.
  */
+import { EgressSummarySchema } from "../sandbox/egress-ledger";
 import { z } from "zod";
 import { canonicalHash } from "../trust/canonical-json";
 import { fromBase64, verifyEnvelope, type PublicSigningKey } from "../trust/dsse";
@@ -136,6 +137,7 @@ const ProofPackPredicate = z.object({
   createdAt: str,
   previous: hex.nullable(),
   verification: z.object({ receipt: hex, appliedProofPack: hex }).optional(),
+  egress: EgressSummarySchema.optional(),
 });
 
 const RecoveryPredicate = z.object({
@@ -179,6 +181,10 @@ const STATUS_WORDS: Record<string, string> = {
 };
 const words = (status: string) => STATUS_WORDS[status] ?? status;
 
+/** Addresses from the Egress Ledger (ADR 0127), as written in the record. */
+const hostList = (hosts: { host: string; port: number; attempts: number }[]) =>
+  hosts.length ? hosts.map((h) => `${h.port === 443 || h.port === 80 ? h.host : `${h.host}:${h.port}`} (${h.attempts}×)`).join(", ") : "Nothing";
+
 function summarize(kind: EvidenceKind, predicate: unknown): { summary: EvidenceSummary; status: string | null; recordedAt: string | null } | null {
   if (kind === "proofpack") {
     const p = ProofPackPredicate.safeParse(predicate);
@@ -197,6 +203,12 @@ function summarize(kind: EvidenceKind, predicate: unknown): { summary: EvidenceS
           { label: "Approved", value: d.approval.approvedAt, time: true },
           { label: "Where checks ran", value: d.execution.mode === "sandboxed" ? `In a sandbox (${d.execution.provider})` : `Not run: ${d.execution.reason}` },
           ...(d.proposal.model ? [{ label: "Model", value: d.proposal.model, mono: true }] : []),
+          ...(d.egress
+            ? [
+                { label: "Network reached", value: hostList(d.egress.allowed), mono: d.egress.allowed.length > 0 },
+                { label: "Network blocked", value: hostList(d.egress.blocked), mono: d.egress.blocked.length > 0 },
+              ]
+            : []),
         ],
         files: d.changes.map((c) => ({ path: c.path, sha256: c.sha256, note: c.kind === "create" ? "created" : "edited" })),
         checks: d.checks.map(toCheck),

@@ -13,8 +13,8 @@ import { getBuiltInSkill } from "@/content/skills";
 import { getStarter } from "@/content/starters";
 import { CAP_CHOICES } from "@/core/agent/run-cap";
 import { EFFORTS } from "@/core/agent/routing";
-import { resolveAiProvider } from "@/server/ai/config";
 import { createContractDrafter } from "@/server/ai/providers";
+import { aiForWorkspace } from "@/server/ai/workspace-ai";
 import { startCloudRun } from "@/server/cloud-agent/executor";
 import { cloudRunDeps } from "@/server/cloud-agent/wiring";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
@@ -57,9 +57,13 @@ export async function startFromPromptAction(_previous: PromptStartState, form: F
   if (!user || !admin) return { status: "error", message: "The server isn't configured for writes." };
   const deps = createSupabaseWriteDeps(user, admin, ctx.user.id);
 
-  const ai = resolveAiProvider();
-  const provider = ai.provider;
-  const drafter = provider ? { family: provider, create: (s: Parameters<typeof createContractDrafter>[1]) => createContractDrafter(provider, s) } : { unavailable: `${ai.reason} You can write the plan yourself.` };
+  // The workspace's own AI key when it has one (ADR 0125), otherwise Farbaek's provider.
+  const ai = await aiForWorkspace(ctx.current.id, deps, { timeout: 90_000 });
+  const drafter =
+    "error" in ai
+      ? { unavailable: `${ai.error} You can write the plan yourself.` }
+      : { family: ai.provider, create: (s: Parameters<typeof createContractDrafter>[1]) => createContractDrafter(ai.provider, s, ai.client) };
+  const draftDeps = "error" in ai ? deps : ai.deps;
 
   // A follow-up names its project; it must be one this person can see in this workspace, and not archived.
   let existing: { id: string; name: string; description: string | null; paths: string[] } | undefined;
@@ -75,7 +79,7 @@ export async function startFromPromptAction(_previous: PromptStartState, form: F
 
   // A template chosen in the gallery; only known starters are accepted, and a follow-up never gets one.
   const starter = existing ? undefined : (getStarter(form.get("starter"))?.id ?? undefined);
-  const result = await startFromPrompt(deps, drafter, { orgId: ctx.current.id, userId: ctx.user.id, prompt: form.get("prompt"), effort, existing, starter });
+  const result = await startFromPrompt(draftDeps, drafter, { orgId: ctx.current.id, userId: ctx.user.id, prompt: form.get("prompt"), effort, existing, starter });
   if (!result.ok) return { status: "error", message: result.message };
   revalidatePath("/app", "layout");
   redirect(`/app/new/${result.value.taskId}`);

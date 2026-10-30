@@ -40,10 +40,11 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
   - preview from an isolated origin;
   - sandbox terminal and checks;
   - public GitHub import;
+  - GitHub pull requests for applied changes, with a Farbaek ProofPack status (stage 103, ADR 0126);
   - nine static-site templates (three added in stage 101: online store, booking, dashboard).
 - **Partly built:**
   - Templates: e-commerce, booking and an admin dashboard were added in stage 101 (ADR 0124); there's still nothing for a SaaS app with sign-in, CRM or REST API. The spec says to match the stack actually implemented, and published sites are static.
-  - Git: GitHub import only; no branch or pull-request workflow.
+  - Git: a pull request per applied change, on its own branch, through the workspace's fine-grained token (stage 103). No private-repository import, no stacked pull requests, nothing back from GitHub after a pull request opens.
 - **Partly built:** the visual builder (visual edit to diff): built for static sites in stage 95 (ADR 0118); apps with a build step aren't covered yet.
 
 ### 7. Native agent
@@ -113,7 +114,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 ### 14. AI provider and privacy
 
 - **Built:** Claude and Gemini behind adapters, the model-change canary, usage metering at real cost, data export and account deletion.
-- **Not built:** organization gateways and local models.
+- **Partly built:** a workspace's own Anthropic key and company gateway (stage 102, ADR 0125). Local models aren't built.
 
 ### 15. Subscriptions
 
@@ -121,9 +122,9 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 
 ### 25. Innovation backlog
 
-- **Built:** Cost-Before-Compute caps, Intent Diff Lens, Portable Proof (signed ProofPacks and `/verify`), Eject (project export), Approval Wallet, Model Change Canary, Incident Replay Theatre, the publish evidence gate.
+- **Built:** Cost-Before-Compute caps, Intent Diff Lens, Portable Proof (signed ProofPacks, `/verify` and the "Farbaek ProofPack" status on GitHub, stage 103), the Sandbox Egress Ledger (stage 104, recorded by a proxy inside the sandbox), Eject (project export), Approval Wallet, Model Change Canary, Incident Replay Theatre, the publish evidence gate.
 - **Partly built:** Real-Project Loom (the 2D project graph; no 3D view).
-- **Not built:** the GitHub status check, Continue-on-Desktop handoff, Tool Definition Pinning, Sandbox Egress Ledger.
+- **Not built:** Continue-on-Desktop handoff, Tool Definition Pinning.
 
 ## Claims on the public site that aren't true yet
 

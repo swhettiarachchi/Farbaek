@@ -262,6 +262,7 @@ export function createMemoryStore(now: () => Date, viewer: () => string | null =
         stderrSha256: null,
         failureCategory: null,
         cancelRequestedAt: null,
+        egress: null,
         pid: null,
         idem: i.idempotencyKey,
       });
@@ -271,6 +272,13 @@ export function createMemoryStore(now: () => Date, viewer: () => string | null =
     async setExecutionPid(eid, pid) {
       const e = executions.get(eid);
       if (e && e.state === "running") e.pid = pid;
+      return ok(null);
+    },
+    async recordEgress(eid, egress) {
+      const e = executions.get(eid);
+      if (!e) return no("NOT_FOUND");
+      if (e.egress) return no("ALREADY_RECORDED");
+      e.egress = egress;
       return ok(null);
     },
     async finishExecution(i) {

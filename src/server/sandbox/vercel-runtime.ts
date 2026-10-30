@@ -317,7 +317,7 @@ export function createVercelRuntime(config: SandboxServerConfig): SandboxRuntime
       const sandbox = await get(sandboxId);
       const pidFile = `${WORK_DIR}/run-${newSandboxName().slice(3)}.pid`;
       // setsid makes the command its own process group (its pid is the group id), so killing the group stops everything it started.
-      const script = `echo $$ > ${pidFile}\n${wrapCommand(request.command)}`;
+      const script = `echo $$ > ${pidFile}\n${wrapCommand(request.command, undefined, request.prelude)}`;
       const abort = new AbortController();
       let timedOut = false;
       let pid: number | null = null;

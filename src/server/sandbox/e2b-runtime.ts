@@ -190,7 +190,7 @@ export function createE2bRuntime(config: SandboxServerConfig): SandboxRuntime {
       const sandbox = await connect(sandboxId);
       let pid: number | null = null;
       try {
-        const handle = await sandbox.commands.run(wrapCommand(request.command), {
+        const handle = await sandbox.commands.run(wrapCommand(request.command, undefined, request.prelude), {
           background: true,
           timeoutMs: request.timeoutSeconds * 1000,
           envs: {},

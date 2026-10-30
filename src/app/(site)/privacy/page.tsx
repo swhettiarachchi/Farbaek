@@ -93,6 +93,10 @@ const SECTIONS: LegalSection[] = [
           model. OpenAI&apos;s API terms don&apos;t let it train its models on what we send. It keeps API inputs and outputs for up to 30 days to check for abuse, longer only when the law
           requires it or to protect people from harm, and we ask it not to store the answers.
         </p>
+        <p>
+          If an owner or admin gives your workspace its own Anthropic key, those requests go to Anthropic, or to the company gateway they set, under that account&apos;s own terms. Farbaek
+          keeps the key encrypted and never shows it again.
+        </p>
         <p>Farbaek labels AI-drafted work, records which model drafted each change, and asks you to review it before it&apos;s applied. AI output can be wrong; see our Terms.</p>
       </>
     ),
@@ -150,6 +154,11 @@ const SECTIONS: LegalSection[] = [
         <p>
           If you connect your own hosting account, such as Vercel or Netlify, we send your project&apos;s files to that account only when you launch, and the provider handles them under
           your own agreement with it, not ours. We keep the token you gave us encrypted, never show it again, and delete it when you disconnect.
+        </p>
+        <p>
+          If an owner or admin connects GitHub with a token, we send the files of a change to the linked repository only when someone opens a pull request for it, with
+          the change&apos;s summary and its ProofPack result. GitHub handles them under your own agreement with it. We keep the token encrypted, never show it again, and
+          delete it when you disconnect.
         </p>
         <p>
           If you send a folder between your computers over the internet, the Farbaek Agent encrypts it end to end before it leaves. Our server passes the two computers the
