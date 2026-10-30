@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  GraphIcon,
   ChartPieSliceIcon,
   ClockCounterClockwiseIcon,
   CheckSquareOffsetIcon,
@@ -51,6 +52,7 @@ const SECONDARY: NavItem[] = [
   { href: "/app/incidents", label: "Incidents", short: "Incidents", icon: SirenIcon },
   { href: "/app/activity", label: "Activity", short: "Activity", icon: ClockCounterClockwiseIcon },
   { href: "/app/integrations", label: "Integrations", short: "Integrations", icon: PlugsConnectedIcon },
+  { href: "/app/trust", label: "Trust graph", short: "Trust", icon: GraphIcon },
   { href: "/app/billing", label: "Billing and usage", short: "Billing", icon: ChartPieSliceIcon },
   { href: "/app/settings", label: "Settings", short: "Settings", icon: GearSixIcon },
   { href: "/app/help", label: "Help and support", short: "Help", icon: LifebuoyIcon },
