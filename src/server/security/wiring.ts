@@ -5,6 +5,7 @@
  * token kept in memory only; reports and usage go through the service-role
  * functions.
  */
+import { createOsvLookup } from "./osv-client";
 import { createClient } from "@supabase/supabase-js";
 import { resolveAiProvider } from "@/server/ai/config";
 import { createAnthropicSecurityReviewer } from "@/server/ai/security-reviewer";
@@ -76,6 +77,7 @@ export async function securityCheckDeps(person: { orgId: string; userId: string;
           ? { family: "anthropic", create: (s) => createAnthropicSecurityReviewer({ model: s.model, effort: s.thinking }) }
           : { unavailable: ai.provider ? "The AI review needs Claude on this server." : ai.reason },
       audit,
+      osv: createOsvLookup(),
     },
   };
 }

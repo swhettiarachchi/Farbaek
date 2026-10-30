@@ -10,6 +10,7 @@
  * own checks are never trusted. The agent's model steps go through the model
  * gateway (gateway.ts) and are metered from the workspace's usage.
  */
+import type { PinnedTool } from "@/core/agent/tool-pins";
 import { z } from "zod";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
 import type { AgentLease } from "@/core/agent/lease";
@@ -82,6 +83,8 @@ export interface AgentProposalStatus {
 export interface AgentStore {
   session(tokenSha256: string): Promise<AgentIdentity | null>;
   rateLimit(key: string, windowSeconds: number, limit: number): Promise<boolean>;
+  /** Tool Definition Pinning (ADR 0133). */
+  checkTools?(agentId: string, manifest: PinnedTool[], known: readonly string[]): Promise<"pinned_now" | "match" | "quarantined">;
   billing(orgId: string): Promise<BillingSnapshot | null>;
   workspaceName(orgId: string): Promise<string | null>;
   /** The workspace an open (unredeemed, unexpired) code belongs to. */
@@ -119,7 +122,7 @@ export interface AgentStore {
   now(): Date;
 }
 
-export type AgentErrorCode = WriteErrorCode | "UNAUTHENTICATED" | "RATE_LIMITED" | "INVALID_REQUEST" | "TOO_LARGE" | "RUN_CAP_REACHED";
+export type AgentErrorCode = WriteErrorCode | "UNAUTHENTICATED" | "RATE_LIMITED" | "INVALID_REQUEST" | "TOO_LARGE" | "RUN_CAP_REACHED" | "TOOLS_CHANGED";
 export type AgentResult<T> = { ok: true; value: T } | { ok: false; status: number; code: AgentErrorCode; message: string };
 
 const STATUS: Partial<Record<AgentErrorCode, number>> = {
@@ -130,6 +133,7 @@ const STATUS: Partial<Record<AgentErrorCode, number>> = {
   PAIRING_CLOSED: 410,
   RATE_LIMITED: 429,
   RUN_CAP_REACHED: 402,
+  TOOLS_CHANGED: 423,
   INVALID_REQUEST: 400,
   INVALID_PAIRING: 400,
   INVALID_PATH: 422,

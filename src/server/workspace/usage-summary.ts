@@ -12,6 +12,10 @@ import { aiAvailability, typicalUnits, type AiAvailability } from "./ai-usage";
 import { MANUAL_CONTRACT } from "./ai-drafting";
 import { MANUAL_LENS } from "./lens-suggestions";
 import { MANUAL_SECOND_CHECK } from "./second-check";
+import { MANUAL_NOTE } from "./task-notes";
+import { TASK_NOTE_MAX_OUTPUT_TOKENS } from "@/server/ai/task-note-writer";
+import { FAILURE_TEST_MAX_OUTPUT_TOKENS } from "@/server/ai/failure-test-writer";
+import { MANUAL_FAILURE_TEST } from "@/core/realityloop/failure-futures";
 import { OPENAI_SECOND_CHECK_MODEL, openAiKey } from "@/server/ai/openai-second-checker";
 import { SECOND_CHECK_MAX_OUTPUT_TOKENS } from "@/server/ai/second-checker";
 import type { AppContext } from "./context";
@@ -54,6 +58,8 @@ const MANUAL: Record<ButtonOperation, string> = {
   lens_mapping: MANUAL_LENS,
   policy_draft: MANUAL_RULES,
   second_check: MANUAL_SECOND_CHECK,
+  task_note: MANUAL_NOTE,
+  failure_test: MANUAL_FAILURE_TEST,
 };
 
 /** Whether an AI action works for this person in this workspace, and the share of usage used. */
@@ -62,7 +68,7 @@ export async function loadAiAvailability(ctx: AppContext, ws: WorkspaceSummary, 
   const provider = resolveAiProvider();
   const wallet = await loadWallet(ctx, ws, now);
   // The AI mapping in the Intent Diff Lens (ADR 0044) and rule drafting (ADR 0082) run on Claude only.
-  const claudeOnly = operation === "lens_mapping" || operation === "policy_draft";
+  const claudeOnly = operation === "lens_mapping" || operation === "policy_draft" || operation === "task_note" || operation === "failure_test";
   // The second check (ADR 0121) runs on OpenAI when this server has its key, otherwise on Claude.
   const secondOnOpenAi = operation === "second_check" && openAiKey() !== null;
   const usable = secondOnOpenAi ? "anthropic" : (claudeOnly || operation === "second_check") && provider.provider !== "anthropic" ? null : provider.provider;
@@ -74,6 +80,12 @@ export async function loadAiAvailability(ctx: AppContext, ws: WorkspaceSummary, 
     } else if (operation === "lens_mapping") {
       const choice = routeModel({ plan: ws.plan, family: "anthropic", step: "review", effort: "fast" });
       needs = typicalUnits(operation, choice.model, LENS_MAX_OUTPUT_TOKENS);
+    } else if (operation === "task_note") {
+      const choice = routeModel({ plan: ws.plan, family: "anthropic", step: "review", effort: "balanced" });
+      needs = typicalUnits(operation, choice.model, TASK_NOTE_MAX_OUTPUT_TOKENS);
+    } else if (operation === "failure_test") {
+      const choice = routeModel({ plan: ws.plan, family: "anthropic", step: "write", effort: "balanced" });
+      needs = typicalUnits(operation, choice.model, FAILURE_TEST_MAX_OUTPUT_TOKENS);
     } else if (operation === "policy_draft") {
       const choice = routeModel({ plan: ws.plan, family: "anthropic", step: "review", effort: "balanced" });
       needs = typicalUnits(operation, choice.model, POLICY_DRAFT_MAX_OUTPUT_TOKENS);
@@ -91,7 +103,7 @@ export async function loadAiAvailability(ctx: AppContext, ws: WorkspaceSummary, 
     notConnectedReason: usable
       ? undefined
       : provider.provider
-        ? `${operation === "policy_draft" ? "Drafting rules" : operation === "second_check" ? "The second check" : "AI mapping"} uses Claude, and this server uses another provider.`
+        ? `${operation === "policy_draft" ? "Drafting rules" : operation === "second_check" ? "The second check" : operation === "task_note" ? "Notes" : operation === "failure_test" ? "Failure trials" : "AI mapping"} uses Claude, and this server uses another provider.`
         : provider.reason,
     plan: ws.billingUnknown ? null : ws.plan,
     wallet,

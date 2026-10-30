@@ -14,6 +14,8 @@
  *   server-side tools.
  * - A refusal or a provider failure is refunded in full.
  */
+import { TOOLS_CHANGED, toolManifest, type PinnedTool } from "@/core/agent/tool-pins";
+import { TOOL_NAMES } from "@/core/agent/tools";
 import { z } from "zod";
 import { worstStepUnits } from "@/core/agent/run-cap";
 import { EFFORTS } from "@/core/agent/routing";
@@ -95,6 +97,8 @@ export interface GatewayModel {
 export interface GatewayDeps extends UsageContext, AiUsageDeps {
   loadTask(orgId: string, taskId: string): Promise<{ id: string; state: TaskState; projectId?: string } | null>;
   rateLimit(key: string, windowSeconds: number, limit: number): Promise<boolean>;
+  /** Tool Definition Pinning (ADR 0133): checks a paired agent's tools against its pin. Absent where no pins are kept. */
+  checkTools?(agentId: string, manifest: PinnedTool[], known: readonly string[]): Promise<"pinned_now" | "match" | "quarantined">;
 }
 
 export interface GatewayReply {
@@ -156,6 +160,11 @@ export async function callModel(
   if (!parsed.success) return agentFail("INVALID_REQUEST", "The model request isn't in the expected shape.");
   const body = parsed.data;
   if (!(await deps.rateLimit(`model:${agent.agentId}`, 60, 30))) return agentFail("RATE_LIMITED", "Too many model steps from this agent in the last minute.");
+  // A paired agent's tools must match what was pinned or approved (ADR 0133); Farbaek's own cloud runs (run:…) bring Farbaek's tools.
+  if (deps.checkTools && !agent.agentId.startsWith("run:")) {
+    const pinned = await deps.checkTools(agent.agentId, await toolManifest(body.tools), TOOL_NAMES);
+    if (pinned === "quarantined") return agentFail("TOOLS_CHANGED", TOOLS_CHANGED);
+  }
 
   const task = await deps.loadTask(agent.orgId, body.taskId);
   if (!task) return agentFail("NOT_FOUND", "That task doesn't exist or isn't in this workspace.");

@@ -24,6 +24,14 @@ export interface AppState {
   dataFolder: string;
   /** A default name for this computer when pairing. */
   computerName: string;
+  /** A model on this computer the agent can run on instead of Farbaek's (ADR 0134); null when none is set. */
+  localModel: LocalModelSetting | null;
+}
+
+export interface LocalModelSetting {
+  /** The local server's OpenAI-compatible address, on this computer only. */
+  base: string;
+  model: string;
 }
 
 export interface Profile {
@@ -122,7 +130,12 @@ export interface FarbaekAgentBridge {
   profile(): Promise<Result<Profile>>;
   tasks(): Promise<Result<TaskSummary[]>>;
   task(id: string): Promise<Result<TaskView>>;
-  startRun(input: { taskId: string; mode: AgentMode; effort: Effort }): Promise<Result<{ runId: string }>>;
+  /** "farbaek" uses Farbaek's AI and the workspace's usage; "local" uses the model set on this computer (ADR 0134). */
+  startRun(input: { taskId: string; mode: AgentMode; effort: Effort; model?: "farbaek" | "local" }): Promise<Result<{ runId: string }>>;
+  /** Lists the models a local server offers, checking it answers. */
+  localModels(base: string): Promise<Result<string[]>>;
+  /** Sets or clears the local model. */
+  setLocalModel(input: LocalModelSetting | null): Promise<Result<AppState>>;
   runs(): Promise<RunSummary[]>;
   run(id: string): Promise<RunDetail | null>;
   answerApproval(input: { runId: string; requestId: string; approved: boolean; bindingHash: string }): Promise<void>;

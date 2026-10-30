@@ -16,6 +16,7 @@ import { checkFeature } from "@/core/billing/entitlements";
 import { routeModel } from "@/server/ai/routing";
 import { approxTokens, reserveUnits } from "@/core/billing/rate-card";
 import { parseNpmAudit } from "@/core/security/audit";
+import { lockfilePackages, osvFindings } from "@/core/security/osv";
 import type { Finding } from "@/core/security/findings";
 import { buildSecurityReport, securityReportDigest, type CheckOutcome } from "@/core/security/report";
 import { riskiestFiles, runRules, type ProjectFile } from "@/core/security/rules";
@@ -26,6 +27,7 @@ import { log } from "@/server/observability/log";
 import { refundUsage, reserveUsage, resolvePlan, settleUsage, type AiUsageDeps, type ModelSource, type UsageContext } from "@/server/workspace/ai-usage";
 import { CONTRIBUTOR_ROLES, type OrgRole } from "@/server/workspace/types";
 import { codeFromDatabaseError, fail, type WriteResult } from "@/server/workspace/use-cases";
+import type { OsvLookup } from "./osv-client";
 import type { SecurityReportStore } from "./store";
 
 /** How long a check may run before it counts as stopped. */
@@ -42,6 +44,8 @@ export interface SecurityCheckDeps {
   reviewer: ModelSource<SecurityReviewer> | { unavailable: string };
   /** Runs `npm audit --json` for the project's files in a sandbox, or says why it can't. */
   audit: ((input: { projectId: string; reportId: string; files: ProjectFile[] }) => Promise<{ ok: true; stdout: string } | { ok: false; reason: string }>) | { unavailable: string };
+  /** Looks locked versions up in OSV.dev (ADR 0130); absent in older callers, which skip the check. */
+  osv?: OsvLookup;
 }
 
 export interface CheckPerson {
@@ -103,6 +107,28 @@ export async function runSecurityCheck(deps: SecurityCheckDeps, person: CheckPer
         checks.push({ name: "dependencies", ran: true, findings: parsed.findings.length, detail: `${parsed.total} vulnerable packages found.` });
       } else {
         checks.push({ name: "dependencies", ran: false, reason: parsed.reason });
+      }
+    }
+
+    // 2b. Every lockfile, in OSV.dev (ADR 0130). npm packages npm audit already checked aren't counted twice.
+    const auditRan = checks.some((c) => c.name === "dependencies" && c.ran);
+    const locked = lockfilePackages(files);
+    const lookFor = locked.packages.filter((p) => !(auditRan && p.ecosystem === "npm"));
+    if (locked.lockfiles.length === 0) {
+      checks.push({ name: "osv", ran: false, reason: "This project has no lockfile (package-lock.json, pnpm-lock.yaml, yarn.lock, requirements.txt or poetry.lock), so exact versions aren't known." });
+    } else if (!deps.osv) {
+      checks.push({ name: "osv", ran: false, reason: "OSV.dev isn't connected on this server." });
+    } else if (lookFor.length === 0) {
+      checks.push({ name: "osv", ran: false, reason: auditRan ? "npm audit already checked every locked package." : "The lockfiles pin no exact versions Farbaek can read." });
+    } else {
+      const looked = await deps.osv(lookFor);
+      if (looked.ok) {
+        const found = osvFindings(looked.hits, looked.details);
+        findings.push(...found);
+        const skipped = auditRan ? " npm packages were left to npm audit." : "";
+        checks.push({ name: "osv", ran: true, findings: found.length, detail: `${lookFor.length} locked ${lookFor.length === 1 ? "package" : "packages"} from ${locked.lockfiles.join(", ")} looked up; ${looked.hits.length} with known vulnerabilities.${locked.capped ? " Only the first 3,000 were looked up." : ""}${skipped}` });
+      } else {
+        checks.push({ name: "osv", ran: false, reason: looked.reason });
       }
     }
 

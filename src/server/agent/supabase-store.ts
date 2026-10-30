@@ -68,6 +68,12 @@ export function createSupabaseAgentStore(admin: SupabaseClient): AgentStore {
       return r.ok ? r.value : false;
     },
 
+    async checkTools(agentId, manifest, known) {
+      const r = await rpc("app_check_agent_tools", { p_agent: agentId, p_manifest: manifest, p_known: [...known] }, z.enum(["pinned_now", "match", "quarantined"]));
+      // Fail closed: tools that can't be checked are treated as changed.
+      return r.ok ? r.value : "quarantined";
+    },
+
     async billing(orgId) {
       const { data, error } = await admin.from("organizations").select(ORGANIZATION_SELECT).eq("id", orgId).maybeSingle();
       if (error || !data) return null;

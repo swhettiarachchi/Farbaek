@@ -243,16 +243,17 @@ function TasksView({ state, onRunStarted }: { state: AppState; onRunStarted: (ru
           ))}
         </ul>
       ) : null}
-      {selected ? <TaskPanel key={selected} taskId={selected} profile={profile} onRunStarted={onRunStarted} /> : null}
+      {selected ? <TaskPanel key={selected} taskId={selected} profile={profile} localModel={state.localModel} onRunStarted={onRunStarted} /> : null}
     </section>
   );
 }
 
-function TaskPanel({ taskId, profile, onRunStarted }: { taskId: string; profile: Profile | null; onRunStarted: (runId: string) => void }) {
+function TaskPanel({ taskId, profile, localModel, onRunStarted }: { taskId: string; profile: Profile | null; localModel: AppState["localModel"]; onRunStarted: (runId: string) => void }) {
   const [task, setTask] = useState<TaskView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<AgentMode>("review_only");
   const [effort, setEffort] = useState<Effort>("balanced");
+  const [model, setModel] = useState<"farbaek" | "local">("farbaek");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -280,7 +281,7 @@ function TaskPanel({ taskId, profile, onRunStarted }: { taskId: string; profile:
   async function start() {
     setBusy(true);
     setError(null);
-    const r = await api.startRun({ taskId, mode, effort });
+    const r = await api.startRun({ taskId, mode, effort, model: localModel ? model : "farbaek" });
     setBusy(false);
     if (r.ok) onRunStarted(r.value.runId);
     else setError(r.message);
@@ -347,6 +348,30 @@ function TaskPanel({ taskId, profile, onRunStarted }: { taskId: string; profile:
             </div>
             <p className="muted small">{EFFORT_LABELS[effort].detail} Farbaek picks the model, and the run uses your workspace&apos;s AI usage. No API key needed.</p>
           </fieldset>
+          {localModel ? (
+            <fieldset className="effort">
+              <legend>Model</legend>
+              <div className="segmented">
+                <label className={`segment ${model === "farbaek" ? "is-selected" : ""}`}>
+                  <input type="radio" name="model" value="farbaek" checked={model === "farbaek"} onChange={() => setModel("farbaek")} />
+                  Farbaek
+                </label>
+                <label className={`segment ${model === "local" ? "is-selected" : ""}`}>
+                  <input type="radio" name="model" value="local" checked={model === "local"} onChange={() => setModel("local")} />
+                  On this computer
+                </label>
+              </div>
+              <p className="muted small">
+                {model === "local" ? (
+                  <>
+                    Runs on <span className="mono">{localModel.model}</span> here. Nothing is sent to an AI service and nothing is counted against your usage; the change still goes to Farbaek for review. Results depend on the model.
+                  </>
+                ) : (
+                  "Farbaek's AI, counted against your workspace's usage."
+                )}
+              </p>
+            </fieldset>
+          ) : null}
           {error ? <Alert>{error}</Alert> : null}
           <div className="row-start">
             <button className="btn btn-primary" type="button" disabled={blocked !== null || busy} onClick={() => void start()}>
@@ -735,6 +760,7 @@ function SettingsView({ state, onState }: { state: AppState; onState: (s: AppSta
           <dd className="mono small break">{state.dataFolder}</dd>
         </dl>
       </div>
+      <LocalModelCard state={state} onState={onState} />
       <div className="card stack-sm">
         <h2>Unpair this computer</h2>
         <p className="muted">Revokes this computer&apos;s agent token in Farbaek and forgets it here. Past runs stay on this computer until you discard them.</p>
@@ -757,6 +783,79 @@ function SettingsView({ state, onState }: { state: AppState; onState: (s: AppSta
         </div>
       </div>
     </section>
+  );
+}
+
+/** A model on this computer (ADR 0134): the address of a local OpenAI-compatible server, and one of its models. */
+function LocalModelCard({ state, onState }: { state: AppState; onState: (s: AppState) => void }) {
+  const [base, setBase] = useState(state.localModel?.base ?? "http://127.0.0.1:11434/v1");
+  const [models, setModels] = useState<string[] | null>(null);
+  const [chosen, setChosen] = useState(state.localModel?.model ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  async function find() {
+    setBusy(true);
+    setError(null);
+    const r = await api.localModels(base);
+    setBusy(false);
+    if (r.ok) {
+      setModels(r.value);
+      if (!r.value.includes(chosen)) setChosen(r.value[0] ?? "");
+      if (r.value.length === 0) setError("The server answered but offers no models. Download one first, for example with ollama pull.");
+    } else setError(r.message);
+  }
+  async function save(next: { base: string; model: string } | null) {
+    setBusy(true);
+    setError(null);
+    const r = await api.setLocalModel(next);
+    setBusy(false);
+    if (r.ok) onState(r.value);
+    else setError(r.message);
+  }
+  return (
+    <div className="card stack-sm">
+      <h2>A model on this computer</h2>
+      <p className="muted">
+        Run the agent on a model you host here, with Ollama, LM Studio or llama.cpp&apos;s server. Only an address on this computer is accepted, so your code stays here. Nothing is counted against your workspace&apos;s usage.
+      </p>
+      {state.localModel ? (
+        <p className="small">
+          In use: <span className="mono">{state.localModel.model}</span> at <span className="mono">{state.localModel.base}</span>
+        </p>
+      ) : null}
+      <label className="field">
+        <span>Address</span>
+        <input className="mono" value={base} onChange={(e) => setBase(e.target.value)} spellCheck={false} />
+      </label>
+      {models && models.length ? (
+        <label className="field">
+          <span>Model</span>
+          <select value={chosen} onChange={(e) => setChosen(e.target.value)}>
+            {models.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      {error ? <Alert>{error}</Alert> : null}
+      <div className="row-start">
+        <button className="btn btn-secondary btn-sm" type="button" disabled={busy} onClick={() => void find()}>
+          {busy ? "Checking…" : "Find models"}
+        </button>
+        {models && chosen && !(state.localModel?.model === chosen && state.localModel.base === base.trim().replace(/\/+$/, "")) ? (
+          <button className="btn btn-primary btn-sm" type="button" disabled={busy} onClick={() => void save({ base, model: chosen })}>
+            Use {chosen}
+          </button>
+        ) : null}
+        {state.localModel ? (
+          <button className="btn btn-secondary btn-sm" type="button" disabled={busy} onClick={() => void save(null)}>
+            Stop using it
+          </button>
+        ) : null}
+      </div>
+    </div>
   );
 }
 

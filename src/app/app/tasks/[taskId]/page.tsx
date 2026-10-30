@@ -44,12 +44,19 @@ import { FixCard, freeRetryWords } from "@/components/tasks/fix-card";
 import { ContextReadinessCard } from "@/components/tasks/context-readiness";
 import { CostCard, ReversibilityCard } from "@/components/tasks/task-insights";
 import { PullRequestCard } from "@/components/github/pull-request-card";
+import { TaskModeControl } from "@/components/tasks/task-mode";
+import { TaskNotesCard } from "@/components/tasks/task-notes";
+import { MODE_INFO, MODE_REFUSALS, noteKindFor } from "@/core/realityloop/modes";
+import { readTaskNotes } from "@/server/workspace/task-notes";
 import { loadTaskGitHub } from "@/server/github/store";
 import { taskCost } from "@/core/insights/cost-brain";
 import { reversibilityRadar } from "@/core/insights/reversibility";
 import { workspaceGrant } from "@/server/workspace/organizations";
 import { loadPassport } from "@/server/workspace/context-readiness";
 import { FIXABLE_STATES, fixIsOpen } from "@/server/workspace/fixes";
+import { FailureFuturesCard } from "@/components/failure-futures/failure-futures-card";
+import { LAB_MANIFESTS, labRunner, suggestFailureFutures } from "@/core/realityloop/failure-futures";
+import { readFailureTrials } from "@/server/failure-futures/store";
 
 export const metadata: Metadata = { title: "Task" };
 
@@ -184,6 +191,27 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
     (ctx.role === null || !CONTRIBUTOR_ROLES.includes(ctx.role) ? "Viewers can't try changes. Ask a member, admin or owner." : null) ??
     withheldFor(ctx.role, ctx.permissions, "run_agents") ??
     (checksForRun.length === 0 ? "The contract lists no checks, and Farbaek has none for this kind of project." : null);
+  // The Failure Futures Lab (ADR 0135) on the same change: scenarios from the lines it adds.
+  const futures = trying ? suggestFailureFutures(proposal!.changes.map((c) => ({ path: c.path, content: c.content, before: c.kind === "edit" ? (bases[c.path] ?? null) : null }))) : [];
+  const [failureTrials, failureAi, labFiles] =
+    futures.length > 0
+      ? await Promise.all([
+          arenaClient ? readFailureTrials(arenaClient, orgId, proposal!.id).catch(() => []) : Promise.resolve([]),
+          loadAiAvailability(ctx, ctx.current, "failure_test"),
+          Promise.all(LAB_MANIFESTS.map(async (p) => [p, proposal!.changes.find((c) => c.path === p)?.content ?? (await ctx.reader.getFile(orgId, task.projectId, p).catch(() => null))?.content ?? null] as const)),
+        ])
+      : [[], null, []];
+  const labPaths = [...new Set([...projectFiles.map((f) => f.path), ...(proposal?.changes.map((c) => c.path) ?? [])])];
+  const labRun = futures.length > 0 ? labRunner(futures[0]!.kind, futures[0]!.evidence[0]!, labPaths, (p) => labFiles.find(([path]) => path === p)?.[1] ?? null) : null;
+  const failureReason =
+    (ctx.mode === "demo" ? "The demo workspace is read-only." : null) ??
+    writeReason ??
+    (execution.mode === "review_only" ? execution.reason : null) ??
+    (ctx.role === null || !CONTRIBUTOR_ROLES.includes(ctx.role) ? "Viewers can't try failures. Ask a member, admin or owner." : null) ??
+    withheldFor(ctx.role, ctx.permissions, "run_agents") ??
+    (labRun && !labRun.ok ? labRun.reason : null) ??
+    failureAi?.disabledReason ??
+    null;
   const verifyReason =
     writeReason ??
     (execution.mode === "review_only" ? execution.reason : null) ??
@@ -204,6 +232,19 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
     withheldFor(ctx.role, ctx.permissions, "publish") ??
     (github?.connected ? null : "GitHub isn't connected. An owner or admin can connect it in Settings.") ??
     (github?.pull || github?.link ? null : "This project isn't linked to a repository yet.");
+  // Operating modes (ADR 0131): Learn and Audit change nothing; they get notes instead.
+  const mode = task.mode ?? "build";
+  const noteKind = noteKindFor(mode);
+  const modeBlocks = MODE_INFO[mode].changes ? null : MODE_REFUSALS.MODE_NO_CHANGES;
+  const modeReason =
+    (ctx.mode === "demo" ? "The demo workspace is read-only." : null) ??
+    writeReason ??
+    (ctx.role === null || !CONTRIBUTOR_ROLES.includes(ctx.role) ? "Viewers can't change a task's mode." : null) ??
+    (proposal?.status === "pending" ? "A change is waiting for review. Apply or discard it first." : null);
+  const notesClient = noteKind && ctx.mode === "live" ? await createSupabaseServerClient() : null;
+  const [notes, noteAi] = noteKind
+    ? await Promise.all([notesClient ? readTaskNotes(notesClient, orgId, task.id).catch(() => []) : Promise.resolve([]), loadAiAvailability(ctx, ctx.current, "task_note")])
+    : [[], null];
   const stages = lifecycleProgress(task.state, history);
   const finished = TERMINAL_STATES.has(task.state);
   const cancelReason = !ctx.writes.enabled ? ctx.writes.reason : null;
@@ -238,6 +279,23 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
           </div>
         ) : null}
       </div>
+
+      <Card>
+        <h2 className="text-lg font-medium">Mode</h2>
+        <div className="mt-3">
+          <TaskModeControl taskId={task.id} mode={mode} disabledReason={modeReason} />
+        </div>
+      </Card>
+
+      {noteKind ? (
+        <Card>
+          <h2 className="text-lg font-medium">{noteKind === "explanation" ? "Explanations" : "Audit reports"}</h2>
+          <p className="mt-1 mb-4 text-sm text-ink-2">
+            {noteKind === "explanation" ? "What this part of the project does, and the decisions and trade-offs behind it." : "What's there, what looks risky, and what a careful reviewer would want to know."}
+          </p>
+          <TaskNotesCard taskId={task.id} kind={noteKind} notes={notes} disabledReason={(ctx.mode === "demo" ? "The demo workspace is read-only." : null) ?? writeReason ?? noteAi?.disabledReason ?? null} />
+        </Card>
+      ) : null}
 
       {fixable ? <FixCard taskId={task.id} fix={fix} open={fixIsOpen(fix)} retryIncluded={retryIncluded} disabledReason={fixReason} error={fixError} /> : null}
 
@@ -334,6 +392,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
             {showProposal ? <ReversibilityCard {...reversibilityRadar(proposal!.changes, bases)} /> : null}
             {showProposal ? <ImpactCard taskId={task.id} disabledReason={impactReason} /> : null}
             {trying ? <ArenaPanel proposalId={proposal!.id} taskId={task.id} checks={checksForRun} run={arenaRun} disabledReason={arenaReason} /> : null}
+            {trying ? <FailureFuturesCard proposalId={proposal!.id} taskId={task.id} futures={futures} trials={failureTrials} disabledReason={failureReason} /> : null}
             {canPropose ? (
               <div className={`grid gap-3 rounded-md border border-accent/30 bg-accent/[0.04] p-5 ${showProposal ? "mt-2" : ""}`}>
                 <h3 className="flex items-center gap-2 text-base font-medium">
@@ -342,10 +401,10 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
                 <p className="text-sm leading-relaxed text-ink-2">
                   The Farbaek Agent works through the whole contract in the cloud: it reads the project, makes the changes and runs the checks, then hands you a proposal to review.
                 </p>
-                <StartRun taskId={task.id} disabledReason={writeReason ?? withheldFor(ctx.role, ctx.permissions, "run_agents")} />
+                <StartRun taskId={task.id} disabledReason={writeReason ?? modeBlocks ?? withheldFor(ctx.role, ctx.permissions, "run_agents")} />
               </div>
             ) : null}
-            {canPropose && proposeAi ? (
+            {canPropose && proposeAi && !modeBlocks ? (
               <div className={showProposal ? "border-t border-line pt-6" : ""}>
                 <h3 className="mb-4 text-base font-medium">{showProposal ? "Propose another change" : "Or propose one change from chosen files"}</h3>
                 <ProposeChange taskId={task.id} projectId={task.projectId} files={projectFiles.map((f) => ({ path: f.path, sizeBytes: f.sizeBytes }))} ai={proposeAi} />

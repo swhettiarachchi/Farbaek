@@ -61,7 +61,7 @@ export interface ProposedChange {
   reason: string;
 }
 
-export type DropReason = "not_in_context" | "missing_file" | "already_exists" | "find_not_found" | "find_ambiguous" | "invalid_path" | "screened" | "no_change" | "duplicate";
+export type DropReason = "not_in_context" | "missing_file" | "already_exists" | "find_not_found" | "find_ambiguous" | "invalid_path" | "screened" | "no_change" | "duplicate" | "pair_step";
 
 export const DROP_LABELS: Record<DropReason, string> = {
   not_in_context: "The model wasn't shown this file, so it can't edit it",
@@ -73,6 +73,7 @@ export const DROP_LABELS: Record<DropReason, string> = {
   screened: "Skipped by the file checks (credentials, secret-looking content, build folder or size)",
   no_change: "The edit doesn't change the file",
   duplicate: "The file appears twice in the proposal",
+  pair_step: "Left for a later step: a Pair change is at most 3 files",
 };
 
 export interface Dropped {

@@ -27,7 +27,7 @@ function fakeReviewer(outcome: ReviewOutcome) {
   return { source, r };
 }
 
-function deps(over: { billing?: BillingSnapshot; reviewer?: SecurityCheckDeps["reviewer"]; audit?: SecurityCheckDeps["audit"]; files?: Record<string, string> } = {}) {
+function deps(over: { billing?: BillingSnapshot; reviewer?: SecurityCheckDeps["reviewer"]; audit?: SecurityCheckDeps["audit"]; osv?: SecurityCheckDeps["osv"]; files?: Record<string, string> } = {}) {
   const files = over.files ?? FILES;
   const finished: { id: string; outcome: { status: "done"; statement: SecurityReportStatement; digest: string } | { status: "failed"; error: string } }[] = [];
   const usage: { name: string; input: unknown }[] = [];
@@ -50,6 +50,7 @@ function deps(over: { billing?: BillingSnapshot; reviewer?: SecurityCheckDeps["r
     usage: { ...u, billing: async () => over.billing ?? PLUS, now: () => new Date("2026-10-18T12:00:00Z"), newEventId: () => "key-1" },
     reviewer: over.reviewer ?? { unavailable: "AI isn't connected on this server yet." },
     audit: over.audit ?? { unavailable: "No verified sandbox is connected." },
+    osv: over.osv,
   };
   return { d, finished, usage };
 }
@@ -81,6 +82,7 @@ describe("security checks", () => {
     expect(p.checks).toEqual([
       { name: "rules", ran: true, findings: 2 },
       { name: "dependencies", ran: false, reason: expect.stringMatching(/no package-lock.json/) },
+      { name: "osv", ran: false, reason: expect.stringMatching(/no lockfile/) },
       { name: "ai_review", ran: true, findings: 2, detail: "2 files reviewed." },
     ]);
     expect(p).toMatchObject({ score: 60, grade: "C", model: "claude-sonnet-5-5" });
@@ -103,7 +105,7 @@ describe("security checks", () => {
     const { source } = fakeReviewer({ ok: false, failure: "PROVIDER_BUSY", usage: null });
     const t = deps({ reviewer: source });
     await runSecurityCheck(t.d, alice, { id: "p1", name: "Site" }, "report-1");
-    expect(report(t.finished).checks[2]).toEqual({ name: "ai_review", ran: false, reason: expect.stringMatching(/wasn't counted/) });
+    expect(report(t.finished).checks[3]).toEqual({ name: "ai_review", ran: false, reason: expect.stringMatching(/wasn't counted/) });
     expect(t.usage.at(-1)).toMatchObject({ name: "settle", input: { status: "refunded", refundReason: "failed" } });
   });
 
@@ -113,3 +115,36 @@ describe("security checks", () => {
     expect(await startSecurityCheck(deps().d, alice, "p1")).toEqual({ ok: true, value: { reportId: "report-1" } });
   });
 });
+
+describe("OSV.dev (ADR 0130)", () => {
+  const lock = JSON.stringify({ lockfileVersion: 3, packages: { "node_modules/lodash": { version: "4.17.15" } } });
+  const advisory = { id: "GHSA-p6mc-m468-83gw", summary: "Prototype Pollution in lodash", severity: "HIGH", aliases: [], affected: [{ package: { name: "lodash", ecosystem: "npm" }, ranges: [{ events: [{ fixed: "4.17.19" }] }] }] };
+
+  it("looks every locked package up, and reports what it found", async () => {
+    const asked: string[] = [];
+    const osv: SecurityCheckDeps["osv"] = async (pkgs) => (asked.push(...pkgs.map((p) => `${p.ecosystem}:${p.name}`)), { ok: true, hits: [{ pkg: pkgs.find((p) => p.name === "lodash")!, ids: [advisory.id] }], details: new Map([[advisory.id, advisory]]) });
+    const t = deps({ osv, files: { ...FILES, "package-lock.json": lock, "requirements.txt": "django==4.2.1\n" } });
+    await runSecurityCheck(t.d, alice, { id: "p1", name: "Site" }, "report-1");
+    const p = report(t.finished);
+    expect(asked).toEqual(["npm:lodash", "PyPI:django"]);
+    expect(p.checks.find((c) => c.name === "osv")).toEqual({ name: "osv", ran: true, findings: 1, detail: "2 locked packages from package-lock.json, requirements.txt looked up; 1 with known vulnerabilities." });
+    expect(p.findings.some((f) => f.rule === advisory.id && f.severity === "high" && f.fix.includes("4.17.19"))).toBe(true);
+  });
+
+  it("leaves npm packages to npm audit when it ran, and says why it's skipped otherwise", async () => {
+    const asked: string[] = [];
+    const osv: SecurityCheckDeps["osv"] = async (pkgs) => (asked.push(...pkgs.map((p) => p.name)), { ok: true, hits: [], details: new Map() });
+    const audit = async () => ({ ok: true as const, stdout: JSON.stringify({ vulnerabilities: {} }) });
+    const both = deps({ osv, audit, files: { ...FILES, "package-lock.json": lock, "requirements.txt": "django==4.2.1\n" } });
+    await runSecurityCheck(both.d, alice, { id: "p1", name: "Site" }, "report-1");
+    expect(asked).toEqual(["django"]);
+    expect(report(both.finished).checks.find((c) => c.name === "osv")).toMatchObject({ ran: true, detail: expect.stringMatching(/left to npm audit/) });
+    const none = deps({ osv });
+    await runSecurityCheck(none.d, alice, { id: "p1", name: "Site" }, "report-1");
+    expect(report(none.finished).checks.find((c) => c.name === "osv")).toMatchObject({ ran: false, reason: expect.stringMatching(/no lockfile/) });
+    const down = deps({ osv: async () => ({ ok: false, reason: "Farbaek couldn't reach OSV.dev just now. Run the check again later." }), files: { ...FILES, "package-lock.json": lock } });
+    await runSecurityCheck(down.d, alice, { id: "p1", name: "Site" }, "report-1");
+    expect(report(down.finished).checks.find((c) => c.name === "osv")).toMatchObject({ ran: false, reason: expect.stringMatching(/couldn't reach OSV.dev/) });
+  });
+});
+

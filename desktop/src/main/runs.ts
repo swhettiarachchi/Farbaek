@@ -21,6 +21,7 @@ import type { AgentProposalResult, AgentProposalStatus, AgentTaskDetail, Proposa
 import { ProjectFolder } from "@/agent-runtime/fs-guard";
 import { runAgent, type ApprovalAnswer, type RunEvent, type RunLimits } from "@/agent-runtime/loop";
 import { createFarbaekToolModel, type GatewayClient } from "@/agent-runtime/models/farbaek";
+import { createLocalToolModel } from "@/agent-runtime/models/local";
 import type { ToolModel } from "@/agent-runtime/models/types";
 import { createLocalRunner, type CommandRunner } from "@/agent-runtime/runners";
 import { AgentWorkspace, materialize } from "@/agent-runtime/workspace";
@@ -61,6 +62,8 @@ export interface RunDeps {
   emit(run: RunDetail): void;
   /** Commands for Controlled Development. Defaults to the local broker in the run's folder. */
   makeRunner?(root: string): CommandRunner;
+  /** How a local model (ADR 0134) is reached. Defaults to fetch; tests pass a fake local server. */
+  localFetch?: typeof fetch;
   limits?: Partial<RunLimits>;
   now?(): Date;
 }
@@ -211,7 +214,7 @@ export class RunManager {
     void this.touch(run);
   }
 
-  async start(input: { api: RunApi; taskId: string; mode: AgentMode; effort: Effort }): Promise<string> {
+  async start(input: { api: RunApi; taskId: string; mode: AgentMode; effort: Effort; local?: { base: string; model: string } | null }): Promise<string> {
     if (input.mode === "sandboxed_autopilot") throw new RunError("Sandboxed Autopilot isn't available yet. Use Review Only or Controlled Development.");
     const task = await input.api.task(input.taskId);
     if (!task.task.readyForChange || !task.contract) throw new RunError("This task isn't waiting for a change: its contract isn't approved, or a proposal is already open.");
@@ -235,7 +238,10 @@ export class RunManager {
         run.events.push({ at: this.now(), kind: "note", text: info.note });
       }
     };
-    const makeModel = this.deps.makeModel ?? ((i) => createFarbaekToolModel({ client: i.api, taskId: i.taskId, effort: i.effort, onUsage: i.onUsage }));
+    // A local model (ADR 0134) runs on this computer and isn't metered; otherwise Farbaek's gateway.
+    const makeModel = input.local
+      ? () => createLocalToolModel({ base: input.local!.base, model: input.local!.model, fetch: this.deps.localFetch })
+      : (this.deps.makeModel ?? ((i) => createFarbaekToolModel({ client: i.api, taskId: i.taskId, effort: i.effort, onUsage: i.onUsage })));
     const model = makeModel({ api: input.api, taskId: input.taskId, effort: input.effort, onUsage });
     const run: StoredRun = {
       id,

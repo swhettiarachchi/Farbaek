@@ -57,7 +57,7 @@ function fakeProposer(result: ProposalOutcome | Error) {
 }
 
 function fakeDeps(
-  over: { state?: TaskState; proposal?: Partial<StoredProposal> | null; createError?: string; applyError?: string; billing?: BillingSnapshot; evaluations?: number; role?: OrgRole; rules?: ActiveRules; permissions?: WithheldPermissions } = {},
+  over: { state?: TaskState; mode?: "pair" | "build"; proposal?: Partial<StoredProposal> | null; createError?: string; applyError?: string; billing?: BillingSnapshot; evaluations?: number; role?: OrgRole; rules?: ActiveRules; permissions?: WithheldPermissions } = {},
 ) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the spy records inputs of several shapes
   const calls: { name: string; input: any }[] = [];
@@ -67,7 +67,7 @@ function fakeDeps(
     permissions: async () => over.permissions ?? {},
     billing: async () => over.billing ?? { state: "free" },
     countActiveProjects: async () => 0,
-    loadTask: async () => ({ id: "t1", projectId: "p1", state: over.state ?? "CONTRACT_APPROVED", version: 4, eventIds: [] }),
+    loadTask: async () => ({ id: "t1", projectId: "p1", state: over.state ?? "CONTRACT_APPROVED", version: 4, eventIds: [], mode: over.mode ?? "build" }),
     createProject: async () => ({ ok: true, value: "p1" }),
     createTask: async () => ({ ok: true, value: "t1" }),
     applyTransition: async () => ({ ok: true, value: 1 }),
@@ -118,6 +118,17 @@ const propose = (deps: Parameters<typeof proposeChange>[0], proposer: ChangeProp
   proposeChange(deps, { family: "anthropic", create: (s) => Object.assign(proposer, { model: s.model }) }, { orgId: "o1", userId: "u1", taskId: "t1", contextPaths, notes: "", taskTitle: "Reject fractions", projectName: "Storefront" });
 
 describe("proposeChange", () => {
+  it("asks for a small step in Pair mode, and keeps a Pair change to 3 files, naming the rest (ADR 0131)", async () => {
+    const { deps, calls } = fakeDeps({ mode: "pair" });
+    const four = output(["a", "b", "c", "d"].map((n) => ({ path: `src/lib/${n}.ts`, kind: "create" as const, edits: [], content: `export const ${n} = 1;
+`, reason: "r" })));
+    const proposer = fakeProposer({ ok: true, output: four, usage: USAGE });
+    const r = await propose(deps, proposer);
+    expect((proposer.briefs[0] as { notes: string }).notes).toMatch(/^Pair mode: make the smallest reviewable next step, changing at most 3 files./);
+    expect(r).toMatchObject({ ok: true, value: { dropped: [{ path: "src/lib/d.ts", reason: "pair_step" }] } });
+    expect(calls.find((c) => c.name === "create")!.input.changes.map((c: { path: string }) => c.path)).toEqual(["src/lib/a.ts", "src/lib/b.ts", "src/lib/c.ts"]);
+  });
+
   it("reserves room for its prompt, shows the model only the chosen files, and records who decided each step", async () => {
     const { deps, calls } = fakeDeps();
     const proposer = fakeProposer({ ok: true, output: GOOD, usage: USAGE });

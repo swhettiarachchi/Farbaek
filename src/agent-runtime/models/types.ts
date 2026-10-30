@@ -49,8 +49,8 @@ export interface ModelConversation {
   send(input: { toolResults?: ToolResultInput[]; text?: string }, signal?: AbortSignal): Promise<ModelStep>;
 }
 
-/** "farbaek" is the model gateway: Farbaek picks the model and pays for it from the workspace's usage. */
-export type ModelProvider = "farbaek" | "anthropic" | "gemini";
+/** "farbaek" is the model gateway: Farbaek picks the model and pays for it from the workspace's usage. "local" runs on the person's own computer (ADR 0134). */
+export type ModelProvider = "farbaek" | "anthropic" | "gemini" | "local";
 
 export interface ToolModel {
   readonly provider: ModelProvider;

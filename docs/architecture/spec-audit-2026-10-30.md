@@ -72,20 +72,20 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 - **Not built:**
   - permission leases (scoped, expiring, revocable grants): built in stage 94 (ADR 0117);
   - the second-checker model: built in stage 98 (ADR 0121);
-  - the trust graph and delegation registry (multi-agent coordination: agent teams in workflows, stage 105, ADR 0128);
-  - MCP support (tool-definition pinning, a third-party tool registry).
+  - the trust graph: built in stage 109 (ADR 0132), with agent teams in stage 105 (ADR 0128); no tools or policies as nodes yet;
+  - MCP support: a third-party tool registry (tool definitions are pinned per agent since stage 110, ADR 0133).
 
 ### 10. Dev Intelligence
 
 - **Built:** IntentLock for code (scope drift against the contract), the developer ProofPack, and Farbaek's own security scan of a project.
 - **Not built:**
-  - Semgrep, OSV-Scanner and gitleaks findings;
-  - Failure Futures Lab;
+  - Semgrep and gitleaks findings (dependency findings from OSV.dev, the database behind OSV-Scanner, for every lockfile: stage 107, ADR 0130);
+  - Failure Futures Lab: built in stage 112 (ADR 0135), from the lines a change adds; incidents aren't a source yet;
   - mutation testing;
   - Architecture Why-Graph: built per file in stage 100 (ADR 0123);
   - Reversibility Radar: built in stage 99 (ADR 0122);
   - a Cost Brain view: built per task in stage 99 (ADR 0122);
-  - the Learn / Pair / Build / Audit operating modes.
+  - the Learn / Pair / Build / Audit operating modes: built in stage 108 (ADR 0131).
 
 ### 11. Mesh
 
@@ -114,7 +114,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 ### 14. AI provider and privacy
 
 - **Built:** Claude and Gemini behind adapters, the model-change canary, usage metering at real cost, data export and account deletion.
-- **Partly built:** a workspace's own Anthropic key and company gateway (stage 102, ADR 0125). Local models aren't built.
+- **Partly built:** a workspace's own Anthropic key and company gateway (stage 102, ADR 0125); local models on the desktop agent (stage 111, ADR 0134). Cloud runs still use Farbaek's model.
 
 ### 15. Subscriptions
 
@@ -124,17 +124,15 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 
 - **Built:** Cost-Before-Compute caps, Intent Diff Lens, Portable Proof (signed ProofPacks, `/verify` and the "Farbaek ProofPack" status on GitHub, stage 103), the Sandbox Egress Ledger (stage 104, recorded by a proxy inside the sandbox), Eject (project export), Approval Wallet, Model Change Canary, Incident Replay Theatre, the publish evidence gate.
 - **Partly built:** Real-Project Loom (the 2D project graph; no 3D view).
-- **Not built:** Continue-on-Desktop handoff, Tool Definition Pinning.
+- **Not built:** Continue-on-Desktop handoff. (Tool Definition Pinning: built in stage 110, ADR 0133.)
 
 ## Claims on the public site that aren't true yet
 
-`src/components/marketing/modules-bento.tsx` says:
+The three claims this section listed in `src/components/marketing/modules-bento.tsx` are now true:
 
-- "A visual builder and a real code workspace on one source of truth. Every visual edit is a reviewable diff." There is no visual builder.
-- "Policy, approvals, permission leases and audit, enforced on the server." There are no permission leases.
-- "Intent contracts, context readiness and outcome tracking for every task." There is no context readiness.
-
-These break non-negotiable rule 1 (never fabricate) and should be corrected first.
+- the visual builder (stages 95 and 106, ADRs 0118 and 0129);
+- permission leases (stage 94, ADR 0117);
+- context readiness (ADR 0116).
 
 ## Not yet proven live
 
