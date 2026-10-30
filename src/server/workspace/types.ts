@@ -20,6 +20,7 @@ import type { ProjectGraphRecords } from "@/core/insights/project-graph";
 import type { WorkflowView } from "@/core/realityloop/workflow";
 import type { WithheldPermissions } from "@/core/workspace/permissions";
 import type { AgentLease } from "@/core/agent/lease";
+import type { SecondCheckResult } from "@/core/trust/second-check";
 import type { ActivityCategory, ActivityEvent } from "@/core/workspace/activity";
 
 export const ORG_ROLES = ["owner", "admin", "member", "viewer"] as const;
@@ -350,6 +351,8 @@ export interface WorkspaceReader {
   getLatestProposal(orgId: string, taskId: string): Promise<ProposalRecord | null>;
   /** The AI mapping asked for in the Intent Diff Lens, if any (ADR 0044). */
   getLensSuggestion(orgId: string, proposalId: string): Promise<StoredLensSuggestion | null>;
+  /** The second check on a proposal, when someone asked for one (ADR 0121). */
+  getSecondCheck(orgId: string, proposalId: string): Promise<(SecondCheckResult & { createdAt: string }) | null>;
   /** The latest contract version for a task, or null when none has been written. */
   getContract(orgId: string, taskId: string): Promise<ContractRecord | null>;
   /** What an applied proposal wrote, with each file's earlier and current state; null when nothing it wrote is on record. */

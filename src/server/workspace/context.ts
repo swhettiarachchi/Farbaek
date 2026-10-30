@@ -73,6 +73,7 @@ function memoizeReader(reader: WorkspaceReader): WorkspaceReader {
     getEmailPreferences: wrap("email preferences", reader.getEmailPreferences),
     getLatestProposal: wrap("proposal", reader.getLatestProposal),
     getLensSuggestion: wrap("lensSuggestion", reader.getLensSuggestion),
+    getSecondCheck: wrap("secondCheck", reader.getSecondCheck),
     listProofPacks: wrap("proofpacks", reader.listProofPacks),
     getProofPack: wrap("proofpack", reader.getProofPack),
     listRecentProofPacks: wrap("recentProofpacks", reader.listRecentProofPacks),

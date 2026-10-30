@@ -20,18 +20,19 @@ export type ModelId =
   | "gemini-3.5-flash-lite"
   | "gemini-3.8-flash"
   | "gemini-4-argon"
-  | "gemini-3.1-flash-lite-image";
+  | "gemini-3.1-flash-lite-image"
+  | "gpt-6.1-terra";
 
 export interface ModelRate {
   label: string;
-  provider: "anthropic" | "gemini";
+  provider: "anthropic" | "gemini" | "openai";
   /** USD per million tokens. */
   input: number;
   output: number;
   /** Writing the prompt cache (5-minute entries). Gemini bills cache storage separately; unused here. */
   cacheWrite: number;
   cacheRead: number;
-  /** Haiku 5.5 costs 5x for any request whose prompt exceeds 100K tokens. */
+  /** Haiku 5.5 costs 5x for any request whose prompt exceeds 100K tokens; OpenAI's models cost more above 272K. */
   longPrompt?: { aboveTokens: number; multiplier: number };
 }
 
@@ -45,6 +46,9 @@ export const RATE_CARD: Record<ModelId, ModelRate> = {
   "gemini-4-argon": { label: "Gemini 4 Argon", provider: "gemini", input: 4, output: 20, cacheWrite: 4, cacheRead: 0.2 },
   // Image generation (ADR 0109): output is image tokens, $30 per million, so a 1K image (1,120 tokens) is $0.0336. Google's pricing page, 2026-10-28.
   "gemini-3.1-flash-lite-image": { label: "Gemini 3.1 Flash Lite Image", provider: "gemini", input: 0.25, output: 30, cacheWrite: 0.25, cacheRead: 0.025 },
+  // The second checker (ADR 0121). OpenAI's pricing page, 2026-10-30: $1 input, $0.05 cached input, $5 output; caching is automatic with no
+  // write charge. Above 272K prompt tokens input doubles and output is 1.5x; metering the whole call at 2x there never under-meters.
+  "gpt-6.1-terra": { label: "GPT-6.1 Terra", provider: "openai", input: 1, output: 5, cacheWrite: 1, cacheRead: 0.05, longPrompt: { aboveTokens: 272_000, multiplier: 2 } },
 };
 
 export interface TokenUsage {

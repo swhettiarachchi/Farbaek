@@ -88,6 +88,11 @@ const SECTIONS: LegalSection[] = [
           Anthropic&apos;s commercial terms don&apos;t let it train its models on what we send. It deletes API inputs and outputs within 30 days, except content its safety systems flag, which it can
           keep for up to two years. We use Gemini only on a paid account, whose terms don&apos;t let Google use the content to improve its products.
         </p>
+        <p>
+          When someone in your workspace asks for a second check on a change, its contract, plan and file diffs go to a second model: OpenAI when the server has it, otherwise another Claude
+          model. OpenAI&apos;s API terms don&apos;t let it train its models on what we send. It keeps API inputs and outputs for up to 30 days to check for abuse, longer only when the law
+          requires it or to protect people from harm, and we ask it not to store the answers.
+        </p>
         <p>Farbaek labels AI-drafted work, records which model drafted each change, and asks you to review it before it&apos;s applied. AI output can be wrong; see our Terms.</p>
       </>
     ),

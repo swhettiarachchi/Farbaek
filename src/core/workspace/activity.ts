@@ -77,6 +77,7 @@ const VERBS: Record<string, string> = {
   "proposal.applied": "applied a change",
   "proposal.discarded": "discarded a change",
   "proposal.lens_suggested": "suggested a review lens",
+  "proposal.second_checked": "asked a second model to check a change",
   "change.recovered": "undid an applied change",
   "verification.started": "started verification",
   "verification.finished": "finished verification",

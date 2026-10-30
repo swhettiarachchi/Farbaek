@@ -59,6 +59,9 @@ export interface StoredProposal {
   policy: { outcome: string; version: string; findings: { rule: string; outcome: string; detail: string }[]; autonomyLevel?: 2 | 3 } | null;
   /** The end of its approval window (ADR 0042). The database refuses a later approval too. */
   expiresAt: string;
+  /** The plan and the contract checks' violations, for reviewers such as the second check (ADR 0121). */
+  plan?: { summary: string; steps: string[]; risks: string[]; checks: string[] };
+  violations?: Violation[];
 }
 
 export interface ProposalDeps {
