@@ -82,8 +82,8 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
   - Failure Futures Lab;
   - mutation testing;
   - Architecture Why-Graph;
-  - Reversibility Radar;
-  - a per-project Cost Brain view (usage is metered per run);
+  - Reversibility Radar: built in stage 99 (ADR 0122);
+  - a Cost Brain view: built per task in stage 99 (ADR 0122);
   - the Learn / Pair / Build / Audit operating modes.
 
 ### 11. Mesh

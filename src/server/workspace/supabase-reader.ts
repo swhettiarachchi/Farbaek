@@ -4,6 +4,7 @@ import { IntentContractSchema } from "@/core/realityloop/contract";
 import { AGENT_CAPABILITIES } from "@/core/agent/lease";
 import { CATEGORY_PREFIXES } from "@/core/workspace/activity";
 import { SecondCheckOutputSchema } from "@/core/trust/second-check";
+import { USAGE_OPERATIONS } from "@/config/usage";
 import { parsePermissions } from "@/core/workspace/permissions";
 import { ORGANIZATION_SELECT, summarizeOrganizations } from "./organizations";
 import { readSkillPins } from "./skill-pins";
@@ -427,6 +428,55 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
         .nullable()
         .parse(data);
       return row ? { mappings: row.suggestion.mappings, model: row.model, createdAt: row.created_at } : null;
+    },
+
+    // Read through the person's session: members read their workspace's ledger and sandboxes.
+    async listTaskUsage(orgId, taskId) {
+      if (!z.uuid().safeParse(taskId).success) return [];
+      const { data, error } = await client
+        .from("ai_credit_ledger")
+        .select("operation, status, refund_reason, model, credits, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens")
+        .eq("org_id", orgId)
+        .eq("task_id", taskId)
+        .order("created_at", { ascending: true })
+        .limit(2_000);
+      if (error) fail("task usage", error);
+      return z
+        .array(
+          z.object({
+            operation: z.enum(USAGE_OPERATIONS),
+            status: z.enum(["reserved", "settled", "refunded"]),
+            refund_reason: z.enum(["failed", "free_retry", "stopped"]).nullable(),
+            model: z.string().nullable(),
+            credits: z.number().int(),
+            input_tokens: z.number().int().nullable(),
+            output_tokens: z.number().int().nullable(),
+            cache_read_tokens: z.number().int().nullable(),
+            cache_write_tokens: z.number().int().nullable(),
+          }),
+        )
+        .parse(data ?? [])
+        .map((r) => ({
+          operation: r.operation,
+          status: r.status,
+          refundReason: r.refund_reason,
+          model: r.model,
+          units: r.credits,
+          inputTokens: r.input_tokens,
+          outputTokens: r.output_tokens,
+          cacheReadTokens: r.cache_read_tokens,
+          cacheWriteTokens: r.cache_write_tokens,
+        }));
+    },
+
+    async listTaskSandboxes(orgId, taskId) {
+      if (!z.uuid().safeParse(taskId).success) return [];
+      const { data, error } = await client.from("sandbox_sessions").select("billed_seconds, state").eq("org_id", orgId).eq("task_id", taskId).limit(500);
+      if (error) fail("task sandboxes", error);
+      return z
+        .array(z.object({ billed_seconds: z.number().int(), state: z.string() }))
+        .parse(data ?? [])
+        .map((r) => ({ billedSeconds: r.billed_seconds, state: r.state }));
     },
 
     async getSecondCheck(orgId, proposalId) {

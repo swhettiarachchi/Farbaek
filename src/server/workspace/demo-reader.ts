@@ -429,6 +429,17 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
     // The demo has no second checks: asking for one needs a real workspace.
     getSecondCheck: async () => null,
 
+    // Sample usage for the demo's change in review, so the Cost Brain shows how it reads.
+    async listTaskUsage(_orgId, taskId) {
+      if (taskId !== DEMO_PROPOSAL_TASK_ID) return [];
+      return [
+        { operation: "contract_draft" as const, status: "settled" as const, refundReason: null, model: "claude-haiku-5-5", units: 9, inputTokens: 2_100, outputTokens: 1_350, cacheReadTokens: 0, cacheWriteTokens: 0 },
+        { operation: "change_proposal" as const, status: "refunded" as const, refundReason: "failed" as const, model: "claude-sonnet-5-5", units: 0, inputTokens: null, outputTokens: null, cacheReadTokens: null, cacheWriteTokens: null },
+        { operation: "change_proposal" as const, status: "settled" as const, refundReason: null, model: "claude-sonnet-5-5", units: 412, inputTokens: 18_400, outputTokens: 2_200, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      ];
+    },
+    listTaskSandboxes: async (_orgId: string, taskId: string) => (taskId === DEMO_PROPOSAL_TASK_ID ? [{ billedSeconds: 196, state: "terminated" }] : []),
+
     // The demo workspace keeps every change waiting for a person.
     getAutonomy: async () => AUTONOMY_OFF,
     // The demo workspace has no rules of its own; the builder still shows how they read against its sample files.
