@@ -131,6 +131,24 @@ describe("desktop runs", { timeout: 20_000 }, () => {
     await expect(m.submit(id, await api())).rejects.toThrow(/already submitted/);
   });
 
+  it("runs on a local model without the model gateway, and records which model wrote the change", async () => {
+    // A labelled fake of a local OpenAI-compatible server: two steps, then the run is done.
+    const steps = [edit, finish].map((call) => ({ model: "qwen3-coder:30b", choices: [{ message: { role: "assistant", content: "", tool_calls: [{ id: call.id, type: "function", function: { name: call.name, arguments: JSON.stringify(call.input) } }] }, finish_reason: "tool_calls" }], usage: { prompt_tokens: 300, completion_tokens: 30 } }));
+    const asked: string[] = [];
+    const localFetch = (async (url: string) => {
+      asked.push(url);
+      return new Response(JSON.stringify(steps.shift()), { status: 200 });
+    }) as unknown as typeof fetch;
+    const m = new RunManager({ dataDir: dir, emit: (r) => updates.push(r), localFetch });
+    managers.push(m);
+    const id = await m.start({ api: await api(), taskId: "t1", mode: "review_only", effort: "balanced", local: { base: "http://127.0.0.1:11434/v1", model: "qwen3-coder:30b" } });
+    const run = await settle(m, id, (r) => r.state !== "running");
+    expect(run).toMatchObject({ state: "completed", model: "local:qwen3-coder:30b", usage: { inputTokens: 600, outputTokens: 60 } });
+    expect(asked).toEqual(["http://127.0.0.1:11434/v1/chat/completions", "http://127.0.0.1:11434/v1/chat/completions"]);
+    await m.submit(id, await api());
+    expect(submitted[0]).toMatchObject({ usage: { model: "local:qwen3-coder:30b" }, changes: [{ path: "README.md", content: "# Demo\nRun the tests with pnpm test.\n" }] });
+  });
+
   it("checks the proposal in Farbaek against the hash worked out from what was sent", async () => {
     const m = manager(scripted([[edit], [finish]]));
     const id = await m.start({ api: await api(), taskId: "t1", mode: "review_only", effort: "balanced" });

@@ -11,6 +11,8 @@
  * no new windows, no webviews, every permission request denied, and every
  * network request from the page cancelled (the page needs none).
  */
+import { checkLocalModelUrl, listLocalModels, validLocalModelName } from "@/agent-runtime/models/local";
+import { ModelError } from "@/agent-runtime/models/types";
 import { BrowserWindow, Menu, app, ipcMain, session, shell, type IpcMainInvokeEvent } from "electron";
 import { promises as fs } from "node:fs";
 import os from "node:os";
@@ -40,6 +42,8 @@ const RENDERER_URL = pathToFileURL(RENDERER).href;
 
 interface Settings {
   paired: { server: string; agentId: string; agentName: string; workspaceName: string } | null;
+  /** A model on this computer (ADR 0134). */
+  localModel?: { base: string; model: string } | null;
 }
 
 let window: BrowserWindow | null = null;
@@ -79,7 +83,8 @@ const mesh = new DesktopMesh({
 async function loadSettings(): Promise<void> {
   try {
     const parsed = JSON.parse(await fs.readFile(path.join(dataDir(), "settings.json"), "utf8")) as Settings;
-    settings = { paired: parsed.paired ?? null };
+    const local = parsed.localModel && checkLocalModelUrl(parsed.localModel.base).ok && validLocalModelName(parsed.localModel.model) ? parsed.localModel : null;
+    settings = { paired: parsed.paired ?? null, localModel: local };
   } catch {
     settings = { paired: null };
   }
@@ -96,6 +101,7 @@ async function appState(): Promise<AppState> {
   return {
     version: app.getVersion(),
     paired: settings.paired,
+    localModel: settings.localModel ?? null,
     keychain: store.availability(),
     dataFolder: dataDir(),
     computerName: os.hostname().slice(0, 60),
@@ -124,7 +130,7 @@ async function attempt<T>(fn: () => Promise<T>): Promise<Result<T>> {
       await forgetPairing();
       return { ok: false, message: "Farbaek doesn't accept this computer's agent token anymore (it was revoked, or the person who paired it left). Pair it again with a new code." };
     }
-    if (error instanceof FarbaekApiError || error instanceof RunError) return { ok: false, message: error.message };
+    if (error instanceof FarbaekApiError || error instanceof RunError || error instanceof ModelError) return { ok: false, message: error.message };
     return { ok: false, message: "Something went wrong. Try again." };
   }
 }
@@ -197,10 +203,37 @@ function registerHandlers(): void {
     }),
   );
 
-  handle("runs:start", z.object({ taskId: Id, mode: z.enum(AGENT_MODES), effort: z.enum(EFFORTS) }), (input) =>
+  handle("runs:start", z.object({ taskId: Id, mode: z.enum(AGENT_MODES), effort: z.enum(EFFORTS), model: z.enum(["farbaek", "local"]).optional() }), (input) =>
     attempt(async () => {
-      const runId = await runs.start({ api: await client(), taskId: input.taskId, mode: input.mode, effort: input.effort });
+      if (input.model === "local" && !settings.localModel) throw new RunError("No local model is set on this computer. Set one in Settings first.");
+      const runId = await runs.start({ api: await client(), taskId: input.taskId, mode: input.mode, effort: input.effort, local: input.model === "local" ? settings.localModel ?? null : null });
       return { runId };
+    }),
+  );
+
+  // Local models (ADR 0134): on this computer only; the address is checked in the main process too.
+  handle("model:local-list", z.string().max(200), (base) =>
+    attempt(async () => {
+      const r = await listLocalModels(base);
+      if (!r.ok) throw new ModelError("bad_request", r.reason);
+      return r.models;
+    }),
+  );
+  handle("model:local-set", z.object({ base: z.string().max(200), model: z.string().max(90) }).nullable(), (input) =>
+    attempt(async () => {
+      if (input) {
+        const checked = checkLocalModelUrl(input.base);
+        if (!checked.ok) throw new ModelError("bad_request", checked.reason);
+        if (!validLocalModelName(input.model)) throw new ModelError("bad_request", "Choose one of the models the local server offers.");
+        const offered = await listLocalModels(checked.base);
+        if (!offered.ok) throw new ModelError("bad_request", offered.reason);
+        if (!offered.models.includes(input.model)) throw new ModelError("bad_request", `The local server doesn't offer ${input.model}. Download it first, for example with ollama pull.`);
+        settings.localModel = { base: checked.base, model: input.model };
+      } else {
+        settings.localModel = null;
+      }
+      await saveSettings();
+      return appState();
     }),
   );
 

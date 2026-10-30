@@ -155,6 +155,8 @@ export function ProposalReview({
             {shortHash(proposal.sha256, 8, 6)}
           </span>
           {proposal.model ? <span className="font-mono">{proposal.model}</span> : null}
+          {/* ADR 0134: written by a model on the agent's own computer, not Farbaek's AI. */}
+          {proposal.model?.startsWith("local:") ? <span>A model on the agent&apos;s computer</span> : null}
         </span>
       </div>
 
