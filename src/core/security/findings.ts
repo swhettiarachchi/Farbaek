@@ -19,8 +19,8 @@ export const SEVERITY_LABELS: Record<Severity, string> = {
 
 const PENALTY: Record<Severity, number> = { critical: 30, high: 15, medium: 7, low: 3, info: 0 };
 
-/** Where a finding came from: Farbaek's own rules, the package audit, or the AI review. */
-export type FindingSource = "rules" | "dependencies" | "ai";
+/** Where a finding came from: Farbaek's own rules, the package audit, Semgrep, the secret scan, or the AI review. */
+export type FindingSource = "rules" | "dependencies" | "sast" | "secrets" | "ai";
 
 export interface Finding {
   /** Stable within a report, for linking and "Fix with the agent". */

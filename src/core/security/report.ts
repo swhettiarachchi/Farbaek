@@ -11,12 +11,14 @@ import { countBySeverity, dedupeFindings, scoreOf, sortFindings, type Finding, t
 
 export const SECURITY_REPORT_PREDICATE_TYPE = "https://farbaek.dev/security-report/v1";
 
-export type CheckName = "rules" | "dependencies" | "osv" | "ai_review";
+export type CheckName = "rules" | "dependencies" | "osv" | "sast" | "secrets" | "ai_review";
 
 export const CHECK_LABELS: Record<CheckName, string> = {
   rules: "Farbaek's security rules",
   dependencies: "Known vulnerabilities in packages",
   osv: "Known vulnerabilities from OSV.dev",
+  sast: "Semgrep with Farbaek's rules",
+  secrets: "Secrets in the code (detect-secrets)",
   ai_review: "AI review of the riskiest files",
 };
 

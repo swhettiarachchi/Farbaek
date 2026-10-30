@@ -157,7 +157,9 @@ const SECTIONS: LegalSection[] = [
         </p>
         <p>
           When someone runs a security check on a project, we send the names and versions of the packages its lockfiles list to OSV.dev, the open
-          vulnerability database run by Google, to look up known vulnerabilities. No code, file contents or account details go there.
+          vulnerability database run by Google, to look up known vulnerabilities. No code, file contents or account details go there. The same check runs Semgrep and
+          detect-secrets on the project&apos;s files inside a disposable sandbox. Both tools are downloaded there from PyPI, run with Semgrep&apos;s usage reporting off, and send
+          nothing about your project anywhere; only the rule, file and line of each finding come back.
         </p>
         <p>
           If an owner or admin connects GitHub with a token, we send the files of a change to the linked repository only when someone opens a pull request for it, with

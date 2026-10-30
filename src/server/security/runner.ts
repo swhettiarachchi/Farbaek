@@ -5,6 +5,8 @@
  * 1. Farbaek's rules over every file (always; no code runs).
  * 2. Known vulnerabilities in npm packages: `npm audit` against the lockfile,
  *    in a sandbox with registry-only network, when one is connected.
+ *    Every lockfile is also looked up in OSV.dev (ADR 0130), and Semgrep with
+ *    Farbaek's rules and detect-secrets run in a sandbox (ADR 0137).
  * 3. An AI review of the riskiest files, metered from the wallet (operation
  *    security_review), when AI is connected and there's usage left.
  *
@@ -17,6 +19,7 @@ import { routeModel } from "@/server/ai/routing";
 import { approxTokens, reserveUnits } from "@/core/billing/rate-card";
 import { parseNpmAudit } from "@/core/security/audit";
 import { lockfilePackages, osvFindings } from "@/core/security/osv";
+import { parseSecrets, parseSemgrep, withoutRepeats } from "@/core/security/static-scan";
 import type { Finding } from "@/core/security/findings";
 import { buildSecurityReport, securityReportDigest, type CheckOutcome } from "@/core/security/report";
 import { riskiestFiles, runRules, type ProjectFile } from "@/core/security/rules";
@@ -46,6 +49,8 @@ export interface SecurityCheckDeps {
   audit: ((input: { projectId: string; reportId: string; files: ProjectFile[] }) => Promise<{ ok: true; stdout: string } | { ok: false; reason: string }>) | { unavailable: string };
   /** Looks locked versions up in OSV.dev (ADR 0130); absent in older callers, which skip the check. */
   osv?: OsvLookup;
+  /** Runs Semgrep and detect-secrets in a sandbox and returns each tool's compacted report (ADR 0137). */
+  staticScan?: ((input: { projectId: string; reportId: string }) => Promise<{ ok: true; semgrep: string; secrets: string } | { ok: false; reason: string }>) | { unavailable: string };
 }
 
 export interface CheckPerson {
@@ -129,6 +134,31 @@ export async function runSecurityCheck(deps: SecurityCheckDeps, person: CheckPer
         checks.push({ name: "osv", ran: true, findings: found.length, detail: `${lookFor.length} locked ${lookFor.length === 1 ? "package" : "packages"} from ${locked.lockfiles.join(", ")} looked up; ${looked.hits.length} with known vulnerabilities.${locked.capped ? " Only the first 3,000 were looked up." : ""}${skipped}` });
       } else {
         checks.push({ name: "osv", ran: false, reason: looked.reason });
+      }
+    }
+
+    // 2c. Semgrep and detect-secrets, in a sandbox (ADR 0137). A problem another check already reported at the same line isn't counted twice.
+    if (!deps.staticScan || "unavailable" in deps.staticScan) {
+      const reason = deps.staticScan && "unavailable" in deps.staticScan ? deps.staticScan.unavailable : "Static analysis isn't connected on this server.";
+      checks.push({ name: "sast", ran: false, reason }, { name: "secrets", ran: false, reason });
+    } else {
+      const scanned = await deps.staticScan({ projectId: project.id, reportId });
+      if (!scanned.ok) {
+        checks.push({ name: "sast", ran: false, reason: scanned.reason }, { name: "secrets", ran: false, reason: scanned.reason });
+      } else {
+        for (const [name, parsed] of [
+          ["sast", parseSemgrep(scanned.semgrep)],
+          ["secrets", parseSecrets(scanned.secrets)],
+        ] as const) {
+          if (!parsed.ok) {
+            checks.push({ name, ran: false, reason: parsed.reason });
+            continue;
+          }
+          const fresh = withoutRepeats(findings, parsed.findings);
+          findings.push(...fresh);
+          const capped = parsed.total > parsed.findings.length ? ` Only the first ${parsed.findings.length} of ${parsed.total} are listed.` : "";
+          checks.push({ name, ran: true, findings: fresh.length, detail: `${parsed.detail}${capped}` });
+        }
       }
     }
 
