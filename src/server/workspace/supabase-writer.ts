@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { TASK_MODES } from "@/core/realityloop/modes";
 import { z } from "zod";
 import { TASK_STATES } from "@/core/realityloop/task-machine";
 import { ORGANIZATION_SELECT, billingSnapshotFromRow } from "./organizations";
@@ -22,6 +23,12 @@ import type { LensSuggestionDeps } from "./lens-suggestions";
 import type { AutonomyDeps } from "./autonomy";
 import type { MemberPermissionDeps } from "./member-permissions";
 import type { SecondCheckDeps } from "./second-check";
+import type { TaskNoteDeps } from "./task-notes";
+
+/** Changing a task's operating mode (ADR 0131); the database checks the role and that no change is pending. */
+export interface TaskModeDeps {
+  setTaskMode(input: { taskId: string; actor: string; mode: "learn" | "pair" | "build" | "audit" }): Promise<RpcResult<null>>;
+}
 import { signRecordedProofPack } from "@/server/proof/record";
 import { policyRecord } from "@/core/trust/policy";
 import { readActiveRules } from "./workspace-rules";
@@ -34,7 +41,7 @@ export function createSupabaseWriteDeps(
   user: SupabaseClient,
   admin: SupabaseClient,
   userId: string,
-): WriteDeps & AiUsageDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps & AgentAdminDeps & SkillPinDeps & LensSuggestionDeps & AutonomyDeps & MemberPermissionDeps & SecondCheckDeps {
+): WriteDeps & AiUsageDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps & AgentAdminDeps & SkillPinDeps & LensSuggestionDeps & AutonomyDeps & MemberPermissionDeps & SecondCheckDeps & TaskNoteDeps & TaskModeDeps {
   const reader = createSupabaseReader(user);
   async function rpc<T>(fn: string, args: Record<string, unknown>, schema: z.ZodType<T>): Promise<RpcResult<T>> {
     const { data, error } = await admin.rpc(fn, args);
@@ -84,10 +91,10 @@ export function createSupabaseWriteDeps(
     async loadTask(orgId, taskId) {
       if (!z.uuid().safeParse(taskId).success) return null;
       const [{ data: task }, { data: history }] = await Promise.all([
-        user.from("tasks").select("id, project_id, state, version").eq("org_id", orgId).eq("id", taskId).maybeSingle(),
+        user.from("tasks").select("id, project_id, state, version, mode").eq("org_id", orgId).eq("id", taskId).maybeSingle(),
         user.from("task_transitions").select("event_id").eq("org_id", orgId).eq("task_id", taskId),
       ]);
-      const parsed = z.object({ id: z.string(), project_id: z.string(), state: z.enum(TASK_STATES), version: z.number().int() }).safeParse(task);
+      const parsed = z.object({ id: z.string(), project_id: z.string(), state: z.enum(TASK_STATES), version: z.number().int(), mode: z.enum(TASK_MODES).catch("build") }).safeParse(task);
       if (!parsed.success) return null;
       const eventIds = z.array(z.object({ event_id: z.string() })).catch([]).parse(history).map((h) => h.event_id);
       const { project_id, ...rest } = parsed.data;
@@ -224,6 +231,18 @@ export function createSupabaseWriteDeps(
         { p_proposal: i.proposalId, p_actor: i.actor, p_suggestion: { mappings: i.mappings }, p_model: i.model },
         z.null().or(z.literal("")).transform(() => null),
       ),
+
+    // Operating modes (ADR 0131).
+    setTaskMode: (i) => rpc("app_set_task_mode", { p_task: i.taskId, p_actor: i.actor, p_mode: i.mode }, z.null().or(z.literal("")).transform(() => null)),
+
+    async taskForNote(orgId, taskId) {
+      if (!z.uuid().safeParse(taskId).success) return null;
+      const { data } = await user.from("tasks").select("id, project_id, title, mode").eq("org_id", orgId).eq("id", taskId).maybeSingle();
+      const parsed = z.object({ id: z.string(), project_id: z.string(), title: z.string(), mode: z.enum(TASK_MODES) }).safeParse(data);
+      return parsed.success ? { id: parsed.data.id, projectId: parsed.data.project_id, title: parsed.data.title, mode: parsed.data.mode } : null;
+    },
+
+    recordTaskNote: (i) => rpc("app_record_task_note", { p_task: i.taskId, p_actor: i.actor, p_kind: i.kind, p_body: i.body, p_model: i.model }, z.string()),
 
     recordSecondCheck: (i) =>
       rpc(

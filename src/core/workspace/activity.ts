@@ -78,6 +78,8 @@ const VERBS: Record<string, string> = {
   "task.transition": "moved a task to its next step",
   "task.fix_started": "started a fix",
   "task.pull_request_opened": "opened a pull request on GitHub",
+  "task.mode_changed": "changed a task's mode",
+  "task.note_written": "had the AI write a note on a task",
   "contract.saved": "saved a task's intent contract",
   "contract.approved": "approved a task's intent contract",
   "proposal.created": "proposed a change",

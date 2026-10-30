@@ -63,9 +63,10 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
       createdAt: r.created_at,
       updatedAt: r.updated_at,
       fixOf: r.fix_of_task_id ?? null,
+      mode: r.mode ?? "build",
     };
   };
-  const TASK_SELECT = "id, title, state, version, project_id, created_at, updated_at, fix_of_task_id, projects(name)";
+  const TASK_SELECT = "id, title, state, version, project_id, created_at, updated_at, fix_of_task_id, mode, projects(name)";
 
   function fail(what: string, error: { message: string } | null): never {
     throw new Error(`Couldn't load ${what}: ${error?.message ?? "unknown error"}`);

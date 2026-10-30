@@ -74,6 +74,7 @@ The trial gets Pro's features with Starter's AI usage (16,070 units across the 1
 | Map a change to its contract | `lens_mapping` | One model call, asked for on a proposal in review, that names the contract clause each change serves (ADR 0044). Refunded if it fails or is refused. |
 | Draft a workspace rule | `policy_draft` | One model call on the Policies page that turns a person's description into draft rules (ADR 0082). It only fills the builder; nothing applies until a person tests and activates the rules. Refunded if it fails or is refused. |
 | Second check of a change | `second_check` | One model call, asked for on a proposal in review, in which a second model reads the change against its contract (ADR 0121). On OpenAI's GPT-6.1 Terra ($1 input, $0.05 cached input, $5 output per million tokens, OpenAI's pricing page, 2026-10-30) when the server has an OpenAI key, otherwise a different Claude model. Advisory; refunded if it fails or is refused. |
+| Explain or audit a task | `task_note` | One Claude call, asked for on a Learn or Audit task, that writes an explanation or an audit report of the task's contract and up to 8 of its files (ADR 0131). The plan's review model. Changes nothing in the project; refunded if it fails or is refused. |
 
 ## A run's own cap (ADR 0040)
 

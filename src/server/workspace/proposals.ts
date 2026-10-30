@@ -9,6 +9,7 @@
  * start_execution and begin_verification. Verification waits for an isolated
  * runner; nothing here marks a task verified.
  */
+import { PAIR_MAX_FILES } from "@/core/realityloop/modes";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
 import {
   DROP_LABELS,
@@ -182,7 +183,10 @@ export async function proposeChange(
     projectName: input.projectName,
     paths: files.map((f) => f.path),
     files: context.map((f) => ({ path: f.path, content: f.content })),
-    notes: input.notes.slice(0, 4_000),
+    // Pair mode (ADR 0131): the smallest reviewable step.
+    notes: `${task.mode === "pair" ? `Pair mode: make the smallest reviewable next step, changing at most ${PAIR_MAX_FILES} files.
+
+` : ""}${input.notes.slice(0, 4_000)}`,
   };
   if (!snapshot || !plan) return fail("ENTITLEMENT_UNAVAILABLE");
   // Writing code: Auto routing uses the standard model, stronger on Deep where the plan includes it.
@@ -200,7 +204,10 @@ export async function proposeChange(
   }
   if (!outcome.ok) return refundAndFail(deps, { orgId: input.orgId, entryId, usage: outcome.usage }, outcome.failure);
 
-  const { changes, dropped } = await buildChanges(outcome.output, context, new Set(known.keys()), WORKSPACE_LIMITS.maxFileBytes);
+  const built = await buildChanges(outcome.output, context, new Set(known.keys()), WORKSPACE_LIMITS.maxFileBytes);
+  // A Pair step keeps its first 3 files; the rest are named as left for later, never dropped silently.
+  const changes = task.mode === "pair" ? built.changes.slice(0, PAIR_MAX_FILES) : built.changes;
+  const dropped = [...built.dropped, ...built.changes.slice(changes.length).map((c) => ({ path: c.path, reason: "pair_step" as const }))];
   if (changes.length === 0) {
     const why = dropped.length ? ` ${dropped.slice(0, 3).map((d) => `${d.path}: ${DROP_LABELS[d.reason]}.`).join(" ")}` : " It didn't propose any edits.";
     return refundAndFail(deps, { orgId: input.orgId, entryId, usage: outcome.usage }, { code: "NO_APPLICABLE_CHANGES", message: `${MESSAGES.NO_APPLICABLE_CHANGES}${why}` });

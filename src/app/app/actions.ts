@@ -13,7 +13,7 @@ import { deletionPlan, isStaffAccount, peopleError } from "@/server/workspace/ac
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
 import { MANAGER_ROLES } from "@/server/workspace/types";
 import { EMPTY_CONTRACT_FORM, type ContractFormValues } from "@/core/realityloop/contract-form";
-import { approveContract, archiveProject, cancelTask, createProject, createTask, saveContract, type ProjectAdminDeps, type WriteDeps } from "@/server/workspace/use-cases";
+import { MESSAGES, approveContract, archiveProject, cancelTask, codeFromDatabaseError, createProject, createTask, saveContract, type ProjectAdminDeps, type WriteDeps } from "@/server/workspace/use-cases";
 import { draftContractWithAi, type AiUsageDeps } from "@/server/workspace/ai-drafting";
 import { deleteProjectFile, importProjectFiles, saveProjectFile, saveProjectImage, type FileDeps, type ImportSummary } from "@/server/workspace/files";
 import { IMAGE_LIMITS, isImagePath } from "@/core/workspace/images";
@@ -36,6 +36,10 @@ import { createAnthropicLensMapper } from "@/server/ai/lens-mapper";
 import { createOpenAiSecondChecker, openAiKey } from "@/server/ai/openai-second-checker";
 import { createAnthropicSecondChecker } from "@/server/ai/second-checker";
 import { runSecondCheck, type SecondCheckDeps } from "@/server/workspace/second-check";
+import { writeTaskNote, type TaskNoteDeps } from "@/server/workspace/task-notes";
+import type { TaskModeDeps } from "@/server/workspace/supabase-writer";
+import { createAnthropicTaskNoteWriter } from "@/server/ai/task-note-writer";
+import { TASK_MODES } from "@/core/realityloop/modes";
 import { aiForWorkspace } from "@/server/ai/workspace-ai";
 import type { SecondCheckResult } from "@/core/trust/second-check";
 import { suggestLensMapping, type LensSuggestionDeps } from "@/server/workspace/lens-suggestions";
@@ -65,7 +69,7 @@ async function requireContext(): Promise<AppContext> {
 }
 
 /** Resolves write dependencies, or the honest reason writes are unavailable. */
-async function writeDeps(ctx: AppContext): Promise<{ deps: WriteDeps & AiUsageDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps & AgentAdminDeps & LensSuggestionDeps & AutonomyDeps & MemberPermissionDeps & SecondCheckDeps; orgId: string } | { error: string }> {
+async function writeDeps(ctx: AppContext): Promise<{ deps: WriteDeps & AiUsageDeps & FileDeps & ProposalDeps & ProjectAdminDeps & RecoveryDeps & InvitationDeps & AgentAdminDeps & LensSuggestionDeps & AutonomyDeps & MemberPermissionDeps & SecondCheckDeps & TaskNoteDeps & TaskModeDeps; orgId: string } | { error: string }> {
   if (!ctx.writes.enabled) return { error: ctx.writes.reason };
   if (!ctx.current) return { error: "Create a workspace first." };
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
@@ -862,4 +866,39 @@ export async function signOut() {
   const supabase = await createSupabaseServerClient();
   if (supabase) await supabase.auth.signOut();
   redirect("/sign-in");
+}
+
+export type TaskModeState = { status: "idle" } | { status: "error"; message: string } | { status: "done"; mode: (typeof TASK_MODES)[number] };
+
+/** Changes a task's operating mode (ADR 0131). The database checks the role and refuses while a change waits. */
+export async function setTaskModeAction(input: { taskId: string; mode: string }): Promise<TaskModeState> {
+  const parsed = z.object({ taskId: z.uuid(), mode: z.enum(TASK_MODES) }).safeParse(input);
+  if (!parsed.success) return { status: "error", message: "Reload the page and try again." };
+  const ctx = await requireContext();
+  const w = await writeDeps(ctx);
+  if ("error" in w) return { status: "error", message: w.error };
+  const r = await w.deps.setTaskMode({ taskId: parsed.data.taskId, actor: ctx.user.id, mode: parsed.data.mode });
+  if (!r.ok) {
+    const code = codeFromDatabaseError(r.error);
+    return { status: "error", message: MESSAGES[code] ?? "The mode couldn't be changed. Try again." };
+  }
+  revalidatePath(`/app/tasks/${parsed.data.taskId}`);
+  return { status: "done", mode: parsed.data.mode };
+}
+
+export type TaskNoteState = { status: "idle" } | { status: "error"; message: string } | { status: "done" };
+
+/** Writes an explanation (Learn) or an audit report (Audit) for a task (ADR 0131). Metered; refunded if it fails. */
+export async function writeTaskNoteAction(input: { taskId: string }): Promise<TaskNoteState> {
+  const parsed = z.object({ taskId: z.uuid() }).safeParse(input);
+  if (!parsed.success) return { status: "error", message: "Reload the page and try again." };
+  const ctx = await requireContext();
+  const w = await writeDeps(ctx);
+  if ("error" in w) return { status: "error", message: w.error };
+  const ai = await aiForWorkspace(w.orgId, w.deps, { timeout: 240_000, claudeOnly: "Notes" });
+  if ("error" in ai) return { status: "error", message: ai.error };
+  const result = await writeTaskNote(ai.deps, { family: "anthropic", create: (s) => createAnthropicTaskNoteWriter({ model: s.model, client: ai.client }) }, { orgId: w.orgId, userId: ctx.user.id, taskId: parsed.data.taskId });
+  if (!result.ok) return { status: "error", message: result.message };
+  revalidatePath(`/app/tasks/${parsed.data.taskId}`);
+  return { status: "done" };
 }

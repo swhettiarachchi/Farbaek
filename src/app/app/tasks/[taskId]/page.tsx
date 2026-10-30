@@ -44,6 +44,10 @@ import { FixCard, freeRetryWords } from "@/components/tasks/fix-card";
 import { ContextReadinessCard } from "@/components/tasks/context-readiness";
 import { CostCard, ReversibilityCard } from "@/components/tasks/task-insights";
 import { PullRequestCard } from "@/components/github/pull-request-card";
+import { TaskModeControl } from "@/components/tasks/task-mode";
+import { TaskNotesCard } from "@/components/tasks/task-notes";
+import { MODE_INFO, MODE_REFUSALS, noteKindFor } from "@/core/realityloop/modes";
+import { readTaskNotes } from "@/server/workspace/task-notes";
 import { loadTaskGitHub } from "@/server/github/store";
 import { taskCost } from "@/core/insights/cost-brain";
 import { reversibilityRadar } from "@/core/insights/reversibility";
@@ -204,6 +208,19 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
     withheldFor(ctx.role, ctx.permissions, "publish") ??
     (github?.connected ? null : "GitHub isn't connected. An owner or admin can connect it in Settings.") ??
     (github?.pull || github?.link ? null : "This project isn't linked to a repository yet.");
+  // Operating modes (ADR 0131): Learn and Audit change nothing; they get notes instead.
+  const mode = task.mode ?? "build";
+  const noteKind = noteKindFor(mode);
+  const modeBlocks = MODE_INFO[mode].changes ? null : MODE_REFUSALS.MODE_NO_CHANGES;
+  const modeReason =
+    (ctx.mode === "demo" ? "The demo workspace is read-only." : null) ??
+    writeReason ??
+    (ctx.role === null || !CONTRIBUTOR_ROLES.includes(ctx.role) ? "Viewers can't change a task's mode." : null) ??
+    (proposal?.status === "pending" ? "A change is waiting for review. Apply or discard it first." : null);
+  const notesClient = noteKind && ctx.mode === "live" ? await createSupabaseServerClient() : null;
+  const [notes, noteAi] = noteKind
+    ? await Promise.all([notesClient ? readTaskNotes(notesClient, orgId, task.id).catch(() => []) : Promise.resolve([]), loadAiAvailability(ctx, ctx.current, "task_note")])
+    : [[], null];
   const stages = lifecycleProgress(task.state, history);
   const finished = TERMINAL_STATES.has(task.state);
   const cancelReason = !ctx.writes.enabled ? ctx.writes.reason : null;
@@ -238,6 +255,23 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
           </div>
         ) : null}
       </div>
+
+      <Card>
+        <h2 className="text-lg font-medium">Mode</h2>
+        <div className="mt-3">
+          <TaskModeControl taskId={task.id} mode={mode} disabledReason={modeReason} />
+        </div>
+      </Card>
+
+      {noteKind ? (
+        <Card>
+          <h2 className="text-lg font-medium">{noteKind === "explanation" ? "Explanations" : "Audit reports"}</h2>
+          <p className="mt-1 mb-4 text-sm text-ink-2">
+            {noteKind === "explanation" ? "What this part of the project does, and the decisions and trade-offs behind it." : "What's there, what looks risky, and what a careful reviewer would want to know."}
+          </p>
+          <TaskNotesCard taskId={task.id} kind={noteKind} notes={notes} disabledReason={(ctx.mode === "demo" ? "The demo workspace is read-only." : null) ?? writeReason ?? noteAi?.disabledReason ?? null} />
+        </Card>
+      ) : null}
 
       {fixable ? <FixCard taskId={task.id} fix={fix} open={fixIsOpen(fix)} retryIncluded={retryIncluded} disabledReason={fixReason} error={fixError} /> : null}
 
@@ -342,10 +376,10 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
                 <p className="text-sm leading-relaxed text-ink-2">
                   The Farbaek Agent works through the whole contract in the cloud: it reads the project, makes the changes and runs the checks, then hands you a proposal to review.
                 </p>
-                <StartRun taskId={task.id} disabledReason={writeReason ?? withheldFor(ctx.role, ctx.permissions, "run_agents")} />
+                <StartRun taskId={task.id} disabledReason={writeReason ?? modeBlocks ?? withheldFor(ctx.role, ctx.permissions, "run_agents")} />
               </div>
             ) : null}
-            {canPropose && proposeAi ? (
+            {canPropose && proposeAi && !modeBlocks ? (
               <div className={showProposal ? "border-t border-line pt-6" : ""}>
                 <h3 className="mb-4 text-base font-medium">{showProposal ? "Propose another change" : "Or propose one change from chosen files"}</h3>
                 <ProposeChange taskId={task.id} projectId={task.projectId} files={projectFiles.map((f) => ({ path: f.path, sizeBytes: f.sizeBytes }))} ai={proposeAi} />

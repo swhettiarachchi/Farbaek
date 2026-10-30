@@ -62,6 +62,8 @@ export const TaskRowSchema = z.object({
   updated_at: z.string(),
   // The task this one fixes (migration v63, ADR 0101).
   fix_of_task_id: z.string().nullable().optional(),
+  // The task's operating mode (migration v80, ADR 0131).
+  mode: z.enum(["learn", "pair", "build", "audit"]).catch("build").optional(),
 });
 export type Task = {
   id: string;
@@ -74,6 +76,8 @@ export type Task = {
   updatedAt: string;
   /** The task whose failed checks this one fixes (ADR 0101). */
   fixOf?: string | null;
+  /** Learn, Pair, Build or Audit (ADR 0131); Build when unknown. */
+  mode?: "learn" | "pair" | "build" | "audit";
 };
 
 /** A fix started for a task whose checks failed (ADR 0101). */

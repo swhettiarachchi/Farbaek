@@ -4,6 +4,7 @@
  * TypeScript rules, then asks the database to apply the change atomically.
  * Supabase details live behind WriteDeps so this logic is unit-tested.
  */
+import { MODE_REFUSALS, type TaskMode } from "@/core/realityloop/modes";
 import { checkQuota } from "@/core/billing/entitlements";
 import { resolveEffectivePlan, type BillingSnapshot } from "@/core/billing/trial";
 import { contractHash, type IntentContract } from "@/core/realityloop/contract";
@@ -64,6 +65,12 @@ export type WriteErrorCode =
   | "RECOVERY_CHANGED"
   | "INVALID_RECOVERY"
   | "POLICY_BLOCKED"
+  // Operating modes (ADR 0131).
+  | "MODE_NO_CHANGES"
+  | "PAIR_TOO_LARGE"
+  | "PAIR_NEEDS_PERSON"
+  | "PROPOSAL_PENDING"
+  | "WRONG_MODE"
   | "RECOVERY_UNVERIFIED"
   | "AGENT_LIMIT"
   | "PAIRING_CLOSED"
@@ -112,7 +119,7 @@ export interface WriteDeps {
   role(orgId: string): Promise<OrgRole | null>;
   billing(orgId: string): Promise<BillingSnapshot | null>;
   countActiveProjects(orgId: string): Promise<number>;
-  loadTask(orgId: string, taskId: string): Promise<{ id: string; projectId: string; state: TaskState; version: number; eventIds: string[] } | null>;
+  loadTask(orgId: string, taskId: string): Promise<{ id: string; projectId: string; state: TaskState; version: number; eventIds: string[]; mode?: TaskMode } | null>;
   createProject(input: { orgId: string; actor: string; name: string; description: string | null; limit: number | null }): Promise<RpcResult<string>>;
   createTask(input: { orgId: string; actor: string; projectId: string; title: string }): Promise<RpcResult<string>>;
   applyTransition(input: {
@@ -147,6 +154,11 @@ export interface WriteDeps {
 
 export const MESSAGES: Record<WriteErrorCode, string> = {
   FORBIDDEN: "Your role in this workspace can't make this change.",
+  MODE_NO_CHANGES: MODE_REFUSALS.MODE_NO_CHANGES,
+  PAIR_TOO_LARGE: MODE_REFUSALS.PAIR_TOO_LARGE,
+  PAIR_NEEDS_PERSON: MODE_REFUSALS.PAIR_NEEDS_PERSON,
+  PROPOSAL_PENDING: "A change is waiting for review. Apply or discard it first.",
+  WRONG_MODE: "That note doesn't match the task's mode.",
   INVALID_NAME: "Use a name between 1 and 80 characters.",
   INVALID_TITLE: "Use a title between 1 and 200 characters.",
   DUPLICATE_NAME: "A project with this name already exists in this workspace.",
@@ -234,6 +246,11 @@ export function codeFromDatabaseError(message: string): WriteErrorCode {
     "WORKSPACE_SUSPENDED",
     "PAUSED_BY_FARBAEK",
     "SITE_BLOCKED",
+    "MODE_NO_CHANGES",
+    "PAIR_TOO_LARGE",
+    "PAIR_NEEDS_PERSON",
+    "PROPOSAL_PENDING",
+    "WRONG_MODE",
     "FORBIDDEN",
     "INVALID_NAME",
     "INVALID_TITLE",
