@@ -29,7 +29,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
   - Mission Control, Projects, Create, Build, Tasks, Approvals, Sandbox, Agents, Mesh, Workflows, Policies, Incidents, Billing and usage, Settings, Help;
   - onboarding (first steps) and the labelled sample workspace.
 - **Partly built:** Activity / Audit now has its own page (stage 96, ADR 0119), with filters and a CSV download. Integrations now have their own page too (stage 97, ADR 0120).
-- **Stale:** `src/components/app/roadmap.ts` still lists "Mobile apps" as missing.
+- **Fixed:** the app's roadmap now lists phone apps in the stores, which is what's still missing; the apps themselves are built (section 13).
 
 ### 6. Studio
 
@@ -54,7 +54,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 ### 8. IntentLock, RealityLoop, Context Readiness, outcome contracts
 
 - **Built:** intent contracts, the full task state machine, Future-State Arena, counterfactual replay, outcome watch, incident-to-prevention.
-- **Not built:** the Context Readiness Engine and Context Passport (per-fact provenance and freshness: verified-current, possibly stale, conflicting, inferred, missing).
+- **Built:** the Context Readiness Engine and Context Passport (stage 93, ADR 0116): per-fact provenance and freshness (verified-current, possibly stale, conflicting, inferred, missing).
 
 ### 9. Trust
 
