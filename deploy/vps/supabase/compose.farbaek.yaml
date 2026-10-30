@@ -53,6 +53,14 @@ services:
       GOTRUE_EXTERNAL_APPLE_CLIENT_ID: ${FARBAEK_APPLE_CLIENT_IDS:-com.farbaek.app}
       GOTRUE_EXTERNAL_APPLE_SECRET: ${FARBAEK_APPLE_SECRET:-}
       GOTRUE_EXTERNAL_APPLE_REDIRECT_URI: https://api.farbaek.com/auth/v1/callback
+      # Signing in with Google on the website (ADR 0115), through Farbaek's
+      # own OAuth client in Google Cloud. Off until
+      # scripts/vps/set-google-sign-in.ps1 puts the client's id and secret in
+      # this folder's .env.
+      GOTRUE_EXTERNAL_GOOGLE_ENABLED: ${FARBAEK_GOOGLE_SIGN_IN:-false}
+      GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: ${FARBAEK_GOOGLE_CLIENT_ID:-}
+      GOTRUE_EXTERNAL_GOOGLE_SECRET: ${FARBAEK_GOOGLE_SECRET:-}
+      GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI: https://api.farbaek.com/auth/v1/callback
 
   api-gw:
     ports: !reset []

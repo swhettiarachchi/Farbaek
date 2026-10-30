@@ -65,6 +65,7 @@ function deps(options: { expiresAt?: number; ctx?: Partial<AppContext>; revoked?
     writes,
     pushAvailable: () => false,
     appleSignIn: () => options.apple ?? true,
+    googleSignIn: async () => options.apple ?? true,
     billing: async () => ({ managedBy: null, live: false, applePurchases: true }),
     clientKey: () => "client",
     now: () => NOW,
@@ -172,12 +173,12 @@ describe("the phone API (ADR 0110)", () => {
   });
 
   it("signs in with Apple only when it's open, and records the phone like any other (ADR 0113)", async () => {
-    expect(await data(await call(deps({ apple: false }).deps, "GET", "sign-in-options", { token: false }))).toEqual({ apple: false });
+    expect(await data(await call(deps({ apple: false }).deps, "GET", "sign-in-options", { token: false }))).toEqual({ apple: false, google: false });
     const off = await call(deps({ apple: false }).deps, "POST", "apple", { token: false, body: { identityToken: JWT, nonce: NONCE } });
     expect(off.status).toBe(503);
 
     const { deps: d, calls } = deps();
-    expect(await data(await call(d, "GET", "sign-in-options", { token: false }))).toEqual({ apple: true });
+    expect(await data(await call(d, "GET", "sign-in-options", { token: false }))).toEqual({ apple: true, google: true });
     const signedIn = await call(d, "POST", "apple", { token: false, body: { identityToken: JWT, nonce: NONCE, authorizationCode: "c0de.0.abc", device: "Ada's iPhone", appVersion: "1.0" } });
     expect(signedIn.status).toBe(200);
     expect(await data(signedIn)).toMatchObject({ accessToken: JWT, refreshToken: "refresh-apple1", deviceId: "device-1" });

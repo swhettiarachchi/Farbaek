@@ -43,6 +43,8 @@ final class AppModel {
     var canBuyOnWeb = false
     /// Sign in with Apple is open on Farbaek's server (ADR 0113).
     var appleOffered = false
+    /// The website's sign-in sheet offers Google too (ADR 0115).
+    var googleOffered = false
     var creatingWorkspace = false
     var workspaceError: String?
 
@@ -138,7 +140,9 @@ final class AppModel {
 
     /// Which ways to sign in to offer. Without an answer, only email shows.
     func loadSignInOptions() async {
-        appleOffered = (try? await api.signInOptions())?.apple ?? false
+        let options = try? await api.signInOptions()
+        appleOffered = options?.apple ?? false
+        googleOffered = options?.google ?? false
     }
 
     /// Apple's request: the email only, and this attempt's nonce hash.

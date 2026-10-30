@@ -27,6 +27,7 @@ import { NO_RUNS, type RunReader } from "./views";
 import { createPhoneWrites } from "./writes";
 import { appleDeps, appleIapOn } from "@/server/billing/apple/wiring";
 import { appleSignInOn } from "@/server/auth/apple";
+import { oauthAvailable } from "@/server/auth/oauth-wiring";
 import { keepAppleSignIn } from "@/server/auth/apple-wiring";
 
 type Config = { url: string; publishableKey: string };
@@ -140,6 +141,7 @@ export function phoneApiDeps(): PhoneApiDeps {
     writes: createPhoneWrites({ userClient: (token) => bearerClient(config!, token), store: store! }),
     pushAvailable: () => apnsConfig() !== null,
     appleSignIn: () => appleSignInOn(),
+    googleSignIn: () => oauthAvailable("google"),
     async billing(orgId) {
       const account = await appleDeps()?.account(orgId);
       const live = Boolean(account?.subscriptionId) && ["active", "past_due", "cancellation_scheduled", "suspended"].includes(account?.state ?? "");

@@ -82,7 +82,7 @@ struct WelcomeView: View {
                         if model.signingIn {
                             ProgressView().tint(model.appleOffered ? Palette.ink : Palette.onPrimary)
                         } else {
-                            Text("Sign in with email")
+                            Text(model.googleOffered ? "Sign in with Google or email" : "Sign in with email")
                         }
                     }
                     .buttonStyle(PillButtonStyle(kind: model.appleOffered ? .secondary : .primary))
@@ -98,7 +98,7 @@ struct WelcomeView: View {
                         Notice(text: error, tone: .failed, symbol: "exclamationmark.triangle.fill")
                     }
                     Text(model.appleOffered
-                        ? "Continue with Apple makes your account from your Apple Account, and you can hide your email from Farbaek. Email sign-in opens www.farbaek.com."
+                        ? "Continue with Apple makes your account from your Apple Account, and you can hide your email from Farbaek. \(model.googleOffered ? "Google and email sign-in open" : "Email sign-in opens") www.farbaek.com."
                         : "Signing in opens www.farbaek.com. If you're new, the same page makes your account.")
                         .font(.footnote)
                         .foregroundStyle(Palette.ink3)
