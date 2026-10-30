@@ -75,6 +75,7 @@ function memoizeReader(reader: WorkspaceReader): WorkspaceReader {
     getLensSuggestion: wrap("lensSuggestion", reader.getLensSuggestion),
     getSecondCheck: wrap("secondCheck", reader.getSecondCheck),
     listTaskUsage: wrap("taskUsage", reader.listTaskUsage),
+    listFileChanges: wrap("fileChanges", reader.listFileChanges),
     listTaskSandboxes: wrap("taskSandboxes", reader.listTaskSandboxes),
     listProofPacks: wrap("proofpacks", reader.listProofPacks),
     getProofPack: wrap("proofpack", reader.getProofPack),

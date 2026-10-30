@@ -81,7 +81,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
   - Semgrep, OSV-Scanner and gitleaks findings;
   - Failure Futures Lab;
   - mutation testing;
-  - Architecture Why-Graph;
+  - Architecture Why-Graph: built per file in stage 100 (ADR 0123);
   - Reversibility Radar: built in stage 99 (ADR 0122);
   - a Cost Brain view: built per task in stage 99 (ADR 0122);
   - the Learn / Pair / Build / Audit operating modes.

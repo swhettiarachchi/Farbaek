@@ -430,6 +430,36 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
       return row ? { mappings: row.suggestion.mappings, model: row.model, createdAt: row.created_at } : null;
     },
 
+    async listFileChanges(orgId, projectId, path) {
+      if (!z.uuid().safeParse(projectId).success || path.length === 0 || path.length > 1_000) return [];
+      const { data, error } = await client
+        .from("change_proposals")
+        .select("id, task_id, decided_at, model, agent_id, changes")
+        .eq("org_id", orgId)
+        .eq("project_id", projectId)
+        .eq("status", "applied")
+        .contains("changes", [{ path }])
+        .order("decided_at", { ascending: true })
+        .limit(20);
+      if (error) fail("file changes", error);
+      return z
+        .array(
+          z.object({
+            id: z.string(),
+            task_id: z.string(),
+            decided_at: z.string().nullable(),
+            model: z.string().nullable(),
+            agent_id: z.string().nullable(),
+            changes: z.array(z.object({ path: z.string(), reason: z.string().optional() }).passthrough()),
+          }),
+        )
+        .parse(data ?? [])
+        .flatMap((r) => {
+          const c = r.changes.find((x) => x.path === path);
+          return c && r.decided_at ? [{ proposalId: r.id, taskId: r.task_id, appliedAt: r.decided_at, model: r.model, byAgent: r.agent_id !== null, reason: c.reason ?? "" }] : [];
+        });
+    },
+
     // Read through the person's session: members read their workspace's ledger and sandboxes.
     async listTaskUsage(orgId, taskId) {
       if (!z.uuid().safeParse(taskId).success) return [];

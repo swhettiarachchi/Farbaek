@@ -352,6 +352,8 @@ export interface WorkspaceReader {
   getLatestProposal(orgId: string, taskId: string): Promise<ProposalRecord | null>;
   /** The AI mapping asked for in the Intent Diff Lens, if any (ADR 0044). */
   getLensSuggestion(orgId: string, proposalId: string): Promise<StoredLensSuggestion | null>;
+  /** Applied changes that wrote this file, oldest first, with the reason each gave for it (ADR 0123). */
+  listFileChanges(orgId: string, projectId: string, path: string): Promise<{ proposalId: string; taskId: string; appliedAt: string; model: string | null; byAgent: boolean; reason: string }[]>;
   /** A task's AI usage ledger and its sandbox sessions, for the Cost Brain (ADR 0122). */
   listTaskUsage(orgId: string, taskId: string): Promise<LedgerEntry[]>;
   listTaskSandboxes(orgId: string, taskId: string): Promise<SandboxUse[]>;

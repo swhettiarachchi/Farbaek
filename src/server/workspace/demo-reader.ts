@@ -429,6 +429,9 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
     // The demo has no second checks: asking for one needs a real workspace.
     getSecondCheck: async () => null,
 
+    // The demo applies nothing, so no applied change has written a file.
+    listFileChanges: async () => [],
+
     // Sample usage for the demo's change in review, so the Cost Brain shows how it reads.
     async listTaskUsage(_orgId, taskId) {
       if (taskId !== DEMO_PROPOSAL_TASK_ID) return [];
