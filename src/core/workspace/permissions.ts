@@ -14,7 +14,7 @@ export type WithheldPermissions = Partial<Record<Permission, false>>;
 
 export const PERMISSION_LABELS: Record<Permission, { title: string; detail: string }> = {
   approve: { title: "Approve changes", detail: "Apply changes that need a person's approval, their own or anyone's." },
-  publish: { title: "Publish and launch", detail: "Publish sites, roll them back or take them offline, and launch to a connected host." },
+  publish: { title: "Publish and launch", detail: "Publish sites, roll them back or take them offline, launch to a connected host, and open pull requests on GitHub." },
   run_agents: { title: "Start agent runs", detail: "Let the agent build a task, or compare candidates in the Arena. Runs use the workspace's AI allowance." },
 };
 

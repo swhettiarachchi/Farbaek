@@ -156,6 +156,11 @@ const SECTIONS: LegalSection[] = [
           your own agreement with it, not ours. We keep the token you gave us encrypted, never show it again, and delete it when you disconnect.
         </p>
         <p>
+          If an owner or admin connects GitHub with a token, we send the files of a change to the linked repository only when someone opens a pull request for it, with
+          the change&apos;s summary and its ProofPack result. GitHub handles them under your own agreement with it. We keep the token encrypted, never show it again, and
+          delete it when you disconnect.
+        </p>
+        <p>
           If you send a folder between your computers over the internet, the Farbaek Agent encrypts it end to end before it leaves. Our server passes the two computers the
           details they need to connect directly, including each one&apos;s network address, and the files then go between them without touching our server; each computer
           learns the other&apos;s public address. If you choose Farbaek&apos;s relay instead, our server passes the encrypted bytes along without being able to read them. They&apos;re

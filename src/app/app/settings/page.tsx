@@ -9,8 +9,10 @@ import { LEVEL_3_NOT_IN_PLAN, SHADOW_NOT_IN_PLAN, readAutonomyRecord } from "@/s
 import { levelThreeStatus } from "@/core/trust/autonomy-levels";
 import { DeleteAccount } from "@/components/app/delete-account";
 import { EmailPreferencesForm } from "@/components/app/email-preferences";
+import { GitHubConnectionCard } from "@/components/app/github-connection";
 import { ModelKeyCard } from "@/components/app/model-key";
 import { readModelKey } from "@/server/ai/workspace-ai";
+import { readGitHubConnection } from "@/server/github/store";
 import { ThisDevice } from "@/components/app/this-device";
 import { Phones } from "@/components/app/phones";
 import { readMyPhones } from "@/server/phone/store";
@@ -62,6 +64,8 @@ export default async function SettingsPage() {
   const myPhones = pushClient ? await readMyPhones(pushClient, ctx.user.id).catch(() => []) : [];
   // The workspace's own AI key (ADR 0125): whether one is set and which, never the key.
   const modelKey = pushClient ? await readModelKey(pushClient, ws.id) : null;
+  // The workspace's GitHub connection (ADR 0126): who connected it, never the token.
+  const github = pushClient ? await readGitHubConnection(pushClient, ws.id).catch(() => null) : null;
   const modelKeyReason = ctx.mode === "demo" ? "The demo workspace is read-only." : ctx.writes.enabled ? null : ctx.writes.reason;
   // Level 3 (ADR 0086): the plan first, then the record it's earned from, read as the person. A running level 3 can always change its limits.
   const levelThreeFeature = checkFeature(ws.plan, "advanced_autonomy");
@@ -290,6 +294,16 @@ export default async function SettingsPage() {
           </h2>
           <p className="mt-1 mb-4 text-sm text-ink-2">Use this workspace&apos;s own Anthropic account, directly or through your company&apos;s gateway, instead of Farbaek&apos;s.</p>
           <ModelKeyCard current={modelKey} canManage={canManage} disabledReason={modelKeyReason} />
+        </Card>
+      </section>
+
+      <section id="github" aria-labelledby="github-title" className="scroll-mt-24">
+        <Card>
+          <h2 id="github-title" className="text-lg font-medium">
+            GitHub
+          </h2>
+          <p className="mt-1 mb-4 text-sm text-ink-2">Open a pull request on GitHub for each change you apply, with its ProofPack result as a status check.</p>
+          <GitHubConnectionCard current={github} canManage={canManage} disabledReason={modelKeyReason} />
         </Card>
       </section>
 

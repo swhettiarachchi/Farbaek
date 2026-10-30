@@ -43,6 +43,8 @@ import { loadAiAvailability } from "@/server/workspace/usage-summary";
 import { FixCard, freeRetryWords } from "@/components/tasks/fix-card";
 import { ContextReadinessCard } from "@/components/tasks/context-readiness";
 import { CostCard, ReversibilityCard } from "@/components/tasks/task-insights";
+import { PullRequestCard } from "@/components/github/pull-request-card";
+import { loadTaskGitHub } from "@/server/github/store";
 import { taskCost } from "@/core/insights/cost-brain";
 import { reversibilityRadar } from "@/core/insights/reversibility";
 import { workspaceGrant } from "@/server/workspace/organizations";
@@ -192,6 +194,16 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
     writeReason ??
     (ctx.role === null || !CONTRIBUTOR_ROLES.includes(ctx.role) ? "Viewers can't start a fix. Ask a member, admin or owner." : null) ??
     withheldFor(ctx.role, ctx.permissions, "run_agents");
+  // GitHub (ADR 0126): the applied change's pull request, read as the person.
+  const githubClient = applied && ctx.mode === "live" ? await createSupabaseServerClient() : null;
+  const github = applied && githubClient ? await loadTaskGitHub(githubClient, orgId, task.projectId, applied.id) : null;
+  const githubReason =
+    (ctx.mode === "demo" ? "The demo workspace isn't connected to GitHub." : null) ??
+    writeReason ??
+    (ctx.role === null || !CONTRIBUTOR_ROLES.includes(ctx.role) ? "Viewers can't open pull requests." : null) ??
+    withheldFor(ctx.role, ctx.permissions, "publish") ??
+    (github?.connected ? null : "GitHub isn't connected. An owner or admin can connect it in Settings.") ??
+    (github?.pull || github?.link ? null : "This project isn't linked to a repository yet.");
   const stages = lifecycleProgress(task.state, history);
   const finished = TERMINAL_STATES.has(task.state);
   const cancelReason = !ctx.writes.enabled ? ctx.writes.reason : null;
@@ -346,6 +358,16 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
       <Card>
         <CostCard cost={cost} period={grant ? (grant.kind === "trial" ? "trial" : "month") : null} />
       </Card>
+
+      {applied ? (
+        <PullRequestCard
+          projectId={task.projectId}
+          proposalId={applied.id}
+          pull={github?.pull ?? null}
+          repo={github?.link ? `${github.link.owner}/${github.link.repo}` : null}
+          openReason={githubReason}
+        />
+      ) : null}
 
       {showVerification ? (
         <Card>

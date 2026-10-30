@@ -1,0 +1,59 @@
+import { ArrowSquareOutIcon, GitPullRequestIcon } from "@phosphor-icons/react/ssr";
+import Link from "next/link";
+import { Card } from "@/components/app/primitives";
+import { RelativeTime } from "@/components/ui/local-time";
+import type { PullRequestView } from "@/server/github/store";
+import { PullRequestControls } from "./pull-request-controls";
+import { PullStatusChip } from "./pull-status";
+
+/**
+ * A task's pull request on GitHub (ADR 0126): the button that opens one for
+ * the applied change, or the one that's open, with the status Farbaek posted.
+ */
+export function PullRequestCard({ projectId, proposalId, pull, repo, openReason }: { projectId: string; proposalId: string; pull: PullRequestView | null; repo: string | null; openReason: string | null }) {
+  return (
+    <Card>
+      <h2 className="flex items-center gap-2 text-lg font-medium">
+        <GitPullRequestIcon size={20} aria-hidden /> Pull request
+      </h2>
+      {pull ? (
+        <div className="mt-3 grid gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <a href={pull.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 min-w-0 items-center gap-1.5 font-medium text-accent hover:underline">
+              <span className="break-all">
+                {pull.repo} #{pull.number}
+              </span>
+              <ArrowSquareOutIcon size={14} className="shrink-0" aria-hidden />
+              <span className="sr-only">(opens in a new tab)</span>
+            </a>
+            <PullStatusChip state={pull.status} />
+          </div>
+          <p className="text-sm text-ink-2">
+            <span className="break-all font-mono">{pull.branch}</span> into <span className="font-mono">{pull.baseBranch}</span>, commit <span className="font-mono">{pull.commitSha.slice(0, 7)}</span>. Opened <RelativeTime iso={pull.openedAt} />.
+          </p>
+          <p className="text-xs text-ink-3">The Farbaek ProofPack status is on this commit only. Farbaek updates it when checks run again here.</p>
+          <PullRequestControls proposalId={proposalId} mode="update" disabledReason={openReason} />
+        </div>
+      ) : (
+        <div className="mt-3 grid gap-3">
+          <p className="text-sm text-ink-2">
+            {repo ? (
+              <>
+                Push this change to <span className="font-mono">{repo}</span> on a new branch and open a pull request, with its ProofPack result as a status check. Nothing on GitHub is overwritten.
+              </>
+            ) : (
+              <>
+                Link this project to a repository on its{" "}
+                <Link href={`/app/projects/${projectId}/github`} className="font-medium text-accent hover:underline">
+                  GitHub page
+                </Link>{" "}
+                to open a pull request for this change.
+              </>
+            )}
+          </p>
+          <PullRequestControls proposalId={proposalId} mode="open" disabledReason={openReason} />
+        </div>
+      )}
+    </Card>
+  );
+}

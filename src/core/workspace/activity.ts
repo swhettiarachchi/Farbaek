@@ -60,10 +60,14 @@ const VERBS: Record<string, string> = {
   "workspace.restored": "restored the workspace",
   "workspace.model_key_set": "set the workspace's own AI key",
   "workspace.model_key_removed": "removed the workspace's own AI key",
+  "workspace.github_connected": "connected GitHub",
+  "workspace.github_disconnected": "disconnected GitHub",
   "project.created": "created a project",
   "project.archived": "archived a project",
   "project.files_imported": "imported files into a project",
   "project.file_deleted": "deleted a file",
+  "project.github_linked": "linked a project to a GitHub repository",
+  "project.github_unlinked": "unlinked a project from its GitHub repository",
   "capsule.exported": "exported a project capsule",
   "capsule.imported": "imported a project capsule",
   "skill.pinned": "approved a project skill",
@@ -73,6 +77,7 @@ const VERBS: Record<string, string> = {
   "task.created": "created a task",
   "task.transition": "moved a task to its next step",
   "task.fix_started": "started a fix",
+  "task.pull_request_opened": "opened a pull request on GitHub",
   "contract.saved": "saved a task's intent contract",
   "contract.approved": "approved a task's intent contract",
   "proposal.created": "proposed a change",
@@ -153,7 +158,7 @@ export function activityHref(event: Pick<ActivityEvent, "action" | "target">): s
 
 /** A short, safe name from the event's details, when it records one. */
 function detailName(metadata: Record<string, unknown>): string | null {
-  for (const key of ["name", "title", "project_name", "domain", "path"]) {
+  for (const key of ["name", "title", "project_name", "domain", "path", "repository"]) {
     const v = metadata[key];
     if (typeof v === "string" && v.trim()) return v.trim().replace(/\s+/g, " ").slice(0, 80);
   }

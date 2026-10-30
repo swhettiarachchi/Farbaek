@@ -1,6 +1,7 @@
 import { LAUNCH_PROVIDERS, type LaunchProvider } from "@/core/launch/providers";
 import { readEmailConfig } from "@/server/email/config";
 import { readModelKey, type ModelKeyView } from "@/server/ai/workspace-ai";
+import { countRepoLinks, readGitHubConnection } from "@/server/github/store";
 import { readConnections, type ConnectionView } from "@/server/launch/provider-store";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import type { AppContext } from "./context";
@@ -13,6 +14,8 @@ export interface IntegrationsView {
   emailSending: boolean;
   /** The workspace's own AI key (ADR 0125), when one is set. */
   modelKey: ModelKeyView | null;
+  /** GitHub (ADR 0126): who connected it (null login when not connected) and how many projects are linked; null when unreadable. */
+  github: { login: string | null; linked: number } | null;
 }
 
 /**
@@ -22,7 +25,7 @@ export interface IntegrationsView {
  */
 export async function loadIntegrations(ctx: AppContext, orgId: string): Promise<IntegrationsView> {
   const user = ctx.mode === "live" ? await createSupabaseServerClient() : null;
-  const [connections, liveSites, agents, modelKey] = await Promise.all([
+  const [connections, liveSites, agents, modelKey, github] = await Promise.all([
     user ? readConnections(user, orgId).catch(() => null) : Promise.resolve(null),
     user
       ? Promise.resolve(
@@ -36,6 +39,9 @@ export async function loadIntegrations(ctx: AppContext, orgId: string): Promise<
       : Promise.resolve(null),
     ctx.reader.listAgents(orgId).catch(() => []),
     user ? readModelKey(user, orgId).catch(() => null) : Promise.resolve(null),
+    user
+      ? Promise.all([readGitHubConnection(user, orgId), countRepoLinks(user, orgId)]).then(([c, linked]) => ({ login: c?.login ?? null, linked }), () => null)
+      : Promise.resolve(null),
   ]);
   const active = agents.filter((a) => !a.revokedAt);
   return {
@@ -44,5 +50,6 @@ export async function loadIntegrations(ctx: AppContext, orgId: string): Promise<
     agents: { paired: active.length, reachable: active.filter((a) => a.meshReachableAt && a.meshFingerprint).length },
     emailSending: readEmailConfig() !== null,
     modelKey,
+    github,
   };
 }

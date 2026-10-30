@@ -36,6 +36,7 @@ describe("the Integrations page's data", () => {
     expect(v.connections).toBeNull();
     expect(v.liveSites).toBeNull();
     expect(v.modelKey).toBeNull();
+    expect(v.github).toBeNull();
   });
 
   it("treats agents it can't read as none, without failing the page", async () => {
