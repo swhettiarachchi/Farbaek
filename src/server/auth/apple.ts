@@ -76,34 +76,6 @@ export function appleWebSecret(config: AppleSignInKey, now: Date): { secret: str
 
 type Fetch = (input: string, init: RequestInit) => Promise<Response>;
 
-let webReady: { at: number; value: boolean } | null = null;
-
-/**
- * Whether Auth's Apple flow for the website is fully set up: its authorize
- * address must send the browser to Apple under the website's Services ID.
- * Asked at most every five minutes (every minute after a failure), so the
- * button shows only while the whole flow works.
- */
-export async function appleWebReady(options: { authUrl: string; publishableKey: string; returnTo: string; fetch?: Fetch; now?: number }): Promise<boolean> {
-  const now = options.now ?? Date.now();
-  if (webReady && now - webReady.at < (webReady.value ? 300_000 : 60_000)) return webReady.value;
-  let value = false;
-  try {
-    const url = `${options.authUrl.replace(/\/$/, "")}/auth/v1/authorize?${new URLSearchParams({ provider: "apple", redirect_to: options.returnTo })}`;
-    const r = await (options.fetch ?? fetch)(url, { headers: { apikey: options.publishableKey }, redirect: "manual", signal: AbortSignal.timeout(5_000) });
-    const location = r.headers.get("location") ?? "";
-    value = r.status >= 300 && r.status < 400 && location.startsWith(`${APPLE_ID_HOST}/auth/authorize?`) && new URL(location).searchParams.get("client_id") === APPLE_SERVICES_ID;
-  } catch {
-    value = false;
-  }
-  webReady = { at: now, value };
-  return value;
-}
-
-/** For tests: forget the last answer. */
-export function resetAppleWebReady(): void {
-  webReady = null;
-}
 const TIMEOUT_MS = 8_000;
 
 function post(fetcher: Fetch, path: string, form: Record<string, string>): Promise<Response> {

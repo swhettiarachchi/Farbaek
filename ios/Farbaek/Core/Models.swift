@@ -28,6 +28,8 @@ struct TokenGrant: Decodable {
 /// The ways to sign in this server offers (ADR 0113).
 struct SignInOptions: Decodable {
     let apple: Bool
+    /// The website's sign-in, which the app opens, offers Google (ADR 0115). Older servers leave it out.
+    let google: Bool?
 }
 
 struct CreatedWorkspace: Decodable {

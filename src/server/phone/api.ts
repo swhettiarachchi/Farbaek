@@ -63,6 +63,8 @@ export interface PhoneApiDeps {
   pushAvailable(): boolean;
   /** Whether Sign in with Apple is open on this server (ADR 0113). */
   appleSignIn(): boolean;
+  /** Whether the website's sign-in, which the app opens, offers Google now (ADR 0115). */
+  googleSignIn(): Promise<boolean>;
   /** Who bills a workspace, and whether App Store purchases are open on this server (ADR 0112). */
   billing(orgId: string): Promise<BillingFacts>;
   clientKey(request: Request): string;
@@ -382,7 +384,7 @@ export async function handlePhoneApi(request: Request, segments: readonly string
   const [first] = segments;
 
   if (segments.length === 1 && method === "GET" && first === "sign-in-options") {
-    return ok({ apple: deps.auth !== null && deps.appleSignIn() });
+    return ok({ apple: deps.auth !== null && deps.appleSignIn(), google: deps.auth !== null && (await deps.googleSignIn()) });
   }
 
   // Sign-in steps carry their own credential.

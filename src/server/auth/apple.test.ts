@@ -1,7 +1,7 @@
 import { generateKeyPairSync, verify } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { IOS_APP } from "@/config/ios-app";
-import { APPLE_SERVICES_ID, appleClientSecret, appleSignInKey, appleSignInOn, appleWebReady, appleWebSecret, exchangeAppleCode, resetAppleWebReady, revokeAppleToken } from "./apple";
+import { APPLE_SERVICES_ID, appleClientSecret, appleSignInKey, appleSignInOn, appleWebSecret, exchangeAppleCode, revokeAppleToken } from "./apple";
 
 // A throwaway P-256 key made for this test, never Apple's.
 const pair = generateKeyPairSync("ec", { namedCurve: "P-256" });
@@ -70,31 +70,5 @@ describe("Sign in with Apple on the website (ADR 0114)", () => {
     expect(claims.exp).toBe(expiresAt);
     expect(claims.exp - claims.iat).toBe(180 * 86_400);
     expect(claims.exp - claims.iat).toBeLessThan(15_777_000);
-  });
-
-  it("offers the button only while Auth's flow sends people to Apple under the website's id", async () => {
-    const ask = (status: number, location: string | null) => {
-      resetAppleWebReady();
-      const seen: string[] = [];
-      const fetcher = async (url: string) => (seen.push(url), new Response(null, { status, headers: location ? { location } : {} }));
-      return { seen, ready: appleWebReady({ authUrl: "https://api.farbaek.com/", publishableKey: "pk", returnTo: "https://www.farbaek.com/auth/callback", fetch: fetcher, now: 1_000 }) };
-    };
-    const good = ask(302, "https://appleid.apple.com/auth/authorize?client_id=com.farbaek.web&response_mode=form_post");
-    expect(await good.ready).toBe(true);
-    expect(good.seen[0]).toBe("https://api.farbaek.com/auth/v1/authorize?provider=apple&redirect_to=https%3A%2F%2Fwww.farbaek.com%2Fauth%2Fcallback");
-    expect(await ask(302, "https://appleid.apple.com/auth/authorize?client_id=com.farbaek.app").ready).toBe(false);
-    expect(await ask(400, null).ready).toBe(false);
-    expect(await ask(302, "https://evil.example/auth/authorize?client_id=com.farbaek.web").ready).toBe(false);
-
-    // Remembered for five minutes once it works, a minute while it doesn't.
-    resetAppleWebReady();
-    let calls = 0;
-    const fetcher = async () => (calls++, new Response(null, { status: 302, headers: { location: "https://appleid.apple.com/auth/authorize?client_id=com.farbaek.web" } }));
-    const options = { authUrl: "https://api.farbaek.com", publishableKey: "pk", returnTo: "x", fetch: fetcher };
-    await appleWebReady({ ...options, now: 0 });
-    await appleWebReady({ ...options, now: 299_000 });
-    expect(calls).toBe(1);
-    await appleWebReady({ ...options, now: 301_000 });
-    expect(calls).toBe(2);
   });
 });

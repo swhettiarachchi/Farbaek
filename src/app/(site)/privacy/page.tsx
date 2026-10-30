@@ -31,7 +31,8 @@ const SECTIONS: LegalSection[] = [
             <strong className="font-medium text-ink">Your account:</strong> your email address, when you signed in, and the workspaces you belong to with your role in each.
             If you use Sign in with Apple, Apple gives us an ID for you and your email address, or a relay address if you choose to hide yours. On the website, Apple
             also offers your name, and you choose whether to share it; the iPhone app doesn&apos;t ask for it. We keep Apple&apos;s sign-in token so that deleting your
-            account also ends your Apple sign-in with Farbaek, and if you stop using Sign in with Apple with Farbaek, Apple tells us and we sign you out.
+            account also ends your Apple sign-in with Farbaek, and if you stop using Sign in with Apple with Farbaek, Apple tells us and we sign you out. If you
+            sign in with Google, Google gives us your email address, your name and the address of your profile picture.
           </>,
           <>
             <strong className="font-medium text-ink">Your work:</strong> what you write to plan software, the files in your projects and their history, AI drafts and changes, approvals, check results,

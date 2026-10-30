@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Container } from "@/components/ui/container";
 import { CONTACT } from "@/config/contact";
-import { appleWebAvailable } from "@/server/auth/apple-wiring";
+import { oauthAvailable } from "@/server/auth/oauth-wiring";
 import { turnstileSiteKey } from "@/server/auth/captcha";
 import { readSupabaseConfig, safeNextPath, siteUrl } from "@/server/supabase/config";
 import { createSupabaseServerClient } from "@/server/supabase/server";
@@ -24,13 +24,21 @@ const NEXT_STEPS: { icon: Icon; title: string; body: string }[] = [
   { icon: SealCheckIcon, title: "Review, apply, publish", body: "See every change before it lands, then put a static site live at its own address." },
 ];
 
-/** Why the last try didn't sign in, from /auth/callback and /auth/apple. */
+/** Why the last try didn't sign in, from /auth/callback, /auth/google and /auth/apple. */
 const NOTICES: Record<string, string> = {
   link: "That sign-in link has expired or was already used. Request a new one.",
+  google: "Google didn't finish signing you in. Try again, or use your email.",
+  google_off: "Signing in with Google isn't available right now. Use your email instead.",
   apple: "Apple didn't finish signing you in. Try again, or use your email.",
   apple_off: "Sign in with Apple isn't available right now. Use your email instead.",
   limited: "Too many sign-in attempts from this network. Wait a few minutes and try again.",
 };
+
+/** The page's first line: the ways in it offers, in the order the buttons show. */
+function intro(google: boolean, apple: boolean): string {
+  const names = [google ? "Google" : null, apple ? "Apple" : null].filter(Boolean).join(" or ");
+  return names ? `No password: continue with ${names}, or we email you a one-time link.` : "No password. We email you a one-time link.";
+}
 
 /** While the Farbaek app signs in (ADR 0110): the origins its sign-in links may come from. */
 function phoneSignIn(next: string) {
@@ -48,20 +56,20 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
     const { data } = await supabase.auth.getClaims();
     if (data?.claims) redirect(next);
   }
-  const apple = supabase ? await appleWebAvailable() : false;
+  const [google, apple] = supabase ? await Promise.all([oauthAvailable("google"), oauthAvailable("apple")]) : [false, false];
 
   return (
     <Container className="grid min-h-[calc(100dvh-4rem)] items-center gap-12 py-12 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-16 lg:py-16">
       <div className="w-full max-w-[440px] justify-self-center lg:justify-self-start">
         <h1 className="text-[2.4rem] font-medium leading-[1.05] tracking-[-0.035em]">Sign in to Farbaek</h1>
         <p className="mt-3 text-[15px] leading-relaxed text-ink-2">
-          {apple ? "No password: continue with Apple, or we email you a one-time link." : "No password. We email you a one-time link."} Farbaek is in early development, so expect rough edges.
+          {intro(google, apple)} Farbaek is in early development, so expect rough edges.
         </p>
         <div className="mt-8 rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
           <div className="rounded-md bg-surface p-5 shadow-e1 sm:p-6">
             <KeptPrompt />
             {supabase ? (
-              <SignInForm notice={error ? (NOTICES[error] ?? null) : null} apple={apple} next={next} captchaSiteKey={turnstileSiteKey()} phone={phoneSignIn(next)} />
+              <SignInForm notice={error ? (NOTICES[error] ?? null) : null} providers={{ google, apple }} next={next} captchaSiteKey={turnstileSiteKey()} phone={phoneSignIn(next)} />
             ) : (
               <p className="rounded-sm border border-dashed border-line-strong/60 p-5 text-sm text-ink-2">
                 Sign-in isn&apos;t connected in this environment. Add the Supabase URL and publishable key to <code>.env.local</code>.

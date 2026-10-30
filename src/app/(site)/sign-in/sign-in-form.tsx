@@ -11,17 +11,17 @@ import { requestSignInLink } from "./actions";
 
 /**
  * `phone`: set while the Farbaek app signs in (ADR 0110), so a link opened in another browser can still finish here.
- * `apple`: Sign in with Apple is offered (ADR 0114); a plain link starts it.
+ * `providers`: signing in with Google (ADR 0115) or Apple (ADR 0114) is offered; a plain link starts each.
  */
 export function SignInForm({
   notice = null,
-  apple = false,
+  providers = { google: false, apple: false },
   next = "/app",
   captchaSiteKey = null,
   phone = null,
 }: {
   notice?: string | null;
-  apple?: boolean;
+  providers?: { google: boolean; apple: boolean };
   next?: string;
   captchaSiteKey?: string | null;
   phone?: { siteOrigin: string; authOrigin: string | null } | null;
@@ -57,12 +57,24 @@ export function SignInForm({
           {formNotice}
         </p>
       ) : null}
-      {apple ? (
+      {providers.google || providers.apple ? (
         <>
-          <a href={`/auth/apple?${new URLSearchParams({ next })}`} className={buttonClasses("outline", "md", "w-full")}>
-            <AppleLogoIcon size={19} weight="fill" aria-hidden />
-            Continue with Apple
-          </a>
+          <div className="grid gap-3">
+            {providers.google ? (
+              <a href={`/auth/google?${new URLSearchParams({ next })}`} className={buttonClasses("outline", "md", "w-full")}>
+                {/* Google's own four-colour mark, as its sign-in guidelines ask. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/auth/google-g.svg" alt="" width={18} height={18} aria-hidden />
+                Continue with Google
+              </a>
+            ) : null}
+            {providers.apple ? (
+              <a href={`/auth/apple?${new URLSearchParams({ next })}`} className={buttonClasses("outline", "md", "w-full")}>
+                <AppleLogoIcon size={19} weight="fill" aria-hidden />
+                Continue with Apple
+              </a>
+            ) : null}
+          </div>
           <div className="flex items-center gap-3 text-[13px] text-ink-3" aria-hidden>
             <span className="h-px flex-1 bg-line" />
             or with email
