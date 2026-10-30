@@ -72,7 +72,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 - **Not built:**
   - permission leases (scoped, expiring, revocable grants): built in stage 94 (ADR 0117);
   - the second-checker model: built in stage 98 (ADR 0121);
-  - multi-agent coordination and the trust graph;
+  - the trust graph and delegation registry (multi-agent coordination: agent teams in workflows, stage 105, ADR 0128);
   - MCP support (tool-definition pinning, a third-party tool registry).
 
 ### 10. Dev Intelligence

@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, FlagIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, FlagIcon, UsersThreeIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -79,7 +79,10 @@ export default async function WorkflowPage({ params }: { params: Promise<{ id: s
             Steps
           </h2>
           <ol className="mt-4 grid">
-            {w.steps.map((s, i) => (
+            {w.steps.map((s, i) => {
+              // Agent teams (ADR 0128): the other steps that run at the same time as this one.
+              const mates = w.steps.filter((m) => m.stage === s.stage && m.position !== s.position).map((m) => m.position);
+              return (
               <li key={s.position} className="relative grid grid-cols-[2.75rem_minmax(0,1fr)] gap-x-3 pb-6 last:pb-0">
                 {i < w.steps.length - 1 ? (
                   <span aria-hidden className={`absolute bottom-0 left-[1.3rem] top-11 border-l-2 ${s.status === "verified" ? "border-solid border-accent/70" : "border-dashed border-line-strong/50"}`} />
@@ -119,6 +122,11 @@ export default async function WorkflowPage({ params }: { params: Promise<{ id: s
                       Open its run
                     </Link>
                   ) : null}
+                  {mates.length ? (
+                    <p className="inline-flex items-center gap-1.5 text-xs font-medium text-accent">
+                      <UsersThreeIcon size={14} weight="bold" aria-hidden /> Runs at the same time as step {mates.join(" and ")}, with its own agent.
+                    </p>
+                  ) : null}
                   {s.checkpoint ? (
                     <p className="inline-flex items-center gap-1.5 text-xs text-ink-3">
                       <FlagIcon size={14} weight="bold" aria-hidden /> Checkpoint: stops for a person after this step.
@@ -126,7 +134,8 @@ export default async function WorkflowPage({ params }: { params: Promise<{ id: s
                   ) : null}
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ol>
         </div>
       </section>

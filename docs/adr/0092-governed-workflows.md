@@ -57,5 +57,5 @@ A change outside the limits waits for review, and the workflow waits with it.
 ## Consequences
 
 - A multi-step goal runs unattended between the points where a person has to look, inside the same limits as a single run.
-- Steps are sequential. Parallel steps and branching aren't built.
+- Steps are sequential. Parallel steps and branching aren't built. (Updated by ADR 0128: steps can now run together as a team; branching still isn't built.)
 - Contracts are approved one by one before the workflow. Changing a contract after approval makes a new version, which the workflow's hash no longer matches, so a new workflow is needed.

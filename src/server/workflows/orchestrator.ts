@@ -23,11 +23,16 @@ export interface OrchestratorDeps {
   stepForTask(taskId: string): Promise<{ workflowId: string; orgId: string; step: number; status: string } | null>;
 }
 
-/** Starts the next step if one is due. Returns what happened, in the database's words ("started", "busy", "checkpoint", "finished"…). */
+/**
+ * Starts every step that's due: the next step, or all the steps of a team
+ * (ADR 0128), each on its own run. Returns what happened, in the database's
+ * words ("started", "busy", "checkpoint", "finished"…).
+ */
 export async function advanceWorkflow(deps: OrchestratorDeps, workflow: { id: string; orgId: string }): Promise<string> {
+  let started = false;
   for (let i = 0; i < 9; i++) {
     const c = await deps.claimNext(workflow.id);
-    if (c.result !== "started" || c.step === null || !c.taskId || c.capUnits === null) return c.result;
+    if (c.result !== "started" || c.step === null || !c.taskId || c.capUnits === null) return started && c.result === "busy" ? "started" : c.result;
     // Done by hand before its turn: count it and move on.
     if ((await deps.taskState(workflow.orgId, c.taskId)) === "VERIFIED") {
       await deps.stepResult(workflow.id, c.step, "verified", "Verified before its turn.");
@@ -38,15 +43,16 @@ export async function advanceWorkflow(deps: OrchestratorDeps, workflow: { id: st
       await deps.stepResult(workflow.id, c.step, "failed", "The person who approved this workflow isn't in the workspace any more, so its runs can't start.");
       return "failed";
     }
-    const started = await deps.startRun(person, c.taskId, c.capUnits);
-    if (!started.ok) {
-      await deps.stepResult(workflow.id, c.step, "failed", `Step ${c.step} couldn't start: ${started.message}`);
+    const run = await deps.startRun(person, c.taskId, c.capUnits);
+    if (!run.ok) {
+      await deps.stepResult(workflow.id, c.step, "failed", `Step ${c.step} couldn't start: ${run.message}`);
       return "failed";
     }
-    await deps.attachRun(workflow.id, c.step, started.value.runId);
-    return "started";
+    await deps.attachRun(workflow.id, c.step, run.value.runId);
+    // Keep claiming: a teammate in the same stage starts now too.
+    started = true;
   }
-  return "busy";
+  return started ? "started" : "busy";
 }
 
 /** What a step's task state means for the workflow, or null when it's still in progress. */

@@ -174,6 +174,7 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
       createdAt: created,
       steps: found.map((t, i) => ({
         position: i + 1,
+        stage: i + 1,
         title: t!.title,
         notes: "",
         checkpoint: i === 1,

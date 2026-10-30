@@ -5,7 +5,7 @@
  */
 import { checkFeature } from "@/core/billing/entitlements";
 import { resolveEffectivePlan } from "@/core/billing/trial";
-import { WorkflowDraftSchema, unapprovedSteps, workflowHash, type WorkflowView } from "@/core/realityloop/workflow";
+import { WorkflowDraftSchema, teamOverlaps, unapprovedSteps, workflowHash, type WorkflowView } from "@/core/realityloop/workflow";
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES, type OrgRole } from "@/server/workspace/types";
 import { codeFromDatabaseError, fail, type RpcResult, type WriteDeps, type WriteResult } from "@/server/workspace/use-cases";
 
@@ -13,7 +13,7 @@ export const WORKFLOWS_NOT_IN_PLAN = "Governed workflows are included in Max 3x 
 
 export interface WorkflowWriteDeps extends Pick<WriteDeps, "role" | "billing" | "now"> {
   read(orgId: string, id: string): Promise<WorkflowView | null>;
-  create(input: { orgId: string; actor: string; projectId: string; title: string; steps: { title: string; notes: string; checkpoint: boolean }[]; ceilingUnits: number }): Promise<RpcResult<string>>;
+  create(input: { orgId: string; actor: string; projectId: string; title: string; steps: { title: string; notes: string; checkpoint: boolean; together: boolean }[]; ceilingUnits: number }): Promise<RpcResult<string>>;
   approve(input: { workflowId: string; actor: string; sha256: string }): Promise<RpcResult<unknown>>;
   continue(input: { workflowId: string; actor: string }): Promise<RpcResult<unknown>>;
   cancel(input: { workflowId: string; actor: string }): Promise<RpcResult<unknown>>;
@@ -55,6 +55,14 @@ export async function approveWorkflow(deps: WorkflowWriteDeps, input: { orgId: s
   if (w.status !== "draft") return fail("WORKFLOW_CLOSED");
   const missing = unapprovedSteps(w);
   if (missing.length) return fail("CONTRACTS_NOT_APPROVED", `Approve the contract for ${missing.map((s) => `step ${s.position}`).join(", ")} first.`);
+  // Agents working at the same time must have separate files (ADR 0128).
+  const clash = teamOverlaps(w.steps)[0];
+  if (clash) {
+    return fail(
+      "INVALID_WORKFLOW",
+      `Steps ${clash.steps[0]} and ${clash.steps[1]} run at the same time, but both could change ${clash.path === "the whole project" ? "anything in the project" : clash.path}. Give their contracts separate files, or run one after the other.`,
+    );
+  }
   const r = await deps.approve({ workflowId: w.id, actor: input.userId, sha256: await workflowHash(w) });
   return r.ok ? { ok: true, value: w } : fail(codeFromDatabaseError(r.error));
 }
