@@ -9,6 +9,7 @@ import {
   ListChecksIcon,
   LockSimpleIcon,
   PackageIcon,
+  PlugsConnectedIcon,
   ShieldCheckIcon,
   ShieldStarIcon,
   SirenIcon,
@@ -96,6 +97,12 @@ export default async function MorePage() {
         <li>
           <Link href="/app/activity" className={`${row} hover:bg-canvas-2`}>
             <ClockCounterClockwiseIcon size={20} className="text-ink-2" aria-hidden /> Activity
+            <CaretRightIcon size={16} className="ml-auto text-ink-3" aria-hidden />
+          </Link>
+        </li>
+        <li>
+          <Link href="/app/integrations" className={`${row} hover:bg-canvas-2`}>
+            <PlugsConnectedIcon size={20} className="text-ink-2" aria-hidden /> Integrations
             <CaretRightIcon size={16} className="ml-auto text-ink-3" aria-hidden />
           </Link>
         </li>
