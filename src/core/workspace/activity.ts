@@ -102,6 +102,8 @@ const VERBS: Record<string, string> = {
   "workflow.cancelled": "cancelled a workflow",
   "arena.started": "started an Arena comparison",
   "arena.finished": "finished an Arena comparison",
+  "failure_future.started": "started a failure trial",
+  "failure_future.finished": "finished a failure trial",
   "watch.on": "turned on outcome watching",
   "watch.off": "turned off outcome watching",
   "agent.pairing_created": "created an agent pairing code",

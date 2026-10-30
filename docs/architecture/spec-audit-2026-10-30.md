@@ -80,7 +80,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 - **Built:** IntentLock for code (scope drift against the contract), the developer ProofPack, and Farbaek's own security scan of a project.
 - **Not built:**
   - Semgrep and gitleaks findings (dependency findings from OSV.dev, the database behind OSV-Scanner, for every lockfile: stage 107, ADR 0130);
-  - Failure Futures Lab;
+  - Failure Futures Lab: built in stage 112 (ADR 0135), from the lines a change adds; incidents aren't a source yet;
   - mutation testing;
   - Architecture Why-Graph: built per file in stage 100 (ADR 0123);
   - Reversibility Radar: built in stage 99 (ADR 0122);
