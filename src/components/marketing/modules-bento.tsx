@@ -99,7 +99,7 @@ export function ModulesBento() {
             className="border-accent/20 bg-[linear-gradient(150deg,rgb(36_80_240/0.09),rgb(10_110_133/0.06)_60%,transparent)]"
           />
 
-          <Cell title="RealityLoop" body="Intent contracts, outcome tracking and replay for every task." className="bg-surface">
+          <Cell title="RealityLoop" body="Intent contracts, context readiness and outcome tracking for every task." className="bg-surface">
             <ol className="mt-4 flex flex-wrap items-center gap-x-1 gap-y-1 text-[13px] text-ink-3" aria-label="A task's lifecycle">
               {LIFECYCLE.map((step, i) => (
                 <li key={step} className="flex items-center gap-1">

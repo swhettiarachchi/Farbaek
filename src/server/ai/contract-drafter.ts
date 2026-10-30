@@ -14,6 +14,8 @@ export interface DraftBrief {
   paths?: readonly string[];
   /** Non-empty fields the person already typed into the editor. */
   notes: Record<string, string>;
+  /** Farbaek's own reading of the project (Context Readiness, ADR 0116): each fact with its status. */
+  facts?: readonly { status: string; statement: string }[];
 }
 
 /** Usage as reported by the provider, never estimated. */

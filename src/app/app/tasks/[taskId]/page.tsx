@@ -39,6 +39,8 @@ import { loadAppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES } from "@/server/workspace/types";
 import { loadAiAvailability } from "@/server/workspace/usage-summary";
 import { FixCard, freeRetryWords } from "@/components/tasks/fix-card";
+import { ContextReadinessCard } from "@/components/tasks/context-readiness";
+import { loadPassport } from "@/server/workspace/context-readiness";
 import { FIXABLE_STATES, fixIsOpen } from "@/server/workspace/fixes";
 
 export const metadata: Metadata = { title: "Task" };
@@ -103,6 +105,8 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
     task.fixOf ? ctx.reader.getTask(orgId, task.fixOf).then((r) => r?.task ?? null).catch(() => null) : Promise.resolve(null),
   ]);
   const retryIncluded = (ctx.current.plan.limits.retryUnitsPerMonth ?? 0) > 0;
+  // Context Readiness (ADR 0116), while the task's work is still ahead of it.
+  const passport = TERMINAL_STATES.has(task.state) ? null : await loadPassport(ctx.reader, orgId, task.id).catch(() => null);
   const drift = approvedContract && driftEvents ? scopeDrift(approvedContract.body, driftEvents) : [];
   const archived = Boolean(project?.archivedAt);
   // Every control that changes the task's work names why it can't; cancelling stays available.
@@ -221,6 +225,8 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
           />
         </div>
       </Card>
+
+      {passport ? <ContextReadinessCard passport={passport} taskId={task.id} /> : null}
 
       <Card id="contract" className="scroll-mt-24">
         <h2 className="text-lg font-medium">Intent contract</h2>

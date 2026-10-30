@@ -39,6 +39,8 @@ import { setMemberPermissions, type MemberPermissionDeps } from "@/server/worksp
 import { startTaskVerification } from "@/server/verification/runner";
 import { verificationDeps } from "@/server/verification/wiring";
 import { log } from "@/server/observability/log";
+import { passportBrief } from "@/core/realityloop/context-passport";
+import { loadPassport } from "@/server/workspace/context-readiness";
 import { revokeAppleSignIn } from "@/server/auth/apple-wiring";
 
 export type FormState = { status: "idle" } | { status: "error"; message: string; values?: Record<string, string> } | { status: "done"; message: string };
@@ -221,7 +223,12 @@ export async function draftContractWithAiAction(form: FormData): Promise<AiDraft
   // Read through Row Level Security: the task and project must be visible to this user.
   const found = await ctx.reader.getTask(w.orgId, taskId);
   if (!found) return { status: "error", message: "That task doesn't exist or isn't in this workspace." };
-  const [project, files] = await Promise.all([ctx.reader.getProject(w.orgId, found.task.projectId), ctx.reader.listFiles(w.orgId, found.task.projectId).catch(() => [])]);
+  const [project, files, passport] = await Promise.all([
+    ctx.reader.getProject(w.orgId, found.task.projectId),
+    ctx.reader.listFiles(w.orgId, found.task.projectId).catch(() => []),
+    // Context Readiness (ADR 0116): the drafter sees which commands really exist and what isn't confirmed.
+    loadPassport(ctx.reader, w.orgId, found.task.id).catch(() => null),
+  ]);
 
   const provider = ai.provider;
   const effort = z.enum(EFFORTS).catch("balanced").parse(form.get("effort"));
@@ -229,7 +236,14 @@ export async function draftContractWithAiAction(form: FormData): Promise<AiDraft
     orgId: w.orgId,
     userId: ctx.user.id,
     taskId: found.task.id,
-    brief: { taskTitle: found.task.title, projectName: project?.name ?? "Project", projectDescription: project?.description ?? null, paths: files.map((f) => f.path), notes },
+    brief: {
+      taskTitle: found.task.title,
+      projectName: project?.name ?? "Project",
+      projectDescription: project?.description ?? null,
+      paths: files.map((f) => f.path),
+      notes,
+      ...(passport ? { facts: passportBrief(passport, 30) } : {}),
+    },
     effort,
   });
   if (!result.ok) return { status: "error", message: result.message };

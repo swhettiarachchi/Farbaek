@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { INTENT_CONTRACT_SCHEMA, type IntentContract } from "@/core/realityloop/contract";
 import { sha256Hex } from "@/core/trust/canonical-json";
 import { ProjectFolder } from "./fs-guard";
-import { agentSystemPrompt, runAgent, type ApprovalAnswer, type ApprovalRequest, type RunEvent, type RunInput } from "./loop";
+import { agentSystemPrompt, openingMessage, runAgent, type ApprovalAnswer, type ApprovalRequest, type RunEvent, type RunInput } from "./loop";
 import { getBuiltInSkill } from "@/content/skills";
 import { parseSkill } from "@/core/agent/skills";
 import { ModelError, type ModelConversation, type ModelStep, type ModelToolCall, type ToolModel, type ToolResultInput, type ToolSpec } from "./models/types";
@@ -338,5 +338,17 @@ describe("review_site", () => {
     expect(report.outcome.kind).toBe("finished");
     expect(fake.tools()).toContain("review_site");
     expect(fake.system()).toContain("Call review_site after your last change");
+  });
+});
+
+describe("the agent's opening message (ADR 0116)", () => {
+  it("carries the task's context facts with their status, and says how to treat them", async () => {
+    const context = [{ status: "possibly_stale", statement: "The last checks passed, but README.md changed since." }];
+    const message = openingMessage({ task: { id: "t1", title: "Document the tests", contractVersion: 2, contract, context }, mode: "review_only", workspace: await workspace("patch") });
+    expect(message).toContain('"status": "possibly_stale"');
+    expect(message).toContain("README.md changed since");
+    expect(agentSystemPrompt("review_only", null)).toContain("Rely on verified_current facts");
+    const without = openingMessage({ task: { id: "t1", title: "Document the tests", contractVersion: 2, contract }, mode: "review_only", workspace: await workspace("patch") });
+    expect(without).not.toContain('"context"');
   });
 });
