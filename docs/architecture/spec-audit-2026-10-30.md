@@ -124,7 +124,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 ### 25. Innovation backlog
 
 - **Built:** Cost-Before-Compute caps, Intent Diff Lens, Portable Proof (signed ProofPacks, `/verify` and the "Farbaek ProofPack" status on GitHub, stage 103), the Sandbox Egress Ledger (stage 104, recorded by a proxy inside the sandbox), Eject (project export), Approval Wallet, Model Change Canary, Incident Replay Theatre, the publish evidence gate.
-- **Partly built:** Real-Project Loom (the 2D project graph; no 3D view).
+- **Built, experimental:** Real-Project Loom: the 2D project graph and an opt-in 3D view of the same real records (stage 119, ADR 0142). It stays off by default until usability testing shows it helps.
 - **Built:** Continue-on-Desktop handoff (stage 116, ADR 0139), through Farbaek rather than Mesh until the phone apps are native; reports are labelled as reported by the computer.
 - **Not built:** nothing else in this section. (Tool Definition Pinning: built in stage 110, ADR 0133.)
 
