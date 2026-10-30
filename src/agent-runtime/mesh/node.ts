@@ -10,9 +10,11 @@
  * ends, and every incoming one waits for the person to accept it.
  */
 import { randomUUID } from "node:crypto";
+import { promises as fs } from "node:fs";
 import { createServer, connect as tcpConnect, type Server, type Socket } from "node:net";
 import path from "node:path";
 import type { Duplex } from "node:stream";
+import { z } from "zod";
 import { FINAL_STATES, PAIRING_WINDOW_MS, VISIBLE_FOR_MS, type MeshMessage } from "@/core/mesh/protocol";
 import { initiate, respond, type SecureChannel } from "./channel";
 import { Discovery, localAddresses, type NearbyDevice } from "./discovery";
@@ -66,9 +68,31 @@ export interface MeshSnapshot {
   prepared: PreparedView[];
   /** Farbaek's secure relay (ADR 0094): whether this app can use it, and whether this computer is reachable through it. */
   relay: { available: true; reachable: boolean; problem: string | null; direct: boolean; pairingUntil: string | null } | { available: false; reason: string };
-  /** `via`: how the bytes go. `canUseRelay`: a direct link was blocked, and the person can choose the relay instead (ADR 0095). */
-  transfers: ((IncomingView | OutgoingView) & { via: Via; canUseRelay: boolean })[];
+  /**
+   * `via`: how the bytes go. `canUseRelay`: a direct link was blocked, and the person can choose the relay instead (ADR 0095).
+   * `queuedUntil`: an outgoing transfer waiting for its device to come back, and until when (ADR 0138).
+   */
+  transfers: ((IncomingView | OutgoingView) & { via: Via; canUseRelay: boolean; queuedUntil: string | null })[];
 }
+
+/** How long a queued transfer keeps waiting, and how often one over the internet is tried again (ADR 0138). */
+export const QUEUE_FOR_MS = 24 * 60 * 60_000;
+export const QUEUE_RETRY_MS = 60_000;
+
+const QueueFileSchema = z.object({
+  v: z.literal(1),
+  entries: z
+    .array(
+      z.object({
+        root: z.string().min(1).max(4096),
+        device: z.string().regex(/^[0-9a-f]{16}$/),
+        via: z.enum(["nearby", "relay", "direct"]),
+        until: z.iso.datetime(),
+        at: z.object({ address: z.string().max(100), port: z.number().int().min(1).max(65_535) }).nullable(),
+      }),
+    )
+    .max(50),
+});
 
 export type Via = "nearby" | "relay" | "direct";
 
@@ -236,6 +260,9 @@ export class MeshNode {
   private relayPairingUntil = 0;
   /** Outgoing transfers whose direct link was blocked: the person may choose the relay. */
   private readonly directBlocked = new Set<string>();
+  /** Outgoing transfers waiting for an offline device, and until when (ADR 0138). */
+  private readonly queued = new Map<string, number>();
+  private queueTimer: NodeJS.Timeout | null = null;
 
   constructor(private readonly options: MeshNodeOptions) {
     this.trust = new TrustStore(path.join(options.dataDir, "mesh-devices.json"));
@@ -244,6 +271,7 @@ export class MeshNode {
   async init(): Promise<void> {
     this.key = await loadDeviceKey(this.options.vault);
     await this.trust.load();
+    await this.restoreQueue();
   }
 
   get fingerprint(): string {
@@ -287,7 +315,10 @@ export class MeshNode {
             };
       })(),
       transfers: [...[...this.incoming.values()].map((t) => t.view()), ...[...this.outgoing.values()].map((t) => t.view())]
-        .map((t) => ({ ...t, via: this.via.get(t.id) ?? ("nearby" as const), canUseRelay: t.state === "interrupted" && this.directBlocked.has(t.id) }))
+        .map((t) => {
+          const until = this.queued.get(t.id);
+          return { ...t, via: this.via.get(t.id) ?? ("nearby" as const), canUseRelay: t.state === "interrupted" && this.directBlocked.has(t.id), queuedUntil: until ? new Date(until).toISOString() : null };
+        })
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
     };
   }
@@ -349,6 +380,8 @@ export class MeshNode {
       self: () => ({ name: this.name(), fingerprint: this.fingerprint, port: this.visibleUntil ? this.serverPort : 0 }),
       onChange: () => {
         for (const d of this.discovery?.devices() ?? []) this.addresses.set(d.fingerprint, { address: d.address, port: d.port });
+        // A device a queued transfer waits for may just have come back (ADR 0138).
+        if (this.queued.size > 0) void this.retryQueued();
         this.update();
       },
     });
@@ -501,16 +534,7 @@ export class MeshNode {
     if (device.via === "farbaek") throw new MeshError(`${device.name} is a phone or browser: phones and browsers receive over the internet. Choose Send over the internet.`);
     if (at) this.addresses.set(device.fingerprint, at);
     if (!this.addresses.has(device.fingerprint)) throw new MeshError(`${device.name} isn't visible. On that computer, open Nearby and choose Be visible.`);
-    const transfer = new OutgoingTransfer(
-      randomUUID(),
-      packed,
-      device,
-      () => {
-        const where = this.addresses.get(device.fingerprint)!;
-        return this.dial(where.address, where.port, "transfer");
-      },
-      this.update,
-    );
+    const transfer = this.outgoingFor(randomUUID(), packed, device, "nearby");
     this.outgoing.set(transfer.id, transfer);
     this.prepared.delete(preparedId);
     void transfer.start();
@@ -658,20 +682,167 @@ export class MeshNode {
     const device = this.trust.byFingerprint(deviceFingerprint);
     if (!device) throw new MeshError("Pair with that computer first, on the same network.");
     const id = randomUUID();
-    const transfer = new OutgoingTransfer(
-      id,
-      packed,
-      device,
-      () => this.dialOverInternet(link, id, device.fingerprint),
-      this.update,
-      (error) => this.unreachableOverInternet(id, device, error),
-    );
-    this.via.set(id, mode);
+    const transfer = this.outgoingFor(id, packed, device, mode);
     this.outgoing.set(id, transfer);
     this.prepared.delete(preparedId);
     void transfer.start();
     this.update();
     return id;
+  }
+
+  /** An outgoing transfer to `device`: nearby at the address discovery last saw, or over the internet. */
+  private outgoingFor(id: string, packed: PackedFolder, device: TrustedDevice, via: Via): OutgoingTransfer {
+    if (via === "nearby") {
+      return new OutgoingTransfer(
+        id,
+        packed,
+        device,
+        () => {
+          const where = this.addresses.get(device.fingerprint);
+          if (!where) return Promise.reject(new MeshError(`${device.name} isn't visible yet.`));
+          return this.dial(where.address, where.port, "transfer");
+        },
+        this.update,
+      );
+    }
+    this.via.set(id, via);
+    return new OutgoingTransfer(
+      id,
+      packed,
+      device,
+      () => {
+        const link = this.relayLink();
+        return typeof link === "string" ? Promise.reject(new MeshError(link)) : this.dialOverInternet(link, id, device.fingerprint);
+      },
+      this.update,
+      (error) => this.unreachableOverInternet(id, device, error),
+    );
+  }
+
+  // Waiting for an offline device (ADR 0138)
+
+  private waitingMessage(t: OutgoingTransfer): void {
+    t.message = this.via.has(t.id)
+      ? `Waiting for ${t.device.name}. Farbaek tries again every minute while this app is open, for up to a day.`
+      : `Waiting for ${t.device.name}. It's sent as soon as ${t.device.name} is visible on this network while this app is open, for up to a day.`;
+  }
+
+  /**
+   * Keeps a transfer that couldn't reach its device waiting for it, even
+   * across restarts of this app: nearby, it goes as soon as the device is
+   * visible again; over the internet, it's tried every minute. After a day it
+   * stops trying. Nothing is uploaded anywhere while it waits.
+   */
+  async queue(id: string): Promise<void> {
+    const t = this.outgoing.get(id);
+    if (!t || t.state !== "interrupted") throw new MeshError("Only a transfer that couldn't reach the other device can wait for it.");
+    this.queued.set(id, Date.now() + QUEUE_FOR_MS);
+    this.waitingMessage(t);
+    await this.watchQueue();
+    await this.saveQueue();
+    this.update();
+  }
+
+  async unqueue(id: string): Promise<void> {
+    if (!this.queued.delete(id)) return;
+    const t = this.outgoing.get(id);
+    if (t?.state === "interrupted") t.message = "It's no longer waiting. Resume to try again.";
+    await this.watchQueue();
+    await this.saveQueue();
+    this.update();
+  }
+
+  /** Tries every waiting transfer whose device may be back. The window's "Try now" calls it too. */
+  async retryQueued(): Promise<void> {
+    const now = Date.now();
+    let changed = false;
+    for (const [id, until] of [...this.queued]) {
+      const t = this.outgoing.get(id);
+      if (!t || FINAL_STATES.has(t.state)) {
+        this.queued.delete(id);
+        changed = true;
+        continue;
+      }
+      if (now > until) {
+        this.queued.delete(id);
+        changed = true;
+        if (t.state === "interrupted") t.message = `It waited a day without reaching ${t.device.name}, so it stopped trying. Resume to try again.`;
+        continue;
+      }
+      if (t.state !== "interrupted") continue;
+      if (!this.via.has(id)) {
+        // Nearby: once discovery sees the device again, or at the last address when discovery is off.
+        const seen = this.discovery?.running ? this.discovery.devices().some((d) => d.fingerprint === t.device.fingerprint) : this.addresses.has(t.device.fingerprint);
+        if (!seen) continue;
+      }
+      void t.start().then(() => {
+        if (t.state === "interrupted" && this.queued.has(id)) {
+          this.waitingMessage(t);
+          this.update();
+        }
+      });
+    }
+    if (changed) {
+      await this.watchQueue();
+      await this.saveQueue();
+      this.update();
+    }
+  }
+
+  /** Runs the retry timer, and listens for nearby devices, only while something waits. */
+  private async watchQueue(): Promise<void> {
+    if (this.queued.size > 0 && !this.queueTimer) {
+      this.queueTimer = setInterval(() => void this.retryQueued(), QUEUE_RETRY_MS);
+      this.queueTimer.unref?.();
+    }
+    if (this.queued.size === 0 && this.queueTimer) {
+      clearInterval(this.queueTimer);
+      this.queueTimer = null;
+    }
+    const nearbyWaiting = [...this.queued.keys()].some((id) => !this.via.has(id));
+    if (nearbyWaiting) await this.startDiscovery().catch(() => undefined);
+    else if (!this.looking && !this.visibleUntil) this.stopDiscovery();
+  }
+
+  private queueFile(): string {
+    return path.join(this.options.dataDir, "mesh-queue.json");
+  }
+
+  private async saveQueue(): Promise<void> {
+    const entries = [...this.queued].flatMap(([id, until]) => {
+      const t = this.outgoing.get(id);
+      if (!t) return [];
+      return [{ root: t.packed.root, device: t.device.fingerprint, via: this.via.get(id) ?? ("nearby" as const), until: new Date(until).toISOString(), at: this.addresses.get(t.device.fingerprint) ?? null }];
+    });
+    await fs.writeFile(this.queueFile(), JSON.stringify({ v: 1, entries }, null, 2), "utf8");
+  }
+
+  /** After a restart: each waiting folder is packed again from disk, so what's sent is what's there now. */
+  private async restoreQueue(): Promise<void> {
+    const raw = await fs.readFile(this.queueFile(), "utf8").catch(() => null);
+    if (!raw) return;
+    let parsed;
+    try {
+      parsed = QueueFileSchema.safeParse(JSON.parse(raw));
+    } catch {
+      return;
+    }
+    if (!parsed.success) return;
+    for (const entry of parsed.data.entries) {
+      const until = Date.parse(entry.until);
+      const device = this.trust.byFingerprint(entry.device);
+      if (until <= Date.now() || !device) continue;
+      const packed = await packFolder(entry.root).catch(() => null);
+      if (!packed) continue;
+      if (entry.at) this.addresses.set(device.fingerprint, entry.at);
+      const t = this.outgoingFor(randomUUID(), packed, device, entry.via);
+      t.state = "interrupted";
+      this.outgoing.set(t.id, t);
+      this.queued.set(t.id, until);
+      this.waitingMessage(t);
+    }
+    await this.watchQueue();
+    await this.saveQueue();
   }
 
   private async dialOverInternet(link: RelayLink, id: string, deviceFingerprint: string): Promise<SecureChannel> {
@@ -712,10 +883,11 @@ export class MeshNode {
     this.update();
   }
 
-  async accept(id: string, parent: string): Promise<void> {
+  /** Accepts into a new folder inside `parent`; with `earlier`, files already in that earlier copy aren't sent again (ADR 0138). */
+  async accept(id: string, parent: string, earlier?: string): Promise<void> {
     const transfer = this.incoming.get(id);
     if (!transfer) throw new MeshError("That transfer isn't waiting any more.");
-    void transfer.accept(parent).catch((error) => {
+    void transfer.accept(parent, earlier).catch((error) => {
       transfer.message = error instanceof Error ? error.message : "It couldn't be accepted.";
       this.update();
     });
@@ -742,11 +914,20 @@ export class MeshNode {
     if (incoming?.state === "interrupted") await incoming.discard();
     if (incoming && FINAL_STATES.has(incoming.state)) this.incoming.delete(id);
     const outgoing = this.outgoing.get(id);
-    if (outgoing && (FINAL_STATES.has(outgoing.state) || outgoing.state === "interrupted")) this.outgoing.delete(id);
+    if (outgoing && (FINAL_STATES.has(outgoing.state) || outgoing.state === "interrupted")) {
+      this.outgoing.delete(id);
+      if (this.queued.delete(id)) {
+        await this.watchQueue();
+        await this.saveQueue();
+      }
+    }
     this.update();
   }
 
   async close(): Promise<void> {
+    // Waiting transfers stay saved for the next start; only the timer stops.
+    if (this.queueTimer) clearInterval(this.queueTimer);
+    this.queueTimer = null;
     for (const t of this.incoming.values()) if (!FINAL_STATES.has(t.state) && t.state !== "offered" && t.state !== "interrupted") await t.cancel();
     for (const t of this.outgoing.values()) if (!FINAL_STATES.has(t.state) && t.state !== "interrupted") await t.cancel();
     this.dismissPairing();

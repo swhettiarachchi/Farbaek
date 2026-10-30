@@ -47,9 +47,13 @@ const bridge: FarbaekAgentBridge = {
     useRelay: (id) => invoke("mesh:use-relay", id),
     pairRemote: (open) => invoke("mesh:pair-remote", open),
     accept: (id) => invoke("mesh:accept", id),
+    acceptUpdate: (id) => invoke("mesh:accept-update", id),
     decline: (id) => invoke("mesh:decline", id),
     cancel: (id) => invoke("mesh:cancel", id),
     resume: (id) => invoke("mesh:resume", id),
+    queue: (id) => invoke("mesh:queue", id),
+    unqueue: (id) => invoke("mesh:unqueue", id),
+    retryQueued: () => invoke("mesh:retry-queued"),
     dismiss: (id) => invoke("mesh:dismiss", id),
     openFolder: (id) => invoke("mesh:open-folder", id),
     onUpdate(listener) {

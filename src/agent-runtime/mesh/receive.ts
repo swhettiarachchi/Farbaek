@@ -60,6 +60,8 @@ export interface IncomingView {
   bytesDone: number;
   excluded: { path: string; reason: string }[];
   excludedCount: number;
+  /** Copied from an earlier copy on this computer instead of sent (ADR 0138). */
+  reused: { files: number; bytes: number };
   destination: string | null;
   message: string | null;
   updatedAt: string;
@@ -81,6 +83,44 @@ export async function readOffer(channel: SecureChannel, offer: Extract<MeshMessa
   const problems = checkManifest(parsed.data, TRANSFER_LIMITS, { diskPaths: true });
   if (problems.length > 0) throw new OfferError("Some files in this transfer can't be accepted.", problems);
   return parsed.data;
+}
+
+/**
+ * How many leading chunks of `entry` the same path in `source` already has,
+ * by BLAKE3. Every chunk, when the file matches whole; 0 when it's missing,
+ * unreadable or differs from the start.
+ */
+async function matchingChunks(source: ProjectFolder, entry: CapsuleManifest["files"][number]): Promise<number> {
+  let opened: { handle: FileHandle; size: number };
+  try {
+    opened = await source.openRead(entry.path);
+  } catch {
+    return 0;
+  }
+  const { handle, size } = opened;
+  let matched = 0;
+  let differs = false;
+  const hasher = new ChunkHasher((chunk) => {
+    const expected = entry.chunks[chunk.index];
+    if (!differs && expected && expected.blake3 === chunk.blake3 && expected.bytes === chunk.bytes) matched = chunk.index + 1;
+    else differs = true;
+  });
+  try {
+    // Never more than the offered size: a longer earlier file can still match up to it.
+    const toRead = Math.min(size, entry.bytes);
+    if (toRead > 0) {
+      for await (const piece of handle.createReadStream({ start: 0, end: toRead - 1, highWaterMark: 1024 * 1024, autoClose: false })) {
+        hasher.update(piece as Buffer);
+        if (differs) break;
+      }
+    }
+    if (differs) return matched;
+    const { blake3 } = hasher.digest();
+    // The last chunk only counts when the whole file is exactly the offered one.
+    return hasher.bytes === entry.bytes && blake3 === entry.blake3 ? entry.chunks.length : Math.min(matched, entry.chunks.length - 1);
+  } finally {
+    await handle.close();
+  }
 }
 
 function folderName(raw: string): string {
@@ -140,6 +180,7 @@ export class IncomingTransfer {
       bytesDone: this.bytesDone,
       excluded: this.manifest.excluded.slice(0, 50),
       excludedCount: this.manifest.excluded.length,
+      reused: { ...this.reused },
       destination: this.destination,
       message: this.message,
       updatedAt: this.updatedAt.toISOString(),
@@ -153,11 +194,18 @@ export class IncomingTransfer {
     this.onUpdate();
   }
 
-  /** Accepts into a new folder inside `parent`, then receives. */
-  async accept(parent: string): Promise<void> {
+  /**
+   * Accepts into a new folder inside `parent`, then receives. With `earlier`,
+   * a folder holding an earlier copy on this computer (ADR 0138), files and
+   * leading chunks that match the offer's hashes are copied from it here
+   * instead of sent; the earlier copy is only read.
+   */
+  async accept(parent: string, earlier?: string): Promise<void> {
     if (this.state !== "offered" || !this.channel) throw new OfferError("This transfer can't be accepted now.");
     const stat = await fs.stat(parent).catch(() => null);
     if (!path.isAbsolute(parent) || !stat?.isDirectory()) throw new OfferError("Choose a folder that exists.");
+    const earlierStat = earlier ? await fs.stat(earlier).catch(() => null) : null;
+    if (earlier && (!path.isAbsolute(earlier) || !earlierStat?.isDirectory())) throw new OfferError("Choose an earlier copy that exists.");
     const space = await fs.statfs(parent).catch(() => null);
     if (space && Number(space.bavail) * Number(space.bsize) < this.manifest.totals.bytes + SPACE_MARGIN) {
       await this.channel.send({ t: "error", code: "no_space", message: "The receiving computer doesn't have enough free space." }).catch(() => undefined);
@@ -167,8 +215,63 @@ export class IncomingTransfer {
     }
     this.destination = await this.makeFolder(parent);
     this.folder = await ProjectFolder.open(this.destination);
+    if (earlier) {
+      this.set("receiving", "Checking the earlier copy for files this computer already has.");
+      try {
+        await this.seedFrom(earlier);
+      } catch (error) {
+        // Reuse saves time but isn't needed: anything it couldn't check is sent instead.
+        this.reused = { files: 0, bytes: 0 };
+        this.verified.fill(0);
+        this.complete.fill(false);
+        await fs.rm(path.join(this.destination, INCOMING), { recursive: true, force: true }).catch(() => undefined);
+        this.reuseProblem = `The earlier copy couldn't be used (${error instanceof Error ? error.message : "it couldn't be read"}), so every file was sent.`;
+      }
+    }
     this.running = this.run();
     await this.running;
+  }
+
+  /** Files already on this computer, copied from the earlier copy instead of sent. */
+  private reused = { files: 0, bytes: 0 };
+  private reuseProblem: string | null = null;
+
+  /**
+   * Copies what the earlier copy already has into the incoming files: a
+   * whole file when every chunk and the whole-file hash match, otherwise its
+   * leading chunks that match, so the sender carries on after them.
+   */
+  private async seedFrom(earlier: string): Promise<void> {
+    const source = await ProjectFolder.open(earlier);
+    for (const [f, entry] of this.manifest.files.entries()) {
+      const matched = await matchingChunks(source, entry);
+      if (matched === 0) continue;
+      const whole = matched === entry.chunks.length;
+      const keep = whole ? entry.bytes : matched * CHUNK_BYTES;
+      const { handle: from } = await source.openRead(entry.path);
+      const to = await this.folder!.createNew(`${this.temp}/${f}.part`);
+      try {
+        let at = 0;
+        if (keep > 0) {
+          for await (const piece of from.createReadStream({ start: 0, end: keep - 1, highWaterMark: 1024 * 1024, autoClose: false })) {
+            const bytes = piece as Buffer;
+            await to.write(bytes, 0, bytes.length, at);
+            at += bytes.length;
+          }
+        }
+        if (at !== keep) throw new Error(`${entry.path} changed while it was copied`);
+      } finally {
+        await from.close();
+        await to.close();
+      }
+      this.verified[f] = matched;
+      if (whole) {
+        this.complete[f] = true;
+        this.reused.files += 1;
+      }
+      this.reused.bytes += keep;
+    }
+    await this.saveCheckpoint();
   }
 
   async decline(): Promise<void> {
@@ -269,7 +372,8 @@ export class IncomingTransfer {
       for (const [f, entry] of this.manifest.files.entries()) await this.folder!.moveNew(`${this.temp}/${f}.part`, entry.path);
       await fs.rm(path.join(this.destination!, INCOMING), { recursive: true, force: true });
       // Done once the files are in place; a lost "verified" can't undo that, and a resume just hears it again.
-      this.set("done", `Every file matched its hash. Saved in ${this.destination}.`);
+      const kept = this.reused.files > 0 ? ` ${this.reused.files} of them ${this.reused.files === 1 ? "was" : "were"} already on this computer and copied from the earlier copy.` : this.reuseProblem ? ` ${this.reuseProblem}` : "";
+      this.set("done", `Every file matched its hash.${kept} Saved in ${this.destination}.`);
       await channel.send({ t: "verified", files: this.manifest.totals.files, bytes: this.manifest.totals.bytes }).catch(() => undefined);
       channel.close();
     } catch (error) {
