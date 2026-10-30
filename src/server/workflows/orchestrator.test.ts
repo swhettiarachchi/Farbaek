@@ -91,3 +91,28 @@ describe("settleStep", () => {
     expect(await settleStep(fakes({ step: { status: "verified" } }).deps, "t9")).toBeNull();
   });
 });
+
+describe("agent teams (ADR 0128)", () => {
+  it("starts every step of a stage, each on its own run, then stops at busy", async () => {
+    const f = fakes({
+      claims: [
+        { result: "started", step: 2, taskId: "t2", capUnits: 1_000, approvedBy: "u-owner" },
+        { result: "started", step: 3, taskId: "t3", capUnits: 1_000, approvedBy: "u-owner" },
+      ],
+    });
+    expect(await advanceWorkflow(f.deps, { id: "w1", orgId: "o1" })).toBe("started");
+    expect(f.log).toEqual(["start t2 cap 1000", "attach 2 run-1", "start t3 cap 1000", "attach 3 run-1"]);
+  });
+
+  it("stops the team when a teammate's run can't start, and starts no more", async () => {
+    const f = fakes({
+      claims: [
+        { result: "started", step: 2, taskId: "t2", capUnits: 1_000, approvedBy: "u-owner" },
+        { result: "started", step: 3, taskId: "t3", capUnits: 1_000, approvedBy: "u-owner" },
+      ],
+      start: "No sandbox is free.",
+    });
+    expect(await advanceWorkflow(f.deps, { id: "w1", orgId: "o1" })).toBe("failed");
+    expect(f.log).toEqual(["start t2 cap 1000", "result 2 failed: Step 2 couldn't start: No sandbox is free."]);
+  });
+});

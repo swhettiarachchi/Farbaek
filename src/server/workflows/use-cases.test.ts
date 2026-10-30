@@ -17,7 +17,7 @@ const view = (over: Partial<WorkflowView> = {}): WorkflowView => ({
   approvedAt: null,
   approvedSha256: null,
   createdAt: "2026-10-26T00:00:00Z",
-  steps: [1, 2].map((p) => ({ position: p, title: `Step ${p}`, notes: "", checkpoint: false, taskId: `t${p}`, runId: null, status: "pending" as const, detail: null, contract: { status: "approved", sha256: String(p).repeat(64), version: 1 }, startedAt: null, finishedAt: null })),
+  steps: [1, 2].map((p) => ({ position: p, stage: p, title: `Step ${p}`, notes: "", checkpoint: false, taskId: `t${p}`, runId: null, status: "pending" as const, detail: null, contract: { status: "approved", sha256: String(p).repeat(64), version: 1 }, startedAt: null, finishedAt: null })),
   ...over,
 });
 
@@ -63,5 +63,17 @@ describe("workflow use cases", () => {
     expect(await approveWorkflow(fakes({ view: missing }).deps, { orgId: "o1", userId: "u1", workflowId: "w1" })).toMatchObject({ code: "CONTRACTS_NOT_APPROVED", message: "Approve the contract for step 2 first." });
     expect(await approveWorkflow(fakes({ view: view({ status: "running" }) }).deps, { orgId: "o1", userId: "u1", workflowId: "w1" })).toMatchObject({ code: "WORKFLOW_CLOSED" });
     expect(await approveWorkflow(fakes({ view: null }).deps, { orgId: "o1", userId: "u1", workflowId: "w1" })).toMatchObject({ code: "NOT_FOUND" });
+  });
+  it("refuses a team whose agents could change the same files, and approves one with separate files (ADR 0128)", async () => {
+    const team = (a: string[], b: string[]) =>
+      view({ steps: view().steps.map((s, i) => ({ ...s, stage: 1, contract: { status: "approved", sha256: String(i + 1).repeat(64), version: 1, paths: i === 0 ? a : b } })) });
+    expect(await approveWorkflow(fakes({ view: team(["src"], ["src/checkout"]) }).deps, { orgId: "o1", userId: "u1", workflowId: "w1" })).toMatchObject({
+      code: "INVALID_WORKFLOW",
+      message: "Steps 1 and 2 run at the same time, but both could change src. Give their contracts separate files, or run one after the other.",
+    });
+    expect(await approveWorkflow(fakes({ view: team([], ["src/x"]) }).deps, { orgId: "o1", userId: "u1", workflowId: "w1" })).toMatchObject({ message: expect.stringMatching(/anything in the project/) });
+    const f = fakes({ view: team(["src/cart"], ["src/checkout"]) });
+    expect(await approveWorkflow(f.deps, { orgId: "o1", userId: "u1", workflowId: "w1" })).toMatchObject({ ok: true });
+    expect(f.calls).toHaveLength(1);
   });
 });

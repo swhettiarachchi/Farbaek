@@ -49,7 +49,7 @@ async function writer(): Promise<{ ctx: AppContext & { current: NonNullable<AppC
   return { ctx: ctx as AppContext & { current: NonNullable<AppContext["current"]> }, deps };
 }
 
-const Steps = z.array(z.object({ title: z.string(), notes: z.string().optional(), checkpoint: z.boolean().optional() })).max(8);
+const Steps = z.array(z.object({ title: z.string(), notes: z.string().optional(), checkpoint: z.boolean().optional(), together: z.boolean().optional() })).max(8);
 
 /**
  * Creates a workflow and a task per step (ADR 0092). Each step's run is

@@ -45,7 +45,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 - **Partly built:**
   - Templates: e-commerce, booking and an admin dashboard were added in stage 101 (ADR 0124); there's still nothing for a SaaS app with sign-in, CRM or REST API. The spec says to match the stack actually implemented, and published sites are static.
   - Git: a pull request per applied change, on its own branch, through the workspace's fine-grained token (stage 103). No private-repository import, no stacked pull requests, nothing back from GitHub after a pull request opens.
-- **Partly built:** the visual builder (visual edit to diff): built for static sites in stage 95 (ADR 0118); apps with a build step aren't covered yet.
+- **Partly built:** the visual builder (visual edit to diff): static sites in stage 95 (ADR 0118), and apps with a build step by component in stage 106 (ADR 0129: words and Tailwind classes in JSX). Picking an element in a running app isn't built.
 
 ### 7. Native agent
 
@@ -72,7 +72,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 - **Not built:**
   - permission leases (scoped, expiring, revocable grants): built in stage 94 (ADR 0117);
   - the second-checker model: built in stage 98 (ADR 0121);
-  - multi-agent coordination and the trust graph;
+  - the trust graph and delegation registry (multi-agent coordination: agent teams in workflows, stage 105, ADR 0128);
   - MCP support (tool-definition pinning, a third-party tool registry).
 
 ### 10. Dev Intelligence
