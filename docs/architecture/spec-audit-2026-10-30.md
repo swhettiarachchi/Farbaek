@@ -28,7 +28,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 - **Built:**
   - Mission Control, Projects, Create, Build, Tasks, Approvals, Sandbox, Agents, Mesh, Workflows, Policies, Incidents, Billing and usage, Settings, Help;
   - onboarding (first steps) and the labelled sample workspace.
-- **Partly built:** Activity / Audit has no page of its own; events show on tasks, the sandbox and Office Space. Integrations live inside project pages and Settings, not in their own area.
+- **Partly built:** Activity / Audit now has its own page (stage 96, ADR 0119), with filters and a CSV download. Integrations now have their own page too (stage 97, ADR 0120).
 - **Stale:** `src/components/app/roadmap.ts` still lists "Mobile apps" as missing.
 
 ### 6. Studio
@@ -44,7 +44,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 - **Partly built:**
   - Templates: there's nothing yet for e-commerce, SaaS app, CRM, booking, REST API or Next.js. The spec says to match the stack actually implemented, and published sites are static.
   - Git: GitHub import only; no branch or pull-request workflow.
-- **Not built:** the visual builder (visual edit to diff).
+- **Partly built:** the visual builder (visual edit to diff): built for static sites in stage 95 (ADR 0118); apps with a build step aren't covered yet.
 
 ### 7. Native agent
 

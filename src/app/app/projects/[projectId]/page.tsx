@@ -1,4 +1,4 @@
-import { ArchiveIcon, ArrowLeftIcon, ArrowRightIcon, DownloadSimpleIcon, EyeIcon, FolderOpenIcon, GraphIcon, ListChecksIcon, RocketLaunchIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
+import { ArchiveIcon, ArrowLeftIcon, ArrowRightIcon, DownloadSimpleIcon, EyeIcon, FolderOpenIcon, GraphIcon, ListChecksIcon, PaintBrushIcon, RocketLaunchIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -137,9 +137,14 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
 
       {contents ? (
         <section aria-labelledby="preview-heading" className="grid gap-3 rounded-md border border-line bg-surface p-4 shadow-e1 sm:p-5">
-          <h2 id="preview-heading" className="flex items-center gap-2 text-lg font-medium">
-            <EyeIcon size={20} weight="bold" className="text-accent" aria-hidden /> Live preview
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="preview-heading" className="flex items-center gap-2 text-lg font-medium">
+              <EyeIcon size={20} weight="bold" className="text-accent" aria-hidden /> Live preview
+            </h2>
+            <ButtonLink href={`/app/projects/${project.id}/design`} variant="secondary" size="sm">
+              <PaintBrushIcon size={16} aria-hidden /> Edit visually
+            </ButtonLink>
+          </div>
           <StaticPreview versions={[{ id: "now", label: "Current", files: Object.fromEntries(contents.map((f) => [f.path, f.content])), images }]} />
         </section>
       ) : null}

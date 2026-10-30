@@ -20,6 +20,7 @@ import type { ProjectGraphRecords } from "@/core/insights/project-graph";
 import type { WorkflowView } from "@/core/realityloop/workflow";
 import type { WithheldPermissions } from "@/core/workspace/permissions";
 import type { AgentLease } from "@/core/agent/lease";
+import type { ActivityCategory, ActivityEvent } from "@/core/workspace/activity";
 
 export const ORG_ROLES = ["owner", "admin", "member", "viewer"] as const;
 export type OrgRole = (typeof ORG_ROLES)[number];
@@ -364,6 +365,8 @@ export interface WorkspaceReader {
   getFixFor(orgId: string, taskId: string): Promise<TaskFix | null>;
   /** The workspace's invitations, newest first. Empty unless the reader is an owner or admin. */
   listInvitations(orgId: string): Promise<InvitationRecord[]>;
+  /** The workspace's audit log, newest first (ADR 0119); `before` pages back by event id. */
+  listActivity(orgId: string, options: { category: ActivityCategory | null; before: number | null; limit: number }): Promise<ActivityEvent[]>;
   /** The workspace's paired agents, revoked ones included, newest first. */
   listAgents(orgId: string): Promise<AgentRecord[]>;
   /** The records behind a project's graph (ADR 0089): its newest tasks and their evidence. */

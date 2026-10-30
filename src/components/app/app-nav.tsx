@@ -2,6 +2,7 @@
 
 import {
   ChartPieSliceIcon,
+  ClockCounterClockwiseIcon,
   CheckSquareOffsetIcon,
   DesktopIcon,
   DotsThreeOutlineIcon,
@@ -13,6 +14,7 @@ import {
   ListChecksIcon,
   LockSimpleIcon,
   PackageIcon,
+  PlugsConnectedIcon,
   ShieldCheckIcon,
   SirenIcon,
   SparkleIcon,
@@ -47,6 +49,8 @@ const SECONDARY: NavItem[] = [
   { href: "/app/workflows", label: "Workflows", short: "Workflows", icon: FlowArrowIcon },
   { href: "/app/policies", label: "Policies", short: "Policies", icon: ShieldCheckIcon },
   { href: "/app/incidents", label: "Incidents", short: "Incidents", icon: SirenIcon },
+  { href: "/app/activity", label: "Activity", short: "Activity", icon: ClockCounterClockwiseIcon },
+  { href: "/app/integrations", label: "Integrations", short: "Integrations", icon: PlugsConnectedIcon },
   { href: "/app/billing", label: "Billing and usage", short: "Billing", icon: ChartPieSliceIcon },
   { href: "/app/settings", label: "Settings", short: "Settings", icon: GearSixIcon },
   { href: "/app/help", label: "Help and support", short: "Help", icon: LifebuoyIcon },
