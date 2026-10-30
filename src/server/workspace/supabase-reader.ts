@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { IntentContractSchema } from "@/core/realityloop/contract";
 import { AGENT_CAPABILITIES } from "@/core/agent/lease";
+import { CATEGORY_PREFIXES } from "@/core/workspace/activity";
 import { parsePermissions } from "@/core/workspace/permissions";
 import { ORGANIZATION_SELECT, summarizeOrganizations } from "./organizations";
 import { readSkillPins } from "./skill-pins";
@@ -501,6 +502,33 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
         .limit(20);
       if (error) fail("recoveries", error);
       return z.array(RecoveryRow).parse(data).map(toRecovery);
+    },
+
+    // Through the person's own session: row security shows members their workspace's events only.
+    async listActivity(orgId, { category, before, limit }) {
+      let query = client
+        .from("audit_events")
+        .select("id, action, target, metadata, actor_id, occurred_at")
+        .eq("org_id", orgId)
+        .order("id", { ascending: false })
+        .limit(Math.min(Math.max(limit, 1), 5_000));
+      if (before !== null) query = query.lt("id", before);
+      if (category) query = query.or(CATEGORY_PREFIXES[category].map((p) => `action.like."${p}*"`).join(","));
+      const { data, error } = await query;
+      if (error) fail("activity", error);
+      return z
+        .array(
+          z.object({
+            id: z.number().int(),
+            action: z.string(),
+            target: z.string().nullable(),
+            metadata: z.record(z.string(), z.unknown()).nullable(),
+            actor_id: z.string().nullable(),
+            occurred_at: z.string(),
+          }),
+        )
+        .parse(data ?? [])
+        .map((r) => ({ id: r.id, action: r.action, target: r.target, metadata: r.metadata ?? {}, actorId: r.actor_id, occurredAt: r.occurred_at }));
     },
 
     async listInvitations(orgId) {

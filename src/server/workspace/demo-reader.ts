@@ -9,6 +9,7 @@ import { DEMO_FILES, DEMO_FILES_PROJECT_ID, DEMO_SKILL_PINS } from "@/content/de
 import { buildChanges, checkProposal, planFrom, proposalHash } from "@/core/realityloop/change-proposal";
 import { evaluateChangePolicy } from "@/core/trust/policy";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
+import { CATEGORY_PREFIXES, type ActivityEvent } from "@/core/workspace/activity";
 import {
   DEMO_EVALUATIONS_THIS_PERIOD,
   DEMO_MEMBERS,
@@ -298,6 +299,19 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
 
     async listAgents() {
       return [];
+    },
+
+    // Sample activity built from the demo's own sample projects and tasks.
+    async listActivity(_orgId, { category, before, limit }) {
+      const events: ActivityEvent[] = [
+        { id: 1, action: "organization.created", target: DEMO_ORG_ID, metadata: { name: "Harbour Lane Studio" }, actorId: DEMO_USER.id, occurredAt: ago(6 * DEMO_TIME.DAY) },
+        ...projects.map((p, i) => ({ id: 2 + i, action: "project.created", target: p.id, metadata: { name: p.name }, actorId: DEMO_USER.id, occurredAt: p.createdAt })),
+        ...built.map((b, i) => ({ id: 10 + i, action: "task.created", target: b.task.id, metadata: { title: b.task.title }, actorId: DEMO_USER.id, occurredAt: b.task.createdAt })),
+      ];
+      return events
+        .filter((e) => (before === null || e.id < before) && (category === null || CATEGORY_PREFIXES[category].some((p) => e.action.startsWith(p))))
+        .sort((a, b) => b.id - a.id)
+        .slice(0, limit);
     },
 
     // One sample workflow over the Storefront's sample tasks (ADR 0092): approved, its first change waiting for review.

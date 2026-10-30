@@ -90,6 +90,7 @@ function memoizeReader(reader: WorkspaceReader): WorkspaceReader {
     listCheckReceipts: wrap("checkReceipts", reader.listCheckReceipts),
     getLatestVerification: wrap("verification", reader.getLatestVerification),
     listInvitations: wrap("invitations", reader.listInvitations),
+    listActivity: wrap("activity", reader.listActivity),
     listAgents: wrap("agents", reader.listAgents),
     getProjectGraph: wrap("projectGraph", reader.getProjectGraph),
     listWorkflows: wrap("workflows", reader.listWorkflows),
