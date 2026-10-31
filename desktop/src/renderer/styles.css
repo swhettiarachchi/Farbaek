@@ -282,6 +282,22 @@ pre {
   font-size: 16px;
   font-weight: 400;
 }
+.field textarea {
+  min-height: 88px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--canvas);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 400;
+  resize: vertical;
+}
+/* Addresses, programs and arguments keep the code face inside a field. */
+.field .mono {
+  font-family: "Geist Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+}
 .field-inline {
   max-width: 320px;
 }

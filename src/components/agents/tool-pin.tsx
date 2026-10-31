@@ -3,6 +3,7 @@
 import { CheckCircleIcon, LockSimpleIcon, WarningIcon } from "@phosphor-icons/react";
 import { useState, useTransition } from "react";
 import { approveAgentToolsAction } from "@/app/app/agents/tool-actions";
+import { parseMcpToolName } from "@/agent-runtime/mcp/names";
 import { buttonClasses } from "@/components/ui/button";
 import type { ToolPinView } from "@/core/agent/tool-pins";
 
@@ -31,11 +32,16 @@ export function ToolPinPanel({ agentId, pin, canApprove, disabledReason }: { age
       </p>
       {d ? (
         <ul className="grid gap-2 text-sm text-ink-2">
-          {d.added.map((n) => (
-            <li key={`a-${n}`}>
-              Added <span className="font-mono text-ink">{n}</span>
-            </li>
-          ))}
+          {d.added.map((n) => {
+            const mcp = parseMcpToolName(n);
+            return (
+              <li key={`a-${n}`}>
+                Added <span className="font-mono text-ink">{n}</span>
+                {/* A tool from an MCP server the agent's person added on that computer (ADR 0148). */}
+                {mcp ? <>: a tool from the MCP server &ldquo;{mcp.server}&rdquo; added on that computer. Each call still waits for the person there to approve it.</> : null}
+              </li>
+            );
+          })}
           {d.removed.map((n) => (
             <li key={`r-${n}`}>
               Removed <span className="font-mono text-ink">{n}</span>

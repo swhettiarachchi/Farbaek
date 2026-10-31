@@ -9,6 +9,8 @@ import type { AgentProposalStatus, AgentTaskDetail, ProposalSubmission } from "@
 import type { ModelStep, ModelToolCall, ToolModel } from "@/agent-runtime/models/types";
 import type { CommandRunner } from "@/agent-runtime/runners";
 import type { RunDetail } from "../shared/api";
+import type { McpClient } from "@/agent-runtime/mcp/client";
+import type { McpServerConfig } from "@/agent-runtime/mcp/external";
 import { RunManager, type RunApi } from "./runs";
 
 const README = "# Demo\nRun the tests.\n";
@@ -200,6 +202,47 @@ describe("desktop runs", { timeout: 20_000 }, () => {
     const done = await settle(m, id, (r) => r.state !== "running");
     expect(done.state).toBe("completed");
     expect(ran).toEqual(["pnpm test"]);
+  });
+
+  it("offers MCP tools only in Controlled Development, starts the servers outside the copy, and closes them when the run ends (ADR 0148)", async () => {
+    const started: string[] = [];
+    const called: string[] = [];
+    let closed = 0;
+    const connect = async (server: McpServerConfig): Promise<McpClient> => {
+      started.push(server.name);
+      return {
+        server: { name: "notes", version: "1" },
+        listTools: async () => ({ tools: [{ name: "search", description: "Search notes.", inputSchema: { type: "object" } }], skipped: 0 }),
+        callTool: async (name, args) => (called.push(`${name} ${JSON.stringify(args)}`), { text: "2 notes", isError: false }),
+        close: () => void (closed += 1),
+      };
+    };
+    const mcpManager = (model: ToolModel) => {
+      const m = new RunManager({ dataDir: dir, makeModel: () => model, emit: (r) => updates.push(r), connectMcp: connect, makeRunner: () => ({ where: "local", run: async () => ({ exitCode: 0, stdout: "", stderr: "", truncated: false, timedOut: false, cancelled: false, leftRunning: false, durationMs: 1 }) }) });
+      managers.push(m);
+      return m;
+    };
+    const servers = [{ name: "notes", command: "npx", args: ["-y", "notes-mcp"] }];
+
+    // Review Only: no server starts.
+    const quiet = mcpManager(scripted([[finish]]));
+    const q = await quiet.start({ api: await api(), taskId: "t1", mode: "review_only", effort: "balanced", mcp: servers });
+    await settle(quiet, q, (r) => r.state !== "running");
+    expect(started).toEqual([]);
+
+    const m = mcpManager(scripted([[{ id: "n", name: "mcp__notes__search", input: { q: "launch" } }], [finish]]));
+    const id = await m.start({ api: await api(), taskId: "t1", mode: "controlled", effort: "balanced", mcp: servers });
+    const waiting = await settle(m, id, (r) => r.pendingApproval !== null);
+    expect(started).toEqual(["notes"]);
+    expect(waiting.events.some((e) => e.kind === "note" && e.text.startsWith("Offered 1 tool from your MCP servers. Each call waits for your approval."))).toBe(true);
+    expect(waiting.pendingApproval).toMatchObject({ program: "mcp:notes", args: ["search", '{"q":"launch"}'], where: "local" });
+    expect(called).toEqual([]);
+    m.answer(id, waiting.pendingApproval!.id, true, waiting.pendingApproval!.bindingHash);
+    const done = await settle(m, id, (r) => r.state !== "running");
+    expect(done.state).toBe("completed");
+    expect(called).toEqual(['search {"q":"launch"}']);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(closed).toBe(1);
   });
 
   it("cancels a run that's waiting, and discards its copy", async () => {

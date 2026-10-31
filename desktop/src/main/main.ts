@@ -13,6 +13,9 @@
  */
 import { checkLocalModelUrl, listLocalModels, validLocalModelName } from "@/agent-runtime/models/local";
 import { ModelError } from "@/agent-runtime/models/types";
+import { connectMcp, McpError } from "@/agent-runtime/mcp/client";
+import { checkServerConfig, connectMcpServers, MAX_MCP_SERVERS, mcpOrigin, type McpServerConfig } from "@/agent-runtime/mcp/external";
+import { spawnStdioTransport } from "@/agent-runtime/mcp/stdio";
 import { BrowserWindow, Menu, app, ipcMain, session, shell, type IpcMainInvokeEvent } from "electron";
 import { promises as fs } from "node:fs";
 import os from "node:os";
@@ -45,6 +48,8 @@ interface Settings {
   paired: { server: string; agentId: string; agentName: string; workspaceName: string } | null;
   /** A model on this computer (ADR 0134). */
   localModel?: { base: string; model: string } | null;
+  /** MCP servers the person added (ADR 0148). */
+  mcpServers?: McpServerConfig[];
 }
 
 let window: BrowserWindow | null = null;
@@ -86,7 +91,8 @@ async function loadSettings(): Promise<void> {
   try {
     const parsed = JSON.parse(await fs.readFile(path.join(dataDir(), "settings.json"), "utf8")) as Settings;
     const local = parsed.localModel && checkLocalModelUrl(parsed.localModel.base).ok && validLocalModelName(parsed.localModel.model) ? parsed.localModel : null;
-    settings = { paired: parsed.paired ?? null, localModel: local };
+    const servers = Array.isArray(parsed.mcpServers) ? parsed.mcpServers.map(checkServerConfig).filter((s): s is McpServerConfig => s !== null).slice(0, MAX_MCP_SERVERS) : [];
+    settings = { paired: parsed.paired ?? null, localModel: local, mcpServers: servers };
   } catch {
     settings = { paired: null };
   }
@@ -104,6 +110,7 @@ async function appState(): Promise<AppState> {
     version: app.getVersion(),
     paired: settings.paired,
     localModel: settings.localModel ?? null,
+    mcpServers: settings.mcpServers ?? [],
     keychain: store.availability(),
     dataFolder: dataDir(),
     computerName: os.hostname().slice(0, 60),
@@ -132,7 +139,7 @@ async function attempt<T>(fn: () => Promise<T>): Promise<Result<T>> {
       await forgetPairing();
       return { ok: false, message: "Farbaek doesn't accept this computer's agent token anymore (it was revoked, or the person who paired it left). Pair it again with a new code." };
     }
-    if (error instanceof FarbaekApiError || error instanceof RunError || error instanceof ModelError) return { ok: false, message: error.message };
+    if (error instanceof FarbaekApiError || error instanceof RunError || error instanceof ModelError || error instanceof McpError) return { ok: false, message: error.message };
     return { ok: false, message: "Something went wrong. Try again." };
   }
 }
@@ -208,7 +215,7 @@ function registerHandlers(): void {
   handle("runs:start", z.object({ taskId: Id, mode: z.enum(AGENT_MODES), effort: z.enum(EFFORTS), model: z.enum(["farbaek", "local"]).optional() }), (input) =>
     attempt(async () => {
       if (input.model === "local" && !settings.localModel) throw new RunError("No local model is set on this computer. Set one in Settings first.");
-      const runId = await runs.start({ api: await client(), taskId: input.taskId, mode: input.mode, effort: input.effort, local: input.model === "local" ? settings.localModel ?? null : null });
+      const runId = await runs.start({ api: await client(), taskId: input.taskId, mode: input.mode, effort: input.effort, local: input.model === "local" ? settings.localModel ?? null : null, mcp: settings.mcpServers ?? [] });
       return { runId };
     }),
   );
@@ -234,6 +241,42 @@ function registerHandlers(): void {
       } else {
         settings.localModel = null;
       }
+      await saveSettings();
+      return appState();
+    }),
+  );
+
+  // MCP servers (ADR 0148): checked by starting one once, in a folder of its own; saved only in this app's settings.
+  const McpServer = z.object({ name: z.string().max(24), command: z.string().max(64), args: z.array(z.string().max(500)).max(32) });
+  const checkedServer = (raw: unknown) => {
+    const server = checkServerConfig(raw);
+    if (!server) throw new McpError("Give the server a short lowercase name (letters, numbers and dashes), a program on PATH such as npx, node or uvx, and its arguments.");
+    return server;
+  };
+  handle("mcp:check", McpServer, (input) =>
+    attempt(async () => {
+      const server = checkedServer(input);
+      const cwd = path.join(dataDir(), "mcp", server.name);
+      await fs.mkdir(cwd, { recursive: true });
+      let info: { name: string; version: string } | null = null;
+      const session = await connectMcpServers([server], async (s) => {
+        const client = await connectMcp(await spawnStdioTransport({ command: s.command, args: s.args, cwd }), { clientVersion: app.getVersion() });
+        info = client.server;
+        return client;
+      });
+      try {
+        if (session.problems.length > 0 && session.tools.definitions.length === 0) throw new McpError(session.problems.join(" "));
+        return { server: info, tools: session.tools.definitions.map((d) => ({ name: d.name, description: d.description.slice(mcpOrigin(server.name).length) })), problems: session.problems };
+      } finally {
+        session.close();
+      }
+    }),
+  );
+  handle("mcp:set", z.array(McpServer).max(MAX_MCP_SERVERS), (input) =>
+    attempt(async () => {
+      const servers = input.map(checkedServer);
+      if (new Set(servers.map((s) => s.name)).size !== servers.length) throw new McpError("Each MCP server needs its own name.");
+      settings.mcpServers = servers;
       await saveSettings();
       return appState();
     }),
