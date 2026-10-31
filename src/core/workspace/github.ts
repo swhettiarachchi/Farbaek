@@ -1,6 +1,7 @@
 /**
- * Importing a public GitHub repository (ADR 0074): reading what a person
- * pasted, and the only addresses the server may fetch for it. GitHub answers
+ * Importing a GitHub repository (ADR 0074; private ones with the workspace's
+ * token, ADR 0144): reading what a person pasted, and the only addresses the
+ * server may fetch for it. GitHub answers
  * an archive request with a redirect to codeload.github.com, and writes the
  * commit's hash into the archive's comment, so the import knows exactly
  * which commit it holds.
@@ -83,6 +84,60 @@ export function archiveFromRedirect(location: string | null, source: GitHubSourc
   if (named !== source.ref) return null;
   const kind = rest.slice(0, rest.length - named.length);
   return { url: base + kind + source.ref.split("/").map(encodeURIComponent).join("/"), commit: null };
+}
+
+/**
+ * The archive request for a repository read with the workspace's token
+ * (ADR 0144). The ref is required here: the import asks GitHub for the
+ * default branch first when none was named.
+ */
+export function apiArchiveUrl(owner: string, repo: string, ref: string): string {
+  return `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/zipball/${ref.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+const DOWNLOAD_TOKEN = /^[A-Za-z0-9._~-]{1,512}$/;
+
+/**
+ * Where GitHub's API sends a token-read archive, rebuilt from checked parts
+ * like {@link archiveFromRedirect}: only codeload.github.com, only this
+ * repository, only the asked-for ref or a commit. A private repository's
+ * link carries a short-lived download token as its only query parameter;
+ * that is kept and nothing else is. Null for anything else.
+ */
+export function apiArchiveFromRedirect(location: string | null, source: { owner: string; repo: string }, ref: string): { url: string; commit: string | null } | null {
+  if (!location) return null;
+  let url: URL;
+  try {
+    url = new URL(location);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" || url.hostname !== "codeload.github.com" || url.port !== "" || url.hash || url.username || url.password) return null;
+  const params = [...url.searchParams.entries()];
+  if (params.length > 1 || (params.length === 1 && params[0]![0] !== "token")) return null;
+  const token = params[0]?.[1] ?? null;
+  if (token !== null && !DOWNLOAD_TOKEN.test(token)) return null;
+  const m = /^\/([^/]+)\/([^/]+)\/(legacy\.zip|zip)\/(.+)$/.exec(url.pathname);
+  if (!m) return null;
+  if (m[1]!.toLowerCase() !== source.owner.toLowerCase() || m[2]!.toLowerCase() !== source.repo.toLowerCase()) return null;
+  let rest: string;
+  try {
+    rest = decodeURIComponent(m[4]!);
+  } catch {
+    return null;
+  }
+  const query = token ? `?token=${token}` : "";
+  const base = `https://codeload.github.com/${encodeURIComponent(source.owner)}/${encodeURIComponent(source.repo)}/${m[3]}/`;
+  if (/^[0-9a-f]{40}$/.test(rest)) return { url: base + rest + query, commit: rest };
+  const named = rest.replace(/^refs\/(?:heads|tags)\//, "");
+  if (named !== ref) return null;
+  const kind = rest.slice(0, rest.length - named.length);
+  return { url: base + kind + ref.split("/").map(encodeURIComponent).join("/") + query, commit: null };
+}
+
+/** Whether a branch or tag name is one Farbaek will put in a request. */
+export function safeRef(ref: string): boolean {
+  return validRef(ref);
 }
 
 /** The commit hash GitHub writes as a zip archive's comment, or null. */

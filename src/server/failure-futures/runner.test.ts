@@ -4,6 +4,7 @@ import type { ArenaSandbox } from "@/server/arena/runner";
 import type { ArenaProposal } from "@/server/arena/store";
 import type { ExecutionRecord } from "@/server/sandbox/types";
 import { failureFuturesFor, runFailureFuture, startFailureFuture, type FailureDeps, type FailurePerson } from "./runner";
+import type { IncidentMemory } from "@/core/realityloop/failure-futures";
 import type { FailureStore } from "./store";
 
 const alice: FailurePerson = { orgId: "o1", userId: "u-alice", role: "member", permissions: {} };
@@ -19,13 +20,14 @@ function fakeWriter(result: FailureTestOutcome) {
   return w satisfies FailureTestWriter & { requests: unknown[] };
 }
 
-function fakes(over: { proposal?: Partial<ArenaProposal> | null; running?: boolean; manifest?: string; run?: Partial<ExecutionRecord>; writer?: FailureTestOutcome; sandbox?: "unavailable" } = {}) {
+function fakes(over: { proposal?: Partial<ArenaProposal> | null; running?: boolean; manifest?: string; run?: Partial<ExecutionRecord>; writer?: FailureTestOutcome; sandbox?: "unavailable"; incidents?: IncidentMemory[] } = {}) {
   const calls: string[] = [];
   const finished: Parameters<FailureStore["finish"]>[0][] = [];
   const ledger: string[] = [];
   const writer = fakeWriter(over.writer ?? { ok: true, output: { test: TEST, expects: "The second delivery is ignored.", cannotTest: null }, usage });
   const store: FailureStore = {
     proposal: async () => (over.proposal === null ? null : { ...PROPOSAL, ...over.proposal }),
+    incidents: async () => over.incidents ?? [],
     start: async (i) => (calls.push(`start:${i.kind}:${i.evidence[0]!.line}`), over.running ? { ok: false, error: "FAILURE_TRIAL_RUNNING" } : { ok: true, value: "f1" }),
     attach: async (i) => (calls.push(`attach:${i.sessionId}`), { ok: true, value: null }),
     finish: async (i) => (finished.push(i), { ok: true, value: null }),
@@ -84,6 +86,15 @@ describe("startFailureFuture (ADR 0135)", () => {
     expect(await start(fakes({ proposal: { status: "applied" } }))).toMatchObject({ ok: false, message: expect.stringMatching(/waiting for review/) });
     expect(await start(fakes(), alice, "retry_loop")).toMatchObject({ ok: false, message: expect.stringMatching(/doesn't suggest that scenario/) });
     expect(await start(fakes({ manifest: JSON.stringify({ devDependencies: { mocha: "10.0.0" } }) }))).toMatchObject({ ok: false, message: expect.stringMatching(/Vitest, Jest or pytest/) });
+  });
+
+  it("accepts a scenario only a past incident on these files suggests (ADR 0145)", async () => {
+    const retries: IncidentMemory = { number: 7, title: "Webhook retry storm", outcome: null, exact: true, paths: ["src/app/api/webhooks/route.ts"] };
+    const f = fakes({ incidents: [retries] });
+    expect(await startFailureFuture(f.deps, alice, { proposalId: "pr1", kind: "retry_loop" })).toMatchObject({ ok: true });
+    expect(f.calls[0]).toBe("start:retry_loop:2");
+    const { futures } = await failureFuturesFor(f.deps, "o1", PROPOSAL);
+    expect(futures[0]).toMatchObject({ kind: "retry_loop", incident: { number: 7 } });
   });
 
   it("works the scenario out from the proposal, meters the test as failure_test, and refunds when a trial is already running", async () => {

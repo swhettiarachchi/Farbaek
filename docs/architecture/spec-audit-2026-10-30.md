@@ -44,7 +44,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
   - nine static-site templates (three added in stage 101: online store, booking, dashboard).
 - **Partly built:**
   - Templates: e-commerce, booking and an admin dashboard (stage 101, ADR 0124); a CRM template and a REST API service starter in plain Node.js (stage 117, ADR 0140). Still nothing for a SaaS app with sign-in: published sites are static, and the Next.js starter is where one is built.
-  - Git: a pull request per applied change, on its own branch, through the workspace's fine-grained token (stage 103). What happens after a pull request opens is read back hourly and on request (stage 120, ADR 0143). No private-repository import and no stacked pull requests.
+  - Git: a pull request per applied change, on its own branch, through the workspace's fine-grained token (stage 103). What happens after a pull request opens is read back hourly and on request (stage 120, ADR 0143). Private repositories are imported with the workspace's token by owners and admins (stage 121, ADR 0144). No stacked pull requests.
 - **Partly built:** the visual builder (visual edit to diff): static sites in stage 95 (ADR 0118), and apps with a build step by component in stage 106 (ADR 0129: words and Tailwind classes in JSX). Picking an element in a running app isn't built.
 
 ### 7. Native agent
@@ -80,7 +80,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 - **Built:** IntentLock for code (scope drift against the contract), the developer ProofPack, and Farbaek's own security scan of a project.
 - **Not built:**
   - Semgrep and secret findings: built in stage 114 (ADR 0137) with Farbaek's own Semgrep rules and detect-secrets in a sandbox; gitleaks and TruffleHog need GitHub release hosts the sandbox can't reach (dependency findings from OSV.dev: stage 107, ADR 0130);
-  - Failure Futures Lab: built in stage 112 (ADR 0135), from the lines a change adds; incidents aren't a source yet;
+  - Failure Futures Lab: built in stage 112 (ADR 0135), from the lines a change adds, and from the project's past incidents on the same files since stage 122 (ADR 0145);
   - mutation testing: built in stage 113 (ADR 0136) as Farbaek's own bounded mutator on a change's added lines, not StrykerJS;
   - Architecture Why-Graph: built per file in stage 100 (ADR 0123);
   - Reversibility Radar: built in stage 99 (ADR 0122);
