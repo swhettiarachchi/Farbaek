@@ -3,7 +3,7 @@
 Owners and admins can now import a private repository with the workspace's own GitHub token, and link the new project to it so applied changes open pull requests there.
 
 - **Decision record:** `docs/adr/0144-private-repository-import.md`.
-- **Branch:** `feat/github-sync` (with stages 116 to 120, in one pull request).
+- **Branch:** `feat/private-import` (from `feat/github-sync`, after stages 116 to 120 merged).
 - **Migration:** v86, `supabase/migrations/20261227090000_github_private_import.sql`.
 
 ## 2026-10-31
