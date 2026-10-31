@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { archiveFromRedirect, archiveUrl, commitFromArchive, parseGitHubSource, sourceLabel } from "./github";
+import { apiArchiveFromRedirect, apiArchiveUrl, archiveFromRedirect, archiveUrl, commitFromArchive, parseGitHubSource, safeRef, sourceLabel } from "./github";
 
 const SHA = "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d";
 
@@ -80,6 +80,56 @@ describe("following GitHub's redirect", () => {
     ]) {
       expect(archiveFromRedirect(location, source), String(location)).toBeNull();
     }
+  });
+});
+
+describe("an archive read with the workspace's token (ADR 0144)", () => {
+  const repo = { owner: "acme", repo: "shop" };
+  const TOKEN = "AAB7XQ2EXAMPLEDOWNLOADTOKEN";
+
+  it("asks the API for one named ref, each part encoded", () => {
+    expect(apiArchiveUrl("acme", "shop", "main")).toBe("https://api.github.com/repos/acme/shop/zipball/main");
+    expect(apiArchiveUrl("acme", "shop", "feature/new login")).toBe("https://api.github.com/repos/acme/shop/zipball/feature/new%20login");
+  });
+
+  it("keeps a private repository's download token and nothing else", () => {
+    expect(apiArchiveFromRedirect(`https://codeload.github.com/acme/shop/legacy.zip/refs/heads/main?token=${TOKEN}`, repo, "main")).toEqual({
+      url: `https://codeload.github.com/acme/shop/legacy.zip/refs/heads/main?token=${TOKEN}`,
+      commit: null,
+    });
+    expect(apiArchiveFromRedirect(`https://codeload.github.com/Acme/Shop/legacy.zip/${SHA}?token=${TOKEN}`, repo, "main")).toEqual({
+      url: `https://codeload.github.com/acme/shop/legacy.zip/${SHA}?token=${TOKEN}`,
+      commit: SHA,
+    });
+    // A public repository's link has no token.
+    expect(apiArchiveFromRedirect("https://codeload.github.com/acme/shop/zip/refs/tags/v2", repo, "v2")?.url).toBe("https://codeload.github.com/acme/shop/zip/refs/tags/v2");
+  });
+
+  it("refuses other hosts, repositories, refs and query parameters", () => {
+    for (const location of [
+      null,
+      "nope",
+      `http://codeload.github.com/acme/shop/legacy.zip/refs/heads/main?token=${TOKEN}`,
+      `https://evil.example/acme/shop/legacy.zip/refs/heads/main?token=${TOKEN}`,
+      `https://codeload.github.com.evil.example/acme/shop/legacy.zip/refs/heads/main`,
+      `https://codeload.github.com/acme/other/legacy.zip/refs/heads/main?token=${TOKEN}`,
+      `https://codeload.github.com/acme/shop/legacy.zip/refs/heads/dev?token=${TOKEN}`,
+      `https://codeload.github.com/acme/shop/legacy.tar.gz/refs/heads/main?token=${TOKEN}`,
+      `https://codeload.github.com/acme/shop/legacy.zip/refs/heads/main?token=${TOKEN}&next=https://evil.example`,
+      `https://codeload.github.com/acme/shop/legacy.zip/refs/heads/main?redirect=1`,
+      "https://codeload.github.com/acme/shop/legacy.zip/refs/heads/main?token=has%20space",
+      `https://codeload.github.com/acme/shop/legacy.zip/refs/heads/main?token=${TOKEN}#x`,
+      `https://u:p@codeload.github.com/acme/shop/legacy.zip/refs/heads/main`,
+    ]) {
+      expect(apiArchiveFromRedirect(location, repo, "main"), String(location)).toBeNull();
+    }
+  });
+
+  it("checks a ref the same way a pasted one is checked", () => {
+    expect(safeRef("main")).toBe(true);
+    expect(safeRef("release/2026-10")).toBe(true);
+    expect(safeRef("../x")).toBe(false);
+    expect(safeRef("-x")).toBe(false);
   });
 });
 

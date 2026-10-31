@@ -128,6 +128,16 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
             check it for security
           </Link>{" "}
           first.
+          {query.linked === "1" ? (
+            <>
+              {" "}
+              It&apos;s linked to its repository, so applied changes open{" "}
+              <Link href={`/app/projects/${project.id}/github`} className="font-medium text-accent hover:underline">
+                pull requests there
+              </Link>
+              .
+            </>
+          ) : null}
         </Notice>
       ) : null}
 

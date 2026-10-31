@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
 import { zipFiles } from "@/core/workspace/zip";
 import type { FileDeps } from "./files";
-import { GITHUB_MESSAGES, downloadArchive, importBlock, importFromGitHub, type Fetcher } from "./github-import";
+import { GITHUB_MESSAGES, downloadArchive, importBlock, importFromGitHub, type Fetcher, type TokenAccess } from "./github-import";
 import type { WriteDeps } from "./use-cases";
 
 const SHA = "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d";
@@ -21,12 +21,14 @@ function githubZip(files: { path: string; content: string }[], commit = SHA): Ui
 
 function fakeGitHub(responses: Record<string, () => Response>) {
   const calls: { url: string; redirect: RequestRedirect | undefined }[] = [];
+  const auth: (string | null)[] = [];
   const fetcher: Fetcher = async (url, init) => {
     calls.push({ url, redirect: init.redirect });
+    auth.push(new Headers(init.headers).get("authorization"));
     const make = responses[url];
     return make ? make() : new Response("not found", { status: 404 });
   };
-  return { fetcher, calls };
+  return { fetcher, calls, auth };
 }
 
 const redirect = (location: string) => () => new Response(null, { status: 302, headers: { location } });
@@ -69,7 +71,7 @@ describe("importFromGitHub", () => {
     });
     const { deps, log } = fakeDeps();
     const r = await importFromGitHub(deps, { orgId: "o1", userId: "u1", source: SOURCE, fetcher });
-    expect(r).toEqual({ ok: true, value: { projectId: "p1", commit: SHA, imported: { files: 2 }, skipped: 1, ignored: 1 } });
+    expect(r).toEqual({ ok: true, value: { projectId: "p1", commit: SHA, imported: { files: 2 }, skipped: 1, ignored: 1, via: { kind: "public" } } });
     expect(log).toEqual(["project:Hello-World:Imported from github.com/octocat/Hello-World at 7fd1a60.", "import:index.html,src/app.js"]);
     expect(calls).toEqual([
       { url: "https://github.com/octocat/Hello-World/archive/HEAD.zip", redirect: "manual" },
@@ -125,6 +127,90 @@ describe("importFromGitHub", () => {
     expect(await downloadArchive(SOURCE, down)).toEqual({ ok: false, message: GITHUB_MESSAGES.unavailable });
     const busy: Fetcher = async () => new Response("busy", { status: 503 });
     expect(await downloadArchive(SOURCE, busy)).toEqual({ ok: false, message: GITHUB_MESSAGES.unavailable });
+  });
+});
+
+describe("a private repository, with the workspace's token (ADR 0144)", () => {
+  const TOKEN = "github_pat_EXAMPLE";
+  const DOWNLOAD = "AAB7XQ2EXAMPLEDOWNLOADTOKEN";
+  const PUBLIC = "https://github.com/octocat/Hello-World/archive/HEAD.zip";
+  const API = "https://api.github.com/repos/octocat/Hello-World/zipball/main";
+  const CODELOAD = `https://codeload.github.com/octocat/Hello-World/legacy.zip/refs/heads/main?token=${DOWNLOAD}`;
+  const INFO = { id: 42, owner: "octocat", repo: "Hello-World", defaultBranch: "main", archived: false, canPush: true };
+
+  function access(answer: Awaited<ReturnType<TokenAccess["client"]["repo"]>> = { ok: true, value: INFO }) {
+    const asked: string[] = [];
+    const withToken: TokenAccess = {
+      token: TOKEN,
+      client: { repo: async (owner, repo) => (asked.push(`${owner}/${repo}`), answer) },
+    };
+    return { withToken, asked };
+  }
+
+  it("reads it with the token only after the public download finds nothing, and sends the token to api.github.com alone", async () => {
+    const { fetcher, calls, auth } = fakeGitHub({
+      [API]: redirect(CODELOAD),
+      [CODELOAD]: archive(githubZip(FILES)),
+    });
+    const { withToken, asked } = access();
+    const { deps, log } = fakeDeps();
+    const r = await importFromGitHub(deps, { orgId: "o1", userId: "u1", source: SOURCE, fetcher, withToken });
+    expect(r).toEqual({ ok: true, value: { projectId: "p1", commit: SHA, imported: { files: 2 }, skipped: 1, ignored: 1, via: { kind: "token", repository: INFO } } });
+    expect(asked).toEqual(["octocat/Hello-World"]);
+    expect(calls.map((c) => c.url)).toEqual([PUBLIC, API, CODELOAD]);
+    expect(auth).toEqual([null, `Bearer ${TOKEN}`, null]);
+    expect(log[1]).toBe("import:index.html,src/app.js");
+  });
+
+  it("doesn't use the token when the public download works", async () => {
+    const { fetcher, auth } = fakeGitHub({
+      [PUBLIC]: redirect(`https://codeload.github.com/octocat/Hello-World/zip/${SHA}`),
+      [`https://codeload.github.com/octocat/Hello-World/zip/${SHA}`]: archive(githubZip(FILES)),
+    });
+    const { withToken, asked } = access();
+    const r = await importFromGitHub(fakeDeps().deps, { orgId: "o1", userId: "u1", source: SOURCE, fetcher, withToken });
+    expect(r).toMatchObject({ ok: true, value: { via: { kind: "public" } } });
+    expect(asked).toEqual([]);
+    expect(auth.every((a) => a === null)).toBe(true);
+  });
+
+  it("asks for the branch that was named, not the default one", async () => {
+    const api = "https://api.github.com/repos/octocat/Hello-World/zipball/feature/login";
+    const codeload = `https://codeload.github.com/octocat/Hello-World/legacy.zip/refs/heads/feature/login?token=${DOWNLOAD}`;
+    const { fetcher, calls } = fakeGitHub({ [api]: redirect(codeload), [codeload]: archive(githubZip(FILES)) });
+    const r = await importFromGitHub(fakeDeps().deps, { orgId: "o1", userId: "u1", source: { ...SOURCE, ref: "feature/login" }, fetcher, withToken: access().withToken });
+    expect(r.ok).toBe(true);
+    expect(calls.map((c) => c.url).slice(1)).toEqual([api, codeload]);
+  });
+
+  it("never follows GitHub's answer anywhere but codeload for this repository", async () => {
+    const { fetcher, calls } = fakeGitHub({ [API]: redirect(`https://evil.example/octocat/Hello-World/legacy.zip/refs/heads/main?token=${DOWNLOAD}`) });
+    const { deps, log } = fakeDeps();
+    expect(await importFromGitHub(deps, { orgId: "o1", userId: "u1", source: SOURCE, fetcher, withToken: access().withToken })).toEqual({ ok: false, code: "NOTHING_TO_IMPORT", message: GITHUB_MESSAGES.unexpected });
+    expect(calls).toHaveLength(2);
+    expect(log).toEqual([]);
+  });
+
+  it("says why the token can't read it, and never repeats the token", async () => {
+    const run = async (answer: Parameters<typeof access>[0], api?: () => Response) => {
+      const { fetcher } = fakeGitHub(api ? { [API]: api } : {});
+      const r = await importFromGitHub(fakeDeps().deps, { orgId: "o1", userId: "u1", source: SOURCE, fetcher, withToken: access(answer).withToken });
+      expect(JSON.stringify(r)).not.toContain(TOKEN);
+      return r.ok ? null : r.message;
+    };
+    expect(await run({ ok: false, code: "NOT_FOUND", detail: null })).toBe(GITHUB_MESSAGES.tokenNotFound);
+    expect(await run({ ok: false, code: "TOKEN_REJECTED", detail: null })).toMatch(/didn't accept the workspace's token/);
+    expect(await run(undefined, () => new Response("{}", { status: 401 }))).toBe(GITHUB_MESSAGES.tokenRejected);
+    expect(await run(undefined, () => new Response("{}", { status: 403 }))).toBe(GITHUB_MESSAGES.tokenForbidden);
+    expect(await run(undefined, () => new Response("{}", { status: 403, headers: { "x-ratelimit-remaining": "0" } }))).toBe(GITHUB_MESSAGES.rateLimited);
+    expect(await run(undefined)).toBe(GITHUB_MESSAGES.tokenNotFound);
+    expect(await run({ ok: true, value: { ...INFO, defaultBranch: "-weird" } })).toBe(GITHUB_MESSAGES.badBranch);
+  });
+
+  it("without the token, says how a private repository could be imported", async () => {
+    const { fetcher } = fakeGitHub({});
+    const r = await importFromGitHub(fakeDeps().deps, { orgId: "o1", userId: "u1", source: SOURCE, fetcher, privateHint: "If it's private, connect GitHub in Settings." });
+    expect(r).toEqual({ ok: false, code: "NOTHING_TO_IMPORT", message: `${GITHUB_MESSAGES.notFound} If it's private, connect GitHub in Settings.` });
   });
 });
 

@@ -68,6 +68,7 @@ const VERBS: Record<string, string> = {
   "project.file_deleted": "deleted a file",
   "project.github_linked": "linked a project to a GitHub repository",
   "project.github_unlinked": "unlinked a project from its GitHub repository",
+  "project.github_imported": "imported a repository with the workspace's GitHub token",
   "capsule.exported": "exported a project capsule",
   "capsule.imported": "imported a project capsule",
   "skill.pinned": "approved a project skill",
