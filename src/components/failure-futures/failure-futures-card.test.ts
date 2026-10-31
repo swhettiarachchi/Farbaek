@@ -60,3 +60,16 @@ describe("FailureFuturesCard (ADR 0135)", () => {
     expect(render([], null, [])).toContain("adds no lines that suggest a failure");
   });
 });
+
+describe("a scenario from a past incident (ADR 0145)", () => {
+  it("says which incident, how it is linked, and links to it", () => {
+    const [first, ...rest] = futures;
+    const exact = render([], null, [{ ...first!, incident: { number: 12, title: "Charged twice", exact: true } }, ...rest]);
+    expect(exact).toContain("This happened before");
+    expect(exact).toContain('href="/app/incidents/12"');
+    expect(exact).toContain("incident #12");
+    const loose = render([], null, [{ ...first!, incident: { number: 3, title: "Charged twice", exact: false } }]);
+    expect(loose).toContain("opened within a day of a change");
+    expect(render([])).not.toContain("incident #");
+  });
+});

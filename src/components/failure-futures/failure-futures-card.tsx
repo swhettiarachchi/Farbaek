@@ -1,4 +1,5 @@
-import { CheckCircleIcon, CircleDashedIcon, HourglassMediumIcon, ProhibitIcon, QuestionIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, CircleDashedIcon, HourglassMediumIcon, ProhibitIcon, QuestionIcon, SirenIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import Link from "next/link";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { RelativeTime } from "@/components/ui/local-time";
 import { LAB_OUTCOME_WORDS, type FailureFuture } from "@/core/realityloop/failure-futures";
@@ -29,6 +30,23 @@ function StatusPill({ status }: { status: Shown }) {
 }
 
 /** What one finished trial did: the AI-written test, the command, and the output, so a person can judge it. */
+/** Why a past incident put this scenario here (ADR 0145), in words and with a link to it. */
+function IncidentNote({ incident }: { incident: NonNullable<FailureFuture["incident"]> }) {
+  const link = (
+    <Link href={`/app/incidents/${incident.number}`} className="font-medium text-accent hover:underline">
+      incident #{incident.number}
+    </Link>
+  );
+  return (
+    <p className="flex max-w-[68ch] items-start gap-2 text-sm leading-relaxed">
+      <SirenIcon size={16} className="mt-0.5 shrink-0 text-approval" aria-hidden />
+      <span>
+        {incident.exact ? <>This happened before: {link}, &ldquo;{incident.title}&rdquo;, came from a change to a file this one edits.</> : <>Seen before: {link}, &ldquo;{incident.title}&rdquo;, opened within a day of a change to a file this one edits.</>}
+      </span>
+    </p>
+  );
+}
+
 function TrialDetail({ trial }: { trial: FailureTrialView }) {
   return (
     <details className="group rounded-sm border border-line bg-surface">
@@ -112,7 +130,7 @@ export function FailureFuturesCard({
         <span className="text-xs text-ink-3">Nothing is applied</span>
       </div>
       <p className="max-w-[68ch] text-sm leading-relaxed text-ink-2">
-        Failures this change could meet, found in the lines it adds. Each one is hypothetical until you try it: Claude writes one test that simulates the failure, and a disposable sandbox runs it with this change.
+        Failures this change could meet, found in the lines it adds and in this project&apos;s past incidents. Each one is hypothetical until you try it: Claude writes one test that simulates the failure, and a disposable sandbox runs it with this change.
       </p>
 
       {running ? (
@@ -137,6 +155,7 @@ export function FailureFuturesCard({
                   <p className="min-w-0 text-[15px] font-medium leading-snug">{f.title}</p>
                   <StatusPill status={trial?.status ?? "hypothetical"} />
                 </div>
+                {f.incident ? <IncidentNote incident={f.incident} /> : null}
                 <p className="max-w-[68ch] text-sm leading-relaxed text-ink-2">{f.risk}</p>
                 <ul className="grid gap-1">
                   {f.evidence.map((e) => (

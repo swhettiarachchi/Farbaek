@@ -55,7 +55,8 @@ import { workspaceGrant } from "@/server/workspace/organizations";
 import { loadPassport } from "@/server/workspace/context-readiness";
 import { FIXABLE_STATES, fixIsOpen } from "@/server/workspace/fixes";
 import { FailureFuturesCard } from "@/components/failure-futures/failure-futures-card";
-import { LAB_MANIFESTS, labRunner, suggestFailureFutures, testFramework } from "@/core/realityloop/failure-futures";
+import { FAILURE_KINDS, LAB_MANIFESTS, labRunner, suggestFailureFutures, testFramework, withIncidents } from "@/core/realityloop/failure-futures";
+import { readIncidentMemories } from "@/server/failure-futures/incidents";
 import { readFailureTrials } from "@/server/failure-futures/store";
 import { MutationCard } from "@/components/mutation/mutation-card";
 import { MUTATION_MAX, planMutants } from "@/core/realityloop/mutation";
@@ -199,7 +200,9 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
     (checksForRun.length === 0 ? "The contract lists no checks, and Farbaek has none for this kind of project." : null);
   // The Failure Futures Lab (ADR 0135) on the same change: scenarios from the lines it adds.
   const added = trying ? proposal!.changes.map((c) => ({ path: c.path, content: c.content, before: c.kind === "edit" ? (bases[c.path] ?? null) : null })) : [];
-  const futures = suggestFailureFutures(added);
+  // Past incidents in the project work in the scenarios they name (ADR 0145).
+  const incidents = arenaClient && added.length > 0 ? await readIncidentMemories(arenaClient, orgId, task.projectId).catch(() => []) : [];
+  const futures = withIncidents(suggestFailureFutures(added, FAILURE_KINDS.length), added, incidents);
   // Mutation trials (ADR 0136) on the same lines.
   const mutants = planMutants(added, MUTATION_MAX);
   const [failureTrials, failureAi, labFiles, mutationRun] =

@@ -80,7 +80,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 - **Built:** IntentLock for code (scope drift against the contract), the developer ProofPack, and Farbaek's own security scan of a project.
 - **Not built:**
   - Semgrep and secret findings: built in stage 114 (ADR 0137) with Farbaek's own Semgrep rules and detect-secrets in a sandbox; gitleaks and TruffleHog need GitHub release hosts the sandbox can't reach (dependency findings from OSV.dev: stage 107, ADR 0130);
-  - Failure Futures Lab: built in stage 112 (ADR 0135), from the lines a change adds; incidents aren't a source yet;
+  - Failure Futures Lab: built in stage 112 (ADR 0135), from the lines a change adds, and from the project's past incidents on the same files since stage 122 (ADR 0145);
   - mutation testing: built in stage 113 (ADR 0136) as Farbaek's own bounded mutator on a change's added lines, not StrykerJS;
   - Architecture Why-Graph: built per file in stage 100 (ADR 0123);
   - Reversibility Radar: built in stage 99 (ADR 0122);

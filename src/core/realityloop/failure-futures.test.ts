@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addedLines, classifyLabRun, failureTestRequest, labRunner, outputTail, suggestFailureFutures, LAB_NO_RUNNER } from "./failure-futures";
+import { FAILURE_KINDS, addedLines, classifyLabRun, failureTestRequest, incidentKinds, labRunner, outputTail, suggestFailureFutures, withIncidents, LAB_NO_RUNNER, type IncidentMemory } from "./failure-futures";
 
 const WEBHOOK_BEFORE = `export async function POST(req: Request) {
   return new Response("ok");
@@ -72,5 +72,50 @@ describe("failure scenarios from a change (ADR 0135)", () => {
     ]);
     expect(request.files.map((f) => f.path)).toEqual(["src/app/api/webhooks/route.ts"]);
     expect(request).toMatchObject({ framework: "vitest", testPath: runner.testPath, packages: ["vitest", "next"], scenario: { kind: "duplicate_delivery" } });
+  });
+});
+
+describe("past incidents in the lab (ADR 0145)", () => {
+  it("reads the kinds of failure an incident's words name, and nothing from vague ones", () => {
+    expect(incidentKinds("Checkout timed out after the payment provider was slow")).toEqual(["timeout"]);
+    expect(incidentKinds("Customers were charged twice: webhook duplicates")).toEqual(["duplicate_delivery"]);
+    expect(incidentKinds("429 Too Many Requests from the maps API")).toEqual(["rate_limit"]);
+    expect(incidentKinds("Orders vanished at midnight UTC on the last day")).toEqual(["timezone_boundary"]);
+    expect(incidentKinds("STRIPE_KEY was missing in production, env var not set")).toEqual(["missing_config"]);
+    expect(incidentKinds("Site down")).toEqual([]);
+    expect(incidentKinds("Something broke on the home page")).toEqual([]);
+  });
+
+  const handler = { path: "src/lib/pay.ts", before: "export const a = 1;\n", content: "export const a = 1;\nexport const total = (n: number) => n * 2;\n" };
+  const timeout: IncidentMemory = { number: 12, title: "Checkout timed out", outcome: null, exact: true, paths: ["src/lib/pay.ts"] };
+
+  it("adds a scenario an incident names, with this change's added lines as evidence", () => {
+    const out = withIncidents(suggestFailureFutures([handler], FAILURE_KINDS.length), [handler], [timeout]);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ kind: "timeout", incident: { number: 12, title: "Checkout timed out", exact: true }, evidence: [{ path: "src/lib/pay.ts", line: 2, snippet: "export const total = (n: number) => n * 2;" }] });
+  });
+
+  it("marks a scenario already suggested and puts incident ones first", () => {
+    const webhook = { path: "src/app/api/webhooks/route.ts", content: WEBHOOK_AFTER, before: WEBHOOK_BEFORE };
+    const all = suggestFailureFutures([webhook], FAILURE_KINDS.length);
+    const charged: IncidentMemory = { number: 3, title: "Charged twice", outcome: "The provider retried and we stored it again", exact: false, paths: [webhook.path] };
+    const out = withIncidents(all, [webhook], [charged]);
+    expect(out[0]).toMatchObject({ kind: "duplicate_delivery", incident: { number: 3, exact: false } });
+    expect(out[0]!.evidence).toEqual(all.find((f) => f.kind === "duplicate_delivery")!.evidence);
+    expect(out.filter((f) => f.incident)).toHaveLength(1);
+    expect(out.length).toBeLessThanOrEqual(6);
+  });
+
+  it("ignores incidents about other files, tests, or with no failure named", () => {
+    const base = suggestFailureFutures([handler], FAILURE_KINDS.length);
+    expect(withIncidents(base, [handler], [{ ...timeout, paths: ["src/other.ts"] }])).toEqual([]);
+    expect(withIncidents(base, [handler], [{ ...timeout, title: "Something broke" }])).toEqual([]);
+    const test = { path: "src/lib/pay.test.ts", before: null, content: "it('x', () => {});\n" };
+    expect(withIncidents([], [test], [{ ...timeout, paths: [test.path] }])).toEqual([]);
+  });
+
+  it("is the plain suggestions when there are no incidents", () => {
+    const webhook = { path: "src/app/api/webhooks/route.ts", content: WEBHOOK_AFTER, before: WEBHOOK_BEFORE };
+    expect(withIncidents(suggestFailureFutures([webhook], FAILURE_KINDS.length), [webhook], [])).toEqual(suggestFailureFutures([webhook]));
   });
 });

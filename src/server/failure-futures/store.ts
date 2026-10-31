@@ -6,9 +6,10 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { FAILURE_KINDS, type FailureEvidence, type FailureKind } from "@/core/realityloop/failure-futures";
+import { FAILURE_KINDS, type FailureEvidence, type FailureKind, type IncidentMemory } from "@/core/realityloop/failure-futures";
 import type { ArenaProposal } from "@/server/arena/store";
 import type { RpcResult } from "@/server/workspace/use-cases";
+import { readIncidentMemories } from "./incidents";
 
 export type FailureTrialStatus = "running" | "reproduced" | "handled" | "inconclusive" | "not_testable" | "failed";
 
@@ -37,6 +38,8 @@ export interface FailureTrialView extends Required<Omit<FailureTrialResult, "rea
 
 export interface FailureStore {
   proposal(orgId: string, proposalId: string): Promise<ArenaProposal | null>;
+  /** The project's past incidents and their files (ADR 0145); none when they can't be read. */
+  incidents(orgId: string, projectId: string): Promise<IncidentMemory[]>;
   start(input: { orgId: string; actor: string; proposalId: string; kind: FailureKind; evidence: FailureEvidence[] }): Promise<RpcResult<string>>;
   attach(input: { id: string; actor: string; sessionId: string }): Promise<RpcResult<null>>;
   finish(input: { id: string; actor: string; status: Exclude<FailureTrialStatus, "running">; result: FailureTrialResult }): Promise<RpcResult<null>>;
@@ -53,6 +56,7 @@ export function createSupabaseFailureStore(admin: SupabaseClient, proposals: Pic
   }
   return {
     proposal: proposals.proposal,
+    incidents: (orgId, projectId) => readIncidentMemories(admin, orgId, projectId).catch(() => []),
     start: (i) => rpc("app_start_failure_future", { p_org: i.orgId, p_actor: i.actor, p_proposal: i.proposalId, p_kind: i.kind, p_evidence: i.evidence }, z.string()),
     attach: (i) => rpc("app_attach_failure_session", { p_id: i.id, p_actor: i.actor, p_session: i.sessionId }, nothing),
     finish: (i) => rpc("app_finish_failure_future", { p_id: i.id, p_actor: i.actor, p_status: i.status, p_result: { ...i.result, reason: i.result.reason.slice(0, 500) } }, nothing),

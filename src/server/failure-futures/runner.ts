@@ -13,12 +13,14 @@ import { templateFor } from "@/core/agent/cloud-run";
 import { approxTokens, reserveUnits } from "@/core/billing/rate-card";
 import {
   classifyLabRun,
+  FAILURE_KINDS,
   failureTestRequest,
   LAB_MANIFESTS,
   labRunner,
   MANUAL_FAILURE_TEST,
   outputTail,
   suggestFailureFutures,
+  withIncidents,
   type FailureFuture,
   type FailureKind,
   type FailureTestRequest,
@@ -67,14 +69,16 @@ const AI_FAILURES = {
 } as const;
 
 /** The proposal's scenarios and what a trial needs, worked out from the proposal and the project's own files. */
-export async function failureFuturesFor(deps: Pick<FailureDeps, "checks">, orgId: string, proposal: ArenaProposal) {
+export async function failureFuturesFor(deps: Pick<FailureDeps, "checks" | "store">, orgId: string, proposal: ArenaProposal) {
   const files = await deps.checks.projectFiles(orgId, proposal.projectId);
   const changed = new Map(proposal.changes.map((c) => [c.path, c.content]));
   const wanted = files.filter((f) => changed.has(f.path) || (LAB_MANIFESTS as readonly string[]).includes(f.path));
   const current = wanted.length ? await deps.checks.fileContents(orgId, proposal.projectId, wanted) : new Map<string, string>();
   const paths = [...new Set([...files.map((f) => f.path), ...changed.keys()])];
   const read = (p: string) => changed.get(p) ?? current.get(p) ?? null;
-  const futures = suggestFailureFutures(proposal.changes.map((c) => ({ path: c.path, content: c.content, before: c.kind === "edit" ? (current.get(c.path) ?? null) : null })));
+  const added = proposal.changes.map((c) => ({ path: c.path, content: c.content, before: c.kind === "edit" ? (current.get(c.path) ?? null) : null }));
+  // Past incidents in the project work in the scenarios they name (ADR 0145), the same way the task page shows them.
+  const futures = withIncidents(suggestFailureFutures(added, FAILURE_KINDS.length), added, await deps.store.incidents(orgId, proposal.projectId));
   return { futures, paths, read, current };
 }
 

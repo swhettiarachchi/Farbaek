@@ -112,6 +112,12 @@ export interface FailureFuture {
   trial: string;
   /** Lines this change adds that suggested the scenario, at most 3. */
   evidence: FailureEvidence[];
+  /**
+   * A past incident in this project that names this kind of failure and
+   * involved a file this change edits (ADR 0145). `exact` is false when the
+   * incident is only linked to changes applied in the day before it opened.
+   */
+  incident?: { number: number; title: string; exact: boolean };
 }
 
 const CODE = /\.(m?[jt]sx?|cjs|py)$/i;
@@ -170,6 +176,76 @@ export function suggestFailureFutures(changes: readonly { path: string; content:
   return FAILURE_KINDS.filter((k) => found.has(k))
     .slice(0, max)
     .map((kind) => ({ kind, ...FAILURE_INFO[kind], evidence: found.get(kind)! }));
+}
+
+/** Words in an incident's title or outcome that name a kind of failure (ADR 0145). */
+const INCIDENT_WORDS: { kind: FailureKind; words: RegExp }[] = [
+  { kind: "duplicate_delivery", words: /\bduplicate[ds]?\b|\btwice\b|\bdouble[- ](charged?|sent|posted|booked)\b|\bsent again\b/i },
+  { kind: "out_of_order", words: /\bout of order\b|\bwrong order\b|\barrived (early|late|before|after)\b/i },
+  { kind: "timeout", words: /\btime[ds]?[- ]?out\b|\btimed out\b|\bhung\b|\bhanging\b|\bnever (answered|responded)\b/i },
+  { kind: "rate_limit", words: /\brate[- ]?limit(ed|s)?\b|\b429\b|\btoo many requests\b|\bthrottl(ed|ing)\b/i },
+  { kind: "concurrency", words: /\brace condition\b|\bconcurren(t|cy)\b|\bdeadlock(ed|s)?\b|\blost update\b|\bat the same time\b/i },
+  { kind: "partial_db_failure", words: /\bpartial(ly)? (write|save|saved|update|updated)\b|\bhalf[- ](saved|written)\b|\binconsistent data\b|\bdatabase (error|failure|outage)\b/i },
+  { kind: "expired_credentials", words: /\b(token|key|credential|certificate|cert|session)s? (had )?(expired|revoked|rotated)\b|\bexpired (token|key|credential|certificate|cert|session)s?\b/i },
+  { kind: "permission_denied", words: /\b40[13]\b|\bforbidden\b|\bunauthori[sz]ed\b|\bpermission denied\b|\baccess denied\b/i },
+  { kind: "malformed_input", words: /\bmalformed\b|\binvalid (json|input|payload|data)\b|\bparse error\b|\bcouldn'?t parse\b|\bunexpected token\b|\bNaN\b/ },
+  { kind: "empty_input", words: /\bempty (body|input|payload|form|list|response|cart|request)\b|\bblank (form|field|input)\b/i },
+  { kind: "timezone_boundary", words: /\btime ?zones?\b|\bmidnight\b|\bdaylight saving\b|\bDST\b|\bend of (the )?(day|month)\b/ },
+  { kind: "retry_loop", words: /\bretry (loop|storm)\b|\binfinite loop\b|\bkept retrying\b|\bretried forever\b/i },
+  { kind: "incompatible_api", words: /\bapi (change|changed|version)\b|\bbreaking change\b|\bdeprecated\b/i },
+  { kind: "missing_config", words: /\bmissing (env|environment|setting|config)\w*\b|\b(env(ironment)? var(iable)?|setting|config)s? (was |were )?(missing|unset|not set)\b/i },
+];
+
+/** The kinds of failure an incident's own words name, in the spec's order; none when they name nothing Farbaek can simulate. */
+export function incidentKinds(text: string): FailureKind[] {
+  const said = INCIDENT_WORDS.filter((w) => w.words.test(text)).map((w) => w.kind);
+  return FAILURE_KINDS.filter((k) => said.includes(k));
+}
+
+/** A past incident in the project, with the files of the changes it's linked to. */
+export interface IncidentMemory {
+  number: number;
+  title: string;
+  /** What the person who resolved it said happened, if anything. */
+  outcome: string | null;
+  /** True when the incident names its change; false when linked to changes applied in the day before it. */
+  exact: boolean;
+  paths: readonly string[];
+}
+
+/**
+ * The line-based scenarios, with past incidents worked in (ADR 0145). An
+ * incident counts when it involved a source file this change edits and its
+ * words name a kind of failure. A scenario already suggested is marked with
+ * the incident; one that wasn't is added, with this change's first added
+ * lines in those files as its evidence. Incident scenarios come first, then
+ * the rest, at most `max`.
+ */
+export function withIncidents(futures: readonly FailureFuture[], changes: readonly { path: string; content: string; before: string | null }[], incidents: readonly IncidentMemory[], max = 6): FailureFuture[] {
+  const out = futures.map((f) => ({ ...f }));
+  const code = changes.filter((c) => CODE.test(c.path) && !TEST_FILE.test(c.path));
+  for (const incident of incidents) {
+    const touched = code.filter((c) => incident.paths.includes(c.path));
+    if (touched.length === 0) continue;
+    const mark = { number: incident.number, title: incident.title, exact: incident.exact };
+    for (const kind of incidentKinds(`${incident.title}\n${incident.outcome ?? ""}`)) {
+      const existing = out.find((f) => f.kind === kind);
+      if (existing) {
+        existing.incident ??= mark;
+        continue;
+      }
+      const evidence = touched
+        .flatMap((c) => {
+          const lines = c.content.split(/\r?\n/);
+          const at = addedLines(c.before, c.content).find((n) => (lines[n - 1] ?? "").trim() !== "");
+          return at === undefined ? [] : [{ path: c.path, line: at, snippet: (lines[at - 1] ?? "").trim().slice(0, 160) }];
+        })
+        .slice(0, 3);
+      if (evidence.length > 0) out.push({ kind, ...FAILURE_INFO[kind], evidence, incident: mark });
+    }
+  }
+  const order = (a: FailureFuture, b: FailureFuture) => FAILURE_KINDS.indexOf(a.kind) - FAILURE_KINDS.indexOf(b.kind);
+  return [...out.filter((f) => f.incident).sort(order), ...out.filter((f) => !f.incident).sort(order)].slice(0, max);
 }
 
 export type LabFramework = "vitest" | "jest" | "pytest";
