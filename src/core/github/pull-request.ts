@@ -159,10 +159,16 @@ export function pullRequestBody(input: {
   taskUrl: string;
   workspace: string;
   login: string;
+  /** The earlier Farbaek pull request this one is stacked on (ADR 0147). */
+  stackedOn?: { number: number; defaultBranch: string } | null;
 }): string {
   const files = input.paths.slice(0, 50).map((p) => `- \`${p.replace(/`/g, "")}\``);
   if (input.paths.length > 50) files.push(`- and ${input.paths.length - 50} more`);
+  const stacked = input.stackedOn
+    ? [`**Stacked on #${input.stackedOn.number}**: it builds on that pull request's changes, so merge #${input.stackedOn.number} first. If GitHub doesn't then move this one to ${input.stackedOn.defaultBranch} by itself, change its base to ${input.stackedOn.defaultBranch}.`, ""]
+    : [];
   return [
+    ...stacked,
     input.summary.trim().slice(0, 2000),
     "",
     "**Files**",

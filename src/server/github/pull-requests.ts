@@ -3,6 +3,10 @@
  * ProofPack" status true (ADR 0126). The files come from the database, not
  * the browser; a file goes in only when GitHub still has the version the
  * change started from, so nothing on GitHub is overwritten.
+ *
+ * When the base branch doesn't have those versions because an earlier
+ * Farbaek pull request that changes the same files hasn't merged yet, the
+ * new one is stacked on that pull request's branch instead (ADR 0147).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { STATUS_CONTEXT, branchName, gitBlobSha, planFiles, pullRequestBody, statusFor, type CommitState, type ProofStatus } from "@/core/github/pull-request";
@@ -26,6 +30,8 @@ export interface OpenedPull {
   repo: string;
   branch: string;
   baseBranch: string;
+  /** The earlier Farbaek pull request this one is stacked on, if any. */
+  stackedOn: number | null;
   commit: string;
   status: { state: CommitState; posted: boolean };
 }
@@ -37,6 +43,8 @@ export async function openPullRequest(input: {
   taskTitle: string;
   workspace: string;
   login: string;
+  /** Farbaek's own pull requests on this repository that may still be open, newest first: where a change can be stacked. */
+  earlier?: readonly { number: number; branch: string }[];
   siteEnv?: Record<string, string | undefined>;
 }): Promise<Outcome<OpenedPull>> {
   const { github, link, change } = input;
@@ -49,22 +57,42 @@ export async function openPullRequest(input: {
   const owner = repo.value.owner;
   const name = repo.value.repo;
 
-  const head = await github.branchHead(owner, name, link.defaultBranch);
-  if (!head.ok) return { ok: false, message: head.code === "NOT_FOUND" ? `The branch ${link.defaultBranch} isn't on GitHub any more. An owner or admin can link the repository again.` : say(head.code, head.detail) };
-
-  const remote: Record<string, string | null> = {};
-  for (const f of change.files) {
-    const there = await github.blobSha(owner, name, f.path, head.value.commit);
-    if (!there.ok) return { ok: false, message: say(there.code, there.detail) };
-    remote[f.path] = there.value;
+  /** What a branch has of the change's files, and whether the change can go on top of it. */
+  async function onto(branch: string) {
+    const head = await github.branchHead(owner, name, branch);
+    if (!head.ok) return head;
+    const remote: Record<string, string | null> = {};
+    for (const f of change.files) {
+      const there = await github.blobSha(owner, name, f.path, head.value.commit);
+      if (!there.ok) return there;
+      remote[f.path] = there.value;
+    }
+    return { ok: true as const, value: { head: head.value, remote, plan: await planFiles(change.files, remote) } };
   }
-  const plan = await planFiles(change.files, remote);
+
+  let base = await onto(link.defaultBranch);
+  if (!base.ok) return { ok: false, message: base.code === "NOT_FOUND" ? `The branch ${link.defaultBranch} isn't on GitHub any more. An owner or admin can link the repository again.` : say(base.code, base.detail) };
+  let baseBranch = link.defaultBranch;
+  let stackedOn: number | null = null;
+  const first = base.value.plan;
+  if (!first.ok && first.reason !== "already_there") {
+    // An earlier pull request that hasn't merged may have exactly the versions this change started from.
+    for (const e of (input.earlier ?? []).slice(0, 3)) {
+      const there = await onto(e.branch);
+      if (!there.ok || !there.value.plan.ok) continue;
+      base = there;
+      baseBranch = e.branch;
+      stackedOn = e.number;
+      break;
+    }
+  }
+  const { head, remote, plan } = base.value;
   if (!plan.ok) {
     if (plan.reason === "already_there") return { ok: false, message: `This change is already on ${link.defaultBranch}, so there's nothing to open.` };
     const list = plan.paths.slice(0, 5).join(", ") + (plan.paths.length > 5 ? ` and ${plan.paths.length - 5} more` : "");
     return {
       ok: false,
-      message: `On GitHub, ${list} ${plan.paths.length === 1 ? "isn't" : "aren't"} the version this change started from, so nothing was pushed. Merge any earlier pull request from Farbaek, or bring ${link.defaultBranch} up to date, then try again.`,
+      message: `On GitHub, ${list} ${plan.paths.length === 1 ? "isn't" : "aren't"} the version this change started from, so nothing was pushed.${input.earlier?.length ? " Farbaek's open pull requests on this repository don't have those versions either." : ""} Merge any earlier pull request from Farbaek, or bring ${link.defaultBranch} up to date, then try again.`,
     };
   }
 
@@ -76,13 +104,13 @@ export async function openPullRequest(input: {
     if (!blob.ok) return { ok: false, message: say(blob.code, blob.detail) };
     blobs.push({ path: f.path, sha: blob.value });
   }
-  const tree = await github.createTree(owner, name, head.value.tree, blobs);
+  const tree = await github.createTree(owner, name, head.tree, blobs);
   if (!tree.ok) return { ok: false, message: say(tree.code, tree.detail) };
   const title = input.taskTitle.replace(/[\r\n]+/g, " ").trim().slice(0, 200) || "Change from Farbaek";
   const commit = await github.createCommit(owner, name, {
     message: `${title}\n\nFarbaek task ${change.taskId}, change ${change.proposalId}.\nContract version ${change.contract.version} (${change.contract.sha256}).`,
     tree: tree.value,
-    parent: head.value.commit,
+    parent: head.commit,
   });
   if (!commit.ok) return { ok: false, message: say(commit.code, commit.detail) };
 
@@ -94,15 +122,24 @@ export async function openPullRequest(input: {
   const pull = await github.openPull(owner, name, {
     title,
     head: branch,
-    base: link.defaultBranch,
-    body: pullRequestBody({ summary: change.summary, paths: change.files.map((f) => f.path), contract: change.contract, proofPackDigest: change.proof?.digest ?? null, taskUrl: url, workspace: input.workspace, login: input.login }),
+    base: baseBranch,
+    body: pullRequestBody({
+      summary: change.summary,
+      paths: change.files.map((f) => f.path),
+      contract: change.contract,
+      proofPackDigest: change.proof?.digest ?? null,
+      taskUrl: url,
+      workspace: input.workspace,
+      login: input.login,
+      stackedOn: stackedOn === null ? null : { number: stackedOn, defaultBranch: link.defaultBranch },
+    }),
   });
   if (!pull.ok) return { ok: false, message: `The branch ${branch} is on GitHub, but the pull request couldn't be opened. ${say(pull.code, pull.detail)} You can open it from the branch on GitHub.` };
 
   const status = statusFor(change.proof?.status ?? null);
   const posted = await github.postStatus(owner, name, commit.value, { state: status.state, description: status.description, context: STATUS_CONTEXT, targetUrl: url });
   if (!posted.ok) log("warn", "github.status_failed", { code: posted.code });
-  return { ok: true, value: { number: pull.value.number, url: pull.value.url, repo: `${owner}/${name}`, branch, baseBranch: link.defaultBranch, commit: commit.value, status: { state: status.state, posted: posted.ok } } };
+  return { ok: true, value: { number: pull.value.number, url: pull.value.url, repo: `${owner}/${name}`, branch, baseBranch, stackedOn, commit: commit.value, status: { state: status.state, posted: posted.ok } } };
 }
 
 /** Posts the status for a change's latest ProofPack on the commit Farbaek made. */
