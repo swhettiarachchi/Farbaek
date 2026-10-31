@@ -1,4 +1,4 @@
-import { CircleDashedIcon, DesktopIcon, FlowArrowIcon, FolderSimpleIcon, MagnifyingGlassIcon, PlugsConnectedIcon, UserIcon, WarningIcon } from "@phosphor-icons/react/ssr";
+import { CircleDashedIcon, DesktopIcon, FlowArrowIcon, FolderSimpleIcon, MagnifyingGlassIcon, PlugsConnectedIcon, ScrollIcon, UserIcon, WarningIcon, WrenchIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { Card, Notice, PageHeader } from "@/components/app/primitives";
 import { TrustMap } from "@/components/trust/trust-map";
 import { buttonClasses } from "@/components/ui/button";
-import { neighbours, projectId, whoCanChange, type Answer, type TrustNode, type TrustNodeKind } from "@/core/trust/trust-graph";
+import { neighbours, projectId, rulesOn, whoCanChange, type Answer, type TrustNode, type TrustNodeKind } from "@/core/trust/trust-graph";
 import { loadTrustGraph } from "@/server/trust/trust-graph";
 import { loadAppContext } from "@/server/workspace/context";
 
@@ -18,6 +18,8 @@ const KIND: Record<TrustNodeKind, { word: string; icon: Icon }> = {
   workflow: { word: "Workflow", icon: FlowArrowIcon },
   project: { word: "Project", icon: FolderSimpleIcon },
   integration: { word: "Connected service", icon: PlugsConnectedIcon },
+  tool: { word: "Tool", icon: WrenchIcon },
+  rule: { word: "Workspace rule", icon: ScrollIcon },
 };
 
 const field = "min-h-11 w-full rounded-sm border border-line bg-surface px-3 text-base sm:text-sm";
@@ -82,7 +84,7 @@ export default async function TrustPage({ searchParams }: { searchParams: Promis
 
   return (
     <div className="grid gap-6">
-      <PageHeader title="Trust graph" description="Who and what can act in this workspace, and on what: people, paired agents and their leases, workflows and connected services, from the workspace's own records." />
+      <PageHeader title="Trust graph" description="Who and what can act in this workspace, and on what: people, paired agents with their leases and tools, workflows, rules and connected services, from the workspace's own records." />
 
       {ctx.mode === "demo" ? <Notice>Sample data: the demo workspace&apos;s people, agents and projects.</Notice> : null}
       {unread.length ? <Notice tone="warning">Couldn&apos;t read {unread.join(", ")} just now, so the graph leaves them out. Reload to try again.</Notice> : null}
@@ -107,6 +109,12 @@ export default async function TrustPage({ searchParams }: { searchParams: Promis
         <div className="mt-4">
           {askedNode ? <AnswerList answers={whoCanChange(graph, askedNode.id.replace(/^project:/, ""))} empty="Nobody and nothing can change it." /> : <p className="text-sm text-ink-2">There are no active projects yet.</p>}
         </div>
+        {askedNode ? (
+          <div className="mt-4 grid gap-2">
+            <h3 className="text-sm font-medium">Workspace rules on its changes</h3>
+            <AnswerList answers={rulesOn(graph, askedNode.id.replace(/^project:/, ""))} empty="No workspace rules. Farbaek's built-in policy still decides what needs a person." />
+          </div>
+        ) : null}
         <p className="mt-3 text-xs text-ink-3">An agent always acts with the role of the person who paired it, checked again on every request, and only within its lease. It never has more authority than its person.</p>
       </Card>
 
@@ -142,7 +150,7 @@ export default async function TrustPage({ searchParams }: { searchParams: Promis
               </div>
             </div>
           ) : (
-            <p className="mt-2 text-sm text-ink-2">Select a person, agent, workflow, project or service on the map, or search for one.</p>
+            <p className="mt-2 text-sm text-ink-2">Select a person, agent, workflow, tool, project, rule or service on the map, or search for one.</p>
           )}
         </Card>
 
@@ -151,7 +159,7 @@ export default async function TrustPage({ searchParams }: { searchParams: Promis
           <form className="mt-3 flex flex-wrap items-end gap-3" method="get">
             <label className="grid min-w-0 flex-1 gap-1.5 text-sm font-medium">
               Name or detail
-              <input name="q" defaultValue={q} maxLength={80} placeholder="An email, agent, project or service" className={field} />
+              <input name="q" defaultValue={q} maxLength={80} placeholder="An email, agent, tool, project or rule" className={field} />
             </label>
             <button type="submit" className={buttonClasses("secondary", "sm")}>
               <MagnifyingGlassIcon size={16} aria-hidden /> Search
