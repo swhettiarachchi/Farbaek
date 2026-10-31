@@ -126,7 +126,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
                   </p>
                   {details ? (
                     <details className="group">
-                      <summary className="inline-flex min-h-11 cursor-pointer items-center text-xs text-ink-2 hover:text-ink">Details</summary>
+                      <summary className="inline-flex min-h-11 min-w-11 cursor-pointer items-center text-xs text-ink-2 hover:text-ink">Details</summary>
                       <pre className="overflow-x-auto rounded-sm border border-line bg-surface-sunken p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap break-words text-ink-2">
                         {JSON.stringify({ action: r.action, target: r.target, ...r.metadata }, null, 2)}
                       </pre>

@@ -6,7 +6,7 @@ import { withheldFor } from "@/core/workspace/permissions";
 import { createGitHubClient } from "@/server/github/client";
 import { openPullRequest, postPullStatus } from "@/server/github/pull-requests";
 import { createSupabasePullSyncStore, syncPull } from "@/server/github/pull-sync";
-import { latestProofStatus, loadAppliedChange, openGitHubToken, readProposalPull, readRepoLink } from "@/server/github/store";
+import { latestProofStatus, listProjectPulls, loadAppliedChange, openGitHubToken, readProposalPull, readRepoLink } from "@/server/github/store";
 import { log } from "@/server/observability/log";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
@@ -62,7 +62,12 @@ export async function openPullRequestAction(proposalId: string): Promise<PullReq
   const token = await tokenFor(m.admin, m.orgId);
   if ("error" in token) return { status: "error", message: token.error ?? "GitHub isn't connected." };
 
-  const opened = await openPullRequest({ github: createGitHubClient(token.token), link, change, taskTitle: task.task.title, workspace: m.workspace, login: token.login });
+  // Farbaek's own pull requests on this repository that may still be open: a change can be stacked on one (ADR 0147).
+  const repoName = `${link.owner}/${link.repo}`.toLowerCase();
+  const earlier = (await listProjectPulls(m.user, m.orgId, change.projectId).catch(() => []))
+    .filter((p) => p.repo.toLowerCase() === repoName && p.prState !== "merged" && p.prState !== "closed")
+    .map((p) => ({ number: p.number, branch: p.branch }));
+  const opened = await openPullRequest({ github: createGitHubClient(token.token), link, change, taskTitle: task.task.title, workspace: m.workspace, login: token.login, earlier });
   if (!opened.ok) return { status: "error", message: opened.message };
   const p = opened.value;
   const { error } = await m.admin.rpc("app_record_github_pull_request", {
@@ -85,7 +90,9 @@ export async function openPullRequestAction(proposalId: string): Promise<PullReq
   revalidatePath(`/app/projects/${change.projectId}/github`);
   return {
     status: "done",
-    message: p.status.posted ? `Opened pull request #${p.number} with the Farbaek ProofPack status.` : `Opened pull request #${p.number}. The status couldn't be posted; try Update the status check.`,
+    message:
+      (p.status.posted ? `Opened pull request #${p.number} with the Farbaek ProofPack status.` : `Opened pull request #${p.number}. The status couldn't be posted; try Update the status check.`) +
+      (p.stackedOn === null ? "" : ` It's stacked on #${p.stackedOn}, which changes the same files and hasn't merged yet, so merge #${p.stackedOn} first.`),
   };
 }
 

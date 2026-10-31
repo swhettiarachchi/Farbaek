@@ -10,14 +10,16 @@ const COLUMNS: { kinds: TrustNodeKind[]; title: string }[] = [
 ];
 const W = 1080;
 const COL_W = 168;
-const ROW_H = 52;
+const ROW_H = 60;
 const TOP = 44;
 
 /**
  * The trust graph drawn in 2D (ADR 0132, ADR 0146): five columns, an edge for every
  * record that connects two of them. A limited edge is dashed and an
  * inactive node faded, always with words in the lists beside it, never by
- * colour alone. Selecting a node highlights its edges.
+ * colour alone. Selecting a node highlights its edges. On a touch screen
+ * it is drawn at full size, so each node is a 44px target, and scrolls
+ * sideways inside its own frame.
  */
 export function TrustMap({ graph, focus }: { graph: TrustGraph; focus: string | null }) {
   // Only columns with something in them, so a workspace without tools or rules keeps four.
@@ -35,7 +37,7 @@ export function TrustMap({ graph, focus }: { graph: TrustGraph; focus: string | 
 
   return (
     <div className="overflow-x-auto rounded-md border border-line bg-surface">
-      <svg viewBox={`0 0 ${W} ${height}`} className="min-w-[720px]" role="img" aria-label="Map of who and what can act on each project">
+      <svg viewBox={`0 0 ${W} ${height}`} className="min-w-[1080px] lg:min-w-0" role="img" aria-label="Map of who and what can act on each project">
         {columns.map((c, col) => (
           <text key={c.title} x={x(col)} y={22} className="fill-[var(--color-ink-3)] text-[13px] font-medium">
             {c.title}
@@ -48,9 +50,9 @@ export function TrustMap({ graph, focus }: { graph: TrustGraph; focus: string | 
           const [l, r] = a.col < b.col ? [a, b] : [b, a];
           const on = focus ? e.from === focus || e.to === focus : true;
           const x1 = l.x + COL_W;
-          const y1 = l.y + 16;
+          const y1 = l.y + 22;
           const x2 = r.x;
-          const y2 = r.y + 16;
+          const y2 = r.y + 22;
           const mid = (x1 + x2) / 2;
           return (
             <path
@@ -71,8 +73,8 @@ export function TrustMap({ graph, focus }: { graph: TrustGraph; focus: string | 
           return (
             <Link key={n.id} href={`?node=${encodeURIComponent(n.id)}#focus`} aria-label={`${n.label}: ${n.detail}`}>
               <g opacity={dim ? 0.45 : 1}>
-                <rect x={p.x} y={p.y} width={COL_W} height={32} rx={16} className={n.id === focus ? "fill-[var(--color-accent)]" : "fill-[var(--color-surface-raised)] stroke-[var(--color-line)]"} />
-                <text x={p.x + 14} y={p.y + 20.5} className={`text-[13px] ${n.id === focus ? "fill-[var(--color-on-accent)]" : "fill-[var(--color-ink)]"}`}>
+                <rect x={p.x} y={p.y} width={COL_W} height={44} rx={22} className={n.id === focus ? "fill-[var(--color-accent)]" : "fill-[var(--color-surface-raised)] stroke-[var(--color-line)]"} />
+                <text x={p.x + 14} y={p.y + 26.5} className={`text-[13px] ${n.id === focus ? "fill-[var(--color-on-accent)]" : "fill-[var(--color-ink)]"}`}>
                   {n.label.length > 20 ? `${n.label.slice(0, 19)}…` : n.label}
                 </text>
               </g>

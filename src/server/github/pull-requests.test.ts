@@ -50,7 +50,7 @@ describe("opening a pull request", () => {
     const r = await open(client);
     expect(r).toEqual({
       ok: true,
-      value: { number: 7, url: "https://github.com/alice/shop/pull/7", repo: "alice/shop", branch: "farbaek/fix-the-cart-total-1234abcd", baseBranch: "main", commit: "4".repeat(40), status: { state: "success", posted: true } },
+      value: { number: 7, url: "https://github.com/alice/shop/pull/7", repo: "alice/shop", branch: "farbaek/fix-the-cart-total-1234abcd", baseBranch: "main", stackedOn: null, commit: "4".repeat(40), status: { state: "success", posted: true } },
     });
     expect(writes).toEqual([
       "blob:new",
@@ -110,5 +110,63 @@ describe("updating the status", () => {
     const { client, writes } = fakeClient();
     expect(await postPullStatus({ github: client, repo: "alice/shop", commit: "4".repeat(40), taskId: "t1", proof: "failed", siteEnv: ENV })).toEqual({ ok: true, value: "failure" });
     expect(writes).toEqual([`status:${"4".repeat(40)}:failure:Farbaek ProofPack:https://www.farbaek.com/app/tasks/t1`]);
+  });
+});
+
+describe("stacking on an earlier pull request (ADR 0147)", () => {
+  const EARLIER_HEAD = "5".repeat(40);
+  const EARLIER_TREE = "6".repeat(40);
+
+  /** The fake with one view of the files per branch, by its head commit; a branch not listed isn't on GitHub. */
+  function stackClient(branches: Record<string, { commit: string; tree: string; remote: Record<string, string | null> }>) {
+    const { client, writes } = fakeClient();
+    const bodies: string[] = [];
+    const byCommit = new Map(Object.values(branches).map((b) => [b.commit, b.remote]));
+    const stacked: GitHubClient = {
+      ...client,
+      branchHead: async (_o, _r, branch) => (branches[branch] ? { ok: true, value: { commit: branches[branch]!.commit, tree: branches[branch]!.tree } } : { ok: false, code: "NOT_FOUND", detail: null }),
+      blobSha: async (_o, _r, path, ref) => ({ ok: true, value: byCommit.get(ref)?.[path] ?? null }),
+      openPull: async (o, r, i) => (bodies.push(i.body), client.openPull(o, r, i)),
+    };
+    return { client: stacked, writes, bodies };
+  }
+  const openWith = (github: GitHubClient, earlier: { number: number; branch: string }[]) =>
+    openPullRequest({ github, link: LINK, change: CHANGE, taskTitle: "Fix the cart total", workspace: "Alice Studio", login: "alice", siteEnv: ENV, earlier });
+
+  it("stacks on the first open Farbaek branch that has the versions the change started from", async () => {
+    const { client, writes, bodies } = stackClient({
+      main: { commit: HEAD, tree: TREE, remote: { "src/cart.ts": await gitBlobSha("original\n"), "src/new.ts": null } },
+      "farbaek/earlier": { commit: EARLIER_HEAD, tree: EARLIER_TREE, remote: { "src/cart.ts": await gitBlobSha("old\n"), "src/new.ts": null } },
+    });
+    const r = await openWith(client, [
+      { number: 6, branch: "farbaek/deleted" },
+      { number: 5, branch: "farbaek/earlier" },
+    ]);
+    expect(r).toMatchObject({ ok: true, value: { baseBranch: "farbaek/earlier", stackedOn: 5 } });
+    expect(writes).toContain(`tree:${EARLIER_TREE}:src/cart.ts,src/new.ts`);
+    expect(writes).toContain(`commit:${EARLIER_HEAD}`);
+    expect(writes).toContain("pull:farbaek/fix-the-cart-total-1234abcd->farbaek/earlier");
+    expect(bodies[0]!.startsWith("**Stacked on #5**: it builds on that pull request's changes, so merge #5 first. If GitHub doesn't then move this one to main by itself, change its base to main.")).toBe(true);
+  });
+
+  it("stays on the base branch when it has the versions, whatever is still open", async () => {
+    const { client, writes, bodies } = stackClient({
+      main: { commit: HEAD, tree: TREE, remote: { "src/cart.ts": await gitBlobSha("old\n"), "src/new.ts": null } },
+      "farbaek/earlier": { commit: EARLIER_HEAD, tree: EARLIER_TREE, remote: { "src/cart.ts": await gitBlobSha("old\n"), "src/new.ts": null } },
+    });
+    expect(await openWith(client, [{ number: 5, branch: "farbaek/earlier" }])).toMatchObject({ ok: true, value: { baseBranch: "main", stackedOn: null } });
+    expect(writes).toContain(`commit:${HEAD}`);
+    expect(bodies[0]).not.toMatch(/Stacked on/);
+  });
+
+  it("pushes nothing when no open branch has the versions either, and says so", async () => {
+    const { client, writes } = stackClient({
+      main: { commit: HEAD, tree: TREE, remote: { "src/cart.ts": await gitBlobSha("original\n"), "src/new.ts": null } },
+      "farbaek/earlier": { commit: EARLIER_HEAD, tree: EARLIER_TREE, remote: { "src/cart.ts": await gitBlobSha("something else\n"), "src/new.ts": null } },
+    });
+    const r = await openWith(client, [{ number: 5, branch: "farbaek/earlier" }]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.message).toContain("so nothing was pushed. Farbaek's open pull requests on this repository don't have those versions either.");
+    expect(writes).toEqual([]);
   });
 });
