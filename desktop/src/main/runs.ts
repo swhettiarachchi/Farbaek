@@ -20,6 +20,9 @@ import type { IntentContract } from "@/core/realityloop/contract";
 import type { AgentProposalResult, AgentProposalStatus, AgentTaskDetail, ProposalSubmission, SnapshotFile } from "@/agent-runtime/farbaek-client";
 import { ProjectFolder } from "@/agent-runtime/fs-guard";
 import { runAgent, type ApprovalAnswer, type RunEvent, type RunLimits } from "@/agent-runtime/loop";
+import { connectMcp, type McpClient } from "@/agent-runtime/mcp/client";
+import { connectMcpServers, type ExternalTools, type McpServerConfig } from "@/agent-runtime/mcp/external";
+import { spawnStdioTransport } from "@/agent-runtime/mcp/stdio";
 import { createFarbaekToolModel, type GatewayClient } from "@/agent-runtime/models/farbaek";
 import { createLocalToolModel } from "@/agent-runtime/models/local";
 import type { ToolModel } from "@/agent-runtime/models/types";
@@ -64,6 +67,8 @@ export interface RunDeps {
   makeRunner?(root: string): CommandRunner;
   /** How a local model (ADR 0134) is reached. Defaults to fetch; tests pass a fake local server. */
   localFetch?: typeof fetch;
+  /** How an MCP server the person added is started (ADR 0148). Defaults to a child process in its own folder; tests pass a fake. */
+  connectMcp?(server: McpServerConfig): Promise<McpClient>;
   limits?: Partial<RunLimits>;
   now?(): Date;
 }
@@ -214,7 +219,7 @@ export class RunManager {
     void this.touch(run);
   }
 
-  async start(input: { api: RunApi; taskId: string; mode: AgentMode; effort: Effort; local?: { base: string; model: string } | null }): Promise<string> {
+  async start(input: { api: RunApi; taskId: string; mode: AgentMode; effort: Effort; local?: { base: string; model: string } | null; mcp?: readonly McpServerConfig[] }): Promise<string> {
     if (input.mode === "sandboxed_autopilot") throw new RunError("Sandboxed Autopilot isn't available yet. Use Review Only or Controlled Development.");
     const task = await input.api.task(input.taskId);
     if (!task.task.readyForChange || !task.contract) throw new RunError("This task isn't waiting for a change: its contract isn't approved, or a proposal is already open.");
@@ -270,11 +275,28 @@ export class RunManager {
     this.runs.set(id, run);
     await this.touch(run, true);
     const commands = input.mode === "controlled" ? (this.deps.makeRunner ?? createLocalRunner)(folder.root) : null;
-    void this.execute(run, workspace, model, commands, task.contract.body);
+    // MCP servers the person added (ADR 0148): only for Controlled Development, where every call waits for the person.
+    const servers = input.mode === "controlled" ? (input.mcp ?? []) : [];
+    const mcp = servers.length > 0 ? await connectMcpServers(servers, this.deps.connectMcp ?? ((s) => this.startMcpServer(s))) : null;
+    if (mcp) {
+      const count = mcp.tools.definitions.length;
+      if (count > 0) {
+        run.events.push({ at: this.now(), kind: "note", text: `Offered ${count} ${count === 1 ? "tool" : "tools"} from your MCP servers. Each call waits for your approval.${input.local ? "" : " The first time this agent offers a tool, Farbaek holds its AI steps until an owner or admin approves the tools on the Agents page."}` });
+      }
+      for (const problem of mcp.problems) run.events.push({ at: this.now(), kind: "note", text: `MCP server left out: ${problem}` });
+    }
+    void this.execute(run, workspace, model, commands, task.contract.body, mcp?.tools ?? null).finally(() => mcp?.close());
     return id;
   }
 
-  private async execute(run: StoredRun, workspace: AgentWorkspace, model: ToolModel, commands: CommandRunner | null, contract: IntentContract): Promise<void> {
+  /** A server the person added, started in a folder of its own, never in the project's copy. */
+  private async startMcpServer(server: McpServerConfig): Promise<McpClient> {
+    const cwd = path.join(this.deps.dataDir, "mcp", server.name);
+    await fs.mkdir(cwd, { recursive: true });
+    return connectMcp(await spawnStdioTransport({ command: server.command, args: server.args, cwd }), { clientVersion: "desktop" });
+  }
+
+  private async execute(run: StoredRun, workspace: AgentWorkspace, model: ToolModel, commands: CommandRunner | null, contract: IntentContract, external: ExternalTools | null = null): Promise<void> {
     const controller = new AbortController();
     const approvals = new Map<string, (answer: ApprovalAnswer) => void>();
     this.live.set(run.id, { controller, approvals });
@@ -287,6 +309,7 @@ export class RunManager {
         model,
         workspace,
         commands,
+        external: external ?? undefined,
         signal: controller.signal,
         limits: this.deps.limits,
         onEvent: (event) => this.record(run, event),

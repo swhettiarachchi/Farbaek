@@ -173,12 +173,12 @@ export function cmdCommandLine(resolved: string, args: readonly string[]): strin
   return `/d /v:off /s /c ""${resolved}"${args.map((a) => ` "${a}"`).join("")}"`;
 }
 
-function systemTool(env: Record<string, string>, name: string): string {
+export function systemTool(env: Record<string, string>, name: string): string {
   return path.win32.join(envValue(env, "SYSTEMROOT") ?? "C:\\Windows", "System32", name);
 }
 
 /** Kills a process and everything it started. Resolves once the kill has been issued and, on Windows, taskkill has finished. */
-function killTree(child: ChildProcess, env: Record<string, string>, platform: NodeJS.Platform): Promise<void> {
+export function killTree(child: ChildProcess, env: Record<string, string>, platform: NodeJS.Platform): Promise<void> {
   const pid = child.pid;
   if (pid === undefined) return Promise.resolve();
   if (platform === "win32") {

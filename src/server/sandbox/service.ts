@@ -596,7 +596,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
     }
   }
 
-  async function openPreview(actor: SandboxActor, sessionId: string, port: unknown): Promise<SandboxResult<{ url: string; previewId: string; expiresAt: string }>> {
+  async function openPreview(actor: SandboxActor, sessionId: string, port: unknown, options: { pick?: boolean } = {}): Promise<SandboxResult<{ url: string; previewId: string; expiresAt: string }>> {
     if (!validPreviewPort(port)) return err("INVALID_REQUEST", "Use a port from 1024 to 65535 that your app listens on.", "invalid_request");
     const session = await visibleSession(actor, sessionId);
     if (!session) return err("NOT_FOUND", "That session doesn't exist in this workspace.", "invalid_request");
@@ -611,9 +611,10 @@ export function createSandboxService(deps: SandboxServiceDeps) {
     const created = await store.createPreview({ sessionId, actor: actor.userId, id: previewId, port, ttlSeconds: lv.limits.previewMinutes * 60 });
     if (!created.ok) return fromDb(created.error);
     const exp = Math.floor(deps.now().getTime() / 1000) + PREVIEW_LAUNCH_SECONDS;
-    const token = await signPreviewToken({ kind: "launch", p: previewId, u: actor.userId, exp, n: deps.randomKey() }, config.preview.secret!);
+    // Opened from the component editor (ADR 0149): its pages get Farbaek's picker.
+    const token = await signPreviewToken({ kind: "launch", p: previewId, u: actor.userId, exp, n: deps.randomKey(), ...(options.pick ? { pick: true as const } : {}) }, config.preview.secret!);
     const origin = previewOrigin(previewId, config.preview.domain!, config.preview.protocol);
-    log("info", "sandbox.preview_opened", { session: sessionId, port });
+    log("info", "sandbox.preview_opened", { session: sessionId, port, pick: options.pick === true });
     return { ok: true, value: { url: `${origin}${PREVIEW_LAUNCH_PATH}?t=${encodeURIComponent(token)}`, previewId, expiresAt: created.value } };
   }
 

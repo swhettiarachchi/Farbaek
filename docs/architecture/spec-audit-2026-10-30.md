@@ -28,7 +28,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 - **Built:**
   - Mission Control, Projects, Create, Build, Tasks, Approvals, Sandbox, Agents, Mesh, Workflows, Policies, Incidents, Billing and usage, Settings, Help;
   - onboarding (first steps) and the labelled sample workspace.
-- **Partly built:** Activity / Audit now has its own page (stage 96, ADR 0119), with filters and a CSV download. Integrations now have their own page too (stage 97, ADR 0120).
+- **Built:** Activity / Audit has its own page (stage 96, ADR 0119), with filters and a CSV download, and so do Integrations (stage 97, ADR 0120).
 - **Fixed:** the app's roadmap now lists phone apps in the stores, which is what's still missing; the apps themselves are built (section 13).
 
 ### 6. Studio
@@ -45,7 +45,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 - **Partly built:**
   - Templates: e-commerce, booking and an admin dashboard (stage 101, ADR 0124); a CRM template and a REST API service starter in plain Node.js (stage 117, ADR 0140). Still nothing for a SaaS app with sign-in: published sites are static, and the Next.js starter is where one is built.
   - Git: a pull request per applied change, on its own branch, through the workspace's fine-grained token (stage 103). What happens after a pull request opens is read back hourly and on request (stage 120, ADR 0143). Private repositories are imported with the workspace's token by owners and admins (stage 121, ADR 0144). A change that builds on an unmerged Farbaek pull request is stacked on its branch (stage 124, ADR 0147).
-- **Partly built:** the visual builder (visual edit to diff): static sites in stage 95 (ADR 0118), and apps with a build step by component in stage 106 (ADR 0129: words and Tailwind classes in JSX). Picking an element in a running app isn't built.
+- **Partly built:** the visual builder (visual edit to diff): static sites in stage 95 (ADR 0118), and apps with a build step by component in stage 106 (ADR 0129: words and Tailwind classes in JSX). Picking an element in the running app: built in stage 127 (ADR 0149), matched to the JSX by its words and classes, not source maps.
 
 ### 7. Native agent
 
@@ -73,7 +73,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
   - permission leases (scoped, expiring, revocable grants): built in stage 94 (ADR 0117);
   - the second-checker model: built in stage 98 (ADR 0121);
   - the trust graph: built in stage 109 (ADR 0132), with agent teams in stage 105 (ADR 0128), and agents' pinned tools and the workspace's rules as nodes since stage 123 (ADR 0146);
-  - MCP support: a third-party tool registry (tool definitions are pinned per agent since stage 110, ADR 0133).
+  - MCP support: built in stage 126 (ADR 0148) for Farbaek Agent: stdio MCP servers the person adds, offered in Controlled Development with every call approved, and reviewed by an owner or admin through tool pinning (ADR 0133) before first use. Not in cloud runs.
 
 ### 10. Dev Intelligence
 
@@ -115,7 +115,8 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 ### 14. AI provider and privacy
 
 - **Built:** Claude and Gemini behind adapters, the model-change canary, usage metering at real cost, data export and account deletion.
-- **Partly built:** a workspace's own Anthropic key and company gateway (stage 102, ADR 0125); local models on the desktop agent (stage 111, ADR 0134). Cloud runs still use Farbaek's model.
+- **Built:** a workspace's own Anthropic key and company gateway (stage 102, ADR 0125), used by contract drafting, change proposals and the agent's model gateway for the desktop app and cloud runs; local models on the desktop agent (stage 111, ADR 0134).
+- **Partly built:** the second check and image generation still use Farbaek's providers (security reviews use the workspace's own key since stage 128), and there are no keys for OpenAI or Gemini.
 
 ### 15. Subscriptions
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowCounterClockwiseIcon, CheckCircleIcon, GitDiffIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowCounterClockwiseIcon, CheckCircleIcon, CursorClickIcon, GitDiffIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -8,6 +8,8 @@ import { useId, useMemo, useState, useTransition } from "react";
 import { saveFileAction } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
 import { CLASS_GROUPS, classGroup, parseClasses, scanJsx, setJsxClasses, setJsxText, withClassGroup, type ClassGroup, type JsxElement } from "@/core/studio/jsx-edit";
+import { matchPicked, type PickCandidate, type Picked } from "@/core/studio/pick-match";
+import { RunningAppPicker } from "./running-app-picker";
 
 const Surface = dynamic(() => import("@/components/files/codemirror"), {
   ssr: false,
@@ -33,12 +35,15 @@ export function ComponentEditor({
   revisions,
   tailwind,
   disabledReason,
+  pick = null,
 }: {
   projectId: string;
   files: Record<string, string>;
   revisions: Record<string, number>;
   tailwind: boolean;
   disabledReason: string | null;
+  /** The project's running sandbox sessions, to pick elements in (ADR 0149); null where that isn't offered. */
+  pick?: { sessions: { id: string; name: string }[]; unavailable: string | null } | null;
 }) {
   const router = useRouter();
   const paths = Object.keys(files);
@@ -56,6 +61,25 @@ export function ComponentEditor({
   const elements = scan.ok ? scan.elements : [];
   const el = selected === null ? undefined : elements[selected];
   const changedPaths = paths.filter((p) => draft[p] !== files[p]);
+  const [candidates, setCandidates] = useState<PickCandidate[] | null>(null);
+
+  /** A click in the running app (ADR 0149): matched by words and classes across every component, best first. */
+  function onPicked(picked: Picked) {
+    const scans = Object.keys(draft).map((p) => {
+      const s = scanJsx(draft[p] ?? "");
+      return { path: p, elements: s.ok ? s.elements : [] };
+    });
+    const found = matchPicked(picked, scans);
+    setCandidates(found);
+    const best = found[0];
+    if (!best) {
+      setMessage({ tone: "error", text: `Nothing in the code has the words or classes of that <${picked.tag}>. The app may build them as it runs; find it in the outline instead.` });
+      return;
+    }
+    setPath(best.path);
+    setSelected(best.n);
+    setMessage({ tone: "ok", text: `Selected <${best.tag}> at ${best.path}:${best.line}. ${best.why}.` });
+  }
 
   function apply(next: string, note: string) {
     setHistory((h) => [...h, { path, source }]);
@@ -128,76 +152,113 @@ export function ComponentEditor({
   }
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)] lg:items-start">
-      <div className="grid min-w-0 gap-3">
-        <label className="grid gap-1.5 text-sm font-medium">
-          Component
-          <select
-            value={path}
-            onChange={(e) => {
-              setPath(e.target.value);
-              setSelected(null);
-              setMessage(null);
-            }}
-            className={`${field} font-mono sm:text-sm`}
-          >
-            {paths.map((p) => (
-              <option key={p} value={p}>
-                {draft[p] !== files[p] ? `${p} (changed)` : p}
-              </option>
-            ))}
-          </select>
-        </label>
-        {scan.ok ? (
-          <ol aria-label={`Elements in ${path}`} className="grid gap-1 rounded-md border border-line bg-surface p-2">
-            {elements.map((e) => (
-              <li key={e.n}>
-                <button
-                  type="button"
-                  aria-pressed={selected === e.n}
-                  onClick={() => {
-                    setSelected(e.n);
-                    setMessage(null);
-                  }}
-                  style={{ paddingLeft: `${0.75 + Math.min(e.depth, 6) * 0.9}rem` }}
-                  className={`flex min-h-11 w-full min-w-0 items-center gap-2 rounded-sm pr-3 text-left text-sm transition-colors duration-150 ${selected === e.n ? "bg-accent/[0.09] text-ink ring-1 ring-accent/40" : "hover:bg-surface-raised"}`}
-                >
-                  <span className={`shrink-0 font-mono text-xs ${e.builtin ? "text-ink-2" : "text-accent"}`}>&lt;{e.tag}&gt;</span>
-                  {e.text ? (
-                    <span className="min-w-0 truncate text-ink-2">{e.text.value}</span>
-                  ) : e.className ? (
-                    <span className="min-w-0 truncate font-mono text-xs text-ink-3" title={e.className.value}>
-                      {e.className.value || "no classes"}
-                    </span>
-                  ) : null}
-                  <span className="ml-auto shrink-0 font-mono text-xs text-ink-3">{e.line}</span>
-                </button>
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <p className="rounded-md border border-dashed border-line-strong/50 p-4 text-sm text-ink-2">{scan.reason}</p>
-        )}
-      </div>
-
-      <div className="grid gap-4 lg:sticky lg:top-24">
-        {el ? <Inspector key={`${path}:${el.n}:${source.length}`} el={el} source={source} tailwind={tailwind} onApply={apply} onError={(text) => setMessage({ tone: "error", text })} /> : <p className="rounded-md border border-line bg-surface p-4 text-sm text-ink-2">Choose an element to change its words or style.</p>}
-        <Feedback message={message} />
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => setMode("review")} disabled={changedPaths.length === 0} className={buttonClasses("primary", "sm")}>
-            <GitDiffIcon size={16} aria-hidden /> Review {changedPaths.length ? (changedPaths.length === 1 ? "1 file" : `${changedPaths.length} files`) : "changes"}
-          </button>
-          <button type="button" onClick={undo} disabled={history.length === 0} className={buttonClasses("ghost", "sm")}>
-            <ArrowCounterClockwiseIcon size={16} aria-hidden /> Undo
-          </button>
+    <div className="grid gap-5">
+      {pick ? (
+        <details className="group rounded-md border border-line bg-surface p-4" open={pick.sessions.length > 0}>
+          <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-[15px] font-medium">
+            <CursorClickIcon size={18} className="text-accent" aria-hidden /> Pick in the running app
+          </summary>
+          <div className="mt-3 grid gap-3">
+            <RunningAppPicker projectId={projectId} sessions={pick.sessions} unavailable={pick.unavailable} onPicked={onPicked} />
+            {candidates && candidates.length > 1 ? (
+              <div className="grid gap-1.5">
+                <p className="text-sm text-ink-2">{candidates.length} places in the code match. The best is selected; choose another if it&apos;s that one:</p>
+                <ul className="grid gap-1">
+                  {candidates.map((c) => (
+                    <li key={`${c.path}:${c.n}`}>
+                      <button
+                        type="button"
+                        aria-pressed={path === c.path && selected === c.n}
+                        onClick={() => {
+                          setPath(c.path);
+                          setSelected(c.n);
+                        }}
+                        className={`flex min-h-11 w-full min-w-0 items-center gap-2 rounded-sm px-3 text-left text-sm transition-colors duration-150 ${path === c.path && selected === c.n ? "bg-accent/[0.09] ring-1 ring-accent/40" : "hover:bg-surface-raised"}`}
+                      >
+                        <span className="min-w-0 truncate font-mono text-xs">
+                          {c.path}:{c.line} &lt;{c.tag}&gt;
+                        </span>
+                        <span className="ml-auto shrink-0 text-xs text-ink-3">{c.why}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        </details>
+      ) : null}
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)] lg:items-start">
+        <div className="grid min-w-0 gap-3">
+          <label className="grid gap-1.5 text-sm font-medium">
+            Component
+            <select
+              value={path}
+              onChange={(e) => {
+                setPath(e.target.value);
+                setSelected(null);
+                setMessage(null);
+              }}
+              className={`${field} font-mono sm:text-sm`}
+            >
+              {paths.map((p) => (
+                <option key={p} value={p}>
+                  {draft[p] !== files[p] ? `${p} (changed)` : p}
+                </option>
+              ))}
+            </select>
+          </label>
+          {scan.ok ? (
+            <ol aria-label={`Elements in ${path}`} className="grid gap-1 rounded-md border border-line bg-surface p-2">
+              {elements.map((e) => (
+                <li key={e.n}>
+                  <button
+                    type="button"
+                    aria-pressed={selected === e.n}
+                    onClick={() => {
+                      setSelected(e.n);
+                      setMessage(null);
+                    }}
+                    style={{ paddingLeft: `${0.75 + Math.min(e.depth, 6) * 0.9}rem` }}
+                    className={`flex min-h-11 w-full min-w-0 items-center gap-2 rounded-sm pr-3 text-left text-sm transition-colors duration-150 ${selected === e.n ? "bg-accent/[0.09] text-ink ring-1 ring-accent/40" : "hover:bg-surface-raised"}`}
+                  >
+                    <span className={`shrink-0 font-mono text-xs ${e.builtin ? "text-ink-2" : "text-accent"}`}>&lt;{e.tag}&gt;</span>
+                    {e.text ? (
+                      <span className="min-w-0 truncate text-ink-2">{e.text.value}</span>
+                    ) : e.className ? (
+                      <span className="min-w-0 truncate font-mono text-xs text-ink-3" title={e.className.value}>
+                        {e.className.value || "no classes"}
+                      </span>
+                    ) : null}
+                    <span className="ml-auto shrink-0 font-mono text-xs text-ink-3">{e.line}</span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="rounded-md border border-dashed border-line-strong/50 p-4 text-sm text-ink-2">{scan.reason}</p>
+          )}
         </div>
-        <p className="text-xs text-ink-3">
-          Changes show in the app after it rebuilds. Open a live preview from the{" "}
-          <Link href={`/app/projects/${projectId}`} className="font-medium text-accent hover:underline">
-            project page
-          </Link>
-          .
-        </p>
+
+        <div className="grid gap-4 lg:sticky lg:top-24">
+          {el ? <Inspector key={`${path}:${el.n}:${source.length}`} el={el} source={source} tailwind={tailwind} onApply={apply} onError={(text) => setMessage({ tone: "error", text })} /> : <p className="rounded-md border border-line bg-surface p-4 text-sm text-ink-2">Choose an element to change its words or style.</p>}
+          <Feedback message={message} />
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => setMode("review")} disabled={changedPaths.length === 0} className={buttonClasses("primary", "sm")}>
+              <GitDiffIcon size={16} aria-hidden /> Review {changedPaths.length ? (changedPaths.length === 1 ? "1 file" : `${changedPaths.length} files`) : "changes"}
+            </button>
+            <button type="button" onClick={undo} disabled={history.length === 0} className={buttonClasses("ghost", "sm")}>
+              <ArrowCounterClockwiseIcon size={16} aria-hidden /> Undo
+            </button>
+          </div>
+          <p className="text-xs text-ink-3">
+            Changes show in the app after it rebuilds. Open a live preview from the{" "}
+            <Link href={`/app/projects/${projectId}`} className="font-medium text-accent hover:underline">
+              project page
+            </Link>
+            .
+          </p>
+        </div>
       </div>
     </div>
   );

@@ -20,6 +20,9 @@ import {
   PREVIEW_COOKIE,
   PREVIEW_COOKIE_DEV,
   PREVIEW_LAUNCH_PATH,
+  PICKER_MAX_HTML_BYTES,
+  PICKER_PATH,
+  injectPicker,
   previewIdFromHost,
   rewriteLocation,
   signPreviewToken,
@@ -28,6 +31,7 @@ import {
   verifyPreviewToken,
 } from "@/core/sandbox/preview";
 import type { SandboxRuntime } from "@/core/sandbox/runtime";
+import { pickerScript } from "@/core/studio/picker-script";
 import { log } from "@/server/observability/log";
 import type { SandboxServerConfig } from "./config";
 import type { SandboxStore } from "./types";
@@ -149,7 +153,8 @@ export async function handlePreviewRequest(request: Request, deps: GatewayDeps):
     const launched = await store.launchPreview(previewId, check.claims.u);
     if (!launched.ok) return page(403, "This preview isn't available", "It was already opened, closed, or its session stopped. Open the preview again from Farbaek.", deps.appOrigin);
     const exp = Math.floor(Date.parse(launched.value.expiresAt) / 1000);
-    const access = await signPreviewToken({ kind: "access", p: previewId, u: check.claims.u, exp }, secret);
+    // A preview opened to pick elements (ADR 0149) stays that way for its life.
+    const access = await signPreviewToken({ kind: "access", p: previewId, u: check.claims.u, exp, ...(check.claims.pick === true ? { pick: true as const } : {}) }, secret);
     const attrs = ["Path=/", "HttpOnly", `Max-Age=${Math.max(0, exp - nowSeconds)}`, ...(secure ? ["Secure", "SameSite=None", "Partitioned"] : ["SameSite=Lax"])];
     log("info", "sandbox.preview_launched", { preview: previewId, session: launched.value.sessionId });
     return new Response(null, { status: 303, headers: { location: "/", "set-cookie": `${name}=${access}; ${attrs.join("; ")}`, "cache-control": "no-store", "referrer-policy": "no-referrer" } });
@@ -197,6 +202,14 @@ export async function handlePreviewRequest(request: Request, deps: GatewayDeps):
     }
     return page(404, "Not in this project", "There's no file at this address in the project. Previews serve the project's files exactly as they are.", deps.appOrigin);
   }
+  // Farbaek's picker script (ADR 0149), served by the gateway itself on the app's own origin. It does nothing unless Farbaek's page turns it on.
+  if (path.split("?")[0] === PICKER_PATH) {
+    return new Response(pickerScript(deps.appOrigin), {
+      status: 200,
+      headers: { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store", "referrer-policy": "no-referrer", "x-content-type-options": "nosniff" },
+    });
+  }
+  const picking = access.claims.pick === true;
   if (!runtime) return page(503, "Sandbox runtime unavailable", "This server has no sandbox runtime connected right now.", deps.appOrigin);
 
   const declared = Number(request.headers.get("content-length") ?? "0");
@@ -217,6 +230,8 @@ export async function handlePreviewRequest(request: Request, deps: GatewayDeps):
   const cookies = forwardableCookies(request.headers.get("cookie"));
   if (cookies) headers.set("cookie", cookies);
   for (const [k, v] of Object.entries(upstream.headers)) headers.set(k, v);
+  // Pages are read to add the picker, so they're asked for uncompressed.
+  if (picking) headers.set("accept-encoding", "identity");
 
   const method = request.method.toUpperCase();
   let response: Response;
@@ -248,5 +263,58 @@ export async function handlePreviewRequest(request: Request, deps: GatewayDeps):
   out.set("referrer-policy", "no-referrer");
   out.set("x-content-type-options", "nosniff");
   out.append("vary", "Cookie");
+  if (picking && method === "GET" && response.status === 200 && response.body && isPlainHtml(response.headers)) {
+    const body = await withPicker(response.body, PICKER_MAX_HTML_BYTES);
+    if (body.injected) out.delete("content-length");
+    return new Response(body.stream, { status: response.status, statusText: response.statusText, headers: out });
+  }
   return new Response(method === "HEAD" ? null : response.body, { status: response.status, statusText: response.statusText, headers: out });
+}
+
+/** An uncompressed UTF-8 HTML page, small enough or of unknown size. */
+function isPlainHtml(headers: Headers): boolean {
+  const type = headers.get("content-type") ?? "";
+  const charset = /charset=([^;\s]+)/i.exec(type)?.[1]?.toLowerCase() ?? "utf-8";
+  const encoding = (headers.get("content-encoding") ?? "identity").toLowerCase();
+  const size = Number(headers.get("content-length") ?? "0");
+  return /^text\/html\b/i.test(type) && (charset === "utf-8" || charset === "utf8") && encoding === "identity" && size <= PICKER_MAX_HTML_BYTES;
+}
+
+/**
+ * Reads a page up to `max` bytes and adds the picker (ADR 0149). A page that
+ * turns out larger is passed on unchanged, the bytes already read first.
+ */
+async function withPicker(body: ReadableStream<Uint8Array>, max: number): Promise<{ stream: ReadableStream<Uint8Array>; injected: boolean }> {
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    total += value.byteLength;
+    if (total > max) {
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          for (const c of chunks) controller.enqueue(c);
+        },
+        async pull(controller) {
+          const next = await reader.read();
+          if (next.done) controller.close();
+          else controller.enqueue(next.value);
+        },
+        cancel: (reason) => reader.cancel(reason),
+      });
+      return { stream, injected: false };
+    }
+  }
+  const all = new Uint8Array(total);
+  let at = 0;
+  for (const c of chunks) {
+    all.set(c, at);
+    at += c.byteLength;
+  }
+  const html = new TextDecoder().decode(all);
+  const bytes = new TextEncoder().encode(injectPicker(html));
+  return { stream: new ReadableStream({ start: (c) => (c.enqueue(bytes), c.close()) }), injected: true };
 }

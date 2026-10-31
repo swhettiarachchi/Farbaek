@@ -28,7 +28,7 @@ import { EFFORTS, EFFORT_LABELS, type Effort } from "@/core/agent/routing";
 import { approvalWindow } from "@/core/trust/approval-wallet";
 import { shortHash } from "@/core/trust/canonical-json";
 import { relativeLabel, useNow } from "@/components/ui/use-now";
-import type { AgentHandoff, AppState, HandoffRun, Profile, ProposalReview, RunDetail, RunSummary, TaskSummary, TaskView } from "../shared/api";
+import type { AgentHandoff, AppState, HandoffRun, McpCheck, McpServerSetting, Profile, ProposalReview, RunDetail, RunSummary, TaskSummary, TaskView } from "../shared/api";
 import { NearbyView } from "./nearby";
 
 const api = window.farbaek;
@@ -866,6 +866,7 @@ function SettingsView({ state, onState }: { state: AppState; onState: (s: AppSta
         </dl>
       </div>
       <LocalModelCard state={state} onState={onState} />
+      <McpServersCard state={state} onState={onState} />
       <div className="card stack-sm">
         <h2>Unpair this computer</h2>
         <p className="muted">Revokes this computer&apos;s agent token in Farbaek and forgets it here. Past runs stay on this computer until you discard them.</p>
@@ -960,6 +961,127 @@ function LocalModelCard({ state, onState }: { state: AppState; onState: (s: AppS
           </button>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/** MCP servers (ADR 0148): their tools are offered in Controlled Development runs, and every call waits for the person. */
+function McpServersCard({ state, onState }: { state: AppState; onState: (s: AppState) => void }) {
+  const [name, setName] = useState("");
+  const [command, setCommand] = useState("npx");
+  const [args, setArgs] = useState("");
+  const [checked, setChecked] = useState<{ name: string; check: McpCheck } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const draft = (): McpServerSetting => ({ name: name.trim(), command: command.trim(), args: args.split(/\r?\n/).map((a) => a.trim()).filter(Boolean) });
+
+  async function check(server: McpServerSetting): Promise<boolean> {
+    setBusy(true);
+    setError(null);
+    const r = await api.checkMcpServer(server);
+    setBusy(false);
+    if (!r.ok) {
+      setError(r.message);
+      return false;
+    }
+    setChecked({ name: server.name, check: r.value });
+    return true;
+  }
+  async function save(next: McpServerSetting[]) {
+    setBusy(true);
+    setError(null);
+    const r = await api.setMcpServers(next);
+    setBusy(false);
+    if (r.ok) onState(r.value);
+    else setError(r.message);
+    return r.ok;
+  }
+  async function add() {
+    const server = draft();
+    if (state.mcpServers.some((s) => s.name === server.name)) return setError("Each MCP server needs its own name.");
+    if (!(await check(server))) return;
+    if (await save([...state.mcpServers, server])) {
+      setName("");
+      setArgs("");
+    }
+  }
+
+  return (
+    <div className="card stack-sm">
+      <h2>Tools from MCP servers</h2>
+      <p className="muted">
+        Add an MCP server to offer its tools to the agent in Controlled Development runs. It runs on this computer, outside the project&apos;s copy and the contract&apos;s checks, so every call waits for your approval. Review Only never offers them.
+      </p>
+      <p className="small muted">
+        The first time this agent offers new tools, Farbaek holds its AI steps until an owner or admin approves them on the Agents page. Runs on a model on this computer don&apos;t go through Farbaek.
+      </p>
+      {state.mcpServers.length > 0 ? (
+        <ul className="stack-sm">
+          {state.mcpServers.map((s) => (
+            <li key={s.name} className="stack-sm">
+              <p className="small">
+                <strong>{s.name}</strong> <span className="mono">{[s.command, ...s.args].join(" ")}</span>
+              </p>
+              <div className="row-start">
+                <button className="btn btn-secondary btn-sm" type="button" disabled={busy} onClick={() => void check(s)}>
+                  {busy ? "Checking…" : "Check its tools"}
+                </button>
+                <button className="btn btn-secondary btn-sm" type="button" disabled={busy} onClick={() => void save(state.mcpServers.filter((x) => x.name !== s.name))}>
+                  Remove {s.name}
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="small">No MCP servers yet.</p>
+      )}
+      {checked ? (
+        <div className="stack-sm" role="status">
+          <p className="small">
+            {checked.name}
+            {checked.check.server ? ` (${checked.check.server.name} ${checked.check.server.version})` : ""} offers {checked.check.tools.length} {checked.check.tools.length === 1 ? "tool" : "tools"}:
+          </p>
+          <ul className="small stack-sm">
+            {checked.check.tools.map((t) => (
+              <li key={t.name}>
+                <span className="mono">{t.name}</span> {t.description}
+              </li>
+            ))}
+          </ul>
+          {checked.check.problems.map((p) => (
+            <p key={p} className="small muted">
+              {p}
+            </p>
+          ))}
+        </div>
+      ) : null}
+      {state.mcpServers.length < 5 ? (
+        <>
+          <label className="field">
+            <span>Name</span>
+            <input className="mono" value={name} onChange={(e) => setName(e.target.value.toLowerCase())} placeholder="notes" maxLength={24} spellCheck={false} />
+          </label>
+          <label className="field">
+            <span>Program</span>
+            <input className="mono" value={command} onChange={(e) => setCommand(e.target.value)} placeholder="npx" maxLength={64} spellCheck={false} />
+          </label>
+          <label className="field">
+            <span>Arguments, one per line</span>
+            <textarea className="mono" rows={3} value={args} onChange={(e) => setArgs(e.target.value)} placeholder={"-y\n@modelcontextprotocol/server-filesystem\nC:\\notes"} spellCheck={false} />
+          </label>
+        </>
+      ) : (
+        <p className="small muted">Five servers is the most a run starts.</p>
+      )}
+      {error ? <Alert>{error}</Alert> : null}
+      {state.mcpServers.length < 5 ? (
+        <div className="row-start">
+          <button className="btn btn-primary btn-sm" type="button" disabled={busy || !name.trim() || !command.trim()} onClick={() => void add()}>
+            {busy ? "Starting it…" : "Check and add"}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

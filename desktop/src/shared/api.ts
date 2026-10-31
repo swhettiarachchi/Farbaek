@@ -30,6 +30,23 @@ export interface AppState {
   computerName: string;
   /** A model on this computer the agent can run on instead of Farbaek's (ADR 0134); null when none is set. */
   localModel: LocalModelSetting | null;
+  /** MCP servers the person added (ADR 0148): their tools are offered in Controlled Development runs. */
+  mcpServers: McpServerSetting[];
+}
+
+export interface McpServerSetting {
+  /** Short and lowercase: the tools are offered as mcp__<name>__<tool>. */
+  name: string;
+  /** A program on PATH, such as npx, node or uvx. */
+  command: string;
+  args: string[];
+}
+
+/** What an MCP server offered when it was checked. */
+export interface McpCheck {
+  server: { name: string; version: string } | null;
+  tools: { name: string; description: string }[];
+  problems: string[];
 }
 
 export interface LocalModelSetting {
@@ -140,6 +157,10 @@ export interface FarbaekAgentBridge {
   localModels(base: string): Promise<Result<string[]>>;
   /** Sets or clears the local model. */
   setLocalModel(input: LocalModelSetting | null): Promise<Result<AppState>>;
+  /** Starts an MCP server once, lists the tools it offers, and stops it (ADR 0148). */
+  checkMcpServer(input: McpServerSetting): Promise<Result<McpCheck>>;
+  /** Replaces the list of MCP servers. */
+  setMcpServers(input: McpServerSetting[]): Promise<Result<AppState>>;
   /** Tasks handed to this computer from a phone or browser (ADR 0139). */
   handoffs(): Promise<Result<AgentHandoff[]>>;
   /** Runs one here: a copy with the change, its checks, and the report back to Farbaek. */

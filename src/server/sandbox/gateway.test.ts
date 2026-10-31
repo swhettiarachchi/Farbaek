@@ -52,7 +52,7 @@ function deps(): GatewayDeps {
   };
 }
 
-async function openPreview(user = ALICE): Promise<{ previewId: string; launchUrl: URL }> {
+async function openPreview(user = ALICE, options: { pick?: boolean } = {}): Promise<{ previewId: string; launchUrl: URL }> {
   const service = createSandboxService({
     store,
     resolution: { runtime, reason: null, config },
@@ -63,7 +63,7 @@ async function openPreview(user = ALICE): Promise<{ previewId: string; launchUrl
   });
   const created = await service.createSession({ userId: user, orgId: ORG }, { name: "web", template: "node-ts", size: "small", network: "none", minutes: 30, projectId: null, taskId: null }, crypto.randomUUID());
   if (!created.ok) throw new Error(created.message);
-  const opened = await service.openPreview({ userId: user, orgId: ORG }, created.value.sessionId, 3000);
+  const opened = await service.openPreview({ userId: user, orgId: ORG }, created.value.sessionId, 3000, options);
   if (!opened.ok) throw new Error(opened.message);
   return { previewId: opened.value.previewId, launchUrl: new URL(opened.value.url) };
 }
@@ -265,5 +265,65 @@ describe("project previews", () => {
     expect(staticCandidates("/a%20b.css")).toEqual(["a b.css"]);
     expect(staticCandidates("/%2e%2e/etc/passwd")).toEqual([]);
     expect(staticCandidates("/%E0%A4%A")).toEqual([]);
+  });
+});
+
+describe("picking in the running app (ADR 0149)", () => {
+  const page = (cookie: string, previewId: string, path = "/") => req(`http://p-${previewId}.${DOMAIN}${path}`, { headers: { cookie } });
+
+  it("adds Farbaek's picker to the pages of a preview opened to pick, and asks for them uncompressed", async () => {
+    const { previewId, launchUrl } = await openPreview(ALICE, { pick: true });
+    const cookie = await launch(launchUrl);
+    upstreamResponse = () => new Response("<html><head><title>Shop</title></head><body><h1>Cart</h1></body></html>", { status: 200, headers: { "content-type": "text/html; charset=utf-8", "content-length": "70" } });
+    const res = await handlePreviewRequest(page(cookie, previewId), deps());
+    expect(await res.text()).toBe('<html><head><script src="/__farbaek/pick.js" defer></script><title>Shop</title></head><body><h1>Cart</h1></body></html>');
+    expect(res.headers.get("content-length")).toBeNull();
+    expect(new Headers(upstreamCalls[0]!.init.headers).get("accept-encoding")).toBe("identity");
+  });
+
+  it("serves the picker script itself, bound to Farbaek's own origin, without asking the app", async () => {
+    const { previewId, launchUrl } = await openPreview(ALICE, { pick: true });
+    const cookie = await launch(launchUrl);
+    const res = await handlePreviewRequest(page(cookie, previewId, "/__farbaek/pick.js"), deps());
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("text/javascript; charset=utf-8");
+    const script = await res.text();
+    expect(script).toContain(`const APP = ${JSON.stringify(APP)};`);
+    expect(script).toContain("if (e.origin !== APP || e.source !== window.parent) return;");
+    expect(upstreamCalls).toHaveLength(0);
+    // Without access, there's no script either.
+    expect((await handlePreviewRequest(req(`http://p-${previewId}.${DOMAIN}/__farbaek/pick.js`), deps())).status).toBe(401);
+  });
+
+  it("leaves pages alone in an ordinary preview, and anything that isn't a small UTF-8 HTML page", async () => {
+    const plain = await openPreview();
+    const plainCookie = await launch(plain.launchUrl);
+    expect(await (await handlePreviewRequest(page(plainCookie, plain.previewId), deps())).text()).toBe("<h1>app</h1>");
+    expect(new Headers(upstreamCalls[0]!.init.headers).get("accept-encoding")).not.toBe("identity");
+
+    const { previewId, launchUrl } = await openPreview(ALICE, { pick: true });
+    const cookie = await launch(launchUrl);
+    const kinds: Record<string, string>[] = [
+      { "content-type": "application/json" },
+      { "content-type": "text/html", "content-encoding": "gzip" },
+      { "content-type": "text/html; charset=iso-8859-1" },
+      { "content-type": "text/html", "content-length": String(6 * 1024 * 1024) },
+    ];
+    for (const headers of kinds) {
+      upstreamResponse = () => new Response("<head></head>", { status: 200, headers });
+      expect(await (await handlePreviewRequest(page(cookie, previewId), deps())).text(), JSON.stringify(headers)).toBe("<head></head>");
+    }
+    upstreamResponse = () => new Response("<head></head>", { status: 404, headers: { "content-type": "text/html" } });
+    expect(await (await handlePreviewRequest(page(cookie, previewId), deps())).text()).toBe("<head></head>");
+  });
+
+  it("passes on a page larger than it reads, whole and unchanged", async () => {
+    const { previewId, launchUrl } = await openPreview(ALICE, { pick: true });
+    const cookie = await launch(launchUrl);
+    const big = `<head></head>${"x".repeat(6 * 1024 * 1024)}`;
+    upstreamResponse = () => new Response(big, { status: 200, headers: { "content-type": "text/html" } });
+    const text = await (await handlePreviewRequest(page(cookie, previewId), deps())).text();
+    expect(text.length).toBe(big.length);
+    expect(text.startsWith("<head></head>")).toBe(true);
   });
 });
