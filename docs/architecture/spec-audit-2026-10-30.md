@@ -44,7 +44,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
   - nine static-site templates (three added in stage 101: online store, booking, dashboard).
 - **Partly built:**
   - Templates: e-commerce, booking and an admin dashboard (stage 101, ADR 0124); a CRM template and a REST API service starter in plain Node.js (stage 117, ADR 0140). Still nothing for a SaaS app with sign-in: published sites are static, and the Next.js starter is where one is built.
-  - Git: a pull request per applied change, on its own branch, through the workspace's fine-grained token (stage 103). No private-repository import, no stacked pull requests, nothing back from GitHub after a pull request opens.
+  - Git: a pull request per applied change, on its own branch, through the workspace's fine-grained token (stage 103). What happens after a pull request opens is read back hourly and on request (stage 120, ADR 0143). No private-repository import and no stacked pull requests.
 - **Partly built:** the visual builder (visual edit to diff): static sites in stage 95 (ADR 0118), and apps with a build step by component in stage 106 (ADR 0129: words and Tailwind classes in JSX). Picking an element in a running app isn't built.
 
 ### 7. Native agent

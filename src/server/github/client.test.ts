@@ -24,6 +24,20 @@ describe("the GitHub client", () => {
     expect(f.calls[0]!.headers).toMatchObject({ authorization: `Bearer ${TOKEN}`, "x-github-api-version": "2022-11-28" });
   });
 
+  it("reads a pull request's state and the check runs on its head (ADR 0143)", async () => {
+    const head = "c".repeat(40);
+    const f = fakeGitHub((url) =>
+      url.includes("/pulls/")
+        ? { status: 200, json: { state: "closed", merged: true, merged_at: "2026-10-31T09:00:00Z", head: { sha: head } } }
+        : { status: 200, json: { total_count: 2, check_runs: [{ name: "test", status: "completed", conclusion: "success" }, { name: "build", status: "in_progress", conclusion: null }, { status: "queued" }] } },
+    );
+    const gh = createGitHubClient(TOKEN, f.fetcher);
+    expect(await gh.pull("alice", "shop", 7)).toEqual({ ok: true, value: { state: "merged", mergedAt: "2026-10-31T09:00:00Z", headSha: head } });
+    expect(await gh.checkRuns("alice", "shop", head)).toEqual({ ok: true, value: [{ name: "test", status: "completed", conclusion: "success" }, { name: "build", status: "in_progress", conclusion: null }] });
+    expect(f.calls.map((c) => c.url)).toEqual(["https://api.github.com/repos/alice/shop/pulls/7", `https://api.github.com/repos/alice/shop/commits/${head}/check-runs?per_page=50`]);
+    expect(f.calls.every((c) => c.method === "GET")).toBe(true);
+  });
+
   it("reads who the token belongs to and when it expires", async () => {
     const f = fakeGitHub(() => ({ status: 200, json: { login: "alice" }, headers: { "github-authentication-token-expiration": "2027-01-28 10:00:00 UTC" } }));
     expect(await createGitHubClient(TOKEN, f.fetcher).user()).toEqual({ ok: true, value: { login: "alice", expiresAt: "2027-01-28T10:00:00.000Z" } });

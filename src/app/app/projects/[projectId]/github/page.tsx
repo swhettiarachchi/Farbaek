@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, PageHeader } from "@/components/app/primitives";
 import { PullStatusChip } from "@/components/github/pull-status";
+import { PullOnGitHub } from "@/components/github/pull-on-github";
 import { RepoLinkForm } from "@/components/github/repo-link";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
@@ -145,6 +146,9 @@ export default async function ProjectGitHubPage({ params }: { params: Promise<{ 
                       </p>
                     </div>
                     <PullStatusChip state={p.status} />
+                  </div>
+                  <div className="mt-3">
+                    <PullOnGitHub pull={p} />
                   </div>
                   <div className="mt-3">
                     <Link href={`/app/tasks/${p.taskId}`} className={buttonClasses("ghost", "sm")}>

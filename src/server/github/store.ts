@@ -6,7 +6,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import type { ChangedFile, ProofStatus } from "@/core/github/pull-request";
+import type { ChangedFile, ProofStatus, PullChecks, PullState } from "@/core/github/pull-request";
 import { openToken, sealToken, vaultKey } from "@/server/launch/token-vault";
 
 const BIND = "github";
@@ -42,11 +42,18 @@ export interface PullRequestView {
   status: CommitStatusState | null;
   statusPostedAt: string | null;
   openedAt: string;
+  /** What GitHub said when last read (ADR 0143); null until it has been read. */
+  prState: PullState | null;
+  mergedAt: string | null;
+  headSha: string | null;
+  checks: PullChecks | null;
+  syncedAt: string | null;
+  syncProblem: string | null;
 }
 
 const ConnectionRow = z.object({ login: z.string(), token_hint: z.string(), expires_at: z.string().nullable(), set_at: z.string(), last_used_at: z.string().nullable() });
 const LinkRow = z.object({ owner: z.string(), repo: z.string(), repo_id: z.coerce.number(), default_branch: z.string(), linked_at: z.string() });
-const PULL_COLUMNS = "id, task_id, proposal_id, repo_full_name, number, url, branch, base_branch, commit_sha, status_state, status_posted_at, opened_at";
+const PULL_COLUMNS = "id, task_id, proposal_id, repo_full_name, number, url, branch, base_branch, commit_sha, status_state, status_posted_at, opened_at, pr_state, merged_at, head_sha, checks, synced_at, sync_problem";
 const PullRow = z.object({
   id: z.string(),
   task_id: z.string(),
@@ -60,6 +67,15 @@ const PullRow = z.object({
   status_state: z.enum(["success", "failure", "pending"]).nullable(),
   status_posted_at: z.string().nullable(),
   opened_at: z.string(),
+  pr_state: z.enum(["open", "closed", "merged"]).nullable().catch(null),
+  merged_at: z.string().nullable().catch(null),
+  head_sha: z.string().nullable().catch(null),
+  checks: z
+    .object({ total: z.number(), passed: z.number(), failed: z.number(), pending: z.number(), runs: z.array(z.object({ name: z.string(), result: z.enum(["passed", "failed", "pending", "skipped"]) })) })
+    .nullable()
+    .catch(null),
+  synced_at: z.string().nullable().catch(null),
+  sync_problem: z.string().nullable().catch(null),
 });
 
 const toPull = (r: z.infer<typeof PullRow>): PullRequestView => ({
@@ -75,6 +91,12 @@ const toPull = (r: z.infer<typeof PullRow>): PullRequestView => ({
   status: r.status_state,
   statusPostedAt: r.status_posted_at,
   openedAt: r.opened_at,
+  prState: r.pr_state,
+  mergedAt: r.merged_at,
+  headSha: r.head_sha,
+  checks: r.checks,
+  syncedAt: r.synced_at,
+  syncProblem: r.sync_problem,
 });
 
 /** Whether the workspace has connected GitHub, and as whom; never the token. */

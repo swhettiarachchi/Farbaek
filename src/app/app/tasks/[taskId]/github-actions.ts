@@ -5,6 +5,7 @@ import { z } from "zod";
 import { withheldFor } from "@/core/workspace/permissions";
 import { createGitHubClient } from "@/server/github/client";
 import { openPullRequest, postPullStatus } from "@/server/github/pull-requests";
+import { createSupabasePullSyncStore, syncPull } from "@/server/github/pull-sync";
 import { latestProofStatus, loadAppliedChange, openGitHubToken, readProposalPull, readRepoLink } from "@/server/github/store";
 import { log } from "@/server/observability/log";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
@@ -102,4 +103,29 @@ export async function updatePullStatusAction(proposalId: string): Promise<PullRe
   await m.admin.rpc("app_record_github_status", { p_org: m.orgId, p_proposal: proposalId, p_state: posted.value });
   revalidatePath(`/app/tasks/${pull.taskId}`);
   return { status: "done", message: "Updated the status on GitHub." };
+}
+
+/**
+ * Reads the pull request on GitHub now (ADR 0143): open, merged or closed,
+ * and the checks GitHub ran on its head. Reading needs a contributor, not the
+ * publish permission; it changes nothing on GitHub.
+ */
+export async function readPullFromGitHubAction(proposalId: string): Promise<PullRequestState> {
+  if (!z.uuid().safeParse(proposalId).success) return { status: "error", message: "That change doesn't exist." };
+  const ctx = await loadAppContext();
+  if (!ctx?.current) return { status: "error", message: "Open a workspace first." };
+  if (ctx.mode !== "live") return { status: "error", message: "The demo workspace isn't connected to GitHub." };
+  if (!ctx.role || !CONTRIBUTOR_ROLES.includes(ctx.role)) return { status: "error", message: "Viewers see what was last read from GitHub. Ask a member to check again." };
+  const [admin, user] = [createSupabaseAdminClient(), await createSupabaseServerClient()];
+  if (!admin || !user) return { status: "error", message: "The server isn't configured for this." };
+  const pull = await readProposalPull(user, ctx.current.id, proposalId).catch(() => null);
+  if (!pull) return { status: "error", message: "No pull request is open for this change." };
+  // GitHub's rate limit is shared by the workspace's token: once every 20 seconds is plenty.
+  if (pull.syncedAt && Date.now() - Date.parse(pull.syncedAt) < 20_000) return { status: "done", message: "Read from GitHub a moment ago." };
+  const token = await tokenFor(admin, ctx.current.id);
+  if ("error" in token) return { status: "error", message: token.error ?? "GitHub isn't connected." };
+  const r = await syncPull(createGitHubClient(token.token), createSupabasePullSyncStore(admin), { id: pull.id, orgId: ctx.current.id, repo: pull.repo, number: pull.number });
+  revalidatePath(`/app/tasks/${pull.taskId}`);
+  if ("problem" in r) return { status: "error", message: r.problem };
+  return { status: "done", message: r.state === "merged" ? "Merged on GitHub." : r.state === "closed" ? "Closed on GitHub without merging." : "Still open on GitHub." };
 }

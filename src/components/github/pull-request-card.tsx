@@ -4,6 +4,7 @@ import { Card } from "@/components/app/primitives";
 import { RelativeTime } from "@/components/ui/local-time";
 import type { PullRequestView } from "@/server/github/store";
 import { PullRequestControls } from "./pull-request-controls";
+import { PullOnGitHub } from "./pull-on-github";
 import { PullStatusChip } from "./pull-status";
 
 /**
@@ -32,7 +33,11 @@ export function PullRequestCard({ projectId, proposalId, pull, repo, openReason 
             <span className="break-all font-mono">{pull.branch}</span> into <span className="font-mono">{pull.baseBranch}</span>, commit <span className="font-mono">{pull.commitSha.slice(0, 7)}</span>. Opened <RelativeTime iso={pull.openedAt} />.
           </p>
           <p className="text-xs text-ink-3">The Farbaek ProofPack status is on this commit only. Farbaek updates it when checks run again here.</p>
-          <PullRequestControls proposalId={proposalId} mode="update" disabledReason={openReason} />
+          <PullOnGitHub pull={pull} />
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
+            <PullRequestControls proposalId={proposalId} mode="read" disabledReason={null} />
+            {pull.prState === "open" || pull.prState === null ? <PullRequestControls proposalId={proposalId} mode="update" disabledReason={openReason} /> : null}
+          </div>
         </div>
       ) : (
         <div className="mt-3 grid gap-3">

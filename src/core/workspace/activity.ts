@@ -109,6 +109,8 @@ const VERBS: Record<string, string> = {
   "handoff.requested": "sent a task to a computer",
   "handoff.cancelled": "withdrew a task from a computer",
   "handoff.finished": "got a computer's report on a task",
+  "github.pull_merged": "saw a pull request merged on GitHub",
+  "github.pull_closed": "saw a pull request closed on GitHub",
   "watch.on": "turned on outcome watching",
   "watch.off": "turned off outcome watching",
   "agent.pairing_created": "created an agent pairing code",

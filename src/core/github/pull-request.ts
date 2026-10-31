@@ -176,3 +176,39 @@ export function pullRequestBody(input: {
     `Task: ${input.taskUrl}`,
   ].join("\n");
 }
+
+// What happened after Farbaek opened the pull request (ADR 0143).
+
+export type PullState = "open" | "closed" | "merged";
+export type CheckResult = "passed" | "failed" | "pending" | "skipped";
+
+export interface PullChecks {
+  total: number;
+  passed: number;
+  failed: number;
+  pending: number;
+  /** At most 30, by name. */
+  runs: { name: string; result: CheckResult }[];
+}
+
+/** One GitHub check run's result: anything not completed is pending; only success passes. */
+export function checkResult(status: string | null, conclusion: string | null): CheckResult {
+  if (status !== "completed") return "pending";
+  if (conclusion === "success") return "passed";
+  if (conclusion === "neutral" || conclusion === "skipped") return "skipped";
+  return "failed";
+}
+
+export function summarizeChecks(runs: readonly { name: string; status: string | null; conclusion: string | null }[]): PullChecks {
+  const results = runs.map((r) => ({ name: r.name.slice(0, 120) || "Unnamed check", result: checkResult(r.status, r.conclusion) }));
+  const count = (k: CheckResult) => results.filter((r) => r.result === k).length;
+  return { total: results.length, passed: count("passed"), failed: count("failed"), pending: count("pending"), runs: results.slice(0, 30) };
+}
+
+/** The pull request's state from GitHub's answer: merged wins over closed. */
+export function pullStateFrom(json: { state?: unknown; merged?: unknown; merged_at?: unknown }): { state: PullState; mergedAt: string | null } | null {
+  if (json.merged === true || (typeof json.merged_at === "string" && json.merged_at)) return { state: "merged", mergedAt: typeof json.merged_at === "string" ? json.merged_at : new Date().toISOString() };
+  if (json.state === "open") return { state: "open", mergedAt: null };
+  if (json.state === "closed") return { state: "closed", mergedAt: null };
+  return null;
+}

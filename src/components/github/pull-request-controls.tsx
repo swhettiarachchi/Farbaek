@@ -2,21 +2,24 @@
 
 import { CheckCircleIcon, GitPullRequestIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState } from "react";
-import { openPullRequestAction, updatePullStatusAction, type PullRequestState } from "@/app/app/tasks/[taskId]/github-actions";
+import { openPullRequestAction, readPullFromGitHubAction, updatePullStatusAction, type PullRequestState } from "@/app/app/tasks/[taskId]/github-actions";
 import { buttonClasses } from "@/components/ui/button";
 
 const IDLE: PullRequestState = { status: "idle" };
 
-/** Opening a pull request for an applied change, or posting its status again (ADR 0126). */
-export function PullRequestControls({ proposalId, mode, disabledReason }: { proposalId: string; mode: "open" | "update"; disabledReason: string | null }) {
-  const [state, run, running] = useActionState((mode === "open" ? openPullRequestAction : updatePullStatusAction).bind(null, proposalId), IDLE);
+const ACTIONS = { open: openPullRequestAction, update: updatePullStatusAction, read: readPullFromGitHubAction } as const;
+const LABELS = { open: ["Open a pull request", "Opening…"], update: ["Update the status check", "Posting…"], read: ["Check GitHub now", "Reading…"] } as const;
+
+/** Opening a pull request for an applied change, posting its status again (ADR 0126), or reading it from GitHub (ADR 0143). */
+export function PullRequestControls({ proposalId, mode, disabledReason }: { proposalId: string; mode: "open" | "update" | "read"; disabledReason: string | null }) {
+  const [state, run, running] = useActionState(ACTIONS[mode].bind(null, proposalId), IDLE);
   const busy = running || Boolean(disabledReason);
   return (
     <div className="grid gap-2">
       <form action={run} className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={busy} className={buttonClasses(mode === "open" ? "primary" : "secondary", "sm")}>
           {mode === "open" ? <GitPullRequestIcon size={16} aria-hidden /> : null}
-          {running ? (mode === "open" ? "Opening…" : "Posting…") : mode === "open" ? "Open a pull request" : "Update the status check"}
+          {running ? LABELS[mode][1] : LABELS[mode][0]}
         </button>
         {disabledReason ? <span className="text-sm text-ink-3">{disabledReason}</span> : null}
       </form>
