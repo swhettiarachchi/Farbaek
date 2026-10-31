@@ -9,11 +9,24 @@ import { componentFiles, isTailwindProject } from "@/core/studio/jsx-edit";
 import { ButtonLink } from "@/components/ui/button";
 import { runProfile } from "@/content/starters";
 import { sitePages } from "@/core/workspace/static-preview";
-import { loadAppContext } from "@/server/workspace/context";
+import { sandboxForPage } from "@/server/sandbox/page-context";
+import { previewUnavailableReason, readSandboxConfig } from "@/server/sandbox/config";
+import { loadAppContext, type AppContext } from "@/server/workspace/context";
 import { previewImages } from "@/server/workspace/preview-images";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
 
 export const metadata: Metadata = { title: "Visual editor" };
+
+/** The project's running sandbox sessions to pick elements in (ADR 0149), or why picking isn't offered. */
+async function pickSessions(ctx: AppContext, projectId: string): Promise<{ sessions: { id: string; name: string }[]; unavailable: string | null }> {
+  const sandbox = await sandboxForPage(ctx);
+  if (!sandbox.ok) return { sessions: [], unavailable: `Picking in the running app needs a sandbox. ${sandbox.reason}` };
+  const unavailable = previewUnavailableReason(readSandboxConfig());
+  if (unavailable) return { sessions: [], unavailable: `Picking in the running app needs previews. ${unavailable}` };
+  const list = await sandbox.value.store.listSessions(sandbox.value.actor.orgId, { states: ["ready"], sort: "newest", page: 1, pageSize: 50 }).catch(() => null);
+  if (!list) return { sessions: [], unavailable: "The project's sandbox sessions couldn't be read just now. Reload to try again." };
+  return { sessions: list.rows.filter((s) => s.projectId === projectId).map((s) => ({ id: s.id, name: s.name })), unavailable: null };
+}
 
 /** The same budget as the project page's instant preview. */
 const MAX_TEXT_BYTES = 3 * 1024 * 1024;
@@ -62,6 +75,9 @@ export default async function DesignPage({ params, searchParams }: { params: Pro
             ? "Viewers can't change files. Ask an owner or admin for a member role."
             : null;
 
+  // Picking in the running app (ADR 0149): the project's running sandbox sessions, or why it isn't offered.
+  const pick = isStatic || components.length === 0 ? null : await pickSessions(ctx, project.id);
+
   const unavailable = !isStatic
     ? components.length === 0
       ? "This project has a build step but no React components (.tsx or .jsx) to edit. Change it in code or describe the change to the agent."
@@ -107,6 +123,7 @@ export default async function DesignPage({ params, searchParams }: { params: Pro
           revisions={Object.fromEntries(files.map((f) => [f.path, f.revision]))}
           tailwind={tailwind}
           disabledReason={saveReason}
+          pick={pick}
         />
       ) : unavailable || !text ? (
         <EmptyState

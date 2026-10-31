@@ -100,6 +100,23 @@ export interface PreviewTokenClaims {
   exp: number;
   /** Single-use nonce for launch tokens. */
   n?: string;
+  /** Opened from the component editor to pick elements (ADR 0149): HTML pages get Farbaek's picker script. */
+  pick?: true;
+}
+
+/** Where a preview host serves Farbaek's picker script (ADR 0149), same origin as the app so its own CSP allows it. */
+export const PICKER_PATH = "/__farbaek/pick.js";
+/** The largest page the picker is added to; bigger ones pass through as they are. */
+export const PICKER_MAX_HTML_BYTES = 5 * 1024 * 1024;
+
+/** Adds the picker script to an HTML page: inside <head> when there is one, otherwise before </body>, otherwise first. */
+export function injectPicker(html: string): string {
+  const tag = `<script src="${PICKER_PATH}" defer></script>`;
+  const head = /<head(?:\s[^>]*)?>/i.exec(html);
+  if (head) return html.slice(0, head.index + head[0].length) + tag + html.slice(head.index + head[0].length);
+  const body = html.search(/<\/body\s*>/i);
+  if (body >= 0) return html.slice(0, body) + tag + html.slice(body);
+  return tag + html;
 }
 
 export async function signPreviewToken(claims: PreviewTokenClaims, secret: string): Promise<string> {
