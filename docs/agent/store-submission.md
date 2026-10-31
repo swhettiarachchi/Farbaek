@@ -22,13 +22,12 @@ The package:
 - **Submission options:** publish as soon as it passes certification, as the owner asked on 2026-10-31.
 - **Notes for certification** (Additional Testing Information): why `runFullTrust` and `privateNetworkClientServer`, and how to try it with a free account. No credentials are given; the testers sign up themselves.
 
-## Left for the owner
+## Submitted for certification (2026-10-31)
 
-1. Open https://partner.microsoft.com/en-us/dashboard/products/9N4GNB94KH9M/overview and go to **Packages**.
-2. Drag `Farbaek-Agent-0.9.0.appx` from the Desktop folder into the box. Partner Center checks it, which takes a minute or two.
-3. **Device families:** tick **Windows 10/11 Desktop** only, then click **Save**.
-4. If Partner Center asks about **restricted capabilities** (`runFullTrust`), paste: "An Electron desktop app that runs developer commands in a copy of the user's project, after the user approves them."
-5. Back on the overview, every section should say **Complete**. Click **Submit for certification**.
+- **The package:** the owner uploaded `Farbaek-Agent-0.9.0.appx`, which Partner Center validated as v0.9.0.0, x64. It's offered to Windows 10/11 Desktop only.
+- **Restricted capabilities (`runFullTrust`).** The justification, which must be at most 500 characters:
+  > Farbaek Agent is an Electron developer app. Full trust lets it run developer tools as normal processes: after the user approves each one, it runs commands such as git, node and pnpm in its own copy of the user's project, and starts MCP servers the user adds. It stores its token with Windows DPAPI (Electron safeStorage) and copies project files into its own folder. Nothing runs until the user starts a task, and anything beyond reading files waits for their approval.
+- **Submitted:** every section said Complete, then **Submit for certification**. The status is "In certification", and it publishes as soon as it passes.
 
 Microsoft usually answers within 1 to 3 business days by email. When it passes, it goes public by itself. Then:
 1. Install it on this PC from https://apps.microsoft.com/detail/9N4GNB94KH9M, pair it and run one Review Only task.
