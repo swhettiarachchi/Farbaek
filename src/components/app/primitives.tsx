@@ -7,12 +7,12 @@ import type { TaskState } from "@/core/realityloop/task-machine";
 
 export function PageHeader({ title, description, actions }: { title: string; description?: ReactNode; actions?: ReactNode }) {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div>
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="min-w-0">
         <h1 className="text-balance text-[1.75rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2.1rem]">{title}</h1>
         {description ? <p className="mt-2 max-w-[62ch] text-[15px] leading-relaxed text-ink-2">{description}</p> : null}
       </div>
-      {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
+      {actions ? <div className="flex min-w-0 flex-wrap gap-2 lg:justify-end">{actions}</div> : null}
     </div>
   );
 }

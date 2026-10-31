@@ -163,7 +163,13 @@ export function ComponentEditor({
                   className={`flex min-h-11 w-full min-w-0 items-center gap-2 rounded-sm pr-3 text-left text-sm transition-colors duration-150 ${selected === e.n ? "bg-accent/[0.09] text-ink ring-1 ring-accent/40" : "hover:bg-surface-raised"}`}
                 >
                   <span className={`shrink-0 font-mono text-xs ${e.builtin ? "text-ink-2" : "text-accent"}`}>&lt;{e.tag}&gt;</span>
-                  <span className="min-w-0 truncate text-ink-2">{e.text?.value ?? (e.className ? <span className="font-mono text-xs text-ink-3">{e.className.value || "no classes"}</span> : null)}</span>
+                  {e.text ? (
+                    <span className="min-w-0 truncate text-ink-2">{e.text.value}</span>
+                  ) : e.className ? (
+                    <span className="min-w-0 truncate font-mono text-xs text-ink-3" title={e.className.value}>
+                      {e.className.value || "no classes"}
+                    </span>
+                  ) : null}
                   <span className="ml-auto shrink-0 font-mono text-xs text-ink-3">{e.line}</span>
                 </button>
               </li>

@@ -38,10 +38,13 @@ const STATIC_ROUTES = [
   "/app", "/app/agents", "/app/approvals", "/app/billing", "/app/build", "/app/help", "/app/help/new", "/app/mesh",
   "/app/more", "/app/new", "/app/projects", "/app/rescue", "/app/sandbox", "/app/sandbox/new", "/app/settings",
   "/app/tasks", "/app/templates", "/app/workspaces/new",
+  "/app/activity", "/app/incidents", "/app/integrations", "/app/policies", "/app/trust", "/app/workflows", "/app/workflows/new",
 ];
 const DISCOVER = [
-  { from: "/app/projects", pattern: /^\/app\/projects\/[^/]+$/, then: ["", "/files", "/launch", "/security"] },
+  { from: "/app/projects", pattern: /^\/app\/projects\/[^/]+$/, then: ["", "/files", "/launch", "/security", "/github", "/graph", "/design"] },
   { from: "/app/tasks", pattern: /^\/app\/tasks\/[^/]+$/, then: [""] },
+  { from: "/app/incidents", pattern: /^\/app\/incidents\/\d+$/, then: [""] },
+  { from: "/app/workflows", pattern: /^\/app\/workflows\/(?!new$)[^/]+$/, then: [""] },
   { from: "/app/build", pattern: /^\/app\/build\/[^/]+$/, then: [""] },
   { from: "/app/templates", pattern: /^\/app\/templates\/[^/]+$/, then: [""] },
   { from: "/app/help", pattern: /^\/app\/help\/(?!new$)[^/]+$/, then: [""] },
