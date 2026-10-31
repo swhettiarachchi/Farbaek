@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { EmptyState, PageHeader } from "@/components/app/primitives";
 import { GraphAnalyticsView } from "@/components/insights/graph-analytics";
 import { LaneGraph } from "@/components/insights/lane-graph";
+import { ProjectLoom } from "@/components/insights/project-loom";
 import { RelativeTime } from "@/components/ui/local-time";
 import { buttonClasses } from "@/components/ui/button";
 import { buildLanes, graphAnalytics } from "@/core/insights/project-graph";
@@ -66,6 +67,7 @@ export default async function ProjectGraphPage({ params }: { params: Promise<{ p
                 {records.truncated ? `The ${GRAPH_LIMITS.tasks} newest tasks, newest first.` : "Newest first."} A solid line means the work got there; a dashed one, that it hasn&apos;t yet.
               </p>
             </div>
+            <ProjectLoom lanes={lanes} />
             <LaneGraph lanes={lanes} />
           </section>
 

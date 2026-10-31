@@ -41,10 +41,14 @@ export function taskTitleFromPrompt(prompt: string): string {
 const APP_WORDS =
   /\b(app|application|dashboard|log ?in|sign ?in|sign ?up|accounts?|users?|database|admin|crm|saas|api|backend|next\.?js|react|booking system|todo|to-do|tracker|inventory|chat|portal|auth\w*)\b/i;
 
-export type PromptStarter = "static-website" | "nextjs-app";
+// Words that mean an API on its own, with no screens (ADR 0140): checked before the app words.
+const API_WORDS = /\b(rest ?api|json api|api (service|server|only)|backend api|endpoints?|web ?service|microservice)\b/i;
 
-/** The starter that fits: a Next.js app when the prompt asks for app-like behaviour, otherwise a static website that previews instantly. */
+export type PromptStarter = "static-website" | "nextjs-app" | "rest-api";
+
+/** The starter that fits: a REST API for an API on its own, a Next.js app for app-like behaviour, otherwise a static website that previews instantly. */
 export function starterForPrompt(prompt: string): PromptStarter {
+  if (API_WORDS.test(prompt)) return "rest-api";
   return APP_WORDS.test(prompt) ? "nextjs-app" : "static-website";
 }
 

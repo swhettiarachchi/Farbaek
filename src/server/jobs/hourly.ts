@@ -12,6 +12,7 @@ import { incidentEscalationDeps } from "@/server/jobs/incident-escalation-wiring
 import { runModelWatch } from "@/server/jobs/model-watch";
 import { modelWatchDeps } from "@/server/jobs/model-watch-wiring";
 import { sweepWorkflows } from "@/server/workflows/wiring";
+import { pullSyncDeps, syncDuePulls } from "@/server/github/pull-sync";
 import { runOutcomeWatches } from "@/server/jobs/outcome-watch";
 import { outcomeWatchDeps } from "@/server/jobs/outcome-watch-wiring";
 import { runPlatformAlerts } from "@/server/jobs/platform-alerts";
@@ -62,6 +63,8 @@ export async function handleHourlyJobs(request: Request): Promise<Response> {
     workflows: await runJob("workflows", createSupabaseAdminClient(), (admin) => sweepWorkflows(admin)),
     // Payment webhooks that failed or arrived while processing was busy (ADR 0100).
     billingWebhooks: await runJob("billing_webhooks", billingWebhookDeps(), (d) => processWebhooks(d)),
+    // What happened to Farbaek's pull requests on GitHub (ADR 0143).
+    githubPulls: await runJob("github_pulls", createSupabaseAdminClient(), (admin) => syncDuePulls(pullSyncDeps(admin))),
   };
   const all = Object.values(jobs);
   if (all.every((j) => j.status === "not_configured")) return problem(503, "NOT_CONFIGURED", "Email or the server key for writes isn't set, so no hourly job can run.");

@@ -26,6 +26,7 @@ import type { AppState, Result, RunDetail } from "../shared/api";
 import { DirectBridge } from "./direct";
 import { DesktopMesh } from "./mesh";
 import { RunError, RunManager } from "./runs";
+import { HandoffError, HandoffManager } from "./handoffs";
 import { SecretStore } from "./secrets";
 import { storeDataDir } from "./data-dir";
 
@@ -51,6 +52,7 @@ let settings: Settings = { paired: null };
 const dataDir = () => app.getPath("userData");
 const secrets = () => new SecretStore(path.join(dataDir(), "secrets"));
 let runs: RunManager;
+let handoffs: HandoffManager;
 /** The agent token, read once from the keychain, for Mesh's relay. */
 let agentToken: string | null = null;
 
@@ -237,6 +239,20 @@ function registerHandlers(): void {
     }),
   );
 
+  // Continue on my computer (ADR 0139): nothing runs until the person here starts it.
+  handle("handoffs:list", z.undefined(), () => attempt(async () => (await client()).handoffs()));
+  handle("handoffs:start", Id, (id) =>
+    attempt(async () => {
+      try {
+        handoffs.start(await client(), id);
+      } catch (error) {
+        if (error instanceof HandoffError) throw new RunError(error.message);
+        throw error;
+      }
+    }),
+  );
+  handle("handoffs:runs", z.undefined(), async () => handoffs.all());
+
   handle("runs:list", z.undefined(), async () => runs.list());
   handle("runs:get", Id, async (id) => runs.get(id));
   handle("runs:answer", z.object({ runId: Id, requestId: z.string().max(200), approved: z.boolean(), bindingHash: z.string().regex(/^[0-9a-f]{64}$/) }), async (input) =>
@@ -325,6 +341,11 @@ void app.whenReady().then(async () => {
     emit: (run: RunDetail) => window?.webContents.send("runs:update", run),
   });
   await runs.load();
+  handoffs = new HandoffManager({
+    dataDir: dataDir(),
+    platform: process.platform === "win32" ? "windows" : process.platform === "darwin" ? "macos" : "linux",
+    emit: () => window?.webContents.send("handoffs:update"),
+  });
   registerHandlers();
   createWindow();
 });

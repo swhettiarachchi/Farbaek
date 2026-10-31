@@ -3,10 +3,10 @@ export interface StarterFile {
   content: string;
 }
 
-export type StarterId = "blank" | "static-website" | "nextjs-app" | TemplateId;
+export type StarterId = "blank" | "static-website" | "nextjs-app" | "rest-api" | TemplateId;
 
 /** Templates: finished-looking sites with sample content, shown in the gallery. */
-export type TemplateId = "landing-page" | "saas-site" | "portfolio" | "local-business" | "event-page" | "blog" | "online-store" | "booking" | "dashboard";
+export type TemplateId = "landing-page" | "saas-site" | "portfolio" | "local-business" | "event-page" | "blog" | "online-store" | "booking" | "dashboard" | "crm";
 
 export interface Starter {
   id: StarterId;

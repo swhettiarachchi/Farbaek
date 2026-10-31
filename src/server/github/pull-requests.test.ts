@@ -36,6 +36,8 @@ function fakeClient(opts: { remote?: Record<string, string | null>; repo?: Parti
     createBranch: async (_o, _r, branch) => (opts.branchExists ? { ok: false, code: "BRANCH_EXISTS", detail: null } : (writes.push(`branch:${branch}`), ok(null))),
     openPull: async (_o, _r, i) => (writes.push(`pull:${i.head}->${i.base}`), ok({ number: 7, url: "https://github.com/alice/shop/pull/7" })),
     postStatus: async (_o, _r, sha, i) => (opts.statusFails ? { ok: false, code: "FORBIDDEN", detail: null } : (writes.push(`status:${sha}:${i.state}:${i.context}:${i.targetUrl}`), ok(null))),
+    pull: async () => ok({ state: "open" as const, mergedAt: null, headSha: "4".repeat(40) }),
+    checkRuns: async () => ok([]),
   };
   return { client, writes };
 }

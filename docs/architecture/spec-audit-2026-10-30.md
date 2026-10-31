@@ -29,7 +29,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
   - Mission Control, Projects, Create, Build, Tasks, Approvals, Sandbox, Agents, Mesh, Workflows, Policies, Incidents, Billing and usage, Settings, Help;
   - onboarding (first steps) and the labelled sample workspace.
 - **Partly built:** Activity / Audit now has its own page (stage 96, ADR 0119), with filters and a CSV download. Integrations now have their own page too (stage 97, ADR 0120).
-- **Stale:** `src/components/app/roadmap.ts` still lists "Mobile apps" as missing.
+- **Fixed:** the app's roadmap now lists phone apps in the stores, which is what's still missing; the apps themselves are built (section 13).
 
 ### 6. Studio
 
@@ -43,8 +43,8 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
   - GitHub pull requests for applied changes, with a Farbaek ProofPack status (stage 103, ADR 0126);
   - nine static-site templates (three added in stage 101: online store, booking, dashboard).
 - **Partly built:**
-  - Templates: e-commerce, booking and an admin dashboard were added in stage 101 (ADR 0124); there's still nothing for a SaaS app with sign-in, CRM or REST API. The spec says to match the stack actually implemented, and published sites are static.
-  - Git: a pull request per applied change, on its own branch, through the workspace's fine-grained token (stage 103). No private-repository import, no stacked pull requests, nothing back from GitHub after a pull request opens.
+  - Templates: e-commerce, booking and an admin dashboard (stage 101, ADR 0124); a CRM template and a REST API service starter in plain Node.js (stage 117, ADR 0140). Still nothing for a SaaS app with sign-in: published sites are static, and the Next.js starter is where one is built.
+  - Git: a pull request per applied change, on its own branch, through the workspace's fine-grained token (stage 103). What happens after a pull request opens is read back hourly and on request (stage 120, ADR 0143). No private-repository import and no stacked pull requests.
 - **Partly built:** the visual builder (visual edit to diff): static sites in stage 95 (ADR 0118), and apps with a build step by component in stage 106 (ADR 0129: words and Tailwind classes in JSX). Picking an element in a running app isn't built.
 
 ### 7. Native agent
@@ -54,7 +54,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 ### 8. IntentLock, RealityLoop, Context Readiness, outcome contracts
 
 - **Built:** intent contracts, the full task state machine, Future-State Arena, counterfactual replay, outcome watch, incident-to-prevention.
-- **Not built:** the Context Readiness Engine and Context Passport (per-fact provenance and freshness: verified-current, possibly stale, conflicting, inferred, missing).
+- **Built:** the Context Readiness Engine and Context Passport (stage 93, ADR 0116): per-fact provenance and freshness (verified-current, possibly stale, conflicting, inferred, missing).
 
 ### 9. Trust
 
@@ -104,7 +104,8 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 ### 12. LaunchOS
 
 - **Built:** the Launch Planner, Vercel and Netlify adapters, explicit deploy authorization, health checks, and custom domains for published sites.
-- **Partly built:** the planner shows no cost estimates. It says so honestly rather than guessing.
+- **Built:** what will cost money at launch (stage 118, ADR 0141): the drivers in the project's own files, with evidence and each host's pricing page.
+- **Partly built:** no dollar estimates. Farbaek can't see a person's plan or traffic at a host, so it says so rather than guessing.
 
 ### 13. Native apps
 
@@ -123,8 +124,9 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 ### 25. Innovation backlog
 
 - **Built:** Cost-Before-Compute caps, Intent Diff Lens, Portable Proof (signed ProofPacks, `/verify` and the "Farbaek ProofPack" status on GitHub, stage 103), the Sandbox Egress Ledger (stage 104, recorded by a proxy inside the sandbox), Eject (project export), Approval Wallet, Model Change Canary, Incident Replay Theatre, the publish evidence gate.
-- **Partly built:** Real-Project Loom (the 2D project graph; no 3D view).
-- **Not built:** Continue-on-Desktop handoff. (Tool Definition Pinning: built in stage 110, ADR 0133.)
+- **Built, experimental:** Real-Project Loom: the 2D project graph and an opt-in 3D view of the same real records (stage 119, ADR 0142). It stays off by default until usability testing shows it helps.
+- **Built:** Continue-on-Desktop handoff (stage 116, ADR 0139), through Farbaek rather than Mesh until the phone apps are native; reports are labelled as reported by the computer.
+- **Not built:** nothing else in this section. (Tool Definition Pinning: built in stage 110, ADR 0133.)
 
 ## Claims on the public site that aren't true yet
 

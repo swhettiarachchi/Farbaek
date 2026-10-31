@@ -4,6 +4,7 @@
  * names and encoded. Errors come back as codes with plain messages; neither
  * ever contains the token.
  */
+import { pullStateFrom, type PullState } from "@/core/github/pull-request";
 
 const API = "https://api.github.com";
 const TIMEOUT_MS = 15_000;
@@ -55,6 +56,10 @@ export interface GitHubClient {
   createBranch(owner: string, repo: string, branch: string, commit: string): Promise<GitHubResult<null>>;
   openPull(owner: string, repo: string, input: { title: string; body: string; head: string; base: string }): Promise<GitHubResult<{ number: number; url: string }>>;
   postStatus(owner: string, repo: string, commit: string, input: { state: "success" | "failure" | "pending"; description: string; context: string; targetUrl: string }): Promise<GitHubResult<null>>;
+  /** Where a pull request stands now (ADR 0143). */
+  pull(owner: string, repo: string, number: number): Promise<GitHubResult<{ state: PullState; mergedAt: string | null; headSha: string | null }>>;
+  /** The check runs GitHub has for a commit. Needs the token's Checks read access. */
+  checkRuns(owner: string, repo: string, commit: string): Promise<GitHubResult<{ name: string; status: string | null; conclusion: string | null }[]>>;
 }
 
 type Fetcher = typeof fetch;
@@ -166,6 +171,23 @@ export function createGitHubClient(token: string, fetcher: Fetcher = fetch, time
     async postStatus(owner, repo, commit, input) {
       const r = await call("POST", `${repoPath(owner, repo)}/statuses/${commit}`, { state: input.state, description: input.description.slice(0, 140), context: input.context, target_url: input.targetUrl });
       return r.ok ? { ok: true, value: null } : r;
+    },
+    async pull(owner, repo, number) {
+      const r = await call("GET", `${repoPath(owner, repo)}/pulls/${number}`);
+      if (!r.ok) return r;
+      const j = (r.value.json ?? {}) as { state?: unknown; merged?: unknown; merged_at?: unknown; head?: { sha?: unknown } };
+      const state = pullStateFrom(j);
+      return state ? { ok: true, value: { ...state, headSha: sha(j.head?.sha) } } : unexpected;
+    },
+    async checkRuns(owner, repo, commit) {
+      const r = await call("GET", `${repoPath(owner, repo)}/commits/${commit}/check-runs?per_page=50`);
+      if (!r.ok) return r;
+      const runs = (r.value.json as { check_runs?: unknown } | null)?.check_runs;
+      if (!Array.isArray(runs)) return unexpected;
+      return {
+        ok: true,
+        value: runs.flatMap((c: { name?: unknown; status?: unknown; conclusion?: unknown }) => (typeof c?.name === "string" ? [{ name: c.name, status: str(c.status), conclusion: str(c.conclusion) }] : [])),
+      };
     },
   };
 }

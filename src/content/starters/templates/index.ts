@@ -12,6 +12,7 @@ import { LANDING_PAGE_FILES } from "./landing-page";
 import { LOCAL_BUSINESS_FILES } from "./local-business";
 import { ONLINE_STORE_FILES } from "./online-store";
 import { BOOKING_FILES } from "./booking";
+import { CRM_FILES } from "./crm";
 import { DASHBOARD_FILES } from "./dashboard";
 import { PORTFOLIO_FILES } from "./portfolio";
 import { SAAS_SITE_FILES } from "./saas-site";
@@ -81,5 +82,12 @@ export const TEMPLATES: readonly Starter[] = [
     summary: "A back office: key numbers, a revenue chart you can read by day, and an orders table with search and CSV export.",
     files: DASHBOARD_FILES,
     examplePrompt: "Turn this into a dashboard for my tutoring business: lessons, students and monthly income.",
+  }),
+  site({
+    id: "crm",
+    name: "CRM",
+    summary: "A studio pipeline: deals you move between stages, a flow bar of where the value sits, and contacts you can search and sort.",
+    files: CRM_FILES,
+    examplePrompt: "Make this the CRM for my wedding photography business: enquiries, booked shoots and follow-ups.",
   }),
 ];

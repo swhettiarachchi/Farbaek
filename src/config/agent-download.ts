@@ -5,12 +5,12 @@
  * with this exact SHA-256 (docs/agent/README.md, "Publishing a release").
  */
 export const AGENT_DOWNLOAD = {
-  version: "0.7.0",
+  version: "0.8.0",
   platform: "windows",
-  file: "Farbaek-Agent-Setup-0.7.0.exe",
-  bytes: 114_100_130,
-  sha256: "7374925e77e89afb05e6651be2a091b2097341b7281cda3811bf763cff1f70a0",
-  builtOn: "2026-10-27",
+  file: "Farbaek-Agent-Setup-0.8.0.exe",
+  bytes: 114_108_986,
+  sha256: "e886be32e698e9b7635f7f360f88a009747685595a7bd45d533722118dcc829e",
+  builtOn: "2026-10-31",
 } as const;
 
 export const agentDownloadUrl = `/downloads/${AGENT_DOWNLOAD.file}`;

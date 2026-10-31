@@ -27,9 +27,11 @@ You choose how much it can do:
 - Review Only: reads the files and prepares a patch. No command runs and nothing on disk changes.
 - Controlled Development: edits its own copy of the project, with a checkpoint before each change. Read-only commands run; tests, builds, installs and anything risky wait for your approval.
 
+When you hand a task to this computer from Farbaek, it lists the exact check commands first, runs them only when you choose to, and sends the results back to the task.
+
 It also sends folders between your paired computers with Nearby: on the same network, or over the internet, encrypted end to end, with every piece checked when it arrives.
 
-The agent's token is kept in Windows' own protected storage. Each AI step goes through Farbaek to Claude; Farbaek doesn't keep the conversation, and records only the model and token counts against your workspace's AI usage.
+The agent's token is kept in Windows' own protected storage. Each AI step goes through Farbaek to Claude, or, if you set one up, to a model running on this computer (Ollama, LM Studio or llama.cpp), so the files never leave it for the model call. For steps through Farbaek, Farbaek doesn't keep the conversation, and records only the model and token counts against your workspace's AI usage.
 
 ## Features (up to 20, one line each)
 
@@ -41,6 +43,8 @@ The agent's token is kept in Windows' own protected storage. Each AI step goes t
 - Nearby: send folders between your paired computers
 - Encrypted end to end, every piece checked on arrival
 - Pairs with your workspace using a one-time code
+- Runs a task's checks here when you hand it over from Farbaek
+- Can use a model running on this computer
 
 ## Search terms (up to 7)
 
@@ -48,12 +52,18 @@ Farbaek, coding agent, AI developer tools, code review, software tasks, file tra
 
 ## Age rating questionnaire
 
-- **Category:** Utility or productivity app (not a game).
-- **Violence, sexual content, profanity, drugs, gambling:** None.
-- **User-generated content shared with others:** No. The agent works only in the person's own workspace.
-- **Location:** not shared.
-- **Personal information:** the person's Farbaek account is used to pair; see the privacy policy.
-- **Digital purchases:** None.
+The IARC answers as submitted on 2026-10-31 (rating 3+ in every region, with "Users Interact"):
+
+- **App type:** All other app types (not a game, not social or communication).
+- **Rating-relevant content in the package:** No.
+- **Users exchange content:** Yes. Nearby sends folders to a device someone has paired, which can be another person's (ADR 0038: both people confirm the code).
+  - Shared content is the main content: No. Public sharing of nudity or graphic violence: No (nothing is public; transfers go only to paired devices).
+  - Block users or content: Yes (forget a paired device; nothing arrives unless the person accepts it). Report: No. Chat moderation: No (there's no chat).
+  - Limited to invited people: Yes (only paired devices).
+- **Online content:** Yes (AI-written changes and notes). Violence, sexual material, offensive language, drugs: No.
+- **Age-restricted products:** No.
+- **Location shared, digital purchases, cash rewards or NFTs, browser or search engine, news or education:** No.
+- **Ratings board or physical media:** No.
 
 ## Screenshots
 
