@@ -2,7 +2,8 @@
  * The trust graph (ADR 0132, spec §9): who and what can act in a workspace,
  * and on what. Built only from records the workspace keeps (members and
  * their permissions, paired agents and their leases, projects, workflows,
- * connected services), read as the person, so it never shows another
+ * connected services, and since ADR 0146 agents' pinned tools and the
+ * workspace's rules), read as the person, so it never shows another
  * workspace. Every edge says which record it came from; nothing is inferred.
  *
  * The rule it rests on is enforced on the server: an agent acts with the
@@ -10,8 +11,9 @@
  * within its lease. So an agent never has more authority than its person.
  */
 import type { AgentCapability } from "../agent/lease";
+import { EFFECTS, type WorkspaceRule } from "./workspace-rules";
 
-export type TrustNodeKind = "person" | "agent" | "project" | "integration" | "workflow";
+export type TrustNodeKind = "person" | "agent" | "project" | "integration" | "workflow" | "tool" | "rule";
 
 export interface TrustNode {
   id: string;
@@ -23,7 +25,7 @@ export interface TrustNode {
   inactive: boolean;
 }
 
-export type TrustEdgeKind = "can_change" | "can_view" | "paired" | "lease" | "pull_requests" | "connected" | "approved" | "works_on";
+export type TrustEdgeKind = "can_change" | "can_view" | "paired" | "lease" | "pull_requests" | "connected" | "approved" | "works_on" | "uses_tool" | "governs";
 
 export interface TrustEdge {
   from: string;
@@ -48,6 +50,10 @@ export interface TrustInput {
   repoLinks: { projectId: string; repo: string }[];
   services: { id: string; label: string; detail: string; setBy: string | null }[];
   workflows: { id: string; title: string; projectId: string; approvedBy: string | null; status: string }[];
+  /** Each agent's pinned tools (ADR 0133), by name; quarantined when its tools changed and wait for review. */
+  toolPins?: { agentId: string; quarantined: boolean; tools: string[] }[];
+  /** The workspace's active rules (ADR 0082), with their version. */
+  rules?: { version: number; rules: WorkspaceRule[] } | null;
   now: Date;
 }
 
@@ -58,6 +64,8 @@ export const personId = (userId: string) => `person:${userId}`;
 export const agentId = (id: string) => `agent:${id}`;
 export const projectId = (id: string) => `project:${id}`;
 export const workflowId = (id: string) => `workflow:${id}`;
+export const toolId = (name: string) => `tool:${name}`;
+export const ruleId = (id: string) => `rule:${id}`;
 
 export function buildTrustGraph(input: TrustInput): TrustGraph {
   const nodes: TrustNode[] = [];
@@ -124,7 +132,46 @@ export function buildTrustGraph(input: TrustInput): TrustGraph {
     if (w.approvedBy && roleOf.has(w.approvedBy)) edges.push({ from: personId(w.approvedBy), to: workflowId(w.id), kind: "approved", label: "approved; its runs start as them", source: "The workflow's approval", limited: false });
     if (running) edges.push({ from: workflowId(w.id), to: projectId(w.projectId), kind: "works_on", label: "runs agents on", source: "The workflow's project", limited: false });
   }
+
+  // Tools an agent may call through Farbaek's model gateway: its pin (ADR 0133). A quarantined agent's steps are all refused.
+  const activeAgents = new Set(nodes.filter((n) => n.kind === "agent" && !n.inactive).map((n) => n.id));
+  const pinnedOn = new Map<string, number>();
+  const changedOn = new Set<string>();
+  for (const pin of input.toolPins ?? []) {
+    if (!activeAgents.has(agentId(pin.agentId))) continue;
+    for (const name of [...new Set(pin.tools)]) {
+      pinnedOn.set(name, (pinnedOn.get(name) ?? 0) + 1);
+      if (pin.quarantined) changedOn.add(name);
+      edges.push({
+        from: agentId(pin.agentId),
+        to: toolId(name),
+        kind: "uses_tool",
+        label: pin.quarantined ? "its tools changed: refused until reviewed" : "may call",
+        source: pin.quarantined ? "Its tool pin, quarantined" : "Its tool pin",
+        limited: pin.quarantined,
+      });
+    }
+  }
+  for (const [name, count] of [...pinnedOn].sort(([a], [b]) => a.localeCompare(b))) {
+    nodes.push({ id: toolId(name), kind: "tool", label: name, detail: `Tool pinned on ${count} ${count === 1 ? "agent" : "agents"}${changedOn.has(name) ? ", on one waiting for review" : ""}`, inactive: false });
+  }
+
+  // Workspace rules govern every project's changes to the files they name (ADR 0082).
+  for (const rule of input.rules?.rules ?? []) {
+    const effect = EFFECTS[rule.effect];
+    const where = rule.paths.join(", ");
+    nodes.push({ id: ruleId(rule.id), kind: "rule", label: where, detail: `${effect.label}. ${rule.reason}`, inactive: false });
+    for (const p of live) {
+      edges.push({ from: ruleId(rule.id), to: projectId(p.id), kind: "governs", label: `a change to ${where} ${effect.sentence}`, source: `Workspace rules, version ${input.rules!.version}`, limited: false });
+    }
+  }
   return { nodes, edges };
+}
+
+/** The workspace rules that govern changes in a project, in the order they're written. */
+export function rulesOn(graph: TrustGraph, project: string): Answer[] {
+  const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+  return graph.edges.filter((e) => e.kind === "governs" && e.to === projectId(project) && byId.has(e.from)).map((e) => ({ node: byId.get(e.from)!, via: [e] }));
 }
 
 export interface Answer {
@@ -153,7 +200,7 @@ export function whoCanChange(graph: TrustGraph, project: string): Answer[] {
       out.push({ node: byId.get(e.from)!, via });
     }
   }
-  const rank: Record<TrustNodeKind, number> = { person: 0, agent: 1, workflow: 2, project: 3, integration: 4 };
+  const rank: Record<TrustNodeKind, number> = { person: 0, agent: 1, workflow: 2, project: 3, integration: 4, tool: 5, rule: 6 };
   return out.sort((a, b) => rank[a.node.kind] - rank[b.node.kind] || a.node.label.localeCompare(b.node.label));
 }
 

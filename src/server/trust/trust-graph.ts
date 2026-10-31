@@ -1,13 +1,15 @@
 /**
  * Loads the trust graph (ADR 0132) from the workspace's own records, read
  * as the person under row security: members and their permissions, paired
- * agents and leases, projects, workflows and connected services. Anything
+ * agents and leases, projects, workflows, connected services, agents' pinned
+ * tools and the workspace's active rules (ADR 0146). Anything
  * that can't be read is left out and named, never guessed.
  */
 import { z } from "zod";
 import { buildTrustGraph, type TrustGraph, type TrustInput } from "@/core/trust/trust-graph";
 import { PROVIDER_NAMES } from "@/core/launch/providers";
 import { readConnections } from "@/server/launch/provider-store";
+import { readActiveRules } from "@/server/workspace/workspace-rules";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import type { AppContext } from "@/server/workspace/context";
 
@@ -30,7 +32,19 @@ export async function loadTrustGraph(ctx: AppContext, orgId: string): Promise<{ 
 
   const services: TrustInput["services"] = [];
   const repoLinks: TrustInput["repoLinks"] = [];
+  let toolPins: TrustInput["toolPins"] = [];
+  let rules: TrustInput["rules"] = null;
   if (user) {
+    const [pins, active] = await Promise.all([
+      Promise.resolve(user.from("agent_tool_pins").select("agent_id, status, manifest").eq("org_id", orgId)).then((r) => (r.error ? note("agents' tools", [])() : (r.data ?? [])), note("agents' tools", [])),
+      readActiveRules(user, orgId).catch(note("the workspace's rules", null)),
+    ]);
+    toolPins = z
+      .array(z.object({ agent_id: z.string(), status: z.string(), manifest: z.array(z.object({ name: z.string() }).loose()).catch([]) }))
+      .catch([])
+      .parse(pins)
+      .map((p) => ({ agentId: p.agent_id, quarantined: p.status === "quarantined", tools: p.manifest.map((t) => t.name) }));
+    rules = active ? { version: active.version, rules: active.rules } : null;
     const [github, links, modelKey, connections] = await Promise.all([
       Promise.resolve(user.from("workspace_github").select("login, set_by").eq("org_id", orgId).maybeSingle()).then((r) => (r.error ? note("GitHub", null)() : r.data), note("GitHub", null)),
       Promise.resolve(user.from("project_github_repos").select("project_id, owner, repo").eq("org_id", orgId)).then((r) => (r.error ? note("linked repositories", [])() : (r.data ?? [])), note("linked repositories", [])),
@@ -54,6 +68,8 @@ export async function loadTrustGraph(ctx: AppContext, orgId: string): Promise<{ 
     repoLinks,
     services,
     workflows: workflows.map((w) => ({ id: w.id, title: w.title, projectId: w.projectId, approvedBy: w.approvedBy, status: w.status })),
+    toolPins,
+    rules,
     now: new Date(),
   });
   return { graph, unread };

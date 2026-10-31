@@ -72,7 +72,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 - **Not built:**
   - permission leases (scoped, expiring, revocable grants): built in stage 94 (ADR 0117);
   - the second-checker model: built in stage 98 (ADR 0121);
-  - the trust graph: built in stage 109 (ADR 0132), with agent teams in stage 105 (ADR 0128); no tools or policies as nodes yet;
+  - the trust graph: built in stage 109 (ADR 0132), with agent teams in stage 105 (ADR 0128), and agents' pinned tools and the workspace's rules as nodes since stage 123 (ADR 0146);
   - MCP support: a third-party tool registry (tool definitions are pinned per agent since stage 110, ADR 0133).
 
 ### 10. Dev Intelligence

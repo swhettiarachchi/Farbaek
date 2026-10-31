@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { agentId, buildTrustGraph, neighbours, personId, projectId, whoCanChange, type TrustInput } from "./trust-graph";
+import { agentId, buildTrustGraph, neighbours, personId, projectId, ruleId, rulesOn, toolId, whoCanChange, type TrustInput } from "./trust-graph";
 
 const NOW = new Date("2026-10-30T12:00:00Z");
 const base: TrustInput = {
@@ -57,5 +57,46 @@ describe("the trust graph (ADR 0132)", () => {
       ["Storefront", "pull requests to studio/shop"],
     ]);
     expect(neighbours(g, personId("u-viewer")).out.map((a) => a.via[0]!.kind)).toEqual(["can_view", "can_view", "paired"]);
+  });
+});
+
+describe("tools and rules in the trust graph (ADR 0146)", () => {
+  const withPins: TrustInput = {
+    ...base,
+    toolPins: [
+      { agentId: "a1", quarantined: false, tools: ["read_file", "write_file"] },
+      { agentId: "a2", quarantined: true, tools: ["read_file"] },
+      // An expired agent's pin reaches nothing.
+      { agentId: "a3", quarantined: false, tools: ["run_command"] },
+    ],
+    rules: { version: 3, rules: [{ id: "r1", paths: ["src/payments/**"], effect: "block", reason: "Payments change only by hand." }] },
+  };
+
+  it("shows the tools each active agent may call, and marks a quarantined agent's as refused", () => {
+    const g = buildTrustGraph(withPins);
+    expect(g.nodes.filter((n) => n.kind === "tool").map((n) => [n.label, n.detail])).toEqual([
+      ["read_file", "Tool pinned on 2 agents, on one waiting for review"],
+      ["write_file", "Tool pinned on 1 agent"],
+    ]);
+    expect(g.nodes.some((n) => n.id === toolId("run_command"))).toBe(false);
+    const reads = neighbours(g, toolId("read_file")).in;
+    expect(reads.map((a) => [a.node.id, a.via[0]!.label, a.via[0]!.limited])).toEqual([
+      [agentId("a1"), "may call", false],
+      [agentId("a2"), "its tools changed: refused until reviewed", true],
+    ]);
+  });
+
+  it("shows each rule governing every active project, with its effect in words and its version", () => {
+    const g = buildTrustGraph(withPins);
+    const rule = g.nodes.find((n) => n.id === ruleId("r1"))!;
+    expect(rule).toMatchObject({ kind: "rule", label: "src/payments/**", detail: "Stop the change. Payments change only by hand." });
+    expect(rulesOn(g, "p1").map((a) => [a.via[0]!.label, a.via[0]!.source])).toEqual([["a change to src/payments/** is stopped, and no one can approve it", "Workspace rules, version 3"]]);
+    expect(rulesOn(g, "p3")).toEqual([]);
+    // Rules don't change who can change a project; they say what needs more.
+    expect(whoCanChange(g, "p1")).toEqual(whoCanChange(buildTrustGraph(base), "p1"));
+  });
+
+  it("is the same graph as before without pins or rules", () => {
+    expect(buildTrustGraph({ ...base, toolPins: [], rules: null })).toEqual(buildTrustGraph(base));
   });
 });
