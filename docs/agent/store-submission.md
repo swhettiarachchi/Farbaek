@@ -1,55 +1,37 @@
 # Submitting Farbaek Agent to the Microsoft Store
 
-Everything is prepared; these are the steps that happen in Partner Center (ADR 0098). Farbaek Agent is reserved there as **Farbaek Agent**, Store ID **9N4GNB94KH9M**, and Submission 1 is started as a draft.
+Farbaek Agent is reserved in Partner Center as **Farbaek Agent**, Store ID **9N4GNB94KH9M** (ADR 0098). Submission 1 is a draft with everything filled in except the package, which only a person can add: Partner Center takes it by drag and drop or a file picker, and it's too large for any other route.
 
-What you need:
-- `Farbaek-Agent-0.7.0.appx`: built with `pnpm agent:store` (SHA-256 `6c47dc7bd2fb147b9aefc097ac2fff2821f2f6a065cc6e02610493f2c8dd778c`, 157,751,790 bytes);
-- the two screenshots;
-- the texts in `docs/agent/store-listing.md`.
+The package:
+- `Farbaek-Agent-0.8.0.appx`, built with `pnpm agent:store` on 2026-10-31 (SHA-256 `3a615deda734b45f755d51274a044ef4187b0db531625746ce72e0c9f101bfea`, 157,761,960 bytes);
+- with local models, Mesh delta sends and the offline queue, and Continue on my computer;
+- also in `C:\Users\INTEL\Desktop\Farbaek Store submission`.
 
-The appx and screenshots are also in `C:\Users\INTEL\Desktop\Farbaek Store submission`.
+## Done (2026-10-31)
 
-Open https://partner.microsoft.com/en-us/dashboard/products/9N4GNB94KH9M/overview, then go through each section.
+- **Pricing and availability:** all markets, public and discoverable, free.
+- **Properties:** Developer tools; privacy policy `https://www.farbaek.com/privacy`, website `https://www.farbaek.com`, support `support@farbaek.com`.
+- **Age ratings:** the IARC questionnaire, answered as recorded in `docs/agent/store-listing.md`. The rating is 3+ in every region, with "Users Interact" (Nearby can send folders to another person's paired device). The IARC Terms of Use were accepted on the owner's instruction to publish.
+- **Store listing, English (United States):**
+  - the description, short description and ten features from `docs/agent/store-listing.md`;
+  - the two screenshots (1366×768, sample data only);
+  - six keywords, since the Store refuses the product's own name as one;
+  - developed by Farbaek.
 
-## 1. Pricing and availability
-- **Markets:** leave **All worldwide markets**.
-- **Visibility:** **Public audience**, and **Make this product available and discoverable in the Microsoft Store**.
-- **Pricing → Base price:** choose **Free**.
-- Click **Save draft**.
+  English was added as a listing language by hand. Once the package is in, it also appears as a language the package supports.
+- **Submission options:** publish as soon as it passes certification, as the owner asked on 2026-10-31.
+- **Notes for certification** (Additional Testing Information): why `runFullTrust` and `privateNetworkClientServer`, and how to try it with a free account. No credentials are given; the testers sign up themselves.
 
-## 2. Properties
-- **Category:** **Developer tools**.
-- **Privacy policy URL:** `https://www.farbaek.com/privacy`
-- **Website:** `https://www.farbaek.com`
-- **Support contact info:** `support@farbaek.com`
-- **Product declarations:** leave the defaults, then **Save**.
+## Left for the owner
 
-## 3. Age ratings
-1. Start the questionnaire, with the category **Utility, productivity, communication or other**.
-2. Answer **No** to violence, sexual content, language, controlled substances, gambling, shared user content and sharing the user's location: the agent does none of these.
-3. Save. You'll get a rating, normally 3+ or Everyone.
+1. Open https://partner.microsoft.com/en-us/dashboard/products/9N4GNB94KH9M/overview and go to **Packages**.
+2. Drag `Farbaek-Agent-0.8.0.appx` from the Desktop folder into the box. Partner Center checks it, which takes a minute or two.
+3. **Device families:** tick **Windows 10/11 Desktop** only, then click **Save**.
+4. If Partner Center asks about **restricted capabilities** (`runFullTrust`), paste: "An Electron desktop app that runs developer commands in a copy of the user's project, after the user approves them."
+5. Back on the overview, every section should say **Complete**. Click **Submit for certification**.
 
-## 4. Packages
-- Drag `Farbaek-Agent-0.7.0.appx` from the Desktop folder into the box. Partner Center checks it, which takes a minute or two.
-- **Device families:** **Windows 10/11 Desktop** only.
-- Click **Save**.
+Microsoft usually answers within 1 to 3 business days by email. When it passes, it goes public by itself. Then:
+1. Install it on this PC from https://apps.microsoft.com/detail/9N4GNB94KH9M, pair it and run one Review Only task.
+2. Tell Claude. `AGENT_STORE_URL` in `src/config/agent-download.ts` is then set to `https://apps.microsoft.com/detail/9N4GNB94KH9M`, and the Agents page offers "Get it from the Microsoft Store" first.
 
-## 5. Store listings → English (United States)
-1. **Description:** paste the "Description" from `docs/agent/store-listing.md`.
-2. **Screenshots (Desktop):** add the two PNGs from the Desktop folder.
-3. **Short description**, **features** and **search terms:** paste them from the same file.
-4. Click **Save**.
-
-## 6. Submission options
-- **Publishing hold options:** choose **Don't publish this submission until I select Publish now**. Then nothing goes public until you decide, after certification.
-- **Notes for certification:** paste the "Submission notes for certification" from `docs/agent/store-listing.md`.
-- **Restricted capabilities** (`runFullTrust`): explain "An Electron desktop app that runs developer commands in a copy of the user's project, after the user approves them."
-- Click **Save**.
-
-## 7. Submit for certification
-On the overview, click **Submit for certification**. Microsoft usually answers within 1 to 3 business days by email.
-
-When it passes:
-1. Install it on this PC from https://apps.microsoft.com/detail/9N4GNB94KH9M (it's held, so only you can see it), pair it, and run one Review Only task.
-2. Click **Publish now**.
-3. Tell Claude. `AGENT_STORE_URL` in `src/config/agent-download.ts` is then set to `https://apps.microsoft.com/detail/9N4GNB94KH9M`, and the Agents page offers "Get it from the Microsoft Store" first.
+If certification fails, the email names the policy. Send it to Claude: the fix goes into a new appx and a new submission.

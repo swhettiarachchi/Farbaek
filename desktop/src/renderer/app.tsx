@@ -182,10 +182,10 @@ function HandoffsPanel() {
   const [runs, setRuns] = useState<HandoffRun[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  // A list that can't load (offline, or a Farbaek without handoffs yet) shows nothing; only starting one reports an error.
   const refresh = useCallback(async () => {
     const [h, r] = await Promise.all([api.handoffs(), api.handoffRuns()]);
     if (h.ok) setList(h.value);
-    else setError(h.message);
     setRuns(r);
   }, []);
 
