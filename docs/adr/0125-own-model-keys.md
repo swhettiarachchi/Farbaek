@@ -27,10 +27,12 @@
 | Uses the workspace's key | Still uses Farbaek's |
 | --- | --- |
 | Contract drafting, from a task and from New project | The second check (ADR 0121) |
-| Change proposals | Security reviews |
-| AI mapping in the Intent Lens | Image generation |
+| Change proposals | Image generation |
+| AI mapping in the Intent Lens | |
 | Drafting workspace rules | |
 | The agent's model gateway: the desktop app and cloud runs | |
+| Notes in Learn and Audit modes, and failure trials | |
+| Security reviews (since 2026-10-31, stage 128) | |
 
 **Metering on an own key** (`ownKeyMetering`):
 - A reservation never touches Farbaek's allowance.

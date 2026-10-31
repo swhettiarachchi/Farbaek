@@ -8,8 +8,8 @@
 import { createOsvLookup } from "./osv-client";
 import { COMPACT_SCRIPT, SCAN_DIR, SECRETS_COMMAND, SEMGREP_COMMAND, STATIC_SCAN_INSTALL, semgrepRulesYaml } from "@/core/security/static-scan";
 import { createClient } from "@supabase/supabase-js";
-import { resolveAiProvider } from "@/server/ai/config";
 import { createAnthropicSecurityReviewer } from "@/server/ai/security-reviewer";
+import { aiForWorkspace } from "@/server/ai/workspace-ai";
 import { createSupabaseAgentStore } from "@/server/agent/supabase-store";
 import { sandboxExecutionMode } from "@/server/sandbox/registry";
 import { sandboxServiceFor } from "@/server/sandbox/wiring";
@@ -35,7 +35,9 @@ export async function securityCheckDeps(person: { orgId: string; userId: string;
   const config = readSupabaseConfig();
   if (!admin || !config) return { ok: false, reason: "Accounts aren't configured on this server." };
   const agentStore = createSupabaseAgentStore(admin);
-  const ai = resolveAiProvider();
+  const usage = { ...agentStore, ...createServerUsageDeps(admin) };
+  // The AI review uses the workspace's own key when it has one (ADR 0125), metered there; otherwise Farbaek's.
+  const ai = await aiForWorkspace(person.orgId, usage, { timeout: 300_000, claudeOnly: "The AI review" });
   const sandbox = sandboxExecutionMode();
   const token = sandbox.mode === "sandboxed" ? await freshAccessToken() : null;
 
@@ -112,11 +114,8 @@ export async function securityCheckDeps(person: { orgId: string; userId: string;
     deps: {
       reports: createSupabaseSecurityStore(admin),
       checks: agentStore,
-      usage: { ...agentStore, ...createServerUsageDeps(admin) },
-      reviewer:
-        ai.provider === "anthropic"
-          ? { family: "anthropic", create: (s) => createAnthropicSecurityReviewer({ model: s.model, effort: s.thinking }) }
-          : { unavailable: ai.provider ? "The AI review needs Claude on this server." : ai.reason },
+      usage: "error" in ai ? usage : ai.deps,
+      reviewer: "error" in ai ? { unavailable: ai.error } : { family: "anthropic", create: (s) => createAnthropicSecurityReviewer({ model: s.model, effort: s.thinking, client: ai.client }) },
       audit,
       osv: createOsvLookup(),
       staticScan,

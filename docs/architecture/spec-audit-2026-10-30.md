@@ -28,7 +28,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 - **Built:**
   - Mission Control, Projects, Create, Build, Tasks, Approvals, Sandbox, Agents, Mesh, Workflows, Policies, Incidents, Billing and usage, Settings, Help;
   - onboarding (first steps) and the labelled sample workspace.
-- **Partly built:** Activity / Audit now has its own page (stage 96, ADR 0119), with filters and a CSV download. Integrations now have their own page too (stage 97, ADR 0120).
+- **Built:** Activity / Audit has its own page (stage 96, ADR 0119), with filters and a CSV download, and so do Integrations (stage 97, ADR 0120).
 - **Fixed:** the app's roadmap now lists phone apps in the stores, which is what's still missing; the apps themselves are built (section 13).
 
 ### 6. Studio
@@ -115,7 +115,8 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 ### 14. AI provider and privacy
 
 - **Built:** Claude and Gemini behind adapters, the model-change canary, usage metering at real cost, data export and account deletion.
-- **Partly built:** a workspace's own Anthropic key and company gateway (stage 102, ADR 0125); local models on the desktop agent (stage 111, ADR 0134). Cloud runs still use Farbaek's model.
+- **Built:** a workspace's own Anthropic key and company gateway (stage 102, ADR 0125), used by contract drafting, change proposals and the agent's model gateway for the desktop app and cloud runs; local models on the desktop agent (stage 111, ADR 0134).
+- **Partly built:** the second check and image generation still use Farbaek's providers (security reviews use the workspace's own key since stage 128), and there are no keys for OpenAI or Gemini.
 
 ### 15. Subscriptions
 
