@@ -88,20 +88,29 @@ These are declarations, so the owner answers them. Here are the facts to answer 
     - Sites people publish on farbaek.si are public.
     - There's no chat between strangers.
 - **Target audience:** 13 and over. The Terms set the minimum age (`LEGAL.minimumAge`), and the App Store rating is 13+.
-- **Data safety.** Encrypted in transit: yes. People can ask for deletion: yes. Data is never shared: the services in the privacy policy process it for Farbaek, which Play doesn't count as sharing.
+- **Data safety.**
+  - **Data collection and security:**
+    - collects user data: yes;
+    - encrypted in transit: yes;
+    - account creation: "Username and other authentication" (the email link) and "OAuth" (Google, Apple). Only the review account has a password, and people can't make one;
+    - delete account URL: `https://www.farbaek.com/delete-account`;
+    - deleting some data without deleting the account: yes (files, published sites, or by writing to support).
+  - **Sharing:** none. The services in the privacy policy process data for Farbaek, which Play doesn't count as sharing.
+  - **Every type:** not shared, not processed only ephemerally, encrypted in transit.
 
-  | Data type | Why | Notes |
+  | Data type | Required | Why |
   | --- | --- | --- |
-  | Email address | Account management, app functionality | Required |
-  | Name | Account management | Optional: only when signing in with Google or Apple |
-  | User IDs | Account management, app functionality | The Farbaek account |
-  | Other user-generated content | App functionality | Prompts, project files, approvals |
-  | App interactions | App functionality | AI and sandbox usage, so limits work |
-  | Purchase history | App functionality | Plans bought on the web are shown in Billing |
-  | Device or other IDs | App functionality, security | The notification subscription; IP addresses in sign-in logs |
-
-  - **Deleting an account:** in the app, Settings, then Delete your account.
-  - **The web link Play asks for:** `https://www.farbaek.com/privacy#rights`
+  | Email address | Required | App functionality, account management, developer communications |
+  | Name | Optional: only when signing in with Google or Apple | Account management |
+  | User IDs | Required | App functionality, account management |
+  | Purchase history | Required | App functionality (plans bought on the web are shown in Billing) |
+  | Other in-app messages | Optional | App functionality (support requests from Help) |
+  | Photos | Optional | App functionality (images added to projects) |
+  | Files and docs | Optional | App functionality (project files) |
+  | App interactions | Required | App functionality (AI and sandbox usage, so limits work) |
+  | Other user-generated content | Required | App functionality (prompts, changes, approvals) |
+  | Diagnostics | Required | App functionality, fraud prevention and security (CSP reports) |
+  | Device or other IDs | Optional | App functionality, fraud prevention and security (the notification subscription) |
 - **Government app, financial features, health, news:** none.
 
 ## Release

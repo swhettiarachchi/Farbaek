@@ -17,7 +17,20 @@ export interface LegalSection {
  * wide screens, and fold under the short version on narrow ones so the title
  * comes first.
  */
-export function LegalDocument({ title, path, summary, sections }: { title: string; path: string; summary: ReactNode; sections: LegalSection[] }) {
+export function LegalDocument({
+  title,
+  path,
+  summary,
+  sections,
+  updated = LEGAL.updated,
+}: {
+  title: string;
+  path: string;
+  summary: ReactNode;
+  sections: LegalSection[];
+  /** When this document last changed, if later than the shared date. */
+  updated?: string;
+}) {
   return (
     <section className="pt-14 pb-20 sm:pt-20 lg:pb-28">
       <Container>
@@ -25,7 +38,7 @@ export function LegalDocument({ title, path, summary, sections }: { title: strin
           <article className="min-w-0 max-w-[72ch]">
             <h1 className="text-balance text-[2.25rem] font-medium leading-[1.06] tracking-[-0.04em] sm:text-[3rem]">{title}</h1>
             <p className="mt-4 text-sm text-ink-3">
-              Last updated {LEGAL.updated}. Questions:{" "}
+              Last updated {updated}. Questions:{" "}
               <a href={`mailto:${LEGAL.contact}`} className="font-medium text-accent hover:underline">
                 {LEGAL.contact}
               </a>
