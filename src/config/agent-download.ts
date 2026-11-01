@@ -23,7 +23,13 @@ export const agentDownloadUrl = `/downloads/${AGENT_DOWNLOAD.file}`;
  */
 export const AGENT_STORE_URL: string | null = null;
 
-export const AGENT_MAC: { version: string; file: string; bytes: number; sha256: string; builtOn: string } | null = null;
+export const AGENT_MAC: { version: string; file: string; bytes: number; sha256: string; builtOn: string } | null = {
+  version: "0.9.0",
+  file: "Farbaek-Agent-0.9.0-mac.dmg",
+  bytes: 227_928_858,
+  sha256: "f64015289e2a88f376d1b762c613e09dbc65a22e80d8e5f9dc78638283b65a11",
+  builtOn: "2026-11-01",
+};
 
 /**
  * The Linux AppImage (ADR 0111), built on GitHub's Linux runner
@@ -31,4 +37,10 @@ export const AGENT_MAC: { version: string; file: string; bytes: number; sha256: 
  * like the Windows installer. Null until it's on the server with this exact
  * SHA-256; the Agents page then offers it.
  */
-export const AGENT_LINUX: { version: string; file: string; bytes: number; sha256: string; builtOn: string } | null = null;
+export const AGENT_LINUX: { version: string; file: string; bytes: number; sha256: string; builtOn: string } | null = {
+  version: "0.9.0",
+  file: "Farbaek-Agent-0.9.0-linux-x86_64.AppImage",
+  bytes: 130_319_103,
+  sha256: "df4e1194dbe3cc77f4367e57591d335759605c5c887d84e6b483ec94552550e4",
+  builtOn: "2026-11-01",
+};
