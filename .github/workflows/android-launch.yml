@@ -6,6 +6,9 @@ name: Android launch check
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/android-launch.yml
 
 permissions:
   contents: read
@@ -13,7 +16,7 @@ permissions:
 jobs:
   launch:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -52,14 +55,21 @@ jobs:
           sdk="$ANDROID_HOME/cmdline-tools/latest/bin"
           image="system-images;android-34;google_apis_playstore;x86_64"
           yes | "$sdk/sdkmanager" --install "$image" emulator platform-tools > /dev/null
+          # adb and the emulator, for this step and the next.
+          export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
           echo no | "$sdk/avdmanager" create avd -n launch -k "$image" -d pixel_6 > /dev/null
-          nohup "$ANDROID_HOME/emulator/emulator" -avd launch -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot > "$RUNNER_TEMP/emulator.log" 2>&1 &
-          adb wait-for-device
+          ls -l /dev/kvm || echo "::warning::No /dev/kvm on this runner: the emulator can't use hardware acceleration."
+          nohup "$ANDROID_HOME/emulator/emulator" -avd launch -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -accel on > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          # Give up after 6 minutes rather than waiting for the job's limit, and say why.
+          if ! timeout 360 adb wait-for-device; then
+            echo "::error::The emulator didn't start. Its log:"; tail -n 60 "$RUNNER_TEMP/emulator.log"; exit 1
+          fi
           for i in $(seq 1 90); do
             [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && break
             sleep 5
           done
-          adb shell getprop sys.boot_completed
+          [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] || { echo "::error::Android didn't finish booting. The emulator's log:"; tail -n 60 "$RUNNER_TEMP/emulator.log"; exit 1; }
           adb shell input keyevent 82 || true
 
       - name: Install and open Farbaek
