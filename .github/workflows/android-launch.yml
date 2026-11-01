@@ -1,13 +1,15 @@
 # Farbaek for Android: does it open? Builds the release APK (the same app as the Play bundle,
 # signed with the upload key), installs it on an Android emulator that has Google Play and
 # Chrome, launches it, and keeps a screenshot and the system log as the run's artifact.
-# Run by hand from Actions > "Android launch check". Linux minutes only; nothing reaches Play.
+# Runs on every change to the app, or by hand from Actions > "Android launch check". Linux minutes
+# only; nothing reaches Play. Version 1.0.0 stopped at launch, and only a real launch shows that.
 name: Android launch check
 
 on:
   workflow_dispatch:
   push:
     paths:
+      - android/**
       - .github/workflows/android-launch.yml
 
 permissions:
