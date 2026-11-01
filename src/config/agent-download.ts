@@ -31,4 +31,10 @@ export const AGENT_MAC: { version: string; file: string; bytes: number; sha256: 
  * like the Windows installer. Null until it's on the server with this exact
  * SHA-256; the Agents page then offers it.
  */
-export const AGENT_LINUX: { version: string; file: string; bytes: number; sha256: string; builtOn: string } | null = null;
+export const AGENT_LINUX: { version: string; file: string; bytes: number; sha256: string; builtOn: string } | null = {
+  version: "0.9.0",
+  file: "Farbaek-Agent-0.9.0-linux-x86_64.AppImage",
+  bytes: 130_319_103,
+  sha256: "df4e1194dbe3cc77f4367e57591d335759605c5c887d84e6b483ec94552550e4",
+  builtOn: "2026-11-01",
+};
