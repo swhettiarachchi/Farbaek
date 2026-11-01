@@ -10,6 +10,7 @@ import { WalletCard } from "@/components/app/wallet-card";
 import { sessionsLine } from "@/components/pricing/pricing-plans";
 import { CancelStep, ChangePlanStep, ChoosePlanStep, SubscriptionSummary } from "@/components/billing/billing-steps";
 import { TopupCard, TopupStep } from "@/components/billing/topup-card";
+import { NotInAndroidApp, WebPurchaseOnly } from "@/components/billing/web-purchase-only";
 import { isTopupPack } from "@/core/billing/topups";
 import { topupErrorMessage } from "@/server/billing/topups";
 import { SELF_SERVE_PLANS, TRIAL, getPlan, priceWords, yearlyVersionOf } from "@/core/billing/catalog";
@@ -104,10 +105,14 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         </Notice>
       ) : null}
 
-      {step?.kind === "choose" ? <ChoosePlanStep planId={step.planId} onTrial={onTrial} error={error} /> : null}
-      {step?.kind === "change" ? <ChangePlanStep preview={step.preview.ok ? step.preview.value : null} error={step.preview.ok ? error : step.preview.message} /> : null}
+      {step && step.kind !== "cancel" ? (
+        <WebPurchaseOnly fallback={<Notice>Plans and AI usage can&apos;t be bought in the Android app. Your plan and usage are shown below.</Notice>}>
+          {step.kind === "choose" ? <ChoosePlanStep planId={step.planId} onTrial={onTrial} error={error} /> : null}
+          {step.kind === "change" ? <ChangePlanStep preview={step.preview.ok ? step.preview.value : null} error={step.preview.ok ? error : step.preview.message} /> : null}
+          {step.kind === "topup" && sub ? <TopupStep planId={sub.planId} pack={step.pack} error={topupError} /> : null}
+        </WebPurchaseOnly>
+      ) : null}
       {step?.kind === "cancel" && sub ? <CancelStep subscription={sub} error={error} /> : null}
-      {step?.kind === "topup" && sub ? <TopupStep planId={sub.planId} pack={step.pack} error={topupError} /> : null}
       {done === "topup_cap" ? <Notice>Top-up limit saved.</Notice> : null}
       {topupReturned ? (
         <Notice>
@@ -225,7 +230,12 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
             );
           })}
         </ul>
-        <p className="text-xs text-ink-3">Prices in USD. {billing.open ? "At checkout you can pay in your own currency for a conversion fee of up to 4%, and tax is added there." : "Applicable taxes are calculated at checkout once payments open."}</p>
+        <p className="text-xs text-ink-3">
+          Prices in USD.{" "}
+          <WebPurchaseOnly fallback="Plans can't be bought in the Android app.">
+            {billing.open ? "At checkout you can pay in your own currency for a conversion fee of up to 4%, and tax is added there." : "Applicable taxes are calculated at checkout once payments open."}
+          </WebPurchaseOnly>
+        </p>
       </section>
     </div>
   );
@@ -248,14 +258,19 @@ function PlanAction({ planId, isCurrent, open, canManage, currentPaid, cancellin
     if (cancelling) return <Unavailable>Keep your plan to switch</Unavailable>;
     const direction = planChangeDirection(currentPaid, planId);
     return (
-      <Link href={`/app/billing?change=${planId}#billing-step`} className={buttonClasses(direction === "upgrade" ? "primary" : "secondary", "sm", "w-full")}>
-        {direction === "upgrade" ? `Upgrade to ${name}` : `Switch to ${name}`}
-      </Link>
+      <WebPurchaseOnly fallback={<NotInAndroidApp />}>
+        <Link href={`/app/billing?change=${planId}#billing-step`} className={buttonClasses(direction === "upgrade" ? "primary" : "secondary", "sm", "w-full")}>
+          {direction === "upgrade" ? `Upgrade to ${name}` : `Switch to ${name}`}
+        </Link>
+      </WebPurchaseOnly>
     );
   }
+  // Inside Farbaek for Android, Google Play's Payments policy rules out selling plans (ADR 0150).
   return (
-    <Link href={`/app/billing?choose=${planId}#billing-step`} className={buttonClasses("primary", "sm", "w-full")}>
-      Choose {name}
-    </Link>
+    <WebPurchaseOnly fallback={<NotInAndroidApp />}>
+      <Link href={`/app/billing?choose=${planId}#billing-step`} className={buttonClasses("primary", "sm", "w-full")}>
+        Choose {name}
+      </Link>
+    </WebPurchaseOnly>
   );
 }

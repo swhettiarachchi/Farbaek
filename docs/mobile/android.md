@@ -26,23 +26,33 @@ Download the run's **farbaek-android** artifact. It holds `farbaek-1.0.0.aab` an
 
 ## 3. Play Console
 
+The texts, graphics and answers are in `docs/mobile/play-listing.md`. Nothing is sold inside the app (ADR 0150), so the listing never mentions prices or buying.
+
+**Where it stands (2026-11-01):**
+- **The app:** created under the Svanflok account (u/5): Farbaek, `com.farbaek.app`, Play app id 4974194295109432147. The owner accepted the declarations.
+- **Done by Claude:**
+  - **Store settings:** Productivity, `support@farbaek.com` and `https://www.farbaek.com`;
+  - **the default store listing:** both descriptions, the icon, the feature graphic and the six screenshots;
+  - **Privacy policy:** the URL.
+- **Still yours, under App content:** the other declarations (ads, app access, content rating, target audience, data safety, and the rest Play lists). Auto mode refuses Claude making them; the answers are in `docs/mobile/play-listing.md`.
+
 1. **Create the app.** In play.google.com/console, choose **Create app**:
    - name **Farbaek**, default language English (United States);
    - **App**, **Free**;
    - accept the declarations.
-2. **Set up your app:** complete the tasks Play lists.
-   - **Privacy policy:** `https://www.farbaek.com/privacy`
-   - **App access:** "All or some functionality is restricted", with a note that reviewers can sign up at https://www.farbaek.com/sign-in.
-   - **Ads:** No.
-   - **Content rating:** the questionnaire, answering No to everything (category Utility, productivity, communication or other).
-   - **Target audience:** 13 and over, matching the Terms and the App Store's 13+.
-   - **Data safety:** email address (account), app interactions; encrypted in transit; people can delete their account (Settings in Farbaek).
-   - **Category:** Productivity.
-   - **Contact email:** `support@farbaek.com`
-3. **Store listing:**
-   - **App icon:** `public/brand/farbaek-app-512.png`.
-   - **Feature graphic (1024×500) and phone screenshots:** take them from www.farbaek.com on a phone.
-   - **Short description:** "From idea to verified software, with control at every step."
+2. **Set up your app:** complete the tasks Play lists, from **App content** in `docs/mobile/play-listing.md`:
+   - **Privacy policy:** `https://www.farbaek.com/privacy`;
+   - **App access**, with the sign-in note for reviewers;
+   - **Ads:** No;
+   - **Content rating:** "All other app types"; users interact;
+   - **Target audience:** 13 and over, matching the Terms and the App Store's 13+;
+   - **Data safety:** the table there;
+   - **Category:** Productivity;
+   - **Contact email:** `support@farbaek.com`.
+3. **Store listing:** the description and the files in `desktop/release/store-android/`, as `docs/mobile/play-listing.md` lists:
+   - **App icon:** `play-icon-512.png`;
+   - **Feature graphic:** `play-feature-graphic.png`;
+   - **Phone screenshots:** the six `play-phone-*.png`.
 4. **Testing → Closed testing:** create a track and add at least **12 testers** (their Google account emails). Upload the `.aab`. Google requires new personal accounts to run this test for **14 days** before production.
 5. **App signing:** after the first upload, open **Test and release → App integrity → App signing** and copy **App signing key certificate, SHA-256 certificate fingerprint**. Send it to Claude: it goes into `src/config/android-app.ts` next to the upload key's. Once it's live, the app opens without Chrome's address bar.
 6. After the 14 days, **apply for production**, then roll out.

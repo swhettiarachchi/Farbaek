@@ -1,6 +1,7 @@
 import { CalendarXIcon, CheckCircleIcon, CreditCardIcon, PauseCircleIcon, WarningIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { NotInAndroidApp, WebPurchaseOnly } from "./web-purchase-only";
 import { cancelPlanAction, changePlanAction, openPortalAction, resumePlanAction, startCheckoutAction } from "@/app/app/billing/actions";
 import { Notice } from "@/components/app/primitives";
 import { sessionsLine } from "@/components/pricing/pricing-plans";
@@ -199,14 +200,18 @@ export function SubscriptionSummary({ subscription, canManage }: { subscription:
       ) : canManage ? (
         <div className="flex flex-wrap gap-2">
           {subscription.hasCustomer ? (
-            <form action={openPortalAction}>
-              <BillingSubmit label={subscription.state === "past_due" || subscription.state === "suspended" ? "Update payment method" : "Payment method and invoices"} pending="Opening…" tone="secondary" />
-            </form>
+            <WebPurchaseOnly fallback={null}>
+              <form action={openPortalAction}>
+                <BillingSubmit label={subscription.state === "past_due" || subscription.state === "suspended" ? "Update payment method" : "Payment method and invoices"} pending="Opening…" tone="secondary" />
+              </form>
+            </WebPurchaseOnly>
           ) : null}
           {subscription.state === "cancellation_scheduled" ? (
-            <form action={resumePlanAction}>
-              <BillingSubmit label={`Keep ${subscription.planName}`} pending="Keeping…" />
-            </form>
+            <WebPurchaseOnly fallback={<NotInAndroidApp>Can&apos;t be renewed in the Android app</NotInAndroidApp>}>
+              <form action={resumePlanAction}>
+                <BillingSubmit label={`Keep ${subscription.planName}`} pending="Keeping…" />
+              </form>
+            </WebPurchaseOnly>
           ) : (
             <Link href="/app/billing?cancel=1#billing-step" className={buttonClasses("ghost", "sm")}>
               Cancel plan
