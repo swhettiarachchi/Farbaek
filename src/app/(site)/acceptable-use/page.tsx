@@ -26,6 +26,7 @@ const SECTIONS: LegalSection[] = [
         items={[
           <>Anything illegal where you or your visitors are, or that helps someone break the law.</>,
           <>Sexual content involving minors, of any kind. We report it to the authorities.</>,
+          <>Nudity or sexually explicit content, or real-world graphic violence, on a published site. Sites on farbaek.si are public, and people from 13 use Farbaek.</>,
           <>Threats, harassment, or content that promotes violence or hatred against people for who they are.</>,
           <>Someone else&apos;s copyrighted work, trademarks or private information, without the right to use them.</>,
           <>Sites that pretend to be another person, company or government, or collect passwords, card numbers or other details under false pretences.</>,
@@ -121,6 +122,7 @@ export default function AcceptableUsePage() {
     <LegalDocument
       title="Acceptable Use Policy"
       path="/acceptable-use"
+      updated="1 November 2026"
       summary={
         <p>
           Build and publish what you like, as long as it&apos;s legal, honest and doesn&apos;t harm anyone. No malware, spam, phishing or attacks from sandboxes, and no farming free trials. Report
