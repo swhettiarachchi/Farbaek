@@ -2,6 +2,7 @@ import { CheckIcon, ClockCounterClockwiseIcon } from "@phosphor-icons/react/ssr"
 import Link from "next/link";
 import { FEATURE_LABELS, FEATURE_STATUS, SELF_SERVE_PLANS, chargeCents, formatUsd, getPlan, planSessionsGuide, priceWords, yearlyVersionOf, type FeatureKey, type Plan } from "@/core/billing/catalog";
 import { buttonClasses } from "@/components/ui/button";
+import { NotInAndroidApp, WebPurchaseOnly } from "@/components/billing/web-purchase-only";
 
 const number = new Intl.NumberFormat("en-US");
 
@@ -99,22 +100,28 @@ export function PricingPlans() {
             </ul>
 
             <div className="mt-auto grid gap-2 pt-8">
-              <Link
-                href={plan.pricing.kind === "paid" ? choosePath(plan.id) : "/sign-in"}
-                className={buttonClasses(featured ? "primary" : "secondary", "md", "min-h-11 w-full")}
-              >
-                {plan.pricing.kind === "paid" ? `Choose ${plan.name}` : "Start free"}
-              </Link>
-              {yearly ? (
-                <>
-                  <Link href={choosePath(yearly.id)} className={buttonClasses("ghost", "md", "min-h-11 w-full")}>
-                    Pay yearly instead
+              {plan.pricing.kind === "paid" ? (
+                // Inside Farbaek for Android, Google Play's Payments policy rules out selling plans (ADR 0150).
+                <WebPurchaseOnly fallback={<NotInAndroidApp />}>
+                  <Link href={choosePath(plan.id)} className={buttonClasses(featured ? "primary" : "secondary", "md", "min-h-11 w-full")}>
+                    Choose {plan.name}
                   </Link>
-                  <p className="text-center text-xs leading-relaxed text-ink-3">
-                    Paid yearly ({formatUsd(chargeCents(yearly))} a year): about {moreUsagePercent(plan, yearly)}% more AI usage, everything else the same.
-                  </p>
-                </>
-              ) : null}
+                  {yearly ? (
+                    <>
+                      <Link href={choosePath(yearly.id)} className={buttonClasses("ghost", "md", "min-h-11 w-full")}>
+                        Pay yearly instead
+                      </Link>
+                      <p className="text-center text-xs leading-relaxed text-ink-3">
+                        Paid yearly ({formatUsd(chargeCents(yearly))} a year): about {moreUsagePercent(plan, yearly)}% more AI usage, everything else the same.
+                      </p>
+                    </>
+                  ) : null}
+                </WebPurchaseOnly>
+              ) : (
+                <Link href="/sign-in" className={buttonClasses(featured ? "primary" : "secondary", "md", "min-h-11 w-full")}>
+                  Start free
+                </Link>
+              )}
             </div>
             </div>
           </li>

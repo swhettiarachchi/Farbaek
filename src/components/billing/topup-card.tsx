@@ -8,6 +8,7 @@ import { TOPUP_MONTHS, TOPUP_PACKS_CENTS, topupConsentText, topupSharePercent, t
 import type { PaidPlanId } from "@/core/billing/provider";
 import type { BillingView } from "@/server/billing/view";
 import { BillingSubmit } from "./billing-submit";
+import { NotInAndroidApp, WebPurchaseOnly } from "./web-purchase-only";
 
 /**
  * Buying more AI usage (ADR 0102): the monthly limit an owner or admin sets,
@@ -71,9 +72,11 @@ export function TopupCard({ planId, planName, topups, canManage, error }: { plan
                 {reason ? (
                   <span className="block rounded-full border border-dashed border-line-strong/50 px-3 py-2 text-center text-xs text-ink-3">{reason}</span>
                 ) : (
-                  <Link href={`/app/billing?topup=${pack}#billing-step`} className={buttonClasses("secondary", "sm", "w-full")}>
-                    Buy {formatUsd(pack)}
-                  </Link>
+                  <WebPurchaseOnly fallback={<NotInAndroidApp />}>
+                    <Link href={`/app/billing?topup=${pack}#billing-step`} className={buttonClasses("secondary", "sm", "w-full")}>
+                      Buy {formatUsd(pack)}
+                    </Link>
+                  </WebPurchaseOnly>
                 )}
               </div>
             </li>

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AndroidAppMarker } from "@/components/billing/web-purchase-only";
 import "./globals.css";
 
 // next/font downloads these at build time and serves them from our own origin.
@@ -43,6 +44,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           Skip to content
         </a>
         {children}
+        <AndroidAppMarker />
       </body>
     </html>
   );
