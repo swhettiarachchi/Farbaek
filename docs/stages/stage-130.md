@@ -134,12 +134,22 @@
   - Google Play: the feature graphic and six phone images replaced, in order, and sent for review with the release.
 - **Seller name:** the App Store's "Developer" line shows the individual account's legal name. Only an organisation account (it needs a D-U-N-S number) shows "Farbaek" there. On Google Play the developer name is the account's name, "Svanflok".
 
+### Submitted, 2026-11-01
+
+- **App Store:**
+  - The owner published App Privacy: five data types (email, other user content, user ID, device ID, purchase history), each for App Functionality, linked to the user, with no tracking.
+  - The owner added the review contact. Claude added the review notes, the header (3840 × 1646) and the search results artwork (3840 × 2560).
+  - Claude added version 1.0.0 for review and submitted it. Status: **Waiting for Review**. Release is automatic after approval.
+- **Google Play:**
+  - Google approved and published the closed test ("Last published on November 1, 2026"). The store images were sent with it.
+  - **Testers join** at https://play.google.com/apps/testing/com.farbaek.app with the Gmail address on the "MY" list, then install Farbaek from Play.
+- **Microsoft Store:** in certification since 2026-10-31.
+
 ### Next
 
-- **The owner, for the App Store:**
-  - App Privacy (the data types are in `docs/mobile/ios.md`, step 7);
-  - the review contact's phone number;
-  - Add for Review, then Submit.
-- **When Google approves the closed test:** send the 13 testers the join link from the track's Testers tab. At least 12 must stay joined for 14 days, then apply for production.
-- **Google Play Billing** for selling plans in the Android app, recommended during the 14 days (ADR 0150, Consequences).
-- **Merge** this branch, so assetlinks.json names the app before testers install it.
+- **The owner:**
+  - send the join link to the 13 testers. At least 12 must stay joined for 14 days, then apply for production;
+  - merge #160, so `/.well-known/assetlinks.json` names Play's signing key and the app opens without Chrome's address bar.
+- **Apple's review:** answer within 48 hours. If anything comes back, the email names the guideline.
+- **Google Play Billing** for selling plans in the Android app, during the 14 days (ADR 0150, Consequences).
+- **When the Microsoft Store passes:** set `AGENT_STORE_URL`.
