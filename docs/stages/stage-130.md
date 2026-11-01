@@ -180,7 +180,7 @@
 - **The owner:**
   - change the Play Ads declaration to "No";
   - once Google approves 1.0.1, update Farbaek from Play on your phone (or uninstall and install again) and open it;
-  - send the join link to the 13 testers. At least 12 must stay joined for 14 days, then apply for production;
+  - send the join link to the 13 testers. At least 12 must stay joined for 14 days, then apply for production.
 - **Apple's review:** answer within 48 hours. If anything comes back, the email names the guideline.
 - **Google Play Billing** for selling plans in the Android app, during the 14 days (ADR 0150, Consequences).
 - **When the Microsoft Store passes:** set `AGENT_STORE_URL`.
