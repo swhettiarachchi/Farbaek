@@ -43,15 +43,36 @@ Every sentence here is true of the app today. The app is the website (ADR 0099),
 
 ## Graphics
 
-All in `desktop/release/store-android/`, made on 2026-11-01 (not in the repository):
+**Designed images.** `node scripts/release/store-images.mjs` makes them from the real screens. They're in `desktop/release/store-android/designed/` and `desktop/release/store-ios/designed/`, not in the repository. Each is:
+- a real app screen in a phone frame on the White Signal canvas;
+- a headline and one line of text;
+- the proof thread, a signal blue to cyan line at the same height in every image, so side by side they read as one thread.
+
+The first image leads with the logo, unaltered, and the wordmark. The screens show the labelled sample workspace.
 
 | Slot | File | Size |
 | --- | --- | --- |
 | App icon | `play-icon-512.png` (32-bit, from the app icon) | 512 × 512 |
-| Feature graphic | `play-feature-graphic.png` (the logo and the tagline) | 1024 × 500 |
-| Phone screenshots | `play-phone-1-mission-control.png` to `play-phone-6-tasks.png` | 1080 × 1920 |
+| Feature graphic | `designed/farbaek-feature-graphic.png` (the logo, the line and the app) | 1024 × 500 |
+| Phone screenshots | `designed/farbaek-phone-1.png` to `farbaek-phone-6.png` | 1080 × 1920 |
+| App Store (6.1" and 6.3") | `desktop/release/store-ios/designed/app-store-1.png` to `app-store-6.png` | 1206 × 2622 |
 
-The screenshots are the website's `/app` pages from a local demo build: Mission Control, Build, Approvals, a task, a project and Tasks. Each shows the "Demo workspace. Sample data only." band across the top.
+**The order follows the work:**
+
+| Image | App Store | Google Play |
+| --- | --- | --- |
+| 1 | Farbaek | Farbaek |
+| 2 | describe | describe |
+| 3 | approve | approve |
+| 4 | review | decide (the task's mode) |
+| 5 | follow | ship (the project) |
+| 6 | anywhere | follow |
+
+**The sources:**
+- **iPhone:** the simulator tour at 1320 × 2868.
+- **Android:** the website's `/app` pages from a local demo build at 360 × 640, 3x. They show the "Demo workspace. Sample data only." band, and Android's status strip is drawn above them, where the camera sits.
+
+Both stores got these on 2026-11-01. The App Store copyright is "2026 Farbaek".
 
 ## Store settings
 

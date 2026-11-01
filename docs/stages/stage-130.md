@@ -120,6 +120,20 @@
 - **Sent for review:** 15 changes, at the owner's request to publish. Google says reviews usually take up to 7 days.
 - **App links:** `src/config/android-app.ts` now names Play's app signing key `9E:7A:BB:51:…:DB:D2`, which Play signs installs with, and the upload key. So `/.well-known/assetlinks.json` claims the app, and it opens without Chrome's address bar once this is live.
 
+### Store images, later on 2026-11-01
+
+- **What the owner asked for:** more attractive store images, with the real platform, the logo first, and "Farbaek" instead of their name.
+- **`scripts/release/store-images.mjs`** renders the real screens in phone frames on the White Signal canvas:
+  - a headline and one line of text, in Geist;
+  - the proof thread across every image;
+  - the logo, unaltered, leading the first image.
+
+  It makes six App Store images (1206 × 2622), six Play phone images (1080 × 1920) and a Play feature graphic (1024 × 500). All are opaque RGB, and it checks that Geist loaded first.
+- **Uploaded:**
+  - App Store Connect: the old six removed, the designed six added, and the copyright changed to "2026 Farbaek";
+  - Google Play: the feature graphic and six phone images replaced, in order, and sent for review with the release.
+- **Seller name:** the App Store's "Developer" line shows the individual account's legal name. Only an organisation account (it needs a D-U-N-S number) shows "Farbaek" there. On Google Play the developer name is the account's name, "Svanflok".
+
 ### Next
 
 - **The owner, for the App Store:**
