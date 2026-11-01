@@ -146,6 +146,85 @@ function featureHtml() {
 </body></html>`;
 }
 
+/** A phone with a real iPhone screen, for the wide App Store artwork. */
+function iphoneFrame(file, width, style = "") {
+  const screen = dataUri(join(IOS.dir, file), "image/png");
+  const bezel = Math.round(width * 0.02);
+  const radius = Math.round(width * 0.14);
+  const screenH = Math.round((width - bezel * 2) * (2868 / 1320));
+  return `<div style="position:absolute; ${style} width:${width}px; height:${screenH + bezel * 2}px; border-radius:${radius}px; background:${TOKENS.ink}; padding:${bezel}px;
+      box-shadow: 0 ${Math.round(width * 0.08)}px ${Math.round(width * 0.2)}px -${Math.round(width * 0.04)}px rgb(36 80 240 / .30), 0 0 0 ${Math.max(2, Math.round(width * 0.003))}px rgb(18 19 23 / .9);">
+    <div style="position:relative; width:100%; height:${screenH}px; border-radius:${radius - bezel}px; overflow:hidden;">
+      <img src="${screen}" style="width:100%; display:block" alt="">
+      <div style="position:absolute; left:50%; top:${Math.round(width * 0.03)}px; transform:translateX(-50%); width:${Math.round(width * 0.27)}px; height:${Math.round(width * 0.08)}px; border-radius:999px; background:${TOKENS.ink}"></div>
+    </div></div>`;
+}
+
+const WIDE_HEAD = `<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@500&display=block" rel="stylesheet">`;
+
+/**
+ * The App Store product page header (21:9, 3840 x 1646). Apple asks for one clear idea and a
+ * short phrase, inside a safe area its templates define, so everything that matters sits in the
+ * middle third: the logo, the name and the line on the proof thread, with real screens either side.
+ */
+function headerHtml() {
+  const W = 3840, H = 1646, threadY = 640;
+  return `${WIDE_HEAD}<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: ${W}px; height: ${H}px; overflow: hidden; background: ${TOKENS.canvas}; font-family: "Geist", system-ui, sans-serif; color: ${TOKENS.ink}; -webkit-font-smoothing: antialiased; }
+  .aurora { position: absolute; inset: 0; background:
+    radial-gradient(1300px 900px at 50% 46%, color-mix(in oklab, ${TOKENS.accent} 12%, transparent), transparent 70%),
+    radial-gradient(900px 700px at 28% 90%, color-mix(in oklab, ${TOKENS.accent2} 10%, transparent), transparent 70%),
+    radial-gradient(900px 700px at 74% 92%, color-mix(in oklab, ${TOKENS.accent2} 9%, transparent), transparent 70%); }
+  .thread { position: absolute; top: ${threadY}px; height: 8px; background: linear-gradient(90deg, ${TOKENS.accent}, ${TOKENS.accent2}); opacity: .9; }
+  .node { position: absolute; top: ${threadY - 26}px; width: 60px; height: 60px; border-radius: 999px; background: #fff; border: 13px solid ${TOKENS.accent}; }
+  .center { position: absolute; left: 50%; top: 210px; transform: translateX(-50%); display: flex; align-items: center; gap: 70px; }
+  .center img { height: 860px; width: auto; }
+  .name { font-weight: 500; font-size: 200px; letter-spacing: -0.045em; line-height: 1; }
+  .line { margin-top: 44px; font-size: 92px; font-weight: 500; letter-spacing: -0.035em; line-height: 1.04; color: ${TOKENS.ink}; max-width: 1180px; }
+  .sub { margin-top: 30px; font-size: 52px; color: ${TOKENS.ink2}; letter-spacing: -0.01em; }
+  .text { padding-top: 120px; }
+</style></head><body>
+  <div class="aurora"></div>
+  <!-- The thread breaks around the logo and the words, so nothing crosses them. -->
+  <div class="thread" style="left: 0; width: 930px"></div><div class="thread" style="left: 2910px; right: 0; transform: scaleX(-1)"></div>
+  <div class="node" style="left: 900px"></div><div class="node" style="left: 2880px"></div>
+  ${iphoneFrame("iphone-3-review.png", 520, "left: -190px; top: 560px;")}
+  ${iphoneFrame("iphone-2-approvals.png", 560, "left: 250px; top: 250px;")}
+  ${iphoneFrame("iphone-4-build.png", 520, "right: -190px; top: 560px;")}
+  ${iphoneFrame("iphone-1-today.png", 560, "right: 250px; top: 250px;")}
+  <div class="center"><img src="${LOGO}" alt=""><div class="text"><div class="name">Farbaek</div><div class="line">Approve what your agent builds.</div><div class="sub">From idea to verified software.</div></div></div>
+</body></html>`;
+}
+
+/** The App Store search results artwork (3:2, 3840 x 2560): "state the obvious", with the app itself. */
+function searchHtml() {
+  const W = 3840, H = 2560, threadY = 760;
+  const steps = [
+    { file: "iphone-4-build.png", label: "Describe", x: 330 },
+    { file: "iphone-2-approvals.png", label: "Approve", x: 1430 },
+    { file: "iphone-3-review.png", label: "Review", x: 2530 },
+  ];
+  return `${WIDE_HEAD}<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: ${W}px; height: ${H}px; overflow: hidden; background: ${TOKENS.canvas}; font-family: "Geist", system-ui, sans-serif; color: ${TOKENS.ink}; -webkit-font-smoothing: antialiased; }
+  .aurora { position: absolute; inset: 0; background:
+    radial-gradient(1500px 1100px at 50% 75%, color-mix(in oklab, ${TOKENS.accent} 12%, transparent), transparent 70%),
+    radial-gradient(1000px 800px at 12% 100%, color-mix(in oklab, ${TOKENS.accent2} 10%, transparent), transparent 70%); }
+  h1 { position: absolute; left: 330px; top: 170px; font-weight: 500; font-size: 230px; letter-spacing: -0.05em; line-height: 1; }
+  .thread { position: absolute; left: 0; right: 0; top: ${threadY}px; height: 10px; background: linear-gradient(90deg, ${TOKENS.accent}, ${TOKENS.accent2} 50%, ${TOKENS.accent}); opacity: .9; }
+  .node { position: absolute; top: ${threadY - 31}px; width: 72px; height: 72px; border-radius: 999px; background: #fff; border: 16px solid ${TOKENS.accent}; }
+  .label { position: absolute; top: ${threadY + 70}px; font: 500 64px/1 "Geist Mono", ui-monospace, monospace; color: ${TOKENS.accent}; letter-spacing: .02em; }
+</style></head><body>
+  <div class="aurora"></div>
+  <h1>Approve what your agent builds.</h1>
+  <div class="thread"></div>
+  ${steps.map((s) => `<div class="node" style="left:${s.x}px"></div><div class="label" style="left:${s.x}px">${s.label}</div>`).join("")}
+  ${steps.map((s) => iphoneFrame(s.file, 980, `left: ${s.x}px; top: ${threadY + 200}px;`)).join("")}
+</body></html>`;
+}
+
 const chromePath = ["C:/Program Files/Google/Chrome/Application/chrome.exe", "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe", "/usr/bin/google-chrome"].find((p) => existsSync(p));
 const browser = await chromium.launch({ executablePath: chromePath, headless: true });
 
@@ -172,4 +251,6 @@ for (const set of [IOS, ANDROID]) {
   }
 }
 await render(featureHtml(), { w: 1024, h: 500 }, join(root, ANDROID.dir, "designed", "play-feature-graphic.png"));
+await render(headerHtml(), { w: 3840, h: 1646 }, join(root, IOS.dir, "designed", "app-store-header.png"));
+await render(searchHtml(), { w: 3840, h: 2560 }, join(root, IOS.dir, "designed", "app-store-search.png"));
 await browser.close();

@@ -56,6 +56,8 @@ The first image leads with the logo, unaltered, and the wordmark. The screens sh
 | Feature graphic | `designed/farbaek-feature-graphic.png` (the logo, the line and the app) | 1024 × 500 |
 | Phone screenshots | `designed/farbaek-phone-1.png` to `farbaek-phone-6.png` | 1080 × 1920 |
 | App Store (6.1" and 6.3") | `desktop/release/store-ios/designed/app-store-1.png` to `app-store-6.png` | 1206 × 2622 |
+| App Store header | `desktop/release/store-ios/designed/app-store-header.png` (the logo, the name and the line in the middle, real screens at the edges) | 3840 × 1646 |
+| App Store search results | `desktop/release/store-ios/designed/app-store-search.png` (Describe, Approve, Review on the thread) | 3840 × 2560 |
 
 **The order follows the work:**
 
