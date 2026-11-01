@@ -18,7 +18,15 @@ const SECRET_PATTERNS: RegExp[] = [
 
 export function redact(text: string): string {
   let out = text;
-  for (const p of SECRET_PATTERNS) out = out.replace(p, (m, k?: string, sep?: string) => (k && sep ? `${k}${sep}[redacted]` : "[redacted]"));
+  for (const p of SECRET_PATTERNS) {
+    // Only the "name: value" pattern has groups (the name and the separator), and it keeps the name.
+    // For the others, replace() passes the match's offset and the whole input where groups would be,
+    // so they must never be echoed back: that would write the original text, secret and all.
+    out = out.replace(p, (_match: string, ...rest: unknown[]) => {
+      const [name, sep] = rest;
+      return typeof name === "string" && typeof sep === "string" ? `${name}${sep}[redacted]` : "[redacted]";
+    });
+  }
   return out;
 }
 

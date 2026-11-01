@@ -16,6 +16,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { ProposalOutputSchema } from "@/core/realityloop/change-proposal";
 import { ContractDraftSchema } from "@/core/realityloop/contract-draft";
+import { log } from "@/server/observability/log";
 import type { ChangeProposer, ProposalOutcome } from "./change-proposer";
 import type { ContractDrafter, DraftOutcome, ProviderUsage } from "./contract-drafter";
 import { CONTRACT_SYSTEM_PROMPT, PROPOSAL_SYSTEM_PROMPT, contractBriefMessage, proposalBriefMessage } from "./prompts";
@@ -39,6 +40,24 @@ export interface AnthropicCallOptions {
  */
 function fallbackParams(model: string): { betas: ["server-side-fallback-2026-07-01"]; fallbacks: "default" } | Record<string, never> {
   return model.startsWith("claude-haiku") ? {} : { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" };
+}
+
+/**
+ * What Anthropic said when a call failed, for the server log only: the HTTP status, the error
+ * type and the request id. Never the prompt, and never the key (log() masks keys anyway).
+ * People see a plain "AI isn't available right now"; this is what makes that diagnosable.
+ */
+export function logProviderError(call: "contract_draft" | "change_proposal", model: string, error: unknown): void {
+  const api = error instanceof Anthropic.APIError ? error : null;
+  const body = api?.error as { error?: { type?: unknown } } | undefined;
+  log("error", "anthropic.call_failed", {
+    call,
+    model,
+    status: api?.status ?? null,
+    type: typeof body?.error?.type === "string" ? body.error.type : error instanceof Error ? error.name : "unknown",
+    requestId: api?.requestID ?? null,
+    message: api ? api.message.slice(0, 300) : null,
+  });
 }
 
 function usageOf(message: {
@@ -81,6 +100,7 @@ export function createAnthropicContractDrafter(options: AnthropicCallOptions = {
         if (message.stop_reason === "max_tokens" || !message.parsed_output) return { ok: false, failure: "INCOMPLETE", usage };
         return { ok: true, draft: message.parsed_output, usage };
       } catch (error) {
+        logProviderError("contract_draft", model, error);
         if (error instanceof Anthropic.RateLimitError || error instanceof Anthropic.InternalServerError || error instanceof Anthropic.APIConnectionTimeoutError) {
           return { ok: false, failure: "PROVIDER_BUSY", usage: null };
         }
@@ -124,6 +144,7 @@ export function createAnthropicChangeProposer(options: AnthropicCallOptions = {}
         if (message.stop_reason === "max_tokens" || !message.parsed_output) return { ok: false, failure: "INCOMPLETE", usage };
         return { ok: true, output: message.parsed_output, usage };
       } catch (error) {
+        logProviderError("change_proposal", model, error);
         if (error instanceof Anthropic.RateLimitError || error instanceof Anthropic.InternalServerError || error instanceof Anthropic.APIConnectionTimeoutError) {
           return { ok: false, failure: "PROVIDER_BUSY", usage: null };
         }

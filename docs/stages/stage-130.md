@@ -145,6 +145,20 @@
   - **Testers join** at https://play.google.com/apps/testing/com.farbaek.app with the Gmail address on the "MY" list, then install Farbaek from Play.
 - **Microsoft Store:** in certification since 2026-10-31.
 
+### Plans can't be drafted in production (found 2026-11-01)
+
+- **What happened:** the review account's first build ("A one-page site for Ember & Rye…") got "AI isn't available right now" twice.
+  - That is `PROVIDER_ERROR`: Anthropic refused the call outright, not a busy or overloaded answer.
+  - Both tries were refunded.
+  - The Anthropic account has $4.35 of credit, so an empty balance isn't the cause.
+- **Diagnosing it:** Claude reading production is blocked, so `scripts/vps/check-ai.ps1` is for the owner. It sends two tiny requests from the server with its own key, one plain and one shaped like a plan draft, and prints only the HTTP status and Anthropic's error type and message. The key is never shown.
+- **Logging:** `src/server/ai/anthropic.ts` now logs `anthropic.call_failed` with the call, model, status, error type and request id, so the next failure shows in the server log.
+- **A security fix found by the new test:** `redact()` in `src/server/observability/log.ts` leaked secrets.
+  - For patterns without groups (Anthropic, E2B and Supabase keys, JWTs), `String.replace` passes the match's offset and the whole input where groups would be.
+  - The replacer echoed them back, so it wrote the original text, key included, followed by "[redacted]".
+  - It now uses captured groups only when they are strings.
+  - `tests/security-eval/disclosure.test.ts` covers bare keys; the security run is 36 of 36.
+
 ### Next
 
 - **The owner:**
