@@ -34,7 +34,17 @@ The texts, graphics and answers are in `docs/mobile/play-listing.md`. Nothing is
   - **Store settings:** Productivity, `support@farbaek.com` and `https://www.farbaek.com`;
   - **the default store listing:** both descriptions, the icon, the feature graphic and the six screenshots;
   - **Privacy policy:** the URL.
-- **Still yours, under App content:** the other declarations (ads, app access, content rating, target audience, data safety, and the rest Play lists). Auto mode refuses Claude making them; the answers are in `docs/mobile/play-listing.md`.
+- **Answered by the owner, with Claude checking each page:**
+  - Sign in details: `hello@farbaek.com`, with the robots' toggle off;
+  - Ads: none;
+  - Content rating: Everyone, PEGI 3, USK 0 and IARC 3+, with "Users Interact";
+  - Target audience: 13 and over;
+  - Data safety: imported from `docs/mobile/play-data-safety.csv`.
+
+  Auto mode refuses Claude making declarations.
+- **Still open:** Advertising ID (No), Government apps, Financial features and Health apps (none).
+- **Testers:** the closed track "Closed testing - Alpha" uses the owner's email list "MY" (13 people). They join with the link Play shows after the first release, and at least 12 must stay joined for 14 days.
+- **Signing:** the owner ran `android-signing.ps1`, and both secrets are on GitHub. Run #6 builds the first signed bundle.
 
 1. **Create the app.** In play.google.com/console, choose **Create app**:
    - name **Farbaek**, default language English (United States);

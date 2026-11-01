@@ -84,12 +84,19 @@ jobs:
           version=$(grep '^versionName=' android/version.properties | cut -d= -f2)
           mkdir -p out
           cp "$aab" "out/farbaek-$version.aab"
-          jarsigner -verify -strict "out/farbaek-$version.aab"
+          # Every signature must verify. Not -strict: an upload key is self-signed, which -strict
+          # reports as an untrusted chain (exit 4). Instead, the signer must be this upload key.
+          verified=$(jarsigner -verify "out/farbaek-$version.aab")
+          grep -q '^jar verified\.' <<<"$verified" || { echo "::error::The bundle's signature didn't verify."; exit 1; }
+          sha256_of() { awk '/SHA256:/ { sub(/.*SHA256: */, ""); print; exit }'; }
+          signer=$(keytool -printcert -jarfile "out/farbaek-$version.aab" | sha256_of)
+          upload=$(keytool -list -v -keystore "$FARBAEK_ANDROID_KEYSTORE" -storetype pkcs12 -storepass:env FARBAEK_ANDROID_KEYSTORE_PASSWORD -alias farbaek-upload | sha256_of)
+          [ -n "$upload" ] && [ "$signer" = "$upload" ] || { echo "::error::The bundle isn't signed with the upload key."; exit 1; }
           # The manifest inside the bundle is binary XML; the package name is still readable in it.
-          unzip -p "out/farbaek-$version.aab" base/manifest/AndroidManifest.xml | strings | grep -q "com.farbaek.app"
+          manifest=$(unzip -p "out/farbaek-$version.aab" base/manifest/AndroidManifest.xml | strings)
+          grep -q "com.farbaek.app" <<<"$manifest" || { echo "::error::The bundle's package isn't com.farbaek.app."; exit 1; }
           (cd out && sha256sum "farbaek-$version.aab" > "farbaek-$version.aab.sha256")
-          keytool -list -v -keystore "$FARBAEK_ANDROID_KEYSTORE" -storetype pkcs12 -storepass:env FARBAEK_ANDROID_KEYSTORE_PASSWORD -alias farbaek-upload \
-            | grep 'SHA256:' | head -1 | sed 's/.*SHA256: *//' > out/upload-certificate-sha256.txt
+          printf '%s\n' "$upload" > out/upload-certificate-sha256.txt
           {
             echo "### Farbaek for Android"
             echo

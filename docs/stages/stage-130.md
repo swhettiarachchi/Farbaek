@@ -99,15 +99,57 @@
 - **The gate inside the real app:** the Android bundle hasn't been built yet, because it waits for the upload key.
 - **The Billing page's gated buttons:** the demo workspace has payments not connected, so its plan cards show "Unavailable until payments open" before they reach the buy links. The same `WebPurchaseOnly` wraps them.
 
+### Google Play, later on 2026-11-01
+
+- **The owner's App content declarations are done:**
+  - sign-in details;
+  - ads;
+  - content rating (Everyone, PEGI 3, USK 0, IARC 3+, "Users Interact");
+  - target audience 13+;
+  - Data safety, imported from `docs/mobile/play-data-safety.csv`;
+  - Advertising ID, government, financial and health.
+- **Signing:** the owner ran `android-signing.ps1`. Run #6 built the bundle, then failed its check: `jarsigner -verify -strict` exits 4 for any self-signed certificate, and upload keys are self-signed. `android.yml` now requires every signature to verify and the signer's SHA-256 to equal the upload certificate's. Run #7 passed:
+  - `farbaek-1.0.0.aab`, 3,887,365 bytes, SHA-256 `3031c9f8…f502`;
+  - upload certificate `6A:BE:4A:F4:…:4A:31`.
+- **Closed testing, "Closed testing - Alpha":**
+  - all 177 countries and the rest of the world;
+  - testers from the owner's list "MY" (13 people);
+  - feedback to `support@farbaek.com`.
+
+  Release 1 (1.0.0) was uploaded after its SHA-256 was checked. Play accepted it (API 24+, target 36) with one warning: there's no deobfuscation file, and none is needed.
+- **Sent for review:** 15 changes, at the owner's request to publish. Google says reviews usually take up to 7 days.
+- **App links:** `src/config/android-app.ts` now names Play's app signing key `9E:7A:BB:51:…:DB:D2`, which Play signs installs with, and the upload key. So `/.well-known/assetlinks.json` claims the app, and it opens without Chrome's address bar once this is live.
+
+### Store images, later on 2026-11-01
+
+- **What the owner asked for:** more attractive store images, with the real platform, the logo first, and "Farbaek" instead of their name.
+- **`scripts/release/store-images.mjs`** renders the real screens in phone frames on the White Signal canvas:
+  - a headline and one line of text, in Geist;
+  - the proof thread across every image;
+  - the logo, unaltered, leading the first image.
+
+  It makes six App Store images (1206 × 2622), six Play phone images (1080 × 1920) and a Play feature graphic (1024 × 500). All are opaque RGB, and it checks that Geist loaded first.
+- **Uploaded:**
+  - App Store Connect: the old six removed, the designed six added, and the copyright changed to "2026 Farbaek";
+  - Google Play: the feature graphic and six phone images replaced, in order, and sent for review with the release.
+- **Seller name:** the App Store's "Developer" line shows the individual account's legal name. Only an organisation account (it needs a D-U-N-S number) shows "Farbaek" there. On Google Play the developer name is the account's name, "Svanflok".
+
+### Submitted, 2026-11-01
+
+- **App Store:**
+  - The owner published App Privacy: five data types (email, other user content, user ID, device ID, purchase history), each for App Functionality, linked to the user, with no tracking.
+  - The owner added the review contact. Claude added the review notes, the header (3840 × 1646) and the search results artwork (3840 × 2560).
+  - Claude added version 1.0.0 for review and submitted it. Status: **Waiting for Review**. Release is automatic after approval.
+- **Google Play:**
+  - Google approved and published the closed test ("Last published on November 1, 2026"). The store images were sent with it.
+  - **Testers join** at https://play.google.com/apps/testing/com.farbaek.app with the Gmail address on the "MY" list, then install Farbaek from Play.
+- **Microsoft Store:** in certification since 2026-10-31.
+
 ### Next
 
-- **The owner, for the App Store:**
-  - App Privacy (the data types are in `docs/mobile/ios.md`, step 7);
-  - the review contact's phone number;
-  - Add for Review, then Submit.
-- **The owner, for Google Play:**
-  - the review account (`hello@farbaek.com`, made with `scripts/vps/add-review-account.ps1`), signed in once, and its details under Sign in details;
-  - the other App content declarations, from `docs/mobile/play-listing.md`;
-  - run `scripts/release/android-signing.ps1`;
-  - then Claude builds the bundle, fills in the listing, and the closed test starts.
-- **Merge:** #156 first, then this branch.
+- **The owner:**
+  - send the join link to the 13 testers. At least 12 must stay joined for 14 days, then apply for production;
+  - merge #160, so `/.well-known/assetlinks.json` names Play's signing key and the app opens without Chrome's address bar.
+- **Apple's review:** answer within 48 hours. If anything comes back, the email names the guideline.
+- **Google Play Billing** for selling plans in the Android app, during the 14 days (ADR 0150, Consequences).
+- **When the Microsoft Store passes:** set `AGENT_STORE_URL`.
