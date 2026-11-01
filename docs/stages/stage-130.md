@@ -68,6 +68,11 @@
   - its own hashed limits, which fail closed;
   - Turnstile's token is passed on;
   - one answer for a wrong password, an unknown account and an account without one.
+- **In production (2026-11-01):**
+  - the owner ran `add-review-account.ps1` for `hello@farbaek.com`;
+  - they signed in at www.farbaek.com/sign-in/password and reached the app's first screen ("What do you want to build?"), signed in as that address.
+
+  The workspace is left uncreated, so the 14-day trial starts when a reviewer first uses it.
 - `/sign-in/password` and the link on `/sign-in` in the dev server at 375px: 16px inputs, a 44px link, no sideways scroll. No password was submitted, because from this PC it would go to production Auth.
 - **A demo build in the browser:**
   - `/pricing` offers Choose and Pay yearly;
