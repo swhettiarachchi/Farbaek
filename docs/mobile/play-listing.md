@@ -88,7 +88,7 @@ These are declarations, so the owner answers them. Here are the facts to answer 
     - Sites people publish on farbaek.si are public.
     - There's no chat between strangers.
 - **Target audience:** 13 and over. The Terms set the minimum age (`LEGAL.minimumAge`), and the App Store rating is 13+.
-- **Data safety.**
+- **Data safety** (saved 2026-11-01, by importing `docs/mobile/play-data-safety.csv`, Play's own export with these answers filled in). To change it: Export to CSV, edit the third column, then Import from CSV. Play checks the deletion links when the form is saved, so they must load first.
   - **Data collection and security:**
     - collects user data: yes;
     - encrypted in transit: yes;
@@ -103,7 +103,7 @@ These are declarations, so the owner answers them. Here are the facts to answer 
   | Email address | Required | App functionality, account management, developer communications |
   | Name | Optional: only when signing in with Google or Apple | Account management |
   | User IDs | Required | App functionality, account management |
-  | Purchase history | Required | App functionality (plans bought on the web are shown in Billing) |
+  | Purchase history | Optional: only once someone buys a plan | App functionality (plans bought on the web are shown in Billing) |
   | Other in-app messages | Optional | App functionality (support requests from Help) |
   | Photos | Optional | App functionality (images added to projects) |
   | Files and docs | Optional | App functionality (project files) |
