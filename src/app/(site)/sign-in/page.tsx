@@ -1,6 +1,7 @@
 import { CheckCircleIcon, ClipboardTextIcon, RobotIcon, SealCheckIcon, SparkleIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Container } from "@/components/ui/container";
 import { CONTACT } from "@/config/contact";
@@ -84,6 +85,15 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
           </a>
           .
         </p>
+        {supabase ? (
+          // App store review accounts (ADR 0151): the only accounts with a password.
+          <p className="text-sm text-ink-2">
+            App review account?{" "}
+            <Link href={`/sign-in/password?${new URLSearchParams({ next })}`} className="inline-flex min-h-11 items-center font-medium text-accent hover:underline">
+              Sign in with a password
+            </Link>
+          </p>
+        ) : null}
       </div>
 
       <section aria-labelledby="next-title" className="aurora hidden lg:block">

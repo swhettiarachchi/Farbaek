@@ -64,8 +64,16 @@ The screenshots are the website's `/app` pages from a local demo build: Mission 
 
 These are declarations, so the owner answers them. Here are the facts to answer from.
 
-- **App access:** choose "All or some functionality is restricted", then add instructions:
-  > Farbaek needs a free account. On the sign-in screen, tap Continue with Google, or enter an email address you can read: Farbaek emails a one-time sign-in link. A new account starts a 14-day free trial; no payment details are needed.
+- **Sign in details** (formerly App access). Google's reviewers won't create accounts or use free trials, so they get a review account with a password (ADR 0151).
+  1. **Make the account.** In the Supabase dashboard, open project `kzcximuvvnnakmrttgzn`, then **Authentication**, **Users**, **Add user**, **Create new user**:
+     - email `play-review@farbaek.com`;
+     - a long password from your password manager;
+     - tick **Auto Confirm User**.
+  2. **Sign in once** at https://www.farbaek.com/sign-in/password, so its workspace exists.
+  3. **In Play Console:** answer **Yes**, then **Add instructions**:
+     - the account's email address and password;
+     - in "Any other information":
+       > On the sign-in screen, tap "Sign in with a password" under the form, then enter the email address and password above. The account is a normal Farbaek workspace; describe something to build to see a plan, approvals and the build. Nothing in the app is sold.
 - **Ads:** No.
 - **Content rating:** category "All other app types".
   - No violence, sexual content, profanity, drugs or gambling.
