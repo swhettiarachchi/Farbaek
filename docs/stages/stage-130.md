@@ -159,6 +159,19 @@
   - It now uses captured groups only when they are strings.
   - `tests/security-eval/disclosure.test.ts` covers bare keys; the security run is 36 of 36.
 
+### The Android app stopped at launch (found and fixed 2026-11-01)
+
+- **What happened:** the owner installed 1.0.0 from the closed test, and it showed "Farbaek keeps stopping" at once.
+- **Reproduced:** `.github/workflows/android-launch.yml` installs the release APK on an Android 14 emulator with Google Play and Chrome, opens it, and puts the crash's stack on the run's page.
+  - The first runs never booted: `avdmanager` and the emulator looked for AVDs in different folders. Both now use `ANDROID_AVD_HOME`.
+  - Run #5 showed the crash: `IllegalArgumentException: Component class com.google.androidbrowserhelper.trusted.ManageDataLauncherActivity does not exist in com.farbaek.app`.
+- **Cause:** androidbrowserhelper 2.7's `LauncherActivity` enables or disables `ManageDataLauncherActivity` on every launch (for its "Site settings" shortcut). `PackageManager` throws for a component the app doesn't declare. Bubblewrap's template declares it, and our hand-written manifest didn't.
+- **Fix, in 1.0.1 (versionCode 2):**
+  - `ManageDataLauncherActivity` is declared as Bubblewrap does, with Android's "Manage space" pointing at it. People can now clear Farbaek's site data from the app's settings.
+  - The launch address moved to `@string/launch_url`, so the app and Manage space share it.
+  - The launch check now runs on every change to `android/`.
+- **Play's automatic protection** ("Prevent unofficial installs") is on. It wasn't the cause: the upload-signed APK, which Play hasn't touched, crashed the same way.
+
 ### Next
 
 - **The owner:**

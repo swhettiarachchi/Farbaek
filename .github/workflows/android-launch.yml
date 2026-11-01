@@ -103,13 +103,16 @@ jobs:
             cat out/resumed.txt
             echo '```'
             echo
-            echo "Crashes in the log: $(grep -c 'FATAL EXCEPTION' out/logcat.txt || true)"
+            echo "Farbaek crashes: $(grep -c 'Process: com.farbaek.app' out/crash.txt || true). Other apps' crashes on the emulator: $(grep -v -c 'Process: com.farbaek.app' <(grep 'Process: ' out/crash.txt) || true)."
             echo
-            # The crash's stack, on the run's page. Addresses are left out: a stack trace doesn't need them.
+            # Farbaek's crash, on the run's page. Addresses are left out: a stack trace doesn't need them.
             echo '```'
-            grep -v -E 'https?://' out/crash.txt | head -n 80
+            grep -B1 -A60 'Process: com.farbaek.app' out/crash.txt | grep -v -E 'https?://' | head -n 80 || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          if grep -q 'Process: com.farbaek.app' out/crash.txt; then
+            echo "::error::Farbaek stopped at launch. Its stack trace is in the run's summary."; exit 1
+          fi
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()

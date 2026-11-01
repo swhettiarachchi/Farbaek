@@ -70,3 +70,10 @@ The texts, graphics and answers are in `docs/mobile/play-listing.md`. Nothing is
 ## Updating the app
 
 Most changes need no app update: the app is the website. Only change `android/` for the app shell, and raise `versionCode` in `android/version.properties` for each upload.
+
+Every change to `android/` also runs **Android launch check** (`.github/workflows/android-launch.yml`). It installs the release APK on an Android 14 emulator with Chrome and opens it. Its summary shows:
+- the activity on screen afterwards;
+- the number of crashes;
+- the first crash's stack trace.
+
+Don't upload a bundle whose check shows a crash. Version 1.0.0 stopped at launch on every phone because `ManageDataLauncherActivity` wasn't declared (androidbrowserhelper 2.7 turns it on or off at each launch). Keep the manifest's components in step with [Bubblewrap's template](https://github.com/GoogleChromeLabs/bubblewrap/blob/main/packages/core/template_project/app/src/main/AndroidManifest.xml) when androidbrowserhelper is raised.
