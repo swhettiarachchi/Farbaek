@@ -182,6 +182,8 @@ jobs:
           set -euo pipefail
           auth=(-allowProvisioningUpdates -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER")
           # Each upload needs a new build number: this workflow's run number.
+          # Signed for distribution from the start: an App Store profile needs no registered
+          # devices, while the development profile automatic signing uses by default does.
           xcodebuild archive \
             -project ios/Farbaek.xcodeproj \
             -scheme Farbaek \
@@ -189,6 +191,7 @@ jobs:
             -destination generic/platform=iOS \
             -archivePath "$RUNNER_TEMP/Farbaek.xcarchive" \
             CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}" \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
             "${auth[@]}" | tail -n 60
           test "${PIPESTATUS[0]}" -eq 0
           xcodebuild -exportArchive \
