@@ -3,8 +3,11 @@
 # VPS. Reviewers sign in at www.farbaek.com/sign-in/password. Run by the
 # owner, never by Claude: it creates an account and you choose its password.
 #
-# The password is asked for twice and shows as stars. It goes to the server
-# over SSH on standard input, never on a command line, and isn't saved here.
+# Press Enter at the password prompt and the script makes a strong random one,
+# shown once after the account exists, to paste into Play Console. A password
+# you type instead is asked for twice and shows as stars. Either way it goes
+# to the server over SSH on standard input, never on a command line, and
+# isn't saved here.
 # An address that already has an account is refused, so a real account never
 # gets a password by mistake.
 #
@@ -30,13 +33,38 @@ function Read-Secret([string]$prompt) {
   finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr) }
 }
 
+# A random password from letters and digits that can't be mixed up, in groups of five:
+# about 115 bits, and nothing to type, since it's pasted into Play Console.
+function New-ReviewPassword {
+  $alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"
+  $rng = [Security.Cryptography.RandomNumberGenerator]::Create()
+  $chars = New-Object System.Collections.Generic.List[char]
+  $byte = New-Object byte[] 1
+  while ($chars.Count -lt 20) {
+    $rng.GetBytes($byte)
+    # Only bytes below a multiple of the alphabet's length, so every character is equally likely.
+    if ($byte[0] -lt 224) { $chars.Add($alphabet[$byte[0] % 56]) }
+  }
+  $rng.Dispose()
+  $text = -join $chars
+  return ($text.Substring(0, 5), $text.Substring(5, 5), $text.Substring(10, 5), $text.Substring(15, 5)) -join "-"
+}
+
 Write-Host "Making the review account $Email." -ForegroundColor Cyan
-Write-Host "Choose a new password of at least 16 characters, used nowhere else. Keep it in your password manager." -ForegroundColor DarkGray
-$first = Read-Secret "Password for $Email"
-if ($first.Length -lt 16) { $first = $null; Write-Host "That's shorter than 16 characters, so nothing changed." -ForegroundColor Red; exit 1 }
-$second = Read-Secret "The same password again"
-if ($first -cne $second) { $first = $null; $second = $null; Write-Host "The two didn't match, so nothing changed." -ForegroundColor Red; exit 1 }
-$second = $null
+Write-Host "Press Enter to have a strong password made for you (recommended), or type your own of at least 12 characters, used nowhere else." -ForegroundColor DarkGray
+$first = Read-Secret "Password for $Email (Enter to make one)"
+$generated = $false
+if (-not $first) {
+  $first = New-ReviewPassword
+  $generated = $true
+} else {
+  if ($first.Length -lt 12) { $first = $null; Write-Host "That's shorter than 12 characters, so nothing changed." -ForegroundColor Red; exit 1 }
+  $second = Read-Secret "The same password again"
+  if ($first -cne $second) { $first = $null; $second = $null; Write-Host "The two didn't match, so nothing changed." -ForegroundColor Red; exit 1 }
+  $second = $null
+}
+# Shown only after the account exists, and only when the script made it.
+$shown = if ($generated) { $first } else { $null }
 
 # Auth's admin API, called on the server with the app's own settings. The
 # whole script, with the request in a quoted heredoc, reaches bash on standard
@@ -76,6 +104,13 @@ $line = ($answer | Select-Object -Last 1)
 
 if ($status -eq 0 -and $line -eq "created") {
   Write-Host "Done. $Email can sign in with that password." -ForegroundColor Green
+  if ($shown) {
+    Write-Host ""
+    Write-Host "Its password, shown only now. Copy it into your password manager and Play Console:" -ForegroundColor Yellow
+    Write-Host "  $shown"
+    Write-Host ""
+    $shown = $null
+  }
   Write-Host "Next:" -ForegroundColor Cyan
   Write-Host "  1. Sign in once at https://www.farbaek.com/sign-in/password, so its workspace is made."
   Write-Host "  2. In Play Console, Sign in details: Yes, then Add instructions, with this address and the password."

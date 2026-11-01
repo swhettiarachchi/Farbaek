@@ -49,7 +49,7 @@
 - **A password for review accounts (ADR 0151).** Play's sign-in details page says its reviewers won't create accounts or use free trials, and they can't open an email link.
   - `/sign-in/password` signs in with an email address and a password.
   - Only accounts the owner makes with `scripts/vps/add-review-account.ps1` have one. Production's Auth is on the VPS, and the old cloud Supabase project is paused.
-  - **The script was tested on this PC** with local bash and a stand-in for Auth's admin API: the request, its headers and a test password with quotes, `$`, a backslash, backticks and accented letters arrived exactly. It also refuses an address that already has an account, and an invalid one.
+  - **The script was tested on this PC** with local bash and a stand-in for Auth's admin API: the request, its headers and a test password with quotes, `$`, a backslash, backticks and accented letters arrived exactly. It also refuses an address that already has an account, and an invalid one. Pressing Enter makes a 23-character password (groups of five), shown once and identical to what was sent; a typed one is never shown; one under 12 characters is refused.
   - The sign-in page links it with one line: "App review account? Sign in with a password".
   - **Guards:** the same as the email link (`src/server/auth/password-sign-in.ts`): Turnstile, limits by hash (5 per email in 15 minutes, 20 per network address an hour), fail closed, and one answer for any wrong combination.
 - **Microsoft Store:** still "In certification" (submitted 2026-10-31). It publishes by itself when it passes.

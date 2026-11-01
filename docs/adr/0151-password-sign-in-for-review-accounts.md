@@ -24,7 +24,7 @@ Google Play's reviewers need sign-in details for an app that requires an account
 **No new way to get a password.** There's no "set a password" or "forgot password". The owner chooses it when running the script, and keeps it in Play Console's sign-in details.
 
 **The script.** Production's Auth runs on the VPS, with no public dashboard. `add-review-account.ps1`:
-- asks for the password twice, shown as stars, at least 16 characters;
+- makes a random password when the owner presses Enter: 20 letters and digits that can't be mixed up, in groups of five, about 115 bits. It's shown once, after the account exists, to paste into Play Console. A typed one is asked for twice, shown as stars, at least 12 characters;
 - sends one bash script to the server over SSH on standard input, with the request in a quoted heredoc, so neither the password nor Auth's key is ever on a command line;
 - calls Auth's admin API with the app's own settings, creating the account already confirmed;
 - refuses an address that already has an account, so a real account never gets a password by mistake.

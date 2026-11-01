@@ -65,7 +65,7 @@ The screenshots are the website's `/app` pages from a local demo build: Mission 
 These are declarations, so the owner answers them. Here are the facts to answer from.
 
 - **Sign in details** (formerly App access). Google's reviewers won't create accounts or use free trials, so they get a review account with a password (ADR 0151).
-  1. **Make the account** for `hello@farbaek.com`. It's a real inbox, so Farbaek's emails to it don't bounce. Production's Auth runs on the VPS, which has no public dashboard, so run this in your own PowerShell window and choose a new password of 16 or more characters when it asks:
+  1. **Make the account** for `hello@farbaek.com`. It's a real inbox, so Farbaek's emails to it don't bounce. Production's Auth runs on the VPS, which has no public dashboard, so run this in your own PowerShell window. At the password prompt, press Enter and it makes a strong one, shown once, to copy into your password manager and Play Console:
 
      ```
      powershell -ExecutionPolicy Bypass -File "C:\Users\INTEL\Documents\FarBaek\scripts\vps\add-review-account.ps1"
