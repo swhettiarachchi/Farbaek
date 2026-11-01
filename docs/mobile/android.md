@@ -28,7 +28,13 @@ Download the run's **farbaek-android** artifact. It holds `farbaek-1.0.0.aab` an
 
 The texts, graphics and answers are in `docs/mobile/play-listing.md`. Nothing is sold inside the app (ADR 0150), so the listing never mentions prices or buying.
 
-**Where it stands (2026-11-01):** the Create app form is filled in under the Svanflok account (u/5): Farbaek, `com.farbaek.app` (available), English (United States), App, Free. Tick the two declarations and choose **Create app**: they're yours to accept.
+**Where it stands (2026-11-01):**
+- **The app:** created under the Svanflok account (u/5): Farbaek, `com.farbaek.app`, Play app id 4974194295109432147. The owner accepted the declarations.
+- **Done by Claude:**
+  - **Store settings:** Productivity, `support@farbaek.com` and `https://www.farbaek.com`;
+  - **the default store listing:** both descriptions, the icon, the feature graphic and the six screenshots;
+  - **Privacy policy:** the URL.
+- **Still yours, under App content:** the other declarations (ads, app access, content rating, target audience, data safety, and the rest Play lists). Auto mode refuses Claude making them; the answers are in `docs/mobile/play-listing.md`.
 
 1. **Create the app.** In play.google.com/console, choose **Create app**:
    - name **Farbaek**, default language English (United States);

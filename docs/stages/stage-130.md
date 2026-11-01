@@ -21,7 +21,13 @@
 
   Already done before this stage: the age rating (13+), content rights, the categories (Developer Tools, Productivity), the description, keywords and URLs.
 - **Google Play:**
-  - **Create app:** filled in under the Svanflok account: Farbaek, `com.farbaek.app` ("Package name available"), English (United States), App, Free. Auto mode refused ticking the two declarations, so the owner ticks them and creates the app.
+  - **Create app:** filled in under the Svanflok account: Farbaek, `com.farbaek.app` ("Package name available"), English (United States), App, Free. Auto mode refused ticking the two declarations. The owner ticked them, and Claude created the app (Play app id 4974194295109432147).
+  - **Saved in Play Console:**
+    - Store settings: Productivity, the support email and the website;
+    - the default store listing: both descriptions, the icon, the feature graphic and six screenshots;
+    - the privacy policy URL.
+
+    The other App content declarations are the owner's.
   - **The listing:** written in `docs/mobile/play-listing.md`: the short and full descriptions, store settings, and the facts for App access, content rating, target audience and Data safety.
   - **Graphics** (in `desktop/release/store-android/`, not in the repository):
     - a 512 × 512 32-bit icon from the app icon;
@@ -69,7 +75,7 @@
   - the review contact's phone number;
   - Add for Review, then Submit.
 - **The owner, for Google Play:**
-  - tick the two declarations and Create app;
+  - the App content declarations, from `docs/mobile/play-listing.md`;
   - run `scripts/release/android-signing.ps1`;
   - then Claude builds the bundle, fills in the listing, and the closed test starts.
 - **Merge:** #156 first, then this branch.
