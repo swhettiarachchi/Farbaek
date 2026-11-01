@@ -12,7 +12,7 @@ Google Play's reviewers need sign-in details for an app that requires an account
 ## Decision
 
 **A separate page, `/sign-in/password`, signs in with an email address and a password.**
-- **Who has a password:** only accounts the owner sets up with one in Supabase Auth, such as `play-review@farbaek.com`. No account gets one any other way, so for everyone else the page always says the email and password don't match.
+- **Who has a password:** only accounts the owner makes with one through `scripts/vps/add-review-account.ps1`, such as `hello@farbaek.com`. No account gets one any other way, so for everyone else the page always says the email and password don't match.
 - **Where it's linked:** one line under the sign-in form, "App review account? Sign in with a password", so a reviewer can find it inside the Android app. The sign-in page still says "No password", because that's true for people.
 
 **The same guards as the email link** (`src/server/auth/password-sign-in.ts`):
@@ -21,10 +21,16 @@ Google Play's reviewers need sign-in details for an app that requires an account
 - limits kept apart from the link's: 5 tries per email address in 15 minutes, and 20 per network address an hour. They're counted by hash, and it fails closed if the limiter can't answer;
 - one answer for a wrong password, an unknown account and an account without a password, so none can be told apart.
 
-**No new way to get a password.** There's no "set a password" or "forgot password". The owner sets it in Supabase and keeps it in Play Console's sign-in details.
+**No new way to get a password.** There's no "set a password" or "forgot password". The owner chooses it when running the script, and keeps it in Play Console's sign-in details.
+
+**The script.** Production's Auth runs on the VPS, with no public dashboard. `add-review-account.ps1`:
+- makes a random password when the owner presses Enter: 20 letters and digits that can't be mixed up, in groups of five, about 115 bits. It's shown once, after the account exists, to paste into Play Console. A typed one is asked for twice, shown as stars, at least 12 characters;
+- sends one bash script to the server over SSH on standard input, with the request in a quoted heredoc, so neither the password nor Auth's key is ever on a command line;
+- calls Auth's admin API with the app's own settings, creating the account already confirmed;
+- refuses an address that already has an account, so a real account never gets a password by mistake.
 
 ## Consequences
 
 - Play's reviewers can sign in to a real account inside the Android app.
 - **More to guard.** Password guessing is limited by the counts above, by Turnstile and by Auth's own limits. The review account holds only what reviewers make in it.
-- **The owner's steps:** make the account in Supabase (Authentication, Users, Add user, Create new user, with "Auto Confirm User"), sign in once on www.farbaek.com/sign-in/password, then paste the address and password into Play Console. Claude never sees the password.
+- **The owner's steps:** run the script, sign in once on www.farbaek.com/sign-in/password, then paste the address and password into Play Console. Claude never sees the password.
