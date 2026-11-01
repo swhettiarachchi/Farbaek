@@ -6,6 +6,9 @@ name: Android launch check
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/android-launch.yml
 
 permissions:
   contents: read
