@@ -107,6 +107,9 @@ describe("SE-016 Secrets in what the model reads", () => {
     // Run events (shown to people and logged) have secrets taken out.
     expect(redact(`curl -H "Authorization: Bearer x" -d api_key=${fake.anthropic}`)).not.toContain(fake.anthropic);
     expect(redact(`token: ${"t".repeat(30)}`)).toBe("token: [redacted]");
+    // A bare key (no "name:" before it) is replaced, and the rest of the text is kept as it was.
+    expect(redact(`Claude said: invalid key ${fake.anthropic} on this request`)).toBe("Claude said: invalid key [redacted] on this request");
+    expect(redact(`${fake.supabase} then ${fake.anthropic}`)).toBe("[redacted] then [redacted]");
   });
 });
 
