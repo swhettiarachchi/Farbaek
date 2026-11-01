@@ -171,12 +171,16 @@
   - The launch address moved to `@string/launch_url`, so the app and Manage space share it.
   - The launch check now runs on every change to `android/`.
 - **Play's automatic protection** ("Prevent unofficial installs") is on. It wasn't the cause: the upload-signed APK, which Play hasn't touched, crashed the same way.
+- **Verified:** launch check runs #6 and #7 on 1.0.1 open Farbaek, which hands off to Chrome (its first-run screen on a fresh emulator), with no Farbaek crash. Run #7 also fails the job on any Farbaek crash.
+- **Sent to Google Play:** run #9 built `farbaek-1.0.1.aab`, 3,887,773 bytes, SHA-256 `5b5dc403…025a`, signed with the upload key. Its SHA-256 was checked after download. It's on "Closed testing - Alpha" as release 2 (1.0.1), with no bundle from 1.0.0 carried over, and is in review. The only warning is the missing deobfuscation file, which isn't needed.
+- **"Contains ads" on the listing:** the Ads declaration says "Yes, my app contains ads". Farbaek has no ads. The owner changes it to "No" (Policy and programs, App content, Ads).
 
 ### Next
 
 - **The owner:**
+  - change the Play Ads declaration to "No";
+  - once Google approves 1.0.1, update Farbaek from Play on your phone (or uninstall and install again) and open it;
   - send the join link to the 13 testers. At least 12 must stay joined for 14 days, then apply for production;
-  - merge #160, so `/.well-known/assetlinks.json` names Play's signing key and the app opens without Chrome's address bar.
 - **Apple's review:** answer within 48 hours. If anything comes back, the email names the guideline.
 - **Google Play Billing** for selling plans in the Android app, during the 14 days (ADR 0150, Consequences).
 - **When the Microsoft Store passes:** set `AGENT_STORE_URL`.
