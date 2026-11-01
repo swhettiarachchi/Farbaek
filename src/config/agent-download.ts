@@ -23,7 +23,13 @@ export const agentDownloadUrl = `/downloads/${AGENT_DOWNLOAD.file}`;
  */
 export const AGENT_STORE_URL: string | null = null;
 
-export const AGENT_MAC: { version: string; file: string; bytes: number; sha256: string; builtOn: string } | null = null;
+export const AGENT_MAC: { version: string; file: string; bytes: number; sha256: string; builtOn: string } | null = {
+  version: "0.9.0",
+  file: "Farbaek-Agent-0.9.0-mac.dmg",
+  bytes: 227_928_858,
+  sha256: "f64015289e2a88f376d1b762c613e09dbc65a22e80d8e5f9dc78638283b65a11",
+  builtOn: "2026-11-01",
+};
 
 /**
  * The Linux AppImage (ADR 0111), built on GitHub's Linux runner
