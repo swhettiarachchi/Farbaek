@@ -18,7 +18,7 @@
 
 export const ANDROID_APP_PACKAGE = "com.farbaek.app";
 
-/** The query the app's launch address carries (android/app/src/main/AndroidManifest.xml). */
+/** The query the app's launch address carries (launch_url in android/app/src/main/res/values/strings.xml). */
 export const ANDROID_APP_CLIENT = "android-app";
 
 /** Where the tab remembers it, for later pages whose referrer is Farbaek itself. */

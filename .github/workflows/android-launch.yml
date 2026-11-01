@@ -1,13 +1,15 @@
 # Farbaek for Android: does it open? Builds the release APK (the same app as the Play bundle,
 # signed with the upload key), installs it on an Android emulator that has Google Play and
 # Chrome, launches it, and keeps a screenshot and the system log as the run's artifact.
-# Run by hand from Actions > "Android launch check". Linux minutes only; nothing reaches Play.
+# Runs on every change to the app, or by hand from Actions > "Android launch check". Linux minutes
+# only; nothing reaches Play. Version 1.0.0 stopped at launch, and only a real launch shows that.
 name: Android launch check
 
 on:
   workflow_dispatch:
   push:
     paths:
+      - android/**
       - .github/workflows/android-launch.yml
 
 permissions:
@@ -58,7 +60,11 @@ jobs:
           # adb and the emulator, for this step and the next.
           export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
           echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
-          echo no | "$sdk/avdmanager" create avd -n launch -k "$image" -d pixel_6 > /dev/null
+          # One AVD folder for both tools: left alone, avdmanager and the emulator look in different places.
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo no | "$sdk/avdmanager" create avd -n launch -k "$image" -d pixel_6
+          "$ANDROID_HOME/emulator/emulator" -list-avds | grep -qx launch || { echo "::error::avdmanager didn't make the AVD."; ls -la "$ANDROID_AVD_HOME"; exit 1; }
           ls -l /dev/kvm || echo "::warning::No /dev/kvm on this runner: the emulator can't use hardware acceleration."
           nohup "$ANDROID_HOME/emulator/emulator" -avd launch -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -accel on > "$RUNNER_TEMP/emulator.log" 2>&1 &
           # Give up after 6 minutes rather than waiting for the job's limit, and say why.
@@ -87,6 +93,7 @@ jobs:
           adb exec-out screencap -p > out/launch-45s.png
           adb shell dumpsys activity activities | grep -E "ResumedActivity|topResumedActivity" | tee out/resumed.txt || true
           adb logcat -d > out/logcat.txt
+          adb logcat -d -b crash > out/crash.txt || true
           grep -E "AndroidRuntime|FATAL|com.farbaek.app|androidbrowserhelper|TrustedWebActivity|TwaLauncher|cr_" out/logcat.txt | tail -n 300 > out/logcat-farbaek.txt || true
           {
             echo "### Android launch check"
@@ -96,8 +103,16 @@ jobs:
             cat out/resumed.txt
             echo '```'
             echo
-            echo "Crashes in the log: $(grep -c 'FATAL EXCEPTION' out/logcat.txt || true)"
+            echo "Farbaek crashes: $(grep -c 'Process: com.farbaek.app' out/crash.txt || true). Other apps' crashes on the emulator: $(grep -v -c 'Process: com.farbaek.app' <(grep 'Process: ' out/crash.txt) || true)."
+            echo
+            # Farbaek's crash, on the run's page. Addresses are left out: a stack trace doesn't need them.
+            echo '```'
+            grep -B1 -A60 'Process: com.farbaek.app' out/crash.txt | grep -v -E 'https?://' | head -n 80 || true
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          if grep -q 'Process: com.farbaek.app' out/crash.txt; then
+            echo "::error::Farbaek stopped at launch. Its stack trace is in the run's summary."; exit 1
+          fi
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()

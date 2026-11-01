@@ -22,6 +22,7 @@
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:manageSpaceActivity="com.google.androidbrowserhelper.trusted.ManageDataLauncherActivity"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Translucent.NoTitleBar">
 
@@ -34,10 +35,10 @@
             android:exported="true"
             android:label="@string/app_name">
 
-            <!-- client=android-app tells the site it's inside the app, which sells nothing there (ADR 0150). -->
+            <!-- launch_url carries client=android-app (strings.xml). -->
             <meta-data
                 android:name="android.support.customtabs.trusted.DEFAULT_URL"
-                android:value="https://www.farbaek.com/app?client=android-app" />
+                android:value="@string/launch_url" />
             <meta-data
                 android:name="android.support.customtabs.trusted.STATUS_BAR_COLOR"
                 android:resource="@color/canvas" />
@@ -57,6 +58,25 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="www.farbaek.com" android:pathPrefix="/app" />
                 <data android:scheme="https" android:host="www.farbaek.com" android:pathPrefix="/auth" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          Farbaek's site data and permissions in Chrome: the app's "Site settings" shortcut and
+          Android's "Manage space". It must be declared: from 2.7, LauncherActivity turns it on or
+          off on every launch, and the app stopped at once without it.
+        -->
+        <activity
+            android:name="com.google.androidbrowserhelper.trusted.ManageDataLauncherActivity"
+            android:enabled="true"
+            android:excludeFromRecents="true"
+            android:exported="false">
+            <meta-data
+                android:name="android.support.customtabs.trusted.MANAGE_SPACE_URL"
+                android:value="@string/launch_url" />
+            <intent-filter>
+                <action android:name="android.intent.action.APPLICATION_PREFERENCES" />
+                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
 
