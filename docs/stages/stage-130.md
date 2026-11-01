@@ -57,6 +57,14 @@
   - This makes Play's IARC answers "No" to public sharing of nudity and graphic violence true.
   - Reports go through Help, "Report a site or abuse"; owners remove members; staff take sites offline.
   - The policy page now shows its own date. Terms and Privacy keep 30 October.
+- **`/delete-account` (1 November 2026).** This is the page Play's Data safety links for deleting an account. It gives:
+  - the steps (Settings, then Delete your account; or write to support from the account's address);
+  - what's deleted and what's kept, and for how long;
+  - what can be deleted without deleting the account.
+
+  Each fact is taken from the Privacy Policy and what account deletion does. Projects can only be archived, not deleted, so the page says a whole project is deleted by writing to support.
+  - It's checked at 375px in the dev server, and added to `qa:responsive` and `qa:a11y`.
+  - Play's Content rating came out Everyone, PEGI 3, USK 0 and IARC 3+, each with "Users Interact".
 - **Microsoft Store:** still "In certification" (submitted 2026-10-31). It publishes by itself when it passes.
 
 ### Verified
