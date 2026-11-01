@@ -99,15 +99,33 @@
 - **The gate inside the real app:** the Android bundle hasn't been built yet, because it waits for the upload key.
 - **The Billing page's gated buttons:** the demo workspace has payments not connected, so its plan cards show "Unavailable until payments open" before they reach the buy links. The same `WebPurchaseOnly` wraps them.
 
+### Google Play, later on 2026-11-01
+
+- **The owner's App content declarations are done:**
+  - sign-in details;
+  - ads;
+  - content rating (Everyone, PEGI 3, USK 0, IARC 3+, "Users Interact");
+  - target audience 13+;
+  - Data safety, imported from `docs/mobile/play-data-safety.csv`;
+  - Advertising ID, government, financial and health.
+- **Signing:** the owner ran `android-signing.ps1`. Run #6 built the bundle, then failed its check: `jarsigner -verify -strict` exits 4 for any self-signed certificate, and upload keys are self-signed. `android.yml` now requires every signature to verify and the signer's SHA-256 to equal the upload certificate's. Run #7 passed:
+  - `farbaek-1.0.0.aab`, 3,887,365 bytes, SHA-256 `3031c9f8…f502`;
+  - upload certificate `6A:BE:4A:F4:…:4A:31`.
+- **Closed testing, "Closed testing - Alpha":**
+  - all 177 countries and the rest of the world;
+  - testers from the owner's list "MY" (13 people);
+  - feedback to `support@farbaek.com`.
+
+  Release 1 (1.0.0) was uploaded after its SHA-256 was checked. Play accepted it (API 24+, target 36) with one warning: there's no deobfuscation file, and none is needed.
+- **Sent for review:** 15 changes, at the owner's request to publish. Google says reviews usually take up to 7 days.
+- **App links:** `src/config/android-app.ts` now names Play's app signing key `9E:7A:BB:51:…:DB:D2`, which Play signs installs with, and the upload key. So `/.well-known/assetlinks.json` claims the app, and it opens without Chrome's address bar once this is live.
+
 ### Next
 
 - **The owner, for the App Store:**
   - App Privacy (the data types are in `docs/mobile/ios.md`, step 7);
   - the review contact's phone number;
   - Add for Review, then Submit.
-- **The owner, for Google Play:**
-  - the review account (`hello@farbaek.com`, made with `scripts/vps/add-review-account.ps1`), signed in once, and its details under Sign in details;
-  - the other App content declarations, from `docs/mobile/play-listing.md`;
-  - run `scripts/release/android-signing.ps1`;
-  - then Claude builds the bundle, fills in the listing, and the closed test starts.
-- **Merge:** #156 first, then this branch.
+- **When Google approves the closed test:** send the 13 testers the join link from the track's Testers tab. At least 12 must stay joined for 14 days, then apply for production.
+- **Google Play Billing** for selling plans in the Android app, recommended during the 14 days (ADR 0150, Consequences).
+- **Merge** this branch, so assetlinks.json names the app before testers install it.
