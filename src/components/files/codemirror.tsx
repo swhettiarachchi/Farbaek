@@ -71,7 +71,21 @@ const theme = EditorView.theme({
   ".cm-changedText": { background: "color-mix(in srgb, var(--verified) 22%, transparent) !important" },
   ".cm-deletedChunk": { backgroundColor: "color-mix(in srgb, var(--failed) 6%, transparent) !important" },
   ".cm-deletedChunk .cm-deletedText, .cm-deletedChunk del": { background: "color-mix(in srgb, var(--failed) 20%, transparent) !important" },
-  ".cm-deletedChunk button": { fontFamily: "var(--font-sans)", borderRadius: "999px", padding: "2px 10px", border: "1px solid var(--line)", cursor: "pointer" },
+  // The merge view pins the buttons absolutely, over the first added line, in fixed green and red.
+  // Here they get a row of their own, so no code is hidden at phone width, as token pills.
+  ".cm-deletedChunk .cm-chunkButtons": { position: "static", display: "flex", justifyContent: "flex-end", gap: "8px", padding: "6px 8px" },
+  ".cm-deletedChunk button": {
+    fontFamily: "var(--font-sans)",
+    fontSize: "14px",
+    minHeight: "44px",
+    margin: "0",
+    padding: "0 16px",
+    borderRadius: "999px",
+    border: "1px solid var(--line)",
+    cursor: "pointer",
+  },
+  ".cm-deletedChunk button[name=accept]": { background: "var(--ink)", borderColor: "var(--ink)", color: "var(--surface)" },
+  ".cm-deletedChunk button[name=reject]": { background: "var(--surface)", color: "var(--ink)" },
 });
 
 const highlight = HighlightStyle.define([

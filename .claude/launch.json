@@ -40,6 +40,18 @@
       "port": 3000
     },
     {
+      "name": "farbaek-dev-demo",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "dev"
+      ],
+      "env": {
+        "NEXT_PUBLIC_SUPABASE_URL": "off",
+        "FARBAEK_DEMO_APP": "1"
+      },
+      "port": 3000
+    },
+    {
       "name": "farbaek-demo",
       "runtimeExecutable": "node",
       "runtimeArgs": [
