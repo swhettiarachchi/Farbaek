@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRightIcon, CheckCircleIcon, SparkleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowRightIcon, CheckCircleIcon, ImageSquareIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { generateImageAction, type FormState } from "@/app/app/actions";
@@ -95,7 +95,7 @@ export function GenerateImage({ projectId, disabledReason }: { projectId: string
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <button type="submit" disabled={off} className={buttonClasses("primary", "sm")}>
-          <SparkleIcon size={16} aria-hidden /> {pending ? "Making the image…" : "Generate image"}
+          <ImageSquareIcon size={16} aria-hidden /> {pending ? "Making the image…" : "Generate image"}
         </button>
         <p className="text-xs text-ink-3">Counts toward your AI usage. Images carry Google&apos;s SynthID watermark.</p>
       </div>

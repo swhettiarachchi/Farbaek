@@ -87,7 +87,7 @@ struct BuildView: View {
                 Button {
                     Task { await start() }
                 } label: {
-                    if working { ProgressView().tint(Palette.onAccent) } else { Label("Plan it", systemImage: "sparkles") }
+                    if working { ProgressView().tint(Palette.onAccent) } else { Label("Plan it", systemImage: "arrow.up") }
                 }
                 .buttonStyle(PillButtonStyle(kind: .accent))
                 .disabled(!ready || working || model.writeBlocker != nil)
@@ -343,7 +343,7 @@ struct SeePlansLink: View {
             Button {
                 showPlans = true
             } label: {
-                Label("See plans", systemImage: "sparkles")
+                Label("See plans", systemImage: "rectangle.stack")
             }
             .buttonStyle(PillButtonStyle(kind: .secondary))
             .sheet(isPresented: $showPlans) { PlansView().environment(model) }

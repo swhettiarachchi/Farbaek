@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowsLeftRightIcon, FolderSimpleIcon, MagnifyingGlassIcon, ShieldCheckIcon, ShieldStarIcon, SparkleIcon, SquaresFourIcon } from "@phosphor-icons/react";
+import { ArrowsLeftRightIcon, FolderSimpleIcon, HammerIcon, MagnifyingGlassIcon, PlusIcon, ShieldCheckIcon, ShieldStarIcon, SquaresFourIcon } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
@@ -109,9 +109,9 @@ export function CommandPalette({
     const all: Command[] = [];
     const typed = query.trim();
     if (canBuild && typed.length >= BUILD_MIN) {
-      all.push({ id: "build", group: "Build", label: `Plan a build: ${typed}`, hint: "You approve the plan first", icon: SparkleIcon, action: { kind: "build", prompt: typed } });
+      all.push({ id: "build", group: "Build", label: `Plan a build: ${typed}`, hint: "You approve the plan first", icon: HammerIcon, action: { kind: "build", prompt: typed } });
     }
-    all.push({ id: "new", group: "Build", label: "New build", icon: SparkleIcon, keywords: ["create", "start", "prompt"], action: { kind: "go", href: "/app/new" } });
+    all.push({ id: "new", group: "Build", label: "New build", icon: PlusIcon, keywords: ["create", "start", "prompt"], action: { kind: "go", href: "/app/new" } });
     for (const page of APP_PAGES) all.push({ id: page.href, group: "Go to", label: page.label, icon: page.icon, keywords: [page.short], action: { kind: "go", href: page.href } });
     all.push({ id: "/app/templates", group: "Go to", label: "Templates", icon: SquaresFourIcon, keywords: ["gallery", "starter", "site"], action: { kind: "go", href: "/app/templates" } });
     all.push({ id: "/app/rescue", group: "Go to", label: "Check an app built elsewhere", icon: ShieldCheckIcon, keywords: ["import", "zip", "security", "rescue"], action: { kind: "go", href: "/app/rescue" } });

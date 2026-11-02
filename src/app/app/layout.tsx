@@ -1,4 +1,4 @@
-import { HandPalmIcon, ShieldStarIcon, SignOutIcon, SparkleIcon } from "@phosphor-icons/react/ssr";
+import { HandPalmIcon, PlusIcon, ShieldStarIcon, SignOutIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MobileTabBar, SidebarNav } from "@/components/app/app-nav";
@@ -118,7 +118,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           transitionTypes={PAGE_NAV}
           className="flex h-11 items-center justify-center gap-2 rounded-full bg-primary text-sm font-medium text-on-primary shadow-e1 transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.98]"
         >
-          <SparkleIcon size={16} weight="fill" aria-hidden /> New build
+          <PlusIcon size={16} weight="bold" aria-hidden /> New build
         </Link>
         {live ? <PresenceOrb key={`${presence.state}:${presence.count}`} orgId={current.id} initial={presence} /> : null}
         <SidebarNav approvals={approvals} helpUnread={helpUnread} />

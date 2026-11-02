@@ -97,6 +97,8 @@ Animate for live state, hierarchy, storytelling or feedback, and nothing else.
 
 Every state has words and an icon; colour is never the only signal.
 
+Pick the icon for what the control does, not for "AI": hammer to build, pen nib to draft, tree to map, tray for an inbox, wrench to fix (ADR 0153). Sparkles, robots, wands and brains fail `tests/design/plain-icons.test.ts`.
+
 Every control works, or it's visibly unavailable with the reason (a `disabledReason`). There are no dead ends: after cancelling, failing or finishing, offer the next step.
 
 Sample data is labelled "sample". Never invent numbers, integrations, results or prices. Usage is shown as shares and dates, never units.

@@ -1,4 +1,4 @@
-import { ArrowRightIcon, FileTextIcon, FingerprintIcon, RobotIcon, SparkleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, FileTextIcon, FingerprintIcon, HammerIcon, SignatureIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -24,8 +24,8 @@ export const metadata: Metadata = { title: "Build" };
 // A real sequence: each step needs the one before it.
 const FLOW = [
   { icon: FileTextIcon, title: "Describe", text: "Write the outcome you want as a task in a project." },
-  { icon: SparkleIcon, title: "Agree", text: "Draft the intent contract with AI, check it and approve it." },
-  { icon: RobotIcon, title: "Build", text: "The agent works in the cloud, runs the checks and asks before anything risky." },
+  { icon: SignatureIcon, title: "Agree", text: "Draft the intent contract with AI, check it and approve it." },
+  { icon: HammerIcon, title: "Build", text: "The agent works in the cloud, runs the checks and asks before anything risky." },
   { icon: FingerprintIcon, title: "Review", text: "You review every change, apply it and get a ProofPack." },
 ];
 
@@ -115,7 +115,7 @@ export default async function BuildPage() {
         </h2>
         {ready.length === 0 ? (
           <EmptyState
-            icon={RobotIcon}
+            icon={HammerIcon}
             title="Nothing is ready to build yet"
             action={
               <Link href="/app/projects" className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-accent hover:underline">

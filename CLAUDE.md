@@ -63,6 +63,7 @@ The dev PC has 3.8 GB of RAM. Run checks one at a time, and stop any dev or prev
 - Motion only for live state, hierarchy, storytelling or feedback; always honour `prefers-reduced-motion`.
 - No CSS filters (`blur`, `drop-shadow`, `brightness`): on iOS 26 they paint a black square at the top left (ADR 0055). Draw soft light with gradients; `backdrop-filter` is fine. `tests/design/no-filters.test.ts` checks it.
 - Status never relies on colour alone: icon, label and pattern.
+- Icons name the action (hammer for build, pen nib for drafting): no sparkles, robots, wands or brains, on the web or in the native apps (ADR 0153). `tests/design/plain-icons.test.ts` checks it.
 - Copy: plain sentences, no em dashes in UI text, no filler verbs.
 - Mobile first: 16px inputs, 44px targets, no horizontal page scroll (check at 375px). A button's own `inline-flex` overrides `hidden`: control visibility with a wrapper.
 

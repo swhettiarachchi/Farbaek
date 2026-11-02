@@ -1,14 +1,14 @@
 "use client";
 
 import {
+  ChatCircleDotsIcon,
   CheckCircleIcon,
+  CircleDashedIcon,
   CircleNotchIcon,
   EyeIcon,
   HourglassMediumIcon,
-  LightningIcon,
   PencilSimpleLineIcon,
   ProhibitIcon,
-  RobotIcon,
   TerminalWindowIcon,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
@@ -22,10 +22,10 @@ const AgentCoreScene = dynamic(() => import("@/components/three/agent-core-scene
 
 // Each phase has its own icon and label, so the colour is never the only signal.
 const PHASE_STYLE: Record<CorePhase, { icon: Icon; tone: string; spin?: boolean }> = {
-  idle: { icon: RobotIcon, tone: "text-accent" },
+  idle: { icon: CircleDashedIcon, tone: "text-accent" },
   starting: { icon: CircleNotchIcon, tone: "text-accent", spin: true },
   working: { icon: CircleNotchIcon, tone: "text-accent", spin: true },
-  thinking: { icon: LightningIcon, tone: "text-accent" },
+  thinking: { icon: ChatCircleDotsIcon, tone: "text-accent" },
   reading: { icon: EyeIcon, tone: "text-accent" },
   writing: { icon: PencilSimpleLineIcon, tone: "text-accent" },
   running: { icon: TerminalWindowIcon, tone: "text-accent" },

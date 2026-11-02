@@ -1,4 +1,4 @@
-import { ArrowRightIcon, ListChecksIcon, RobotIcon, SquaresFourIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, ListChecksIcon, SquaresFourIcon, TrayIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
@@ -122,9 +122,10 @@ export default async function MissionControl() {
               All projects <ArrowRightIcon size={14} aria-hidden />
             </Link>
           </div>
-          <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {/* A swipeable rail on phones, with the next card peeking in; a grid from tablets up. */}
+          <ul className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 xl:grid-cols-4">
             {recent.map((p) => (
-              <li key={p.id}>
+              <li key={p.id} className="w-[78%] shrink-0 snap-start sm:w-auto">
                 <ProjectCard id={p.id} name={p.name} compact meta={<>Created <RelativeTime iso={p.createdAt} /></>} />
               </li>
             ))}
@@ -135,7 +136,7 @@ export default async function MissionControl() {
       <section aria-labelledby="inbox-heading" className="grid gap-4">
         <div className="flex items-center justify-between gap-3">
           <h2 id="inbox-heading" className="flex items-center gap-2 text-lg font-medium">
-            <RobotIcon size={20} weight="bold" className="text-accent" aria-hidden /> Agent inbox
+            <TrayIcon size={20} weight="bold" className="text-accent" aria-hidden /> Agent inbox
           </h2>
           <Link href="/app/build" className="inline-flex min-h-11 items-center gap-1 text-sm text-accent hover:underline">
             Build <ArrowRightIcon size={14} aria-hidden />
@@ -155,7 +156,7 @@ export default async function MissionControl() {
         <LiveRefresh active={live} />
       </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatTile
           label="Projects"
           value={`${projects.length}`}

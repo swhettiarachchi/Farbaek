@@ -1,4 +1,4 @@
-import { ArrowsClockwiseIcon, InfoIcon, ShieldCheckIcon, SparkleIcon, WalletIcon } from "@phosphor-icons/react/ssr";
+import { ArrowCounterClockwiseIcon, ArrowsClockwiseIcon, InfoIcon, ShieldCheckIcon, WalletIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { FaqList, type FaqItem } from "@/components/marketing/faq";
 import { ComparisonTable } from "@/components/pricing/comparison-table";
@@ -17,7 +17,7 @@ const trialBase = getPlan(TRIAL.basePlan).name;
 /** What makes a Farbaek plan worth more than its price elsewhere. Each line is a rule the platform enforces. */
 const PROMISES = [
   { icon: ArrowsClockwiseIcon, title: "Nothing expires at the end of the month", body: "Unused AI usage rolls over for two months, oldest first." },
-  { icon: SparkleIcon, title: "Failed attempts are given back", body: "When an AI call fails, or the agent's fix for failed checks doesn't pass them either, that usage returns to you, up to a monthly cap." },
+  { icon: ArrowCounterClockwiseIcon, title: "Failed attempts are given back", body: "When an AI call fails, or the agent's fix for failed checks doesn't pass them either, that usage returns to you, up to a monthly cap." },
   { icon: WalletIcon, title: "No surprise bills", body: "Plans never run into overage. You see the share used and when it resets." },
   { icon: ShieldCheckIcon, title: "Security checks from Plus", body: "Others keep them for business plans. Farbaek includes them at $19.99." },
 ] as const;

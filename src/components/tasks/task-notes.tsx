@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, SparkleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, PenNibIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useState, useTransition } from "react";
 import { writeTaskNoteAction } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -35,7 +35,7 @@ export function TaskNotesCard({ taskId, kind, notes, disabledReason }: { taskId:
           }}
           className={buttonClasses("primary", "sm")}
         >
-          <SparkleIcon size={16} aria-hidden /> {pending ? "Writing…" : label}
+          <PenNibIcon size={16} aria-hidden /> {pending ? "Writing…" : label}
         </button>
         {disabledReason ? <span className="text-sm text-ink-3">{disabledReason}</span> : <span className="text-xs text-ink-3">Uses AI from this workspace&apos;s usage. Nothing in the project changes.</span>}
       </div>
@@ -58,7 +58,7 @@ export function TaskNotesCard({ taskId, kind, notes, disabledReason }: { taskId:
             <li key={n.id} className="grid gap-3 rounded-md border border-line bg-surface-sunken/50 p-4">
               <p className="flex flex-wrap items-center gap-2 text-xs text-ink-3">
                 <span className="inline-flex items-center gap-1 rounded-full border border-line bg-surface px-2.5 py-0.5 font-medium text-ink-2">
-                  <SparkleIcon size={12} aria-hidden /> AI-written {n.kind === "explanation" ? "explanation" : "audit report"}
+                  <PenNibIcon size={12} aria-hidden /> AI-written {n.kind === "explanation" ? "explanation" : "audit report"}
                 </span>
                 <span className="font-mono">{n.model}</span>
                 <RelativeTime iso={n.createdAt} />

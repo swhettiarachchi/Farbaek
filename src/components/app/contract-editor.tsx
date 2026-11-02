@@ -1,6 +1,6 @@
 "use client";
 
-import { FingerprintIcon, InfoIcon, SparkleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { FingerprintIcon, InfoIcon, PenNibIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useId, useRef, useState, useTransition } from "react";
 import { approveContractAction, draftContractWithAiAction, saveContractAction, type AiDraftState, type FormState } from "@/app/app/actions";
 import { EffortPicker } from "@/components/app/effort-picker";
@@ -168,7 +168,7 @@ function AiDraftPanel({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-sm font-medium">
-            <SparkleIcon size={16} weight="fill" className="text-accent" aria-hidden /> Draft with AI
+            <PenNibIcon size={16} weight="fill" className="text-accent" aria-hidden /> Draft with AI
           </p>
           <p className="mt-1 text-xs leading-relaxed text-ink-3">
             {ai.provider ?? "The AI"} reads the task, the project and anything you&apos;ve typed below, then fills in the fields.{" "}
@@ -177,7 +177,7 @@ function AiDraftPanel({
         </div>
         <span className="shrink-0">
           <button type="button" onClick={onDraft} disabled={pending || disabled || Boolean(reason)} className={buttonClasses("secondary", "sm")}>
-            <SparkleIcon size={16} aria-hidden />
+            <PenNibIcon size={16} aria-hidden />
             {pending ? "Drafting…" : result?.status === "done" ? "Draft again" : "Draft with AI"}
           </button>
         </span>

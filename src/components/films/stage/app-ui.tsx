@@ -13,10 +13,12 @@ import {
   CaretDownIcon,
   CheckCircleIcon,
   CircleDashedIcon,
+  CircleNotchIcon,
   CubeIcon,
   FilePlusIcon,
   FingerprintIcon,
   GlobeIcon,
+  HammerIcon,
   HouseSimpleIcon,
   InfoIcon,
   LockSimpleIcon,
@@ -24,8 +26,8 @@ import {
   DotsThreeOutlineIcon,
   CheckSquareOffsetIcon,
   FolderSimpleIcon,
+  PlusIcon,
   ShieldCheckIcon,
-  SparkleIcon,
   WarningIcon,
   WarningOctagonIcon,
   XCircleIcon,
@@ -96,7 +98,7 @@ export function AppShell({ active, core = "idle", children }: { active: NavKey; 
           {SAMPLE.project} <CaretDownIcon size={13} className="text-ink-3" aria-hidden />
         </span>
         <span className="flex h-11 items-center justify-center gap-2 rounded-full bg-primary text-sm font-medium text-on-primary shadow-e1">
-          <SparkleIcon size={16} weight="fill" aria-hidden /> New build
+          <PlusIcon size={16} weight="bold" aria-hidden /> New build
         </span>
         <span className="flex items-center gap-2.5 rounded-full px-2 text-[13px] text-ink-2">
           <CoreMark state={core} size="sm" /> {core === "working" ? "1 agent working" : core === "waiting" ? "An agent is waiting for you" : "No agents running"}
@@ -129,7 +131,7 @@ export function AppShell({ active, core = "idle", children }: { active: NavKey; 
 
 const TAB_ICONS: { key: NavKey | "more"; label: string; icon: Icon }[] = [
   { key: "home", label: "Home", icon: HouseSimpleIcon },
-  { key: "build", label: "Build", icon: SparkleIcon },
+  { key: "build", label: "Build", icon: HammerIcon },
   { key: "projects", label: "Projects", icon: FolderSimpleIcon },
   { key: "approvals", label: "Approvals", icon: CheckSquareOffsetIcon },
   { key: "more", label: "More", icon: DotsThreeOutlineIcon },
@@ -185,7 +187,7 @@ export function DescribeView({ t, typeFrom, submitAt }: { t: number; typeFrom: n
           <p className="flex min-w-0 items-center gap-1.5 truncate pl-2 text-xs text-ink-3">
             {submitted ? (
               <>
-                <SparkleIcon size={14} weight="fill" className="shrink-0 text-accent" style={{ opacity: 0.55 + 0.45 * Math.abs(Math.sin(t / 380)) }} aria-hidden />
+                <CircleNotchIcon size={14} weight="bold" className="shrink-0 text-accent" style={{ transform: `rotate(${(t * 0.36) % 360}deg)` }} aria-hidden />
                 <span className="truncate">{stage}…</span>
               </>
             ) : (

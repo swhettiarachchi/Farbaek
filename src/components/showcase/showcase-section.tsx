@@ -9,9 +9,9 @@ import {
   ImageIcon,
   PaletteIcon,
   PuzzlePieceIcon,
-  RobotIcon,
   SealCheckIcon,
   ShieldCheckIcon,
+  SteeringWheelIcon,
 } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import Link from "next/link";
@@ -27,7 +27,7 @@ const ICONS: Record<string, Icon> = {
   plan: ClipboardTextIcon,
   design: PaletteIcon,
   skills: PuzzlePieceIcon,
-  agent: RobotIcon,
+  agent: SteeringWheelIcon,
   preview: EyeIcon,
   checks: ShieldCheckIcon,
   proof: SealCheckIcon,
@@ -48,16 +48,21 @@ const STATUS: Record<CapabilityStatus, { icon: Icon; className: string; pattern:
  * deployment (publishing, app previews, image generation) are read from its configuration.
  */
 export function ShowcaseSection() {
-  const status = (s: (typeof CAPABILITIES)[number]["status"]): CapabilityStatus =>
-    s === "site-domain" ? (siteDomain() ? "working" : "turning-on") : s === "app-previews"
+  // Each capability that's still turning on says what it's waiting for.
+  const status = (s: (typeof CAPABILITIES)[number]["status"]): { s: CapabilityStatus; waiting?: string } =>
+    s === "site-domain"
+      ? siteDomain()
+        ? { s: "working" }
+        : { s: "turning-on", waiting: "Waiting for Farbaek's separate domain for people's sites to be connected." }
+      : s === "app-previews"
         ? previewUnavailableReason(readSandboxConfig())
-          ? "turning-on"
-          : "working"
+          ? { s: "turning-on", waiting: "Waiting for app previews to be connected on Farbaek's server." }
+          : { s: "working" }
         : s === "image-generation"
           ? imageGeneration().generator
-            ? "working"
-            : "turning-on"
-          : s;
+            ? { s: "working" }
+            : { s: "turning-on", waiting: "Waiting for Farbaek's image model to be connected." }
+          : { s };
 
   return (
     <section id="showcase" aria-labelledby="showcase-title" className="overflow-x-clip py-20 lg:py-28">
@@ -83,7 +88,7 @@ export function ShowcaseSection() {
           </div>
           <ul className="mt-8 grid gap-x-10 md:grid-cols-2">
             {CAPABILITIES.map((c) => {
-              const s = status(c.status);
+              const { s, waiting } = status(c.status);
               const S = STATUS[s];
               const CapIcon = ICONS[c.id] ?? SealCheckIcon;
               return (
@@ -100,7 +105,7 @@ export function ShowcaseSection() {
                       </span>
                     </div>
                     <p className="mt-1 text-[14.5px] leading-relaxed text-ink-2">{c.body}</p>
-                    {s === "turning-on" ? <p className="mt-1 text-xs text-ink-3">Waiting for Farbaek&apos;s separate domain for people&apos;s sites to be connected.</p> : null}
+                    {waiting ? <p className="mt-1 text-xs text-ink-3">{waiting}</p> : null}
                   </div>
                 </li>
               );

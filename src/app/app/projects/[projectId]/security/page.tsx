@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, CheckCircleIcon, CircleDashedIcon, InfoIcon, RobotIcon, WarningIcon, WarningOctagonIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, CheckCircleIcon, CircleDashedIcon, InfoIcon, WarningIcon, WarningOctagonIcon, WrenchIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -184,7 +184,7 @@ export default async function SecurityPage({ params, searchParams }: Params) {
                           <input type="hidden" name="reportId" value={lastDone.id} />
                           <input type="hidden" name="findingId" value={f.id} />
                           <button type="submit" className={buttonClasses("secondary", "sm")}>
-                            <RobotIcon size={16} weight="bold" aria-hidden /> Fix with the agent
+                            <WrenchIcon size={16} weight="bold" aria-hidden /> Fix with the agent
                           </button>
                         </form>
                       ) : null}

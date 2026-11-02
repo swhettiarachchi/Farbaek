@@ -1,6 +1,6 @@
 "use client";
 
-import { MagnifyingGlassIcon, RobotIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { GitDiffIcon, MagnifyingGlassIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -150,7 +150,7 @@ export function ProposeChange({
           disabled={pending || selected.size === 0 || tooMany || tooBig || Boolean(ai.disabledReason)}
           className={buttonClasses("primary", "sm")}
         >
-          <RobotIcon size={16} aria-hidden /> {pending ? "Proposing…" : "Propose a change"}
+          <GitDiffIcon size={16} aria-hidden /> {pending ? "Proposing…" : "Propose a change"}
         </button>
         <p className="text-xs text-ink-3">
           {ai.disabledReason ?? (

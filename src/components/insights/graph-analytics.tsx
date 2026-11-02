@@ -47,7 +47,7 @@ export function GraphAnalyticsView({ a }: { a: GraphAnalytics }) {
   const proofOrder: ProofStatus[] = ["verified", "partially_verified", "failed", "unverified"];
   return (
     <div className="grid gap-4">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatTile
           label="From ask to verified"
           value={time(a.askToVerified)}

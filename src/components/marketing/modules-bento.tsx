@@ -1,4 +1,4 @@
-import { ArrowsLeftRightIcon, CaretRightIcon, DeviceMobileIcon, FingerprintIcon, FlaskIcon, RobotIcon, RocketLaunchIcon } from "@phosphor-icons/react/ssr";
+import { ArrowsLeftRightIcon, CaretRightIcon, DeviceMobileIcon, FingerprintIcon, FlaskIcon, RocketLaunchIcon, SteeringWheelIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { DiffView } from "@/components/code/diff-view";
 import { Container } from "@/components/ui/container";
@@ -95,7 +95,7 @@ export function ModulesBento() {
           <Cell
             title="Agent"
             body="Farbaek's own runtime. The model proposes; Farbaek validates and authorizes every tool call."
-            icon={RobotIcon}
+            icon={SteeringWheelIcon}
             className="border-accent/20 bg-[linear-gradient(150deg,rgb(36_80_240/0.09),rgb(10_110_133/0.06)_60%,transparent)]"
           />
 

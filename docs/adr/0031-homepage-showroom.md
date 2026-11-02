@@ -16,7 +16,7 @@ The homepage explains how Farbaek plans, checks and proves a change. It doesn't 
 
 **A showroom section after the statement**, before "Every change follows one thread": first what you could build, then how each change is proven. It's `src/components/showcase/`, with its content in `src/content/showcase.ts`. No other section changed.
 
-**Eight concepts, one per category:**
+**Eight concepts, one per category** (ADR 0153 renamed the categories to plain subjects: Type foundry, Luxury retail, Film festival, Product launch, Research, Shared expenses, Habits and wellbeing, Clinic bookings):
 
 | Concept | Category | Composition |
 | --- | --- | --- |

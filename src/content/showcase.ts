@@ -35,7 +35,7 @@ export interface ShowcaseConcept {
 export const SHOWCASE: readonly ShowcaseConcept[] = [
   {
     id: "specimen",
-    category: "Websites beyond ordinary",
+    category: "Type foundry",
     name: "Typeset Foundry",
     kind: "Website",
     line: "A type foundry's site where the letters are the interface.",
@@ -53,7 +53,7 @@ export const SHOWCASE: readonly ShowcaseConcept[] = [
   },
   {
     id: "gallery",
-    category: "Luxury, reimagined",
+    category: "Luxury retail",
     name: "Maison Ore",
     kind: "Online store and app",
     line: "Leather goods shown like gallery pieces, in a store that never hurries you.",
@@ -71,7 +71,7 @@ export const SHOWCASE: readonly ShowcaseConcept[] = [
   },
   {
     id: "cinema",
-    category: "Motion meets design",
+    category: "Film festival",
     name: "Afterglow",
     kind: "Website",
     line: "A film festival site that opens like a title sequence.",
@@ -89,7 +89,7 @@ export const SHOWCASE: readonly ShowcaseConcept[] = [
   },
   {
     id: "product",
-    category: "Immersive by design",
+    category: "Product launch",
     name: "Halo One",
     kind: "Website",
     line: "Headphones you can turn, recolour and inspect before you buy.",
@@ -107,7 +107,7 @@ export const SHOWCASE: readonly ShowcaseConcept[] = [
   },
   {
     id: "workspace",
-    category: "Applications of tomorrow",
+    category: "Research",
     name: "Northlight",
     kind: "Web app",
     line: "A research workspace where the AI drafts, and every sentence shows its source.",
@@ -125,7 +125,7 @@ export const SHOWCASE: readonly ShowcaseConcept[] = [
   },
   {
     id: "pocket",
-    category: "Apps for every pocket",
+    category: "Shared expenses",
     name: "Tally",
     kind: "Mobile app",
     line: "Shared money for housemates: who paid, who owes, settled in a tap.",
@@ -143,7 +143,7 @@ export const SHOWCASE: readonly ShowcaseConcept[] = [
   },
   {
     id: "mascot",
-    category: "Made to delight",
+    category: "Habits and wellbeing",
     name: "Kumo",
     kind: "Mobile app",
     line: "A habit app with a small cloud that puffs up as you keep your streak.",
@@ -161,7 +161,7 @@ export const SHOWCASE: readonly ShowcaseConcept[] = [
   },
   {
     id: "fullstack",
-    category: "From idea to product",
+    category: "Clinic bookings",
     name: "Orbit Clinic",
     kind: "Web app and mobile app",
     line: "Patients book on their phone; the clinic runs the day from one shared schedule.",

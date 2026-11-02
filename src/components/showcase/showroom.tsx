@@ -7,7 +7,7 @@
  * it's off screen or under reduced motion. "Start a build like this" hands
  * the concept's sentence to the build box at the top of the page.
  */
-import { SparkleIcon } from "@phosphor-icons/react";
+import { HammerIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion, useInView, useMotionValue, useReducedMotion, useSpring } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
@@ -196,7 +196,7 @@ export function Showroom() {
                   onClick={startLikeThis}
                   className="inline-flex h-11 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-on-primary transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.98]"
                 >
-                  <SparkleIcon size={16} weight="fill" aria-hidden /> Start a build like this
+                  <HammerIcon size={16} weight="fill" aria-hidden /> Start a build like this
                 </button>
                 <p className="text-sm text-ink-3" aria-live="polite">
                   {handedOff === concept.id ? "It's in the build box at the top of the page. Change anything, then start." : "You approve the plan before anything is built."}

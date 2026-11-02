@@ -54,7 +54,7 @@ struct YouView: View {
                         Button {
                             showPlans = true
                         } label: {
-                            Label(billing.managedBy == "apple" ? "Change plan" : "Choose a plan", systemImage: "sparkles")
+                            Label(billing.managedBy == "apple" ? "Change plan" : "Choose a plan", systemImage: "rectangle.stack")
                         }
                         if billing.managedBy == "apple" {
                             Button {

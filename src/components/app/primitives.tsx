@@ -60,11 +60,11 @@ export function StatTile({ label, value, detail, href }: { label: string; value:
   const body = (
     <>
       <p className="text-sm text-ink-2">{label}</p>
-      <p className="mt-2 text-[2rem] font-medium leading-none tracking-[-0.03em] tabular">{value}</p>
+      <p className="mt-2 text-[1.75rem] font-medium leading-none tracking-[-0.03em] tabular sm:text-[2rem]">{value}</p>
       <p className="mt-3 text-xs leading-relaxed text-ink-3">{detail}</p>
     </>
   );
-  const cls = "block rounded-md border border-line bg-surface p-5 shadow-e1 transition-[box-shadow,transform] duration-200";
+  const cls = "block rounded-md border border-line bg-surface p-4 shadow-e1 sm:p-5 transition-[box-shadow,transform] duration-200";
   return href ? (
     <a href={href} className={`${cls} hover:-translate-y-0.5 hover:shadow-e2`}>
       {body}

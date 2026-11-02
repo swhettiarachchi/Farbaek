@@ -1,4 +1,4 @@
-import { CheckCircleIcon, ClipboardTextIcon, RobotIcon, SealCheckIcon, SparkleIcon } from "@phosphor-icons/react/ssr";
+import { ChatTextIcon, CheckCircleIcon, ClipboardTextIcon, HammerIcon, SealCheckIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -19,9 +19,9 @@ export const metadata: Metadata = {
 
 /** What happens after signing in: the real order of a first build. */
 const NEXT_STEPS: { icon: Icon; title: string; body: string }[] = [
-  { icon: SparkleIcon, title: "Describe it", body: "One sentence is enough: what it is and who it's for." },
+  { icon: ChatTextIcon, title: "Describe it", body: "One sentence is enough: what it is and who it's for." },
   { icon: ClipboardTextIcon, title: "Approve the plan", body: "Farbaek drafts what it will build and how it will check it. Nothing starts until you approve." },
-  { icon: RobotIcon, title: "The agent builds it", body: "In the cloud, on Farbaek's AI, designed to the Studio standard. You can message it while it works." },
+  { icon: HammerIcon, title: "The agent builds it", body: "In the cloud, on Farbaek's AI, designed to the Studio standard. You can message it while it works." },
   { icon: SealCheckIcon, title: "Review, apply, publish", body: "See every change before it lands, then put a static site live at its own address." },
 ];
 

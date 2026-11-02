@@ -1,4 +1,4 @@
-import { ArrowCounterClockwiseIcon, ArrowLeftIcon, ClockCounterClockwiseIcon, GitPullRequestIcon, InfoIcon, RobotIcon, TerminalWindowIcon } from "@phosphor-icons/react/ssr";
+import { ArrowCounterClockwiseIcon, ArrowLeftIcon, ClockCounterClockwiseIcon, GitPullRequestIcon, HammerIcon, InfoIcon, TerminalWindowIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -435,7 +435,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
             {canPropose ? (
               <div className={`grid gap-3 rounded-md border border-accent/30 bg-accent/[0.04] p-5 ${showProposal ? "mt-2" : ""}`}>
                 <h3 className="flex items-center gap-2 text-base font-medium">
-                  <RobotIcon size={18} weight="bold" className="text-accent" aria-hidden /> Let the agent build it
+                  <HammerIcon size={18} weight="bold" className="text-accent" aria-hidden /> Let the agent build it
                 </h3>
                 <p className="text-sm leading-relaxed text-ink-2">
                   The Farbaek Agent works through the whole contract in the cloud: it reads the project, makes the changes and runs the checks, then hands you a proposal to review.
