@@ -47,9 +47,26 @@ The review account's real project showed the gap. The project page's Preview but
   - the image built, with `dns.providers.cloudflare` in `caddy list-modules`;
   - the Caddyfile validates without the wildcard site (and has none), then with it.
 
+### Production setup, 2026-11-02
+
+Done in the owner's Chrome at their request, after they signed in to Cloudflare:
+- **Cloudflare:** added `farbaek.si` to account d45ca46b…7a0aa9, on the Free plan.
+  - The scan found `*`, `@` and `www`, all set to Proxied. Each was set to DNS only, and `sites` was added.
+  - The zone now holds exactly A `*`, `@` and `sites` → 2.25.88.188, and CNAME `www` → `farbaek.si`, all DNS only, TTL Auto.
+- **Before the switch:**
+  - farbaek.si has no DS or DNSKEY records (DNSSEC off), so moving the nameservers can't break resolution;
+  - both Cloudflare nameservers, queried directly, answered 2.25.88.188 for the apex, `sites`, any name and `www`.
+- **Hostinger:** farbaek.si's nameservers changed from `apollo` and `athena.dns-parking.com` to `benedict.ns.cloudflare.com` and `lily.ns.cloudflare.com`. Cloudflare was told, and is waiting for the registry, which takes up to a few hours.
+- **The token form:** filled in up to its summary:
+  - `farbaek-caddy-dns`, with Zone: Read and DNS: Edit on farbaek.si only;
+  - no expiry, so certificate renewal can't silently stop;
+  - no IP filter, since the server may reach Cloudflare over IPv6.
+
+  The owner presses Create Token, because the token is a secret Claude doesn't see.
+
 ### Not verified yet
 
-- **Production:** it needs the owner's Cloudflare zone, the nameserver change at Hostinger, and the token.
+- **Production:** waiting for Cloudflare to mark farbaek.si active. Then the owner creates the token and runs `set-preview-domain.ps1`.
 
 ### Next
 
