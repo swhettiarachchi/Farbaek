@@ -6,6 +6,7 @@ import { BrandLogo } from "@/components/brand/brand-logo";
 import { buttonClasses } from "@/components/ui/button";
 import { CHALLENGE_PATTERN, STATE_PATTERN, callbackUrl, cleanDeviceName, isPhonePlatform } from "@/server/phone/tokens";
 import { createSupabaseServerClient } from "@/server/supabase/server";
+import { switchAccountAction } from "./actions";
 
 export const metadata: Metadata = { title: "Connect the Farbaek app", robots: { index: false, follow: false } };
 
@@ -104,6 +105,16 @@ export default async function ConnectPhonePage({ searchParams }: { searchParams:
         <a href={callbackUrl({ error: "cancelled", state })} className={buttonClasses("ghost", "md", "min-h-11 w-full")}>
           Cancel
         </a>
+      </form>
+      {/* The app's sign-in sheet shares this browser's sign-in, so a phone that signed out lands here as the last account. */}
+      <form action={switchAccountAction} className="mt-3 grid">
+        <input type="hidden" name="challenge" value={challenge} />
+        <input type="hidden" name="state" value={state} />
+        <input type="hidden" name="platform" value={platform} />
+        <input type="hidden" name="device" value={device} />
+        <button type="submit" className="inline-flex min-h-11 items-center justify-center rounded-full text-sm font-medium text-accent hover:underline">
+          {typeof claims.email === "string" ? `Not ${claims.email}? Use another account` : "Use another account"}
+        </button>
       </form>
       <p className="mt-5 text-sm leading-relaxed text-ink-3">You can disconnect it any time in Settings, under Phones.</p>
     </Frame>
