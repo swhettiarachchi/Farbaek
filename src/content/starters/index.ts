@@ -3,6 +3,7 @@
  * imported through the same screening and limits as any import, and edited,
  * proposed and checked like everything else.
  */
+import { isStaticSite } from "@/core/workspace/static-site";
 import { NEXTJS_APP_FILES } from "./nextjs-app";
 import { REST_API_FILES } from "./rest-api";
 import { STATIC_WEBSITE_FILES } from "./static-website";
@@ -51,7 +52,8 @@ export function getStarter(id: unknown): Starter | null {
 }
 
 /** How a project's files run, judged from the files themselves: a starter's settings when they match, otherwise from package.json and index.html. */
-export function runProfile(paths: readonly string[]): { kind: "static" } | { kind: "node"; install: string; dev: string; port: number } | { kind: "unknown" } {
+/** `packageJson` is its text when the project has one beside index.html (needsPackageJson): a bare one keeps a site static. */
+export function runProfile(paths: readonly string[], packageJson?: string | null): { kind: "static" } | { kind: "node"; install: string; dev: string; port: number } | { kind: "unknown" } {
   const has = new Set(paths);
   if (has.has("package.json") && (has.has("next.config.ts") || has.has("next.config.mjs") || has.has("next.config.js"))) {
     return { kind: "node", install: "npm install --ignore-scripts --no-audit --no-fund", dev: "npm run dev -- --hostname 0.0.0.0 --port 3000", port: 3000 };
@@ -60,7 +62,7 @@ export function runProfile(paths: readonly string[]): { kind: "static" } | { kin
   if (has.has("package.json") && has.has("src/server.js") && !has.has("index.html")) {
     return { kind: "node", install: "npm install --ignore-scripts --no-audit --no-fund", dev: "npm run dev -- --hostname 0.0.0.0 --port 3000", port: 3000 };
   }
-  if (has.has("index.html") && !has.has("package.json")) return { kind: "static" };
+  if (isStaticSite(paths, packageJson)) return { kind: "static" };
   return { kind: "unknown" };
 }
 

@@ -43,6 +43,7 @@ export function publishDeps(ctx: AppContext, user: SupabaseClient, admin: Supaba
     domain: siteDomain(),
     canPublish: async () => ctx.role !== null && CONTRIBUTOR_ROLES.includes(ctx.role),
     files: (orgId, projectId) => ctx.reader.listFiles(orgId, projectId),
+    packageJson: async (orgId, projectId) => (await ctx.reader.getFile(orgId, projectId, "package.json"))?.content ?? null,
     latestCheck: (orgId, projectId) => latestCheck(user, orgId, projectId),
     evidence: (orgId, projectId) => latestEvidence(user, orgId, projectId),
     canOverride: async () => ctx.role !== null && MANAGER_ROLES.includes(ctx.role),

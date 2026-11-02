@@ -13,6 +13,7 @@ import { loadPublishPanel } from "@/server/publish/panel";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
 import { runProfile } from "@/content/starters";
+import { needsPackageJson } from "@/core/workspace/static-site";
 import { PreviewButton } from "@/components/app/preview-button";
 import { previewUnavailableReason, readSandboxConfig } from "@/server/sandbox/config";
 import { ArchiveProject } from "@/components/app/archive-project";
@@ -43,7 +44,10 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
   const imageBytes = files.filter((f) => f.encoding === "base64").reduce((n, f) => n + f.sizeBytes, 0);
   const previewReason = ctx.mode === "demo" ? "Previews need a real workspace." : previewUnavailableReason(readSandboxConfig());
   // Static sites preview instantly in a locked-down frame; apps with a server use the sandbox preview.
-  const isStatic = runProfile(files.map((f) => f.path)).kind === "static" && filesBytes <= 3 * 1024 * 1024;
+  const paths = files.map((f) => f.path);
+  // A bare package.json beside index.html keeps a site static; its text decides that.
+  const packageJson = needsPackageJson(paths) ? ((await ctx.reader.getFile(ctx.current.id, project.id, "package.json").catch(() => null))?.content ?? null) : null;
+  const isStatic = runProfile(paths, packageJson).kind === "static" && filesBytes <= 3 * 1024 * 1024;
   const contents = isStatic ? await ctx.reader.getProjectContents(ctx.current.id, project.id).catch(() => null) : null;
   // The site's own images, inlined as data URLs while they fit the preview budget; past that the preview shows them as missing.
   const images = isStatic && imageBytes > 0 ? await previewImages(ctx.reader, ctx.current.id, project.id) : undefined;

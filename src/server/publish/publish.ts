@@ -8,6 +8,7 @@
  * verified with nothing changed since, or an owner or admin says why they're
  * publishing without that evidence.
  */
+import { needsPackageJson } from "@/core/workspace/static-site";
 import { runProfile } from "@/content/starters";
 import { platformPause } from "@/server/platform/state";
 import { overrideReasonProblem, type LaunchEvidence } from "@/core/publish/evidence";
@@ -25,6 +26,8 @@ export interface PublishDeps {
   domain: string | null;
   canPublish: (orgId: string) => Promise<boolean>;
   files: (orgId: string, projectId: string) => Promise<{ path: string; revision: number; sha256: string; sizeBytes: number; updatedAt: string }[]>;
+  /** package.json's text, read only when it sits beside index.html: a bare one keeps the site static. */
+  packageJson?: (orgId: string, projectId: string) => Promise<string | null>;
   latestCheck: (orgId: string, projectId: string) => Promise<PublishCheck | null>;
   evidence: (orgId: string, projectId: string) => Promise<LaunchEvidence>;
   /** Owners and admins can publish without verified evidence, with a reason. */
@@ -57,7 +60,8 @@ export async function publishReadiness(deps: PublishDeps, orgId: string, project
   const [files, check, evidence] = await Promise.all([deps.files(orgId, projectId), deps.latestCheck(orgId, projectId), deps.evidence(orgId, projectId)]);
   const paths = files.map((f) => f.path);
   const filesChangedAt = files.reduce<string | null>((latest, f) => (!latest || f.updatedAt > latest ? f.updatedAt : latest), null);
-  const profile = runProfile(paths).kind;
+  const packageJson = needsPackageJson(paths) && deps.packageJson ? await deps.packageJson(orgId, projectId).catch(() => null) : null;
+  const profile = runProfile(paths, packageJson).kind;
   const block: PublishBlock | null = publishGate({ domain: deps.domain, profile, paths, filesChangedAt, check, paused: platformPause("publishing") });
   const published: PublishedFile[] = files.map((f) => ({ path: f.path, revision: f.revision, sha256: f.sha256, size: f.sizeBytes }));
   return { files: published, check, block, evidence, needsOverride: evidence.status !== "verified", digest: files.length ? await deploymentDigest(projectId, published) : null };

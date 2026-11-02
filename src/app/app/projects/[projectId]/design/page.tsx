@@ -8,6 +8,7 @@ import { VisualEditor } from "@/components/studio/visual-editor";
 import { componentFiles, isTailwindProject } from "@/core/studio/jsx-edit";
 import { ButtonLink } from "@/components/ui/button";
 import { runProfile } from "@/content/starters";
+import { needsPackageJson } from "@/core/workspace/static-site";
 import { sitePages } from "@/core/workspace/static-preview";
 import { sandboxForPage } from "@/server/sandbox/page-context";
 import { previewUnavailableReason, readSandboxConfig } from "@/server/sandbox/config";
@@ -45,7 +46,9 @@ export default async function DesignPage({ params, searchParams }: { params: Pro
   if (!project) notFound();
   const files = await ctx.reader.listFiles(ctx.current.id, project.id);
   const textBytes = files.filter((f) => f.encoding !== "base64").reduce((n, f) => n + f.sizeBytes, 0);
-  const isStatic = runProfile(files.map((f) => f.path)).kind === "static";
+  const paths = files.map((f) => f.path);
+  const packageJson = needsPackageJson(paths) ? ((await ctx.reader.getFile(ctx.current.id, project.id, "package.json").catch(() => null))?.content ?? null) : null;
+  const isStatic = runProfile(paths, packageJson).kind === "static";
   const contents = isStatic && textBytes <= MAX_TEXT_BYTES ? await ctx.reader.getProjectContents(ctx.current.id, project.id).catch(() => null) : null;
   const text = contents ? Object.fromEntries(contents.map((f) => [f.path, f.content])) : null;
   const pages = text ? sitePages(text) : [];

@@ -6,6 +6,8 @@
  * the evidence it came from, and anything assumed says so.
  */
 
+import { isStaticSite } from "@/core/workspace/static-site";
+
 export const LAUNCH_KINDS = ["static", "nextjs", "vite", "astro", "node_server", "python", "unknown"] as const;
 export type LaunchKind = (typeof LAUNCH_KINDS)[number];
 
@@ -254,9 +256,9 @@ export function planLaunch(input: PlannerInput): LaunchPlan {
     const procfile = input.texts.Procfile?.match(/^web:\s*(.+)$/m)?.[1]?.trim();
     start = procfile ? found(procfile.slice(0, 200)) : pdeps.has("fastapi") ? assumed("uvicorn main:app") : pdeps.has("flask") ? assumed("gunicorn app:app") : pdeps.has("django") ? assumed("gunicorn <project>.wsgi") : null;
     if (procfile) evidence.push("Procfile");
-  } else if (has.has("index.html") && !has.has("package.json")) {
+  } else if (isStaticSite(input.paths, input.texts["package.json"])) {
     kind = "static";
-    evidence.push("index.html without package.json");
+    evidence.push(has.has("package.json") ? "index.html, and a package.json that installs and runs nothing" : "index.html without package.json");
   }
 
   const hosting: LaunchPlan["hosting"] = kind === "static" || kind === "vite" || kind === "astro" ? "static" : kind === "unknown" ? "unknown" : "server";
@@ -295,7 +297,9 @@ export function planLaunch(input: PlannerInput): LaunchPlan {
           ? "Not yet: it needs a build step, and Farbaek Sites serves files as they are."
           : hosting === "server"
             ? "Not for this project: it runs a server, and Farbaek Sites serves static files."
-            : "Not yet: Farbaek can't tell how this project runs. Add an index.html for a static site.",
+            : has.has("index.html")
+              ? "Not yet: it has an index.html, but its package.json installs or runs something, so Farbaek can't tell how it runs."
+              : "Not yet: Farbaek can't tell how this project runs. Add an index.html for a static site.",
       suits: "Static websites built in Farbaek, at their own address on Farbaek's site domain.",
     },
     ...PROVIDERS.map((p) => ({
