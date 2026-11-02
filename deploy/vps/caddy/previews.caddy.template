@@ -1,0 +1,18 @@
+# Written to extra/previews.caddy by scripts/vps/set-preview-domain.ps1 (ADR 0152).
+# __CLOUDFLARE_TOKEN__ is replaced on the server; the written file is
+# gitignored, kept out of the app image (.dockerignore) and readable by its owner only.
+#
+# One wildcard certificate covers every <name>.farbaek.si: app previews
+# (p-<id>), which can't each have their own, and published sites, which then
+# need no certificate of their own. The app decides what each name serves.
+*.farbaek.si {
+	tls {
+		dns cloudflare __CLOUDFLARE_TOKEN__
+		# Check the challenge record on public resolvers, not the server's own cache.
+		resolvers 1.1.1.1 8.8.8.8
+	}
+	reverse_proxy app:3000 {
+		lb_try_duration 20s
+		lb_try_interval 500ms
+	}
+}

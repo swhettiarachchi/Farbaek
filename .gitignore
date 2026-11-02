@@ -27,3 +27,6 @@ desktop/.cache/
 .DS_Store
 Thumbs.db
 *.log
+
+# The wildcard certificate settings, written on the server with a Cloudflare token (ADR 0152).
+deploy/vps/caddy/extra/

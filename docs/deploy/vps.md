@@ -98,10 +98,30 @@ A deploy restarts the app. Agent runs going at that moment show as Interrupted.
      - `SITES_DOMAIN` turns on published sites only. `SANDBOX_PREVIEW_DOMAIN` would also turn on preview links, which wait for the wildcard certificate below.
   3. **Deploy.** `farbaek-deploy` reloads Caddy with the `on_demand_tls` settings.
   4. **Check it:** publish a site, open `https://<name>.farbaek.si`, and wait a few seconds the first time.
-- **Previews on farbaek.si** (`p-<id>`) still need one wildcard certificate, `*.farbaek.si`. On-demand would make a new certificate for every preview, and Let's Encrypt allows 50 new ones a week per domain.
-  - **Why it's harder:** a wildcard needs a DNS-01 challenge, and Caddy has no Hostinger DNS plugin.
-  - **The plan:** move farbaek.si's DNS to Cloudflare (free plan), with an API token that can edit DNS for that one zone. Build Caddy with the `caddy-dns/cloudflare` module, and add a `*.farbaek.si` block.
-  - **Until then,** previews aren't served from this server.
+- **Previews on farbaek.si** (`p-<id>`, ADR 0152) need one wildcard certificate, `*.farbaek.si`. On-demand would make a new certificate for every preview, and Let's Encrypt allows 50 new ones a week per domain. A wildcard needs a DNS-01 challenge, and Caddy has no Hostinger DNS module, so farbaek.si's DNS moves to Cloudflare. The server's Caddy is built with `caddy-dns/cloudflare` (`deploy/vps/caddy-image/`). The owner's steps:
+  1. **Cloudflare, Add a domain:** `farbaek.si`, the Free plan. Check the records it found, and fix them to exactly these, each "DNS only" (grey cloud, not proxied):
+     - A `@` → the server's address;
+     - A `*` → the server's address;
+     - A `sites` → the server's address;
+     - CNAME `www` → `farbaek.si`.
+
+     Note the two nameservers Cloudflare gives.
+  2. **Hostinger, Domains, farbaek.si, DNS / Nameservers:** change the nameservers to Cloudflare's two.
+     - Published sites keep working throughout, because the records match.
+     - Wait until Cloudflare says the site is active (minutes to a few hours).
+  3. **Cloudflare, My Profile, API Tokens, Create Token, Custom token:** name it `farbaek-caddy-dns`.
+     - Permissions: Zone > Zone > Read, and Zone > DNS > Edit.
+     - Zone resources: Include > Specific zone > `farbaek.si`.
+     - Client IP filtering (optional): the server's address.
+
+     Create it and copy it (it's shown once).
+  4. **On the owner's PC:** run `scripts/vps/set-preview-domain.ps1` and paste the token.
+     - It checks the token and the zone from the server, proves it can edit DNS with one test TXT record, and confirms Caddy has the module.
+     - Then it gives Caddy the wildcard site and waits up to 3 minutes for the certificate. If the certificate doesn't come, it puts Caddy back as it was.
+     - Last, it sets `SANDBOX_PREVIEW_DOMAIN=farbaek.si` and restarts the app.
+  - **The token:** it lives only in `deploy/vps/caddy/extra/previews.caddy` on the server (gitignored, kept out of the app image, owner-only). `-Off` removes it and turns previews off.
+  - **Renewal:** Caddy renews the wildcard 30 days before it expires. If the token is ever revoked, make a new one and run the script again.
+  - **Before the script's first run,** run `install.sh` again on the server, so `farbaek-deploy` builds Caddy's image as its own step. Without it, compose still builds the image during `up -d`.
 
 ## The check sandbox (ADR 0016)
 
