@@ -1,5 +1,5 @@
 # Checks that production can reach Claude with its own key, the way Farbaek drafts plans.
-# It sends two tiny requests from the server (a fraction of a cent) and prints only the HTTP
+# It sends three tiny requests from the server (a fraction of a cent) and prints only the HTTP
 # status and Anthropic's error type and message. The key stays on the server and is never shown.
 # Run it in your own PowerShell window and send Claude what it prints:
 #
@@ -31,6 +31,8 @@ probe() {
 }
 probe "Plain request (Haiku)" "" '{"model":"claude-haiku-5-5","max_tokens":5,"messages":[{"role":"user","content":"Say ok"}]}'
 probe "As Farbaek drafts (Sonnet)" "server-side-fallback-2026-07-01" '{"model":"claude-sonnet-5-5","max_tokens":16,"fallbacks":"default","thinking":{"type":"adaptive"},"messages":[{"role":"user","content":"Say ok"}]}'
+# A trial's plan is drafted on Haiku with a schema, the way the SDK sends it (src/server/ai/anthropic.ts).
+probe "As a trial's plan is drafted (Haiku, schema)" "structured-outputs-2025-12-15" '{"model":"claude-haiku-5-5","max_tokens":400,"thinking":{"type":"adaptive"},"output_config":{"effort":"medium","format":{"type":"json_schema","schema":{"type":"object","properties":{"ok":{"type":"string"}},"required":["ok"],"additionalProperties":false}}},"messages":[{"role":"user","content":"Say ok"}]}'
 '@
 
 $OutputEncoding = New-Object System.Text.UTF8Encoding $false
@@ -38,4 +40,4 @@ Write-Host "Asking Claude from the server..." -ForegroundColor Cyan
 ($remote -replace "`r", "") | ssh -i $Key -o StrictHostKeyChecking=accept-new "farbaek@$Server" "bash -s"
 if ($LASTEXITCODE -ne 0) { Write-Host "The server didn't answer. Check the connection and try again." -ForegroundColor Red; exit 1 }
 Write-Host ""
-Write-Host "HTTP 200 on both means Claude works. Copy everything above and send it to Claude." -ForegroundColor Green
+Write-Host "HTTP 200 on all three means Claude works. Copy everything above and send it to Claude." -ForegroundColor Green
