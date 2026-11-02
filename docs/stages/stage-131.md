@@ -47,9 +47,32 @@ The review account's real project showed the gap. The project page's Preview but
   - the image built, with `dns.providers.cloudflare` in `caddy list-modules`;
   - the Caddyfile validates without the wildcard site (and has none), then with it.
 
-### Not verified yet
+### Production setup, 2026-11-02
 
-- **Production:** it needs the owner's Cloudflare zone, the nameserver change at Hostinger, and the token.
+Done in the owner's Chrome at their request, after they signed in to Cloudflare:
+- **Cloudflare:** added `farbaek.si` to account d45ca46b…7a0aa9, on the Free plan.
+  - The scan found `*`, `@` and `www`, all set to Proxied. Each was set to DNS only, and `sites` was added.
+  - The zone now holds exactly A `*`, `@` and `sites` → 2.25.88.188, and CNAME `www` → `farbaek.si`, all DNS only, TTL Auto.
+- **Before the switch:**
+  - farbaek.si has no DS or DNSKEY records (DNSSEC off), so moving the nameservers can't break resolution;
+  - both Cloudflare nameservers, queried directly, answered 2.25.88.188 for the apex, `sites`, any name and `www`.
+- **Hostinger:** farbaek.si's nameservers changed from `apollo` and `athena.dns-parking.com` to `benedict.ns.cloudflare.com` and `lily.ns.cloudflare.com`. Cloudflare was told, and is waiting for the registry, which takes up to a few hours.
+- **The token form:** filled in up to its summary:
+  - `farbaek-caddy-dns`, with Zone: Read and DNS: Edit on farbaek.si only;
+  - no expiry, so certificate renewal can't silently stop;
+  - no IP filter, since the server may reach Cloudflare over IPv6.
+
+  The owner presses Create Token, because the token is a secret Claude doesn't see.
+
+### Live in production, 2026-11-02
+
+- **Cloudflare marked farbaek.si active** within the hour. Public DNS showed `benedict` and `lily.ns.cloudflare.com`, and farbaek.si and www.farbaek.si still redirected to www.farbaek.com from 2.25.88.188.
+- **PR #164 was merged and deployed** (`7b81d34`): compose built the new Caddy image, and the app stayed healthy.
+- **The owner created the token and ran `set-preview-domain.ps1`.** Every check passed: token and zone, DNS edit, Caddy module, Caddy reloaded, certificate. The app restarted live on `7b81d34`.
+- **The certificate:** `CN=*.farbaek.si`, issued by Let's Encrypt (YE1), valid 2026-11-02 to 2027-01-31. Caddy renews it.
+  - A preview name that isn't a session answers 401 over trusted HTTPS.
+  - farbaek.si and www.farbaek.si still answer 308.
+- **A real preview from the review account:** the project page's Preview button is enabled, where it used to show the SANDBOX_PREVIEW_DOMAIN message. Pressing it started a sandbox and opened `https://p-lvac72rmpvmdrzm6guyuqcsarf.farbaek.si/` in a new tab, serving the applied Ember & Rye site, including the public-holiday line and the map.
 
 ### Next
 
