@@ -24,7 +24,10 @@ services:
     stop_grace_period: 30s
 
   caddy:
-    image: caddy:2.10.2
+    # Caddy 2.10.2 with the Cloudflare DNS module (caddy-image/Dockerfile, ADR 0152).
+    # Built on the server when this tag is missing: change the tag with the Dockerfile.
+    image: farbaek-caddy:2.10.2-cloudflare-0.2.4
+    build: ./caddy-image
     container_name: farbaek-caddy
     restart: unless-stopped
     ports:

@@ -1,0 +1,53 @@
+# The server's Caddy (ADR 0152): builds the image with Cloudflare's DNS module, the way
+# compose.yaml builds it on the server, and checks the Caddyfile loads with and without
+# the *.farbaek.si wildcard site. A Caddy that can't build or load never reaches the
+# server's deploy, which would otherwise keep retrying it. Linux minutes only.
+name: Caddy
+
+on:
+  push:
+    paths:
+      - deploy/vps/caddy/**
+      - deploy/vps/caddy-image/**
+      - deploy/vps/compose.yaml
+      - .github/workflows/caddy.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  caddy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: The compose tag names the versions the Dockerfile builds
+        run: |
+          grep -q 'image: farbaek-caddy:2.10.2-cloudflare-0.2.4' deploy/vps/compose.yaml
+          grep -q 'xcaddy build v2.10.2 --with github.com/caddy-dns/cloudflare@v0.2.4' deploy/vps/caddy-image/Dockerfile
+
+      - name: Build the image
+        run: docker build -t farbaek-caddy:ci deploy/vps/caddy-image
+
+      - name: It has the Cloudflare DNS module
+        run: docker run --rm farbaek-caddy:ci caddy list-modules | grep -x 'dns.providers.cloudflare'
+
+      - name: The Caddyfile loads without previews and with them
+        run: |
+          conf="$RUNNER_TEMP/caddy"
+          mkdir -p "$conf"
+          cp deploy/vps/caddy/Caddyfile "$conf/"
+          caddy() { docker run --rm -v "$conf:/etc/caddy:ro" farbaek-caddy:ci caddy "$@"; }
+          caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+          ! caddy adapt --config /etc/caddy/Caddyfile --adapter caddyfile | grep -q '\*\.farbaek\.si'
+          # What set-preview-domain.ps1 writes, with a stand-in token in Cloudflare's format.
+          mkdir -p "$conf/extra"
+          sed 's/__CLOUDFLARE_TOKEN__/ciStandInTokenNotReal000000000000000000/' deploy/vps/caddy/previews.caddy.template > "$conf/extra/previews.caddy"
+          caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+          caddy adapt --config /etc/caddy/Caddyfile --adapter caddyfile | grep -q '\*\.farbaek\.si'
+          echo "### Caddy" >> "$GITHUB_STEP_SUMMARY"
+          echo "Image built with dns.providers.cloudflare; the Caddyfile loads without and with the *.farbaek.si wildcard site." >> "$GITHUB_STEP_SUMMARY"

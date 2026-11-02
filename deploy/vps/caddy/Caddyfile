@@ -56,11 +56,17 @@ api.farbaek.com {
 	}
 }
 
+# *.farbaek.si with one wildcard certificate, for app previews (p-<id>) and
+# published sites alike (ADR 0152). scripts/vps/set-preview-domain.ps1 writes
+# extra/previews.caddy from previews.caddy.template, with the Cloudflare
+# token, only once that token can answer the DNS challenge. Until then
+# nothing matches here and published sites keep the on-demand block below.
+import extra/*.caddy
+
 # Every other name: published sites on farbaek.si and people's own domains
 # (ADR 0045). The certificate is made on the first visit once the ask above
 # says yes; the app then serves only a live site there, and 404 otherwise.
-# Previews (p-<id>.farbaek.si) aren't allowed here; they wait for the
-# wildcard certificate (docs/deploy/vps.md, "farbaek.si").
+# Previews (p-<id>.farbaek.si) aren't allowed here: they need the wildcard.
 https:// {
 	tls {
 		on_demand

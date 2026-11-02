@@ -59,6 +59,13 @@ main() {
     exit 1
   fi
 
+  # Caddy's own image (ADR 0152), built once per tag. A failed build keeps today's Caddy and app.
+  if ! FARBAEK_IMAGE_TAG="$sha" "${COMPOSE[@]}" build caddy >>"$LOG" 2>&1; then
+    log "caddy image build failed for ${sha:0:12}; still running ${current:0:12}"
+    echo "$sha" > "$STATE/failed"
+    exit 1
+  fi
+
   FARBAEK_IMAGE_TAG="$sha" "${COMPOSE[@]}" up -d --remove-orphans >>"$LOG" 2>&1
   if healthy; then
     [ -n "$current" ] && [ "$current" != "$sha" ] && echo "$current" > "$STATE/previous"

@@ -4,6 +4,8 @@
 !.env.example
 *.pem
 *.key
+# Caddy settings written on the server, with a Cloudflare token (ADR 0152).
+deploy/vps/caddy/extra
 
 .git
 node_modules
