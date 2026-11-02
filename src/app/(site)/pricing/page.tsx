@@ -2,6 +2,8 @@ import { ArrowCounterClockwiseIcon, ArrowsClockwiseIcon, InfoIcon, ShieldCheckIc
 import type { Metadata } from "next";
 import { FaqList, type FaqItem } from "@/components/marketing/faq";
 import { ComparisonTable } from "@/components/pricing/comparison-table";
+import { AndroidPlansNotice } from "@/components/billing/android-plans";
+import { WebPurchaseOnly } from "@/components/billing/web-purchase-only";
 import { PricingPlans } from "@/components/pricing/pricing-plans";
 import { Container } from "@/components/ui/container";
 import { CONTACT } from "@/config/contact";
@@ -103,6 +105,16 @@ export default function PricingPage() {
           <div className="mt-10">
             {/* Names the plan list for screen readers, so the plan names (h3) sit under a heading. */}
             <h2 className="sr-only">Plans</h2>
+            {/* Inside Farbaek for Android: one notice instead of a pill on every plan (ADR 0150). */}
+            <WebPurchaseOnly
+              fallback={
+                <div className="mb-6">
+                  <AndroidPlansNotice />
+                </div>
+              }
+            >
+              {null}
+            </WebPurchaseOnly>
             <PricingPlans />
           </div>
 

@@ -11,6 +11,7 @@ import { sessionsLine } from "@/components/pricing/pricing-plans";
 import { CancelStep, ChangePlanStep, ChoosePlanStep, SubscriptionSummary } from "@/components/billing/billing-steps";
 import { TopupCard, TopupStep } from "@/components/billing/topup-card";
 import { NotInAndroidApp, WebPurchaseOnly } from "@/components/billing/web-purchase-only";
+import { AndroidPlans } from "@/components/billing/android-plans";
 import { isTopupPack } from "@/core/billing/topups";
 import { topupErrorMessage } from "@/server/billing/topups";
 import { SELF_SERVE_PLANS, TRIAL, getPlan, priceWords, yearlyVersionOf } from "@/core/billing/catalog";
@@ -45,6 +46,8 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   const canManage = Boolean(ctx.role && MANAGER_ROLES.includes(ctx.role)) && ctx.writes.enabled;
   const onTrial = ws.plan.source === "trial";
   const sub = billing.subscription;
+  // The plan the Android app's list marks (ADR 0150): Lite and Maker yearly mark their monthly plan.
+  const appCurrent = SELF_SERVE_PLANS.find((p) => (sub ? p.id === sub.planId || yearlyVersionOf(p.id) === sub.planId : p.id === ws.plan.planId))?.id ?? null;
   const error = billingErrorMessage(one(sp.error));
   const done = one(sp.done);
   const donePlan = one(sp.plan);
@@ -160,7 +163,8 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                 </p>
               ) : null}
               <div className="mt-5 flex items-center gap-2 border-t border-line pt-4 text-sm text-ink-3">
-                <ReceiptIcon size={18} aria-hidden /> {billing.open ? "No invoices yet. They appear in Dodo Payments' portal after a checkout." : "No invoices. Payments aren't connected."}
+                <ReceiptIcon size={18} aria-hidden />{" "}
+                <WebPurchaseOnly fallback="No invoices.">{billing.open ? "No invoices yet. They appear in Dodo Payments' portal after a checkout." : "No invoices. Payments aren't connected."}</WebPurchaseOnly>
               </div>
             </>
           )}
@@ -189,13 +193,18 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       </div>
 
       {sub && billing.topups && sub.state !== "suspended" ? (
-        <TopupCard planId={sub.planId} planName={sub.planName} topups={billing.topups} canManage={canManage} error={step?.kind === "topup" ? null : topupError} />
+        // Usage top-ups are bought, so the Android app leaves the card out (ADR 0150).
+        <WebPurchaseOnly fallback={null}>
+          <TopupCard planId={sub.planId} planName={sub.planName} topups={billing.topups} canManage={canManage} error={step?.kind === "topup" ? null : topupError} />
+        </WebPurchaseOnly>
       ) : null}
 
       <section aria-labelledby="plans-heading" className="grid gap-4">
         <h2 id="plans-heading" className="text-lg font-medium">
           Plans
         </h2>
+        {/* Inside the Android app: one notice and what each plan includes, with no prices or buy buttons (ADR 0150). */}
+        <WebPurchaseOnly fallback={<AndroidPlans plans={SELF_SERVE_PLANS} current={appCurrent} currentLabel={sub || ws.plan.source !== "trial" ? "Current" : "Trial"} />}>
         <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {SELF_SERVE_PLANS.map((p) => {
             const yearlyId = yearlyVersionOf(p.id);
@@ -232,10 +241,9 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         </ul>
         <p className="text-xs text-ink-3">
           Prices in USD.{" "}
-          <WebPurchaseOnly fallback="Plans can't be bought in the Android app.">
-            {billing.open ? "At checkout you can pay in your own currency for a conversion fee of up to 4%, and tax is added there." : "Applicable taxes are calculated at checkout once payments open."}
-          </WebPurchaseOnly>
+          {billing.open ? "At checkout you can pay in your own currency for a conversion fee of up to 4%, and tax is added there." : "Applicable taxes are calculated at checkout once payments open."}
         </p>
+        </WebPurchaseOnly>
       </section>
     </div>
   );

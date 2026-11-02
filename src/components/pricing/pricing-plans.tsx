@@ -2,7 +2,7 @@ import { CheckIcon, ClockCounterClockwiseIcon } from "@phosphor-icons/react/ssr"
 import Link from "next/link";
 import { FEATURE_LABELS, FEATURE_STATUS, SELF_SERVE_PLANS, chargeCents, formatUsd, getPlan, planSessionsGuide, priceWords, yearlyVersionOf, type FeatureKey, type Plan } from "@/core/billing/catalog";
 import { buttonClasses } from "@/components/ui/button";
-import { NotInAndroidApp, WebPurchaseOnly } from "@/components/billing/web-purchase-only";
+import { WebPurchaseOnly } from "@/components/billing/web-purchase-only";
 
 const number = new Intl.NumberFormat("en-US");
 
@@ -102,7 +102,7 @@ export function PricingPlans() {
             <div className="mt-auto grid gap-2 pt-8">
               {plan.pricing.kind === "paid" ? (
                 // Inside Farbaek for Android, Google Play's Payments policy rules out selling plans (ADR 0150).
-                <WebPurchaseOnly fallback={<NotInAndroidApp />}>
+                <WebPurchaseOnly fallback={null}>
                   <Link href={choosePath(plan.id)} className={buttonClasses(featured ? "primary" : "secondary", "md", "min-h-11 w-full")}>
                     Choose {plan.name}
                   </Link>
