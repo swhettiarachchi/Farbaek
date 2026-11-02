@@ -3,8 +3,10 @@
 # only if Anthropic accepts it. Then it restarts the app (3 to 5 minutes). Nothing is saved on
 # this computer, and the key is never shown.
 #
-# Make the key first: console.anthropic.com > API keys > Create key, name it "Farbaek
-# production", and copy it (it's shown once). Then run, in your own PowerShell window:
+# Make the key first: platform.claude.com > API keys > Create key ("Continue with an API key":
+# the VPS has no identity provider for federation), name it "Farbaek production", choose the
+# longest expiry offered, and copy it (it's shown once). Keys expire: the first one, made
+# 2026-10-22, stopped on 2026-10-29. Then run, in your own PowerShell window:
 #
 #   powershell -ExecutionPolicy Bypass -File "C:\Users\INTEL\Documents\FarBaek\scripts\vps\set-anthropic-key.ps1"
 param(
@@ -18,11 +20,12 @@ $secure = Read-Host -AsSecureString -Prompt "New Claude API key (right-click to 
 $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
 try { $apiKey = ([Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)).Trim() }
 finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr) }
-# Checked without showing it. An API key starts sk-ant-api; an admin key (sk-ant-admin) can't
-# make requests and shouldn't sit on the server. The check also keeps quotes out of the script below.
-if ($apiKey -notmatch '^sk-ant-api[0-9A-Za-z_-]{90,220}$') {
+# Checked without showing it. A key starts sk-ant- and a kind (api, or usr for keys made since
+# October 2026); an admin key (sk-ant-admin) can't make requests and shouldn't sit on the server.
+# The check also keeps quotes out of the script below.
+if ($apiKey -notmatch '^sk-ant-(?!admin)[a-z]+[0-9]*-[0-9A-Za-z_-]{60,220}$') {
   $apiKey = $null
-  Write-Host "That isn't a whole Claude API key (it starts sk-ant-api and is about 108 characters). Copy it again with the copy icon, then run this again. Nothing changed." -ForegroundColor Red
+  Write-Host "That isn't a whole Claude API key (it starts sk-ant- and is about 100 characters). Copy it again with the copy button, then run this again. Nothing changed." -ForegroundColor Red
   exit 1
 }
 
@@ -61,5 +64,5 @@ if ($LASTEXITCODE -ne 0) { Write-Host "The key is saved, but the app didn't rest
 
 Write-Host ""
 Write-Host "Done. Farbaek uses the new key." -ForegroundColor Green
-Write-Host "In console.anthropic.com > API keys, delete the old key if it's still listed."
+Write-Host "In platform.claude.com > API keys, delete the old key (farbaek-vps-2026-10-22). Note when the new one expires."
 Write-Host "Then tell Claude, and it will check that plans draft again."
