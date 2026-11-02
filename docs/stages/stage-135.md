@@ -101,11 +101,11 @@ Google Play production opens around 2026-11-16, after the closed test's 14 days.
   - no console errors and no sideways scroll anywhere.
 
   For the owner's view, the demo's `canManage` was set to true and a throwaway key was added to a launch entry. Both were undone, and the launch file was restored from git.
+- **Migration v87 applied in production** (2026-11-02), before the merge: the committed file's SHA-256 (`3545298d…ca64262`) was checked on the server, and it ran in one transaction. Read back: the provider check allows dodo, apple and google; the three tables and five `app_google_*` functions exist; row security is on; anon and authenticated can neither run the functions nor read the tables; the server role can run them. Both existing billing accounts are unchanged.
 - **`pnpm check`:** typecheck, ESLint on the whole repo, and the full suite: 358 test files and 2,535 tests passed (17 skipped).
 
 ### Next
 
-- **Migration v87** goes to production before this branch merges.
 - **The store accounts, checked 2026-11-02:**
   - **Apple:** the Paid Apps Agreement, the bank account and the tax forms are active; the five subscriptions wait as "Prepare for Submission" (the first group goes in with a new app version). The Small Business Program still offers its enrol form, so the 15% rate the prices assume needs the owner to enrol.
   - **Google Play:** Subscriptions says "You need to set up a Google Payments merchant account". No product can be made until the owner sets one up (legal name, address, bank and tax).
