@@ -107,7 +107,7 @@ Google Play production opens around 2026-11-16, after the closed test's 14 days.
 ### Next
 
 - **The store accounts, checked 2026-11-02:**
-  - **Apple:** the Paid Apps Agreement, the bank account and the tax forms are active; the five subscriptions wait as "Prepare for Submission" (the first group goes in with a new app version). The Small Business Program still offers its enrol form, so the 15% rate the prices assume needs the owner to enrol.
+  - **Apple:** the Paid Apps Agreement, the bank account and the tax forms are active; the five subscriptions wait as "Prepare for Submission" (the first group goes in with a new app version). The owner then enrolled in the Small Business Program (15%, the rate the prices assume) the same day: no associated accounts, under 1 million USD; Apple confirmed the submission and will email its decision.
   - **Google Play:** Subscriptions says "You need to set up a Google Payments merchant account". No product can be made until the owner sets one up (legal name, address, bank and tax).
 - **The owner's steps** in `docs/mobile/android.md` section 4: payments profile, service account, script, subscriptions, license testers, the 1.1.0 upload, declarations, `-TurnOn`.
 - **The end-to-end test** with a license tester on the closed test.
