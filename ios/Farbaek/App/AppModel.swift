@@ -227,6 +227,7 @@ final class AppModel {
         }
         api.forget()
         api.sample = false
+        forgetWorkspace()
         AppleSignIn.rememberedUser = nil
         transactionUpdates?.cancel()
         transactionUpdates = nil
@@ -236,6 +237,7 @@ final class AppModel {
     }
 
     private func signedOutElsewhere() {
+        forgetWorkspace()
         AppleSignIn.rememberedUser = nil
         transactionUpdates?.cancel()
         transactionUpdates = nil
@@ -243,6 +245,12 @@ final class AppModel {
         me = nil
         phase = .signedOut
         signInError = "This phone was signed out of Farbaek. Sign in again to continue."
+    }
+
+    /// The next account starts from its own workspace, not the sample's or the last account's.
+    private func forgetWorkspace() {
+        api.workspaceId = nil
+        UserDefaults.standard.removeObject(forKey: "workspace")
     }
 
     private func resetScreens() {
