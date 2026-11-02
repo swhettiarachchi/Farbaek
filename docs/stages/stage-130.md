@@ -153,6 +153,9 @@
   - The Anthropic account has $4.35 of credit, so an empty balance isn't the cause.
 - **Diagnosing it:** Claude reading production is blocked, so `scripts/vps/check-ai.ps1` is for the owner. It sends two tiny requests from the server with its own key, one plain and one shaped like a plan draft, and prints only the HTTP status and Anthropic's error type and message. The key is never shown.
 - **Logging:** `src/server/ai/anthropic.ts` now logs `anthropic.call_failed` with the call, model, status, error type and request id, so the next failure shows in the server log.
+- **Cause (2026-11-02): the server's key is invalid.** The owner ran `check-ai.ps1`: `AI_PROVIDER=anthropic`, a key of 106 characters, and **HTTP 401 `authentication_error` "invalid x-api-key"** on all three requests (plain Haiku, Sonnet with fallbacks, and Haiku with a schema the way a trial's plan is drafted). Whole keys are about 108 characters, so it was probably pasted short, or it was revoked.
+  - The code was ruled out first: the drafting request was built on this PC against a stand-in API, and every field is valid for Haiku 5.5 and Sonnet 5.5. A trial's plan is drafted on Haiku at Balanced.
+  - **The fix is the owner's:** `scripts/vps/set-anthropic-key.ps1` asks for a new key (as stars), tests it from the server with one tiny request, saves it only if Anthropic accepts it, and restarts the app. A short or admin key is refused before anything is sent. Tested on this PC with a stand-in `curl` and `farbaek-set-env`: accepted, refused, and the PowerShell checks.
 - **A security fix found by the new test:** `redact()` in `src/server/observability/log.ts` leaked secrets.
   - For patterns without groups (Anthropic, E2B and Supabase keys, JWTs), `String.replace` passes the match's offset and the whole input where groups would be.
   - The replacer echoed them back, so it wrote the original text, key included, followed by "[redacted]".
