@@ -176,12 +176,26 @@
 - **Play's automatic protection** ("Prevent unofficial installs") is on. It wasn't the cause: the upload-signed APK, which Play hasn't touched, crashed the same way.
 - **Verified:** launch check runs #6 and #7 on 1.0.1 open Farbaek, which hands off to Chrome (its first-run screen on a fresh emulator), with no Farbaek crash. Run #7 also fails the job on any Farbaek crash.
 - **Sent to Google Play:** run #9 built `farbaek-1.0.1.aab`, 3,887,773 bytes, SHA-256 `5b5dc403…025a`, signed with the upload key. Its SHA-256 was checked after download. It's on "Closed testing - Alpha" as release 2 (1.0.1), with no bundle from 1.0.0 carried over, and is in review. The only warning is the missing deobfuscation file, which isn't needed.
-- **"Contains ads" on the listing:** the Ads declaration says "Yes, my app contains ads". Farbaek has no ads. The owner changes it to "No" (Policy and programs, App content, Ads).
+- **"Contains ads" on the listing:** the Ads declaration said "Yes, my app contains ads". Farbaek has no ads. The owner changed it to "No" on 2026-11-02, and Claude sent it to Google. That restarted the review, so 1.0.1 and the Ads change are reviewed together.
+
+### A real project in the review account, 2026-11-02
+
+- **Why:** the store images showed the demo workspace. The owner asked for real screens.
+- **The key:** with the new Claude key in place, the review account (`hello@farbaek.com`, Pro trial) drafted, built and verified a real project in production, driven over Chrome's debug port:
+  - "One-page site for Ember & Rye": the plan was drafted by `claude-haiku-5-5` (2,662 tokens in, 640 out), saved as contract version 1 and approved;
+  - the agent (`claude-sonnet-5-5`, Balanced) built it in about a minute, in a Vercel Sandbox: DESIGN.md, index.html, styles.css, script.js, README.md, then a site review. It used 14% of the trial's AI allowance;
+  - approved and applied: `check-site` passed in the sandbox, and a verified ProofPack (`sha256:d4a0c8…7b30`) was sealed;
+  - two small follow-ups: a public-holiday line, which applied on its own at autonomy level 2 (3 files, inside the limits), and a two-days'-notice line, left **waiting for approval** so reviewers can try approving it. The agent flagged on its own that it contradicts an existing "four days ahead" line.
+- **Autonomy:** the review workspace is now at level 0, so every change waits for a person, as a reviewer would expect.
+- **Not published:** the bakery's address, phone and prices are sample content the agent wrote and flagged as such, so the site isn't on farbaek.si.
+- **A bug found and fixed:** at phone width, the review diff's Accept and Reject buttons covered the first added line, in fixed green and red. `src/components/files/codemirror.tsx` now gives them their own row, as token pills with 44px targets. Checked in the demo workspace at 375px (buttons end at 474px, the next line starts at 576px), with the design tests (141) and typecheck.
+- **Google Play images:** `scripts/release/store-images.mjs android` renders seven images from the real screens: Mission Control, the drafted plan, the agent, the preview, Approvals, the diff and the proof. They're held until Google approves 1.0.1, because a listing change restarts the review. The diff image is retaken after the button fix is live.
+- **App Store images:** still the simulator's sample tour. Real ones need the native app signed in to the review account on a Mac simulator.
 
 ### Next
 
 - **The owner:**
-  - change the Play Ads declaration to "No";
+  - merge the AI and diff fixes (branch `fix/ai-drafting`);
   - once Google approves 1.0.1, update Farbaek from Play on your phone (or uninstall and install again) and open it;
   - send the join link to the 13 testers. At least 12 must stay joined for 14 days, then apply for production.
 - **Apple's review:** answer within 48 hours. If anything comes back, the email names the guideline.
