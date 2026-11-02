@@ -42,10 +42,13 @@ The review account's real project showed the gap. The project page's Preview but
   Every request carried the token in a header file, never on a command line.
 - **The PowerShell side:** it parses, the token check refuses short tokens, quotes, slashes and spaces, and results are reported as written.
 - `bash -n` on `deploy.sh`.
+- **The `Caddy` workflow, run #1, passed in 2m 26s:**
+  - the compose tag matches the Dockerfile;
+  - the image built, with `dns.providers.cloudflare` in `caddy list-modules`;
+  - the Caddyfile validates without the wildcard site (and has none), then with it.
 
 ### Not verified yet
 
-- **The Caddy workflow's first run** (the image build and both validations) follows the push.
 - **Production:** it needs the owner's Cloudflare zone, the nameserver change at Hostinger, and the token.
 
 ### Next
