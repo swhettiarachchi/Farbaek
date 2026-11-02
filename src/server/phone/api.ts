@@ -90,6 +90,12 @@ interface Route {
   write?: boolean;
   /** A write that starts sandbox work, which runs on the phone's access token, so it must outlast a run. */
   long?: boolean;
+  /**
+   * Reads the account itself. A workspace the person isn't in (a phone that last showed the
+   * sample or another account) is ignored, and the answer names their current one, which the
+   * app adopts. Every other route refuses it.
+   */
+  anyWorkspace?: boolean;
   run: Handler;
 }
 
@@ -130,6 +136,7 @@ const ROUTES: Route[] = [
   {
     method: "GET",
     path: "me",
+    anyWorkspace: true,
     run: async (s) =>
       ok(
         meView(s.ctx, {
@@ -445,6 +452,6 @@ export async function handlePhoneApi(request: Request, segments: readonly string
   }
   const workspace = request.headers.get("x-farbaek-workspace");
   const { ctx, runs } = await deps.live(caller.value, workspace && Uuid.safeParse(workspace).success ? workspace : null);
-  if (workspace && ctx.current?.id !== workspace) return problem(404, "NOT_FOUND", "That workspace doesn't exist or you're not a member.");
+  if (workspace && ctx.current?.id !== workspace && !route.anyWorkspace) return problem(404, "NOT_FOUND", "That workspace doesn't exist or you're not a member.");
   return route.run({ request, params, url: new URL(request.url), ctx, runs, caller: caller.value, deps });
 }

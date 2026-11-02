@@ -124,6 +124,16 @@ describe("the phone API (ADR 0110)", () => {
     expect(r.status).toBe(404);
   });
 
+  it("answers the account with the person's own workspace when the phone names one they aren't in", async () => {
+    // A phone that last showed the sample, or another account, still holds that workspace; the app adopts `current`.
+    const stale = { headers: { "x-farbaek-workspace": crypto.randomUUID() } };
+    const r = await call(deps().deps, "GET", "me", stale);
+    expect(r.status).toBe(200);
+    const ws = (await createDemoReader(NOW).listWorkspaces())[0]!;
+    expect(((await r.json()) as { data: { current: string } }).data.current).toBe(ws.id);
+    expect((await call(deps().deps, "GET", "tasks", stale)).status).toBe(404);
+  });
+
   it("checks writes the way the web does, before any use case runs", async () => {
     const { deps: d, calls } = deps({ ctx: { writes: { enabled: false, reason: "You have view-only access to this workspace." } } });
     const r = await call(d, "POST", `approvals/${DEMO_PROPOSAL_TASK_ID}/approve`, { body: { proposalId: crypto.randomUUID(), sha256: "a".repeat(64) } });
