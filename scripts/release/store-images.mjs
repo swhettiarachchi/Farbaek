@@ -3,12 +3,13 @@
 // the proof thread, a signal blue to cyan line that runs across every image at the same height,
 // so side by side in a store they read as one thread: control at every step.
 //
-// Sources are the real screens (gitignored, made by the iPhone tour and the demo build):
-//   desktop/release/store-ios/iphone-*.png          1320 x 2868, from the simulator
-//   desktop/release/store-android/play-phone-*.png  1080 x 1920, the web app at 360 x 640, 3x
+// Sources are the real screens (gitignored):
+//   desktop/release/store-ios/iphone-*.png       1320 x 2868, from the simulator's sample tour
+//   desktop/release/store-android/real-*.png     1080 x 1920, the web app at 360 x 640, 3x, in the
+//     review account (hello@farbaek.com) after a real build: the Ember & Rye project, 2026-11-02
 // Output: desktop/release/store-ios/designed/ and desktop/release/store-android/designed/.
 //
-// Run: node scripts/release/store-images.mjs   (needs Chrome and the network, for Geist)
+// Run: node scripts/release/store-images.mjs [ios|android]   (needs Chrome and the network, for Geist)
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
@@ -43,12 +44,13 @@ const ANDROID = {
   size: { w: 1080, h: 1920 },
   device: "android",
   slides: [
-    { screen: "play-phone-1-mission-control.png", hero: true, title: "Approve what your agent builds.", line: "From idea to verified software, with control at every step." },
-    { screen: "play-phone-2-build.png", step: "Describe", title: "Start with one sentence.", line: "Farbaek drafts a plan. Nothing runs until you approve it." },
-    { screen: "play-phone-3-approvals.png", step: "Approve", title: "Every change waits for you.", line: "Each approval is bound to the exact change you read." },
-    { screen: "play-phone-4-task.png", step: "Decide", title: "Choose how the agent works.", line: "Learn, pair, build or audit, task by task." },
-    { screen: "play-phone-5-project.png", step: "Ship", title: "Everything about a project.", line: "Its graph, launch plan, GitHub and skills." },
-    { screen: "play-phone-6-tasks.png", step: "Follow", title: "Know what needs you.", line: "Tasks waiting for a person come first." },
+    { screen: "real-1-mission-control.png", hero: true, title: "Approve what your agent builds.", line: "From idea to verified software, with control at every step." },
+    { screen: "real-2-plan.png", step: "Describe", title: "Start with one sentence.", line: "Farbaek drafts a plan. Nothing runs until you approve it." },
+    { screen: "real-3-agent.png", step: "Build", title: "Watch the agent build.", line: "It works on a copy, in an isolated sandbox." },
+    { screen: "real-4-preview.png", step: "Preview", title: "See what it built.", line: "On a phone, a tablet or a desktop, before it's live." },
+    { screen: "real-5-approvals.png", step: "Approve", title: "Every change waits for you.", line: "Each approval is bound to the exact change you read." },
+    { screen: "real-6-diff.png", step: "Review", title: "Read the exact change.", line: "Every file as a diff, tied to the plan's checks." },
+    { screen: "real-7-proof.png", step: "Verify", title: "Proof you can check.", line: "Checked in a sandbox. Anyone can verify the record." },
   ],
 };
 
@@ -242,7 +244,8 @@ async function render(html, size, out) {
   console.log(out.replace(root, "").replace(/^[\\/]/, ""), `${m.width}x${m.height}`, m.channels === 3 ? "rgb" : `channels=${m.channels}`);
 }
 
-for (const set of [IOS, ANDROID]) {
+const only = process.argv[2]; // "ios" or "android"; both when left out
+for (const set of [IOS, ANDROID].filter((s) => !only || (only === "ios" ? s === IOS : s === ANDROID))) {
   const outDir = join(root, set.dir, "designed");
   mkdirSync(outDir, { recursive: true });
   for (const [i, slide] of set.slides.entries()) {
@@ -250,7 +253,9 @@ for (const set of [IOS, ANDROID]) {
     await render(slideHtml(set, slide, i), set.size, join(outDir, name));
   }
 }
-await render(featureHtml(), { w: 1024, h: 500 }, join(root, ANDROID.dir, "designed", "play-feature-graphic.png"));
-await render(headerHtml(), { w: 3840, h: 1646 }, join(root, IOS.dir, "designed", "app-store-header.png"));
-await render(searchHtml(), { w: 3840, h: 2560 }, join(root, IOS.dir, "designed", "app-store-search.png"));
+if (only !== "ios") await render(featureHtml(), { w: 1024, h: 500 }, join(root, ANDROID.dir, "designed", "play-feature-graphic.png"));
+if (only !== "android") {
+  await render(headerHtml(), { w: 3840, h: 1646 }, join(root, IOS.dir, "designed", "app-store-header.png"));
+  await render(searchHtml(), { w: 3840, h: 2560 }, join(root, IOS.dir, "designed", "app-store-search.png"));
+}
 await browser.close();
