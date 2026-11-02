@@ -72,8 +72,9 @@ The texts, graphics and answers are in `docs/mobile/play-listing.md`. Plans are 
 Inside the app, plans are bought through Google Play, the way Farbaek for iPhone buys through the App Store. The website shows Google Play's prices and opens Google Play's purchase sheet. The server checks every purchase with Google before the plan changes.
 
 **Where it stands (2026-11-02):**
-- **Built:** stage 134, app version 1.1.0 (versionCode 3).
-- **Off on the server** until step 8.
+- **Built:** stage 135, app version 1.1.0 (versionCode 3), published to Internal testing with no testers.
+- **Done:** step 1 (payments profile, bank account, the 15% service fee) and step 5 (the five subscriptions, active). US tax info in the payments profile is still empty.
+- **Off on the server** until step 8. Do step 8 before giving anyone 1.1.0.
 
 1. **Payments profile.** Play Console → **Settings → Payments profile**. Create it (merchant, bank account and tax details). Only you can: it's your money. Sri Lanka supports merchant registration.
 2. **A service account for Farbaek's server:**
