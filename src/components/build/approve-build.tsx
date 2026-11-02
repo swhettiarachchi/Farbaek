@@ -117,7 +117,7 @@ export function ApproveBuild({
           </div>
           <p id={`${capId}-detail`} className="text-xs leading-relaxed text-ink-3">
             {CAP_LABELS[cap].detail(estimate.high)}
-            {cap !== "plan" ? " It never goes past the cap: a step that might is stopped before it starts, and the work so far is kept for your review." : ""}
+            {cap !== "plan" ? " It never goes past the cap: a step that would go over it is stopped before it starts, and the work so far is kept for your review." : ""}
           </p>
         </fieldset>
       ) : null}
