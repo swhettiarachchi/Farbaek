@@ -127,6 +127,18 @@ const SECTIONS: LegalSection[] = [
     ),
   },
   {
+    id: "google-play",
+    title: "Plans bought in the Android app",
+    body: (
+      <p>
+        If you subscribe in Farbaek for Android, Google Play bills your Google account under Google&apos;s own terms, at the price Google Play shows in your currency, which can
+        differ from the price on our website. The plan renews monthly until you cancel it in Google Play, under Payments and subscriptions, before it renews. Deleting your
+        Farbaek account doesn&apos;t cancel it; cancel it in Google Play first. Refunds for these purchases follow Google Play&apos;s refund policy. A purchase Farbaek can&apos;t add
+        to your workspace is never confirmed with Google, and Google refunds it within 3 days. Everything else in these terms applies to the plan as if you&apos;d bought it from us.
+      </p>
+    ),
+  },
+  {
     id: "ownership",
     title: "Your work is yours",
     body: (

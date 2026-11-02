@@ -13,7 +13,7 @@ export function appleIapOn(env: Record<string, string | undefined> = process.env
   return env.APPLE_IAP?.trim() === "on";
 }
 
-const Account = z.object({ provider: z.enum(["dodo", "apple"]).nullable(), state: z.string(), provider_subscription_id: z.string().nullable() });
+const Account = z.object({ provider: z.enum(["dodo", "apple", "google"]).nullable(), state: z.string(), provider_subscription_id: z.string().nullable() });
 const APPLY = ["applied", "unchanged", "stale", "other_subscription"] as const;
 
 export function appleDeps(): AppleDeps | null {

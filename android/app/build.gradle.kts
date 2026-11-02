@@ -45,4 +45,6 @@ android {
 
 dependencies {
     implementation("com.google.androidbrowserhelper:androidbrowserhelper:2.7.4")
+    // Google Play billing for the website inside the app (ADR 0154). Exact version, released 2026-07-30.
+    implementation("com.google.androidbrowserhelper:billing:1.2.0")
 }

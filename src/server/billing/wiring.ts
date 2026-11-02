@@ -36,7 +36,7 @@ const Account = z.object({
   paid_through: z.string().nullable(),
   provider_subscription_id: z.string().nullable(),
   provider_customer_id: z.string().nullable(),
-  provider: z.enum(["dodo", "apple"]).nullable().optional(),
+  provider: z.enum(["dodo", "apple", "google"]).nullable().optional(),
 });
 
 const APPLY_RESULTS = ["applied", "unchanged", "stale", "other_subscription"] as const;

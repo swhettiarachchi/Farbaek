@@ -81,12 +81,36 @@
         </activity>
 
         <service
-            android:name="com.google.androidbrowserhelper.trusted.DelegationService"
+            android:name=".DelegationService"
             android:enabled="true"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.support.customtabs.trusted.TRUSTED_WEB_ACTIVITY_SERVICE" />
                 <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
+
+        <!-- Google Play billing for the website inside the app (ADR 0154), as androidbrowserhelper's twa-play-billing demo declares it.
+             Chrome opens this activity for a Payment Request with the https://play.google.com/billing method. -->
+        <activity
+            android:name="com.google.androidbrowserhelper.playbilling.provider.PaymentActivity"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:configChanges="keyboardHidden|keyboard|orientation|screenLayout|screenSize"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="org.chromium.intent.action.PAY" />
+            </intent-filter>
+            <meta-data
+                android:name="org.chromium.default_payment_method_name"
+                android:value="https://play.google.com/billing" />
+        </activity>
+
+        <!-- Chrome asks this service whether Google Play billing is ready. It checks who calls it at run time. -->
+        <service
+            android:name="com.google.androidbrowserhelper.playbilling.provider.PaymentService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="org.chromium.intent.action.IS_READY_TO_PAY" />
             </intent-filter>
         </service>
     </application>

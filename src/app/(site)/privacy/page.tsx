@@ -69,6 +69,10 @@ const SECTIONS: LegalSection[] = [
               When you subscribe in Farbaek for iPhone, Apple handles the payment. Apple sends us the purchase&apos;s product, dates and the workspace it&apos;s for, signed by Apple,
               never your payment details.
             </>,
+            <>
+              When you subscribe in Farbaek for Android, Google Play handles the payment. We keep the purchase&apos;s token to ask Google about it, and Google tells us its product,
+              dates, state and order number, never your payment details.
+            </>,
           ]}
         />
         <p>We don&apos;t sell your personal data, share it for advertising, or use it to train AI models. We don&apos;t make decisions about you that are based only on automated processing and have legal or similarly significant effects.</p>

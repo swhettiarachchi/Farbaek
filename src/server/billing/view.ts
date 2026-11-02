@@ -27,8 +27,8 @@ export interface BillingView {
     paidThrough: string | null;
     suspendedReason: "payment" | "paused" | null;
     hasCustomer: boolean;
-    /** Who bills it (ADR 0112): Apple's are changed or cancelled on the iPhone, never here. */
-    provider: "dodo" | "apple";
+    /** Who bills it (ADR 0112, ADR 0154): Apple's and Google Play's are changed or cancelled in their stores, never here. */
+    provider: "dodo" | "apple" | "google";
   } | null;
   /** A checkout started in the last 24 hours and not yet confirmed. */
   openCheckout: { planId: PaidPlanId; startedAt: string } | null;
@@ -46,7 +46,7 @@ const Account = z.object({
   provider_subscription_id: z.string().nullable(),
   provider_customer_id: z.string().nullable(),
   topup_cap_cents: z.number().int().nullable().optional(),
-  provider: z.enum(["dodo", "apple"]).nullable().optional(),
+  provider: z.enum(["dodo", "apple", "google"]).nullable().optional(),
 });
 
 export async function loadBillingView(orgId: string, demo: boolean): Promise<BillingView> {
@@ -79,7 +79,7 @@ export async function loadBillingView(orgId: string, demo: boolean): Promise<Bil
           paidThrough: a.data.paid_through,
           suspendedReason: a.data.suspended_reason,
           hasCustomer: Boolean(a.data.provider_customer_id),
-          provider: a.data.provider === "apple" ? ("apple" as const) : ("dodo" as const),
+          provider: a.data.provider === "apple" || a.data.provider === "google" ? a.data.provider : ("dodo" as const),
         }
       : null;
   const c = checkout.data as { plan_id?: unknown; created_at?: unknown } | null;

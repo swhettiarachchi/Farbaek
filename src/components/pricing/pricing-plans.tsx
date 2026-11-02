@@ -3,6 +3,8 @@ import Link from "next/link";
 import { FEATURE_LABELS, FEATURE_STATUS, SELF_SERVE_PLANS, chargeCents, formatUsd, getPlan, planSessionsGuide, priceWords, yearlyVersionOf, type FeatureKey, type Plan } from "@/core/billing/catalog";
 import { buttonClasses } from "@/components/ui/button";
 import { WebPurchaseOnly } from "@/components/billing/web-purchase-only";
+import { PlayPrice } from "@/components/billing/play-billing";
+import { googlePlayProductForPlan } from "@/core/billing/google-play";
 
 const number = new Intl.NumberFormat("en-US");
 
@@ -74,8 +76,11 @@ export function PricingPlans() {
             <p className="mt-1 min-h-[2.5rem] text-sm text-ink-2">{plan.summary}</p>
 
             <p className="mt-5">
-              <span className="text-[2.75rem] font-medium leading-none tracking-[-0.04em] tabular">{price.price}</span>
-              <span className="ml-1.5 text-sm text-ink-3">{price.per}</span>
+              {/* Inside Farbaek for Android, Google Play's own price when Google Play sells the plan (ADR 0154). */}
+              <PlayPrice ready productId={googlePlayProductForPlan(plan.id)?.productId ?? null} amountClass="text-[2.75rem] font-medium leading-none tracking-[-0.04em] tabular" perClass="ml-1.5 text-sm text-ink-3">
+                <span className="text-[2.75rem] font-medium leading-none tracking-[-0.04em] tabular">{price.price}</span>
+                <span className="ml-1.5 text-sm text-ink-3">{price.per}</span>
+              </PlayPrice>
             </p>
             <p className="mt-1.5 min-h-5 text-xs text-ink-3 tabular">{price.billed ?? (plan.pricing.kind === "paid" ? "Billed monthly" : "")}</p>
 

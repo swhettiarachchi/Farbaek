@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { billingDeps, topupDeps } from "@/server/billing/wiring";
 import { setTopupCap, startTopup, topupErrorKey } from "@/server/billing/topups";
 import { billingErrorKey, changePlan, openPortal, setCancelAtPeriodEnd, startCheckout, type BillingActor, type BillingWorkspace } from "@/server/billing/use-cases";
+import { GOOGLE_MESSAGES, claimGooglePlayPurchase, openGooglePlayIntent, type GoogleResult } from "@/server/billing/google/service";
+import { googlePlayDeps, googlePlayOn } from "@/server/billing/google/wiring";
 import { log } from "@/server/observability/log";
 import { loadAppContext } from "@/server/workspace/context";
 
@@ -77,4 +79,49 @@ export async function startTopupAction(form: FormData): Promise<void> {
     redirect(`${BILLING}?topup=${encodeURIComponent(String(pack))}&topup_error=${topupErrorKey(r)}#billing-step`);
   }
   redirect(r.value.url);
+}
+
+/** What the Google Play button gets back (ADR 0154): its words are safe to show inside the Android app. */
+export type PlayActionResult = { ok: true; pending: boolean } | { ok: false; code: string; message: string };
+
+const playRefusal = (code: string, message: string): PlayActionResult => ({ ok: false, code, message });
+
+/** The person, workspace and Google Play, checked again on the server for every call. */
+async function playScope() {
+  const ctx = await loadAppContext();
+  if (!ctx?.current || ctx.mode === "demo" || !ctx.writes.enabled) return null;
+  const deps = googlePlayOn() ? googlePlayDeps() : null;
+  if (!deps) return null;
+  return { deps, orgId: ctx.current.id, actor: ctx.user.id, role: ctx.role };
+}
+
+function fromGoogle(r: GoogleResult<{ pending: boolean } | null>, orgId: string): PlayActionResult {
+  if (r.ok) return { ok: true, pending: Boolean(r.value?.pending) };
+  log("warn", "billing.google_play_refused", { org: orgId, code: r.code });
+  return playRefusal(r.code, r.message);
+}
+
+/** An owner or admin is about to buy this plan through Google Play: the purchase that follows is bound to this workspace. */
+export async function openGooglePlayIntentAction(productId: string): Promise<PlayActionResult> {
+  const s = await playScope();
+  if (!s) return playRefusal("NOT_OPEN", GOOGLE_MESSAGES.off);
+  try {
+    return fromGoogle(await openGooglePlayIntent(s.deps, { orgId: s.orgId, actor: s.actor, role: s.role, productId: String(productId).slice(0, 100) }), s.orgId);
+  } catch (e) {
+    const tooMany = e instanceof Error && e.message.includes("TOO_MANY_ATTEMPTS");
+    log("warn", "billing.google_play_intent_failed", { org: s.orgId, reason: tooMany ? "too_many" : "error" });
+    return playRefusal(tooMany ? "TOO_MANY_ATTEMPTS" : "NOT_OPEN", tooMany ? "Too many tries in the last hour. Try again later." : GOOGLE_MESSAGES.check);
+  }
+}
+
+/** A Google Play purchase the app just made, or one it holds: Farbaek asks Google about it before anything changes. */
+export async function claimGooglePlayPurchaseAction(purchaseToken: string): Promise<PlayActionResult> {
+  const s = await playScope();
+  if (!s) return playRefusal("NOT_OPEN", GOOGLE_MESSAGES.off);
+  try {
+    return fromGoogle(await claimGooglePlayPurchase(s.deps, { orgId: s.orgId, actor: s.actor, role: s.role, purchaseToken }), s.orgId);
+  } catch {
+    log("warn", "billing.google_play_claim_failed", { org: s.orgId });
+    return playRefusal("GOOGLE_UNAVAILABLE", GOOGLE_MESSAGES.check);
+  }
 }

@@ -6,6 +6,8 @@
  */
 import { processWebhooks } from "@/server/billing/webhooks";
 import { billingWebhookDeps } from "@/server/billing/wiring";
+import { runGooglePlaySync } from "@/server/billing/google/service";
+import { googlePlayDeps, googlePlayOn } from "@/server/billing/google/wiring";
 import { checkSchedulerToken } from "@/server/jobs/auth";
 import { runIncidentEscalation } from "@/server/jobs/incident-escalation";
 import { incidentEscalationDeps } from "@/server/jobs/incident-escalation-wiring";
@@ -65,6 +67,8 @@ export async function handleHourlyJobs(request: Request): Promise<Response> {
     billingWebhooks: await runJob("billing_webhooks", billingWebhookDeps(), (d) => processWebhooks(d)),
     // What happened to Farbaek's pull requests on GitHub (ADR 0143).
     githubPulls: await runJob("github_pulls", createSupabaseAdminClient(), (admin) => syncDuePulls(pullSyncDeps(admin))),
+    // Google Play pushes nothing here (ADR 0154): due checks, unacknowledged purchases and refunds.
+    googlePlay: await runJob("google_play", googlePlayOn() ? googlePlayDeps() : null, (d) => runGooglePlaySync(d)),
   };
   const all = Object.values(jobs);
   if (all.every((j) => j.status === "not_configured")) return problem(503, "NOT_CONFIGURED", "Email or the server key for writes isn't set, so no hourly job can run.");

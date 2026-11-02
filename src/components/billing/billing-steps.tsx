@@ -2,6 +2,8 @@ import { CalendarXIcon, CheckCircleIcon, CreditCardIcon, PauseCircleIcon, Warnin
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { NotInAndroidApp, WebPurchaseOnly } from "./web-purchase-only";
+import { ManageInGooglePlay } from "./play-billing";
+import { googlePlayProductForPlan } from "@/core/billing/google-play";
 import { cancelPlanAction, changePlanAction, openPortalAction, resumePlanAction, startCheckoutAction } from "@/app/app/billing/actions";
 import { Notice } from "@/components/app/primitives";
 import { sessionsLine } from "@/components/pricing/pricing-plans";
@@ -197,6 +199,15 @@ export function SubscriptionSummary({ subscription, canManage }: { subscription:
         <p className="text-sm leading-relaxed text-ink-2">
           Billed through the App Store, bought in Farbaek for iPhone. Change or cancel it on the iPhone: Settings, your name, Subscriptions. Apple sends its receipts.
         </p>
+      ) : subscription.provider === "google" ? (
+        <div className="grid gap-3">
+          <p className="text-sm leading-relaxed text-ink-2">
+            Billed through Google Play, bought in Farbaek for Android. Change it on Billing in the Android app; manage or cancel it in Google Play. Google Play sends its receipts.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <ManageInGooglePlay productId={googlePlayProductForPlan(subscription.planId)?.productId ?? null} />
+          </div>
+        </div>
       ) : canManage ? (
         <div className="flex flex-wrap gap-2">
           {subscription.hasCustomer ? (
@@ -222,7 +233,8 @@ export function SubscriptionSummary({ subscription, canManage }: { subscription:
         <p className="text-xs text-ink-3">Only the workspace&apos;s owners and admins change its plan or payment method.</p>
       )}
       <p className="flex items-center gap-2 border-t border-line pt-4 text-sm text-ink-3">
-        <CreditCardIcon size={18} aria-hidden /> Invoices and receipts are in Dodo Payments&apos; portal.
+        <CreditCardIcon size={18} aria-hidden />{" "}
+        {subscription.provider === "apple" ? "Receipts come from Apple." : subscription.provider === "google" ? "Receipts come from Google Play." : <>Invoices and receipts are in Dodo Payments&apos; portal.</>}
       </p>
     </div>
   );
