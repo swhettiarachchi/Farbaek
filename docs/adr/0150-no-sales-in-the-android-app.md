@@ -51,3 +51,20 @@ That's a separate piece of work, like ADR 0112 was for the App Store.
 - The Android app can go on Google Play without breaking the Payments policy, and the website is unchanged everywhere else.
 - **People who use the app buy plans outside it,** and the app doesn't say where. Selling through Google Play's billing would fix that. It's left for a later decision: see Context for what it needs.
 - The Play listing doesn't mention prices or buying.
+
+## Update, 2026-11-02: one notice instead of a pill on every card
+
+The owner compared the two apps. The iPhone app shows the plan and says nothing more outside the United States; the Android app repeated "Can't be bought in the Android app" on every plan and top-up pack. They chose to keep selling nothing in the Android app and asked for it to look clean and professional. Their options were:
+- Google Play's billing;
+- a website link, which Google allows only for US users through its External Content Links program, with enrolment and a fee.
+
+**What changed in the app:**
+- **Billing's Plans:**
+  - one notice ("Plans aren't sold in the Android app": the plan, usage and renewal date are all here);
+  - then what each plan includes, in one list, with the workspace's plan marked;
+  - no prices and no buttons (`src/components/billing/android-plans.tsx`).
+- **Top-ups:** the card is left out.
+- **The invoices line** reads "No invoices." instead of mentioning a checkout.
+- **The pricing page** shows the same notice once, above the plans, instead of a pill on each card.
+
+The website is unchanged everywhere else. Nothing in the app names another way to pay.
