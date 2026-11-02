@@ -42,6 +42,17 @@ Getting ready to launch the owner's "Tip calculator" to Vercel with a real accou
 - **Test runs:** 42 files and 287 tests across core, launch, publish, workspace, content and the launch panel; `tests/design` (141).
 - `pnpm typecheck` and ESLint on every changed file.
 
+### In production, 2026-11-02
+
+- **#166 deployed** (`473b6b9`). The Tip calculator's Launch page reads "A static website, ready for Farbaek Sites", with "index.html, and a package.json that installs and runs nothing". Its Vercel section offers the connect form.
+- **The first real launch to Vercel (LaunchOS, ADR 0078):**
+  - **The token:** Claude filled in Vercel's token form: `farbaek-launch-test`, scope "Suvin's projects" (All Projects, since the launch creates a new project), 1 day. The owner created it and pasted it into Farbaek's hidden token field. Claude never saw it. The Team ID is `team_OShrLOPoOQrfxJXRZTEgoV3V`.
+  - **Connected** as `swhettiarachchi`. The launch showed 3 files, 794 bytes, `sha256:d76911…07a5`, No evidence, Production. It needed a reason ("Launch check at the owner's request…") and the name typed.
+  - **The launch:** "Launch started. Vercel is building it now", then **Live** within a minute, "Answering (200)", at `tip-calculator-opal-six.vercel.app`, with the build log linked.
+  - **Checked from outside:** `/` 200 (`<title>Tip calculator</title>`, 326 bytes), `/src/app.js` 200 (419 bytes). `package.json` (49 bytes) isn't served by Vercel, as expected. Together that's the 794 bytes sent.
+  - **Disconnected afterwards.** The launch stays in the project's history. The Vercel project `tip-calculator` remains in the owner's team for them to keep or delete, and the token expires 2026-11-03.
+
 ### Next
 
-- **In production, after merge:** the Tip calculator's Launch page should show Farbaek Sites, Vercel and Netlify as possible. Then a real Vercel launch, with a token the owner creates and pastes into the connect form; Claude never sees it.
+- **Netlify, the same way,** once the owner has a Netlify account.
+- **More hosting providers (Render, Railway, Fly.io):** still roadmap.
