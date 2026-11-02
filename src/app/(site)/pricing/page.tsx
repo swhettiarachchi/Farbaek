@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { FaqList, type FaqItem } from "@/components/marketing/faq";
 import { ComparisonTable } from "@/components/pricing/comparison-table";
 import { AndroidPlansNotice } from "@/components/billing/android-plans";
+import { PlayPricingNotice } from "@/components/billing/play-plans";
 import { WebPurchaseOnly } from "@/components/billing/web-purchase-only";
 import { PricingPlans } from "@/components/pricing/pricing-plans";
 import { Container } from "@/components/ui/container";
@@ -96,20 +97,25 @@ export default function PricingPage() {
             </ul>
           </div>
 
-          <p className="mt-6 flex items-start gap-2.5 rounded-sm border border-info/30 bg-info/[0.06] px-4 py-3 text-sm text-ink">
-            <InfoIcon size={18} weight="bold" className="mt-px shrink-0 text-info" aria-hidden />
-            Every plan is charged monthly. Lite and Maker can also be paid yearly, with more AI usage, and we email you before each yearly renewal. Cancel any time in
-            Billing, and your plan runs to the end of the period you paid for.
-          </p>
+          {/* How the website bills: inside Farbaek for Android the notice below speaks for Google Play instead (ADR 0154). */}
+          <WebPurchaseOnly fallback={null}>
+            <p className="mt-6 flex items-start gap-2.5 rounded-sm border border-info/30 bg-info/[0.06] px-4 py-3 text-sm text-ink">
+              <InfoIcon size={18} weight="bold" className="mt-px shrink-0 text-info" aria-hidden />
+              Every plan is charged monthly. Lite and Maker can also be paid yearly, with more AI usage, and we email you before each yearly renewal. Cancel any time in
+              Billing, and your plan runs to the end of the period you paid for.
+            </p>
+          </WebPurchaseOnly>
 
           <div className="mt-10">
             {/* Names the plan list for screen readers, so the plan names (h3) sit under a heading. */}
             <h2 className="sr-only">Plans</h2>
-            {/* Inside Farbaek for Android: one notice instead of a pill on every plan (ADR 0150). */}
+            {/* Inside Farbaek for Android: one notice instead of a pill on every plan (ADR 0150), leading to Billing when Google Play sells plans (ADR 0154). */}
             <WebPurchaseOnly
               fallback={
                 <div className="mb-6">
-                  <AndroidPlansNotice />
+                  <PlayPricingNotice>
+                    <AndroidPlansNotice />
+                  </PlayPricingNotice>
                 </div>
               }
             >

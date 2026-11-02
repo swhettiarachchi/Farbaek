@@ -47,7 +47,7 @@ export const DELETION_WORDS: Record<DeletionOutcome, string> = {
   deleted: "Deleted, with its projects, files, history and published sites. You're its only member.",
   left: "You leave it. It stays for the others, and what you made in it stays theirs.",
   blocked_last_owner: "You're its only owner and others are in it. Make one of them an owner first.",
-  blocked_paid: "It has a paid plan. Cancel the plan first.",
+  blocked_paid: "It has a paid plan. Cancel it first, where it was bought: Billing, the iPhone's Subscriptions, or Google Play.",
 };
 
 /** The database's refusals for people changes, in plain words. */

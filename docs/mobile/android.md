@@ -26,7 +26,7 @@ Download the run's **farbaek-android** artifact. It holds `farbaek-1.0.0.aab` an
 
 ## 3. Play Console
 
-The texts, graphics and answers are in `docs/mobile/play-listing.md`. Nothing is sold inside the app (ADR 0150), so the listing never mentions prices or buying.
+The texts, graphics and answers are in `docs/mobile/play-listing.md`. Plans are sold inside the app only through Google Play (ADR 0150, ADR 0154, section 4), so the listing never mentions prices or another way to pay.
 
 **Where it stands (2026-11-01):**
 - **The app:** created under the Svanflok account (u/5): Farbaek, `com.farbaek.app`, Play app id 4974194295109432147. The owner accepted the declarations.
@@ -66,6 +66,58 @@ The texts, graphics and answers are in `docs/mobile/play-listing.md`. Nothing is
 4. **Testing → Closed testing:** create a track and add at least **12 testers** (their Google account emails). Upload the `.aab`. Google requires new personal accounts to run this test for **14 days** before production.
 5. **App signing:** after the first upload, open **Test and release → App integrity → App signing** and copy **App signing key certificate, SHA-256 certificate fingerprint**. Send it to Claude: it goes into `src/config/android-app.ts` next to the upload key's. Once it's live, the app opens without Chrome's address bar.
 6. After the 14 days, **apply for production**, then roll out.
+
+## 4. Selling plans in the app (ADR 0154)
+
+Inside the app, plans are bought through Google Play, the way Farbaek for iPhone buys through the App Store. The website shows Google Play's prices and opens Google Play's purchase sheet. The server checks every purchase with Google before the plan changes.
+
+**Where it stands (2026-11-02):**
+- **Built:** stage 134, app version 1.1.0 (versionCode 3).
+- **Off on the server** until step 8.
+
+1. **Payments profile.** Play Console → **Settings → Payments profile**. Create it (merchant, bank account and tax details). Only you can: it's your money. Sri Lanka supports merchant registration.
+2. **A service account for Farbaek's server:**
+   1. In console.cloud.google.com, signed in with the Farbaek Google account, create a project named "Farbaek Play".
+   2. Turn on the **Google Play Android Developer API** (APIs and services → Library).
+   3. **IAM and admin → Service accounts → Create**, named "farbaek-play", with no Cloud roles.
+   4. Open it, **Keys → Add key → JSON**. The file downloads once. Keep it private.
+3. **Give it Play access.** Play Console → **Users and permissions → Invite new users**:
+   - the service account's email (it ends `.iam.gserviceaccount.com`);
+   - app **Farbaek**;
+   - **View financial data** and **Manage orders and subscriptions**.
+
+   Its access can take up to a day to start working.
+4. **Save it on the server:**
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File "C:\Users\INTEL\Documents\FarBaek\scripts\vps\set-google-play.ps1"
+   ```
+
+   Drag the JSON file in when it asks. The script tests it from the server and saves it only if Google and Google Play both accept it. Then delete the downloaded file.
+5. **The five subscriptions.** Play Console → **Monetize with Play → Products → Subscriptions**. Claude can fill these in. Each has one base plan, `monthly`: auto-renewing, monthly, no offers, pausing off.
+
+   | Product id | Name | US price |
+   | --- | --- | --- |
+   | `farbaek_lite_monthly` | Farbaek Lite | $0.99 |
+   | `farbaek_maker_monthly` | Farbaek Maker | $1.99 |
+   | `farbaek_starter_monthly` | Farbaek Starter | $10.49 |
+   | `farbaek_plus_monthly` | Farbaek Plus | $20.99 |
+   | `farbaek_pro_monthly` | Farbaek Pro | $53.99 |
+
+   Play converts the other countries' prices. Check them: where prices include VAT, Farbaek keeps less.
+6. **License testers.** Play Console → **Settings → License testing**: add your own Gmail accounts. Their purchases are free test purchases, recorded in test mode.
+7. **The 1.1.0 bundle and declarations:**
+   - Upload the bundle from the "Android app" workflow run (versionCode 3) to **Closed testing - Alpha**.
+   - Answer **Financial features** (none of the listed ones: it sells subscriptions to its own service).
+   - Check that **Data safety** still lists Purchase history.
+8. **Turn it on:** run the script again with `-TurnOn`. After the restart, Billing in the app shows the plan picker with Google Play's prices.
+9. **Test end to end** with a license tester, on the closed test:
+   1. Buy Lite.
+   2. Billing shows "Billed through Google Play".
+   3. Play Console → **Order management** shows the order acknowledged.
+   4. Cancel it in Google Play: within the hour, or when the app opens, Billing shows it ending.
+
+`-Off` stops selling. Purchases already made keep being checked every hour.
 
 ## Updating the app
 

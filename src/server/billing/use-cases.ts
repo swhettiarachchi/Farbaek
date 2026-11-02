@@ -28,6 +28,7 @@ export type BillingErrorCode =
   | "SAME_PLAN"
   | "YEARLY_SWITCH"
   | "MANAGED_BY_APPLE"
+  | "MANAGED_BY_GOOGLE"
   | "PROVIDER"
   | "UNKNOWN";
 
@@ -56,6 +57,7 @@ export const BILLING_MESSAGES: Record<Exclude<BillingErrorCode, "PROVIDER">, str
   SAME_PLAN: "That's already your plan.",
   YEARLY_SWITCH: `Dodo Payments couldn't move this yearly plan to a monthly one, and nothing was charged. Write to ${LEGAL.support} and we'll switch it for you.`,
   MANAGED_BY_APPLE: "This workspace's plan is billed through the App Store, so it's changed or cancelled on the iPhone: Settings, your name, Subscriptions. Nothing was charged here.",
+  MANAGED_BY_GOOGLE: "This workspace's plan is billed through Google Play, so it's changed in Farbaek for Android or cancelled in Google Play: Play Store, your profile, Payments and subscriptions. Nothing was charged here.",
   UNKNOWN: "That didn't work. Nothing was charged. Try again in a moment.",
 };
 
@@ -81,7 +83,7 @@ export interface BillingAccount {
   customerId: string | null;
   paidThrough: Date | null;
   /** Who bills the plan (ADR 0112): Dodo on the web, or Apple through the iPhone app. */
-  provider?: "dodo" | "apple" | null;
+  provider?: "dodo" | "apple" | "google" | null;
 }
 
 export interface BillingDeps {
@@ -114,11 +116,18 @@ function gate(deps: BillingDeps | null, ws: BillingWorkspace, actor: BillingActo
   return { ok: true, value: deps };
 }
 
+/** Any provider but Dodo is a store, whose plans change only in that store (ADR 0112, ADR 0154). */
+function storeManaged(provider: BillingAccount["provider"]): "MANAGED_BY_APPLE" | "MANAGED_BY_GOOGLE" | null {
+  if (!provider || provider === "dodo") return null;
+  return provider === "google" ? "MANAGED_BY_GOOGLE" : "MANAGED_BY_APPLE";
+}
+
 async function subscribed(deps: BillingDeps, orgId: string): Promise<BillingResult<BillingAccount & { subscriptionId: string; planId: PaidPlanId }>> {
   const account = await deps.account(orgId);
   if (!account || !account.subscriptionId || !account.planId || !LIVE_STATES.has(account.state)) return fail("NOT_SUBSCRIBED");
-  // Apple bills it: changing or cancelling happens in the App Store, never through Dodo.
-  if (account.provider === "apple") return fail("MANAGED_BY_APPLE");
+  // A store bills it: changing or cancelling happens in the App Store or Google Play, never through Dodo.
+  const store = storeManaged(account.provider);
+  if (store) return fail(store);
   return { ok: true, value: { ...account, subscriptionId: account.subscriptionId, planId: account.planId } };
 }
 
@@ -141,7 +150,7 @@ export async function startCheckout(deps: BillingDeps | null, ws: BillingWorkspa
   if (!consented) return fail("CONSENT_REQUIRED");
   if (!actor.email) return fail("NO_EMAIL");
   const account = await d.account(ws.id);
-  if (account && account.subscriptionId && LIVE_STATES.has(account.state)) return fail(account.provider === "apple" ? "MANAGED_BY_APPLE" : "ALREADY_SUBSCRIBED");
+  if (account && account.subscriptionId && LIVE_STATES.has(account.state)) return fail(storeManaged(account.provider) ?? "ALREADY_SUBSCRIBED");
   const plan = getPlan(planId);
   if (plan.pricing.kind !== "paid") return fail("INVALID_PLAN");
   const product = await d.productFor(planId);
@@ -174,7 +183,8 @@ export async function openPortal(deps: BillingDeps | null, ws: BillingWorkspace,
   const g = gate(deps, ws, actor);
   if (!g.ok) return g;
   const account = await g.value.account(ws.id);
-  if (account?.provider === "apple") return fail("MANAGED_BY_APPLE");
+  const store = storeManaged(account?.provider);
+  if (store) return fail(store);
   if (!account?.customerId) return fail("NOT_SUBSCRIBED");
   const r = await g.value.provider.createPortalSession(account.customerId, `${g.value.config.siteUrl}/app/billing`);
   return r.ok ? { ok: true, value: r.value } : providerFail(r.code);

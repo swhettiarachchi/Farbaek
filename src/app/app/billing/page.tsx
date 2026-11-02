@@ -11,7 +11,10 @@ import { sessionsLine } from "@/components/pricing/pricing-plans";
 import { CancelStep, ChangePlanStep, ChoosePlanStep, SubscriptionSummary } from "@/components/billing/billing-steps";
 import { TopupCard, TopupStep } from "@/components/billing/topup-card";
 import { NotInAndroidApp, WebPurchaseOnly } from "@/components/billing/web-purchase-only";
-import { AndroidPlans } from "@/components/billing/android-plans";
+import { AndroidPlans, AndroidPlansNotice, planLimitsLine } from "@/components/billing/android-plans";
+import { PlayPlans, type PlayPlanOption } from "@/components/billing/play-plans";
+import { GOOGLE_PLAY_PRODUCTS, googlePlayProductForPlan } from "@/core/billing/google-play";
+import { googlePlayReady } from "@/server/billing/google/wiring";
 import { isTopupPack } from "@/core/billing/topups";
 import { topupErrorMessage } from "@/server/billing/topups";
 import { SELF_SERVE_PLANS, TRIAL, getPlan, priceWords, yearlyVersionOf } from "@/core/billing/catalog";
@@ -48,6 +51,13 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   const sub = billing.subscription;
   // The plan the Android app's list marks (ADR 0150): Lite and Maker yearly mark their monthly plan.
   const appCurrent = SELF_SERVE_PLANS.find((p) => (sub ? p.id === sub.planId || yearlyVersionOf(p.id) === sub.planId : p.id === ws.plan.planId))?.id ?? null;
+  const appCurrentLabel = sub || ws.plan.source !== "trial" ? "Current" : "Trial";
+  // Google Play in Farbaek for Android (ADR 0154): on, with a service account, on this server; never for a plan another provider bills.
+  const play = { ready: googlePlayReady(), billed: sub?.provider === "google" };
+  const playOptions: PlayPlanOption[] = GOOGLE_PLAY_PRODUCTS.map((g) => {
+    const p = getPlan(g.planId);
+    return { planId: p.id, productId: g.productId, name: p.name, sessions: sessionsLine(p), limits: planLimitsLine(p), recommended: p.recommendedFor !== undefined };
+  });
   const error = billingErrorMessage(one(sp.error));
   const done = one(sp.done);
   const donePlan = one(sp.plan);
@@ -109,7 +119,13 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       ) : null}
 
       {step && step.kind !== "cancel" ? (
-        <WebPurchaseOnly fallback={<Notice>Plans and AI usage can&apos;t be bought in the Android app. Your plan and usage are shown below.</Notice>}>
+        <WebPurchaseOnly
+          fallback={
+            <Notice>
+              {play.ready ? "In the Android app, plans are billed through Google Play. Choose one under Plans below." : "Plans and AI usage can't be bought in the Android app. Your plan and usage are shown below."}
+            </Notice>
+          }
+        >
           {step.kind === "choose" ? <ChoosePlanStep planId={step.planId} onTrial={onTrial} error={error} /> : null}
           {step.kind === "change" ? <ChangePlanStep preview={step.preview.ok ? step.preview.value : null} error={step.preview.ok ? error : step.preview.message} /> : null}
           {step.kind === "topup" && sub ? <TopupStep planId={sub.planId} pack={step.pack} error={topupError} /> : null}
@@ -203,8 +219,45 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         <h2 id="plans-heading" className="text-lg font-medium">
           Plans
         </h2>
-        {/* Inside the Android app: one notice and what each plan includes, with no prices or buy buttons (ADR 0150). */}
-        <WebPurchaseOnly fallback={<AndroidPlans plans={SELF_SERVE_PLANS} current={appCurrent} currentLabel={sub || ws.plan.source !== "trial" ? "Current" : "Trial"} />}>
+        {/* Inside the Android app: Google Play's plan picker when it sells plans (ADR 0154); otherwise one notice and what each plan includes, with no prices or buy buttons (ADR 0150). */}
+        <WebPurchaseOnly
+          fallback={
+            <PlayPlans
+              ready={play.ready && (!sub || play.billed)}
+              options={playOptions}
+              current={appCurrent ? { planId: appCurrent, trial: appCurrentLabel === "Trial" } : null}
+              googleBilled={play.billed}
+              cancelling={sub?.state === "cancellation_scheduled"}
+              canManage={canManage}
+              fallback={
+                <AndroidPlans
+                  plans={SELF_SERVE_PLANS}
+                  current={appCurrent}
+                  currentLabel={appCurrentLabel}
+                  notice={
+                    play.ready && sub?.provider === "apple" ? (
+                      <AndroidPlansNotice title="Your plan is billed through the App Store">Change or cancel it on the iPhone, in Subscriptions. Its usage and renewal date are all here.</AndroidPlansNotice>
+                    ) : play.ready && sub ? (
+                      <AndroidPlansNotice title="Your plan isn't billed through Google Play">So it can&apos;t be changed in the Android app. Its usage and renewal date are all here.</AndroidPlansNotice>
+                    ) : undefined
+                  }
+                />
+              }
+              unavailable={
+                <AndroidPlans
+                  plans={SELF_SERVE_PLANS}
+                  current={appCurrent}
+                  currentLabel={appCurrentLabel}
+                  notice={
+                    <AndroidPlansNotice title="Plans are sold through Google Play">
+                      This copy of Farbaek can&apos;t reach Google Play&apos;s billing. Update the app in the Play Store, then open Billing again.
+                    </AndroidPlansNotice>
+                  }
+                />
+              }
+            />
+          }
+        >
         <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {SELF_SERVE_PLANS.map((p) => {
             const yearlyId = yearlyVersionOf(p.id);
@@ -230,9 +283,9 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                   <li>{p.limits.seats === 1 ? "1 seat" : `${p.limits.seats} seats`}</li>
                 </ul>
                 <div className="mt-auto grid gap-2 pt-5">
-                  <PlanAction planId={p.id} isCurrent={isCurrent && !onYearly} open={billing.open} canManage={canManage} currentPaid={sub?.planId ?? null} cancelling={sub?.state === "cancellation_scheduled"} appleBilled={sub?.provider === "apple"} />
+                  <PlanAction planId={p.id} isCurrent={isCurrent && !onYearly} open={billing.open} canManage={canManage} currentPaid={sub?.planId ?? null} cancelling={sub?.state === "cancellation_scheduled"} appleBilled={sub?.provider === "apple"} googleBilled={play.billed} />
                   {yearlyId && billing.open && canManage ? (
-                    <PlanAction planId={yearlyId} isCurrent={onYearly} open={billing.open} canManage={canManage} currentPaid={sub?.planId ?? null} cancelling={sub?.state === "cancellation_scheduled"} appleBilled={sub?.provider === "apple"} />
+                    <PlanAction planId={yearlyId} isCurrent={onYearly} open={billing.open} canManage={canManage} currentPaid={sub?.planId ?? null} cancelling={sub?.state === "cancellation_scheduled"} appleBilled={sub?.provider === "apple"} googleBilled={play.billed} />
                   ) : null}
                 </div>
               </li>
@@ -254,10 +307,30 @@ function Unavailable({ children }: { children: string }) {
 }
 
 /** What a plan card offers: a real next step when payments are open to this workspace, otherwise the honest reason there isn't one. */
-function PlanAction({ planId, isCurrent, open, canManage, currentPaid, cancelling, appleBilled = false }: { planId: string; isCurrent: boolean; open: boolean; canManage: boolean; currentPaid: string | null; cancelling: boolean; appleBilled?: boolean }) {
+function PlanAction({
+  planId,
+  isCurrent,
+  open,
+  canManage,
+  currentPaid,
+  cancelling,
+  appleBilled = false,
+  googleBilled = false,
+}: {
+  planId: string;
+  isCurrent: boolean;
+  open: boolean;
+  canManage: boolean;
+  currentPaid: string | null;
+  cancelling: boolean;
+  appleBilled?: boolean;
+  googleBilled?: boolean;
+}) {
   if (isCurrent) return <Unavailable>Your current plan</Unavailable>;
   // Billed through the App Store (ADR 0112): plans change in the iPhone's Subscriptions, never here.
   if (appleBilled) return <Unavailable>Change it on the iPhone, in Subscriptions</Unavailable>;
+  // Billed through Google Play (ADR 0154): plans change in Farbaek for Android; one Google Play doesn't sell waits for the cancellation there.
+  if (googleBilled) return <Unavailable>{planId === "free" ? "Cancel in Google Play to move to Free" : googlePlayProductForPlan(planId) ? "Change it in Farbaek for Android" : "Cancel in Google Play first"}</Unavailable>;
   if (planId === "free") return <Unavailable>{currentPaid ? "Cancel a plan to move to Free" : "Available after the trial"}</Unavailable>;
   if (!open) return <Unavailable>Unavailable until payments open</Unavailable>;
   if (!canManage) return <Unavailable>Owners and admins choose plans</Unavailable>;

@@ -2,7 +2,7 @@
 
 What goes into Play Console for **Farbaek** (`com.farbaek.app`) under the Svanflok developer account. The steps are in `docs/mobile/android.md`.
 
-Every sentence here is true of the app today. The app is the website (ADR 0099), and it sells nothing inside the app (ADR 0150), so the listing never mentions prices or buying.
+Every sentence here is true of the app today. The app is the website (ADR 0099). Inside the app, plans are sold only through Google Play's billing (ADR 0150, ADR 0154), and the listing never mentions prices or another way to pay. Google Play shows "In-app purchases" on the listing by itself once the subscriptions exist.
 
 ## Store listing (English, United States)
 
@@ -126,7 +126,7 @@ These are declarations, so the owner answers them. Here are the facts to answer 
   | Email address | Required | App functionality, account management, developer communications |
   | Name | Optional: only when signing in with Google or Apple | Account management |
   | User IDs | Required | App functionality, account management |
-  | Purchase history | Optional: only once someone buys a plan | App functionality (plans bought on the web are shown in Billing) |
+  | Purchase history | Optional: only once someone buys a plan | App functionality (plans bought through Google Play in the app, or on the web, are shown in Billing) |
   | Other in-app messages | Optional | App functionality (support requests from Help) |
   | Photos | Optional | App functionality (images added to projects) |
   | Files and docs | Optional | App functionality (project files) |

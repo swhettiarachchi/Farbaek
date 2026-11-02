@@ -145,6 +145,7 @@ export function phoneApiDeps(): PhoneApiDeps {
     async billing(orgId) {
       const account = await appleDeps()?.account(orgId);
       const live = Boolean(account?.subscriptionId) && ["active", "past_due", "cancellation_scheduled", "suspended"].includes(account?.state ?? "");
+      // Google Play is reported as "web" until the iPhone app knows "google" (ADR 0154): build 22 offers App Store purchases for anything but "web".
       return { managedBy: live ? (account?.provider === "apple" ? "apple" : "web") : null, live, applePurchases: appleIapOn() };
     },
     clientKey,

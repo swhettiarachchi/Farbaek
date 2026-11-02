@@ -1,6 +1,6 @@
 # ADR 0150: Nothing is sold inside Farbaek for Android
 
-- Status: accepted (2026-11-01).
+- Status: accepted (2026-11-01). Amended by ADR 0154 (2026-11-02): plans are now sold in the app through Google Play's billing, when the server has it on; everything else here still holds.
 - Follows ADR 0099 (Farbaek for Android is the website in a Trusted Web Activity), which didn't consider Google Play's Payments policy.
 
 ## Context

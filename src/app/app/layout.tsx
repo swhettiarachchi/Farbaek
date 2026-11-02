@@ -23,6 +23,8 @@ import { TRIAL, getPlan } from "@/core/billing/catalog";
 import { isAdminEmail } from "@/server/admin/access";
 import { loadAppContext } from "@/server/workspace/context";
 import { TestModeBand } from "@/components/billing/test-mode-band";
+import { PlayPurchaseRecovery } from "@/components/billing/play-billing";
+import { googlePlayReady } from "@/server/billing/google/wiring";
 import { checkoutOpenFor, readBillingConfig } from "@/server/billing/config";
 import { signOut } from "./actions";
 
@@ -210,6 +212,8 @@ export default async function AppLayout({ children }: Readonly<{ children: React
       />
       <CspSafe />
       <ServiceWorker />
+      {/* Farbaek for Android: Google Play purchases are sent again when the app opens (ADR 0154). */}
+      <PlayPurchaseRecovery enabled={googlePlayReady()} />
     </div>
   );
 }

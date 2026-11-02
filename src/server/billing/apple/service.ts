@@ -24,7 +24,7 @@ export type AppleMode = "test" | "live";
 export type ApplyOutcome = "applied" | "unchanged" | "stale" | "other_subscription";
 
 export interface AppleAccount {
-  provider: "dodo" | "apple" | null;
+  provider: "dodo" | "apple" | "google" | null;
   state: string;
   subscriptionId: string | null;
 }
@@ -55,6 +55,7 @@ export const APPLE_MESSAGES = {
   manager: "Only the workspace's owners and admins choose its plan.",
   web: "This workspace's plan is billed on www.farbaek.com, so it's changed there. The App Store didn't need to charge you; if it did, ask Apple for a refund at reportaproblem.apple.com.",
   taken: "This App Store subscription already pays for another workspace.",
+  googlePlay: "This workspace's plan is billed through Google Play, so it's changed in Farbaek for Android or in Google Play. The App Store didn't need to charge you; if it did, ask Apple for a refund at reportaproblem.apple.com.",
 } as const;
 
 function environmentMode(env: unknown): AppleMode | null {
@@ -86,7 +87,9 @@ export async function claimAppleTransaction(deps: AppleDeps, input: { orgId: str
   const owner = await deps.orgForSubscription(original);
   if (owner && owner !== input.orgId) return refuse(409, "ANOTHER_WORKSPACE", APPLE_MESSAGES.taken);
   const account = await deps.account(input.orgId);
-  if (account?.provider === "dodo" && account.subscriptionId && LIVE.has(account.state)) return refuse(409, "PAID_ON_WEB", APPLE_MESSAGES.web);
+  if (account?.provider && account.provider !== "apple" && account.subscriptionId && LIVE.has(account.state)) {
+    return account.provider === "google" ? refuse(409, "PAID_ON_GOOGLE_PLAY", APPLE_MESSAGES.googlePlay) : refuse(409, "PAID_ON_WEB", APPLE_MESSAGES.web);
+  }
 
   const now = deps.now();
   const sub = appleSubscription(t, null, now);
@@ -153,7 +156,7 @@ export async function receiveAppleNotification(deps: AppleDeps, body: unknown, a
     if (!orgId) return ignore("No workspace for this subscription: it wasn't bought in Farbaek for iPhone.");
     const account = await deps.account(orgId);
     if (!account) return ignore("The workspace no longer exists.");
-    if (account.provider === "dodo" && account.subscriptionId && LIVE.has(account.state)) return ignore("The workspace is billed on the web.", orgId);
+    if (account.provider && account.provider !== "apple" && account.subscriptionId && LIVE.has(account.state)) return ignore(account.provider === "google" ? "The workspace is billed through Google Play." : "The workspace is billed on the web.", orgId);
 
     const now = deps.now();
     const sub = appleSubscription(t, renewal, now);

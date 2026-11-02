@@ -8,7 +8,7 @@ A static marketing site and pricing page. No accounts, no user data, no secrets,
 
 Enforced now:
 
-- Security headers on every route (`next.config.ts`): `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options: DENY`, `Permissions-Policy`, HSTS, and a CSP limiting `frame-ancestors`, `base-uri`, `form-action` and `object-src`.
+- Security headers on every route (`next.config.ts`): `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options: DENY`, `Permissions-Policy` (camera, microphone and geolocation off; payment only for Farbaek's own pages, for Google Play in the Android app, ADR 0154), HSTS, and a CSP limiting `frame-ancestors`, `base-uri`, `form-action` and `object-src`.
 - `poweredByHeader` disabled.
 - Secrets kept out of git by `.gitignore` (`.env*` except `.env.example`), plus the Claude Code guard hook (`.claude/hooks/guard.mjs`).
 - Fonts and images self-hosted; no external origins at runtime.
