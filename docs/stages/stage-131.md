@@ -64,9 +64,15 @@ Done in the owner's Chrome at their request, after they signed in to Cloudflare:
 
   The owner presses Create Token, because the token is a secret Claude doesn't see.
 
-### Not verified yet
+### Live in production, 2026-11-02
 
-- **Production:** waiting for Cloudflare to mark farbaek.si active. Then the owner creates the token and runs `set-preview-domain.ps1`.
+- **Cloudflare marked farbaek.si active** within the hour. Public DNS showed `benedict` and `lily.ns.cloudflare.com`, and farbaek.si and www.farbaek.si still redirected to www.farbaek.com from 2.25.88.188.
+- **PR #164 was merged and deployed** (`7b81d34`): compose built the new Caddy image, and the app stayed healthy.
+- **The owner created the token and ran `set-preview-domain.ps1`.** Every check passed: token and zone, DNS edit, Caddy module, Caddy reloaded, certificate. The app restarted live on `7b81d34`.
+- **The certificate:** `CN=*.farbaek.si`, issued by Let's Encrypt (YE1), valid 2026-11-02 to 2027-01-31. Caddy renews it.
+  - A preview name that isn't a session answers 401 over trusted HTTPS.
+  - farbaek.si and www.farbaek.si still answer 308.
+- **A real preview from the review account:** the project page's Preview button is enabled, where it used to show the SANDBOX_PREVIEW_DOMAIN message. Pressing it started a sandbox and opened `https://p-lvac72rmpvmdrzm6guyuqcsarf.farbaek.si/` in a new tab, serving the applied Ember & Rye site, including the public-holiday line and the map.
 
 ### Next
 
