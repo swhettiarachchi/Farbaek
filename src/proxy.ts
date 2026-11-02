@@ -4,6 +4,7 @@ import { SITE_ROUTE } from "@/core/publish/site";
 import { decideRoute } from "@/server/http/hosts";
 import { APP_CSP_PATH, appCsp, appCspHeaders } from "@/server/http/app-headers";
 import { newNonce, officeCsp, officeResponseHeaders } from "@/server/http/office-headers";
+import { withoutStrayEnd } from "@/server/http/stray-end";
 import { appHostFromEnv, officeConfig } from "@/server/office/config";
 import { siteDomain } from "@/server/publish/config";
 import { OFFICE_OPEN_PATH, officeDeviceKnown } from "@/server/office/device-gate";
@@ -56,8 +57,12 @@ export async function proxy(request: NextRequest) {
         return plain(404, "There's nothing at this address.");
       }
       return officeRequest(request, decision.rewrite, office?.origin.startsWith("https://") ?? true);
-    case "app":
+    case "app": {
+      // "/sign-in/password." copied from the end of a sentence goes to "/sign-in/password".
+      const cleaned = request.method === "GET" || request.method === "HEAD" ? withoutStrayEnd(request.nextUrl.pathname) : null;
+      if (cleaned) return NextResponse.redirect(new URL(`${cleaned}${request.nextUrl.search}`, siteUrl()), 308);
       return appRequest(request);
+    }
   }
 }
 
