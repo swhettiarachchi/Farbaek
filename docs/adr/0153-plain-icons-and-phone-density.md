@@ -79,4 +79,4 @@ The words still say "AI" wherever AI does the work (ADR 0009). Only the picture 
 ## Consequences
 
 - Office Space's CPU icon (models, sandbox sizes) stays: there it means actual compute.
-- The product films were recorded with the old sidebar. They show the sparkle until they're recorded again (`pnpm films:record`).
+- The product films were recorded again with the new sidebar (`pnpm films:record`, `pnpm films:loops`). In the four close-up clips, the sample label moved to the bottom right: the plan clip ends on Approve and build in the bottom left, and the label covered it.

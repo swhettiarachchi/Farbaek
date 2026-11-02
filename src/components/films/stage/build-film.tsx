@@ -216,7 +216,8 @@ type CamTrack = { x: [number, number][]; y: [number, number][]; s: [number, numb
 function ClipFrame({ t, cam, children, nav, core = "idle", extra, dim = 0 }: { t: number; cam: CamTrack; children: ReactNode; nav: NavKey; core?: "idle" | "working" | "done"; extra?: ReactNode; dim?: number }) {
   const fade = Math.min(progress(t, 0, 500), 1 - progress(t, 9500, 10_000));
   return (
-    <Stage t={t + 20_000} width={1024} height={768}>
+    // Clips zoom in, so their actions reach the bottom left (the plan ends on Approve and build); the label sits bottom right.
+    <Stage t={t + 20_000} width={1024} height={768} labelSide="right">
       <Rig cam={cameraAt(t, cam)} width={1024} height={768} setWidth={CLIP_SET.w} setHeight={CLIP_SET.h} opacity={fade * (1 - dim * 0.3)} blur={dim * 2.5}>
         <AppWindow width={CLIP_SET.w} height={CLIP_SET.h}>
           <AppShell active={nav} core={core}>

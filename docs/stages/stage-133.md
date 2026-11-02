@@ -46,3 +46,24 @@ The owner asked for a deep check of every page: remove the "AI-generated" icons 
 - `pnpm typecheck`.
 - ESLint on every changed file.
 - `vitest`: `tests/design`, `src/content` and `src/components`, 28 files and 229 tests.
+- **A demo build at 375px and on desktop:**
+  - the rail snaps, with the next card peeking in;
+  - the tiles sit two to a row;
+  - the tray, hammer, plus and dashed-circle icons show;
+  - each "Turning on" row gives its own reason.
+
+  Mission Control on a phone went from 3,588px to 2,652px.
+- **`pnpm qa:responsive` on the changed build:** 250 page views at 320, 375, 768, 1024 and 1440px, all clean.
+
+### The films, recorded again (a second pull request)
+
+- **All six product films** and their silent loops were recorded again from the film stage: the build and proof films (landscape and portrait) and the four close-up clips. They now show "New build" with a plus and Build with a hammer. Only the videos, loops and posters changed; captions and chapters are the same.
+- **The plan clip's sample label** covered "Approve and build", where the camera ends. In clips, the label now sits bottom right, which stays clear in all four.
+- **A broken sentence** on the approve card, "a step that might is stopped before it starts", now reads "a step that would go over it is stopped before it starts". The films show the real card, so the plan clip and the build film were recorded after the fix.
+- **Checked:**
+  - stills of the build film and every clip poster;
+  - `src/content` and `tests/design` (12 files, 156 tests), including the films manifest and size budgets.
+
+### Next
+
+- **Image generation** shows "Turning on" until an image model key (`GEMINI_API_KEY`) is set on the server. It's a paid Gemini model, so that's the owner's call.
