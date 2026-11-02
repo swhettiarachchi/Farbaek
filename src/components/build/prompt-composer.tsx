@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpIcon, InfoIcon, SparkleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowUpIcon, CircleNotchIcon, InfoIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { startFromPromptAction, type PromptStartState } from "@/app/app/new/actions";
@@ -240,7 +240,7 @@ function PlanningStages({ stages }: { stages: readonly string[] }) {
   }, [stages.length]);
   return (
     <>
-      <SparkleIcon size={14} weight="fill" className="shrink-0 text-accent motion-safe:animate-pulse" aria-hidden />
+      <CircleNotchIcon size={14} weight="bold" className="shrink-0 text-accent motion-safe:animate-spin" aria-hidden />
       <span className="truncate">{stages[stage]}…</span>
     </>
   );

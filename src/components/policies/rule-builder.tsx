@@ -5,12 +5,12 @@ import {
   CheckIcon,
   ClockCounterClockwiseIcon,
   InfoIcon,
+  PenNibIcon,
   PlusIcon,
   ProhibitIcon,
   ScalesIcon,
   ShieldCheckIcon,
   ShieldWarningIcon,
-  SparkleIcon,
   TrashIcon,
   UserCheckIcon,
   WarningCircleIcon,
@@ -230,7 +230,7 @@ export function RuleBuilder({
         />
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" onClick={draft} disabled={drafting || Boolean(draftReason) || request.trim().length < 5} className={buttonClasses("secondary", "sm")}>
-            <SparkleIcon size={16} aria-hidden /> {drafting ? "Drafting…" : "Draft with AI"}
+            <PenNibIcon size={16} aria-hidden /> {drafting ? "Drafting…" : "Draft with AI"}
           </button>
           <span className="text-xs text-ink-3">{draftReason ?? "AI only fills in the rules below. You check, test and activate them."}</span>
         </div>
@@ -486,7 +486,7 @@ function AiNotesPanel({ notes }: { notes: AiNotes }) {
   return (
     <div className="grid gap-3 rounded-sm border border-dashed border-line-strong/60 p-4 text-sm">
       <p className="flex items-center gap-2 font-medium">
-        <SparkleIcon size={16} className="text-accent" aria-hidden /> AI noted
+        <PenNibIcon size={16} className="text-accent" aria-hidden /> AI noted
       </p>
       <p className="text-ink-2">
         {notes.drafted === 0 ? "It couldn't draft a rule from that description. Try different words, or add a rule by hand." : `It added ${plural(notes.drafted, "rule", "rules")} below. Check each one.`}

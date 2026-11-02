@@ -101,7 +101,7 @@ struct MainTabs: View {
             NavigationStack(path: $model.buildPath) {
                 BuildView().withDestinations()
             }
-            .tabItem { Label("Build", systemImage: "sparkles") }
+            .tabItem { Label("Build", systemImage: "hammer") }
             .tag(AppTab.build)
 
             NavigationStack(path: $model.tasksPath) {

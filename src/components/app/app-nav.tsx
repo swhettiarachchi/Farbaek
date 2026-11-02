@@ -10,6 +10,7 @@ import {
   FlowArrowIcon,
   FolderSimpleIcon,
   GearSixIcon,
+  HammerIcon,
   HouseSimpleIcon,
   LifebuoyIcon,
   ListChecksIcon,
@@ -18,7 +19,6 @@ import {
   PlugsConnectedIcon,
   ShieldCheckIcon,
   SirenIcon,
-  SparkleIcon,
   TerminalWindowIcon,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
@@ -37,7 +37,7 @@ interface NavItem {
 
 const PRIMARY: NavItem[] = [
   { href: "/app", label: "Mission Control", short: "Home", icon: HouseSimpleIcon, exact: true },
-  { href: "/app/build", label: "Build", short: "Build", icon: SparkleIcon },
+  { href: "/app/build", label: "Build", short: "Build", icon: HammerIcon },
   { href: "/app/projects", label: "Projects", short: "Projects", icon: FolderSimpleIcon },
   { href: "/app/tasks", label: "Tasks", short: "Tasks", icon: ListChecksIcon },
   { href: "/app/approvals", label: "Approvals", short: "Approvals", icon: CheckSquareOffsetIcon },

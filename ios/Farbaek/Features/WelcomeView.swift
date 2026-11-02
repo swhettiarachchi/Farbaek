@@ -11,7 +11,7 @@ struct WelcomeView: View {
 
     private let promises: [(symbol: String, title: String, text: String)] = [
         ("checkmark.seal", "Approve with Face ID", "Each change shows its files as a diff, the checks that will run and its hash. You approve exactly what you read."),
-        ("sparkles", "Build from one sentence", "Describe it, approve the plan, and the agent starts in Farbaek's cloud."),
+        ("text.bubble", "Build from one sentence", "Describe it, approve the plan, and the agent starts in Farbaek's cloud."),
         ("bell.badge", "Know when it's ready", "A notification when a build finishes or its checks end."),
     ]
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { CrosshairIcon, QuestionIcon, SparkleIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
+import { CrosshairIcon, QuestionIcon, TreeStructureIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { suggestLensMappingAction } from "@/app/app/actions";
@@ -67,7 +67,7 @@ function AskAi({ ai }: { ai: LensAiState }) {
     <div className="mt-1 grid gap-2 border-t border-line pt-3">
       {ai.suggestion ? (
         <p className="flex items-start gap-2 text-xs leading-relaxed text-ink-2">
-          <SparkleIcon size={14} weight="bold" className="mt-px shrink-0 text-accent" aria-hidden />
+          <TreeStructureIcon size={14} weight="bold" className="mt-px shrink-0 text-accent" aria-hidden />
           <span>
             AI mapping by <span className="font-mono">{ai.suggestion.model}</span>, <RelativeTime iso={ai.suggestion.createdAt} />. Each AI chip is a suggestion, not a check; the flags above it still stand.
           </span>
@@ -76,7 +76,7 @@ function AskAi({ ai }: { ai: LensAiState }) {
       {ai.open ? (
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" onClick={ask} disabled={pending || Boolean(ai.disabledReason)} className={buttonClasses(ai.suggestion ? "ghost" : "secondary", "sm")}>
-            <SparkleIcon size={15} weight="bold" aria-hidden /> {pending ? "Mapping…" : ai.suggestion ? "Ask again" : "Ask AI to map each change"}
+            <TreeStructureIcon size={15} weight="bold" aria-hidden /> {pending ? "Mapping…" : ai.suggestion ? "Ask again" : "Ask AI to map each change"}
           </button>
           <span className="text-xs text-ink-3">{ai.disabledReason ?? "Uses a little of this period's AI usage; refunded if it fails."}</span>
         </div>
@@ -134,7 +134,7 @@ export function FileLensRows({ lens }: { lens: SuggestedFileLens }) {
                 </Chip>
               ) : null}
               {h.ai ? (
-                <Chip tone="ai" icon={SparkleIcon} title={"none" in h.ai ? `AI: no clause fits. ${h.ai.reason}` : `AI: ${h.ai.label}, ${h.ai.statement} ${h.ai.reason}`}>
+                <Chip tone="ai" icon={TreeStructureIcon} title={"none" in h.ai ? `AI: no clause fits. ${h.ai.reason}` : `AI: ${h.ai.label}, ${h.ai.statement} ${h.ai.reason}`}>
                   <span className="font-medium">AI: {"none" in h.ai ? "no clause fits" : h.ai.label}.</span> {h.ai.reason}
                 </Chip>
               ) : null}
