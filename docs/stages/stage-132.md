@@ -56,3 +56,11 @@ Getting ready to launch the owner's "Tip calculator" to Vercel with a real accou
 
 - **Netlify, the same way,** once the owner has a Netlify account.
 - **More hosting providers (Render, Railway, Fly.io):** still roadmap.
+
+### Links with a full stop on the end
+
+- **Found** when the owner opened "farbaek.com/sign-in/password." (copied from the end of a sentence) and got "We can't find that page".
+- **Fixed** in its own pull request (`fix/stray-punctuation-links`): on the app's own host, a GET or HEAD whose path ends in `.`, `,`, `;`, `:`, `!`, `)` or `]` is redirected (308) to the same path without them, keeping the query. Published sites and previews never take this path. The rule is in `src/server/http/stray-end.ts`.
+- **Verified:**
+  - `stray-end.test.ts`;
+  - in the dev server: `/sign-in/password.` redirects to `/sign-in/password`, `/pricing,?plan=pro` to `/pricing?plan=pro`, and `/delete-account).` to `/delete-account`; the plain path answers 200, and a POST is untouched.
