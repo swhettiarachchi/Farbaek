@@ -6,6 +6,7 @@
  */
 import { runProfile } from "@/content/starters";
 import { overlayChanges } from "@/core/workspace/static-preview";
+import { previewUnavailableReason, readSandboxConfig } from "@/server/sandbox/config";
 import { previewImages } from "./preview-images";
 import type { WorkspaceReader } from "./types";
 
@@ -19,11 +20,18 @@ export type RunPreview =
 export async function loadRunPreview(reader: WorkspaceReader, orgId: string, run: { projectId: string; taskId: string; proposalId: string | null }): Promise<RunPreview> {
   const contents = await reader.getProjectContents(orgId, run.projectId).catch(() => null);
   if (!contents) return { kind: "unavailable", reason: "The project's files couldn't be read for a preview right now." };
-  const profile = runProfile(contents.map((f) => f.path));
+  const paths = contents.map((f) => f.path);
+  const profile = runProfile(paths, contents.find((f) => f.path === "package.json")?.content ?? null);
   if (profile.kind === "node") {
-    return { kind: "unavailable", reason: "This is an app with a server, so it previews in a sandbox. Live app previews turn on when the preview domain is connected." };
+    const off = previewUnavailableReason(readSandboxConfig());
+    return { kind: "unavailable", reason: off ? `This is an app with a server, so it previews in a sandbox. ${off}` : "This is an app with a server: open it with Preview on its project page, which runs it in a sandbox." };
   }
-  if (profile.kind !== "static") return { kind: "unavailable", reason: "There's no index.html yet, so there's nothing to preview." };
+  if (profile.kind !== "static") {
+    const reason = paths.includes("index.html")
+      ? "It has an index.html, but its package.json installs or runs something, so Farbaek can't tell how to preview it here."
+      : "There's no index.html yet, so there's nothing to preview.";
+    return { kind: "unavailable", reason };
+  }
   const bytes = contents.reduce((n, f) => n + f.content.length, 0);
   if (bytes > MAX_PREVIEW_BYTES) return { kind: "unavailable", reason: "This site is too large to preview here. Open it from the project instead." };
 

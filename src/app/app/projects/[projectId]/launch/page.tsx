@@ -123,6 +123,11 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
   const liveCheck = live ? (checks[live.id] ?? null) : null;
   const sitesDestination = plan.destinations.find((d) => d.id === "farbaek_sites")!;
   const providers = plan.destinations.filter((d) => d.id !== "farbaek_sites");
+  // Why each connected kind of host can't take this project, if it can't: the card and the panel say the same.
+  const unfitFor: Record<LaunchProvider, string | null> = {
+    vercel: vercelFit(plan),
+    netlify: netlifyFit(plan) ?? netlifyPathProblem(contents.map((f) => f.path)),
+  };
   const totalBytes = live?.totalBytes ?? null;
 
   const check = publish?.check ?? null;
@@ -411,7 +416,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
                 <span className="text-sm text-ink-2">{p.suits}</span>
                 {connectable ? (
                   <a href={`#launch-${p.id}`} className="-my-3 inline-flex min-h-11 w-fit items-center py-3 text-xs font-medium text-accent hover:underline">
-                    {connection ? `As ${connection.accountName}. Launch it below.` : "Connect your own account below."}
+                    {unfitFor[p.id as LaunchProvider] ? "Not for this project. Why, below." : connection ? `As ${connection.accountName}. Launch it below.` : "Connect your own account below."}
                   </a>
                 ) : (
                   <span className="text-xs text-ink-3">{p.reason}</span>
@@ -435,7 +440,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
           files={deployFiles}
           evidence={proof.status}
           builds={provider === "netlify" ? NETLIFY_BUILDS : vercelBuilds(vercelSettings(plan))}
-          unfit={provider === "netlify" ? (netlifyFit(plan) ?? netlifyPathProblem(contents.map((f) => f.path))) : vercelFit(plan)}
+          unfit={unfitFor[provider]}
           connectReason={connectReason}
           launchReason={launchReason ?? withheldFor(ctx.role, ctx.permissions, "publish")}
           canOverride={canManage}

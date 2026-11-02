@@ -14,6 +14,18 @@ describe("the Launch Planner", () => {
     expect(p.destinations.slice(1).every((d) => !d.available)).toBe(true);
   });
 
+  it("reads index.html with a package.json that installs and runs nothing as a static site, like the runner", () => {
+    const files = { "index.html": "<h1>Tips</h1>", "package.json": pkg({ name: "tip-calculator", version: "1.0.0" }) };
+    const p = plan(files, ["src/app.js"]);
+    expect(p).toMatchObject({ kind: "static", hosting: "static", evidence: ["index.html, and a package.json that installs and runs nothing"] });
+    expect(p.destinations[0]).toMatchObject({ id: "farbaek_sites", available: true });
+    expect(runProfile(["index.html", "package.json", "src/app.js"], files["package.json"]).kind).toBe("static");
+    // One that installs something isn't, and the reason doesn't ask for an index.html it already has.
+    const busy = plan({ "index.html": "", "package.json": pkg({ devDependencies: { "live-server": "1.2.2" } }) });
+    expect(busy.kind).toBe("unknown");
+    expect(busy.destinations[0]!.reason).toContain("it has an index.html, but its package.json installs or runs something");
+  });
+
   it("reads a Next.js app with its own scripts, or the framework's defaults marked as assumed", () => {
     const withScripts = plan({ "package.json": pkg({ scripts: { build: "next build", start: "next start" }, dependencies: { next: "16.4.0" } }), "next.config.ts": "export default {}" });
     expect(withScripts).toMatchObject({ kind: "nextjs", hosting: "server", build: { command: "npm run build", source: "found" }, start: { command: "npm run start", source: "found" } });
