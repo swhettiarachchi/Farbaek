@@ -22,7 +22,7 @@ const card = (id: number, slot: string, title: string, meta: string) => `       
           </a>`;
 
 const INDEX = `<!doctype html>
-<html lang="en" data-fs-look="aurora">
+<html lang="en" data-fs-look="signal">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -58,8 +58,8 @@ const INDEX = `<!doctype html>
       <section class="fs-hero" id="top">
         <div class="fs-hero__media">
           <!-- The 3D signature: a Farbaek Scenes box. Pick the scene and colours that fit the brand (DESIGN.md). -->
-          <div data-farbaek-scene="aurora" data-farbaek-media="hero-scene" aria-hidden="true">
-            <img data-farbaek-poster src="${MEDIA_BASE}/aurora-signal/still-16x9.webp" alt="" />
+          <div data-farbaek-scene="aurora" data-tone="light" data-farbaek-media="hero-scene" aria-hidden="true">
+            <img data-farbaek-poster src="${MEDIA_BASE}/aurora-pearl/still-16x9.webp" alt="" />
           </div>
         </div>
         <div class="fs-container">
@@ -82,8 +82,8 @@ const INDEX = `<!doctype html>
       <section class="fs-section" id="story">
         <div class="fs-container fs-split">
           <div class="fs-frame" data-fs-reveal="mask">
-            <video autoplay muted loop playsinline preload="metadata" poster="${MEDIA_BASE}/glass-signal/still-4x5.webp" aria-hidden="true" data-farbaek-media="story-video" data-farbaek-placeholder>
-              <source src="${MEDIA_BASE}/glass-signal/loop.mp4" type="video/mp4" />
+            <video autoplay muted loop playsinline preload="metadata" poster="${MEDIA_BASE}/glass-pearl/still-4x5.webp" aria-hidden="true" data-farbaek-media="story-video" data-farbaek-placeholder>
+              <source src="${MEDIA_BASE}/glass-pearl/loop.mp4" type="video/mp4" />
             </video>
           </div>
           <div class="fs-split__text">
@@ -189,9 +189,9 @@ const STYLES = `/*
 */
 :root {
   /* The brand. The look on <html data-fs-look> sets a complete starting set. */
-  --accent: #5cf2cf;
-  --accent-2: #6d8bff;
-  --on-accent: #05221b;
+  --accent: #1f4bff;
+  --accent-2: #00a3c4;
+  --on-accent: #ffffff;
   --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
   --font-body: "Geist", ui-sans-serif, system-ui, sans-serif;
 }
@@ -235,7 +235,7 @@ Design read: [one line: the kind of site, its audience and the feeling it should
 
 ## Look
 
-The kit's looks set a complete palette and type feel on \`<html data-fs-look>\`: signal, noir, atelier, aurora, bloom. The starter uses aurora. Pick the one closest to the brand.
+The kit's looks set a complete palette and type feel on \`<html data-fs-look>\`: signal, atelier and bloom are light; noir and aurora are dark. The starter uses signal, light. Use the colour theme the person chose on the plan card (light unless they chose dark), then the look closest to the brand.
 
 ## Palette (CSS variables at the top of styles.css)
 

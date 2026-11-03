@@ -67,6 +67,13 @@ The owner chose: on Free, the first build and design upgrades are written by Son
   - the ticket's float separated from its tilt;
   - the fanned suite photos hidden while the arc runs.
 
+### Light or dark is the person's choice
+
+- The owner saw the upgraded Tip calculator come out dark and set the rule: never dark by default, ask.
+- The plan card now asks **Colour theme for the site: Light or Dark**. It's light unless the prompt asks for dark. The agent follows the choice and switches an existing site to it.
+- The general starter is light (the signal look, pearl scene and video).
+- Tests: the theme helpers, and that the prompt carries the choice.
+
 ### Next (part 2)
 
 - Rebuild `online-store`, `landing-page`, `portfolio` and `event-page` as directions, and add their prompt mappings.

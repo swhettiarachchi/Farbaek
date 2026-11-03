@@ -10,7 +10,7 @@ import { isProjectSkillPath } from "@/core/agent/skills";
 import { pinMap } from "@/server/workspace/skill-pins";
 import { ClearKeptPrompt } from "@/components/build/prompt-composer";
 import { buttonClasses } from "@/components/ui/button";
-import { kitTierFor } from "@/core/media/studio-kit";
+import { kitTierFor, themeFromPrompt } from "@/core/media/studio-kit";
 import { contractHash } from "@/core/realityloop/contract";
 import { shortHash } from "@/core/trust/canonical-json";
 import { resolveAiProvider } from "@/server/ai/config";
@@ -230,6 +230,7 @@ export default async function PlanCardPage({ params }: Params) {
                   skillsHref={`/app/projects/${task.projectId}#skills`}
                   kitPro={kitTierFor(ctx.current.plan) === "pro"}
                   defaultCap={kind.designPass ? "plan" : "double"}
+                  defaultTheme={themeFromPrompt(task.title)}
                   firstBuildNote={strongerFirstBuild ? "A first build sets the look, so Free writes it with Claude Sonnet. Later changes use the fast model." : null}
                 />
                 <CancelTaskControl taskId={task.id} version={task.version} disabledReason={!ctx.writes.enabled ? ctx.writes.reason : canBuild ? null : "Your role can view this plan but not cancel it."} />

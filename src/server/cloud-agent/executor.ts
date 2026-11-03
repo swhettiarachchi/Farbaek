@@ -40,7 +40,7 @@ import type { WithheldPermissions } from "@/core/workspace/permissions";
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES, type OrgRole } from "@/server/workspace/types";
 import type { RunPatch, RunStore } from "./store";
 import type { AutonomyLimits } from "@/core/trust/policy";
-import type { KitTier } from "@/core/media/studio-kit";
+import type { KitTier, SiteTheme } from "@/core/media/studio-kit";
 import { autoVerifiedOutcome, VERIFICATION_RESULT_WORDS } from "@/core/realityloop/verification";
 import type { VerificationOutcome } from "@/server/verification/runner";
 import type { Notifier } from "@/server/email/notify";
@@ -125,6 +125,8 @@ export interface StartRunInput {
   kitTier?: KitTier;
   /** A site's first build or a design upgrade: Free writes it with the standard model (ADR 0158). */
   designPass?: boolean;
+  /** The colour theme the person chose on the plan card; light when not given (ADR 0158). */
+  theme?: SiteTheme;
 }
 
 /** Checks and records the run, then starts it in the background. Returns as soon as it's recorded. */
@@ -153,7 +155,7 @@ export async function startCloudRun(deps: ExecutorDeps, input: StartRunInput): P
   const live: LiveRun = { orgId: person.orgId, startedBy: person.userId, controller: new AbortController(), approvals: new Map(), messages: [] };
   registry.set(runId, live);
   const chosen = [...new Set(input.skills ?? [])].flatMap((id) => getBuiltInSkill(id) ?? []);
-  void execute(deps, { runId, person, task: { id: task.id, title: task.title, projectId: task.projectId }, contract, effort: input.effort, mode, live, skills: chosen, capUnits, kitTier: input.kitTier ?? "core", designPass: input.designPass === true }).catch((e) => {
+  void execute(deps, { runId, person, task: { id: task.id, title: task.title, projectId: task.projectId }, contract, effort: input.effort, mode, live, skills: chosen, capUnits, kitTier: input.kitTier ?? "core", designPass: input.designPass === true, theme: input.theme ?? "light" }).catch((e) => {
     log("error", "cloud_run.crashed", { run: runId, error: e instanceof Error ? e.message : String(e) });
   });
   return { ok: true, value: { runId, mode } };
@@ -246,6 +248,7 @@ async function execute(
     capUnits: number | null;
     kitTier: KitTier;
     designPass: boolean;
+    theme: SiteTheme;
   },
 ): Promise<void> {
   const { runId, person, live } = r;
@@ -389,6 +392,7 @@ async function execute(
       takeMessages: () => live.messages.splice(0),
       skills,
       kitTier: r.kitTier,
+      theme: r.theme,
       approve: (request, signal) =>
         new Promise<ApprovalAnswer>((resolve) => {
           live.approvals.set(request.id, { resolve, bindingHash: request.bindingHash });

@@ -41,6 +41,8 @@ The upgrade of Sunrise Bakery on 2026-11-03 (a Free workspace) showed four thing
   - **Cost:** the free allowance still bounds it.
 - **First builds aren't cut off:** their estimate is a whole site's (2.5 times the steps), and the plan card defaults their cap to **No run cap**, still bounded by the plan's usage.
 
+- **The person chooses light or dark** (the owner's rule, 2026-11-03): a site is never dark by default. The plan card asks **Colour theme for the site: Light or Dark**, light unless the prompt asked for dark (`themeFromPrompt`). The choice goes to the agent's prompt (`themeForPrompt`), which switches an existing site to the chosen theme. The general starter now uses the light signal look and light media.
+
 ## Consequences
 
 - A new website starts from finished, high-end structure for its business, so even a fast model ends with a premium site.
