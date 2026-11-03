@@ -22,7 +22,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState, useTransition } from "react";
 import { z } from "zod";
-import { saveFileAction } from "@/app/app/actions";
+import { saveFileAction, uploadStudioImageAction } from "@/app/app/actions";
 import { MediaReplace, PlaceholderChip, ScenePicker } from "@/components/studio/media-replace";
 import { SectionsPanel } from "@/components/studio/sections-panel";
 import { ThemePanel, type ThemePreview } from "@/components/studio/theme-panel";
@@ -176,15 +176,19 @@ export function VisualEditor({
   const media = useMemo(() => mediaSlots(elements), [elements]);
   const sectionItems = useMemo(() => sections(html, elements), [html, elements]);
   const onKit = useMemo(() => Object.entries(draft).some(([p, c]) => /\.html?$/i.test(p) && /kit\/studio\/v\d+\/studio\.css/.test(c)), [draft]);
-  const assets = useMemo(() => new Set(imagePaths), [imagePaths]);
+  // Photos uploaded in this session (ADR 0160): saved to the project already, shown here until the page reloads.
+  const [uploads, setUploads] = useState<Record<string, string>>({});
+  const allImages = useMemo(() => ({ ...images, ...uploads }), [images, uploads]);
+  const allPaths = useMemo(() => [...new Set([...imagePaths, ...Object.keys(uploads)])], [imagePaths, uploads]);
+  const assets = useMemo(() => new Set(allPaths), [allPaths]);
   const changedPaths = Object.keys(draft).filter((p) => draft[p] !== files[p]);
 
   const doc = useMemo(() => {
-    const built = buildStaticSrcdoc({ ...draft, [page]: annotateForDesign(html, elements) }, page, images);
+    const built = buildStaticSrcdoc({ ...draft, [page]: annotateForDesign(html, elements) }, page, allImages);
     if (built === null) return null;
     const at = built.toLowerCase().lastIndexOf("</body>");
     return at < 0 ? built + DESIGN_SCRIPT : built.slice(0, at) + DESIGN_SCRIPT + built.slice(at);
-  }, [draft, page, html, elements, images]);
+  }, [draft, page, html, elements, allImages]);
 
   // Picks arrive from this frame only, for an element that exists in this version of the page.
   useEffect(() => {
@@ -229,11 +233,11 @@ export function VisualEditor({
   const STRUCTURAL = new Set(["move", "duplicate", "remove", "insert"]);
   const DONE: Partial<Record<VisualEdit["kind"], string>> = { move: "Moved the section", duplicate: "Duplicated the section", remove: "Deleted the section", insert: "Added the section", theme: "Changed the theme" };
 
-  function applyAt(n: number, edit: VisualEdit) {
-    const r = applyVisualEdit(draft, page, n, edit, assets);
+  function applyAt(n: number, edit: VisualEdit, uploaded?: string): boolean {
+    const r = applyVisualEdit(draft, page, n, edit, uploaded ? new Set([...assets, uploaded]) : assets);
     if (!r.ok) {
       setMessage({ tone: "error", text: r.reason });
-      return;
+      return false;
     }
     const next = r.select ?? (STRUCTURAL.has(edit.kind) || edit.kind === "theme" ? (edit.kind === "theme" ? (selected?.n ?? null) : null) : relocate(html, n, r.files[page]!));
     setHistory((h) => [...h.slice(-49), { files: draft, page }]);
@@ -243,6 +247,7 @@ export function VisualEditor({
     expected.current = edit.kind === "style" && next !== null && next !== undefined ? { n: next, props: edit.props } : null;
     if (edit.kind === "theme") frame.current?.contentWindow?.postMessage({ type: DESIGN_THEME_MESSAGE }, "*");
     setMessage({ tone: "ok", text: `${DONE[edit.kind] ?? "Applied to the draft"}${r.note ? `. ${r.note}` : ""}. Nothing is saved until you review it.` });
+    return true;
   }
   // The preview's toolbar reaches applyAt through a ref, so its listener always uses this render's draft.
   const applyRef = useRef(applyAt);
@@ -252,6 +257,27 @@ export function VisualEditor({
 
   function apply(edit: VisualEdit) {
     if (selected) applyAt(selected.n, edit);
+  }
+
+  /** Saves a photo to the project, then puts it in picture n of the draft. Resolves to an error message, or null. */
+  async function upload(n: number, file: File): Promise<string | null> {
+    const form = new FormData();
+    form.set("projectId", projectId);
+    form.set("image", file);
+    const r = await uploadStudioImageAction(form);
+    if (r.status === "error") return r.message;
+    const url = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+    setUploads((u) => ({ ...u, [r.path]: url }));
+    // The latest render's applyAt, so an edit made while the photo uploaded isn't lost.
+    if (applyRef.current(n, { kind: "media", src: r.path }, r.path)) {
+      setMessage({ tone: "ok", text: `Uploaded ${r.path} to the project and put it in the picture. Describe it below for screen readers, then review and save the draft.` });
+    }
+    return null;
   }
 
   function preview(p: ThemePreview) {
@@ -488,8 +514,10 @@ export function VisualEditor({
             elements={elements}
             picked={selected!.style}
             onApply={apply}
-            images={images}
-            imagePaths={imagePaths}
+            images={allImages}
+            imagePaths={allPaths}
+            onUpload={(file) => upload(selected!.n, file)}
+            uploadDisabledReason={disabledReason}
             mediaSource={media.find((m) => m.n === selected!.n)?.source ?? null}
             sectionAround={sectionAround(selected!.n)}
             onSelectSection={(n) => {
@@ -626,6 +654,8 @@ function Inspector({
   onApply,
   images,
   imagePaths,
+  onUpload,
+  uploadDisabledReason,
   mediaSource,
   sectionAround,
   onSelectSection,
@@ -636,6 +666,8 @@ function Inspector({
   onApply: (edit: VisualEdit) => void;
   images?: Record<string, string>;
   imagePaths: readonly string[];
+  onUpload: (file: File) => Promise<string | null>;
+  uploadDisabledReason: string | null;
   /** The image or video's current address, from the page's media list. */
   mediaSource: string | null;
   elements: SourceElement[];
@@ -696,6 +728,8 @@ function Inspector({
           images={images}
           imagePaths={imagePaths}
           onReplace={(edit) => onApply({ kind: "media", ...edit })}
+          onUpload={el.tag === "img" ? onUpload : undefined}
+          uploadDisabledReason={uploadDisabledReason}
         />
       ) : null}
 

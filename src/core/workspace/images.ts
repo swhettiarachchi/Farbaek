@@ -67,3 +67,32 @@ export function imageMime(path: string): string | null {
   const kind = imageKindOfPath(path);
   return kind ? IMAGE_MIME[kind] : null;
 }
+
+/** "My Photo (1).JPG" becomes "assets/my-photo-1.jpg": a name a site can link to. */
+export function imagePathFor(fileName: string): string {
+  const dot = fileName.lastIndexOf(".");
+  const ext = dot > 0 ? fileName.slice(dot + 1).toLowerCase() : "png";
+  const stem = (dot > 0 ? fileName.slice(0, dot) : fileName)
+    .toLowerCase()
+    .normalize("NFKD")
+    // Accents come apart into a letter and a mark; drop the mark so "crème" stays one word.
+    .replace(/\p{M}/gu, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  return `assets/${stem || "image"}.${ext}`;
+}
+
+/** imagePathFor, numbered when the name is taken ("assets/shop-2.jpg"), so an upload never replaces a file. */
+export function freeImagePath(fileName: string, taken: ReadonlySet<string>): string {
+  const path = imagePathFor(fileName);
+  if (!taken.has(path)) return path;
+  const dot = path.lastIndexOf(".");
+  for (let k = 2; ; k++) {
+    const next = `${path.slice(0, dot)}-${k}${path.slice(dot)}`;
+    if (!taken.has(next)) return next;
+  }
+}
+
+/** What a file picker offers for project images: the kinds above, by extension and by type. */
+export const IMAGE_ACCEPT = ".png,.jpg,.jpeg,.gif,.webp,.avif,.ico,image/png,image/jpeg,image/gif,image/webp,image/avif,image/x-icon";

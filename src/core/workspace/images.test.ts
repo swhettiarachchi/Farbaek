@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkImage, imageKindOfPath, imageMime, isImagePath, sniffImage } from "./images";
+import { checkImage, freeImagePath, imageKindOfPath, imageMime, imagePathFor, isImagePath, sniffImage } from "./images";
 
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
 const JPEG = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10]);
@@ -32,5 +32,19 @@ describe("images in projects (ADR 0108)", () => {
     const big = new Uint8Array(2 * 1024 * 1024 + 1);
     big.set(PNG.subarray(0, 8));
     expect(checkImage("a.png", big)).toMatchObject({ ok: false, reason: "too_large" });
+  });
+});
+
+describe("names for uploaded images (ADR 0160)", () => {
+  it("turns a file name into a path a site can link to", () => {
+    expect(imagePathFor("My Photo (1).JPG")).toBe("assets/my-photo-1.jpg");
+    expect(imagePathFor("Café crème.webp")).toBe("assets/cafe-creme.webp");
+    expect(imagePathFor("!!!.png")).toBe("assets/image.png");
+  });
+
+  it("numbers a name that is taken, so an upload never replaces a file", () => {
+    const taken = new Set(["assets/shop.jpg", "assets/shop-2.jpg"]);
+    expect(freeImagePath("shop.jpg", taken)).toBe("assets/shop-3.jpg");
+    expect(freeImagePath("new.jpg", taken)).toBe("assets/new.jpg");
   });
 });

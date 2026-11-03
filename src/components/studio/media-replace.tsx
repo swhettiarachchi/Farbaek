@@ -2,15 +2,17 @@
 
 /**
  * Replacing an image or video in Studio (ADR 0156), from the Farbaek media
- * library, the project's own images, or an https address; and switching a
- * Farbaek Scenes box to another scene. It only proposes the edit: the
- * visual editor checks it, applies it to the draft and shows it in review.
+ * library, the project's own images, a photo uploaded here (ADR 0160), or an
+ * https address; and switching a Farbaek Scenes box to another scene. It only
+ * proposes the edit: the visual editor checks it, applies it to the draft and
+ * shows it in review. An upload is saved to the project's files at once.
  */
-import { CubeIcon, ImagesIcon, LinkSimpleIcon, SelectionIcon, SwapIcon } from "@phosphor-icons/react";
+import { CubeIcon, ImagesIcon, LinkSimpleIcon, SelectionIcon, SwapIcon, UploadSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useId, useState } from "react";
 import { buttonClasses } from "@/components/ui/button";
 import { COLOURWAYS, MEDIA_LIBRARY, SCENE_DESCRIPTIONS, SCENE_NAMES, mediaUrl, type LibraryItem } from "@/core/media/library";
-import { PHOTO_SUBJECTS, photoUrl, type PhotoSubject } from "@/core/media/photos";
+import { PHOTO_SUBJECTS, photoFacts, photoUrl, type PhotoSubject } from "@/core/media/photos";
+import { IMAGE_ACCEPT } from "@/core/workspace/images";
 
 type Source = "photos" | "library" | "yours" | "link";
 
@@ -34,6 +36,8 @@ export function MediaReplace({
   images,
   imagePaths,
   onReplace,
+  onUpload,
+  uploadDisabledReason = null,
 }: {
   kind: "image" | "video";
   current: string | null;
@@ -43,6 +47,10 @@ export function MediaReplace({
   /** Every image in the project, by path. */
   imagePaths: readonly string[];
   onReplace: (edit: { src: string; poster?: string | null }) => void;
+  /** Saves a photo to the project and puts it in this picture; resolves to an error message, or null when it worked. */
+  onUpload?: (file: File) => Promise<string | null>;
+  /** Why uploading isn't possible right now, such as a demo workspace. */
+  uploadDisabledReason?: string | null;
 }) {
   const id = useId();
   const sources: { id: Source; label: string }[] = [
@@ -51,9 +59,26 @@ export function MediaReplace({
     { id: "link", label: "Link" },
   ];
   const [source, setSource] = useState<Source>(kind === "video" ? "library" : imagePaths.length > 0 ? "yours" : "photos");
-  const [shape, setShape] = useState<keyof typeof SHAPES>("wide");
-  const [subject, setSubject] = useState<PhotoSubject>("workspace");
+  // Open on the photo being replaced: its subject and its shape, so a clothing photo is swapped for clothing.
+  const facts = photoFacts(current);
+  const [shape, setShape] = useState<keyof typeof SHAPES>(facts?.tall ? "tall" : "wide");
+  const [subject, setSubject] = useState<PhotoSubject>(facts?.subject ?? "workspace");
   const [link, setLink] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  async function upload(file: File) {
+    if (!onUpload) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      setUploadError(await onUpload(file));
+    } catch {
+      setUploadError("The photo couldn't be uploaded. Check the connection and try again.");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   const pickLibrary = (item: LibraryItem) =>
     kind === "video" ? onReplace({ src: mediaUrl(item.id, "loop.mp4"), poster: mediaUrl(item.id, "still-16x9.webp") }) : onReplace({ src: mediaUrl(item.id, SHAPES[shape].library) });
@@ -172,6 +197,37 @@ export function MediaReplace({
         </div>
       ) : null}
 
+      {source === "yours" && onUpload ? (
+        <div className="grid gap-1.5">
+          <label
+            className={`relative flex min-h-11 items-center justify-center gap-2 rounded-full border border-dashed border-line-strong/70 bg-surface px-4 text-sm font-medium transition-colors duration-150 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent ${uploadDisabledReason || uploading ? "cursor-not-allowed text-ink-3" : "cursor-pointer hover:border-accent/60"}`}
+          >
+            <UploadSimpleIcon size={16} aria-hidden /> {uploading ? "Uploading…" : "Upload a photo"}
+            <input
+              type="file"
+              accept={IMAGE_ACCEPT}
+              disabled={Boolean(uploadDisabledReason) || uploading}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) void upload(file);
+              }}
+              className="absolute inset-0 cursor-pointer opacity-0 disabled:cursor-not-allowed"
+              aria-label="Upload a photo for this picture"
+            />
+          </label>
+          {uploadError ? (
+            <p role="alert" className="flex items-start gap-1.5 text-xs text-failed">
+              <WarningCircleIcon size={14} weight="bold" className="mt-px shrink-0" aria-hidden /> {uploadError}
+            </p>
+          ) : (
+            <p className="text-xs text-ink-3">
+              {uploadDisabledReason ?? "PNG, JPEG, WebP, GIF or AVIF, up to 2 MB. It's added to the project's files now; the picture uses it once you save the draft."}
+            </p>
+          )}
+        </div>
+      ) : null}
+
       {source === "yours" ? (
         imagePaths.length ? (
           <ul className="grid max-h-80 grid-cols-2 gap-2 overflow-y-auto pr-1" aria-label="Your images">
@@ -198,7 +254,7 @@ export function MediaReplace({
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-ink-2">This project has no images yet.</p>
+          <p className="text-sm text-ink-2">{onUpload ? "No images in the project yet. Upload one above." : "This project has no images yet."}</p>
         )
       ) : null}
 
@@ -226,9 +282,14 @@ export function MediaReplace({
         </div>
       ) : null}
 
-      <p className="text-xs text-ink-3">
-        To use a new photo of your own, add it on the project&apos;s Files page, then reload Studio. Review and save your changes here first, so they aren&apos;t lost.
-      </p>
+      {kind === "image" && onUpload && source !== "yours" ? (
+        <p className="text-xs text-ink-3">
+          Have a photo of your own?{" "}
+          <button type="button" onClick={() => setSource("yours")} className="min-h-11 font-medium text-accent underline underline-offset-2">
+            Upload it
+          </button>
+        </p>
+      ) : null}
     </section>
   );
 }

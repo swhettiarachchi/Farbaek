@@ -16,6 +16,7 @@ import {
   scanElements,
   upsertRule,
 } from "./visual-edit";
+import { TEXT_SIZES } from "./site-theme";
 
 const PAGE = `<!doctype html>
 <html lang="en">
@@ -206,17 +207,24 @@ describe("styles", () => {
     expect(first).toMatchObject({ ok: true, changed: ["styles.css", "index.html"], note: null });
     if (!first.ok) return;
     expect(first.files["index.html"]).toContain('<h1 class="title vb-h1-1">');
-    expect(first.files["styles.css"]).toBe("body { margin: 0; }\n\n.vb-h1-1 {\n  color: #1d4ed8;\n  font-size: 48px;\n}\n");
+    expect(first.files["styles.css"]).toBe("body { margin: 0; }\n\n.vb-h1-1 {\n  color: #1d4ed8 !important;\n  font-size: 48px !important;\n}\n");
 
     const second = applyVisualEdit(first.files, "index.html", h1, { kind: "style", props: { color: null, "text-align": "center" } });
     expect(second).toMatchObject({ ok: true, changed: ["styles.css"] });
     if (!second.ok) return;
-    expect(second.files["styles.css"]).toBe("body { margin: 0; }\n\n.vb-h1-1 {\n  font-size: 48px;\n  text-align: center;\n}\n");
+    expect(second.files["styles.css"]).toBe("body { margin: 0; }\n\n.vb-h1-1 {\n  font-size: 48px !important;\n  text-align: center !important;\n}\n");
+  });
+
+  it("wins over the site's own, more specific rules, so the change always shows", () => {
+    // A site's ".section h1" outranks the editor's class; the person's choice for this element must still apply.
+    const site = { ...files, "styles.css": ".section h1 { font-size: 24px; }\n" };
+    const r = applyVisualEdit(site, "index.html", find(PAGE, "h1").n, { kind: "style", props: { "font-size": TEXT_SIZES.display.value } });
+    expect(r.ok && r.files["styles.css"]).toBe(`.section h1 { font-size: 24px; }\n\n.vb-h1-1 {\n  font-size: ${TEXT_SIZES.display.value} !important;\n}\n`);
   });
 
   it("uses the element's id when it has one, and a new class number when one is taken", () => {
     const r = applyVisualEdit(files, "index.html", find(PAGE, "header").n, { kind: "style", props: { padding: "24px" } });
-    expect(r.ok && r.files["styles.css"]).toContain("#top {\n  padding: 24px;\n}");
+    expect(r.ok && r.files["styles.css"]).toContain("#top {\n  padding: 24px !important;\n}");
     const taken = { ...files, "styles.css": ".vb-h1-1 { color: #000000; }\n" };
     const r2 = applyVisualEdit(taken, "index.html", find(PAGE, "h1").n, { kind: "style", props: { "font-weight": "700" } });
     expect(r2.ok && r2.files["index.html"]).toContain('class="title vb-h1-2"');
@@ -227,9 +235,9 @@ describe("styles", () => {
     const r = applyVisualEdit(bare, "about.html", 4, { kind: "style", props: { "background-color": "#fef3c7" } });
     expect(r).toMatchObject({ ok: true, changed: ["about.html"], note: expect.stringContaining("style block") });
     if (!r.ok) return;
-    expect(r.files["about.html"]).toBe('<html><head><title>About</title><style data-visual-edits>\n.vb-h2-1 {\n  background-color: #fef3c7;\n}\n</style>\n</head><body><h2 class="vb-h2-1">Us</h2></body></html>');
+    expect(r.files["about.html"]).toBe('<html><head><title>About</title><style data-visual-edits>\n.vb-h2-1 {\n  background-color: #fef3c7 !important;\n}\n</style>\n</head><body><h2 class="vb-h2-1">Us</h2></body></html>');
     const again = applyVisualEdit(r.files, "about.html", scanElements(r.files["about.html"]!).find((e) => e.tag === "h2")!.n, { kind: "style", props: { "border-radius": "12px" } });
-    expect(again.ok && again.files["about.html"]).toContain("<style data-visual-edits>\n.vb-h2-1 {\n  background-color: #fef3c7;\n  border-radius: 12px;\n}\n</style>");
+    expect(again.ok && again.files["about.html"]).toContain("<style data-visual-edits>\n.vb-h2-1 {\n  background-color: #fef3c7 !important;\n  border-radius: 12px !important;\n}\n</style>");
   });
 
   it("writes only the values the editor offers, so nothing else reaches the CSS", () => {

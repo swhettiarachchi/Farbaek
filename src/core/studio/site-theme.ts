@@ -64,13 +64,13 @@ export function contrastRatio(a: string, b: string): number {
 }
 
 /** Each look's background, text and accent, for Studio's look cards. Matches the kit's own values (public/kit/studio/v1). */
-export const LOOK_SWATCHES: Record<string, { label: string; paper: string; ink: string; accent: string; dark: boolean; pro: boolean }> = {
-  signal: { label: "Signal", paper: "#fbfbfc", ink: "#0f1115", accent: "#1f4bff", dark: false, pro: false },
-  atelier: { label: "Atelier", paper: "#f2f3f0", ink: "#15171a", accent: "#2f5d50", dark: false, pro: false },
-  bloom: { label: "Bloom", paper: "#ffffff", ink: "#1a1220", accent: "#ff4b2b", dark: false, pro: false },
-  chrome: { label: "Chrome", paper: "#e8eaed", ink: "#0d0f12", accent: "#20242b", dark: false, pro: true },
-  noir: { label: "Noir", paper: "#0b0b0d", ink: "#f3f0ea", accent: "#e6cc9e", dark: true, pro: false },
-  aurora: { label: "Aurora", paper: "#060912", ink: "#eef2fb", accent: "#5cf2cf", dark: true, pro: false },
-  obsidian: { label: "Obsidian", paper: "#070708", ink: "#f1efe9", accent: "#ff5a36", dark: true, pro: true },
-  garden: { label: "Garden", paper: "#0e1913", ink: "#eef3ea", accent: "#f2b84b", dark: true, pro: true },
+export const LOOK_SWATCHES: Record<string, { label: string; paper: string; ink: string; accent: string; accent2: string; dark: boolean; pro: boolean }> = {
+  signal: { label: "Signal", paper: "#fbfbfc", ink: "#0f1115", accent: "#1f4bff", accent2: "#00a3c4", dark: false, pro: false },
+  atelier: { label: "Atelier", paper: "#f2f3f0", ink: "#15171a", accent: "#2f5d50", accent2: "#c4643f", dark: false, pro: false },
+  bloom: { label: "Bloom", paper: "#ffffff", ink: "#1a1220", accent: "#ff4b2b", accent2: "#ffb400", dark: false, pro: false },
+  chrome: { label: "Chrome", paper: "#e8eaed", ink: "#0d0f12", accent: "#20242b", accent2: "#4f7cff", dark: false, pro: true },
+  noir: { label: "Noir", paper: "#0b0b0d", ink: "#f3f0ea", accent: "#e6cc9e", accent2: "#9b7bff", dark: true, pro: false },
+  aurora: { label: "Aurora", paper: "#060912", ink: "#eef2fb", accent: "#5cf2cf", accent2: "#6d8bff", dark: true, pro: false },
+  obsidian: { label: "Obsidian", paper: "#070708", ink: "#f1efe9", accent: "#f1efe9", accent2: "#ff5a36", dark: true, pro: true },
+  garden: { label: "Garden", paper: "#0e1913", ink: "#eef3ea", accent: "#f2b84b", accent2: "#8fc9a3", dark: true, pro: true },
 };

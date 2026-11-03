@@ -4,22 +4,9 @@ import { CheckCircleIcon, ImageIcon, WarningCircleIcon } from "@phosphor-icons/r
 import { useActionState, useEffect, useRef, useState } from "react";
 import { addImageAction, type FormState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { IMAGE_ACCEPT, imagePathFor } from "@/core/workspace/images";
 
 const IDLE: FormState = { status: "idle" };
-const ACCEPT = ".png,.jpg,.jpeg,.gif,.webp,.avif,.ico,image/png,image/jpeg,image/gif,image/webp,image/avif,image/x-icon";
-
-/** "My Photo (1).JPG" becomes "assets/my-photo-1.jpg": a name a site can link to. */
-function defaultPath(fileName: string): string {
-  const dot = fileName.lastIndexOf(".");
-  const ext = dot > 0 ? fileName.slice(dot + 1).toLowerCase() : "png";
-  const stem = (dot > 0 ? fileName.slice(0, dot) : fileName)
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60);
-  return `assets/${stem || "image"}.${ext}`;
-}
 
 /**
  * Adds an image to the project, or replaces one (ADR 0108). Shows the picture
@@ -36,7 +23,7 @@ export function AddImage({ projectId, replacePath, disabledReason }: { projectId
 
   const pick = (file: File | undefined) => {
     setPreview(file ? URL.createObjectURL(file) : null);
-    if (file && !named.current) setPath(defaultPath(file.name));
+    if (file && !named.current) setPath(imagePathFor(file.name));
   };
 
   return (
@@ -59,7 +46,7 @@ export function AddImage({ projectId, replacePath, disabledReason }: { projectId
         <input
           type="file"
           name="image"
-          accept={ACCEPT}
+          accept={IMAGE_ACCEPT}
           required
           disabled={Boolean(disabledReason) || pending}
           onChange={(e) => pick(e.target.files?.[0])}

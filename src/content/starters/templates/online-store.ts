@@ -321,7 +321,8 @@ html { scrollbar-gutter: stable; }
 /* The promo bar sits above the floating header. */
 .promo { position: relative; z-index: 51; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 12px; background: var(--ink); color: var(--paper); font-size: 14px; }
 .promo__list { position: relative; list-style: none; margin: 0; padding: 0; display: grid; text-align: center; }
-.promo__list li { grid-area: 1 / 1; visibility: hidden; transform: translateY(6px); transition: transform 400ms var(--fs-ease), visibility 0s 400ms; }
+/* The message going out hides at once and the next rises in, so two never overlap. */
+.promo__list li { grid-area: 1 / 1; visibility: hidden; transform: translateY(8px); }
 .promo__list li.is-on { visibility: visible; transform: none; transition: transform 400ms var(--fs-ease); }
 .promo__pause { flex: none; width: 44px; height: 44px; border: 0; border-radius: 999px; background: none; color: inherit; cursor: pointer; display: grid; place-items: center; }
 .promo__pause::before { content: ""; width: 9px; height: 10px; border-inline: 3px solid currentColor; box-sizing: border-box; }

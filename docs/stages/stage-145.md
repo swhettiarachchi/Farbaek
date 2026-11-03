@@ -2,7 +2,7 @@
 
 - **Branch:** `feat/directions-part-2`.
 - **Migration:** none.
-- **ADR:** 0160.
+- **ADRs:** 0160 and 0161.
 
 ## 2026-11-03
 
@@ -75,7 +75,32 @@ On launch day, the owner asked for a deep check of the whole platform, and for a
     - choosing "Team of five" and typing a name fills in the ticket.
   - **All four at 375 px:** no sideways scroll, and no control under 44 px apart from the inline footnote markers (24 px, inline in a sentence).
 
+### Studio check (the owner asked whether drag and drop, image replace and text size work)
+
+- **On production** (Sunrise Bakery, drafts only, all undone; nothing was saved):
+  - a real mouse drag of a section in the list worked, and so did a drag by the handle inside the preview;
+  - the preview toolbar's arrows worked;
+  - a text size set on a heading went into the draft but didn't show, because the site's `.section h2` beat the editor's class.
+- **None of the five production projects has an image yet,** so Replace was checked on a local build with the store direction as a demo project:
+  - Replace with a stand-in photo;
+  - a colour on a link that the site styles with `.hero .fs-link`;
+  - the Theme panel's looks;
+  - add, duplicate and delete a section;
+  - text editing and review.
+- **Fixed and built (ADR 0161):**
+  - a style set in Studio always shows (`!important` in its one-element rule);
+  - you can upload a photo inside Replace, and it goes straight into the picture;
+  - Replace opens on the photo's own subject and shape;
+  - the swatches carry each look's real second accent, and a test reads them from the kit's CSS;
+  - a section is named by its own label;
+  - uploaded file names keep accented words whole;
+  - the store's promo bar no longer shows two messages at once.
+- **Verified:**
+  - in the local build (the upload with a temporary demo stand-in for the save, removed before the commit): the file is named `assets/shop-front-1.webp`, shows in the picture at once, drops its Placeholder mark and joins Your images;
+  - at 375 px the upload control is 44 px, with no sideways scroll;
+  - typecheck and eslint are clean, and vitest passes on `src/core`, `src/content`, `src/components`, `tests/design` and `tests/kit` (144 files, 1141 tests).
+
 ### Next
 
 - Rebuild blog, booking, dashboard, CRM and the software site as directions.
-- Studio extras: upload inside the editor, spacing and breakpoints, inline text editing.
+- Studio extras: spacing and breakpoints, inline text editing in the preview.
