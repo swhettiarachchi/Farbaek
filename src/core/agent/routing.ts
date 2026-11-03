@@ -88,6 +88,12 @@ export interface RouteInput {
   failures?: number;
   /** Farbaek's runtime switches (ADR 0090). */
   overrides?: TierOverrides;
+  /**
+   * A site's first build or a design upgrade (ADR 0158): on a plan capped at fast models, writing at
+   * Balanced or Deep uses the standard model, so a free workspace's first impression is its best work.
+   * Farbaek sets it on the server for its own cloud runs only.
+   */
+  designPass?: boolean;
 }
 
 export interface RouteChoice {
@@ -117,7 +123,8 @@ export function route(input: RouteInput): RouteChoice {
   }
 
   const wanted = wantedTier(input.step, input.effort, input.failures ?? 0);
-  const tier = cap(wanted, max);
-  const note = max === "fast" && rank(wanted) > rank(max) ? "Free uses fast models. Paid plans use stronger ones for writing code." : null;
+  const design = input.designPass === true && max === "fast" && input.step === "write" && input.effort !== "fast";
+  const tier = design ? "standard" : cap(wanted, max);
+  const note = design ? null : max === "fast" && rank(wanted) > rank(max) ? "Free uses fast models. Paid plans use stronger ones for writing code." : null;
   return { model: models[tier], tier, thinking, note };
 }

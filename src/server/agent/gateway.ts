@@ -60,6 +60,8 @@ export const ModelCallBody = z.object({
   /** What this step mostly does. Agent runs that write code send "write". */
   step: z.enum(["read", "plan", "write", "review"]).default("write"),
   pinned: z.string().max(64).nullish(),
+  /** A site's first build or a design upgrade (ADR 0158). Honoured only for Farbaek's own cloud runs. */
+  design: z.boolean().optional(),
   system: z.string().min(1).max(200_000),
   tools: z
     .array(z.object({ name: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/), description: z.string().max(10_000), input_schema: z.record(z.string(), z.unknown()) }))
@@ -174,7 +176,7 @@ export async function callModel(
 
   const billing = await resolvePlan(deps, agent.orgId);
   if (!billing.ok) return agentFail(billing.code, billing.message);
-  const choice = routeModel({ plan: billing.value.plan, family: model.family, step: body.step, effort: body.effort, pinned: body.pinned });
+  const choice = routeModel({ plan: billing.value.plan, family: model.family, step: body.step, effort: body.effort, pinned: body.pinned, designPass: body.design === true && agent.agentId.startsWith("run:") });
 
   if (options.remainingUnits !== undefined) {
     const input = approxTokens(JSON.stringify(body.system)) + approxTokens(JSON.stringify(body.tools)) + approxTokens(JSON.stringify(body.messages));

@@ -46,6 +46,20 @@ const API_WORDS = /\b(rest ?api|json api|api (service|server|only)|backend api|e
 
 export type PromptStarter = "static-website" | "nextjs-app" | "rest-api";
 
+/**
+ * The premium design direction a new website starts from (ADR 0158), by the kind of business, or null when none
+ * fits. The agent keeps the structure it starts from, so a finished high-end page for the business is the
+ * strongest start. Only templates rebuilt on the Studio kit are listed; the first match wins.
+ */
+const DIRECTIONS: readonly (readonly [RegExp, string])[] = [
+  [/\b(caf[eé]s?|coffee|bakery|bakeries|bakehouse|baker|patisserie|pastr(?:y|ies)|cakes?|restaurants?|bistro|diner|eatery|pizzeria|bar|pub|brewery|tea ?room|deli|juice bar|ice cream|desserts?|catering|food)\b/i, "local-business"],
+  [/\b(hotels?|resorts?|spas?|villas?|guest ?house|retreats?|lodge|real estate|propert(?:y|ies)|apartments?|penthouses?|jewell?e?ry|watch(?:es|maker)?|perfumes?|fragrances?|yachts?|luxury)\b/i, "luxury"],
+];
+
+export function templateForPrompt(prompt: string): string | null {
+  return DIRECTIONS.find(([words]) => words.test(prompt))?.[1] ?? null;
+}
+
 /** The starter that fits: a REST API for an API on its own, a Next.js app for app-like behaviour, otherwise a static website that previews instantly. */
 export function starterForPrompt(prompt: string): PromptStarter {
   if (API_WORDS.test(prompt)) return "rest-api";
@@ -58,6 +72,20 @@ export function starterForPrompt(prompt: string): PromptStarter {
 const LIGHT_STEP: TokenUsage = { inputTokens: 400, cacheReadTokens: 5_000, outputTokens: 300 };
 const HEAVY_STEP: TokenUsage = { inputTokens: 1_500, cacheReadTokens: 25_000, outputTokens: 1_200 };
 const STEPS = { fast: [3, 10], balanced: [4, 18], deep: [6, 28] } as const;
+
+/** About how much more a first build or a design upgrade takes than a change to one part (ADR 0158). */
+const WHOLE_SITE_SCALE = 2.5;
+
+/** The opening words of the Upgrade its design brief, which its task title keeps (src/core/media/studio-kit.ts). */
+export const UPGRADE_TITLE_START = "Upgrade this site's design";
+
+/**
+ * Whether a run is a site's first build or a design upgrade (ADR 0158): the project's only task, or the
+ * Upgrade its design brief. Free writes these with the standard model, and their estimate is a whole site's.
+ */
+export function isDesignPass(taskTitle: string, tasksInProject: number): boolean {
+  return tasksInProject <= 1 || taskTitle.startsWith(UPGRADE_TITLE_START);
+}
 
 /** Units as a share of the period's allowance, as people see it: "under 0.1%", "0.4%", "3%". Null without an allowance. */
 export function shareOfPeriod(units: number, periodUnits: number | null): string | null {
@@ -74,11 +102,13 @@ export function shareOfPeriod(units: number, periodUnits: number | null): string
  * percents (at least 1). Guidance only: the wallet still meters each step
  * at its real cost and refunds failed ones. Null without an allowance.
  */
-export function estimateRunShare(input: { model: string; effort: keyof typeof STEPS; periodUnits: number | null }): { low: number; high: number } | null {
+export function estimateRunShare(input: { model: string; effort: keyof typeof STEPS; periodUnits: number | null; wholeSite?: boolean }): { low: number; high: number } | null {
   if (!input.periodUnits || input.periodUnits <= 0) return null;
   const [fewest, most] = STEPS[input.effort];
-  const low = fewest * costUnits(input.model, LIGHT_STEP);
-  const high = most * costUnits(input.model, HEAVY_STEP);
+  // A whole site written or redesigned takes more and bigger steps than a change to one part.
+  const scale = input.wholeSite ? WHOLE_SITE_SCALE : 1;
+  const low = fewest * scale * costUnits(input.model, LIGHT_STEP);
+  const high = most * scale * costUnits(input.model, HEAVY_STEP);
   const pct = (units: number) => Math.max(1, Math.round((units / input.periodUnits!) * 100));
   return { low: pct(low), high: Math.max(pct(low), pct(high)) };
 }

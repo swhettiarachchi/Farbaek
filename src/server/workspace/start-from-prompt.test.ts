@@ -117,7 +117,7 @@ describe("startFromPrompt", () => {
   it("tells the drafter the project's real paths: the starter's for a new build, the project's for a follow-up", async () => {
     const briefs: DraftBrief[] = [];
     const capturing: ContractDrafter = { ...drafterWith({ ok: true, draft: DRAFT, usage: USAGE }), draft: async (b) => (briefs.push(b), { ok: true, draft: DRAFT, usage: USAGE }) };
-    await startFromPrompt(fakeDeps().deps, source(capturing), input("A landing page for my bakery"));
+    await startFromPrompt(fakeDeps().deps, source(capturing), input("A landing page for my newsletter about cycling"));
     expect(briefs[0]?.paths).toContain("index.html");
     // A plain starter's DESIGN.md is a plan to write, not one to follow.
     expect(briefs[0]?.paths).toContain("DESIGN.md");
@@ -136,10 +136,25 @@ describe("startFromPrompt", () => {
     // "dashboard" would pick the Next.js app; the chosen template wins.
     await startFromPrompt(deps, source(capturing), { ...input("A booking dashboard for my café"), starter: "local-business" });
     expect(log[1]).toBe(`import:${getStarter("local-business")!.files.length}`);
-    expect(briefs[0]?.projectDescription).toContain("Local business");
+    expect(briefs[0]?.projectDescription).toContain("Bakery and café");
     // The template's own features are sample content, not part of this brief.
     expect(briefs[0]?.projectDescription).toContain("sample content for a different product");
     expect(briefs[0]?.projectDescription).not.toContain(getStarter("local-business")!.summary);
+  });
+
+  it("starts a website from the premium direction for its business, and keeps app prompts on the app starter (ADR 0158)", async () => {
+    const briefs: DraftBrief[] = [];
+    const capturing: ContractDrafter = { ...drafterWith({ ok: true, draft: DRAFT, usage: USAGE }), draft: async (b) => (briefs.push(b), { ok: true, draft: DRAFT, usage: USAGE }) };
+    const bakery = fakeDeps();
+    await startFromPrompt(bakery.deps, source(capturing), input("A site for my bakery in Kandy"));
+    expect(bakery.log[1]).toBe(`import:${getStarter("local-business")!.files.length}`);
+    expect(briefs[0]?.projectDescription).toContain("Studio kit, keep the kit");
+    const villa = fakeDeps();
+    await startFromPrompt(villa.deps, source(capturing), input("A website for our villa in Ella"));
+    expect(villa.log[1]).toBe(`import:${getStarter("luxury")!.files.length}`);
+    const app = fakeDeps();
+    await startFromPrompt(app.deps, source(capturing), input("A booking dashboard for my café with a login"));
+    expect(app.log[1]).toBe(`import:${getStarter("nextjs-app")!.files.length}`);
   });
 
   it("stops when the project can't be created, for example at the plan's project limit", async () => {

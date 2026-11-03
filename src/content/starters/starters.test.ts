@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
 import { setupReport } from "@/core/agent/setup-report";
 import { reviewSite } from "@/core/agent/site-review";
-import { STUDIO_KIT_CSS, STUDIO_KIT_JS } from "@/core/media/studio-kit";
+import { STUDIO_KIT_CSS, STUDIO_KIT_JS, STUDIO_KIT_PATTERN } from "@/core/media/studio-kit";
 import { screenFile } from "@/core/workspace/files";
 import { STARTERS, TEMPLATE_STARTERS, getStarter, runProfile } from "./index";
 import { NEXTJS_DEPENDENCIES } from "./nextjs-app";
@@ -41,14 +41,17 @@ describe("starters", () => {
   });
 
   it("give the gallery templates that preview instantly, link only to their own pages and fetch nothing", () => {
-    expect(TEMPLATE_STARTERS.map((t) => t.id)).toEqual(["landing-page", "saas-site", "portfolio", "local-business", "event-page", "blog", "online-store", "booking", "dashboard", "crm"]);
+    expect(TEMPLATE_STARTERS.map((t) => t.id)).toEqual(["landing-page", "saas-site", "portfolio", "local-business", "luxury", "event-page", "blog", "online-store", "booking", "dashboard", "crm"]);
     for (const t of TEMPLATE_STARTERS) {
       const paths = new Set(t.files.map((f) => f.path));
       expect(runProfile([...paths]), t.id).toEqual({ kind: "static" });
       expect(t.examplePrompt, t.id).toBeTruthy();
       for (const f of t.files.filter((x) => x.path.endsWith(".html"))) {
-        // Stylesheets, scripts and images come from the project itself, never another host.
-        expect(f.content, `${t.id}/${f.path}`).not.toMatch(/<(?:link|script|img)[^>]+(?:href|src)="(?:https?:)?\/\//i);
+        // Stylesheets, scripts and images come from the project itself or, for templates on the Studio kit (ADR 0158),
+        // only from Farbaek's kit and library, Google Fonts and the sorted stand-in photos. Never another host.
+        for (const [, url] of f.content.matchAll(/<(?:link|script|img)[^>]+(?:href|src)="((?:https?:)?\/\/[^"]+)"/gi)) {
+          expect(url, `${t.id}/${f.path}`).toMatch(/^https:\/\/(?:www\.farbaek\.com\/(?:kit|media)\/|fonts\.googleapis\.com(?:\/|$)|fonts\.gstatic\.com|images\.unsplash\.com\/photo-|picsum\.photos\/id\/)/);
+        }
         for (const [, href] of f.content.matchAll(/href="([^"#:?]+\.html)/g)) expect(paths.has(href!), `${t.id}/${f.path} links to ${href}`).toBe(true);
         // Sample content is labelled as sample where it's shown.
         expect(f.content.toLowerCase(), `${t.id}/${f.path}`).toContain("sample");
@@ -61,11 +64,12 @@ describe("starters", () => {
       const files = Object.fromEntries(t.files.map((f) => [f.path, f.content]));
       expect(files["DESIGN.md"], t.id).toMatch(/## Palette[\s\S]*## Type[\s\S]*## Layout[\s\S]*## Signature[\s\S]*## Motion/);
       expect(files["script.js"], t.id).toBeTruthy();
-      // The templates predate the premium checks (ADR 0157): they have no media slots or web fonts, and the app-style
-      // ones no 3D moment. Rebuilding them on the Studio kit is stage 143; until then a build from a template is told
-      // to add them. Nothing else may be wrong, and this list shrinks as templates are rebuilt.
-      const premiumGap = /^(?:There's no 3D moment|There are no images or video|Only system fonts)/;
-      expect(reviewSite(files).findings.filter((f) => !premiumGap.test(f.message)), t.id).toEqual([]);
+      // Templates on the Studio kit (ADR 0158) meet every premium check; their sample photos are placeholder slots by design.
+      // The others predate the checks (ADR 0157): no media slots or web fonts, and the app-style ones no 3D moment.
+      // Until they're rebuilt a build from them is told to add these. Nothing else may be wrong.
+      const onKit = STUDIO_KIT_PATTERN.test(files["index.html"] ?? "");
+      const allowed = onKit ? /^\d+ media slots? (?:is|are) still a placeholder/ : /^(?:There's no 3D moment|There are no images or video|Only system fonts)/;
+      expect(reviewSite(files).findings.filter((f) => !allowed.test(f.message)), t.id).toEqual([]);
       const css = t.files.filter((f) => f.path.endsWith(".css")).map((f) => f.content.replace(/\/\*[\s\S]*?\*\//g, "")).join("\n");
       expect(css, t.id).toContain("prefers-reduced-motion: reduce");
       // No CSS filters: on iOS 26 they paint a black square (ADR 0055). backdrop-filter is a different path and stays allowed.

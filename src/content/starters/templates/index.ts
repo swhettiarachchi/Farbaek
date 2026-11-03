@@ -10,6 +10,7 @@ import { BLOG_FILES } from "./blog";
 import { EVENT_PAGE_FILES } from "./event-page";
 import { LANDING_PAGE_FILES } from "./landing-page";
 import { LOCAL_BUSINESS_FILES } from "./local-business";
+import { LUXURY_FILES } from "./luxury";
 import { ONLINE_STORE_FILES } from "./online-store";
 import { BOOKING_FILES } from "./booking";
 import { CRM_FILES } from "./crm";
@@ -43,10 +44,17 @@ export const TEMPLATES: readonly Starter[] = [
   }),
   site({
     id: "local-business",
-    name: "Local business",
-    summary: "A café or shop: an illustrated hero, a live open-now status, a menu you can filter and a map.",
+    name: "Bakery and café",
+    summary: "Food, made to be craved: real bakery photos, a 3D bake-time ticket, a live open-now status and a menu you can filter.",
     files: LOCAL_BUSINESS_FILES,
     examplePrompt: "Make this the site for my bakery in Kandy, open 6am to 8pm every day, with our cakes and buns.",
+  }),
+  site({
+    id: "luxury",
+    name: "Hotel, spa and luxury",
+    summary: "Quiet and exclusive: a cinematic hero, the suites floating on a 3D arc, real hotel and spa photos and an enquiry form.",
+    files: LUXURY_FILES,
+    examplePrompt: "Make this the site for my boutique villa in Ella with four rooms, a yoga deck and breakfast from the garden.",
   }),
   site({
     id: "event-page",

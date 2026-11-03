@@ -1,172 +1,212 @@
 /**
- * Template: a local business site (a café), built to the Studio standard
- * (ADR 0030). An illustrated hero with rising steam and drifting water, a
- * live "open now" status worked out from the opening hours, a menu you can
- * filter, and a drawn map. Sample content; previews instantly and is
- * complete without JavaScript.
+ * Template: a bakery and café, the premium direction for food businesses
+ * (ADR 0158): built on the Farbaek Studio kit with real bakery photos in
+ * replaceable slots, a tilted "today's bake" card as its 3D moment, a live
+ * "open now" status worked out from the opening hours, a menu you can
+ * filter, and choreographed kit motion. Sample content throughout; complete
+ * without JavaScript.
  */
+import { photoUrl } from "@/core/media/photos";
+import { KIT_URL } from "@/core/media/library";
+import { STUDIO_KIT_CSS, STUDIO_KIT_JS } from "@/core/media/studio-kit";
 import type { StarterFile } from "../types";
 
-type Kind = "coffee" | "breakfast" | "bakes";
-const MENU: { kind: Kind; name: string; desc: string; price: string }[] = [
-  { kind: "coffee", name: "Flat white", desc: "Double ristretto, silky milk.", price: "4.20" },
-  { kind: "coffee", name: "Harbour cold brew", desc: "Steeped for 18 hours, served over ice.", price: "4.80" },
-  { kind: "coffee", name: "Cardamom latte", desc: "Our house blend with ground cardamom.", price: "4.90" },
-  { kind: "breakfast", name: "Eggs on sourdough", desc: "Two eggs your way, herbed butter.", price: "9.50" },
-  { kind: "breakfast", name: "Fisherman's breakfast", desc: "Smoked fish, crushed potatoes, a soft egg.", price: "13.00" },
-  { kind: "breakfast", name: "Coconut granola bowl", desc: "Toasted oats, yoghurt, fruit from the market.", price: "8.00" },
-  { kind: "bakes", name: "Butter croissant", desc: "Laminated over three days.", price: "3.40" },
-  { kind: "bakes", name: "Cinnamon knot", desc: "Brown sugar, cinnamon, a little salt.", price: "3.80" },
-  { kind: "bakes", name: "Lemon poppy seed loaf", desc: "A thick slice, lemon glaze.", price: "3.60" },
-];
+const photo = (id: string, w: number, h: number, slot: string, alt: string, lazy = true) =>
+  `<img src="${photoUrl(id, w, h)}" alt="${alt}" width="${w}" height="${h}"${lazy ? ' loading="lazy"' : ""} data-farbaek-media="${slot}" data-farbaek-placeholder />`;
 
-const ICONS: Record<Kind, string> = {
-  coffee: `<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M9 15h19v7a9.5 9.5 0 0 1-19 0z" /><path d="M28 17h2.5a3.5 3.5 0 0 1 0 7H28" /><path d="M6 33h26" /><path class="wisp" d="M15 10c-1.5-2 1.5-3 0-5M21 10c-1.5-2 1.5-3 0-5" /></svg>`,
-  breakfast: `<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="21" r="14" /><path d="M13 19c0-4 4-6 7-5s5-1 7 2 0 7-3 8-5 2-8 0-3-2-3-5z" /><circle cx="20" cy="20" r="3.2" class="fill" /></svg>`,
-  bakes: `<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M5 27c3-10 27-10 30 0-5-3-10-4-15-4S10 24 5 27z" /><path d="M14 19.5l2 7M20 18.5v8M26 19.5l-2 7" /></svg>`,
-};
+type Kind = "bread" | "pastry" | "coffee";
+const MENU: { kind: Kind; name: string; desc: string; price: string }[] = [
+  { kind: "bread", name: "Country sourdough", desc: "Forty-eight hour ferment, dark crust, open crumb.", price: "950" },
+  { kind: "bread", name: "Milk bread loaf", desc: "Soft, sliceable, the one children ask for.", price: "650" },
+  { kind: "bread", name: "Seeded rye", desc: "Sunflower, flax and a little treacle.", price: "1,050" },
+  { kind: "pastry", name: "Butter croissant", desc: "Laminated over three days, shatters properly.", price: "480" },
+  { kind: "pastry", name: "Cardamom bun", desc: "Knotted, sugared, best before ten.", price: "520" },
+  { kind: "pastry", name: "Kithul custard tart", desc: "Burnt top, kithul treacle custard.", price: "560" },
+  { kind: "coffee", name: "Flat white", desc: "Hill-country beans, double ristretto.", price: "720" },
+  { kind: "coffee", name: "Iced kithul latte", desc: "Cold milk, espresso, a ribbon of treacle.", price: "820" },
+];
+const KIND_LABEL: Record<Kind, string> = { bread: "Bread", pastry: "Pastry", coffee: "Coffee" };
 
 const menuItems = MENU.map(
   (m) => `            <li class="dish" data-kind="${m.kind}">
-              <span class="dish-icon">${ICONS[m.kind]}</span>
-              <span class="dish-text"><strong>${m.name}</strong><small>${m.desc}</small></span>
-              <span class="dish-price">${m.price}</span>
+              <div><h3>${m.name}</h3><p>${m.desc}</p></div>
+              <span class="dish__price"><span class="fs-sr">${KIND_LABEL[m.kind]}, </span>Rs. ${m.price}</span>
             </li>`,
 ).join("\n");
 
-// Opening hours, Monday first. The status pill and the highlighted row are worked out from these.
+// Opening hours: [day, opens, closes], Monday first. data-day uses JavaScript's numbering (Sunday is 0).
 const HOURS = [
-  ["Monday", "7:00", "18:00"],
-  ["Tuesday", "7:00", "18:00"],
-  ["Wednesday", "7:00", "18:00"],
-  ["Thursday", "7:00", "18:00"],
-  ["Friday", "7:00", "20:00"],
-  ["Saturday", "7:30", "20:00"],
-  ["Sunday", "7:30", "17:00"],
+  ["Monday", "06:30", "19:00"],
+  ["Tuesday", "06:30", "19:00"],
+  ["Wednesday", "06:30", "19:00"],
+  ["Thursday", "06:30", "19:00"],
+  ["Friday", "06:30", "20:00"],
+  ["Saturday", "07:00", "20:00"],
+  ["Sunday", "07:00", "14:00"],
 ] as const;
 const pretty = (t: string) => {
   const [h, m] = t.split(":").map(Number) as [number, number];
-  const hour = h % 12 === 0 ? 12 : h % 12;
-  return `${hour}${m ? `.${String(m).padStart(2, "0")}` : ""} ${h < 12 ? "am" : "pm"}`;
+  return `${h % 12 === 0 ? 12 : h % 12}${m ? `.${String(m).padStart(2, "0")}` : ""} ${h < 12 ? "am" : "pm"}`;
 };
 const hoursRows = HOURS.map(
-  ([day, open, close], i) => `              <tr data-day="${(i + 1) % 7}" data-open="${open}" data-close="${close}"><th scope="row">${day}</th><td>${pretty(open)} to ${pretty(close)}</td></tr>`,
+  ([day, open, close], i) => `                <tr data-day="${(i + 1) % 7}" data-open="${open}" data-close="${close}"><th scope="row">${day}</th><td>${pretty(open)} to ${pretty(close)}</td></tr>`,
 ).join("\n");
 
+const bake = (id: string, slot: string, title: string, note: string, alt: string) => `          <a class="fs-card" href="#menu" data-fs-reveal>
+            <div class="fs-frame" data-fs-tilt="4">${photo(id, 1200, 900, slot, alt)}</div>
+            <h3 class="fs-h3">${title}</h3>
+            <div class="fs-card__meta"><span>${note}</span><span aria-hidden="true">See the menu</span></div>
+          </a>`;
+
 const INDEX = `<!doctype html>
-<html lang="en">
+<html lang="en" data-fs-look="atelier">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Harbor Café, coffee and breakfast by the water</title>
-    <meta name="description" content="Harbor Café on Pier 4: strong coffee, slow breakfasts and pastries baked before sunrise. A sample local business site." />
-    <meta name="theme-color" content="#f4f7f6" />
+    <title>Kiln &amp; Crumb, bakery and coffee in Kandy</title>
+    <meta name="description" content="Sourdough, laminated pastry and hill-country coffee, baked from four every morning on Peradeniya Road, Kandy." />
+    <script>document.documentElement.classList.add("fs-js");</script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&amp;family=Instrument+Sans:wght@400;500;600&amp;display=swap" />
+    <link rel="stylesheet" href="${STUDIO_KIT_CSS}" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <a class="skip" href="#main">Skip to content</a>
-    <header class="bar">
-      <a class="brand" href="#top">
-        <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="#12304a" /><path d="M9 14h11v4a5.5 5.5 0 0 1-11 0z" fill="#f4f7f6" /><path d="M20 15h1.5a2 2 0 0 1 0 4H20" fill="none" stroke="#f4f7f6" stroke-width="1.6" /><path d="M7 24c3-2 6-2 9 0s6 2 9 0" fill="none" stroke="#c8352b" stroke-width="2" stroke-linecap="round" /></svg>
-        Harbor Café
-      </a>
-      <nav class="nav" aria-label="Main">
-        <a href="#menu">Menu</a>
-        <a href="#visit">Visit</a>
-      </nav>
+    <a class="fs-skip" href="#main">Skip to content</a>
+    <header class="fs-nav">
+      <a class="fs-nav__brand" href="#top"><span class="mark" aria-hidden="true"></span>Kiln &amp; Crumb</a>
+      <ul class="fs-nav__links">
+        <li><a href="#bakes">Today's bakes</a></li>
+        <li><a href="#menu">Menu</a></li>
+        <li><a href="#visit">Visit</a></li>
+      </ul>
+      <a class="fs-btn" href="#order">Order a cake <span class="fs-btn__icon" aria-hidden="true"></span></a>
+      <button class="fs-nav__toggle" type="button" aria-label="Open the menu"></button>
     </header>
+    <nav class="fs-menu" aria-label="Menu">
+      <a href="#bakes">Today's bakes</a>
+      <a href="#menu">Menu</a>
+      <a href="#visit">Visit</a>
+      <a href="#order">Order a cake</a>
+    </nav>
 
     <main id="main">
-      <section class="hero" id="top">
-        <div class="hero-copy">
-          <p class="status" id="status"><span class="beacon" aria-hidden="true"></span><span id="status-text">Open every day from 7 am</span></p>
-          <h1>Breakfast by the water.</h1>
-          <p class="lead">Strong coffee, slow breakfasts and pastries baked before sunrise, a few steps from the boats.</p>
-          <div class="actions">
-            <a class="button" href="#menu">See the menu</a>
-            <a class="link" href="#visit">Find us on Pier 4 <span aria-hidden="true">&rarr;</span></a>
-          </div>
-          <p class="note">Harbor Café is a sample business. The menu, prices and address are sample content.</p>
+      <section class="fs-hero hero" id="top">
+        <div class="fs-hero__media">
+          ${photo("1509440159596-0249088772ff", 2000, 1300, "hero-photo", "Three rustic loaves with sunflower seeds and wheat on a wooden board", false)}
         </div>
-
-        <div class="scene" aria-hidden="true">
-          <svg viewBox="0 0 520 520">
-            <defs><clipPath id="disc"><circle cx="260" cy="260" r="236" /></clipPath></defs>
-            <circle cx="260" cy="260" r="236" fill="#dcebea" />
-            <g clip-path="url(#disc)">
-              <circle class="sun" cx="370" cy="190" r="46" fill="#ffffff" />
-              <g class="boat"><path d="M120 300h70l-10 14h-50z" fill="#12304a" /><path d="M150 296v-64l34 64z" fill="#ffffff" /><path d="M146 296v-48l-24 48z" fill="#c8352b" /></g>
-              <g class="sea">
-                <path class="wave a" d="M-260 318c40-14 80-14 120 0s80 14 120 0 80-14 120 0 80 14 120 0 80-14 120 0 80 14 120 0 80-14 120 0 80 14 120 0V540H-260z" fill="#9fc6c9" />
-                <path class="wave b" d="M-260 352c40-12 80-12 120 0s80 12 120 0 80-12 120 0 80 12 120 0 80-12 120 0 80 12 120 0 80-12 120 0 80 12 120 0V540H-260z" fill="#5f97a3" />
-                <path class="wave c" d="M-260 392c40-12 80-12 120 0s80 12 120 0 80-12 120 0 80 12 120 0 80-12 120 0 80 12 120 0 80-12 120 0 80 12 120 0V540H-260z" fill="#12304a" />
-              </g>
-            </g>
-            <g class="cup">
-              <ellipse cx="300" cy="438" rx="128" ry="26" fill="#0b2134" opacity="0.18" />
-              <ellipse cx="300" cy="420" rx="124" ry="30" fill="#ffffff" stroke="#12304a" stroke-width="4" />
-              <path d="M330 330h38a34 34 0 0 1 0 68h-30" fill="none" stroke="#12304a" stroke-width="14" stroke-linecap="round" />
-              <path d="M206 318h188l-14 74a62 62 0 0 1-61 50h-38a62 62 0 0 1-61-50z" fill="#ffffff" stroke="#12304a" stroke-width="4" />
-              <ellipse cx="300" cy="318" rx="94" ry="20" fill="#5b3424" stroke="#12304a" stroke-width="4" />
-              <path d="M300 330c-8-10-24-6-20 4 3 7 20 12 20 12s17-5 20-12c4-10-12-14-20-4z" fill="#f4e9dc" />
-            </g>
-            <g class="steam" fill="none" stroke="#12304a" stroke-width="6" stroke-linecap="round" opacity="0.55">
-              <path class="s1" d="M270 290c-14-18 14-30 0-50s12-30 0-46" />
-              <path class="s2" d="M302 286c-14-18 14-30 0-50s12-30 0-50" />
-              <path class="s3" d="M334 290c-14-18 14-30 0-50s12-30 0-46" />
-            </g>
-          </svg>
+        <div class="fs-container hero__grid">
+          <div class="fs-hero__content">
+            <p class="status" id="status"><span class="beacon" aria-hidden="true"></span><span id="status-text">Open every day from 6.30 am</span></p>
+            <h1 class="fs-display" data-fs-reveal="words">Bread worth getting up for.</h1>
+            <p class="fs-lead" data-fs-reveal>Sourdough, laminated pastry and hill-country coffee, baked from four every morning on Peradeniya Road.</p>
+            <div class="fs-actions" data-fs-reveal>
+              <a class="fs-btn" href="#bakes">See today's bakes <span class="fs-btn__icon" aria-hidden="true"></span></a>
+              <a class="fs-link" href="#visit">Find us in Kandy</a>
+            </div>
+          </div>
+          <div class="fs-float">
+          <aside class="ticket" data-fs-tilt="8" aria-label="Today's bake">
+            <p class="ticket__label">Out of the oven at</p>
+            <p class="ticket__time">7.00 am</p>
+            <p class="ticket__what">Country sourdough, still warm</p>
+            <p class="ticket__note">Sample times</p>
+          </aside>
+          </div>
         </div>
       </section>
 
-      <section class="menu" id="menu" aria-labelledby="menu-title">
-        <div class="wrap">
-          <div class="menu-head reveal">
-            <h2 id="menu-title">Today's menu</h2>
-            <div class="chips" role="group" aria-label="Show">
+      <section class="fs-section strip" aria-label="How we bake">
+        <div class="fs-container">
+          <div class="fs-stats" data-fs-stagger>
+            <div class="fs-stat" data-fs-reveal><span class="fs-stat__num" data-fs-count>48</span><span class="fs-stat__label">hours each sourdough ferments before it meets the oven</span></div>
+            <div class="fs-stat" data-fs-reveal><span class="fs-stat__num">4.00</span><span class="fs-stat__label">am, when the first ovens are lit</span></div>
+            <div class="fs-stat" data-fs-reveal><span class="fs-stat__num" data-fs-count>14</span><span class="fs-stat__label">breads and pastries on the counter each day</span></div>
+          </div>
+          <p class="fs-small strip__note">Sample figures. Replace them with yours.</p>
+        </div>
+      </section>
+
+      <section class="fs-section" id="story">
+        <div class="fs-container fs-split">
+          <div class="fs-frame" data-fs-reveal="mask">
+            ${photo("1517686469429-8bdb88b9f907", 1100, 1375, "story-photo", "A baker rolling dough with a wooden rolling pin")}
+          </div>
+          <div class="fs-split__text">
+            <h2 class="fs-h2" data-fs-reveal>Slow dough, <em>early</em> ovens.</h2>
+            <p class="fs-lead" data-fs-reveal>We mix in the afternoon, shape at night and bake before the city wakes. Nothing on the counter is older than this morning.</p>
+            <ul class="fs-list" data-fs-stagger>
+              <li data-fs-reveal>Flour milled in small batches, no improvers</li>
+              <li data-fs-reveal>Butter croissants laminated over three days</li>
+              <li data-fs-reveal>Coffee roasted twice a week in the hills</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="fs-section fs-section--raised" id="bakes">
+        <div class="fs-container">
+          <div class="fs-head fs-head--split">
+            <h2 class="fs-h2" data-fs-reveal>Today on the counter</h2>
+            <p class="fs-lead" data-fs-reveal>Come early for croissants. The sourdough usually lasts until noon.</p>
+          </div>
+          <div class="fs-mosaic" data-fs-stagger>
+${bake("1568254183919-78a4f43a2877", "bakes-1", "The bread wall", "Eight loaves daily", "Loaves of bread on wooden display shelves")}
+${bake("1555507036-ab1f4038808a", "bakes-2", "Butter croissants", "From 7 am", "Two golden croissants")}
+${bake("1534432182912-63863115e106", "bakes-3", "Pastry case", "Changes daily", "Pastries and a crumb cake in a bakery display")}
+${bake("1598373182133-52452f7691ef", "bakes-4", "Milk bread", "Sliced to order", "A sliced loaf of soft white bread on a board")}
+${bake("1549413468-cd78edb7e75c", "bakes-5", "Seeded rye", "Fridays", "A crusty baked loaf on jute")}
+          </div>
+        </div>
+      </section>
+
+      <section class="fs-section" id="menu" aria-labelledby="menu-title">
+        <div class="fs-container menu">
+          <div class="fs-head">
+            <h2 class="fs-h2" id="menu-title" data-fs-reveal>The menu</h2>
+            <div class="chips" role="group" aria-label="Filter the menu">
               <button type="button" aria-pressed="true" data-filter="all">Everything</button>
+              <button type="button" aria-pressed="false" data-filter="bread">Bread</button>
+              <button type="button" aria-pressed="false" data-filter="pastry">Pastry</button>
               <button type="button" aria-pressed="false" data-filter="coffee">Coffee</button>
-              <button type="button" aria-pressed="false" data-filter="breakfast">Breakfast</button>
-              <button type="button" aria-pressed="false" data-filter="bakes">Bakes</button>
             </div>
           </div>
-          <ul class="dishes reveal" id="dishes">
+          <ul class="dishes" id="dishes" data-fs-reveal>
 ${menuItems}
           </ul>
-          <p class="menu-note">Sample menu and prices, in dollars. Breakfast until 11.30 am, bakes until they're gone.</p>
+          <p class="fs-small">Sample prices in Sri Lankan rupees.</p>
         </div>
       </section>
 
-      <section class="visit" id="visit" aria-labelledby="visit-title">
-        <div class="wrap visit-grid">
-          <div class="map reveal" aria-hidden="true">
-            <svg viewBox="0 0 480 360">
-              <rect width="480" height="360" rx="28" fill="#cfe2e3" />
-              <path d="M0 0h480v120c-60 30-120 10-170 40s-60 90-130 100S40 230 0 250z" fill="#f4f7f6" />
-              <path d="M0 64h480M120 0v200M300 0v150" stroke="#dbe4e6" stroke-width="10" />
-              <g fill="#e2eaec"><rect x="18" y="86" width="84" height="54" rx="8" /><rect x="138" y="86" width="64" height="40" rx="8" /><rect x="138" y="8" width="144" height="40" rx="8" /><rect x="18" y="8" width="84" height="40" rx="8" /><rect x="318" y="8" width="140" height="40" rx="8" /><rect x="18" y="158" width="84" height="54" rx="8" /></g>
-              <path d="M300 218c40 20 80 40 150 54" fill="none" stroke="#5f97a3" stroke-width="3" stroke-dasharray="2 9" stroke-linecap="round" />
-              <text x="352" y="296" font-family="system-ui, sans-serif" font-size="11" fill="#4b5d6b">Ferry steps</text>
-              <g transform="translate(424 316)"><circle r="18" fill="#f4f7f6" /><path d="M0-12l5 12h-10z" fill="#c8352b" /><path d="M0 12l5-12h-10z" fill="#12304a" /></g>
-              <rect x="252" y="150" width="22" height="150" rx="4" fill="#f4f7f6" stroke="#9fc6c9" stroke-width="2" />
-              <rect x="226" y="200" width="74" height="18" rx="4" fill="#f4f7f6" stroke="#9fc6c9" stroke-width="2" />
-              <g class="pin"><circle cx="263" cy="150" r="30" fill="#c8352b" opacity="0.18" class="halo" /><circle cx="263" cy="150" r="13" fill="#c8352b" /><circle cx="263" cy="150" r="5" fill="#ffffff" /></g>
-              <text x="296" y="132" font-family="system-ui, sans-serif" font-size="15" font-weight="700" fill="#12304a">Harbor Café</text>
-              <text x="296" y="150" font-family="system-ui, sans-serif" font-size="12" fill="#4b5d6b">Pier 4</text>
-              <path d="M60 300c10-6 20-6 30 0s20 6 30 0" fill="none" stroke="#5f97a3" stroke-width="4" stroke-linecap="round" />
-            </svg>
+      <section class="fs-section fs-section--raised">
+        <div class="fs-container">
+          <figure class="fs-quote" data-fs-reveal>
+            <blockquote>The croissants are the reason I leave for work twenty minutes early.</blockquote>
+            <figcaption>
+              ${photo("1495474472287-4d71bcdd2085", 96, 96, "quote-photo", "Friends holding coffee cups")}
+              <span>Dilini, a regular since the first winter</span>
+              <span class="fs-sample">Sample quote</span>
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="fs-section" id="visit" aria-labelledby="visit-title">
+        <div class="fs-container fs-split fs-split--reverse">
+          <div class="fs-frame" data-fs-reveal="mask">
+            ${photo("1567880905822-56f8e06fe630", 1100, 1375, "visit-photo", "The café interior with a curved counter")}
           </div>
-          <div class="visit-text reveal">
-            <h2 id="visit-title">Come by the pier.</h2>
-            <address>Pier 4, Harbour Road<br />Old Port</address>
-            <p class="visit-help">Five minutes' walk from the ferry steps. Bike racks outside, and the terrace is dog friendly.</p>
-            <div class="visit-actions">
-              <button class="button ghost" type="button" id="copy-address" data-address="Harbor Café, Pier 4, Harbour Road, Old Port">Copy the address</button>
-              <a class="link" href="tel:+15550100">Call us <span aria-hidden="true">&rarr;</span></a>
+          <div class="fs-split__text">
+            <h2 class="fs-h2" id="visit-title" data-fs-reveal>Come by the bakery.</h2>
+            <p class="fs-lead" data-fs-reveal>142 Peradeniya Road, Kandy. Ten seats inside, three on the step, parking behind the pharmacy.</p>
+            <div class="fs-actions" data-fs-reveal>
+              <a class="fs-btn fs-btn--ghost" href="tel:+94810000000">Call +94 81 000 0000 <span class="fs-btn__icon" aria-hidden="true"></span></a>
+              <button class="fs-link copy" type="button" id="copy-address" data-address="Kiln &amp; Crumb, 142 Peradeniya Road, Kandy">Copy the address</button>
             </div>
-            <p class="copy-msg" id="copy-msg" role="status">A sample address and phone number.</p>
+            <p class="fs-small" id="copy-msg" role="status">A sample address and phone number.</p>
             <table class="hours" id="hours">
-              <caption>Opening hours</caption>
+              <caption class="fs-sr">Opening hours</caption>
               <tbody>
 ${hoursRows}
               </tbody>
@@ -174,176 +214,130 @@ ${hoursRows}
           </div>
         </div>
       </section>
+
+      <section class="fs-section" aria-labelledby="faq-title">
+        <div class="fs-container fs-split fs-split--wide">
+          <div class="fs-faq" data-fs-reveal>
+            <details><summary>Can I order a loaf for tomorrow?</summary><p>Yes. Call before 3 pm and we'll keep one under your name until noon.</p></details>
+            <details><summary>Do you bake anything without gluten?</summary><p>Our flourless chocolate cake and almond cookies are made without wheat, in a kitchen that uses flour, so they aren't safe for coeliacs.</p></details>
+            <details><summary>Do you supply cafés and hotels?</summary><p>We bake for six places in Kandy. Ask for the wholesale list and we'll bring a tasting box.</p></details>
+          </div>
+          <div class="fs-head">
+            <h2 class="fs-h2" id="faq-title" data-fs-reveal>Good to know</h2>
+            <p class="fs-lead" data-fs-reveal>Anything else, ask at the counter.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="fs-section" id="order">
+        <div class="fs-container">
+          <div class="fs-cta" data-fs-reveal="scale">
+            <h2 class="fs-h2">A cake for the day that matters.</h2>
+            <p class="fs-lead">Birthdays, weddings and the office on a Friday. Tell us the day and how many, three days ahead.</p>
+            <div class="fs-actions">
+              <a class="fs-btn" href="mailto:hello@kilnandcrumb.example">Order a cake <span class="fs-btn__icon" aria-hidden="true"></span></a>
+              <span class="fs-small">A sample address. It doesn't send anything yet.</span>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
 
-    <footer class="foot">
-      <p>&copy; <span id="year">2026</span> Harbor Café. A sample site.</p>
-      <a href="#top">Back to top</a>
+    <footer class="fs-footer">
+      <div class="fs-container">
+        <div class="fs-footer__grid">
+          <div><h2>Visit</h2><p>142 Peradeniya Road<br />Kandy</p></div>
+          <div><h2>Explore</h2><ul><li><a href="#bakes">Today's bakes</a></li><li><a href="#menu">Menu</a></li><li><a href="#visit">Opening hours</a></li></ul></div>
+          <div><h2>Order</h2><ul><li><a href="#order">Celebration cakes</a></li><li><a href="tel:+94810000000">Call the bakery</a></li></ul></div>
+        </div>
+        <div class="fs-footer__base"><span>&copy; <span id="year">2026</span> Kiln &amp; Crumb. A sample site.</span><span>Baked in Kandy</span></div>
+        <div class="fs-wordmark" aria-hidden="true">Kiln &amp; Crumb</div>
+      </div>
     </footer>
-    <script src="script.js"></script>
+
+    <script type="module" src="${KIT_URL}"></script>
+    <script type="module" src="${STUDIO_KIT_JS}"></script>
+    <script src="script.js" defer></script>
   </body>
 </html>
 `;
 
-const STYLES = `/* Harbor Café. The design decisions behind these tokens are in DESIGN.md. */
+const STYLES = `/* Kiln & Crumb: the brand on top of the Farbaek Studio kit. The decisions are in DESIGN.md. */
 :root {
-  --salt: #f4f7f6;
-  --navy: #12304a;
-  --buoy: #c8352b;
-  --foam: #dcebea;
-  --muted: #4b5d6b;
-  --line: #d5e0e2;
-  --display: Futura, "Century Gothic", "Avenir Next", system-ui, sans-serif;
-  --body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --ease: cubic-bezier(0.16, 1, 0.3, 1);
-  --gutter: clamp(16px, 5vw, 64px);
+  --accent: #c76a1c;
+  --accent-2: #2f5d50;
+  --on-accent: #ffffff;
+  --ink: #17231c;
+  --ink-2: #4f5b53;
+  --paper: #f6f6f1;
+  --paper-2: #ffffff;
+  --line: rgb(23 35 28 / 0.12);
+  --font-display: "Young Serif", Georgia, serif;
+  --font-body: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --radius: 18px;
+  --radius-lg: 30px;
+  --fs-display-weight: 400;
+  --fs-display-track: -0.02em;
 }
 
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body { margin: 0; background: var(--salt); color: var(--navy); font: 17px/1.6 var(--body); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
-a { color: inherit; }
-h1, h2 { font-family: var(--display); font-weight: 700; letter-spacing: -0.03em; }
-h2 { margin: 0; font-size: clamp(32px, 4.6vw, 56px); line-height: 1.04; }
-:focus-visible { outline: 3px solid var(--buoy); outline-offset: 3px; border-radius: 8px; }
-.skip { position: absolute; left: 16px; top: -60px; z-index: 20; padding: 10px 16px; border-radius: 999px; background: var(--navy); color: #fff; }
-.skip:focus { top: 12px; }
-.wrap { max-width: 1140px; margin: 0 auto; }
+.mark { width: 22px; height: 22px; border-radius: 50% 50% 46% 46%; background: radial-gradient(circle at 35% 30%, #f3b26a, var(--accent) 60%, #8a4510); box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.18); }
+.fs-display em, .fs-h2 em { font-style: italic; color: var(--accent); }
 
-.bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px var(--gutter); background: rgba(244, 247, 246, 0.86); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
-.brand { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font: 700 19px var(--display); text-decoration: none; letter-spacing: -0.02em; }
-.nav { display: flex; gap: 4px; }
-.nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 999px; font-weight: 600; text-decoration: none; }
-.nav a:hover { background: var(--foam); }
+/* The hero: the photo is warmed and darkened so white type reads on it. */
+.hero { color: #fff; --ink: #fff; --ink-2: rgb(255 255 255 / 0.82); --line: rgb(255 255 255 / 0.22); }
+.hero .fs-hero__media::after { background: linear-gradient(90deg, rgb(23 18 12 / 0.62) 0%, rgb(23 18 12 / 0.2) 55%, transparent 80%), linear-gradient(180deg, rgb(23 18 12 / 0.5) 0%, rgb(23 18 12 / 0.1) 35%, rgb(23 18 12 / 0.72) 100%); }
+.hero .fs-link { color: #fff; }
+.hero__grid { display: grid; gap: 40px; align-items: end; }
+@media (min-width: 960px) { .hero__grid { grid-template-columns: 1fr auto; } }
 
-/* Hero */
-.hero { display: grid; align-items: center; gap: 32px; min-height: calc(100dvh - 64px); padding: clamp(24px, 5vw, 56px) var(--gutter) clamp(48px, 7vw, 88px); }
-@media (min-width: 940px) { .hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
-.status { display: inline-flex; align-items: center; gap: 10px; margin: 0 0 22px; padding: 8px 16px 8px 12px; border-radius: 999px; background: #fff; box-shadow: 0 0 0 1px var(--line); font-size: 15px; font-weight: 600; }
-.beacon { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
-.status.open .beacon { background: #1f8a4c; animation: beacon 2s var(--ease) infinite; }
-.status.closed .beacon { background: var(--buoy); }
-@keyframes beacon { 0% { box-shadow: 0 0 0 0 rgba(31, 138, 76, 0.55); } 70%, 100% { box-shadow: 0 0 0 10px rgba(31, 138, 76, 0); } }
-h1 { margin: 0; max-width: 13ch; font-size: clamp(44px, 6.6vw, 88px); line-height: 0.98; letter-spacing: -0.045em; }
-.lead { max-width: 40ch; margin: 22px 0 0; color: var(--muted); font-size: clamp(18px, 1.6vw, 21px); }
-.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin-top: 30px; }
-.button { display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 26px; border: 0; border-radius: 999px; background: var(--buoy); color: #fff; font: 600 16px var(--body); text-decoration: none; cursor: pointer; box-shadow: 0 12px 28px -14px rgba(200, 53, 43, 0.8); transition: transform 0.2s var(--ease), box-shadow 0.2s, background-color 0.2s, color 0.2s; }
-.button:hover { transform: translateY(-2px); }
-.button:active { transform: translateY(1px); }
-.button.ghost { background: transparent; color: var(--navy); box-shadow: inset 0 0 0 1.5px var(--navy); }
-.button.ghost:hover { background: var(--navy); color: #fff; }
-.link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-weight: 600; text-underline-offset: 5px; }
-.link span { transition: transform 0.2s var(--ease); }
-.link:hover span { transform: translateX(4px); }
-.note { margin: 26px 0 0; color: var(--muted); font-size: 13px; }
+.status { display: inline-flex; align-items: center; gap: 10px; width: fit-content; padding: 8px 14px; border-radius: 999px; background: rgb(255 255 255 / 0.14); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); font-size: 15px; }
+.beacon { width: 9px; height: 9px; border-radius: 999px; background: #c9c9c9; }
+.status.open .beacon { background: #5ad48a; box-shadow: 0 0 0 4px rgb(90 212 138 / 0.25); }
+.status.closed .beacon { background: #f0a35b; }
 
-/* The illustrated hero: steam rises, the sea drifts, the boat rocks. */
-.scene { width: min(560px, 100%); justify-self: center; }
-.scene svg { display: block; width: 100%; height: auto; overflow: visible; }
-.wave { animation: sea 9s linear infinite; }
-.wave.b { animation-duration: 13s; animation-direction: reverse; }
-.wave.c { animation-duration: 7s; }
-@keyframes sea { to { transform: translateX(240px); } }
-.boat { transform-box: fill-box; transform-origin: 50% 100%; animation: rock 5s ease-in-out infinite; }
-@keyframes rock { 0%, 100% { transform: rotate(-3deg) translateY(0); } 50% { transform: rotate(3deg) translateY(4px); } }
-.steam path { stroke-dasharray: 130 160; animation: steam 3.4s ease-in-out infinite; }
-.steam .s2 { animation-delay: -1.1s; }
-.steam .s3 { animation-delay: -2.2s; }
-@keyframes steam { 0% { stroke-dashoffset: 120; opacity: 0; } 30% { opacity: 1; } 100% { stroke-dashoffset: -120; opacity: 0; } }
-.cup { animation: settle 1s var(--ease) both; }
-@keyframes settle { from { opacity: 0; transform: translateY(24px); } }
-.hero.off .wave, .hero.off .boat, .hero.off .steam path, .hero.off .beacon { animation-play-state: paused; }
+.ticket { position: relative; width: min(100%, 280px); padding: 22px 24px; border-radius: var(--radius); background: var(--paper); color: var(--ink); box-shadow: 0 30px 60px -20px rgb(0 0 0 / 0.5); --ink: #17231c; --ink-2: #4f5b53; }
+.ticket::before { content: ""; position: absolute; left: 0; right: 0; top: 64px; border-top: 1.5px dashed rgb(23 35 28 / 0.2); }
+.ticket__label { font-size: 13px; color: var(--ink-2); }
+.ticket__time { margin-top: 2px; font: 400 44px/1 var(--font-display); color: var(--accent); padding-top: 16px; }
+.ticket__what { margin-top: 10px; font-weight: 600; }
+.ticket__note { margin-top: 4px; font-size: 12px; color: var(--ink-2); }
 
-/* Menu */
-.menu { padding: clamp(64px, 9vw, 120px) var(--gutter); background: #ffffff; }
-.menu-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 20px; }
+.strip { padding-block: clamp(48px, 7vw, 88px); }
+.strip__note { margin-top: 16px; }
+
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.chips button { min-height: 44px; padding: 0 18px; border: 0; border-radius: 999px; background: var(--salt); color: var(--navy); font: 600 15px var(--body); box-shadow: inset 0 0 0 1px var(--line); cursor: pointer; transition: background-color 0.2s, color 0.2s, transform 0.15s; }
-.chips button:hover { background: var(--foam); }
-.chips button:active { transform: scale(0.97); }
-.chips button[aria-pressed="true"] { background: var(--navy); color: #fff; box-shadow: none; }
-.dishes { display: grid; gap: 0 40px; margin: 36px 0 0; padding: 0; list-style: none; }
-@media (min-width: 820px) { .dishes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.dish { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 16px 0; border-bottom: 1px dashed var(--line); }
-.dish[hidden] { display: none; }
-.dish.enter { animation: enter 0.45s var(--ease) both; }
-@keyframes enter { from { opacity: 0; transform: translateY(10px); } }
-.dish-icon { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--foam); }
-.dish-icon svg { width: 32px; height: 32px; fill: none; stroke: var(--navy); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.dish-icon .fill { fill: var(--buoy); stroke: none; }
-.dish:hover .wisp { animation: wisp 1.4s ease-in-out infinite; }
-@keyframes wisp { 50% { transform: translateY(-2px); opacity: 0.5; } }
-.dish-text { display: grid; min-width: 0; }
-.dish-text strong { font-size: 17px; }
-.dish-text small { color: var(--muted); font-size: 14px; }
-.dish-price { font: 700 18px var(--display); font-variant-numeric: tabular-nums; }
-.menu-note { margin: 22px 0 0; color: var(--muted); font-size: 14px; }
+.chips button { min-height: 44px; padding: 0 18px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper-2); color: var(--ink-2); font: 500 15px/1 var(--font-body); cursor: pointer; transition: background-color 160ms, color 160ms, border-color 160ms; }
+.chips button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.dishes { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 0 48px; }
+@media (min-width: 860px) { .dishes { grid-template-columns: 1fr 1fr; } }
+.dish { display: flex; justify-content: space-between; gap: 24px; padding: 20px 0; border-top: 1px solid var(--line); }
+.dish h3 { font: 400 22px/1.2 var(--font-display); }
+.dish p { margin-top: 4px; color: var(--ink-2); font-size: 15px; }
+.dish__price { white-space: nowrap; font-weight: 600; font-variant-numeric: tabular-nums; }
 
-/* Visit */
-.visit { padding: clamp(64px, 9vw, 120px) var(--gutter); }
-.visit-grid { display: grid; gap: 40px; align-items: center; }
-@media (min-width: 940px) { .visit-grid { grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr); } }
-.map svg { display: block; width: 100%; height: auto; }
-.halo { transform-box: fill-box; transform-origin: center; animation: halo 2.4s var(--ease) infinite; }
-@keyframes halo { from { transform: scale(0.4); opacity: 0.5; } to { transform: scale(1.4); opacity: 0; } }
-address { margin: 20px 0 0; font-style: normal; font-size: 20px; font-weight: 600; line-height: 1.4; }
-.visit-help { max-width: 42ch; margin: 12px 0 0; color: var(--muted); }
-.visit-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin-top: 24px; }
-.copy-msg { margin: 12px 0 0; color: var(--muted); font-size: 14px; }
-.hours { width: 100%; margin-top: 28px; border-collapse: collapse; }
-.hours caption { padding-bottom: 8px; font: 700 13px var(--display); letter-spacing: 0.14em; text-align: left; text-transform: uppercase; color: var(--muted); }
-.hours th, .hours td { padding: 10px 12px; border-top: 1px solid var(--line); font-size: 15px; text-align: left; font-variant-numeric: tabular-nums; }
-.hours th { font-weight: 500; }
-.hours td { text-align: right; }
-.hours tr.today { background: #fff; box-shadow: inset 4px 0 0 var(--buoy); }
-.hours tr.today th { font-weight: 700; }
-.hours tr.today th::after { content: " (today)"; color: var(--buoy); font-weight: 600; }
+.copy { border: 0; background: none; padding: 0; cursor: pointer; font: inherit; }
+.hours { width: 100%; margin-top: 8px; border-collapse: collapse; font-size: 15px; }
+.hours th, .hours td { padding: 10px 0; border-top: 1px solid var(--line); text-align: left; font-weight: 400; }
+.hours td { text-align: right; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.hours tr.today th, .hours tr.today td { color: var(--ink); font-weight: 600; }
+.hours tr.today th::after { content: "Today"; margin-left: 10px; padding: 2px 8px; border-radius: 999px; background: color-mix(in oklab, var(--accent) 16%, transparent); color: var(--accent); font-size: 12px; font-weight: 600; }
 
-.foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 24px var(--gutter); border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
-.foot p { margin: 0; }
-.foot a { display: inline-flex; align-items: center; min-height: 44px; margin: -12px 0; }
-
-.js .reveal { opacity: 0; transform: translateY(22px); transition: opacity 0.7s var(--ease), transform 0.7s var(--ease); }
-.js .reveal.in { opacity: 1; transform: none; }
-
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
-  *, *::before, *::after { animation: none !important; transition: none !important; }
-  .js .reveal { opacity: 1; transform: none; }
-  .steam path { stroke-dasharray: none; }
+  .ticket { transform: none; }
 }
 `;
 
-const SCRIPT = `// Harbor Café: live opening status, the menu filter and small enhancements.
-// The page is complete without this file.
+const SCRIPT = `// Kiln & Crumb: the live opening status, the menu filter and copying the address.
+// The page is complete without this file; the Studio kit does the motion.
 (function () {
-  document.documentElement.classList.add("js");
-  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  var canObserve = "IntersectionObserver" in window;
-
-  var reveals = document.querySelectorAll(".reveal");
-  if (canObserve && !reduce) {
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (entry.isIntersecting) { entry.target.classList.add("in"); io.unobserve(entry.target); }
-      });
-    }, { rootMargin: "0px 0px -8% 0px" });
-    reveals.forEach(function (el) { io.observe(el); });
-  } else {
-    reveals.forEach(function (el) { el.classList.add("in"); });
-  }
-
-  var hero = document.querySelector(".hero");
-  if (hero && canObserve) {
-    new IntersectionObserver(function (entries) { hero.classList.toggle("off", !entries[0].isIntersecting); }).observe(hero);
-  }
-
-  // Open now? Worked out from the hours table, in the visitor's local time.
   var minutes = function (hhmm) { var p = hhmm.split(":"); return Number(p[0]) * 60 + Number(p[1]); };
   var pretty = function (hhmm) {
     var p = hhmm.split(":"), h = Number(p[0]), m = Number(p[1]);
     return (h % 12 === 0 ? 12 : h % 12) + (m ? "." + (m < 10 ? "0" : "") + m : "") + (h < 12 ? " am" : " pm");
   };
+
+  // Open now? Worked out from the hours table, in the visitor's own time.
   function updateStatus() {
     var now = new Date();
     var rows = Array.prototype.slice.call(document.querySelectorAll("#hours tr"));
@@ -377,18 +371,7 @@ const SCRIPT = `// Harbor Café: live opening status, the menu filter and small 
     chip.addEventListener("click", function () {
       var kind = chip.dataset.filter;
       chips.forEach(function (c) { c.setAttribute("aria-pressed", String(c === chip)); });
-      var shown = 0;
-      dishes.forEach(function (d) {
-        var show = kind === "all" || d.dataset.kind === kind;
-        d.hidden = !show;
-        d.classList.remove("enter");
-        if (show && !reduce) {
-          d.style.animationDelay = shown * 40 + "ms";
-          void d.offsetWidth;
-          d.classList.add("enter");
-        }
-        if (show) shown += 1;
-      });
+      dishes.forEach(function (d) { d.hidden = !(kind === "all" || d.dataset.kind === kind); });
     });
   });
 
@@ -410,59 +393,63 @@ const SCRIPT = `// Harbor Café: live opening status, the menu filter and small 
 })();
 `;
 
-const DESIGN = `# Harbor Café: design
+const DESIGN = `# Kiln & Crumb: design
 
-Design read: a waterfront café's site for locals and visitors deciding where to have breakfast. Bright, nautical and friendly, like a harbour on a clear morning.
+Design read: a neighbourhood bakery and café in Kandy for early risers and office regulars, warm and crafted without the usual cream-and-brass, built on the Farbaek Studio kit.
 
-## Palette (CSS variables in styles.css)
+## Look
 
-- \`--salt\` #f4f7f6: the page, a cool white
-- \`--navy\` #12304a: text and outlines
-- \`--buoy\` #c8352b: the one accent, for actions, the map pin and today's hours
-- \`--foam\` #dcebea: soft fills
-- \`--muted\` #4b5d6b and \`--line\` #d5e0e2: secondary text and borders
-- Illustration only: sea tints #9fc6c9 and #5f97a3, coffee #5b3424, open-now green #1f8a4c (always with words)
+The kit's atelier look, tuned warm: small radii softened to 18px, a serif display at regular weight.
+
+## Palette
+
+- \`--paper\` #f6f6f1, a cool flour white, and \`--paper-2\` #ffffff for raised sections.
+- \`--ink\` #17231c, a bottle green near-black (the awning colour), \`--ink-2\` #4f5b53 for quieter text.
+- \`--accent\` #c76a1c, crust amber, for actions, prices and the italic word in a headline.
+- \`--accent-2\` #2f5d50, deep green, for the kit's glow and the CTA light.
 
 ## Type
 
-- Display: Futura or Century Gothic, weight 700, for headings and prices. It has the feel of harbour signage.
-- Body: the system sans at 17px.
+Young Serif for headlines, at one weight, with restraint; Instrument Sans for everything else. Numbers are tabular in the menu and hours.
 
 ## Layout
 
-A split hero (the welcome and status on the left, the illustrated cup on the right), a menu in two columns with filter chips, a visit section with a drawn map, the address and the opening hours.
+A full-bleed photo hero with a live status and a ticket card; a strip of three facts; a split story; a mosaic of today's bakes; a filterable two-column menu; a quote; a visit section with the hours; questions; a cake-order call; a dense footer with the wordmark.
 
 ## Signature
 
-The harbour scene: a cup of coffee with rising steam, in front of a sea that drifts and a small boat that rocks. And a live status that says whether the café is open right now.
+The "out of the oven at" ticket floating over the hero, tilting toward the pointer in 3D. It carries the bakery's real rhythm: the time the first loaf comes out.
 
 ## Motion
 
-Steam rises, the sea drifts and the boat rocks, and all of it pauses off screen. The beacon pulses only when the café is open. Menu items settle in when you filter; sections rise in on scroll. Everything stops under prefers-reduced-motion, and the page is complete without JavaScript.
+The headline rises word by word, sections rise in once, framed photos unmask, the ticket floats and tilts, the counters count up. All of it stops under reduced motion.
 
-## Shape
+## Media
 
-Pills for buttons and chips, round icon badges, a 28px map.
+Every photo is a real bakery or café photo marked as a placeholder: the hero loaves, the baker, five counter shots, the café interior. Replace each with the bakery's own in Studio.
 
-## When this becomes another business
+## Avoid
 
-Update this file first. Redraw the hero scene around what the business makes, keep the live status if it has opening hours, and keep one accent.
+Cream-and-brass, coffee-bean clip art, stock smiles, three equal feature cards, and any price or review presented as real.
 `;
 
-const README = `# Harbor Café local business site (template)
+const README = `# Kiln & Crumb bakery site (template)
 
-A one-page site for a café or shop, built to the Farbaek Studio standard: an illustrated hero with rising steam and a drifting sea, a live open-now status, a menu you can filter, a drawn map, the address and the opening hours.
+A static site on the Farbaek Studio kit: \`index.html\`, \`styles.css\` and \`script.js\`. There's no build step and nothing to install.
 
-- \`DESIGN.md\`: the design decisions. Change it first when the site becomes yours.
-- \`script.js\`: the open-now status (from the hours table, in the visitor's local time), the menu filter, copying the address and scroll reveals. The page works without it.
+## Make it yours
 
-The name, menu, prices, address, phone number and hours are sample content. Ask the agent to make it yours, for example: "Make this the site for my bakery in Kandy, open 6am to 8pm every day, with our cakes and buns".
+1. Change the name, address, phone, hours and menu in \`index.html\`. The hours table drives the "open now" status.
+2. Tune the colours and fonts at the top of \`styles.css\`, and update \`DESIGN.md\`.
+3. Replace each photo marked as a placeholder with your own (Studio's Replace does it in a click).
+
+The prices, figures, quote and contact details are samples.
 `;
 
 export const LOCAL_BUSINESS_FILES: StarterFile[] = [
+  { path: "DESIGN.md", content: DESIGN },
   { path: "index.html", content: INDEX },
   { path: "styles.css", content: STYLES },
   { path: "script.js", content: SCRIPT },
-  { path: "DESIGN.md", content: DESIGN },
   { path: "README.md", content: README },
 ];

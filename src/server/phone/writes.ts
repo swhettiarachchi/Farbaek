@@ -19,7 +19,7 @@ import { log } from "@/server/observability/log";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { startTaskVerification } from "@/server/verification/runner";
 import { verificationDeps } from "@/server/verification/wiring";
-import { runCapUnits } from "@/server/workspace/plan-card-data";
+import { runCapUnits, runKindFor } from "@/server/workspace/plan-card-data";
 import { applyProposal, discardProposal } from "@/server/workspace/proposals";
 import { startFromPrompt } from "@/server/workspace/start-from-prompt";
 import { mapCreateOrganizationError } from "@/server/workspace/organizations";
@@ -128,7 +128,8 @@ export function createPhoneWrites(options: { userClient: (accessToken: string) =
       if (!person) return { ok: true, value: { runId: null, startNote: "The plan is approved. You're not a member of this workspace, so the agent can't start for you." } };
       const wiring = await cloudRunDeps(person, { accessToken: p.caller.accessToken });
       if (!wiring.ok) return { ok: true, value: { runId: null, startNote: `The plan is approved. The agent couldn't start: ${wiring.reason}` } };
-      const started = await startCloudRun(wiring.deps, { person, taskId: input.taskId, effort: input.effort, capUnits: runCapUnits(p.ctx.current, input.effort, input.cap), kitTier: kitTierFor(p.ctx.current.plan) });
+      const kind = await runKindFor(p.ctx.reader, p.orgId, input.taskId);
+      const started = await startCloudRun(wiring.deps, { person, taskId: input.taskId, effort: input.effort, capUnits: runCapUnits(p.ctx.current, input.effort, input.cap, new Date(), kind), kitTier: kitTierFor(p.ctx.current.plan), designPass: kind.designPass });
       if (!started.ok) return { ok: true, value: { runId: null, startNote: `The plan is approved. The agent couldn't start: ${started.message}` } };
       return { ok: true, value: { runId: started.value.runId, startNote: null } };
     },

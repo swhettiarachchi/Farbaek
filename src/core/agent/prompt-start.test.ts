@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { cleanPrompt, estimateRunShare, projectNameFromPrompt, shareOfPeriod, starterForPrompt, taskTitleFromPrompt } from "./prompt-start";
+import { cleanPrompt, estimateRunShare, isDesignPass, projectNameFromPrompt, shareOfPeriod, starterForPrompt, taskTitleFromPrompt, templateForPrompt } from "./prompt-start";
+import { UPGRADE_DESIGN } from "../media/studio-kit";
 
 describe("cleanPrompt", () => {
   it("trims, normalises spacing and enforces limits", () => {
@@ -41,6 +42,31 @@ describe("starterForPrompt", () => {
     expect(starterForPrompt("A REST API for my product catalogue")).toBe("rest-api");
     expect(starterForPrompt("A JSON API service with endpoints for orders")).toBe("rest-api");
     expect(starterForPrompt("An app with an API for my team")).toBe("nextjs-app");
+  });
+});
+
+describe("premium directions and first builds (ADR 0158)", () => {
+  it("starts a website from the direction for its kind of business", () => {
+    expect(templateForPrompt("A site for my bakery in Kandy with our cakes and buns")).toBe("local-business");
+    expect(templateForPrompt("A one-page site for my coffee shop")).toBe("local-business");
+    expect(templateForPrompt("A website for our boutique hotel and spa in Galle")).toBe("luxury");
+    expect(templateForPrompt("Luxury villas for rent in Bentota")).toBe("luxury");
+    expect(templateForPrompt("A site for my handmade jewellery")).toBe("luxury");
+    // A bakery stays a bakery even when it says luxury.
+    expect(templateForPrompt("A luxury bakery")).toBe("local-business");
+    expect(templateForPrompt("A portfolio for my architecture practice")).toBeNull();
+  });
+
+  it("counts a project's first task and the upgrade brief as first builds", () => {
+    expect(isDesignPass("Build the Volt Ride site", 1)).toBe(true);
+    expect(isDesignPass("Add opening hours", 3)).toBe(false);
+    expect(isDesignPass(taskTitleFromPrompt(UPGRADE_DESIGN.text), 4)).toBe(true);
+  });
+
+  it("estimates a whole site as more work than a change", () => {
+    const change = estimateRunShare({ model: "claude-sonnet-5-5", effort: "balanced", periodUnits: 100_000 })!;
+    const site = estimateRunShare({ model: "claude-sonnet-5-5", effort: "balanced", periodUnits: 100_000, wholeSite: true })!;
+    expect(site.high).toBeGreaterThan(change.high * 2);
   });
 });
 

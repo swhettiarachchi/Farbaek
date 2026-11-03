@@ -45,19 +45,32 @@ describe("the Farbaek media library", () => {
 });
 
 describe("real stand-in photos", () => {
-  it("are sorted by subject with whole, unique ids", () => {
+  it("are sorted by subject with valid, unique ids, and the businesses come first", () => {
+    const all: (string | number)[] = [];
     for (const [subject, s] of Object.entries(PHOTO_SUBJECTS)) {
       expect(s.ids.length, subject).toBeGreaterThanOrEqual(5);
-      expect(new Set(s.ids).size, subject).toBe(s.ids.length);
-      for (const id of s.ids) expect(Number.isInteger(id) && id >= 0, `${subject} ${id}`).toBe(true);
+      expect(new Set<string | number>(s.ids).size, subject).toBe(s.ids.length);
+      for (const id of s.ids) {
+        if (typeof id === "number") expect(Number.isInteger(id) && id >= 0, `${subject} ${id}`).toBe(true);
+        else expect(id, subject).toMatch(/^\d{10,13}-[0-9a-f]{12}$/);
+        all.push(id);
+        expect(isPhotoUrl(photoUrl(id, 1200, 800)), `${subject} ${id}`).toBe(true);
+      }
     }
-    expect(photosForPrompt().split("\n")).toHaveLength(Object.keys(PHOTO_SUBJECTS).length);
+    // A Picsum number can sit in two place subjects; an Unsplash photo belongs to one business subject.
+    const unsplash = all.filter((id) => typeof id === "string");
+    expect(new Set(unsplash).size).toBe(unsplash.length);
+    expect(Object.keys(PHOTO_SUBJECTS).slice(0, 3)).toEqual(["bakery", "cafe", "restaurant"]);
+    expect(photosForPrompt().split("\n")).toHaveLength(Object.keys(PHOTO_SUBJECTS).length + 1);
   });
 
   it("have stable addresses", () => {
     expect(photoUrl(42, 1600, 900)).toBe("https://picsum.photos/id/42/1600/900");
+    expect(photoUrl("1509440159596-0249088772ff", 1600, 900)).toBe("https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1600&h=900&q=80");
     expect(isPhotoUrl(photoUrl(42, 1600, 900))).toBe(true);
     expect(isPhotoUrl("https://picsum.photos/seed/x/800/600")).toBe(false);
     expect(isPhotoUrl("https://evil.test/id/42/1600/900")).toBe(false);
+    expect(isPhotoUrl("https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1600&h=900&q=80&x=<script>")).toBe(false);
+    expect(isPhotoUrl("https://plus.unsplash.com/premium_photo-1509440159596-0249088772ff")).toBe(false);
   });
 });

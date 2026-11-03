@@ -15,7 +15,7 @@ import { contractHash } from "@/core/realityloop/contract";
 import { shortHash } from "@/core/trust/canonical-json";
 import { resolveAiProvider } from "@/server/ai/config";
 import { loadAppContext } from "@/server/workspace/context";
-import { runEstimates } from "@/server/workspace/plan-card-data";
+import { runEstimates, runKindFor } from "@/server/workspace/plan-card-data";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
 import { withheldFor } from "@/core/workspace/permissions";
 
@@ -65,6 +65,10 @@ export default async function PlanCardPage({ params }: Params) {
   const found = await ctx.reader.getTask(ctx.current.id, taskId);
   if (!found) notFound();
   const { task } = found;
+  // A site's first build or a design upgrade (ADR 0158): Sonnet on Free, a whole site's estimate, no run cap by default.
+  const kind = await runKindFor(ctx.reader, ctx.current.id, task.id);
+  const estimates = runEstimates(ctx.current, undefined, kind);
+  const strongerFirstBuild = kind.designPass === true && estimates.balanced?.model !== runEstimates(ctx.current).balanced?.model;
   const [contract, project, files, pins] = await Promise.all([
     ctx.reader.getContract(ctx.current.id, task.id),
     ctx.reader.getProject(ctx.current.id, task.projectId),
@@ -217,7 +221,7 @@ export default async function PlanCardPage({ params }: Params) {
                   version={contract.version}
                   expectedTaskVersion={task.version}
                   sha256={contract.sha256}
-                  estimates={runEstimates(ctx.current)}
+                  estimates={estimates}
                   disabledReason={reason}
                   skills={FARBAEK_SKILLS.map((s) => ({ id: s.id, label: s.label, description: s.description }))}
                   suggested={suggested}
@@ -225,6 +229,8 @@ export default async function PlanCardPage({ params }: Params) {
                   heldSkills={heldSkillNames}
                   skillsHref={`/app/projects/${task.projectId}#skills`}
                   kitPro={kitTierFor(ctx.current.plan) === "pro"}
+                  defaultCap={kind.designPass ? "plan" : "double"}
+                  firstBuildNote={strongerFirstBuild ? "A first build sets the look, so Free writes it with Claude Sonnet. Later changes use the fast model." : null}
                 />
                 <CancelTaskControl taskId={task.id} version={task.version} disabledReason={!ctx.writes.enabled ? ctx.writes.reason : canBuild ? null : "Your role can view this plan but not cancel it."} />
               </div>

@@ -30,6 +30,8 @@ export function ApproveBuild({
   heldSkills = [],
   skillsHref,
   kitPro = false,
+  defaultCap = "double",
+  firstBuildNote = null,
 }: {
   taskId: string;
   version: number;
@@ -49,10 +51,14 @@ export function ApproveBuild({
   skillsHref?: string;
   /** Whether the workspace's plan includes Studio kit Pro (ADR 0157). */
   kitPro?: boolean;
+  /** The run cap chosen to begin with: none for a first build or a design upgrade, so it isn't cut off halfway (ADR 0158). */
+  defaultCap?: CapChoice;
+  /** Said when a first build on Free is written by a stronger model. */
+  firstBuildNote?: string | null;
 }) {
   const [state, action, pending] = useActionState(approveAndBuildAction, IDLE);
   const [effort, setEffort] = useState<Effort>("balanced");
-  const [cap, setCap] = useState<CapChoice>("double");
+  const [cap, setCap] = useState<CapChoice>(defaultCap);
   const capId = useId();
   const estimate = estimates[effort];
 
@@ -112,6 +118,7 @@ export function ApproveBuild({
         ) : null}
       </fieldset>
       <EffortPicker value={effort} onChange={setEffort} disabled={pending || Boolean(disabledReason)} />
+      {firstBuildNote ? <p className="text-xs leading-relaxed text-ink-3">{firstBuildNote}</p> : null}
       <p className="text-sm text-ink-2" aria-live="polite">
         {estimate ? (
           <>
