@@ -17,7 +17,7 @@
 import { SCENE_NAMES, isLibraryUrl } from "@/core/media/library";
 import { isPhotoUrl } from "@/core/media/photos";
 import { DARK_LOOKS, LIGHT_LOOKS, STUDIO_KIT_PRO_CSS, STUDIO_KIT_PRO_JS, usesStudioKit } from "@/core/media/studio-kit";
-import { CORNERS, FONT_PAIRS, TEXT_SIZE_VALUES, THEME_TOKENS, fontStack, fontsHref, type CornerId, type FontPairId, type ThemeToken } from "@/core/studio/site-theme";
+import { CORNERS, FONT_PAIRS, SPACE_VALUES, TEXT_SIZE_VALUES, THEME_TOKENS, fontStack, fontsHref, type CornerId, type FontPairId, type ThemeToken } from "@/core/studio/site-theme";
 import { SNIPPETS, isSnippetId } from "@/core/studio/snippets";
 import { resolveSitePath } from "@/core/workspace/static-preview";
 
@@ -188,10 +188,16 @@ export function annotateForDesign(html: string, elements: SourceElement[] = scan
   for (let k = elements.length - 1; k >= 0; k--) {
     const el = elements[k]!;
     const at = el.start + 1 + el.tag.length;
-    out = `${out.slice(0, at)} ${DESIGN_ATTR}="${el.n}"${out.slice(at)}`;
+    // Text a person can type over in the preview (ADR 0162): an element that holds only words, and shows them.
+    const words = editableText(html, el);
+    const typeable = words !== null && words.trim() !== "" && attrValue(el, "aria-hidden") !== "true" && !NOT_TYPEABLE.has(el.tag);
+    out = `${out.slice(0, at)} ${DESIGN_ATTR}="${el.n}"${typeable ? ` ${DESIGN_ATTR}-text` : ""}${out.slice(at)}`;
   }
   return out;
 }
+
+/** Elements whose words aren't typed over in the preview: page furniture and form values. */
+const NOT_TYPEABLE = new Set(["html", "head", "body", "option", "noscript", "template", "svg", "math"]);
 
 /** The element's text when it holds only text, decoded; null when it holds other elements or never closes. */
 export function editableText(html: string, el: SourceElement): string | null {
@@ -297,7 +303,21 @@ export function relocate(before: string, n: number, after: string): number | nul
 
 // ---- Edits -------------------------------------------------------------------
 
-export const STYLE_PROPS = ["color", "background-color", "font-size", "font-weight", "text-align", "padding", "border-radius"] as const;
+export const STYLE_PROPS = [
+  "color",
+  "background-color",
+  "font-size",
+  "font-weight",
+  "text-align",
+  "padding",
+  "border-radius",
+  // Spacing per side (ADR 0162): inside the element above, below and at the sides, and outside it above and below.
+  "padding-top",
+  "padding-bottom",
+  "padding-inline",
+  "margin-top",
+  "margin-bottom",
+] as const;
 export type StyleProp = (typeof STYLE_PROPS)[number];
 
 export type VisualEdit =
@@ -351,6 +371,14 @@ export function checkStyleValue(prop: StyleProp, value: string): string | null {
     case "padding":
     case "border-radius":
       return /^\d{1,3}px$/.test(v) && Number.parseInt(v, 10) <= 200 ? v : null;
+    case "padding-top":
+    case "padding-bottom":
+    case "padding-inline":
+    case "margin-top":
+    case "margin-bottom":
+      // Space that scales with the screen, from Studio's presets, or an exact px.
+      if (SPACE_VALUES.includes(v)) return v;
+      return /^\d{1,3}px$/.test(v) && Number.parseInt(v, 10) <= 400 ? v : null;
   }
 }
 
@@ -876,6 +904,8 @@ export const DESIGN_SECTIONS_MESSAGE = "farbaek-design-sections";
 export const DESIGN_THEME_MESSAGE = "farbaek-design-theme";
 /** From the preview: a section toolbar action (move, duplicate, remove). The editor turns it into an edit; the frame edits nothing. */
 export const DESIGN_ACTION_MESSAGE = "farbaek-design-action";
+/** From the preview: words typed over an element in place (ADR 0162). The editor turns it into a text edit. */
+export const DESIGN_TEXT_MESSAGE = "farbaek-design-text";
 
 /** What the preview reports about the picked element, as the browser computed it. */
 export interface PickedStyle {
@@ -886,6 +916,11 @@ export interface PickedStyle {
   textAlign: string;
   padding: string;
   borderRadius: string;
+  paddingTop?: string;
+  paddingBottom?: string;
+  paddingLeft?: string;
+  marginTop?: string;
+  marginBottom?: string;
 }
 
 const svg = (d: string) => `<svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
@@ -905,11 +940,20 @@ const TOOLBAR = `${tool("drag", "Drag to move this section")}<span></span>${tool
  * element instead of following links or submitting forms (Alt+click picks the
  * whole section). Over the picked element's section it draws a toolbar to
  * drag, move, duplicate or delete the section, which only reports the action:
- * the editor turns it into an edit of the source. The editor can select an
- * element, tell it the sections, and preview a look and colours live. It
- * reaches nothing but its parent.
+ * the editor turns it into an edit of the source. A double-click or double-tap
+ * on words lets the person type over them in place; the new words are only
+ * reported, on Enter or when the element loses focus, and Escape puts them
+ * back. The editor can select an element, tell it the sections, and preview a
+ * look and colours live. It reaches nothing but its parent.
  */
-export const DESIGN_SCRIPT = `<style>[${DESIGN_ATTR}-hover]{outline:2px dashed rgba(37,99,235,.7)!important;outline-offset:2px!important;cursor:pointer!important}[${DESIGN_ATTR}-picked]{outline:2px solid rgb(37,99,235)!important;outline-offset:2px!important}[${DESIGN_ATTR}-section]{outline:2px solid rgba(37,99,235,.55)!important;outline-offset:-2px!important}[data-fbk-ui]{position:fixed;z-index:2147483646;display:none;align-items:center;gap:2px;padding:4px;border-radius:999px;background:#111318;color:#fff;box-shadow:0 12px 32px -12px rgba(0,0,0,.5);font:500 13px/1 system-ui,-apple-system,sans-serif;max-width:calc(100vw - 16px)}[data-fbk-ui] button{display:grid;place-items:center;width:44px;height:44px;margin:0;padding:0;border:0;border-radius:999px;background:transparent;color:inherit;cursor:pointer}[data-fbk-ui] button:hover,[data-fbk-ui] button:focus-visible{background:rgba(255,255,255,.16);outline:none}[data-fbk-ui] [data-a=drag]{cursor:grab;touch-action:none}[data-fbk-ui] span{max-width:150px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:0 8px 0 2px;opacity:.85}[data-fbk-line]{position:fixed;z-index:2147483645;height:4px;border-radius:4px;background:#2563eb;box-shadow:0 0 0 4px rgba(37,99,235,.22);pointer-events:none;display:none}</style><script>(function(){var A="${DESIGN_ATTR}",hover=null,picked=null,names={},order=[],bar=null,nameEl=null,line=null,target=null,drag=null,themed=[];function el(t){return t&&t.closest?t.closest("body ["+A+"]"):null}function inUi(t){return!!(t&&t.closest&&t.closest("[data-fbk-ui]"))}function num(e){return Number(e.getAttribute(A))}function node(n){return document.querySelector("["+A+'="'+n+'"]')}function sectionOf(e){for(var x=e;x&&x.nodeType===1;x=x.parentElement){if(x.hasAttribute(A)&&names.hasOwnProperty(num(x)))return x}return null}function send(m){parent.postMessage(m,"*")}function report(e){if(picked)picked.removeAttribute(A+"-picked");picked=e;e.setAttribute(A+"-picked","");var s=getComputedStyle(e),p=s.paddingTop===s.paddingRight&&s.paddingTop===s.paddingBottom&&s.paddingTop===s.paddingLeft?s.paddingTop:"";send({type:"${DESIGN_PICK_MESSAGE}",n:num(e),style:{color:s.color,backgroundColor:s.backgroundColor,fontSize:s.fontSize,fontWeight:s.fontWeight,textAlign:s.textAlign,padding:p,borderRadius:s.borderTopLeftRadius}});show(sectionOf(e))}function make(){bar=document.createElement("div");bar.setAttribute("data-fbk-ui","");bar.setAttribute("role","toolbar");bar.setAttribute("aria-label","Section");bar.innerHTML=${JSON.stringify(TOOLBAR)};nameEl=bar.querySelector("span");document.body.appendChild(bar);line=document.createElement("div");line.setAttribute("data-fbk-line","");document.body.appendChild(line);bar.addEventListener("click",function(ev){var b=ev.target.closest("button");ev.preventDefault();ev.stopPropagation();if(!b||!target)return;var a=b.getAttribute("data-a"),n=num(target),i=order.indexOf(n);if(a==="drag"||i<0)return;if(a==="up"){if(i>0)send({type:"${DESIGN_ACTION_MESSAGE}",action:"move",n:n,before:order[i-1]});return}if(a==="down"){if(i<order.length-1)send({type:"${DESIGN_ACTION_MESSAGE}",action:"move",n:n,before:i+2<order.length?order[i+2]:null});return}send({type:"${DESIGN_ACTION_MESSAGE}",action:a,n:n})});bar.querySelector('[data-a="drag"]').addEventListener("pointerdown",start)}function show(s){if(target)target.removeAttribute(A+"-section");target=s;if(!bar)make();if(!s){bar.style.display="none";return}if(s!==picked)s.setAttribute(A+"-section","");nameEl.textContent=names[num(s)]||"Section";bar.style.display="flex";place()}function place(){if(!target||!bar||bar.style.display==="none")return;var r=target.getBoundingClientRect(),h=bar.offsetHeight,w=bar.offsetWidth,top=Math.min(Math.max(r.top+10,8),r.bottom-h-10);bar.style.visibility=r.bottom<h+16||r.top>innerHeight-h?"hidden":"visible";bar.style.top=Math.max(8,Math.min(top,innerHeight-h-8))+"px";bar.style.left=Math.max(8,Math.min(r.left+10,innerWidth-w-8))+"px"}function start(ev){if(!target)return;ev.preventDefault();drag={n:num(target),before:undefined};try{ev.currentTarget.setPointerCapture(ev.pointerId)}catch(x){}document.addEventListener("pointermove",dragMove);document.addEventListener("pointerup",dragEnd);document.addEventListener("pointercancel",dragEnd)}function dragMove(ev){if(!drag)return;var y=ev.clientY;if(y<56)scrollBy(0,-16);else if(y>innerHeight-56)scrollBy(0,16);var best=null,dist=1e9,before=null,box=null;for(var i=0;i<=order.length;i++){var e=node(order[Math.min(i,order.length-1)]);if(!e)continue;var r=e.getBoundingClientRect();box=box||r;var g=i<order.length?r.top:r.bottom,d=Math.abs(g-y);if(d<dist){dist=d;best=g;before=i<order.length?order[i]:null}}if(best===null)return;drag.before=before;line.style.display="block";line.style.top=best-2+"px";line.style.left=box.left+"px";line.style.width=box.width+"px"}function dragEnd(){document.removeEventListener("pointermove",dragMove);document.removeEventListener("pointerup",dragEnd);document.removeEventListener("pointercancel",dragEnd);if(line)line.style.display="none";var d=drag;drag=null;if(!d||d.before===undefined||d.before===d.n)return;var i=order.indexOf(d.n),j=d.before===null?order.length:order.indexOf(d.before);if(i<0||j<0||j===i||j===i+1)return;send({type:"${DESIGN_ACTION_MESSAGE}",action:"move",n:d.n,before:d.before})}window.addEventListener("mouseover",function(ev){if(inUi(ev.target))return;var e=el(ev.target);if(hover&&hover!==e)hover.removeAttribute(A+"-hover");hover=e;if(e)e.setAttribute(A+"-hover","")},true);window.addEventListener("click",function(ev){if(inUi(ev.target))return;var e=el(ev.target);ev.preventDefault();ev.stopImmediatePropagation();if(e&&ev.altKey){var s=sectionOf(e);if(s)e=s}if(e)report(e)},true);window.addEventListener("submit",function(ev){ev.preventDefault();ev.stopImmediatePropagation()},true);addEventListener("scroll",place,{passive:true});addEventListener("resize",place);window.addEventListener("message",function(ev){if(ev.source!==parent)return;var d=ev.data;if(!d||typeof d.type!=="string")return;if(d.type==="${DESIGN_SELECT_MESSAGE}"&&typeof d.n==="number"){var e=node(d.n);if(e){report(e);if(e.scrollIntoView)e.scrollIntoView({block:"nearest"})}}else if(d.type==="${DESIGN_SECTIONS_MESSAGE}"&&Array.isArray(d.items)){names={};order=[];d.items.forEach(function(it){if(Array.isArray(it)&&typeof it[0]==="number"&&typeof it[1]==="string"){names[it[0]]=it[1].slice(0,80);order.push(it[0])}});if(picked)show(sectionOf(picked))}else if(d.type==="${DESIGN_THEME_MESSAGE}"){var root=document.documentElement;themed.forEach(function(k){root.style.removeProperty(k)});themed=[];if(typeof d.look==="string"&&/^[a-z]{2,20}$/.test(d.look))root.setAttribute("data-fs-look",d.look);var v=d.vars||{};Object.keys(v).forEach(function(k){if(/^--[a-z0-9-]{2,30}$/.test(k)&&typeof v[k]==="string"&&/^(#[0-9a-f]{6}|\\d{1,3}px)$/i.test(v[k])){root.style.setProperty(k,v[k]);themed.push(k)}});place()}})})();</script>`;
+export const DESIGN_SCRIPT = `<style>[${DESIGN_ATTR}-hover]{outline:2px dashed rgba(37,99,235,.7)!important;outline-offset:2px!important;cursor:pointer!important}[${DESIGN_ATTR}-picked]{outline:2px solid rgb(37,99,235)!important;outline-offset:2px!important}[${DESIGN_ATTR}-section]{outline:2px solid rgba(37,99,235,.55)!important;outline-offset:-2px!important}[data-fbk-ui]{position:fixed;z-index:2147483646;display:none;align-items:center;gap:2px;padding:4px;border-radius:999px;background:#111318;color:#fff;box-shadow:0 12px 32px -12px rgba(0,0,0,.5);font:500 13px/1 system-ui,-apple-system,sans-serif;max-width:calc(100vw - 16px)}[data-fbk-ui] button{display:grid;place-items:center;width:44px;height:44px;margin:0;padding:0;border:0;border-radius:999px;background:transparent;color:inherit;cursor:pointer}[data-fbk-ui] button:hover,[data-fbk-ui] button:focus-visible{background:rgba(255,255,255,.16);outline:none}[data-fbk-ui] [data-a=drag]{cursor:grab;touch-action:none}[data-fbk-ui] span{max-width:150px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:0 8px 0 2px;opacity:.85}[data-fbk-line]{position:fixed;z-index:2147483645;height:4px;border-radius:4px;background:#2563eb;box-shadow:0 0 0 4px rgba(37,99,235,.22);pointer-events:none;display:none}[${DESIGN_ATTR}-editing]{outline:2px solid #2563eb!important;outline-offset:3px!important;cursor:text!important;-webkit-user-select:text!important;user-select:text!important;caret-color:#2563eb}</style><script>(function(){var A="${DESIGN_ATTR}",hover=null,picked=null,names={},order=[],bar=null,nameEl=null,line=null,target=null,drag=null,themed=[],editing=null,was="";function el(t){return t&&t.closest?t.closest("body ["+A+"]"):null}function flat(t){return String(t).replace(/\\u00a0/g," ").replace(/\\s+/g," ").trim()}function startEdit(e){if(editing)return;editing=e;was=e.textContent;e.setAttribute(A+"-editing","");try{e.contentEditable="plaintext-only"}catch(x){}if(e.contentEditable!=="plaintext-only")e.contentEditable="true";e.focus();var r=document.createRange();r.selectNodeContents(e);var g=getSelection();g.removeAllRanges();g.addRange(r);e.addEventListener("keydown",editKey);e.addEventListener("blur",endEdit)}function editKey(ev){ev.stopPropagation();if(ev.key==="Escape"){ev.preventDefault();editing.textContent=was;editing.blur()}else if(ev.key==="Enter"&&!ev.shiftKey){ev.preventDefault();editing.blur()}}function endEdit(){var e=editing;if(!e)return;editing=null;e.removeEventListener("keydown",editKey);e.removeEventListener("blur",endEdit);e.removeAttribute("contenteditable");e.removeAttribute(A+"-editing");var t=(e.innerText||e.textContent||"").replace(/\\u00a0/g," ").replace(/[ \\t]+\\n/g,"\\n").trim();if(t&&flat(t)!==flat(was))send({type:"${DESIGN_TEXT_MESSAGE}",n:num(e),text:t});else if(!t)e.textContent=was}function inUi(t){return!!(t&&t.closest&&t.closest("[data-fbk-ui]"))}function num(e){return Number(e.getAttribute(A))}function node(n){return document.querySelector("["+A+'="'+n+'"]')}function sectionOf(e){for(var x=e;x&&x.nodeType===1;x=x.parentElement){if(x.hasAttribute(A)&&names.hasOwnProperty(num(x)))return x}return null}function send(m){parent.postMessage(m,"*")}function report(e){if(picked)picked.removeAttribute(A+"-picked");picked=e;e.setAttribute(A+"-picked","");var s=getComputedStyle(e),p=s.paddingTop===s.paddingRight&&s.paddingTop===s.paddingBottom&&s.paddingTop===s.paddingLeft?s.paddingTop:"";send({type:"${DESIGN_PICK_MESSAGE}",n:num(e),style:{color:s.color,backgroundColor:s.backgroundColor,fontSize:s.fontSize,fontWeight:s.fontWeight,textAlign:s.textAlign,padding:p,borderRadius:s.borderTopLeftRadius,paddingTop:s.paddingTop,paddingBottom:s.paddingBottom,paddingLeft:s.paddingLeft,marginTop:s.marginTop,marginBottom:s.marginBottom}});show(sectionOf(e))}function make(){bar=document.createElement("div");bar.setAttribute("data-fbk-ui","");bar.setAttribute("role","toolbar");bar.setAttribute("aria-label","Section");bar.innerHTML=${JSON.stringify(TOOLBAR)};nameEl=bar.querySelector("span");document.body.appendChild(bar);line=document.createElement("div");line.setAttribute("data-fbk-line","");document.body.appendChild(line);bar.addEventListener("click",function(ev){var b=ev.target.closest("button");ev.preventDefault();ev.stopPropagation();if(!b||!target)return;var a=b.getAttribute("data-a"),n=num(target),i=order.indexOf(n);if(a==="drag"||i<0)return;if(a==="up"){if(i>0)send({type:"${DESIGN_ACTION_MESSAGE}",action:"move",n:n,before:order[i-1]});return}if(a==="down"){if(i<order.length-1)send({type:"${DESIGN_ACTION_MESSAGE}",action:"move",n:n,before:i+2<order.length?order[i+2]:null});return}send({type:"${DESIGN_ACTION_MESSAGE}",action:a,n:n})});bar.querySelector('[data-a="drag"]').addEventListener("pointerdown",start)}function show(s){if(target)target.removeAttribute(A+"-section");target=s;if(!bar)make();if(!s){bar.style.display="none";return}if(s!==picked)s.setAttribute(A+"-section","");nameEl.textContent=names[num(s)]||"Section";bar.style.display="flex";place()}function place(){if(!target||!bar||bar.style.display==="none")return;var r=target.getBoundingClientRect(),h=bar.offsetHeight,w=bar.offsetWidth,top=Math.min(Math.max(r.top+10,8),r.bottom-h-10);bar.style.visibility=r.bottom<h+16||r.top>innerHeight-h?"hidden":"visible";bar.style.top=Math.max(8,Math.min(top,innerHeight-h-8))+"px";bar.style.left=Math.max(8,Math.min(r.left+10,innerWidth-w-8))+"px"}function start(ev){if(!target)return;ev.preventDefault();drag={n:num(target),before:undefined};try{ev.currentTarget.setPointerCapture(ev.pointerId)}catch(x){}document.addEventListener("pointermove",dragMove);document.addEventListener("pointerup",dragEnd);document.addEventListener("pointercancel",dragEnd)}function dragMove(ev){if(!drag)return;var y=ev.clientY;if(y<56)scrollBy(0,-16);else if(y>innerHeight-56)scrollBy(0,16);var best=null,dist=1e9,before=null,box=null;for(var i=0;i<=order.length;i++){var e=node(order[Math.min(i,order.length-1)]);if(!e)continue;var r=e.getBoundingClientRect();box=box||r;var g=i<order.length?r.top:r.bottom,d=Math.abs(g-y);if(d<dist){dist=d;best=g;before=i<order.length?order[i]:null}}if(best===null)return;drag.before=before;line.style.display="block";line.style.top=best-2+"px";line.style.left=box.left+"px";line.style.width=box.width+"px"}function dragEnd(){document.removeEventListener("pointermove",dragMove);document.removeEventListener("pointerup",dragEnd);document.removeEventListener("pointercancel",dragEnd);if(line)line.style.display="none";var d=drag;drag=null;if(!d||d.before===undefined||d.before===d.n)return;var i=order.indexOf(d.n),j=d.before===null?order.length:order.indexOf(d.before);if(i<0||j<0||j===i||j===i+1)return;send({type:"${DESIGN_ACTION_MESSAGE}",action:"move",n:d.n,before:d.before})}window.addEventListener("mouseover",function(ev){if(inUi(ev.target))return;var e=el(ev.target);if(hover&&hover!==e)hover.removeAttribute(A+"-hover");hover=e;if(e)e.setAttribute(A+"-hover","")},true);window.addEventListener("click",function(ev){if(inUi(ev.target))return;if(editing&&editing.contains(ev.target)){ev.preventDefault();ev.stopImmediatePropagation();return}var e=el(ev.target);ev.preventDefault();ev.stopImmediatePropagation();if(e&&ev.altKey){var s=sectionOf(e);if(s)e=s}if(e)report(e)},true);window.addEventListener("dblclick",function(ev){if(inUi(ev.target)||!ev.target.closest)return;var e=ev.target.closest("body ["+A+"-text]");if(!e)return;ev.preventDefault();ev.stopImmediatePropagation();if(e!==picked)report(e);startEdit(e)},true);window.addEventListener("submit",function(ev){ev.preventDefault();ev.stopImmediatePropagation()},true);addEventListener("scroll",place,{passive:true});addEventListener("resize",place);window.addEventListener("message",function(ev){if(ev.source!==parent)return;var d=ev.data;if(!d||typeof d.type!=="string")return;if(d.type==="${DESIGN_SELECT_MESSAGE}"&&typeof d.n==="number"){var e=node(d.n);if(e){report(e);if(e.scrollIntoView)e.scrollIntoView({block:"nearest"})}}else if(d.type==="${DESIGN_SECTIONS_MESSAGE}"&&Array.isArray(d.items)){names={};order=[];d.items.forEach(function(it){if(Array.isArray(it)&&typeof it[0]==="number"&&typeof it[1]==="string"){names[it[0]]=it[1].slice(0,80);order.push(it[0])}});if(picked)show(sectionOf(picked))}else if(d.type==="${DESIGN_THEME_MESSAGE}"){var root=document.documentElement;themed.forEach(function(k){root.style.removeProperty(k)});themed=[];if(typeof d.look==="string"&&/^[a-z]{2,20}$/.test(d.look))root.setAttribute("data-fs-look",d.look);var v=d.vars||{};Object.keys(v).forEach(function(k){if(/^--[a-z0-9-]{2,30}$/.test(k)&&typeof v[k]==="string"&&/^(#[0-9a-f]{6}|\\d{1,3}px)$/i.test(v[k])){root.style.setProperty(k,v[k]);themed.push(k)}});place()}})})();</script>`;
+
+/**
+ * Runs first in the edit preview (ADR 0162): timers of two seconds or more don't start, so a carousel or a
+ * rotating promo stays on what the person is editing. Faster ones (a countdown ticking each second) still run.
+ * The published site and the plain preview are untouched.
+ */
+export const DESIGN_HEAD = `<script>(function(){var si=window.setInterval,st=window.setTimeout;window.setInterval=function(f,ms){return typeof ms==="number"&&ms>=2000?0:si.apply(window,arguments)};window.setTimeout=function(f,ms){return typeof ms==="number"&&ms>=2000?0:st.apply(window,arguments)}})();</script>`;
 
 /** "rgb(17, 24, 39)" as "#111827"; null for transparent or anything else. */
 export function cssColorToHex(value: string): string | null {

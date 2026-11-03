@@ -3,9 +3,9 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { reviewSite } from "@/core/agent/site-review";
 import { DARK_LOOKS, LIGHT_LOOKS, STUDIO_KIT_CSS, STUDIO_KIT_JS, STUDIO_KIT_PRO_CSS } from "@/core/media/studio-kit";
-import { LOOK_SWATCHES, TEXT_SIZES, contrastRatio } from "./site-theme";
+import { LOOK_SWATCHES, SPACE_SIZES, TEXT_SIZES, contrastRatio } from "./site-theme";
 import { SNIPPETS } from "./snippets";
-import { DESIGN_SCRIPT, applyVisualEdit, checkStyleValue, labelText, readTheme, scanElements, sections, upsertCustomProps } from "./visual-edit";
+import { DESIGN_HEAD, DESIGN_SCRIPT, DESIGN_TEXT_MESSAGE, applyVisualEdit, checkStyleValue, labelText, readTheme, scanElements, sections, upsertCustomProps } from "./visual-edit";
 
 const PAGE = `<!doctype html>
 <html lang="en" data-fs-look="signal">
@@ -119,6 +119,15 @@ describe("button labels and responsive text sizes", () => {
     expect(labelText(PAGE, h1)).toBeNull();
   });
 
+  it("sets space per side, from presets that scale with the screen or exact px (ADR 0162)", () => {
+    for (const sp of Object.values(SPACE_SIZES)) expect(checkStyleValue("padding-top", sp.value)).toBe(sp.value);
+    for (const prop of ["padding-bottom", "padding-inline", "margin-top", "margin-bottom"] as const) expect(checkStyleValue(prop, "96px")).toBe("96px");
+    for (const bad of ["-8px", "401px", "2em", "auto", "clamp(1px, 50vw, 900px)"]) expect(checkStyleValue("margin-top", bad), bad).toBeNull();
+    const story = nOf(PAGE, "story");
+    const r = applyVisualEdit(files, "index.html", story, { kind: "style", props: { "padding-top": SPACE_SIZES.grand.value, "padding-bottom": SPACE_SIZES.grand.value, "margin-bottom": "0px" } });
+    expect(r.ok && r.files["styles.css"]).toContain(`#story {\n  padding-top: ${SPACE_SIZES.grand.value} !important;\n  padding-bottom: ${SPACE_SIZES.grand.value} !important;\n  margin-bottom: 0px !important;\n}`);
+  });
+
   it("accepts the size presets that scale with the screen, and nothing else new", () => {
     for (const s of Object.values(TEXT_SIZES)) expect(checkStyleValue("font-size", s.value)).toBe(s.value);
     expect(checkStyleValue("font-size", "clamp(1px, 99vw, 999px)")).toBeNull();
@@ -192,6 +201,20 @@ describe("the preview's side and the theme reader", () => {
     for (const label of ["Drag to move this section", "Move up", "Move down", "Duplicate", "Delete"]) expect(DESIGN_SCRIPT).toContain(label);
     expect(DESIGN_SCRIPT).not.toMatch(/(?<![-\w])filter\s*:/);
     expect(DESIGN_SCRIPT).not.toMatch(/eval\(|innerHTML\s*=\s*d\./);
+  });
+
+  it("lets words be typed over in place, keeping the script's escapes, and holds slow timers in the edit preview (ADR 0162)", () => {
+    expect(DESIGN_SCRIPT).toContain(DESIGN_TEXT_MESSAGE);
+    expect(DESIGN_SCRIPT).toContain('"dblclick"');
+    // The emitted script must keep its regex escapes (a template literal would otherwise drop the backslash).
+    expect(DESIGN_SCRIPT).toContain(".replace(/\\s+/g");
+    expect(DESIGN_SCRIPT).toContain('"\\n").trim()');
+    const head = /<script>([\s\S]*)<\/script>/.exec(DESIGN_HEAD)![1]!;
+    const calls: number[] = [];
+    const win = { setInterval: (_f: unknown, ms: number) => (calls.push(ms), 7), setTimeout: (_f: unknown, ms: number) => (calls.push(ms), 8) } as Record<string, (f: unknown, ms: number) => number>;
+    new Function("window", head)(win);
+    expect([win.setInterval!(() => 0, 7000), win.setInterval!(() => 0, 1000), win.setTimeout!(() => 0, 4500), win.setTimeout!(() => 0, 300)]).toEqual([0, 7, 0, 8]);
+    expect(calls).toEqual([1000, 300]);
   });
 
   it("reads the look, colours, fonts and corners a site has now", () => {

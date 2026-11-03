@@ -67,11 +67,28 @@ describe("premium directions and first builds (ADR 0158)", () => {
     expect(templateForPrompt("A launch page for our new wireless earbuds")).toBe("landing-page");
     // A launch on the App Store is a launch, not a shop.
     expect(templateForPrompt("A landing page for my app on the App Store")).toBe("landing-page");
-    expect(templateForPrompt("A barber shop in Colombo")).toBeNull();
-    expect(templateForPrompt("A blog about gardening")).toBeNull();
+    expect(templateForPrompt("A site for my plumbing business")).toBeNull();
     // Asking for an online shop outright makes it a shop, whatever it sells; a café on its own stays a café.
     expect(templateForPrompt("An online shop for my coffee roastery")).toBe("online-store");
     expect(templateForPrompt("A site for my coffee roastery")).toBe("local-business");
+  });
+
+  it("starts anyone who sells time by appointment from the booking direction (ADR 0163)", () => {
+    expect(templateForPrompt("A barber shop in Colombo")).toBe("booking");
+    expect(templateForPrompt("A site for my hair salon with online booking")).toBe("booking");
+    expect(templateForPrompt("Our dental clinic in Kandy, open six days")).toBe("booking");
+    expect(templateForPrompt("A yoga studio with a class timetable")).toBe("booking");
+    // A spa is still luxury, and a booking page for a photography studio is still a booking.
+    expect(templateForPrompt("A spa with treatments you can book")).toBe("luxury");
+    expect(templateForPrompt("Bookings for my photography studio")).toBe("booking");
+    expect(templateForPrompt("A site to sell beauty products")).toBe("online-store");
+  });
+
+  it("starts blogs, journals and newsletters from the blog direction, a food blog included (ADR 0163)", () => {
+    expect(templateForPrompt("A blog about my travels")).toBe("blog");
+    expect(templateForPrompt("Make this my cooking blog called Kitchen Table, with three recipe posts")).toBe("blog");
+    expect(templateForPrompt("A food blog with my mother's recipes")).toBe("blog");
+    expect(templateForPrompt("A monthly newsletter and journal for our book club")).toBe("blog");
   });
 
   it("counts a project's first task and the upgrade brief as first builds", () => {

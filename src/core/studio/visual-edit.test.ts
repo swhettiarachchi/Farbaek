@@ -68,9 +68,18 @@ describe("reading the source", () => {
 
   it("numbers each element for the preview without moving anything else", () => {
     const annotated = annotateForDesign(PAGE);
-    expect(annotated).toContain(`<h1 ${DESIGN_ATTR}="8" class="title">`);
+    expect(annotated).toContain(`<h1 ${DESIGN_ATTR}="8" ${DESIGN_ATTR}-text class="title">`);
     expect(annotated).toContain(`<img ${DESIGN_ATTR}="16" src="images/loaf.jpg"`);
-    expect(annotated.replace(new RegExp(` ${DESIGN_ATTR}="\\d+"`, "g"), "")).toBe(PAGE);
+    expect(annotated.replace(new RegExp(` ${DESIGN_ATTR}="\\d+"(?: ${DESIGN_ATTR}-text)?`, "g"), "")).toBe(PAGE);
+  });
+
+  it("marks the words a person can type over in the preview, and only those (ADR 0162)", () => {
+    const typeable = [...annotateForDesign(PAGE).matchAll(new RegExp(`<([a-z0-9]+) ${DESIGN_ATTR}="\\d+" ${DESIGN_ATTR}-text`, "g"))].map((m) => m[1]);
+    // Not the paragraph holding <strong>, nor elements that never close, nor the title, an image or the page itself.
+    expect(typeable).toEqual(["h1", "strong", "a"]);
+    const hidden = annotateForDesign('<body><span aria-hidden="true">x</span><p>  </p><p>Hi</p></body>');
+    expect(hidden).not.toContain(`<span ${DESIGN_ATTR}="1" ${DESIGN_ATTR}-text`);
+    expect(hidden.match(new RegExp(`${DESIGN_ATTR}-text`, "g"))).toHaveLength(1);
   });
 
   it("outlines what a person can pick inside the body", () => {
