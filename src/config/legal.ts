@@ -7,7 +7,7 @@ import { CONTACT } from "./contact";
 
 export const LEGAL = {
   /** Shown as "Last updated" on each document. */
-  updated: "2 November 2026",
+  updated: "3 November 2026",
   operator: "Farbaek",
   country: "Sri Lanka",
   /** Where the app, database, sign-in and backups run. */
@@ -42,6 +42,12 @@ export const SUBPROCESSORS = [
     name: "OpenAI",
     purpose: "A second AI model that checks a proposed change against its contract, when someone in your workspace asks for a second check",
     data: "The change's contract, plan, policy decision and file diffs, and the model's answer",
+    where: "United States",
+  },
+  {
+    name: "Google Analytics",
+    purpose: "Counting visits to our public pages, only if you allow it there",
+    data: "Pages viewed, how you arrived, your browser and device, a rough location from your IP address, which Google doesn't keep, and a random ID in a cookie",
     where: "United States",
   },
   { name: "Vercel", purpose: "Isolated sandboxes that run your project's checks and builds", data: "Project files, commands and their output", where: "United States" },

@@ -42,6 +42,10 @@ const SECTIONS: LegalSection[] = [
             <strong className="font-medium text-ink">Usage:</strong> how much AI and sandbox time each workspace uses, so plans and limits work.
           </>,
           <>
+            <strong className="font-medium text-ink">Visits to our public pages, only if you allow it:</strong> through Google Analytics, which pages you view, how you got there,
+            and your browser, device and rough location. Signed-in pages and the Android app never collect this.
+          </>,
+          <>
             <strong className="font-medium text-ink">Messages:</strong> support requests you send us and our replies, and the emails we send you.
           </>,
           <>
@@ -64,6 +68,7 @@ const SECTIONS: LegalSection[] = [
             <>To provide Farbaek: your account, your workspaces, the AI work you ask for, checks, publishing and support. That&apos;s needed for our agreement with you.</>,
             <>To keep Farbaek safe and fair: security logs, rate limits, one trial per address. That&apos;s our legitimate interest, and yours.</>,
             <>To send emails about your own work and your trial. You can turn both off in Settings, under Email.</>,
+            <>To see which public pages help people, through Google Analytics, only if you allow it. That&apos;s your consent, and you can withdraw it any time under Cookie choices.</>,
             <>To keep tax and payment records for paid plans, because the law requires it. Dodo Payments keeps your payment details; Farbaek never sees your card.</>,
             <>
               When you subscribe in Farbaek for iPhone, Apple handles the payment. Apple sends us the purchase&apos;s product, dates and the workspace it&apos;s for, signed by Apple,
@@ -214,6 +219,7 @@ const SECTIONS: LegalSection[] = [
           </>,
           <>Trial fingerprints: kept, because they only exist to stop repeat trials and can&apos;t be turned back into an address.</>,
           <>Sign-in request counts: deleted within {LEGAL.rateLimitHours} hours.</>,
+          <>Analytics, if you allowed it: Google Analytics keeps visit data for 14 months.</>,
           <>In workspaces you leave or that others own, what you did there stays, such as tasks, approvals and history, but tied to an ID that no longer points to you.</>,
         ]}
       />
@@ -245,7 +251,11 @@ const SECTIONS: LegalSection[] = [
     title: "Cookies and local storage",
     body: (
       <>
-        <p>We use only what Farbaek needs to work, so there&apos;s no cookie banner. No analytics, no advertising, no tracking across sites.</p>
+        <p>
+          Farbaek needs the first items below to work. On our public pages, such as the home page and Pricing, we also ask whether Google Analytics may count your visit.
+          Nothing from Google loads unless you choose Accept, and you can change your mind under Cookie choices at the bottom of any page. Signed-in pages, Office Space and
+          the Android app never load it. We don&apos;t use advertising cookies, and Google&apos;s advertising features are off.
+        </p>
         <Bullets
           items={[
             <>
@@ -263,7 +273,14 @@ const SECTIONS: LegalSection[] = [
             <>
               <code className="font-mono text-[13px]">__Host-fb-device</code>: Farbaek staff only, so our console opens only on devices they&apos;ve approved.
             </>,
-            <>In your browser&apos;s local storage: a prompt you typed before signing in, so it&apos;s still there after, and notices you dismissed. It stays on your device.</>,
+            <>
+              <code className="font-mono text-[13px]">_ga</code> and <code className="font-mono text-[13px]">_ga_…</code>: only if you allowed analytics, Google Analytics&apos; random
+              ID for your browser, for up to 2 years. Choosing Decline deletes them.
+            </>,
+            <>
+              In your browser&apos;s local storage: a prompt you typed before signing in, so it&apos;s still there after, notices you dismissed, and your analytics choice, which
+              we ask again after a year. It stays on your device.
+            </>,
           ]}
         />
       </>
