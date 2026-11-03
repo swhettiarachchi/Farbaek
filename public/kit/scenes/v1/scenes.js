@@ -121,15 +121,23 @@ export function phaseAt(seconds, period) {
 // ---------------------------------------------------------------------------
 // Reading the page.
 
+let webglSupport = null;
+/** Whether WebGL 2 works here, tested once per page; the test context is released at once, so it never counts against the browser's limit. */
+function hasWebGL() {
+  if (webglSupport !== null) return webglSupport;
+  try {
+    const gl = document.createElement("canvas").getContext("webgl2");
+    webglSupport = !!gl;
+    gl?.getExtension("WEBGL_lose_context")?.loseContext();
+  } catch {
+    webglSupport = false;
+  }
+  return webglSupport;
+}
+
 function readEnvironment() {
   const mq = (q) => typeof matchMedia === "function" && matchMedia(q).matches;
-  let webgl = false;
-  try {
-    const c = document.createElement("canvas");
-    webgl = !!c.getContext("webgl2");
-  } catch {
-    webgl = false;
-  }
+  const webgl = hasWebGL();
   const nav = typeof navigator === "object" ? navigator : {};
   return {
     reducedMotion: mq("(prefers-reduced-motion: reduce)"),

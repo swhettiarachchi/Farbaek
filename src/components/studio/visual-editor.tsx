@@ -362,7 +362,7 @@ export function VisualEditor({
         <Feedback message={message} />
 
         {el ? (
-          <Inspector key={`${page}:${selected!.n}:${selected!.stamp}`} html={html} el={el} picked={selected!.style} onApply={apply} images={images} imagePaths={imagePaths} />
+          <Inspector key={`${page}:${selected!.n}:${selected!.stamp}`} html={html} el={el} picked={selected!.style} onApply={apply} images={images} imagePaths={imagePaths} mediaSource={media.find((m) => m.n === selected!.n)?.source ?? null} />
         ) : (
           <div className="grid justify-items-start gap-2 rounded-sm border border-dashed border-line-strong/40 p-4 text-sm text-ink-2">
             <CursorClickIcon size={22} className="text-accent" aria-hidden />
@@ -491,6 +491,7 @@ function Inspector({
   onApply,
   images,
   imagePaths,
+  mediaSource,
 }: {
   html: string;
   el: SourceElement;
@@ -498,12 +499,13 @@ function Inspector({
   onApply: (edit: VisualEdit) => void;
   images?: Record<string, string>;
   imagePaths: readonly string[];
+  /** The image or video's current address, from the page's media list. */
+  mediaSource: string | null;
 }) {
   const id = useId();
   const text = editableText(html, el);
   const scene = attrValue(el, "data-farbaek-scene");
   const isMedia = el.tag === "img" || el.tag === "video";
-  const firstSource = el.tag === "video" ? scanElements(html).find((e) => e.parent === el.n && e.tag === "source") : undefined;
   const [textDraft, setText] = useState(text ?? "");
   const [href, setHref] = useState(attrValue(el, "href") ?? "");
   const [alt, setAlt] = useState(attrValue(el, "alt") ?? "");
@@ -541,7 +543,7 @@ function Inspector({
       {isMedia ? (
         <MediaReplace
           kind={el.tag === "img" ? "image" : "video"}
-          current={attrValue(el, "src") ?? (firstSource ? attrValue(firstSource, "src") : null)}
+          current={mediaSource}
           placeholder={hasAttr(el, "data-farbaek-placeholder")}
           images={images}
           imagePaths={imagePaths}

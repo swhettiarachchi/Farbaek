@@ -23,9 +23,13 @@ export interface SiteReview {
 
 const MAX_FINDINGS = 60;
 
-/** Phrases that make copy read as generated rather than written for a business (the Studio standard, rule 2). */
+/**
+ * Phrases that make copy read as generated rather than written for a business
+ * (the Studio standard, rule 2). Phrases, not single words: "seamless gutters"
+ * or "an elevated terrace" are a business's real words.
+ */
 const AI_PHRASES =
-  /\b(?:unlock(?:s|ing)? (?:the|your)|elevate[sd]?|seamless(?:ly)?|effortless(?:ly)?|empower(?:s|ing)?|harness(?:es|ing)? the|supercharge[sd]?|unleash(?:es|ed)?|revolutioni[sz]e[sd]?|cutting[- ]edge|state[- ]of[- ]the[- ]art|world[- ]class|game[- ]changer|next[- ]gen(?:eration)?|in today's fast[- ]paced|look no further|dive into|embark on|take (?:it|your [a-z]+) to the next level|transform your)\b/gi;
+  /\b(?:unlock(?:s|ing)? (?:the|your)|elevate[sd]? (?:your|the|every)|seamless(?:ly)? (?:experience|integration|journey|workflow|shopping|solution)s?|effortless(?:ly)? (?:experience|style|elegance)|empower(?:s|ing)? (?:you|your|businesses|teams)|harness(?:es|ing)? the|supercharge[sd]?|unleash(?:es|ed)?|revolutioni[sz]e[sd]?|cutting[- ]edge|state[- ]of[- ]the[- ]art|world[- ]class|game[- ]changer|next[- ]gen(?:eration)? of|in today's fast[- ]paced|look no further|dive into|embark on|take (?:it|your [a-z]+) to the next level|transform your)\b/gi;
 
 /** Visible text: tags, scripts, styles and comments removed. */
 function visibleText(html: string): string {
@@ -129,7 +133,7 @@ export function reviewSite(input: Record<string, string> | ReadonlyMap<string, s
         add("fix", page, `An autoplaying video needs muted and playsinline, or phones won't play it: ${short}`);
       }
       if (!has(tag, "poster")) add("fix", page, `A video has no poster, so its box is empty until it loads: ${short}`);
-      if (!has(tag, "aria-hidden") && !has(tag, "aria-label") && !has(tag, "aria-labelledby")) {
+      if (attr(tag, "aria-hidden") !== "true" && !attr(tag, "aria-label") && !attr(tag, "aria-labelledby")) {
         add("fix", page, `A video needs aria-hidden="true" when it's decoration, or an aria-label when it carries meaning: ${short}`);
       }
     }
@@ -143,7 +147,8 @@ export function reviewSite(input: Record<string, string> | ReadonlyMap<string, s
       if (!(SCENE_NAMES as readonly string[]).includes(m[1]!)) add("fix", page, `"${m[1]}" isn't a Farbaek scene. Use one of: ${SCENE_NAMES.join(", ")}.`);
       if (!has(m[0], "aria-hidden") && !has(m[0], "aria-label")) add("consider", page, `A scene box should have aria-hidden="true" (or an aria-label if it carries meaning): ${m[0].slice(0, 90)}`);
     }
-    if (scenes.length && !html.includes(KIT_URL) && !/kit\/scenes\/v1\/scenes\.js/.test(html)) {
+    // The kit may load from the page or from one of the site's own scripts (import "…/scenes.js").
+    if (scenes.length && !/kit\/scenes\/v1\/scenes\.js/.test(html + allScripts)) {
       add("fix", page, `This page has a Farbaek Scenes box but doesn't load the kit. Add <script type="module" src="${KIT_URL}"></script>.`);
     }
     const stand = [...html.matchAll(/<[a-z][a-z0-9-]*\b[^>]*\sdata-farbaek-placeholder\b[^>]*>/gi)].map((m) => attr(m[0], "data-farbaek-media") || m[0].slice(1, m[0].search(/[\s>]/)));
@@ -156,7 +161,8 @@ export function reviewSite(input: Record<string, string> | ReadonlyMap<string, s
     const phrases = [...new Set((text.match(AI_PHRASES) ?? []).map((s) => s.toLowerCase().replace(/\s+/g, " ")))];
     if (phrases.length) add("fix", page, `The copy reads as AI-written (${phrases.slice(0, 6).join(", ")}). Say what this business really does, specifically, in its own voice.`);
     const labels = [...html.matchAll(/<(h[1-6]|button|a)\b[^>]*>([\s\S]*?)<\/\1>/gi)].map((m) => m[2]!.replace(/<[^>]+>/g, ""));
-    if (labels.some((l) => /\p{Extended_Pictographic}/u.test(l))) add("fix", page, "A heading, button or link uses an emoji. Use words, or an icon drawn in the site's own line style.");
+    // © ® ™ are pictographic in Unicode but belong in brand names, not to emoji.
+    if (labels.some((l) => /\p{Extended_Pictographic}/u.test(l.replace(/[©®™]/g, "")))) add("fix", page, "A heading, button or link uses an emoji. Use words, or an icon drawn in the site's own line style.");
     const cliche = /\s(?:class|data-lucide|data-icon|data-feather|name|id)\s*=\s*["'][^"']*\b(sparkles?|magic|wand|robot|brain|rocket)\b/i.exec(html);
     if (cliche) add("consider", page, `An icon called "${cliche[1]}" reads as an AI cliché. Use an icon that names the real action or object.`);
     const placeholder = /\[(?:your|add|insert|todo|placeholder)[^\]]{0,40}\]/i.exec(text);

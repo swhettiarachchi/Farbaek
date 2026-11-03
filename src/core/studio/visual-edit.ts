@@ -384,14 +384,23 @@ function replaceMedia(html: string, n: number, src: string, poster: string | nul
   if (el.tag === "img") {
     out = setAttribute(out, el, "src", src);
     out = removeAttribute(out, at(n), "srcset");
+    // In a <picture>, the browser takes a <source> before the <img>: each source now offers the new image too.
+    const parent = el.parent === null ? null : at(el.parent);
+    if (parent?.tag === "picture") {
+      for (const k of parent.children.filter((c) => at(c).tag === "source")) {
+        out = setAttribute(out, at(k), "srcset", src);
+        for (const name of ["type", "sizes", "media"]) out = removeAttribute(out, at(k), name);
+      }
+    }
   } else {
-    // A video's address is its own src, else its first <source>; the type follows the file.
-    const source = el.children.map((c) => scanElements(out)[c]!).find((c) => c.tag === "source" && attrValue(c, "src") !== null);
-    if (attrValue(el, "src") !== null || !source) out = setAttribute(out, el, "src", src);
-    else {
-      out = setAttribute(out, source, "src", src);
-      const type = /\.webm(?:[?#]|$)/i.test(src) ? "video/webm" : /\.mp4(?:[?#]|$)/i.test(src) ? "video/mp4" : null;
-      out = type ? setAttribute(out, at(source.n), "type", type) : removeAttribute(out, at(source.n), "type");
+    // A video's address is its own src, else its <source> elements: every one of them, or a browser that
+    // can't play the first would fall back to the old file. The type follows the new file.
+    const sources = el.children.filter((c) => at(c).tag === "source");
+    if (attrValue(el, "src") !== null || sources.length === 0) out = setAttribute(out, el, "src", src);
+    const type = /\.webm(?:[?#]|$)/i.test(src) ? "video/webm" : /\.mp4(?:[?#]|$)/i.test(src) ? "video/mp4" : null;
+    for (const k of sources) {
+      out = setAttribute(out, at(k), "src", src);
+      out = type ? setAttribute(out, at(k), "type", type) : removeAttribute(out, at(k), "type");
     }
     if (poster) out = setAttribute(out, at(n), "poster", poster);
   }
