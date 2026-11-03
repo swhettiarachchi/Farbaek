@@ -139,6 +139,22 @@ describe("the site's theme (ADR 0159)", () => {
 `);
   });
 
+  it("lets a new look show through by clearing the site's own colour overrides, and nothing else", () => {
+    const r = applyVisualEdit(files, "index.html", 0, { kind: "theme", look: "bloom" });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.files["styles.css"]).toBe(`/* Kiln & Crumb */
+:root {
+  /* The brand. */
+}
+
+.hero { color: #fff; }
+`);
+    const withFonts = { ...files, "styles.css": CSS.replace("--ink: #17231c;", "--ink: #17231c;\n  --font-display: \"Young Serif\", Georgia, serif;") };
+    const kept = applyVisualEdit(withFonts, "index.html", 0, { kind: "theme", look: "noir" });
+    expect(kept.ok && kept.files["styles.css"]).toContain('--font-display: "Young Serif"');
+  });
+
   it("swaps the font pairing in the link on every page and in the tokens, and sets corners", () => {
     const r = applyVisualEdit(files, "index.html", 0, { kind: "theme", fonts: "luxury", corners: "sharp" });
     expect(r.ok).toBe(true);

@@ -40,6 +40,8 @@ const SNIPPET_ICONS: Record<SnippetId, Icon> = {
 
 const iconButton =
   "inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 hover:bg-surface-raised hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+const actionButton =
+  "inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm text-ink-2 transition-colors duration-150 hover:bg-surface-raised hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
 /**
  * The page's sections (ADR 0159): drag one by its handle, or use the arrows,
@@ -124,9 +126,10 @@ export function SectionsPanel({
                   if (node) rows.current.set(item.n, node);
                   else rows.current.delete(item.n);
                 }}
-                className={`relative flex items-center gap-1 rounded-sm border bg-surface pr-1 transition-[border-color,background-color,opacity] duration-150 ${selected === item.n ? "border-accent bg-accent/[0.05]" : "border-line"} ${isDragged ? "opacity-60" : ""}`}
+                className={`relative grid rounded-sm border bg-surface transition-[border-color,background-color,opacity] duration-150 ${selected === item.n ? "border-accent bg-accent/[0.05]" : "border-line"} ${isDragged ? "opacity-60" : ""}`}
               >
                 {dropHere ? <span aria-hidden className="absolute inset-x-2 -top-1 h-0.5 rounded-full bg-accent" /> : null}
+                <div className="flex items-center gap-1 pr-2">
                 <button
                   type="button"
                   aria-label={`Drag ${item.label} to move it`}
@@ -140,20 +143,25 @@ export function SectionsPanel({
                 </button>
                 <button type="button" onClick={() => onSelect(item.n)} aria-current={selected === item.n ? "true" : undefined} className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left text-sm">
                   <span className="shrink-0 font-mono text-xs text-ink-3 tabular">{String(i + 1).padStart(2, "0")}</span>
-                  <span className="min-w-0 truncate">{item.label}</span>
+                  <span className="line-clamp-2 min-w-0">{item.label}</span>
                 </button>
-                <button type="button" aria-label={`Move ${item.label} up`} onClick={() => move(i, -1)} disabled={i === 0} className={iconButton}>
-                  <ArrowUpIcon size={16} aria-hidden />
-                </button>
-                <button type="button" aria-label={`Move ${item.label} down`} onClick={() => move(i, 1)} disabled={i === items.length - 1} className={iconButton}>
-                  <ArrowDownIcon size={16} aria-hidden />
-                </button>
-                <button type="button" aria-label={`Duplicate ${item.label}`} onClick={() => onEdit(item.n, { kind: "duplicate" })} className={iconButton}>
-                  <CopyIcon size={16} aria-hidden />
-                </button>
-                <button type="button" aria-label={`Delete ${item.label}`} onClick={() => onEdit(item.n, { kind: "remove" })} disabled={items.length <= 1} className={`${iconButton} hover:text-failed`}>
-                  <TrashIcon size={16} aria-hidden />
-                </button>
+                </div>
+                {selected === item.n ? (
+                  <div className="flex flex-wrap gap-1 border-t border-line/70 px-1 py-1" role="group" aria-label={`Change ${item.label}`}>
+                    <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className={actionButton}>
+                      <ArrowUpIcon size={15} aria-hidden /> Up
+                    </button>
+                    <button type="button" onClick={() => move(i, 1)} disabled={i === items.length - 1} className={actionButton}>
+                      <ArrowDownIcon size={15} aria-hidden /> Down
+                    </button>
+                    <button type="button" onClick={() => onEdit(item.n, { kind: "duplicate" })} className={actionButton}>
+                      <CopyIcon size={15} aria-hidden /> Duplicate
+                    </button>
+                    <button type="button" onClick={() => onEdit(item.n, { kind: "remove" })} disabled={items.length <= 1} className={`${actionButton} hover:text-failed`}>
+                      <TrashIcon size={15} aria-hidden /> Delete
+                    </button>
+                  </div>
+                ) : null}
               </li>
             );
           })}

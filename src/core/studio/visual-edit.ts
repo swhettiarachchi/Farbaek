@@ -572,6 +572,9 @@ function sectionLabel(html: string, el: SourceElement, elements: SourceElement[]
   const heading = elements.find((e) => e.n > el.n && /^h[1-4]$/.test(e.tag) && within(e));
   const text = heading ? visibleText(html, heading, elements) : "";
   if (text) return text.slice(0, 60);
+  // No heading: its first line of text, such as a quote.
+  const line = elements.find((e) => e.n > el.n && ["blockquote", "p", "summary", "figcaption", "li", "span"].includes(e.tag) && within(e) && visibleText(html, e, elements));
+  if (line) return visibleText(html, line, elements).slice(0, 60);
   const named = attrValue(el, "aria-label") ?? attrValue(el, "id");
   if (named) return named.slice(0, 60);
   const cls = (attrValue(el, "class") ?? "").split(/\s+/).find((c) => c && !c.startsWith("vb-"));
@@ -713,6 +716,20 @@ export function upsertCustomProps(css: string, props: readonly [string, string][
   return css.slice(0, open) + body + css.slice(close);
 }
 
+/** The colour tokens a kit look sets; a site's own values for these hide the look. */
+const LOOK_COLOURS = ["--accent", "--accent-2", "--on-accent", "--ink", "--ink-2", "--paper", "--paper-2", "--line"] as const;
+
+/** Takes custom properties out of a stylesheet's top-level :root rule, leaving its comments and other declarations. */
+export function removeCustomProps(css: string, keys: readonly string[]): string {
+  const m = /(?<=^|[};]|\*\/)(\s*):root\s*\{/.exec(css);
+  if (!m || depthAt(css, m.index + m[1]!.length) !== 0) return css;
+  const open = m.index + m[0].length;
+  const close = css.indexOf("}", open);
+  let body = css.slice(open, close);
+  for (const k of keys) body = body.replace(new RegExp(`\\n?[ \\t]*${escapeRe(k)}\\s*:[^;{}]*;?`, "g"), "");
+  return css.slice(0, open) + body + css.slice(close);
+}
+
 function themeEdit(files: Readonly<Record<string, string>>, edit: Extract<VisualEdit, { kind: "theme" }>): EditResult {
   const pages = Object.keys(files).filter((p) => /\.html?$/i.test(p));
   if (!usesStudioKit(pages.map((p) => ({ path: p, content: files[p]! })))) {
@@ -762,6 +779,8 @@ function themeEdit(files: Readonly<Record<string, string>>, edit: Extract<Visual
         .find((p): p is string => p !== null && files[p] !== undefined) ?? null;
     if (out !== files[page]) next[page] = out;
   }
+  // A new look brings its own colours: the site's own colour overrides in :root would hide it, so they go (Undo brings them back).
+  if (edit.look !== undefined && edit.tokens === undefined && sheet) next[sheet] = removeCustomProps(next[sheet] ?? files[sheet]!, LOOK_COLOURS);
   if (props.length > 0) {
     if (sheet) next[sheet] = upsertCustomProps(next[sheet] ?? files[sheet]!, props);
     else {
