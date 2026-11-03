@@ -48,7 +48,7 @@ export const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
   edit_file: "Change a file with exact find-and-replace edits. Each find must occur exactly once.",
   run_command: "Run one program with arguments in the project folder. Some commands need a person's approval first.",
   review_site:
-    "Check the site before finishing: broken links and anchors, missing alt text, labels, title, description, viewport and lang, motion without a reduced-motion fallback, hidden focus, em dashes, lorem ipsum and leftover placeholders. Returns what to fix.",
+    "Check the site before finishing: broken links and anchors, missing alt text, labels, title, description, viewport and lang, motion without a reduced-motion fallback, hidden focus, CSS filters, video that phones won't play, Farbaek Scenes and Studio kit wiring, AI-sounding copy and emoji, em dashes, lorem ipsum and leftover placeholders, and whether the site has a 3D moment, motion, media and a real type pairing. Returns what to fix.",
   finish: "End the run and hand the change to a person for review, with a summary, steps, risks and checks.",
 };
 

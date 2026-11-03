@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpIcon, CircleNotchIcon, InfoIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowUpIcon, CircleNotchIcon, InfoIcon, PaintBrushIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { startFromPromptAction, type PromptStartState } from "@/app/app/new/actions";
@@ -65,6 +65,7 @@ export function PromptComposer({
   size = "large",
   projectId,
   template,
+  suggestion,
 }: {
   mode: "app" | "public";
   autoResume?: boolean;
@@ -74,6 +75,8 @@ export function PromptComposer({
   projectId?: string;
   /** A template chosen in the gallery: the build starts from its files, and its example guides the wording. */
   template?: { id: string; name: string; example: string };
+  /** A one-click follow-up the page offers, such as upgrading an older site's design: a note and a button that fills the box. */
+  suggestion?: { note: string; label: string; text: string };
 }) {
   const followUp = Boolean(projectId);
   const router = useRouter();
@@ -204,6 +207,23 @@ export function PromptComposer({
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
           <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {state.message}
         </p>
+      ) : null}
+
+      {followUp && suggestion ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-ink-2">
+          <span>{suggestion.note}</span>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => {
+              setValue(suggestion.text);
+              box.current?.focus();
+            }}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-medium text-ink shadow-e1 transition-colors hover:border-line-strong/50 disabled:opacity-50"
+          >
+            <PaintBrushIcon size={16} aria-hidden /> {suggestion.label}
+          </button>
+        </div>
       ) : null}
 
       {size === "large" && !followUp ? (

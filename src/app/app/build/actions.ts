@@ -6,6 +6,7 @@
  * contract, the wallet on each model step, and the sandbox guard on each
  * command.
  */
+import { kitTierFor } from "@/core/media/studio-kit";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -36,7 +37,7 @@ export async function startBuildRunAction(_previous: BuildActionState, form: For
   const wiring = await cloudRunDeps(p.person);
   if (!wiring.ok) return { status: "error", message: wiring.reason };
   const capUnits = p.ctx.current ? runCapUnits(p.ctx.current, parsed.data.effort, parsed.data.cap) : null;
-  const started = await startCloudRun(wiring.deps, { person: p.person, taskId: parsed.data.taskId, effort: parsed.data.effort, capUnits });
+  const started = await startCloudRun(wiring.deps, { person: p.person, taskId: parsed.data.taskId, effort: parsed.data.effort, capUnits, kitTier: kitTierFor(p.ctx.current?.plan ?? null) });
   if (!started.ok) return { status: "error", message: started.message };
   revalidatePath("/app/build");
   redirect(`/app/build/${started.value.runId}`);

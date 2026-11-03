@@ -27,6 +27,7 @@ export type FeatureKey =
   | "developer_api"
   | "usage_alerts"
   | "live_previews"
+  | "studio_kit_pro"
   | "security_checks"
   | "replay_and_recovery"
   | "opus_models"
@@ -52,6 +53,7 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
   developer_api: "Developer API and SDK access",
   usage_alerts: "Usage alerts",
   live_previews: "Live previews of running apps",
+  studio_kit_pro: "Studio kit Pro: story chapters, carousels, magnetic motion and more looks in your sites",
   security_checks: "Security checks",
   replay_and_recovery: "Replay and undo of applied changes",
   opus_models: "Claude Opus on Deep effort",
@@ -82,6 +84,7 @@ export const FEATURE_STATUS: Record<FeatureKey, "live" | "coming"> = {
   developer_api: "live",
   usage_alerts: "live",
   live_previews: "live",
+  studio_kit_pro: "live",
   security_checks: "live",
   replay_and_recovery: "live",
   opus_models: "live",
@@ -134,7 +137,7 @@ export interface Plan {
 }
 
 const FREE_FEATURES = ["cloud_agent", "basic_policies", "action_receipts", "community_support", "live_previews"] as const satisfies readonly FeatureKey[];
-const LITE_FEATURES = [...FREE_FEATURES, "usage_alerts", "developer_api", "usage_rollover"] as const satisfies readonly FeatureKey[];
+const LITE_FEATURES = [...FREE_FEATURES, "usage_alerts", "developer_api", "usage_rollover", "studio_kit_pro"] as const satisfies readonly FeatureKey[];
 const MAKER_FEATURES = [...LITE_FEATURES, "free_retries"] as const satisfies readonly FeatureKey[];
 const STARTER_FEATURES = MAKER_FEATURES;
 const PLUS_FEATURES = [...STARTER_FEATURES, "security_checks", "replay_and_recovery"] as const satisfies readonly FeatureKey[];

@@ -10,6 +10,7 @@ import { isProjectSkillPath } from "@/core/agent/skills";
 import { pinMap } from "@/server/workspace/skill-pins";
 import { ClearKeptPrompt } from "@/components/build/prompt-composer";
 import { buttonClasses } from "@/components/ui/button";
+import { kitTierFor } from "@/core/media/studio-kit";
 import { contractHash } from "@/core/realityloop/contract";
 import { shortHash } from "@/core/trust/canonical-json";
 import { resolveAiProvider } from "@/server/ai/config";
@@ -223,6 +224,7 @@ export default async function PlanCardPage({ params }: Params) {
                   projectSkills={projectSkillNames}
                   heldSkills={heldSkillNames}
                   skillsHref={`/app/projects/${task.projectId}#skills`}
+                  kitPro={kitTierFor(ctx.current.plan) === "pro"}
                 />
                 <CancelTaskControl taskId={task.id} version={task.version} disabledReason={!ctx.writes.enabled ? ctx.writes.reason : canBuild ? null : "Your role can view this plan but not cancel it."} />
               </div>

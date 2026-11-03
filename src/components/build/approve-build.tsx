@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useActionState, useId, useState } from "react";
 import { approveAndBuildAction, type ApproveBuildState } from "@/app/app/new/actions";
 import { EffortPicker } from "@/components/app/effort-picker";
+import { WebPurchaseOnly } from "@/components/billing/web-purchase-only";
 import { buttonClasses } from "@/components/ui/button";
 import { CAP_CHOICES, CAP_LABELS, type CapChoice } from "@/core/agent/run-cap";
 import type { Effort } from "@/core/agent/routing";
@@ -28,6 +29,7 @@ export function ApproveBuild({
   projectSkills,
   heldSkills = [],
   skillsHref,
+  kitPro = false,
 }: {
   taskId: string;
   version: number;
@@ -45,6 +47,8 @@ export function ApproveBuild({
   heldSkills?: string[];
   /** Where the project's skills are reviewed. */
   skillsHref?: string;
+  /** Whether the workspace's plan includes Studio kit Pro (ADR 0157). */
+  kitPro?: boolean;
 }) {
   const [state, action, pending] = useActionState(approveAndBuildAction, IDLE);
   const [effort, setEffort] = useState<Effort>("balanced");
@@ -78,6 +82,20 @@ export function ApproveBuild({
             ? `motion, 3D and brand identity are on for anything people will see${suggested.includes("flagship-site-craft") ? ", flagship site craft for this website" : ""}, and the others that fit your plan are chosen.`
             : "none stood out for this plan, so tick any that fit."}
           {projectSkills.length ? ` This project's own skills apply too: ${projectSkills.join(", ")}.` : ""}
+        </p>
+        <p className="text-xs leading-relaxed text-ink-3">
+          {kitPro ? (
+            "Sites build on the Farbaek Studio kit with Studio kit Pro: story chapters, carousels, a turning product view, magnetic motion and more looks."
+          ) : (
+            <>
+              Sites build on the Farbaek Studio kit. Paid plans add Studio kit Pro: story chapters, carousels, a turning product view, magnetic motion and more looks.{" "}
+              <WebPurchaseOnly fallback={null}>
+                <Link href="/app/billing" className="font-medium underline underline-offset-2 hover:text-ink">
+                  See plans
+                </Link>
+              </WebPurchaseOnly>
+            </>
+          )}
         </p>
         {heldSkills.length ? (
           <p className="flex items-start gap-2 text-xs leading-relaxed text-approval">
