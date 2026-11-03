@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ArrowClockwiseIcon,
   ArrowCounterClockwiseIcon,
   CheckCircleIcon,
   CubeIcon,
@@ -11,6 +12,9 @@ import {
   FilmStripIcon,
   GitDiffIcon,
   ImageSquareIcon,
+  PaletteIcon,
+  RowsIcon,
+  SelectionIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
@@ -20,21 +24,29 @@ import { useEffect, useId, useMemo, useRef, useState, useTransition } from "reac
 import { z } from "zod";
 import { saveFileAction } from "@/app/app/actions";
 import { MediaReplace, PlaceholderChip, ScenePicker } from "@/components/studio/media-replace";
+import { SectionsPanel } from "@/components/studio/sections-panel";
+import { ThemePanel, type ThemePreview } from "@/components/studio/theme-panel";
 import { buttonClasses } from "@/components/ui/button";
+import { TEXT_SIZES } from "@/core/studio/site-theme";
 import {
+  DESIGN_ACTION_MESSAGE,
   DESIGN_PICK_MESSAGE,
   DESIGN_SCRIPT,
+  DESIGN_SECTIONS_MESSAGE,
   DESIGN_SELECT_MESSAGE,
+  DESIGN_THEME_MESSAGE,
   annotateForDesign,
   applyVisualEdit,
   attrValue,
   cssColorToHex,
   editableText,
   hasAttr,
+  labelText,
   mediaSlots,
   outline,
   relocate,
   scanElements,
+  sections,
   type PickedStyle,
   type SourceElement,
   type StyleProp,
@@ -100,7 +112,16 @@ const Picked = z.object({
   }),
 });
 
+// A section toolbar action from the preview (ADR 0159): the frame only reports it; the editor makes the edit.
+const Action = z.object({
+  type: z.literal(DESIGN_ACTION_MESSAGE),
+  action: z.enum(["move", "duplicate", "remove"]),
+  n: z.number().int().min(0),
+  before: z.number().int().min(0).nullable().optional(),
+});
+
 type Message = { tone: "ok" | "warning" | "error"; text: string };
+type Snapshot = { files: Record<string, string>; page: string };
 
 /**
  * The visual editor (ADR 0118): pick an element in the page, change its text,
@@ -116,6 +137,7 @@ export function VisualEditor({
   imagePaths = [],
   initialPage,
   disabledReason,
+  kitPro = false,
 }: {
   projectId: string;
   /** The project's text files, by path. */
@@ -127,12 +149,16 @@ export function VisualEditor({
   initialPage: string | null;
   /** Why saving isn't possible right now; editing the draft still works. */
   disabledReason: string | null;
+  /** Whether the workspace's plan includes Studio kit Pro, for Pro sections and looks (ADR 0157). */
+  kitPro?: boolean;
 }) {
   const router = useRouter();
   const pages = useMemo(() => sitePages(files), [files]);
   const [page, setPage] = useState(initialPage && pages.includes(initialPage) ? initialPage : pages.includes("index.html") ? "index.html" : pages[0]!);
   const [draft, setDraft] = useState(files);
-  const [history, setHistory] = useState<{ files: Record<string, string>; page: string }[]>([]);
+  const [history, setHistory] = useState<Snapshot[]>([]);
+  const [future, setFuture] = useState<Snapshot[]>([]);
+  const [tab, setTab] = useState<"element" | "sections" | "theme">("element");
   const [selected, setSelected] = useState<{ n: number; style: PickedStyle | null; stamp: number } | null>(null);
   // The styles the last edit asked for, checked against what the page then shows.
   const expected = useRef<{ n: number; props: Partial<Record<StyleProp, string | null>> } | null>(null);
@@ -148,6 +174,8 @@ export function VisualEditor({
   const elements = useMemo(() => scanElements(html), [html]);
   const items = useMemo(() => outline(html, elements), [html, elements]);
   const media = useMemo(() => mediaSlots(elements), [elements]);
+  const sectionItems = useMemo(() => sections(html, elements), [html, elements]);
+  const onKit = useMemo(() => Object.entries(draft).some(([p, c]) => /\.html?$/i.test(p) && /kit\/studio\/v\d+\/studio\.css/.test(c)), [draft]);
   const assets = useMemo(() => new Set(imagePaths), [imagePaths]);
   const changedPaths = Object.keys(draft).filter((p) => draft[p] !== files[p]);
 
@@ -162,6 +190,13 @@ export function VisualEditor({
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (e.source !== frame.current?.contentWindow) return;
+      const action = Action.safeParse(e.data);
+      if (action.success) {
+        const { n, before } = action.data;
+        if (n >= elements.length || (before !== undefined && before !== null && before >= elements.length)) return;
+        applyRef.current(n, action.data.action === "move" ? { kind: "move", before: before ?? null } : { kind: action.data.action });
+        return;
+      }
       const parsed = Picked.safeParse(e.data);
       if (!parsed.success || parsed.data.n >= elements.length) return;
       const { n, style } = parsed.data;
@@ -185,32 +220,76 @@ export function VisualEditor({
     setSelected((s) => ({ n, style: null, stamp: (s?.stamp ?? 0) + 1 }));
   }
 
-  function apply(edit: VisualEdit) {
-    if (!selected) return;
-    const r = applyVisualEdit(draft, page, selected.n, edit, assets);
+  /** The section around an element: the element itself when it is one. */
+  function sectionAround(n: number): number | null {
+    for (let k: number | null = n; k !== null; k = elements[k]?.parent ?? null) if (sectionItems.some((s) => s.n === k)) return k;
+    return null;
+  }
+
+  const STRUCTURAL = new Set(["move", "duplicate", "remove", "insert"]);
+  const DONE: Partial<Record<VisualEdit["kind"], string>> = { move: "Moved the section", duplicate: "Duplicated the section", remove: "Deleted the section", insert: "Added the section", theme: "Changed the theme" };
+
+  function applyAt(n: number, edit: VisualEdit) {
+    const r = applyVisualEdit(draft, page, n, edit, assets);
     if (!r.ok) {
       setMessage({ tone: "error", text: r.reason });
       return;
     }
-    const n = relocate(html, selected.n, r.files[page]!);
+    const next = r.select ?? (STRUCTURAL.has(edit.kind) || edit.kind === "theme" ? (edit.kind === "theme" ? (selected?.n ?? null) : null) : relocate(html, n, r.files[page]!));
     setHistory((h) => [...h.slice(-49), { files: draft, page }]);
+    setFuture([]);
     setDraft(r.files);
-    setSelected(n === null ? null : { n, style: selected.style, stamp: selected.stamp + 1 });
-    expected.current = edit.kind === "style" && n !== null ? { n, props: edit.props } : null;
-    setMessage({ tone: "ok", text: `Applied to the draft${r.note ? `. ${r.note}` : ""}. Nothing is saved until you review it.` });
+    setSelected(next === null || next === undefined ? null : { n: next, style: selected?.n === n ? selected.style : null, stamp: (selected?.stamp ?? 0) + 1 });
+    expected.current = edit.kind === "style" && next !== null && next !== undefined ? { n: next, props: edit.props } : null;
+    if (edit.kind === "theme") frame.current?.contentWindow?.postMessage({ type: DESIGN_THEME_MESSAGE }, "*");
+    setMessage({ tone: "ok", text: `${DONE[edit.kind] ?? "Applied to the draft"}${r.note ? `. ${r.note}` : ""}. Nothing is saved until you review it.` });
+  }
+  // The preview's toolbar reaches applyAt through a ref, so its listener always uses this render's draft.
+  const applyRef = useRef(applyAt);
+  useEffect(() => {
+    applyRef.current = applyAt;
+  });
+
+  function apply(edit: VisualEdit) {
+    if (selected) applyAt(selected.n, edit);
   }
 
-  function undo() {
-    const last = history.at(-1);
+  function preview(p: ThemePreview) {
+    frame.current?.contentWindow?.postMessage({ type: DESIGN_THEME_MESSAGE, look: p?.look ?? null, vars: p?.vars ?? {} }, "*");
+  }
+
+  function step(from: Snapshot[], to: (f: (s: Snapshot[]) => Snapshot[]) => void, setFrom: (f: (s: Snapshot[]) => Snapshot[]) => void, words: string) {
+    const last = from.at(-1);
     if (!last) return;
     const n = selected && last.page === page ? relocate(html, selected.n, last.files[page] ?? "") : null;
-    setHistory((h) => h.slice(0, -1));
+    setFrom((h) => h.slice(0, -1));
+    to((h) => [...h.slice(-49), { files: draft, page }]);
     setDraft(last.files);
     setPage(last.page);
     setSelected(n === null ? null : { n, style: null, stamp: (selected?.stamp ?? 0) + 1 });
     expected.current = null;
-    setMessage({ tone: "ok", text: "Undid the last change to the draft." });
+    setMessage({ tone: "ok", text: words });
   }
+  const undo = () => step(history, setFuture, setHistory, "Undid the last change to the draft.");
+  const redo = () => step(future, setHistory, setFuture, "Redid the change.");
+  const keys = useRef({ undo, redo });
+  useEffect(() => {
+    keys.current = { undo, redo };
+  });
+
+  // Ctrl+Z and Ctrl+Shift+Z (Cmd on a Mac) undo and redo, unless the person is typing in a field.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "z" || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName))) return;
+      e.preventDefault();
+      if (e.shiftKey) keys.current.redo();
+      else keys.current.undo();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   function save() {
     startSave(async () => {
@@ -325,24 +404,29 @@ export function VisualEditor({
                 referrerPolicy="no-referrer"
                 srcDoc={doc}
                 onLoad={() => {
-                  if (selected) frame.current?.contentWindow?.postMessage({ type: DESIGN_SELECT_MESSAGE, n: selected.n }, "*");
+                  const win = frame.current?.contentWindow;
+                  win?.postMessage({ type: DESIGN_SECTIONS_MESSAGE, items: sectionItems.map((s) => [s.n, s.label]) }, "*");
+                  if (selected) win?.postMessage({ type: DESIGN_SELECT_MESSAGE, n: selected.n }, "*");
                 }}
                 className="block h-[min(62dvh,640px)] w-full bg-white"
               />
             </div>
           )}
         </div>
-        <p className="text-xs text-ink-3">Click or tap an element to change it. Links don&apos;t open while you edit. The page runs locked down, with no access to Farbaek or the network.</p>
+        <p className="text-xs text-ink-3">Click or tap an element to change it, or Alt+click to pick its whole section. Drag a section by the handle on its toolbar. Links don&apos;t open while you edit, and the page runs locked down, with no access to Farbaek or the network.</p>
       </div>
 
-      <aside aria-label="Selected element" className="grid gap-4 rounded-md border border-line bg-surface p-4 shadow-e1 sm:p-5">
+      <aside aria-label="Edit the site" className="grid gap-4 rounded-md border border-line bg-surface p-4 shadow-e1 sm:p-5 lg:sticky lg:top-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-ink-2">
             {changedPaths.length === 0 ? "No changes yet." : `${changedPaths.length === 1 ? "1 file" : `${changedPaths.length} files`} changed in the draft.`}
           </p>
           <div className="flex items-center gap-1">
-            <button type="button" onClick={undo} disabled={history.length === 0} className={buttonClasses("ghost", "sm")}>
-              <ArrowCounterClockwiseIcon size={16} aria-hidden /> Undo
+            <button type="button" onClick={undo} disabled={history.length === 0} aria-label="Undo" title="Undo (Ctrl+Z)" className={buttonClasses("ghost", "sm")}>
+              <ArrowCounterClockwiseIcon size={16} aria-hidden />
+            </button>
+            <button type="button" onClick={redo} disabled={future.length === 0} aria-label="Redo" title="Redo (Ctrl+Shift+Z)" className={buttonClasses("ghost", "sm")}>
+              <ArrowClockwiseIcon size={16} aria-hidden />
             </button>
             <button
               type="button"
@@ -359,10 +443,60 @@ export function VisualEditor({
           </div>
         </div>
 
+        <div className="flex rounded-full border border-line bg-surface p-1" role="tablist" aria-label="What to edit">
+          {(
+            [
+              ["element", "Element", CursorClickIcon],
+              ["sections", "Sections", RowsIcon],
+              ["theme", "Theme", PaletteIcon],
+            ] as const
+          ).map(([t, label, TabIcon]) => (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={tab === t}
+              onClick={() => {
+                setTab(t);
+                if (t !== "theme") preview(null);
+              }}
+              className={`inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-sm transition-colors duration-150 ${tab === t ? "bg-primary font-medium text-on-primary" : "text-ink-2 hover:text-ink"}`}
+            >
+              <TabIcon size={15} aria-hidden /> {label}
+            </button>
+          ))}
+        </div>
+
         <Feedback message={message} />
 
-        {el ? (
-          <Inspector key={`${page}:${selected!.n}:${selected!.stamp}`} html={html} el={el} picked={selected!.style} onApply={apply} images={images} imagePaths={imagePaths} mediaSource={media.find((m) => m.n === selected!.n)?.source ?? null} />
+        {tab === "sections" ? (
+          <SectionsPanel
+            items={sectionItems}
+            selected={selected ? sectionAround(selected.n) : null}
+            container={elements.find((e) => e.tag === "main")?.n ?? elements.find((e) => e.tag === "body")?.n ?? null}
+            kitPro={kitPro}
+            onSelect={select}
+            onEdit={applyAt}
+          />
+        ) : tab === "theme" ? (
+          <ThemePanel files={draft} onKit={onKit} kitPro={kitPro} upgradeHref={`/app/projects/${projectId}`} onApply={(edit) => applyAt(0, edit)} onPreview={preview} />
+        ) : el ? (
+          <Inspector
+            key={`${page}:${selected!.n}:${selected!.stamp}`}
+            html={html}
+            el={el}
+            elements={elements}
+            picked={selected!.style}
+            onApply={apply}
+            images={images}
+            imagePaths={imagePaths}
+            mediaSource={media.find((m) => m.n === selected!.n)?.source ?? null}
+            sectionAround={sectionAround(selected!.n)}
+            onSelectSection={(n) => {
+              select(n);
+              setTab("sections");
+            }}
+          />
         ) : (
           <div className="grid justify-items-start gap-2 rounded-sm border border-dashed border-line-strong/40 p-4 text-sm text-ink-2">
             <CursorClickIcon size={22} className="text-accent" aria-hidden />
@@ -370,7 +504,7 @@ export function VisualEditor({
           </div>
         )}
 
-        {media.length ? (
+        {tab === "element" && media.length ? (
           <details className="group" open={media.some((m) => m.placeholder)}>
             <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium">
               Media on this page ({media.length}
@@ -399,7 +533,7 @@ export function VisualEditor({
           </details>
         ) : null}
 
-        <details className="group">
+        <details className={`group ${tab === "element" ? "" : "hidden"}`}>
           <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium">Elements on this page ({items.length})</summary>
           {items.length === 0 ? (
             <p className="text-sm text-ink-3">This page has no headings, text, links or images inside its body.</p>
@@ -487,11 +621,14 @@ const fieldClass = "min-h-11 w-full rounded-sm border border-line bg-surface px-
 function Inspector({
   html,
   el,
+  elements,
   picked,
   onApply,
   images,
   imagePaths,
   mediaSource,
+  sectionAround,
+  onSelectSection,
 }: {
   html: string;
   el: SourceElement;
@@ -501,9 +638,15 @@ function Inspector({
   imagePaths: readonly string[];
   /** The image or video's current address, from the page's media list. */
   mediaSource: string | null;
+  elements: SourceElement[];
+  /** The section this element is in, or null. */
+  sectionAround: number | null;
+  onSelectSection(n: number): void;
 }) {
   const id = useId();
   const text = editableText(html, el);
+  const label = labelText(html, el, elements);
+  const [labelDraft, setLabel] = useState(label ?? "");
   const scene = attrValue(el, "data-farbaek-scene");
   const isMedia = el.tag === "img" || el.tag === "video";
   const [textDraft, setText] = useState(text ?? "");
@@ -525,7 +668,7 @@ function Inspector({
 
   function applyStyle() {
     const props: Partial<Record<StyleProp, string>> = {};
-    for (const [p, v] of Object.entries(style) as [StyleProp, string][]) props[p] = p === "font-size" || p === "padding" || p === "border-radius" ? `${v}px` : v;
+    for (const [p, v] of Object.entries(style) as [StyleProp, string][]) props[p] = (p === "font-size" || p === "padding" || p === "border-radius") && /^\d+$/.test(v) ? `${v}px` : v;
     onApply({ kind: "style", props });
   }
 
@@ -538,6 +681,11 @@ function Inspector({
           {!isMedia && hasAttr(el, "data-farbaek-placeholder") ? <PlaceholderChip /> : null}
         </p>
         {picked === null ? <p className="text-xs text-ink-3">Reading its styles from the page…</p> : null}
+        {sectionAround !== null && sectionAround !== el.n ? (
+          <button type="button" onClick={() => onSelectSection(sectionAround)} className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line px-3 text-sm text-ink-2 transition-colors duration-150 hover:text-ink">
+            <SelectionIcon size={15} aria-hidden /> Select the section around this
+          </button>
+        ) : null}
       </div>
 
       {isMedia ? (
@@ -562,6 +710,18 @@ function Inspector({
           <div>
             <button type="button" onClick={() => onApply({ kind: "text", text: textDraft })} disabled={textDraft === text} className={buttonClasses("secondary", "sm")}>
               Apply text
+            </button>
+          </div>
+        </div>
+      ) : label !== null ? (
+        <div className="grid gap-1.5">
+          <label htmlFor={`${id}-label`} className="text-sm font-medium">
+            Label
+          </label>
+          <input id={`${id}-label`} value={labelDraft} onChange={(e) => setLabel(e.target.value)} className={fieldClass} />
+          <div>
+            <button type="button" onClick={() => onApply({ kind: "label", text: labelDraft })} disabled={labelDraft.trim() === label} className={buttonClasses("secondary", "sm")}>
+              Apply label
             </button>
           </div>
         </div>
@@ -604,7 +764,7 @@ function Inspector({
         <div className="grid grid-cols-2 gap-3">
           <ColorField id={`${id}-color`} label="Text colour" value={value("color")} onChange={(v) => set("color", v)} />
           <ColorField id={`${id}-bg`} label="Background" value={value("background-color")} onChange={(v) => set("background-color", v)} />
-          <NumberField id={`${id}-size`} label="Text size (px)" value={value("font-size")} min={8} max={160} onChange={(v) => set("font-size", v)} />
+          <NumberField id={`${id}-size`} label="Exact text size (px)" value={/^\d+$/.test(value("font-size")) ? value("font-size") : ""} min={8} max={160} onChange={(v) => set("font-size", v)} />
           <div className="grid gap-1.5">
             <label htmlFor={`${id}-weight`} className="text-xs text-ink-2">
               Weight
@@ -619,6 +779,25 @@ function Inspector({
           </div>
           <NumberField id={`${id}-pad`} label="Padding (px)" value={value("padding")} min={0} max={200} onChange={(v) => set("padding", v)} />
           <NumberField id={`${id}-radius`} label="Corners (px)" value={value("border-radius")} min={0} max={200} onChange={(v) => set("border-radius", v)} />
+        </div>
+        <div className="grid gap-1.5">
+          <span className="text-xs text-ink-2" id={`${id}-sizes`}>
+            Text size that scales with the screen
+          </span>
+          <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-labelledby={`${id}-sizes`}>
+            {Object.values(TEXT_SIZES).map((s) => (
+              <button
+                key={s.label}
+                type="button"
+                role="radio"
+                aria-checked={style["font-size"] === s.value}
+                onClick={() => set("font-size", s.value)}
+                className={`min-h-11 rounded-full border px-3.5 text-sm transition-colors duration-150 ${style["font-size"] === s.value ? "border-accent bg-accent/[0.06] font-medium text-ink" : "border-line text-ink-2 hover:text-ink"}`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="grid gap-1.5">
           <span className="text-xs text-ink-2" id={`${id}-align`}>
