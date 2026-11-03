@@ -54,6 +54,21 @@ export function photoUrl(id: PhotoId, width: number, height: number): string {
   return typeof id === "string" ? `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${w}&h=${h}&q=80` : `https://picsum.photos/id/${id}/${w}/${h}`;
 }
 
+/**
+ * The subject and shape of a photo address, when it's one of these photos: what Studio's Replace opens on,
+ * so a clothing photo is replaced from clothing and a tall slot stays tall.
+ */
+export function photoFacts(url: string | null): { subject: PhotoSubject | null; tall: boolean } | null {
+  if (!url) return null;
+  const unsplash = /^https:\/\/images\.unsplash\.com\/photo-(\d{10,13}-[0-9a-f]{12})\?[^#]*?\bw=(\d+)&h=(\d+)/.exec(url);
+  const picsum = /^https:\/\/picsum\.photos\/id\/(\d{1,4})\/(\d{2,4})\/(\d{2,4})/.exec(url);
+  const m = unsplash ?? picsum;
+  if (!m) return null;
+  const id: PhotoId = unsplash ? m[1]! : Number(m[1]);
+  const subject = (Object.keys(PHOTO_SUBJECTS) as PhotoSubject[]).find((s) => (PHOTO_SUBJECTS[s].ids as readonly PhotoId[]).includes(id)) ?? null;
+  return { subject, tall: Number(m[3]) > Number(m[2]) };
+}
+
 /** Whether an address is one of these photos. */
 export function isPhotoUrl(url: string): boolean {
   return (

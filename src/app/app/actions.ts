@@ -16,7 +16,7 @@ import { EMPTY_CONTRACT_FORM, type ContractFormValues } from "@/core/realityloop
 import { MESSAGES, approveContract, archiveProject, cancelTask, codeFromDatabaseError, createProject, createTask, saveContract, type ProjectAdminDeps, type WriteDeps } from "@/server/workspace/use-cases";
 import { draftContractWithAi, type AiUsageDeps } from "@/server/workspace/ai-drafting";
 import { deleteProjectFile, importProjectFiles, saveProjectFile, saveProjectImage, type FileDeps, type ImportSummary } from "@/server/workspace/files";
-import { IMAGE_LIMITS, isImagePath } from "@/core/workspace/images";
+import { IMAGE_LIMITS, freeImagePath, isImagePath, sniffImage } from "@/core/workspace/images";
 import { imageGeneration } from "@/server/ai/image-config";
 import { generateProjectImage } from "@/server/workspace/image-generation";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
@@ -320,30 +320,50 @@ export async function saveFileAction(input: { projectId: string; path: string; c
  * at most) and again by the database, which hashes them.
  */
 export async function addImageAction(_previous: FormState, form: FormData): Promise<FormState> {
-  const projectId = String(form.get("projectId") ?? "");
   const path = String(form.get("path") ?? "")
     .trim()
     .replace(/^\.?\/+/, "");
-  const replace = form.get("replace") === "1";
-  const file = form.get("image");
-  if (!z.uuid().safeParse(projectId).success || !path || path.length > 300) return { status: "error", message: "Choose an image and a name for it.", values: { path } };
-  if (!(file instanceof File) || file.size === 0) return { status: "error", message: "Choose an image to add.", values: { path } };
-  if (file.size > IMAGE_LIMITS.maxImageBytes) return { status: "error", message: "Images can be up to 2 MB. Make it smaller or save it as WebP or JPEG.", values: { path } };
+  if (!path || path.length > 300) return { status: "error", message: "Choose an image and a name for it.", values: { path } };
+  const r = await saveUploadedImage({ projectId: String(form.get("projectId") ?? ""), file: form.get("image"), path, replace: form.get("replace") === "1" });
+  if (!r.ok) return { status: "error", message: r.message, values: { path } };
+  return { status: "done", message: r.replaced ? `Replaced ${path}.` : `Added ${path}.` };
+}
+
+/**
+ * Uploads an image from Studio's Replace (ADR 0160): it's saved to the project under a free name in
+ * assets/, made from the file's own, so it never replaces anything; the editor then points the picture at it.
+ */
+export async function uploadStudioImageAction(form: FormData): Promise<{ status: "done"; path: string } | { status: "error"; message: string }> {
+  const r = await saveUploadedImage({ projectId: String(form.get("projectId") ?? ""), file: form.get("image"), path: null, replace: false });
+  return r.ok ? { status: "done", path: r.path } : { status: "error", message: r.message };
+}
+
+/** The checks and the save behind both uploads. With no path, the image gets a free name from the file's own. */
+async function saveUploadedImage(input: { projectId: string; file: FormDataEntryValue | null; path: string | null; replace: boolean }): Promise<{ ok: true; path: string; replaced: boolean } | { ok: false; message: string }> {
+  const { file } = input;
+  if (!z.uuid().safeParse(input.projectId).success) return { ok: false, message: "Reload the page and try again." };
+  if (!(file instanceof File) || file.size === 0) return { ok: false, message: "Choose an image to add." };
+  if (file.size > IMAGE_LIMITS.maxImageBytes) return { ok: false, message: "Images can be up to 2 MB. Make it smaller or save it as WebP or JPEG." };
 
   const ctx = await requireContext();
   const w = await writeDeps(ctx);
-  if ("error" in w) return { status: "error", message: w.error, values: { path } };
-  const project = await ctx.reader.getProject(w.orgId, projectId);
-  if (!project) return { status: "error", message: "That project doesn't exist or isn't in this workspace." };
-  const current = (await ctx.reader.listFiles(w.orgId, project.id)).find((f) => f.path === path);
-  if (current && !replace) return { status: "error", message: `There's already a file at ${path}. Choose another name, or open it and replace it.`, values: { path } };
-  if (current && current.encoding !== "base64") return { status: "error", message: `${path} is a text file, so an image can't replace it.`, values: { path } };
-
+  if ("error" in w) return { ok: false, message: w.error };
+  const project = await ctx.reader.getProject(w.orgId, input.projectId);
+  if (!project) return { ok: false, message: "That project doesn't exist or isn't in this workspace." };
+  const files = await ctx.reader.listFiles(w.orgId, project.id);
   const bytes = new Uint8Array(await file.arrayBuffer());
+  // A name of its own takes the extension its bytes say, so a JPEG saved as photo.png still uploads.
+  const sniffed = sniffImage(bytes);
+  const named = sniffed ? file.name.replace(/(\.[a-z0-9]{1,5})?$/i, `.${sniffed === "jpeg" ? "jpg" : sniffed}`) : file.name;
+  const path = input.path ?? freeImagePath(named, new Set(files.map((f) => f.path)));
+  const current = files.find((f) => f.path === path);
+  if (current && !input.replace) return { ok: false, message: `There's already a file at ${path}. Choose another name, or open it and replace it.` };
+  if (current && current.encoding !== "base64") return { ok: false, message: `${path} is a text file, so an image can't replace it.` };
+
   const result = await saveProjectImage(w.deps, { orgId: w.orgId, userId: ctx.user.id, projectId: project.id, path, bytes, expectedRevision: current?.revision ?? 0 });
-  if (!result.ok) return { status: "error", message: result.message, values: { path } };
+  if (!result.ok) return { ok: false, message: result.message };
   revalidatePath(`/app/projects/${project.id}`, "layout");
-  return { status: "done", message: current ? `Replaced ${path}.` : `Added ${path}.` };
+  return { ok: true, path, replaced: Boolean(current) };
 }
 
 /**

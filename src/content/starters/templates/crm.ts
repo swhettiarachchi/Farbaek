@@ -187,6 +187,9 @@ const STYLES = `/* Fieldnote, a sample CRM. Palette and type are in DESIGN.md. *
   --radius: 14px;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* Filters hide items with the hidden attribute; a display rule must never bring them back. */
+[hidden] { display: none !important; }
 * { box-sizing: border-box; }
 html { color-scheme: light; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }

@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
 import { setupReport } from "@/core/agent/setup-report";
 import { reviewSite } from "@/core/agent/site-review";
+import { PHOTO_SUBJECTS } from "@/core/media/photos";
 import { STUDIO_KIT_CSS, STUDIO_KIT_JS, STUDIO_KIT_PATTERN } from "@/core/media/studio-kit";
 import { screenFile } from "@/core/workspace/files";
 import { STARTERS, TEMPLATE_STARTERS, getStarter, runProfile } from "./index";
@@ -81,6 +82,19 @@ describe("starters", () => {
         expect(s, `${t.id}: ${s}`).toMatch(/^\.js\b/);
       }
       for (const f of t.files.filter((x) => x.path.endsWith(".js"))) expect(() => new Function(f.content), `${t.id}/${f.path}`).not.toThrow();
+    }
+  });
+
+  it("use only the sorted stand-in photos, and keep hidden items hidden", () => {
+    const sorted = new Set(Object.values(PHOTO_SUBJECTS).flatMap((s) => s.ids.map(String)));
+    for (const t of TEMPLATE_STARTERS) {
+      const all = t.files.map((f) => f.content).join("\n");
+      // A mistyped id is a broken image, so every Unsplash photo must be one that was looked at and sorted (ADR 0158).
+      for (const [, id] of all.matchAll(/images\.unsplash\.com\/photo-([0-9]+-[0-9a-f]+)/g)) expect(sorted.has(id!), `${t.id}: ${id}`).toBe(true);
+      // A filter that sets hidden needs a rule no display value can beat, or the items stay on screen.
+      const scripts = t.files.filter((f) => f.path.endsWith(".js")).map((f) => f.content).join("\n");
+      const css = t.files.filter((f) => f.path.endsWith(".css")).map((f) => f.content).join("\n");
+      if (/\.hidden\s*=/.test(scripts)) expect(css, t.id).toMatch(/\[hidden\]\s*\{\s*display:\s*none\s*!important;?\s*\}/);
     }
   });
 

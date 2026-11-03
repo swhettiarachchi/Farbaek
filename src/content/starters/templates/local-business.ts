@@ -280,6 +280,9 @@ const STYLES = `/* Kiln & Crumb: the brand on top of the Farbaek Studio kit. The
   --fs-display-track: -0.02em;
 }
 
+/* Filters hide items with the hidden attribute; a display rule must never bring them back. */
+[hidden] { display: none !important; }
+
 .mark { width: 22px; height: 22px; border-radius: 50% 50% 46% 46%; background: radial-gradient(circle at 35% 30%, #f3b26a, var(--accent) 60%, #8a4510); box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.18); }
 .fs-display em, .fs-h2 em { font-style: italic; color: var(--accent); }
 

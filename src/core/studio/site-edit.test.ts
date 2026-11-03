@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { reviewSite } from "@/core/agent/site-review";
 import { DARK_LOOKS, LIGHT_LOOKS, STUDIO_KIT_CSS, STUDIO_KIT_JS, STUDIO_KIT_PRO_CSS } from "@/core/media/studio-kit";
@@ -99,6 +101,9 @@ describe("sections a person can move, copy and remove (ADR 0159)", () => {
       );
       expect(findings, id).toEqual([]);
     }
+    // A section without a heading goes by the name it gives itself, not its first number.
+    const stats = applyVisualEdit(files, "index.html", nOf(PAGE, "story"), { kind: "insert", snippet: "stats" });
+    expect(stats.ok && sections(stats.files["index.html"]!)[2]!.label).toBe("In numbers");
     const atEnd = applyVisualEdit(files, "index.html", main, { kind: "insert", snippet: "cta" });
     expect(atEnd.ok && sections(atEnd.files["index.html"]!).at(-1)!.n).toBe(atEnd.ok ? atEnd.select : -1);
   });
@@ -200,5 +205,14 @@ describe("the preview's side and the theme reader", () => {
   it("has a swatch for every look", () => {
     expect(Object.keys(LOOK_SWATCHES).sort()).toEqual([...LIGHT_LOOKS, ...DARK_LOOKS].sort());
     for (const s of Object.values(LOOK_SWATCHES)) expect(contrastRatio(s.ink, s.paper), s.label).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("shows each look's real colours, as the kit defines them", () => {
+    const kit = ["studio.css", "studio-pro.css"].map((f) => readFileSync(path.join(process.cwd(), "public/kit/studio/v1", f), "utf8")).join("\n");
+    for (const [look, s] of Object.entries(LOOK_SWATCHES)) {
+      const block = new RegExp(`\\[data-fs-look="${look}"\\]\\s*\\{([^}]*)\\}`).exec(kit)?.[1] ?? "";
+      const token = (name: string) => new RegExp(`--${name}:\\s*(#[0-9a-f]{6})`, "i").exec(block)?.[1]?.toLowerCase();
+      expect({ accent: s.accent, accent2: s.accent2, ink: s.ink, paper: s.paper }, look).toEqual({ accent: token("accent"), accent2: token("accent-2"), ink: token("ink"), paper: token("paper") });
+    }
   });
 });

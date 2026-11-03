@@ -52,8 +52,15 @@ export type PromptStarter = "static-website" | "nextjs-app" | "rest-api";
  * strongest start. Only templates rebuilt on the Studio kit are listed; the first match wins.
  */
 const DIRECTIONS: readonly (readonly [RegExp, string])[] = [
+  // Asking for an online shop outright wins over the kind of business: a roastery's web shop is a shop.
+  [/\b(e-?commerce|online (?:shop|store))\b/i, "online-store"],
   [/\b(caf[eé]s?|coffee|bakery|bakeries|bakehouse|baker|patisserie|pastr(?:y|ies)|cakes?|restaurants?|bistro|diner|eatery|pizzeria|bar|pub|brewery|tea ?room|deli|juice bar|ice cream|desserts?|catering|food)\b/i, "local-business"],
   [/\b(hotels?|resorts?|spas?|villas?|guest ?house|retreats?|lodge|real estate|propert(?:y|ies)|apartments?|penthouses?|jewell?e?ry|watch(?:es|maker)?|perfumes?|fragrances?|yachts?|luxury)\b/i, "luxury"],
+  // ADR 0160: the work of one person or studio, an event, a shop, then a launch. A wedding photographer is a portfolio.
+  [/\b(portfolios?|photographers?|photography|illustrat(?:or|ors|ion)|designers?|artists?|painters?|architects?|architecture (?:practice|studio|firm))\b/i, "portfolio"],
+  [/\b(events?|conferences?|summits?|meetups?|festivals?|concerts?|gigs?|expos?|hackathons?|weddings?|galas?|part(?:y|ies)|webinars?|reunions?)\b/i, "event-page"],
+  [/\b((?<!barber )shops?|(?<!(?:app|play) )stores?|sell(?:s|ing)?|products|merch(?:andise)?|boutiques?|clothing|apparel|candles?|handmade)\b/i, "online-store"],
+  [/\b(landing page|launch(?:es|ing)?|pre-?orders?|wait ?list|coming soon|kickstarter|crowdfund\w*|gadgets?|devices?|headphones|earbuds|(?:bluetooth|wireless|smart) speakers?|wearables?|single product|product page)\b/i, "landing-page"],
 ];
 
 export function templateForPrompt(prompt: string): string | null {

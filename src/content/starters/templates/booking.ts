@@ -130,6 +130,9 @@ const STYLES = `:root {
   color: var(--ink);
   background: var(--mist);
 }
+
+/* Filters hide items with the hidden attribute; a display rule must never bring them back. */
+[hidden] { display: none !important; }
 * { box-sizing: border-box; }
 body { margin: 0; line-height: 1.5; }
 :focus-visible { outline: 3px solid var(--forest); outline-offset: 3px; border-radius: 8px; }

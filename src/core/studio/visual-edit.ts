@@ -499,7 +499,9 @@ export function applyVisualEdit(files: Readonly<Record<string, string>>, page: s
     }
     const value = checkStyleValue(prop, raw);
     if (value === null) return { ok: false, reason: `That ${prop.replace("-", " ")} isn't one the editor offers.` };
-    decls.push([prop, value]);
+    // The person chose this for this one element, so it wins over the site's own rules however specific they are:
+    // a site's ".section h2" or ".hero .fs-display" would otherwise beat the editor's class and the change wouldn't show.
+    decls.push([prop, `${value} !important`]);
   }
   if (decls.length === 0) return { ok: false, reason: "Change a style first." };
 
@@ -572,11 +574,13 @@ function sectionLabel(html: string, el: SourceElement, elements: SourceElement[]
   const heading = elements.find((e) => e.n > el.n && /^h[1-4]$/.test(e.tag) && within(e));
   const text = heading ? visibleText(html, heading, elements) : "";
   if (text) return text.slice(0, 60);
-  // No heading: its first line of text, such as a quote.
+  // No heading: the name it gives itself ("In numbers"), else its first line of text, such as a quote.
+  const label = attrValue(el, "aria-label");
+  if (label) return label.slice(0, 60);
   const line = elements.find((e) => e.n > el.n && ["blockquote", "p", "summary", "figcaption", "li", "span"].includes(e.tag) && within(e) && visibleText(html, e, elements));
   if (line) return visibleText(html, line, elements).slice(0, 60);
-  const named = attrValue(el, "aria-label") ?? attrValue(el, "id");
-  if (named) return named.slice(0, 60);
+  const id = attrValue(el, "id");
+  if (id) return id.slice(0, 60);
   const cls = (attrValue(el, "class") ?? "").split(/\s+/).find((c) => c && !c.startsWith("vb-"));
   return cls ? cls.replace(/^fs-/, "").replace(/[-_]+/g, " ") : el.tag;
 }

@@ -38,7 +38,7 @@ export function ThemePanel({
   const current = theme.look && LOOK_SWATCHES[theme.look] ? theme.look : null;
   const [mode, setMode] = useState<"light" | "dark">(current && LOOK_SWATCHES[current]!.dark ? "dark" : "light");
   const base = current ? LOOK_SWATCHES[current]! : LOOK_SWATCHES.signal!;
-  const shown: Record<string, string> = { accent: base.accent, "accent-2": base.accent, ink: base.ink, paper: base.paper, ...theme.tokens };
+  const shown: Record<string, string> = { accent: base.accent, "accent-2": base.accent2, ink: base.ink, paper: base.paper, ...theme.tokens };
   const [colors, setColors] = useState<Partial<Record<ThemeToken, string>>>({});
   const value = (t: ThemeToken) => colors[t] ?? shown[t] ?? "#000000";
   const touched = Object.keys(colors).length > 0;

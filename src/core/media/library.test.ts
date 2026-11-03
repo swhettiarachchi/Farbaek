@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import MANIFEST from "@/content/media-library.json";
 import { COLOURWAYS, KIT_URL, LIBRARY_FILES, MEDIA_BASE, MEDIA_LIBRARY, isLibraryUrl, libraryForPrompt, mediaUrl } from "./library";
-import { PHOTO_SUBJECTS, isPhotoUrl, photoUrl, photosForPrompt } from "./photos";
+import { PHOTO_SUBJECTS, isPhotoUrl, photoFacts, photoUrl, photosForPrompt } from "./photos";
 
 const PUBLIC = join(process.cwd(), "public");
 const BUDGET: Record<string, number> = { "loop.mp4": 1_650_000, "still-16x9.webp": 240_000, "still-4x5.webp": 240_000 };
@@ -72,5 +72,14 @@ describe("real stand-in photos", () => {
     expect(isPhotoUrl("https://evil.test/id/42/1600/900")).toBe(false);
     expect(isPhotoUrl("https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1600&h=900&q=80&x=<script>")).toBe(false);
     expect(isPhotoUrl("https://plus.unsplash.com/premium_photo-1509440159596-0249088772ff")).toBe(false);
+  });
+
+  it("tell Studio's Replace a photo's subject and shape, so it opens on the right ones", () => {
+    expect(photoFacts(photoUrl("1490481651871-ab68de25d43d", 900, 1200))).toEqual({ subject: "clothing", tall: true });
+    expect(photoFacts(photoUrl("1509440159596-0249088772ff", 2000, 1300))).toEqual({ subject: "bakery", tall: false });
+    expect(photoFacts(photoUrl(43, 1600, 900))).toEqual({ subject: "city", tall: false });
+    expect(photoFacts("https://images.unsplash.com/photo-1000000000000-000000000000?auto=format&fit=crop&w=800&h=1000&q=80")).toEqual({ subject: null, tall: true });
+    expect(photoFacts("images/shop.webp")).toBeNull();
+    expect(photoFacts(null)).toBeNull();
   });
 });
