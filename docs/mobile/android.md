@@ -71,19 +71,20 @@ The texts, graphics and answers are in `docs/mobile/play-listing.md`. Plans are 
 
 Inside the app, plans are bought through Google Play, the way Farbaek for iPhone buys through the App Store. The website shows Google Play's prices and opens Google Play's purchase sheet. The server checks every purchase with Google before the plan changes.
 
-**Where it stands (2026-11-02):**
+**Where it stands (2026-11-03):**
 - **Built:** stage 134, app version 1.1.0 (versionCode 3).
 - **Off on the server** until step 8.
+- **Steps 1 to 3 and 5 are done.** The service account is `farbaek-play-billing@farbaek-play.iam.gserviceaccount.com` in the Google Cloud project `farbaek-play`, and Play Console shows it Active. On 2026-11-03, step 4's test passed Google's sign-in, but Google Play didn't let the account read purchases yet, so nothing was saved; run step 4 again once Google's access starts working.
 
 1. **Payments profile.** Play Console → **Settings → Payments profile**. Create it (merchant, bank account and tax details). Only you can: it's your money. Sri Lanka supports merchant registration.
 2. **A service account for Farbaek's server:**
    1. In console.cloud.google.com, signed in with the Farbaek Google account, create a project named "Farbaek Play".
    2. Turn on the **Google Play Android Developer API** (APIs and services → Library).
-   3. **IAM and admin → Service accounts → Create**, named "farbaek-play", with no Cloud roles.
+   3. **IAM and admin → Service accounts → Create**, named "Farbaek Play billing" (`farbaek-play-billing`), with no Cloud roles.
    4. Open it, **Keys → Add key → JSON**. The file downloads once. Keep it private.
 3. **Give it Play access.** Play Console → **Users and permissions → Invite new users**:
    - the service account's email (it ends `.iam.gserviceaccount.com`);
-   - app **Farbaek**;
+   - under **Account permissions** (Farbaek is the account's only app);
    - **View financial data** and **Manage orders and subscriptions**.
 
    Its access can take up to a day to start working.
