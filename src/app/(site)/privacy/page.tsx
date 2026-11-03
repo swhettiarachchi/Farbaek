@@ -253,7 +253,7 @@ const SECTIONS: LegalSection[] = [
       <>
         <p>
           Farbaek needs the first items below to work. On our public pages, such as the home page and Pricing, we also ask whether Google Analytics may count your visit.
-          Nothing from Google loads unless you choose Allow, and you can change your mind under Cookie choices at the bottom of any page. Signed-in pages, Office Space and
+          Nothing from Google loads unless you choose Accept, and you can change your mind under Cookie choices at the bottom of any page. Signed-in pages, Office Space and
           the Android app never load it. We don&apos;t use advertising cookies, and Google&apos;s advertising features are off.
         </p>
         <Bullets
@@ -275,7 +275,7 @@ const SECTIONS: LegalSection[] = [
             </>,
             <>
               <code className="font-mono text-[13px]">_ga</code> and <code className="font-mono text-[13px]">_ga_…</code>: only if you allowed analytics, Google Analytics&apos; random
-              ID for your browser, for up to 2 years. Choosing Don&apos;t allow deletes them.
+              ID for your browser, for up to 2 years. Choosing Decline deletes them.
             </>,
             <>
               In your browser&apos;s local storage: a prompt you typed before signing in, so it&apos;s still there after, notices you dismissed, and your analytics choice, which

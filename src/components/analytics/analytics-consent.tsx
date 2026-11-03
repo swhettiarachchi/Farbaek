@@ -1,11 +1,12 @@
 "use client";
 
 /**
- * Google Analytics on Farbaek's public pages, only after the visitor allows
- * it (ADR 0155). Until then nothing from Google loads. "Don't allow" is as
- * easy as "Allow", and Cookie choices in the footer brings the question back.
- * Inside Farbaek for Android it never shows and never loads.
+ * Google Analytics on Farbaek's public pages, only after the visitor accepts
+ * (ADR 0155). Until then nothing from Google loads. The question is one slim
+ * bar: Decline sits beside Accept, the same size, and Cookie choices in the
+ * footer brings it back. Inside Farbaek for Android it never shows or loads.
  */
+import { CookieIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Script from "next/script";
@@ -86,7 +87,7 @@ export function AnalyticsConsent() {
   return (
     <>
       {mayLoad(id, choice, inApp) && id ? <GoogleTag id={id} /> : null}
-      {ask ? <ChoiceCard current={choice} /> : null}
+      {ask ? <ChoiceBar current={choice} /> : null}
     </>
   );
 }
@@ -129,34 +130,35 @@ function GoogleTag({ id }: { id: string }) {
   );
 }
 
-function ChoiceCard({ current }: { current: AnalyticsChoice | null }) {
+function ChoiceBar({ current }: { current: AnalyticsChoice | null }) {
   return (
     <section
-      aria-labelledby="cookie-choices-title"
-      className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-50 mx-auto max-w-sm rounded-md border border-line bg-surface p-4 shadow-e3 motion-safe:animate-[usage-in_260ms_cubic-bezier(0.16,1,0.3,1)_both] sm:inset-x-auto sm:left-6 sm:bottom-6 sm:mx-0 sm:p-5"
+      aria-label="Cookies"
+      className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-50 mx-auto max-w-3xl rounded-md bg-surface/90 p-3 shadow-e3 ring-1 ring-line backdrop-blur-md motion-safe:animate-[usage-in_260ms_cubic-bezier(0.16,1,0.3,1)_both] sm:bottom-5 sm:rounded-lg sm:py-2.5 sm:pl-5 sm:pr-2.5"
     >
-      <h2 id="cookie-choices-title" className="font-medium">
-        Can we count your visit?
-      </h2>
-      <p className="mt-1 text-sm leading-relaxed text-ink-2">
-        Google Analytics would show us which pages help people. It sets cookies, and nothing is collected unless you allow it.
-      </p>
-      {current ? <p className="mt-2 text-sm text-ink-3">Right now: {current === "allowed" ? "allowed" : "not allowed"}.</p> : null}
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <button type="button" onClick={() => choose("declined")} className={buttonClasses("secondary", "sm", "w-full")}>
-          Don&apos;t allow
-        </button>
-        <button type="button" onClick={() => choose("allowed")} className={buttonClasses("secondary", "sm", "w-full")}>
-          Allow
-        </button>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
+        <p className="flex min-w-0 flex-1 items-start gap-3 text-sm leading-relaxed text-ink-2 sm:items-center">
+          <CookieIcon size={20} className="mt-0.5 shrink-0 text-accent sm:mt-0" aria-hidden />
+          <span>
+            {current === "allowed"
+              ? "Analytics cookies are on for this browser."
+              : current === "declined"
+                ? "Analytics cookies are off for this browser."
+                : "We use analytics cookies to see which pages are useful. Nothing is collected unless you accept."}{" "}
+            <Link href="/privacy#cookies" className="whitespace-nowrap font-medium text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink">
+              Learn more
+            </Link>
+          </span>
+        </p>
+        <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex">
+          <button type="button" onClick={() => choose("declined")} className={buttonClasses("secondary", "sm", "w-full sm:w-auto sm:px-5")}>
+            Decline
+          </button>
+          <button type="button" onClick={() => choose("allowed")} className={buttonClasses("primary", "sm", "w-full sm:w-auto sm:px-5")}>
+            Accept
+          </button>
+        </div>
       </div>
-      <p className="mt-3 text-xs leading-relaxed text-ink-3">
-        Change it any time under Cookie choices at the bottom of the page. More in our{" "}
-        <Link href="/privacy#cookies" className="underline hover:text-ink">
-          Privacy Policy
-        </Link>
-        .
-      </p>
     </section>
   );
 }
