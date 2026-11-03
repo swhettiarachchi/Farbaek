@@ -1,6 +1,7 @@
 import { ArrowRightIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { Reveal } from "@/components/motion/reveal";
+import { HeroWord } from "@/components/marketing/hero-word";
 import { PromptComposer } from "@/components/build/prompt-composer";
 import { HeroVisual } from "@/components/three/hero-visual";
 import { Container } from "@/components/ui/container";
@@ -22,7 +23,9 @@ export function Hero() {
             id="hero-title"
             className="mt-7 max-w-[12ch] text-balance text-[2.9rem] font-medium leading-[1.02] tracking-[-0.045em] sm:text-[4.2rem] lg:text-[5.2rem]"
           >
-            From idea to verified software.
+            <span className="sr-only">From idea to verified software, websites and apps.</span>
+            <span aria-hidden>From idea to verified </span>
+            <HeroWord />
           </h1>
           <p className="mt-6 max-w-[34rem] text-lg leading-relaxed text-ink-2 sm:text-xl">
             Describe what you want. Farbaek plans it, builds it with an agent, runs the real checks and waits for your approval before anything ships.
