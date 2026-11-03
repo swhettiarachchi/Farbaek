@@ -1,623 +1,623 @@
 /**
- * Template: a one-day event page, built to the Studio standard (ADR 0030).
- * A blueprint look with a live countdown, a 3D ticket that turns over and
- * fills in your name as you register, a schedule you can filter by track,
- * and speakers with drawn portraits. Sample content; previews instantly
- * and is complete without JavaScript.
+ * Template: a conference page, the premium direction for events,
+ * conferences, meetups, festivals and weddings (ADR 0160): built on the
+ * Farbaek Studio kit, light by default. A full-bleed hero with a live
+ * countdown worked out from the start time, a schedule by day and track,
+ * last year in real event photos, the venue, ticket tiers, and a 3D ticket
+ * that fills in as you register, with an honest note that nothing is issued
+ * yet and a calendar file you can download. Sample content throughout;
+ * complete without JavaScript.
  */
+import { photoUrl } from "@/core/media/photos";
+import { STUDIO_KIT_CSS, STUDIO_KIT_JS } from "@/core/media/studio-kit";
 import type { StarterFile } from "../types";
 
-// A barcode and a door code, drawn from fixed numbers so the template is the same every time.
-const barcode = (() => {
-  const widths = [3, 1, 2, 1, 4, 1, 1, 3, 2, 1, 1, 2, 3, 1, 2, 4, 1, 1, 2, 1, 3, 2, 1, 1, 4, 2, 1, 3, 1, 2, 1, 1, 3];
-  let x = 0;
-  return widths
-    .map((w, i) => {
-      const r = i % 2 === 0 ? `<rect x="${x}" y="0" width="${w * 2}" height="44" />` : "";
-      x += w * 2;
-      return r;
-    })
-    .join("");
-})();
-const doorCode = (() => {
-  const N = 21;
-  let seed = 13;
-  const cells: string[] = [];
-  const inFinder = (x: number, y: number) => (x < 8 && y < 8) || (x > N - 9 && y < 8) || (x < 8 && y > N - 9);
-  const finder = (ox: number, oy: number) =>
-    `<rect x="${ox * 4}" y="${oy * 4}" width="28" height="28" /><rect x="${ox * 4 + 4}" y="${oy * 4 + 4}" width="20" height="20" fill="#ffffff" /><rect x="${ox * 4 + 8}" y="${oy * 4 + 8}" width="12" height="12" />`;
-  for (let y = 0; y < N; y++) {
-    for (let x = 0; x < N; x++) {
-      seed = (seed * 1103515245 + 12345) % 2147483648;
-      if (!inFinder(x, y) && seed % 100 < 46) cells.push(`<rect x="${x * 4}" y="${y * 4}" width="4" height="4" />`);
-    }
-  }
-  return finder(0, 0) + finder(N - 7, 0) + finder(0, N - 7) + cells.join("");
-})();
+const photo = (id: string, w: number, h: number, slot: string, alt: string, lazy = true) =>
+  `<img src="${photoUrl(id, w, h)}" alt="${alt}" width="${w}" height="${h}"${lazy ? ' loading="lazy"' : ""} data-farbaek-media="${slot}" data-farbaek-placeholder />`;
 
-type Track = "talk" | "workshop" | "build" | "all";
-const SCHEDULE: { time: string; title: string; track: Track; room: string }[] = [
-  { time: "09:00", title: "Doors open, coffee and name badges", track: "all", room: "Foyer" },
-  { time: "09:30", title: "Opening: what we'll make today", track: "talk", room: "Hall A" },
-  { time: "10:00", title: "Shipping small, and why it's braver", track: "talk", room: "Hall A" },
-  { time: "10:45", title: "Paper prototypes in thirty minutes", track: "workshop", room: "Studio 2" },
-  { time: "11:30", title: "Hardware for software people", track: "talk", room: "Hall A" },
-  { time: "11:30", title: "Accessible by default: a hands-on hour", track: "workshop", room: "Studio 2" },
-  { time: "12:30", title: "Lunch on the terrace", track: "all", room: "Terrace" },
-  { time: "13:30", title: "Build session: teams form, ideas get made", track: "build", room: "Hall B" },
-  { time: "17:30", title: "Demos: three minutes each, no slides", track: "all", room: "Hall A" },
-  { time: "19:00", title: "Awards and dinner", track: "all", room: "Terrace" },
+type Track = "everyone" | "design" | "engineering" | "product";
+const TRACK_LABEL: Record<Track, string> = { everyone: "Everyone", design: "Design", engineering: "Engineering", product: "Product" };
+
+const DAYS: { label: string; date: string; sessions: [string, string, string, Track, string][] }[] = [
+  {
+    label: "Day 1",
+    date: "Thursday 11 March",
+    sessions: [
+      ["09:00", "Doors, coffee and badges", "", "everyone", "Foyer"],
+      ["09:45", "Building for the island first", "Nadeesha F., design director", "everyone", "Main hall"],
+      ["11:00", "Type for three scripts on one screen", "Tharindu P., type designer", "design", "Hall B"],
+      ["11:00", "Offline-first apps that survive the 7.40 train", "Aisha M., mobile engineer", "engineering", "Hall C"],
+      ["13:30", "Pricing in rupees without losing your mind", "Kevin D., product lead", "product", "Hall B"],
+      ["13:30", "A design system for a team of two", "Shalini R., researcher", "design", "Hall C"],
+      ["15:00", "Postgres at three in the morning", "Ravi S., database engineer", "engineering", "Hall B"],
+      ["16:30", "What we got wrong: a panel", "Four of this year's speakers", "everyone", "Main hall"],
+    ],
+  },
+  {
+    label: "Day 2",
+    date: "Friday 12 March",
+    sessions: [
+      ["09:30", "Research in the field, not the office", "Shalini R., researcher", "design", "Hall B"],
+      ["09:30", "Shipping to the app stores from Colombo", "Aisha M., mobile engineer", "engineering", "Hall C"],
+      ["11:00", "Roadmaps people believe", "Kevin D., product lead", "product", "Hall B"],
+      ["13:30", "Accessibility you can see", "Tharindu P., type designer", "design", "Hall B"],
+      ["15:00", "The boring architecture that scales", "Ravi S., database engineer", "engineering", "Hall C"],
+      ["16:30", "Ten years from now", "Nadeesha F., design director", "everyone", "Main hall"],
+    ],
+  },
 ];
-const TRACK_LABEL: Record<Track, string> = { talk: "Talk", workshop: "Workshop", build: "Build", all: "Everyone" };
-const scheduleRows = SCHEDULE.map(
-  (s) => `            <li class="slot" data-track="${s.track}">
-              <time class="t">${s.time}</time>
-              <span class="what">${s.title}</span>
-              <span class="track tr-${s.track}">${TRACK_LABEL[s.track]}</span>
-              <span class="room">${s.room}</span>
-            </li>`,
+
+const schedule = DAYS.map(
+  (d, i) => `          <div class="day" id="day-${i + 1}" role="tabpanel" aria-labelledby="day-tab-${i + 1}"${i === 0 ? "" : " hidden"}>
+            <h3 class="fs-sr">${d.label}, ${d.date}</h3>
+            <ul class="sessions">
+${d.sessions
+  .map(
+    ([time, title, who, track, room]) => `              <li class="session" data-track="${track}">
+                <span class="session__time">${time}</span>
+                <div class="session__body">
+                  <p class="session__title">${title}</p>
+                  ${who ? `<p class="session__who">${who}</p>` : ""}
+                </div>
+                <span class="session__meta"><span class="tag tag--${track}">${TRACK_LABEL[track]}</span><span>${room}</span></span>
+              </li>`,
+  )
+  .join("\n")}
+            </ul>
+          </div>`,
 ).join("\n");
 
-const SPEAKERS = [
-  { name: "Amara Perera", role: "Hardware engineer", talk: "Hardware for software people", a: 0 },
-  { name: "Kenji Watanabe", role: "Product designer", talk: "Paper prototypes in thirty minutes", a: 1 },
-  { name: "Sofia Reyes", role: "Accessibility lead", talk: "Accessible by default", a: 2 },
-  { name: "Dev Malhotra", role: "Founder of a two-person studio", talk: "Shipping small, and why it's braver", a: 3 },
+const TIERS = [
+  { id: "student", name: "Student pass", price: "6,000", note: "Both days, with a student card at the door." },
+  { id: "standard", name: "Standard pass", price: "18,000", note: "Both days, lunch, and the party on Thursday night.", featured: true },
+  { id: "team", name: "Team of five", price: "80,000", note: "Five standard passes, and a table kept for you at lunch." },
 ];
-const portrait = (initials: string, variant: number) => {
-  const shapes = [
-    `<circle cx="60" cy="60" r="44" fill="none" stroke="#ffd23f" stroke-width="2" stroke-dasharray="4 6" /><path d="M16 96L104 24" stroke="#bfd0f2" stroke-width="1.5" />`,
-    `<rect x="18" y="18" width="84" height="84" fill="none" stroke="#ffd23f" stroke-width="2" /><path d="M18 60h84M60 18v84" stroke="#bfd0f2" stroke-width="1" stroke-dasharray="3 5" />`,
-    `<path d="M60 14l46 80H14z" fill="none" stroke="#ffd23f" stroke-width="2" /><circle cx="60" cy="68" r="20" fill="none" stroke="#bfd0f2" stroke-width="1.5" />`,
-    `<circle cx="42" cy="48" r="26" fill="none" stroke="#ffd23f" stroke-width="2" /><circle cx="78" cy="72" r="26" fill="none" stroke="#bfd0f2" stroke-width="1.5" />`,
-  ];
-  return `<svg viewBox="0 0 120 120" aria-hidden="true"><rect width="120" height="120" fill="#0b2c6b" />${shapes[variant]}<text x="60" y="70" text-anchor="middle" font-family="Bahnschrift, 'DIN Alternate', 'Arial Narrow', sans-serif" font-size="30" font-weight="700" fill="#ffffff">${initials}</text></svg>`;
-};
-const speakerCards = SPEAKERS.map(
-  (s) => `          <li class="speaker reveal">
-            <div class="portrait">${portrait(
-              s.name
-                .split(" ")
-                .map((w) => w[0])
-                .join(""),
-              s.a,
-            )}</div>
-            <h3>${s.name}</h3>
-            <p class="role">${s.role}</p>
-            <p class="talk">${s.talk}</p>
-          </li>`,
+
+const tierCards = TIERS.map(
+  (t) => `            <article class="tier${t.featured ? " tier--featured" : ""}" data-fs-reveal>
+              <h3 class="fs-h3">${t.name}</h3>
+              <p class="tier__price">Rs. ${t.price}</p>
+              <p class="tier__note">${t.note}</p>
+              <a class="fs-btn${t.featured ? "" : " fs-btn--ghost"}" href="#register" data-tier="${t.id}">Choose this pass <span class="fs-btn__icon" aria-hidden="true"></span></a>
+            </article>`,
 ).join("\n");
 
 const INDEX = `<!doctype html>
-<html lang="en">
+<html lang="en" data-fs-look="signal">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Build Day 2027: one day of making things</title>
-    <meta name="description" content="Build Day 2027: talks in the morning, building all afternoon and demos at dusk, on 13 March 2027. A sample event page." />
-    <meta name="theme-color" content="#0f3b8c" />
+    <title>Northline 27, design and engineering in Colombo, 11 to 12 March</title>
+    <meta name="description" content="Two days of talks on design, engineering and product, built for the island. 11 and 12 March 2027 at the Lotus Hall, Colombo." />
+    <script>document.documentElement.classList.add("fs-js");</script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@600;800&amp;family=Red+Hat+Text:wght@400;500;600&amp;display=swap" />
+    <link rel="stylesheet" href="${STUDIO_KIT_CSS}" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <a class="skip" href="#main">Skip to content</a>
-    <header class="bar">
-      <a class="brand" href="#top"><span class="brand-box" aria-hidden="true">BD</span>Build Day 2027</a>
-      <nav class="nav" aria-label="Main">
-        <a class="nav-link" href="#schedule">Schedule</a>
-        <a class="nav-link" href="#speakers">Speakers</a>
-        <a class="pill" href="#register">Save a seat</a>
-      </nav>
+    <a class="fs-skip" href="#main">Skip to content</a>
+    <header class="fs-nav">
+      <a class="fs-nav__brand" href="#top"><span class="mark" aria-hidden="true"></span>Northline 27</a>
+      <ul class="fs-nav__links">
+        <li><a href="#schedule">Schedule</a></li>
+        <li><a href="#venue">Venue</a></li>
+        <li><a href="#tickets">Tickets</a></li>
+      </ul>
+      <a class="fs-btn" href="#register">Get a ticket <span class="fs-btn__icon" aria-hidden="true"></span></a>
+      <button class="fs-nav__toggle" type="button" aria-label="Open the menu"></button>
     </header>
+    <nav class="fs-menu" aria-label="Menu">
+      <a href="#schedule">Schedule</a>
+      <a href="#venue">Venue</a>
+      <a href="#tickets">Tickets</a>
+      <a href="#register">Get a ticket</a>
+    </nav>
 
     <main id="main">
-      <section class="hero" id="top">
-        <div class="hero-copy">
-          <p class="when mono">Sat 13 Mar 2027 / Colombo / 09:00 to 21:00</p>
-          <h1>One day of making things, together.</h1>
-          <p class="lead">Talks in the morning, building all afternoon, demos at dusk. Bring an idea or join a team.</p>
-          <div class="actions">
-            <a class="button" href="#register">Save a seat</a>
-            <a class="link" href="#schedule">See the schedule <span aria-hidden="true">&rarr;</span></a>
-          </div>
-          <div class="countdown" id="countdown" aria-live="off">
-            <p class="cd-label mono">Doors open in</p>
-            <ol class="cd" id="cd">
-              <li><span class="n" data-unit="d">143</span><span class="u mono">days</span></li>
-              <li><span class="n" data-unit="h">12</span><span class="u mono">hours</span></li>
-              <li><span class="n" data-unit="m">30</span><span class="u mono">min</span></li>
-              <li><span class="n" data-unit="s">00</span><span class="u mono">sec</span></li>
-            </ol>
-          </div>
-          <p class="note mono">A sample event. Names, talks and the venue are sample content.</p>
-          <svg class="dim" viewBox="0 0 300 20" aria-hidden="true"><path d="M2 10h296M2 4v12M298 4v12M2 10l8-4v8zM298 10l-8-4v8z" /><text x="150" y="7" text-anchor="middle">12 hours</text></svg>
+      <section class="fs-hero hero" id="top" data-start="2027-03-11T09:00:00+05:30" data-end="2027-03-12T18:00:00+05:30">
+        <div class="fs-hero__media">
+          ${photo("1602137925482-00fb0ed07877", 2000, 1300, "hero-photo", "A full conference hall lit in blue, facing a large screen", false)}
         </div>
+        <div class="fs-container fs-hero__content">
+          <p class="hero__when">11 to 12 March 2027, Lotus Hall, Colombo</p>
+          <h1 class="fs-display" data-fs-reveal="words">Design and engineering, built for the island.</h1>
+          <p class="fs-lead" data-fs-reveal>Two days, three tracks and twenty-four talks from people shipping software in Sri Lanka. No sponsored keynotes.</p>
+          <div class="countdown" id="countdown" data-fs-reveal>
+            <p class="countdown__label" id="countdown-label">Starts in</p>
+            <div class="countdown__units" aria-hidden="true">
+              <span><b id="cd-days">--</b>days</span>
+              <span><b id="cd-hours">--</b>hours</span>
+              <span><b id="cd-mins">--</b>minutes</span>
+              <span><b id="cd-secs">--</b>seconds</span>
+            </div>
+            <p class="fs-sr" id="countdown-text">Starts on 11 March 2027 at 9 am, Colombo time.</p>
+          </div>
+          <div class="fs-actions" data-fs-reveal>
+            <a class="fs-btn" href="#register">Get a ticket <span class="fs-btn__icon" aria-hidden="true"></span></a>
+            <a class="fs-link" href="#schedule">See the schedule</a>
+          </div>
+        </div>
+      </section>
 
-        <div class="ticket-stage" id="ticket-stage">
-          <div class="ticket-float">
-            <div class="ticket" id="ticket">
-              <div class="face front">
-                <div class="t-main">
-                  <p class="t-kicker mono">Build Day 2027</p>
-                  <p class="t-name" id="t-name">Admit one</p>
-                  <p class="t-type mono" id="t-type">Builder ticket</p>
-                  <dl class="t-facts mono">
-                    <div><dt>Date</dt><dd>13 Mar 2027</dd></div>
-                    <div><dt>Doors</dt><dd>08:30</dd></div>
-                    <div><dt>Hall</dt><dd>B, table 14</dd></div>
-                  </dl>
-                </div>
-                <div class="t-stub">
-                  <svg class="barcode" viewBox="0 0 120 44" aria-hidden="true" preserveAspectRatio="none">${barcode}</svg>
-                  <p class="mono">No. 0213</p>
-                </div>
+      <section class="fs-section strip" aria-label="Northline 27 in numbers">
+        <div class="fs-container">
+          <div class="fs-stats" data-fs-stagger>
+            <div class="fs-stat" data-fs-reveal><span class="fs-stat__num" data-fs-count>24</span><span class="fs-stat__label">talks across three tracks</span></div>
+            <div class="fs-stat" data-fs-reveal><span class="fs-stat__num" data-fs-count>600</span><span class="fs-stat__label">seats in the Lotus Hall</span></div>
+            <div class="fs-stat" data-fs-reveal><span class="fs-stat__num" data-fs-count>2</span><span class="fs-stat__label">days, with lunch and one party</span></div>
+          </div>
+          <p class="fs-small strip__note">Sample figures. Replace them with yours.</p>
+        </div>
+      </section>
+
+      <section class="fs-section fs-section--raised" id="schedule" aria-labelledby="schedule-title">
+        <div class="fs-container">
+          <div class="fs-head fs-head--split">
+            <h2 class="fs-h2" id="schedule-title" data-fs-reveal>The schedule</h2>
+            <p class="fs-lead" data-fs-reveal>Times are Colombo time. Talks are thirty minutes with ten for questions.</p>
+          </div>
+          <div class="schedule__bar">
+            <div class="days" role="tablist" aria-label="Days">
+${DAYS.map((d, i) => `              <button type="button" role="tab" id="day-tab-${i + 1}" aria-controls="day-${i + 1}" aria-selected="${i === 0}"${i === 0 ? "" : ' tabindex="-1"'}>${d.label}<span>${d.date}</span></button>`).join("\n")}
+            </div>
+            <div class="chips" role="group" aria-label="Filter by track">
+              <button type="button" aria-pressed="true" data-track="all">All tracks</button>
+              <button type="button" aria-pressed="false" data-track="design">Design</button>
+              <button type="button" aria-pressed="false" data-track="engineering">Engineering</button>
+              <button type="button" aria-pressed="false" data-track="product">Product</button>
+            </div>
+          </div>
+${schedule}
+          <p class="fs-small schedule__note">A sample programme. Sessions for everyone stay in every filter.</p>
+        </div>
+      </section>
+
+      <section class="fs-section" aria-labelledby="last-title">
+        <div class="fs-container">
+          <div class="fs-head fs-head--split">
+            <h2 class="fs-h2" id="last-title" data-fs-reveal>Last year, in the hall</h2>
+            <p class="fs-lead" data-fs-reveal>Northline 26 sold out three weeks early. These are stand-in photos until yours go in.</p>
+          </div>
+          <div class="fs-mosaic" data-fs-stagger>
+            <figure class="fs-card" data-fs-reveal><div class="fs-frame" data-fs-tilt="4">${photo("1540575467063-178a50c2df87", 1600, 1000, "last-1", "An audience seated in rows in a dark conference hall")}</div><figcaption class="fs-card__meta"><span>The main hall, morning one</span></figcaption></figure>
+            <figure class="fs-card" data-fs-reveal><div class="fs-frame" data-fs-tilt="4">${photo("1559223694-98ed5e272fef", 1000, 1250, "last-2", "A speaker on stage in front of a blue backdrop and a screen")}</div><figcaption class="fs-card__meta"><span>A talk in Hall B</span></figcaption></figure>
+            <figure class="fs-card" data-fs-reveal><div class="fs-frame" data-fs-tilt="4">${photo("1773829020694-413e879d2957", 1000, 1250, "last-3", "A crowded hall facing a stage lit in blue")}</div><figcaption class="fs-card__meta"><span>The closing panel</span></figcaption></figure>
+            <figure class="fs-card" data-fs-reveal><div class="fs-frame" data-fs-tilt="4">${photo("1505373877841-8d25f7d46678", 1000, 1250, "last-4", "A presentation on a large screen in a darkened room")}</div><figcaption class="fs-card__meta"><span>Slides worth photographing</span></figcaption></figure>
+          </div>
+        </div>
+      </section>
+
+      <section class="fs-section fs-section--raised" id="venue" aria-labelledby="venue-title">
+        <div class="fs-container fs-split">
+          <div class="fs-frame" data-fs-reveal="mask">
+            ${photo("1582192730841-2a682d7375f9", 1100, 1375, "venue-photo", "A large dark auditorium with tiered seats facing a lit stage")}
+          </div>
+          <div class="fs-split__text">
+            <h2 class="fs-h2" id="venue-title" data-fs-reveal>The Lotus Hall.</h2>
+            <p class="fs-lead" data-fs-reveal>Six hundred seats, two smaller halls and a garden for lunch, ten minutes from Fort station.</p>
+            <ul class="fs-list" data-fs-stagger>
+              <li data-fs-reveal>Step-free from the gate to every hall</li>
+              <li data-fs-reveal>A quiet room, and live captions in the main hall</li>
+              <li data-fs-reveal>Parking for 80 cars; the train is quicker</li>
+            </ul>
+            <div class="fs-actions" data-fs-reveal>
+              <button class="fs-btn fs-btn--ghost" type="button" id="copy-address" data-address="Lotus Hall, 40 Lotus Road, Colombo 1">Copy the address <span class="fs-btn__icon" aria-hidden="true"></span></button>
+            </div>
+            <p class="fs-small" id="copy-msg" role="status">A sample venue and address.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="fs-section" id="tickets" aria-labelledby="tickets-title">
+        <div class="fs-container">
+          <div class="fs-head">
+            <h2 class="fs-h2" id="tickets-title" data-fs-reveal>Tickets</h2>
+            <p class="fs-lead" data-fs-reveal>Every pass covers both days. Prices include tax.</p>
+          </div>
+          <div class="tiers" data-fs-stagger>
+${tierCards}
+          </div>
+          <p class="fs-small">Sample prices in Sri Lankan rupees.</p>
+        </div>
+      </section>
+
+      <section class="fs-section fs-section--raised" id="register" aria-labelledby="register-title">
+        <div class="fs-container fs-split">
+          <div class="fs-split__text">
+            <h2 class="fs-h2" id="register-title" data-fs-reveal>Your ticket, made as you type.</h2>
+            <form class="register" id="register-form" novalidate>
+              <div class="field">
+                <label for="reg-name">Name on the badge</label>
+                <input id="reg-name" name="name" autocomplete="name" maxlength="40" required />
               </div>
-              <div class="face back" aria-hidden="true">
-                <svg class="code" viewBox="0 0 84 84">${doorCode}</svg>
-                <div>
-                  <p class="b-title">Show this at the door</p>
-                  <p class="mono">Hall B, table 14. Doors 08:30.</p>
-                  <p class="mono b-note">Sample ticket, not valid for entry.</p>
-                </div>
+              <div class="field">
+                <label for="reg-email">Email</label>
+                <input id="reg-email" name="email" type="email" autocomplete="email" required />
+              </div>
+              <div class="field">
+                <label for="reg-tier">Pass</label>
+                <select id="reg-tier" name="tier">
+${TIERS.map((t) => `                  <option value="${t.id}"${t.featured ? " selected" : ""}>${t.name}, Rs. ${t.price}</option>`).join("\n")}
+                </select>
+              </div>
+              <div class="fs-actions">
+                <button class="fs-btn" type="submit">Register <span class="fs-btn__icon" aria-hidden="true"></span></button>
+                <button class="fs-link calendar" type="button" id="add-calendar">Add to my calendar</button>
+              </div>
+              <p class="fs-small" id="register-msg" role="status">A sample form. It doesn't issue tickets or take payment yet.</p>
+            </form>
+          </div>
+          <div class="ticket-wrap">
+            <div class="fs-float">
+              <div class="ticket" id="ticket" data-fs-tilt="10" aria-hidden="true">
+                <div class="ticket__top"><span class="ticket__brand"><span class="mark"></span>Northline 27</span><span>11 to 12 March 2027</span></div>
+                <p class="ticket__name" id="ticket-name">Your name</p>
+                <p class="ticket__tier" id="ticket-tier">Standard pass</p>
+                <div class="ticket__foot"><span>Lotus Hall, Colombo</span><span class="ticket__code" id="ticket-code">NL27 0000</span></div>
+                <div class="ticket__shine"></div>
               </div>
             </div>
           </div>
-          <button class="turn" type="button" id="turn" aria-pressed="false">Turn the ticket over</button>
         </div>
       </section>
 
-      <section class="schedule" id="schedule" aria-labelledby="schedule-title">
-        <div class="wrap">
-          <div class="sec-head reveal">
-            <h2 id="schedule-title">Schedule</h2>
-            <div class="filters" role="group" aria-label="Show sessions">
-              <button type="button" aria-pressed="true" data-track="every">All</button>
-              <button type="button" aria-pressed="false" data-track="talk">Talks</button>
-              <button type="button" aria-pressed="false" data-track="workshop">Workshops</button>
-              <button type="button" aria-pressed="false" data-track="build">Build</button>
-            </div>
+      <section class="fs-section" aria-labelledby="faq-title">
+        <div class="fs-container fs-split fs-split--wide">
+          <div class="fs-faq" data-fs-reveal>
+            <details><summary>Can I transfer my ticket?</summary><p>Yes, up to a week before. Write to us with the new name and we'll reissue it.</p></details>
+            <details><summary>Will the talks be recorded?</summary><p>The main hall is recorded and published a month later. The smaller halls aren't, so come.</p></details>
+            <details><summary>Is there food for every diet?</summary><p>Lunch is a rice-and-curry buffet with vegetarian, vegan and gluten-free dishes marked. Tell us about allergies when you register.</p></details>
+            <details><summary>Can I speak next year?</summary><p>The call for talks opens in September. We pay every speaker's travel.</p></details>
           </div>
-          <ol class="slots reveal" id="slots">
-${scheduleRows}
-          </ol>
-          <p class="hint mono">Sessions for everyone stay in every view. Times are sample times, in Colombo time.</p>
-        </div>
-      </section>
-
-      <section class="speakers" id="speakers" aria-labelledby="speakers-title">
-        <div class="wrap">
-          <h2 id="speakers-title" class="reveal">Speakers</h2>
-          <ul class="speaker-grid">
-${speakerCards}
-          </ul>
-          <p class="hint mono">Sample speakers. Portraits are drawn placeholders until you add photos.</p>
-        </div>
-      </section>
-
-      <section class="register" id="register" aria-labelledby="register-title">
-        <div class="wrap register-grid">
-          <div class="reveal">
-            <h2 id="register-title">Save a seat.</h2>
-            <p class="sub">Free, with lunch and dinner. Watch your ticket fill in as you type.</p>
-          </div>
-          <form class="form reveal" id="form" novalidate>
-            <div class="field">
-              <label for="name">Your name</label>
-              <input id="name" type="text" autocomplete="name" maxlength="40" required />
-            </div>
-            <div class="field">
-              <label for="email">Email</label>
-              <input id="email" type="email" autocomplete="email" required />
-            </div>
-            <fieldset class="types">
-              <legend>Ticket</legend>
-              <label><input type="radio" name="type" value="Builder" checked /> <span>Builder</span></label>
-              <label><input type="radio" name="type" value="Student" /> <span>Student</span></label>
-              <label><input type="radio" name="type" value="Visitor" /> <span>Visitor</span></label>
-            </fieldset>
-            <button class="button" type="submit">Save my seat</button>
-            <p class="form-msg" id="form-msg" role="status">A sample form: it doesn't send anything yet.</p>
-          </form>
-        </div>
-      </section>
-
-      <section class="faq" aria-labelledby="faq-title">
-        <div class="wrap">
-          <h2 id="faq-title" class="reveal">Good to know</h2>
-          <div class="qs reveal">
-            <details><summary>Do I need a team or an idea?</summary><p>No. Teams form at 13:30 around the ideas people bring. Join one, or start your own.</p></details>
-            <details><summary>What should I bring?</summary><p>A laptop and its charger. We'll have power, fast internet, coffee and spare cables.</p></details>
-            <details><summary>Is it a real event?</summary><p>No. Build Day 2027 is sample content in a Farbaek template. Ask the agent to make it about your event.</p></details>
+          <div class="fs-head">
+            <h2 class="fs-h2" id="faq-title" data-fs-reveal>Questions</h2>
+            <p class="fs-lead" data-fs-reveal>Anything else, write to hello@northline.example.</p>
           </div>
         </div>
       </section>
     </main>
 
-    <footer class="foot mono">
-      <p>Build Day 2027 is a sample event.</p>
-      <a href="#top">Back to top</a>
+    <footer class="fs-footer">
+      <div class="fs-container">
+        <div class="fs-footer__grid">
+          <div><h2>Where</h2><p>Lotus Hall, 40 Lotus Road<br />Colombo 1</p></div>
+          <div><h2>When</h2><p>11 to 12 March 2027<br />9 am to 6 pm</p></div>
+          <div><h2>More</h2><ul><li><a href="#schedule">Schedule</a></li><li><a href="#tickets">Tickets</a></li><li><a href="mailto:hello@northline.example">Write to us</a></li></ul></div>
+        </div>
+        <div class="fs-footer__base"><span>&copy; <span id="year">2026</span> Northline. A sample event.</span><span>Made in Colombo</span></div>
+        <div class="fs-wordmark" aria-hidden="true">Northline</div>
+      </div>
     </footer>
-    <script src="script.js"></script>
+
+    <script type="module" src="${STUDIO_KIT_JS}"></script>
+    <script src="script.js" defer></script>
   </body>
 </html>
 `;
 
-const STYLES = `/* Build Day 2027. The design decisions behind these tokens are in DESIGN.md. */
+const STYLES = `/* Northline 27: the brand on top of the Farbaek Studio kit. The decisions are in DESIGN.md. */
 :root {
-  --blueprint: #0f3b8c;
-  --deep: #0b2c6b;
-  --paper: #ffffff;
-  --pale: #bfd0f2;
-  --signal: #ffd23f;
-  --ink: #0b1c3f;
-  --grid: rgba(255, 255, 255, 0.06);
-  --grid-major: rgba(255, 255, 255, 0.12);
-  --display: "Bahnschrift Condensed", "DIN Condensed", Bahnschrift, "DIN Alternate", "Roboto Condensed", "Arial Narrow", sans-serif;
-  --body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
-  --ease: cubic-bezier(0.16, 1, 0.3, 1);
-  --gutter: clamp(16px, 5vw, 64px);
+  --accent: #d1245f;
+  --accent-2: #3a5bff;
+  --on-accent: #ffffff;
+  --ink: #0e1020;
+  --ink-2: #555a70;
+  --paper: #f5f6fa;
+  --paper-2: #ffffff;
+  --line: rgb(14 16 32 / 0.1);
+  --font-display: "Red Hat Display", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Red Hat Text", ui-sans-serif, system-ui, sans-serif;
+  --radius: 18px;
+  --radius-lg: 30px;
+  --fs-display-weight: 800;
+  --fs-display-track: -0.035em;
 }
 
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body {
-  margin: 0;
-  background-color: var(--blueprint);
-  background-image: linear-gradient(var(--grid-major) 1px, transparent 1px), linear-gradient(90deg, var(--grid-major) 1px, transparent 1px), linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-  background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
-  color: var(--paper);
-  font: 17px/1.6 var(--body);
-  -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+[hidden] { display: none !important; }
+.mark { display: inline-block; width: 20px; height: 20px; border-radius: 50%; background: conic-gradient(from 200deg, var(--accent), var(--accent-2), var(--accent)); }
+
+/* The hero: the hall, darkened so white type reads, with the countdown in glass. */
+.hero { color: #fff; --ink: #fff; --ink-2: rgb(255 255 255 / 0.84); --line: rgb(255 255 255 / 0.24); }
+.hero .fs-hero__media::after { background: linear-gradient(90deg, rgb(10 12 30 / 0.78) 0%, rgb(10 12 30 / 0.35) 60%, rgb(10 12 30 / 0.15) 100%), linear-gradient(180deg, rgb(10 12 30 / 0.4) 0%, transparent 30%, rgb(10 12 30 / 0.7) 100%); }
+.hero .fs-display { font-size: clamp(42px, 6.8vw, 104px); max-width: 15ch; }
+.hero .fs-link { color: #fff; }
+.hero__when { width: fit-content; padding: 8px 14px; border-radius: 999px; background: rgb(255 255 255 / 0.14); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); font-size: 15px; font-weight: 500; }
+.countdown { display: grid; gap: 10px; }
+.countdown__label { font-size: 14px; color: var(--ink-2); }
+.countdown__units { display: flex; flex-wrap: wrap; gap: 8px; }
+.countdown__units span { display: grid; justify-items: center; min-width: 76px; padding: 12px 10px 10px; border: 1px solid var(--line); border-radius: 16px; background: rgb(255 255 255 / 0.1); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); font-size: 12px; color: var(--ink-2); }
+.countdown__units b { font: 800 clamp(28px, 3.4vw, 44px)/1 var(--font-display); letter-spacing: -0.03em; color: #fff; font-variant-numeric: tabular-nums; }
+
+.strip { padding-block: clamp(48px, 7vw, 88px); }
+.strip__note { margin-top: 16px; }
+
+/* The schedule: days as tabs, tracks as filters. */
+.schedule__bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 24px; }
+.days { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); }
+.days button { display: grid; justify-items: start; min-height: 52px; padding: 6px 20px; border: 0; border-radius: 999px; background: none; color: var(--ink-2); font: 600 16px/1.2 var(--font-body); cursor: pointer; transition: background-color 200ms, color 200ms; }
+.days button span { font-size: 12px; font-weight: 400; }
+.days button[aria-selected="true"] { background: var(--ink); color: var(--paper-2); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips button { min-height: 44px; padding: 0 16px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper-2); color: var(--ink-2); font: 500 15px/1 var(--font-body); cursor: pointer; transition: background-color 160ms, color 160ms, border-color 160ms; }
+.chips button[aria-pressed="true"] { border-color: var(--ink); color: var(--ink); background: color-mix(in oklab, var(--ink) 6%, var(--paper-2)); }
+.sessions { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.session { display: grid; grid-template-columns: 64px 1fr; gap: 6px 20px; padding: 20px 0; border-bottom: 1px solid var(--line); }
+@media (min-width: 900px) { .session { grid-template-columns: 96px 1fr 240px; align-items: center; } }
+.session__time { font: 800 20px/1.2 var(--font-display); font-variant-numeric: tabular-nums; }
+.session__title { font: 600 clamp(18px, 1.6vw, 22px)/1.3 var(--font-display); letter-spacing: -0.015em; }
+.session__who { margin-top: 2px; font-size: 15px; color: var(--ink-2); }
+.session__meta { grid-column: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 14px; color: var(--ink-2); }
+@media (min-width: 900px) { .session__meta { grid-column: auto; justify-content: flex-end; } }
+.tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink); font-weight: 500; }
+.tag::before { content: ""; width: 8px; height: 8px; }
+.tag--everyone::before { border-radius: 2px; background: var(--ink); }
+.tag--design::before { border-radius: 50%; background: var(--accent); }
+.tag--engineering::before { background: var(--accent-2); }
+.tag--product::before { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 9px solid #138a5a; }
+.schedule__note { margin-top: 20px; }
+
+/* Ticket tiers. */
+.tiers { display: grid; gap: 20px; margin-bottom: 20px; }
+@media (min-width: 900px) { .tiers { grid-template-columns: repeat(3, 1fr); align-items: stretch; } }
+.tier { display: grid; gap: 12px; align-content: start; padding: clamp(24px, 3vw, 36px); border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper-2); }
+.tier--featured { border-color: var(--accent); box-shadow: 0 24px 50px -28px color-mix(in oklab, var(--accent) 60%, transparent); }
+.tier__price { font: 800 clamp(32px, 3.4vw, 48px)/1 var(--font-display); letter-spacing: -0.03em; }
+.tier__note { color: var(--ink-2); min-height: 3.2em; }
+.tier .fs-btn { justify-self: start; }
+
+/* Register, beside a ticket that fills in as you type. */
+.register { display: grid; gap: 16px; max-width: 520px; }
+.field { display: grid; gap: 8px; font-size: 15px; color: var(--ink-2); }
+.field input, .field select { min-height: 52px; padding: 0 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--ink); font: 400 16px/1 var(--font-body); }
+.field input[aria-invalid="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.calendar { min-height: 44px; border: 0; background: none; padding: 0; color: inherit; cursor: pointer; font: inherit; font-weight: 500; }
+.ticket-wrap { display: grid; place-items: center; padding: 24px 0; perspective: 1200px; }
+.ticket { position: relative; width: min(100%, 380px); aspect-ratio: 5 / 7; display: grid; grid-template-rows: auto 1fr auto auto; gap: 8px; padding: 28px; border-radius: 26px; color: #fff; background: radial-gradient(120% 80% at 0% 0%, color-mix(in oklab, var(--accent-2) 80%, #000) 0%, transparent 60%), radial-gradient(120% 90% at 100% 100%, var(--accent) 0%, transparent 60%), #10122a; box-shadow: 0 40px 80px -30px rgb(14 16 32 / 0.6), inset 0 0 0 1px rgb(255 255 255 / 0.16); }
+.ticket__top { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: rgb(255 255 255 / 0.8); }
+.ticket__brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: #fff; }
+.ticket__brand .mark { width: 16px; height: 16px; }
+.ticket__name { align-self: end; font: 800 clamp(30px, 3.4vw, 42px)/1.05 var(--font-display); letter-spacing: -0.03em; overflow-wrap: anywhere; transform: translateZ(40px); }
+.ticket__tier { font-weight: 500; color: rgb(255 255 255 / 0.85); }
+.ticket__foot { display: flex; justify-content: space-between; gap: 12px; padding-top: 16px; border-top: 1.5px dashed rgb(255 255 255 / 0.35); font-size: 13px; color: rgb(255 255 255 / 0.8); }
+.ticket__code { font-family: ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: 0.08em; color: #fff; }
+.ticket__shine { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: linear-gradient(115deg, transparent 30%, rgb(255 255 255 / 0.18) 45%, transparent 60%) calc(var(--fs-mx, 30%) * 1.6 - 60%) 0 / 200% 100% no-repeat; mix-blend-mode: screen; }
+.ticket.pop { animation: pop 500ms var(--fs-ease); }
+/* On phones the ticket comes first, landscape, so it fills in where you can see it while you type. */
+@media (max-width: 899px) {
+  .ticket-wrap { order: -1; padding: 0; }
+  .ticket { width: min(100%, 360px); aspect-ratio: 8 / 5; padding: 22px; }
+  .ticket__name { font-size: 28px; }
 }
-a { color: inherit; }
-.mono { font-family: var(--mono); font-size: 13px; letter-spacing: 0.02em; }
-h1, h2, h3 { font-family: var(--display); font-weight: 700; text-transform: uppercase; letter-spacing: -0.01em; }
-h2 { margin: 0; font-size: clamp(44px, 7vw, 96px); line-height: 0.9; }
-:focus-visible { outline: 3px solid var(--signal); outline-offset: 3px; border-radius: 6px; }
-.skip { position: absolute; left: 16px; top: -60px; z-index: 20; padding: 10px 16px; border-radius: 999px; background: var(--signal); color: var(--ink); }
-.skip:focus { top: 12px; }
-.wrap { max-width: 1160px; margin: 0 auto; }
+@keyframes pop { 40% { scale: 1.04; } }
 
-.bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px var(--gutter); background: rgba(15, 59, 140, 0.88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--grid-major); }
-.brand { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font: 700 20px var(--display); text-transform: uppercase; text-decoration: none; }
-.brand-box { display: grid; place-items: center; width: 34px; height: 34px; border: 2px solid var(--signal); color: var(--signal); font-size: 15px; }
-.nav { display: flex; align-items: center; gap: 2px; }
-.nav-link { display: none; min-height: 44px; align-items: center; padding: 0 14px; border-radius: 999px; font-size: 15px; text-decoration: none; color: var(--pale); }
-.nav-link:hover { color: var(--paper); background: rgba(255, 255, 255, 0.08); }
-.pill { display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 999px; background: var(--signal); color: var(--ink); font-size: 15px; font-weight: 700; text-decoration: none; }
-@media (min-width: 760px) { .nav-link { display: inline-flex; } }
-
-/* Hero */
-.hero { display: grid; align-items: center; gap: 48px; min-height: calc(100dvh - 65px); padding: clamp(28px, 5vw, 64px) var(--gutter); }
-@media (min-width: 1000px) { .hero { grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); } }
-.hero-copy { position: relative; }
-.when { margin: 0 0 16px; color: var(--signal); }
-h1 { margin: 0; max-width: 18ch; font-size: clamp(52px, 6.2vw, 100px); line-height: 0.88; }
-.lead { max-width: 40ch; margin: 22px 0 0; color: var(--pale); font-size: clamp(18px, 1.6vw, 21px); }
-.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin-top: 30px; }
-.button { display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 28px; border: 0; border-radius: 999px; background: var(--signal); color: var(--ink); font: 700 16px var(--body); text-decoration: none; cursor: pointer; box-shadow: 0 14px 30px -16px rgba(255, 210, 63, 0.9); transition: transform 0.2s var(--ease), box-shadow 0.2s; }
-.button:hover { transform: translateY(-2px); box-shadow: 0 18px 36px -14px rgba(255, 210, 63, 0.9); }
-.button:active { transform: translateY(1px); }
-.link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-weight: 600; text-underline-offset: 5px; }
-.link span { transition: transform 0.2s var(--ease); }
-.link:hover span { transform: translateX(4px); }
-.countdown { margin-top: 36px; }
-.cd-label { margin: 0 0 8px; color: var(--pale); }
-.cd { display: flex; gap: 10px; margin: 0; padding: 0; list-style: none; }
-.cd li { display: grid; justify-items: center; min-width: 72px; padding: 10px 8px 8px; border: 1px solid var(--grid-major); background: rgba(11, 44, 107, 0.6); }
-.n { font: 700 clamp(30px, 3.4vw, 44px)/1 var(--display); font-variant-numeric: tabular-nums; }
-.u { color: var(--pale); font-size: 11px; text-transform: uppercase; }
-.n.tick { animation: tick 0.35s var(--ease); }
-@keyframes tick { from { opacity: 0.3; transform: translateY(-6px); } }
-.note { margin: 22px 0 0; color: var(--pale); }
-.dim { display: none; width: 300px; margin-top: 24px; }
-.dim path { fill: none; stroke: var(--pale); stroke-width: 1; }
-.dim path:last-child { fill: var(--pale); }
-.dim text { fill: var(--pale); font: 10px var(--mono); }
-@media (min-width: 1000px) { .dim { display: block; } }
-
-/* The ticket: 3D, it floats, follows the pointer and turns over. */
-.ticket-stage { --tx: 10deg; --ty: -18deg; display: grid; justify-items: center; gap: 18px; perspective: 1400px; }
-.ticket-float { width: min(440px, 100%); animation: float 6s ease-in-out infinite; }
-@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
-.ticket { position: relative; aspect-ratio: 1.62 / 1; transform-style: preserve-3d; transform: rotateX(var(--tx)) rotateY(var(--ty)); transition: transform 0.9s var(--ease); }
-.ticket.flipped { transform: rotateX(var(--tx)) rotateY(calc(var(--ty) + 180deg)); }
-.face { position: absolute; inset: 0; display: grid; border-radius: 20px; backface-visibility: hidden; -webkit-backface-visibility: hidden; box-shadow: 0 40px 70px -30px rgba(3, 12, 32, 0.8); overflow: hidden; }
-.front { grid-template-columns: minmax(0, 1fr) 30%; background: var(--signal); color: var(--ink); }
-.front::before, .front::after { content: ""; position: absolute; left: 70%; width: 26px; height: 26px; margin-left: -13px; border-radius: 50%; background: var(--blueprint); }
-.front::before { top: -13px; }
-.front::after { bottom: -13px; }
-.t-main { display: grid; align-content: space-between; padding: clamp(16px, 4%, 26px); }
-.t-kicker { margin: 0; font-weight: 700; text-transform: uppercase; }
-.t-name { margin: 6px 0 0; font: 700 clamp(28px, 4vw, 40px)/0.95 var(--display); text-transform: uppercase; overflow-wrap: anywhere; }
-.t-type { margin: 4px 0 0; }
-.t-facts { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 12px 0 0; }
-.t-facts div { display: grid; }
-.t-facts dt { opacity: 0.7; font-size: 11px; text-transform: uppercase; }
-.t-facts dd { margin: 0; font-weight: 700; font-size: 12px; white-space: nowrap; }
-.t-stub { display: grid; align-content: center; justify-items: center; gap: 8px; padding: 14px; border-left: 2px dashed rgba(11, 28, 63, 0.4); }
-.barcode { width: 100%; height: 44px; fill: var(--ink); }
-.t-stub p { margin: 0; }
-.back { grid-template-columns: auto 1fr; align-items: center; gap: 20px; padding: 24px; background: var(--paper); color: var(--ink); transform: rotateY(180deg); }
-.code { width: clamp(96px, 14vw, 132px); fill: var(--ink); }
-.b-title { margin: 0 0 6px; font: 700 26px/1 var(--display); text-transform: uppercase; }
-.back p { margin: 0; }
-.b-note { margin-top: 10px !important; opacity: 0.7; }
-.turn { display: none; min-height: 44px; padding: 0 18px; border: 1px solid var(--grid-major); border-radius: 999px; background: rgba(11, 44, 107, 0.6); color: var(--paper); font: 600 14px var(--body); cursor: pointer; }
-.turn:hover { border-color: var(--signal); }
-.ticket.stamp .t-name { animation: stamp 0.4s var(--ease); }
-@keyframes stamp { from { opacity: 0.4; transform: translateY(4px); } }
-.ticket-stage.off .ticket-float { animation-play-state: paused; }
-.js .turn { display: inline-flex; align-items: center; }
-
-/* Schedule */
-.schedule, .speakers, .register, .faq { padding: clamp(72px, 10vw, 128px) var(--gutter); border-top: 1px solid var(--grid-major); }
-.sec-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 20px; }
-.filters { display: flex; flex-wrap: wrap; gap: 8px; }
-.filters button { min-height: 44px; padding: 0 18px; border: 1px solid var(--grid-major); border-radius: 999px; background: transparent; color: var(--paper); font: 600 15px var(--body); cursor: pointer; transition: background-color 0.2s, color 0.2s; }
-.filters button:hover { border-color: var(--pale); }
-.filters button[aria-pressed="true"] { background: var(--paper); color: var(--ink); border-color: var(--paper); }
-.slots { margin: 36px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--grid-major); }
-.slot { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 4px 20px; padding: 16px 0; border-bottom: 1px solid var(--grid-major); }
-@media (min-width: 760px) { .slot { grid-template-columns: 80px minmax(0, 1fr) 110px 90px; align-items: center; } }
-.slot[hidden] { display: none; }
-.slot.enter { animation: enter 0.45s var(--ease) both; }
-@keyframes enter { from { opacity: 0; transform: translateX(-10px); } }
-.t { font: 700 22px var(--display); font-variant-numeric: tabular-nums; color: var(--signal); }
-.what { font-size: 18px; font-weight: 600; }
-.track { justify-self: start; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; grid-column: 2; }
-@media (min-width: 760px) { .track { grid-column: auto; } }
-.tr-talk { background: var(--paper); color: var(--ink); }
-.tr-workshop { box-shadow: inset 0 0 0 1.5px var(--paper); }
-.tr-build { background: var(--signal); color: var(--ink); }
-.tr-all { color: var(--pale); box-shadow: inset 0 0 0 1px var(--grid-major); }
-.room { color: var(--pale); font-size: 14px; grid-column: 2; }
-@media (min-width: 760px) { .room { grid-column: auto; text-align: right; } }
-.hint { margin: 18px 0 0; color: var(--pale); }
-
-/* Speakers */
-.speaker-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; margin: 40px 0 0; padding: 0; list-style: none; }
-.portrait { overflow: hidden; aspect-ratio: 1; border: 1px solid var(--grid-major); }
-.portrait svg { display: block; width: 100%; height: 100%; transition: transform 0.6s var(--ease); }
-.speaker:hover .portrait svg { transform: scale(1.05) rotate(-1deg); }
-.speaker h3 { margin: 14px 0 0; font-size: 28px; line-height: 1; }
-.role { margin: 4px 0 0; color: var(--pale); font-size: 15px; }
-.talk { margin: 8px 0 0; font-weight: 600; }
-
-/* Register */
-.register-grid { display: grid; gap: 36px; align-items: start; }
-@media (min-width: 940px) { .register-grid { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); } }
-.sub { max-width: 36ch; margin: 18px 0 0; color: var(--pale); font-size: 19px; }
-.form { display: grid; gap: 18px; padding: clamp(20px, 3vw, 32px); border: 1px solid var(--grid-major); border-radius: 28px; background: rgba(11, 44, 107, 0.75); }
-.field { display: grid; gap: 6px; }
-.field label, legend { font-weight: 600; font-size: 15px; }
-input[type="text"], input[type="email"] { min-height: 52px; padding: 0 16px; border: 1px solid var(--grid-major); border-radius: 12px; background: rgba(255, 255, 255, 0.06); color: var(--paper); font: 16px var(--body); }
-input[type="text"]:focus, input[type="email"]:focus { border-color: var(--signal); outline: none; box-shadow: 0 0 0 4px rgba(255, 210, 63, 0.2); }
-input[aria-invalid="true"] { border-color: #ff9b8a; }
-.types { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; border: 0; }
-.types legend { margin-bottom: 8px; }
-.types label { position: relative; }
-.types input { position: absolute; opacity: 0; }
-.types span { display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border: 1px solid var(--grid-major); border-radius: 999px; cursor: pointer; transition: background-color 0.2s, color 0.2s; }
-.types input:checked + span { background: var(--signal); color: var(--ink); border-color: var(--signal); font-weight: 700; }
-.types input:focus-visible + span { outline: 3px solid var(--signal); outline-offset: 3px; }
-.form .button { justify-self: start; }
-.form-msg { margin: 0; color: var(--pale); font-size: 14px; }
-.form-msg.error { color: #ffb4a8; }
-.form-msg.ok { color: var(--signal); font-weight: 600; }
-
-/* Questions */
-.qs { margin-top: 32px; border-top: 1px solid var(--grid-major); }
-details { border-bottom: 1px solid var(--grid-major); }
-summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; cursor: pointer; font-size: 18px; font-weight: 600; list-style: none; }
-summary::-webkit-details-marker { display: none; }
-summary::after { content: "+"; flex: none; display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid var(--grid-major); border-radius: 50%; transition: transform 0.3s var(--ease); }
-details[open] summary::after { transform: rotate(45deg); }
-details p { max-width: 60ch; margin: 0 0 20px; color: var(--pale); }
-
-.foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 22px var(--gutter); border-top: 1px solid var(--grid-major); color: var(--pale); }
-.foot p { margin: 0; }
-.foot a { display: inline-flex; align-items: center; min-height: 44px; margin: -12px 0; }
-
-.js .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.7s var(--ease), transform 0.7s var(--ease); }
-.js .reveal.in { opacity: 1; transform: none; }
-
-@media (max-width: 640px) { .ticket-stage { --tx: 6deg; --ty: -8deg; } .cd li { min-width: 0; flex: 1; } }
+.copy-ok { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
-  *, *::before, *::after { animation: none !important; transition: none !important; }
-  .js .reveal { opacity: 1; transform: none; }
+  .ticket.pop { animation: none; }
+  .days button, .chips button { transition: none; }
 }
 `;
 
-const SCRIPT = `// Build Day 2027: the countdown, the ticket, the schedule filter and the sample form.
-// The page is complete without this file.
+const SCRIPT = `// Northline 27: the countdown, the schedule's days and tracks, the ticket that fills in, the calendar file and the address.
+// The page is complete without this file; the Studio kit does the reveals, the tilt and the counters.
 (function () {
-  document.documentElement.classList.add("js");
-  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  var finePointer = window.matchMedia("(pointer: fine)").matches;
-  var canObserve = "IntersectionObserver" in window;
+  var hero = document.getElementById("top");
+  var start = new Date(hero ? hero.dataset.start : "");
+  var end = new Date(hero ? hero.dataset.end : "");
 
-  var reveals = document.querySelectorAll(".reveal");
-  if (canObserve && !reduce) {
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (entry.isIntersecting) { entry.target.classList.add("in"); io.unobserve(entry.target); }
-      });
-    }, { rootMargin: "0px 0px -8% 0px" });
-    reveals.forEach(function (el) { io.observe(el); });
-  } else {
-    reveals.forEach(function (el) { el.classList.add("in"); });
-  }
-
-  // The countdown to doors at 09:00 on 13 March 2027, in the visitor's local time.
-  var START = new Date(2027, 2, 13, 9, 0, 0).getTime();
-  var cd = document.getElementById("countdown");
-  var units = { d: 86400000, h: 3600000, m: 60000, s: 1000 };
-  var cells = {};
-  document.querySelectorAll("[data-unit]").forEach(function (el) { cells[el.dataset.unit] = el; });
-  function pad(n) { return n < 10 ? "0" + n : String(n); }
+  // The countdown, worked out from the start time in the visitor's own clock.
+  var label = document.getElementById("countdown-label");
+  var text = document.getElementById("countdown-text");
+  var units = document.querySelector(".countdown__units");
+  var pad = function (n) { return (n < 10 ? "0" : "") + n; };
+  var timer = null;
   function tick() {
-    var left = START - Date.now();
-    if (left <= 0) {
-      cd.innerHTML = "<p class=\\"cd-label mono\\">Build Day 2027 has happened. Thanks to everyone who came.</p>";
-      return false;
+    var now = Date.now();
+    if (isNaN(start)) return;
+    if (now >= end) {
+      label.textContent = "Northline 27 has happened. Thank you for coming.";
+      units.hidden = true;
+      text.textContent = label.textContent;
+      clearInterval(timer);
+      return;
     }
-    ["d", "h", "m", "s"].forEach(function (u) {
-      var v = Math.floor(left / units[u]);
-      left -= v * units[u];
-      var text = u === "d" ? String(v) : pad(v);
-      if (cells[u].textContent !== text) {
-        cells[u].textContent = text;
-        if (!reduce) { cells[u].classList.remove("tick"); void cells[u].offsetWidth; cells[u].classList.add("tick"); }
-      }
-    });
-    return true;
+    if (now >= start) {
+      label.textContent = "Happening now, at the Lotus Hall.";
+      units.hidden = true;
+      text.textContent = label.textContent;
+      return;
+    }
+    var s = Math.floor((start - now) / 1000);
+    var d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+    document.getElementById("cd-days").textContent = String(d);
+    document.getElementById("cd-hours").textContent = pad(h);
+    document.getElementById("cd-mins").textContent = pad(m);
+    document.getElementById("cd-secs").textContent = pad(s % 60);
+    text.textContent = "Starts in " + d + " days and " + h + " hours.";
   }
-  if (cd && tick()) {
-    var timer = setInterval(function () { if (!tick()) clearInterval(timer); }, 1000);
-  }
+  tick();
+  timer = setInterval(tick, 1000);
 
-  // The ticket follows the pointer, turns over, and pauses its float off screen.
-  var stage = document.getElementById("ticket-stage");
-  var ticket = document.getElementById("ticket");
-  var turn = document.getElementById("turn");
-  if (stage && finePointer && !reduce) {
-    stage.addEventListener("pointermove", function (e) {
-      var r = stage.getBoundingClientRect();
-      var x = (e.clientX - r.left) / r.width - 0.5;
-      var y = (e.clientY - r.top) / r.height - 0.5;
-      stage.style.setProperty("--ty", (-18 + x * 24).toFixed(1) + "deg");
-      stage.style.setProperty("--tx", (10 - y * 16).toFixed(1) + "deg");
+  // Days as tabs, with arrow keys.
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.days [role="tab"]'));
+  function pick(i, focus) {
+    tabs.forEach(function (t, n) {
+      var on = n === i;
+      t.setAttribute("aria-selected", String(on));
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
     });
-    stage.addEventListener("pointerleave", function () {
-      stage.style.removeProperty("--ty");
-      stage.style.removeProperty("--tx");
+    if (focus) tabs[i].focus();
+  }
+  tabs.forEach(function (t, i) {
+    t.addEventListener("click", function () { pick(i, false); });
+    t.addEventListener("keydown", function (e) {
+      var next = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+      if (next === undefined) return;
+      e.preventDefault();
+      pick((next + tabs.length) % tabs.length, true);
     });
-  }
-  if (stage && canObserve) {
-    new IntersectionObserver(function (entries) { stage.classList.toggle("off", !entries[0].isIntersecting); }).observe(stage);
-  }
-  if (turn && ticket) {
-    turn.addEventListener("click", function () {
-      var flipped = ticket.classList.toggle("flipped");
-      turn.setAttribute("aria-pressed", String(flipped));
-      turn.textContent = flipped ? "Turn it back" : "Turn the ticket over";
-    });
-  }
+  });
 
-  // The schedule filter. Sessions for everyone stay in every view.
-  var slots = document.querySelectorAll(".slot");
-  document.querySelectorAll(".filters button").forEach(function (b) {
-    b.addEventListener("click", function () {
-      var track = b.dataset.track;
-      document.querySelectorAll(".filters button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
-      var shown = 0;
-      slots.forEach(function (s) {
-        var show = track === "every" || s.dataset.track === track || s.dataset.track === "all";
-        s.hidden = !show;
-        s.classList.remove("enter");
-        if (show && !reduce) { s.style.animationDelay = shown * 35 + "ms"; void s.offsetWidth; s.classList.add("enter"); }
-        if (show) shown += 1;
+  // Tracks: sessions for everyone stay in every filter.
+  var chips = Array.prototype.slice.call(document.querySelectorAll(".chips [data-track]"));
+  chips.forEach(function (chip) {
+    chip.addEventListener("click", function () {
+      var track = chip.dataset.track;
+      chips.forEach(function (c) { c.setAttribute("aria-pressed", String(c === chip)); });
+      document.querySelectorAll(".session").forEach(function (s) {
+        s.hidden = !(track === "all" || s.dataset.track === track || s.dataset.track === "everyone");
       });
     });
   });
 
-  // The form: the ticket fills in as you type; saving checks the fields and says nothing was sent.
-  var form = document.getElementById("form");
-  var nameInput = document.getElementById("name");
-  var emailInput = document.getElementById("email");
-  var msg = document.getElementById("form-msg");
-  var tName = document.getElementById("t-name");
-  var tType = document.getElementById("t-type");
-  function stamp() { ticket.classList.remove("stamp"); void ticket.offsetWidth; ticket.classList.add("stamp"); }
-  if (form && nameInput && tName && tType) {
-    nameInput.addEventListener("input", function () {
-      tName.textContent = nameInput.value.trim() || "Admit one";
-    });
-    form.addEventListener("change", function (e) {
-      if (e.target.name === "type") { tType.textContent = e.target.value + " ticket"; stamp(); }
-    });
+  // The ticket fills in as you type, with a code made from the name.
+  var nameIn = document.getElementById("reg-name");
+  var tierIn = document.getElementById("reg-tier");
+  var tName = document.getElementById("ticket-name");
+  var tTier = document.getElementById("ticket-tier");
+  var tCode = document.getElementById("ticket-code");
+  function code(s) {
+    var h = 7;
+    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 9973;
+    return "NL27 " + String(h).padStart(4, "0");
+  }
+  function fill() {
+    var n = nameIn.value.trim();
+    tName.textContent = n || "Your name";
+    tTier.textContent = tierIn.options[tierIn.selectedIndex].text.split(",")[0];
+    tCode.textContent = n ? code(n.toLowerCase()) : "NL27 0000";
+  }
+  if (nameIn && tierIn) {
+    nameIn.addEventListener("input", fill);
+    tierIn.addEventListener("change", fill);
+    fill();
+  }
+  // Choosing a pass in the tiers sets it on the form.
+  document.querySelectorAll("[data-tier]").forEach(function (a) {
+    a.addEventListener("click", function () { tierIn.value = a.dataset.tier; fill(); });
+  });
+
+  var form = document.getElementById("register-form");
+  var msg = document.getElementById("register-msg");
+  var ticket = document.getElementById("ticket");
+  if (form) {
     form.addEventListener("submit", function (e) {
       e.preventDefault();
-      var problems = [];
-      nameInput.setAttribute("aria-invalid", String(!nameInput.value.trim()));
-      emailInput.setAttribute("aria-invalid", String(!emailInput.checkValidity()));
-      if (!nameInput.value.trim()) problems.push("your name");
-      if (!emailInput.checkValidity()) problems.push("an email address like name@example.com");
-      msg.classList.remove("ok", "error");
-      if (problems.length) {
-        msg.classList.add("error");
-        msg.textContent = "Add " + problems.join(" and ") + ".";
-        (nameInput.value.trim() ? emailInput : nameInput).focus();
-        return;
-      }
-      msg.classList.add("ok");
-      msg.textContent = "Your ticket is ready above. This is a sample form, so nothing was sent.";
-      stamp();
-      stage.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
+      var email = document.getElementById("reg-email");
+      var nameOk = nameIn.value.trim().length > 1;
+      var emailOk = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email.value.trim());
+      nameIn.setAttribute("aria-invalid", String(!nameOk));
+      email.setAttribute("aria-invalid", String(!emailOk));
+      if (!nameOk) { msg.textContent = "Add the name you'd like on your badge."; nameIn.focus(); return; }
+      if (!emailOk) { msg.textContent = "Enter an email address like name@example.com."; email.focus(); return; }
+      msg.textContent = "Thanks, " + nameIn.value.trim() + ". This is a sample page, so no ticket was issued and nothing was charged.";
+      ticket.classList.remove("pop");
+      void ticket.offsetWidth;
+      ticket.classList.add("pop");
     });
   }
+
+  // A calendar file for both days, made here in the browser.
+  var cal = document.getElementById("add-calendar");
+  if (cal && !isNaN(start)) {
+    cal.addEventListener("click", function () {
+      var stamp = function (d) { return d.toISOString().replace(/[-:]/g, "").replace(/\\.\\d{3}/, ""); };
+      var ics = [
+        "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Northline//Northline 27//EN", "BEGIN:VEVENT",
+        "UID:northline-27@northline.example", "DTSTAMP:" + stamp(new Date()), "DTSTART:" + stamp(start), "DTEND:" + stamp(end),
+        "SUMMARY:Northline 27", "LOCATION:Lotus Hall\\\\, 40 Lotus Road\\\\, Colombo 1", "END:VEVENT", "END:VCALENDAR"
+      ].join("\\r\\n");
+      var url = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "northline-27.ics";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      msg.textContent = "Saved northline-27.ics. Open it to add both days to your calendar.";
+    });
+  }
+
+  // Copy the address, and say what happened.
+  var copy = document.getElementById("copy-address");
+  var copyMsg = document.getElementById("copy-msg");
+  if (copy && copyMsg) {
+    copy.addEventListener("click", function () {
+      var address = copy.dataset.address;
+      var done = function () { copyMsg.textContent = "Copied. It's a sample address, so replace it with yours."; };
+      var fail = function () { copyMsg.textContent = "Couldn't copy here. The address is " + address + "."; };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(address).then(done, fail);
+      else fail();
+    });
+  }
+
+  var year = document.getElementById("year");
+  if (year) year.textContent = String(new Date().getFullYear());
 })();
 `;
 
-const DESIGN = `# Build Day 2027: design
+const DESIGN = `# Northline 27: design
 
-Design read: a page for a one-day community making event, for builders, students and designers. Energetic and technical, like a drawing on the workshop wall.
+Design read: a two-day conference in Colombo for designers, engineers and product people, independent and serious about its programme; energetic but clear, the schedule easy to read on a phone. Built on the Farbaek Studio kit, light.
 
-## Palette (CSS variables in styles.css)
+## Look
 
-- \`--blueprint\` #0f3b8c: the page, with a fine white grid over it
-- \`--deep\` #0b2c6b: panels and portraits
-- \`--paper\` #ffffff: text
-- \`--pale\` #bfd0f2: secondary text and lines (AA on blueprint)
-- \`--signal\` #ffd23f: the one accent, for actions, times and the ticket
-- \`--ink\` #0b1c3f: text on the signal yellow
+The kit's signal look, tuned: a cool off-white paper, 18px cards, a heavy display face, and one night-blue object (the ticket).
+
+## Palette
+
+- \`--paper\` #f5f6fa and \`--paper-2\` #ffffff.
+- \`--ink\` #0e1020, a night navy, and \`--ink-2\` #555a70.
+- \`--accent\` #d1245f, a deep magenta, for actions, the featured pass and the design track.
+- \`--accent-2\` #3a5bff, cobalt, for the engineering track and the ticket's light.
 
 ## Type
 
-- Display: a condensed engineering face (Bahnschrift Condensed, DIN Condensed), weight 700, uppercase.
-- Body: the system sans at 17px.
-- Labels, dates and data: the system monospace.
+Red Hat Display at 800 for headlines, times and prices, set tight; Red Hat Text for everything else. Times and the countdown are tabular.
 
 ## Layout
 
-A split hero (the date, headline, countdown and a dimension line on the left; the ticket on the right), a schedule with track filters, four speakers, a registration form that writes onto the ticket, and questions.
+A full-bleed hero of the hall with the date, the claim and a live countdown in glass tiles; three numbers; the schedule with day tabs and track filters; last year in a photo mosaic; the venue; three passes; registration beside the ticket; questions; a dense footer with the wordmark.
 
 ## Signature
 
-The ticket: a 3D admission ticket that floats, leans toward the pointer, turns over to show its door code, and fills in your name and ticket type as you register.
+The ticket: a night-blue pass that fills in with your name and pass as you type, tilts toward the pointer in 3D with a light that follows, and pops when you register.
 
 ## Motion
 
-The ticket floats and pauses off screen; it turns over in 0.9 s. Countdown digits tick, schedule rows slide in when filtered, sections rise in on scroll. Everything stops under prefers-reduced-motion, and the page is complete without JavaScript.
+The claim rises word by word, the countdown ticks, the numbers count up, photos rise and tilt, the ticket floats and turns. All of it stops under reduced motion; the countdown still updates, because it's information.
 
-## Shape
+## Media
 
-Pills for buttons and filters, 12px inputs, 20px ticket, square portraits and countdown cells (the blueprint is square).
+Six real conference photos marked as placeholders: the hero, four from last year and the venue. Replace them with the event's own in Studio.
 
-## When this becomes another event
+## Avoid
 
-Update this file first. Change the date in script.js (START) and the hero, keep the ticket if people register, and keep one accent.
+A fake "selling fast" counter, invented speaker headshots, sponsor logos that aren't real, and a ticket form that pretends to take payment.
 `;
 
-const README = `# Build Day 2027 event page (template)
+const README = `# Northline 27 event page (template)
 
-A one-day event page built to the Farbaek Studio standard: a blueprint look, a live countdown, a 3D ticket that turns over and fills in as you register, a schedule you can filter by track, speakers and questions.
+A static site on the Farbaek Studio kit: \`index.html\`, \`styles.css\` and \`script.js\`. There's no build step and nothing to install.
 
-- \`DESIGN.md\`: the design decisions. Change it first when the page becomes your event's.
-- \`script.js\`: the countdown (START is 09:00 on 13 March 2027), the ticket, the schedule filter, the form and scroll reveals. The page works without it.
+## Make it yours
 
-The event, talks, speakers, venue and times are sample content. Ask the agent to make it yours, for example: "Make this the page for our book club meetup on 3 May at the city library, with three talks".
+1. Set the start and end on the hero (\`data-start\` and \`data-end\`, with the time zone). The countdown and the calendar file use them.
+2. Change the schedule, the passes, the venue and the questions in \`index.html\`.
+3. Tune the colours and fonts at the top of \`styles.css\`, and update \`DESIGN.md\`.
+4. Replace each photo marked as a placeholder with your own (Studio's Replace does it in a click).
 
-The registration form doesn't send anything yet. Connecting it to a list or a ticketing service is a separate change.
+The programme, figures, prices and venue are samples. Registration doesn't issue tickets until it's connected.
 `;
 
 export const EVENT_PAGE_FILES: StarterFile[] = [
+  { path: "DESIGN.md", content: DESIGN },
   { path: "index.html", content: INDEX },
   { path: "styles.css", content: STYLES },
   { path: "script.js", content: SCRIPT },
-  { path: "DESIGN.md", content: DESIGN },
   { path: "README.md", content: README },
 ];

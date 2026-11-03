@@ -2,8 +2,9 @@
  * The template gallery (Phase D): finished-looking static sites with sample
  * content the agent replaces, built to the Studio standard (ADR 0030): each
  * has a DESIGN.md, its own look and motion, and a feature that works.
- * HTML, CSS and a little JavaScript, system fonts, nothing to
- * install and nothing fetched, so each previews instantly and safely.
+ * HTML, CSS and a little JavaScript with nothing to install, so each previews
+ * instantly. The premium directions (ADR 0158, ADR 0160) are on the Studio
+ * kit with real stand-in photos and web fonts; the rest are self-contained.
  */
 import type { Starter } from "../types";
 import { BLOG_FILES } from "./blog";
@@ -23,10 +24,10 @@ const site = (s: Omit<Starter, "run" | "staticPreview" | "kind">): Starter => ({
 export const TEMPLATES: readonly Starter[] = [
   site({
     id: "landing-page",
-    name: "Landing page",
-    summary: "One product: a floating 3D week, a planner that works in the browser and an email sign-up.",
+    name: "Product launch",
+    summary: "One product, told like a flagship launch: a tilting hero, a dark chapter where the sound settles as you scroll, a closer look and pre-orders.",
     files: LANDING_PAGE_FILES,
-    examplePrompt: "Make this the landing page for my bookkeeping service for small shops, with a sign-up for a free consultation.",
+    examplePrompt: "Make this the launch page for our insulated water bottle, with pre-orders at $39 shipping in June.",
   }),
   site({
     id: "saas-site",
@@ -38,7 +39,7 @@ export const TEMPLATES: readonly Starter[] = [
   site({
     id: "portfolio",
     name: "Portfolio",
-    summary: "Your work, big: a name that builds itself, drawn case-study covers that tilt and a contact band.",
+    summary: "Your work, big: your name across the page, photos that tilt, an index with a floating preview and a viewer.",
     files: PORTFOLIO_FILES,
     examplePrompt: "Make this my photography portfolio with five projects, a short bio and my email.",
   }),
@@ -59,7 +60,7 @@ export const TEMPLATES: readonly Starter[] = [
   site({
     id: "event-page",
     name: "Event page",
-    summary: "One date: a countdown, a 3D ticket that fills in as you register and a schedule by track.",
+    summary: "One date: a live countdown, a schedule by day and track, real event photos and a 3D ticket that fills in as you register.",
     files: EVENT_PAGE_FILES,
     examplePrompt: "Make this the page for our book club meetup on 3 May at the city library, with three talks.",
   }),
@@ -73,7 +74,7 @@ export const TEMPLATES: readonly Starter[] = [
   site({
     id: "online-store",
     name: "Online store",
-    summary: "A small shop: drawn products in their own glaze, filters and sorting, and a cart that remembers what's in it.",
+    summary: "A store that sells: real product photos, filters and sorting, sizes, a wishlist and a bag drawer that remembers what's in it.",
     files: ONLINE_STORE_FILES,
     examplePrompt: "Make this the store for my handmade candle shop, with six scents at $18 to $32 and free delivery over $50.",
   }),

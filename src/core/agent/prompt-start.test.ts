@@ -54,7 +54,24 @@ describe("premium directions and first builds (ADR 0158)", () => {
     expect(templateForPrompt("A site for my handmade jewellery")).toBe("luxury");
     // A bakery stays a bakery even when it says luxury.
     expect(templateForPrompt("A luxury bakery")).toBe("local-business");
-    expect(templateForPrompt("A portfolio for my architecture practice")).toBeNull();
+  });
+
+  it("starts portfolios, events, shops and launches from their directions (ADR 0160)", () => {
+    expect(templateForPrompt("A portfolio for my architecture practice")).toBe("portfolio");
+    expect(templateForPrompt("Make my photography site with five projects")).toBe("portfolio");
+    expect(templateForPrompt("A site for my wedding photography business in Galle")).toBe("portfolio");
+    expect(templateForPrompt("A page for our book club meetup on 3 May")).toBe("event-page");
+    expect(templateForPrompt("Our wedding on 12 June in Kandy, with the schedule and RSVPs")).toBe("event-page");
+    expect(templateForPrompt("An online store for my handmade candles")).toBe("online-store");
+    expect(templateForPrompt("A site to sell our skincare products")).toBe("online-store");
+    expect(templateForPrompt("A launch page for our new wireless earbuds")).toBe("landing-page");
+    // A launch on the App Store is a launch, not a shop.
+    expect(templateForPrompt("A landing page for my app on the App Store")).toBe("landing-page");
+    expect(templateForPrompt("A barber shop in Colombo")).toBeNull();
+    expect(templateForPrompt("A blog about gardening")).toBeNull();
+    // Asking for an online shop outright makes it a shop, whatever it sells; a café on its own stays a café.
+    expect(templateForPrompt("An online shop for my coffee roastery")).toBe("online-store");
+    expect(templateForPrompt("A site for my coffee roastery")).toBe("local-business");
   });
 
   it("counts a project's first task and the upgrade brief as first builds", () => {
