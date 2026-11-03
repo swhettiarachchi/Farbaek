@@ -37,7 +37,9 @@ After Search Console (stage 136), the owner asked to set up Google Analytics.
   - opened the way Farbaek for Android opens it (`?client=android-app`, then a later page): no question, no Cookie choices, 0 requests to Google. A referrer-only check can't be made headless: Chrome drops `android-app://` referrers.
   - desktop at 1280px: the card at the bottom left.
 
-### Next
+### After the merge (2026-11-03)
 
-- After the merge: open www.farbaek.com, choose Allow, and check Realtime in Google Analytics shows the visit.
-- Link Search Console to Analytics (Admin, Product links) if the owner wants search queries beside visits.
+- **Live:** production runs the merge (`c95d2c7`) and shows the slim bar. Google Analytics Realtime showed the first real visit after Accept: one page view of the homepage, with `first_visit`, `session_start` and `scroll`, and no duplicate page view.
+- **Search Console linked** to the "Farbaek website" stream (Admin, Product links), so search queries show beside visits.
+- **Key event `visit_sign_in`:** a page view whose address contains `/sign-in`, counted once per session, with no money value (Google fills in $1 by default, which would invent revenue).
+- **Left off on purpose:** Google signals, user-ID and user-provided data collection (the Privacy Policy says advertising features are off).
