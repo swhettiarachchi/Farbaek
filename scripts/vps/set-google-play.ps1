@@ -69,7 +69,8 @@ process.stdin.on("data", (d) => (input += d)).on("end", async () => {
     if (!t.ok) { const e = await t.json().catch(() => ({})); console.log("REFUSED google " + t.status + " " + String(e.error || "")); return; }
     const { access_token } = await t.json();
     const r = await fetch("https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.farbaek.app/purchases/subscriptionsv2/tokens/farbaek-setup-check", { headers: { authorization: "Bearer " + access_token } });
-    if (r.status === 401 || r.status === 403) { console.log("REFUSED play " + r.status); return; }
+    // Google's reason code only (letters), e.g. permissionDenied or accessNotConfigured: it tells a slow new grant from a missing setting.
+    if (r.status === 401 || r.status === 403) { const e = await r.json().catch(() => ({})); const why = String(e?.error?.errors?.[0]?.reason || e?.error?.status || "").replace(/[^A-Za-z]/g, "").slice(0, 40); console.log("REFUSED play " + r.status + " " + why); return; }
     console.log("OK " + r.status);
   } catch {
     console.log("REFUSED file");
@@ -102,8 +103,11 @@ $refused = $lines | Where-Object { $_ -like "REFUSED*" } | Select-Object -First 
 if ($refused -like "REFUSED google*") {
   Write-Host "Google refused this key ($($refused.Substring(15))). Make a new key for the service account and run this again. Nothing changed." -ForegroundColor Red; exit 1
 }
+if ($refused -like "REFUSED play*accessNotConfigured*") {
+  Write-Host "Google accepts the key, but the Google Play Android Developer API isn't turned on in the service account's Google Cloud project. Turn it on (APIs and services > Library), wait a few minutes and run this again. Nothing changed." -ForegroundColor Red; exit 1
+}
 if ($refused -like "REFUSED play*") {
-  Write-Host "Google accepts the key, but Google Play doesn't let it read Farbaek's purchases yet. In Play Console > Users and permissions, check $account has View financial data and Manage orders and subscriptions for Farbaek. New access can take up to a day. Nothing changed." -ForegroundColor Red; exit 1
+  Write-Host "Google accepts the key, but Google Play doesn't let it read Farbaek's purchases yet (Google says: $($refused.Substring(13))). In Play Console > Users and permissions, check $account has View financial data and Manage orders and subscriptions for Farbaek. New access can take up to a day. Nothing changed." -ForegroundColor Red; exit 1
 }
 if ($refused) { Write-Host "The server couldn't test the key ($refused). Nothing changed." -ForegroundColor Red; exit 1 }
 if ($lines -notcontains "SAVED") { Write-Host "The key works, but the server didn't save it. Run this again." -ForegroundColor Red; exit 1 }
