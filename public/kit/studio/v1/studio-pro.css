@@ -1,0 +1,115 @@
+/*
+ * Farbaek Studio kit Pro v1 (ADR 0157), for builds on paid plans. Load it after
+ * studio.css, with studio-pro.js. It adds three looks, story chapters, a
+ * peeking carousel, a horizontal gallery, a marquee, a closer-look viewer,
+ * depth layers, a pointer spotlight, rising headlines and page transitions.
+ * Same rules as the core kit: one cascade layer, no CSS filters, and every
+ * animation inside prefers-reduced-motion: no-preference.
+ */
+@layer farbaek-studio {
+  /* ----------------------------------------------------------------- looks */
+  [data-fs-look="obsidian"] {
+    --accent: #f1efe9; --accent-2: #ff5a36; --on-accent: #0a0a0b;
+    --ink: #f1efe9; --ink-2: #9c9a95; --paper: #070708; --paper-2: #121214; --line: rgb(241 239 233 / 0.1);
+    --radius: 14px; --radius-lg: 22px; --fs-display-weight: 500; --fs-display-track: -0.04em;
+    color-scheme: dark;
+  }
+  [data-fs-look="chrome"] {
+    --accent: #20242b; --accent-2: #4f7cff; --on-accent: #fff;
+    --ink: #0d0f12; --ink-2: #555b66; --paper: #e8eaed; --paper-2: #f7f8fa; --line: rgb(13 15 18 / 0.12);
+    --radius: 18px; --radius-lg: 30px;
+  }
+  [data-fs-look="garden"] {
+    --accent: #f2b84b; --accent-2: #8fc9a3; --on-accent: #1d1406;
+    --ink: #eef3ea; --ink-2: #a3b3a6; --paper: #0e1913; --paper-2: #16241c; --line: rgb(238 243 234 / 0.1);
+    --fs-display-weight: 500;
+    color-scheme: dark;
+  }
+
+  /* -------------------------------------------------------------- marquee */
+  .fs-marquee { overflow: hidden; padding-block: 20px; -webkit-mask: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+  .fs-marquee__track { display: flex; align-items: center; gap: clamp(32px, 5vw, 72px); width: max-content; font: var(--fs-display-weight) clamp(22px, 3vw, 40px)/1 var(--font-display); letter-spacing: -0.02em; color: var(--ink-2); }
+  .fs-marquee__track > * { flex: none; }
+  .fs-marquee__track img { height: 32px; width: auto; }
+
+  /* ------------------------------------------------------- story chapters */
+  .fs-chapters { display: grid; gap: 24px; }
+  .fs-chapters__stage { position: sticky; top: 76px; z-index: 1; height: 42svh; border-radius: var(--radius-lg); overflow: hidden; background: var(--paper-2); }
+  .fs-chapters__stage > [data-fs-show] { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transform: scale(1.04); transition: opacity 700ms var(--fs-ease), transform 1100ms var(--fs-ease); }
+  .fs-chapters__stage > [data-fs-show].is-active { opacity: 1; transform: none; }
+  .fs-chapters__stage > [data-fs-show]:first-child:not(.fs-chapters--live *) { opacity: 1; transform: none; }
+  .fs-chapter { display: grid; align-content: center; gap: 16px; min-height: 64svh; padding-block: 40px; opacity: 0.38; transition: opacity 500ms var(--fs-ease); }
+  .fs-chapter.is-active, .fs-chapters:not(.fs-chapters--live) .fs-chapter { opacity: 1; }
+  .fs-chapter__num { font: 500 14px/1 var(--font-body); color: var(--accent); font-variant-numeric: tabular-nums; }
+  @media (min-width: 900px) {
+    .fs-chapters { grid-template-columns: 1.1fr 0.9fr; gap: clamp(40px, 6vw, 96px); align-items: start; }
+    .fs-chapters__stage { top: 12svh; height: 76svh; }
+    .fs-chapter { min-height: 86svh; }
+  }
+
+  /* --------------------------------------------------- peeking carousel */
+  .fs-carousel { position: relative; display: grid; gap: 20px; }
+  .fs-carousel__track { display: grid; grid-auto-flow: column; grid-auto-columns: min(84%, 980px); gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: max(var(--fs-gutter), calc((100% - min(84%, 980px)) / 2)); padding-inline: max(var(--fs-gutter), calc((100% - min(84%, 980px)) / 2)); scrollbar-width: none; overscroll-behavior-x: contain; }
+  .fs-carousel__track::-webkit-scrollbar { display: none; }
+  .fs-slide { position: relative; margin: 0; scroll-snap-align: center; border-radius: var(--radius-lg); overflow: hidden; aspect-ratio: 16 / 10; background: var(--paper-2); transition: transform 600ms var(--fs-ease), opacity 600ms var(--fs-ease); }
+  .fs-slide > img, .fs-slide > video, .fs-slide > [data-farbaek-scene] { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .fs-slide figcaption { position: absolute; left: 20px; right: 20px; bottom: 20px; z-index: 1; display: grid; gap: 4px; padding: 16px 20px; border-radius: var(--radius); background: color-mix(in oklab, var(--paper) 76%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+  .fs-carousel--live .fs-slide:not(.is-active) { transform: scale(0.94); opacity: 0.6; }
+  .fs-carousel__controls { display: flex; justify-content: center; gap: 8px; }
+  .fs-carousel__controls button { display: grid; place-items: center; width: 48px; height: 48px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper-2); color: var(--ink); cursor: pointer; transition: border-color 160ms, transform 160ms var(--fs-ease); }
+  .fs-carousel__controls button:hover { border-color: var(--ink); }
+  .fs-carousel__controls button:active { transform: scale(0.95); }
+  .fs-carousel__controls button::before { content: ""; width: 16px; height: 16px; background: currentColor; -webkit-mask: var(--fs-icon) center / contain no-repeat; mask: var(--fs-icon) center / contain no-repeat; }
+  [data-fs-prev] { --fs-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M10 3 5 8l5 5' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+  [data-fs-next] { --fs-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m6 3 5 5-5 5' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+  [data-fs-pause] { --fs-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M5.5 3.5v9M10.5 3.5v9' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E"); }
+  [data-fs-pause][aria-pressed="true"] { --fs-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M5 3.2v9.6L12.5 8z' fill='black'/%3E%3C/svg%3E"); }
+
+  /* -------------------------------------------------- horizontal gallery */
+  .fs-hscroll__track { display: flex; gap: clamp(16px, 2vw, 28px); overflow-x: auto; scroll-snap-type: x mandatory; padding: 8px var(--fs-gutter) 20px; scrollbar-width: thin; }
+  .fs-hscroll__track > * { flex: none; width: min(80vw, 520px); scroll-snap-align: start; }
+
+  /* ---------------------------------------------------- closer-look viewer */
+  .fs-turntable { position: relative; display: grid; gap: 16px; justify-items: center; perspective: 1400px; touch-action: pan-y; cursor: grab; }
+  .fs-turntable__stage { position: relative; width: 100%; aspect-ratio: var(--fs-ratio, 1); transform-style: preserve-3d; transform: rotateY(var(--fs-turn, 0deg)); transition: transform 500ms var(--fs-ease); }
+  .fs-turntable[data-fs-dragging] .fs-turntable__stage { transition: none; cursor: grabbing; }
+  .fs-turntable__stage > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; }
+  .fs-turntable__stage > img.is-active, .fs-turntable__stage > img:only-child { opacity: 1; }
+  .fs-turntable__range { width: min(100%, 320px); accent-color: var(--accent); min-height: 44px; }
+
+  /* ------------------------------------------------------ pointer spotlight */
+  [data-fs-glow] { position: relative; isolation: isolate; }
+  [data-fs-glow]::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; background: radial-gradient(360px circle at var(--fs-mx, 50%) var(--fs-my, 50%), color-mix(in oklab, var(--accent) 22%, transparent), transparent 60%); opacity: var(--fs-glow-on, 0); transition: opacity 300ms; }
+
+  /* ----------------------------------------------------------------- motion */
+  @media (prefers-reduced-motion: no-preference) {
+    .fs-marquee__track { animation: fs-marquee var(--fs-marquee-s, 40s) linear infinite; }
+    .fs-marquee:hover .fs-marquee__track, .fs-marquee:focus-within .fs-marquee__track { animation-play-state: paused; }
+    .fs-js [data-fs-reveal="rise"]:not(.fs-in) { opacity: 1; transform: none; }
+    .fs-js [data-fs-reveal="rise"] .fs-w { display: inline-block; overflow: hidden; vertical-align: bottom; padding-bottom: 0.08em; margin-bottom: -0.08em; }
+    .fs-js [data-fs-reveal="rise"] .fs-w > span { display: inline-block; transition: transform 1000ms var(--fs-ease); transition-delay: calc(var(--fs-i, 0) * 55ms); }
+    .fs-js [data-fs-reveal="rise"]:not(.fs-in) .fs-w > span { transform: translateY(105%); }
+    .fs-js:not(.fs-ready) [data-fs-reveal="rise"] .fs-w > span { animation: fs-failsafe 1ms 2.5s forwards; }
+    [data-fs-magnetic] { transition: translate 400ms var(--fs-ease); }
+    [data-fs-magnetic][data-fs-pulling] { transition: translate 120ms linear; }
+    @supports (animation-timeline: view()) {
+      [data-fs-depth] { animation: fs-depth linear both; animation-timeline: view(); }
+      .fs-hscroll--pinned { height: calc(var(--fs-panels, 4) * 75svh); view-timeline-name: --fs-hscroll; }
+      .fs-hscroll--pinned .fs-hscroll__sticky { position: sticky; top: 0; height: 100svh; display: flex; align-items: center; overflow: hidden; }
+      .fs-hscroll--pinned .fs-hscroll__track { overflow: visible; scroll-snap-type: none; animation: fs-hscroll linear both; animation-timeline: --fs-hscroll; animation-range: contain 0% contain 100%; }
+    }
+    @view-transition { navigation: auto; }
+    ::view-transition-old(root) { animation: 260ms var(--fs-ease) both fs-vt-out; }
+    ::view-transition-new(root) { animation: 520ms var(--fs-ease) both fs-vt-in; }
+  }
+  @keyframes fs-marquee { to { transform: translateX(-50%); } }
+  @keyframes fs-depth { from { transform: translateY(calc(var(--fs-depth, 0.2) * 140px)); } to { transform: translateY(calc(var(--fs-depth, 0.2) * -140px)); } }
+  @keyframes fs-hscroll { to { transform: translateX(calc(-100% + 100vw)); } }
+  @keyframes fs-vt-out { to { opacity: 0; transform: translateY(-12px); } }
+  @keyframes fs-vt-in { from { opacity: 0; transform: translateY(16px); } }
+  @media (prefers-reduced-motion: reduce) {
+    .fs-marquee__track { flex-wrap: wrap; width: auto; justify-content: center; }
+    .fs-marquee__track [data-fs-clone] { display: none; }
+    .fs-turntable__stage { transition: none; }
+  }
+}

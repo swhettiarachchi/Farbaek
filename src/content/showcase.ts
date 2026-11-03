@@ -203,7 +203,7 @@ export const CAPABILITIES: readonly Capability[] = [
   {
     id: "design",
     title: "Design to a studio standard",
-    body: "Every build starts with a design read, then gets a 3D moment, motion, and photos and video you can replace in a click.",
+    body: "Every site builds on the Farbaek Studio kit: a design read, a 3D moment, choreographed motion, and photos and video you can replace in a click. Paid plans add Studio kit Pro.",
     status: "working",
   },
   { id: "skills", title: "Skills, including your own", body: "Twelve built-in design skills, plus your own in the open SKILL.md format.", status: "working" },

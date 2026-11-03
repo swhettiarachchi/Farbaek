@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
 import { setupReport } from "@/core/agent/setup-report";
 import { reviewSite } from "@/core/agent/site-review";
+import { STUDIO_KIT_CSS, STUDIO_KIT_JS } from "@/core/media/studio-kit";
 import { screenFile } from "@/core/workspace/files";
 import { STARTERS, TEMPLATE_STARTERS, getStarter, runProfile } from "./index";
 import { NEXTJS_DEPENDENCIES } from "./nextjs-app";
@@ -60,7 +61,11 @@ describe("starters", () => {
       const files = Object.fromEntries(t.files.map((f) => [f.path, f.content]));
       expect(files["DESIGN.md"], t.id).toMatch(/## Palette[\s\S]*## Type[\s\S]*## Layout[\s\S]*## Signature[\s\S]*## Motion/);
       expect(files["script.js"], t.id).toBeTruthy();
-      expect(reviewSite(files).findings, t.id).toEqual([]);
+      // The templates predate the premium checks (ADR 0157): they have no media slots or web fonts, and the app-style
+      // ones no 3D moment. Rebuilding them on the Studio kit is stage 143; until then a build from a template is told
+      // to add them. Nothing else may be wrong, and this list shrinks as templates are rebuilt.
+      const premiumGap = /^(?:There's no 3D moment|There are no images or video|Only system fonts)/;
+      expect(reviewSite(files).findings.filter((f) => !premiumGap.test(f.message)), t.id).toEqual([]);
       const css = t.files.filter((f) => f.path.endsWith(".css")).map((f) => f.content.replace(/\/\*[\s\S]*?\*\//g, "")).join("\n");
       expect(css, t.id).toContain("prefers-reduced-motion: reduce");
       // No CSS filters: on iOS 26 they paint a black square (ADR 0055). backdrop-filter is a different path and stays allowed.
@@ -84,10 +89,15 @@ describe("starters", () => {
       expect(css, id).toContain(":focus-visible");
     }
     const site = Object.fromEntries(getStarter("static-website")!.files.map((f) => [f.path, f.content]));
-    // Everything a review checks is in place; what's left is the copy in brackets, which the build replaces.
-    expect(reviewSite(site).findings.map((f) => f.message)).toEqual([expect.stringMatching(/^A placeholder is still in the copy/)]);
-    expect(site["index.html"]).toContain('class="skip" href="#main"');
-    expect(site["styles.css"]).toMatch(/\.js \.reveal \{\s*opacity: 0/);
+    // Everything a review checks is in place, the premium checks included (ADR 0157); what's left is the copy in
+    // brackets and the stand-in media, which the build replaces.
+    const left = reviewSite(site).findings.map((f) => f.message);
+    expect(left).toHaveLength(2);
+    expect(left).toEqual(expect.arrayContaining([expect.stringMatching(/^A placeholder is still in the copy/), expect.stringMatching(/media slots? (?:is|are) still a placeholder/)]));
+    expect(site["index.html"]).toContain('class="fs-skip" href="#main"');
+    expect(site["index.html"]).toContain(STUDIO_KIT_CSS);
+    expect(site["index.html"]).toContain(STUDIO_KIT_JS);
+    expect(site["index.html"]).toContain("data-farbaek-scene=");
     expect(() => new Function(site["script.js"]!)).not.toThrow();
     const next = Object.fromEntries(getStarter("nextjs-app")!.files.map((f) => [f.path, f.content]));
     expect(next["app/layout.tsx"]).toContain('href="#main"');

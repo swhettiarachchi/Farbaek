@@ -40,6 +40,7 @@ import type { WithheldPermissions } from "@/core/workspace/permissions";
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES, type OrgRole } from "@/server/workspace/types";
 import type { RunPatch, RunStore } from "./store";
 import type { AutonomyLimits } from "@/core/trust/policy";
+import type { KitTier } from "@/core/media/studio-kit";
 import { autoVerifiedOutcome, VERIFICATION_RESULT_WORDS } from "@/core/realityloop/verification";
 import type { VerificationOutcome } from "@/server/verification/runner";
 import type { Notifier } from "@/server/email/notify";
@@ -120,6 +121,8 @@ export interface StartRunInput {
   skills?: readonly string[];
   /** The run's own usage cap in units (ADR 0040), worked out on the server; null for none. */
   capUnits?: number | null;
+  /** Which Studio kit the build may use, from the workspace plan (ADR 0157); core when not given. */
+  kitTier?: KitTier;
 }
 
 /** Checks and records the run, then starts it in the background. Returns as soon as it's recorded. */
@@ -148,7 +151,7 @@ export async function startCloudRun(deps: ExecutorDeps, input: StartRunInput): P
   const live: LiveRun = { orgId: person.orgId, startedBy: person.userId, controller: new AbortController(), approvals: new Map(), messages: [] };
   registry.set(runId, live);
   const chosen = [...new Set(input.skills ?? [])].flatMap((id) => getBuiltInSkill(id) ?? []);
-  void execute(deps, { runId, person, task: { id: task.id, title: task.title, projectId: task.projectId }, contract, effort: input.effort, mode, live, skills: chosen, capUnits }).catch((e) => {
+  void execute(deps, { runId, person, task: { id: task.id, title: task.title, projectId: task.projectId }, contract, effort: input.effort, mode, live, skills: chosen, capUnits, kitTier: input.kitTier ?? "core" }).catch((e) => {
     log("error", "cloud_run.crashed", { run: runId, error: e instanceof Error ? e.message : String(e) });
   });
   return { ok: true, value: { runId, mode } };
@@ -239,6 +242,7 @@ async function execute(
     live: LiveRun;
     skills: readonly Skill[];
     capUnits: number | null;
+    kitTier: KitTier;
   },
 ): Promise<void> {
   const { runId, person, live } = r;
@@ -304,7 +308,7 @@ async function execute(
     const skills = [...r.skills, ...projectSkills(pinned.flatMap((f) => (contents.has(f.path) ? [{ path: f.path, content: contents.get(f.path)! }] : [])))];
     const heldNote = heldSkillsNote(held);
     if (heldNote) event({ kind: "note", text: heldNote });
-    if (skills.length) event({ kind: "note", text: `Building to the Farbaek Studio standard, with these skills: ${skills.map((s) => (s.source === "project" ? `${s.name} (this project's)` : "label" in s ? String(s.label) : s.name)).join(", ")}.` });
+    if (skills.length) event({ kind: "note", text: `Building to the Farbaek Studio standard on the Studio kit${r.kitTier === "pro" ? " with Studio kit Pro" : ""}, with these skills: ${skills.map((s) => (s.source === "project" ? `${s.name} (this project's)` : "label" in s ? String(s.label) : s.name)).join(", ")}.` });
 
     let commands: CommandRunner | null = null;
     if (r.mode === "sandboxed") {
@@ -381,6 +385,7 @@ async function execute(
       onEvent,
       takeMessages: () => live.messages.splice(0),
       skills,
+      kitTier: r.kitTier,
       approve: (request, signal) =>
         new Promise<ApprovalAnswer>((resolve) => {
           live.approvals.set(request.id, { resolve, bindingHash: request.bindingHash });

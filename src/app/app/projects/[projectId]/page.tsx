@@ -7,6 +7,7 @@ import { PromptComposer } from "@/components/build/prompt-composer";
 import { StaticPreview } from "@/components/preview/static-preview";
 import { PublishPanel } from "@/components/publish/publish-panel";
 import { placeholderCount } from "@/core/media/library";
+import { UPGRADE_DESIGN, usesStudioKit } from "@/core/media/studio-kit";
 import { ProjectSkills, type ProjectSkillView } from "@/components/skills/project-skills";
 import { skillPinStatus } from "@/core/agent/skill-pins";
 import { isProjectSkillPath, parseSkill } from "@/core/agent/skills";
@@ -52,6 +53,8 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
   const contents = isStatic ? await ctx.reader.getProjectContents(ctx.current.id, project.id).catch(() => null) : null;
   // Images, videos and scenes the build left as stand-ins for the person's own (ADR 0156).
   const placeholders = contents ? placeholderCount(contents) : 0;
+  // A site built before the Studio kit can be brought up to it in one approved plan (ADR 0157).
+  const preKit = Boolean(contents?.some((f) => f.path === "index.html")) && !usesStudioKit(contents ?? []);
   // The site's own images, inlined as data URLs while they fit the preview budget; past that the preview shows them as missing.
   const images = isStatic && imageBytes > 0 ? await previewImages(ctx.reader, ctx.current.id, project.id) : undefined;
   const canChange = ctx.mode === "live" && ctx.writes.enabled && !project.archivedAt;
@@ -157,7 +160,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
 
       {canChange ? (
         <section aria-label="Describe a change" className="aurora">
-          <PromptComposer mode="app" size="compact" projectId={project.id} />
+          <PromptComposer mode="app" size="compact" projectId={project.id} suggestion={preKit ? UPGRADE_DESIGN : undefined} />
         </section>
       ) : null}
 

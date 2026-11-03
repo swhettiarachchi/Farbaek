@@ -6,9 +6,12 @@
  * fallback, invisible focus, em dashes and leftover placeholders, and since
  * ADR 0156 video that phones won't play, Farbaek Scenes boxes without the
  * kit, CSS filters (the iOS 26 black square) and media slots still holding
- * a placeholder. It reads files only; it never runs the site.
+ * a placeholder. Since ADR 0157 it also asks for what makes a site premium,
+ * not only for nothing broken: a 3D moment, motion, media and a real type
+ * pairing. It reads files only; it never runs the site.
  */
 import { KIT_URL, SCENE_NAMES } from "../media/library";
+import { STUDIO_KIT_PATTERN } from "../media/studio-kit";
 
 export interface SiteFinding {
   severity: "fix" | "consider";
@@ -183,8 +186,31 @@ export function reviewSite(input: Record<string, string> | ReadonlyMap<string, s
   for (const [path, code] of js) {
     if (/addEventListener\(\s*["']scroll["']/.test(code)) add("consider", path, "A scroll event listener drives effects. IntersectionObserver or CSS scroll-driven animations are smoother.");
   }
-  if (pages.length > 0 && !/@media\b[^{]*\((?:min|max)-width/.test(allStyles) && !/\b(?:clamp|min|max)\(/.test(allStyles) && !/grid-template-columns\s*:\s*repeat\(\s*auto-(?:fit|fill)/.test(allStyles)) {
+  const allHtml = pages.map((p) => files.get(p)!).join("\n");
+  const usesKit = STUDIO_KIT_PATTERN.test(allHtml + allScripts);
+  if (pages.length > 0 && !usesKit && !/@media\b[^{]*\((?:min|max)-width/.test(allStyles) && !/\b(?:clamp|min|max)\(/.test(allStyles) && !/grid-template-columns\s*:\s*repeat\(\s*auto-(?:fit|fill)/.test(allStyles)) {
     add("consider", css[0]?.[0] ?? pages[0]!, "No responsive rules found (media queries, clamp() or auto-fit grids). Check the layout at 375 px.");
+  }
+
+  // Premium by construction (ADR 0157): a site needs a 3D moment, motion and media, not only nothing broken.
+  if (files.has("index.html")) {
+    const scene = /\sdata-farbaek-scene\s*=/.test(allHtml);
+    const has3d =
+      scene ||
+      /three(?:@[\d.]+)?\/build\/three|from\s+["']three["']/.test(allHtml + allScripts) ||
+      /\bperspective\s*[:(]|rotate(?:X|Y|3d)\(|translateZ\(|preserve-3d/.test(allStyles + ";" + inlineStyles) ||
+      /\sdata-fs-(?:tilt|depth)\b|\bfs-turntable\b/.test(allHtml);
+    if (!has3d) add("fix", "index.html", "There's no 3D moment anywhere. Give the site one signature: a Farbaek Scenes box in the hero, data-fs-tilt on a framed image, or CSS 3D.");
+    if (!animates && !(usesKit && /\sdata-fs-reveal\b/.test(allHtml))) {
+      add("fix", "index.html", "Nothing moves. Reveal sections as they scroll in (the Studio kit's data-fs-reveal), give controls feedback and choreograph the hero's entrance.");
+    }
+    if (!scene && !/<(?:img|video|picture)\b/i.test(allHtml)) add("consider", "index.html", "There are no images or video. Give each major section media in a data-farbaek-media slot.");
+    if (!/fonts\.googleapis\.com|fonts\.bunny\.net|use\.typekit\.net|@font-face/.test(allHtml + allStyles)) {
+      add("consider", "index.html", "Only system fonts are used. Pair a characterful display face with a readable body face and set --font-display and --font-body.");
+    }
+    if (usesKit && /kit\/studio\/v\d+\/studio\.css/.test(allHtml) !== /kit\/studio\/v\d+\/studio\.js/.test(allHtml + allScripts)) {
+      add("consider", "index.html", "The Studio kit's stylesheet and script work together: link studio.css and import studio.js on every page.");
+    }
   }
   return { pages: pages.length, findings };
 }

@@ -84,6 +84,15 @@ describe("permission engine", () => {
     expect(modeAvailability("sandboxed_autopilot", { sandboxVerified: false })).toMatchObject({ available: false });
   });
 
+  it("points the agent to review_site instead of asking a person about farbaek check-site", () => {
+    const siteCheck = call("run_command", { program: "farbaek", args: ["check-site"], reason: "Run the contract's required check" });
+    for (const mode of ["controlled", "sandboxed_autopilot"] as const) {
+      const d = decide(siteCheck, ctx({ mode, sandboxVerified: true }));
+      expect(d.kind).toBe("deny");
+      if (d.kind === "deny") expect(d.reason).toMatch(/review_site/);
+    }
+  });
+
   it("has a stable policy version", async () => {
     expect(await agentPolicyVersion()).toMatch(/^[0-9a-f]{64}$/);
   });

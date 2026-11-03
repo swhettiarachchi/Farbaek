@@ -28,7 +28,7 @@ export const TOOL_INPUTS = {
   }),
   review_site: z.object({}).describe("No input: it reviews every page, stylesheet and script in the project."),
   finish: z.object({
-    summary: z.string().min(1).max(2_000).describe("Two or three sentences: what changed and why."),
+    summary: z.string().min(1).max(2_000).describe("Two or three sentences: what changed and why. At most 2,000 characters; put the details (placeholders to replace, what you checked) in steps."),
     steps: z.array(z.string().max(300)).max(20),
     risks: z.array(z.string().max(300)).max(20),
     checks: z.array(z.string().max(300)).max(20).describe("Commands a person should run to verify the change."),
@@ -48,7 +48,7 @@ export const TOOL_DESCRIPTIONS: Record<ToolName, string> = {
   edit_file: "Change a file with exact find-and-replace edits. Each find must occur exactly once.",
   run_command: "Run one program with arguments in the project folder. Some commands need a person's approval first.",
   review_site:
-    "Check the site before finishing: broken links and anchors, missing alt text, labels, title, description, viewport and lang, motion without a reduced-motion fallback, hidden focus, em dashes, lorem ipsum and leftover placeholders. Returns what to fix.",
+    "Check the site before finishing: broken links and anchors, missing alt text, labels, title, description, viewport and lang, motion without a reduced-motion fallback, hidden focus, CSS filters, video that phones won't play, Farbaek Scenes and Studio kit wiring, AI-sounding copy and emoji, em dashes, lorem ipsum and leftover placeholders, and whether the site has a 3D moment, motion, media and a real type pairing. Returns what to fix.",
   finish: "End the run and hand the change to a person for review, with a summary, steps, risks and checks.",
 };
 

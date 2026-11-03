@@ -8,6 +8,7 @@
  * phone shows the whole change and has no editor, and the hash it showed
  * must still be the proposal's.
  */
+import { kitTierFor } from "@/core/media/studio-kit";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { resolveAiProvider } from "@/server/ai/config";
 import { createContractDrafter } from "@/server/ai/providers";
@@ -127,7 +128,7 @@ export function createPhoneWrites(options: { userClient: (accessToken: string) =
       if (!person) return { ok: true, value: { runId: null, startNote: "The plan is approved. You're not a member of this workspace, so the agent can't start for you." } };
       const wiring = await cloudRunDeps(person, { accessToken: p.caller.accessToken });
       if (!wiring.ok) return { ok: true, value: { runId: null, startNote: `The plan is approved. The agent couldn't start: ${wiring.reason}` } };
-      const started = await startCloudRun(wiring.deps, { person, taskId: input.taskId, effort: input.effort, capUnits: runCapUnits(p.ctx.current, input.effort, input.cap) });
+      const started = await startCloudRun(wiring.deps, { person, taskId: input.taskId, effort: input.effort, capUnits: runCapUnits(p.ctx.current, input.effort, input.cap), kitTier: kitTierFor(p.ctx.current.plan) });
       if (!started.ok) return { ok: true, value: { runId: null, startNote: `The plan is approved. The agent couldn't start: ${started.message}` } };
       return { ok: true, value: { runId: started.value.runId, startNote: null } };
     },

@@ -15,6 +15,7 @@ import { CAP_CHOICES } from "@/core/agent/run-cap";
 import { EFFORTS } from "@/core/agent/routing";
 import { createContractDrafter } from "@/server/ai/providers";
 import { aiForWorkspace } from "@/server/ai/workspace-ai";
+import { kitTierFor } from "@/core/media/studio-kit";
 import { startCloudRun } from "@/server/cloud-agent/executor";
 import { cloudRunDeps } from "@/server/cloud-agent/wiring";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
@@ -118,7 +119,7 @@ export async function approveAndBuildAction(_previous: ApproveBuildState, form: 
   if (!wiring.ok) return { status: "error", approved: true, message: `The plan is approved. The agent couldn't start: ${wiring.reason}` };
   // Skills chosen on the plan card (ADR 0030): only Farbaek's own ids are accepted.
   const skills = form.getAll("skills").flatMap((v) => (typeof v === "string" && getBuiltInSkill(v) ? [v] : []));
-  const started = await startCloudRun(wiring.deps, { person, taskId, effort, skills, capUnits: runCapUnits(ctx.current, effort, cap) });
+  const started = await startCloudRun(wiring.deps, { person, taskId, effort, skills, capUnits: runCapUnits(ctx.current, effort, cap), kitTier: kitTierFor(ctx.current.plan) });
   if (!started.ok) return { status: "error", approved: true, message: `The plan is approved. The agent couldn't start: ${started.message}` };
   revalidatePath("/app/build");
   redirect(`/app/build/${started.value.runId}`);

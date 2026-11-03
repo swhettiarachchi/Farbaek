@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { formatSiteReview, reviewSite } from "./site-review";
 
-const GOOD = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Volt Ride</title><meta name="description" content="E-bike rental."><link rel="stylesheet" href="styles.css"></head>
+const GOOD = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Volt Ride</title><meta name="description" content="E-bike rental."><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist"><link rel="stylesheet" href="styles.css"></head>
 <body><nav><a href="#bikes">Bikes</a><a href="about.html">About</a><a href="https://example.com">Out</a></nav>
 <main id="bikes"><img src="https://picsum.photos/seed/bike/800/600" alt="A sample photo of an e-bike"><button type="button">Book</button>
 <form><label for="name">Name</label><input id="name" name="name"></form></main><script src="script.js"></script></body></html>`;
-const CSS = `h1 { transition: transform 200ms; } a:focus-visible { outline: 2px solid; } @media (prefers-reduced-motion: reduce) { * { transition: none; } } @media (max-width: 600px) { h1 { font-size: 2rem; } }`;
+const CSS = `h1 { transition: transform 200ms; } .card { transform: perspective(900px) rotateY(4deg); } a:focus-visible { outline: 2px solid; } @media (prefers-reduced-motion: reduce) { * { transition: none; } } @media (max-width: 600px) { h1 { font-size: 2rem; } }`;
 
 describe("reviewSite", () => {
   it("passes a site that has the basics right", () => {
@@ -100,6 +100,28 @@ describe("reviewSite", () => {
         expect.stringMatching(/^consider: An icon called "sparkles" reads as an AI cliché/),
       ]),
     );
+  });
+
+  it("asks for a 3D moment, motion, media and real type, not only for nothing broken (ADR 0157)", () => {
+    const plain = `<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>Plain</title><meta name="description" content="d"><link rel="stylesheet" href="styles.css"></head><body><main><h1>Hello</h1><p>Words.</p></main></body></html>`;
+    const messages = reviewSite({ "index.html": plain, "styles.css": "body { margin: 0 } @media (max-width: 600px) { h1 { font-size: 2rem } }" }).findings.map((f) => `${f.severity}: ${f.message}`);
+    expect(messages).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^fix: There's no 3D moment anywhere/),
+        expect.stringMatching(/^fix: Nothing moves/),
+        expect.stringMatching(/^consider: There are no images or video/),
+        expect.stringMatching(/^consider: Only system fonts are used/),
+      ]),
+    );
+    // A site on the Studio kit, with a scene, reveals and a font pairing, is complete without its own motion CSS.
+    const kit = `<!doctype html><html lang="en" data-fs-look="noir"><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>Kit</title><meta name="description" content="d">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist"><link rel="stylesheet" href="https://www.farbaek.com/kit/studio/v1/studio.css"></head>
+<body><section class="fs-hero"><div class="fs-hero__media"><div data-farbaek-scene="orb" data-farbaek-media="hero-scene" aria-hidden="true"></div></div><h1 data-fs-reveal="words">Hello</h1></section>
+<script type="module" src="https://www.farbaek.com/kit/scenes/v1/scenes.js"></script><script type="module" src="https://www.farbaek.com/kit/studio/v1/studio.js"></script></body></html>`;
+    expect(reviewSite({ "index.html": kit }).findings).toEqual([]);
+    // The kit's stylesheet without its script is half a kit.
+    const half = kit.replace(/<script type="module" src="https:\/\/www\.farbaek\.com\/kit\/studio\/v1\/studio\.js"><\/script>/, "");
+    expect(reviewSite({ "index.html": half }).findings.map((f) => f.message)).toEqual(expect.arrayContaining([expect.stringMatching(/stylesheet and script work together/)]));
   });
 
   it("leaves a business's real words, marks and own script imports alone", () => {
