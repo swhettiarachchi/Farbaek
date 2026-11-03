@@ -3,9 +3,12 @@
  * standard's "check before you finish"): mechanical checks over the
  * project's HTML, CSS and JavaScript that catch what a careful reviewer
  * would. Broken links, missing basics, motion without a reduced-motion
- * fallback, invisible focus, em dashes and leftover placeholders. It reads
- * files only; it never runs the site.
+ * fallback, invisible focus, em dashes and leftover placeholders, and since
+ * ADR 0156 video that phones won't play, Farbaek Scenes boxes without the
+ * kit, CSS filters (the iOS 26 black square) and media slots still holding
+ * a placeholder. It reads files only; it never runs the site.
  */
+import { KIT_URL, SCENE_NAMES } from "../media/library";
 
 export interface SiteFinding {
   severity: "fix" | "consider";
@@ -20,6 +23,10 @@ export interface SiteReview {
 
 const MAX_FINDINGS = 60;
 
+/** Phrases that make copy read as generated rather than written for a business (the Studio standard, rule 2). */
+const AI_PHRASES =
+  /\b(?:unlock(?:s|ing)? (?:the|your)|elevate[sd]?|seamless(?:ly)?|effortless(?:ly)?|empower(?:s|ing)?|harness(?:es|ing)? the|supercharge[sd]?|unleash(?:es|ed)?|revolutioni[sz]e[sd]?|cutting[- ]edge|state[- ]of[- ]the[- ]art|world[- ]class|game[- ]changer|next[- ]gen(?:eration)?|in today's fast[- ]paced|look no further|dive into|embark on|take (?:it|your [a-z]+) to the next level|transform your)\b/gi;
+
 /** Visible text: tags, scripts, styles and comments removed. */
 function visibleText(html: string): string {
   return html
@@ -32,6 +39,11 @@ function visibleText(html: string): string {
 function attr(tag: string, name: string): string | null {
   const m = new RegExp(`\\s${name}\\s*=\\s*("([^"]*)"|'([^']*)'|([^\\s>]+))`, "i").exec(tag);
   return m ? (m[2] ?? m[3] ?? m[4] ?? "") : null;
+}
+
+/** Whether a tag has an attribute at all, with or without a value (autoplay, muted, playsinline). */
+function has(tag: string, name: string): boolean {
+  return new RegExp(`\\s${name}(?=[\\s=/>]|$)`, "i").test(tag);
 }
 
 function resolve(from: string, href: string): string | null {
@@ -109,9 +121,44 @@ export function reviewSite(input: Record<string, string> | ReadonlyMap<string, s
       if (!labelled) add("consider", page, `A form ${m[1]} has no label: ${m[0].slice(0, 80)}`);
     }
 
+    // Video and Farbaek Scenes (ADR 0156): phones play only muted inline video, and the first screen needs a poster.
+    const videos = [...html.matchAll(/<video\b[^>]*>/gi)].map((m) => m[0]);
+    for (const tag of videos) {
+      const short = tag.slice(0, 90);
+      if (has(tag, "autoplay") && (!has(tag, "muted") || !has(tag, "playsinline"))) {
+        add("fix", page, `An autoplaying video needs muted and playsinline, or phones won't play it: ${short}`);
+      }
+      if (!has(tag, "poster")) add("fix", page, `A video has no poster, so its box is empty until it loads: ${short}`);
+      if (!has(tag, "aria-hidden") && !has(tag, "aria-label") && !has(tag, "aria-labelledby")) {
+        add("fix", page, `A video needs aria-hidden="true" when it's decoration, or an aria-label when it carries meaning: ${short}`);
+      }
+    }
+    if (videos.filter((t) => has(t, "autoplay")).length > 1) add("consider", page, "More than one video autoplays on this page. Keep one in view at a time.");
+    for (const m of html.matchAll(/<(?:video|source)\b[^>]*>/gi)) {
+      const src = attr(m[0], "src");
+      if (src && /^(?!https:|data:)/i.test(src) && resolve(page, src) !== null) add("fix", page, `Projects can't hold video files yet, so ${src} won't load. Use a Farbaek library loop or an https link.`);
+    }
+    const scenes = [...html.matchAll(/<[a-z][a-z0-9-]*\b[^>]*\sdata-farbaek-scene\s*=\s*["']?([^"'\s>]*)[^>]*>/gi)];
+    for (const m of scenes) {
+      if (!(SCENE_NAMES as readonly string[]).includes(m[1]!)) add("fix", page, `"${m[1]}" isn't a Farbaek scene. Use one of: ${SCENE_NAMES.join(", ")}.`);
+      if (!has(m[0], "aria-hidden") && !has(m[0], "aria-label")) add("consider", page, `A scene box should have aria-hidden="true" (or an aria-label if it carries meaning): ${m[0].slice(0, 90)}`);
+    }
+    if (scenes.length && !html.includes(KIT_URL) && !/kit\/scenes\/v1\/scenes\.js/.test(html)) {
+      add("fix", page, `This page has a Farbaek Scenes box but doesn't load the kit. Add <script type="module" src="${KIT_URL}"></script>.`);
+    }
+    const stand = [...html.matchAll(/<[a-z][a-z0-9-]*\b[^>]*\sdata-farbaek-placeholder\b[^>]*>/gi)].map((m) => attr(m[0], "data-farbaek-media") || m[0].slice(1, m[0].search(/[\s>]/)));
+    if (stand.length) add("consider", page, `${stand.length} media ${stand.length === 1 ? "slot is" : "slots are"} still a placeholder (${stand.join(", ")}). List them in your finish summary so the person can replace them.`);
+
     const text = visibleText(html);
     if (/[—–]/.test(text)) add("fix", page, "Visible text uses an em or en dash. Use a comma, a colon, a full stop or a hyphen.");
     if (/lorem ipsum/i.test(text)) add("fix", page, "Lorem ipsum is still on the page.");
+    // Human-made, not AI-made (ADR 0156): the phrases, emoji and icons that make a site read as generated.
+    const phrases = [...new Set((text.match(AI_PHRASES) ?? []).map((s) => s.toLowerCase().replace(/\s+/g, " ")))];
+    if (phrases.length) add("fix", page, `The copy reads as AI-written (${phrases.slice(0, 6).join(", ")}). Say what this business really does, specifically, in its own voice.`);
+    const labels = [...html.matchAll(/<(h[1-6]|button|a)\b[^>]*>([\s\S]*?)<\/\1>/gi)].map((m) => m[2]!.replace(/<[^>]+>/g, ""));
+    if (labels.some((l) => /\p{Extended_Pictographic}/u.test(l))) add("fix", page, "A heading, button or link uses an emoji. Use words, or an icon drawn in the site's own line style.");
+    const cliche = /\s(?:class|data-lucide|data-icon|data-feather|name|id)\s*=\s*["'][^"']*\b(sparkles?|magic|wand|robot|brain|rocket)\b/i.exec(html);
+    if (cliche) add("consider", page, `An icon called "${cliche[1]}" reads as an AI cliché. Use an icon that names the real action or object.`);
     const placeholder = /\[(?:your|add|insert|todo|placeholder)[^\]]{0,40}\]/i.exec(text);
     if (placeholder) add("fix", page, `A placeholder is still in the copy: ${placeholder[0]}`);
   }
@@ -119,6 +166,10 @@ export function reviewSite(input: Record<string, string> | ReadonlyMap<string, s
   const animates = /@keyframes|\banimation\s*:|\btransition\s*:/.test(allStyles) || /\.animate\(|requestAnimationFrame|gsap\.|IntersectionObserver/.test(allScripts);
   if (animates && !/prefers-reduced-motion/.test(allStyles + allScripts)) {
     add("fix", css[0]?.[0] ?? pages[0] ?? "(site)", "There's motion but no prefers-reduced-motion fallback. Turn it off under reduce so the still page is complete.");
+  }
+  const inlineStyles = pages.map((p) => [...files.get(p)!.matchAll(/\sstyle\s*=\s*("[^"]*"|'[^']*')/gi)].map((m) => m[1]).join(";")).join(";");
+  if (/(?<![-\w])filter\s*:\s*(?!none\b)[a-z-]+\(/i.test(allStyles + ";" + inlineStyles)) {
+    add("fix", css[0]?.[0] ?? pages[0] ?? "(styles)", "A CSS filter (blur, drop-shadow, brightness and the like) paints a black square over the page on iOS 26. Draw soft light with gradients; backdrop-filter is fine.");
   }
   if (/outline\s*:\s*(?:none|0)\b/.test(allStyles) && !/:focus-visible/.test(allStyles)) {
     add("fix", css[0]?.[0] ?? "(styles)", "Focus outlines are removed without a :focus-visible style, so keyboard users can't see where they are.");

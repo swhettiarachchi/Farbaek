@@ -33,7 +33,7 @@ describe("the homepage showroom", () => {
 
   it("only claims what exists", () => {
     // The skills line counts the built-in skills.
-    expect(CAPABILITIES.find((c) => c.id === "skills")?.body).toContain(["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight"][FARBAEK_SKILLS.length]);
+    expect(CAPABILITIES.find((c) => c.id === "skills")?.body).toContain(["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve"][FARBAEK_SKILLS.length]);
     // No image generator is connected (ADR 0030), so it isn't offered as working.
     expect(CAPABILITIES.find((c) => c.id === "images")?.status).toBe("image-generation");
     // Publishing and app previews depend on the site domain, so their status is worked out per deployment.

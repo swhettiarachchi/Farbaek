@@ -60,4 +60,45 @@ describe("reviewSite", () => {
   it("says when there's nothing to review", () => {
     expect(formatSiteReview(reviewSite({ "README.md": "# Hi" }))).toBe("There are no HTML pages in the project to review.");
   });
+
+  it("checks video, Farbaek Scenes, filters and placeholder slots (ADR 0156)", () => {
+    const page = GOOD.replace(
+      "<main",
+      `<video autoplay loop src="https://www.farbaek.com/media/v1/aurora-signal/loop.mp4"></video>
+<video autoplay muted playsinline loop poster="p.webp" aria-hidden="true" data-farbaek-media="hero-video" data-farbaek-placeholder><source src="clips/hero.mp4"></video>
+<div data-farbaek-scene="teapot" data-farbaek-media="hero-scene"></div><main`,
+    );
+    const messages = reviewSite({ "index.html": page, "about.html": GOOD, "styles.css": `${CSS} .hero { filter: blur(40px); } .bar { backdrop-filter: blur(8px); }`, "script.js": "" }).findings.map(
+      (f) => `${f.severity}: ${f.message}`,
+    );
+    expect(messages).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^fix: An autoplaying video needs muted and playsinline/),
+        expect.stringMatching(/^fix: A video has no poster/),
+        expect.stringMatching(/^fix: A video needs aria-hidden/),
+        "consider: More than one video autoplays on this page. Keep one in view at a time.",
+        "fix: Projects can't hold video files yet, so clips/hero.mp4 won't load. Use a Farbaek library loop or an https link.",
+        expect.stringMatching(/^fix: "teapot" isn't a Farbaek scene/),
+        expect.stringMatching(/^consider: A scene box should have aria-hidden/),
+        expect.stringMatching(/^fix: This page has a Farbaek Scenes box but doesn't load the kit/),
+        "consider: 1 media slot is still a placeholder (hero-video). List them in your finish summary so the person can replace them.",
+        expect.stringMatching(/^fix: A CSS filter/),
+      ]),
+    );
+    // backdrop-filter alone is fine.
+    const calm = reviewSite({ "index.html": GOOD, "about.html": GOOD, "styles.css": `${CSS} .bar { backdrop-filter: blur(8px); }`, "script.js": "" });
+    expect(calm.findings).toEqual([]);
+  });
+
+  it("flags copy, emoji and icons that read as AI-made", () => {
+    const page = GOOD.replace("<main", `<h1>Elevate your mornings ✨</h1><p>Unlock the power of bread. Look no further: a cutting-edge bakery.</p><i data-lucide="sparkles"></i><main`);
+    const messages = reviewSite({ "index.html": page, "about.html": GOOD, "styles.css": CSS, "script.js": "" }).findings.map((f) => `${f.severity}: ${f.message}`);
+    expect(messages).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^fix: The copy reads as AI-written \(elevate, unlock the, look no further, cutting-edge\)/),
+        "fix: A heading, button or link uses an emoji. Use words, or an icon drawn in the site's own line style.",
+        expect.stringMatching(/^consider: An icon called "sparkles" reads as an AI cliché/),
+      ]),
+    );
+  });
 });

@@ -1,12 +1,25 @@
 "use client";
 
-import { ArrowCounterClockwiseIcon, CheckCircleIcon, CursorClickIcon, DesktopIcon, DeviceMobileIcon, DeviceTabletIcon, GitDiffIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import {
+  ArrowCounterClockwiseIcon,
+  CheckCircleIcon,
+  CubeIcon,
+  CursorClickIcon,
+  DesktopIcon,
+  DeviceMobileIcon,
+  DeviceTabletIcon,
+  FilmStripIcon,
+  GitDiffIcon,
+  ImageSquareIcon,
+  WarningCircleIcon,
+} from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState, useTransition } from "react";
 import { z } from "zod";
 import { saveFileAction } from "@/app/app/actions";
+import { MediaReplace, PlaceholderChip, ScenePicker } from "@/components/studio/media-replace";
 import { buttonClasses } from "@/components/ui/button";
 import {
   DESIGN_PICK_MESSAGE,
@@ -17,6 +30,8 @@ import {
   attrValue,
   cssColorToHex,
   editableText,
+  hasAttr,
+  mediaSlots,
   outline,
   relocate,
   scanElements,
@@ -53,6 +68,7 @@ const TAG_LABELS: Record<string, string> = {
   a: "Link",
   button: "Button",
   img: "Image",
+  video: "Video",
   li: "List item",
   blockquote: "Quote",
   figcaption: "Caption",
@@ -97,6 +113,7 @@ export function VisualEditor({
   files,
   revisions,
   images,
+  imagePaths = [],
   initialPage,
   disabledReason,
 }: {
@@ -105,6 +122,8 @@ export function VisualEditor({
   files: Record<string, string>;
   revisions: Record<string, number>;
   images?: Record<string, string>;
+  /** Every image in the project, by path, which a replaced image may use (ADR 0156). */
+  imagePaths?: readonly string[];
   initialPage: string | null;
   /** Why saving isn't possible right now; editing the draft still works. */
   disabledReason: string | null;
@@ -128,6 +147,8 @@ export function VisualEditor({
   const html = draft[page] ?? "";
   const elements = useMemo(() => scanElements(html), [html]);
   const items = useMemo(() => outline(html, elements), [html, elements]);
+  const media = useMemo(() => mediaSlots(elements), [elements]);
+  const assets = useMemo(() => new Set(imagePaths), [imagePaths]);
   const changedPaths = Object.keys(draft).filter((p) => draft[p] !== files[p]);
 
   const doc = useMemo(() => {
@@ -166,7 +187,7 @@ export function VisualEditor({
 
   function apply(edit: VisualEdit) {
     if (!selected) return;
-    const r = applyVisualEdit(draft, page, selected.n, edit);
+    const r = applyVisualEdit(draft, page, selected.n, edit, assets);
     if (!r.ok) {
       setMessage({ tone: "error", text: r.reason });
       return;
@@ -341,13 +362,42 @@ export function VisualEditor({
         <Feedback message={message} />
 
         {el ? (
-          <Inspector key={`${page}:${selected!.n}:${selected!.stamp}`} html={html} el={el} picked={selected!.style} onApply={apply} />
+          <Inspector key={`${page}:${selected!.n}:${selected!.stamp}`} html={html} el={el} picked={selected!.style} onApply={apply} images={images} imagePaths={imagePaths} />
         ) : (
           <div className="grid justify-items-start gap-2 rounded-sm border border-dashed border-line-strong/40 p-4 text-sm text-ink-2">
             <CursorClickIcon size={22} className="text-accent" aria-hidden />
             Pick an element in the page, or choose one from the list below.
           </div>
         )}
+
+        {media.length ? (
+          <details className="group" open={media.some((m) => m.placeholder)}>
+            <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium">
+              Media on this page ({media.length}
+              {media.some((m) => m.placeholder) ? `, ${media.filter((m) => m.placeholder).length} to replace` : ""})
+            </summary>
+            <ul className="mt-1 grid max-h-72 gap-0.5 overflow-y-auto pr-1">
+              {media.map((m) => {
+                const KindIcon = m.kind === "image" ? ImageSquareIcon : m.kind === "video" ? FilmStripIcon : CubeIcon;
+                return (
+                  <li key={m.n}>
+                    <button
+                      type="button"
+                      onClick={() => select(m.n)}
+                      aria-current={selected?.n === m.n ? "true" : undefined}
+                      className={`flex min-h-11 w-full items-center gap-2 rounded-sm px-2 text-left text-sm hover:bg-surface-raised ${selected?.n === m.n ? "bg-accent/[0.08] text-ink" : "text-ink-2"}`}
+                    >
+                      <KindIcon size={16} className="shrink-0 text-ink-3" aria-hidden />
+                      <span className="sr-only">{m.kind === "scene" ? "3D scene" : m.kind === "image" ? "Image" : "Video"}: </span>
+                      <span className="min-w-0 flex-1 truncate">{m.slot ?? m.source ?? "(no address)"}</span>
+                      {m.placeholder ? <PlaceholderChip /> : null}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </details>
+        ) : null}
 
         <details className="group">
           <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium">Elements on this page ({items.length})</summary>
@@ -434,9 +484,26 @@ const px = (v: string | undefined) => {
 
 const fieldClass = "min-h-11 w-full rounded-sm border border-line bg-surface px-3 text-base focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
-function Inspector({ html, el, picked, onApply }: { html: string; el: SourceElement; picked: PickedStyle | null; onApply: (edit: VisualEdit) => void }) {
+function Inspector({
+  html,
+  el,
+  picked,
+  onApply,
+  images,
+  imagePaths,
+}: {
+  html: string;
+  el: SourceElement;
+  picked: PickedStyle | null;
+  onApply: (edit: VisualEdit) => void;
+  images?: Record<string, string>;
+  imagePaths: readonly string[];
+}) {
   const id = useId();
   const text = editableText(html, el);
+  const scene = attrValue(el, "data-farbaek-scene");
+  const isMedia = el.tag === "img" || el.tag === "video";
+  const firstSource = el.tag === "video" ? scanElements(html).find((e) => e.parent === el.n && e.tag === "source") : undefined;
   const [textDraft, setText] = useState(text ?? "");
   const [href, setHref] = useState(attrValue(el, "href") ?? "");
   const [alt, setAlt] = useState(attrValue(el, "alt") ?? "");
@@ -463,9 +530,26 @@ function Inspector({ html, el, picked, onApply }: { html: string; el: SourceElem
   return (
     <div className="grid gap-4">
       <div>
-        <p className="text-[15px] font-medium">{tagLabel(el.tag)}</p>
+        <p className="flex flex-wrap items-center gap-2 text-[15px] font-medium">
+          {scene !== null ? "3D scene" : tagLabel(el.tag)}
+          {attrValue(el, "data-farbaek-media") ? <span className="font-mono text-xs font-normal text-ink-3">{attrValue(el, "data-farbaek-media")}</span> : null}
+          {!isMedia && hasAttr(el, "data-farbaek-placeholder") ? <PlaceholderChip /> : null}
+        </p>
         {picked === null ? <p className="text-xs text-ink-3">Reading its styles from the page…</p> : null}
       </div>
+
+      {isMedia ? (
+        <MediaReplace
+          kind={el.tag === "img" ? "image" : "video"}
+          current={attrValue(el, "src") ?? (firstSource ? attrValue(firstSource, "src") : null)}
+          placeholder={hasAttr(el, "data-farbaek-placeholder")}
+          images={images}
+          imagePaths={imagePaths}
+          onReplace={(edit) => onApply({ kind: "media", ...edit })}
+        />
+      ) : null}
+
+      {scene !== null ? <ScenePicker current={scene} onPick={(s) => onApply({ kind: "scene", scene: s })} /> : null}
 
       {text !== null ? (
         <div className="grid gap-1.5">
@@ -479,7 +563,7 @@ function Inspector({ html, el, picked, onApply }: { html: string; el: SourceElem
             </button>
           </div>
         </div>
-      ) : el.tag !== "img" ? (
+      ) : !isMedia && scene === null ? (
         <p className="text-sm text-ink-3">Its text is made of other elements. Pick one of them to change the words.</p>
       ) : null}
 

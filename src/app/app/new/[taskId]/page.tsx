@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CancelTaskControl } from "@/components/app/forms";
 import { ApproveBuild } from "@/components/build/approve-build";
-import { FARBAEK_SKILLS, suggestSkills } from "@/content/skills";
+import { FARBAEK_SKILLS, defaultSkills } from "@/content/skills";
 import { splitByPins } from "@/core/agent/skill-pins";
 import { isProjectSkillPath } from "@/core/agent/skills";
 import { pinMap } from "@/server/workspace/skill-pins";
@@ -94,7 +94,8 @@ export default async function PlanCardPage({ params }: Params) {
   const c = contract?.body;
   // What the plan keeps as it is: forbidden operations, protected fields and invariants.
   const kept = c ? [...c.forbiddenOperations.map(say), ...c.protectedFields, ...c.protectedInvariants.map((i) => i.statement)] : [];
-  const suggested = suggestSkills(`${task.title} ${c?.outcome ?? ""} ${project?.description ?? ""}`).map((s) => s.id);
+  // The premium core (motion, 3D, brand identity) for anything people will see, plus what fits this plan (ADR 0156).
+  const suggested = defaultSkills(`${task.title} ${c?.outcome ?? ""} ${project?.description ?? ""}`).map((s) => s.id);
   return (
     <div className="mx-auto grid w-full max-w-4xl gap-6">
       <ClearKeptPrompt />

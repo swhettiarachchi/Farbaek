@@ -6,6 +6,7 @@ import { CreateTaskForm } from "@/components/app/forms";
 import { PromptComposer } from "@/components/build/prompt-composer";
 import { StaticPreview } from "@/components/preview/static-preview";
 import { PublishPanel } from "@/components/publish/publish-panel";
+import { placeholderCount } from "@/core/media/library";
 import { ProjectSkills, type ProjectSkillView } from "@/components/skills/project-skills";
 import { skillPinStatus } from "@/core/agent/skill-pins";
 import { isProjectSkillPath, parseSkill } from "@/core/agent/skills";
@@ -49,6 +50,8 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
   const packageJson = needsPackageJson(paths) ? ((await ctx.reader.getFile(ctx.current.id, project.id, "package.json").catch(() => null))?.content ?? null) : null;
   const isStatic = runProfile(paths, packageJson).kind === "static" && filesBytes <= 3 * 1024 * 1024;
   const contents = isStatic ? await ctx.reader.getProjectContents(ctx.current.id, project.id).catch(() => null) : null;
+  // Images, videos and scenes the build left as stand-ins for the person's own (ADR 0156).
+  const placeholders = contents ? placeholderCount(contents) : 0;
   // The site's own images, inlined as data URLs while they fit the preview budget; past that the preview shows them as missing.
   const images = isStatic && imageBytes > 0 ? await previewImages(ctx.reader, ctx.current.id, project.id) : undefined;
   const canChange = ctx.mode === "live" && ctx.writes.enabled && !project.archivedAt;
@@ -172,6 +175,15 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
         </section>
       ) : null}
 
+      {publish && placeholders > 0 ? (
+        <Notice>
+          This site still shows {placeholders} stand-in {placeholders === 1 ? "image or video" : "images or videos"}. Put your own in with Replace in{" "}
+          <Link href={`/app/projects/${project.id}/design`} className="font-medium text-accent hover:underline">
+            Studio
+          </Link>
+          , or publish it as it is.
+        </Notice>
+      ) : null}
       {publish ? <PublishPanel projectId={project.id} data={publish} disabledReason={publishReason ?? withheldFor(ctx.role, ctx.permissions, "publish")} /> : null}
 
       <ProjectSkills projectId={project.id} skills={skills} disabledReason={publishReason} />

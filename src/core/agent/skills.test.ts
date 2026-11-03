@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { FARBAEK_SKILLS, getBuiltInSkill, suggestSkills } from "@/content/skills";
+import { CORE_SKILL_IDS, FARBAEK_SKILLS, SITE_SKILL_ID, defaultSkills, getBuiltInSkill, suggestSkills } from "@/content/skills";
+import { KIT_URL, MEDIA_BASE } from "@/core/media/library";
 import { SKILL_LIMITS, isProjectSkillPath, parseSkill, projectSkills, skillsSection } from "./skills";
 import { STANDARD_PRECEDENCE, STUDIO_STANDARD } from "./studio-standard";
 
@@ -61,6 +62,34 @@ describe("built-in skills", () => {
       expect(s.body, s.id).not.toMatch(/[—–]/);
     }
     expect(STUDIO_STANDARD + STANDARD_PRECEDENCE).not.toMatch(/[—–]/);
+  });
+
+  it("tick the premium core for anything people will see (ADR 0156)", () => {
+    const ids = (p: string) => defaultSkills(p).map((s) => s.id);
+    const bakery = ids("A one-page site for my bakery in Galle with the menu and opening hours");
+    // A website also gets the flagship craft (the level of the best commercial sites).
+    expect(bakery.slice(0, 4)).toEqual([...CORE_SKILL_IDS, SITE_SKILL_ID]);
+    expect(bakery.length).toBeLessThanOrEqual(6);
+    // An app with pages gets the core, not the website craft.
+    expect(ids("A booking web app for my salon with a login and a dashboard")).not.toContain(SITE_SKILL_ID);
+    expect(ids("A luxury boutique hotel site with a video hero")).toEqual(expect.arrayContaining(["luxury-and-editorial", "video-and-media"]));
+    // An API with no pages gets no design skills by default.
+    expect(ids("A REST API for my inventory with endpoints and tests")).not.toContain("3d-and-depth");
+    for (const id of CORE_SKILL_IDS) expect(getBuiltInSkill(id), id).not.toBeNull();
+    // Every run's prompt stays within the skill budget with the core, the site craft and two more.
+    const longest = [...FARBAEK_SKILLS].sort((a, b) => b.body.length - a.body.length).slice(0, 6);
+    expect(longest.reduce((n, s) => n + s.body.length, 0)).toBeLessThanOrEqual(SKILL_LIMITS.totalChars);
+  });
+
+  it("give the standard the kit, the library, real photos and the human-made rules", () => {
+    expect(STUDIO_STANDARD).toContain(KIT_URL);
+    expect(STUDIO_STANDARD).toContain(MEDIA_BASE);
+    expect(STUDIO_STANDARD).toContain("data-farbaek-media");
+    expect(STUDIO_STANDARD).toContain("data-farbaek-placeholder");
+    expect(STUDIO_STANDARD).toContain("https://picsum.photos/id/");
+    expect(STUDIO_STANDARD).toMatch(/never generated/);
+    expect(STUDIO_STANDARD).toMatch(/No CSS filter/);
+    expect(STUDIO_STANDARD).not.toMatch(/no image generator connected/i);
   });
 
   it("suggest the skills a prompt calls for", () => {

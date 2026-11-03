@@ -1,9 +1,12 @@
 /**
  * Farbaek's built-in skills (ADR 0030), written in the SKILL.md format
  * (name, description, instructions) so they read like any Claude Skill.
- * People choose them on the plan card; the ones that fit a prompt are
- * suggested. The Studio standard always applies; these go deeper.
+ * People choose them on the plan card: the premium core (motion, 3D and
+ * brand identity, ADR 0156) is ticked for anything people will see, and the
+ * ones that fit a prompt are suggested. The Studio standard always applies;
+ * these go deeper.
  */
+import { starterForPrompt } from "@/core/agent/prompt-start";
 import { parseSkill, type Skill } from "@/core/agent/skills";
 
 export interface BuiltInSkill extends Skill {
@@ -39,13 +42,61 @@ description: Purposeful, cinematic motion and tactile interaction that make a si
     /\b(3d|three\.?js|webgl|depth|immersive|futuristic|space|orbit\w*|hologra\w*|product view|spatial)\b/i,
     `---
 name: 3d-and-depth
-description: Real dimensional moments, from layered parallax and CSS 3D to a three.js scene, used where depth tells the story.
+description: A memorable 3D moment on every site, from Farbaek Scenes and CSS 3D to a custom three.js form, fast and safe on phones.
 ---
-- Pick the lightest technique that delivers the moment: layered parallax (translate by scroll progress), CSS 3D (perspective plus rotateX or rotateY on cards that tilt toward the pointer), or a WebGL scene for one hero or product moment.
-- For a three.js scene in a static site, import a pinned version as an ES module from https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js. Keep geometry simple and art-directed (a sculpted shape, a particle field, a product-like form with a matcap or physical material), light it deliberately, and make it react to the pointer or scroll subtly.
-- Start the scene only when it's on screen and pause it when it isn't or the tab is hidden; cap the device pixel ratio at 2; dispose of it cleanly.
-- Always render a still fallback first (a gradient or a poster frame in the same composition) and keep it for prefers-reduced-motion, missing WebGL and weak devices (fewer than 4 cores in navigator.hardwareConcurrency, navigator.deviceMemory under 4, or saveData). Four-core laptops and phones should get the scene.
-- Depth must serve hierarchy: the 3D element sits behind or beside the message, never on top of text, and contrast stays readable over it.`,
+- Every site gets one 3D signature. Start with Farbaek Scenes (see the Studio standard) and pick the scene from the brand's world: aurora for night, calm and wonder; glass for craft, clarity and luxury; particles for data, AI and science; horizon for travel, mobility and the future; orb for premium services, finance and space; gallery to show the work itself. Match it to the brand with data-palette or the page's --accent and --accent-2.
+- Compose it: the scene sits behind or beside the message, never on top of text. Behind the hero copy, add a gradient scrim so the headline keeps WCAG AA contrast; beside it, give the box a fixed aspect ratio and a frame in the site's radius system.
+- Add depth around it with lighter tools: perspective cards that tilt toward a fine pointer (rotateX and rotateY up to 8 degrees, eased back on leave), layered parallax driven by scroll-driven animations, and overlapping sections with soft shadows tinted to the background.
+- When the brief needs a specific form (a product, a logo, a building), write a custom three.js scene: import https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js lazily as an ES module, keep geometry procedural and art-directed (no model files: the preview can't fetch them), start it only on screen, pause it off screen and in a hidden tab, cap the pixel ratio at 2 (1.5 on touch screens) and dispose of it cleanly.
+- Always render a still first (a poster image or a gradient in the same composition) and keep it for prefers-reduced-motion, missing WebGL and weak devices (fewer than 4 cores, navigator.deviceMemory under 4, or saveData). Four-core laptops and phones should get the scene. Farbaek Scenes does all of this for you.
+- Never more than one WebGL scene in view at a time. A second 3D moment further down the page uses CSS 3D or a library video loop instead.`,
+  ),
+  skill(
+    "Flagship site craft",
+    /\b(landing page|home ?page|marketing (?:site|page)|launch page|product launch|startup)\b/i,
+    `---
+name: flagship-site-craft
+description: The composition, rhythm and proof of the best commercial websites (the level of shopify.com or stripe.com), carried out in this brand's own look.
+---
+- Hero as a film still: full-bleed real media (a library video loop, a real photo of the person's world, or a Farbaek Scenes moment) under a soft scrim; a large headline of two lines (64 to 96 px on desktop, 40 to 48 px on phones, light to medium weight, tight tracking), left-aligned; one or two short sentences; one solid pill button and at most one quiet outlined one. The navigation sits over the hero, transparent, and turns solid once the page scrolls.
+- A rotating word in the headline is welcome when it shows the range of what the product does (a phrase like "Be the next ___" cycling three to six endings with a vertical slide), held still under reduced motion.
+- Two-tone headlines open a section: the first sentence in full ink, the rest in the muted tone, for example "Sell everywhere. Online, in person and on social." Use it two or three times a page, not everywhere.
+- Rhythm by colour blocks: sections change background (deep ink, a dark tinted with the brand colour, a light surface), and each new block starts with large rounded top corners (32 to 48 px) that overlap the one before, so the page reads as stacked panels. One or two tints, never a rainbow.
+- Story cards: one wide card per idea, with a living visual inside (a prompt that types, items that assemble, a scene that changes as you scroll), a two-line headline and one sentence. Hold the card with position: sticky while its visual steps through two or three states, and show the final state as a still under reduced motion.
+- Show the real product and real people: UI previews built from working components, a slow marquee of real work or customers (each labelled), customer stories as a photo, a name and one specific result in bold, and a short quote card overlapping a photo with the person's name and role. Invented ones are labelled as samples.
+- Numbers that land: one or two huge, light numerals (96 to 160 px) with a small label and an icon above, a sentence with a thin accent rule beside it, and the source in small print. No number without a source or a "sample" label.
+- Feature trios done right: three cards, each with its own visual (a UI moment, a photo, an animated diagram), a short bold title and one sentence with underlined inline links. Never three identical icon cards.
+- A small floating video teaser (muted, in a bottom corner, with a play label and a close button) can carry the brand story without taking over the hero.
+- Close with a real sequence of three steps to get started (numbered only because the order matters), one last call to action, and a dense, well-organised footer.
+- Spacing and type: 120 to 200 px between sections on desktop, 72 to 96 px on phones; body text muted at 16 to 18 px; links in body copy underlined. On phones everything stacks, marquees keep moving slowly, and sticky stories become plain sequences.`,
+  ),
+  skill(
+    "Luxury and editorial",
+    /\b(luxur\w*|high[- ]end|exclusive|elegan\w*|boutique|jewel\w*|fashion|couture|hotel|resort|villa|spa|real estate|propert(?:y|ies)|interior\w*|architect\w*|fine dining|wine\w*|watch(?:es|maker)|perfume|fragrance|yacht\w*)\b/i,
+    `---
+name: luxury-and-editorial
+description: The restraint, pace and detail of luxury and editorial brands, for hotels, fashion, jewellery, property and fine dining.
+---
+- Restraint is the luxury: generous white space (or deep darkness), few words per screen, one striking image or scene at a time, and slow, confident motion (600 to 900 ms, nothing bouncy).
+- Typography leads: an elegant display face at large sizes with tight tracking (a high-contrast sans, or a refined serif only when the brand is heritage or editorial), small spaced labels used sparingly, and body text in a quiet humanist sans.
+- Palette: a deep or pale neutral (ink, stone, ivory, smoke) with one precious accent drawn from the product, such as champagne or emerald. Don't reach for beige and brass by reflex.
+- Media leads: a full-bleed video loop or a Farbaek Scenes glass or orb moment in the hero, then editorial image layouts (one large image with a short caption, an asymmetric pair, a slow horizontal gallery).
+- Details that show care: hairline dividers, hover states that reveal (an image that unmasks, a line that draws), precise alignment, prices in tabular numerals, and an enquiry or booking flow that feels personal (a short form, a named contact, the reply time).
+- Never fake exclusivity: no invented awards, press logos or waiting lists. Sample ones are labelled as samples.`,
+  ),
+  skill(
+    "Video and media",
+    /\b(videos?|film|cinematic|reel|footage|showreel|media|gallery|galleries|photos?|photography|visuals?|background video|hero video)\b/i,
+    `---
+name: video-and-media
+description: Video heroes, galleries and imagery that look art-directed, load fast on phones, and sit in slots the person can replace.
+---
+- Every visual is a replaceable slot: data-farbaek-media="<slot name>" on each img, video and scene box, plus data-farbaek-placeholder while it's a stand-in. Name slots by their place: hero-video, team-photo, menu-gallery-1.
+- Video heroes: <video autoplay muted loop playsinline preload="metadata" poster="..."> with a Farbaek library loop.mp4 and its still-16x9.webp as the poster, object-fit: cover, a gradient scrim under the text, and the poster instead of motion under reduced motion. One autoplaying video in view at a time.
+- Galleries: a varied grid (one large, two small), a horizontal scroll-snap row on phones, or the gallery scene from Farbaek Scenes with the images inside its box. Every image has alt text and a reserved aspect ratio.
+- Art direction: one treatment for every image on the site (a radius, a frame, a duotone made with gradient overlays, never a CSS filter), cropped to the composition with object-fit and object-position.
+- Performance: only the first screen's poster or still loads eagerly (fetchpriority="high"); everything else uses loading="lazy" or preload="none", and the first screen's media stays under 2 MB.
+- In the finish summary, list each placeholder slot with what the person should put there, for example "hero-video: a 10 to 20 second clip of your kitchen at service".`,
   ),
   skill(
     "Brand identity",
@@ -135,6 +186,24 @@ description: App-native phone screens that feel made for a hand, not a website s
 
 export function getBuiltInSkill(id: string): BuiltInSkill | null {
   return FARBAEK_SKILLS.find((s) => s.id === id) ?? null;
+}
+
+/** The premium core (ADR 0156): on by default for every build people will see. */
+export const CORE_SKILL_IDS = ["motion-and-interaction", "3d-and-depth", "brand-identity"] as const;
+/** Added to the core for a website: the craft of the best commercial sites. */
+export const SITE_SKILL_ID = "flagship-site-craft";
+
+/**
+ * The skills ticked on the plan card: the premium core for anything people
+ * will see (not an API with no pages), the flagship craft for a website, and
+ * up to two more that fit the plan. People can still untick any of them.
+ */
+export function defaultSkills(text: string): BuiltInSkill[] {
+  const starter = starterForPrompt(text);
+  const ids = starter === "rest-api" ? [] : [...CORE_SKILL_IDS, ...(starter === "static-website" ? [SITE_SKILL_ID] : [])];
+  const core = ids.map((id) => getBuiltInSkill(id)!);
+  const extra = suggestSkills(text, FARBAEK_SKILLS.length).filter((s) => !core.includes(s));
+  return [...core, ...extra.slice(0, 2)];
 }
 
 /** The skills that fit a prompt, most relevant first, at most three. */

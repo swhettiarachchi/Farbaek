@@ -56,6 +56,25 @@ const nextConfig: NextConfig = {
       ...(APP_HOST
         ? [{ source: "/(.*)", has: [{ type: "host" as const, value: APP_HOST }], headers: [{ key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(self)" }] }]
         : []),
+      // Farbaek Scenes and the media library (ADR 0156) load into people's published sites and
+      // previews, from other origins: module scripts and WebGL textures need CORS. Library files
+      // never change under their versioned path; the kit may get fixes, so it's cached for a day.
+      {
+        source: "/media/v1/:path*",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+      {
+        source: "/kit/:path*",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+          { key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" },
+        ],
+      },
       // Film recordings and tracks are requested with their content hash (?v=, ADR 0051), so a
       // phone can keep them; a re-recording has a new URL. Unversioned requests keep the default.
       {

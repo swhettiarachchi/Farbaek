@@ -147,6 +147,7 @@ export default async function DesignPage({ params, searchParams }: { params: Pro
           files={text}
           revisions={Object.fromEntries(files.map((f) => [f.path, f.revision]))}
           images={images}
+          imagePaths={files.filter((f) => f.encoding === "base64").map((f) => f.path)}
           initialPage={initialPage}
           disabledReason={saveReason}
         />
