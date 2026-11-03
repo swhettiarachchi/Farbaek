@@ -27,14 +27,16 @@ import { MediaReplace, PlaceholderChip, ScenePicker } from "@/components/studio/
 import { SectionsPanel } from "@/components/studio/sections-panel";
 import { ThemePanel, type ThemePreview } from "@/components/studio/theme-panel";
 import { buttonClasses } from "@/components/ui/button";
-import { TEXT_SIZES } from "@/core/studio/site-theme";
+import { SPACE_SIZES, TEXT_SIZES } from "@/core/studio/site-theme";
 import {
   DESIGN_ACTION_MESSAGE,
+  DESIGN_HEAD,
   DESIGN_PICK_MESSAGE,
   DESIGN_SCRIPT,
   DESIGN_SECTIONS_MESSAGE,
   DESIGN_SELECT_MESSAGE,
   DESIGN_THEME_MESSAGE,
+  DESIGN_TEXT_MESSAGE,
   annotateForDesign,
   applyVisualEdit,
   attrValue,
@@ -109,6 +111,11 @@ const Picked = z.object({
     textAlign: z.string().max(20),
     padding: z.string().max(40),
     borderRadius: z.string().max(40),
+    paddingTop: z.string().max(40).optional(),
+    paddingBottom: z.string().max(40).optional(),
+    paddingLeft: z.string().max(40).optional(),
+    marginTop: z.string().max(40).optional(),
+    marginBottom: z.string().max(40).optional(),
   }),
 });
 
@@ -118,6 +125,13 @@ const Action = z.object({
   action: z.enum(["move", "duplicate", "remove"]),
   n: z.number().int().min(0),
   before: z.number().int().min(0).nullable().optional(),
+});
+
+// Words typed over an element in the preview (ADR 0162); the editor checks them as any text edit.
+const Typed = z.object({
+  type: z.literal(DESIGN_TEXT_MESSAGE),
+  n: z.number().int().min(0),
+  text: z.string().max(5_000),
 });
 
 type Message = { tone: "ok" | "warning" | "error"; text: string };
@@ -186,14 +200,21 @@ export function VisualEditor({
   const doc = useMemo(() => {
     const built = buildStaticSrcdoc({ ...draft, [page]: annotateForDesign(html, elements) }, page, allImages);
     if (built === null) return null;
-    const at = built.toLowerCase().lastIndexOf("</body>");
-    return at < 0 ? built + DESIGN_SCRIPT : built.slice(0, at) + DESIGN_SCRIPT + built.slice(at);
+    const head = /<head\b[^>]*>/i.exec(built);
+    const first = head ? built.slice(0, head.index + head[0].length) + DESIGN_HEAD + built.slice(head.index + head[0].length) : DESIGN_HEAD + built;
+    const at = first.toLowerCase().lastIndexOf("</body>");
+    return at < 0 ? first + DESIGN_SCRIPT : first.slice(0, at) + DESIGN_SCRIPT + first.slice(at);
   }, [draft, page, html, elements, allImages]);
 
   // Picks arrive from this frame only, for an element that exists in this version of the page.
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (e.source !== frame.current?.contentWindow) return;
+      const typed = Typed.safeParse(e.data);
+      if (typed.success) {
+        if (typed.data.n < elements.length) applyRef.current(typed.data.n, { kind: "text", text: typed.data.text });
+        return;
+      }
       const action = Action.safeParse(e.data);
       if (action.success) {
         const { n, before } = action.data;
@@ -439,7 +460,7 @@ export function VisualEditor({
             </div>
           )}
         </div>
-        <p className="text-xs text-ink-3">Click or tap an element to change it, or Alt+click to pick its whole section. Drag a section by the handle on its toolbar. Links don&apos;t open while you edit, and the page runs locked down, with no access to Farbaek or the network.</p>
+        <p className="text-xs text-ink-3">Click or tap an element to change it, or Alt+click to pick its whole section. Double-click words to type over them, then press Enter. Drag a section by the handle on its toolbar. Links don&apos;t open while you edit, and the page runs locked down, with no access to Farbaek or the network.</p>
       </div>
 
       <aside aria-label="Edit the site" className="grid gap-4 rounded-md border border-line bg-surface p-4 shadow-e1 sm:p-5 lg:sticky lg:top-4">
@@ -616,8 +637,16 @@ function styleMisses(props: Partial<Record<StyleProp, string | null>>, got: Pick
     "text-align": got.textAlign === "start" ? "left" : got.textAlign,
     padding: got.padding || null,
     "border-radius": got.borderRadius,
+    "padding-top": got.paddingTop ?? null,
+    "padding-bottom": got.paddingBottom ?? null,
+    "padding-inline": got.paddingLeft ?? null,
+    "margin-top": got.marginTop ?? null,
+    "margin-bottom": got.marginBottom ?? null,
   };
-  return (Object.entries(props) as [StyleProp, string | null][]).filter(([p, v]) => v !== null && shown[p] !== v).map(([p]) => STYLE_WORDS[p]);
+  // A size that scales with the screen (clamp) computes to px, so only exact values can be compared.
+  return (Object.entries(props) as [StyleProp, string | null][])
+    .filter(([p, v]) => v !== null && !v.startsWith("clamp(") && shown[p] !== null && shown[p] !== v)
+    .map(([p]) => STYLE_WORDS[p]);
 }
 
 const STYLE_WORDS: Record<StyleProp, string> = {
@@ -628,6 +657,11 @@ const STYLE_WORDS: Record<StyleProp, string> = {
   "text-align": "alignment",
   padding: "padding",
   "border-radius": "corner radius",
+  "padding-top": "space inside at the top",
+  "padding-bottom": "space inside at the bottom",
+  "padding-inline": "space inside at the sides",
+  "margin-top": "space above",
+  "margin-bottom": "space below",
 };
 
 const WEIGHTS = [
@@ -692,6 +726,11 @@ function Inspector({
     "text-align": picked?.textAlign === "center" || picked?.textAlign === "right" ? picked.textAlign : "left",
     padding: px(picked?.padding),
     "border-radius": px(picked?.borderRadius),
+    "padding-top": px(picked?.paddingTop),
+    "padding-bottom": px(picked?.paddingBottom),
+    "padding-inline": px(picked?.paddingLeft),
+    "margin-top": px(picked?.marginTop),
+    "margin-bottom": px(picked?.marginBottom),
   };
   const [style, setStyle] = useState<Partial<Record<StyleProp, string>>>({});
   const value = (p: StyleProp) => style[p] ?? shown[p];
@@ -700,7 +739,7 @@ function Inspector({
 
   function applyStyle() {
     const props: Partial<Record<StyleProp, string>> = {};
-    for (const [p, v] of Object.entries(style) as [StyleProp, string][]) props[p] = (p === "font-size" || p === "padding" || p === "border-radius") && /^\d+$/.test(v) ? `${v}px` : v;
+    for (const [p, v] of Object.entries(style) as [StyleProp, string][]) props[p] = p !== "font-weight" && /^\d+$/.test(v) ? `${v}px` : v;
     onApply({ kind: "style", props });
   }
 
@@ -850,6 +889,35 @@ function Inspector({
                 {word}
               </button>
             ))}
+          </div>
+        </div>
+        <div className="grid gap-2">
+          <span className="text-xs text-ink-2" id={`${id}-space`}>
+            Space above and below the content, scaling with the screen
+          </span>
+          <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-labelledby={`${id}-space`}>
+            {Object.values(SPACE_SIZES).map((sp) => {
+              const on = style["padding-top"] === sp.value && style["padding-bottom"] === sp.value;
+              return (
+                <button
+                  key={sp.label}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => setStyle((st) => ({ ...st, "padding-top": sp.value, "padding-bottom": sp.value }))}
+                  className={`min-h-11 rounded-full border px-3.5 text-sm transition-colors duration-150 ${on ? "border-accent bg-accent/[0.06] font-medium text-ink" : "border-line text-ink-2 hover:text-ink"}`}
+                >
+                  {sp.label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <NumberField id={`${id}-pt`} label="Inside, top (px)" value={/^\d+$/.test(value("padding-top")) ? value("padding-top") : ""} min={0} max={400} onChange={(v) => set("padding-top", v)} />
+            <NumberField id={`${id}-pb`} label="Inside, bottom (px)" value={/^\d+$/.test(value("padding-bottom")) ? value("padding-bottom") : ""} min={0} max={400} onChange={(v) => set("padding-bottom", v)} />
+            <NumberField id={`${id}-pi`} label="Inside, sides (px)" value={/^\d+$/.test(value("padding-inline")) ? value("padding-inline") : ""} min={0} max={400} onChange={(v) => set("padding-inline", v)} />
+            <NumberField id={`${id}-mt`} label="Outside, above (px)" value={/^\d+$/.test(value("margin-top")) ? value("margin-top") : ""} min={0} max={400} onChange={(v) => set("margin-top", v)} />
+            <NumberField id={`${id}-mb`} label="Outside, below (px)" value={/^\d+$/.test(value("margin-bottom")) ? value("margin-bottom") : ""} min={0} max={400} onChange={(v) => set("margin-bottom", v)} />
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">

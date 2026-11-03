@@ -51,6 +51,16 @@ export const TEXT_SIZES = {
 export type TextSizeId = keyof typeof TEXT_SIZES;
 export const TEXT_SIZE_VALUES: readonly string[] = Object.values(TEXT_SIZES).map((s) => s.value);
 
+/** Space above and below content that scales with the screen (ADR 0162): roomy on a desktop, never cavernous on a phone. */
+export const SPACE_SIZES = {
+  none: { label: "None", value: "0px" },
+  tight: { label: "Tight", value: "clamp(16px, 3vw, 32px)" },
+  comfortable: { label: "Comfortable", value: "clamp(32px, 6vw, 72px)" },
+  generous: { label: "Generous", value: "clamp(56px, 9vw, 128px)" },
+  grand: { label: "Grand", value: "clamp(80px, 13vw, 200px)" },
+} as const;
+export const SPACE_VALUES: readonly string[] = Object.values(SPACE_SIZES).map((s) => s.value);
+
 /** WCAG relative luminance of a #rrggbb colour. */
 export function luminance(hex: string): number {
   const c = [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
