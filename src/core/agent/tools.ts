@@ -28,7 +28,7 @@ export const TOOL_INPUTS = {
   }),
   review_site: z.object({}).describe("No input: it reviews every page, stylesheet and script in the project."),
   finish: z.object({
-    summary: z.string().min(1).max(2_000).describe("Two or three sentences: what changed and why."),
+    summary: z.string().min(1).max(2_000).describe("Two or three sentences: what changed and why. At most 2,000 characters; put the details (placeholders to replace, what you checked) in steps."),
     steps: z.array(z.string().max(300)).max(20),
     risks: z.array(z.string().max(300)).max(20),
     checks: z.array(z.string().max(300)).max(20).describe("Commands a person should run to verify the change."),

@@ -12,7 +12,7 @@ import { CHANGE_OPERATIONS, pathScope } from "../realityloop/change-proposal";
 import type { IntentContract } from "../realityloop/contract";
 import { canonicalHash } from "../trust/canonical-json";
 import { containsSecret, screenPath } from "../workspace/files";
-import { classifyCommand, COMMAND_RISK_LABELS, type CommandRisk } from "./commands";
+import { classifyCommand, COMMAND_RISK_LABELS, programName, type CommandRisk } from "./commands";
 import type { AgentMode } from "./modes";
 import type { ToolCall } from "./tools";
 
@@ -78,6 +78,11 @@ export function decide(call: ToolCall, ctx: PermissionContext): Decision {
       if (!ctx.exists(call.input.path)) return { kind: "deny", reason: `${call.input.path} doesn't exist. Use write_file to create it.` };
       return checkWrite(call.input.path, call.input.edits.map((e) => e.replace).join("\n"), ctx);
     case "run_command": {
+      // A plan's `farbaek check-site` is Farbaek's own check, run when the change is verified. It isn't a
+      // program anywhere the agent runs, so asking a person to approve it would stop the run for nothing.
+      if (programName(call.input.program) === "farbaek") {
+        return { kind: "deny", reason: "farbaek check-site isn't a command: Farbaek runs its site check itself when it verifies this change. Call review_site to check the site now." };
+      }
       const risk = classifyCommand(call.input.program, call.input.args);
       if (ctx.mode === "review_only") return { kind: "deny", reason: "Review Only doesn't run commands. Suggest it in the summary instead." };
       if (ctx.mode === "sandboxed_autopilot") {
