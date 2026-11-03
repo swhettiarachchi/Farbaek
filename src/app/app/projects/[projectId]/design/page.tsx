@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { ComponentEditor } from "@/components/studio/component-editor";
 import { VisualEditor } from "@/components/studio/visual-editor";
+import { kitTierFor } from "@/core/media/studio-kit";
 import { componentFiles, isTailwindProject } from "@/core/studio/jsx-edit";
 import { ButtonLink } from "@/components/ui/button";
 import { runProfile } from "@/content/starters";
@@ -150,6 +151,7 @@ export default async function DesignPage({ params, searchParams }: { params: Pro
           imagePaths={files.filter((f) => f.encoding === "base64").map((f) => f.path)}
           initialPage={initialPage}
           disabledReason={saveReason}
+          kitPro={kitTierFor(ctx.current.plan) === "pro"}
         />
       )}
     </div>
