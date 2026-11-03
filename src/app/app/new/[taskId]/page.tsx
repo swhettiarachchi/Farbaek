@@ -84,7 +84,7 @@ export default async function PlanCardPage({ params }: Params) {
     : !canBuild
       ? "Your role can view this plan but not approve it."
       : ai.provider !== "anthropic"
-        ? "Cloud runs need Claude on this server. You can still approve the plan from the task page."
+        ? "Cloud runs aren't available on this server yet. You can still approve the plan from the task page."
         : !intact
           ? "The stored plan doesn't match its fingerprint. Open the task to check it."
           : withheldFor(ctx.role, ctx.permissions, "run_agents")

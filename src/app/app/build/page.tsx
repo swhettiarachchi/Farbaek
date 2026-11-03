@@ -43,7 +43,7 @@ export default async function BuildPage() {
       ? "Your role can view runs but not start them."
       : ai.provider !== "anthropic"
         ? ai.provider
-          ? "Cloud runs need Claude on this server."
+          ? "Cloud runs aren't available on this server yet."
           : ai.reason
         : null;
 

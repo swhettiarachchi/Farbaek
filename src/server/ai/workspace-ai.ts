@@ -179,7 +179,7 @@ export async function aiForWorkspace<D extends AiUsageDeps>(
   }
   const ai = resolveAiProvider();
   if (!ai.provider) return { error: ai.reason };
-  if (options.claudeOnly && ai.provider !== "anthropic") return { error: `${options.claudeOnly} uses Claude, and this server uses another provider.` };
+  if (options.claudeOnly && ai.provider !== "anthropic") return { error: `${options.claudeOnly} isn't available with this server's AI setup.` };
   return { provider: ai.provider, client: undefined, deps, own: false };
 }
 

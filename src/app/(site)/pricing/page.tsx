@@ -32,7 +32,7 @@ const PRICING_FAQ: FaqItem[] = [
   },
   {
     q: "What's an agent session?",
-    a: "A typical stretch of agent work on Claude Sonnet: reading your project, writing code and checking it. Plans show about how many fit in a month. Real sessions vary with the task; fast models stretch your usage further and stronger models use it faster.",
+    a: "A typical stretch of agent work: reading your project, writing code and checking it. Plans show about how many fit in a month. Real sessions vary with the task; fast models stretch your usage further and stronger models use it faster.",
   },
   {
     q: "What happens to usage I don't use?",

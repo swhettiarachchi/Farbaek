@@ -41,7 +41,7 @@ export function ProjectSkills({ projectId, skills, disabledReason }: { projectId
           <BookOpenTextIcon size={20} weight="bold" className="text-accent" aria-hidden /> Skills
         </h2>
         <p className="text-sm leading-relaxed text-ink-2">
-          Teach the agent how you like this project built: your brand, your stack, your rules. Skills use the SKILL.md format from Claude Skills, apply to every build here, and
+          Teach the agent how you like this project built: your brand, your stack, your rules. Skills use the open SKILL.md format, apply to every build here, and
           can&apos;t widen what a plan allows. Each one is used only in the version someone approved, so a skill that arrives in an import or changes later waits for a review.
         </p>
       </div>

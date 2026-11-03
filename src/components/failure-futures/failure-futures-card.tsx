@@ -130,7 +130,7 @@ export function FailureFuturesCard({
         <span className="text-xs text-ink-3">Nothing is applied</span>
       </div>
       <p className="max-w-[68ch] text-sm leading-relaxed text-ink-2">
-        Failures this change could meet, found in the lines it adds and in this project&apos;s past incidents. Each one is hypothetical until you try it: Claude writes one test that simulates the failure, and a disposable sandbox runs it with this change.
+        Failures this change could meet, found in the lines it adds and in this project&apos;s past incidents. Each one is hypothetical until you try it: Farbaek writes one test that simulates the failure, and a disposable sandbox runs it with this change.
       </p>
 
       {running ? (

@@ -27,7 +27,7 @@ const GROUPS: Group[] = [
     iconClass: "text-verified",
     items: [
       "Sign-in by email link, workspaces with row-level tenant isolation",
-      "One sentence to a plan: Claude or Gemini drafts an intent contract you approve by hash",
+      "One sentence to a plan: Farbaek drafts an intent contract you approve by hash",
       "The cloud agent builds under that plan, and you can message it mid-run",
       "Projects with versioned files, import, search and the Studio editor",
       "Previews of static sites",

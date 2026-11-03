@@ -93,7 +93,7 @@ export default async function AgentsPage() {
             <li>The agent&apos;s token, kept in the system keychain.</li>
           </ul>
           <p className="mt-3 text-sm leading-relaxed text-ink-2">
-            Each model step goes through Farbaek to Claude: the conversation, including the files the agent reads and the command output it shows the model. Farbaek doesn&apos;t keep the conversation. It records the model and its token counts against your AI usage, and checks the finished change again before you see it.
+            Each model step goes through Farbaek to our AI provider (named in the Privacy Policy): the conversation, including the files the agent reads and the command output it shows the model. Farbaek doesn&apos;t keep the conversation. It records the model and its token counts against your AI usage, and checks the finished change again before you see it.
           </p>
         </Card>
       </div>

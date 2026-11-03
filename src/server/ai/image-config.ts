@@ -14,6 +14,6 @@ export function imageModel(env: Env = process.env): string {
 
 export function imageGeneration(env: Env = process.env): { generator: ImageGenerator; reason: null } | { generator: null; reason: string } {
   const key = env.GEMINI_API_KEY?.trim();
-  if (!key) return { generator: null, reason: "Image generation isn't connected on this server yet: it needs a Gemini API key." };
+  if (!key) return { generator: null, reason: "Image generation isn't connected on this server yet." };
   return { generator: createGeminiImageGenerator({ apiKey: key, model: imageModel(env) }), reason: null };
 }
