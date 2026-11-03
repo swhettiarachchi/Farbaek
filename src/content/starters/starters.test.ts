@@ -90,7 +90,9 @@ describe("starters", () => {
     for (const t of TEMPLATE_STARTERS) {
       const all = t.files.map((f) => f.content).join("\n");
       // A mistyped id is a broken image, so every Unsplash photo must be one that was looked at and sorted (ADR 0158).
-      for (const [, id] of all.matchAll(/images\.unsplash\.com\/photo-([0-9]+-[0-9a-f]+)/g)) expect(sorted.has(id!), `${t.id}: ${id}`).toBe(true);
+      for (const [, unsplash, picsum] of all.matchAll(/images\.unsplash\.com\/photo-([0-9]+-[0-9a-f]+)|picsum\.photos\/id\/(\d+)/g)) {
+        expect(sorted.has((unsplash ?? picsum)!), `${t.id}: ${unsplash ?? picsum}`).toBe(true);
+      }
       // A filter that sets hidden needs a rule no display value can beat, or the items stay on screen.
       const scripts = t.files.filter((f) => f.path.endsWith(".js")).map((f) => f.content).join("\n");
       const css = t.files.filter((f) => f.path.endsWith(".css")).map((f) => f.content).join("\n");

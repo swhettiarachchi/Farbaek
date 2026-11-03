@@ -67,7 +67,7 @@ export const TEMPLATES: readonly Starter[] = [
   site({
     id: "blog",
     name: "Blog",
-    summary: "Writing first: drawings that draw themselves, a reading-progress line and light and dark themes.",
+    summary: "Writing first: a featured story, topics and a search, real photos, and essays with a reading line and contents that follow you.",
     files: BLOG_FILES,
     examplePrompt: "Make this my cooking blog called Kitchen Table, with three recipe posts.",
   }),
@@ -81,7 +81,7 @@ export const TEMPLATES: readonly Starter[] = [
   site({
     id: "booking",
     name: "Booking",
-    summary: "Appointments: pick a treatment, a day and an open time on a day ribbon, then add it to a calendar.",
+    summary: "Book a chair: services and people, two weeks of real open times, a summary that follows you and a 3D next-free card.",
     files: BOOKING_FILES,
     examplePrompt: "Make this the booking site for my barber shop, with a 30 minute cut at $25 and a beard trim at $15, open Tuesday to Saturday.",
   }),

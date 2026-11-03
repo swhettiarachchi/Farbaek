@@ -1,433 +1,492 @@
 /**
- * Template: a small blog, built to the Studio standard (ADR 0030): a home
- * page and an essay set for comfortable reading, line drawings that draw
- * themselves, a reading-progress bar, and a light and dark theme. Sample
- * content; previews instantly and is complete without JavaScript.
+ * Template: a travel and food journal, the premium direction for blogs,
+ * journals, newsletters and writers (ADR 0163). Built on the Farbaek Studio
+ * kit, light by default: a home page with a featured story, topics and a
+ * search that really filter the stories, and an essay set for long reading
+ * with a progress line, contents that follow along and real photos in
+ * replaceable slots. The 3D moment is the tilting story photos. Sample
+ * content; the newsletter form says plainly that it doesn't send yet.
  */
+import { photoUrl } from "@/core/media/photos";
+import { STUDIO_KIT_CSS, STUDIO_KIT_JS } from "@/core/media/studio-kit";
 import type { StarterFile } from "../types";
 
-// The cover drawing for the first essay: a plain box being shipped while a clever plan stays a sketch.
-const COVER = `<svg class="drawing" viewBox="0 0 600 340" role="img" aria-label="A line drawing of a plain wooden box with an arrow carrying it out, while a complicated plan stays a dotted sketch">
-          <path class="ink" pathLength="1" d="M150 150h150v120H150z" />
-          <path class="ink" pathLength="1" d="M150 150l40-34h150l-40 34M300 270l40-34V116" />
-          <path class="ink" pathLength="1" d="M150 200h150M150 235h150" />
-          <path class="accent" pathLength="1" d="M330 300c80 10 150-20 210-90" />
-          <path class="accent" pathLength="1" d="M520 206l22 2-6 22" />
-          <g class="sketch">
-            <circle cx="440" cy="80" r="26" />
-            <circle cx="510" cy="60" r="16" />
-            <circle cx="500" cy="122" r="20" />
-            <path d="M466 80h28M440 106l50 10M510 76l-6 26" />
-          </g>
-        </svg>`;
+const photo = (id: string | number, w: number, h: number, slot: string, alt: string, lazy = true) =>
+  `<img src="${photoUrl(id, w, h)}" alt="${alt}" width="${w}" height="${h}"${lazy ? ' loading="lazy"' : ""} data-farbaek-media="${slot}" data-farbaek-placeholder />`;
 
-const HEAD = (title: string, description: string, extra = "") => `<!doctype html>
-<html lang="en">
+type Topic = "rail" | "coast" | "hills" | "food";
+const TOPIC_LABEL: Record<Topic, string> = { rail: "Rail", coast: "Coast", hills: "Hills", food: "Food" };
+
+const STORIES: { topic: Topic; title: string; dek: string; minutes: number; date: string; photo: string | number; alt: string }[] = [
+  { topic: "coast", title: "Three beaches the guidebooks skip", dek: "Quiet sand south of Tangalle, a pier for sunrise, and where to eat after.", minutes: 6, date: "12 October", photo: 521, alt: "A long white pier running out into a calm blue sea" },
+  { topic: "hills", title: "Walking tea country after the rain", dek: "Two days on the estate paths above Haputale, with mist for company.", minutes: 9, date: "28 September", photo: 66, alt: "Layers of misty mountains fading into a pale sky" },
+  { topic: "food", title: "Breakfast worth a detour", dek: "Hoppers, kiri bath and the best coffee between Colombo and Galle.", minutes: 5, date: "14 September", photo: "1414235077428-338989a2e8c0", alt: "A plated dish set down on a restaurant table" },
+  { topic: "hills", title: "Kandy in a day, at walking pace", dek: "The lake at seven, the temple before the crowds, the market at noon.", minutes: 7, date: "30 August", photo: 381, alt: "A still lake surrounded by forested mountains" },
+  { topic: "coast", title: "The east coast in surf season", dek: "Arugam Bay without a board: boats, lagoons and long lunches.", minutes: 8, date: "9 August", photo: 124, alt: "A small red boat on clear green water" },
+];
+
+const card = (s: (typeof STORIES)[number], i: number) => `            <article class="story" data-topic="${s.topic}" data-text="${(s.title + " " + s.dek).toLowerCase().replace(/[^a-z0-9 ]/g, "")}" data-fs-reveal>
+              <a class="story__link" href="post.html">
+                <div class="fs-frame" data-fs-tilt="4">${photo(s.photo, 1200, 900, `story-${i + 1}`, s.alt)}</div>
+                <p class="story__meta"><span class="tag">${TOPIC_LABEL[s.topic]}</span><span>${s.minutes} min read</span></p>
+                <h3 class="story__title">${s.title}</h3>
+                <p class="story__dek">${s.dek}</p>
+              </a>
+            </article>`;
+
+const head = (title: string, description: string) => `<!doctype html>
+<html lang="en" data-fs-look="signal">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${title}</title>
     <meta name="description" content="${description}" />
+    <script>document.documentElement.classList.add("fs-js");</script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&amp;family=Work+Sans:wght@400;500;600&amp;display=swap" />
+    <link rel="stylesheet" href="${STUDIO_KIT_CSS}" />
     <link rel="stylesheet" href="styles.css" />
-    <script>try { var t = localStorage.getItem("field-notes-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}</script>
-  </head>
-  <body>
-    <a class="skip" href="#main">Skip to content</a>${extra}
-    <header class="masthead">
-      <a class="wordmark" href="index.html">Field Notes</a>
-      <nav class="nav" aria-label="Main">
-        <a href="index.html">Essays</a>
-        <a href="index.html#about">About</a>
-        <button class="theme" type="button" id="theme" aria-label="Switch to the dark theme">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path class="moon" d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /><g class="sun"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></g></svg>
-        </button>
-      </nav>
-    </header>
-`;
+  </head>`;
 
-const FOOT = `    <footer class="foot">
-      <p>Field Notes is a sample blog. The writer, essays and dates are sample content.</p>
-      <a href="index.html">All essays</a>
+const nav = `    <a class="fs-skip" href="#main">Skip to content</a>
+    <header class="fs-nav">
+      <a class="fs-nav__brand" href="index.html"><span class="mark" aria-hidden="true"></span>Slow Roads</a>
+      <ul class="fs-nav__links">
+        <li><a href="index.html#stories">Stories</a></li>
+        <li><a href="index.html#about">About</a></li>
+      </ul>
+      <a class="fs-btn" href="index.html#letter">Get the letter <span class="fs-btn__icon" aria-hidden="true"></span></a>
+      <button class="fs-nav__toggle" type="button" aria-label="Open the menu"></button>
+    </header>
+    <nav class="fs-menu" aria-label="Menu">
+      <a href="index.html#stories">Stories</a>
+      <a href="index.html#about">About</a>
+      <a href="index.html#letter">Get the letter</a>
+    </nav>`;
+
+const footer = `    <footer class="fs-footer">
+      <div class="fs-container">
+        <div class="fs-footer__grid">
+          <div><h2>Slow Roads</h2><p>Travel and food from Sri Lanka, at walking pace.</p></div>
+          <div><h2>Read</h2><ul><li><a href="index.html#stories">All stories</a></li><li><a href="post.html">The slow train to Ella</a></li></ul></div>
+          <div><h2>Write</h2><ul><li><a href="mailto:hello@slowroads.example">Send a tip</a></li><li><a href="index.html#letter">The letter</a></li></ul></div>
+        </div>
+        <div class="fs-footer__base"><span>&copy; <span id="year">2026</span> Slow Roads. A sample journal.</span><span>Written on the road</span></div>
+        <div class="fs-wordmark" aria-hidden="true">Slow Roads</div>
+      </div>
     </footer>
-    <script src="script.js"></script>
+
+    <script type="module" src="${STUDIO_KIT_JS}"></script>
+    <script src="script.js" defer></script>
   </body>
 </html>
 `;
 
-const INDEX = `${HEAD("Field Notes: small lessons from building things", "Short essays about building small things well, one a month. A sample blog.")}
-    <main id="main" class="wrap">
-      <section class="intro">
-        <h1>Small lessons from building things.</h1>
-        <p class="dek">Short essays, one a month, about making software and furniture that people actually use. Written by a sample writer.</p>
+const INDEX = `${head("Slow Roads, travel and food from Sri Lanka", "Slow travel and good food across Sri Lanka: rail journeys, quiet beaches, tea country and the breakfasts worth a detour.")}
+  <body>
+${nav}
+
+    <main id="main">
+      <section class="fs-section feature" id="top" aria-labelledby="feature-title">
+        <div class="fs-container">
+          <p class="kicker" data-fs-reveal>A journal of slow travel and good food, from Sri Lanka</p>
+          <a class="feature__card" href="post.html">
+            <div class="fs-frame fs-frame--wide feature__frame" data-fs-reveal="mask">
+              ${photo(204, 2000, 1125, "feature-photo", "A railway line curving through green hills", false)}
+            </div>
+            <div class="feature__text">
+              <p class="story__meta"><span class="tag">Rail</span><span>2 min read</span></p>
+              <h1 class="feature__title" id="feature-title" data-fs-reveal="words">The slow train to Ella, and why it's worth every minute</h1>
+              <p class="fs-lead" data-fs-reveal>Seven hours, forty tunnels and a cup of tea from a flask at every hill. On taking the long way through the tea country.</p>
+              <span class="fs-link">Read the story</span>
+            </div>
+          </a>
+        </div>
       </section>
 
-      <article class="feature reveal">
-        <a class="feature-link" href="post.html">
-          <div class="feature-art">
-        ${COVER}
+      <section class="fs-section fs-section--raised" id="stories" aria-labelledby="stories-title">
+        <div class="fs-container">
+          <div class="stories__head">
+            <h2 class="fs-h2" id="stories-title" data-fs-reveal>Stories</h2>
+            <div class="stories__tools">
+              <div class="chips" role="group" aria-label="Filter by topic">
+                <button type="button" aria-pressed="true" data-topic="all">Everything</button>
+                <button type="button" aria-pressed="false" data-topic="rail">Rail</button>
+                <button type="button" aria-pressed="false" data-topic="coast">Coast</button>
+                <button type="button" aria-pressed="false" data-topic="hills">Hills</button>
+                <button type="button" aria-pressed="false" data-topic="food">Food</button>
+              </div>
+              <label class="search">
+                <span class="fs-sr">Search the stories</span>
+                <input type="search" id="search" placeholder="Search the stories" autocomplete="off" />
+              </label>
+            </div>
           </div>
-          <div class="feature-text">
-            <p class="meta"><time datetime="2026-09-02">2 Sept 2026</time> · 6 min read</p>
-            <h2>Ship the boring version first</h2>
-            <p>The plain version teaches you more in a week than the clever one does in a month. Here is how to tell which one you're building.</p>
-            <span class="read">Read the essay <span aria-hidden="true">&rarr;</span></span>
+          <div class="stories" id="stories-list" data-fs-stagger>
+${STORIES.map(card).join("\n")}
           </div>
-        </a>
-      </article>
-
-      <section class="drafts reveal" aria-labelledby="drafts-title">
-        <h2 id="drafts-title">On the desk</h2>
-        <ol>
-          <li><span class="meta">Draft, due in November</span><strong>Write the error message first</strong><span>If you can't explain what went wrong, you don't understand the feature yet.</span></li>
-          <li><span class="meta">Draft, due in December</span><strong>One page, one job</strong><span>Every screen should answer one question for one person.</span></li>
-        </ol>
+          <p class="fs-small" id="stories-count" role="status">${STORIES.length + 1} stories, newest first</p>
+          <p class="empty" id="stories-empty" hidden>No story matches that yet. <button type="button" class="fs-link" id="stories-reset">Show everything</button></p>
+        </div>
       </section>
 
-      <section class="subscribe reveal" id="subscribe" aria-labelledby="subscribe-title">
-        <h2 id="subscribe-title">Get the next essay</h2>
-        <p>One email a month, when an essay is ready. Nothing else.</p>
-        <form class="signup" id="signup">
-          <label class="sr-only" for="email">Email</label>
-          <input id="email" type="email" autocomplete="email" placeholder="you@example.com" required />
-          <button class="button" type="submit">Subscribe</button>
-        </form>
-        <p class="signup-msg" id="signup-msg" role="status">A sample form: it doesn't send anything yet.</p>
+      <section class="fs-section" id="about" aria-labelledby="about-title">
+        <div class="fs-container fs-split">
+          <div class="fs-frame" data-fs-reveal="mask">
+            ${photo(69, 1100, 1375, "about-photo", "Railway tracks running into the distance between trees")}
+          </div>
+          <div class="fs-split__text">
+            <h2 class="fs-h2" id="about-title" data-fs-reveal>Two people, one small car, no rush.</h2>
+            <p class="fs-lead" data-fs-reveal>We write about the island the slow way: second-class carriages, guesthouse breakfasts and the beaches you reach on foot. Nobody pays to be in these pages.</p>
+            <ul class="fs-list" data-fs-stagger>
+              <li data-fs-reveal>Every place visited, every meal paid for</li>
+              <li data-fs-reveal>Prices and timetables checked the month we publish</li>
+              <li data-fs-reveal>Corrections at the end of each story, dated</li>
+            </ul>
+            <p class="fs-small">Sample journal. Replace it with your own story.</p>
+          </div>
+        </div>
       </section>
 
-      <section id="about" class="about reveal" aria-labelledby="about-title">
-        <h2 id="about-title">About</h2>
-        <p>I build software for a living and furniture on weekends. Both have taught me the same thing: the first version should be plain, sturdy and finished. These are notes from that work. (A sample bio.)</p>
+      <section class="fs-section" id="letter" aria-labelledby="letter-title">
+        <div class="fs-container">
+          <div class="fs-cta letter" data-fs-reveal="scale">
+            <h2 class="fs-h2" id="letter-title">One letter a month.</h2>
+            <p class="fs-lead">The new stories, one place we found that month, and a timetable change worth knowing. Never more, and you can leave in a click.</p>
+            <form class="letter__form" id="letter-form" novalidate>
+              <label class="fs-sr" for="letter-email">Email address</label>
+              <input id="letter-email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required />
+              <button class="fs-btn" type="submit">Get the letter <span class="fs-btn__icon" aria-hidden="true"></span></button>
+            </form>
+            <p class="fs-small" id="letter-msg" role="status">A sample form. It doesn't send anything yet.</p>
+          </div>
+        </div>
       </section>
     </main>
-${FOOT}`;
 
-const POST = `${HEAD("Ship the boring version first | Field Notes", "Why the plain version of a feature teaches you more than the clever one, and how to tell which you're building. A sample essay.", `
-    <div class="progress" aria-hidden="true"></div>`)}
-    <main id="main" class="wrap">
+${footer}`;
+
+const toc = [
+  ["platform", "Fort station, 6.40 am"],
+  ["window", "The window seat question"],
+  ["climb", "The climb past Nanu Oya"],
+  ["ella", "Ella, and the walk down"],
+  ["know", "Good to know"],
+] as const;
+
+const POST = `${head("The slow train to Ella, Slow Roads", "Seven hours, forty tunnels and a cup of tea from a flask at every hill: taking the long way through Sri Lanka's tea country.")}
+  <body>
+    <div class="progress" aria-hidden="true"><span id="progress"></span></div>
+${nav}
+
+    <main id="main">
       <article class="post">
-        <header class="post-head">
-          <a class="back" href="index.html"><span aria-hidden="true">&larr;</span> All essays</a>
-          <p class="meta"><time datetime="2026-09-02">2 Sept 2026</time> · 6 min read · Sample essay</p>
-          <h1>Ship the boring version first</h1>
-          <p class="dek">The plain version teaches you more in a week than the clever one does in a month.</p>
+        <header class="post__head fs-container">
+          <p class="story__meta" data-fs-reveal><a class="tag" href="index.html#stories">Rail</a><span id="read-time">2 min read</span><span>3 November</span></p>
+          <h1 class="post__title" data-fs-reveal="words">The slow train to Ella, and why it's worth every minute</h1>
+          <p class="fs-lead" data-fs-reveal>Seven hours, forty tunnels and a cup of tea from a flask at every hill. On taking the long way through the tea country.</p>
         </header>
-        <div class="post-art">
-        ${COVER}
-        </div>
+        <figure class="post__hero fs-container">
+          <div class="fs-frame fs-frame--wide" data-fs-reveal="mask">
+            ${photo(204, 2000, 1125, "post-hero", "A railway line curving through green hills", false)}
+          </div>
+          <figcaption class="fs-caption">Above Haputale, where the line starts to curl back on itself.</figcaption>
+        </figure>
 
-        <div class="prose">
-          <p class="lede">Every project I've regretted started with a clever plan. Every one I'm proud of started with a box: four sides, a lid, nothing that could go wrong. The box went out first. The clever parts came later, when I knew which ones mattered.</p>
-
-          <p>The boring version is the smallest thing that does the job from start to finish. Not a prototype that only works on your machine, and not a demo with the hard parts faked. A real, plain, finished thing that someone can use on Monday.</p>
-
-          <h2>What the boring version tells you</h2>
-          <p>It tells you whether anyone wants the job done at all. That sounds obvious, but a clever version hides the answer. When people don't use it, you can't tell whether they didn't need it or didn't understand it. When they don't use the plain version, you know.</p>
-          <p>It also tells you where the real difficulty is. In my experience it's almost never where the plan said it would be.<sup id="ref1"><a href="#fn1" aria-label="Footnote 1">1</a></sup> The plan worries about scale; the people using it worry about the second step of a form.</p>
-
-          <blockquote class="pull">
-            <p>A plan worries about scale. People worry about the second step of a form.</p>
-          </blockquote>
-
-          <h2>How to tell which one you're building</h2>
-          <p>Ask three questions before you start:</p>
-          <ol>
-            <li><strong>Could someone use it next week?</strong> If the answer depends on something you haven't built yet, it isn't the boring version.</li>
-            <li><strong>Can you explain it in one sentence without the word "and"?</strong> Two jobs means two versions.</li>
-            <li><strong>Would you be embarrassed to show it?</strong> A little embarrassment is the right amount.</li>
-          </ol>
-
-          <figure class="figure">
-            <svg viewBox="0 0 560 170" role="img" aria-label="Sample diagram: the boring version ships in week one and learns for five weeks; the clever version ships in week six">
-              <g class="axis"><path d="M100 140h440" /><text x="100" y="162">Week 1</text><text x="300" y="162">Week 4</text><text x="500" y="162">Week 6</text></g>
-              <text class="label" x="0" y="52">Boring</text>
-              <path class="bar-a" pathLength="1" d="M100 46h60" />
-              <path class="bar-learn" pathLength="1" d="M160 46h380" />
-              <text class="note" x="168" y="30">Out in week 1, then five weeks of real use</text>
-              <text class="label" x="0" y="112">Clever</text>
-              <path class="bar-b" pathLength="1" d="M100 106h440" />
-              <text class="note" x="380" y="90">Out in week 6</text>
-            </svg>
-            <figcaption>Same six weeks. Only one of them gets five weeks of answers. (A sample diagram.)</figcaption>
-          </figure>
-
-          <h2>Then make it less boring</h2>
-          <p>Once the plain version is out, every improvement has a reason. You add the shortcut because people asked for it, not because it was in the plan. The clever version still arrives. It just arrives built on what you learned, instead of on what you guessed.</p>
-          <p>Ship the box. Then carve the lid.</p>
-
-          <aside class="footnotes" aria-label="Footnotes">
+        <div class="post__layout fs-container">
+          <nav class="toc" aria-label="In this story">
+            <p class="toc__title">In this story</p>
             <ol>
-              <li id="fn1">Twice it was exactly where the plan said. Both times the plan was a copy of something I'd already shipped. <a href="#ref1" aria-label="Back to the text">&#8617;</a></li>
+${toc.map(([id, label]) => `              <li><a href="#${id}">${label}</a></li>`).join("\n")}
             </ol>
-          </aside>
-        </div>
+          </nav>
 
-        <footer class="post-end">
-          <p>The next essay, "Write the error message first", arrives in November.</p>
-          <a class="button" href="index.html#subscribe">Get it by email</a>
-        </footer>
+          <div class="prose" id="prose">
+            <h2 id="platform">Fort station, 6.40 am</h2>
+            <p>The Podi Menike leaves Colombo Fort while the city is still deciding whether to wake up. By the time the ticket queue has turned into a crowd, you'll have found the reserved carriage, half-full of people with flasks and the quiet confidence of having done this before.</p>
+            <p>There are faster ways to the hills. A car does it in five hours, and the express train in eight. This one takes ten if you count the stops where nothing seems to happen. That's the point.</p>
+
+            <h2 id="window">The window seat question</h2>
+            <p>Sit on the left going up. The right side has its moments, but the left gets the valleys, the waterfalls and the long views over the tea. If the window seat is taken, the doorway is better anyway: hold the rail, keep your feet inside, and the whole hillside goes past at walking pace.</p>
+            <figure class="prose__figure" data-fs-reveal>
+              <div class="fs-frame fs-frame--wide" data-fs-tilt="3">${photo(278, 1600, 900, "post-photo-1", "A road winding up through green hills")}</div>
+              <figcaption class="fs-caption">The road below the line. You'll see it, and you won't miss it.</figcaption>
+            </figure>
+            <blockquote class="pull">Nobody hurries on this train. The tea seller doesn't, the guard doesn't, and after an hour, neither do you.</blockquote>
+
+            <h2 id="climb">The climb past Nanu Oya</h2>
+            <p>After Nanu Oya the line stops pretending to be in a hurry. It climbs in long loops, through tunnels short enough to hold your breath in, past estates where the tea pickers look up for a second and go back to work.</p>
+            <p>Bring a jumper. Pattipola, the highest station on the line, is cold enough in the morning that the platform vendors sell steaming corn instead of ice cream.</p>
+
+            <h2 id="ella">Ella, and the walk down</h2>
+            <p>Ella's station is small, green and full of people taking the same photograph. Walk past them. The road down to the town takes twenty minutes, and the guesthouse with the blue gate halfway down does a rice and curry lunch that justifies the whole day.</p>
+            <figure class="prose__figure" data-fs-reveal>
+              <div class="fs-frame fs-frame--wide" data-fs-tilt="3">${photo(519, 1600, 900, "post-photo-2", "A road leading toward mountains under a cloudy sky")}</div>
+              <figcaption class="fs-caption">The road out of Ella toward Little Adam's Peak.</figcaption>
+            </figure>
+
+            <aside class="know" id="know" aria-labelledby="know-title">
+              <h2 id="know-title">Good to know</h2>
+              <dl>
+                <div><dt>Train</dt><dd>Podi Menike, from Colombo Fort at 6.40 am</dd></div>
+                <div><dt>Ticket</dt><dd>Reserved second class, booked up to 30 days ahead</dd></div>
+                <div><dt>Time</dt><dd>About ten hours to Ella</dd></div>
+                <div><dt>Sit</dt><dd>On the left going up, the right coming down</dd></div>
+              </dl>
+              <p class="fs-small">Sample details. Check the timetable before you travel.</p>
+            </aside>
+
+            <div class="author">
+              <span class="author__face" aria-hidden="true">SR</span>
+              <div>
+                <p class="author__name">Written by the Slow Roads two</p>
+                <p class="fs-small">We travel by train whenever we can, and write about it a month later, when the good parts have settled.</p>
+              </div>
+            </div>
+
+            <div class="post__end">
+              <button class="fs-btn fs-btn--ghost" type="button" id="share">Copy the link to this story <span class="fs-btn__icon" aria-hidden="true"></span></button>
+              <a class="fs-link" href="index.html#stories">More stories</a>
+            </div>
+            <p class="fs-small" id="share-msg" role="status"></p>
+          </div>
+        </div>
       </article>
     </main>
-${FOOT}`;
 
-const STYLES = `/* Field Notes. The design decisions behind these tokens are in DESIGN.md. */
+${footer}`;
+
+const STYLES = `/* Slow Roads: the brand on top of the Farbaek Studio kit. The decisions are in DESIGN.md. */
 :root {
-  --paper: #fbfbf9;
-  --ink: #1f2328;
-  --muted: #59606a;
-  --line: #e4e5e1;
-  --accent: #b4361f;
-  --tint: #f1f2ee;
-  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --serif: Charter, "Bitstream Charter", "Sitka Text", "Iowan Old Style", Cambria, Georgia, serif;
-  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
-  --ease: cubic-bezier(0.16, 1, 0.3, 1);
-  --gutter: clamp(16px, 5vw, 48px);
-  color-scheme: light;
-}
-:root[data-theme="dark"] { --paper: #141619; --ink: #ebe9e4; --muted: #a3a7ae; --line: #2a2d31; --accent: #f08a6b; --tint: #1c1f23; color-scheme: dark; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --paper: #141619; --ink: #ebe9e4; --muted: #a3a7ae; --line: #2a2d31; --accent: #f08a6b; --tint: #1c1f23; color-scheme: dark; }
+  --accent: #1d5f8c;
+  --accent-2: #e0a84a;
+  --on-accent: #ffffff;
+  --ink: #1b1d1a;
+  --ink-2: #575b55;
+  --paper: #f3f4f1;
+  --paper-2: #ffffff;
+  --line: rgb(27 29 26 / 0.12);
+  --font-display: "Newsreader", Georgia, serif;
+  --font-body: "Work Sans", ui-sans-serif, system-ui, sans-serif;
+  --radius: 14px;
+  --radius-lg: 24px;
+  --fs-display-weight: 500;
+  --fs-display-track: -0.02em;
 }
 
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body { margin: 0; background: var(--paper); color: var(--ink); font: 18px/1.65 var(--serif); -webkit-font-smoothing: antialiased; transition: background-color 0.3s, color 0.3s; }
-a { color: inherit; }
-h1, h2, h3 { font-family: var(--sans); font-weight: 750; letter-spacing: -0.03em; line-height: 1.08; }
-:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
-.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.skip { position: absolute; left: 16px; top: -60px; z-index: 20; padding: 10px 16px; border-radius: 999px; background: var(--ink); color: var(--paper); font-family: var(--sans); }
-.skip:focus { top: 12px; }
-.wrap { max-width: 1040px; margin: 0 auto; padding: 0 var(--gutter); }
-.meta { margin: 0; color: var(--muted); font: 13px var(--mono); }
+[hidden] { display: none !important; }
+.mark { width: 22px; height: 12px; border-radius: 999px 999px 0 0; background: var(--accent); box-shadow: inset 0 -3px 0 var(--accent-2); }
+.kicker { margin-bottom: 20px; font-size: 15px; color: var(--ink-2); }
+.tag { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; background: color-mix(in oklab, var(--accent) 12%, transparent); color: var(--accent); font-size: 13px; font-weight: 600; text-decoration: none; }
+/* A topic link stays a small pill but gets a 44px target. */
+a.tag { position: relative; }
+a.tag::after { content: ""; position: absolute; inset: -9px -6px; }
+.story__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; font-size: 14px; color: var(--ink-2); }
 
-.masthead { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: 1040px; margin: 0 auto; padding: 14px var(--gutter); font-family: var(--sans); }
-.wordmark { min-height: 44px; display: inline-flex; align-items: center; font-weight: 800; font-size: 20px; letter-spacing: -0.04em; text-decoration: none; }
-.nav { display: flex; align-items: center; gap: 2px; }
-.nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 999px; font-size: 15px; text-decoration: none; }
-.nav a:hover { background: var(--tint); }
-.theme { display: none; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent; color: var(--ink); cursor: pointer; }
-.js .theme { display: grid; }
-.theme:hover { background: var(--tint); }
-.theme svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
-.theme .moon { display: none; }
-:root[data-theme="dark"] .theme .moon { display: block; }
-:root[data-theme="dark"] .theme .sun { display: none; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .theme .moon { display: block; }
-  :root:not([data-theme="light"]) .theme .sun { display: none; }
-}
+/* Home: the featured story, then the rest with topics and a search. */
+.feature { padding-top: 120px; }
+.feature__card { display: grid; gap: clamp(24px, 4vw, 56px); color: inherit; text-decoration: none; }
+@media (min-width: 1000px) { .feature__card { grid-template-columns: 1.4fr 1fr; align-items: end; } }
+.feature__text { display: grid; gap: 18px; align-content: end; }
+.feature__title { font-size: clamp(38px, 4.6vw, 68px); line-height: 1.04; }
+.feature__card:hover .fs-link { background-size: 0% 1px; background-position: 100% calc(100% - 10px); }
+.stories__head { display: grid; gap: 20px; margin-bottom: 36px; }
+@media (min-width: 900px) { .stories__head { grid-template-columns: auto 1fr; align-items: end; } }
+.stories__tools { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 12px; }
+.chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.chips button { flex: none; min-height: 44px; padding: 0 16px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper-2); color: var(--ink-2); font: 500 15px/1 var(--font-body); cursor: pointer; transition: background-color 160ms, color 160ms; }
+.chips button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper-2); }
+.search input { width: min(100%, 260px); min-height: 44px; padding: 0 16px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper-2); color: var(--ink); font: 400 16px/1 var(--font-body); }
+.stories { display: grid; gap: 40px 28px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); margin-bottom: 28px; }
+.story__link { display: grid; gap: 12px; color: inherit; text-decoration: none; }
+.story__title { font: 500 clamp(24px, 2.2vw, 30px)/1.15 var(--font-display); letter-spacing: -0.015em; transition: color 160ms; }
+.story__link:hover .story__title { color: var(--accent); }
+.story__dek { color: var(--ink-2); }
+.empty { padding: 24px 0; color: var(--ink-2); }
+.letter .fs-h2 { max-width: 16ch; }
+.letter__form { display: flex; flex-wrap: wrap; gap: 10px; width: min(100%, 560px); }
+.letter__form input { flex: 1 1 220px; min-height: 52px; padding: 0 18px; border: 1px solid var(--line); border-radius: 12px; background: color-mix(in oklab, var(--paper) 90%, transparent); color: var(--ink); font: 400 16px/1 var(--font-body); }
+.letter__form input[aria-invalid="true"] { border-color: var(--accent-2); }
 
-/* Home */
-.intro { padding: clamp(40px, 8vw, 96px) 0 clamp(32px, 5vw, 56px); }
-.intro h1 { max-width: 15ch; margin: 0; font-size: clamp(44px, 7vw, 88px); letter-spacing: -0.05em; line-height: 0.98; }
-.dek { max-width: 46ch; margin: 18px 0 0; color: var(--muted); font-size: clamp(18px, 1.8vw, 21px); }
-.feature-link { display: grid; gap: 24px; align-items: center; padding: clamp(16px, 2.4vw, 24px); border: 1px solid var(--line); border-radius: 28px; background: var(--tint); text-decoration: none; transition: border-color 0.3s, transform 0.3s var(--ease); }
-.feature-link:hover { border-color: var(--accent); transform: translateY(-3px); }
-@media (min-width: 860px) { .feature-link { grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); } }
-.feature-art { border-radius: 20px; background: var(--paper); }
-.feature-text h2 { margin: 10px 0 10px; font-size: clamp(30px, 3.6vw, 44px); }
-.feature-text p:not(.meta) { margin: 0; color: var(--muted); }
-.read { display: inline-flex; gap: 6px; margin-top: 18px; font-family: var(--sans); font-weight: 650; color: var(--accent); }
-.read span { transition: transform 0.2s var(--ease); }
-.feature-link:hover .read span { transform: translateX(4px); }
-
-/* The drawings draw themselves, once. */
-.drawing { display: block; width: 100%; height: auto; }
-.drawing path, .drawing circle { fill: none; stroke-linecap: round; stroke-linejoin: round; }
-.drawing .ink { stroke: var(--ink); stroke-width: 3; animation: draw 1.6s var(--ease) both; }
-.drawing .ink:nth-child(2) { animation-delay: 0.3s; }
-.drawing .ink:nth-child(3) { animation-delay: 0.6s; }
-.drawing .accent { stroke: var(--accent); stroke-width: 4; animation: draw 1.2s var(--ease) 1s both; }
-.drawing .accent:nth-of-type(5) { animation-delay: 1.9s; }
-.drawing .sketch { stroke: var(--muted); stroke-width: 2; stroke-dasharray: 3 7; opacity: 0.8; }
-.drawing .ink, .drawing .accent, .figure .bar-a, .figure .bar-learn, .figure .bar-b { stroke-dasharray: 1; }
-@keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
-
-.drafts { margin-top: clamp(56px, 8vw, 96px); }
-.drafts h2, .subscribe h2, .about h2 { margin: 0 0 18px; font-size: clamp(26px, 3vw, 34px); }
-.drafts ol { display: grid; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
-.drafts li { display: grid; gap: 2px; padding: 18px 0; border-bottom: 1px solid var(--line); }
-.drafts strong { font-family: var(--sans); font-size: 21px; letter-spacing: -0.02em; }
-.drafts li > span:last-child { color: var(--muted); }
-.subscribe { margin-top: clamp(56px, 8vw, 96px); padding: clamp(24px, 4vw, 40px); border-radius: 28px; background: var(--ink); color: var(--paper); }
-.subscribe p { max-width: 44ch; margin: 0; opacity: 0.85; }
-.signup { display: flex; flex-wrap: wrap; gap: 10px; max-width: 520px; margin-top: 22px; }
-.signup input { flex: 1 1 220px; min-height: 52px; padding: 0 16px; border: 0; border-radius: 12px; background: var(--paper); color: var(--ink); font: 16px var(--sans); }
-.signup input:focus { outline: 3px solid var(--accent); outline-offset: 2px; }
-.subscribe .signup-msg { margin-top: 12px; font: 14px var(--sans); }
-.button { display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 24px; border: 0; border-radius: 999px; background: var(--accent); color: #ffffff; font: 650 16px var(--sans); text-decoration: none; cursor: pointer; transition: transform 0.2s var(--ease), box-shadow 0.2s; }
-:root[data-theme="dark"] .button { color: #141619; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .button { color: #141619; } }
-.button:hover { transform: translateY(-2px); box-shadow: 0 12px 24px -14px var(--accent); }
-.button:active { transform: translateY(1px); }
-.about { margin: clamp(56px, 8vw, 96px) 0; }
-.about p { max-width: 60ch; margin: 0; }
-
-/* The essay */
-.progress { position: fixed; inset: 0 0 auto 0; z-index: 30; height: 3px; background: var(--accent); transform-origin: left; transform: scaleX(0); }
+/* The essay: a reading column, contents that follow along, and a progress line. */
+/* The reading line follows the page's scroll in CSS, with no script; browsers without scroll timelines simply don't show it. */
+.progress { display: none; position: fixed; z-index: 60; left: 0; right: 0; top: 0; height: 3px; }
+.progress span { display: block; height: 100%; width: 100%; background: var(--accent); transform-origin: 0 50%; transform: scaleX(0); }
 @supports (animation-timeline: scroll()) {
-  .progress { animation: progress linear both; animation-timeline: scroll(root); }
+  .progress { display: block; }
+  .progress span { animation: read linear both; animation-timeline: scroll(root); }
 }
-@keyframes progress { to { transform: scaleX(1); } }
-.post { max-width: 720px; margin: 0 auto; }
-.post-head { padding: clamp(24px, 5vw, 56px) 0 28px; }
-.back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-bottom: 18px; font: 15px var(--sans); text-decoration: none; }
-.back:hover { color: var(--accent); }
-.post-head h1 { margin: 10px 0 0; font-size: clamp(40px, 6vw, 68px); letter-spacing: -0.045em; }
-.post-art { margin: 0 -2vw 36px; padding: 12px; border-radius: 28px; background: var(--tint); }
-.prose { font-size: 20px; line-height: 1.75; }
-.prose p, .prose ol { margin: 0 0 1.1em; }
-.prose h2 { margin: 1.8em 0 0.6em; font-size: 28px; }
-.prose ol { padding-left: 1.3em; }
-.prose li { margin-bottom: 0.5em; }
-.lede::first-letter { float: left; margin: 0.06em 0.1em 0 0; font: 800 4.1em/0.8 var(--sans); color: var(--accent); }
-.pull { margin: 1.6em 0; padding: 0 0 0 24px; border-left: 4px solid var(--accent); }
-.pull p { margin: 0; font: 650 clamp(24px, 3vw, 30px)/1.25 var(--sans); letter-spacing: -0.02em; }
-sup a { color: var(--accent); font-family: var(--sans); font-weight: 700; text-decoration: none; padding: 0 2px; }
-.figure { margin: 2em 0; padding: 20px; border: 1px solid var(--line); border-radius: 20px; }
-.figure svg { display: block; width: 100%; height: auto; overflow: visible; }
-.figure text { fill: var(--muted); font: 13px var(--sans); }
-.figure .label { fill: var(--ink); font-weight: 700; font-size: 15px; }
-.figure .note { font-size: 12px; }
-.figure .axis path { stroke: var(--line); stroke-width: 2; }
-.figure .bar-a { stroke: var(--accent); stroke-width: 18; stroke-linecap: round; animation: draw 0.8s var(--ease) both; }
-.figure .bar-learn { stroke: var(--accent); stroke-width: 18; stroke-linecap: round; opacity: 0.35; animation: draw 1.4s var(--ease) 0.6s both; }
-.figure .bar-b { stroke: var(--muted); stroke-width: 18; stroke-linecap: round; stroke-dasharray: 1; animation: draw 2.2s var(--ease) 0.3s both; }
-.figure figcaption { margin-top: 12px; color: var(--muted); font: 14px var(--sans); }
-.figure.wait path { animation-play-state: paused; }
-.footnotes { margin-top: 2.4em; padding-top: 1em; border-top: 1px solid var(--line); color: var(--muted); font-size: 16px; }
-.footnotes a { color: var(--accent); text-decoration: none; }
-.post-end { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin: 48px 0 clamp(56px, 8vw, 96px); padding: 24px; border-radius: 20px; background: var(--tint); font-family: var(--sans); }
-.post-end p { margin: 0; }
+@keyframes read { to { transform: scaleX(1); } }
+.post__head { display: grid; gap: 20px; max-width: 860px; padding-top: 128px; }
+.post__title { font-size: clamp(40px, 5.4vw, 76px); line-height: 1.03; }
+.post__hero { margin-top: clamp(32px, 5vw, 56px); margin-bottom: clamp(32px, 5vw, 64px); }
+.post__layout { display: grid; gap: 40px; padding-bottom: clamp(64px, 9vw, 120px); }
+@media (min-width: 1000px) { .post__layout { grid-template-columns: 220px minmax(0, 680px); justify-content: center; gap: 72px; } }
+.toc { align-self: start; padding: 18px 20px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper-2); }
+@media (min-width: 1000px) { .toc { position: sticky; top: 100px; padding: 0; border: 0; background: none; } }
+.toc__title { font-size: 13px; font-weight: 600; color: var(--ink-2); margin-bottom: 8px; }
+.toc ol { list-style: none; margin: 0; padding: 0; display: grid; }
+.toc a { display: flex; align-items: center; min-height: 44px; padding-left: 14px; border-left: 2px solid var(--line); color: var(--ink-2); text-decoration: none; font-size: 15px; transition: color 160ms, border-color 160ms; }
+.toc a[aria-current="true"] { color: var(--ink); border-left-color: var(--accent); font-weight: 500; }
+.prose { font: 400 clamp(19px, 0.4vw + 17px, 21px)/1.7 var(--font-display); }
+.prose > * + * { margin-top: 1.1em; }
+.prose h2 { margin-top: 2em; font-size: clamp(28px, 2.6vw, 36px); line-height: 1.15; }
+.prose p:first-of-type::first-letter { float: left; margin: 0.06em 0.1em 0 0; font-size: 3.4em; line-height: 0.8; color: var(--accent); }
+.prose__figure { margin: 2em 0; }
+.pull { margin: 1.6em 0; padding: 0 0 0 24px; border-left: 3px solid var(--accent-2); font: italic 400 clamp(24px, 2.4vw, 32px)/1.3 var(--font-display); color: var(--ink); }
+.know { margin-top: 2.4em; padding: 24px; border-radius: var(--radius-lg); background: var(--paper-2); border: 1px solid var(--line); font-family: var(--font-body); font-size: 16px; }
+.know h2 { margin: 0 0 12px; font-size: 26px; }
+.know dl { margin: 0 0 12px; display: grid; }
+.know dl div { display: grid; grid-template-columns: 90px 1fr; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.know dt { color: var(--ink-2); }
+.know dd { margin: 0; }
+.author { display: flex; align-items: center; gap: 16px; margin-top: 2.4em; padding-top: 24px; border-top: 1px solid var(--line); font-family: var(--font-body); }
+.author__face { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; flex: none; background: var(--accent); color: var(--on-accent); font: 500 22px/1 var(--font-display); }
+.author__name { font-weight: 600; }
+.post__end { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-top: 2em; font-family: var(--font-body); font-size: 16px; }
 
-.foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; max-width: 1040px; margin: 0 auto; padding: 24px var(--gutter); border-top: 1px solid var(--line); color: var(--muted); font: 14px var(--sans); }
-.foot p { margin: 0; }
-.foot a { display: inline-flex; align-items: center; min-height: 44px; margin: -12px 0; }
-
-.js .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.7s var(--ease), transform 0.7s var(--ease); }
-.js .reveal.in { opacity: 1; transform: none; }
-
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
-  *, *::before, *::after { animation: none !important; transition: none !important; }
-  .js .reveal { opacity: 1; transform: none; }
-  .progress { display: none; }
+  .toc a, .chips button, .story__title { transition: none; }
 }
 `;
 
-const SCRIPT = `// Field Notes: the theme switch, the figure's drawing and scroll reveals.
-// The pages are complete without this file.
+const SCRIPT = `// Slow Roads: topics and search on the home page; the reading line, contents and sharing on a story.
+// The pages are complete without this file; the Studio kit does the reveals and the tilt.
 (function () {
-  var root = document.documentElement;
-  root.classList.add("js");
-  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  var prefersDark = window.matchMedia("(prefers-color-scheme: dark)");
-  var canObserve = "IntersectionObserver" in window;
-
-  // Light or dark. The choice is remembered when the browser allows it.
-  var button = document.getElementById("theme");
-  function current() { return root.dataset.theme || (prefersDark.matches ? "dark" : "light"); }
-  function label() { if (button) button.setAttribute("aria-label", current() === "dark" ? "Switch to the light theme" : "Switch to the dark theme"); }
-  label();
-  if (button) {
-    button.addEventListener("click", function () {
-      var next = current() === "dark" ? "light" : "dark";
-      root.dataset.theme = next;
-      try { localStorage.setItem("field-notes-theme", next); } catch (e) {}
-      label();
-    });
-  }
-  if (prefersDark.addEventListener) prefersDark.addEventListener("change", label);
-
-  // Sections rise in once; the figure draws when it's reached.
-  var reveals = document.querySelectorAll(".reveal");
-  var figure = document.querySelector(".figure");
-  if (canObserve && !reduce) {
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (entry.isIntersecting) {
-          entry.target.classList.add("in");
-          entry.target.classList.remove("wait");
-          io.unobserve(entry.target);
-        }
+  // Topics and search, on the stories already on the page.
+  var list = document.getElementById("stories-list");
+  if (list) {
+    var stories = Array.prototype.slice.call(list.querySelectorAll(".story"));
+    var chips = Array.prototype.slice.call(document.querySelectorAll("[data-topic]")).filter(function (c) { return c.tagName === "BUTTON"; });
+    var search = document.getElementById("search");
+    var count = document.getElementById("stories-count");
+    var empty = document.getElementById("stories-empty");
+    var topic = "all";
+    var apply = function () {
+      var q = (search.value || "").toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+      var shown = 0;
+      stories.forEach(function (s) {
+        var ok = (topic === "all" || s.dataset.topic === topic) && (!q || s.dataset.text.indexOf(q) !== -1);
+        s.hidden = !ok;
+        if (ok) shown++;
       });
-    }, { rootMargin: "0px 0px -10% 0px" });
-    reveals.forEach(function (el) { io.observe(el); });
-    if (figure) { figure.classList.add("wait"); io.observe(figure); }
-  } else {
-    reveals.forEach(function (el) { el.classList.add("in"); });
+      chips.forEach(function (c) { c.setAttribute("aria-pressed", String(c.dataset.topic === topic)); });
+      count.textContent = shown + (shown === 1 ? " story" : " stories") + (topic === "all" && !q ? " below the featured one" : "");
+      empty.hidden = shown > 0;
+    };
+    chips.forEach(function (c) { c.addEventListener("click", function () { topic = c.dataset.topic; apply(); }); });
+    search.addEventListener("input", apply);
+    document.getElementById("stories-reset").addEventListener("click", function () { topic = "all"; search.value = ""; apply(); });
   }
 
-  // The newsletter form is a sample: it says plainly that nothing was sent.
-  var signup = document.getElementById("signup");
-  var msg = document.getElementById("signup-msg");
-  if (signup && msg) {
-    signup.addEventListener("submit", function (e) {
+  // The newsletter: check the address, then say honestly that nothing was sent.
+  var letter = document.getElementById("letter-form");
+  if (letter) {
+    letter.addEventListener("submit", function (e) {
       e.preventDefault();
-      msg.textContent = "Thanks. This is a sample form, so nothing was sent yet.";
-      signup.reset();
+      var email = document.getElementById("letter-email");
+      var msg = document.getElementById("letter-msg");
+      var ok = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email.value.trim());
+      email.setAttribute("aria-invalid", String(!ok));
+      msg.textContent = ok ? "Thanks. This is a sample form, so nothing was sent yet." : "Enter an email address like name@example.com.";
+      if (!ok) email.focus();
     });
   }
+
+  // A story: reading time from its words, the contents following along, and copying the link. The reading line is CSS.
+  var prose = document.getElementById("prose");
+  if (prose) {
+    var words = prose.textContent.trim().split(/\\s+/).length;
+    var rt = document.getElementById("read-time");
+    if (rt) rt.textContent = Math.max(1, Math.round(words / 220)) + " min read";
+    var links = Array.prototype.slice.call(document.querySelectorAll(".toc a"));
+    if ("IntersectionObserver" in window && links.length) {
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (!e.isIntersecting) return;
+          links.forEach(function (a) { a.setAttribute("aria-current", String(a.getAttribute("href") === "#" + e.target.id)); });
+        });
+      }, { rootMargin: "-20% 0px -70% 0px" });
+      links.forEach(function (a) { var h = document.getElementById(a.getAttribute("href").slice(1)); if (h) io.observe(h); });
+    }
+
+    var share = document.getElementById("share");
+    var shareMsg = document.getElementById("share-msg");
+    share.addEventListener("click", function () {
+      var url = location.href.split("#")[0];
+      var done = function () { shareMsg.textContent = "Copied the link to this story."; };
+      var fail = function () { shareMsg.textContent = "Couldn't copy here. The link is " + url; };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, fail);
+      else fail();
+    });
+  }
+
+  var year = document.getElementById("year");
+  if (year) year.textContent = String(new Date().getFullYear());
 })();
 `;
 
-const DESIGN = `# Field Notes: design
+const DESIGN = `# Slow Roads: design
 
-Design read: a personal essay blog by someone who builds software and furniture, for readers who like short, practical writing. Quiet and editorial, made for reading.
+Design read: a travel and food journal about Sri Lanka by two writers, for readers who plan slowly and read to the end; calm, literate and trustworthy, the photos and the words doing the work. Built on the Farbaek Studio kit, light.
 
-## Palette (CSS variables in styles.css, with a dark theme)
+## Look
 
-- \`--paper\` #fbfbf9 (dark #141619): the page
-- \`--ink\` #1f2328 (dark #ebe9e4): text and drawings
-- \`--accent\` #b4361f (dark #f08a6b): the one accent, a brick red, for links, the drop cap and the drawings' arrows
-- \`--tint\` #f1f2ee (dark #1c1f23): soft panels
-- \`--muted\` #59606a (dark #a3a7ae) and \`--line\` #e4e5e1 (dark #2a2d31): secondary text and rules
+The kit's signal look, re-cut for reading: a soft grey-green paper, white raised sections, 14px corners, a reading serif for stories and a plain sans for everything you use.
+
+## Palette
+
+- \`--paper\` #f3f4f1 and \`--paper-2\` #ffffff.
+- \`--ink\` #1b1d1a and \`--ink-2\` #575b55.
+- \`--accent\` #1d5f8c, a lagoon blue, for topics, links, the reading line and the first letter of a story.
+- \`--accent-2\` #e0a84a, a lamp-light amber, only for the pull quote's rule and the letter's light.
 
 ## Type
 
-- Reading: a serif text face (Charter, Sitka Text, Iowan Old Style), 20px at 1.75 in essays, because long reading is the point of the site.
-- Headings and interface: the system sans at weight 750 with tight tracking.
-- Dates and reading time: the system monospace at 13px.
+Newsreader for headlines and story text, at 19 to 21px with a 1.7 line height; Work Sans for navigation, topics, forms and the facts box. One drop capital per story.
 
 ## Layout
 
-A large headline, one featured essay with its drawing, the drafts on the desk (named but not linked until they exist), a dark subscribe panel and a short About. Essays run at about 65 characters a line, with a drop cap, a pull quote, a figure and footnotes.
+Home: the featured story wide with its photo, then the stories in a grid with topics and a search, the two of us, and one letter a month. Story: a big title and lead, the photo wide, a reading column of about 680px with the contents beside it on desktop and above it on phones, photos with captions, a pull quote, a box of practical facts, the writers and the way back.
 
 ## Signature
 
-Line drawings that draw themselves, in ink with a brick-red arrow: the essay's idea as a sketch. And a thin reading-progress line along the top of an essay.
+Reading made visible: a thin line along the top that fills as you read, and contents that follow you through the story, alongside photos that tilt a little under the pointer.
 
 ## Motion
 
-Drawings draw once on load; the figure draws when it's reached. The progress line follows the scroll through CSS scroll-driven animation where the browser supports it. Sections rise in once. Everything stops under prefers-reduced-motion, and the pages are complete without JavaScript.
+Titles rise word by word, photos unmask and tilt, stories rise in turn, the reading line fills. All of it stops under reduced motion; the reading line still tracks, because it's information.
 
-## Shape
+## Media
 
-Pills for buttons, 12px inputs, 20px figures and art, 28px panels.
+Real travel and food photos marked as placeholders: the featured story, five stories, the writers and the story's photos. Replace them with your own in Studio.
 
-## When this becomes someone else's blog
+## Avoid
 
-Update this file first. Draw a new sketch for each essay (simple paths with pathLength="1" draw themselves), keep the reading size, and keep one accent.
+Listicle clickbait, fake bylines, invented awards, "sponsored" posing as editorial, and a newsletter form that pretends to subscribe.
 `;
 
-const README = `# Field Notes blog (template)
+const README = `# Slow Roads journal (template)
 
-A small blog built to the Farbaek Studio standard: a home page with a featured essay and its drawing, drafts in progress, a newsletter form and an About, plus an essay page with a drop cap, a pull quote, a figure, footnotes and a reading-progress line. Light and dark themes.
+A static site on the Farbaek Studio kit: \`index.html\` (the home page), \`post.html\` (a story), \`styles.css\` and \`script.js\`. There's no build step and nothing to install.
 
-- \`DESIGN.md\`: the design decisions. Change it first when the blog becomes yours.
-- \`script.js\`: the theme switch, the figure's drawing, the sample form and scroll reveals. The pages work without it.
+## Make it yours
 
-The writer, essays, dates and bio are sample content. Ask the agent to make it yours, for example: "Make this my cooking blog called Kitchen Table, with three recipe posts".
+1. Change the stories on the home page: each card's \`data-topic\` drives the topics, and its title and summary drive the search.
+2. Write each story as its own page from \`post.html\`; the reading time and contents work out themselves from its headings.
+3. Tune the colours and fonts at the top of \`styles.css\`, and update \`DESIGN.md\`.
+4. Replace each photo marked as a placeholder with your own (Studio's Replace does it in a click).
 
-The newsletter form doesn't send anything yet. Connecting it to an email list is a separate change.
+The stories, facts and timetable are samples. The newsletter form doesn't send until it's connected.
 `;
 
 export const BLOG_FILES: StarterFile[] = [
+  { path: "DESIGN.md", content: DESIGN },
   { path: "index.html", content: INDEX },
   { path: "post.html", content: POST },
   { path: "styles.css", content: STYLES },
   { path: "script.js", content: SCRIPT },
-  { path: "DESIGN.md", content: DESIGN },
   { path: "README.md", content: README },
 ];

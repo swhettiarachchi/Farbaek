@@ -54,8 +54,12 @@ export type PromptStarter = "static-website" | "nextjs-app" | "rest-api";
 const DIRECTIONS: readonly (readonly [RegExp, string])[] = [
   // Asking for an online shop outright wins over the kind of business: a roastery's web shop is a shop.
   [/\b(e-?commerce|online (?:shop|store))\b/i, "online-store"],
+  // ADR 0163: asking for a blog outright wins too: a food blog is a blog, not a café.
+  [/\b(blogs?|journals?|newsletters?|magazines?|diar(?:y|ies)|essays?|stories by|writer'?s? site)\b/i, "blog"],
   [/\b(caf[eé]s?|coffee|bakery|bakeries|bakehouse|baker|patisserie|pastr(?:y|ies)|cakes?|restaurants?|bistro|diner|eatery|pizzeria|bar|pub|brewery|tea ?room|deli|juice bar|ice cream|desserts?|catering|food)\b/i, "local-business"],
   [/\b(hotels?|resorts?|spas?|villas?|guest ?house|retreats?|lodge|real estate|propert(?:y|ies)|apartments?|penthouses?|jewell?e?ry|watch(?:es|maker)?|perfumes?|fragrances?|yachts?|luxury)\b/i, "luxury"],
+  // ADR 0163: anyone who sells time by appointment, before the portfolio words, so a booking for a studio is a booking.
+  [/\b(appointments?|bookings?|book online|salons?|barbers?|barbershops?|hairdressers?|hair (?:studio|stylist)s?|nail (?:bar|salon|studio)s?|beauty (?:salon|parlou?r|studio)s?|clinics?|dentists?|dental|physio\w*|therap(?:y|ist|ists)|chiropract\w*|yoga|pilates|gyms?|fitness (?:studio|centre|center|classes)|personal trainers?|tutors?|tutoring|driving school)\b/i, "booking"],
   // ADR 0160: the work of one person or studio, an event, a shop, then a launch. A wedding photographer is a portfolio.
   [/\b(portfolios?|photographers?|photography|illustrat(?:or|ors|ion)|designers?|artists?|painters?|architects?|architecture (?:practice|studio|firm))\b/i, "portfolio"],
   [/\b(events?|conferences?|summits?|meetups?|festivals?|concerts?|gigs?|expos?|hackathons?|weddings?|galas?|part(?:y|ies)|webinars?|reunions?)\b/i, "event-page"],
