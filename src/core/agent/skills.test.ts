@@ -73,6 +73,9 @@ describe("built-in skills", () => {
     // An app with pages gets the core, not the website craft.
     expect(ids("A booking web app for my salon with a login and a dashboard")).not.toContain(SITE_SKILL_ID);
     expect(ids("A luxury boutique hotel site with a video hero")).toEqual(expect.arrayContaining(["luxury-and-editorial", "video-and-media"]));
+    // Store craft for a shop, product storytelling for a launch (from studies of nordstrom.com, princesspolly.com and apple.com).
+    expect(ids("An online store for my streetwear label with a cart and size guides")).toContain("shop-and-product-pages");
+    expect(ids("A launch page for our new wireless earbuds with pre-orders")).toContain("product-storytelling");
     // An API with no pages gets no design skills by default.
     expect(ids("A REST API for my inventory with endpoints and tests")).not.toContain("3d-and-depth");
     for (const id of CORE_SKILL_IDS) expect(getBuiltInSkill(id), id).not.toBeNull();
