@@ -47,6 +47,24 @@ export const PRO_NAMES = [
 
 export type KitTier = "core" | "pro";
 
+/** The colour theme the person chose for a build (ADR 0158): light unless they asked for dark. Never dark by default. */
+export const SITE_THEMES = ["light", "dark"] as const;
+export type SiteTheme = (typeof SITE_THEMES)[number];
+export const LIGHT_LOOKS = ["signal", "atelier", "bloom", "chrome"] as const;
+export const DARK_LOOKS = ["noir", "aurora", "obsidian", "garden"] as const;
+
+/** The theme to offer first: dark only when the person asked for it in their own words. */
+export function themeFromPrompt(text: string): SiteTheme {
+  return /\b(dark|black|night|noir|moody|midnight)\b/i.test(text) && !/\b(light|white|bright)\b/i.test(text) ? "dark" : "light";
+}
+
+/** The person's theme as the agent reads it. Each theme's text is a constant, so prompt caching holds. */
+export function themeForPrompt(theme: SiteTheme): string {
+  return theme === "dark"
+    ? `### Colour theme: dark (the person chose it)\nBuild a dark site: a dark look (${DARK_LOOKS.join(", ")}, the last two with Studio kit Pro), light text on dark surfaces, scenes and media chosen for a dark page. If the project's current look is light, switch it to dark and keep its accent hue.`
+    : `### Colour theme: light (the person chose it)\nBuild a light site: a light look (${LIGHT_LOOKS.join(", ")}, the last with Studio kit Pro), dark text on light surfaces, with dark bands only where a section needs contrast. Use light colourways for scenes and library media (pearl, data-tone="light"). If the project's current look is dark, switch it to light and keep its accent hue, so a person who chose light never gets a dark site.`;
+}
+
 /** Whether a static site's pages already build on the kit; sites from before ADR 0157 don't. */
 export function usesStudioKit(files: readonly { path: string; content: string }[]): boolean {
   return files.some((f) => /\.html?$/i.test(f.path) && STUDIO_KIT_PATTERN.test(f.content));

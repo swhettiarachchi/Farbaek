@@ -9,7 +9,7 @@ import * as pro from "../../public/kit/studio/v1/studio-pro.js";
 import { agentSystemPrompt } from "@/agent-runtime/loop";
 import { getPlan } from "@/core/billing/catalog";
 import { resolveEffectivePlan } from "@/core/billing/trial";
-import { CORE_NAMES, kitForPrompt, kitTierFor, LOOKS, PRO_LOOKS, PRO_NAMES, STUDIO_KIT_CSS, STUDIO_KIT_JS, STUDIO_KIT_PRO_CSS, STUDIO_KIT_PRO_JS } from "@/core/media/studio-kit";
+import { CORE_NAMES, DARK_LOOKS, kitForPrompt, kitTierFor, LIGHT_LOOKS, LOOKS, PRO_LOOKS, PRO_NAMES, STUDIO_KIT_CSS, STUDIO_KIT_JS, STUDIO_KIT_PRO_CSS, STUDIO_KIT_PRO_JS, themeForPrompt, themeFromPrompt } from "@/core/media/studio-kit";
 
 const dir = path.join(process.cwd(), "public/kit/studio/v1");
 const read = (f: string) => readFileSync(path.join(dir, f), "utf8");
@@ -132,5 +132,21 @@ describe("the kit in the agent's prompt", () => {
     const prompt = agentSystemPrompt("sandboxed_autopilot", "sandbox", [], "pro");
     expect(prompt).toContain(STUDIO_KIT_PRO_JS);
     expect(agentSystemPrompt("sandboxed_autopilot", "sandbox")).not.toContain(STUDIO_KIT_PRO_JS);
+  });
+});
+
+describe("the colour theme is the person's choice, never dark by default (ADR 0158)", () => {
+  it("offers light unless the person asked for dark", () => {
+    expect(themeFromPrompt("A site for my bakery in Kandy")).toBe("light");
+    expect(themeFromPrompt("A dark, moody site for my cocktail bar")).toBe("dark");
+    expect(themeFromPrompt("Black and white, light and airy, for my studio")).toBe("light");
+  });
+
+  it("tells the agent the theme, which the prompt carries, and covers every look", () => {
+    expect(themeForPrompt("light")).toMatch(/switch it to light/);
+    expect(themeForPrompt("dark")).toMatch(/switch it to dark/);
+    expect([...LIGHT_LOOKS, ...DARK_LOOKS].sort()).toEqual([...Object.keys(LOOKS), ...Object.keys(PRO_LOOKS)].sort());
+    expect(agentSystemPrompt("sandboxed_autopilot", "sandbox")).toContain("Colour theme: light");
+    expect(agentSystemPrompt("sandboxed_autopilot", "sandbox", [], "core", "dark")).toContain("Colour theme: dark");
   });
 });

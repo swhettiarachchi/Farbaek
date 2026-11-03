@@ -15,7 +15,7 @@ import { CAP_CHOICES } from "@/core/agent/run-cap";
 import { EFFORTS } from "@/core/agent/routing";
 import { createContractDrafter } from "@/server/ai/providers";
 import { aiForWorkspace } from "@/server/ai/workspace-ai";
-import { kitTierFor } from "@/core/media/studio-kit";
+import { kitTierFor, SITE_THEMES } from "@/core/media/studio-kit";
 import { startCloudRun } from "@/server/cloud-agent/executor";
 import { cloudRunDeps } from "@/server/cloud-agent/wiring";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
@@ -98,6 +98,7 @@ export async function approveAndBuildAction(_previous: ApproveBuildState, form: 
       sha256: z.string().regex(/^[0-9a-f]{64}$/),
       effort: z.enum(EFFORTS).catch("balanced"),
       cap: z.enum(CAP_CHOICES).catch("double"),
+      theme: z.enum(SITE_THEMES).catch("light"),
     })
     .safeParse(Object.fromEntries(form));
   if (!parsed.success) return { status: "error", message: "Reload the page and try again." };
@@ -109,7 +110,7 @@ export async function approveAndBuildAction(_previous: ApproveBuildState, form: 
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
   if (!user || !admin) return { status: "error", message: "The server isn't configured for writes." };
 
-  const { taskId, version, expectedTaskVersion, sha256, effort, cap } = parsed.data;
+  const { taskId, version, expectedTaskVersion, sha256, effort, cap, theme } = parsed.data;
   const approved = await approveContract(createSupabaseWriteDeps(user, admin, ctx.user.id), { orgId: ctx.current.id, userId: ctx.user.id, taskId, expectedTaskVersion, version, sha256 });
   if (!approved.ok) return { status: "error", message: approved.message };
   revalidatePath("/app", "layout");
@@ -121,7 +122,7 @@ export async function approveAndBuildAction(_previous: ApproveBuildState, form: 
   const skills = form.getAll("skills").flatMap((v) => (typeof v === "string" && getBuiltInSkill(v) ? [v] : []));
   // A site's first build or a design upgrade: Sonnet on Free and a whole site's estimate (ADR 0158).
   const kind = await runKindFor(ctx.reader, ctx.current.id, taskId);
-  const started = await startCloudRun(wiring.deps, { person, taskId, effort, skills, capUnits: runCapUnits(ctx.current, effort, cap, new Date(), kind), kitTier: kitTierFor(ctx.current.plan), designPass: kind.designPass });
+  const started = await startCloudRun(wiring.deps, { person, taskId, effort, skills, capUnits: runCapUnits(ctx.current, effort, cap, new Date(), kind), kitTier: kitTierFor(ctx.current.plan), designPass: kind.designPass, theme });
   if (!started.ok) return { status: "error", approved: true, message: `The plan is approved. The agent couldn't start: ${started.message}` };
   revalidatePath("/app/build");
   redirect(`/app/build/${started.value.runId}`);

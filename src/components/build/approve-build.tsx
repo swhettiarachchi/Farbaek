@@ -1,6 +1,6 @@
 "use client";
 
-import { RocketLaunchIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { MoonIcon, RocketLaunchIcon, SunIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useActionState, useId, useState } from "react";
 import { approveAndBuildAction, type ApproveBuildState } from "@/app/app/new/actions";
@@ -9,6 +9,7 @@ import { WebPurchaseOnly } from "@/components/billing/web-purchase-only";
 import { buttonClasses } from "@/components/ui/button";
 import { CAP_CHOICES, CAP_LABELS, type CapChoice } from "@/core/agent/run-cap";
 import type { Effort } from "@/core/agent/routing";
+import type { SiteTheme } from "@/core/media/studio-kit";
 import type { RunEstimates } from "@/server/workspace/plan-card-data";
 
 const IDLE: ApproveBuildState = { status: "idle" };
@@ -32,6 +33,7 @@ export function ApproveBuild({
   kitPro = false,
   defaultCap = "double",
   firstBuildNote = null,
+  defaultTheme = "light",
 }: {
   taskId: string;
   version: number;
@@ -55,10 +57,13 @@ export function ApproveBuild({
   defaultCap?: CapChoice;
   /** Said when a first build on Free is written by a stronger model. */
   firstBuildNote?: string | null;
+  /** The colour theme offered first: light, unless the person asked for dark (ADR 0158). Never dark by default. */
+  defaultTheme?: SiteTheme;
 }) {
   const [state, action, pending] = useActionState(approveAndBuildAction, IDLE);
   const [effort, setEffort] = useState<Effort>("balanced");
   const [cap, setCap] = useState<CapChoice>(defaultCap);
+  const [theme, setTheme] = useState<SiteTheme>(defaultTheme);
   const capId = useId();
   const estimate = estimates[effort];
 
@@ -116,6 +121,26 @@ export function ApproveBuild({
             </span>
           </p>
         ) : null}
+      </fieldset>
+      <fieldset className="grid min-w-0 gap-1.5" disabled={pending || Boolean(disabledReason)}>
+        <legend className="mb-1 text-sm font-medium">Colour theme for the site</legend>
+        <div className="inline-flex w-full rounded-full border border-line bg-surface p-1 shadow-e1 sm:w-auto">
+          {(
+            [
+              ["light", "Light", SunIcon],
+              ["dark", "Dark", MoonIcon],
+            ] as const
+          ).map(([value, label, Icon]) => (
+            <label key={value} className="relative flex-1 sm:flex-none">
+              <input type="radio" name="theme" value={value} checked={theme === value} onChange={() => setTheme(value)} className="peer sr-only" />
+              <span className="flex min-h-11 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full px-4 text-sm text-ink-2 transition-colors duration-[160ms] peer-checked:bg-primary peer-checked:font-medium peer-checked:text-on-primary peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent peer-disabled:cursor-not-allowed peer-disabled:opacity-50 sm:px-5">
+                <Icon size={16} aria-hidden />
+                {label}
+              </span>
+            </label>
+          ))}
+        </div>
+        <p className="text-xs leading-relaxed text-ink-3">{theme === "light" ? "Light surfaces with dark text. An existing dark site is switched to light." : "Dark surfaces with light text. An existing light site is switched to dark."}</p>
       </fieldset>
       <EffortPicker value={effort} onChange={setEffort} disabled={pending || Boolean(disabledReason)} />
       {firstBuildNote ? <p className="text-xs leading-relaxed text-ink-3">{firstBuildNote}</p> : null}
