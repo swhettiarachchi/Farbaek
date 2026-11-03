@@ -95,10 +95,23 @@ describe("reviewSite", () => {
     const messages = reviewSite({ "index.html": page, "about.html": GOOD, "styles.css": CSS, "script.js": "" }).findings.map((f) => `${f.severity}: ${f.message}`);
     expect(messages).toEqual(
       expect.arrayContaining([
-        expect.stringMatching(/^fix: The copy reads as AI-written \(elevate, unlock the, look no further, cutting-edge\)/),
+        expect.stringMatching(/^fix: The copy reads as AI-written \(elevate your, unlock the, look no further, cutting-edge\)/),
         "fix: A heading, button or link uses an emoji. Use words, or an icon drawn in the site's own line style.",
         expect.stringMatching(/^consider: An icon called "sparkles" reads as an AI cliché/),
       ]),
     );
+  });
+
+  it("leaves a business's real words, marks and own script imports alone", () => {
+    const page = GOOD.replace(
+      "<main",
+      `<h1>Volt® E-Bikes™</h1><p>Seamless gutters and an elevated terrace, since 1998.</p><a href="#bikes">© 2026 Volt</a>
+<video autoplay muted playsinline loop poster="p.webp" aria-hidden="false" data-farbaek-media="v"></video>
+<div data-farbaek-scene="orb" aria-hidden="true"></div><main`,
+    );
+    const messages = reviewSite({ "index.html": page, "about.html": GOOD, "styles.css": CSS, "script.js": 'import "https://www.farbaek.com/kit/scenes/v1/scenes.js";' }).findings.map((f) => f.message);
+    expect(messages.join("\n")).not.toMatch(/AI-written|emoji|doesn't load the kit/);
+    // aria-hidden="false" isn't hidden, so the video still needs a name.
+    expect(messages).toEqual(expect.arrayContaining([expect.stringMatching(/^A video needs aria-hidden/)]));
   });
 });

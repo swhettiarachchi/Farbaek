@@ -160,6 +160,23 @@ describe("media people can replace (ADR 0156)", () => {
     expect(hasAttr(find(html, "video"), "playsinline")).toBe(true);
   });
 
+  it("updates a picture's sources and every source of a video", () => {
+    const html = `<!doctype html><html lang="en"><body><picture><source srcset="a.avif" type="image/avif"><source srcset="a.webp" type="image/webp"><img src="a.jpg" alt="x"></picture>
+<video autoplay muted loop playsinline poster="p.webp" aria-hidden="true"><source src="old.webm" type="video/webm"><source src="old.mp4" type="video/mp4"></video></body></html>`;
+    const f = { "index.html": html };
+    const pic = applyVisualEdit(f, "index.html", find(html, "img").n, { kind: "media", src: "https://cdn.example.com/own.jpg" });
+    expect(pic.ok).toBe(true);
+    if (!pic.ok) return;
+    const sources = scanElements(pic.files["index.html"]!).filter((e) => e.tag === "source").slice(0, 2);
+    expect(sources.map((s) => attrValue(s, "srcset"))).toEqual(["https://cdn.example.com/own.jpg", "https://cdn.example.com/own.jpg"]);
+    expect(sources.every((s) => !hasAttr(s, "type"))).toBe(true);
+    const vid = applyVisualEdit(f, "index.html", find(html, "video").n, { kind: "media", src: "https://cdn.example.com/own.mp4" });
+    expect(vid.ok).toBe(true);
+    if (!vid.ok) return;
+    const vs = scanElements(vid.files["index.html"]!).filter((e) => e.tag === "source").slice(2);
+    expect(vs.map((s) => `${attrValue(s, "src")} ${attrValue(s, "type")}`)).toEqual(["https://cdn.example.com/own.mp4 video/mp4", "https://cdn.example.com/own.mp4 video/mp4"]);
+  });
+
   it("refuses what isn't https or the project's own image", () => {
     const img = at("img");
     for (const bad of ["http://x.test/a.jpg", "javascript:alert(1)", "data:image/png;base64,AA", "//x.test/a.jpg", "assets/missing.webp", "../assets/cafe.webp", "a b.jpg", ""]) {
