@@ -9,6 +9,7 @@ import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
 import { PAGE_NAV, PageTransition } from "@/components/app/page-transition";
 import { UsagePanel } from "@/components/app/usage-meters";
 import { CreateOrganizationForm } from "@/components/app/forms";
+import { FirstRunTour } from "@/components/app/first-run";
 import { WorkspaceSwitcher } from "@/components/app/workspace-switcher";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { PresenceOrb } from "@/components/build/presence-orb";
@@ -64,25 +65,28 @@ export default async function AppLayout({ children }: Readonly<{ children: React
 
   if (!ctx.current) {
     return (
-      <main id="main" className="mx-auto flex min-h-[100dvh] max-w-2xl flex-col justify-center px-4 py-16 sm:px-6">
+      // Below desktop widths the build box's glow would reach past the screen's edge: clipped, as on the app's other pages.
+      <main id="main" className="mx-auto w-full max-w-3xl px-4 pb-16 pt-10 max-lg:overflow-x-clip sm:px-6 sm:pt-16">
         <Brand />
         <h1 className="mt-10 text-balance text-[2.1rem] font-medium leading-[1.05] tracking-[-0.035em] sm:text-5xl">What do you want to build?</h1>
-        <p className="mt-3 max-w-[56ch] text-[15px] leading-relaxed text-ink-2">
-          Describe it and Farbaek sets up your workspace with the {TRIAL.lengthDays}-day {getPlan(TRIAL.basePlan).name} trial, drafts a plan and waits for your approval. No
-          card is needed, and when the trial ends the workspace moves to Free.
+        <p className="mt-3 max-w-[56ch] text-[15px] leading-relaxed text-ink-2">Describe it, and Farbaek drafts a plan for you to approve, then builds it.</p>
+        <p className="mt-2 max-w-[60ch] text-sm leading-relaxed text-ink-3">
+          A new workspace gets the {TRIAL.lengthDays}-day {getPlan(TRIAL.basePlan).name} trial, once per email address. No card is needed, and it moves to Free when the
+          trial ends.
         </p>
         <div className="aurora mt-8">
           {/* A prompt kept from the public site is sent again automatically after sign-in. */}
           <PromptComposer mode="app" autoResume />
         </div>
-        <details className="mt-8 rounded-md border border-line bg-surface p-5 shadow-e1">
+        <FirstRunTour />
+        <details className="mt-16 rounded-md border border-line bg-surface p-5 shadow-e1">
           <summary className="min-h-11 cursor-pointer content-center text-sm font-medium text-ink-2">Or create an empty workspace</summary>
           <div className="mt-4">
             <CreateOrganizationForm />
           </div>
         </details>
         <form action={signOut} className="mt-6">
-          <button type="submit" className="text-sm text-ink-2 underline-offset-4 hover:underline">
+          <button type="submit" className="min-h-11 text-sm text-ink-2 underline-offset-4 hover:underline">
             Sign out of {ctx.user.email}
           </button>
         </form>
