@@ -103,7 +103,7 @@ export async function loadAiAvailability(ctx: AppContext, ws: WorkspaceSummary, 
     notConnectedReason: usable
       ? undefined
       : provider.provider
-        ? `${operation === "policy_draft" ? "Drafting rules" : operation === "second_check" ? "The second check" : operation === "task_note" ? "Notes" : operation === "failure_test" ? "Failure trials" : "AI mapping"} uses Claude, and this server uses another provider.`
+        ? `${operation === "policy_draft" ? "Drafting rules" : operation === "second_check" ? "The second check" : operation === "task_note" ? "Notes" : operation === "failure_test" ? "Failure trials" : "AI mapping"} isn't available with this server's AI setup.`
         : provider.reason,
     plan: ws.billingUnknown ? null : ws.plan,
     wallet,

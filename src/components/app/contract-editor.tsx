@@ -171,7 +171,7 @@ function AiDraftPanel({
             <PenNibIcon size={16} weight="fill" className="text-accent" aria-hidden /> Draft with AI
           </p>
           <p className="mt-1 text-xs leading-relaxed text-ink-3">
-            {ai.provider ?? "The AI"} reads the task, the project and anything you&apos;ve typed below, then fills in the fields.{" "}
+            Farbaek reads the task, the project and anything you&apos;ve typed below, then fills in the fields.{" "}
             {reached ? null : <AiUsageNote percent={percent} resetsAt={ai.resetsAt} period={ai.period} />}
           </p>
         </div>

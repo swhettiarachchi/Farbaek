@@ -233,7 +233,7 @@ export default async function FilesPage({
                 </div>
                 <div className="mt-6 border-t border-line pt-5">
                   <h3 className="text-[15px] font-medium">Or generate one</h3>
-                  <p className="mt-1 text-sm text-ink-2">Describe it, and Gemini makes it straight into the project.</p>
+                  <p className="mt-1 text-sm text-ink-2">Describe it, and Farbaek makes it straight into the project.</p>
                   <div className="mt-4">
                     <GenerateImage projectId={project.id} disabledReason={writeReason ?? imageGeneration().reason} />
                   </div>

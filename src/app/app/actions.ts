@@ -528,7 +528,7 @@ export async function secondCheckAction(input: { proposalId: string }): Promise<
   if ("error" in w) return { status: "error", message: w.error };
   const key = openAiKey();
   const ai = resolveAiProvider();
-  if (!key && ai.provider !== "anthropic") return { status: "error", message: ai.provider ? "The second check uses Claude or OpenAI, and this server has neither." : ai.reason };
+  if (!key && ai.provider !== "anthropic") return { status: "error", message: ai.provider ? "The second check isn't available on this server yet." : ai.reason };
   const result = await runSecondCheck(
     w.deps,
     { openai: key ? createOpenAiSecondChecker({ key }) : null, claude: (model) => createAnthropicSecondChecker({ model, effort: "medium" }) },
