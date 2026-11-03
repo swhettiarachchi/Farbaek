@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CookieChoicesButton } from "@/components/analytics/analytics-consent";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { Container } from "@/components/ui/container";
 import { CONTACT } from "@/config/contact";
@@ -54,6 +55,7 @@ export function SiteFooter() {
                 </Link>
               </li>
             ))}
+            <CookieChoicesButton />
           </ul>
         </nav>
       </Container>
