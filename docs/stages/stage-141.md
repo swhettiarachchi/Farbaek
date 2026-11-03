@@ -95,6 +95,27 @@ The owner wants everything Farbaek builds to be:
   - a real three-step start, then a dense footer.
 - It's carried out in each brand's own look and copies nothing.
 
+**Store craft and product storytelling, from nordstrom.com, princesspolly.com and apple.com**
+- Each site was studied the same way: home page, a listing and a product page for the two shops, and the home page and a product page for Apple. Pop-ups were closed without accepting anything.
+- **"Shop and product pages", rewritten:**
+  - a promo bar of true messages, and a header with search, wishlist and bag;
+  - an editorial home with a pausable hero carousel and category pills that switch a product row;
+  - product cards with badges only when true;
+  - working filters with removable chips;
+  - a product page whose button says what's missing ("Select a size");
+  - a bag drawer with a free-delivery progress line;
+  - one designed sign-up moment, easy to close;
+  - honest urgency only.
+- **New "Product storytelling":**
+  - one idea per screen;
+  - a sticky product bar;
+  - a giant claim with a price chip;
+  - scroll-driven chapters;
+  - a closer-look viewer;
+  - specs with footnoted claims;
+  - peeking carousels.
+- There are now twelve built-in skills.
+
 **`review_site`**
 - **Must fix:**
   - video that phones won't autoplay, or with no poster or accessible name;

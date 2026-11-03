@@ -71,6 +71,21 @@ description: The composition, rhythm and proof of the best commercial websites (
 - Spacing and type: 120 to 200 px between sections on desktop, 72 to 96 px on phones; body text muted at 16 to 18 px; links in body copy underlined. On phones everything stacks, marquees keep moving slowly, and sticky stories become plain sequences.`,
   ),
   skill(
+    "Product storytelling",
+    /\b(product launch|launch(?:ing)?|pre-?order|device|gadget|hardware|headphones|earbuds|speaker|wearable|camera|single product|product page)\b/i,
+    `---
+name: product-storytelling
+description: One product told like a flagship launch (the craft of apple.com): giant clean product imagery, short confident lines, scroll-driven chapters and claims with their sources.
+---
+- One idea per screen: full-width panels, each about a screen tall, alternating a deep dark and a soft light neutral; the product's name large and centred, one short line under it, and two pill buttons (a solid "Learn more" and an outlined "Buy" or "Pre-order"), then the product huge below, cut out on a clean background or in a Farbaek Scenes gallery or glass moment.
+- A sticky local bar on the product page: the product name on the left, three to five section links, and a small solid "Buy" pill on the right. It appears once the hero scrolls away.
+- The hero: the product floating in space, a giant two-line claim at the bottom left (56 to 96 px, semibold, tight tracking) with a footnote marker, and a floating chip at the bottom right with the price and a Buy button.
+- Chapters driven by scroll: a sticky stage where the product turns, opens or changes colour while short captions step through beside it; a closer-look viewer where people rotate the product or switch its colours (Farbaek Scenes or CSS 3D, with a still under reduced motion); colour variants fanned behind the product.
+- Specs people can scan: big numbers in a grid with one plain line each, then a comparison of the models side by side. Every claim with a number gets a footnote marker, and the footnotes sit together at the end of the page.
+- Media rows: a centred carousel where the active slide is large and its neighbours peek in at the edges, with arrows, a pause button and dots.
+- Words: short declarative lines and the odd playful one ("Hello."), sentence case, precise numbers, no superlatives without a source. Body text 17 to 21 px in a muted ink; headlines carry the weight.`,
+  ),
+  skill(
     "Luxury and editorial",
     /\b(luxur\w*|high[- ]end|exclusive|elegan\w*|boutique|jewel\w*|fashion|couture|hotel|resort|villa|spa|real estate|propert(?:y|ies)|interior\w*|architect\w*|fine dining|wine\w*|watch(?:es|maker)|perfume|fragrance|yacht\w*)\b/i,
     `---
@@ -116,13 +131,16 @@ description: Art direction that gives the product a recognisable identity: a nam
     /\b(shop|store|e-?commerce|product|products|sell\w*|cart|checkout|catalog\w*|merch|order\w*)\b/i,
     `---
 name: shop-and-product-pages
-description: Product-led layouts that make things look desirable and make buying feel easy and trustworthy.
+description: A store that works like the best fashion and department-store sites (the craft of nordstrom.com and princesspolly.com) in this brand's own look, with every number and badge true.
 ---
-- Lead with the product: a large, art-directed product moment (a 3D or CSS-staged product, or a clearly marked photo placeholder), the price and one clear action above the fold.
-- Product grid: varied card sizes for featured items, quick hover detail (a second view or key specs), and consistent price and badge treatment. Filters that work on the page's data.
-- Product page: gallery, name, price, the two or three facts that decide a purchase, options as real controls (size, colour) that update the page, and an "Add to cart" that gives clear feedback.
-- A cart that works in the browser (localStorage), with quantities, removal and a total. If there's no payment connected, the checkout button says so plainly ("Checkout isn't connected yet") instead of pretending.
-- Trust details where they help: delivery, returns, care. Never invent reviews or ratings; sample ones are labelled as samples.`,
+- Header that sells quietly: a thin promo bar rotating two or three true messages (a free-delivery threshold, easy returns, pay later only if it's offered); the wordmark; a wide search with suggestions; account, wishlist and a bag with its count; one row of plain category links with Sale in the alert colour. A mega menu on desktop, a full-screen drill-down on phones.
+- Home page as an edit: a full-bleed editorial hero (real photos or a library loop) that rotates two to five stories, with a slide count, arrows and a pause button, each with one solid button and one underlined text link; category pills that switch the product row beneath (New in, Best sellers, Dresses, Sale) with "Shop all"; editorial split modules (photo, short headline, one sentence, a button and a text link); gift or edit guides; a handwritten or stamped touch on a photo where the brand allows.
+- Product cards: a tall 3:4 photo on a soft neutral, a second view on hover, a wishlist heart, small badges only when true (New, Selling fast, Low stock, Petite), the brand or name, the price (a sale price in the alert colour beside the struck-through original and the percentage), colour dots or photo chips with a count, and stars with the review count only when the reviews are real.
+- Listing pages: breadcrumbs, the title and the result count, a sticky filter row (Filter, Sort, Size, Colour, Price) whose choices show as removable chips and really filter the page's data, a grid of two on phones and three or four on desktop (edge to edge with hairlines, or gapped, one system per site), "Showing 24 of 96" with Load more, and skeletons shaped like the cards while anything loads.
+- Product page: a gallery (a thumbnail rail or a two-up grid, with a short video when there is one); name, price and any offer; the colour name above its swatches; sizes as a grid of buttons with sold-out sizes struck through; a size guide and a fit note; a primary button whose label says what's missing ("Select a size") until it's ready, then "Add to bag", with "Add to wishlist" beside it; delivery, returns and care as accordions; "You might also like" and recently viewed. On phones the buy button sticks to the bottom.
+- The bag: a drawer that slides in on add, with photos, quantities, removal, a free-delivery progress line ("$12 away from free delivery"), the subtotal and checkout. It works in the browser (localStorage). If no payment is connected, checkout says so plainly ("Checkout isn't connected yet").
+- One designed sign-up moment at most: an offer drawn as a brand object (a pass, a ticket, a stamped card), shown after the visitor has looked around, easy to close, never asking twice.
+- Honest urgency only: never invent reviews, ratings, "people viewing now", stock counts or countdowns. Sample ones are labelled as samples, and a real-time count needs real data behind it.`,
   ),
   skill(
     "Software product site",

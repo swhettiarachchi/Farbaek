@@ -58,6 +58,8 @@ Projects store only images (2 MB each, in Postgres), so a build can't carry vide
   - New skills: Flagship site craft; Luxury and editorial; Video and media.
   - 3D and depth now leads with Farbaek Scenes.
   - **Flagship site craft** came from studying shopify.com closely at the owner's request (2026-11-03): how its hero, type, section rhythm, story cards, proof and numbers work. The skill states those as patterns in Farbaek's own words, carried out in each brand's own look. It copies no layout, colours, copy or assets.
+  - The same day, studies of nordstrom.com and princesspolly.com rewrote **Shop and product pages**. It now covers the promo bar and header, the editorial home, product cards, filters, the product page, the bag drawer and one designed sign-up moment, and keeps urgency honest: no invented reviews, viewer counts, stock counts or countdowns.
+  - A study of apple.com added **Product storytelling**: one idea per screen, a sticky product bar, a giant claim with a price chip, scroll-driven chapters, a closer-look viewer, scannable specs with footnoted claims, and peeking carousels.
 - **`review_site`** adds:
   - **fix:**
     - autoplay without `muted` and `playsinline`;
