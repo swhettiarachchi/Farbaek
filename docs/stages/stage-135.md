@@ -125,6 +125,9 @@ Google Play production opens around 2026-11-16, after the closed test's 14 days.
 
 - The fixed script's run reached Google: the key signs in, and Google Play answers 401/403 for purchases, which is its new-access delay (up to a day). It printed only status lines and saved nothing.
 
+- **The script says why** Google Play refuses: Google's reason code (letters only), so `permissionDenied` (a new grant still turning on) reads differently from `accessNotConfigured` (the API is off in the Cloud project), which now gets its own instructions. On 2026-11-03 it said `401 permissionDenied`.
+- **Testers:** license testing uses the "UVelsi internal" list (the owner's phone account); the 14 closed testers aren't license testers, so they can't buy for free. Internal testing has 1.1.0 for that list only. A closed-test release of 1.1.0 is saved, waiting for the owner to submit it for review (auto mode refuses that click).
+
 ### Next
 
-- Run `set-google-play.ps1` again once Google Play's access starts working, then add a license tester and `-TurnOn`.
+- Run `set-google-play.ps1` again once Google Play's access starts working, then `-TurnOn`, with 1.1.0 on the closed test by then (with selling on, 1.0.1 shows "Update the app in the Play Store").
