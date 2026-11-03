@@ -22,7 +22,7 @@ import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { WORKSPACE_COOKIE, isDemoMode, loadAppContext } from "@/server/workspace/context";
 import { mapCreateOrganizationError } from "@/server/workspace/organizations";
-import { runCapUnits } from "@/server/workspace/plan-card-data";
+import { runCapUnits, runKindFor } from "@/server/workspace/plan-card-data";
 import { startFromPrompt } from "@/server/workspace/start-from-prompt";
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
 import { approveContract } from "@/server/workspace/use-cases";
@@ -119,7 +119,9 @@ export async function approveAndBuildAction(_previous: ApproveBuildState, form: 
   if (!wiring.ok) return { status: "error", approved: true, message: `The plan is approved. The agent couldn't start: ${wiring.reason}` };
   // Skills chosen on the plan card (ADR 0030): only Farbaek's own ids are accepted.
   const skills = form.getAll("skills").flatMap((v) => (typeof v === "string" && getBuiltInSkill(v) ? [v] : []));
-  const started = await startCloudRun(wiring.deps, { person, taskId, effort, skills, capUnits: runCapUnits(ctx.current, effort, cap), kitTier: kitTierFor(ctx.current.plan) });
+  // A site's first build or a design upgrade: Sonnet on Free and a whole site's estimate (ADR 0158).
+  const kind = await runKindFor(ctx.reader, ctx.current.id, taskId);
+  const started = await startCloudRun(wiring.deps, { person, taskId, effort, skills, capUnits: runCapUnits(ctx.current, effort, cap, new Date(), kind), kitTier: kitTierFor(ctx.current.plan), designPass: kind.designPass });
   if (!started.ok) return { status: "error", approved: true, message: `The plan is approved. The agent couldn't start: ${started.message}` };
   revalidatePath("/app/build");
   redirect(`/app/build/${started.value.runId}`);

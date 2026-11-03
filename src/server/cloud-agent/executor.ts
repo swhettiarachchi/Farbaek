@@ -123,6 +123,8 @@ export interface StartRunInput {
   capUnits?: number | null;
   /** Which Studio kit the build may use, from the workspace plan (ADR 0157); core when not given. */
   kitTier?: KitTier;
+  /** A site's first build or a design upgrade: Free writes it with the standard model (ADR 0158). */
+  designPass?: boolean;
 }
 
 /** Checks and records the run, then starts it in the background. Returns as soon as it's recorded. */
@@ -151,7 +153,7 @@ export async function startCloudRun(deps: ExecutorDeps, input: StartRunInput): P
   const live: LiveRun = { orgId: person.orgId, startedBy: person.userId, controller: new AbortController(), approvals: new Map(), messages: [] };
   registry.set(runId, live);
   const chosen = [...new Set(input.skills ?? [])].flatMap((id) => getBuiltInSkill(id) ?? []);
-  void execute(deps, { runId, person, task: { id: task.id, title: task.title, projectId: task.projectId }, contract, effort: input.effort, mode, live, skills: chosen, capUnits, kitTier: input.kitTier ?? "core" }).catch((e) => {
+  void execute(deps, { runId, person, task: { id: task.id, title: task.title, projectId: task.projectId }, contract, effort: input.effort, mode, live, skills: chosen, capUnits, kitTier: input.kitTier ?? "core", designPass: input.designPass === true }).catch((e) => {
     log("error", "cloud_run.crashed", { run: runId, error: e instanceof Error ? e.message : String(e) });
   });
   return { ok: true, value: { runId, mode } };
@@ -243,6 +245,7 @@ async function execute(
     skills: readonly Skill[];
     capUnits: number | null;
     kitTier: KitTier;
+    designPass: boolean;
   },
 ): Promise<void> {
   const { runId, person, live } = r;
@@ -340,7 +343,7 @@ async function execute(
       const budget = r.capUnits === null ? {} : { remainingUnits: Math.max(0, r.capUnits - spentUnits) };
       // The run's own lease (ADR 0117): this task's project and Farbaek's AI, for as long as a run can last.
       const lease = { expiresAt: new Date(startedAt + 2 * CLOUD_RUN_MAX_MINUTES * 60_000).toISOString(), projects: [r.task.projectId], capabilities: ["model" as const], actionsPerHour: 5_000 };
-      const result = await callModel(deps.gateway.deps, deps.gateway.model, { agentId: `run:${runId}`, orgId: person.orgId, userId: person.userId, role: person.role, name: "Farbaek Agent", lease }, request, signal, budget);
+      const result = await callModel(deps.gateway.deps, deps.gateway.model, { agentId: `run:${runId}`, orgId: person.orgId, userId: person.userId, role: person.role, name: "Farbaek Agent", lease }, r.designPass ? { ...request, design: true } : request, signal, budget);
       if (!result.ok) throw new FarbaekApiError(result.status, result.code, result.message);
       if (result.value.message.stop_reason !== "refusal") spentUnits += stepUnits(result.value.message);
       // The gateway's reply is Claude's message as it came; its content blocks all carry a type.

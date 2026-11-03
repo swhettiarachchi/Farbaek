@@ -90,6 +90,7 @@ describe("built-in skills", () => {
     expect(STUDIO_STANDARD).toContain("data-farbaek-media");
     expect(STUDIO_STANDARD).toContain("data-farbaek-placeholder");
     expect(STUDIO_STANDARD).toContain("https://picsum.photos/id/");
+    expect(STUDIO_STANDARD).toContain("https://images.unsplash.com/photo-");
     expect(STUDIO_STANDARD).toMatch(/never generated/);
     expect(STUDIO_STANDARD).toMatch(/No CSS filter/);
     expect(STUDIO_STANDARD).not.toMatch(/no image generator connected/i);

@@ -6,7 +6,7 @@ export interface StarterFile {
 export type StarterId = "blank" | "static-website" | "nextjs-app" | "rest-api" | TemplateId;
 
 /** Templates: finished-looking sites with sample content, shown in the gallery. */
-export type TemplateId = "landing-page" | "saas-site" | "portfolio" | "local-business" | "event-page" | "blog" | "online-store" | "booking" | "dashboard" | "crm";
+export type TemplateId = "landing-page" | "saas-site" | "portfolio" | "local-business" | "luxury" | "event-page" | "blog" | "online-store" | "booking" | "dashboard" | "crm";
 
 export interface Starter {
   id: StarterId;

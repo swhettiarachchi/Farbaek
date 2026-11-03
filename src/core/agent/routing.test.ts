@@ -21,6 +21,20 @@ describe("which models a plan includes", () => {
   });
 });
 
+describe("a site's first build or a design upgrade (ADR 0158)", () => {
+  it("writes with the standard model on Free, only when writing at Balanced or Deep", () => {
+    const design = (p: typeof free, step: StepKind, effort: Effort) => route({ plan: p, family: "anthropic", step, effort, designPass: true });
+    expect(design(free, "write", "balanced")).toMatchObject({ model: "claude-sonnet-5-5", note: null });
+    expect(design(free, "write", "deep").model).toBe("claude-sonnet-5-5");
+    expect(design(free, "write", "fast").model).toBe("claude-haiku-5-5");
+    expect(design(free, "read", "balanced").model).toBe("claude-haiku-5-5");
+    expect(pick(free, "write", "balanced").model).toBe("claude-haiku-5-5");
+    // Paid plans route as before.
+    expect(design(pro, "write", "deep").model).toBe("claude-opus-5-5");
+    expect(design(plus, "write", "balanced").model).toBe("claude-sonnet-5-5");
+  });
+});
+
 describe("Auto routing", () => {
   it("reads and plans on the fast model and writes on the standard one when Balanced", () => {
     expect(pick(pro, "read", "balanced").model).toBe("claude-haiku-5-5");

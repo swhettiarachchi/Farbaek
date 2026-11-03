@@ -198,6 +198,17 @@ describe("Tool Definition Pinning (ADR 0133)", () => {
     expect(model.requests).toEqual([]);
   });
 
+  it("writes a first build with Sonnet on Free for Farbaek's own runs only (ADR 0158)", async () => {
+    const free = { billing: { state: "free" } as BillingSnapshot };
+    const own = fakeModel(reply());
+    await callModel(fakeDeps(free).deps, own, { ...agent, agentId: "run:r1" }, body({ design: true }));
+    expect(own.requests[0]!.model).toBe("claude-sonnet-5-5");
+    // A paired agent asking for it gets the plan's usual model.
+    const paired = fakeModel(reply());
+    await callModel(fakeDeps(free).deps, paired, agent, body({ design: true }));
+    expect(paired.requests[0]!.model).toBe("claude-haiku-5-5");
+  });
+
   it("doesn't pin Farbaek's own cloud runs, which bring Farbaek's tools", async () => {
     const seen: string[] = [];
     const { deps } = fakeDeps();

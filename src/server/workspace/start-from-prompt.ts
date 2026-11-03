@@ -10,7 +10,7 @@
  * exist and the plan card says the contract needs writing by hand.
  */
 import type { Effort } from "@/core/agent/routing";
-import { cleanPrompt, projectNameFromPrompt, starterForPrompt, taskTitleFromPrompt } from "@/core/agent/prompt-start";
+import { cleanPrompt, projectNameFromPrompt, starterForPrompt, taskTitleFromPrompt, templateForPrompt } from "@/core/agent/prompt-start";
 import { getStarter, type StarterId } from "@/content/starters";
 import type { ContractDrafter } from "@/server/ai/contract-drafter";
 import { draftContractWithAi } from "./ai-drafting";
@@ -47,7 +47,10 @@ export async function startFromPrompt(
 
   // A follow-up goes into the project it's about; a new idea gets its own project from a fitting starter.
   const name = input.existing?.name ?? projectNameFromPrompt(prompt);
-  const starter = (input.starter ? getStarter(input.starter) : null) ?? getStarter(starterForPrompt(prompt))!;
+  // A website with no template chosen starts from the premium direction for its kind of business, when one fits (ADR 0158).
+  const kind = starterForPrompt(prompt);
+  const direction = kind === "static-website" ? templateForPrompt(prompt) : null;
+  const starter = (input.starter ? getStarter(input.starter) : null) ?? (direction ? getStarter(direction as StarterId) : null) ?? getStarter(kind)!;
   const project: WriteResult<string> = input.existing
     ? { ok: true, value: input.existing.id }
     : await createProject(deps, { orgId: input.orgId, userId: input.userId, name, description: prompt.slice(0, 500) });
@@ -84,7 +87,7 @@ export async function startFromPrompt(
         ? input.existing.description
         : starter.kind === "template"
           ? // A template's files are sample content for a different product: its features aren't part of this brief.
-            `${prompt}\n\nThe project starts from the ${starter.name} template. Its files are sample content for a different product, with a DESIGN.md: keep the structure and quality that fit, and replace the content, the signature element and anything specific to the sample with what this brief needs.`
+            `${prompt}\n\nThe project starts from the ${starter.name} template. Its files are sample content for a different product, with a DESIGN.md: keep the structure and quality that fit, and replace the content, the signature element and anything specific to the sample with what this brief needs. If it's built on the Farbaek Studio kit, keep the kit, the look's level of finish and its 3D and motion, and swap each photo for the closest one of the same kind for this business; never leave a photo whose subject doesn't fit.`
           : `${prompt}\n\nThe project starts from the ${starter.name} starter: ${starter.summary}${
               starter.files.some((f) => f.path === "DESIGN.md")
                 ? starter.id === "static-website"
