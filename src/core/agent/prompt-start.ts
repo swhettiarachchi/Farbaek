@@ -73,7 +73,7 @@ const LIGHT_STEP: TokenUsage = { inputTokens: 400, cacheReadTokens: 5_000, outpu
 const HEAVY_STEP: TokenUsage = { inputTokens: 1_500, cacheReadTokens: 25_000, outputTokens: 1_200 };
 const STEPS = { fast: [3, 10], balanced: [4, 18], deep: [6, 28] } as const;
 
-/** About how much more a first build or a design upgrade takes than a change to one part (ADR 0158). */
+/** About how many more steps a first build or a design upgrade takes at the least than a change to one part (ADR 0158). */
 const WHOLE_SITE_SCALE = 2.5;
 
 /** The opening words of the Upgrade its design brief, which its task title keeps (src/core/media/studio-kit.ts). */
@@ -105,10 +105,10 @@ export function shareOfPeriod(units: number, periodUnits: number | null): string
 export function estimateRunShare(input: { model: string; effort: keyof typeof STEPS; periodUnits: number | null; wholeSite?: boolean }): { low: number; high: number } | null {
   if (!input.periodUnits || input.periodUnits <= 0) return null;
   const [fewest, most] = STEPS[input.effort];
-  // A whole site written or redesigned takes more and bigger steps than a change to one part.
-  const scale = input.wholeSite ? WHOLE_SITE_SCALE : 1;
-  const low = fewest * scale * costUnits(input.model, LIGHT_STEP);
-  const high = most * scale * costUnits(input.model, HEAVY_STEP);
-  const pct = (units: number) => Math.max(1, Math.round((units / input.periodUnits!) * 100));
+  // A whole site written or redesigned never takes as few steps as a small change, so its low end rises. The high
+  // end is already a long run of heavy steps, and a run can't use more than the whole period, so it stops at 100%.
+  const low = fewest * (input.wholeSite ? WHOLE_SITE_SCALE : 1) * costUnits(input.model, LIGHT_STEP);
+  const high = most * costUnits(input.model, HEAVY_STEP);
+  const pct = (units: number) => Math.min(100, Math.max(1, Math.round((units / input.periodUnits!) * 100)));
   return { low: pct(low), high: Math.max(pct(low), pct(high)) };
 }
