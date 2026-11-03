@@ -1,0 +1,332 @@
+{
+  "aurora-signal": {
+    "still-16x9.webp": {
+      "bytes": 17582,
+      "sha": "05a029424877",
+      "width": 1600,
+      "height": 900
+    },
+    "still-4x5.webp": {
+      "bytes": 14286,
+      "sha": "81b2408c8192",
+      "width": 1080,
+      "height": 1350
+    },
+    "loop.mp4": {
+      "bytes": 596917,
+      "sha": "f1444d1d99a8",
+      "width": 1280,
+      "height": 720,
+      "seconds": 10,
+      "fps": 24
+    }
+  },
+  "aurora-ember": {
+    "still-16x9.webp": {
+      "bytes": 16012,
+      "sha": "6fbce9898991",
+      "width": 1600,
+      "height": 900
+    },
+    "still-4x5.webp": {
+      "bytes": 13162,
+      "sha": "39be68eaab61",
+      "width": 1080,
+      "height": 1350
+    },
+    "loop.mp4": {
+      "bytes": 555412,
+      "sha": "d50dc2cf847b",
+      "width": 1280,
+      "height": 720,
+      "seconds": 10,
+      "fps": 24
+    }
+  },
+  "aurora-pearl": {
+    "still-16x9.webp": {
+      "bytes": 7894,
+      "sha": "26661a4a914a",
+      "width": 1600,
+      "height": 900
+    },
+    "still-4x5.webp": {
+      "bytes": 6902,
+      "sha": "8893cd3da2bb",
+      "width": 1080,
+      "height": 1350
+    },
+    "loop.mp4": {
+      "bytes": 413694,
+      "sha": "0c4a5afcd683",
+      "width": 1280,
+      "height": 720,
+      "seconds": 10,
+      "fps": 24
+    }
+  },
+  "glass-signal": {
+    "still-16x9.webp": {
+      "bytes": 47496,
+      "sha": "8ac3c89817a8",
+      "width": 1600,
+      "height": 900
+    },
+    "still-4x5.webp": {
+      "bytes": 48406,
+      "sha": "85e2bd41b01b",
+      "width": 1080,
+      "height": 1350
+    },
+    "loop.mp4": {
+      "bytes": 1287206,
+      "sha": "9b87b326bd63",
+      "width": 1280,
+      "height": 720,
+      "seconds": 10,
+      "fps": 24
+    }
+  },
+  "glass-ember": {
+    "still-16x9.webp": {
+      "bytes": 38532,
+      "sha": "817f252498c8",
+      "width": 1600,
+      "height": 900
+    },
+    "still-4x5.webp": {
+      "bytes": 38934,
+      "sha": "4cfe0f1d1b70",
+      "width": 1080,
+      "height": 1350
+    },
+    "loop.mp4": {
+      "bytes": 1165200,
+      "sha": "d8f0411a573f",
+      "width": 1280,
+      "height": 720,
+      "seconds": 10,
+      "fps": 24
+    }
+  },
+  "glass-pearl": {
+    "still-16x9.webp": {
+      "bytes": 10040,
+      "sha": "98b08d3819b2",
+      "width": 1600,
+      "height": 900
+    },
+    "still-4x5.webp": {
+      "bytes": 10870,
+      "sha": "35f05377c153",
+      "width": 1080,
+      "height": 1350
+    },
+    "loop.mp4": {
+      "bytes": 668755,
+      "sha": "236ae7297669",
+      "width": 1280,
+      "height": 720,
+      "seconds": 10,
+      "fps": 24
+    }
+  },
+  "particles-signal": {
+    "still-16x9.webp": {
+      "bytes": 69280,
+      "sha": "b26a945835cd",
+      "width": 1600,
+      "height": 900
+    },
+    "still-4x5.webp": {
+      "bytes": 75230,
+      "sha": "c38f898ddd8c",
+      "width": 1080,
+      "height": 1350
+    },
+    "loop.mp4": {
+      "bytes": 1573256,
+      "sha": "653b419a2bcc",
+      "width": 1280,
+      "height": 720,
+      "seconds": 10,
+      "fps": 24
+    }
+  },
+  "particles-ember": {
+    "still-16x9.webp": {
+      "bytes": 62026,
+      "sha": "921eb13ec003",
+      "width": 1600,
+      "height": 900
+    },
+    "still-4x5.webp": {
+      "bytes": 64552,
+      "sha": "27980950cc7a",
+      "width": 1080,
+      "height": 1350
+    },
+    "loop.mp4": {
+      "bytes": 1430302,
+      "sha": "f663955401f3",
+      "width": 1280,
+      "height": 720,
+      "seconds": 10,
+      "fps": 24
+    }
+  },
+  "particles-pearl": {
+    "still-16x9.webp": {
+      "bytes": 44282,
+      "sha": "fb0f91c5b787",
+      "width": 1600,
+      "height": 900
+    },
+    "still-4x5.webp": {
+      "bytes": 49350,
+      "sha": "e611ae9f72ea",
+      "width": 1080,
+      "height": 1350
+    },
+    "loop.mp4": {
+      "bytes": 1480626,
+      "sha": "47f77c83310d",
+      "width": 1280,
+      "height": 720,
+      "seconds": 10,
+      "fps": 24
+    }
+  },
+  "horizon-signal": {
+    "still-16x9.webp": {
+      "bytes": 45784,
+      "sha": "4e7b72d05479",
+      "width": 1600,
+      "height": 900
+    },
+    "still-4x5.webp": {
+      "bytes": 36010,
+      "sha": "248740d763ea",
+      "width": 1080,
+      "height": 1350
+    },
+    "loop.mp4": {
+      "bytes": 1425474,
+      "sha": "83bdad9deeb1",
+      "width": 1280,
+      "height": 720,
+      "seconds": 10,
+      "fps": 24
+    }
+  },
+  "horizon-ember": {
+    "still-16x9.webp": {
+      "bytes": 46190,
+      "sha": "87e66d7c5f74",
+      "width": 1600,
+      "height": 900
+    },
+    "still-4x5.webp": {
+      "bytes": 37296,
+      "sha": "9f228df5063d",
+      "width": 1080,
+      "height": 1350
+    },
+    "loop.mp4": {
+      "bytes": 1366098,
+      "sha": "b3ff03357e47",
+      "width": 1280,
+      "height": 720,
+      "seconds": 10,
+      "fps": 24
+    }
+  },
+  "horizon-pearl": {
+    "still-16x9.webp": {
+      "bytes": 21226,
+      "sha": "4a97643eed9b",
+      "width": 1600,
+      "height": 900
+    },
+    "still-4x5.webp": {
+      "bytes": 17290,
+      "sha": "ac4257268ea4",
+      "width": 1080,
+      "height": 1350
+    },
+    "loop.mp4": {
+      "bytes": 1041970,
+      "sha": "55bc6ebb8c41",
+      "width": 1280,
+      "height": 720,
+      "seconds": 10,
+      "fps": 24
+    }
+  },
+  "orb-signal": {
+    "still-16x9.webp": {
+      "bytes": 22994,
+      "sha": "9c6153997abb",
+      "width": 1600,
+      "height": 900
+    },
+    "still-4x5.webp": {
+      "bytes": 24796,
+      "sha": "9dea51a1715e",
+      "width": 1080,
+      "height": 1350
+    },
+    "loop.mp4": {
+      "bytes": 503494,
+      "sha": "02dd79d35336",
+      "width": 1280,
+      "height": 720,
+      "seconds": 10,
+      "fps": 24
+    }
+  },
+  "orb-ember": {
+    "still-16x9.webp": {
+      "bytes": 20448,
+      "sha": "87cfb32df351",
+      "width": 1600,
+      "height": 900
+    },
+    "still-4x5.webp": {
+      "bytes": 20586,
+      "sha": "892b11729c24",
+      "width": 1080,
+      "height": 1350
+    },
+    "loop.mp4": {
+      "bytes": 469124,
+      "sha": "0eff485a3414",
+      "width": 1280,
+      "height": 720,
+      "seconds": 10,
+      "fps": 24
+    }
+  },
+  "orb-pearl": {
+    "still-16x9.webp": {
+      "bytes": 12634,
+      "sha": "07acc51b7131",
+      "width": 1600,
+      "height": 900
+    },
+    "still-4x5.webp": {
+      "bytes": 14046,
+      "sha": "1faebe8ab13b",
+      "width": 1080,
+      "height": 1350
+    },
+    "loop.mp4": {
+      "bytes": 418134,
+      "sha": "c655a42519f0",
+      "width": 1280,
+      "height": 720,
+      "seconds": 10,
+      "fps": 24
+    }
+  }
+}

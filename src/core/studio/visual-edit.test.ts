@@ -1,5 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { DESIGN_ATTR, annotateForDesign, applyVisualEdit, checkHref, checkStyleValue, cssColorToHex, editableText, outline, scanElements, upsertRule } from "./visual-edit";
+import {
+  DESIGN_ATTR,
+  annotateForDesign,
+  applyVisualEdit,
+  attrValue,
+  checkHref,
+  checkStyleValue,
+  cssColorToHex,
+  editableText,
+  hasAttr,
+  mediaRef,
+  mediaSlots,
+  outline,
+  relativeHref,
+  scanElements,
+  upsertRule,
+} from "./visual-edit";
 
 const PAGE = `<!doctype html>
 <html lang="en">
@@ -88,6 +104,81 @@ describe("text, links and images", () => {
   it("sets an image's description", () => {
     const r = applyVisualEdit(files, "index.html", find(PAGE, "img").n, { kind: "image", alt: 'A "sourdough" loaf' });
     expect(r.ok && r.files["index.html"]).toContain('alt="A &quot;sourdough&quot; loaf"');
+  });
+});
+
+describe("media people can replace (ADR 0156)", () => {
+  const MEDIA = `<!doctype html><html lang="en"><body>
+<section class="hero">
+  <video autoplay muted loop playsinline poster="https://www.farbaek.com/media/v1/aurora-signal/still-16x9.webp" aria-hidden="true" data-farbaek-media="hero-video" data-farbaek-placeholder>
+    <source src="https://www.farbaek.com/media/v1/aurora-signal/loop.mp4" type="video/mp4">
+  </video>
+  <div class="scene" data-farbaek-scene="aurora" data-farbaek-media="hero-scene" aria-hidden="true"></div>
+</section>
+<img src="https://picsum.photos/id/42/1600/900" srcset="a.jpg 1x, b.jpg 2x" alt="The café at opening" data-farbaek-media="cafe-photo" data-farbaek-placeholder>
+</body></html>`;
+  const mfiles = { "index.html": MEDIA, "about/team.html": MEDIA };
+  const assets = new Set(["assets/cafe.webp"]);
+  const at = (tag: string, html = MEDIA) => find(html, tag).n;
+
+  it("lists the page's images, videos and scenes, with their placeholders", () => {
+    expect(mediaSlots(scanElements(MEDIA))).toEqual([
+      { n: expect.any(Number), kind: "video", slot: "hero-video", placeholder: true, source: "https://www.farbaek.com/media/v1/aurora-signal/loop.mp4" },
+      { n: expect.any(Number), kind: "scene", slot: "hero-scene", placeholder: false, source: "aurora" },
+      { n: expect.any(Number), kind: "image", slot: "cafe-photo", placeholder: true, source: "https://picsum.photos/id/42/1600/900" },
+    ]);
+    expect(outline(MEDIA).map((i) => i.label)).toEqual(expect.arrayContaining(["3D scene: aurora", "hero-video"]));
+  });
+
+  it("puts the person's own image in, from any page, and the placeholder mark comes off", () => {
+    const r = applyVisualEdit(mfiles, "about/team.html", at("img"), { kind: "media", src: "assets/cafe.webp" }, assets);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const img = find(r.files["about/team.html"]!, "img");
+    expect(attrValue(img, "src")).toBe("../assets/cafe.webp");
+    expect(hasAttr(img, "srcset")).toBe(false);
+    expect(hasAttr(img, "data-farbaek-placeholder")).toBe(false);
+    expect(attrValue(img, "alt")).toBe("The café at opening");
+  });
+
+  it("keeps the mark for a Farbaek file or a stand-in photo", () => {
+    const r = applyVisualEdit(mfiles, "index.html", at("img"), { kind: "media", src: "https://picsum.photos/id/30/1080/1350" }, assets);
+    expect(r.ok && hasAttr(find(r.files["index.html"]!, "img"), "data-farbaek-placeholder")).toBe(true);
+    const own = applyVisualEdit(mfiles, "index.html", at("img"), { kind: "media", src: "https://cdn.example.com/my-cafe.jpg" }, assets);
+    expect(own.ok && hasAttr(find(own.files["index.html"]!, "img"), "data-farbaek-placeholder")).toBe(false);
+  });
+
+  it("replaces a video's source and poster", () => {
+    const r = applyVisualEdit(mfiles, "index.html", at("video"), { kind: "media", src: "https://cdn.example.com/kitchen.webm", poster: "assets/cafe.webp" }, assets);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const html = r.files["index.html"]!;
+    expect(attrValue(find(html, "source"), "src")).toBe("https://cdn.example.com/kitchen.webm");
+    expect(attrValue(find(html, "source"), "type")).toBe("video/webm");
+    expect(attrValue(find(html, "video"), "poster")).toBe("assets/cafe.webp");
+    expect(hasAttr(find(html, "video"), "data-farbaek-placeholder")).toBe(false);
+    expect(hasAttr(find(html, "video"), "playsinline")).toBe(true);
+  });
+
+  it("refuses what isn't https or the project's own image", () => {
+    const img = at("img");
+    for (const bad of ["http://x.test/a.jpg", "javascript:alert(1)", "data:image/png;base64,AA", "//x.test/a.jpg", "assets/missing.webp", "../assets/cafe.webp", "a b.jpg", ""]) {
+      expect(applyVisualEdit(mfiles, "index.html", img, { kind: "media", src: bad }, assets).ok, bad).toBe(false);
+    }
+    // Projects can't hold video, so a video only takes an https address.
+    expect(applyVisualEdit(mfiles, "index.html", at("video"), { kind: "media", src: "assets/cafe.webp" }, assets).ok).toBe(false);
+    expect(applyVisualEdit(mfiles, "index.html", at("section"), { kind: "media", src: "https://x.test/a.jpg" }, assets).ok).toBe(false);
+    expect(mediaRef("index.html", "https://x.test/a.jpg", "image", assets)).toBe("https://x.test/a.jpg");
+    expect(relativeHref("a/b/c.html", "a/x.webp")).toBe("../x.webp");
+    expect(relativeHref("index.html", "assets/x.webp")).toBe("assets/x.webp");
+  });
+
+  it("switches a scene, to scenes the kit has", () => {
+    const box = scanElements(MEDIA).find((e) => attrValue(e, "data-farbaek-scene") !== null)!.n;
+    const r = applyVisualEdit(mfiles, "index.html", box, { kind: "scene", scene: "glass" });
+    expect(r.ok && r.files["index.html"]).toContain('data-farbaek-scene="glass"');
+    expect(applyVisualEdit(mfiles, "index.html", box, { kind: "scene", scene: "teapot" }).ok).toBe(false);
+    expect(applyVisualEdit(mfiles, "index.html", at("img"), { kind: "scene", scene: "glass" }).ok).toBe(false);
   });
 });
 

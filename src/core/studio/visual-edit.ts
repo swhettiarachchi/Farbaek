@@ -14,6 +14,8 @@
  * Framework-free: shared by the web app and tests.
  */
 
+import { SCENE_NAMES, isLibraryUrl } from "@/core/media/library";
+import { isPhotoUrl } from "@/core/media/photos";
 import { resolveSitePath } from "@/core/workspace/static-preview";
 
 export interface SourceAttr {
@@ -195,6 +197,31 @@ export function editableText(html: string, el: SourceElement): string | null {
 }
 
 export const attrValue = (el: SourceElement, name: string): string | null => el.attrs.find((a) => a.name === name)?.value ?? null;
+/** Whether the element has the attribute at all, with a value or without (data-farbaek-placeholder has none). */
+export const hasAttr = (el: SourceElement, name: string): boolean => el.attrs.some((a) => a.name === name);
+
+/** An image, a video or a Farbaek Scenes box on the page (ADR 0156), as Studio's media list shows it. */
+export interface MediaSlot {
+  n: number;
+  kind: "image" | "video" | "scene";
+  /** The slot's name (data-farbaek-media), or null when the build didn't name it. */
+  slot: string | null;
+  /** Still a stand-in for the person's own (data-farbaek-placeholder). */
+  placeholder: boolean;
+  /** The image or video address, or the scene's name. */
+  source: string | null;
+}
+
+export function mediaSlots(elements: readonly SourceElement[]): MediaSlot[] {
+  return elements.flatMap((el): MediaSlot[] => {
+    const scene = attrValue(el, "data-farbaek-scene");
+    const kind = el.tag === "img" ? "image" : el.tag === "video" ? "video" : scene !== null ? "scene" : null;
+    if (!kind) return [];
+    const firstSource = kind === "video" ? el.children.map((c) => elements[c]!).find((c) => c.tag === "source" && attrValue(c, "src")) : undefined;
+    const source = kind === "scene" ? scene : (attrValue(el, "src") ?? (firstSource ? attrValue(firstSource, "src") : null));
+    return [{ n: el.n, kind, slot: attrValue(el, "data-farbaek-media"), placeholder: hasAttr(el, "data-farbaek-placeholder"), source }];
+  });
+}
 
 /** What a person can pick, as the page's outline: headings, text, links, buttons, images and list items inside the body. */
 export const PICKABLE = new Set(["h1", "h2", "h3", "h4", "h5", "h6", "p", "a", "button", "img", "li", "blockquote", "figcaption", "label", "span", "small", "strong", "em", "section", "header", "footer", "nav", "main", "article"]);
@@ -210,10 +237,18 @@ export function outline(html: string, elements: SourceElement[] = scanElements(h
     return body ? -1 : depth;
   };
   return elements.flatMap((el) => {
-    if (!PICKABLE.has(el.tag)) return [];
+    const scene = attrValue(el, "data-farbaek-scene");
+    if (!PICKABLE.has(el.tag) && el.tag !== "video" && scene === null) return [];
     const depth = inside(el);
     if (depth < 0) return [];
-    const text = el.tag === "img" ? (attrValue(el, "alt") ?? attrValue(el, "src") ?? "") : visibleText(html, el, elements);
+    const text =
+      scene !== null
+        ? `3D scene: ${scene}`
+        : el.tag === "img"
+          ? (attrValue(el, "alt") ?? attrValue(el, "src") ?? "")
+          : el.tag === "video"
+            ? (attrValue(el, "aria-label") ?? attrValue(el, "data-farbaek-media") ?? "Video")
+            : visibleText(html, el, elements);
     if (!text && !["section", "header", "footer", "nav", "main", "article"].includes(el.tag)) return [];
     return [{ n: el.n, tag: el.tag, label: text.slice(0, 80), depth }];
   });
@@ -266,6 +301,15 @@ export type VisualEdit =
   | { kind: "text"; text: string }
   | { kind: "link"; href: string }
   | { kind: "image"; alt: string }
+  /**
+   * A new image or video (ADR 0156): an https address, or a project image's
+   * path from the project's root. A video can also get a new poster. The
+   * placeholder mark comes off for the person's own image or link, and stays
+   * for a Farbaek library file or a stand-in photo.
+   */
+  | { kind: "media"; src: string; poster?: string | null }
+  /** Another scene in a Farbaek Scenes box. */
+  | { kind: "scene"; scene: string }
   /** A value per property; null removes the property from the element's rule. */
   | { kind: "style"; props: Partial<Record<StyleProp, string | null>> };
 
@@ -301,13 +345,70 @@ export function checkHref(href: string): string | null {
   return h;
 }
 
+/** A path from `page` to the project file `target`, as an href written in that page. */
+export function relativeHref(page: string, target: string): string {
+  const from = page.split("/").slice(0, -1);
+  const to = target.split("/");
+  let k = 0;
+  while (k < from.length && k < to.length - 1 && from[k] === to[k]) k++;
+  return [...Array(from.length - k).fill(".."), ...to.slice(k)].join("/");
+}
+
+/**
+ * Where a replaced image or video may point, written for `page`, or null:
+ * an https address, or (for images) a project image's path from the root,
+ * which must be one of `assets`. Projects can't hold video yet (ADR 0108).
+ */
+export function mediaRef(page: string, src: string, kind: "image" | "video", assets: ReadonlySet<string>): string | null {
+  const s = src.trim();
+  if (!s || s.length > 2_000 || /[\s<>"'`]/.test(s)) return null;
+  // Farbaek's own library files are always allowed, wherever the library is served from (a local build serves it over http).
+  if (isLibraryUrl(s)) return s;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(s)) return /^https:\/\/[^/]/i.test(s) ? s : null;
+  if (kind === "video" || s.startsWith("//") || s.split("/").includes("..")) return null;
+  const path = s.replace(/^\/+/, "");
+  return assets.has(path) ? relativeHref(page, path) : null;
+}
+
+function removeAttribute(html: string, el: SourceElement, name: string): string {
+  const attr = el.attrs.find((a) => a.name === name);
+  if (!attr) return html;
+  const from = /\s/.test(html[attr.start - 1] ?? "") ? attr.start - 1 : attr.start;
+  return html.slice(0, from) + html.slice(attr.end);
+}
+
+function replaceMedia(html: string, n: number, src: string, poster: string | null): string {
+  let out = html;
+  const at = (k: number) => scanElements(out)[k]!;
+  const el = at(n);
+  if (el.tag === "img") {
+    out = setAttribute(out, el, "src", src);
+    out = removeAttribute(out, at(n), "srcset");
+  } else {
+    // A video's address is its own src, else its first <source>; the type follows the file.
+    const source = el.children.map((c) => scanElements(out)[c]!).find((c) => c.tag === "source" && attrValue(c, "src") !== null);
+    if (attrValue(el, "src") !== null || !source) out = setAttribute(out, el, "src", src);
+    else {
+      out = setAttribute(out, source, "src", src);
+      const type = /\.webm(?:[?#]|$)/i.test(src) ? "video/webm" : /\.mp4(?:[?#]|$)/i.test(src) ? "video/mp4" : null;
+      out = type ? setAttribute(out, at(source.n), "type", type) : removeAttribute(out, at(source.n), "type");
+    }
+    if (poster) out = setAttribute(out, at(n), "poster", poster);
+  }
+  // A library file or a stand-in photo is still a placeholder; the person's own image or link isn't.
+  const standIn = isLibraryUrl(src) || isPhotoUrl(src);
+  if (standIn) return hasAttr(at(n), "data-farbaek-placeholder") ? out : setAttribute(out, at(n), "data-farbaek-placeholder", "");
+  return removeAttribute(out, at(n), "data-farbaek-placeholder");
+}
+
 /**
  * Applies one visual edit to the page's element `n` and returns the files it
  * changed. Text and links change the HTML in place; styles go into a CSS rule
  * for the element: the page's own stylesheet when it links one in the
- * project, otherwise a style block in its head.
+ * project, otherwise a style block in its head. `assets` are the project's
+ * image paths, which a replaced image may point at.
  */
-export function applyVisualEdit(files: Readonly<Record<string, string>>, page: string, n: number, edit: VisualEdit): EditResult {
+export function applyVisualEdit(files: Readonly<Record<string, string>>, page: string, n: number, edit: VisualEdit, assets: ReadonlySet<string> = new Set()): EditResult {
   const html = files[page];
   if (html === undefined) return { ok: false, reason: `There's no ${page} in this project.` };
   const elements = scanElements(html);
@@ -330,6 +431,25 @@ export function applyVisualEdit(files: Readonly<Record<string, string>>, page: s
     if (el.tag !== "img") return { ok: false, reason: "Only images have a description." };
     if (edit.alt.length > 500) return { ok: false, reason: "Keep the description under 500 characters." };
     return changed(files, { [page]: setAttribute(html, el, "alt", edit.alt.replace(/\s+/g, " ").trim()) });
+  }
+  if (edit.kind === "media") {
+    if (el.tag !== "img" && el.tag !== "video") return { ok: false, reason: "Only images and videos can be replaced." };
+    const kind = el.tag === "img" ? "image" : "video";
+    const src = mediaRef(page, edit.src, kind, assets);
+    if (src === null) {
+      return {
+        ok: false,
+        reason: kind === "image" ? "Use an image in this project or an https address." : "Use a Farbaek library video or an https address. Projects can't hold video files yet.",
+      };
+    }
+    const poster = edit.poster ? mediaRef(page, edit.poster, "image", assets) : null;
+    if (edit.poster && poster === null) return { ok: false, reason: "Use an image in this project or an https address for the poster." };
+    return changed(files, { [page]: replaceMedia(html, n, src, poster) });
+  }
+  if (edit.kind === "scene") {
+    if (attrValue(el, "data-farbaek-scene") === null) return { ok: false, reason: "Only a 3D scene box has a scene." };
+    if (!(SCENE_NAMES as readonly string[]).includes(edit.scene)) return { ok: false, reason: "That isn't one of the Farbaek scenes." };
+    return changed(files, { [page]: setAttribute(html, el, "data-farbaek-scene", edit.scene) });
   }
 
   const decls: [StyleProp, string | null][] = [];

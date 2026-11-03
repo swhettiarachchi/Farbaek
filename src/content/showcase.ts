@@ -200,8 +200,13 @@ export interface Capability {
 
 export const CAPABILITIES: readonly Capability[] = [
   { id: "plan", title: "A plan before anything is built", body: "Describe it in plain words. Farbaek drafts an intent contract you edit and approve.", status: "working" },
-  { id: "design", title: "Design to a studio standard", body: "Every build starts with a design read: a palette, type, a signature element and a motion plan.", status: "working" },
-  { id: "skills", title: "Skills, including your own", body: "Eight built-in design skills, plus your own in the open SKILL.md format.", status: "working" },
+  {
+    id: "design",
+    title: "Design to a studio standard",
+    body: "Every build starts with a design read, then gets a 3D moment, motion, and photos and video you can replace in a click.",
+    status: "working",
+  },
+  { id: "skills", title: "Skills, including your own", body: "Ten built-in design skills, plus your own in the open SKILL.md format.", status: "working" },
   { id: "agent", title: "An agent you can steer", body: "It builds in the cloud under the plan you approved. Message it mid-run; every tool call is checked against the plan.", status: "working" },
   { id: "preview", title: "Previews of real code", body: "Static sites preview instantly. Apps with a server run in an isolated sandbox.", status: "app-previews" },
   { id: "checks", title: "Checks before it's done", body: "The agent reviews its own pages, security checks score the code, and contract checks run real commands.", status: "working" },

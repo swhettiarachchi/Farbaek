@@ -8,16 +8,21 @@
  * site's other pages are passed to the parent, which switches the page.
  */
 
+import { MEDIA_ORIGIN } from "@/core/media/library";
+
 export const PREVIEW_NAV_MESSAGE = "farbaek-preview-nav";
+
+/** Where Farbaek Scenes (Farbaek's own 3D kit) and the media library are served (ADR 0156). */
+const KIT_ORIGIN = MEDIA_ORIGIN;
 
 const CSP = [
   "default-src 'none'",
   "style-src 'unsafe-inline' https:",
-  // Inline code, plus pinned libraries (three.js, animation libraries) from the CDNs the Studio standard names (ADR 0030).
-  "script-src 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com",
-  "img-src data: blob: https:",
+  // Inline code, pinned libraries (three.js, animation libraries) from the CDNs the Studio standard names (ADR 0030), and Farbaek Scenes (ADR 0156).
+  `script-src 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com ${KIT_ORIGIN}`,
+  `img-src data: blob: https: ${KIT_ORIGIN}`,
   "font-src data: https:",
-  "media-src data: https:",
+  `media-src data: https: ${KIT_ORIGIN}`,
   "connect-src 'none'",
   "frame-src 'none'",
   "form-action 'none'",
