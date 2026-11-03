@@ -293,6 +293,27 @@
   }
 }
 
+/*
+ * The app's first screen: the thread between "How a build goes" steps draws
+ * down as it scrolls through the screen. Where scroll-linked animation isn't
+ * supported, or motion is reduced, it's simply drawn.
+ */
+@keyframes thread-draw {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .first-run-thread {
+      animation: thread-draw linear both;
+      animation-timeline: view();
+      animation-range: entry 40% cover 55%;
+    }
+  }
+}
+
 @keyframes usage-in {
   from {
     opacity: 0;
