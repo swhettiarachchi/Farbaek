@@ -53,10 +53,11 @@ Projects store only images (2 MB each, in Postgres), so a build can't carry vide
   - **Phone speed:** a still first, LCP under 2.5 s, no CSS filters (ADR 0055).
   - **Honesty:** the agent can't generate images; the person can, on the Files page.
 - **Skills:**
-  - Motion and interaction, 3D and depth, and Brand identity are ticked by default for anything people will see (not an API with no pages). People can untick them.
+  - Motion and interaction, 3D and depth, and Brand identity are ticked by default for anything people will see (not an API with no pages), plus Flagship site craft for a website. People can untick them.
   - Up to two more are suggested.
-  - New skills: Luxury and editorial; Video and media.
+  - New skills: Flagship site craft; Luxury and editorial; Video and media.
   - 3D and depth now leads with Farbaek Scenes.
+  - **Flagship site craft** came from studying shopify.com closely at the owner's request (2026-11-03): how its hero, type, section rhythm, story cards, proof and numbers work. The skill states those as patterns in Farbaek's own words, carried out in each brand's own look. It copies no layout, colours, copy or assets.
 - **`review_site`** adds:
   - **fix:**
     - autoplay without `muted` and `playsinline`;

@@ -52,6 +52,25 @@ description: A memorable 3D moment on every site, from Farbaek Scenes and CSS 3D
 - Never more than one WebGL scene in view at a time. A second 3D moment further down the page uses CSS 3D or a library video loop instead.`,
   ),
   skill(
+    "Flagship site craft",
+    /\b(landing page|home ?page|marketing (?:site|page)|launch page|product launch|startup)\b/i,
+    `---
+name: flagship-site-craft
+description: The composition, rhythm and proof of the best commercial websites (the level of shopify.com or stripe.com), carried out in this brand's own look.
+---
+- Hero as a film still: full-bleed real media (a library video loop, a real photo of the person's world, or a Farbaek Scenes moment) under a soft scrim; a large headline of two lines (64 to 96 px on desktop, 40 to 48 px on phones, light to medium weight, tight tracking), left-aligned; one or two short sentences; one solid pill button and at most one quiet outlined one. The navigation sits over the hero, transparent, and turns solid once the page scrolls.
+- A rotating word in the headline is welcome when it shows the range of what the product does (a phrase like "Be the next ___" cycling three to six endings with a vertical slide), held still under reduced motion.
+- Two-tone headlines open a section: the first sentence in full ink, the rest in the muted tone, for example "Sell everywhere. Online, in person and on social." Use it two or three times a page, not everywhere.
+- Rhythm by colour blocks: sections change background (deep ink, a dark tinted with the brand colour, a light surface), and each new block starts with large rounded top corners (32 to 48 px) that overlap the one before, so the page reads as stacked panels. One or two tints, never a rainbow.
+- Story cards: one wide card per idea, with a living visual inside (a prompt that types, items that assemble, a scene that changes as you scroll), a two-line headline and one sentence. Hold the card with position: sticky while its visual steps through two or three states, and show the final state as a still under reduced motion.
+- Show the real product and real people: UI previews built from working components, a slow marquee of real work or customers (each labelled), customer stories as a photo, a name and one specific result in bold, and a short quote card overlapping a photo with the person's name and role. Invented ones are labelled as samples.
+- Numbers that land: one or two huge, light numerals (96 to 160 px) with a small label and an icon above, a sentence with a thin accent rule beside it, and the source in small print. No number without a source or a "sample" label.
+- Feature trios done right: three cards, each with its own visual (a UI moment, a photo, an animated diagram), a short bold title and one sentence with underlined inline links. Never three identical icon cards.
+- A small floating video teaser (muted, in a bottom corner, with a play label and a close button) can carry the brand story without taking over the hero.
+- Close with a real sequence of three steps to get started (numbered only because the order matters), one last call to action, and a dense, well-organised footer.
+- Spacing and type: 120 to 200 px between sections on desktop, 72 to 96 px on phones; body text muted at 16 to 18 px; links in body copy underlined. On phones everything stacks, marquees keep moving slowly, and sticky stories become plain sequences.`,
+  ),
+  skill(
     "Luxury and editorial",
     /\b(luxur\w*|high[- ]end|exclusive|elegan\w*|boutique|jewel\w*|fashion|couture|hotel|resort|villa|spa|real estate|propert(?:y|ies)|interior\w*|architect\w*|fine dining|wine\w*|watch(?:es|maker)|perfume|fragrance|yacht\w*)\b/i,
     `---
@@ -171,14 +190,18 @@ export function getBuiltInSkill(id: string): BuiltInSkill | null {
 
 /** The premium core (ADR 0156): on by default for every build people will see. */
 export const CORE_SKILL_IDS = ["motion-and-interaction", "3d-and-depth", "brand-identity"] as const;
+/** Added to the core for a website: the craft of the best commercial sites. */
+export const SITE_SKILL_ID = "flagship-site-craft";
 
 /**
  * The skills ticked on the plan card: the premium core for anything people
- * will see (not an API with no pages), plus up to two more that fit the plan.
- * People can still untick any of them.
+ * will see (not an API with no pages), the flagship craft for a website, and
+ * up to two more that fit the plan. People can still untick any of them.
  */
 export function defaultSkills(text: string): BuiltInSkill[] {
-  const core = starterForPrompt(text) === "rest-api" ? [] : CORE_SKILL_IDS.map((id) => getBuiltInSkill(id)!);
+  const starter = starterForPrompt(text);
+  const ids = starter === "rest-api" ? [] : [...CORE_SKILL_IDS, ...(starter === "static-website" ? [SITE_SKILL_ID] : [])];
+  const core = ids.map((id) => getBuiltInSkill(id)!);
   const extra = suggestSkills(text, FARBAEK_SKILLS.length).filter((s) => !core.includes(s));
   return [...core, ...extra.slice(0, 2)];
 }

@@ -76,10 +76,24 @@ The owner wants everything Farbaek builds to be:
 - The plan drafter knows the kit and library are allowed, so it doesn't ask about them.
 
 **Skills**
-- Motion, 3D and brand identity are ticked by default for anything people will see.
-- New skills: "Luxury and editorial" and "Video and media".
+- Motion, 3D and brand identity are ticked by default for anything people will see, plus "Flagship site craft" for a website.
+- New skills: "Flagship site craft", "Luxury and editorial" and "Video and media".
 - "3D and depth" now leads with Farbaek Scenes.
-- The homepage says "Ten built-in design skills", and the design line now names the 3D moment, motion and replaceable media.
+- The homepage says "Eleven built-in design skills", and the design line now names the 3D moment, motion and replaceable media.
+
+**"Flagship site craft", from a study of shopify.com**
+- At the owner's request I went through shopify.com section by section in Chrome, with screenshots and its page text. The skill turns what makes it work into patterns, in Farbaek's own words:
+  - a hero like a film still (real media, a two-line headline, one solid pill and one quiet one, navigation over it);
+  - a rotating word when it shows range;
+  - two-tone section openers;
+  - colour-block sections joined by large rounded top corners;
+  - sticky story cards whose visual steps through states;
+  - real product UI and real customers (a labelled marquee, photo stories with one bold result, a quote card over a photo);
+  - huge light numerals with a label, an accent rule and a source;
+  - feature trios with their own visuals;
+  - a small floating video teaser;
+  - a real three-step start, then a dense footer.
+- It's carried out in each brand's own look and copies nothing.
 
 **`review_site`**
 - **Must fix:**
