@@ -93,7 +93,8 @@ esac
 
 $OutputEncoding = New-Object System.Text.UTF8Encoding $false
 Write-Host "1 of 2: testing $account from the server..." -ForegroundColor Cyan
-$result = (($remote.Replace("__CHECK__", $check).Replace("__B64__", $b64)) -replace "`r", "") | ssh @ssh "bash -s"
+# Windows PowerShell ends piped text with CRLF, which would turn the final "esac" into "esac\r": the server strips it.
+$result = (($remote.Replace("__CHECK__", $check).Replace("__B64__", $b64)) -replace "`r", "") | ssh @ssh "tr -d '\r' | bash -s"
 $b64 = $null
 if ($LASTEXITCODE -ne 0) { Write-Host "The server didn't answer. Check the connection and try again. Nothing changed." -ForegroundColor Red; exit 1 }
 $lines = @($result)

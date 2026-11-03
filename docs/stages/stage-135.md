@@ -112,3 +112,19 @@ Google Play production opens around 2026-11-16, after the closed test's 14 days.
 - **The owner's steps** in `docs/mobile/android.md` section 4: payments profile, service account, script, subscriptions, license testers, the 1.1.0 upload, declarations, `-TurnOn`.
 - **The end-to-end test** with a license tester on the closed test.
 - **An iPhone build** that knows `managedBy: "google"`.
+
+## 2026-11-03: the service account
+
+### Done
+
+- **Google Cloud:** project `farbaek-play` (the owner pressed Create; no billing). Claude turned on the Google Play Android Developer API and created the service account `farbaek-play-billing@farbaek-play.iam.gserviceaccount.com` with no Cloud roles, then made its JSON key (it went to the owner's Downloads; its contents were never read).
+- **Play Console:** Claude filled the invite (account permissions "View financial data, orders, and cancellation survey responses" and "Manage orders and subscriptions"); auto mode refuses the final Send invite, so the owner pressed it. The account shows Active.
+- **`scripts/vps/set-google-play.ps1` fix:** its first real run failed on the server with `syntax error near unexpected token 'newline'` at `esac`. Windows PowerShell ends text piped to a native program with CRLF, so the script's last line arrived as `esac\r`. The server now strips carriage returns before bash reads it (`tr -d '\r' | bash -s`, as `set-signing-key.ps1` does).
+
+### Verified
+
+- The fixed script's run reached Google: the key signs in, and Google Play answers 401/403 for purchases, which is its new-access delay (up to a day). It printed only status lines and saved nothing.
+
+### Next
+
+- Run `set-google-play.ps1` again once Google Play's access starts working, then add a license tester and `-TurnOn`.
