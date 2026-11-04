@@ -27,16 +27,16 @@ describe("the film timeline", () => {
     expect(typed("Hello there", 99_000, 1000)).toBe("Hello there");
     const { chapters } = FILMS.build;
     expect(chapterAt(chapters, 0).chapter.id).toBe("describe");
-    expect(chapterAt(chapters, 8_000).chapter.id).toBe("plan");
-    expect(chapterAt(chapters, 53_999).index).toBe(chapters.length - 1);
+    expect(chapterAt(chapters, 8_500).chapter.id).toBe("plan");
+    expect(chapterAt(chapters, 57_999).index).toBe(chapters.length - 1);
     expect(clock(62_400)).toBe("1:02");
   });
 
   it("writes WebVTT with one cue per chapter, back to back", () => {
     const vtt = toVtt(FILMS.build.chapters, FILMS.build.durationMs, "caption");
-    expect(vtt.startsWith("WEBVTT\n\n1\n00:00:00.000 --> 00:00:08.000\nDescribe what you want")).toBe(true);
+    expect(vtt.startsWith("WEBVTT\n\n1\n00:00:00.000 --> 00:00:08.500\nDescribe what you want")).toBe(true);
     expect(vtt.trim().endsWith("serves exactly this version.")).toBe(true);
-    expect(vtt).toContain("00:00:46.000 --> 00:00:54.000");
+    expect(vtt).toContain("00:00:48.000 --> 00:00:58.000");
     expect(toVtt(FILMS.build.chapters, FILMS.build.durationMs, "label")).toContain("\nPlan\n");
   });
 });

@@ -1,6 +1,6 @@
 # ADR 0034: Product films, recorded from Farbaek's interface
 
-- Status: accepted (2026-10-21).
+- Status: accepted (2026-10-21). How the films are shot changed with ADR 0164 (the studio).
 - Replaces part of ADR 0008: the in-browser "concept film" and the illustrated thread on the homepage.
 
 ## Context

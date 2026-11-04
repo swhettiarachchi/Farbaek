@@ -33,7 +33,7 @@ export function ProductFilmSection() {
       <Container>
         <div className="mb-10 flex flex-col gap-4 lg:mb-14 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
           <SectionHeading id="film-title" title="Watch one build, start to finish.">
-            A sample café site goes from one sentence to a checked, published and confirmed live address. Recorded from Farbaek&apos;s interface, with the waits shortened.
+            A sample bakery site goes from one sentence to a checked, published and confirmed live address. Recorded from Farbaek&apos;s interface, with the waits shortened.
           </SectionHeading>
           <FilmMeta id="build" />
         </div>

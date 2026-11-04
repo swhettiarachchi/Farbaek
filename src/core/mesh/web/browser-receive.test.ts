@@ -9,7 +9,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { duplexPair, type Duplex } from "node:stream";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it } from "vitest";
 import { initiate } from "@/agent-runtime/mesh/channel";
 import { SignalChannel } from "@/agent-runtime/mesh/direct-signal";
 import { MeshNode } from "@/agent-runtime/mesh/node";
@@ -26,7 +26,14 @@ import { WebRelay } from "./relay-pipe";
 import { memorySink } from "./sinks";
 import { initiateWeb, type BytePipe } from "./wire";
 
-const tmp = (name: string) => fs.mkdtemp(path.join(os.tmpdir(), `farbaek-webrx-${name}-`));
+// Every temp folder made here is removed after this file's tests, so test runs don't fill the disk.
+const made: string[] = [];
+const tmp = async (name: string) => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), `farbaek-webrx-${name}-`));
+  made.push(dir);
+  return dir;
+};
+afterAll(() => Promise.all(made.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true }))));
 const cleanup: (() => Promise<void>)[] = [];
 afterEach(async () => {
   await Promise.all(cleanup.splice(0).map((c) => c()));
