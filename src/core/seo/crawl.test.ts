@@ -12,6 +12,8 @@ describe("robots rules", () => {
     expect(r.disallow).toContain("/app");
     expect(r.disallow).toContain("/office");
     expect(r.disallow).toContain("/sign-in/password");
+    // The preview frame (ADR 0169) is a shell with nothing to index.
+    expect(r.disallow).toContain("/preview-frame");
     expect(r.sitemap).toBe("https://www.farbaek.com/sitemap.xml");
   });
 

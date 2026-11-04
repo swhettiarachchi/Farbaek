@@ -26,6 +26,7 @@ export const PRIVATE_PATHS = [
   "/sandbox-preview",
   "/site-serve",
   "/film-stage",
+  "/preview-frame",
 ] as const;
 
 export interface RobotsRules {

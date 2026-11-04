@@ -39,13 +39,8 @@
   - No sideways scroll and no console errors.
   - The demo workspace's Security page is unchanged, because its plan has full checks.
 
-## Not checked yet
+## Checked on production (2026-11-04, after PR #198)
 
-- **The rules-check view itself** (note, button label, "Rules check" title) on a real Free workspace. That's the production check after the merge.
-
-## Next
-
-- **After the merge, on production (Far001 is on Free):**
-  - Run the rules check on Sunrise Bakery. The report should say "Rules check" and list the four skipped checks.
-  - The Publish card should then allow publishing.
-  - Don't publish it: Sunrise Bakery stays a private demo.
+- On the Free workspace, Sunrise Bakery's Security page shows **Run the rules check** and the note.
+- The check scored 97 (grade A). It's titled "Rules check" and lists the four skipped checks with the plan as the reason. OSV.dev was skipped because the site has no lockfile.
+- The Publish card no longer asks for a security check. It still needs an owner's reason, because Studio edits came after the last verified change (ADR 0050). It wasn't published: Sunrise Bakery stays a private demo.

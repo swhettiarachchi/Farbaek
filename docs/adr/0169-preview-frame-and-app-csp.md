@@ -1,0 +1,55 @@
+# ADR 0169: Previews in their own frame document, so the app's policy can be enforced
+
+- Status: accepted (2026-11-04).
+- Amends ADR 0107 (the app's nonce Content-Security-Policy) and ADR 0027 (static previews). Builds on ADR 0023 (previews).
+
+## Context
+
+The app sends a nonce Content-Security-Policy on `/app` and `/admin`, report-only (ADR 0107). Enforcing it waited on one thing: previews of people's sites were `srcdoc` iframes, and a `srcdoc` document inherits the embedding page's policy. Enforced, the app's `script-src 'nonce-…' 'strict-dynamic'` would stop every site's own scripts in previews:
+- menus;
+- the Studio kit and Farbaek Scenes;
+- the Studio editor's own script.
+
+Two frames run scripts this way:
+- **`StaticPreview`** on the project page, template pages and build runs;
+- **the Studio visual editor**, whose document is the browser's unsaved draft and which talks to the app in both directions with `postMessage`.
+
+Thumbnails (`SiteThumb`) run no scripts. The running-app frames already load from `p-<id>.farbaek.si`.
+
+## Decision
+
+**A preview frame document at `/preview-frame`** on Farbaek's own host (`src/core/workspace/preview-frame.ts`, served by `src/app/preview-frame/route.ts`).
+- **It's loaded over the network,** so it has its own policy rather than the app's.
+- **Its header policy:**
+  - the static-preview policy, the same string the preview document's meta tag carries (`STATIC_PREVIEW_CSP`);
+  - `sandbox allow-scripts`: the document is an opaque origin even when it's opened directly, so it never has farbaek.com's cookies or storage;
+  - `frame-ancestors 'self'`.
+- **Other headers:** `nosniff`, `no-referrer` and `noindex`, and it's disallowed in robots.
+- **`next.config.ts`** leaves this path out of the global `X-Frame-Options: DENY` and `frame-ancestors 'none'`, and out of the app host's payment permission.
+- **It holds no content of its own.** It renders the site in a nested `<iframe sandbox="allow-scripts" srcdoc>`, which inherits the frame's policy, not the app's.
+- **It relays messages:**
+  - From its parent, it accepts messages only when they come from the parent window at the app's origin. It reads that origin from its own address, since it's served from the app's host.
+    - A `farbaek-preview-doc` message replaces the site's frame with a fresh one.
+    - Anything else is passed to the site.
+  - The site's messages go to the parent at the app's origin, never to `"*"`.
+  - It says `farbaek-preview-ready` when it's listening and `farbaek-preview-loaded` after each document loads.
+
+**Why a path, not a new host on farbaek.si.**
+- The isolation comes from loading the document separately and from the sandbox in its policy, not from the host name.
+- A path needs no DNS, certificate, host routing or proxy matcher.
+- It works the same in development, the demo and production.
+
+**`PreviewFrame`** (`src/components/preview/preview-frame.tsx`) is the app's side.
+- It frames `/preview-frame`, sends the HTML when the frame is ready, and sends it again whenever it changes, without reloading the frame.
+- Every message the site sends arrives from the iframe's own window. So `StaticPreview` and the editor keep their `e.source === frame.contentWindow` checks and their `contentWindow.postMessage` calls unchanged, along with their zod checks.
+
+**Enforcing comes next, after production shows it's safe.**
+1. Once this ships, the signed-in app is walked in Chrome on production, reading the console's report-only violations.
+2. If only previews were ever in the way, the app policy is enforced by default, with `APP_CSP_ENFORCE=0` kept as an escape hatch.
+
+## Consequences
+
+- People's sites run in previews exactly as before, under the same static-preview policy, now from a document the app's policy doesn't reach.
+- The editor's messages to the app are now addressed to the app's origin, stricter than the `"*"` a `srcdoc` frame had to use.
+- Each preview loads one small, cached document from Farbaek before the site appears.
+- Relative addresses a site leaves unresolved now point under `/preview-frame` rather than the app page. They're still blocked by the preview policy or fail as before.

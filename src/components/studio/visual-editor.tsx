@@ -25,6 +25,7 @@ import { z } from "zod";
 import { saveFileAction, uploadStudioImageAction } from "@/app/app/actions";
 import { MediaReplace, PlaceholderChip, ScenePicker } from "@/components/studio/media-replace";
 import { SectionsPanel } from "@/components/studio/sections-panel";
+import { PreviewFrame } from "@/components/preview/preview-frame";
 import { ThemePanel, type ThemePreview } from "@/components/studio/theme-panel";
 import { buttonClasses } from "@/components/ui/button";
 import { SPACE_SIZES, TEXT_SIZES } from "@/core/studio/site-theme";
@@ -453,12 +454,11 @@ export function VisualEditor({
             <p className="grid h-72 place-items-center px-6 text-center text-sm text-ink-3">There&apos;s no {page} to show.</p>
           ) : (
             <div className="mx-auto overflow-hidden rounded-sm bg-surface shadow-e1 motion-safe:transition-[max-width] motion-safe:duration-300" style={{ maxWidth: width ?? "100%" }}>
-              <iframe
-                ref={frame}
+              {/* The preview frame document (ADR 0169) relays the editor's messages both ways, so the bridge is unchanged. */}
+              <PreviewFrame
+                frameRef={frame}
+                html={doc}
                 title={`Visual editor for ${page}`}
-                sandbox="allow-scripts"
-                referrerPolicy="no-referrer"
-                srcDoc={doc}
                 onLoad={() => {
                   const win = frame.current?.contentWindow;
                   win?.postMessage({ type: DESIGN_SECTIONS_MESSAGE, items: sectionItems.map((s) => [s.n, s.label]) }, "*");

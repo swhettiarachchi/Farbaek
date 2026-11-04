@@ -15,6 +15,9 @@ const securityHeaders = [
   },
 ];
 
+// Every path but the preview frame (ADR 0169), which the app frames and which sends its own headers.
+const NOT_PREVIEW_FRAME = "/:path((?!preview-frame$).*)";
+
 // Office Space (ADR 0032) has its own, stricter set; the proxy adds its nonce CSP.
 const OFFICE_HOST = officeHostPattern(process.env.OFFICE_HOST);
 
@@ -41,10 +44,11 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     // Preview hosts are excluded: the sandbox preview gateway sets their headers,
-    // including frame-ancestors for the app's own origin.
+    // including frame-ancestors for the app's own origin. So is the preview frame
+    // (ADR 0169): the app frames it, and its route sends its own policy.
     return [
       {
-        source: "/(.*)",
+        source: NOT_PREVIEW_FRAME,
         missing: [
           { type: "host", value: "p-[a-zA-Z2-7]{26}\\..*" },
           { type: "host", value: OFFICE_HOST },
@@ -54,7 +58,7 @@ const nextConfig: NextConfig = {
       { source: "/(.*)", has: [{ type: "host", value: OFFICE_HOST }], headers: [...OFFICE_STATIC_HEADERS] },
       // Later rules win for the same header: payment for Farbaek's own pages only.
       ...(APP_HOST
-        ? [{ source: "/(.*)", has: [{ type: "host" as const, value: APP_HOST }], headers: [{ key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(self)" }] }]
+        ? [{ source: NOT_PREVIEW_FRAME, has: [{ type: "host" as const, value: APP_HOST }], headers: [{ key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(self)" }] }]
         : []),
       // Farbaek Scenes and the media library (ADR 0156) load into people's published sites and
       // previews, from other origins: module scripts and WebGL textures need CORS. Library files

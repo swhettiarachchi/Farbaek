@@ -234,7 +234,7 @@ Postgres on Supabase with Row Level Security on every table. The browser can onl
 - Next.js is pinned to 16.4.2, which fixes the three advisories published 2026-10-22, two of them critical remote code execution (`docs/security/advisory-2026-10-22-nextjs.md`). Production is safe once that's deployed.
 - Auth and tenant isolation are in place (Supabase email sign-in, RLS, cross-tenant database tests). The live write path hasn't been exercised end to end against the hosted project yet.
 - AI drafting sends task titles, project details and the person's notes to Anthropic. They are sent as data with a system prompt that says so; the output only prefills the editor.
-- CSP covers framing, base URI, forms and objects everywhere. Office Space enforces a nonce CSP (ADR 0032); the app (`/app`, `/admin`) sends one report-only to `/api/csp-report` (ADR 0107). Enforcing waits for previews of people's sites to load from their own origin.
+- CSP covers framing, base URI, forms and objects everywhere. Office Space enforces a nonce CSP (ADR 0032); the app (`/app`, `/admin`) sends one report-only to `/api/csp-report` (ADR 0107). Previews of people's sites now render in `/preview-frame`, which has its own policy (ADR 0169), so enforcing is next, once production shows no other violations.
 - `/.well-known/security.txt` (RFC 9116) points to support@farbaek.com and the `/security` page, and expires 2027-10-26; a test fails 30 days before, so it's renewed on purpose.
 
 ## 6. Cost drivers

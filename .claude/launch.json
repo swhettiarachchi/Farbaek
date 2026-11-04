@@ -91,6 +91,17 @@
         "FARBAEK_FILM_STAGE": "1"
       },
       "port": 3000
+    },
+    {
+      "name": "farbaek-demo-enforce",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/start-demo.mjs"
+      ],
+      "port": 3000,
+      "env": {
+        "APP_CSP_ENFORCE": "1"
+      }
     }
   ]
 }
