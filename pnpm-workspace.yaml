@@ -15,3 +15,9 @@ overrides:
   "@lezer/javascript": 1.5.5
   "@lezer/lr": 1.4.10
   "@lezer/markdown": 1.7.2
+  # Security fixes reached through e2b and @vercel/sandbox (pnpm audit, 2026-11-04). Each
+  # release was about three weeks old when pinned. Drop these once both packages ship them.
+  "undici@>=7.0.0 <7.30.1": 7.30.1
+  # e2b loads undici 8 through an alias on Node 22 and later.
+  "e2b>undici8": npm:undici@8.12.2
+  zod: 4.6.7

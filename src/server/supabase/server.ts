@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { readSupabaseConfig } from "./config";
+import { readSupabaseConfig, sessionCookieOptions } from "./config";
 
 /**
  * A Supabase client bound to the current request's cookies. Create one per
@@ -13,6 +13,7 @@ export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
 
   return createServerClient(config.url, config.publishableKey, {
+    cookieOptions: sessionCookieOptions(),
     cookies: {
       getAll() {
         return cookieStore.getAll();

@@ -9,6 +9,7 @@ import { log } from "@/server/observability/log";
 import { httpStatusFor, type SandboxResult } from "./service";
 import type { ExecutionRecord, ReceiptRecord, SessionRecord } from "./types";
 import { sandboxRequest, type SandboxRequest } from "./wiring";
+import { readTextCapped } from "@/server/http/body";
 
 export const API_VERSION = "2026-10-17";
 
@@ -37,10 +38,8 @@ export function idempotencyKey(request: Request): string {
 export async function readJson(request: Request, maxBytes = 640 * 1024): Promise<{ ok: true; value: Record<string, unknown> } | { ok: false; response: Response }> {
   const type = request.headers.get("content-type") ?? "";
   if (!type.includes("application/json")) return { ok: false, response: problem(415, "UNSUPPORTED_MEDIA_TYPE", "Send JSON with Content-Type: application/json.") };
-  const declared = Number(request.headers.get("content-length") ?? "0");
-  if (declared > maxBytes) return { ok: false, response: problem(413, "TOO_LARGE", "The request body is too large.") };
-  const text = await request.text();
-  if (text.length > maxBytes) return { ok: false, response: problem(413, "TOO_LARGE", "The request body is too large.") };
+  const text = await readTextCapped(request, maxBytes);
+  if (text === null) return { ok: false, response: problem(413, "TOO_LARGE", "The request body is too large.") };
   try {
     const value = JSON.parse(text) as unknown;
     if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error("not an object");

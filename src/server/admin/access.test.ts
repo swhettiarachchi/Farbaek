@@ -21,8 +21,13 @@ describe("the admin allowlist", () => {
 
 describe("checkAdmin", () => {
   it("lets in a listed, confirmed person with a session", async () => {
-    const r = await checkAdmin({ claims: { sub: "u1", email: "hello@farbaek.com" }, lookup: confirmed, env });
+    const r = await checkAdmin({ claims: { sub: "u1", email: "hello@farbaek.com", aal: "aal2" }, lookup: confirmed, env });
     expect(r).toEqual({ ok: true, user: { id: "u1", email: "hello@farbaek.com" } });
+  });
+
+  it("refuses a listed, confirmed admin whose session hasn't passed a second factor", async () => {
+    expect(await checkAdmin({ claims: { sub: "u1", email: "hello@farbaek.com" }, lookup: confirmed, env })).toEqual({ ok: false, reason: "needs_second_factor" });
+    expect(await checkAdmin({ claims: { sub: "u1", email: "hello@farbaek.com", aal: "aal1" }, lookup: confirmed, env })).toEqual({ ok: false, reason: "needs_second_factor" });
   });
 
   it("refuses without a session", async () => {

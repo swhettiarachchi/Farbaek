@@ -10,7 +10,7 @@ import { siteDomain } from "@/server/publish/config";
 import { OFFICE_OPEN_PATH, officeDeviceKnown } from "@/server/office/device-gate";
 import { DEVICE_COOKIE } from "@/server/office/device-token";
 import { createOfficeProxyClient } from "@/server/office/supabase";
-import { readSupabaseConfig, siteUrl } from "@/server/supabase/config";
+import { readSupabaseConfig, sessionCookieOptions, siteUrl } from "@/server/supabase/config";
 
 /**
  * Carries out the host decision in src/server/http/hosts.ts: the preview
@@ -118,6 +118,7 @@ async function appRequest(request: NextRequest) {
 
   let response = NextResponse.next({ request });
   const supabase = createServerClient(config.url, config.publishableKey, {
+    cookieOptions: sessionCookieOptions(),
     cookies: {
       getAll() {
         return request.cookies.getAll();

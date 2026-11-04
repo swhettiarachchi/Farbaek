@@ -8,6 +8,7 @@
 import { receiveAppleIdNotification } from "@/server/auth/apple-notifications";
 import { appleIdNotificationDeps } from "@/server/auth/apple-wiring";
 import { log } from "@/server/observability/log";
+import { readTextCapped } from "@/server/http/body";
 
 export const dynamic = "force-dynamic";
 
@@ -26,8 +27,8 @@ function parse(text: string, contentType: string): unknown {
 export async function POST(request: Request): Promise<Response> {
   const deps = appleIdNotificationDeps();
   if (!deps) return plain(503);
-  const text = await request.text();
-  if (text.length > 16_000) return plain(413);
+  const text = await readTextCapped(request, 16_000);
+  if (text === null) return plain(413);
   try {
     const r = await receiveAppleIdNotification(deps, parse(text, request.headers.get("content-type") ?? ""));
     log(r.status === 200 ? "info" : "warn", "apple_id.notification", { outcome: r.outcome });
