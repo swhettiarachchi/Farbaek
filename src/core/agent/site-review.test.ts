@@ -39,7 +39,7 @@ describe("reviewSite", () => {
     const messages = r.findings.map((f) => f.message);
     expect(messages).toEqual(
       expect.arrayContaining([
-        expect.stringContaining("em or en dash"),
+        expect.stringContaining("em dash, or an en dash outside a range"),
         "Lorem ipsum is still on the page.",
         "A placeholder is still in the copy: [Your price here]",
         expect.stringContaining("no prefers-reduced-motion fallback"),
@@ -49,6 +49,16 @@ describe("reviewSite", () => {
       ]),
     );
     expect(formatSiteReview(r)).toMatch(/^Reviewed 2 pages: \d+ to fix, \d+ to consider/);
+  });
+
+  it("leaves an en dash in a range alone, and still flags one between words or an em dash", () => {
+    const review = (p: string) => reviewSite({ "index.html": GOOD.replace('<button type="button">Book</button>', `<p>${p}</p>`), "about.html": GOOD, "styles.css": CSS, "script.js": "" }).findings.map((f) => f.message);
+    for (const range of ["Monday to Friday 6:00 am – 7:00 pm", "Open 7–10", "Since 2019–2024", "Mon–Fri", "Sat. – Sun.", "9:30am–5pm"]) {
+      expect(review(range), range).toEqual([]);
+    }
+    for (const dash of ["Fast – and quiet", "Fast — and quiet", "7:00 pm — late"]) {
+      expect(review(dash), dash).toEqual([expect.stringContaining("en dash outside a range")]);
+    }
   });
 
   it("counts a control inside its <label> as labelled", () => {
