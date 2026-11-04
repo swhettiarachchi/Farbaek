@@ -3,8 +3,9 @@
  * content the agent replaces, built to the Studio standard (ADR 0030): each
  * has a DESIGN.md, its own look and motion, and a feature that works.
  * HTML, CSS and a little JavaScript with nothing to install, so each previews
- * instantly. The premium directions (ADR 0158, ADR 0160) are on the Studio
- * kit with real stand-in photos and web fonts; the rest are self-contained.
+ * instantly. The premium directions (ADR 0158, ADR 0160, ADR 0163, ADR 0165)
+ * are on the Studio kit with real stand-in photos and web fonts; the dashboard
+ * and CRM are self-contained apps.
  */
 import type { Starter } from "../types";
 import { BLOG_FILES } from "./blog";
@@ -32,7 +33,7 @@ export const TEMPLATES: readonly Starter[] = [
   site({
     id: "saas-site",
     name: "Software site",
-    summary: "A product with plans: a working, tilted product screen, a timeline you can scrub and pricing.",
+    summary: "A software product with plans: a working ledger floating in 3D, a dark chapter where every follow-up plays out, and pricing.",
     files: SAAS_SITE_FILES,
     examplePrompt: "Turn this into the site for my appointment booking app for clinics, with plans at $12 and $29 a month.",
   }),
