@@ -81,7 +81,7 @@ export default async function ApprovalsPage() {
             <li key={t.id}>
               <Link href={`/app/tasks/${t.id}`} className="group flex items-center gap-4 rounded-md border border-dashed border-line-strong/40 bg-surface px-4 py-3 hover:border-line-strong/60">
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[15px] font-medium group-hover:text-accent">{t.title}</span>
+                  <span className="line-clamp-2 text-[15px] font-medium group-hover:text-accent">{t.title}</span>
                   <span className="mt-0.5 block text-xs text-ink-3">
                     In {t.projectName ?? "its project"}, waiting since <RelativeTime iso={t.updatedAt} />. There&apos;s no open proposal on record, so nothing to approve here. Open the task to see why.
                   </span>

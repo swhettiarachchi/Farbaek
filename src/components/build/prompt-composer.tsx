@@ -175,11 +175,12 @@ export function PromptComposer({
           className={`block max-h-[50dvh] w-full resize-none rounded-lg bg-transparent px-5 pb-16 pt-4 text-base leading-relaxed text-ink outline-none field-sizing-content placeholder:text-ink-3 disabled:opacity-70 ${size === "large" ? "min-h-44 sm:min-h-36" : "min-h-40 sm:min-h-24"}`}
         />
         <div className="absolute inset-x-3 bottom-3 flex items-center justify-between gap-3">
-          <p className="flex min-w-0 items-center gap-1.5 truncate pl-2 text-xs text-ink-3" aria-live="polite">
+          {/* Notes wrap to a second line rather than cut off on narrow phones and with larger system text. */}
+          <p className="flex min-w-0 items-center gap-1.5 pl-2 text-xs leading-snug text-ink-3" aria-live="polite">
             {pending ? (
               <PlanningStages stages={projectId ? FOLLOW_UP_STAGES : STAGES} />
             ) : disabledReason ? (
-              <span className="truncate">{disabledReason}</span>
+              <span className="line-clamp-2">{disabledReason}</span>
             ) : (
               <span className="hidden truncate sm:inline">You approve the plan before anything is built.</span>
             )}

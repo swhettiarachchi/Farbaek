@@ -51,3 +51,28 @@ A full audit of the website, the iOS app and the Android app before launch: ever
 
 - **Real phones:** the in-app browser emulates a phone's width and touch.
 - **The iOS app running:** CI compiles it on this push.
+
+### Android feedback (Redmi), the same day
+
+The owner sent a screenshot from a Redmi phone: the header's "Start building" broke onto two lines, the cookie bar was large, and parts of the app didn't fit.
+
+**How it was checked.** Xiaomi phones are 360 to 393 px wide in the browser and default to larger system text, which Chrome on Android follows. The in-app browser was set to 320, 360 and 393 px, and every element's text was enlarged by 15 % and 30 % (spacing unchanged). Each page was then measured for sideways scroll, buttons whose words break, and text cut off. This covered the public pages, Mission Control, Build, New build, Approvals, Projects, a project, its Studio, a task, Billing, Settings, Activity and Agents.
+
+**Fixed:**
+- **Header:** "Start building" stays on one line. Below 400 px its arrow gives its room to the words. When the row still runs out of room, the name next to the logo steps aside (the logo stays, and the link keeps its name for screen readers), so nothing pushes past the screen edge.
+- **The build box:** its note ("The demo workspace is read-only.", or why building is off) wraps to a second line instead of ending in "…".
+- **Task titles** on Mission Control, Build, Approvals and the agent inbox show up to two lines instead of one cut-off line.
+- **The film's chapters** sit two across on phones, so "Launch gate" no longer breaks inside its pill.
+- **The evidence terminal's tabs** get tighter padding on phones and scroll inside their row rather than cutting "contract.json" off.
+- **The cookie bar** is more compact on phones: 13 px text, tighter line height, a smaller icon. Decline and Accept stay the same size, side by side.
+- **Agents, "Download for Windows":** the button grows to two lines rather than spilling out at large text sizes, which matters when the longer Microsoft Store label goes live.
+
+**Checked after the fixes** (a demo build of this branch):
+- 360 px with text at 130 % and 320 px with text at 115 %: no sideways scroll, nothing cut off, and no broken button labels on any of those pages.
+- At 393 px with text at 115 %, the header shows the logo, name, button and menu on one line.
+- Desktop is unchanged.
+
+**Left as they are:**
+- **The project card on Mission Control** has two lines on purpose (name, then date).
+- **The Studio component tree** cuts long class lists with "…" on purpose.
+- **At 130 % text, the Download for Windows button** is two lines tall.
