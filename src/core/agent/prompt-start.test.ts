@@ -73,6 +73,19 @@ describe("premium directions and first builds (ADR 0158)", () => {
     expect(templateForPrompt("A site for my coffee roastery")).toBe("local-business");
   });
 
+  it("starts a site for a software product from the software direction (ADR 0165)", () => {
+    expect(templateForPrompt("A website for our invoicing software")).toBe("saas-site");
+    expect(templateForPrompt("A site for my startup's scheduling tool, with pricing")).toBe("saas-site");
+    expect(templateForPrompt("A landing page for our project management software")).toBe("saas-site");
+    expect(templateForPrompt("A marketing site for a B2B analytics product")).toBe("saas-site");
+    expect(templateForPrompt("Our platform for small businesses to send quotes")).toBe("saas-site");
+    // Hardware launches stay launches, and a coffee shop stays a café.
+    expect(templateForPrompt("A launch page for our new wireless earbuds")).toBe("landing-page");
+    expect(templateForPrompt("A site for my coffee shop")).toBe("local-business");
+    // A site for software is a website, not an app to build.
+    expect(starterForPrompt("A website for our invoicing software")).toBe("static-website");
+  });
+
   it("starts anyone who sells time by appointment from the booking direction (ADR 0163)", () => {
     expect(templateForPrompt("A barber shop in Colombo")).toBe("booking");
     expect(templateForPrompt("A site for my hair salon with online booking")).toBe("booking");

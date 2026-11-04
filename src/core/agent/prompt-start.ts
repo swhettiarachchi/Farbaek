@@ -63,6 +63,8 @@ const DIRECTIONS: readonly (readonly [RegExp, string])[] = [
   // ADR 0160: the work of one person or studio, an event, a shop, then a launch. A wedding photographer is a portfolio.
   [/\b(portfolios?|photographers?|photography|illustrat(?:or|ors|ion)|designers?|artists?|painters?|architects?|architecture (?:practice|studio|firm))\b/i, "portfolio"],
   [/\b(events?|conferences?|summits?|meetups?|festivals?|concerts?|gigs?|expos?|hackathons?|weddings?|galas?|part(?:y|ies)|webinars?|reunions?)\b/i, "event-page"],
+  // ADR 0165: a site for a software product, before the shop and launch words, so software that sells or launches stays software.
+  [/\b(software|startups?|b2b|tech company|developer tools?|dev ?tools?|productivity tools?|invoicing|accounting tool|project management tool|(?:tool|platform) for (?:teams|freelancers|businesses|small businesses|studios|agencies))\b/i, "saas-site"],
   [/\b((?<!barber )shops?|(?<!(?:app|play) )stores?|sell(?:s|ing)?|products|merch(?:andise)?|boutiques?|clothing|apparel|candles?|handmade)\b/i, "online-store"],
   [/\b(landing page|launch(?:es|ing)?|pre-?orders?|wait ?list|coming soon|kickstarter|crowdfund\w*|gadgets?|devices?|headphones|earbuds|(?:bluetooth|wireless|smart) speakers?|wearables?|single product|product page)\b/i, "landing-page"],
 ];

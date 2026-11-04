@@ -117,7 +117,8 @@ describe("startFromPrompt", () => {
   it("tells the drafter the project's real paths: the starter's for a new build, the project's for a follow-up", async () => {
     const briefs: DraftBrief[] = [];
     const capturing: ContractDrafter = { ...drafterWith({ ok: true, draft: DRAFT, usage: USAGE }), draft: async (b) => (briefs.push(b), { ok: true, draft: DRAFT, usage: USAGE }) };
-    await startFromPrompt(fakeDeps().deps, source(capturing), input("A landing page for my newsletter about cycling"));
+    // Words that match no design direction, so the plain static starter is used.
+    await startFromPrompt(fakeDeps().deps, source(capturing), input("A one-page site about my cycling club and its weekly rides"));
     expect(briefs[0]?.paths).toContain("index.html");
     // A plain starter's DESIGN.md is a plan to write, not one to follow.
     expect(briefs[0]?.paths).toContain("DESIGN.md");
