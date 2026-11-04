@@ -28,7 +28,20 @@
 
 ## Verified
 
-See the end of this file once checks have run.
+- **New tests:**
+  - `checkScope`: Free, Lite, Maker and Starter get the rules check, and Plus gets the full one. A suspended workspace gets the rules check with the billing reason. An unreadable plan gets none.
+  - A rules check runs the rules and OSV.dev and skips the other four with the reason. It calls no audit, scan or reviewer, and reserves no usage.
+  - A full check's report has no `scope`.
+  - In the catalog, `site_publishing` is on Free.
+- **Checks:** typecheck and lint are clean, and the full suite passes 2,637 tests.
+- **On a demo production build:**
+  - Pricing at 1280 and 375 px shows the new row ticked on every plan, and "Full security checks" from Plus. The promise card reads well on a phone.
+  - No sideways scroll and no console errors.
+  - The demo workspace's Security page is unchanged, because its plan has full checks.
+
+## Not checked yet
+
+- **The rules-check view itself** (note, button label, "Rules check" title) on a real Free workspace. That's the production check after the merge.
 
 ## Next
 
