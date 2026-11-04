@@ -99,7 +99,7 @@ export function StaticPreview({
           {pages.length > 1 ? (
             <label className="flex items-center gap-2 text-sm text-ink-2">
               <span className="sr-only">Page</span>
-              <select value={page} onChange={(e) => setPage(e.target.value)} className="h-9 rounded-full border border-line bg-surface px-3 text-sm text-ink">
+              <select value={page} onChange={(e) => setPage(e.target.value)} className="h-11 rounded-full border border-line bg-surface px-3 text-base text-ink sm:text-sm">
                 {pages.map((p) => (
                   <option key={p} value={p}>
                     {p}

@@ -4,6 +4,8 @@ import SwiftUI
 struct TodayView: View {
     @Environment(AppModel.self) private var model
     @State private var load: Load<Home> = .loading
+    /// The waiting count grows with the reader's text size, like the rest of the screen.
+    @ScaledMetric(relativeTo: .largeTitle) private var countSize: CGFloat = 44
 
     var body: some View {
         ScrollView {
@@ -85,7 +87,7 @@ struct TodayView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text("\(home.waiting)")
-                    .font(.system(size: 44, weight: .medium))
+                    .font(.system(size: countSize, weight: .medium))
                     .tracking(-1)
                     .foregroundStyle(home.waiting > 0 ? Palette.approval : Palette.ink)
                     .contentTransition(.numericText())

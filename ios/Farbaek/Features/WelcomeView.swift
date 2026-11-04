@@ -8,6 +8,8 @@ struct WelcomeView: View {
     @Environment(AppModel.self) private var model
     @State private var appeared = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The headline grows with the reader's text size.
+    @ScaledMetric(relativeTo: .largeTitle) private var titleSize: CGFloat = 34
 
     private let promises: [(symbol: String, title: String, text: String)] = [
         ("checkmark.seal", "Approve with Face ID", "Each change shows its files as a diff, the checks that will run and its hash. You approve exactly what you read."),
@@ -33,7 +35,7 @@ struct WelcomeView: View {
                             .foregroundStyle(Palette.ink2)
                     }
                     Text("Approve what your agent builds, wherever you are.")
-                        .font(.system(size: 34, weight: .medium))
+                        .font(.system(size: titleSize, weight: .medium))
                         .tracking(-0.9)
                         .foregroundStyle(Palette.ink)
                         .fixedSize(horizontal: false, vertical: true)
