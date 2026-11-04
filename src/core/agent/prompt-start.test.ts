@@ -97,10 +97,13 @@ describe("premium directions and first builds (ADR 0158)", () => {
     expect(isDesignPass(taskTitleFromPrompt(UPGRADE_DESIGN.text), 4)).toBe(true);
   });
 
-  it("estimates a whole site as more work than a change", () => {
-    const change = estimateRunShare({ model: "claude-sonnet-5-5", effort: "balanced", periodUnits: 100_000 })!;
-    const site = estimateRunShare({ model: "claude-sonnet-5-5", effort: "balanced", periodUnits: 100_000, wholeSite: true })!;
-    expect(site.high).toBeGreaterThan(change.high * 2);
+  it("estimates a whole site as more work than a change, and never past 100%", () => {
+    const change = estimateRunShare({ model: "claude-sonnet-5-5", effort: "balanced", periodUnits: 5_000 })!;
+    const site = estimateRunShare({ model: "claude-sonnet-5-5", effort: "balanced", periodUnits: 5_000, wholeSite: true })!;
+    expect(site.low).toBeGreaterThan(change.low);
+    expect(site.high).toBe(change.high);
+    // Never more than the whole period, however small the allowance.
+    expect(estimateRunShare({ model: "claude-sonnet-5-5", effort: "deep", periodUnits: 500, wholeSite: true })!.high).toBe(100);
   });
 });
 
