@@ -36,6 +36,11 @@ None found a critical or high issue.
 - **Sandbox app cookies** lose their `Domain` attribute, so they stay on their own preview host.
 - **`/admin`** needs a second factor (aal2); otherwise it sends a listed admin to Office Space.
 - **Mesh relay:** only one computer per fingerprint in a workspace.
+- **Dependency advisories** (2026-11-04):
+  - zod is now 4.6.7.
+  - Overrides in `pnpm-workspace.yaml` move undici 7 to 7.30.1 and e2b's undici 8 alias to 8.12.2. The undici releases were 20 days old and zod 4.6.7 was 23 days old.
+  - `pnpm audit --prod` went from 9 high and 10 moderate to 2 moderate. The two left are glob and minimatch inside e2b, and fixing them needs major versions that e2b hasn't adopted.
+  - After the change: typecheck and lint are clean, and the full suite passes 2,631 tests.
 
 ### Verified
 
@@ -61,10 +66,9 @@ None found a critical or high issue.
 ### For the owner
 
 - **Settings and requests only you can do:**
-  - Turn on Supabase Auth's captcha in production (`GOTRUE_SECURITY_CAPTCHA_ENABLED` with the Turnstile secret).
-  - Ask for `farbaek.si` to be added to the Public Suffix List.
-  - Confirm `deploy/vps/supabase/farbaek.env` holds only settings, not secrets (auto mode wouldn't let the review read it).
-- **Your say on dependency updates:** zod 4.6.6 once it's two weeks old, and e2b and @vercel/sandbox when they ship a patched undici.
+  - The Supabase Auth captcha turned out to be on already (set 2025-10-25), and `farbaek.env` holds only settings.
+  - Asking for `farbaek.si` to be added to the Public Suffix List can wait: the cookie domain fix covers the main risk.
+- **Dependency updates:** done (above). Drop the undici and zod overrides once e2b and @vercel/sandbox ship the patched versions themselves.
 - **Larger work to plan:**
   - enforcing the app's script CSP (previews move to the preview domain first);
   - an https App Link for the Android sign-in callback.
