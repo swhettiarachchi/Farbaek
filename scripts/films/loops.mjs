@@ -29,6 +29,10 @@ export const LOOP_SETTINGS = {
   portrait: { width: 480, fps: 10, quality: 45 },
   landscape: { width: 720, fps: 10, quality: 40 },
 };
+// The size limits in src/content/films.ts (LOOP_BUDGET_BYTES), repeated for a script that can't import TypeScript.
+// A loop over its budget is made again from the same frames at a lower quality.
+const LOOP_BUDGET = { clip: 1_300_000, portrait: 2_500_000, landscape: 4_000_000 };
+const MIN_QUALITY = 20;
 
 function ffmpegPath() {
   if (process.env.FFMPEG_PATH) return process.env.FFMPEG_PATH;
@@ -57,10 +61,19 @@ async function makeLoop(film, format) {
   try {
     await frames(mp4, dir, settings);
     const pngs = readdirSync(dir).filter((f) => f.endsWith(".png")).sort().map((f) => join(dir, f));
-    await sharp(pngs, { join: { animated: true } })
-      .webp({ quality: settings.quality, effort: 4, loop: 0, delay: Math.round(1000 / settings.fps), smartSubsample: true })
-      .toFile(out);
-    console.log(`${film}/${format}-loop.webp: ${pngs.length} frames, ${(statSync(out).size / 1e6).toFixed(2)} MB`);
+    for (let quality = settings.quality; ; quality -= 8) {
+      await sharp(pngs, { join: { animated: true } })
+        .webp({ quality, effort: 4, loop: 0, delay: Math.round(1000 / settings.fps), smartSubsample: true })
+        .toFile(out);
+      const bytes = statSync(out).size;
+      console.log(`${film}/${format}-loop.webp: ${pngs.length} frames, ${(bytes / 1e6).toFixed(2)} MB at quality ${quality}`);
+      if (bytes <= LOOP_BUDGET[format]) break;
+      if (quality - 8 < MIN_QUALITY) {
+        console.error(`${out} is over its budget of ${(LOOP_BUDGET[format] / 1e6).toFixed(1)} MB.`);
+        process.exitCode = 1;
+        break;
+      }
+    }
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

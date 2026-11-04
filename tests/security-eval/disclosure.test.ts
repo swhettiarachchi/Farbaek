@@ -6,7 +6,7 @@
 import { promises as fsp } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it } from "vitest";
 import { commandEnv } from "@/agent-runtime/broker";
 import { initiate, respond } from "@/agent-runtime/mesh/channel";
 import { XXHandshake, fingerprint, generateKeyPair, pairingCode } from "@/agent-runtime/mesh/noise";
@@ -39,6 +39,15 @@ const fake = {
   stripe: "sk" + "_live_" + "w".repeat(24),
   pem: ["-----BEGIN", "RSA PRIVATE KEY-----"].join(" ") + "\nMIIE\n-----END RSA PRIVATE KEY-----",
 };
+
+// Data folders made for the mesh agents are removed after this file's tests.
+const dataDirs: string[] = [];
+const makeDataDir = async (prefix: string) => {
+  const dir = await fsp.mkdtemp(path.join(os.tmpdir(), prefix));
+  dataDirs.push(dir);
+  return dir;
+};
+afterAll(() => Promise.all(dataDirs.splice(0).map((dir) => fsp.rm(dir, { recursive: true, force: true }))));
 
 let p: Project | null = null;
 afterEach(async () => {
@@ -185,7 +194,7 @@ describe("SE-031 A relay that could read or redirect a transfer", () => {
     await expect(stranger.call(fingerprint(laptopKey.publicKey), fingerprint(deskKey.publicKey))).rejects.toThrow(/isn't reachable/);
 
     // A real agent that trusts one device: a caller claiming that device is answered, but gets no pairing and no transfer.
-    const dataDir = await fsp.mkdtemp(path.join(os.tmpdir(), "farbaek-se031-"));
+    const dataDir = await makeDataDir("farbaek-se031-");
     const trusted = generateKeyPair();
     await fsp.writeFile(path.join(dataDir, "mesh-devices.json"), JSON.stringify([{ fingerprint: fingerprint(trusted.publicKey), name: "Desk", publicKey: trusted.publicKey.toString("hex"), pairedAt: new Date().toISOString() }]));
     let value: string | null = null;
@@ -266,7 +275,7 @@ describe("SE-033 A phone paired by someone in the middle", () => {
     // A computer with no pairing window open doesn't answer a pairing call.
     const relay = fakeRelay();
     let value: string | null = null;
-    const dataDir = await fsp.mkdtemp(path.join(os.tmpdir(), "farbaek-se033-"));
+    const dataDir = await makeDataDir("farbaek-se033-");
     const node = new MeshNode({ dataDir, name: () => "Studio PC", vault: { get: async () => value, set: async (v) => void (value = v) }, discovery: false, relay: () => relay.client("agent-studio"), onUpdate: () => undefined });
     await node.init();
     try {

@@ -5,7 +5,7 @@
  * used where they render on their own (ApproveBuild, EventRow, ScoreRing,
  * PublishPanel, LiveCheck, RunStatusBadge, the static preview builder);
  * where a part is wired to the server, its markup and copy are mirrored
- * here class for class. The project is a sample: Farbaek's own café
+ * here class for class. The project is a sample: Farbaek's own bakery
  * template, the way a build from it looks.
  */
 import {
@@ -56,10 +56,10 @@ import { SiteFrame } from "./primitives";
 // ------------------------------------------------------------------ sample project
 
 export const SAMPLE = {
-  prompt: "A site for Harbor Café, our breakfast spot by the water, with the menu and opening hours.",
-  outcome: "A one-page site for Harbor Café with the menu, opening hours and directions.",
-  project: "Harbor Café",
-  site: "harbor-cafe",
+  prompt: "A site for Kiln & Crumb, our bakery and coffee shop in Kandy, with the menu and opening hours.",
+  outcome: "A one-page site for Kiln & Crumb with the menu, opening hours and directions.",
+  project: "Kiln & Crumb",
+  site: "kiln-and-crumb",
   domain: "farbaek.si",
   projectId: "00000000-0000-4000-8000-0000000000f1",
   taskId: "00000000-0000-4000-8000-0000000000f2",
@@ -178,7 +178,7 @@ export function DescribeView({ t, typeFrom, submitAt }: { t: number; typeFrom: n
         <h1 className="text-balance text-[2.1rem] font-medium leading-[1.05] tracking-[-0.035em] max-sm:text-[1.7rem]">What do you want to build?</h1>
         <p className="mt-2 text-[15px] leading-relaxed text-ink-2 max-sm:text-sm">Describe it and Farbaek drafts a plan. Nothing is built until you approve it.</p>
       </div>
-      <div className={`relative rounded-lg border bg-surface shadow-e2 ${text && !submitted ? "border-accent/60 shadow-e3" : "border-line"}`}>
+      <div data-lift="composer" className={`relative rounded-lg border bg-surface shadow-e2 ${text && !submitted ? "border-accent/60 shadow-e3" : "border-line"}`}>
         <p className="min-h-32 px-5 pb-16 pt-4 text-base leading-relaxed text-ink max-sm:min-h-40">
           {text || <span className="text-ink-3">Describe what you want to build. For example: a one-page site for my bakery with the menu, opening hours and a map.</span>}
           {text && !submitted && Math.floor(t / 530) % 2 === 0 ? <span className="ml-px inline-block h-5 w-px translate-y-1 bg-ink" /> : null}
@@ -194,7 +194,7 @@ export function DescribeView({ t, typeFrom, submitAt }: { t: number; typeFrom: n
               <span className="truncate max-sm:hidden">You approve the plan before anything is built.</span>
             )}
           </p>
-          <span className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-on-primary ${text.length < 12 ? "opacity-40" : ""}`}>
+          <span data-film-click="plan-it" className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-on-primary ${text.length < 12 ? "opacity-40" : ""}`}>
             Plan it <ArrowUpIcon size={16} weight="bold" aria-hidden />
           </span>
         </div>
@@ -246,7 +246,7 @@ export function PlanView({ t, from, approvedAt, compact = false }: { t: number; 
           In <span className="text-ink-2">{SAMPLE.project}</span>. You asked: &ldquo;{SAMPLE.prompt}&rdquo;
         </p>
       </div>
-      <div className={`grid gap-3 ${compact ? "" : "md:grid-cols-2"}`}>
+      <div data-lift="plan-grid" className={`grid gap-3 ${compact ? "" : "md:grid-cols-2"}`}>
         <PlanSection title="What will change" icon={<FilePlusIcon size={16} weight="bold" className="text-accent" aria-hidden />} shown={s(1)}>
           <p className="text-sm text-ink-2">Create files, edit files</p>
           <ul className="flex flex-wrap gap-1.5">
@@ -301,7 +301,7 @@ export function PlanView({ t, from, approvedAt, compact = false }: { t: number; 
 // ------------------------------------------------------------------ build
 
 const RUN_STEPS: { at: number; kind: RunEventView["kind"]; payload: Record<string, unknown> }[] = [
-  { at: 0, kind: "model", payload: { text: "I'll write the design plan first, then build the page from the café template." } },
+  { at: 0, kind: "model", payload: { text: "I'll write the design plan first, then build the page from the bakery template." } },
   { at: 1100, kind: "tool", payload: { tool: "read_file", target: "DESIGN.md", status: "done" } },
   { at: 2000, kind: "tool", payload: { tool: "write_file", target: "DESIGN.md", status: "done" } },
   { at: 3200, kind: "tool", payload: { tool: "edit_file", target: "index.html", status: "done" } },
@@ -363,7 +363,7 @@ export function RunView({ t, from, layout = "wide" }: { t: number; from: number;
   const settle = progress(local, 7600, 8600);
   const scroll = mix(0, 0, settle);
   const steps = (
-    <div className="grid content-start gap-4">
+    <div data-lift="steps" className="grid content-start gap-4">
       <div className="flex items-center gap-4 rounded-md border border-line bg-surface p-4 shadow-e1">
         <FilmCore t={t} size={72} done={done} />
         <div className="min-w-0">
@@ -389,7 +389,7 @@ export function RunView({ t, from, layout = "wide" }: { t: number; from: number;
         <span className="font-medium text-ink-2">Preview</span>
         <span className="font-mono">index.html</span>
       </p>
-      <div className="relative overflow-hidden rounded-md border border-line bg-surface shadow-e1">
+      <div data-lift="preview" className="relative overflow-hidden rounded-md border border-line bg-surface shadow-e1">
         <div style={{ opacity: reveal, filter: `blur(${(1 - reveal) * 10}px) saturate(${mix(0.4, 1, reveal)})` }}>
           <SiteFrame files={SITE_FILES} scrollY={scroll} height={layout === "preview" ? 560 : 470} />
         </div>
@@ -406,7 +406,7 @@ export function RunView({ t, from, layout = "wide" }: { t: number; from: number;
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs text-ink-3">{SAMPLE.project}</p>
-          <h1 className="truncate text-[1.35rem] font-medium tracking-[-0.025em] max-sm:text-[1.1rem]">A site for Harbor Café</h1>
+          <h1 className="truncate text-[1.35rem] font-medium tracking-[-0.025em] max-sm:text-[1.1rem]">A site for Kiln &amp; Crumb</h1>
         </div>
         <RunStatusBadge status={done ? "finished" : "working"} />
       </div>
@@ -447,6 +447,7 @@ export function CheckView({ t, from }: { t: number; from: number }) {
         <h1 className="text-[1.6rem] font-medium tracking-[-0.03em] max-sm:text-[1.25rem]">Security</h1>
         <p className="mt-1 text-sm text-ink-2">Farbaek&apos;s rules over every file, a package audit and an AI review of the riskiest files.</p>
       </div>
+      <div data-lift="score" className="grid gap-5">
       {running ? (
         <div className="rounded-md border border-line bg-surface p-5 shadow-e1">
           <p className="flex items-center gap-2 text-sm text-ink-2">
@@ -503,6 +504,7 @@ export function CheckView({ t, from }: { t: number; from: number }) {
           </p>
         </div>
       ) : null}
+      </div>
     </div>
   );
 }
@@ -532,7 +534,7 @@ export function PublishView({ t, from, publishAt }: { t: number; from: number; p
     domain: SAMPLE.domain,
     site: live ? { id: "site-1", name: SAMPLE.site, liveDeploymentId: "dep-1", createdAt: recently(), blocked: null } : null,
     address: live ? `https://${SAMPLE.site}.${SAMPLE.domain}` : null,
-    suggestedName: name || "harbor",
+    suggestedName: name || "kiln",
     live: live ? deployment : null,
     deployments: live ? [deployment] : [],
     block: null,
@@ -578,7 +580,7 @@ export function LiveView({ t, from, checkedAt }: { t: number; from: number; chec
         <h1 className="text-[1.6rem] font-medium tracking-[-0.03em] max-sm:text-[1.25rem]">Launch</h1>
         <p className="mt-1 text-sm text-ink-2">A static website, live on Farbaek Sites.</p>
       </div>
-      <ol className="grid">
+      <ol data-lift="chain" className="grid">
         {CHAIN.map((s, i) => {
           const st = state(i);
           const ring = st === "done" ? "border-verified/45 bg-verified/[0.08] text-verified" : st === "now" ? "border-accent/50 bg-accent/[0.06] text-accent" : "border-dashed border-line-strong/60 bg-surface text-ink-3";

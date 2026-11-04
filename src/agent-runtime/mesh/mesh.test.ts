@@ -4,7 +4,7 @@ import { promises as fs } from "node:fs";
 import type { Socket } from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { CHUNK_BYTES, ChunkHasher, blake3Hex, checkManifest, manifestDigest, type CapsuleManifest } from "@/core/mesh/capsule";
 import { TRANSFER_LIMITS } from "@/core/mesh/protocol";
 import type { Duplex } from "node:stream";
@@ -18,7 +18,14 @@ import { fakeRelay } from "./relay-fake";
 import { packFolder } from "./pack";
 import type { IncomingView } from "./receive";
 
-const tmp = (name: string) => fs.mkdtemp(path.join(os.tmpdir(), `farbaek-mesh-${name}-`));
+// Every temp folder made here is removed after this file's tests, so test runs don't fill the disk.
+const made: string[] = [];
+const tmp = async (name: string) => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), `farbaek-mesh-${name}-`));
+  made.push(dir);
+  return dir;
+};
+afterAll(() => Promise.all(made.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true }))));
 const fakeKey = () => "AKIA" + "Q".repeat(16);
 
 function memoryVault(): KeyVault {

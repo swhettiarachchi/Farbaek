@@ -1,12 +1,12 @@
 // Records Farbaek's product films (ADR 0034). Run against a server started
 // with FARBAEK_FILM_STAGE=1 (pnpm start, or the "farbaek-films-prod" launch
 // config). For each film and format it opens /film-stage/<id> in headless
-// Chrome, steps the film's timeline frame by frame, screenshots each frame
-// to a temporary folder, then encodes them with ffmpeg to an H.264 MP4. A
-// file over its size budget is re-encoded from the same frames at a higher
-// CRF, so the size is tuned without filming again. It also writes the poster
-// and the WebVTT captions and chapters. Then run `pnpm films:loops` for each
-// film's silent loop (ADR 0056).
+// Chrome, steps the film's timeline frame by frame and streams each lossless
+// frame straight into ffmpeg, which encodes it to H.264 at two qualities at
+// once; the sharper one that fits the size budget is kept. Nothing is written
+// to disk but the films (a landscape film is several GB of frames). It also
+// writes the poster and the WebVTT captions and chapters. Then run
+// `pnpm films:loops` for each film's silent loop (ADR 0056).
 //
 //   pnpm films:record                      every film
 //   pnpm films:record build proof          some films
@@ -16,9 +16,8 @@
 // Needs Chrome (CHROME_PATH, or the usual install folders) and ffmpeg
 // (FFMPEG_PATH, @ffmpeg-installer/win32-x64, or ffmpeg on PATH).
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium } from "playwright-core";
 import { writeFilmManifest } from "./manifest.mjs";
@@ -64,16 +63,26 @@ function ffmpegPath() {
   }
 }
 
-function encode(frames, out, quality) {
-  const ff = spawn(
-    ffmpegPath(),
-    ["-y", "-loglevel", "error", "-framerate", String(FPS), "-i", join(frames, "f%05d.png"), "-c:v", "libx264", "-preset", "slow", "-tune", "animation", "-crf", String(quality), "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", out],
-    { stdio: ["ignore", "inherit", "inherit"] },
-  );
-  return new Promise((resolve, reject) => {
+/**
+ * One ffmpeg that takes the frames as PNGs on its input and writes one MP4 per
+ * CRF, so frames never touch the disk (a landscape film is several GB of PNGs)
+ * and the size can still be tuned without filming again.
+ */
+function encoder(outs) {
+  const args = ["-y", "-loglevel", "error", "-f", "image2pipe", "-framerate", String(FPS), "-c:v", "png", "-i", "-"];
+  for (const { crf, path } of outs) args.push("-c:v", "libx264", "-preset", "slow", "-tune", "animation", "-crf", String(crf), "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", path);
+  const ff = spawn(ffmpegPath(), args, { stdio: ["pipe", "inherit", "inherit"] });
+  const done = new Promise((resolve, reject) => {
     ff.on("error", reject);
     ff.on("close", (code) => (code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}`))));
   });
+  return {
+    write: (png) => new Promise((resolve, reject) => (ff.stdin.write(png, (err) => (err ? reject(err) : resolve())))),
+    end: () => {
+      ff.stdin.end();
+      return done;
+    },
+  };
 }
 
 async function openStage(browser, id, format) {
@@ -144,32 +153,30 @@ try {
       const frames = Math.round((stage.meta.durationMs / 1000) * FPS);
       const out = join(dir, `${format}.mp4`);
       const started = Date.now();
-      const tmp = mkdtempSync(join(tmpdir(), `farbaek-film-${id}-${format}-`));
+      // Two qualities at once; the sharper one that fits the budget is kept. --crf=N makes just that one.
+      const start = Number(crfFlag ?? START_CRF[format]);
+      const outs = (crfFlag ? [start] : [start, Math.min(MAX_CRF, start + 3)]).map((crf) => ({ crf, path: join(dir, `${format}.crf${crf}.mp4`) }));
+      const ff = encoder(outs);
       try {
         for (let i = 0; i < frames; i += 1) {
-          writeFileSync(join(tmp, `f${String(i).padStart(5, "0")}.png`), await stage.shot((i * 1000) / FPS));
+          await ff.write(await stage.shot((i * 1000) / FPS));
           if (i % 150 === 0) console.log(`${id} ${format}: frame ${i}/${frames}`);
         }
-        writeFileSync(join(dir, `${format}.jpg`), await stage.shot(stage.meta.posterAtMs, 92));
-        writeFileSync(join(dir, "captions.vtt"), stage.meta.captionsVtt);
-        writeFileSync(join(dir, "chapters.vtt"), stage.meta.chaptersVtt);
-        await stage.close();
-        let crf = Number(crfFlag ?? START_CRF[format]);
-        for (;;) {
-          await encode(tmp, out, crf);
-          const bytes = statSync(out).size;
-          console.log(`${out}: ${(bytes / 1e6).toFixed(2)} MB at CRF ${crf}, ${frames} frames, ${Math.round((Date.now() - started) / 1000)} s`);
-          if (bytes <= BUDGET[format]) break;
-          if (crfFlag || crf >= MAX_CRF) {
-            console.error(`${out} is over its budget of ${(BUDGET[format] / 1e6).toFixed(1)} MB.`);
-            process.exitCode = 1;
-            break;
-          }
-          crf += 2;
-        }
       } finally {
-        rmSync(tmp, { recursive: true, force: true });
+        await ff.end();
       }
+      writeFileSync(join(dir, `${format}.jpg`), await stage.shot(stage.meta.posterAtMs, 92));
+      writeFileSync(join(dir, "captions.vtt"), stage.meta.captionsVtt);
+      writeFileSync(join(dir, "chapters.vtt"), stage.meta.chaptersVtt);
+      await stage.close();
+      for (const o of outs) console.log(`${o.path}: ${(statSync(o.path).size / 1e6).toFixed(2)} MB at CRF ${o.crf}, ${frames} frames, ${Math.round((Date.now() - started) / 1000)} s`);
+      const fits = outs.find((o) => statSync(o.path).size <= BUDGET[format]);
+      if (fits) renameSync(fits.path, out);
+      else {
+        console.error(`${out} is over its budget of ${(BUDGET[format] / 1e6).toFixed(1)} MB even at CRF ${outs.at(-1).crf}. Record it again with --crf=${Math.min(MAX_CRF, outs.at(-1).crf + 2)}.`);
+        process.exitCode = 1;
+      }
+      for (const o of outs) if (o !== fits) rmSync(o.path, { force: true });
     }
   }
 } finally {
