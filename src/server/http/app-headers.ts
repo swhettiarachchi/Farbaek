@@ -37,9 +37,17 @@ export function appCsp(nonce: string, opts: { dev: boolean; https: boolean; prev
   ].join("; ");
 }
 
-/** The response header: report-only until enforcing is switched on. */
+/** The response header: enforced, or report-only when enforcing is switched off. */
 export function appCspHeaders(csp: string, enforce: boolean): Record<string, string> {
   return { [enforce ? "Content-Security-Policy" : "Content-Security-Policy-Report-Only"]: csp };
+}
+
+/**
+ * Whether the app's policy is enforced (ADR 0169). It is, by default, since previews moved to
+ * their own frame document; `APP_CSP_ENFORCE=0` sends it report-only again, for an incident.
+ */
+export function appCspEnforced(setting: string | undefined): boolean {
+  return setting?.trim() !== "0";
 }
 
 /** The app's pages, where the policy applies. Sign-in isn't one: it loads Cloudflare Turnstile. */

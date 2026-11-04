@@ -25,10 +25,11 @@ export const PREVIEW_LOADED_MESSAGE = "farbaek-preview-loaded";
 
 // The app frames this document from its own host, so the frame's address carries the app's origin even
 // though the document itself is opaque. Only that origin's parent can hand it a document; the site's own
-// messages go back to that origin only.
+// messages go back to that origin only, and never as one of this frame's own messages (a site that sent
+// "ready" over and over would make the app hand it its document again and again).
 const SCRIPT = `(function(){
 if(window.parent===window)return;
-var app=new URL(location.href).origin,child=null;
+var app=new URL(location.href).origin,child=null,own=["${PREVIEW_DOC_MESSAGE}","${PREVIEW_READY_MESSAGE}","${PREVIEW_LOADED_MESSAGE}"];
 function mount(html){
 var f=document.createElement("iframe");
 f.setAttribute("sandbox","allow-scripts");
@@ -40,7 +41,7 @@ if(child)child.replaceWith(f);else document.body.appendChild(f);
 child=f;
 }
 addEventListener("message",function(e){
-if(child&&e.source===child.contentWindow){parent.postMessage(e.data,app);return;}
+if(child&&e.source===child.contentWindow){if(!(e.data&&own.indexOf(e.data.type)>=0))parent.postMessage(e.data,app);return;}
 if(e.source!==parent||e.origin!==app)return;
 var d=e.data;
 if(d&&d.type==="${PREVIEW_DOC_MESSAGE}"&&typeof d.html==="string"){mount(d.html);return;}
