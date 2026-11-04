@@ -7,12 +7,15 @@
  * - they have a valid session;
  * - their email is confirmed (sign-in is a magic link, so this proves they
  *   control the mailbox);
+ * - the session passed a second factor (aal2): the console reads every
+ *   workspace, so a magic link or a stolen www session alone isn't enough.
+ *   A listed admin without one is sent to Office Space, which asks for it.
  * - the server key is set, since the console reads across workspaces with it.
  * Anyone else gets a 404, so the console's existence isn't revealed.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
@@ -35,13 +38,13 @@ export function isAdminEmail(email: string | null | undefined, env: Env = proces
 
 export interface AdminCheckInput {
   /** The session's claims, or null without a session. */
-  claims: { sub?: unknown; email?: unknown } | null;
+  claims: { sub?: unknown; email?: unknown; aal?: unknown } | null;
   /** Looks the user up with the server key; null when the server key isn't set. */
   lookup: ((id: string) => Promise<{ email: string | null; confirmedAt: string | null } | null>) | null;
   env?: Env;
 }
 
-export type AdminCheck = { ok: true; user: { id: string; email: string } } | { ok: false; reason: "no_session" | "not_listed" | "no_server_key" | "not_confirmed" };
+export type AdminCheck = { ok: true; user: { id: string; email: string } } | { ok: false; reason: "no_session" | "not_listed" | "no_server_key" | "not_confirmed" | "needs_second_factor" };
 
 /** The admin check, without Next.js, so every refusal can be tested. */
 export async function checkAdmin({ claims, lookup, env = process.env }: AdminCheckInput): Promise<AdminCheck> {
@@ -53,6 +56,7 @@ export async function checkAdmin({ claims, lookup, env = process.env }: AdminChe
   const user = await lookup(id).catch(() => null);
   // The stored email must still be the listed one, and confirmed.
   if (!user?.email || !isAdminEmail(user.email, env) || !user.confirmedAt) return { ok: false, reason: "not_confirmed" };
+  if (claims?.aal !== "aal2") return { ok: false, reason: "needs_second_factor" };
   return { ok: true, user: { id, email: user.email.toLowerCase() } };
 }
 
@@ -62,10 +66,10 @@ export interface AdminSession {
   admin: SupabaseClient;
 }
 
-/** The admin's session, or null for anyone else. Once per request. */
-export const getAdmin = cache(async (): Promise<AdminSession | null> => {
+/** The admin check and, when it passes, the session. Once per request. */
+const adminCheck = cache(async (): Promise<{ result: AdminCheck; session: AdminSession | null }> => {
   const client = await createSupabaseServerClient();
-  if (!client) return null;
+  if (!client) return { result: { ok: false, reason: "no_session" }, session: null };
   const { data } = await client.auth.getClaims();
   const admin = createSupabaseAdminClient();
   const result = await checkAdmin({
@@ -78,12 +82,18 @@ export const getAdmin = cache(async (): Promise<AdminSession | null> => {
         }
       : null,
   });
-  return result.ok && admin ? { user: result.user, admin } : null;
+  return { result, session: result.ok && admin ? { user: result.user, admin } : null };
 });
+
+/** The admin's session, or null for anyone else. */
+export const getAdmin = async (): Promise<AdminSession | null> => (await adminCheck()).session;
 
 /** For admin pages: the admin's session, or a 404. */
 export async function requireAdmin(): Promise<AdminSession> {
-  const session = await getAdmin();
+  const { result, session } = await adminCheck();
+  // A listed, confirmed admin without a second factor goes to Office Space, which has the same views behind one.
+  const office = process.env.OFFICE_HOST?.trim();
+  if (!result.ok && result.reason === "needs_second_factor" && office) redirect(`${office.startsWith("localhost") || office.includes(".localhost") ? "http" : "https"}://${office}/`);
   if (!session) notFound();
   return session;
 }

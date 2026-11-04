@@ -7,6 +7,7 @@
 import { json, problem, readJson } from "@/server/agent/http";
 import { RELAY_LIMITS, type RelayAgent, type RelayHub } from "./relay-hub";
 import { SessionId, offsetFrom, relayError, waitFrom } from "./relay-http";
+import { readBytesCapped } from "@/server/http/body";
 
 export interface RelayContext {
   relay: RelayAgent;
@@ -60,8 +61,9 @@ export async function handleWrite(request: Request, rawId: string, { relay, hub 
   const offset = offsetFrom(new URL(request.url), "offset");
   if (offset === null) return problem(400, "INVALID_REQUEST", "Say where these bytes start with ?offset=.");
   if (!(request.headers.get("content-type") ?? "").includes("application/octet-stream")) return problem(415, "UNSUPPORTED_MEDIA_TYPE", "Send the bytes as application/octet-stream.");
-  if (Number(request.headers.get("content-length") ?? "0") > RELAY_LIMITS.writeBytes) return problem(413, "TOO_LARGE", "Send at most 2 MiB at a time.");
-  const r = await hub.write(relay, id.data, offset, Buffer.from(await request.arrayBuffer()));
+  const bytes = await readBytesCapped(request, RELAY_LIMITS.writeBytes);
+  if (bytes === null) return problem(413, "TOO_LARGE", "Send at most 2 MiB at a time.");
+  const r = await hub.write(relay, id.data, offset, Buffer.from(bytes));
   return r.ok ? json({ data: r.value }) : relayError(r);
 }
 

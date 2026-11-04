@@ -8,6 +8,7 @@ import { IOS_APP } from "@/config/ios-app";
 import { receiveAppleNotification } from "@/server/billing/apple/service";
 import { appleDeps, appleIapOn } from "@/server/billing/apple/wiring";
 import { log } from "@/server/observability/log";
+import { readTextCapped } from "@/server/http/body";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +18,8 @@ export async function POST(request: Request): Promise<Response> {
   if (!appleIapOn()) return plain(503);
   const deps = appleDeps();
   if (!deps) return plain(503);
-  const text = await request.text();
-  if (text.length > 200_000) return plain(413);
+  const text = await readTextCapped(request, 200_000);
+  if (text === null) return plain(413);
   let body: unknown;
   try {
     body = JSON.parse(text);

@@ -24,6 +24,7 @@ import { MANAGER_ROLES } from "@/server/workspace/types";
 import { authenticate, connectFromBrowser, exchangeCode, refreshPhone, signInWithApple, type PhoneAuthDeps, type PhoneCaller } from "./auth";
 import { PUSH_TOKEN_PATTERN } from "./tokens";
 import { approvalView, approvalsView, homeView, isTaskFilter, meView, planView, projectsView, runDetail, taskView, tasksView, type BillingFacts, type RunReader } from "./views";
+import { readTextCapped } from "@/server/http/body";
 
 export type PhoneOutcome<T> = { ok: true; value: T } | { ok: false; status: number; code: string; message: string };
 
@@ -108,8 +109,8 @@ const Sha = z.string().regex(/^[0-9a-f]{64}$/);
 
 async function body(request: Request): Promise<Record<string, unknown> | null> {
   if (!(request.headers.get("content-type") ?? "").includes("application/json")) return null;
-  const text = await request.text();
-  if (text.length > 64 * 1024) return null;
+  const text = await readTextCapped(request, 64 * 1024);
+  if (text === null) return null;
   try {
     const value = JSON.parse(text) as unknown;
     return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
@@ -398,7 +399,9 @@ export async function handlePhoneApi(request: Request, segments: readonly string
   if (segments.length === 1 && method === "POST" && (first === "connect" || first === "token" || first === "apple" || first === "refresh")) {
     if (!deps.auth) return problem(503, "NOT_CONFIGURED", "Accounts aren't configured on this server.");
     if (first === "connect") {
-      const form = await request.formData().catch(() => null);
+      // A handful of short fields: read at most 16 KB, then parse it as the form it is.
+      const raw = await readTextCapped(request, 16 * 1024);
+      const form = raw === null ? null : await new Request(request.url, { method: "POST", headers: { "content-type": request.headers.get("content-type") ?? "" }, body: raw }).formData().catch(() => null);
       const answer = await connectFromBrowser(deps.auth, {
         userId: await deps.browserUser(),
         requestOrigin: request.headers.get("origin"),

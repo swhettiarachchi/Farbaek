@@ -196,6 +196,10 @@ export class RelayHub {
       return { ok: true, value: null };
     }
     if (!FINGERPRINT.test(fingerprint)) return { ok: false, code: "FORBIDDEN", message: "That isn't a mesh device fingerprint." };
+    // One computer per fingerprint: another agent in the workspace can't claim a reachable computer's fingerprint and take its calls.
+    this.sweep();
+    const taken = [...this.presence.values()].some((p) => p.agent.orgId === agent.orgId && p.fingerprint === fingerprint && p.agent.agentId !== agent.agentId);
+    if (taken) return { ok: false, code: "FORBIDDEN", message: "Another computer in this workspace is already reachable with that fingerprint." };
     const existing = this.presence.get(agent.agentId);
     this.presence.set(agent.agentId, { agent, fingerprint, seenAt: this.now(), calls: existing?.fingerprint === fingerprint ? existing.calls : [] });
     return { ok: true, value: null };

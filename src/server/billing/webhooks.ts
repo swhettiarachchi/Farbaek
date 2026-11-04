@@ -12,6 +12,7 @@ import type { NormalizedSubscription } from "@/core/billing/provider";
 import { log } from "@/server/observability/log";
 import { checkoutOpenFor, type BillingConfig } from "./config";
 import { verifyDodoWebhook } from "./providers/dodo/webhook";
+import { readTextCapped } from "@/server/http/body";
 
 /** Dodo's deliveries are small; anything bigger isn't one. */
 export const MAX_WEBHOOK_BYTES = 1024 * 1024;
@@ -49,12 +50,8 @@ function respond(status: number, body: Record<string, unknown>): Response {
 
 const problem = (status: number, code: string, message: string) => respond(status, { error: { code, message } });
 
-async function readCapped(request: Request): Promise<string | null> {
-  const declared = Number(request.headers.get("content-length") ?? "0");
-  if (declared > MAX_WEBHOOK_BYTES) return null;
-  const raw = await request.text();
-  return Buffer.byteLength(raw, "utf8") > MAX_WEBHOOK_BYTES ? null : raw;
-}
+// The body is read with a hard limit as it streams in, so a huge unauthenticated body is never buffered.
+const readCapped = (request: Request) => readTextCapped(request, MAX_WEBHOOK_BYTES);
 
 /**
  * POST /api/webhooks/dodo. `later` runs work after the response (Next's

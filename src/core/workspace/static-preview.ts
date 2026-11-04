@@ -113,9 +113,12 @@ export function buildStaticSrcdoc(files: Readonly<Record<string, string>>, page 
   if (hasImages) doc = inlineHtmlImages(doc, page, images);
 
   const head = `<meta http-equiv="Content-Security-Policy" content="${CSP}"><meta name="referrer" content="no-referrer">${NAV_SCRIPT}`;
-  if (/<head\b[^>]*>/i.test(doc)) return doc.replace(/<head\b[^>]*>/i, (m) => `${m}${head}`);
-  if (/<html\b[^>]*>/i.test(doc)) return doc.replace(/<html\b[^>]*>/i, (m) => `${m}<head>${head}</head>`);
-  return `<!doctype html><html><head>${head}</head><body>${doc}</body></html>`;
+  // The policy goes first, right after the doctype, before anything the page itself says: a "<head>" inside a
+  // comment, or a script before the head, can't come ahead of it. The parser puts it in the head it opens,
+  // and the page's own <html> and <head> tags merge into those.
+  const doctype = /^﻿?\s*(?:<!--[\s\S]*?-->\s*)*<!doctype\b[^>]*>/i.exec(doc);
+  if (doctype) return `${doctype[0]}${head}${doc.slice(doctype[0].length)}`;
+  return `<!doctype html>${head}${doc}`;
 }
 
 /** The project's files with a proposal's changes laid over them: what the site looks like if the change is applied. */

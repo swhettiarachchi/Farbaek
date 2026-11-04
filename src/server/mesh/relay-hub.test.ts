@@ -80,6 +80,18 @@ describe("the relay hub", () => {
     expect(await h.write(A, id, 9, Buffer.alloc(9), 0)).toMatchObject({ ok: false, code: "TOO_LARGE" });
   });
 
+  it("lets only one computer in a workspace be reachable with a fingerprint, so another member can't take its calls", () => {
+    const { h } = hub();
+    expect(h.setReachable(B, FB)).toEqual({ ok: true, value: null });
+    expect(h.setReachable(C, FB)).toMatchObject({ ok: false, code: "FORBIDDEN" });
+    // The same computer turning it on again is fine, and another workspace's fingerprints are its own.
+    expect(h.setReachable(B, FB)).toEqual({ ok: true, value: null });
+    expect(h.setReachable(STRANGER, FB)).toEqual({ ok: true, value: null });
+    // Once the first computer turns it off, the fingerprint is free.
+    h.setReachable(B, null);
+    expect(h.setReachable(C, FB)).toEqual({ ok: true, value: null });
+  });
+
   it("calls only a reachable agent of the same workspace, and only its two agents can use a session", async () => {
     const { h } = hub();
     expect(h.call(A, FB, FA)).toMatchObject({ ok: false, code: "NOT_REACHABLE" });

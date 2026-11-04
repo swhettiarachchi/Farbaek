@@ -257,7 +257,9 @@ export async function handlePreviewRequest(request: Request, deps: GatewayDeps):
   });
   for (const c of response.headers.getSetCookie?.() ?? []) {
     const cname = c.split("=")[0]?.trim();
-    if (cname !== PREVIEW_COOKIE && cname !== PREVIEW_COOKIE_DEV) out.append("set-cookie", c);
+    // Every preview shares one parent domain, so a Domain attribute would reach other people's previews:
+    // the app's cookies stay on its own preview host.
+    if (cname !== PREVIEW_COOKIE && cname !== PREVIEW_COOKIE_DEV) out.append("set-cookie", c.replace(/;\s*domain=[^;]*/gi, ""));
   }
   out.set("content-security-policy", `frame-ancestors ${deps.appOrigin}`);
   out.set("referrer-policy", "no-referrer");

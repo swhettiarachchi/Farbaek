@@ -1,5 +1,6 @@
 import { parseCspReports } from "@/server/http/app-headers";
 import { log } from "@/server/observability/log";
+import { readTextCapped } from "@/server/http/body";
 
 /**
  * Where browsers report what the app's Content-Security-Policy blocked, or
@@ -17,8 +18,8 @@ let windowStart = 0;
 let logged = 0;
 
 export async function POST(request: Request): Promise<Response> {
-  const text = await request.text().catch(() => "");
-  if (text.length === 0 || text.length > MAX_BYTES) return new Response(null, { status: 204 });
+  const text = await readTextCapped(request, MAX_BYTES);
+  if (!text) return new Response(null, { status: 204 });
   let body: unknown;
   try {
     body = JSON.parse(text);

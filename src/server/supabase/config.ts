@@ -31,8 +31,27 @@ export function siteUrl(): string {
   return "http://localhost:3000";
 }
 
-/** Only same-site relative paths are allowed as post-sign-in destinations. */
+/**
+ * How the app's session cookies are set: never readable by page scripts (an injected script can't lift the
+ * session), only over https where the site is served over https, and not sent on cross-site posts.
+ */
+export function sessionCookieOptions(): { httpOnly: true; secure: boolean; sameSite: "lax"; path: "/" } {
+  return { httpOnly: true, secure: siteUrl().startsWith("https://"), sameSite: "lax", path: "/" };
+}
+
+/**
+ * Only same-site relative paths are allowed as post-sign-in destinations. Browsers drop tabs and newlines
+ * from a URL and read a backslash as a slash, so "/\t/evil.com" would become "//evil.com": any control
+ * character, whitespace or backslash is refused, and what's left must resolve to this site.
+ */
 export function safeNextPath(next: string | null | undefined, fallback = "/app"): string {
-  if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) return fallback;
-  return next;
+  if (!next || !next.startsWith("/") || /[\u0000-\u001f\u007f\s\\]/.test(next)) return fallback;
+  const base = "https://next.invalid";
+  let url: URL;
+  try {
+    url = new URL(next, base);
+  } catch {
+    return fallback;
+  }
+  return url.origin === base ? `${url.pathname}${url.search}${url.hash}` : fallback;
 }

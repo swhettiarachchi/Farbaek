@@ -123,7 +123,9 @@ export async function loadWorkspaceAi(admin: SupabaseClient, orgId: string): Pro
 /** The Claude client for the workspace: its own key and gateway, or undefined for Farbaek's. */
 export function workspaceAnthropic(ai: WorkspaceAi, options: { timeout: number; maxRetries?: number }): Anthropic | undefined {
   if (!ai.own || ai.broken) return undefined;
-  return new Anthropic({ apiKey: ai.apiKey, baseURL: ai.baseURL ?? undefined, maxRetries: options.maxRetries ?? 1, timeout: options.timeout });
+  // A workspace's own gateway was checked to be a public address; refusing redirects keeps it from
+  // bouncing Farbaek's server to an address that wasn't checked, such as its own network.
+  return new Anthropic({ apiKey: ai.apiKey, baseURL: ai.baseURL ?? undefined, maxRetries: options.maxRetries ?? 1, timeout: options.timeout, fetchOptions: { redirect: "error" } });
 }
 
 export interface OwnKeyRecord {

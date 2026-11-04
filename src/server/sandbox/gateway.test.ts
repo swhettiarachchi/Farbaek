@@ -173,12 +173,14 @@ describe("preview gateway", () => {
       const h = new Headers({ location: "https://3000-mock1.mock.test/login" });
       h.append("set-cookie", `${PREVIEW_COOKIE_DEV}=hijack; Path=/`);
       h.append("set-cookie", "session=abc; Path=/");
+      h.append("set-cookie", "theme=dark; Domain=farbaek.si; Path=/; Secure");
       return new Response(null, { status: 302, headers: h });
     };
     const res = await handlePreviewRequest(req(`http://p-${previewId}.${DOMAIN}/`, { headers: { cookie } }), deps());
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("/login");
-    expect(res.headers.getSetCookie()).toEqual(["session=abc; Path=/"]);
+    // A cookie for the shared parent domain is kept to this preview host.
+    expect(res.headers.getSetCookie()).toEqual(["session=abc; Path=/", "theme=dark; Path=/; Secure"]);
   });
 
   it("refuses WebSocket upgrades and shows a clear page when nothing listens", async () => {
