@@ -258,6 +258,38 @@ describe("styles", () => {
     expect(applyVisualEdit(files, "index.html", h1, { kind: "style", props: {} })).toMatchObject({ ok: false, reason: "Change a style first." });
   });
 
+  it("keeps phone-only styles in one block at the end, which every-screen rules stay above (ADR 0166)", () => {
+    const h1 = find(PAGE, "h1").n;
+    const phone = applyVisualEdit(files, "index.html", h1, { kind: "style", props: { "font-size": "28px" }, screen: "phone" });
+    expect(phone).toMatchObject({ ok: true, changed: ["styles.css", "index.html"] });
+    if (!phone.ok) return;
+    expect(phone.files["styles.css"]).toBe("body { margin: 0; }\n\n/* Studio: phones only */\n@media (max-width: 640px) {\n  .vb-h1-1 {\n    font-size: 28px !important;\n  }\n}\n");
+
+    // The same element on every screen: its rule goes above the block, so the phone size still wins on phones.
+    const all = applyVisualEdit(phone.files, "index.html", h1, { kind: "style", props: { "font-size": "56px", color: "#1d4ed8" } });
+    expect(all.ok && all.files["styles.css"]).toBe(
+      "body { margin: 0; }\n\n.vb-h1-1 {\n  color: #1d4ed8 !important;\n  font-size: 56px !important;\n}\n\n/* Studio: phones only */\n@media (max-width: 640px) {\n  .vb-h1-1 {\n    font-size: 28px !important;\n  }\n}\n",
+    );
+    if (!all.ok) return;
+
+    // A second phone change updates the same rule inside the block, and another element joins the block.
+    const again = applyVisualEdit(all.files, "index.html", h1, { kind: "style", props: { "font-size": "30px", "text-align": "center" }, screen: "phone" });
+    expect(again.ok && again.files["styles.css"]).toContain("@media (max-width: 640px) {\n  .vb-h1-1 {\n    font-size: 30px !important;\n    text-align: center !important;\n  }\n}\n");
+    if (!again.ok) return;
+    const header = applyVisualEdit(again.files, "index.html", find(again.files["index.html"]!, "header").n, { kind: "style", props: { padding: "12px" }, screen: "phone" });
+    expect(header.ok && header.files["styles.css"]!.match(/@media/g)).toHaveLength(1);
+    expect(header.ok && header.files["styles.css"]).toContain("  #top {\n    padding: 12px !important;\n  }\n}\n");
+
+    // Anything but the two screens is refused.
+    expect(applyVisualEdit(files, "index.html", h1, { kind: "style", props: { color: "#000000" }, screen: "tablet" as never })).toMatchObject({ ok: false });
+  });
+
+  it("puts phone-only styles in the page's style block too, when it links no stylesheet", () => {
+    const bare = { "about.html": "<html><head><title>About</title></head><body><h2>Us</h2></body></html>" };
+    const r = applyVisualEdit(bare, "about.html", 4, { kind: "style", props: { "text-align": "center" }, screen: "phone" });
+    expect(r.ok && r.files["about.html"]).toContain("<style data-visual-edits>\n/* Studio: phones only */\n@media (max-width: 640px) {\n  .vb-h2-1 {\n    text-align: center !important;\n  }\n}\n</style>");
+  });
+
   it("changes only a rule whose whole selector matches, at the top level", () => {
     const css = ".card .vb-h1-1 { color: #000000; }\n@media (max-width: 600px) {\n  .vb-h1-1 { color: #111111; }\n}\n";
     const out = upsertRule(css, ".vb-h1-1", [["color", "#222222"]]);

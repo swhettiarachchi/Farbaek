@@ -320,6 +320,13 @@ export const STYLE_PROPS = [
 ] as const;
 export type StyleProp = (typeof STYLE_PROPS)[number];
 
+/** The screens a style is for (ADR 0166): every screen, or phones only. */
+export type StyleScreen = "all" | "phone";
+/** Phones: the width where the kit and the templates switch to their single-column layouts. */
+export const PHONE_QUERY = "(max-width: 640px)";
+/** Marks the one block of phone-only rules the editor keeps at the end of a stylesheet. */
+const PHONE_MARK = "/* Studio: phones only */";
+
 export type VisualEdit =
   | { kind: "text"; text: string }
   | { kind: "link"; href: string }
@@ -333,8 +340,8 @@ export type VisualEdit =
   | { kind: "media"; src: string; poster?: string | null }
   /** Another scene in a Farbaek Scenes box. */
   | { kind: "scene"; scene: string }
-  /** A value per property; null removes the property from the element's rule. */
-  | { kind: "style"; props: Partial<Record<StyleProp, string | null>> }
+  /** A value per property; null removes the property from the element's rule. `screen` "phone" keeps it to phones (ADR 0166). */
+  | { kind: "style"; props: Partial<Record<StyleProp, string | null>>; screen?: StyleScreen }
   /** The leading text of a button or link whose only other content is an empty decoration, such as the kit's arrow (ADR 0159). */
   | { kind: "label"; text: string }
   /** Moves a section before another of its siblings, or to the end when `before` is null (ADR 0159). */
@@ -532,6 +539,9 @@ export function applyVisualEdit(files: Readonly<Record<string, string>>, page: s
     decls.push([prop, `${value} !important`]);
   }
   if (decls.length === 0) return { ok: false, reason: "Change a style first." };
+  const screen = edit.screen ?? "all";
+  if (screen !== "all" && screen !== "phone") return { ok: false, reason: "Choose every screen or phones only." };
+  const write = (css: string) => upsertScreenRule(css, selector, decls, screen);
 
   // The rule's selector: the element's id when it has a usable one, else a new class.
   let page2 = html;
@@ -560,9 +570,9 @@ export function applyVisualEdit(files: Readonly<Record<string, string>>, page: s
     .map((e) => resolveSitePath(page, attrValue(e, "href") ?? ""))
     .find((p): p is string => p !== null && files[p] !== undefined);
   if (sheet) {
-    return changed(files, { [sheet]: upsertRule(files[sheet]!, selector, decls), ...(page2 !== html ? { [page]: page2 } : {}) }, null);
+    return changed(files, { [sheet]: write(files[sheet]!), ...(page2 !== html ? { [page]: page2 } : {}) }, null);
   }
-  return changed(files, { [page]: upsertStyleBlock(page2, selector, decls) }, "This page links no stylesheet in the project, so the style went into a style block in its head.");
+  return changed(files, { [page]: upsertStyleBlock(page2, write) }, "This page links no stylesheet in the project, so the style went into a style block in its head.");
 }
 
 function changed(files: Readonly<Record<string, string>>, next: Record<string, string>, note: string | null = null, select?: number): EditResult {
@@ -817,7 +827,7 @@ function themeEdit(files: Readonly<Record<string, string>>, edit: Extract<Visual
     if (sheet) next[sheet] = upsertCustomProps(next[sheet] ?? files[sheet]!, props);
     else {
       const index = pages.includes("index.html") ? "index.html" : pages[0]!;
-      next[index] = upsertStyleBlock(next[index] ?? files[index]!, ":root", props);
+      next[index] = upsertStyleBlock(next[index] ?? files[index]!, (css) => upsertRule(css, ":root", props));
     }
   }
   return changed(files, next);
@@ -875,17 +885,57 @@ function depthAt(css: string, at: number): number {
   return depth;
 }
 
+/** The editor's phone block: where its contents start and end, and where the block itself ends. */
+function phoneBlock(css: string): { mark: number; inner: number; close: number } | null {
+  const mark = css.indexOf(PHONE_MARK);
+  if (mark < 0) return null;
+  const open = new RegExp(`@media\\s*${escapeRe(PHONE_QUERY)}\\s*\\{`).exec(css.slice(mark));
+  if (!open) return null;
+  const inner = mark + open.index + open[0].length;
+  let depth = 1;
+  for (let i = inner; i < css.length; i++) {
+    if (css[i] === "{") depth++;
+    else if (css[i] === "}" && --depth === 0) return { mark, inner, close: i };
+  }
+  return null;
+}
+
+const indent = (css: string) => css.replace(/^(?=.)/gm, "  ");
+const dedent = (css: string) => css.replace(/^ {2}/gm, "");
+
+/**
+ * Sets declarations for `selector` on every screen or on phones only (ADR 0166). Phone rules live in one
+ * marked @media block at the end of the stylesheet, and rules for every screen stay above it, so on a phone
+ * the phone rule comes later and wins (both carry !important).
+ */
+export function upsertScreenRule(css: string, selector: string, decls: readonly [string, string | null][], screen: StyleScreen = "all"): string {
+  const block = phoneBlock(css);
+  if (screen === "all") {
+    if (!block) return upsertRule(css, selector, decls);
+    const head = upsertRule(css.slice(0, block.mark), selector, decls);
+    return `${head.replace(/\n*$/, head.trim() ? "\n\n" : "")}${css.slice(block.mark)}`;
+  }
+  if (!block) {
+    const rule = upsertRule("", selector, decls);
+    if (!rule) return css;
+    const gap = css.length === 0 || css.endsWith("\n\n") ? "" : css.endsWith("\n") ? "\n" : "\n\n";
+    return `${css}${gap}${PHONE_MARK}\n@media ${PHONE_QUERY} {\n${indent(rule)}}\n`;
+  }
+  const inner = upsertRule(dedent(css.slice(block.inner, block.close).replace(/^\n/, "")), selector, decls);
+  return `${css.slice(0, block.inner)}\n${indent(inner)}${css.slice(block.close)}`;
+}
+
 const STYLE_MARK = "data-visual-edits";
 
-function upsertStyleBlock(html: string, selector: string, decls: readonly [string, string | null][]): string {
+function upsertStyleBlock(html: string, write: (css: string) => string): string {
   const elements = scanElements(html);
   const block = elements.find((e) => e.tag === "style" && e.attrs.some((a) => a.name === STYLE_MARK) && e.close);
   if (block) {
     const css = html.slice(block.openEnd, block.close!.start);
-    const inner = upsertRule(css.replace(/^\n/, ""), selector, decls);
+    const inner = write(css.replace(/^\n/, ""));
     return `${html.slice(0, block.openEnd)}\n${inner}${html.slice(block.close!.start)}`;
   }
-  const rule = upsertRule("", selector, decls);
+  const rule = write("");
   const tag = `<style ${STYLE_MARK}>\n${rule}</style>\n`;
   const head = elements.find((e) => e.tag === "head");
   if (head?.close) return `${html.slice(0, head.close.start)}${tag}${html.slice(head.close.start)}`;

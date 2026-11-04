@@ -52,6 +52,7 @@ import {
   type PickedStyle,
   type SourceElement,
   type StyleProp,
+  type StyleScreen,
   type VisualEdit,
 } from "@/core/studio/visual-edit";
 import { buildStaticSrcdoc, sitePages } from "@/core/workspace/static-preview";
@@ -180,6 +181,8 @@ export function VisualEditor({
   const [mode, setMode] = useState<"design" | "review">("design");
   const [reviewed, setReviewed] = useState<Record<string, string>>({});
   const [device, setDevice] = useState<(typeof DEVICES)[number]["id"]>("desktop");
+  // Which screens a style is for (ADR 0166): it follows the preview, so editing on the phone preview styles phones only.
+  const [screen, setScreen] = useState<StyleScreen>("all");
   const [saving, startSave] = useTransition();
   const frame = useRef<HTMLIFrameElement>(null);
   const listId = useId();
@@ -265,9 +268,12 @@ export function VisualEditor({
     setFuture([]);
     setDraft(r.files);
     setSelected(next === null || next === undefined ? null : { n: next, style: selected?.n === n ? selected.style : null, stamp: (selected?.stamp ?? 0) + 1 });
-    expected.current = edit.kind === "style" && next !== null && next !== undefined ? { n: next, props: edit.props } : null;
+    // The preview can only show a style on the screens it's for: a phone-only change on the phone preview, an every-screen one elsewhere.
+    const visible = edit.kind === "style" && ((edit.screen ?? "all") === "phone") === (device === "phone");
+    expected.current = edit.kind === "style" && visible && next !== null && next !== undefined ? { n: next, props: edit.props } : null;
     if (edit.kind === "theme") frame.current?.contentWindow?.postMessage({ type: DESIGN_THEME_MESSAGE }, "*");
-    setMessage({ tone: "ok", text: `${DONE[edit.kind] ?? "Applied to the draft"}${r.note ? `. ${r.note}` : ""}. Nothing is saved until you review it.` });
+    const done = edit.kind === "style" && edit.screen === "phone" ? "Applied to phones only, in the draft" : (DONE[edit.kind] ?? "Applied to the draft");
+    setMessage({ tone: "ok", text: `${done}${r.note ? `. ${r.note}` : ""}. Nothing is saved until you review it.` });
     return true;
   }
   // The preview's toolbar reaches applyAt through a ref, so its listener always uses this render's draft.
@@ -430,7 +436,10 @@ export function VisualEditor({
                 aria-pressed={device === d.id}
                 aria-label={d.label}
                 title={d.label}
-                onClick={() => setDevice(d.id)}
+                onClick={() => {
+                  setDevice(d.id);
+                  setScreen(d.id === "phone" ? "phone" : "all");
+                }}
                 className={`inline-flex size-11 items-center justify-center rounded-full transition-colors duration-150 ${device === d.id ? "bg-surface-raised text-ink" : "text-ink-3 hover:text-ink"}`}
               >
                 <d.icon size={17} weight={device === d.id ? "fill" : "regular"} aria-hidden />
@@ -540,6 +549,11 @@ export function VisualEditor({
             onUpload={(file) => upload(selected!.n, file)}
             uploadDisabledReason={disabledReason}
             mediaSource={media.find((m) => m.n === selected!.n)?.source ?? null}
+            screen={screen}
+            onScreen={(next) => {
+              setScreen(next);
+              if (next === "phone") setDevice("phone");
+            }}
             sectionAround={sectionAround(selected!.n)}
             onSelectSection={(n) => {
               select(n);
@@ -691,6 +705,8 @@ function Inspector({
   onUpload,
   uploadDisabledReason,
   mediaSource,
+  screen,
+  onScreen,
   sectionAround,
   onSelectSection,
 }: {
@@ -704,6 +720,9 @@ function Inspector({
   uploadDisabledReason: string | null;
   /** The image or video's current address, from the page's media list. */
   mediaSource: string | null;
+  /** The screens a style is for, and a way to change them (ADR 0166). */
+  screen: StyleScreen;
+  onScreen(screen: StyleScreen): void;
   elements: SourceElement[];
   /** The section this element is in, or null. */
   sectionAround: number | null;
@@ -740,7 +759,7 @@ function Inspector({
   function applyStyle() {
     const props: Partial<Record<StyleProp, string>> = {};
     for (const [p, v] of Object.entries(style) as [StyleProp, string][]) props[p] = p !== "font-weight" && /^\d+$/.test(v) ? `${v}px` : v;
-    onApply({ kind: "style", props });
+    onApply({ kind: "style", props, screen });
   }
 
   return (
@@ -834,6 +853,27 @@ function Inspector({
       <fieldset className="grid gap-3 border-t border-line pt-4">
         <legend className="sr-only">Style</legend>
         <p className="text-sm font-medium">Style</p>
+        <div className="grid gap-1.5">
+          <span className="text-xs text-ink-2" id={`${id}-screen`}>
+            Applies to
+          </span>
+          <div className="inline-flex w-full rounded-full border border-line bg-surface p-1 sm:w-auto" role="radiogroup" aria-labelledby={`${id}-screen`}>
+            {([["all", "Every screen", DesktopIcon], ["phone", "Phones only", DeviceMobileIcon]] as const).map(([value, word, Glyph]) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={screen === value}
+                onClick={() => onScreen(value)}
+                className={`inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full px-4 text-sm transition-colors duration-150 ${screen === value ? "bg-primary font-medium text-on-primary" : "text-ink-2 hover:text-ink"}`}
+              >
+                <Glyph size={16} weight={screen === value ? "fill" : "regular"} aria-hidden />
+                {word}
+              </button>
+            ))}
+          </div>
+          {screen === "phone" ? <p className="text-xs text-ink-3">For screens up to 640 px wide. The preview shows a phone, and tablets and computers keep their own styles.</p> : null}
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <ColorField id={`${id}-color`} label="Text colour" value={value("color")} onChange={(v) => set("color", v)} />
           <ColorField id={`${id}-bg`} label="Background" value={value("background-color")} onChange={(v) => set("background-color", v)} />
@@ -930,7 +970,11 @@ function Inspector({
             </button>
           ) : null}
         </div>
-        <p className="text-xs text-ink-3">Styles go into a CSS rule for this element, in the page&apos;s stylesheet, not into the HTML.</p>
+        <p className="text-xs text-ink-3">
+          {screen === "phone"
+            ? "Phone styles go into one block for small screens at the end of the page's stylesheet, so they win on phones."
+            : "Styles go into a CSS rule for this element, in the page's stylesheet, not into the HTML."}
+        </p>
       </fieldset>
     </div>
   );
