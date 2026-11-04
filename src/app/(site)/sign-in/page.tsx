@@ -64,7 +64,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
       <div className="w-full max-w-[440px] justify-self-center lg:justify-self-start">
         <h1 className="text-[2.4rem] font-medium leading-[1.05] tracking-[-0.035em]">Sign in to Farbaek</h1>
         <p className="mt-3 text-[15px] leading-relaxed text-ink-2">
-          {intro(google, apple)} Farbaek is in early development, so expect rough edges.
+          {intro(google, apple)} New workspaces start with a 14-day Pro trial, with no card.
         </p>
         <div className="mt-8 rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
           <div className="rounded-md bg-surface p-5 shadow-e1 sm:p-6">
