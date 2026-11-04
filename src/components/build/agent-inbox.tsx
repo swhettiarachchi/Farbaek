@@ -89,7 +89,7 @@ export function AgentInbox({ lanes, proposals }: { lanes: Record<InboxLane, RunV
                       <Link href={`/app/build/${r.id}`} className="group flex gap-3 rounded-sm border border-transparent p-2 transition-colors duration-150 hover:border-line hover:bg-canvas-2/70">
                         <CoreMark state={markState(lane, r)} />
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[14px] font-medium group-hover:text-accent">{r.taskTitle}</span>
+                          <span className="line-clamp-2 text-[14px] font-medium group-hover:text-accent">{r.taskTitle}</span>
                           <span className="mt-0.5 block truncate text-xs text-ink-3">
                             {r.projectName} · <RelativeTime iso={r.endedAt ?? r.startedAt} />
                           </span>

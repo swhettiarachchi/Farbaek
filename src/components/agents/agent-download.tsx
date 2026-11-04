@@ -17,7 +17,7 @@ export function AgentDownload() {
   const fromStore = storeUrl !== null;
   return (
     <section aria-labelledby="download-heading" className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
-      <div className="grid gap-6 rounded-md bg-surface p-5 shadow-e1 sm:p-7">
+      <div className="grid gap-6 rounded-md bg-surface p-4 shadow-e1 min-[400px]:p-5 sm:p-7">
         <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
           <div className="min-w-0">
             <h2 id="download-heading" className="text-xl font-medium tracking-[-0.02em]">
@@ -136,10 +136,11 @@ function PrimaryLink({ href, download, icon, children }: { href: string; downloa
       href={href}
       download={download}
       {...(download ? {} : { target: "_blank", rel: "noopener noreferrer" })}
-      className="group inline-flex h-12 items-center justify-between gap-3 justify-self-start rounded-full bg-primary pl-5 pr-1.5 text-[15px] font-medium text-on-primary shadow-e1 transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-primary/90 active:scale-[0.98]"
+      // It grows rather than spills when the label is long or the phone's text is large.
+      className="group inline-flex min-h-12 max-w-full items-center justify-between gap-2 justify-self-start rounded-full bg-primary py-1.5 pl-5 pr-1.5 text-left text-[15px] font-medium leading-snug text-on-primary shadow-e1 transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-primary/90 active:scale-[0.98] sm:gap-3"
     >
-      {children}
-      <span className="flex size-9 items-center justify-center rounded-full bg-on-primary/15 transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-y-0.5">{icon}</span>
+      <span className="min-w-0">{children}</span>
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-on-primary/15 transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-y-0.5">{icon}</span>
     </a>
   );
 }

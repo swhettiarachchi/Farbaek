@@ -154,7 +154,7 @@ export default async function BuildPage() {
               <li key={r.id}>
                 <Link href={`/app/build/${r.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-4 hover:bg-canvas-2 sm:px-5">
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[15px] font-medium">{r.taskTitle}</span>
+                    <span className="line-clamp-2 text-[15px] font-medium">{r.taskTitle}</span>
                     <span className="block text-xs text-ink-3">
                       {r.projectName}, {EFFORT_LABELS[r.effort].title.toLowerCase()} effort. Started <LocalTime iso={r.startedAt} />
                     </span>
