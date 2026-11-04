@@ -69,6 +69,32 @@ export function photoFacts(url: string | null): { subject: PhotoSubject | null; 
   return { subject, tall: Number(m[3]) > Number(m[2]) };
 }
 
+/**
+ * The subject a site's own words point to, or null: what Studio's Replace opens on when the picture isn't
+ * one of these photos, so a bakery's "spiced fish bun" opens on bread, not laptops. More specific first.
+ */
+const SUBJECT_WORDS: readonly [PhotoSubject, RegExp][] = [
+  ["bakery", /\b(?:bak(?:e|ed|er|ers|ery|eries|ing)|breads?|loaf|loaves|buns?|rolls?|pastr(?:y|ies)|croissants?|sourdough|cakes?|patisserie|brioche|bagels?|doughnuts?|donuts?|muffins?|cookies)\b/i],
+  ["cafe", /\b(?:caf[eé]s?|coffee|lattes?|espresso|cappuccino|baristas?|roasters?|tea ?rooms?)\b/i],
+  ["restaurant", /\b(?:restaurants?|bistros?|dining|dinner|chefs?|cuisine|dish(?:es)?|eatery|grill|tasting)\b/i],
+  ["weddings", /\b(?:weddings?|bridal|brides?|grooms?|engagements?)\b/i],
+  ["spa", /\b(?:spas?|massages?|wellness|saunas?|facials?|therapists?)\b/i],
+  ["resort", /\b(?:resorts?|pools?|poolside|loungers?|beach clubs?)\b/i],
+  ["hotel", /\b(?:hotels?|suites?|lobby|guesthouses?|hostels?|bed and breakfast)\b/i],
+  ["salon", /\b(?:salons?|barbers?|haircuts?|hairdress\w*|stylists?)\b/i],
+  ["fitness", /\b(?:gyms?|fitness|workouts?|personal trainers?|yoga|pilates|crossfit)\b/i],
+  ["jewellery", /\b(?:jewel(?:le)?ry|necklaces?|earrings?|bracelets?|engagement rings?)\b/i],
+  ["clothing", /\b(?:boutiques?|clothing|clothes|apparel|outfits?|dresses?|knitwear)\b/i],
+  ["homes", /\b(?:real estate|homes?|houses?|villas?|propert(?:y|ies)|apartments?)\b/i],
+  ["events", /\b(?:conferences?|summits?|meetups?|speakers? line-?up|keynotes?)\b/i],
+  ["devices", /\b(?:headphones|earbuds|gadgets?|devices?)\b/i],
+  ["workspace", /\b(?:software|saas|invoic\w*|bookkeeping|accounting|dashboards?|startups?)\b/i],
+];
+
+export function subjectForText(text: string): PhotoSubject | null {
+  return SUBJECT_WORDS.find(([, words]) => words.test(text))?.[0] ?? null;
+}
+
 /** Whether an address is one of these photos. */
 export function isPhotoUrl(url: string): boolean {
   return (

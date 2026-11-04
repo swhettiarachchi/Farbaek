@@ -788,6 +788,7 @@ function Inspector({
           onReplace={(edit) => onApply({ kind: "media", ...edit })}
           onUpload={el.tag === "img" ? onUpload : undefined}
           uploadDisabledReason={uploadDisabledReason}
+          context={{ description: attrValue(el, "alt") ?? attrValue(el, "aria-label") ?? "", page: /<title[^>]*>([^<]*)<\/title>/i.exec(html)?.[1] ?? "" }}
         />
       ) : null}
 
