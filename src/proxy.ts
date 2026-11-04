@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { SITE_ROUTE } from "@/core/publish/site";
 import { decideRoute } from "@/server/http/hosts";
-import { APP_CSP_PATH, appCsp, appCspHeaders } from "@/server/http/app-headers";
+import { APP_CSP_PATH, appCsp, appCspEnforced, appCspHeaders } from "@/server/http/app-headers";
 import { newNonce, officeCsp, officeResponseHeaders } from "@/server/http/office-headers";
 import { withoutStrayEnd } from "@/server/http/stray-end";
 import { appHostFromEnv, officeConfig } from "@/server/office/config";
@@ -109,7 +109,7 @@ async function appRequest(request: NextRequest) {
     : null;
   if (csp) request.headers.set("content-security-policy", csp);
   const withCsp = (response: NextResponse) => {
-    if (csp) for (const [key, value] of Object.entries(appCspHeaders(csp, process.env.APP_CSP_ENFORCE === "1"))) response.headers.set(key, value);
+    if (csp) for (const [key, value] of Object.entries(appCspHeaders(csp, appCspEnforced(process.env.APP_CSP_ENFORCE)))) response.headers.set(key, value);
     return response;
   };
 

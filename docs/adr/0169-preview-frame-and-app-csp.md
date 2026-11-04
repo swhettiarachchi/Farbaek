@@ -43,9 +43,14 @@ Thumbnails (`SiteThumb`) run no scripts. The running-app frames already load fro
 - It frames `/preview-frame`, sends the HTML when the frame is ready, and sends it again whenever it changes, without reloading the frame.
 - Every message the site sends arrives from the iframe's own window. So `StaticPreview` and the editor keep their `e.source === frame.contentWindow` checks and their `contentWindow.postMessage` calls unchanged, along with their zod checks.
 
-**Enforcing comes next, after production shows it's safe.**
-1. Once this ships, the signed-in app is walked in Chrome on production, reading the console's report-only violations.
-2. If only previews were ever in the way, the app policy is enforced by default, with `APP_CSP_ENFORCE=0` kept as an escape hatch.
+**Enforced by default (stage 155, 2026-11-04),** after production showed it was safe.
+- `appCspEnforced` (`src/server/http/app-headers.ts`) enforces the policy unless `APP_CSP_ENFORCE=0`, which is kept as an escape hatch for an incident.
+- **What production showed first**, with the frame live and the policy still report-only, in the owner's signed-in Chrome:
+  - **Full page loads:** in the HTML of 29 app pages, every script carries the request's nonce, and there are no inline event handlers.
+  - **Moving between pages:** with a `securitypolicyviolation` listener running across 17 client-side page changes (project preview, Studio, template and run previews, thumbnails, billing, Mesh and the rest), there were no violations. A deliberate `img-src` probe was caught, so the listener works.
+  - **The code:** the browser makes no cross-origin calls (no browser database client, no cross-origin fetch or WebSocket, no forms posting elsewhere), and Google Analytics loads only on the marketing pages.
+- **The frame ignores its own message types when they come from the site,** so a site can't make the app hand it its document again and again.
+- **The deny-framing exception for `/preview-frame` is limited to the app's host** (`NEXT_PUBLIC_SITE_URL`). On published sites and custom domains, a person's own page at that path keeps the global headers. That was the one low note from the security review.
 
 ## Consequences
 

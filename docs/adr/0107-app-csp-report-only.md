@@ -1,6 +1,6 @@
 # ADR 0107: A nonce Content-Security-Policy for the app, report-only first
 
-- Status: accepted (2026-10-29).
+- Status: accepted (2026-10-29). Enforced by default since ADR 0169 (stage 155, 2026-11-04); `APP_CSP_ENFORCE=0` sends it report-only again.
 - Builds on ADR 0032 (Office Space already has an enforced nonce CSP).
 
 ## Context

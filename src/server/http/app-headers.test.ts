@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { APP_CSP_PATH, appCsp, appCspHeaders, parseCspReports } from "./app-headers";
+import { APP_CSP_PATH, appCsp, appCspEnforced, appCspHeaders, parseCspReports } from "./app-headers";
 
 describe("the app's Content-Security-Policy (ADR 0107)", () => {
   it("allows scripts only from a nonce, talks only to Farbaek, and frames only previews", () => {
@@ -18,9 +18,11 @@ describe("the app's Content-Security-Policy (ADR 0107)", () => {
     expect(dev).not.toContain("upgrade-insecure-requests");
   });
 
-  it("is report-only until enforcing is switched on", () => {
+  it("is enforced unless it's switched to report-only for an incident (ADR 0169)", () => {
     expect(appCspHeaders("x", false)).toEqual({ "Content-Security-Policy-Report-Only": "x" });
     expect(appCspHeaders("x", true)).toEqual({ "Content-Security-Policy": "x" });
+    for (const setting of [undefined, "", "1", "true", "yes"]) expect(appCspEnforced(setting)).toBe(true);
+    for (const setting of ["0", " 0 "]) expect(appCspEnforced(setting)).toBe(false);
   });
 
   it("covers the app and the old admin console, not sign-in, which loads Turnstile", () => {

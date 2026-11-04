@@ -55,6 +55,21 @@ const nextConfig: NextConfig = {
         ],
         headers: securityHeaders,
       },
+      // The exception is for Farbaek's own host only: on a published site or a custom domain,
+      // a person's own /preview-frame page keeps the same headers as every other page.
+      ...(APP_HOST
+        ? [
+            {
+              source: "/preview-frame",
+              missing: [
+                { type: "host" as const, value: "p-[a-zA-Z2-7]{26}\\..*" },
+                { type: "host" as const, value: OFFICE_HOST },
+                { type: "host" as const, value: APP_HOST },
+              ],
+              headers: securityHeaders,
+            },
+          ]
+        : []),
       { source: "/(.*)", has: [{ type: "host", value: OFFICE_HOST }], headers: [...OFFICE_STATIC_HEADERS] },
       // Later rules win for the same header: payment for Farbaek's own pages only.
       ...(APP_HOST
