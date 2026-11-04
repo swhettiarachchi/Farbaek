@@ -4,6 +4,7 @@ import { DesktopIcon, DeviceMobileIcon, DeviceTabletIcon } from "@phosphor-icons
 import type { Icon } from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PREVIEW_NAV_MESSAGE, buildStaticSrcdoc, resolveSitePath, sitePages } from "@/core/workspace/static-preview";
+import { PreviewFrame } from "./preview-frame";
 
 const DEVICES: { id: "phone" | "tablet" | "desktop"; label: string; icon: Icon; width: number | null }[] = [
   { id: "phone", label: "Phone", icon: DeviceMobileIcon, width: 390 },
@@ -21,8 +22,9 @@ export interface PreviewVersion {
 
 /**
  * A static site, live, in a locked-down frame (ADR 0027): no same-origin
- * access and no network. Switch between versions (before and after a change),
- * pages and device widths.
+ * access and no network. It renders in the preview frame document (ADR 0169),
+ * so the app's own policy doesn't reach the site's scripts. Switch between
+ * versions (before and after a change), pages and device widths.
  */
 export function StaticPreview({
   versions,
@@ -134,15 +136,7 @@ export function StaticPreview({
             className={`mx-auto overflow-hidden rounded-sm bg-surface shadow-e1 motion-safe:transition-[max-width] motion-safe:duration-300 ${frameFocused ? "ring-2 ring-accent" : ""}`}
             style={{ maxWidth: width ?? "100%" }}
           >
-            <iframe
-              ref={frame}
-              key={`${version.id}:${page}`}
-              title={`Preview of ${page} (${version.label})`}
-              sandbox="allow-scripts"
-              referrerPolicy="no-referrer"
-              srcDoc={doc}
-              className={`block w-full bg-white ${frameClassName}`}
-            />
+            <PreviewFrame frameRef={frame} html={doc} title={`Preview of ${page} (${version.label})`} className={`block w-full bg-white ${frameClassName}`} />
           </div>
         )}
       </div>

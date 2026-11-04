@@ -15,7 +15,8 @@ export const PREVIEW_NAV_MESSAGE = "farbaek-preview-nav";
 /** Where Farbaek Scenes (Farbaek's own 3D kit) and the media library are served (ADR 0156). */
 const KIT_ORIGIN = MEDIA_ORIGIN;
 
-const CSP = [
+/** The policy every static preview runs under: in the document's meta tag, and as the header of the preview frame (ADR 0169). */
+export const STATIC_PREVIEW_CSP = [
   "default-src 'none'",
   "style-src 'unsafe-inline' https:",
   // Inline code, pinned libraries (three.js, animation libraries) from the CDNs the Studio standard names (ADR 0030), and Farbaek Scenes (ADR 0156).
@@ -112,7 +113,7 @@ export function buildStaticSrcdoc(files: Readonly<Record<string, string>>, page 
 
   if (hasImages) doc = inlineHtmlImages(doc, page, images);
 
-  const head = `<meta http-equiv="Content-Security-Policy" content="${CSP}"><meta name="referrer" content="no-referrer">${NAV_SCRIPT}`;
+  const head = `<meta http-equiv="Content-Security-Policy" content="${STATIC_PREVIEW_CSP}"><meta name="referrer" content="no-referrer">${NAV_SCRIPT}`;
   // The policy goes first, right after the doctype, before anything the page itself says: a "<head>" inside a
   // comment, or a script before the head, can't come ahead of it. The parser puts it in the head it opens,
   // and the page's own <html> and <head> tags merge into those.
