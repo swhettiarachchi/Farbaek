@@ -22,7 +22,7 @@ const PROMISES = [
   { icon: ArrowsClockwiseIcon, title: "Nothing expires at the end of the month", body: "Unused AI usage rolls over for two months, oldest first." },
   { icon: ArrowCounterClockwiseIcon, title: "Failed attempts are given back", body: "When an AI call fails, or the agent's fix for failed checks doesn't pass them either, that usage returns to you, up to a monthly cap." },
   { icon: WalletIcon, title: "No surprise bills", body: "Plans never run into overage. You see the share used and when it resets." },
-  { icon: ShieldCheckIcon, title: "Security checks from Plus", body: "Others keep them for business plans. Farbaek includes them at $19.99." },
+  { icon: ShieldCheckIcon, title: "Security checks from Plus", body: "Others keep them for business plans. Farbaek includes them at $19.99, and every plan can publish a site after Farbaek's rules check." },
 ] as const;
 
 const PRICING_FAQ: FaqItem[] = [

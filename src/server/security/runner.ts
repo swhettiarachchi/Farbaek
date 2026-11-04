@@ -10,6 +10,9 @@
  * 3. An AI review of the riskiest files, metered from the wallet (operation
  *    security_review), when AI is connected and there's usage left.
  *
+ * Plans without full checks get a rules check (ADR 0168): the rules and the
+ * OSV.dev lookup, with the sandbox scans and the AI review skipped for the plan.
+ *
  * The result is a report statement with its digest. Checks run in this
  * server process and report when done; one that never finishes is failed
  * when someone next looks.
@@ -59,14 +62,30 @@ export interface CheckPerson {
   role: OrgRole;
 }
 
+/**
+ * What a check runs (ADR 0168). Every plan gets the rules check: Farbaek's
+ * rules and the OSV.dev lookup, which cost nothing to run, so any site can be
+ * published. The sandbox scans and the AI review come with the full check.
+ */
+export type SecurityCheckScope = { kind: "full" } | { kind: "rules"; reason: string };
+
+export const FULL_CHECK_REASON = "Included from the Plus plan up, and in the trial.";
+
+/** The scope a plan gets, or null when the plan can't be read. */
+export function checkScope(plan: Parameters<typeof checkFeature>[0]): SecurityCheckScope | null {
+  const feature = checkFeature(plan, "security_checks");
+  if (feature.allowed) return { kind: "full" };
+  if (feature.code === "FEATURE_NOT_IN_PLAN") return { kind: "rules", reason: FULL_CHECK_REASON };
+  if (feature.code === "BILLING_SUSPENDED") return { kind: "rules", reason: feature.message };
+  return null;
+}
+
 export async function startSecurityCheck(deps: SecurityCheckDeps, person: CheckPerson, projectId: string): Promise<WriteResult<{ reportId: string }>> {
   if (!CONTRIBUTOR_ROLES.includes(person.role)) return fail("FORBIDDEN");
   const billing = await resolvePlan(deps.usage, person.orgId);
   if (!billing.ok) return billing;
-  const feature = checkFeature(billing.value.plan, "security_checks");
-  if (!feature.allowed) {
-    return fail(feature.code, feature.code === "FEATURE_NOT_IN_PLAN" ? "Security checks are included from the Plus plan up, and in the trial." : feature.message);
-  }
+  const scope = checkScope(billing.value.plan);
+  if (!scope) return fail("ENTITLEMENT_UNAVAILABLE");
   const project = await deps.checks.project(person.orgId, projectId);
   if (!project) return fail("NOT_FOUND");
   if (project.archived) return fail("PROJECT_ARCHIVED");
@@ -77,14 +96,21 @@ export async function startSecurityCheck(deps: SecurityCheckDeps, person: CheckP
     return fail(codeFromDatabaseError(started.error));
   }
   const reportId = started.value;
-  void runSecurityCheck(deps, person, { id: project.id, name: project.name }, reportId).catch((e) => {
+  void runSecurityCheck(deps, person, { id: project.id, name: project.name }, reportId, scope).catch((e) => {
     log("error", "security.check_crashed", { report: reportId, error: e instanceof Error ? e.message : String(e) });
   });
   return { ok: true, value: { reportId } };
 }
 
 /** Runs the checks and records the report. Exported for tests; startSecurityCheck runs it in the background. */
-export async function runSecurityCheck(deps: SecurityCheckDeps, person: CheckPerson, project: { id: string; name: string }, reportId: string): Promise<void> {
+export async function runSecurityCheck(
+  deps: SecurityCheckDeps,
+  person: CheckPerson,
+  project: { id: string; name: string },
+  reportId: string,
+  scope: SecurityCheckScope = { kind: "full" },
+): Promise<void> {
+  const full = scope.kind === "full";
   try {
     const listed = (await deps.checks.projectFiles(person.orgId, project.id)).filter((f) => f.sizeBytes <= MAX_FILE_BYTES).slice(0, MAX_FILES);
     const contents = await deps.checks.fileContents(person.orgId, project.id, listed);
@@ -100,7 +126,9 @@ export async function runSecurityCheck(deps: SecurityCheckDeps, person: CheckPer
     checks.push({ name: "rules", ran: true, findings: ruled.length });
 
     // 2. Packages.
-    if (!files.some((f) => f.path === "package-lock.json")) {
+    if (!full) {
+      checks.push({ name: "dependencies", ran: false, reason: scope.reason });
+    } else if (!files.some((f) => f.path === "package-lock.json")) {
       checks.push({ name: "dependencies", ran: false, reason: files.some((f) => f.path === "package.json") ? "There's no package-lock.json, so the exact package versions aren't known." : "This project has no npm packages." });
     } else if ("unavailable" in deps.audit) {
       checks.push({ name: "dependencies", ran: false, reason: deps.audit.unavailable });
@@ -138,7 +166,9 @@ export async function runSecurityCheck(deps: SecurityCheckDeps, person: CheckPer
     }
 
     // 2c. Semgrep and detect-secrets, in a sandbox (ADR 0137). A problem another check already reported at the same line isn't counted twice.
-    if (!deps.staticScan || "unavailable" in deps.staticScan) {
+    if (!full) {
+      checks.push({ name: "sast", ran: false, reason: scope.reason }, { name: "secrets", ran: false, reason: scope.reason });
+    } else if (!deps.staticScan || "unavailable" in deps.staticScan) {
       const reason = deps.staticScan && "unavailable" in deps.staticScan ? deps.staticScan.unavailable : "Static analysis isn't connected on this server.";
       checks.push({ name: "sast", ran: false, reason }, { name: "secrets", ran: false, reason });
     } else {
@@ -164,7 +194,9 @@ export async function runSecurityCheck(deps: SecurityCheckDeps, person: CheckPer
 
     // 3. The AI review.
     let model: string | null = null;
-    if ("unavailable" in deps.reviewer) {
+    if (!full) {
+      checks.push({ name: "ai_review", ran: false, reason: scope.reason });
+    } else if ("unavailable" in deps.reviewer) {
       checks.push({ name: "ai_review", ran: false, reason: deps.reviewer.unavailable });
     } else {
       const review = await aiReview(deps, deps.reviewer, person, files, ruled);
@@ -177,7 +209,7 @@ export async function runSecurityCheck(deps: SecurityCheckDeps, person: CheckPer
       }
     }
 
-    const statement = buildSecurityReport({ project, files: files.length, snapshotDigest, checks, findings, model, generatedAt: deps.usage.now() });
+    const statement = buildSecurityReport({ project, files: files.length, snapshotDigest, checks, findings, model, generatedAt: deps.usage.now(), rulesOnly: !full });
     const digest = await securityReportDigest(statement);
     const done = await deps.reports.finish(reportId, { status: "done", statement, digest });
     if (!done.ok) log("error", "security.finish_failed", { report: reportId, error: done.error });

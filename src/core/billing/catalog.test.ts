@@ -140,6 +140,8 @@ describe("plan catalog", () => {
     expect(cheapestPlanWithFeature("usage_rollover")).toBe("lite_monthly");
     expect(cheapestPlanWithFeature("free_retries")).toBe("maker_monthly");
     expect(cheapestPlanWithFeature("security_checks")).toBe("plus");
+    // Publishing a site needs only the rules check, which every plan runs (ADR 0168).
+    expect(cheapestPlanWithFeature("site_publishing")).toBe("free");
     expect(cheapestPlanWithFeature("opus_models")).toBe("pro");
     expect(cheapestPlanWithFeature("fable_models")).toBe("max_2x");
   });

@@ -37,6 +37,8 @@ export interface SecurityReportStatement {
     findings: Finding[];
     model: string | null;
     generatedAt: string;
+    /** Only on a rules check (ADR 0168): Farbaek's rules and the OSV.dev lookup, without the plan's full checks. Absent on a full check. */
+    scope?: "rules";
   };
 }
 
@@ -48,6 +50,7 @@ export function buildSecurityReport(input: {
   findings: Finding[];
   model: string | null;
   generatedAt: Date;
+  rulesOnly?: boolean;
 }): SecurityReportStatement {
   // Stable ids, most serious first, so "Fix with the agent" can name a finding.
   const findings = sortFindings(dedupeFindings(input.findings)).map((f, i) => ({ ...f, id: `F${String(i + 1).padStart(3, "0")}` }));
@@ -65,6 +68,8 @@ export function buildSecurityReport(input: {
       findings,
       model: input.model,
       generatedAt: input.generatedAt.toISOString(),
+      // Added only when true, so a full check's statement (and its digest) is unchanged.
+      ...(input.rulesOnly ? { scope: "rules" as const } : {}),
     },
   };
 }

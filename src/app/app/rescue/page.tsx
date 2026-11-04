@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/app/primitives";
 import { RescueImport } from "@/components/files/rescue-import";
-import { checkFeature } from "@/core/billing/entitlements";
+import { PLAN_UNCONFIRMED_MESSAGE } from "@/core/billing/entitlements";
+import { checkScope } from "@/server/security/runner";
 import { loadAppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
 
@@ -18,7 +19,8 @@ const STEPS = [
 export default async function RescuePage() {
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
-  const feature = checkFeature(ctx.current.billingUnknown ? null : ctx.current.plan, "security_checks");
+  // Every plan gets at least the rules check after an import (ADR 0168).
+  const scope = checkScope(ctx.current.billingUnknown ? null : ctx.current.plan);
   const canImport = ctx.role !== null && CONTRIBUTOR_ROLES.includes(ctx.role);
   const reason =
     ctx.mode !== "live"
@@ -47,11 +49,12 @@ export default async function RescuePage() {
         ))}
       </ol>
       <RescueImport disabledReason={reason} />
-      {!feature.allowed ? (
+      {scope?.kind === "rules" ? (
         <p className="text-sm text-ink-3">
-          {feature.code === "FEATURE_NOT_IN_PLAN" ? "Security checks are included from the Plus plan up, and in the trial." : feature.message} You can still import the app; the check
-          starts when your plan includes it.
+          On your plan, the check runs Farbaek&apos;s rules over every file and looks your packages up in OSV.dev. Package audits, code scanning and the AI review come with Plus.
         </p>
+      ) : !scope ? (
+        <p className="text-sm text-ink-3">{PLAN_UNCONFIRMED_MESSAGE} You can still import the app, and run the check from its Security page later.</p>
       ) : null}
       <p className="text-xs leading-relaxed text-ink-3">A guide to what to fix first, not a certification. Nothing in your app changes until you approve a fix.</p>
     </div>

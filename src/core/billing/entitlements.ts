@@ -41,12 +41,11 @@ export type AlwaysAvailableOperation = (typeof ALWAYS_AVAILABLE_OPERATIONS)[numb
 
 const ALLOW: EntitlementDecision = { allowed: true };
 
+/** Shown when the plan can't be read: actions that depend on it pause, and nothing is assumed. */
+export const PLAN_UNCONFIRMED_MESSAGE = "Your plan could not be confirmed, so this action is paused. Safety controls, exports and billing still work.";
+
 function unavailable(): EntitlementDecision {
-  return {
-    allowed: false,
-    code: "ENTITLEMENT_UNAVAILABLE",
-    message: "Your plan could not be confirmed, so this action is paused. Safety controls, exports and billing still work.",
-  };
+  return { allowed: false, code: "ENTITLEMENT_UNAVAILABLE", message: PLAN_UNCONFIRMED_MESSAGE };
 }
 
 export function checkAlwaysAvailable(operation: string): operation is AlwaysAvailableOperation {

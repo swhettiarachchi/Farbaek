@@ -27,6 +27,7 @@ export type FeatureKey =
   | "developer_api"
   | "usage_alerts"
   | "live_previews"
+  | "site_publishing"
   | "studio_kit_pro"
   | "security_checks"
   | "replay_and_recovery"
@@ -53,8 +54,9 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
   developer_api: "Developer API and SDK access",
   usage_alerts: "Usage alerts",
   live_previews: "Live previews of running apps",
+  site_publishing: "Publish sites at their own address, after Farbaek's rules check",
   studio_kit_pro: "Studio kit Pro: story chapters, carousels, magnetic motion and more looks in your sites",
-  security_checks: "Security checks",
+  security_checks: "Full security checks: package audits, code scanning and an AI review",
   replay_and_recovery: "Replay and undo of applied changes",
   opus_models: "Claude Opus on Deep effort",
   advanced_approvals: "Advanced approval workflows",
@@ -84,6 +86,7 @@ export const FEATURE_STATUS: Record<FeatureKey, "live" | "coming"> = {
   developer_api: "live",
   usage_alerts: "live",
   live_previews: "live",
+  site_publishing: "live",
   studio_kit_pro: "live",
   security_checks: "live",
   replay_and_recovery: "live",
@@ -136,7 +139,7 @@ export interface Plan {
   yearlyOf?: PlanId;
 }
 
-const FREE_FEATURES = ["cloud_agent", "basic_policies", "action_receipts", "community_support", "live_previews"] as const satisfies readonly FeatureKey[];
+const FREE_FEATURES = ["cloud_agent", "basic_policies", "action_receipts", "community_support", "live_previews", "site_publishing"] as const satisfies readonly FeatureKey[];
 const LITE_FEATURES = [...FREE_FEATURES, "usage_alerts", "developer_api", "usage_rollover", "studio_kit_pro"] as const satisfies readonly FeatureKey[];
 const MAKER_FEATURES = [...LITE_FEATURES, "free_retries"] as const satisfies readonly FeatureKey[];
 const STARTER_FEATURES = MAKER_FEATURES;

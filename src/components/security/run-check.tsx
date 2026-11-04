@@ -8,7 +8,8 @@ import { buttonClasses } from "@/components/ui/button";
 
 const IDLE: SecurityActionState = { status: "idle" };
 
-export function RunSecurityCheck({ projectId, disabledReason, running }: { projectId: string; disabledReason: string | null; running: boolean }) {
+/** `rulesOnly`: the plan runs the rules check (ADR 0168), so the button says that. */
+export function RunSecurityCheck({ projectId, disabledReason, running, rulesOnly = false }: { projectId: string; disabledReason: string | null; running: boolean; rulesOnly?: boolean }) {
   const [state, action, pending] = useActionState(startSecurityCheckAction, IDLE);
   const router = useRouter();
   const busy = running;
@@ -31,7 +32,7 @@ export function RunSecurityCheck({ projectId, disabledReason, running }: { proje
       <span className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending || busy || Boolean(disabledReason)} className={buttonClasses("primary", "sm")}>
           <ShieldCheckIcon size={16} weight="bold" aria-hidden />
-          {pending ? "Starting…" : busy ? "Checking…" : "Run a security check"}
+          {pending ? "Starting…" : busy ? "Checking…" : rulesOnly ? "Run the rules check" : "Run a security check"}
         </button>
         {disabledReason ? <span className="text-xs text-ink-3">{disabledReason}</span> : null}
       </span>

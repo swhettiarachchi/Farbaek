@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { BillingSnapshot } from "@/core/billing/trial";
+import { resolveEffectivePlan as effectivePlan, type BillingSnapshot } from "@/core/billing/trial";
 import type { SecurityReportStatement } from "@/core/security/report";
 import type { ReviewOutcome, SecurityReviewer } from "@/server/ai/security-reviewer";
 import type { AiUsageDeps } from "@/server/workspace/ai-usage";
-import { runSecurityCheck, startSecurityCheck, type CheckPerson, type SecurityCheckDeps } from "./runner";
+import { checkScope, FULL_CHECK_REASON, runSecurityCheck, startSecurityCheck, type CheckPerson, type SecurityCheckDeps } from "./runner";
 
 const FILES: Record<string, string> = {
   "src/app/api/login/route.ts": 'const apiKey = "a8F3kd92Lq0zXw71";\nexport async function POST() {}\n',
@@ -112,10 +112,58 @@ describe("security checks", () => {
     expect(t.usage.at(-1)).toMatchObject({ name: "settle", input: { status: "refunded", refundReason: "failed" } });
   });
 
-  it("is included from Plus up and in the trial, and needs a contributor", async () => {
-    expect(await startSecurityCheck(deps({ billing: { state: "free" } }).d, alice, "p1")).toMatchObject({ ok: false, code: "FEATURE_NOT_IN_PLAN", message: expect.stringMatching(/from the Plus plan up/) });
+  it("starts on every plan, and needs a contributor", async () => {
+    expect(await startSecurityCheck(deps({ billing: { state: "free" } }).d, alice, "p1")).toEqual({ ok: true, value: { reportId: "report-1" } });
     expect(await startSecurityCheck(deps().d, { ...alice, role: "viewer" }, "p1")).toMatchObject({ ok: false, code: "FORBIDDEN" });
     expect(await startSecurityCheck(deps().d, alice, "p1")).toEqual({ ok: true, value: { reportId: "report-1" } });
+  });
+});
+
+describe("the rules check on plans without full checks (ADR 0168)", () => {
+  const LOCKED = { ...FILES, "package-lock.json": JSON.stringify({ lockfileVersion: 3, packages: { "node_modules/next": { version: "14.0.0" } } }) };
+
+  it("gives Free, Lite, Maker and Starter a rules check, and Plus and the trial the full one", () => {
+    const at = new Date("2026-10-18T12:00:00Z");
+    expect(checkScope(effectivePlan({ state: "free" }, at))).toEqual({ kind: "rules", reason: FULL_CHECK_REASON });
+    for (const plan of ["lite", "maker", "starter"] as const) expect(checkScope(effectivePlan({ state: "active", paidPlanId: plan }, at))?.kind).toBe("rules");
+    expect(checkScope(effectivePlan(PLUS, at))).toEqual({ kind: "full" });
+    // A suspended paid workspace is on Free until billing is fixed: it gets the rules check, with that reason.
+    expect(checkScope(effectivePlan({ state: "suspended", paidPlanId: "plus" }, at))).toEqual({ kind: "rules", reason: expect.stringMatching(/paused until billing is resolved/) });
+    expect(checkScope(null)).toBeNull();
+  });
+
+  it("runs the rules and OSV.dev, skips the sandbox scans and the AI review with the reason, and calls none of them", async () => {
+    const calls: string[] = [];
+    const { source, r } = fakeReviewer({ ok: true, usage: { model: "m", inputTokens: 1, outputTokens: 1 }, output: { findings: [] } });
+    const t = deps({
+      billing: { state: "free" },
+      files: LOCKED,
+      reviewer: source,
+      audit: async () => (calls.push("audit"), { ok: true as const, stdout: "{}" }),
+      staticScan: async () => (calls.push("scan"), { ok: true as const, semgrep: "", secrets: "" }),
+      osv: async (packages) => (calls.push(`osv:${packages.length}`), { ok: true as const, hits: [], details: new Map() }),
+    });
+    await runSecurityCheck(t.d, alice, { id: "p1", name: "Site" }, "report-1", { kind: "rules", reason: FULL_CHECK_REASON });
+    const p = report(t.finished);
+    expect(p.scope).toBe("rules");
+    expect(p.checks).toEqual([
+      { name: "rules", ran: true, findings: 2 },
+      { name: "dependencies", ran: false, reason: FULL_CHECK_REASON },
+      { name: "osv", ran: true, findings: 0, detail: expect.stringMatching(/^1 locked package from package-lock.json looked up/) },
+      { name: "sast", ran: false, reason: FULL_CHECK_REASON },
+      { name: "secrets", ran: false, reason: FULL_CHECK_REASON },
+      { name: "ai_review", ran: false, reason: FULL_CHECK_REASON },
+    ]);
+    expect(calls).toEqual(["osv:1"]);
+    expect(r.calls).toEqual([]);
+    expect(t.usage).toEqual([]);
+    expect(p.model).toBeNull();
+  });
+
+  it("leaves a full check's report without a scope, so its shape and digest don't change", async () => {
+    const t = deps();
+    await runSecurityCheck(t.d, alice, { id: "p1", name: "Site" }, "report-1");
+    expect("scope" in report(t.finished)).toBe(false);
   });
 });
 

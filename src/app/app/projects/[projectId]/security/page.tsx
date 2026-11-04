@@ -8,11 +8,12 @@ import { RunSecurityCheck } from "@/components/security/run-check";
 import { ScoreRing } from "@/components/security/score-ring";
 import { LocalTime } from "@/components/ui/local-time";
 import { buttonClasses } from "@/components/ui/button";
-import { checkFeature } from "@/core/billing/entitlements";
+import { PLAN_UNCONFIRMED_MESSAGE } from "@/core/billing/entitlements";
 import { SEVERITIES, SEVERITY_LABELS, type Finding, type Severity } from "@/core/security/findings";
 import { CHECK_LABELS } from "@/core/security/report";
 import { shortHash } from "@/core/trust/canonical-json";
 import { loadProjectReports } from "@/server/security/page-data";
+import { checkScope } from "@/server/security/runner";
 import type { SecurityReportView } from "@/server/security/store";
 import { loadAppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
@@ -56,7 +57,8 @@ export default async function SecurityPage({ params, searchParams }: Params) {
   const running = latest?.status === "running";
   const lastDone = reports.find((r) => r.status === "done" && r.statement) ?? null;
 
-  const feature = checkFeature(ctx.current.billingUnknown ? null : ctx.current.plan, "security_checks");
+  // Every plan runs at least the rules check (ADR 0168); the full check comes with Plus and the trial.
+  const scope = checkScope(ctx.current.billingUnknown ? null : ctx.current.plan);
   const canRun = ctx.role !== null && CONTRIBUTOR_ROLES.includes(ctx.role);
   const reason = ctx.mode !== "live"
     ? "Security checks need a real workspace."
@@ -64,13 +66,12 @@ export default async function SecurityPage({ params, searchParams }: Params) {
       ? ctx.writes.reason
       : !canRun
         ? "Your role can view reports but not run checks."
-        : !feature.allowed
-          ? feature.code === "FEATURE_NOT_IN_PLAN"
-            ? "Security checks are included from the Plus plan up, and in the trial."
-            : feature.message
+        : !scope
+          ? PLAN_UNCONFIRMED_MESSAGE
           : project.archivedAt
             ? "This project is archived."
             : null;
+  const rulesOnly = scope?.kind === "rules";
 
   const p = lastDone?.statement?.predicate ?? null;
   const grouped = p ? SEVERITIES.map((s) => ({ severity: s, findings: p.findings.filter((f) => f.severity === s) })).filter((g) => g.findings.length > 0) : [];
@@ -83,8 +84,18 @@ export default async function SecurityPage({ params, searchParams }: Params) {
       <PageHeader
         title="Security"
         description="Farbaek's rules over every file, known vulnerabilities in your packages, and an AI review of the riskiest code. A guide to what to fix first, not a certification."
-        actions={<RunSecurityCheck projectId={project.id} disabledReason={reason} running={running} />}
+        actions={<RunSecurityCheck projectId={project.id} disabledReason={reason} running={running} rulesOnly={rulesOnly} />}
       />
+
+      {rulesOnly ? (
+        <Notice>
+          On your plan, a check runs Farbaek&apos;s rules over every file and looks your packages up in OSV.dev. That&apos;s enough to publish a site. Package audits, code scanning and the AI review come with{" "}
+          <Link href="/pricing" className="font-medium text-accent underline underline-offset-2">
+            Plus
+          </Link>
+          .
+        </Notice>
+      ) : null}
 
       {rescueNotStarted && !running && !p ? (
         <Notice>Your app&apos;s files are in this project. The security check didn&apos;t start{reason ? `: ${reason}` : ", so run it now"}.</Notice>
@@ -116,6 +127,7 @@ export default async function SecurityPage({ params, searchParams }: Params) {
           <section className="grid gap-6 rounded-md border border-line bg-surface p-5 shadow-e1 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center sm:p-6" aria-label="Score">
             <ScoreRing score={p.score} grade={p.grade} />
             <div className="grid gap-4">
+              <p className="text-sm font-medium">{p.scope === "rules" ? "Rules check" : "Security check"}</p>
               <ul className="flex flex-wrap gap-2" aria-label="Findings by severity">
                 {SEVERITIES.filter((s) => s !== "info").map((s) => (
                   <li key={s} className="flex items-center gap-2 text-sm">
@@ -206,7 +218,9 @@ export default async function SecurityPage({ params, searchParams }: Params) {
             {reports.slice(1).map((r) => (
               <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm sm:px-5">
                 <LocalTime iso={r.startedAt} />
-                <span className="tabular text-ink-2">{r.status === "done" ? `${r.score}, grade ${r.grade}` : r.status === "failed" ? "Failed" : "Running"}</span>
+                <span className="tabular text-ink-2">
+                  {r.status === "done" ? `${r.statement?.predicate.scope === "rules" ? "Rules check, " : ""}${r.score}, grade ${r.grade}` : r.status === "failed" ? "Failed" : "Running"}
+                </span>
               </li>
             ))}
           </ul>
