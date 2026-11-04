@@ -26,6 +26,10 @@ export interface SiteReview {
 
 const MAX_FINDINGS = 60;
 
+/** An en dash between two numbers, times or days: the end of a range, kept so the rest of the text can be checked for dashes. */
+const DAY = "(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*\\.?";
+const RANGE_DASH = new RegExp(`(\\d(?:\\s*[ap]\\.?m\\.?)?|\\b${DAY})\\s*–\\s*(?=\\d|${DAY}\\b)`, "gi");
+
 /**
  * Phrases that make copy read as generated rather than written for a business
  * (the Studio standard, rule 2). Phrases, not single words: "seamless gutters"
@@ -158,7 +162,8 @@ export function reviewSite(input: Record<string, string> | ReadonlyMap<string, s
     if (stand.length) add("consider", page, `${stand.length} media ${stand.length === 1 ? "slot is" : "slots are"} still a placeholder (${stand.join(", ")}). List them in your finish summary so the person can replace them.`);
 
     const text = visibleText(html);
-    if (/[—–]/.test(text)) add("fix", page, "Visible text uses an em or en dash. Use a comma, a colon, a full stop or a hyphen.");
+    // An en dash in a range ("6:00 am – 7:00 pm", "2019–2024", "Mon–Fri") is correct typography, not a tell.
+    if (/[—–]/.test(text.replace(RANGE_DASH, "$1 "))) add("fix", page, "Visible text uses an em dash, or an en dash outside a range. Use a comma, a colon, a full stop or a hyphen.");
     if (/lorem ipsum/i.test(text)) add("fix", page, "Lorem ipsum is still on the page.");
     // Human-made, not AI-made (ADR 0156): the phrases, emoji and icons that make a site read as generated.
     const phrases = [...new Set((text.match(AI_PHRASES) ?? []).map((s) => s.toLowerCase().replace(/\s+/g, " ")))];
