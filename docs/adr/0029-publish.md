@@ -47,6 +47,7 @@ People who build a site with Farbaek want to put it on the internet. Farbaek's d
 
 - Publishing is one click after a passing check, and every version can be made live again.
 - **Plans.** Publishing needs a security check, which today comes with the trial and with the Plus plan and up. Whether Free should publish (for example after a rules-only check) is the owner's decision.
+  - **Decided in ADR 0168 (2026-11-04):** every plan can publish. Plans below Plus run a rules check, which the publish gate accepts like any other finished check.
 - **Shared parent domain.** Sites on farbaek.si share it, so one site's scripts could set cookies for `.farbaek.si`. Farbaek's own preview cookies are `__Host-` cookies and can't be overwritten that way. Adding farbaek.si to the Public Suffix List would isolate sites from each other; that's a request the owner files.
 - **Not built yet:**
   - publishing apps with a server;

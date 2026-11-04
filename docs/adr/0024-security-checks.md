@@ -9,7 +9,7 @@ People build websites and apps on Farbaek with an agent. The owner wants securit
 
 ## Decision
 
-A **security check** on a project (Plus and up, and in the trial; `security_checks`) runs three checks and reports each as run or skipped, with the reason:
+A **security check** on a project (Plus and up, and in the trial; `security_checks`) runs three checks and reports each as run or skipped, with the reason (since ADR 0168, plans below Plus run a rules check: the rules and the OSV.dev lookup, with the rest skipped for the plan):
 
 1. **Farbaek's rules** (`src/core/security/rules.ts`): deterministic checks over every file, on Farbaek's servers, with no code run.
    - Credentials and signed tokens in code; secret-looking public env names (`NEXT_PUBLIC_…SECRET`); server keys in browser code; tables without Row Level Security across SQL migrations.

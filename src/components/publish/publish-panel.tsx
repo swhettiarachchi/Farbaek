@@ -81,7 +81,7 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
         </div>
       ) : (
         <p className="text-sm leading-relaxed text-ink-2">
-          Put this site on the internet at its own address. Farbaek publishes exactly the files you have now, after a security check of those files finds nothing critical.
+          Put this site on the internet at its own address. Farbaek publishes exactly the files you have now, after a security check of those files finds nothing critical. Every plan can run the rules check that this needs.
         </p>
       )}
 

@@ -40,7 +40,7 @@ const GROUPS: CompareGroup[] = [
       limitRow("Activity history", "historyDays", " days"),
     ],
   },
-  { title: "Build", rows: (["cloud_agent", "live_previews", "studio_kit_pro", "security_checks", "opus_models", "fable_models", "free_retries", "developer_api", "usage_alerts"] as const).map(featureRow) },
+  { title: "Build", rows: (["cloud_agent", "live_previews", "site_publishing", "studio_kit_pro", "security_checks", "opus_models", "fable_models", "free_retries", "developer_api", "usage_alerts"] as const).map(featureRow) },
   {
     title: "Governance",
     rows: (["basic_policies", "action_receipts", "advanced_approvals", "policy_builder", "shadow_mode", "replay_and_recovery", "advanced_rbac", "incident_response", "advanced_autonomy", "impact_analysis", "evidence_exports"] as const).map(featureRow),
