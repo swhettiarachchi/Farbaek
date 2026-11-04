@@ -102,8 +102,8 @@ function ChapterRail({
         })}
       </ol>
 
-      {/* Phones and tablets: chapters as pills under the film. */}
-      <ol aria-label="Chapters" className="grid grid-cols-3 gap-2 lg:hidden">
+      {/* Phones and tablets: chapters as pills under the film, two across on phones so a label never breaks. */}
+      <ol aria-label="Chapters" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:hidden">
         {chapters.map((c, i) => {
           const current = i === active;
           return (

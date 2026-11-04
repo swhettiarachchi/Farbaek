@@ -25,7 +25,8 @@ export function EvidenceTabs({ tabs }: { tabs: EvidenceTab[] }) {
 
   return (
     <div className="overflow-hidden rounded-[28px] bg-media shadow-e3">
-      <div role="tablist" aria-label="Evidence samples" className="flex border-b border-white/[0.07] px-2">
+      {/* On the narrowest phones, or with larger system text, the row scrolls instead of cutting a tab off. */}
+      <div role="tablist" aria-label="Evidence samples" className="flex overflow-x-auto border-b border-white/[0.07] px-1 [scrollbar-width:none] sm:px-2">
         {tabs.map((tab, i) => (
           <button
             key={tab.id}
@@ -40,12 +41,12 @@ export function EvidenceTabs({ tabs }: { tabs: EvidenceTab[] }) {
             tabIndex={active === i ? 0 : -1}
             onClick={() => setActive(i)}
             onKeyDown={onKeyDown}
-            className={`relative h-11 px-4 font-mono text-[13px] transition-colors duration-[140ms] ${
+            className={`relative h-11 shrink-0 whitespace-nowrap px-3 font-mono text-[13px] transition-colors duration-[140ms] sm:px-4 ${
               active === i ? "text-media-ink" : "text-media-ink-3 hover:text-media-ink-2"
             }`}
           >
             {tab.label}
-            {active === i ? <span aria-hidden className="absolute inset-x-4 -bottom-px h-[2px] rounded-full bg-media-accent" /> : null}
+            {active === i ? <span aria-hidden className="absolute inset-x-3 bottom-0 h-[2px] rounded-full bg-media-accent sm:inset-x-4" /> : null}
           </button>
         ))}
       </div>
