@@ -79,7 +79,7 @@ export function ChecksPanel({
         {task ? (
           <>
             <p className="mt-1 text-sm text-ink-2">
-              Linked to <span className="font-medium text-ink">{task.title}</span>. Each required check runs here with its real exit code, then Guard records a receipt. A receipt is evidence; it never authorizes a deployment.
+              Linked to <span className="font-medium text-ink">{task.title}</span>. Each required check runs here with its real exit code, then Guard records a receipt. A receipt records what happened; it never allows a launch.
             </p>
             {task.checks.length ? (
               <ul className="mt-3 grid gap-1.5">
@@ -305,7 +305,7 @@ const EVENT_LABELS: Record<string, string> = {
   "preview.opened": "Preview opened",
   "preview.revoked": "Preview closed",
   "receipt.recorded": "Receipt recorded",
-  "cleanup.done": "Sandbox destroyed",
+  "cleanup.done": "Test space destroyed",
   "cleanup.failed": "Cleanup failed, will retry",
 };
 

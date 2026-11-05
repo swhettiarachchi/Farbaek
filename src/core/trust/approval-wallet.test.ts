@@ -35,7 +35,7 @@ describe("walletRisk", () => {
   it("states an escalation, flags and unexplained changes, most serious first", () => {
     expect(walletRisk({ policyOutcome: "ESCALATE", lens: lens({ flagged: 1, unexplained: 2 }), changes: [{ kind: "edit" }] })).toEqual([
       { kind: "escalated", tone: "approval", label: "Escalated: an owner or admin approves" },
-      { kind: "flagged", tone: "failed", label: "1 change flagged by the contract" },
+      { kind: "flagged", tone: "failed", label: "1 change flagged by the plan" },
       { kind: "unexplained", tone: "approval", label: "2 changes no line of the plan explains" },
       { kind: "files", tone: "neutral", label: "1 edited file" },
     ]);
@@ -43,7 +43,7 @@ describe("walletRisk", () => {
 
   it("says how many changes match a clause, and counts new and edited files", () => {
     expect(walletRisk({ policyOutcome: "REQUIRE_APPROVAL", lens: lens({ hunks: 2, matched: 2 }), changes: [{ kind: "create" }, { kind: "create" }, { kind: "edit" }] })).toEqual([
-      { kind: "matched", tone: "neutral", label: "2 changes match a line of the plan by its words" },
+      { kind: "matched", tone: "neutral", label: "2 changes share words with the plan" },
       { kind: "files", tone: "neutral", label: "2 new files, 1 edited file" },
     ]);
   });

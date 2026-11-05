@@ -59,11 +59,11 @@ export function AgentLeasePanel({
           <span>
             {state === "ended" ? (
               <>
-                Lease ended on <LocalTime iso={lease.expiresAt} />. The agent can&apos;t read tasks, propose changes or use Farbaek&apos;s AI until it&apos;s renewed.
+                Access ended on <LocalTime iso={lease.expiresAt} />. The agent can&apos;t read tasks, suggest changes or use Farbaek&apos;s AI until it&apos;s renewed.
               </>
             ) : (
               <>
-                Lease ends in {daysLeft} {daysLeft === 1 ? "day" : "days"}, on <LocalTime iso={lease.expiresAt} />.
+                Access ends in {daysLeft} {daysLeft === 1 ? "day" : "days"}, on <LocalTime iso={lease.expiresAt} />.
                 {state === "ending_soon" ? " Renew it to keep the agent working." : ""}
               </>
             )}
@@ -81,7 +81,7 @@ export function AgentLeasePanel({
             </button>
           </form>
           <button type="button" aria-expanded={open} aria-controls={panelId} disabled={Boolean(disabledReason)} onClick={() => setOpen((o) => !o)} className={buttonClasses("ghost", "sm")}>
-            {open ? "Close lease" : "Change lease"}
+            {open ? "Close" : "Change access"}
           </button>
         </div>
       ) : null}
@@ -96,7 +96,7 @@ export function AgentLeasePanel({
         <p role="status" className="flex items-start gap-2 text-sm text-ink-2">
           <CheckCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden />
           <span>
-            Lease saved. It ends on <LocalTime iso={result.expiresAt} />.
+            Access saved. It ends on <LocalTime iso={result.expiresAt} />.
           </span>
         </p>
       ) : null}
@@ -177,7 +177,7 @@ export function AgentLeasePanel({
 
           <div className="flex flex-wrap items-center gap-3">
             <button type="submit" disabled={blocked} className={buttonClasses("secondary", "sm")}>
-              {saving ? "Saving…" : "Save lease"}
+              {saving ? "Saving…" : "Save access"}
             </button>
             <button type="button" onClick={() => setOpen(false)} className={buttonClasses("ghost", "sm")}>
               Cancel

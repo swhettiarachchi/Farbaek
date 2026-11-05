@@ -87,7 +87,7 @@ export function ReplayTheatre({
                 <span className="text-xs text-ink-3">{builderReason}</span>
               ) : (
                 <Link href={`/app/policies?incident=${number}&effect=${r.effect}#rule-builder`} className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-accent hover:underline">
-                  Open in the policy builder <ArrowRightIcon size={14} aria-hidden />
+                  Open in Rules <ArrowRightIcon size={14} aria-hidden />
                 </Link>
               )}
             </div>

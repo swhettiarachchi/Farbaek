@@ -214,7 +214,7 @@ describe("permission leases (ADR 0117)", () => {
 
   it("refuses a task, its files and a proposal outside the lease's projects", async () => {
     const { store, calls } = fakeStore();
-    expect(await agentTask(store, elsewhere, TASK)).toMatchObject({ ok: false, status: 403, code: "FORBIDDEN", message: expect.stringContaining("lease") });
+    expect(await agentTask(store, elsewhere, TASK)).toMatchObject({ ok: false, status: 403, code: "FORBIDDEN", message: expect.stringContaining("access") });
     expect(await agentTaskFiles(store, elsewhere, TASK, null)).toMatchObject({ ok: false, status: 403, code: "FORBIDDEN" });
     expect(await submitAgentProposal(store, elsewhere, TASK, await body())).toMatchObject({ ok: false, status: 403, code: "FORBIDDEN" });
     expect(calls.create).toBeUndefined();

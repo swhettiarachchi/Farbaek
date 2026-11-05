@@ -33,7 +33,7 @@ export interface RehearsalSummary {
 }
 
 export const REASON_WORDS: Record<RehearsalReason, string> = {
-  blocked: "the policy blocked it",
+  blocked: "the rules stopped it",
   escalated: "it needed an owner or admin",
   too_many_files: "it changed more files than the limit",
   creates_files: "it created new files",

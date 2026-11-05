@@ -14,7 +14,7 @@
           {
             "kind": "matched",
             "tone": "neutral",
-            "label": "2 changes match a line of the plan by its words"
+            "label": "2 changes share words with the plan"
           },
           {
             "kind": "files",

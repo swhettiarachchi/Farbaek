@@ -37,7 +37,7 @@ function isZip(bytes: Uint8Array): boolean {
 const KINDS = [
   { label: "ProofPacks", body: "What was approved, the exact content applied, and the checks that ran." },
   { label: "Recovery receipts", body: "A change that was undone, file by file." },
-  { label: "Check receipts", body: "A check run in a sandbox, with its exit codes." },
+  { label: "Check receipts", body: "A check run in a test space, with its exit codes." },
   { label: "Security reports", body: "A project's score and every finding." },
   { label: "Workspace Capsules", body: "A project packed to move, with a BLAKE3 hash for every file." },
 ];
@@ -80,14 +80,14 @@ export function EvidenceCheck() {
         return;
       }
       if (bytes.length > MAX_JSON_BYTES) {
-        setResult({ type: "error", message: "That file is too large to be a Farbaek evidence file." });
+        setResult({ type: "error", message: "That file is too large to be a Farbaek proof file." });
         return;
       }
       let json: unknown;
       try {
         json = JSON.parse(new TextDecoder().decode(bytes));
       } catch {
-        setResult({ type: "error", message: "That file isn't JSON or a Capsule. Evidence files from Farbaek end in .json; Capsules in .capsule.zip." });
+        setResult({ type: "error", message: "That file isn't JSON or a Capsule. Proof files from Farbaek end in .json; Capsules in .capsule.zip." });
         return;
       }
       setResult({ type: "evidence", name: file.name, inspection: await inspectEvidence(json, undefined, await loadKeys()) });
@@ -119,7 +119,7 @@ export function EvidenceCheck() {
     <div className="grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start">
       <div className="grid gap-4">
         <fieldset className="grid min-w-0 gap-2">
-          <legend className="sr-only">How to give the evidence</legend>
+          <legend className="sr-only">How to give the proof</legend>
           <div className="inline-flex w-full rounded-full border border-line bg-surface p-1 shadow-e1 sm:w-auto">
             {(
               [
@@ -148,7 +148,7 @@ export function EvidenceCheck() {
             className={`flex min-h-56 cursor-pointer flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed px-6 py-10 text-center transition-colors duration-150 has-focus-visible:outline-2 has-focus-visible:outline-accent ${dragging ? "border-accent bg-accent/[0.04]" : "border-line-strong/50 bg-surface hover:border-accent/60"} ${busy ? "pointer-events-none opacity-60" : ""}`}
           >
             <FileArrowUpIcon size={36} className="text-accent" aria-hidden />
-            <span className="text-[0.9375rem] font-medium">{busy ? "Checking…" : "Drop an evidence file or a Capsule"}</span>
+            <span className="text-[0.9375rem] font-medium">{busy ? "Checking…" : "Drop a proof file or a Capsule"}</span>
             <span className="max-w-[34ch] text-sm text-ink-3">Or choose one. A ProofPack or receipt (.json), or a .capsule.zip.</span>
             <input type="file" accept=".json,application/json,.zip,application/zip" className="sr-only" onChange={(e) => void checkFile(e.target.files?.[0])} />
           </label>
@@ -421,7 +421,7 @@ function EvidenceResult({ inspection: r }: { inspection: Extract<Inspection, { o
 
       {r.summary.links.length > 0 ? (
         <div className="grid gap-2">
-          <h3 className="text-[0.9375rem] font-medium">Linked evidence</h3>
+          <h3 className="text-[0.9375rem] font-medium">Linked proof</h3>
           <ul className="grid gap-1.5 text-sm">
             {r.summary.links.map((l) => (
               <li key={l.digest} className="grid gap-0.5">

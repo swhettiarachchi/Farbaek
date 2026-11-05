@@ -214,7 +214,7 @@ export async function requestHandoff(
   if (!task) return fail("NOT_FOUND");
   const proposal = await deps.handoffs.latestPendingProposal(person.orgId, task.id);
   const checks = await trialChecksFor(deps, person.orgId, { taskId: task.id, projectId: task.projectId });
-  if (checks.length === 0) return fail("INVALID_TRANSITION", "The contract lists no checks, and Farbaek has none for this kind of project, so there's nothing for your computer to run.");
+  if (checks.length === 0) return fail("INVALID_TRANSITION", "The plan lists no checks, and Farbaek has none for this kind of project, so there's nothing for your computer to run.");
   const r = await deps.handoffs.request({ orgId: person.orgId, actor: person.userId, taskId: task.id, agentId: input.agentId, proposalId: proposal?.id ?? null, checks: checks.slice(0, 20), note: input.note?.trim() || null });
   if (!r.ok) {
     if (r.error.includes("HANDOFF_OPEN")) return fail("INVALID_TRANSITION", "This task is already waiting on that computer.");

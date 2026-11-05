@@ -157,15 +157,15 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
             {live.evidence === "verified" && live.evidenceProofPack ? (
               <>
                 {" "}
-                It went live with verified evidence, ProofPack <span className="font-mono text-[0.8125rem]" title={`sha256:${live.evidenceProofPack}`}>{shortHash(live.evidenceProofPack)}</span>.
+                It went live with passed checks, ProofPack <span className="font-mono text-[0.8125rem]" title={`sha256:${live.evidenceProofPack}`}>{shortHash(live.evidenceProofPack)}</span>.
               </>
             ) : live.evidence ? (
-              <> It went live without verified evidence. The reason given: {live.overrideReason}</>
+              <> It went live without passed checks. The reason given: {live.overrideReason}</>
             ) : null}
           </>
         ),
       }
-    : { state: plan.hosting === "static" ? "missing" : "na", text: plan.hosting === "static" ? "Nothing is live yet." : "Launching servers comes with your own hosting, next in LaunchOS." };
+    : { state: plan.hosting === "static" ? "missing" : "na", text: plan.hosting === "static" ? "Nothing is live yet." : "Launching servers comes with your own hosting, which is next." };
 
   const steps = [
     { key: "security", title: "Security check of these files", icon: ShieldCheckIcon, ...security, href: `/app/projects/${project.id}/security`, link: "Open Security" },

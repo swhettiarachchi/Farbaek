@@ -11,7 +11,7 @@ describe("Continue on my computer (ADR 0139)", () => {
     expect(splitCheckCommand("echo $HOME")).toMatchObject({ ok: false });
     expect(splitCheckCommand('npm "test')).toMatchObject({ ok: false, reason: expect.stringMatching(/quote/) });
     expect(splitCheckCommand("./run-tests.sh")).toMatchObject({ ok: false, reason: expect.stringMatching(/program name/) });
-    expect(splitCheckCommand("farbaek check-site")).toEqual({ ok: false, reason: "Farbaek's site check runs only in its sandbox." });
+    expect(splitCheckCommand("farbaek check-site")).toEqual({ ok: false, reason: "Farbaek's site check runs only in its test space." });
     expect(splitCheckCommand("   ")).toMatchObject({ ok: false });
   });
 

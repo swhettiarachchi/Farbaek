@@ -66,10 +66,10 @@ export function overrideReasonProblem(reason: string): string | null {
 }
 
 export const EVIDENCE_WORDS: Record<EvidenceStatus, { title: string; detail: string }> = {
-  verified: { title: "Verified", detail: "The latest change's checks passed in a sandbox against exactly these files." },
+  verified: { title: "Verified", detail: "The latest change's checks passed in a test space against exactly these files." },
   unverified: { title: "Not verified", detail: "The latest change hasn't been verified yet. Run its checks from the task." },
   partially_verified: { title: "Partly verified", detail: "Some of the latest change's checks failed." },
   failed: { title: "Checks failed", detail: "The latest change's checks failed against exactly these files." },
   changed: { title: "Files changed since", detail: "Files changed after the latest change was applied, by hand, an undo or an import, so no ProofPack covers them." },
-  none: { title: "No evidence", detail: "No change in this project has a ProofPack yet, so nothing verifies these files." },
+  none: { title: "No proof", detail: "No change in this project has a ProofPack yet, so nothing verifies these files." },
 };

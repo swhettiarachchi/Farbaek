@@ -117,7 +117,7 @@ export function SandboxWorkspace(props: WorkspaceProps) {
             ) : null}
             {confirmStop ? (
               <span className="flex flex-wrap items-center gap-2 rounded-full border border-failed/30 bg-failed/[0.05] py-1 pl-4 pr-1">
-                <span className="text-sm">Stop and destroy the sandbox?</span>
+                <span className="text-sm">Stop and destroy the test space?</span>
                 <button type="button" onClick={() => void act("stop")} disabled={busy !== null} className={buttonClasses("danger", "sm")}>
                   {busy === "stop" ? "Stopping…" : "Stop"}
                 </button>

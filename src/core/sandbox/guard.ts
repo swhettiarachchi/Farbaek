@@ -104,5 +104,5 @@ export async function evaluateSandboxAction(input: SandboxGuardInput): Promise<P
 
 /** The first blocking reason, for showing people why something was refused. */
 export function blockReason(decision: PolicyDecision): string | null {
-  return decision.outcome === "BLOCK" ? (decision.findings.find((f) => f.outcome === "BLOCK")?.detail ?? "Blocked by policy.") : null;
+  return decision.outcome === "BLOCK" ? (decision.findings.find((f) => f.outcome === "BLOCK")?.detail ?? "Stopped by the rules.") : null;
 }

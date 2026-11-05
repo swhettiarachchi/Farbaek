@@ -16,7 +16,7 @@ export const FLAG_DETAILS: Record<PlatformFlag, { label: string; pauses: string;
   sandboxes: {
     label: "Sandboxes",
     pauses: "New sandbox sessions and commands, so no app previews or contract checks start.",
-    fallback: "Farbaek has paused sandboxes for a short while. Try again soon.",
+    fallback: "Farbaek has paused test spaces for a short while. Try again soon.",
   },
   publishing: {
     label: "Publishing",

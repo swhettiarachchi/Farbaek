@@ -57,13 +57,13 @@ export async function startTaskVerification(deps: VerificationDeps, person: Veri
   if (!task) return fail("NOT_FOUND");
   if (task.state !== "VERIFYING") return fail("INVALID_TRANSITION", "Only an applied change that's waiting for its checks can be verified.");
   const contract = await deps.checks.approvedContract(person.orgId, taskId);
-  if (!contract) return fail("INVALID_TRANSITION", "The approved contract lists no checks to run.");
+  if (!contract) return fail("INVALID_TRANSITION", "The approved plan lists no checks to run.");
   // A plan with no checks runs Farbaek's site check for a static site, or the app's own build and tests (ADR 0054, ADR 0058).
   if (contract.body.requiredChecks.length === 0) {
     const files = await deps.checks.projectFiles(person.orgId, task.projectId);
     const manifests = files.filter((f) => f.path === "package.json");
     const contents = manifests.length ? await deps.checks.fileContents(person.orgId, task.projectId, manifests) : new Map<string, string>();
-    if (checksToRun([], files.map((f) => f.path), (p) => contents.get(p) ?? null).length === 0) return fail("INVALID_TRANSITION", "The approved contract lists no checks to run.");
+    if (checksToRun([], files.map((f) => f.path), (p) => contents.get(p) ?? null).length === 0) return fail("INVALID_TRANSITION", "The approved plan lists no checks to run.");
   }
 
   const started = await deps.store.start({ orgId: person.orgId, actor: person.userId, taskId, trigger });
@@ -101,7 +101,7 @@ async function runAttempt(deps: VerificationDeps, person: VerifyPerson, input: {
 
     const limits = (await service.overview(actor)).limits.limits;
     if (setup?.network && !limits.networkProfiles.includes("package_registries")) {
-      return failed("This plan's sandboxes can't reach the package registries, so the project's packages couldn't be installed for its checks.");
+      return failed("Test spaces on your subscription can't reach the package registries, so the project's packages couldn't be installed for its checks.");
     }
     const created = await service.createSession(
       actor,
@@ -117,10 +117,10 @@ async function runAttempt(deps: VerificationDeps, person: VerifyPerson, input: {
       },
       `verify:${input.id}`,
     );
-    if (!created.ok) return failed(`The sandbox didn't start: ${created.message}`);
+    if (!created.ok) return failed(`The test space didn't start: ${created.message}`);
     sessionId = created.value.sessionId;
     const attached = await deps.store.attach({ id: input.id, actor: person.userId, sessionId });
-    if (!attached.ok) return failed("The sandbox started, but the attempt couldn't be linked to it.");
+    if (!attached.ok) return failed("The test space started, but the attempt couldn't be linked to it.");
 
     if (setup) {
       const r = await service.runCommand(actor, sessionId, { command: setup.command, timeoutSeconds: SETUP_SECONDS, kind: "setup", label: setup.label }, deps.newKey());
@@ -154,10 +154,10 @@ export async function verifyInRunSession(
   const id = started.value;
   try {
     const attached = await deps.store.attach({ id, actor: person.userId, sessionId: input.sessionId });
-    if (!attached.ok) return recordFailure(deps.store, person, id, "The attempt couldn't be linked to this run's sandbox.");
+    if (!attached.ok) return recordFailure(deps.store, person, id, "The attempt couldn't be linked to this run's test space.");
     for (const f of input.files) {
       const written = await deps.service.writeFile(deps.actor, input.sessionId, f.path, f.content);
-      if (!written.ok) return recordFailure(deps.store, person, id, `${f.path} couldn't be copied into the sandbox: ${written.message.replace(/[.\s]+$/, "")}.`);
+      if (!written.ok) return recordFailure(deps.store, person, id, `${f.path} couldn't be copied into the test space: ${written.message.replace(/[.\s]+$/, "")}.`);
     }
     return await checkAndFinish(deps.store, deps.service, deps.actor, person, id, input.sessionId);
   } catch (e) {

@@ -87,7 +87,7 @@ export function PricingPlans() {
             <ul className="mt-5 grid gap-1.5 border-t border-line pt-5 text-sm text-ink-2">
               <li className="font-medium text-ink">{sessionsLine(plan)}</li>
               <li className="tabular">
-                {l.sandboxHours} sandbox {l.sandboxHours === 1 ? "hour" : "hours"}
+                {l.sandboxHours} test space {l.sandboxHours === 1 ? "hour" : "hours"}
               </li>
               <li className="tabular">
                 {l.seats === 1 ? "1 seat" : `${l.seats} seats`}, {l.workspaces === 1 ? "1 project" : `${number.format(l.workspaces ?? 0)} projects`}

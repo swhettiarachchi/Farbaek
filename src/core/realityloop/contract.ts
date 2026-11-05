@@ -62,18 +62,18 @@ export function checkActionAgainstContract(
 ): ContractViolation[] {
   const violations: ContractViolation[] = [];
   if (contract.forbiddenOperations.includes(action.operation)) {
-    violations.push({ kind: "FORBIDDEN_OPERATION", detail: `${action.operation} is forbidden by the contract.` });
+    violations.push({ kind: "FORBIDDEN_OPERATION", detail: `${action.operation} isn't allowed by the plan.` });
   } else if (!contract.allowedOperations.includes(action.operation)) {
-    violations.push({ kind: "OPERATION_NOT_ALLOWED", detail: `${action.operation} is not in the contract's allowed operations.` });
+    violations.push({ kind: "OPERATION_NOT_ALLOWED", detail: `${action.operation} isn't one of the things the plan allows.` });
   }
   for (const field of action.fields) {
     if (contract.protectedFields.includes(field)) {
-      violations.push({ kind: "PROTECTED_FIELD", detail: `${field} is protected by the contract.` });
+      violations.push({ kind: "PROTECTED_FIELD", detail: `${field} is protected by the plan.` });
     }
   }
   const max = contract.limits.maxRecords;
   if (max !== undefined && action.recordCount > max) {
-    violations.push({ kind: "RECORD_LIMIT", detail: `${action.recordCount} records exceeds the contract limit of ${max}.` });
+    violations.push({ kind: "RECORD_LIMIT", detail: `${action.recordCount} records is more than this task's plan allows (${max}).` });
   }
   return violations;
 }

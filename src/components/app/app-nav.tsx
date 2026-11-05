@@ -79,6 +79,15 @@ const TAB_ITEMS = CORE.filter((i) => i.href !== "/app/tasks");
 /** The rows on the phone's More page, in order. */
 export const MORE_PAGES: readonly NavItem[] = [...CORE.filter((i) => i.href === "/app/tasks"), ...TOOLS, ...ACCOUNT];
 
+/**
+ * On the phone, a page that belongs to a tab lights that tab: a task opens from its project, and templates and checking an
+ * app start a project. The task list itself lives under More. The desktop sidebar names all of these, so it doesn't need this.
+ */
+const PHONE_TAB_FOR: readonly { tab: string; page: RegExp }[] = [
+  { tab: "/app/projects", page: /^\/app\/(tasks\/|templates(\/|$)|rescue(\/|$))/ },
+  { tab: "/app/build", page: /^\/app\/new(\/|$)/ },
+];
+
 function isActive(pathname: string, item: NavItem): boolean {
   return item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
@@ -211,7 +220,8 @@ export function MoreList({ helpUnread = 0, children }: { helpUnread?: number; ch
 
 export function MobileTabBar({ approvals, helpUnread = 0 }: { approvals: number; helpUnread?: number }) {
   const pathname = usePathname();
-  const moreActive = ["/app/more", "/app/workspaces", ...MORE_PAGES.map((p) => p.href)].some((p) => pathname.startsWith(p));
+  const claimed = PHONE_TAB_FOR.find((c) => c.page.test(pathname))?.tab ?? null;
+  const moreActive = !claimed && ["/app/more", "/app/workspaces", ...MORE_PAGES.map((p) => p.href)].some((p) => pathname.startsWith(p));
   return (
     <nav
       aria-label="App"
@@ -220,7 +230,7 @@ export function MobileTabBar({ approvals, helpUnread = 0 }: { approvals: number;
     >
       <ul className="mx-auto grid max-w-lg grid-cols-5">
         {TABS.map((item) => {
-          const active = item.href === "/app/more" ? moreActive : isActive(pathname, item);
+          const active = item.href === "/app/more" ? moreActive : item.href === claimed || (!claimed && isActive(pathname, item));
           return (
             <li key={item.href}>
               <Link

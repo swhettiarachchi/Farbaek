@@ -13,7 +13,7 @@ export default function OfflinePage() {
       <WifiSlashIcon size={40} className="mx-auto text-ink-3" aria-hidden />
       <h1 className="text-3xl font-medium tracking-[-0.03em]">You&apos;re offline</h1>
       <p className="text-base leading-relaxed text-ink-2">
-        Farbaek needs the internet to open your workspace. Your projects, plans and evidence are safe on Farbaek&apos;s server, and nothing you approved is lost.
+        Farbaek needs the internet to open your workspace. Your projects, plans and proof are safe on Farbaek&apos;s server, and nothing you approved is lost.
       </p>
       <a href="/app" className="mx-auto inline-flex h-11 items-center rounded-full bg-primary px-5 text-sm font-medium text-on-primary shadow-e1">
         Try again

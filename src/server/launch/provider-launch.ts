@@ -112,7 +112,7 @@ export const disconnectVercel = (deps: LaunchDeps, person: LaunchPerson) => disc
 
 const authorizeErrors = (provider: LaunchProvider): [string, string][] => [
   ["EVIDENCE_REQUIRED", "The latest change isn't verified, so an owner or admin has to say why it should go live anyway."],
-  ["OVERRIDE_FORBIDDEN", "Only an owner or admin can launch without verified evidence."],
+  ["OVERRIDE_FORBIDDEN", "Only an owner or admin can launch without passed checks."],
   ["LAUNCH_RUNNING", "A launch of this project is already under way. Wait for it to finish."],
   ["NOT_CONNECTED", `Connect ${PROVIDER_NAMES[provider]} first.`],
   ["NOT_FOUND", "That project doesn't exist, or it's archived."],

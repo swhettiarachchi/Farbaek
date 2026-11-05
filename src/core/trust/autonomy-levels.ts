@@ -25,7 +25,7 @@ export function levelThreeStatus(record: AutonomyRecord | null): LevelThreeStatu
   if (record.failed > 0) {
     return {
       earned: false,
-      reason: `A change applied on its own ${record.failed === 1 ? "failed or only partly passed its checks" : `failed or only partly passed its checks ${record.failed} times`} in the last ${LEVEL_3.days} days. Level 3 unlocks again once a full ${LEVEL_3.days} days pass without one.`,
+      reason: `A change applied on its own ${record.failed === 1 ? "failed or only partly passed its checks" : `failed or only partly passed its checks ${record.failed} times`} in the last ${LEVEL_3.days} days. Bigger changes unlock again once a full ${LEVEL_3.days} days pass without one.`,
     };
   }
   if (record.verified < LEVEL_3.minVerified) {

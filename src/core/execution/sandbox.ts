@@ -40,10 +40,10 @@ export interface SandboxProvider {
 export type ExecutionMode = { mode: "sandboxed"; provider: string } | { mode: "review_only"; reason: string };
 
 /** Decides whether project code may run. Anything short of verified microVM-class isolation with restricted egress is Review Only. */
-export function executionMode(provider: SandboxProvider | null, notConnectedReason = "No isolated sandbox is connected."): ExecutionMode {
+export function executionMode(provider: SandboxProvider | null, notConnectedReason = "No isolated test space is connected."): ExecutionMode {
   if (!provider) return { mode: "review_only", reason: notConnectedReason };
   const c = provider.capabilities;
-  if (c.isolation !== "microvm") return { mode: "review_only", reason: `${c.provider} doesn't provide microVM isolation, so project code won't run there.` };
+  if (c.isolation !== "microvm") return { mode: "review_only", reason: `${c.provider} can't keep projects safely apart, so project code won't run there.` };
   if (!c.verified) return { mode: "review_only", reason: `${c.provider}'s isolation hasn't been verified for this deployment yet.` };
   if (c.networkEgress === "open") return { mode: "review_only", reason: `${c.provider} allows open network access. Restrict egress before running project code.` };
   return { mode: "sandboxed", provider: c.provider };

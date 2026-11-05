@@ -114,7 +114,7 @@ export async function verifyEnvelope(input: unknown, keys: readonly PublicSignin
     } catch {
       continue;
     }
-    return { status: "invalid", reason: "The signature doesn't match: the evidence was changed after Farbaek signed it." };
+    return { status: "invalid", reason: "The signature doesn't match: the file was changed after Farbaek signed it." };
   }
   if (unknownKey) return { status: "unknown_key", keyid: unknownKey };
   return { status: "invalid", reason: "None of the signatures can be checked." };

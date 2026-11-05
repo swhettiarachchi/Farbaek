@@ -26,7 +26,7 @@ export const STARTERS: readonly Starter[] = [
   {
     id: "nextjs-app",
     name: "Next.js app",
-    summary: "React with the App Router, TypeScript and Tailwind CSS. Previews in a sandbox.",
+    summary: "React with the App Router, TypeScript and Tailwind CSS. Previews in a test space.",
     files: NEXTJS_APP_FILES,
     run: { install: "npm install --ignore-scripts --no-audit --no-fund", dev: "npm run dev -- --hostname 0.0.0.0 --port 3000", port: 3000 },
     staticPreview: false,
@@ -35,7 +35,7 @@ export const STARTERS: readonly Starter[] = [
   {
     id: "rest-api",
     name: "REST API service",
-    summary: "Plain Node.js with no dependencies: one resource, validation, pages, clear errors and tests. Runs in a sandbox.",
+    summary: "Plain Node.js with no dependencies: one resource, validation, pages, clear errors and tests. Runs in a test space.",
     files: REST_API_FILES,
     run: { install: null, dev: "npm run dev -- --hostname 0.0.0.0 --port 3000", port: 3000 },
     staticPreview: false,

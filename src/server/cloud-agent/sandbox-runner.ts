@@ -35,7 +35,7 @@ export function createSandboxRunner(options: SandboxRunnerOptions): CommandRunne
       const hash = await sha256Hex(f.content);
       if (synced.get(f.path) === hash) continue;
       const written = await options.service.writeFile(options.actor, options.sessionId, f.path, f.content);
-      if (!written.ok) return `Couldn't copy ${f.path} into the sandbox: ${written.message}`;
+      if (!written.ok) return `Couldn't copy ${f.path} into the test space: ${written.message}`;
       synced.set(f.path, hash);
     }
     return null;

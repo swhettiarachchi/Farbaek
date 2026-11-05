@@ -201,7 +201,7 @@ export async function approvalView(ctx: AppContext, orgId: string, taskId: strin
     !ctx.writes.enabled ? ctx.writes.reason : null,
     proposal.status !== "pending" ? "This change isn't waiting for approval any more." : null,
     found.task.state !== "APPROVAL_PENDING" ? "This task isn't waiting for approval." : null,
-    escalated && !canApproveEscalated ? "The policy escalated this change, so an owner or admin approves it." : null,
+    escalated && !canApproveEscalated ? "This change needs an owner or admin to approve it." : null,
     ctx.permissions.approve === false ? "An owner or admin turned off approving for you in this workspace." : null,
   ].filter((r): r is string => r !== null);
   return {

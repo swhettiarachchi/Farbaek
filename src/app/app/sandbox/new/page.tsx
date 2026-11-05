@@ -8,7 +8,7 @@ import { TERMINAL_STATES } from "@/core/realityloop/task-machine";
 import { sandboxForPage } from "@/server/sandbox/page-context";
 import { loadAppContext } from "@/server/workspace/context";
 
-export const metadata: Metadata = { title: "New sandbox session" };
+export const metadata: Metadata = { title: "New test space session" };
 export const dynamic = "force-dynamic";
 
 export default async function NewSandboxSessionPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -19,7 +19,7 @@ export default async function NewSandboxSessionPage({ searchParams }: { searchPa
 
   const back = (
     <Link href="/app/sandbox" className="inline-flex min-h-11 w-fit items-center text-sm font-medium text-accent hover:underline">
-      Back to Sandbox
+      Back to Test space
     </Link>
   );
   if (!sandbox.ok) {
@@ -44,7 +44,7 @@ export default async function NewSandboxSessionPage({ searchParams }: { searchPa
         : overview.activeSessions >= limits.maxConcurrentSessions
           ? `Your workspace has ${overview.activeSessions} of ${limits.maxConcurrentSessions} sessions running. Stop one to start another.`
           : overview.minutesUsed >= limits.minutesPerPeriod
-            ? "Your workspace has used its sandbox minutes for this period."
+            ? "Your workspace has used its test space minutes for this period."
             : null;
 
   const one = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : null);

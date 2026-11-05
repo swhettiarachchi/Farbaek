@@ -46,8 +46,8 @@ export type FeatureKey =
 
 export const FEATURE_LABELS: Record<FeatureKey, string> = {
   cloud_agent: "Farbaek Agent in the cloud",
-  basic_policies: "Basic policies",
-  action_receipts: "Action receipts",
+  basic_policies: "Built-in rules",
+  action_receipts: "A signed record of each change you apply",
   community_support: "Community support",
   usage_rollover: "Unused AI usage carries over a month",
   free_retries: "Failed attempts given back",
@@ -60,16 +60,16 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
   replay_and_recovery: "Replay and undo of applied changes",
   opus_models: "Claude Opus on Deep effort",
   advanced_approvals: "Advanced approval workflows",
-  policy_builder: "Policy builder",
-  shadow_mode: "Shadow mode",
+  policy_builder: "Write your own rules",
+  shadow_mode: "Practice mode",
   team_collaboration: "Team collaboration",
   advanced_rbac: "Advanced roles and permissions",
   priority_support: "Priority support",
   fable_models: "Claude Fable on Deep effort, the most capable model",
-  incident_response: "Incident response tools",
-  impact_analysis: "Impact analysis",
-  advanced_autonomy: "Advanced autonomy policies",
-  evidence_exports: "Evidence exports",
+  incident_response: "Tools for working through problems",
+  impact_analysis: "See what a change could affect",
+  advanced_autonomy: "More changes that can apply on their own",
+  evidence_exports: "Export your proof",
 };
 
 /**
@@ -139,7 +139,8 @@ export interface Plan {
   yearlyOf?: PlanId;
 }
 
-const FREE_FEATURES = ["cloud_agent", "basic_policies", "action_receipts", "community_support", "live_previews", "site_publishing"] as const satisfies readonly FeatureKey[];
+// Every plan can export its proof: a ProofPack's download and a project's export have no plan check.
+const FREE_FEATURES = ["cloud_agent", "basic_policies", "action_receipts", "evidence_exports", "community_support", "live_previews", "site_publishing"] as const satisfies readonly FeatureKey[];
 const LITE_FEATURES = [...FREE_FEATURES, "usage_alerts", "developer_api", "usage_rollover", "studio_kit_pro"] as const satisfies readonly FeatureKey[];
 const MAKER_FEATURES = [...LITE_FEATURES, "free_retries"] as const satisfies readonly FeatureKey[];
 const STARTER_FEATURES = MAKER_FEATURES;
@@ -148,7 +149,7 @@ const PRO_FEATURES = [...PLUS_FEATURES, "opus_models", "advanced_approvals", "po
 const STUDIO_FEATURES = [...PRO_FEATURES, "team_collaboration"] as const satisfies readonly FeatureKey[];
 const MAX_FEATURES = [...STUDIO_FEATURES, "advanced_rbac", "priority_support"] as const satisfies readonly FeatureKey[];
 const MAX_2X_FEATURES = [...MAX_FEATURES, "fable_models", "incident_response", "impact_analysis"] as const satisfies readonly FeatureKey[];
-const MAX_3X_FEATURES = [...MAX_2X_FEATURES, "advanced_autonomy", "evidence_exports"] as const satisfies readonly FeatureKey[];
+const MAX_3X_FEATURES = [...MAX_2X_FEATURES, "advanced_autonomy"] as const satisfies readonly FeatureKey[];
 
 /** Free: about $0.50 of AI cost a month on fast models, and one sandbox hour, paid from the paid plans' margin. */
 export const FREE_AI_USD = 0.5;
@@ -221,7 +222,7 @@ export const PLANS: readonly Plan[] = [
     features: FREE_FEATURES,
   },
   ...light("lite", "Lite", "A low-cost way to get to know Farbaek.", 99, { workspaces: 2, seats: 1, agents: 1, evaluationsPerMonth: 2_000, historyDays: 30, integrations: 1 }, LITE_FEATURES),
-  ...light("maker", "Maker", "More room to build, with an extra sandbox hour.", 199, { workspaces: 3, seats: 1, agents: 1, evaluationsPerMonth: 3_000, historyDays: 30, integrations: 1 }, MAKER_FEATURES),
+  ...light("maker", "Maker", "More room to build, with an extra test space hour.", 199, { workspaces: 3, seats: 1, agents: 1, evaluationsPerMonth: 3_000, historyDays: 30, integrations: 1 }, MAKER_FEATURES),
   paid("starter", "Starter", "For a first site or side project.", 999, 5, { workspaces: 3, seats: 1, agents: 1, evaluationsPerMonth: 5_000, historyDays: 30, integrations: 1 }, STARTER_FEATURES),
   paid("plus", "Plus", "For building and shipping on your own.", 1_999, 10, { workspaces: 10, seats: 1, agents: 2, evaluationsPerMonth: 10_000, historyDays: 30, integrations: 2 }, PLUS_FEATURES),
   paid(
@@ -241,7 +242,7 @@ export const PLANS: readonly Plan[] = [
   {
     id: "enterprise",
     name: "Enterprise",
-    summary: "Committed usage at a custom rate, with governance and evidence.",
+    summary: "Committed usage at a custom rate, with admin controls.",
     pricing: { kind: "contract" },
     limits: { workspaces: null, seats: null, agents: null, evaluationsPerMonth: null, historyDays: null, integrations: null, aiUnitsPerMonth: null, retryUnitsPerMonth: null, sandboxHours: null },
     features: MAX_3X_FEATURES,

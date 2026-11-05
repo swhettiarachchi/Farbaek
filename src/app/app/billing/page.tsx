@@ -278,7 +278,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                 <ul className="mt-4 grid gap-1.5 text-sm text-ink-2 tabular">
                   <li className="font-medium text-ink">{sessionsLine(p)}</li>
                   <li>
-                    {p.limits.sandboxHours} sandbox {p.limits.sandboxHours === 1 ? "hour" : "hours"}
+                    {p.limits.sandboxHours} test space {p.limits.sandboxHours === 1 ? "hour" : "hours"}
                   </li>
                   <li>{p.limits.seats === 1 ? "1 seat" : `${p.limits.seats} seats`}</li>
                 </ul>

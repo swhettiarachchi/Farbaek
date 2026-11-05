@@ -119,7 +119,156 @@ export default async function SettingsPage() {
 
   return (
     <div className="grid gap-8">
-      <PageHeader title="Settings" description="Workspace details and the people in it." />
+      <PageHeader title="Settings" description="Your workspace, the people in it, and how much the agent can do on its own." />
+
+      <Card>
+        <h2 className="text-lg font-medium">Workspace</h2>
+        <div className="mt-5">
+          <RenameWorkspaceForm name={ws.name} disabledReason={renameReason} />
+        </div>
+      </Card>
+
+      <Card>
+        <h2 className="text-lg font-medium">
+          People <span className="text-ink-3 tabular">{members.length}</span>
+        </h2>
+        <p className="mt-1 max-w-[65ch] text-sm text-ink-2">
+          Owners and admins can do everything. Members approve changes, publish and start agent runs unless an owner or admin turns one off. Viewers read everything and change nothing.
+        </p>
+        <ul className="mt-4 divide-y divide-line">
+          {members.map((m) => (
+            <li key={m.userId} className="grid gap-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-raised text-sm font-medium text-ink-2">
+                  {m.userId === ctx.user.id ? ctx.user.email.slice(0, 1).toUpperCase() : "·"}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[0.9375rem]">{m.userId === ctx.user.id ? `${ctx.user.email} (you)` : (emailOf.get(m.userId) ?? "Teammate")}</span>
+                  <span className="block text-xs text-ink-3">
+                    Joined <RelativeTime iso={m.joinedAt} />
+                  </span>
+                </span>
+                <span className="rounded-full border border-line px-2.5 py-0.5 text-xs text-ink-2">{ROLE_LABEL[m.role]}</span>
+              </div>
+              <MemberControls
+                userId={m.userId}
+                name={m.userId === ctx.user.id ? "yourself" : (emailOf.get(m.userId) ?? "this teammate")}
+                role={m.role}
+                actorRole={ctx.role}
+                isSelf={m.userId === ctx.user.id}
+                lastOwner={m.role === "owner" && owners === 1}
+                disabledReason={peopleReason}
+              />
+              {m.role === "member" ? (
+                <MemberPermissions
+                  userId={m.userId}
+                  name={m.userId === ctx.user.id ? "yourself" : (emailOf.get(m.userId) ?? "this teammate")}
+                  permissions={m.permissions}
+                  canManage={canManage}
+                  isSelf={m.userId === ctx.user.id}
+                  planReason={permissionsPlanReason}
+                  disabledReason={peopleReason}
+                />
+              ) : null}
+            </li>
+          ))}
+        </ul>
+        {inviteRoles.length ? (
+          <div className="mt-6 grid gap-6 border-t border-line pt-6">
+            <div>
+              <h3 className="text-base font-medium">Invite someone</h3>
+              <div className="mt-4">
+                <InvitePeople roles={inviteRoles} seats={seats} disabledReason={inviteReason} />
+              </div>
+            </div>
+            {open.length ? (
+              <div>
+                <h3 className="text-base font-medium">Open invitations</h3>
+                <ul className="mt-3 divide-y divide-line">
+                  {open.map((i) => (
+                    <li key={i.id} className="flex flex-wrap items-center gap-3 py-3">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[0.9375rem]">{i.email}</span>
+                        <span className="block text-xs text-ink-3">
+                          {ROLE_LABEL[i.role]}, expires <RelativeTime iso={i.expiresAt} />
+                        </span>
+                      </span>
+                      <form action={revokeInvitationAction}>
+                        <input type="hidden" name="invitationId" value={i.id} />
+                        <button type="submit" disabled={inviteReason === "The demo workspace is read-only."} className={buttonClasses("secondary", "sm")}>
+                          Revoke
+                        </button>
+                      </form>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-ink-3">Owners and admins invite people. {seats}</p>
+        )}
+      </Card>
+
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <section id="email" aria-labelledby="email-title" className="scroll-mt-24">
+          <Card>
+            <h2 id="email-title" className="text-lg font-medium">
+              Email
+            </h2>
+            <p className="mt-1 text-sm leading-relaxed text-ink-2">
+              Farbaek writes to <span className="break-all">{ctx.user.email}</span>, the address you sign in with. These choices are yours, in every workspace.
+            </p>
+            <div className="mt-4">
+              <EmailPreferencesForm preferences={emailChoices} disabledReason={emailReason} />
+            </div>
+          </Card>
+        </section>
+        <section id="device" aria-label="This device" className="scroll-mt-24">
+          <Card>
+            <ThisDevice vapidKey={vapidPublicKey()} devices={myDevices} disabledReason={ctx.mode === "demo" ? "The demo workspace has no account to notify." : null} />
+          </Card>
+        </section>
+        <section id="phones" aria-labelledby="phones-title" className="scroll-mt-24">
+          <Card>
+            <Phones phones={myPhones} disabledReason={ctx.mode === "demo" ? "The demo workspace has no account for phones to sign in to." : null} />
+          </Card>
+        </section>
+        <Card>
+          <h2 className="text-lg font-medium">Help</h2>
+          <p className="mt-2 text-sm leading-relaxed text-ink-2">
+            Questions about your account, a workspace or sign-in: write to{" "}
+            <a href={`mailto:${CONTACT.support}`} className="font-medium text-accent hover:underline">
+              {CONTACT.support}
+            </a>
+            . Anything else, including Enterprise:{" "}
+            <a href={`mailto:${CONTACT.hello}`} className="font-medium text-accent hover:underline">
+              {CONTACT.hello}
+            </a>
+            .
+          </p>
+        </Card>
+      </div>
+
+      <section id="autonomy" aria-label="How much the agent can do on its own" className="scroll-mt-24">
+        <Card>
+          <AutonomySettings
+            view={autonomy}
+            verifiable={execution.mode === "sandboxed"}
+            shadowReason={shadowReason}
+            replayReason={ctx.mode === "demo" ? "The demo workspace has no past changes to replay." : shadowReason}
+            levelThreeReason={levelThreeReason}
+            disabledReason={ctx.mode === "demo" ? "The demo workspace is read-only." : !ctx.writes.enabled ? ctx.writes.reason : canManage ? null : "Only owners and admins can change this."}
+          />
+          {autonomy.shadowSince ? (
+            rehearsal ? (
+              <RehearsalRecord summary={summarizeRehearsal(rehearsal)} since={autonomy.shadowSince} />
+            ) : (
+              <p className="mt-6 text-sm text-failed">The practice record couldn&apos;t be read. Reload the page to try again.</p>
+            )
+          ) : null}
+        </Card>
+      </section>
 
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -138,154 +287,6 @@ export default async function SettingsPage() {
           <p className="mt-3 text-sm text-ink-2">Checks run on a private, throwaway computer with limited internet access.</p>
         )}
       </Card>
-
-      <Card>
-        <AutonomySettings
-          view={autonomy}
-          verifiable={execution.mode === "sandboxed"}
-          shadowReason={shadowReason}
-          replayReason={ctx.mode === "demo" ? "The demo workspace has no past changes to replay." : shadowReason}
-          levelThreeReason={levelThreeReason}
-          disabledReason={ctx.mode === "demo" ? "The demo workspace is read-only." : !ctx.writes.enabled ? ctx.writes.reason : canManage ? null : "Only owners and admins can change this."}
-        />
-        {autonomy.shadowSince ? (
-          rehearsal ? (
-            <RehearsalRecord summary={summarizeRehearsal(rehearsal)} since={autonomy.shadowSince} />
-          ) : (
-            <p className="mt-6 text-sm text-failed">The rehearsal record couldn&apos;t be read. Reload the page to try again.</p>
-          )
-        ) : null}
-      </Card>
-
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] lg:items-start">
-        <div className="grid gap-6">
-          <Card>
-            <h2 className="text-lg font-medium">Workspace</h2>
-            <div className="mt-5">
-              <RenameWorkspaceForm name={ws.name} disabledReason={renameReason} />
-            </div>
-          </Card>
-          <section id="email" aria-labelledby="email-title" className="scroll-mt-24">
-            <Card>
-              <h2 id="email-title" className="text-lg font-medium">
-                Email
-              </h2>
-              <p className="mt-1 text-sm leading-relaxed text-ink-2">
-                Farbaek writes to <span className="break-all">{ctx.user.email}</span>, the address you sign in with. These choices are yours, in every workspace.
-              </p>
-              <div className="mt-4">
-                <EmailPreferencesForm preferences={emailChoices} disabledReason={emailReason} />
-              </div>
-            </Card>
-          </section>
-          <section id="device" aria-label="This device" className="scroll-mt-24">
-            <Card>
-              <ThisDevice vapidKey={vapidPublicKey()} devices={myDevices} disabledReason={ctx.mode === "demo" ? "The demo workspace has no account to notify." : null} />
-            </Card>
-          </section>
-          <section id="phones" aria-labelledby="phones-title" className="scroll-mt-24">
-            <Card>
-              <Phones phones={myPhones} disabledReason={ctx.mode === "demo" ? "The demo workspace has no account for phones to sign in to." : null} />
-            </Card>
-          </section>
-          <Card>
-            <h2 className="text-lg font-medium">Help</h2>
-            <p className="mt-2 text-sm leading-relaxed text-ink-2">
-              Questions about your account, a workspace or sign-in: write to{" "}
-              <a href={`mailto:${CONTACT.support}`} className="font-medium text-accent hover:underline">
-                {CONTACT.support}
-              </a>
-              . Anything else, including Enterprise:{" "}
-              <a href={`mailto:${CONTACT.hello}`} className="font-medium text-accent hover:underline">
-                {CONTACT.hello}
-              </a>
-              .
-            </p>
-          </Card>
-        </div>
-
-        <Card>
-          <h2 className="text-lg font-medium">
-            People <span className="text-ink-3 tabular">{members.length}</span>
-          </h2>
-          <p className="mt-1 max-w-[65ch] text-sm text-ink-2">
-            Owners and admins can do everything. Members approve changes, publish and start agent runs unless an owner or admin turns one off. Viewers read everything and change nothing.
-          </p>
-          <ul className="mt-4 divide-y divide-line">
-            {members.map((m) => (
-              <li key={m.userId} className="grid gap-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-raised text-sm font-medium text-ink-2">
-                    {m.userId === ctx.user.id ? ctx.user.email.slice(0, 1).toUpperCase() : "·"}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[0.9375rem]">{m.userId === ctx.user.id ? `${ctx.user.email} (you)` : (emailOf.get(m.userId) ?? "Teammate")}</span>
-                    <span className="block text-xs text-ink-3">
-                      Joined <RelativeTime iso={m.joinedAt} />
-                    </span>
-                  </span>
-                  <span className="rounded-full border border-line px-2.5 py-0.5 text-xs text-ink-2">{ROLE_LABEL[m.role]}</span>
-                </div>
-                <MemberControls
-                  userId={m.userId}
-                  name={m.userId === ctx.user.id ? "yourself" : (emailOf.get(m.userId) ?? "this teammate")}
-                  role={m.role}
-                  actorRole={ctx.role}
-                  isSelf={m.userId === ctx.user.id}
-                  lastOwner={m.role === "owner" && owners === 1}
-                  disabledReason={peopleReason}
-                />
-                {m.role === "member" ? (
-                  <MemberPermissions
-                    userId={m.userId}
-                    name={m.userId === ctx.user.id ? "yourself" : (emailOf.get(m.userId) ?? "this teammate")}
-                    permissions={m.permissions}
-                    canManage={canManage}
-                    isSelf={m.userId === ctx.user.id}
-                    planReason={permissionsPlanReason}
-                    disabledReason={peopleReason}
-                  />
-                ) : null}
-              </li>
-            ))}
-          </ul>
-          {inviteRoles.length ? (
-            <div className="mt-6 grid gap-6 border-t border-line pt-6">
-              <div>
-                <h3 className="text-base font-medium">Invite someone</h3>
-                <div className="mt-4">
-                  <InvitePeople roles={inviteRoles} seats={seats} disabledReason={inviteReason} />
-                </div>
-              </div>
-              {open.length ? (
-                <div>
-                  <h3 className="text-base font-medium">Open invitations</h3>
-                  <ul className="mt-3 divide-y divide-line">
-                    {open.map((i) => (
-                      <li key={i.id} className="flex flex-wrap items-center gap-3 py-3">
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[0.9375rem]">{i.email}</span>
-                          <span className="block text-xs text-ink-3">
-                            {ROLE_LABEL[i.role]}, expires <RelativeTime iso={i.expiresAt} />
-                          </span>
-                        </span>
-                        <form action={revokeInvitationAction}>
-                          <input type="hidden" name="invitationId" value={i.id} />
-                          <button type="submit" disabled={inviteReason === "The demo workspace is read-only."} className={buttonClasses("secondary", "sm")}>
-                            Revoke
-                          </button>
-                        </form>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            <p className="mt-4 text-sm text-ink-3">Owners and admins invite people. {seats}</p>
-          )}
-        </Card>
-      </div>
 
       <section id="ai-key" aria-labelledby="ai-key-title" className="scroll-mt-24">
         <Card>

@@ -92,7 +92,7 @@ export type StageKey = (typeof STAGES)[number];
 
 export const STAGE_TITLES: Record<StageKey, string> = {
   intent: "Intent",
-  contract: "Contract",
+  contract: "Plan",
   change: "Change",
   proof: "Proof",
   live: "Live",
@@ -160,8 +160,8 @@ function changeFromState(t: GraphTask): StageNode {
   const href = `/app/tasks/${t.id}#change`;
   if (APPLIED_STATES.has(t.state)) return { key: "change", state: "reached", label: "Applied", detail: null, at: null, href };
   if (t.state === "APPROVAL_PENDING") return { key: "change", state: "waiting", label: "In review", detail: null, at: null, href };
-  if (t.state === "PLAN_PROPOSED" || t.state === "POLICY_EVALUATED") return { key: "change", state: "waiting", label: "Proposed", detail: null, at: null, href };
-  if (t.state === "BLOCKED") return { key: "change", state: "stopped", label: "Blocked", detail: "By policy", at: null, href };
+  if (t.state === "PLAN_PROPOSED" || t.state === "POLICY_EVALUATED") return { key: "change", state: "waiting", label: "Suggested", detail: null, at: null, href };
+  if (t.state === "BLOCKED") return { key: "change", state: "stopped", label: "Blocked", detail: "By the rules", at: null, href };
   return { key: "change", state: "not_yet", label: "Not yet", detail: null, at: null, href: null };
 }
 
@@ -203,7 +203,7 @@ export function buildLanes(records: ProjectGraphRecords): { lanes: Lane[]; unver
       const tried = proposals.get(t.id) ?? [];
       // What got through matters most: the newest applied change, or else the newest attempt.
       const p = newest(tried.filter((x) => x.status === "applied"), (x) => time(x.decidedAt ?? x.createdAt)) ?? newest(tried, (x) => time(x.createdAt));
-      const attempts = tried.length > 1 ? `${plural(tried.length, "proposal")} in all` : null;
+      const attempts = tried.length > 1 ? `${plural(tried.length, "try", "tries")} in all` : null;
       let change: StageNode;
       if (!p) change = changeFromState(t);
       else if (p.status === "applied") {
@@ -230,7 +230,7 @@ export function buildLanes(records: ProjectGraphRecords): { lanes: Lane[]; unver
           key: "change",
           state: "stopped",
           label: p.status === "blocked" ? "Blocked" : "Discarded",
-          detail: [p.status === "blocked" ? "By policy" : null, attempts].filter(Boolean).join(". ") || null,
+          detail: [p.status === "blocked" ? "By the rules" : null, attempts].filter(Boolean).join(". ") || null,
           at: p.decidedAt ?? p.createdAt,
           href: `${task(t.id)}#change`,
         };
@@ -402,7 +402,7 @@ export function formatDuration(ms: number): string {
 export const OUTCOME_WORDS: Record<string, string> = {
   ALLOW: "Allowed",
   ALLOW_WITHIN_LIMITS: "Applied on its own",
-  SIMULATE_FIRST: "Rehearse first",
+  SIMULATE_FIRST: "Practice mode",
   REQUIRE_APPROVAL: "A person approves",
   ESCALATE: "An owner or admin approves",
   BLOCK: "Blocked",

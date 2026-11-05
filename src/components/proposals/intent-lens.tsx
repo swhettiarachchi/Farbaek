@@ -31,7 +31,7 @@ const FIRST = 6;
 export function IntentLensSummary({ summary, ai = null }: { summary: LensSummary; ai?: LensAiState | null }) {
   if (summary.hunks === 0) return null;
   const parts = [
-    summary.matched ? `${summary.matched} ${summary.matched === 1 ? "matches" : "match"} a line of the plan by its words` : null,
+    summary.matched ? `${summary.matched} ${summary.matched === 1 ? "shares" : "share"} words with the plan` : null,
     summary.unexplained ? `${summary.unexplained} no line of the plan explains` : null,
     summary.flagged ? `${summary.flagged} flagged by the plan` : null,
   ].filter(Boolean);

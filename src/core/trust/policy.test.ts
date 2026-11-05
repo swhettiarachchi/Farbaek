@@ -55,7 +55,7 @@ describe("autonomy level 2 (ADR 0046)", () => {
   it("lets a small, checked change apply on its own, and says why", async () => {
     const d = await evaluateChangePolicy({ rules: null, files: [edit("src/lib/cart.ts")], contractViolations: [], autonomy: LIMITS, verifiable: true });
     expect(d.outcome).toBe("ALLOW_WITHIN_LIMITS");
-    expect(d.findings).toEqual([expect.objectContaining({ rule: "autonomy", outcome: "ALLOW_WITHIN_LIMITS", detail: expect.stringMatching(/level 2/) })]);
+    expect(d.findings).toEqual([expect.objectContaining({ rule: "autonomy", outcome: "ALLOW_WITHIN_LIMITS", detail: expect.stringMatching(/Within the limits this workspace set/) })]);
   });
 
   it("waits for a person when any limit isn't met, naming each one", async () => {
@@ -95,7 +95,7 @@ describe("shadow mode (ADR 0075)", () => {
     expect(d.outcome).toBe("REQUIRE_APPROVAL");
     expect(d.findings).toEqual([]);
     expect(d.shadow).toMatchObject({ outcome: "ALLOW_WITHIN_LIMITS", reasons: [], maxFiles: 2, allowCreates: false });
-    expect(d.shadow!.detail).toMatch(/^Level 2 would have applied this on its own: 1 file/);
+    expect(d.shadow!.detail).toMatch(/^This would have applied on its own: 1 file/);
   });
 
   it("names every limit that would have kept it waiting", async () => {
@@ -177,7 +177,7 @@ describe("autonomy level 3 (ADR 0086)", () => {
   it("applies wider changes on its own, within its own limits", async () => {
     const d = await evaluateChangePolicy({ rules: null, files: files(8), contractViolations: [], autonomy: level3, verifiable: true });
     expect(d.outcome).toBe("ALLOW_WITHIN_LIMITS");
-    expect(d.findings.at(-1)?.detail).toContain("(level 3)");
+    expect(d.findings.at(-1)?.detail).toContain("Within the limits this workspace set");
     // The level goes with the stored decision, so its ProofPack can say which one applied it.
     expect(policyRecord(d)).toMatchObject({ outcome: "ALLOW_WITHIN_LIMITS", autonomyLevel: 3 });
     const over = await evaluateChangePolicy({ rules: null, files: files(9), contractViolations: [], autonomy: level3, verifiable: true });

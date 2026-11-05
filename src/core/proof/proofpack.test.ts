@@ -53,7 +53,7 @@ describe("buildProofPack", () => {
   it("notes a contract with no checks and a missing policy decision", () => {
     const s = buildProofPack({ ...input, checks: [], policy: null });
     expect(s.predicate.limits.join(" ")).toMatch(/listed no required checks/);
-    expect(s.predicate.limits.join(" ")).toMatch(/No policy decision/);
+    expect(s.predicate.limits.join(" ")).toMatch(/No rules decision/);
   });
 });
 

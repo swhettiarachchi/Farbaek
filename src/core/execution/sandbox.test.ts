@@ -13,13 +13,13 @@ const run = (command: string, exitCode: number | null, timedOut = false): Comman
 
 describe("executionMode", () => {
   it("is Review Only with no provider, and says why", () => {
-    expect(executionMode(null)).toEqual({ mode: "review_only", reason: "No isolated sandbox is connected." });
+    expect(executionMode(null)).toEqual({ mode: "review_only", reason: "No isolated test space is connected." });
   });
 
   it("runs only with verified microVM isolation and restricted egress", () => {
     expect(executionMode(mockProvider())).toEqual({ mode: "sandboxed", provider: "MockSandbox" });
     expect(executionMode(mockProvider({ networkEgress: "allowlist" }))).toMatchObject({ mode: "sandboxed" });
-    expect(executionMode(mockProvider({ isolation: "container" }))).toMatchObject({ mode: "review_only", reason: expect.stringContaining("microVM") });
+    expect(executionMode(mockProvider({ isolation: "container" }))).toMatchObject({ mode: "review_only", reason: expect.stringContaining("keep projects safely apart") });
     expect(executionMode(mockProvider({ isolation: "process" }))).toMatchObject({ mode: "review_only" });
     expect(executionMode(mockProvider({ verified: false }))).toMatchObject({ mode: "review_only", reason: expect.stringContaining("verified") });
     expect(executionMode(mockProvider({ networkEgress: "open" }))).toMatchObject({ mode: "review_only", reason: expect.stringContaining("network") });

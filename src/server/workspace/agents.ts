@@ -22,7 +22,7 @@ export interface AgentAdminDeps {
 export async function createAgentPairing(deps: WriteDeps & AgentAdminDeps, input: { orgId: string; userId: string }): Promise<WriteResult<{ code: string; expiresAt: string }>> {
   const role = await deps.role(input.orgId);
   if (!role) return fail("NOT_FOUND");
-  if (!CONTRIBUTOR_ROLES.includes(role)) return fail("FORBIDDEN", "Viewers can't pair agents, since agents propose changes.");
+  if (!CONTRIBUTOR_ROLES.includes(role)) return fail("FORBIDDEN", "Viewers can't pair agents, since agents suggest changes.");
   const snapshot = await deps.billing(input.orgId);
   if (!snapshot) return fail("ENTITLEMENT_UNAVAILABLE");
   const plan = resolveEffectivePlan(snapshot, deps.now());

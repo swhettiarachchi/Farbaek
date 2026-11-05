@@ -52,7 +52,7 @@ describe("governed workflows", () => {
 
   it("says what happens next", () => {
     expect(unapprovedSteps(view({ steps: [step(1), step(2, { contract: null })] }))).toHaveLength(1);
-    expect(nextAction(view({ steps: [step(1), step(2, { contract: null })] }))).toBe("Draft and approve the contract for 1 step, then an owner or admin approves the workflow.");
+    expect(nextAction(view({ steps: [step(1), step(2, { contract: null })] }))).toBe("Draft and approve the plan for 1 step, then an owner or admin approves the workflow.");
     expect(nextAction(view())).toMatch(/approves the workflow to start it/);
     expect(nextAction(view({ status: "running", steps: [step(1, { status: "running" }), step(2)] }))).toBe("The agent is working on step 1: Step 1.");
     expect(nextAction(view({ status: "waiting", waitingReason: "checkpoint", steps: [step(1, { status: "verified", checkpoint: true }), step(2)] }))).toBe("Step 1 is verified, and it's a checkpoint. Look at it, then continue.");

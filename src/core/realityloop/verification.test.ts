@@ -35,8 +35,8 @@ describe("words", () => {
   it("names every result, and says what a run's automatic check found", () => {
     expect(Object.keys(VERIFICATION_RESULT_WORDS).sort()).toEqual(["failed", "partially_verified", "unverified", "verified"]);
     expect(autoVerifiedOutcome({ ok: true, result: "verified" })).toMatch(/checks passed: verified/);
-    expect(autoVerifiedOutcome({ ok: true, result: "failed" })).toMatch(/autonomy is paused/);
-    expect(autoVerifiedOutcome({ ok: true, result: "partially_verified" })).toMatch(/some of its checks failed, so autonomy is paused/);
+    expect(autoVerifiedOutcome({ ok: true, result: "failed" })).toMatch(/applying on their own are paused/);
+    expect(autoVerifiedOutcome({ ok: true, result: "partially_verified" })).toMatch(/some of its checks failed, so changes applying on their own are paused/);
     expect(autoVerifiedOutcome({ ok: false, reason: "The sandbox had stopped." })).toBe(
       "Finished. The change applied on its own, but its checks couldn't run (The sandbox had stopped). Run them from the task, or undo it there.",
     );

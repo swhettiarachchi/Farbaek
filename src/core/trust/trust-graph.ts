@@ -61,7 +61,7 @@ export interface TrustInput {
 }
 
 const CONTRIBUTOR = new Set(["owner", "admin", "member"]);
-const CAPABILITY_WORDS: Record<AgentCapability, string> = { read: "read", propose: "propose changes", model: "use AI", mesh: "move folders" };
+const CAPABILITY_WORDS: Record<AgentCapability, string> = { read: "read", propose: "suggest changes", model: "use AI", mesh: "move folders" };
 
 export const personId = (userId: string) => `person:${userId}`;
 export const agentId = (id: string) => `agent:${id}`;

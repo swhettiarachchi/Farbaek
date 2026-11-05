@@ -13,8 +13,8 @@ import { NAV_LINKS } from "./nav-links";
 export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 px-3 pt-2 sm:px-4">
-      <div className="mx-auto flex h-14 w-full max-w-[1200px] items-center justify-between gap-4 rounded-full border border-line/80 bg-surface/80 pl-2 pr-1.5 shadow-e2 backdrop-blur-xl supports-[not(backdrop-filter:blur(0))]:bg-surface">
-        {/* The name wraps onto a hidden second line when the row runs out of room (narrow phones, larger system text), so the logo and the buttons always fit. */}
+      <div className="mx-auto flex h-14 w-full max-w-[1200px] flex-nowrap! items-center justify-between gap-4 rounded-full border border-line/80 bg-surface/80 pl-2 pr-1.5 shadow-e2 backdrop-blur-xl supports-[not(backdrop-filter:blur(0))]:bg-surface">
+        {/* The name wraps onto a hidden second line when the row runs out of room (narrow phones, larger system text), so the logo and the buttons always fit. So this row itself never wraps, even at Android's largest text. */}
         <Link href="/" className="flex h-11 min-w-0 flex-wrap content-start gap-x-2 overflow-hidden rounded-full pl-1 pr-3" aria-label="Farbaek home">
           <span className="flex h-11 shrink-0 items-center">
             <BrandLogo height={34} preload />

@@ -89,20 +89,20 @@ const SENSITIVE: readonly { rule: string; pattern: RegExp; why: string }[] = [
   {
     rule: "dependencies",
     pattern: /(^|\/)(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|package-lock\.json|yarn\.lock|bun\.lockb?|requirements\.txt|poetry\.lock|pyproject\.toml|go\.mod|go\.sum|Cargo\.toml|Cargo\.lock|Gemfile(\.lock)?|composer\.(json|lock))$/,
-    why: "changes dependencies",
+    why: "changes what the app is built on",
   },
-  { rule: "ci_workflows", pattern: /(^\.github\/workflows\/|(^|\/)(\.gitlab-ci\.ya?ml|Jenkinsfile|azure-pipelines\.ya?ml|\.circleci\/config\.ya?ml)$)/, why: "changes CI workflows" },
-  { rule: "database_migrations", pattern: /((^|\/)migrations?\/|\.sql$)/, why: "changes the database schema" },
+  { rule: "ci_workflows", pattern: /(^\.github\/workflows\/|(^|\/)(\.gitlab-ci\.ya?ml|Jenkinsfile|azure-pipelines\.ya?ml|\.circleci\/config\.ya?ml)$)/, why: "changes how the app is built and tested automatically" },
+  { rule: "database_migrations", pattern: /((^|\/)migrations?\/|\.sql$)/, why: "changes how the app's data is stored" },
   {
     rule: "infrastructure",
     pattern: /(^|\/)(Dockerfile|docker-compose\.ya?ml|compose\.ya?ml|vercel\.json|netlify\.toml|fly\.toml|wrangler\.toml|[^/]+\.tf|next\.config\.(js|mjs|ts))$/,
-    why: "changes deployment or infrastructure",
+    why: "changes how the app is hosted",
   },
   {
     rule: "auth_and_security",
     // Whole name parts only: "src/auth/x.ts" and "permissions.ts" match, "authoring.md" doesn't.
     pattern: /((^|\/)(middleware|proxy)\.(ts|js|mjs)$|(^|[/._-])(auth|oauth|security|permissions?|sessions?|crypto)([/._-]|$))/i,
-    why: "touches authentication or security code",
+    why: "touches sign-in or security code",
   },
 ];
 
@@ -173,10 +173,10 @@ export async function evaluateChangePolicy(input: ChangePolicyInput): Promise<Po
   if (limits && outcome === "REQUIRE_APPROVAL") {
     if (unmet.length === 0) {
       outcome = "ALLOW_WITHIN_LIMITS";
-      findings.push({ rule: "autonomy", outcome, detail: `Within this workspace's autonomy limits (level ${limits.level}): ${input.files.length} ${input.files.length === 1 ? "file" : "files"}, inside the contract, no sensitive files, and its checks can run in a verified sandbox.` });
+      findings.push({ rule: "autonomy", outcome, detail: `Within the limits this workspace set for changes applying on their own: ${input.files.length} ${input.files.length === 1 ? "file" : "files"}, inside the plan, no sensitive files, and its checks can run in a test space.` });
       return { outcome, findings, policyVersion: await changePolicyVersion(), ...applied, autonomyLevel: limits.level };
     } else {
-      findings.push({ rule: "autonomy", outcome: "REQUIRE_APPROVAL", detail: `Autonomy level ${limits.level} is on, but this waits for a person: ${unmet.map((u) => u.text).join("; ")}.` });
+      findings.push({ rule: "autonomy", outcome: "REQUIRE_APPROVAL", detail: `Changes can apply on their own here, but this waits for a person: ${unmet.map((u) => u.text).join("; ")}.` });
     }
   }
   return { outcome, findings, policyVersion: await changePolicyVersion(), ...applied };
@@ -188,7 +188,7 @@ function unmetLimits(input: ChangePolicyInput, limits: AutonomyLimits, held: boo
   if (input.files.length > limits.maxFiles) unmet.push({ reason: "too_many_files", text: `it changes ${input.files.length} files, more than the limit of ${limits.maxFiles}` });
   if (creates > 0 && !limits.allowCreates)
     unmet.push({ reason: "creates_files", text: `it creates ${creates === 1 ? "a new file" : `${creates} new files`}, which this workspace doesn't allow on their own` });
-  if (!input.verifiable) unmet.push({ reason: "not_verifiable", text: "nothing could check it: the contract lists no checks, or no verified sandbox is connected" });
+  if (!input.verifiable) unmet.push({ reason: "not_verifiable", text: "nothing could check it: the plan lists no checks, or no test space is connected" });
   if (held) unmet.push({ reason: "workspace_rule", text: "a workspace rule says a person always reviews these files" });
   if (limits.level === 3 && limits.dailyLeft === 0) unmet.push({ reason: "daily_limit", text: "the workspace reached its daily limit of changes applied on their own" });
   return unmet;
@@ -202,17 +202,17 @@ function rehearse(outcome: PolicyOutcome, unmet: { reason: RehearsalReason; text
       ...base,
       outcome: "REQUIRE_APPROVAL",
       reasons: [blocked ? "blocked" : "escalated"],
-      detail: `Level 2 would still have waited: the policy ${blocked ? "blocks" : "escalates"} this change, and autonomy never lowers that.`,
+      detail: `This would still have waited: ${blocked ? "the rules stop this change" : "this change needs an owner or admin"}, and applying on its own never overrides that.`,
     };
   }
   if (unmet.length > 0) {
-    return { ...base, outcome: "REQUIRE_APPROVAL", reasons: unmet.map((u) => u.reason), detail: `Level 2 would still have waited for a person: ${unmet.map((u) => u.text).join("; ")}.` };
+    return { ...base, outcome: "REQUIRE_APPROVAL", reasons: unmet.map((u) => u.reason), detail: `This would still have waited for a person: ${unmet.map((u) => u.text).join("; ")}.` };
   }
   return {
     ...base,
     outcome: "ALLOW_WITHIN_LIMITS",
     reasons: [],
-    detail: `Level 2 would have applied this on its own: ${files} ${files === 1 ? "file" : "files"}, inside the contract, no sensitive files, and its checks can run in a verified sandbox.`,
+    detail: `This would have applied on its own: ${files} ${files === 1 ? "file" : "files"}, inside the plan, no sensitive files, and its checks can run in a test space.`,
   };
 }
 

@@ -780,7 +780,7 @@ export async function setAutonomyAction(_previous: AutonomyState, form: FormData
         : level === 2
         ? "Saved. Small, checked changes now apply on their own within these limits."
         : shadow
-          ? "Saved. Every change still waits for a person, and each one now notes what level 2 would have done."
+          ? "Saved. Every change still waits for a person, and each one now notes whether it would have applied on its own."
           : "Saved. Every change waits for a person.",
   };
 }

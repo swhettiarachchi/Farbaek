@@ -51,10 +51,10 @@ export function agentPolicyVersion(): Promise<string> {
 function checkWrite(path: string, content: string | null, ctx: PermissionContext): Decision {
   const screened = screenPath(path);
   if (!screened.ok) return { kind: "deny", reason: `${path} can't be changed: ${screened.reason.replace(/_/g, " ")}.` };
-  if (!ctx.contract) return { kind: "deny", reason: "The task has no approved contract, so the agent can't change files." };
+  if (!ctx.contract) return { kind: "deny", reason: "The task has no approved plan, so the agent can't change files." };
   const operation = ctx.exists(path) ? CHANGE_OPERATIONS.edit : CHANGE_OPERATIONS.create;
-  if (ctx.contract.forbiddenOperations.includes(operation)) return { kind: "deny", reason: `The contract forbids ${operation}.` };
-  if (!ctx.contract.allowedOperations.includes(operation)) return { kind: "deny", reason: `The contract doesn't allow ${operation}.` };
+  if (ctx.contract.forbiddenOperations.includes(operation)) return { kind: "deny", reason: `The plan doesn't allow ${operation}.` };
+  if (!ctx.contract.allowedOperations.includes(operation)) return { kind: "deny", reason: `The plan doesn't include ${operation}.` };
   const scope = pathScope(ctx.contract);
   if (scope.length > 0 && !scope.some((s) => path === s || path.startsWith(`${s}/`))) {
     return { kind: "deny", reason: `${path} is outside the plan's paths (${scope.join(", ")}).` };
@@ -86,9 +86,9 @@ export function decide(call: ToolCall, ctx: PermissionContext): Decision {
       const risk = classifyCommand(call.input.program, call.input.args);
       if (ctx.mode === "review_only") return { kind: "deny", reason: "Review Only doesn't run commands. Suggest it in the summary instead." };
       if (ctx.mode === "sandboxed_autopilot") {
-        if (!ctx.sandboxVerified) return { kind: "deny", reason: "No verified sandbox is connected, so Sandboxed Autopilot can't run commands." };
+        if (!ctx.sandboxVerified) return { kind: "deny", reason: "No test space is ready, so Sandboxed Autopilot can't run commands." };
         if (risk === "read_only" || risk === "test_build") return { kind: "allow", risk };
-        return { kind: "needs_approval", reason: `${COMMAND_RISK_LABELS[risk]}. This crosses the sandbox's limits, so a person decides.`, risk };
+        return { kind: "needs_approval", reason: `${COMMAND_RISK_LABELS[risk]}. This crosses the test space's limits, so a person decides.`, risk };
       }
       if (risk === "read_only") return { kind: "allow", risk };
       return { kind: "needs_approval", reason: `${COMMAND_RISK_LABELS[risk]}. It runs on this computer and isn't isolated.`, risk };

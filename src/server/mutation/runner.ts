@@ -114,7 +114,7 @@ export async function runMutationRun(
     const setup = verificationSetup(input.paths, input.read);
     const limits = (await service.overview(actor)).limits.limits;
     if (setup?.network && !limits.networkProfiles.includes("package_registries")) {
-      return end({ status: "failed", reason: "This plan's sandboxes can't reach the package registries, so the project's tests couldn't be installed." });
+      return end({ status: "failed", reason: "Test spaces on your subscription can't reach the package registries, so the project's tests couldn't be installed." });
     }
     const task = await deps.checks.loadTask(person.orgId, input.proposal.taskId);
     const created = await service.createSession(
@@ -131,14 +131,14 @@ export async function runMutationRun(
       },
       `mutation:${input.id}`,
     );
-    if (!created.ok) return end({ status: "failed", reason: `The sandbox didn't start: ${created.message}` });
+    if (!created.ok) return end({ status: "failed", reason: `The test space didn't start: ${created.message}` });
     sessionId = created.value.sessionId;
     const attached = await deps.store.attach({ id: input.id, actor: person.userId, sessionId });
-    if (!attached.ok) return end({ status: "failed", reason: "The sandbox started, but the trial couldn't be linked to it." });
+    if (!attached.ok) return end({ status: "failed", reason: "The test space started, but the trial couldn't be linked to it." });
 
     for (const [path, content] of input.changed) {
       const w = await service.writeFile(actor, sessionId, path, content);
-      if (!w.ok) return end({ status: "failed", reason: `${path} couldn't be written into the sandbox: ${w.message.replace(/[.\s]+$/, "")}.` });
+      if (!w.ok) return end({ status: "failed", reason: `${path} couldn't be written into the test space: ${w.message.replace(/[.\s]+$/, "")}.` });
     }
     if (setup) {
       const r = await service.runCommand(actor, sessionId, { command: setup.command, timeoutSeconds: SETUP_SECONDS, kind: "setup", label: setup.label }, deps.newKey());

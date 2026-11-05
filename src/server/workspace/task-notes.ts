@@ -15,7 +15,7 @@ import { refundUsage, reserveUsage, resolvePlan, settleUsage, type AiUsageDeps, 
 import type { ProposalDeps } from "./proposals";
 import { codeFromDatabaseError, fail, requireContributor, type RpcResult, type WriteDeps, type WriteResult } from "./use-cases";
 
-export const MANUAL_NOTE = "Read the contract and the files yourself; nothing here changes the project.";
+export const MANUAL_NOTE = "Read the plan and the files yourself; nothing here changes the project.";
 
 export interface TaskNoteDeps {
   taskForNote(orgId: string, taskId: string): Promise<{ id: string; projectId: string; title: string; mode: TaskMode } | null>;
@@ -54,7 +54,7 @@ export async function writeTaskNote(deps: Deps, source: ModelSource<TaskNoteWrit
     contract ? { outcome: contract.body.outcome, resources: contract.body.scope.resources, acceptanceCriteria: contract.body.acceptanceCriteria.map((c) => c.statement) } : null,
     contents,
   );
-  if (request.files.length === 0 && !request.contract) return fail("INVALID_TRANSITION", "There's nothing to read yet: the project has no text files and the task has no contract.");
+  if (request.files.length === 0 && !request.contract) return fail("INVALID_TRANSITION", "There's nothing to read yet: the project has no text files and the task has no plan.");
 
   const billing = await resolvePlan(deps, input.orgId);
   if (!billing.ok) return billing;

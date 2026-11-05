@@ -71,7 +71,7 @@ export function SecondCheckCard({
         ) : null}
       </div>
       <p className="text-sm leading-relaxed text-ink-2">
-        A second AI model reads this change against its contract. It&apos;s advice: agreement between two models isn&apos;t proof, and the policy, the exact checks and real tests still
+        A second AI model reads this change against its plan. It&apos;s advice: agreement between two models isn&apos;t proof, and the rules, the exact checks and real tests still
         decide what this change needs.
       </p>
 

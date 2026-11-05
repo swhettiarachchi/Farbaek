@@ -23,11 +23,11 @@ export const metadata: Metadata = { title: "Visual editor" };
 /** The project's running sandbox sessions to pick elements in (ADR 0149), or why picking isn't offered. */
 async function pickSessions(ctx: AppContext, projectId: string): Promise<{ sessions: { id: string; name: string }[]; unavailable: string | null }> {
   const sandbox = await sandboxForPage(ctx);
-  if (!sandbox.ok) return { sessions: [], unavailable: `Picking in the running app needs a sandbox. ${sandbox.reason}` };
+  if (!sandbox.ok) return { sessions: [], unavailable: `Picking in the running app needs a test space. ${sandbox.reason}` };
   const unavailable = previewUnavailableReason(readSandboxConfig());
   if (unavailable) return { sessions: [], unavailable: `Picking in the running app needs previews. ${unavailable}` };
   const list = await sandbox.value.store.listSessions(sandbox.value.actor.orgId, { states: ["ready"], sort: "newest", page: 1, pageSize: 50 }).catch(() => null);
-  if (!list) return { sessions: [], unavailable: "The project's sandbox sessions couldn't be read just now. Reload to try again." };
+  if (!list) return { sessions: [], unavailable: "The project's test space sessions couldn't be read just now. Reload to try again." };
   return { sessions: list.rows.filter((s) => s.projectId === projectId).map((s) => ({ id: s.id, name: s.name })), unavailable: null };
 }
 

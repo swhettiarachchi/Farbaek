@@ -196,7 +196,7 @@ describe("Semgrep and detect-secrets (ADR 0137)", () => {
     const p = report(t.finished);
     expect(p.checks.find((c) => c.name === "sast")).toEqual({ name: "sast", ran: false, reason: "Semgrep stopped (exit 7)." });
     expect(p.checks.find((c) => c.name === "secrets")).toEqual({ name: "secrets", ran: false, reason: "detect-secrets didn't finish: The sandbox stopped." });
-    const off = deps({ staticScan: { unavailable: "No verified sandbox is connected, so Semgrep and the secret scan can't run." } });
+    const off = deps({ staticScan: { unavailable: "No test space is connected, so Semgrep and the secret scan can't run." } });
     await runSecurityCheck(off.d, alice, { id: "p1", name: "Site" }, "report-1");
     expect(report(off.finished).checks.filter((c) => c.name === "sast" || c.name === "secrets").map((c) => c.ran)).toEqual([false, false]);
   });

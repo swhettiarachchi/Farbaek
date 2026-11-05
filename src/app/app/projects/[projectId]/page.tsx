@@ -155,7 +155,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
 
       {project.archivedAt ? (
         <Notice tone="warning">
-          Archived <LocalTime iso={project.archivedAt} />. This project is read-only: its files, tasks and evidence stay readable, and it doesn&apos;t count toward your plan&apos;s
+          Archived <LocalTime iso={project.archivedAt} />. This project is read-only: its files, tasks and proof stay readable, and it doesn&apos;t count toward your plan&apos;s
           project limit.
         </Notice>
       ) : null}
@@ -240,7 +240,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
                 .
               </p>
               {!previewReason && !files.some((f) => f.path === "index.html") ? (
-                <p className="mt-3 text-xs text-ink-3">Previews serve the project&apos;s files as they are, starting at index.html. Apps that need building preview from a sandbox.</p>
+                <p className="mt-3 text-xs text-ink-3">Previews serve the project&apos;s files as they are, starting at index.html. Apps that need building preview from a test space.</p>
               ) : null}
             </>
           ) : (

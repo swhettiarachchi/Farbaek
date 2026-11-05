@@ -32,7 +32,7 @@ import { MANAGER_ROLES } from "./types";
 import { codeFromDatabaseError, fail, requireContributor, type RpcResult, type WriteDeps, type WriteResult } from "./use-cases";
 
 export const MANUAL_RULES = "Add rules by hand: choose the files and what a change to them needs.";
-export const RULES_NOT_IN_PLAN = "The policy builder is included in Pro and up, and in the trial.";
+export const RULES_NOT_IN_PLAN = "Writing your own rules is included in Pro and up, and in the trial.";
 export const RULES_MANAGERS_ONLY = "Only an owner or admin can change the workspace's rules.";
 export const RULES_TEST_DAYS = 90;
 

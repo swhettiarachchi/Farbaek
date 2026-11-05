@@ -14,7 +14,7 @@ const base = {
   wallet: wallet(3_000),
   fallback: { resetsAt: "2026-11-01T00:00:00.000Z", period: "month" as const },
   needs: 1_000,
-  manual: "You can still write the contract yourself.",
+  manual: "You can still write the plan yourself.",
 };
 
 describe("aiAvailability", () => {

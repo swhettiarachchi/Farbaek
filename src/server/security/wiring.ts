@@ -42,7 +42,7 @@ export async function securityCheckDeps(person: { orgId: string; userId: string;
   const token = sandbox.mode === "sandboxed" ? await freshAccessToken() : null;
 
   const audit: SecurityCheckDeps["audit"] = !token
-    ? { unavailable: sandbox.mode === "sandboxed" ? "Your session couldn't be confirmed for the sandbox. Sign in again." : "No verified sandbox is connected, so packages can't be checked." }
+    ? { unavailable: sandbox.mode === "sandboxed" ? "Your session couldn't be confirmed for the test space. Sign in again." : "No test space is ready, so packages can't be checked." }
     : async ({ projectId, reportId }) => {
         const user = createClient(config.url, config.publishableKey, {
           global: { headers: { Authorization: `Bearer ${token}` } },
@@ -50,7 +50,7 @@ export async function securityCheckDeps(person: { orgId: string; userId: string;
         });
         const { service, actor } = sandboxServiceFor(user, person.userId, person.orgId, person.role);
         const limits = (await service.overview(actor)).limits.limits;
-        if (!limits.networkProfiles.includes("package_registries")) return { ok: false, reason: "This plan's sandboxes can't reach the npm registry." };
+        if (!limits.networkProfiles.includes("package_registries")) return { ok: false, reason: "Test spaces on your subscription can't reach the npm registry." };
         const created = await service.createSession(
           actor,
           { name: "Security check", template: "node-ts", size: "small", network: "package_registries", minutes: Math.max(5, Math.min(15, limits.maxSessionMinutes)), projectId, taskId: null, include: [] },
@@ -71,7 +71,7 @@ export async function securityCheckDeps(person: { orgId: string; userId: string;
 
   // Semgrep and detect-secrets (ADR 0137): pinned, from PyPI, in a throwaway environment; no project code runs.
   const staticScan: SecurityCheckDeps["staticScan"] = !token
-    ? { unavailable: sandbox.mode === "sandboxed" ? "Your session couldn't be confirmed for the sandbox. Sign in again." : "No verified sandbox is connected, so Semgrep and the secret scan can't run." }
+    ? { unavailable: sandbox.mode === "sandboxed" ? "Your session couldn't be confirmed for the test space. Sign in again." : "No test space is ready, so Semgrep and the secret scan can't run." }
     : async ({ projectId, reportId }) => {
         const user = createClient(config.url, config.publishableKey, {
           global: { headers: { Authorization: `Bearer ${token}` } },
@@ -79,7 +79,7 @@ export async function securityCheckDeps(person: { orgId: string; userId: string;
         });
         const { service, actor } = sandboxServiceFor(user, person.userId, person.orgId, person.role);
         const limits = (await service.overview(actor)).limits.limits;
-        if (!limits.networkProfiles.includes("package_registries")) return { ok: false, reason: "This plan's sandboxes can't reach PyPI, so Semgrep couldn't be installed." };
+        if (!limits.networkProfiles.includes("package_registries")) return { ok: false, reason: "Test spaces on your subscription can't reach PyPI, so Semgrep couldn't be installed." };
         const created = await service.createSession(
           actor,
           { name: "Security check: static analysis", template: "python", size: "small", network: "package_registries", minutes: Math.max(5, Math.min(15, limits.maxSessionMinutes)), projectId, taskId: null, include: [] },
@@ -94,7 +94,7 @@ export async function securityCheckDeps(person: { orgId: string; userId: string;
             [`${SCAN_DIR}/compact.py`, COMPACT_SCRIPT],
           ] as const) {
             const w = await service.writeFile(actor, sessionId, path, content);
-            if (!w.ok) return { ok: false, reason: `Farbaek's scan files couldn't be written into the sandbox: ${w.message}` };
+            if (!w.ok) return { ok: false, reason: `Farbaek's scan files couldn't be written into the test space: ${w.message}` };
           }
           const installed = await run(STATIC_SCAN_INSTALL, 300, "Security check: install Semgrep and detect-secrets");
           if (!installed.ok) return { ok: false, reason: installed.message };

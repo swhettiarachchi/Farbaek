@@ -43,7 +43,7 @@ export interface AgentIdentity {
 
 export { AGENT_CAPABILITIES, type AgentCapability, type AgentLease } from "@/core/agent/lease";
 
-export const OUTSIDE_LEASE = "This agent's lease doesn't cover that project. An owner, an admin or the person who paired it can widen the lease on the Agents page.";
+export const OUTSIDE_LEASE = "This agent's access doesn't cover that project. An owner, an admin or the person who paired it can widen it on the Desktop app page.";
 
 /** Whether the agent's lease covers a project. */
 export function leaseCoversProject(id: Pick<AgentIdentity, "lease">, projectId: string): boolean {
@@ -207,7 +207,7 @@ function requireMember(id: AgentIdentity): AgentResult<OrgRole> {
 export function requireAgentContributor(id: AgentIdentity): AgentResult<OrgRole> {
   const member = requireMember(id);
   if (!member.ok) return member;
-  return CONTRIBUTOR_ROLES.includes(member.value) ? member : agentFail("FORBIDDEN", "The person who paired this agent can only view this workspace, so the agent can't propose changes.");
+  return CONTRIBUTOR_ROLES.includes(member.value) ? member : agentFail("FORBIDDEN", "The person who paired this agent can only view this workspace, so the agent can't suggest changes.");
 }
 
 export async function agentProfile(store: AgentStore, id: AgentIdentity) {
@@ -255,7 +255,7 @@ export async function agentProposal(store: AgentStore, id: AgentIdentity, propos
   const member = requireMember(id);
   if (!member.ok) return member;
   const found = await store.agentProposal(id.orgId, id.agentId, proposalId);
-  return found ? { ok: true, value: found } : agentFail("NOT_FOUND", "This agent made no such proposal in this workspace.");
+  return found ? { ok: true, value: found } : agentFail("NOT_FOUND", "This agent suggested no such change in this workspace.");
 }
 
 /** One page of the task's project files with their content, at most `maxBytes` of content or 300 files, after the `after` path. */
@@ -330,16 +330,16 @@ export async function prepareAgentProposal(
   const parsed = ProposalBody.safeParse(body);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
-    return agentFail("INVALID_REQUEST", `The proposal isn't valid: ${issue?.path.join(".") || "body"}: ${issue?.message ?? "invalid"}.`);
+    return agentFail("INVALID_REQUEST", `The change isn't valid: ${issue?.path.join(".") || "body"}: ${issue?.message ?? "invalid"}.`);
   }
   const input = parsed.data;
 
   const task = await store.loadTask(id.orgId, taskId);
   if (!task) return agentFail("NOT_FOUND", "There's no such task in this workspace.");
-  if (task.state !== "CONTRACT_APPROVED") return agentFail("INVALID_TRANSITION", "This task isn't waiting for a change: its contract isn't approved, or another proposal is open.");
+  if (task.state !== "CONTRACT_APPROVED") return agentFail("INVALID_TRANSITION", "This task isn't waiting for a change: its plan isn't approved, or another change is open.");
   const contract = await store.approvedContract(id.orgId, task.id);
   if (!contract || contract.version !== input.contractVersion || contract.sha256 !== input.contractSha256) {
-    return agentFail("CONTRACT_CHANGED", "The task's approved contract changed since the agent started. Start a new run on the current contract.");
+    return agentFail("CONTRACT_CHANGED", "The task's approved plan changed since the agent started. Start a new run on the current plan.");
   }
   const project = await store.project(id.orgId, task.projectId);
   if (!project) return agentFail("NOT_FOUND");
@@ -359,7 +359,7 @@ export async function prepareAgentProposal(
         ? agentFail("FILE_TOO_LARGE")
         : screened.reason === "secret_content"
           ? agentFail("SECRET_IN_CONTENT")
-          : agentFail("INVALID_PATH", `${checked.path} can't be part of a proposal (${screened.reason.replace(/_/g, " ")}).`);
+          : agentFail("INVALID_PATH", `${checked.path} can't be part of a change (${screened.reason.replace(/_/g, " ")}).`);
     }
     const existing = current.get(checked.path);
     if (c.kind === "edit" && (!existing || existing.revision !== c.baseRevision)) return agentFail("FILE_CHANGED", `${checked.path} changed in Farbaek since the agent copied it. Start a new run.`);
@@ -423,7 +423,7 @@ export function proposalResult(proposalId: string, prepared: { input: ProposalIn
 export async function submitAgentProposal(store: AgentStore, id: AgentIdentity, taskId: string, body: unknown): Promise<AgentResult<AgentProposalResult>> {
   const role = requireAgentContributor(id);
   if (!role.ok) return role;
-  if (!(await store.rateLimit(`agent:propose:${id.agentId}`, 60, 10))) return agentFail("RATE_LIMITED", "Too many proposals from this agent in the last minute.");
+  if (!(await store.rateLimit(`agent:propose:${id.agentId}`, 60, 10))) return agentFail("RATE_LIMITED", "Too many changes from this agent in the last minute.");
   const task = await store.loadTask(id.orgId, taskId);
   if (task && !leaseCoversProject(id, task.projectId)) return agentFail("FORBIDDEN", OUTSIDE_LEASE);
   const prepared = await prepareAgentProposal(store, id, { kind: "agent", agentId: id.agentId }, taskId, body);

@@ -54,7 +54,7 @@ function page(status: number, title: string, body: string, appOrigin: string): R
   const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <style>body{margin:0;min-height:100dvh;display:grid;place-items:center;background:#fbfbfc;color:#121317;font:15px/1.6 system-ui,sans-serif}main{max-width:34rem;padding:2rem}h1{font-size:1.25rem;font-weight:500;margin:0 0 .5rem}p{color:#474c56;margin:0 0 1rem}a{color:#2450f0}</style></head>
-<body><main><h1>${esc(title)}</h1><p>${esc(body)}</p><p><a href="${esc(appOrigin)}/app/sandbox" target="_top" rel="noopener">Back to Farbaek Sandbox</a></p></main></body></html>`;
+<body><main><h1>${esc(title)}</h1><p>${esc(body)}</p><p><a href="${esc(appOrigin)}/app/sandbox" target="_top" rel="noopener">Back to Farbaek Test space</a></p></main></body></html>`;
   return new Response(html, {
     status,
     headers: {
@@ -162,7 +162,7 @@ export async function handlePreviewRequest(request: Request, deps: GatewayDeps):
 
   // 2. Every other request needs the access cookie and an open preview.
   const access = await verifyPreviewToken(readCookie(request.headers.get("cookie"), name), secret, { kind: "access", previewId, nowSeconds });
-  if (!access.ok) return page(401, "Open this preview from Farbaek", "Previews are private. Open it from your sandbox session to get access in this browser.", deps.appOrigin);
+  if (!access.ok) return page(401, "Open this preview from Farbaek", "Previews are private. Open it from your test space session to get access in this browser.", deps.appOrigin);
 
   let target = accessCache.get(previewId);
   if (!target || target.until <= Date.now()) {
@@ -210,7 +210,7 @@ export async function handlePreviewRequest(request: Request, deps: GatewayDeps):
     });
   }
   const picking = access.claims.pick === true;
-  if (!runtime) return page(503, "Sandbox runtime unavailable", "This server has no sandbox runtime connected right now.", deps.appOrigin);
+  if (!runtime) return page(503, "Test space unavailable", "This server has no test space connected right now.", deps.appOrigin);
 
   const declared = Number(request.headers.get("content-length") ?? "0");
   if (declared > MAX_BODY_BYTES) return page(413, "Request too large", "Previews accept request bodies up to 10 MB.", deps.appOrigin);
@@ -220,7 +220,7 @@ export async function handlePreviewRequest(request: Request, deps: GatewayDeps):
     upstream = await runtime.previewTarget(target.sandboxId, target.port, { method: request.method, path });
   } catch (e) {
     log("warn", "sandbox.preview_target_failed", { preview: previewId, error: e instanceof Error ? e.message : String(e) });
-    return page(502, "The sandbox isn't reachable", "The runtime didn't return this session. It may have stopped.", deps.appOrigin);
+    return page(502, "The test space isn't reachable", "The runtime didn't return this session. It may have stopped.", deps.appOrigin);
   }
 
   const headers = new Headers();

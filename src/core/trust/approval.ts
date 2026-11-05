@@ -54,7 +54,7 @@ export async function checkApprovalForExecution(record: ApprovalRecord, current:
     return {
       valid: false,
       reason: "BINDING_MISMATCH",
-      message: "The action, contract, policy or resource changed after approval. Request a fresh approval.",
+      message: "The action, plan, rules or resource changed after approval. Ask for a fresh approval.",
     };
   }
   return { valid: true };

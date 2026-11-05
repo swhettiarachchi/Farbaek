@@ -90,7 +90,7 @@ describe("SE-005 Risky commands without a person", () => {
   it("lets only checks run on their own, and only in a verified sandbox", () => {
     expect(decide(runCmd("pnpm", ["test"]), ctx("sandboxed_autopilot"))).toMatchObject({ kind: "allow", risk: "test_build" });
     expect(decide(runCmd("pnpm", ["test"]), ctx("controlled"))).toMatchObject({ kind: "needs_approval" });
-    expect(decide(runCmd("pnpm", ["test"]), ctx("sandboxed_autopilot", false))).toMatchObject({ kind: "deny", reason: expect.stringMatching(/No verified sandbox/) });
+    expect(decide(runCmd("pnpm", ["test"]), ctx("sandboxed_autopilot", false))).toMatchObject({ kind: "deny", reason: expect.stringMatching(/No test space/) });
     expect(decide(runCmd("pnpm", ["test"]), ctx("review_only"))).toMatchObject({ kind: "deny" });
   });
 });

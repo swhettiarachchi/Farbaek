@@ -228,7 +228,7 @@ describe("applyProposal", () => {
     expect(await apply(fakeDeps({ state: "APPROVAL_PENDING" }).deps, [{ path: "src/lib/cart.ts", content: fake("-----BEGIN ", "PRIVATE KEY-----") }])).toMatchObject({ code: "SECRET_IN_CONTENT" });
     expect(await apply(fakeDeps({ state: "APPROVAL_PENDING", applyError: "FILE_CHANGED" }).deps, [{ path: "src/lib/cart.ts", content: "x" }])).toMatchObject({
       code: "FILE_CHANGED",
-      message: expect.stringContaining("propose again"),
+      message: expect.stringContaining("ask the agent to try again"),
     });
   });
 });

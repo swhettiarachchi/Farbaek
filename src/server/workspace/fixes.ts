@@ -58,7 +58,7 @@ export async function startFix(deps: FixDeps, person: FixPerson, sourceTaskId: s
   if (!source) return fail("NOT_FOUND");
   if (!FIXABLE_STATES.has(source.state)) return fail("INVALID_TRANSITION", "Only a task whose checks failed can be fixed this way.");
   const contract = await deps.contract(person.orgId, source.id);
-  if (!contract || contract.status !== "approved") return fail("INVALID_TRANSITION", "The task's contract isn't approved, so there's no intent to fix toward.");
+  if (!contract || contract.status !== "approved") return fail("INVALID_TRANSITION", "The task's plan isn't approved, so there's nothing to fix toward.");
   const existing = await deps.fixFor(person.orgId, source.id);
   if (fixIsOpen(existing)) return fail("INVALID_TRANSITION", `A fix is already open: ${existing!.title}`);
 

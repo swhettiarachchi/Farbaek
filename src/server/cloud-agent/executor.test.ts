@@ -309,15 +309,15 @@ describe("autonomy level 2 (ADR 0046)", () => {
     expect(t.applied).toEqual([{ orgId: alice.orgId, userId: alice.userId, proposalId: "proposal-1" }]);
     // Exactly the applied content goes into the check run.
     expect(t.verified).toEqual([[{ path: "README.md", content: "# Demo\nRun the tests with pnpm test.\n" }]]);
-    expect(notes(t)).toContainEqual(expect.stringMatching(/Within this workspace's autonomy limits \(level 2\)/));
-    expect(notes(t)).toContainEqual("Checking the applied change: running the contract's check in this run's sandbox.");
+    expect(notes(t)).toContainEqual(expect.stringMatching(/Within the limits this workspace set/));
+    expect(notes(t)).toContainEqual("Checking the applied change: running the plan's check in this run's test space.");
     expect(notes(t)).toContainEqual(expect.stringMatching(/^Verified\. Every check passed/));
   });
 
   it("says when the automatic check failed, which pauses autonomy, or couldn't run", async () => {
     const failed = await deps({ runId: "run-failed", model: scripted([[edit], [finish]]), sandbox, autonomy: LIMITS, contract: checked, verify: { ok: true, result: "failed", receiptDigest: "f".repeat(64) } });
     await startCloudRun(failed.d, { person: alice, taskId: "t1", effort: "balanced", skills: [] });
-    expect(await failed.ended()).toMatchObject({ outcome: expect.stringMatching(/its checks failed, so autonomy is paused for this workspace/) });
+    expect(await failed.ended()).toMatchObject({ outcome: expect.stringMatching(/its checks failed, so changes applying on their own are paused for this workspace/) });
 
     const lost = await deps({ runId: "run-lost", model: scripted([[edit], [finish]]), sandbox, autonomy: LIMITS, contract: checked, verify: { ok: false, reason: "The checks didn't run: The session isn't running." } });
     await startCloudRun(lost.d, { person: alice, taskId: "t1", effort: "balanced", skills: [] });

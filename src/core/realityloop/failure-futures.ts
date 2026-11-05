@@ -374,7 +374,7 @@ export function failureTestRequest(future: FailureFuture, runner: LabRunner, pac
 }
 
 export const LAB_OUTCOME_WORDS: Record<LabOutcome | "not_testable" | "failed" | "running", { label: string; detail: string }> = {
-  running: { label: "Running", detail: "Writing the test and running it in a disposable sandbox." },
+  running: { label: "Running", detail: "Writing the test and running it in a disposable test space." },
   reproduced: { label: "Reproduced", detail: "The failure happened in this trial." },
   handled: { label: "Handled", detail: "The code behaved as expected under this failure, in this trial." },
   inconclusive: { label: "Inconclusive", detail: "Nothing was observed either way." },

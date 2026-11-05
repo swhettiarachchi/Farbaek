@@ -95,7 +95,7 @@ export default async function SandboxPage({ searchParams }: { searchParams: Prom
           <div className="mt-4 grid gap-5">
             <UsageMeter label="Sessions now" used={overview.activeSessions} limit={limits.maxConcurrentSessions} reached="At the limit. Stop a session to start another." />
             <UsageMeter
-              label="Sandbox minutes"
+              label="Test space minutes"
               used={overview.minutesUsed}
               limit={limits.minutesPerPeriod}
               detail="Wall-clock running time of every session, the way runtimes bill it."

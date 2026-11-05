@@ -101,7 +101,7 @@ export default async function WorkflowPage({ params }: { params: Promise<{ id: s
                         <>Contract approved, version {s.contract.version}.</>
                       ) : (
                         <>
-                          Contract drafted, waiting for approval.{" "}
+                          Plan drafted, waiting for approval.{" "}
                           <Link href={`/app/tasks/${s.taskId}#contract`} className="font-medium text-accent hover:underline">
                             Review it
                           </Link>
@@ -109,7 +109,7 @@ export default async function WorkflowPage({ params }: { params: Promise<{ id: s
                       )
                     ) : (
                       <>
-                        No contract yet.{" "}
+                        No plan yet.{" "}
                         <Link href={`/app/tasks/${s.taskId}`} className="font-medium text-accent hover:underline">
                           Draft it
                         </Link>

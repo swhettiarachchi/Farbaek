@@ -11,7 +11,7 @@ import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
 export const metadata: Metadata = { title: "Check an app" };
 
 const STEPS = [
-  { icon: LockKeyIcon, title: "Unpacked on your computer", body: "Secrets, binaries and dependency folders are left out before anything is sent." },
+  { icon: LockKeyIcon, title: "Unpacked on your computer", body: "Passwords, keys and build folders are left out before anything is sent." },
   { icon: BugBeetleIcon, title: "Checked and scored", body: "Farbaek's rules, your packages' known vulnerabilities and an AI review of the riskiest code." },
   { icon: WrenchIcon, title: "Fixed with the agent", body: "Each finding can become a task; you approve the plan before anything changes." },
 ];

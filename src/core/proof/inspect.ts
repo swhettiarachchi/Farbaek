@@ -108,7 +108,7 @@ async function checkSignature(dsse: unknown, computed: string, keys: readonly Pu
   if (r.status === "unknown_key") return { status: "unknown_key", keyid: r.keyid };
   if (r.status === "invalid") return { status: "bad", reason: r.reason };
   // The signature must be over this very statement, not some other one.
-  return (await canonicalHash(r.statement)) === computed ? { status: "signed", keyid: r.keyid } : { status: "bad", reason: "The signature is for different evidence than this file holds." };
+  return (await canonicalHash(r.statement)) === computed ? { status: "signed", keyid: r.keyid } : { status: "bad", reason: "The signature is for different contents than this file holds." };
 }
 
 const Hex64 = /^[0-9a-f]{64}$/;
@@ -198,10 +198,10 @@ function summarize(kind: EvidenceKind, predicate: unknown): { summary: EvidenceS
         facts: [
           { label: "Status", value: words(d.status) },
           { label: "Task", value: d.task.id, mono: true },
-          { label: "Contract", value: `Version ${d.contract.version}, sha256:${d.contract.sha256.slice(0, 12)}…`, mono: true },
-          { label: "Policy", value: d.policy ? d.policy.outcome : "Not recorded" },
+          { label: "Plan", value: `Version ${d.contract.version}, sha256:${d.contract.sha256.slice(0, 12)}…`, mono: true },
+          { label: "Rules", value: d.policy ? d.policy.outcome : "Not recorded" },
           { label: "Approved", value: d.approval.approvedAt, time: true },
-          { label: "Where checks ran", value: d.execution.mode === "sandboxed" ? `In a sandbox (${d.execution.provider})` : `Not run: ${d.execution.reason}` },
+          { label: "Where checks ran", value: d.execution.mode === "sandboxed" ? `In a test space (${d.execution.provider})` : `Not run: ${d.execution.reason}` },
           ...(d.proposal.model ? [{ label: "Model", value: d.proposal.model, mono: true }] : []),
           ...(d.egress
             ? [
@@ -248,10 +248,10 @@ function summarize(kind: EvidenceKind, predicate: unknown): { summary: EvidenceS
       summary: {
         facts: [
           { label: "Status", value: words(d.status) },
-          ...(d.runtime?.provider ? [{ label: "Sandbox", value: d.runtime.provider }] : []),
-          ...(d.appliedChange ? [{ label: "Applied content", value: d.appliedChange.matched ? "Every file matched inside the sandbox" : "Some files didn't match" }] : []),
+          ...(d.runtime?.provider ? [{ label: "Test space", value: d.runtime.provider }] : []),
+          ...(d.appliedChange ? [{ label: "Applied content", value: d.appliedChange.matched ? "Every file matched inside the test space" : "Some files didn't match" }] : []),
         ],
-        files: (d.appliedChange?.files ?? []).map((f) => ({ path: f.path, sha256: f.expected, note: f.actual === f.expected ? "matched in the sandbox" : "didn't match in the sandbox" })),
+        files: (d.appliedChange?.files ?? []).map((f) => ({ path: f.path, sha256: f.expected, note: f.actual === f.expected ? "matched in the test space" : "didn't match in the test space" })),
         checks: d.checks.map(toCheck),
         links: d.verdict.proofPackDigest ? [{ label: "The ProofPack it produced", digest: d.verdict.proofPackDigest }] : [],
         limits: d.limits,
@@ -286,16 +286,16 @@ function summarize(kind: EvidenceKind, predicate: unknown): { summary: EvidenceS
  * keys; null when they couldn't be loaded.
  */
 export async function inspectEvidence(input: unknown, pastedDigest?: string, keys: readonly PublicSigningKey[] | null = null): Promise<Inspection> {
-  if (typeof input !== "object" || input === null) return { ok: false, message: "This isn't a Farbaek evidence file: it isn't a JSON object." };
+  if (typeof input !== "object" || input === null) return { ok: false, message: "This isn't a Farbaek proof file: it isn't a JSON object." };
   const envelope = input as Record<string, unknown>;
   const bare = statementFromEnvelope(envelope);
   const dsse = bare ? envelope : envelope.dsse;
   const statement = bare ?? ("statement" in envelope && !("_type" in envelope) ? envelope.statement : envelope);
   if (typeof statement !== "object" || statement === null) return { ok: false, message: "This file has no statement to check." };
   const s = statement as Record<string, unknown>;
-  if (s._type !== IN_TOTO_STATEMENT_TYPE) return { ok: false, message: "This isn't an in-toto statement, so it isn't Farbaek evidence." };
+  if (s._type !== IN_TOTO_STATEMENT_TYPE) return { ok: false, message: "This isn't an in-toto statement, so it isn't a Farbaek proof file." };
   const kind = typeof s.predicateType === "string" ? KIND_BY_PREDICATE[s.predicateType] : undefined;
-  if (!kind) return { ok: false, message: "This statement is a kind of evidence Farbaek doesn't record, so it can't be checked here." };
+  if (!kind) return { ok: false, message: "This statement is a kind of proof Farbaek doesn't record, so it can't be checked here." };
 
   const pasted = pastedDigest?.trim().toLowerCase().replace(/^sha256:/, "");
   if (pasted && !Hex64.test(pasted)) return { ok: false, message: "The digest should be 64 hexadecimal characters." };

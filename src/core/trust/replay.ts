@@ -45,7 +45,7 @@ export async function replayLimits(
     }
     const decision = await evaluateChangePolicy({
       files: c.files,
-      contractViolations: c.violations > 0 ? [{ kind: "replay", detail: "It broke its contract." }] : [],
+      contractViolations: c.violations > 0 ? [{ kind: "replay", detail: "It went outside its plan." }] : [],
       autonomy: { level: 2, maxFiles: limits.maxFiles, allowCreates: limits.allowCreates, rehearsal: true },
       verifiable: c.hasChecks && sandboxConnected,
       rules,

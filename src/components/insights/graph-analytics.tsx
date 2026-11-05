@@ -79,7 +79,7 @@ export function GraphAnalyticsView({ a }: { a: GraphAnalytics }) {
       <div className="grid gap-4 lg:grid-cols-3">
         <Panel title="How the rules decided">
           {outcomesTotal ? (
-            <BarRows rows={a.outcomes.map((o) => ({ label: OUTCOME_WORDS[o.outcome] ?? o.outcome, count: o.count }))} of={outcomesTotal} noun="proposals" />
+            <BarRows rows={a.outcomes.map((o) => ({ label: OUTCOME_WORDS[o.outcome] ?? o.outcome, count: o.count }))} of={outcomesTotal} noun="changes" />
           ) : (
             <p className="text-sm text-ink-3">No changes with a recorded decision yet.</p>
           )}

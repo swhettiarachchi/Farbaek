@@ -17,7 +17,7 @@ export function RunMutation({ proposalId, taskId, again, disabledReason }: { pro
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending || Boolean(disabledReason) || state.status === "started"} className={buttonClasses(again ? "secondary" : "primary", "sm")}>
           <BugBeetleIcon size={16} weight="bold" aria-hidden />
-          {pending ? "Starting the sandbox…" : state.status === "started" ? "Trial started" : again ? "Run it again" : "Run a mutation trial"}
+          {pending ? "Starting the test space…" : state.status === "started" ? "Trial started" : again ? "Run it again" : "Run a mutation trial"}
         </button>
         {disabledReason ? <span className="text-sm text-ink-3">{disabledReason}</span> : null}
       </div>

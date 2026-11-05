@@ -16,7 +16,7 @@ const STATUS: Record<Status, { label: string; icon: Icon; className: string }> =
 export function StatusBadge({ status, label }: { status: Status; label?: string }) {
   const { icon: StatusIcon, className, label: fallback } = STATUS[status];
   return (
-    <span className={`inline-flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-xs font-medium ${className}`}>
+    <span className={`inline-flex h-6 w-fit shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-xs font-medium ${className}`}>
       <StatusIcon size={14} weight="bold" aria-hidden />
       {label ?? fallback}
     </span>

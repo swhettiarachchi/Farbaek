@@ -72,7 +72,7 @@ export const DROP_LABELS: Record<DropReason, string> = {
   invalid_path: "The path isn't allowed",
   screened: "Skipped by the file checks (credentials, secret-looking content, build folder or size)",
   no_change: "The edit doesn't change the file",
-  duplicate: "The file appears twice in the proposal",
+  duplicate: "The file appears twice in the change",
   pair_step: "Left for a later step: a Pair change is at most 3 files",
 };
 

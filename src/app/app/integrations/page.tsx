@@ -34,6 +34,8 @@ export default async function IntegrationsPage() {
   if (!ctx?.current) notFound();
   const v = await loadIntegrations(ctx, ctx.current.id);
   const unread = ctx.mode === "demo" ? "The demo workspace has no connections." : "Couldn't be read just now. Reload to try again.";
+  // In the demo nothing failed: there's simply nothing connected.
+  const unreadStatus = ctx.mode === "demo" ? "Not connected" : "Couldn't check";
 
   const rows: Row[] = [
     {
@@ -42,7 +44,7 @@ export default async function IntegrationsPage() {
       name: "Farbaek hosting",
       does: "Publishes a static site at its own address on farbaek.si, with custom domains.",
       status:
-        v.liveSites === null ? { tone: "unverified", label: "Not read" } : v.liveSites > 0 ? { tone: "verified", label: `${v.liveSites} live` } : { tone: "info", label: "Ready" },
+        v.liveSites === null ? { tone: "unverified", label: unreadStatus } : v.liveSites > 0 ? { tone: "verified", label: `${v.liveSites} live` } : { tone: "info", label: "Ready" },
       detail: v.liveSites === null ? unread : v.liveSites > 0 ? `${v.liveSites === 1 ? "1 site is" : `${v.liveSites} sites are`} live.` : "No site is live yet. Publish one from its project page.",
       action: { href: "/app/projects", label: "Open projects" },
     },
@@ -52,8 +54,8 @@ export default async function IntegrationsPage() {
         id: p,
         icon: CloudArrowUpIcon,
         name: PROVIDER_NAMES[p],
-        does: `Launches a project to your own ${PROVIDER_NAMES[p]} account with LaunchOS, after you approve it.`,
-        status: v.connections === null ? { tone: "unverified", label: "Not read" } : c ? { tone: "verified", label: "Connected" } : { tone: "unverified", label: "Not connected" },
+        does: `Launches a project to your own ${PROVIDER_NAMES[p]} account with its Launch plan, after you approve it.`,
+        status: v.connections === null ? { tone: "unverified", label: unreadStatus } : c ? { tone: "verified", label: "Connected" } : { tone: "unverified", label: "Not connected" },
         detail:
           v.connections === null ? (
             unread
@@ -79,7 +81,7 @@ export default async function IntegrationsPage() {
       icon: GithubLogoIcon,
       name: "GitHub",
       does: "Imports a public repository as a new project, and opens a pull request for each applied change, with a Farbaek ProofPack status check.",
-      status: v.github === null ? { tone: "unverified", label: "Not read" } : v.github.login ? { tone: "verified", label: "Connected" } : { tone: "info", label: "Import only" },
+      status: v.github === null ? { tone: "unverified", label: unreadStatus } : v.github.login ? { tone: "verified", label: "Connected" } : { tone: "info", label: "Import only" },
       detail:
         v.github === null
           ? unread
@@ -92,10 +94,10 @@ export default async function IntegrationsPage() {
       id: "agents",
       icon: DesktopIcon,
       name: "Farbaek Agent",
-      does: "The desktop app that works on approved tasks on your computer, under a lease you control.",
+      does: "The desktop app that works on approved tasks on your computer, only for as long as you allow.",
       status: v.agents.paired > 0 ? { tone: "verified", label: `${v.agents.paired} paired` } : { tone: "unverified", label: "None paired" },
       detail: v.agents.paired > 0 ? `${v.agents.paired === 1 ? "1 agent is" : `${v.agents.paired} agents are`} paired with this workspace.` : "Pair a computer with a one-time code.",
-      action: { href: "/app/agents", label: "Open Agents" },
+      action: { href: "/app/agents", label: "Open Desktop app" },
     },
     {
       id: "mesh",
