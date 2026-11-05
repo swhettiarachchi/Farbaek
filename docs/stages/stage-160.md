@@ -45,7 +45,8 @@
   - **The sample linked to tasks that don't exist on the web.** It now says where that step would be.
   - **Permission survived signing out,** so the next person on the iPhone wouldn't be asked. Signing out now clears it.
 
-The Mac build's result and the tour's screenshots are recorded below once they've happened.
+- **The first real compile passed.** Run #29 on GitHub's Mac (Xcode 26.3) built the app for the simulator, and its unit tests passed, including decoding `project.json` and a task's `nextStep`. No fix-up push was needed.
+- **The tour hasn't run yet.** It skipped itself as designed, because the server doesn't have the new routes until this is merged. It needs one Run workflow after that, and its screenshots get read and recorded here then.
 
 ## Not possible in this stage
 
