@@ -74,10 +74,19 @@ Farbaek's interface should feel premium because it is fast, calm and honest. It 
 
 Animate for live state, hierarchy, storytelling or feedback, and nothing else.
 
-**Durations:**
-- Feedback and hovers: 150–200ms.
-- Entrances: about 260ms, with `cubic-bezier(0.16,1,0.3,1)`.
-- Nothing on keyboard actions repeats.
+**The budget (ADR 0172, `tests/design/motion-budget.test.ts`):**
+- Feedback and hovers: 100–200ms. A change of view: about 240ms, with `cubic-bezier(0.16,1,0.3,1)`. Exits are quicker than entrances.
+- Nothing in the signed-in app reaches 500ms, except the named moments below and loops that mean the agent is working.
+- Only `transform` and `opacity` animate, and everything that moves is `motion-safe:`. Nothing on keyboard actions repeats.
+- Nobody waits for an animation: everything is usable while it plays.
+
+**The three moments (expressive, rare, once each):**
+- A verified task's next-step card carries the Seal, from real evidence only (`verifiedSeal`).
+- Pressing Publish ends in `PublishedMoment`.
+- A run ending while someone watches has its result rise in (`endedWhileWatching`).
+- Use `.moment-rise` and `.moment-pop` for a new one, and think hard before adding one. If everything is a moment, nothing is.
+- Forms, lists, tables and editors get no WebGL. Use CSS 3D for depth there.
+- Any SVG needs a size class. `ProofPackSeal`'s `size` prop only sets its viewBox, and without a class it draws nothing.
 
 **Reduced motion.** Always gate animation:
 - Use `motion-safe:animate-[…]` classes.

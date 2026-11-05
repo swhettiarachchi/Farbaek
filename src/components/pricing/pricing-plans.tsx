@@ -65,7 +65,7 @@ export function PricingPlans() {
             }`}
           >
             <div
-              className={`flex w-full flex-col rounded-md bg-surface p-6 transition-[transform,box-shadow] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 ${
+              className={`flex w-full flex-col rounded-md bg-surface p-6 transition-[transform,box-shadow] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 ${
                 featured ? "shadow-e3 ring-1 ring-accent" : "shadow-e1 hover:shadow-e2"
               }`}
             >

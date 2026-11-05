@@ -8,6 +8,25 @@ import { useEffect, useRef, type ReactNode } from "react";
  * it opens what holds the target, scrolls there and moves focus to it, so
  * pressing it always visibly does something. Without scripts it's a plain link.
  */
+/** A ring around where the jump landed, once the scrolling stops, so nobody's left wondering what the button did (ADR 0172). */
+function showLanded(el: HTMLElement, still: boolean) {
+  const flash = () => {
+    el.classList.add("jump-landed");
+    window.setTimeout(() => el.classList.remove("jump-landed"), 600);
+  };
+  if (still || !("onscrollend" in window)) return flash();
+  let shown = false;
+  const once = () => {
+    if (shown) return;
+    shown = true;
+    window.removeEventListener("scrollend", once);
+    flash();
+  };
+  window.addEventListener("scrollend", once);
+  // Nothing to scroll means no scrollend.
+  window.setTimeout(once, 700);
+}
+
 export function JumpLink({ target, className, children }: { target: string; className?: string; children: ReactNode }) {
   return (
     <a
@@ -21,7 +40,9 @@ export function JumpLink({ target, className, children }: { target: string; clas
         const fold = el.firstElementChild;
         if (fold instanceof HTMLDetailsElement) fold.open = true;
         window.history.pushState(null, "", `#${target}`);
-        el.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+        const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        el.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
+        showLanded(el, still);
         if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex", "-1");
         el.focus({ preventScroll: true });
       }}
@@ -68,7 +89,7 @@ export function Disclosure({ summary, hint, children, className = "" }: { summar
         </span>
         <CaretDownIcon size={16} weight="bold" aria-hidden className="ml-auto shrink-0 text-ink-3 motion-safe:transition-transform motion-safe:duration-200" />
       </summary>
-      <div className="mt-6 grid gap-6">{children}</div>
+      <div className="mt-6 grid gap-6 motion-safe:animate-[usage-in_200ms_cubic-bezier(0.16,1,0.3,1)]">{children}</div>
     </details>
   );
 }

@@ -14,7 +14,7 @@ import { Canvas, useFrame, useLoader } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, type RefObject } from "react";
 import * as THREE from "three";
 import { LOGO } from "@/components/brand/brand-logo";
-import { FrameGovernor } from "./frame-governor";
+import { FrameGovernor, fallBackOnContextLoss } from "./frame-governor";
 import { LOOM, LOOM_COLORS } from "./loom-geometry";
 
 // The shape, colours and speeds are shared with the 2D drawing phones get (loom-geometry.ts, ADR 0056).
@@ -194,9 +194,10 @@ export default function LoomScene({ active, onReady, onSlow }: { active: boolean
   const pointer = useWindowPointer();
   return (
     <Canvas
+      onCreated={fallBackOnContextLoss(onSlow)}
       className="!absolute inset-0"
       style={{ pointerEvents: "none" }}
-      frameloop={active ? "always" : "never"}
+      frameloop={active ? "always" : "demand"}
       dpr={[1, 1.5]}
       camera={{ position: [0, LOOM.camera.y, LOOM.camera.z], fov: LOOM.camera.fov }}
       gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}

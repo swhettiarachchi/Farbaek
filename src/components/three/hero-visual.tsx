@@ -3,12 +3,31 @@
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { PauseIcon, PlayIcon } from "@phosphor-icons/react";
 import { useReducedMotion } from "motion/react";
 import { LOGO } from "@/components/brand/brand-logo";
 import { canRun3D, whenIdle } from "./capability";
 import { LoomCanvas } from "./loom-canvas";
 
 const LoomScene = dynamic(() => import("./loom-scene"), { ssr: false });
+
+const HOLD_KEY = "farbaek.motion-paused";
+
+function readHold(): boolean {
+  try {
+    return window.localStorage.getItem(HOLD_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeHold(held: boolean) {
+  try {
+    window.localStorage.setItem(HOLD_KEY, held ? "1" : "0");
+  } catch {
+    // Without storage it stays paused until the page is opened again.
+  }
+}
 
 const noSubscribe = () => () => {};
 
@@ -31,6 +50,11 @@ export function HeroVisual() {
   const [ready, setReady] = useState(false);
   const [visible, setVisible] = useState(true);
   const mounted = useSyncExternalStore(noSubscribe, () => true, () => false);
+  // WCAG 2.2.2: motion that starts by itself and runs past five seconds can be paused (ADR 0172). Remembered in this browser.
+  const storedHold = useSyncExternalStore(noSubscribe, readHold, () => false);
+  const [chosenHold, setChosenHold] = useState<boolean | null>(null);
+  const held = chosenHold ?? storedHold;
+  const running = visible && !held;
 
   useEffect(() => {
     if (reduce) return;
@@ -58,10 +82,10 @@ export function HeroVisual() {
     setReady(false);
   }, []);
   const show3D = want3D && !reduce;
-  const fade = (on: boolean) => `transition-opacity duration-700 ${on ? "opacity-100" : "opacity-0"}`;
+  const fade = (on: boolean) => `transition-opacity duration-300 ${on ? "opacity-100" : "opacity-0"}`;
 
   return (
-    <div ref={box} data-paused={visible ? undefined : ""} className="relative mx-auto aspect-[4/5] w-full max-w-[440px] lg:max-w-none">
+    <div ref={box} data-paused={running ? undefined : ""} className="relative mx-auto aspect-[4/5] w-full max-w-[440px] lg:max-w-none">
       {/* Soft light pool and contact shadow: page lighting around the figure, not a plate. */}
       <div
         aria-hidden
@@ -78,7 +102,7 @@ export function HeroVisual() {
       />
 
       {/* The Loom's far side, the knight, then its near side over him. Drawn once mounted; still under reduced motion. */}
-      <LoomCanvas boxRef={box} still={!mounted || reduce !== false} paused={!visible} hidden={!mounted || ready}>
+      <LoomCanvas boxRef={box} still={!mounted || reduce !== false} paused={!running} hidden={!mounted || ready}>
         <div className="hero-float absolute inset-0">
           <Image
             src={LOGO.src}
@@ -96,8 +120,22 @@ export function HeroVisual() {
       {show3D ? (
         // Wider than its column so the orbit is never cropped; it never receives pointer events.
         <div className={`pointer-events-none absolute -inset-x-[40%] -inset-y-[6%] ${fade(ready)}`}>
-          <LoomScene active={visible} onReady={onReady} onSlow={onSlow} />
+          <LoomScene active={running} onReady={onReady} onSlow={onSlow} />
         </div>
+      ) : null}
+
+      {mounted && reduce === false ? (
+        <button
+          type="button"
+          onClick={() => {
+            setChosenHold(!held);
+            writeHold(!held);
+          }}
+          className="absolute bottom-0 right-0 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-surface/80 px-3.5 text-[0.8125rem] text-ink-2 ring-1 ring-line backdrop-blur-xl transition-colors duration-150 hover:text-ink"
+        >
+          {held ? <PlayIcon size={14} weight="fill" aria-hidden /> : <PauseIcon size={14} weight="fill" aria-hidden />}
+          {held ? "Play motion" : "Pause motion"}
+        </button>
       ) : null}
     </div>
   );

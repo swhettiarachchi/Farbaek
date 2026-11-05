@@ -51,6 +51,84 @@
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  /* Overshoots a little: transforms in the rare hero moments only (ADR 0172). */
+  --ease-expressive: cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+/*
+ * The motion budget (ADR 0172, tests/design/motion-budget.test.ts): feedback answers at once, a change of view
+ * takes a quarter of a second, and exits are quicker than entrances. Hero moments may take longer, but never hold anyone up.
+ */
+:root {
+  --motion-feedback: 100ms;
+  --motion-ui: 240ms;
+  --motion-exit: 160ms;
+  --motion-moment: 420ms;
+}
+
+/* Decoration behind a form: it breathes on the public site, and rests in the signed-in app (ADR 0172). */
+[data-signed-in] .aurora::before {
+  animation: none;
+}
+
+/* Where a next-step button landed: a ring that fades on its own. Under reduced motion a fade is still fine. */
+.jump-landed {
+  position: relative;
+}
+
+.jump-landed::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 2px var(--accent);
+  pointer-events: none;
+  animation: jump-ring 480ms var(--ease-exit) both;
+}
+
+@keyframes jump-ring {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/*
+ * The product's rare hero moments: the agent finished, and a site went live. The card rises out of perspective once,
+ * and it's complete and readable throughout. Under reduced motion it's simply there.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .moment-rise {
+    transform-origin: 50% 100%;
+    animation:
+      moment-fade var(--motion-ui) var(--ease-standard) both,
+      moment-lift var(--motion-moment) var(--ease-expressive) both;
+  }
+
+  .moment-pop {
+    animation: moment-pop var(--motion-moment) var(--ease-expressive) 120ms both;
+  }
+}
+
+@keyframes moment-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes moment-lift {
+  from {
+    transform: perspective(900px) rotateX(14deg) translateY(16px) scale(0.97);
+  }
+}
+
+@keyframes moment-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
 }
 
 /*

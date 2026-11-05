@@ -67,8 +67,8 @@ export function CapsuleSend({ projects }: { projects: SendableProject[] }) {
         {pending ? (
           <div className="grid gap-2" role="status">
             <span className="sr-only">Packing the project to preview it…</span>
-            <span className="h-4 w-2/3 animate-pulse rounded-full bg-surface-raised motion-reduce:animate-none" />
-            <span className="h-4 w-1/2 animate-pulse rounded-full bg-surface-raised motion-reduce:animate-none" />
+            <span className="h-4 w-2/3 rounded-full bg-surface-raised motion-safe:animate-pulse" />
+            <span className="h-4 w-1/2 rounded-full bg-surface-raised motion-safe:animate-pulse" />
           </div>
         ) : null}
 

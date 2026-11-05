@@ -118,6 +118,7 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
           domain={data.domain}
           initialName={data.suggestedName}
           live={Boolean(live)}
+          address={address}
           override={data.needsOverride && data.canOverride}
           disabledReason={publishDisabled ?? (data.block ? "See above." : null)}
         />

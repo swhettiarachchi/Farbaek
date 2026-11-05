@@ -152,7 +152,7 @@ export function WalletCard({ card, serverNow }: { card: WalletCardData; serverNo
             </p>
           )}
           <div className="h-1.5 overflow-hidden rounded-full bg-surface-sunken" role="img" aria-label={`${pct}% of the approval window left`}>
-            <div className={`h-full rounded-full ${state.bar} motion-safe:transition-[width] motion-safe:duration-500 motion-safe:ease-standard`} style={{ width: `${pct}%` }} />
+            <div className={`h-full rounded-full ${state.bar} motion-safe:transition-transform motion-safe:duration-[240ms] motion-safe:ease-standard`} style={{ transform: `translateX(${pct - 100}%)` }} />
           </div>
         </div>
 

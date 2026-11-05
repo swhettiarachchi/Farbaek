@@ -23,7 +23,7 @@ export function ProjectCard({
   return (
     <Link
       href={`/app/projects/${id}`}
-      className="group flex h-full flex-col rounded-md border border-line bg-surface p-2 shadow-e1 transition-[box-shadow,transform,border-color] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:border-accent/25 hover:shadow-e3 active:translate-y-0 active:scale-[0.99]"
+      className="group flex h-full flex-col rounded-md border border-line bg-surface p-2 shadow-e1 transition-[box-shadow,transform,border-color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:border-accent/25 hover:shadow-e3 active:translate-y-0 active:scale-[0.99]"
     >
       <SiteThumb src={`/app/projects/${id}/thumbnail`} name={name} className="ring-1 ring-line/80" />
       <span className={`flex flex-1 flex-col px-2.5 ${compact ? "pb-2 pt-3" : "pb-3 pt-4"}`}>

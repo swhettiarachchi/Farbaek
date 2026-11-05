@@ -3,6 +3,18 @@
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 
+/** For a Canvas's onCreated: a lost WebGL context, which phones do under memory pressure, falls back to the still (ADR 0172). */
+export function fallBackOnContextLoss(onSlow: () => void) {
+  return ({ gl }: { gl: { domElement: HTMLCanvasElement } }) => {
+    gl.domElement.addEventListener("webglcontextlost", (event) => {
+      // React Three Fiber loses the context on purpose when a scene closes, and that isn't the device failing.
+      if (!gl.domElement.isConnected) return;
+      event.preventDefault();
+      onSlow();
+    });
+  };
+}
+
 /** Drops back to the static version if the device can't hold a smooth frame rate. */
 export function FrameGovernor({ onSlow }: { onSlow: () => void }) {
   const samples = useRef<number[]>([]);

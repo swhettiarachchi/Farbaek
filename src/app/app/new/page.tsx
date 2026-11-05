@@ -84,7 +84,7 @@ export default async function NewBuildPage({ searchParams }: Props) {
               <li key={t.id}>
                 <Link
                   href={`/app/new?template=${t.id}`}
-                  className="group block h-full rounded-md border border-line bg-surface p-2 shadow-e1 transition-[transform,box-shadow,border-color] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:border-accent/25 hover:shadow-e3"
+                  className="group block h-full rounded-md border border-line bg-surface p-2 shadow-e1 transition-[transform,box-shadow,border-color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-1 hover:border-accent/25 hover:shadow-e3"
                 >
                   <SiteThumb src={`/app/templates/${t.id}/thumbnail`} name={t.name} className="ring-1 ring-line/80" />
                   <span className="block px-2 pb-1.5 pt-3 text-sm font-medium transition-colors duration-200 group-hover:text-accent">{t.name}</span>

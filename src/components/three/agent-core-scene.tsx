@@ -15,7 +15,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { CorePhase } from "@/core/agent/run-phase";
-import { FrameGovernor } from "./frame-governor";
+import { FrameGovernor, fallBackOnContextLoss } from "./frame-governor";
 
 type Token = "accent" | "approval" | "verified" | "ink-3";
 
@@ -202,6 +202,7 @@ export default function AgentCoreScene({ phase, active, onReady, onSlow }: { pha
 
   return (
     <Canvas
+      onCreated={fallBackOnContextLoss(onSlow)}
       className="!absolute inset-0"
       style={{ pointerEvents: "none" }}
       frameloop={active && !settled ? "always" : "demand"}
