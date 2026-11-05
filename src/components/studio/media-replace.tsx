@@ -11,7 +11,7 @@ import { CubeIcon, ImagesIcon, LinkSimpleIcon, SelectionIcon, SwapIcon, UploadSi
 import { useId, useState } from "react";
 import { buttonClasses } from "@/components/ui/button";
 import { COLOURWAYS, MEDIA_LIBRARY, SCENE_DESCRIPTIONS, SCENE_NAMES, mediaUrl, type LibraryItem } from "@/core/media/library";
-import { PHOTO_SUBJECTS, photoFacts, photoUrl, type PhotoSubject } from "@/core/media/photos";
+import { PHOTO_SUBJECTS, photoFacts, photoUrl, subjectForText, type PhotoSubject } from "@/core/media/photos";
 import { IMAGE_ACCEPT } from "@/core/workspace/images";
 
 type Source = "photos" | "library" | "yours" | "link";
@@ -38,6 +38,7 @@ export function MediaReplace({
   onReplace,
   onUpload,
   uploadDisabledReason = null,
+  context = { description: "", page: "" },
 }: {
   kind: "image" | "video";
   current: string | null;
@@ -51,6 +52,8 @@ export function MediaReplace({
   onUpload?: (file: File) => Promise<string | null>;
   /** Why uploading isn't possible right now, such as a demo workspace. */
   uploadDisabledReason?: string | null;
+  /** The site's own words around this picture (its description, the page's title), to open Real photos on the right subject. */
+  context?: { description: string; page: string };
 }) {
   const id = useId();
   const sources: { id: Source; label: string }[] = [
@@ -60,9 +63,11 @@ export function MediaReplace({
   ];
   const [source, setSource] = useState<Source>(kind === "video" ? "library" : imagePaths.length > 0 ? "yours" : "photos");
   // Open on the photo being replaced: its subject and its shape, so a clothing photo is swapped for clothing.
+  // A picture that isn't one of the library's opens on what the site's own words point to (its description,
+  // then the page's title), so a bakery's fish bun opens on bread rather than laptops.
   const facts = photoFacts(current);
   const [shape, setShape] = useState<keyof typeof SHAPES>(facts?.tall ? "tall" : "wide");
-  const [subject, setSubject] = useState<PhotoSubject>(facts?.subject ?? "workspace");
+  const [subject, setSubject] = useState<PhotoSubject>(facts?.subject ?? subjectForText(context.description) ?? subjectForText(context.page) ?? "workspace");
   const [link, setLink] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
