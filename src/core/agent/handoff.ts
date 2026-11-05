@@ -36,7 +36,7 @@ const SHELL = /[|&;<>`$(){}*?!\\]/;
  * chains are refused with the reason, since they need a shell.
  */
 export function splitCheckCommand(text: string): SplitCommand {
-  if (text.trim() === "farbaek check-site") return { ok: false, reason: "Farbaek's site check runs only in its sandbox." };
+  if (text.trim() === "farbaek check-site") return { ok: false, reason: "Farbaek's site check runs only in its test space." };
   const words: string[] = [];
   let current = "";
   let quote: '"' | "'" | null = null;

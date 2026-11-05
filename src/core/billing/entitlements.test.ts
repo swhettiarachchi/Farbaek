@@ -16,7 +16,7 @@ describe("checkFeature", () => {
 
   it("gives trial organizations Pro features", () => {
     expect(checkFeature(trial, "shadow_mode")).toEqual({ allowed: true });
-    expect(checkFeature(trial, "evidence_exports")).toMatchObject({ code: "FEATURE_NOT_IN_PLAN", upgradeTo: "max_3x" });
+    expect(checkFeature(trial, "advanced_autonomy")).toMatchObject({ code: "FEATURE_NOT_IN_PLAN", upgradeTo: "max_3x" });
   });
 
   it("explains paused paid features while billing is suspended", () => {

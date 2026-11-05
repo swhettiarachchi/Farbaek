@@ -369,7 +369,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
             <GitPullRequestIcon size={20} className="text-ink-3" aria-hidden /> Change
           </h2>
           <p className="mt-1 text-sm text-ink-2">
-            Exactly what the agent wants to change, file by file. Nothing goes into your project until you approve it.
+            Exactly what the agent wants to change, file by file.
           </p>
           <div className="mt-6 grid gap-8">
             {trying ? <ArenaPanel proposalId={proposal!.id} taskId={task.id} checks={checksForRun} run={arenaRun} disabledReason={arenaReason} /> : null}

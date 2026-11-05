@@ -33,7 +33,7 @@ export async function openPickPreviewAction(input: { projectId: string; sessionI
   if (!sandbox.ok) return { status: "error", message: sandbox.reason };
   const session = await sandbox.value.store.getSession(parsed.data.sessionId).catch(() => null);
   if (!session || session.orgId !== sandbox.value.actor.orgId || session.projectId !== parsed.data.projectId) return { status: "error", message: "That session isn't one of this project's." };
-  if (session.state !== "ready") return { status: "error", message: "That session isn't running. Start or resume it from the Sandbox page." };
+  if (session.state !== "ready") return { status: "error", message: "That session isn't running. Start or resume it from the Test space page." };
   const opened = await sandbox.value.service.openPreview(sandbox.value.actor, session.id, parsed.data.port, { pick: true });
   return opened.ok ? { status: "done", url: opened.value.url } : { status: "error", message: opened.message };
 }

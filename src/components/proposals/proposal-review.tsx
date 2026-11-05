@@ -286,7 +286,7 @@ export function ProposalReview({
               <FlaskIcon size={14} weight="bold" aria-hidden /> Simulated
             </span>
           </div>
-          <p className="text-ink-2">{proposal.policy.shadow.detail} Nothing applied on its own: this workspace is rehearsing level 2, so the change waits for your review as usual.</p>
+          <p className="text-ink-2">{proposal.policy.shadow.detail} Nothing applied on its own: this workspace is in practice mode, so the change waits for your review as usual.</p>
         </div>
       ) : null}
 

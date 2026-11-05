@@ -23,7 +23,7 @@ export const SEVERITY_WORDS: Record<Severity, string> = { low: "Low", medium: "M
 export const STATUS_WORDS: Record<IncidentStatus, string> = { open: "Open", contained: "Contained", resolved: "Resolved" };
 export const SOURCE_WORDS: Record<IncidentSource, string> = {
   manual: "Opened by a person",
-  autonomy_failure: "From autonomy",
+  autonomy_failure: "From a change applied on its own",
   outcome_watch: "From the outcome watch",
   pause: "From the emergency pause",
 };

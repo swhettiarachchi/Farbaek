@@ -80,7 +80,7 @@ export function CostCard({ cost, period }: { cost: TaskCost; period: "trial" | "
         ) : null}
       </div>
       {nothing ? (
-        <p className="text-sm text-ink-3">No AI usage or sandbox time recorded for this task yet.</p>
+        <p className="text-sm text-ink-3">No AI usage or test space time recorded for this task yet.</p>
       ) : (
         <>
           {cost.operations.length > 0 ? (

@@ -306,7 +306,7 @@ export function planLaunch(input: PlannerInput): LaunchPlan {
       id: p.id,
       name: p.name,
       available: false,
-      reason: hosting !== "unknown" && !p.hosts.includes(hosting) ? "Not connected, and suited to servers rather than static sites." : "Not connected yet. Connecting your own account comes next in LaunchOS.",
+      reason: hosting !== "unknown" && !p.hosts.includes(hosting) ? "Not connected, and suited to servers rather than static sites." : "Not connected yet. Connecting your own account comes next.",
       suits: p.suits,
     })),
   ];

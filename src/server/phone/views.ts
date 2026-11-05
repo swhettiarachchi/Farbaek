@@ -104,8 +104,15 @@ export function meView(ctx: AppContext, phone: { push: { available: boolean; on:
 /** The first screen: what waits for the person, what's running, and what happened lately. */
 export async function homeView(reader: WorkspaceReader, orgId: string, runs: RunReader) {
   const [tasks, projects, recentRuns] = await Promise.all([reader.listTasks(orgId, { limit: 50 }), reader.listProjects(orgId), runs.list({ limit: 10 })]);
+  // Counted as Approvals lists them, so Home and the tab's badge never promise a change that isn't there (ADR 0174).
+  const latest = await Promise.all(
+    tasks
+      .filter((t) => t.state === "APPROVAL_PENDING")
+      .slice(0, MAX_APPROVALS)
+      .map((t) => reader.getLatestProposal(orgId, t.id).catch(() => null)),
+  );
   return {
-    waiting: tasks.filter((t) => t.state === "APPROVAL_PENDING").length,
+    waiting: latest.filter((p) => p?.status === "pending").length,
     live: recentRuns.filter((r) => isLive(r.status)).map(runItem),
     recent: tasks.slice(0, 10).map(taskItem),
     projects: projects.filter((p) => !p.archivedAt).length,
@@ -204,7 +211,7 @@ export async function approvalView(ctx: AppContext, orgId: string, taskId: strin
     project?.archivedAt ? ARCHIVED_REASON : null,
     proposal.status !== "pending" ? "This change isn't waiting for approval any more." : null,
     found.task.state !== "APPROVAL_PENDING" ? "This task isn't waiting for approval." : null,
-    escalated && !canApproveEscalated ? "The policy escalated this change, so an owner or admin approves it." : null,
+    escalated && !canApproveEscalated ? "This change needs an owner or admin to approve it." : null,
     ctx.permissions.approve === false ? "An owner or admin turned off approving for you in this workspace." : null,
   ].filter((r): r is string => r !== null);
   return {

@@ -40,7 +40,7 @@ export type PublishResult = { ok: true; deploymentId: string; digest: string; ov
 // Matched by substring in order, so OVERRIDE_FORBIDDEN comes before FORBIDDEN.
 const DATABASE_MESSAGES: Record<string, string> = {
   EVIDENCE_REQUIRED: "The latest change isn't verified, so publishing needs a reason from an owner or admin. Run its checks, or say why.",
-  OVERRIDE_FORBIDDEN: "Only an owner or admin can publish without verified evidence. Run the latest change's checks, or ask one of them.",
+  OVERRIDE_FORBIDDEN: "Only an owner or admin can publish without passed checks. Run the latest change's checks, or ask one of them.",
   REASON_REQUIRED: "Say why in 10 to 500 characters.",
   NAME_TAKEN: "That name is already used by another site. Choose another.",
   INVALID_NAME: SITE_NAME_MESSAGES.characters,

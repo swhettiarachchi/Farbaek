@@ -9,7 +9,7 @@ import { WorkflowDraftSchema, teamOverlaps, unapprovedSteps, workflowHash, type 
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES, type OrgRole } from "@/server/workspace/types";
 import { codeFromDatabaseError, fail, type RpcResult, type WriteDeps, type WriteResult } from "@/server/workspace/use-cases";
 
-export const WORKFLOWS_NOT_IN_PLAN = "Governed workflows are included in Max 3x and up.";
+export const WORKFLOWS_NOT_IN_PLAN = "Workflows are included in Max 3x and up.";
 
 export interface WorkflowWriteDeps extends Pick<WriteDeps, "role" | "billing" | "now"> {
   read(orgId: string, id: string): Promise<WorkflowView | null>;
@@ -54,13 +54,13 @@ export async function approveWorkflow(deps: WorkflowWriteDeps, input: { orgId: s
   if (!w) return fail("NOT_FOUND");
   if (w.status !== "draft") return fail("WORKFLOW_CLOSED");
   const missing = unapprovedSteps(w);
-  if (missing.length) return fail("CONTRACTS_NOT_APPROVED", `Approve the contract for ${missing.map((s) => `step ${s.position}`).join(", ")} first.`);
+  if (missing.length) return fail("CONTRACTS_NOT_APPROVED", `Approve the plan for ${missing.map((s) => `step ${s.position}`).join(", ")} first.`);
   // Agents working at the same time must have separate files (ADR 0128).
   const clash = teamOverlaps(w.steps)[0];
   if (clash) {
     return fail(
       "INVALID_WORKFLOW",
-      `Steps ${clash.steps[0]} and ${clash.steps[1]} run at the same time, but both could change ${clash.path === "the whole project" ? "anything in the project" : clash.path}. Give their contracts separate files, or run one after the other.`,
+      `Steps ${clash.steps[0]} and ${clash.steps[1]} run at the same time, but both could change ${clash.path === "the whole project" ? "anything in the project" : clash.path}. Give their plans separate files, or run one after the other.`,
     );
   }
   const r = await deps.approve({ workflowId: w.id, actor: input.userId, sha256: await workflowHash(w) });

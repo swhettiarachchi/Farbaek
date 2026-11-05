@@ -77,6 +77,6 @@ describe("SE-003 Text claims the contract allows more", () => {
     // Inside the contract, the same content is fine: the decision never reads it as an instruction.
     expect(decide({ name: "edit_file", input: { path: "README.md", edits: [{ find: "tests.", replace: claim }], reason: claim } }, ctx)).toEqual({ kind: "allow" });
     // Without an approved contract, nothing is written at all.
-    expect(decide({ name: "write_file", input: { path: "README.md", content: "x", reason: claim } }, { ...ctx, contract: null })).toMatchObject({ kind: "deny", reason: expect.stringMatching(/no approved contract/) });
+    expect(decide({ name: "write_file", input: { path: "README.md", content: "x", reason: claim } }, { ...ctx, contract: null })).toMatchObject({ kind: "deny", reason: expect.stringMatching(/no approved plan/) });
   });
 });

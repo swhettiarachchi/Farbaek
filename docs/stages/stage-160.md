@@ -46,7 +46,9 @@
   - **Permission survived signing out,** so the next person on the iPhone wouldn't be asked. Signing out now clears it.
 
 - **The first real compile passed.** Run #29 on GitHub's Mac (Xcode 26.3) built the app for the simulator, and its unit tests passed, including decoding `project.json` and a task's `nextStep`. No fix-up push was needed.
-- **The tour hasn't run yet.** It skipped itself as designed, because the server doesn't have the new routes until this is merged. It needs one Run workflow after that, and its screenshots get read and recorded here then.
+- **The tour passed once the server was live,** on run #31 (Xcode 26.3), walking Home, Approvals, a review, Build, Projects, a project, a task and You. I read all eight screenshots. The tabs, the next-step card, Projects and More on the web all read as intended.
+- **Looking at them caught one thing the tour couldn't:** Home said "2 changes wait for you" while Approvals listed one, and the tab's badge dropped from 2 to 1. Fixed in Stage 161, because Home counted by a task's state.
+- **On production after the merge:** `nextStep` and `projects/:id` answer as designed, and `reports` refuses the sample.
 
 ## Not possible in this stage
 
@@ -58,4 +60,5 @@
 
 - **The store's screenshots aren't redone.** They come with the 1.1.0 submission. `scripts/release/store-images.mjs` still names the 1.0.0 screens, and the tour now takes `1-home`, `5-projects`, `6-project`, `7-task` and `8-you`.
 - **Web-backed screens,** after the owner books Apple's App Review consultation and decides about in-app purchase.
+- **The hash on a change's review and its card** should move out of the way, as it has on the web, in the next iPhone stage.
 - **Native Seal, undo and fix** on the iPhone. Until then, a failed task whose fix is already open doesn't name that fix on the phone. The button opens the task on the web, which does.

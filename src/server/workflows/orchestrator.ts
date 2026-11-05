@@ -67,7 +67,7 @@ export function resultFor(state: string | null): { result: StepResult; detail: s
     case "PARTIALLY_VERIFIED":
       return { result: "failed", detail: "Only some of the step's checks passed." };
     case "BLOCKED":
-      return { result: "failed", detail: "The policy blocked the step's change." };
+      return { result: "failed", detail: "The rules stopped the step's change." };
     case "CONTRACT_APPROVED":
       return { result: "failed", detail: "The agent's run ended without a change to apply." };
     case "CANCELLED":

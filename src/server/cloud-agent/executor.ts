@@ -137,9 +137,9 @@ export async function startCloudRun(deps: ExecutorDeps, input: StartRunInput): P
   if (!allowed.ok) return allowed;
   const task = await deps.checks.loadTask(person.orgId, input.taskId);
   if (!task) return fail("NOT_FOUND");
-  if (task.state !== "CONTRACT_APPROVED") return fail("INVALID_TRANSITION", "The agent works on a task once its contract is approved and no proposal is open.");
+  if (task.state !== "CONTRACT_APPROVED") return fail("INVALID_TRANSITION", "The agent works on a task once its plan is approved and no other change is open.");
   const contract = await deps.checks.approvedContract(person.orgId, task.id);
-  if (!contract) return fail("INVALID_TRANSITION", "Approve the intent contract first.");
+  if (!contract) return fail("INVALID_TRANSITION", "Approve the plan first.");
   const project = await deps.checks.project(person.orgId, task.projectId);
   if (!project) return fail("NOT_FOUND");
   if (project.archived) return fail("PROJECT_ARCHIVED");
@@ -332,10 +332,10 @@ async function execute(
         stopSandbox = box.stop;
         verifyInSandbox = box.verify ?? null;
         queue({ sandboxSessionId: box.sessionId });
-        event({ kind: "note", text: "Started an isolated sandbox for tests and builds." });
+        event({ kind: "note", text: "Started an isolated test space for tests and builds." });
       } else {
         const reason = box && "error" in box ? `: ${box.error.replace(/[.\s]+$/, "")}` : "";
-        event({ kind: "note", text: `No sandbox this time${reason}. The agent will prepare the change without running anything.` });
+        event({ kind: "note", text: `No test space this time${reason}. The agent will prepare the change without running anything.` });
       }
     }
 
@@ -433,7 +433,7 @@ async function execute(
           mode: commands ? "sandboxed_autopilot" : "review_only",
         }, policyContext);
         if (!prepared.ok) {
-          queue({ status: "failed", outcome: `The agent finished, but its change couldn't be proposed: ${prepared.message}`, finish: o.finish });
+          queue({ status: "failed", outcome: `The agent finished, but its change couldn't be suggested: ${prepared.message}`, finish: o.finish });
         } else {
           await flush();
           const created = await deps.runs.createRunProposal(runId, prepared.value.input);
@@ -448,7 +448,7 @@ async function execute(
             if (applied?.ok && verifyInSandbox) {
               const files = prepared.value.input.changes.filter((c) => !(c.kind === "create" && c.content === "")).map((c) => ({ path: c.path, content: c.content }));
               const n = r.contract.body.requiredChecks.length;
-              event({ kind: "note", text: `Checking the applied change: running the contract's ${n === 1 ? "check" : `${n} checks`} in this run's sandbox.` });
+              event({ kind: "note", text: `Checking the applied change: running the plan's ${n === 1 ? "check" : `${n} checks`} in this run's test space.` });
               await flush();
               verified = await verifyInSandbox(files).catch(() => ({ ok: false as const, reason: "Something went wrong on Farbaek's side, so the checks didn't finish." }));
               event({
@@ -462,18 +462,18 @@ async function execute(
               status: "finished",
               finish: o.finish,
               outcome: blocked
-                ? "Finished. Farbaek blocked the change: it breaks the contract. Open the proposal to see why."
+                ? "Finished. Farbaek stopped the change: it goes outside the plan or breaks a rule. Open the change to see why."
                 : applied?.ok
                   ? verified
                     ? autoVerifiedOutcome(verified)
-                    : "Finished. The change applied on its own, within this workspace's autonomy limits. Run its checks to verify it, or undo it from the task."
+                    : "Finished. The change applied on its own, within the limits this workspace set. Run its checks to verify it, or undo it from the task."
                   : applied
                     ? `Finished. The change couldn't apply on its own (${applied.message.replace(/[.\s]+$/, "")}), so it's waiting for your review.`
                     : "Finished. The change is waiting for your review.",
             });
           } else {
             const code = codeFromDatabaseError(created.error);
-            queue({ status: "failed", finish: o.finish, outcome: `The agent finished, but its change couldn't be proposed: ${MESSAGES[code]}` });
+            queue({ status: "failed", finish: o.finish, outcome: `The agent finished, but its change couldn't be suggested: ${MESSAGES[code]}` });
           }
         }
       }
@@ -502,17 +502,17 @@ async function execute(
         if (prepared.ok && created?.ok) {
           queue({ status: "finished", outcome: `${why} The work so far is waiting for your review as a partial change: apply it and choose Keep going to carry on.` });
         } else {
-          queue({ status: "failed", outcome: `${why} The work so far couldn't be kept as a proposal.` });
+          queue({ status: "failed", outcome: `${why} The work so far couldn't be kept as a change.` });
         }
       }
     } else if (o.kind === "cancelled") {
-      queue({ status: "cancelled", outcome: "Cancelled. Nothing was proposed." });
+      queue({ status: "cancelled", outcome: "Cancelled. Nothing was suggested." });
     } else {
       queue({ status: "failed", outcome: describeOutcome(o.kind, "detail" in o ? o.detail : null) });
     }
   } catch (e) {
     log("error", "cloud_run.failed", { run: runId, error: e instanceof Error ? e.message : String(e) });
-    queue({ status: "failed", outcome: "The run stopped because of an error on Farbaek's side. Nothing was proposed." });
+    queue({ status: "failed", outcome: "The run stopped because of an error on Farbaek's side. Nothing was suggested." });
   } finally {
     clearInterval(timer);
     clearInterval(heartbeat);

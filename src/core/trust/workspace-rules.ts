@@ -23,7 +23,7 @@ export type RuleEffect = (typeof RULE_EFFECTS)[number];
 export const EFFECTS: Record<RuleEffect, { label: string; outcome: PolicyOutcome; sentence: string; rank: number }> = {
   block: { label: "Stop the change", outcome: "BLOCK", sentence: "is stopped, and no one can approve it", rank: 3 },
   owner_approval: { label: "Owner or admin approves", outcome: "ESCALATE", sentence: "needs an owner or admin to approve", rank: 2 },
-  person_approval: { label: "Always a person", outcome: "REQUIRE_APPROVAL", sentence: "always waits for a person, even at autonomy level 2", rank: 1 },
+  person_approval: { label: "Always a person", outcome: "REQUIRE_APPROVAL", sentence: "always waits for a person, even when small changes apply on their own", rank: 1 },
 };
 
 export interface WorkspaceRule {

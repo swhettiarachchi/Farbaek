@@ -14,7 +14,7 @@ import { meteredFrom } from "@/server/sandbox/types";
 import { loadAppContext } from "@/server/workspace/context";
 import type { Execution, SandboxSession } from "@/sdk/sandbox-client";
 
-export const metadata: Metadata = { title: "Sandbox session" };
+export const metadata: Metadata = { title: "Test space session" };
 export const dynamic = "force-dynamic";
 
 export default async function SandboxSessionPage({ params }: { params: Promise<{ sessionId: string }> }) {
@@ -26,7 +26,7 @@ export default async function SandboxSessionPage({ params }: { params: Promise<{
     return (
       <div className="grid gap-6">
         <Link href="/app/sandbox" className="inline-flex min-h-11 w-fit items-center text-sm font-medium text-accent hover:underline">
-          Back to Sandbox
+          Back to Test space
         </Link>
         <Notice tone="warning">{sandbox.reason}</Notice>
       </div>
@@ -67,12 +67,12 @@ export default async function SandboxSessionPage({ params }: { params: Promise<{
         : session.state === "paused"
           ? { tone: "warning", title: "Paused", body: "Nothing runs while paused, and running time isn't counted. Resume to keep working; the time limit still applies." }
           : session.state === "stopping"
-            ? { tone: "info", title: "Stopping", body: session.cleanupStatus === "failed" ? "Destroying the sandbox failed and will be retried. The runtime's own time limit still ends it." : "The runtime is destroying the sandbox." }
+            ? { tone: "info", title: "Stopping", body: session.cleanupStatus === "failed" ? "Destroying the test space failed and will be retried. The runtime's own time limit still ends it." : "The runtime is destroying the test space." }
             : session.state === "terminated" || session.state === "expired"
               ? {
                   tone: "info",
                   title: END_REASON_LABELS[session.endReason ?? "user"],
-                  body: `The sandbox was ${session.cleanupStatus === "done" || session.cleanupStatus === "not_needed" ? "destroyed" : "scheduled for cleanup"}. Its command history and receipts stay here for 30 days; receipts are kept for good.`,
+                  body: `The test space was ${session.cleanupStatus === "done" || session.cleanupStatus === "not_needed" ? "destroyed" : "scheduled for cleanup"}. Its command history and receipts stay here for 30 days; receipts are kept for good.`,
                 }
               : null;
 
@@ -82,7 +82,7 @@ export default async function SandboxSessionPage({ params }: { params: Promise<{
   return (
     <div className="grid gap-4">
       <Link href="/app/sandbox" className="inline-flex min-h-11 w-fit items-center text-sm font-medium text-accent hover:underline">
-        Back to Sandbox
+        Back to Test space
       </Link>
       <SandboxWorkspace
         orgId={actor.orgId}

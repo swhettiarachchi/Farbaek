@@ -46,7 +46,7 @@ export const PROVIDER_COPY: Record<LaunchProvider, ProviderCopy> = {
     working: "Building on Vercel",
     logLink: "Build log on Vercel",
     protectedAnswer: (code) => (code === 401 || code === 403 ? `Answers with Vercel's sign-in (${code}): Deployment Protection is on for this address in Vercel.` : null),
-    domainNote: "Buying a domain isn't part of LaunchOS yet. Add one you own in the project's settings on Vercel.",
+    domainNote: "Buying a domain isn't part of Farbaek yet. Add one you own in the project's settings on Vercel.",
   },
   netlify: {
     name: "Netlify",
@@ -64,6 +64,6 @@ export const PROVIDER_COPY: Record<LaunchProvider, ProviderCopy> = {
     working: "Publishing on Netlify",
     logLink: "Deploy on Netlify",
     protectedAnswer: (code) => (code === 401 ? "Answers with a password prompt (401): password protection is on for this site in Netlify." : null),
-    domainNote: "Buying a domain isn't part of LaunchOS yet. Add one you own in the site's domain settings on Netlify.",
+    domainNote: "Buying a domain isn't part of Farbaek yet. Add one you own in the site's domain settings on Netlify.",
   },
 };

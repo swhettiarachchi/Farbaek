@@ -115,8 +115,8 @@ export function nextAction(w: WorkflowView): string {
   switch (w.status) {
     case "draft":
       return missing
-        ? `Draft and approve the contract for ${missing === 1 ? "1 step" : `${missing} steps`}, then an owner or admin approves the workflow.`
-        : "Every contract is approved. An owner or admin approves the workflow to start it.";
+        ? `Draft and approve the plan for ${missing === 1 ? "1 step" : `${missing} steps`}, then an owner or admin approves the workflow.`
+        : "Every plan is approved. An owner or admin approves the workflow to start it.";
     case "approved":
       return "Approved. The first step starts in a moment.";
     case "running": {

@@ -110,7 +110,7 @@ describe("checkProposal", () => {
   it("reports operations the contract doesn't allow", () => {
     const editOnly = { ...contract, allowedOperations: ["files.edit"] };
     expect(checkProposal(editOnly, [change("src/lib/a.ts", "create"), change("src/lib/b.ts", "create")])).toEqual([
-      { kind: "OPERATION_NOT_ALLOWED", detail: "files.create is not in the contract's allowed operations." },
+      { kind: "OPERATION_NOT_ALLOWED", detail: "files.create isn't one of the things the plan allows." },
     ]);
     const forbidsEdit = { ...contract, forbiddenOperations: ["files.edit"] };
     expect(checkProposal(forbidsEdit, [change("src/lib/a.ts")])).toMatchObject([{ kind: "FORBIDDEN_OPERATION" }]);

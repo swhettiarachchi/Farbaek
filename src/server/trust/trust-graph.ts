@@ -28,7 +28,7 @@ export async function loadTrustGraph(ctx: AppContext, orgId: string): Promise<{ 
   // Names: the address each person was invited with, and the signed-in person's own.
   const emailOf = new Map<string, string>(invitations.flatMap((i) => (i.acceptedBy ? [[i.acceptedBy, i.email] as const] : [])));
   emailOf.set(ctx.user.id, ctx.user.email ?? "You");
-  const label = (userId: string) => emailOf.get(userId) ?? `Person ${userId.slice(0, 8)}`;
+  const label = (userId: string) => emailOf.get(userId) ?? "Teammate";
 
   const services: TrustInput["services"] = [];
   const repoLinks: TrustInput["repoLinks"] = [];

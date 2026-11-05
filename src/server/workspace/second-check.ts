@@ -14,7 +14,7 @@ import { refundUsage, reserveUsage, resolvePlan, settleUsage, type AiUsageDeps }
 import type { ProposalDeps } from "./proposals";
 import { codeFromDatabaseError, fail, requireContributor, type RpcResult, type WriteDeps, type WriteResult } from "./use-cases";
 
-export const MANUAL_SECOND_CHECK = "The policy and the exact checks still apply; read the diff yourself.";
+export const MANUAL_SECOND_CHECK = "The rules and the exact checks still apply; read the change yourself.";
 
 export interface SecondCheckDeps {
   /** One revision's content, or null when it doesn't exist. */
@@ -25,7 +25,7 @@ export interface SecondCheckDeps {
 type Deps = WriteDeps & AiUsageDeps & Pick<ProposalDeps, "approvedContract" | "loadProposal"> & SecondCheckDeps;
 
 const FAILURES = {
-  REFUSED: "The second model declined to review this change, so it wasn't counted. The policy and exact checks still apply.",
+  REFUSED: "The second model declined to review this change, so it wasn't counted. The rules and exact checks still apply.",
   INCOMPLETE: "The second check came back incomplete, so it wasn't counted. Try again.",
   PROVIDER_BUSY: "The AI provider is busy, so it wasn't counted. Try again in a minute.",
   PROVIDER_ERROR: "The second check didn't finish, so it wasn't counted. Try again.",
@@ -46,7 +46,7 @@ export async function runSecondCheck(deps: Deps, checkers: SecondCheckers, input
   if (deps.now().getTime() >= Date.parse(proposal.expiresAt)) return fail("PROPOSAL_EXPIRED");
   const contract = await deps.approvedContract(input.orgId, proposal.taskId);
   if (!contract || contract.version !== proposal.contractVersion) return fail("CONTRACT_CHANGED");
-  if (proposal.changes.length === 0) return fail("INVALID_PROPOSAL", "This proposal has no changes to check.");
+  if (proposal.changes.length === 0) return fail("INVALID_PROPOSAL", "There are no changes to check.");
 
   const bases = await Promise.all(proposal.changes.map((c) => (c.kind === "edit" ? deps.fileRevision(input.orgId, proposal.projectId, c.path, c.baseRevision) : Promise.resolve(""))));
   const { request, truncated } = secondCheckRequest(

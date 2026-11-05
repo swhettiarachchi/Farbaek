@@ -36,7 +36,7 @@ export function PauseControl({
             <HandPalmIcon size={20} weight="bold" className="mt-0.5 shrink-0 text-failed" aria-hidden />
             <span>
               <span className="font-medium">Agents are paused</span> since <RelativeTime iso={paused.at} />
-              {paused.reason ? `: ${paused.reason}` : "."} No cloud runs start, desktop agents&apos; proposals are refused, and nothing applies on its own. People can still review
+              {paused.reason ? `: ${paused.reason}` : "."} No cloud runs start, desktop agents&apos; changes are refused, and nothing applies on its own. People can still review
               and approve changes.
             </span>
           </p>

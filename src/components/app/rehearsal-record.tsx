@@ -16,7 +16,7 @@ function Verdict({ summary, since, replay }: { summary: RehearsalSummary; since:
           <span>No changes since <LocalTime iso={since} /> to replay.</span>
         ) : (
           <span>
-            No changes yet since rehearsing began <LocalTime iso={since} />. Each new change notes what level 2 would have done.
+            No changes yet since practice began <LocalTime iso={since} />. Each new change notes whether it would have applied on its own.
           </span>
         )}
       </p>
@@ -25,28 +25,28 @@ function Verdict({ summary, since, replay }: { summary: RehearsalSummary; since:
     return (
       <p className="flex items-start gap-2 text-[0.9375rem]">
         <FlaskIcon size={18} className="mt-0.5 shrink-0 text-simulated" aria-hidden />
-        <span>None of the {plural(total, "change", "changes")} would have applied on its own. Level 2 would have changed nothing yet.</span>
+        <span>None of the {plural(total, "change", "changes")} would have applied on its own. So far, this setting would have changed nothing.</span>
       </p>
     );
   if (verdict === "would_have_paused")
     return (
       <p className="flex items-start gap-2 text-[0.9375rem]">
         <PauseCircleIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-failed" aria-hidden />
-        <span>Level 2 would have paused itself: a change it would have applied failed its checks.</span>
+        <span>This setting would have paused itself: a change it would have applied failed its checks.</span>
       </p>
     );
   if (verdict === "people_disagreed")
     return (
       <p className="flex items-start gap-2 text-[0.9375rem]">
         <WarningCircleIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-approval" aria-hidden />
-        <span>Someone discarded a change that level 2 would have applied. Look at it before you turn level 2 on.</span>
+        <span>Someone discarded a change that would have applied on its own. Look at it before you turn this on.</span>
       </p>
     );
   return (
     <p className="flex items-start gap-2 text-[0.9375rem]">
       <CheckCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
       <span>
-        Of the {plural(wouldApply, "change", "changes")} level 2 would have applied, none failed its checks and none was discarded.
+        Of the {plural(wouldApply, "change", "changes")} that would have applied on their own, none failed its checks and none was discarded.
       </span>
     </p>
   );
@@ -74,7 +74,7 @@ export function RehearsalRecord({ summary, since, replay }: { summary: Rehearsal
     <section aria-labelledby={replay ? "replay-heading" : "rehearsal-heading"} className="mt-6 grid gap-4 rounded-md border border-dashed border-simulated/40 bg-simulated/[0.03] p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 id={replay ? "replay-heading" : "rehearsal-heading"} className="text-base font-medium">
-          {replay ? "Replay of the last 30 days" : "Rehearsal record"}
+          {replay ? "Replay of the last 30 days" : "Practice record"}
         </h3>
         <StatusBadge status="simulated" label={replay ? "Predicted from past changes" : "Simulated decisions"} />
       </div>
@@ -99,7 +99,7 @@ export function RehearsalRecord({ summary, since, replay }: { summary: Rehearsal
           <div className="grid gap-4 sm:grid-cols-2">
             {outcomes.length > 0 ? (
               <div>
-                <p className="text-sm font-medium">What really happened to the ones level 2 would have applied</p>
+                <p className="text-sm font-medium">What really happened to the ones that would have applied on their own</p>
                 <ul className="mt-2 grid gap-1 text-sm text-ink-2">
                   {outcomes.map((x) => (
                     <li key={x.words}>
@@ -134,12 +134,12 @@ export function RehearsalRecord({ summary, since, replay }: { summary: Rehearsal
       {replay ? (
         <p className="text-xs leading-relaxed text-ink-3">
           Replayed now over changes since <LocalTime iso={since} />. {replay.assumption}
-          {replay.leftOut > 0 ? ` ${plural(replay.leftOut, "change", "changes")} from the desktop agent ${replay.leftOut === 1 ? "is" : "are"} left out, since level 2 never applies those.` : ""} Nothing was
+          {replay.leftOut > 0 ? ` ${plural(replay.leftOut, "change", "changes")} from the desktop agent ${replay.leftOut === 1 ? "is" : "are"} left out, since these never apply on their own.` : ""} Nothing was
           applied or changed: these are predictions from past changes, next to what really happened.
         </p>
       ) : (
         <p className="text-xs leading-relaxed text-ink-3">
-          Rehearsing since <LocalTime iso={since} />. Nothing applied on its own: these are the policy&apos;s simulated decisions, next to what people and checks really did.
+          In practice mode since <LocalTime iso={since} />. Nothing applied on its own: these are simulated decisions, next to what people and checks really did.
         </p>
       )}
     </section>

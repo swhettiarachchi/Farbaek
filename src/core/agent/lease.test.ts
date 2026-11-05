@@ -18,8 +18,8 @@ describe("a lease's state", () => {
   });
 
   it("says what it allows in one sentence", () => {
-    expect(leaseSummary(lease())).toBe("May read tasks and files, propose changes, use Farbaek's AI and send Mesh transfers, on every project, up to 600 requests an hour.");
-    expect(leaseSummary(lease({ projects: [P1], capabilities: ["propose", "read"], actionsPerHour: 1200 }))).toBe("May read tasks and files and propose changes, on 1 project, up to 1,200 requests an hour.");
+    expect(leaseSummary(lease())).toBe("May read tasks and files, suggest changes, use Farbaek's AI and send Mesh transfers, on every project, up to 600 requests an hour.");
+    expect(leaseSummary(lease({ projects: [P1], capabilities: ["propose", "read"], actionsPerHour: 1200 }))).toBe("May read tasks and files and suggest changes, on 1 project, up to 1,200 requests an hour.");
   });
 });
 
@@ -35,7 +35,7 @@ describe("what a lease refuses", () => {
     const readOnly = lease({ capabilities: ["read"] });
     expect(leaseRefusal(readOnly, "read", NOW)).toBeNull();
     expect(leaseRefusal(readOnly, "none", NOW)).toBeNull();
-    expect(leaseRefusal(readOnly, "propose", NOW)).toMatchObject({ code: "OUTSIDE_LEASE", message: expect.stringContaining("proposing changes") });
+    expect(leaseRefusal(readOnly, "propose", NOW)).toMatchObject({ code: "OUTSIDE_LEASE", message: expect.stringContaining("suggesting changes") });
     expect(leaseRefusal(readOnly, "model", NOW)).toMatchObject({ code: "OUTSIDE_LEASE", message: expect.stringContaining("Farbaek's AI") });
   });
 

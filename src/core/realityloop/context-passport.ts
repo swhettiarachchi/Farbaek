@@ -189,7 +189,7 @@ export function assemblePassport(input: PassportInput): ContextPassport {
 
   // Environment variables: their names are known, their values never are.
   if (report.envVarNames.length) {
-    add("env.names", `It needs ${plural(report.envVarNames.length, "environment variable")} (${list(report.envVarNames)}). Their values aren't in the project and the sandbox doesn't have them.`, "unavailable", [fileSource(".env.example")]);
+    add("env.names", `It needs ${plural(report.envVarNames.length, "environment variable")} (${list(report.envVarNames)}). Their values aren't in the project and the test space doesn't have them.`, "unavailable", [fileSource(".env.example")]);
   }
   const images = input.files.filter((f) => f.encoding === "base64").length;
   if (images) add("files.images", `${plural(images, "image")} can be seen but not read as text.`, "unavailable", []);
@@ -203,7 +203,7 @@ export function assemblePassport(input: PassportInput): ContextPassport {
     const c = plan.contract;
     const planSource: ContextSource = { kind: "plan", ref: `plan v${plan.version}`, sha256: plan.sha256, ...(plan.approvedAt ? { at: plan.approvedAt } : {}) };
     if (plan.approved) add("plan.approved", `Plan v${plan.version} is approved.`, "verified_current", [planSource]);
-    else add("plan.draft", `Plan v${plan.version} isn't approved yet. Until it is, it's a proposal.`, "inferred", [planSource]);
+    else add("plan.draft", `Plan v${plan.version} isn't approved yet. Until it is, it's only a suggestion.`, "inferred", [planSource]);
 
     // Its scope against the files that exist.
     const scope = pathScope(c);

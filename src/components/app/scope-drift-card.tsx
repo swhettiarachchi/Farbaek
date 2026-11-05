@@ -16,8 +16,8 @@ export function ScopeDriftCard({ approvedAt, changes, findings }: { approvedAt: 
     <Card>
       <h2 className="text-lg font-medium">Scope since approval</h2>
       <p className="mt-1 text-sm text-ink-2">
-        Every file change in this project since the contract was approved <LocalTime iso={approvedAt} />, compared with what the contract allows. Direct edits, imports, restores and
-        applied proposals all count.
+        Every file change in this project since the plan was approved <LocalTime iso={approvedAt} />, compared with what the plan allows. Direct edits, imports, restores and
+        applied changes all count.
       </p>
       <div className="mt-4">
         {findings.length === 0 ? (
@@ -29,7 +29,7 @@ export function ScopeDriftCard({ approvedAt, changes, findings }: { approvedAt: 
           <div className="grid gap-4">
             <p className="flex items-start gap-2 text-sm text-approval">
               <WarningIcon size={18} weight="bold" className="mt-px shrink-0" aria-hidden />
-              {findings.length} of {changes} {changes === 1 ? "change falls" : "changes fall"} outside the plan. Review them, or revise the contract if the scope really changed.
+              {findings.length} of {changes} {changes === 1 ? "change falls" : "changes fall"} outside the plan. Review them, or change the plan if what it covers really changed.
             </p>
             {groups.map((g) => (
               <div key={g.origin} className="grid gap-2">

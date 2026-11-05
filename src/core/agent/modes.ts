@@ -19,7 +19,7 @@ export const AGENT_MODE_LABELS: Record<AgentMode, { title: string; detail: strin
   },
   sandboxed_autopilot: {
     title: "Sandboxed Autopilot",
-    detail: "Works and runs builds and tests in an isolated Farbaek sandbox. It still asks before crossing a boundary, such as reaching the network.",
+    detail: "Works and runs builds and tests in an isolated Farbaek test space. It still asks before crossing a boundary, such as reaching the network.",
   },
 };
 
@@ -31,7 +31,7 @@ export interface ModeContext {
 /** Whether a mode can be used right now, and why not when it can't. */
 export function modeAvailability(mode: AgentMode, ctx: ModeContext): { available: true } | { available: false; reason: string } {
   if (mode === "sandboxed_autopilot" && !ctx.sandboxVerified) {
-    return { available: false, reason: "Needs a workspace sandbox whose isolation was verified. Until then, use Review Only or Controlled Development." };
+    return { available: false, reason: "Needs a workspace test space whose isolation was verified. Until then, use Review Only or Controlled Development." };
   }
   return { available: true };
 }

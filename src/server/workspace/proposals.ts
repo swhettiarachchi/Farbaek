@@ -149,9 +149,9 @@ export async function proposeChange(
   if (!role.ok) return role;
   const task = await deps.loadTask(input.orgId, input.taskId);
   if (!task) return fail("NOT_FOUND");
-  if (task.state !== "CONTRACT_APPROVED") return fail("INVALID_TRANSITION", "A change can be proposed once the contract is approved and no other proposal is open.");
+  if (task.state !== "CONTRACT_APPROVED") return fail("INVALID_TRANSITION", "A change can be suggested once the plan is approved and no other change is open.");
   const contract = await deps.approvedContract(input.orgId, task.id);
-  if (!contract) return fail("INVALID_TRANSITION", "Approve the intent contract first.");
+  if (!contract) return fail("INVALID_TRANSITION", "Approve the plan first.");
 
   const files = await deps.projectFiles(input.orgId, task.projectId);
   if (files.length === 0) return fail("NO_CONTEXT", "Import the project's files first, then choose the ones the change needs.");
@@ -209,7 +209,7 @@ export async function proposeChange(
   const changes = task.mode === "pair" ? built.changes.slice(0, PAIR_MAX_FILES) : built.changes;
   const dropped = [...built.dropped, ...built.changes.slice(changes.length).map((c) => ({ path: c.path, reason: "pair_step" as const }))];
   if (changes.length === 0) {
-    const why = dropped.length ? ` ${dropped.slice(0, 3).map((d) => `${d.path}: ${DROP_LABELS[d.reason]}.`).join(" ")}` : " It didn't propose any edits.";
+    const why = dropped.length ? ` ${dropped.slice(0, 3).map((d) => `${d.path}: ${DROP_LABELS[d.reason]}.`).join(" ")}` : " It didn't suggest any edits.";
     return refundAndFail(deps, { orgId: input.orgId, entryId, usage: outcome.usage }, { code: "NO_APPLICABLE_CHANGES", message: `${MESSAGES.NO_APPLICABLE_CHANGES}${why}` });
   }
   const violations = checkProposal(contract.body, changes);
@@ -243,7 +243,7 @@ export async function proposeChange(
   });
   if (!created.ok) {
     const code = codeFromDatabaseError(created.error);
-    const message = code === "FILE_CHANGED" ? "A file changed while the proposal was being made." : MESSAGES[code];
+    const message = code === "FILE_CHANGED" ? "A file changed while this was being prepared." : MESSAGES[code];
     return refundAndFail(deps, { orgId: input.orgId, entryId, usage: outcome.usage }, { code, message });
   }
 
@@ -286,7 +286,7 @@ export async function applyProposal(
   if (proposal.status !== "pending") return fail("PROPOSAL_CLOSED");
   if (proposal.sha256 !== input.reviewedSha256) return fail("PROPOSAL_CHANGED");
   if (byPolicy) {
-    if (proposal.policyOutcome !== "ALLOW_WITHIN_LIMITS") return fail("FORBIDDEN", "Only a change the workspace's autonomy allowed can apply on its own.");
+    if (proposal.policyOutcome !== "ALLOW_WITHIN_LIMITS") return fail("FORBIDDEN", "Only a change the workspace's settings allow can apply on its own.");
     // On its own, only the proposal's exact content applies: nothing was reviewed or edited.
     const exact = new Map(proposal.changes.map((c) => [c.path, c.content]));
     if (input.files.length !== exact.size || input.files.some((f) => exact.get(f.path) !== f.content)) return fail("INVALID_PROPOSAL");
@@ -352,7 +352,7 @@ export async function applyProposal(
   });
   if (!result.ok) {
     const code = codeFromDatabaseError(result.error);
-    return fail(code, code === "FILE_CHANGED" ? "A file changed after this proposal was made. Discard it and propose again." : MESSAGES[code]);
+    return fail(code, code === "FILE_CHANGED" ? "A file changed after this was made. Discard it and ask the agent to try again." : MESSAGES[code]);
   }
   return { ok: true, value: { written: result.value, appliedSha256, proofPackDigest: digest, taskId: proposal.taskId } };
 }
@@ -365,7 +365,7 @@ export async function discardProposal(deps: Deps, input: { orgId: string; userId
   if (proposal.status !== "pending" && proposal.status !== "blocked") return fail("PROPOSAL_CLOSED");
   const task = await deps.loadTask(input.orgId, proposal.taskId);
   if (!task) return fail("NOT_FOUND");
-  if (task.state !== "APPROVAL_PENDING" && task.state !== "BLOCKED") return fail("INVALID_TRANSITION", "This proposal can't be discarded from the task's current state.");
+  if (task.state !== "APPROVAL_PENDING" && task.state !== "BLOCKED") return fail("INVALID_TRANSITION", "This change can't be discarded from the task's current state.");
 
   const planned = steps(deps, task, input.orgId, input.userId, [{ type: "discard_plan", actor: "user" }]);
   if (!planned.ok) return fail(planned.code);

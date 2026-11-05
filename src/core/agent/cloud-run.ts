@@ -28,8 +28,8 @@ export const RUN_STATUS_LABELS: Record<RunStatus, string> = {
 export type CloudRunMode = "sandboxed" | "review_only";
 
 export const CLOUD_RUN_MODE_LABELS: Record<CloudRunMode, string> = {
-  sandboxed: "Tests and builds run in an isolated sandbox. Installs and network access ask you first.",
-  review_only: "No sandbox is connected, so the agent prepares the change without running anything.",
+  sandboxed: "Tests and builds run in a test space, kept apart from everything else. Installs and network access ask you first.",
+  review_only: "No test space is ready, so the agent prepares the change without running anything.",
 };
 
 /** A run's longest life, below the sandbox session and access-token lifetimes. */

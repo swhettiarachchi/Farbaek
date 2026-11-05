@@ -29,7 +29,7 @@ describe("checkActionAgainstContract", () => {
 
   it("flags protected fields, forbidden or unknown operations and record limits", () => {
     expect(checkActionAgainstContract(SAMPLE_CONTRACT, { ...ok, fields: ["description", "price"] })).toEqual([
-      { kind: "PROTECTED_FIELD", detail: "price is protected by the contract." },
+      { kind: "PROTECTED_FIELD", detail: "price is protected by the plan." },
     ]);
     expect(checkActionAgainstContract(SAMPLE_CONTRACT, { ...ok, operation: "products.delete" })[0]?.kind).toBe("FORBIDDEN_OPERATION");
     expect(checkActionAgainstContract(SAMPLE_CONTRACT, { ...ok, operation: "orders.update" })[0]?.kind).toBe("OPERATION_NOT_ALLOWED");

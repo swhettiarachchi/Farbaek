@@ -227,9 +227,9 @@ export function CreateSessionForm(props: CreateSessionFormProps) {
         ) : null}
         {props.disabledReason ? <p className="text-sm text-ink-2">{props.disabledReason}</p> : null}
         <button type="submit" disabled={disabled} className={buttonClasses("accent", "md", "w-full")}>
-          {pending ? "Starting the sandbox…" : "Start session"}
+          {pending ? "Starting the test space…" : "Start session"}
         </button>
-        <p className="text-xs text-ink-3">Starting takes a few seconds. Running time counts toward your plan&apos;s sandbox minutes until you stop it.</p>
+        <p className="text-xs text-ink-3">Starting takes a few seconds. Running time counts toward your plan&apos;s test space minutes until you stop it.</p>
       </aside>
     </form>
   );

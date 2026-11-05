@@ -37,7 +37,7 @@ export function resolveSandboxRuntime(config: SandboxServerConfig = readSandboxC
   if (config.unknownProvider) {
     resolution = { runtime: null, reason: `SANDBOX_PROVIDER is set to "${config.unknownProvider}", which Farbaek has no adapter for. Use "vercel" or "e2b".`, config };
   } else if (!config.provider) {
-    resolution = { runtime: null, reason: "No isolated sandbox runtime is connected yet, so project code doesn't run here.", config };
+    resolution = { runtime: null, reason: "No isolated test space is connected yet, so project code doesn't run here.", config };
   } else if (config.provider === "vercel") {
     const problem = vercelCredentialProblem(config);
     resolution = problem ? { runtime: null, reason: problem, config } : { runtime: createVercelRuntime(config), reason: null, config };

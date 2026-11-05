@@ -59,7 +59,7 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
       at: ago(2 * DEMO_TIME.HOUR),
       actor: null,
       kind: "opened",
-      text: "A change that applied on its own failed its checks, so autonomy paused itself for the whole workspace.",
+      text: "A change that applied on its own failed its checks, so changes applying on their own paused for the whole workspace.",
       ref: { task: DEMO_PROPOSAL_TASK_ID, proposal: DEMO_PROPOSAL_ID },
     },
   ];

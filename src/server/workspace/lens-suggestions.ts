@@ -13,7 +13,7 @@ import { refundUsage, reserveUsage, resolvePlan, settleUsage, type AiUsageDeps, 
 import type { ProposalDeps } from "./proposals";
 import { codeFromDatabaseError, fail, requireContributor, type RpcResult, type WriteDeps, type WriteResult } from "./use-cases";
 
-export const MANUAL_LENS = "The exact checks still apply; read each change against the contract yourself.";
+export const MANUAL_LENS = "The exact checks still apply; read each change against the plan yourself.";
 
 export interface LensSuggestionDeps {
   /** One revision's content, or null when it doesn't exist. */
@@ -44,7 +44,7 @@ export async function suggestLensMapping(deps: Deps, source: ModelSource<LensMap
   const bases = await Promise.all(proposal.changes.map((c) => (c.kind === "edit" ? deps.fileRevision(input.orgId, proposal.projectId, c.path, c.baseRevision) : Promise.resolve(""))));
   const lenses = proposal.changes.map((c, i) => lensForChange(contract.body, c, bases[i] ?? ""));
   const request = lensRequest(contract.body, lenses, proposal.changes);
-  if (request.hunks.length === 0) return fail("INVALID_PROPOSAL", "This proposal has no changes to map.");
+  if (request.hunks.length === 0) return fail("INVALID_PROPOSAL", "There are no changes to map.");
 
   const billing = await resolvePlan(deps, input.orgId);
   if (!billing.ok) return billing;

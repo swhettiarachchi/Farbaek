@@ -106,7 +106,7 @@ describe("runTaskVerification", () => {
     await runTaskVerification({ ...g.deps, notify }, alice, { id: "v1", task });
     expect(sent).toEqual([
       { userId: "u-alice", taskId: "t1", taskTitle: "Fix the cart total", result: "verified" },
-      { userId: "u-alice", taskId: "t1", taskTitle: "Fix the cart total", result: null, reason: "The sandbox didn't start: No sandbox minutes left." },
+      { userId: "u-alice", taskId: "t1", taskTitle: "Fix the cart total", result: null, reason: "The test space didn't start: No sandbox minutes left." },
     ]);
   });
 
@@ -131,7 +131,7 @@ describe("runTaskVerification", () => {
     expect(blocked.calls).toEqual([]);
 
     const noStart = fakes({ createFails: "No runtime is connected." });
-    expect(await runTaskVerification(noStart.deps, alice, { id: "v1", task })).toEqual({ ok: false, reason: "The sandbox didn't start: No runtime is connected." });
+    expect(await runTaskVerification(noStart.deps, alice, { id: "v1", task })).toEqual({ ok: false, reason: "The test space didn't start: No runtime is connected." });
     expect(noStart.calls).not.toContain("stop");
 
     const lost = fakes({ checksFail: "The session isn't running." });
@@ -151,7 +151,7 @@ describe("verifyInRunSession", () => {
   it("records a file it couldn't copy in, and runs no checks", async () => {
     const f = fakes({ writeFails: "Files are limited to 512 KB here." });
     const r = await verifyInRunSession({ store: f.deps.store, service: f.service, actor: { orgId: "o1", userId: "u-alice" } }, alice, { taskId: "t1", sessionId: "run-s1", files: [{ path: "src/cart.ts", content: "x" }] });
-    expect(r).toEqual({ ok: false, reason: "src/cart.ts couldn't be copied into the sandbox: Files are limited to 512 KB here." });
+    expect(r).toEqual({ ok: false, reason: "src/cart.ts couldn't be copied into the test space: Files are limited to 512 KB here." });
     expect(f.calls).not.toContain("checks");
     expect(f.finished[0]).toMatchObject({ status: "failed" });
   });

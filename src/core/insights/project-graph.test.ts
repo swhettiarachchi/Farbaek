@@ -64,7 +64,7 @@ describe("buildLanes", () => {
       ["proof", "reached", "Verified"],
       ["live", "reached", "Live"],
     ]);
-    expect(t1.stages[2]).toMatchObject({ detail: "2 files. 2 proposals in all", href: "/app/tasks/t1#change" });
+    expect(t1.stages[2]).toMatchObject({ detail: "2 files. 2 tries in all", href: "/app/tasks/t1#change" });
     expect(t1.stages[3]!.href).toBe(`/app/proofpacks/${D("b")}`);
     expect(t1.stages[1]!.detail).toBe("Version 2");
     expect(t1.stages[4]).toMatchObject({ detail: "Version 3. Launched to Vercel", href: "/app/projects/p1/launch#version-3" });
@@ -74,7 +74,7 @@ describe("buildLanes", () => {
     const { lanes } = buildLanes(shipped);
     expect(lanes.map((l) => l.taskId)).toEqual(["t2", "t1"]);
     expect(lanes[0]!.stages.map((s) => s.state)).toEqual(["reached", "reached", "stopped", "not_yet", "not_yet"]);
-    expect(lanes[0]!.stages[2]).toMatchObject({ label: "Blocked", detail: "By policy" });
+    expect(lanes[0]!.stages[2]).toMatchObject({ label: "Blocked", detail: "By the rules" });
   });
 
   it("lists versions that went out without verified evidence, with the reason", () => {

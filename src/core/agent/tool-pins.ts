@@ -61,4 +61,4 @@ export interface ToolPinView {
 }
 
 export const TOOLS_CHANGED =
-  "This agent's tools changed since they were approved, so its model steps are paused. An owner or admin can review the change on the Agents page.";
+  "This agent's tools changed since they were approved, so its model steps are paused. An owner or admin can review the change on the Desktop app page.";

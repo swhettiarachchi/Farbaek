@@ -95,9 +95,9 @@ function limitsFor(input: ProofPackInput, status: ProofPackStatus): string[] {
   if (input.execution.mode === "review_only") limits.push(`Checks did not run: ${input.execution.reason}`);
   const notRun = input.checks.filter((c) => c.exitCode === null).map((c) => c.command);
   if (notRun.length && input.execution.mode === "sandboxed") limits.push(`Not run: ${notRun.join(", ")}.`);
-  if (input.checks.length === 0) limits.push("The contract listed no required checks, so nothing verified the change.");
+  if (input.checks.length === 0) limits.push("The plan listed no required checks, so nothing verified the change.");
   if (status !== "verified") limits.push("Not verified. No Seal is issued for this record.");
-  if (input.policy === null) limits.push("No policy decision was recorded for this change.");
+  if (input.policy === null) limits.push("No rules decision was recorded for this change.");
   return limits;
 }
 
@@ -162,7 +162,7 @@ export function buildVerificationProofPack(input: {
       ...base.predicate,
       limits: [
         ...base.predicate.limits,
-        `Checks ran in ${input.provider} against the applied content: every changed file's SHA-256 matched inside the sandbox before the checks.`,
+        `Checks ran in ${input.provider} against the applied content: every changed file's SHA-256 matched inside the test space before the checks.`,
         ...(input.egress ? [EGRESS_LIMIT_TEXT] : []),
       ],
       verification: { receipt: input.receiptDigest, appliedProofPack: input.appliedDigest, filesMatched: true },

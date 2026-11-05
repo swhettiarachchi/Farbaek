@@ -115,7 +115,7 @@ describe("runArena", () => {
 
   it("keeps the baseline and says why when the change can't be tried", async () => {
     const f = fakes({ writeFails: "Files are limited to 512 KB here." });
-    expect(await runArena(f.deps, alice, input())).toMatchObject({ ok: false, reason: expect.stringMatching(/couldn't be written into the sandbox/) });
+    expect(await runArena(f.deps, alice, input())).toMatchObject({ ok: false, reason: expect.stringMatching(/couldn't be written into the test space/) });
     expect(f.finished[0]).toMatchObject({ status: "failed", baseline: [{ name: "npm test", exitCode: 0 }, { name: "npm run build", exitCode: 0 }] });
     expect(f.calls).toContain("stop");
   });
@@ -129,7 +129,7 @@ describe("runArena", () => {
 
   it("stops before anything runs when the sandbox can't start or can't reach the registries", async () => {
     const down = fakes({ createFails: "The runtime is down." });
-    expect(await runArena(down.deps, alice, input())).toMatchObject({ ok: false, reason: "The sandbox didn't start: The runtime is down." });
+    expect(await runArena(down.deps, alice, input())).toMatchObject({ ok: false, reason: "The test space didn't start: The runtime is down." });
     const closed = fakes({ registries: false });
     expect(await runArena(closed.deps, alice, input())).toMatchObject({ ok: false, reason: expect.stringMatching(/package registries/) });
     expect(closed.calls).toEqual([]);

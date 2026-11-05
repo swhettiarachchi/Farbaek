@@ -11,7 +11,7 @@ describe("activity sentences", () => {
       text: "You created a task: Reject fractional quantities.",
       href: `/app/tasks/${TASK}`,
     });
-    expect(describeActivity(event({ action: "agent.lease_set", target: "a1", metadata: { name: "Office PC", expires_at: "2027-01-28" } }), "An admin").text).toBe("An admin changed an agent's lease: Office PC.");
+    expect(describeActivity(event({ action: "agent.lease_set", target: "a1", metadata: { name: "Office PC", expires_at: "2027-01-28" } }), "An admin").text).toBe("An admin changed an agent's access: Office PC.");
     expect(describeActivity(event({ action: "farbaek.usage_added", target: null }), "Farbaek")).toMatchObject({ category: "farbaek", text: "Farbaek added AI usage.", href: null });
   });
 

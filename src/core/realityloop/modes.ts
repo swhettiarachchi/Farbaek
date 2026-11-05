@@ -15,7 +15,7 @@ export const PAIR_MAX_FILES = 3;
 export const MODE_INFO: Record<TaskMode, { label: string; detail: string; changes: boolean }> = {
   learn: { label: "Learn", detail: "Explains the concepts, decisions and trade-offs. Changes nothing.", changes: false },
   pair: { label: "Pair", detail: `Small steps you review one at a time: at most ${PAIR_MAX_FILES} files a change, and a person applies each one.`, changes: true },
-  build: { label: "Build", detail: "Implements the approved contract within its limits.", changes: true },
+  build: { label: "Build", detail: "Carries out the approved plan within its limits.", changes: true },
   audit: { label: "Audit", detail: "Inspects and reports. Changes nothing.", changes: false },
 };
 

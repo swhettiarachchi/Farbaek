@@ -34,7 +34,7 @@ export interface PullSyncDeps {
 }
 
 const PROBLEMS: Partial<Record<GitHubErrorCode, string>> = {
-  TOKEN_REJECTED: "GitHub refused the workspace's token. Connect GitHub again on the Integrations page.",
+  TOKEN_REJECTED: "GitHub refused the workspace's token. Connect GitHub again on the Connections page.",
   NOT_FOUND: "GitHub didn't find this pull request with the workspace's token. It may have been deleted, or the token can't see the repository.",
   RATE_LIMITED: "GitHub's rate limit was reached. It's read again on the next run.",
   UNREACHABLE: "GitHub didn't answer. It's read again on the next run.",
@@ -70,7 +70,7 @@ export async function syncDuePulls(deps: PullSyncDeps, limit = 60): Promise<{ re
     if (!tokens.has(pull.orgId)) tokens.set(pull.orgId, await deps.token(pull.orgId));
     const opened = tokens.get(pull.orgId)!;
     if (opened.state !== "ok") {
-      await deps.store.record({ id: pull.id, problem: opened.state === "none" ? "GitHub isn't connected to this workspace any more, so the pull request can't be read." : "The workspace's GitHub token can't be opened. Connect GitHub again on the Integrations page." });
+      await deps.store.record({ id: pull.id, problem: opened.state === "none" ? "GitHub isn't connected to this workspace any more, so the pull request can't be read." : "The workspace's GitHub token can't be opened. Connect GitHub again on the Connections page." });
       out.problems += 1;
       continue;
     }

@@ -86,7 +86,7 @@ export function groupDrift(findings: readonly DriftFinding[]): DriftGroup[] {
 }
 
 export const ORIGIN_LABELS: Record<DriftOrigin, string> = {
-  proposal: "Applied from a reviewed proposal",
+  proposal: "Applied from a reviewed change",
   edit: "Edited directly",
   delete: "Deleted",
   import: "Imported",

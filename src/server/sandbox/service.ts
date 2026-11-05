@@ -87,7 +87,7 @@ function fromDb<T>(error: string): SandboxResult<T> {
   if (/NOT_FOUND/.test(error)) return err("NOT_FOUND", "That session, project or task doesn't exist in this workspace.", "invalid_request");
   if (/PROJECT_ARCHIVED/.test(error)) return err("PROJECT_ARCHIVED", "That project is archived, so it can't be copied into a new session.", "invalid_request");
   if (/SANDBOX_CONCURRENCY_LIMIT/.test(error)) return err("QUOTA_EXCEEDED", "Your workspace already has as many sessions as your plan allows. Stop one first.", "quota_exceeded");
-  if (/SANDBOX_MINUTES_EXHAUSTED/.test(error)) return err("QUOTA_EXCEEDED", "Your workspace has used its sandbox minutes for this period.", "quota_exceeded");
+  if (/SANDBOX_MINUTES_EXHAUSTED/.test(error)) return err("QUOTA_EXCEEDED", "Your workspace has used its test space minutes for this period.", "quota_exceeded");
   if (/SESSION_NOT_RUNNING/.test(error)) return err("SESSION_NOT_RUNNING", "The session isn't running.", "invalid_request");
   if (/SESSION_BUSY/.test(error)) return err("SESSION_BUSY", "A command is already running in this session. Wait for it or cancel it.", "invalid_request");
   if (/VERSION_CONFLICT|INVALID_TRANSITION/.test(error)) return err("VERSION_CONFLICT", "The session changed while you were working. Reload and try again.", "invalid_request");
@@ -99,7 +99,7 @@ function fromDb<T>(error: string): SandboxResult<T> {
 
 function fromRuntime<T>(e: unknown): SandboxResult<T> {
   if (e instanceof RuntimeError) return err(e.category === "invalid_request" ? "INVALID_REQUEST" : "RUNTIME_FAILED", e.message, e.category);
-  return err("RUNTIME_FAILED", "The sandbox runtime failed unexpectedly.", "provider_unavailable");
+  return err("RUNTIME_FAILED", "The test space failed unexpectedly.", "provider_unavailable");
 }
 
 export interface SandboxActor {
@@ -325,7 +325,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
       log("info", "sandbox.session_ready", { session: sessionId, org: actor.orgId, image, files: snapshot.length });
       return { ok: true, value: { sessionId, created: true } };
     } catch (e) {
-      const failure = e instanceof RuntimeError ? e : new RuntimeError("provider_unavailable", "Starting the sandbox failed.");
+      const failure = e instanceof RuntimeError ? e : new RuntimeError("provider_unavailable", "Starting the test space failed.");
       let cleanedUp = sandboxId === null;
       if (sandboxId) cleanedUp = await runtime.destroy(sandboxId).then(() => true, () => false);
       await store.transition(sessionId, actor.userId, 1, "fail", {
@@ -354,7 +354,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
     const decision = await guard("command.run", actor, role, session, { command: cmd.command });
     const refused = blocked<ExecutionRecord>(decision);
     if (refused) return refused;
-    if (!runtime || !session.providerSandboxId) return err("NOT_CONNECTED", resolution.reason ?? "The session has no sandbox.", "provider_rejected");
+    if (!runtime || !session.providerSandboxId) return err("NOT_CONNECTED", resolution.reason ?? "The session has no test space.", "provider_rejected");
     if (await rateLimited(actor, "exec")) return err("RATE_LIMITED", "Too many commands in the last minute. Try again shortly.", "quota_exceeded");
 
     const lv = await limitsFor(actor.orgId);
@@ -506,7 +506,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
         return { ok: true, value: { state: "stopping" } };
       }
     } else if (session.providerSandboxId && !runtime) {
-      await store.recordCleanup(session.id, false, "No runtime is configured to destroy this sandbox.");
+      await store.recordCleanup(session.id, false, "No runtime is configured to destroy this test space.");
       return { ok: true, value: { state: "stopping" } };
     }
     const event = session.endReason === "user" || session.endReason === null ? "finish_termination" : "finish_expiry";
@@ -524,7 +524,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
     const decision = await guard("session.pause", actor, role, session);
     const refused = blocked<{ state: SessionState }>(decision);
     if (refused) return refused;
-    if (!session.providerSandboxId) return err("SESSION_NOT_RUNNING", "The session has no sandbox yet.", "invalid_request");
+    if (!session.providerSandboxId) return err("SESSION_NOT_RUNNING", "The session has no test space yet.", "invalid_request");
     if (action === "pause" && session.state !== "ready") return err("SESSION_NOT_RUNNING", "Only a running session can be paused.", "invalid_request");
     if (action === "resume" && session.state !== "paused") return err("SESSION_NOT_RUNNING", "Only a paused session can be resumed.", "invalid_request");
     const remaining = Math.floor((Date.parse(session.expiresAt) - deps.now().getTime()) / 1000);
@@ -546,7 +546,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
     const role = await deps.role(actor.orgId);
     const refused = blocked<SessionRecord>(await guard(action, actor, role, session));
     if (refused) return refused;
-    if (!runtime || !session.providerSandboxId) return err("NOT_CONNECTED", resolution.reason ?? "The session has no sandbox.", "provider_rejected");
+    if (!runtime || !session.providerSandboxId) return err("NOT_CONNECTED", resolution.reason ?? "The session has no test space.", "provider_rejected");
     if (await rateLimited(actor, "files")) return err("RATE_LIMITED", "Too many file requests in the last minute.", "quota_exceeded");
     return { ok: true, value: session };
   }
@@ -751,9 +751,9 @@ export function createSandboxService(deps: SandboxServiceDeps) {
   async function runChecks(actor: SandboxActor, sessionId: string, baseKey: string): Promise<SandboxResult<{ digest: string; status: string; taskEvent: string | null; applied: boolean }>> {
     const session = await visibleSession(actor, sessionId);
     if (!session) return err("NOT_FOUND", "That session doesn't exist in this workspace.", "invalid_request");
-    if (!session.taskId || !deps.tasks) return err("INVALID_REQUEST", "Link the session to a task to run its contract's checks.", "invalid_request");
+    if (!session.taskId || !deps.tasks) return err("INVALID_REQUEST", "Link the session to a task to run its plan's checks.", "invalid_request");
     const checksList = await deps.tasks.requiredChecks(actor.orgId, session.taskId);
-    if (!checksList || checksList.length === 0) return err("INVALID_REQUEST", "The task's approved contract lists no required checks.", "invalid_request");
+    if (!checksList || checksList.length === 0) return err("INVALID_REQUEST", "The task's approved plan lists no required checks.", "invalid_request");
 
     // Hash the applied change's files inside the sandbox first: only a run
     // against exactly that content can verify the change.

@@ -71,7 +71,7 @@ export async function testRules(
   for (const c of changes) {
     const shared = {
       files: c.files,
-      contractViolations: c.violations > 0 ? [{ kind: "replay", detail: "It broke its contract." }] : [],
+      contractViolations: c.violations > 0 ? [{ kind: "replay", detail: "It went outside its plan." }] : [],
       // Level 2 never applies the desktop agent's changes.
       autonomy: c.fromAgent ? null : autonomy,
       verifiable: c.hasChecks && input.sandboxConnected,

@@ -194,7 +194,7 @@ function ApprovalCard({ run, request, onAnswered }: { run: RunView; request: Run
           </div>
         ) : null}
       </dl>
-      <p className="text-xs text-ink-3">It runs in the run&apos;s isolated sandbox, never on Farbaek&apos;s servers or your computer.</p>
+      <p className="text-xs text-ink-3">It runs in the run&apos;s own test space, never on Farbaek&apos;s servers or your computer.</p>
       {error ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
           <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {error}

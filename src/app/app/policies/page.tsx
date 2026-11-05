@@ -67,16 +67,22 @@ export default async function PoliciesPage({ searchParams }: { searchParams: Pro
           </li>
           <li className="flex items-start gap-3">
             <ShieldWarningIcon size={18} weight="bold" className="mt-1 shrink-0 text-approval" aria-hidden />
-            <span>
-              An owner or admin approves a change that {SENSITIVE_WORDS.slice(0, -1).join(", ")} or {SENSITIVE_WORDS.at(-1)}, and any change to more than {LARGE_CHANGE_FILES} files.
-            </span>
+            <div className="grid gap-1.5">
+              <span>An owner or admin approves a change that:</span>
+              <ul className="grid list-disc gap-1 pl-5 text-ink-2">
+                {SENSITIVE_WORDS.map((w) => (
+                  <li key={w}>{w}</li>
+                ))}
+                <li>changes more than {LARGE_CHANGE_FILES} files</li>
+              </ul>
+            </div>
           </li>
           <li className="flex items-start gap-3">
             <UserCheckIcon size={18} weight="bold" className="mt-1 shrink-0 text-ink-3" aria-hidden />
             <span>
               Anything else needs a person&apos;s approval. If you{" "}
-              <Link href="/app/settings" className="font-medium text-accent hover:underline">
-                turn on level 2 in Settings
+              <Link href="/app/settings#autonomy" className="font-medium text-accent hover:underline">
+                let small changes apply on their own in Settings
               </Link>
               , it can go in on its own within the limits you set.
             </span>

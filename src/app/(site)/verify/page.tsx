@@ -5,7 +5,7 @@ import { Container } from "@/components/ui/container";
 import { EvidenceCheck } from "@/components/verify/evidence-check";
 
 export const metadata: Metadata = {
-  title: "Verify evidence",
+  title: "Check a proof",
   description: "Check a Farbaek ProofPack, receipt, security report or Workspace Capsule yourself. It's checked in your browser; nothing is uploaded.",
 };
 
@@ -32,7 +32,7 @@ export default function VerifyPage() {
     <>
       <section className="pt-14 pb-10 sm:pt-20 lg:pt-24">
         <Container>
-          <h1 className="max-w-[16ch] text-balance text-[2.5rem] font-medium leading-[1.05] tracking-[-0.04em] sm:text-[3.5rem]">Check the evidence yourself.</h1>
+          <h1 className="max-w-[16ch] text-balance text-[2.5rem] font-medium leading-[1.05] tracking-[-0.04em] sm:text-[3.5rem]">Check the proof yourself.</h1>
           <p className="mt-5 max-w-[56ch] text-[1.0625rem] leading-relaxed text-ink-2">
             Someone sent you a ProofPack, a receipt or a Capsule from Farbaek? Drop it here to see whether it&apos;s exactly what was recorded, and what it says was approved,
             changed and checked.
@@ -64,7 +64,7 @@ export default function VerifyPage() {
             ))}
           </ul>
           <p className="mt-10 max-w-[70ch] text-sm leading-relaxed text-ink-3">
-            Evidence files come from Farbaek: download one from a ProofPack, or export a whole project with everything it holds. Each file is an in-toto statement you can also
+            Proof files come from Farbaek: download one from a ProofPack, or export a whole project with everything it holds. Each file is an in-toto statement you can also
             check without this page.{" "}
             <Link href="/proofpack/v1" className="font-medium text-accent underline-offset-2 hover:underline">
               The ProofPack format, and how to check one with OpenSSL

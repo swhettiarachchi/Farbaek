@@ -26,13 +26,13 @@ export const LEASE_DAY_CHOICES = [7, 30, 90] as const;
 export const LEASE_WARNING_DAYS = 14;
 
 export const CAPABILITY_LABELS: Record<AgentCapability, { title: string; detail: string }> = {
-  read: { title: "Read tasks and files", detail: "See the tasks ready for work, their approved contracts and the project's files." },
-  propose: { title: "Propose changes", detail: "Send a change for a person to review. A proposal never applies itself." },
+  read: { title: "Read tasks and files", detail: "See the tasks ready for work, their approved plans and the project's files." },
+  propose: { title: "Suggest changes", detail: "Send a change for a person to review. A suggested change never applies itself." },
   model: { title: "Use Farbaek's AI", detail: "Model steps through Farbaek, counted against this workspace's AI usage." },
   mesh: { title: "Mesh transfers", detail: "Send files between your own devices through Farbaek's relay." },
 };
 
-export const LEASE_HELP = "An owner, an admin or the person who paired it can change the lease on the Agents page.";
+export const LEASE_HELP = "An owner, an admin or the person who paired it can change its access on the Desktop app page.";
 
 /**
  * What an agent request needs from the lease: one capability; "none" for the
@@ -43,7 +43,7 @@ export type LeaseNeed = AgentCapability | "none" | "unpair";
 
 const CAPABILITY_WORDS: Record<AgentCapability, string> = {
   read: "reading tasks and files",
-  propose: "proposing changes",
+  propose: "suggesting changes",
   model: "using Farbaek's AI",
   mesh: "Mesh transfers",
 };
@@ -55,9 +55,9 @@ export function leaseRefusal(lease: Pick<AgentLease, "expiresAt" | "capabilities
   // An unreadable end date is treated as ended: fail closed.
   if (!(ends.getTime() > now.getTime())) {
     const when = Number.isNaN(ends.getTime()) ? "" : ` on ${ends.toISOString().slice(0, 10)}`;
-    return { code: "LEASE_EXPIRED", message: `This agent's permission lease ended${when}. ${LEASE_HELP}` };
+    return { code: "LEASE_EXPIRED", message: `This agent's access ended${when}. ${LEASE_HELP}` };
   }
-  if (need !== "none" && !lease.capabilities.includes(need)) return { code: "OUTSIDE_LEASE", message: `This agent's lease doesn't allow ${CAPABILITY_WORDS[need]}. ${LEASE_HELP}` };
+  if (need !== "none" && !lease.capabilities.includes(need)) return { code: "OUTSIDE_LEASE", message: `This agent's access doesn't allow ${CAPABILITY_WORDS[need]}. ${LEASE_HELP}` };
   return null;
 }
 
@@ -69,7 +69,7 @@ export function countsAgainstLease(need: LeaseNeed): boolean {
 /** Each capability as the end of "May ...". */
 const CAPABILITY_PHRASES: Record<AgentCapability, string> = {
   read: "read tasks and files",
-  propose: "propose changes",
+  propose: "suggest changes",
   model: "use Farbaek's AI",
   mesh: "send Mesh transfers",
 };
@@ -111,7 +111,7 @@ export interface LeaseInput {
 /** Checks a lease someone set on the Agents page; the database checks it again. */
 export function checkLeaseInput(input: { days: unknown; projects: unknown; capabilities: unknown; actionsPerHour: unknown }): { ok: true; value: LeaseInput } | { ok: false; message: string } {
   const days = Number(input.days);
-  if (!Number.isInteger(days) || days < 1 || days > LEASE_LIMITS.maxDays) return { ok: false, message: `A lease lasts 1 to ${LEASE_LIMITS.maxDays} days.` };
+  if (!Number.isInteger(days) || days < 1 || days > LEASE_LIMITS.maxDays) return { ok: false, message: `Access lasts 1 to ${LEASE_LIMITS.maxDays} days.` };
   const actionsPerHour = Number(input.actionsPerHour);
   if (!Number.isInteger(actionsPerHour) || actionsPerHour < LEASE_LIMITS.minActionsPerHour || actionsPerHour > LEASE_LIMITS.maxActionsPerHour) {
     return { ok: false, message: `Choose ${LEASE_LIMITS.minActionsPerHour} to ${LEASE_LIMITS.maxActionsPerHour.toLocaleString("en-US")} requests an hour.` };

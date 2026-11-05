@@ -50,8 +50,8 @@ export async function replayAutonomyAction(input: { maxFiles: number; allowCreat
     leftOut: result.leftOut,
     since: new Date(Date.now() - REPLAY_DAYS * 86_400_000).toISOString(),
     assumption: sandbox
-      ? "It assumes a verified sandbox was connected when each change was made, as one is now."
-      : "No verified sandbox is connected now, so it assumes nothing could have checked these changes.",
+      ? "It assumes a test space was connected when each change was made, as one is now."
+      : "No test space is ready now, so it assumes nothing could have checked these changes.",
     limits: limits.data,
   };
 }

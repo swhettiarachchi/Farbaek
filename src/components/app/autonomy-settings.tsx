@@ -63,18 +63,18 @@ export function AutonomySettings({
   const locked = pending || Boolean(disabledReason);
 
   const options: { value: Mode; title: string; body: string; unavailable: string | null }[] = [
-    { value: "0", title: "Level 0: Every change waits for a person", body: "The agent suggests a change, and someone reads it and approves it.", unavailable: null },
+    { value: "0", title: "Every change waits for a person", body: "The agent suggests a change, and someone reads it and approves it.", unavailable: null },
     {
       value: "shadow",
-      title: "Rehearse level 2 first",
-      body: "Every change still waits for a person. Each one notes what level 2 would have done, so you can see its record before you trust it.",
+      title: "Practice mode: see it before you trust it",
+      body: "Every change still waits for a person. Each one notes whether it would have applied on its own, so you can see the record before you trust it.",
       unavailable: shadowReason,
     },
-    { value: "2", title: "Level 2: Small, checked changes apply on their own", body: "Within the limits below. Everything else still waits for a person.", unavailable: null },
+    { value: "2", title: "Small, checked changes apply on their own", body: "Within the limits below. Everything else still waits for a person.", unavailable: null },
     {
       value: "3",
-      title: "Level 3: Wider, verified changes apply on their own",
-      body: `Up to ${LEVEL_3.maxFiles} files, new ones if you allow them, within a daily limit you set. Earned from a clean record, and paused by any failure like level 2.`,
+      title: "Bigger, checked changes apply on their own",
+      body: `Up to ${LEVEL_3.maxFiles} files, new ones if you allow them, within a daily limit you set. Earned from a clean record, and paused by any failure, like small changes.`,
       unavailable: levelThreeReason,
     },
   ];
@@ -89,15 +89,15 @@ export function AutonomySettings({
           </span>
         ) : view.level === 2 || view.level === 3 ? (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 px-2.5 py-1 text-xs text-accent">
-            <LightningIcon size={14} weight="bold" aria-hidden /> Level {view.level} on
+            <LightningIcon size={14} weight="bold" aria-hidden /> {view.level === 3 ? "Bigger changes on their own" : "Small changes on their own"}
           </span>
         ) : view.shadowSince ? (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-simulated/50 px-2.5 py-1 text-xs text-simulated">
-            <FlaskIcon size={14} weight="bold" aria-hidden /> Rehearsing level 2
+            <FlaskIcon size={14} weight="bold" aria-hidden /> Practice mode on
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs text-ink-2">
-            <ShieldCheckIcon size={14} weight="bold" aria-hidden /> Level 0
+            <ShieldCheckIcon size={14} weight="bold" aria-hidden /> Every change waits for a person
           </span>
         )}
       </div>
@@ -154,7 +154,7 @@ export function AutonomySettings({
         <div className="flex items-start gap-3 rounded-sm border border-line px-4 py-3">
           <FlowArrowIcon size={16} className="mt-1 shrink-0 text-ink-3" aria-hidden />
           <span className="grid gap-0.5">
-            <span className="text-[0.9375rem] font-medium">Level 4: Workflows</span>
+            <span className="text-[0.9375rem] font-medium">Workflows</span>
             <span className="text-sm text-ink-2">The agent carries out an approved plan of several steps in order, stopping for a person at checkpoints and whenever a change needs review.</span>
             <Link href="/app/workflows" className="inline-flex min-h-11 items-center text-sm font-medium text-accent hover:underline">
               Open Workflows
@@ -165,7 +165,7 @@ export function AutonomySettings({
 
       {mode !== "0" ? (
         <div className="grid gap-3 rounded-sm bg-surface-raised/60 px-4 py-3">
-          <p className="text-sm font-medium">{mode === "shadow" ? "Rehearse with these limits. A change would apply on its own only when all of these hold:" : "A change applies on its own only when all of these hold:"}</p>
+          <p className="text-sm font-medium">{mode === "shadow" ? "Try out these limits. A change would apply on its own only when all of these hold:" : "A change applies on its own only when all of these hold:"}</p>
           <ul className="grid gap-1.5 text-sm text-ink-2">
             {[
               "It's inside the approved plan, and touches no dependencies, CI, migrations, infrastructure or security code.",
@@ -215,7 +215,7 @@ export function AutonomySettings({
               Applied on their own in the last 24 hours: <span className="font-medium text-ink tabular">{view.appliedToday}</span> of {view.dailyLimit}.
             </p>
           ) : null}
-          {!verifiable ? <p className="text-sm text-ink-3">No verified sandbox is connected on this server, so for now every change still waits for a person.</p> : null}
+          {!verifiable ? <p className="text-sm text-ink-3">No test space is ready on this server, so for now every change still waits for a person.</p> : null}
           {mode !== "3" ? (
             <div className="flex flex-wrap items-center gap-3 border-t border-line pt-3">
               <button type="button" onClick={runReplay} disabled={replaying || Boolean(replayReason)} className={buttonClasses("secondary", "sm")}>
@@ -226,9 +226,9 @@ export function AutonomySettings({
           ) : null}
           <p className="text-xs leading-relaxed text-ink-3">
             {mode === "shadow"
-              ? "Nothing applies on its own while rehearsing. Each change shows what level 2 would have done, marked as simulated, and the record below sets those verdicts against what really happened."
+              ? "Nothing applies on its own in practice mode. Each change shows what would have happened, marked as simulated, and the record below sets that against what really happened."
               : mode === "3"
-                ? `Each change applied this way is recorded as approved by these settings, and can be undone file by file. Its checks run straight away in a test space. If any fail, this pauses itself, and level 3 has to be earned again: ${LEVEL_3.minVerified} changes applied on their own passing their checks in ${LEVEL_3.days} days, with none failing.`
+                ? `Each change applied this way is recorded as approved by these settings, and can be undone file by file. Its checks run straight away in a test space. If any fail, this pauses itself, and has to be earned again: ${LEVEL_3.minVerified} changes applied on their own passing their checks in ${LEVEL_3.days} days, with none failing.`
                 : "Each change applied this way is recorded as approved by these settings, in its ProofPack and history, and can be undone file by file. Its checks run straight away in a test space. If any of them fail, this pauses itself for the whole workspace."}
           </p>
         </div>
@@ -248,7 +248,7 @@ export function AutonomySettings({
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={locked || (!changed && !suspended)} className={buttonClasses("primary", "sm")}>
-          {pending ? "Saving…" : suspended && (mode === "2" || mode === "3") && !changed ? "Turn on again" : "Save this level"}
+          {pending ? "Saving…" : suspended && (mode === "2" || mode === "3") && !changed ? "Turn on again" : "Save this choice"}
         </button>
         {disabledReason ? <span className="text-sm text-ink-3">{disabledReason}</span> : null}
         {view.updatedAt && !disabledReason ? (

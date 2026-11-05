@@ -46,9 +46,9 @@ export function walletRisk(input: { policyOutcome: string | null; lens: LensSumm
   if (input.policyOutcome === "ESCALATE") facts.push({ kind: "escalated", tone: "approval", label: "Escalated: an owner or admin approves" });
   const lens = input.lens;
   if (lens && lens.hunks > 0) {
-    if (lens.flagged) facts.push({ kind: "flagged", tone: "failed", label: `${count(lens.flagged, "change")} flagged by the contract` });
+    if (lens.flagged) facts.push({ kind: "flagged", tone: "failed", label: `${count(lens.flagged, "change")} flagged by the plan` });
     if (lens.unexplained) facts.push({ kind: "unexplained", tone: "approval", label: `${count(lens.unexplained, "change")} no line of the plan explains` });
-    if (lens.matched) facts.push({ kind: "matched", tone: "neutral", label: `${count(lens.matched, "change")} ${lens.matched === 1 ? "matches" : "match"} a line of the plan by its words` });
+    if (lens.matched) facts.push({ kind: "matched", tone: "neutral", label: `${count(lens.matched, "change")} ${lens.matched === 1 ? "shares" : "share"} words with the plan` });
   }
   const created = input.changes.filter((c) => c.kind === "create").length;
   const edited = input.changes.length - created;

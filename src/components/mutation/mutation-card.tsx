@@ -145,7 +145,7 @@ export function MutationCard({ proposalId, taskId, planned, run, disabledReason 
       {planned.length > 0 || done ? (
         <p className="flex flex-wrap items-center gap-2 text-xs text-ink-3">
           <span className="inline-flex h-6 items-center rounded-full border border-dashed border-line-strong px-2 font-medium text-ink-2">Estimate</span>
-          Uses up to 20 minutes of your plan&apos;s sandbox time, and no AI usage.
+          Uses up to 20 minutes of your plan&apos;s test space time, and no AI usage.
         </p>
       ) : null}
       {running || planned.length === 0 ? null : <RunMutation proposalId={proposalId} taskId={taskId} again={run !== null} disabledReason={disabledReason} />}

@@ -63,7 +63,7 @@ function Tree({
   }
   if (entries.length === 0 && depth === 0) return <p className="px-3 py-2 text-xs text-ink-3">The project folder is empty.</p>;
   return (
-    <ul role={depth === 0 ? "tree" : "group"} aria-label={depth === 0 ? "Sandbox files" : undefined}>
+    <ul role={depth === 0 ? "tree" : "group"} aria-label={depth === 0 ? "Test space files" : undefined}>
       {entries.map((e) => {
         const isOpen = expanded.has(e.path);
         const pad = { paddingLeft: `${0.75 + depth * 0.85}rem` };
@@ -140,7 +140,7 @@ export function FilesPanel({ client, sessionId, canWrite, readReason }: { client
     try {
       const r = await client.writeFile(sessionId, open, draft);
       setSaved(draft);
-      setStatus({ tone: "info", text: `Saved ${r.bytes.toLocaleString("en-US")} bytes to the sandbox.` });
+      setStatus({ tone: "info", text: `Saved ${r.bytes.toLocaleString("en-US")} bytes to the test space.` });
     } catch (e) {
       setStatus({ tone: "error", text: message(e, "Saving failed.") });
     }
@@ -252,9 +252,9 @@ export function FilesPanel({ client, sessionId, canWrite, readReason }: { client
               Opening…
             </p>
           ) : open ? (
-            <Surface key={open} path={open} value={saved} label={`Editing ${open} in the sandbox`} onChange={canWrite ? setDraft : undefined} />
+            <Surface key={open} path={open} value={saved} label={`Editing ${open} in the test space`} onChange={canWrite ? setDraft : undefined} />
           ) : (
-            <p className="p-4 text-sm text-ink-3">Choose a file to open it. Edits save to the sandbox only, not to the project; bring changes back as a change to review.</p>
+            <p className="p-4 text-sm text-ink-3">Choose a file to open it. Edits save to the test space only, not to the project; bring changes back as a change to review.</p>
           )}
         </div>
         {status ? (

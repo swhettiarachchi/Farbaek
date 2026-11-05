@@ -4,20 +4,27 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, EmptyState, Notice, PageHeader, StatTile, TaskStateBadge } from "@/components/app/primitives";
+import { NeedsYouCard } from "@/components/app/needs-you-card";
 import { ProjectCard } from "@/components/app/project-card";
 import { UsageMeterList } from "@/components/app/usage-meters";
 import { PromptComposer } from "@/components/build/prompt-composer";
 import { ButtonLink } from "@/components/ui/button";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
 import { TRIAL, getPlan } from "@/core/billing/catalog";
+import { needsYou, sortWaiting, type WaitingTask } from "@/core/realityloop/needs-you";
 import { TERMINAL_STATES } from "@/core/realityloop/task-machine";
 import { firstSteps } from "@/core/workspace/first-steps";
 import { FirstStepsHidden, FirstStepsPanel } from "@/components/app/first-steps";
 import { siteDomain } from "@/server/publish/config";
 import { FIRST_STEPS_COOKIE, hiddenWorkspaces } from "@/server/workspace/first-steps";
 import { loadAppContext } from "@/server/workspace/context";
+import { CONTRIBUTOR_ROLES, MANAGER_ROLES } from "@/server/workspace/types";
+import { may } from "@/core/workspace/permissions";
+import { isRunLiveHere } from "@/server/cloud-agent/executor";
+import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { currentExecutionMode } from "@/server/execution/sandbox";
-import { listRuns, proposalStates, type RunView } from "@/server/cloud-agent/store";
+import { createSupabaseRunStore, listRuns, proposalStates, type RunView } from "@/server/cloud-agent/store";
+import { RUN_STALE_AFTER_MS, isLive } from "@/core/agent/cloud-run";
 import { groupInbox, type ProposalState } from "@/core/agent/inbox";
 import { AgentInbox } from "@/components/build/agent-inbox";
 import { LiveRefresh } from "@/components/app/live-refresh";
@@ -27,13 +34,21 @@ import { aiMeter, loadUsageSummary } from "@/server/workspace/usage-summary";
 export const metadata: Metadata = { title: "Home" };
 
 const number = new Intl.NumberFormat("en-US");
+/** Approvals shows this many, so Home never reads more than that for one page. */
+const MAX_WAITING_READ = 25;
 
 /** Recent runs and the state of their proposals, read as the person. Null when they can't be read. */
 async function loadInbox(orgId: string): Promise<{ runs: RunView[]; proposals: Map<string, ProposalState> } | null> {
   const client = await createSupabaseServerClient();
   if (!client) return null;
   try {
-    const runs = await listRuns(client, orgId, { limit: 16 });
+    let runs = await listRuns(client, orgId, { limit: 16 });
+    // A run that's live in the database but not on this server stopped reporting when its server went away, so it
+    // isn't really waiting for anyone. The run's own page clears these too; Home mustn't keep asking until someone opens it.
+    if (runs.some((r) => isLive(r.status) && !isRunLiveHere(r.id))) {
+      const admin = createSupabaseAdminClient();
+      if (admin && (await createSupabaseRunStore(admin).interruptStale(new Date(Date.now() - RUN_STALE_AFTER_MS))) > 0) runs = await listRuns(client, orgId, { limit: 16 });
+    }
     const ids = runs.filter((r) => r.status === "finished" && r.proposalId).map((r) => r.proposalId!);
     return { runs, proposals: await proposalStates(client, orgId, ids) };
   } catch {
@@ -64,8 +79,26 @@ export default async function MissionControl() {
     .filter((p) => !p.archivedAt)
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
     .slice(0, 4);
-  const open = tasks.filter((t) => !TERMINAL_STATES.has(t.state));
+  const unfinished = tasks.filter((t) => !TERMINAL_STATES.has(t.state));
   const waiting = tasks.filter((t) => t.state === "APPROVAL_PENDING");
+  // Nothing in an archived project can change, so it never asks for anyone's turn.
+  const archived = new Set(projects.filter((p) => p.archivedAt).map((p) => p.id));
+  // The demo is a tour of what people see, as on a task's page. A read-only workspace has its own notice, and nobody can act.
+  const tour = ctx.mode === "demo";
+  const manager = ctx.role !== null && MANAGER_ROLES.includes(ctx.role);
+  const open = await Promise.all(
+    waiting
+      .filter((t) => !archived.has(t.projectId))
+      .slice(0, MAX_WAITING_READ)
+      .map(async (t): Promise<WaitingTask> => {
+        const proposal = await ctx.reader.getLatestProposal(ws.id, t.id).catch(() => null);
+        return { id: t.id, title: t.title, change: proposal ? { status: proposal.status, createdAt: proposal.createdAt, expiresAt: proposal.expiresAt, escalated: proposal.policy?.outcome === "ESCALATE" } : null };
+      }),
+  );
+  const sorted = sortWaiting(open, { canAct: tour || (ctx.role !== null && CONTRIBUTOR_ROLES.includes(ctx.role)), canApprove: tour || may(ctx.role, ctx.permissions, "approve"), canApproveEscalated: tour || manager }, new Date());
+  // Only the person who started a run, or an owner or admin, can answer it.
+  const questions = lanes.needs_you.filter((r) => !archived.has(r.projectId) && (tour || manager || r.startedBy === ctx.user.id));
+  const needs = tour || ctx.writes.enabled ? needsYou({ ...sorted, questions }) : null;
   const limits = ws.plan.limits;
   const trialActive = ws.trial?.phase.phase === "active";
 
@@ -93,6 +126,8 @@ export default async function MissionControl() {
           </>
         }
       />
+
+      {needs ? <NeedsYouCard step={needs} /> : null}
 
       {composerInSteps ? null : (
         <section id="start" aria-label="Start a build" className="aurora scroll-mt-24">
@@ -134,7 +169,7 @@ export default async function MissionControl() {
       <section aria-labelledby="inbox-heading" className="grid gap-4">
         <div className="flex items-center justify-between gap-3">
           <h2 id="inbox-heading" className="flex items-center gap-2 text-lg font-medium">
-            <TrayIcon size={20} weight="bold" className="text-accent" aria-hidden /> Agent inbox
+            <TrayIcon size={20} weight="bold" className="text-accent" aria-hidden /> What the agent is doing
           </h2>
           <Link href="/app/build" className="inline-flex min-h-11 items-center gap-1 text-sm text-accent hover:underline">
             Build <ArrowRightIcon size={14} aria-hidden />
@@ -161,8 +196,8 @@ export default async function MissionControl() {
           detail={limits.workspaces === null ? "Active projects." : `Active. Your plan allows ${number.format(limits.workspaces)}.`}
           href="/app/projects"
         />
-        <StatTile label="Open tasks" value={number.format(open.length)} detail="Work that isn't finished yet." href="/app/tasks" />
-        <StatTile label="Waiting for you" value={number.format(waiting.length)} detail="Changes that need your yes or no." href="/app/approvals" />
+        <StatTile label="Open tasks" value={number.format(unfinished.length)} detail="Work that isn't finished yet." href="/app/tasks" />
+        <StatTile label="Waiting for you" value={number.format(sorted.mine.length)} detail="Changes that need your yes or no." href="/app/approvals" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">

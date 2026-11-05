@@ -172,7 +172,7 @@ export async function callModel(
   if (!task) return agentFail("NOT_FOUND", "That task doesn't exist or isn't in this workspace.");
   // A lease limited to some projects (ADR 0117) covers only their tasks; a task whose project isn't known isn't covered.
   if (agent.lease.projects !== null && (!task.projectId || !agent.lease.projects.includes(task.projectId))) return agentFail("FORBIDDEN", OUTSIDE_LEASE);
-  if (task.state !== "CONTRACT_APPROVED") return agentFail("INVALID_TRANSITION", "The agent works on a task once its contract is approved and no other proposal is open.");
+  if (task.state !== "CONTRACT_APPROVED") return agentFail("INVALID_TRANSITION", "The agent works on a task once its plan is approved and no other change is open.");
 
   const billing = await resolvePlan(deps, agent.orgId);
   if (!billing.ok) return agentFail(billing.code, billing.message);

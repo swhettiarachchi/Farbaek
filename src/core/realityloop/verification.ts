@@ -73,9 +73,9 @@ export function autoVerifiedOutcome(r: { ok: true; result: VerificationResult } 
     case "verified":
       return "Finished. The change applied on its own, and its checks passed: verified.";
     case "partially_verified":
-      return "Finished. The change applied on its own, and some of its checks failed, so autonomy is paused for this workspace. Review it, or undo it from the task.";
+      return "Finished. The change applied on its own, and some of its checks failed, so changes applying on their own are paused for this workspace. Review it, or undo it from the task.";
     case "failed":
-      return "Finished. The change applied on its own, and its checks failed, so autonomy is paused for this workspace. Undo it from the task.";
+      return "Finished. The change applied on its own, and its checks failed, so changes applying on their own are paused for this workspace. Undo it from the task.";
     case "unverified":
       return "Finished. The change applied on its own, but its checks couldn't run against exactly those files, so it isn't verified. Run them from the task.";
   }

@@ -12,7 +12,7 @@ import { TRIAL, chargeCents, formatUsd, getPlan } from "@/core/billing/catalog";
 
 export const metadata: Metadata = {
   title: "Pricing",
-  description: "Farbaek plans from $0.99 to $300 a month, with AI, sandboxes and previews included, usage that rolls over, and a 14-day Pro trial with no card.",
+  description: "Farbaek plans from $0.99 to $300 a month, with AI, test spaces and previews included, usage that rolls over, and a 14-day Pro trial with no card.",
 };
 
 const trialBase = getPlan(TRIAL.basePlan).name;
@@ -28,7 +28,7 @@ const PROMISES = [
 const PRICING_FAQ: FaqItem[] = [
   {
     q: "Do I need my own AI or API key?",
-    a: "No. Farbaek runs the models for you, and everything is included in your plan: the AI, the sandboxes your code runs in, and previews.",
+    a: "No. Farbaek runs the models for you, and everything is included in your plan: the AI, the test spaces your code runs in, and previews.",
   },
   {
     q: "What's an agent session?",
@@ -48,7 +48,7 @@ const PRICING_FAQ: FaqItem[] = [
   },
   {
     q: "How does the trial work?",
-    a: `Every eligible new workspace gets ${TRIAL.lengthDays} days of ${trialBase} features, with ${TRIAL.limits.sandboxHours} sandbox hours and AI usage equal to a month of Starter. No card is needed. At the end you move to Free automatically, and nothing is charged.`,
+    a: `Every eligible new workspace gets ${TRIAL.lengthDays} days of ${trialBase} features, with ${TRIAL.limits.sandboxHours} test space hours and AI usage equal to a month of Starter. No card is needed. At the end you move to Free automatically, and nothing is charged.`,
   },
   {
     webOnly: true,
@@ -67,7 +67,7 @@ const PRICING_FAQ: FaqItem[] = [
   },
   {
     q: "Is there a plan for larger teams?",
-    a: `Enterprise: committed usage at a custom rate, with governance and evidence exports. Write to ${CONTACT.hello}.`,
+    a: `Enterprise: committed usage at a custom rate, with admin controls. Write to ${CONTACT.hello}.`,
   },
 ];
 
@@ -77,37 +77,14 @@ export default function PricingPage() {
       <section aria-labelledby="pricing-title" className="pb-16 pt-14 lg:pb-24 lg:pt-20">
         <Container>
           <div className="max-w-[46rem]">
-            <h1 id="pricing-title" className="text-4xl font-medium leading-[1.08] tracking-[-0.03em] sm:text-5xl">
+            <h1 id="pricing-title" className="text-4xl font-medium leading-[1.08] tracking-[-0.03em] max-[18em]:text-[1.5rem] sm:text-5xl">
               Build, preview and ship. One subscription.
             </h1>
             <p className="mt-5 max-w-[58ch] text-lg leading-relaxed text-ink-2">
-              Every plan includes Farbaek&apos;s AI, sandboxes and previews. No API keys to bring. Start with a {TRIAL.lengthDays}-day {trialBase} trial, no card
+              Every plan includes Farbaek&apos;s AI, a test space and previews. You don&apos;t need your own AI account. Start with a {TRIAL.lengthDays}-day {trialBase} trial, no card
               required.
             </p>
           </div>
-
-          <div className="mt-10 rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
-            <ul aria-label="What every plan promises" className="grid gap-x-8 gap-y-6 rounded-md bg-surface p-6 shadow-e1 sm:grid-cols-2 lg:grid-cols-4">
-              {PROMISES.map(({ icon: Icon, title, body }) => (
-                <li key={title} className="grid content-start gap-2">
-                  <span className="flex size-10 items-center justify-center rounded-full bg-accent/[0.08] text-accent">
-                    <Icon size={20} aria-hidden />
-                  </span>
-                  <p className="mt-1 font-medium leading-snug">{title}</p>
-                  <p className="text-sm leading-relaxed text-ink-2">{body}</p>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* How the website bills: inside Farbaek for Android the notice below speaks for Google Play instead (ADR 0154). */}
-          <WebPurchaseOnly fallback={null}>
-            <p className="mt-6 flex items-start gap-2.5 rounded-sm border border-info/30 bg-info/[0.06] px-4 py-3 text-sm text-ink">
-              <InfoIcon size={18} weight="bold" className="mt-px shrink-0 text-info" aria-hidden />
-              Every plan is charged monthly. Lite and Maker can also be paid yearly, with more AI usage, and we email you before each yearly renewal. Cancel any time in
-              Billing, and your plan runs to the end of the period you paid for.
-            </p>
-          </WebPurchaseOnly>
 
           <div className="mt-10">
             {/* Names the plan list for screen readers, so the plan names (h3) sit under a heading. */}
@@ -125,6 +102,29 @@ export default function PricingPage() {
               {null}
             </WebPurchaseOnly>
             <PricingPlans />
+          </div>
+
+          {/* How the website bills: inside Farbaek for Android the notice below speaks for Google Play instead (ADR 0154). */}
+          <WebPurchaseOnly fallback={null}>
+            <p className="mt-6 flex items-start gap-2.5 rounded-sm border border-info/30 bg-info/[0.06] px-4 py-3 text-sm text-ink">
+              <InfoIcon size={18} weight="bold" className="mt-px shrink-0 text-info" aria-hidden />
+              Every plan is charged monthly. Lite and Maker can also be paid yearly, with more AI usage, and we email you before each yearly renewal. Cancel any time in
+              Billing, and your plan runs to the end of the period you paid for.
+            </p>
+          </WebPurchaseOnly>
+
+          <div className="mt-10 rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
+            <ul aria-label="What Farbaek promises" className="grid gap-x-8 gap-y-6 rounded-md bg-surface p-6 shadow-e1 sm:grid-cols-2 lg:grid-cols-4">
+              {PROMISES.map(({ icon: Icon, title, body }) => (
+                <li key={title} className="grid content-start gap-2">
+                  <span className="flex size-10 items-center justify-center rounded-full bg-accent/[0.08] text-accent">
+                    <Icon size={20} aria-hidden />
+                  </span>
+                  <p className="mt-1 font-medium leading-snug">{title}</p>
+                  <p className="text-sm leading-relaxed text-ink-2">{body}</p>
+                </li>
+              ))}
+            </ul>
           </div>
 
         </Container>

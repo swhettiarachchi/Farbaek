@@ -46,7 +46,7 @@ describe("explaining and matching", () => {
   it("explains a rule in Farbaek's words, not a model's", () => {
     expect(explainRule({ paths: ["src/billing/"], effect: "owner_approval" })).toBe("A change to any file inside src/billing needs an owner or admin to approve.");
     expect(explainRule({ paths: ["*.sql", "db/"], effect: "block" })).toBe("A change to any file named like *.sql or any file inside a folder named db is stopped, and no one can approve it.");
-    expect(explainRule({ paths: ["docs/"], effect: "person_approval" })).toContain("always waits for a person, even at autonomy level 2");
+    expect(explainRule({ paths: ["docs/"], effect: "person_approval" })).toContain("always waits for a person, even when small changes apply on their own");
   });
 
   it("finds every rule a path falls under", () => {

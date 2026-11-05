@@ -100,8 +100,8 @@ export interface AutonomyDeps {
   setAutonomy(input: { orgId: string; actor: string; level: 0 | 2 | 3; maxFiles: number; allowCreates: boolean; shadow: boolean; dailyLimit: number | null }): Promise<RpcResult<null>>;
 }
 
-export const SHADOW_NOT_IN_PLAN = "Shadow mode is included in Pro and up, and in the trial.";
-export const LEVEL_3_NOT_IN_PLAN = "Level 3 is included in Max 3x and up.";
+export const SHADOW_NOT_IN_PLAN = "Practice mode is included in Pro and up, and in the trial.";
+export const LEVEL_3_NOT_IN_PLAN = "Bigger changes on their own are included in Max 3x and up.";
 
 export async function setWorkspaceAutonomy(
   deps: WriteDeps & AutonomyDeps,
@@ -109,7 +109,7 @@ export async function setWorkspaceAutonomy(
 ): Promise<WriteResult<null>> {
   const role = await deps.role(input.orgId);
   if (!role) return fail("NOT_FOUND");
-  if (!MANAGER_ROLES.includes(role)) return fail("FORBIDDEN", "Only an owner or admin can change the workspace's autonomy.");
+  if (!MANAGER_ROLES.includes(role)) return fail("FORBIDDEN", "Only an owner or admin can change how much the agent does on its own.");
   const most = input.level === 3 ? LEVEL_3.maxFiles : 5;
   if (!Number.isInteger(input.maxFiles) || input.maxFiles < 1 || input.maxFiles > most) return fail("FORBIDDEN", `Choose a file limit from 1 to ${most}.`);
   const dailyLimit = input.level === 3 ? (input.dailyLimit ?? null) : null;

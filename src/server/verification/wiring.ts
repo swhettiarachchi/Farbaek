@@ -35,9 +35,9 @@ export async function sandboxForPerson(person: { orgId: string; userId: string; 
   const config = readSupabaseConfig();
   if (!config) return { unavailable: "Accounts aren't configured on this server." };
   const execution = sandboxExecutionMode();
-  if (execution.mode !== "sandboxed") return { unavailable: execution.reason ?? "No verified sandbox is connected, so checks can't run." };
+  if (execution.mode !== "sandboxed") return { unavailable: execution.reason ?? "No test space is ready, so checks can't run." };
   const token = accessToken ?? (await freshAccessToken());
-  if (!token) return { unavailable: "Your session couldn't be confirmed for the sandbox. Sign in again." };
+  if (!token) return { unavailable: "Your session couldn't be confirmed for the test space. Sign in again." };
   const user = createClient(config.url, config.publishableKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },

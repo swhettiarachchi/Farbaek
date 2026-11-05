@@ -36,14 +36,14 @@ export function HandoffCard({ taskId, computers, handoffs, disabledReason }: { t
         <span className="text-xs text-ink-3">Runs only when you start it there</span>
       </div>
       <p className="max-w-[68ch] text-sm leading-relaxed text-ink-2">
-        Send this task to the Farbaek Agent app on one of your computers. It shows the contract, the change waiting for review and the checks to run; when you start it there,
+        Send this task to the Farbaek Agent app on one of your computers. It shows the plan, the change waiting for review and the checks to run; when you start it there,
         it runs the checks on a copy of the project with the change written in, and the results come back here.
       </p>
       {computers.length === 0 ? (
         <div className="grid justify-items-start gap-2">
-          <p className="text-sm text-ink-2">No computer is paired with this workspace yet. Install the Farbaek Agent app and pair it from Agents.</p>
+          <p className="text-sm text-ink-2">No computer is paired with this workspace yet. Install the Farbaek Agent app and pair it from the Desktop app page.</p>
           <ButtonLink href="/app/agents" variant="secondary" size="sm">
-            Open Agents
+            Open Desktop app
           </ButtonLink>
         </div>
       ) : null}

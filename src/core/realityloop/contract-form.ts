@@ -109,7 +109,7 @@ export function contractFromForm(values: ContractFormValues, scope: { organizati
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     const path = issue?.path.join(".") ?? "";
-    const label = FIELD_LABELS[path] ?? FIELD_LABELS[String(issue?.path[0] ?? "")] ?? "The contract";
+    const label = FIELD_LABELS[path] ?? FIELD_LABELS[String(issue?.path[0] ?? "")] ?? "The plan";
     return { ok: false, message: `${label} is required.` };
   }
   return { ok: true, contract: parsed.data };

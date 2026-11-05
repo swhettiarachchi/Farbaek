@@ -165,7 +165,7 @@ export async function runFailureFuture(
     const setup = verificationSetup(input.paths, input.read);
     const limits = (await service.overview(actor)).limits.limits;
     if (setup?.network && !limits.networkProfiles.includes("package_registries")) {
-      return end("failed", { ...shown, reason: "This plan's sandboxes can't reach the package registries, so the project's test runner couldn't be installed." });
+      return end("failed", { ...shown, reason: "Test spaces on your subscription can't reach the package registries, so the project's test runner couldn't be installed." });
     }
     const task = await deps.checks.loadTask(person.orgId, input.proposal.taskId);
     const created = await service.createSession(
@@ -182,21 +182,21 @@ export async function runFailureFuture(
       },
       `failure:${input.id}`,
     );
-    if (!created.ok) return end("failed", { ...shown, reason: `The sandbox didn't start: ${created.message}` });
+    if (!created.ok) return end("failed", { ...shown, reason: `The test space didn't start: ${created.message}` });
     sessionId = created.value.sessionId;
     const attached = await deps.store.attach({ id: input.id, actor: person.userId, sessionId });
-    if (!attached.ok) return end("failed", { ...shown, reason: "The sandbox started, but the trial couldn't be linked to it." });
+    if (!attached.ok) return end("failed", { ...shown, reason: "The test space started, but the trial couldn't be linked to it." });
 
     for (const change of input.proposal.changes) {
       const w = await service.writeFile(actor, sessionId, change.path, change.content);
-      if (!w.ok) return end("failed", { ...shown, reason: `${change.path} couldn't be written into the sandbox: ${w.message.replace(/[.\s]+$/, "")}.` });
+      if (!w.ok) return end("failed", { ...shown, reason: `${change.path} couldn't be written into the test space: ${w.message.replace(/[.\s]+$/, "")}.` });
     }
     if (setup) {
       const r = await service.runCommand(actor, sessionId, { command: setup.command, timeoutSeconds: SETUP_SECONDS, kind: "setup", label: setup.label }, deps.newKey());
       if (!r.ok || r.value.exitCode !== 0) return end("failed", { ...shown, reason: `${setup.label} didn't finish, so the test didn't run.` });
     }
     const t = await service.writeFile(actor, sessionId, input.runner.testPath, shown.test!);
-    if (!t.ok) return end("failed", { ...shown, reason: `The test couldn't be written into the sandbox: ${t.message.replace(/[.\s]+$/, "")}.` });
+    if (!t.ok) return end("failed", { ...shown, reason: `The test couldn't be written into the test space: ${t.message.replace(/[.\s]+$/, "")}.` });
 
     // 3. The test, once, with the project's own runner.
     const run = await service.runCommand(actor, sessionId, { command: input.runner.command, timeoutSeconds: TEST_SECONDS, kind: "check", label: `Failure trial: ${input.future.title}`.slice(0, 120) }, `failure:${input.id}:test`);

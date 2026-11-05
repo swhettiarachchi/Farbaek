@@ -127,9 +127,9 @@ export async function loadUsageSummary(ctx: AppContext, ws: WorkspaceSummary, no
 }
 
 const AT_LIMIT: Record<UsageMeter["id"], string> = {
-  ai: "AI drafting and proposals pause until it resets. Writing contracts and editing files yourself keep working.",
-  evaluations: "New governed actions pause until it resets. Exports, billing and emergency pause keep working.",
-  sandbox: "New sandbox sessions can't start until it resets. Running ones finish normally.",
+  ai: "AI drafting and suggested changes pause until it resets. Writing plans and editing files yourself keep working.",
+  evaluations: "New actions pause until it resets. Exports, billing and emergency pause keep working.",
+  sandbox: "New test space sessions can't start until it resets. Running ones finish normally.",
 };
 
 function meter(id: UsageMeter["id"], label: string, used: number, limit: number | null, period: { end: Date; kind: "trial" | "month" }): UsageMeter {

@@ -59,7 +59,7 @@ export async function startArena(deps: ArenaDeps, person: ArenaPerson, proposalI
   if (!proposal) return fail("NOT_FOUND");
   if (proposal.status !== "pending") return fail("INVALID_TRANSITION", "Only a change waiting for review can be tried.");
   const checks = await trialChecksFor(deps, person.orgId, proposal);
-  if (checks.length === 0) return fail("INVALID_TRANSITION", "The contract lists no checks, and Farbaek has none for this kind of project, so there's nothing to try.");
+  if (checks.length === 0) return fail("INVALID_TRANSITION", "The plan lists no checks, and Farbaek has none for this kind of project, so there's nothing to try.");
 
   const started = await deps.store.start({ orgId: person.orgId, actor: person.userId, proposalId });
   if (!started.ok) return started.error.includes("ARENA_RUNNING") ? fail("INVALID_TRANSITION", "A trial of this change is already running.") : fail(codeFromDatabaseError(started.error));
@@ -98,7 +98,7 @@ export async function runArena(deps: ArenaDeps, person: ArenaPerson, input: { id
 
     const limits = (await service.overview(actor)).limits.limits;
     if ((setup?.network || candidateSetup?.network) && !limits.networkProfiles.includes("package_registries")) {
-      return failed("This plan's sandboxes can't reach the package registries, so the project's packages couldn't be installed for a trial.");
+      return failed("Test spaces on your subscription can't reach the package registries, so the project's packages couldn't be installed for a trial.");
     }
     const created = await service.createSession(
       actor,
@@ -114,10 +114,10 @@ export async function runArena(deps: ArenaDeps, person: ArenaPerson, input: { id
       },
       `arena:${input.id}`,
     );
-    if (!created.ok) return failed(`The sandbox didn't start: ${created.message}`);
+    if (!created.ok) return failed(`The test space didn't start: ${created.message}`);
     sessionId = created.value.sessionId;
     const attached = await deps.store.attach({ id: input.id, actor: person.userId, sessionId });
-    if (!attached.ok) return failed("The sandbox started, but the trial couldn't be linked to it.");
+    if (!attached.ok) return failed("The test space started, but the trial couldn't be linked to it.");
 
     const install = async (s: NonNullable<typeof setup>, when: string) => {
       const r = await service.runCommand(actor, sessionId!, { command: s.command, timeoutSeconds: SETUP_SECONDS, kind: "setup", label: s.label }, deps.newKey());
@@ -136,7 +136,7 @@ export async function runArena(deps: ArenaDeps, person: ArenaPerson, input: { id
 
     for (const [path, content] of changed) {
       const written = await service.writeFile(actor, sessionId, path, content);
-      if (!written.ok) return failed(`${path} couldn't be written into the sandbox: ${written.message.replace(/[.\s]+$/, "")}. The change wasn't tried.`);
+      if (!written.ok) return failed(`${path} couldn't be written into the test space: ${written.message.replace(/[.\s]+$/, "")}. The change wasn't tried.`);
     }
     if (candidateSetup) {
       const problem = await install(candidateSetup, "With this change");

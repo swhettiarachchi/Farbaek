@@ -91,7 +91,7 @@ export default async function BuildPage() {
 
       {sandbox.mode !== "sandboxed" ? (
         <Notice>
-          No verified sandbox is connected, so runs prepare the change without running tests or builds. {sandbox.reason}
+          No test space is ready, so runs prepare the change without running tests or builds. {sandbox.reason}
         </Notice>
       ) : null}
 

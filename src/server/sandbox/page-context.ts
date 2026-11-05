@@ -11,7 +11,7 @@ import { sandboxServiceFor, type SandboxRequest } from "./wiring";
 export type PageSandbox = { ok: true; value: SandboxRequest } | { ok: false; reason: string };
 
 export async function sandboxForPage(ctx: AppContext): Promise<PageSandbox> {
-  if (ctx.mode === "demo") return { ok: false, reason: "Sandboxes need a real workspace. The demo workspace only has sample data." };
+  if (ctx.mode === "demo") return { ok: false, reason: "The test space needs a real workspace. The demo workspace only has sample data." };
   if (!ctx.current || !ctx.role) return { ok: false, reason: "Create or join a workspace first." };
   const user = await createSupabaseServerClient();
   if (!user) return { ok: false, reason: "Accounts aren't configured on this server." };

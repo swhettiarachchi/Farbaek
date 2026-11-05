@@ -16,7 +16,7 @@ import { draftingEvents, fail, requireContributor, type WriteDeps, type WriteRes
 
 export type { AiAvailability, AiUsageDeps, ModelSource } from "./ai-usage";
 
-export const MANUAL_CONTRACT = "You can still write the contract yourself.";
+export const MANUAL_CONTRACT = "You can still write the plan yourself.";
 
 export interface AiDraft {
   form: ContractFormValues;
@@ -38,7 +38,7 @@ export async function draftContractWithAi(
 
   const task = await deps.loadTask(input.orgId, input.taskId);
   if (!task) return fail("NOT_FOUND");
-  if (!draftingEvents(task.state)) return fail("INVALID_TRANSITION", "The contract can't change once the task has moved past planning.");
+  if (!draftingEvents(task.state)) return fail("INVALID_TRANSITION", "The plan can't change once the task has moved past planning.");
 
   const billing = await resolvePlan(deps, input.orgId);
   if (!billing.ok) return billing;

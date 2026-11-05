@@ -48,7 +48,7 @@ export async function CheckReceiptCard({ receipt }: { receipt: CheckReceiptRecor
         </p>
         <p className="text-xs text-ink-3">
           Ran <LocalTime iso={receipt.createdAt} />
-          {predicate?.runtime?.provider ? ` on ${predicate.runtime.provider}, in its own microVM` : ""}
+          {predicate?.runtime?.provider ? ` on ${predicate.runtime.provider}, kept apart from everything else` : ""}
         </p>
         {checks.length ? (
           <ul className="grid gap-1 text-sm">

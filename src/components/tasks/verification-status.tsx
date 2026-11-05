@@ -23,7 +23,7 @@ export function VerificationStatus({ verification: v, viewerId, now }: { verific
         <div className="grid gap-1 text-sm">
           <p className="font-medium text-ink">Checking now</p>
           <p className="text-ink-2">
-            A sandbox is preparing the project and running the checks against exactly the applied files. This page updates on its own.
+            A test space is preparing the project and running the checks against exactly the applied files. This page updates on its own.
           </p>
           <p className="text-xs text-ink-3">
             <WhoIcon size={14} className="mr-1 inline-block align-[-2px]" aria-hidden /> Started <RelativeTime iso={v.startedAt} />, {startedBy(v, viewerId)}.

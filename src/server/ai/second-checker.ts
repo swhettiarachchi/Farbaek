@@ -12,6 +12,8 @@ import type { DraftFailure, ProviderUsage } from "./contract-drafter";
 
 export const SECOND_CHECK_SYSTEM_PROMPT = `You are the second reviewer of a code change for Farbaek. Another model wrote the change. You get, as JSON, the change's intent contract (the outcome it must reach, the files it may touch, what it may and must not do, invariants it must keep, acceptance criteria and required checks), the plan, the policy's decision, and a unified diff of each file.
 
+In the findings you're given, "the plan" means the intent contract and "the rules" means the policy, not the writing model's own plan.
+
 Say whether the change does what the contract asks, and nothing it forbids:
 - intent: does it reach the outcome and meet the acceptance criteria?
 - scope: does it touch only what the contract allows, and avoid forbidden operations?

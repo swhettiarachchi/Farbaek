@@ -130,7 +130,7 @@ export function FailureFuturesCard({
         <span className="text-xs text-ink-3">Nothing is applied</span>
       </div>
       <p className="max-w-[68ch] text-sm leading-relaxed text-ink-2">
-        Failures this change could meet, found in the lines it adds and in this project&apos;s past incidents. Each one is hypothetical until you try it: Farbaek writes one test that simulates the failure, and a disposable sandbox runs it with this change.
+        Failures this change could meet, found in the lines it adds and in this project&apos;s past incidents. Each one is hypothetical until you try it: Farbaek writes one test that simulates the failure, and a disposable test space runs it with this change.
       </p>
 
       {running ? (
@@ -181,7 +181,7 @@ export function FailureFuturesCard({
       {futures.length > 0 ? (
         <p className="flex flex-wrap items-center gap-2 text-xs text-ink-3">
           <span className="inline-flex h-6 items-center rounded-full border border-dashed border-line-strong px-2 font-medium text-ink-2">Estimate</span>
-          Each trial uses one AI call from your workspace&apos;s usage and up to 15 minutes of sandbox time.
+          Each trial uses one AI call from your workspace&apos;s usage and up to 15 minutes of test space time.
         </p>
       ) : null}
       {disabledReason && futures.length > 0 ? <p className="text-sm text-ink-3">{disabledReason}</p> : null}

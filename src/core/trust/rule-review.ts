@@ -74,7 +74,7 @@ export function ruleFlags(rules: readonly WorkspaceRule[], files: readonly Proje
           rule: r.id,
           kind: "built_in",
           tone: "note",
-          text: `Every file it matches already needs an owner or admin under the built-in policy${r.effect === "person_approval" ? ", which is stricter than this rule" : ""}. It still applies to files added later.`,
+          text: `Every file it matches already needs an owner or admin under the built-in rules${r.effect === "person_approval" ? ", which is stricter than this rule" : ""}. It still applies to files added later.`,
         });
       }
     }

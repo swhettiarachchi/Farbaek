@@ -1,4 +1,4 @@
-import { AppleLogoIcon, ArrowUpRightIcon, DownloadSimpleIcon, LinuxLogoIcon, SealCheckIcon, ShieldWarningIcon, WindowsLogoIcon } from "@phosphor-icons/react/ssr";
+import { AppleLogoIcon, ArrowUpRightIcon, CaretRightIcon, DesktopIcon, DownloadSimpleIcon, LinuxLogoIcon, SealCheckIcon, ShieldWarningIcon, WindowsLogoIcon } from "@phosphor-icons/react/ssr";
 import type { ReactNode } from "react";
 import { AGENT_DOWNLOAD, AGENT_LINUX, AGENT_MAC, AGENT_STORE_URL, agentDownloadUrl } from "@/config/agent-download";
 
@@ -10,6 +10,8 @@ const mb = (bytes: number) => `${Math.round(bytes / 1024 / 1024)} MB`;
  * with the installer on Farbaek's own server as the other way, named exactly
  * (version, size, SHA-256) with plain steps for the warning it shows. Mac
  * once a build signed with the Developer ID and notarized by Apple is up.
+ * Checking a file by its fingerprint is there for whoever wants it, folded
+ * away, so it's never the first thing a newcomer is asked to do (ADR 0174).
  */
 export function AgentDownload() {
   const d = AGENT_DOWNLOAD;
@@ -23,6 +25,10 @@ export function AgentDownload() {
             <h2 id="download-heading" className="text-xl font-medium tracking-[-0.02em]">
               Get Farbaek Agent
             </h2>
+            <p className="mt-2 hidden items-start gap-2 rounded-sm bg-surface-raised/60 px-3 py-2 text-sm text-ink-2 pointer-coarse:flex">
+              <DesktopIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
+              <span>This runs on a computer, so open this page on one to download it.</span>
+            </p>
             <p className="mt-1 flex items-start gap-2 text-sm text-ink-2">
               <WindowsLogoIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
               <span>
@@ -62,20 +68,15 @@ export function AgentDownload() {
               The installer isn&apos;t code-signed yet, so Windows shows a blue &quot;Windows protected your PC&quot; screen with only Don&apos;t run on it. That&apos;s expected, and it asks only once.
             </p>
           </div>
-          <ol className="grid gap-3 lg:grid-cols-3">
+          <CheckTheFile how="In PowerShell, in your Downloads folder, run this. What it prints must match the line under it; capital letters don't matter." command={`Get-FileHash ${d.file}`} fingerprint={d.sha256} />
+          <ol className="grid gap-3 lg:grid-cols-2">
             <li className="grid min-w-0 content-start gap-2 rounded-md border border-line p-4">
-              <Step n={1}>Check it&apos;s the real file</Step>
-              <p className="text-xs leading-relaxed text-ink-3">In PowerShell, in your Downloads folder, run this. The hash it prints must match this one; capital letters don&apos;t matter.</p>
-              <code className="block break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[0.75rem] text-ink-2">Get-FileHash {d.file}</code>
-              <p className="break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[0.75rem] leading-relaxed text-ink">{d.sha256}</p>
-            </li>
-            <li className="grid min-w-0 content-start gap-2 rounded-md border border-line p-4">
-              <Step n={2}>Open it, then choose More info</Step>
+              <Step n={1}>Open it, then choose More info</Step>
               <p className="text-xs leading-relaxed text-ink-3">It&apos;s the underlined link under the warning.</p>
               <ScreenSketch highlight="more" />
             </li>
             <li className="grid min-w-0 content-start gap-2 rounded-md border border-line p-4">
-              <Step n={3}>Choose Run anyway</Step>
+              <Step n={2}>Choose Run anyway</Step>
               <p className="text-xs leading-relaxed text-ink-3">It appears beside Don&apos;t run, under the file&apos;s name and &quot;Unknown publisher&quot;. Then install as usual.</p>
               <ScreenSketch highlight="run" />
             </li>
@@ -92,9 +93,7 @@ export function AgentDownload() {
                   For macOS 12 or later, Apple silicon and Intel. Version {AGENT_MAC.version}, {mb(AGENT_MAC.bytes)}. Notarized by Apple, so it opens without a warning.
                 </span>
               </p>
-              <p className="text-xs leading-relaxed text-ink-3">To check it&apos;s the real file, run this in Terminal, in your Downloads folder. It must print this fingerprint.</p>
-              <code className="block break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[0.75rem] text-ink-2">shasum -a 256 {AGENT_MAC.file}</code>
-              <p className="break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[0.75rem] leading-relaxed text-ink">{AGENT_MAC.sha256}</p>
+              <CheckTheFile how="Run this in Terminal, in your Downloads folder. What it prints must match the line under it." command={`shasum -a 256 ${AGENT_MAC.file}`} fingerprint={AGENT_MAC.sha256} />
             </div>
             <PrimaryLink href={`/downloads/${AGENT_MAC.file}`} download icon={<DownloadSimpleIcon size={17} weight="bold" aria-hidden />}>
               Download for Mac
@@ -110,13 +109,11 @@ export function AgentDownload() {
               <p className="flex items-start gap-2 text-sm text-ink-2">
                 <LinuxLogoIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
                 <span>
-                  For 64-bit Linux with a desktop keyring (GNOME Keyring or KWallet), which keeps the agent&apos;s token safe. Version {AGENT_LINUX.version}, {mb(AGENT_LINUX.bytes)}. An
+                  For 64-bit Linux with a desktop keyring (GNOME Keyring or KWallet), which keeps the agent&apos;s sign-in safe. Version {AGENT_LINUX.version}, {mb(AGENT_LINUX.bytes)}. An
                   AppImage: allow it to run as a program, then open it.
                 </span>
               </p>
-              <p className="text-xs leading-relaxed text-ink-3">To check it&apos;s the real file, run this in a terminal, in your Downloads folder. It must print this fingerprint.</p>
-              <code className="block break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[0.75rem] text-ink-2">sha256sum {AGENT_LINUX.file}</code>
-              <p className="break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[0.75rem] leading-relaxed text-ink">{AGENT_LINUX.sha256}</p>
+              <CheckTheFile how="Run this in a terminal, in your Downloads folder. What it prints must match the line under it." command={`sha256sum ${AGENT_LINUX.file}`} fingerprint={AGENT_LINUX.sha256} />
             </div>
             <PrimaryLink href={`/downloads/${AGENT_LINUX.file}`} download icon={<DownloadSimpleIcon size={17} weight="bold" aria-hidden />}>
               Download for Linux
@@ -152,6 +149,22 @@ function Fold({ open, children }: { open: boolean; children: ReactNode }) {
     <details>
       <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium text-ink-2">Installing the direct download instead</summary>
       {children}
+    </details>
+  );
+}
+
+/** For whoever wants to be sure of the download. Nobody has to do this to install it. */
+function CheckTheFile({ how, command, fingerprint }: { how: string; command: string; fingerprint: string }) {
+  return (
+    <details className="group min-w-0">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 text-sm text-ink-2 hover:text-ink [&::-webkit-details-marker]:hidden">
+        <CaretRightIcon size={14} weight="bold" aria-hidden className="shrink-0 text-ink-3 group-open:rotate-90" /> Before you open it, check it&apos;s the real file (optional)
+      </summary>
+      <div className="grid gap-2 pb-1">
+        <p className="text-xs leading-relaxed text-ink-3">{how}</p>
+        <code className="block break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[0.75rem] text-ink-2">{command}</code>
+        <p className="break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[0.75rem] leading-relaxed text-ink">{fingerprint}</p>
+      </div>
     </details>
   );
 }

@@ -22,7 +22,7 @@ export const metadata: Metadata = { title: "Desktop app" };
 const PLATFORM_LABEL = { windows: "Windows", macos: "macOS", linux: "Linux" } as const;
 
 /** Sandboxed Autopilot needs the desktop agent to run commands in a Farbaek sandbox, which isn't connected to the agent yet. */
-const AUTOPILOT_UNAVAILABLE = "Not available yet: the desktop agent can't run commands in a Farbaek sandbox until that link is built. Use Review Only or Controlled Development.";
+const AUTOPILOT_UNAVAILABLE = "Not available yet: the desktop agent can't run commands in a Farbaek test space until that link is built. Use Review Only or Controlled Development.";
 
 export default async function AgentsPage() {
   const ctx = await loadAppContext();
@@ -38,9 +38,9 @@ export default async function AgentsPage() {
   const endingSoon = active.filter((a) => leaseState(a.lease, now) === "ending_soon");
   const leaseNotice =
     ended.length > 0
-      ? `${ended.length === 1 ? `${ended[0]!.name}'s lease has` : `${ended.length} agents' leases have`} ended, so ${ended.length === 1 ? "it" : "they"} can't do anything until someone renews ${ended.length === 1 ? "it" : "them"} below.`
+      ? `${ended.length === 1 ? `${ended[0]!.name}'s access has` : `${ended.length} agents' access has`} ended, so ${ended.length === 1 ? "it" : "they"} can't do anything until someone renews ${ended.length === 1 ? "it" : "them"} below.`
       : endingSoon.length > 0
-        ? `${endingSoon.length === 1 ? `${endingSoon[0]!.name}'s lease ends` : `${endingSoon.length} agents' leases end`} within ${LEASE_WARNING_DAYS} days. Renew below to keep ${endingSoon.length === 1 ? "it" : "them"} working.`
+        ? `${endingSoon.length === 1 ? `${endingSoon[0]!.name}'s access ends` : `${endingSoon.length} agents' access ends`} within ${LEASE_WARNING_DAYS} days. Renew below to keep ${endingSoon.length === 1 ? "it" : "them"} working.`
         : null;
   const openProjects = projects.filter((p) => !p.archivedAt).map((p) => ({ id: p.id, name: p.name }));
   const leaseReason = ctx.mode === "demo" ? "The demo workspace is read-only." : !ctx.writes.enabled ? ctx.writes.reason : null;
@@ -78,7 +78,7 @@ export default async function AgentsPage() {
         <Card>
           <h2 className="text-lg font-medium">Pair a computer</h2>
           <p className="mt-2 text-sm leading-relaxed text-ink-2">
-            Create a code, then type it into Farbaek Agent. The agent acts for you, only while you can contribute to this workspace, under a lease: 90 days on every project to start, which you can narrow or renew below. {usage}
+            Create a code, then type it into Farbaek Agent. The agent acts for you, only while you can contribute to this workspace, for 90 days on every project to start, which you can narrow or renew below. {usage}
           </p>
           <div className="mt-5">
             <PairAgent disabledReason={pairReason} />
@@ -90,10 +90,10 @@ export default async function AgentsPage() {
           <ul className="mt-3 grid gap-2 text-sm leading-relaxed text-ink-2">
             <li>The agent&apos;s working copy of the project, one folder per task.</li>
             <li>Commands you approve. They run with your account&apos;s rights, which is why the agent asks first.</li>
-            <li>The agent&apos;s token, kept in the system keychain.</li>
+            <li>The agent&apos;s sign-in, kept in your computer&apos;s keychain.</li>
           </ul>
           <p className="mt-3 text-sm leading-relaxed text-ink-2">
-            Each model step goes through Farbaek to our AI provider (named in the Privacy Policy): the conversation, including the files the agent reads and the command output it shows the model. Farbaek doesn&apos;t keep the conversation. It records the model and its token counts against your AI usage, and checks the finished change again before you see it.
+            Each model step goes through Farbaek to our AI provider (named in the Privacy Policy): the conversation, including the files the agent reads and the command output it shows the model. Farbaek doesn&apos;t keep the conversation. It counts what each step used against your AI usage, and checks the finished change again before you see it.
           </p>
         </Card>
       </div>
