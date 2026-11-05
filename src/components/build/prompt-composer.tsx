@@ -61,6 +61,7 @@ function store(value: string) {
 export function PromptComposer({
   mode,
   autoResume = false,
+  initial,
   disabledReason = null,
   size = "large",
   projectId,
@@ -69,6 +70,8 @@ export function PromptComposer({
 }: {
   mode: "app" | "public";
   autoResume?: boolean;
+  /** A draft from elsewhere, such as text shared from another app. The person reads it and sends it; it's never sent for them. */
+  initial?: string;
   disabledReason?: string | null;
   size?: "large" | "compact";
   /** A follow-up for this project, rather than a new build. Not kept in the browser. */
@@ -84,7 +87,7 @@ export function PromptComposer({
   // A prompt kept from before sign-in shows until the person types; the server render has none.
   const stored = useSyncExternalStore(noSubscribe, readStored, () => "");
   const kept = followUp ? "" : stored;
-  const [draft, setDraft] = useState<string | null>(null);
+  const [draft, setDraft] = useState<string | null>(initial ?? null);
   const value = draft ?? kept;
   const setValue = (next: string) => setDraft(next);
   const form = useRef<HTMLFormElement>(null);
@@ -111,10 +114,10 @@ export function PromptComposer({
 
   // After sign-in, send the kept prompt once without asking again.
   useEffect(() => {
-    if (!autoResume || followUp || mode !== "app" || resumed.current || !readStored()) return;
+    if (!autoResume || initial || followUp || mode !== "app" || resumed.current || !readStored()) return;
     resumed.current = true;
     queueMicrotask(() => form.current?.requestSubmit());
-  }, [autoResume, followUp, mode]);
+  }, [autoResume, initial, followUp, mode]);
 
   const tooShort = value.trim().length < PROMPT_MIN;
   const disabled = pending || Boolean(disabledReason);

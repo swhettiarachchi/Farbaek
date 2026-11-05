@@ -53,11 +53,41 @@
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
 }
 
+/*
+ * The phone tab bar's height, for everything pinned above it (ADR 0171). While someone types on a touch screen
+ * it steps aside, because with interactive-widget=resizes-content it would otherwise ride on top of the keyboard.
+ */
+:root {
+  --tab-bar: calc(64px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 64rem) {
+  :root {
+    --tab-bar: 0px;
+  }
+}
+
+@media (pointer: coarse) {
+  :root:has(:is(input:not([type="button"], [type="checkbox"], [type="color"], [type="file"], [type="radio"], [type="range"], [type="reset"], [type="submit"]), textarea, [contenteditable="true"]):focus) {
+    --tab-bar: 0px;
+  }
+
+  :root:has(:is(input:not([type="button"], [type="checkbox"], [type="color"], [type="file"], [type="radio"], [type="range"], [type="reset"], [type="submit"]), textarea, [contenteditable="true"]):focus) [data-tab-bar] {
+    display: none;
+  }
+}
+
+/* Inside Farbaek for Android nothing is bought from the web (ADR 0150), from the very first paint (ADR 0171). */
+:root[data-client="android-app"] [data-web-purchase] {
+  display: none;
+}
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
     scroll-padding-top: 5rem;
+    scroll-padding-bottom: calc(var(--tab-bar) + 1rem);
     background: var(--canvas);
   }
 

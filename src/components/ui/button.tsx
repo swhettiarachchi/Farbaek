@@ -5,7 +5,7 @@ type Variant = "primary" | "accent" | "secondary" | "outline" | "ghost" | "dange
 type Size = "md" | "sm";
 
 const base =
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium transition-[background-color,border-color,color,transform,box-shadow] duration-[160ms] ease-standard active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100";
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium max-[18em]:whitespace-normal max-[18em]:py-2 max-[18em]:text-center transition-[background-color,border-color,color,transform,box-shadow] duration-[160ms] ease-standard active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100";
 
 const variants: Record<Variant, string> = {
   primary: "bg-primary text-on-primary shadow-e1 hover:bg-primary/85",
@@ -18,9 +18,9 @@ const variants: Record<Variant, string> = {
 };
 
 const sizes: Record<Size, string> = {
-  md: "h-12 px-6 text-[15px]",
-  // A full 44px touch target, like every control.
-  sm: "h-11 px-4 text-sm",
+  md: "min-h-12 px-6 text-[15px]",
+  // 44px with a mouse, and 48px on touch, Google's size for primary controls (ADR 0171).
+  sm: "min-h-11 px-4 text-sm pointer-coarse:min-h-12",
 };
 
 export function buttonClasses(variant: Variant = "primary", size: Size = "md", className = ""): string {

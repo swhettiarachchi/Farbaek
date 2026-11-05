@@ -1,5 +1,6 @@
 import { ArrowCounterClockwiseIcon, ArrowLeftIcon, ClockCounterClockwiseIcon, GitPullRequestIcon, HammerIcon, TerminalWindowIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
+import { ReportResult } from "@/components/tasks/report-result";
 import { NextStepCard } from "@/components/tasks/next-step";
 import { Disclosure } from "@/components/ui/disclosure";
 import { taskNextStep } from "@/core/realityloop/next-step";
@@ -388,6 +389,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
                 checksOnApply={checksForRun.length > 0}
               />
             ) : null}
+            {showProposal ? <ReportResult about={{ taskId: task.id }} className="-mt-5" /> : null}
             {canPropose ? (
               <div className={`grid gap-3 rounded-md border border-accent/30 bg-accent/[0.04] p-5 ${showProposal ? "mt-2" : ""}`}>
                 <h3 className="flex items-center gap-2 text-base font-medium">

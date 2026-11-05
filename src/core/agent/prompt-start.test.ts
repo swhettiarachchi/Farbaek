@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanPrompt, estimateRunShare, isDesignPass, projectNameFromPrompt, shareOfPeriod, starterForPrompt, taskTitleFromPrompt, templateForPrompt } from "./prompt-start";
+import { cleanPrompt, isSharedBuild, promptFromShare, estimateRunShare, isDesignPass, projectNameFromPrompt, shareOfPeriod, starterForPrompt, taskTitleFromPrompt, templateForPrompt } from "./prompt-start";
 import { UPGRADE_DESIGN } from "../media/studio-kit";
 
 describe("cleanPrompt", () => {
@@ -9,6 +9,30 @@ describe("cleanPrompt", () => {
     expect(cleanPrompt(42)).toBeNull();
     expect(cleanPrompt("a".repeat(3_000))!.length).toBe(2_000);
     expect(cleanPrompt("one\n\n\n\n\ntwo words here")).toBe("one\n\ntwo words here");
+  });
+});
+
+describe("promptFromShare", () => {
+  it("makes a draft from whatever the other app sent", () => {
+    expect(promptFromShare({ text: "A site like this for my bakery" })).toBe("A site like this for my bakery");
+    expect(promptFromShare({ title: "Sweet Crumbs", url: "https://sweetcrumbs.example" })).toBe("Sweet Crumbs\nhttps://sweetcrumbs.example");
+    expect(promptFromShare({ title: "Ignored", text: "Look at https://a.example please", url: "https://a.example" })).toBe("Look at https://a.example please");
+  });
+
+  it("is null when there's nothing to use, and keeps within the limit", () => {
+    expect(promptFromShare({})).toBeNull();
+    expect(promptFromShare({ text: "hi" })).toBeNull();
+    expect(promptFromShare({ text: ["an", "array"], title: 3 })).toBeNull();
+    expect(promptFromShare({ text: "x".repeat(5_000) })!.length).toBe(2_000);
+  });
+});
+
+describe("isSharedBuild", () => {
+  it("is only the new build page with something shared", () => {
+    expect(isSharedBuild("/app/new", new URLSearchParams("text=hello"))).toBe(true);
+    expect(isSharedBuild("/app/new", new URLSearchParams("url=https://a.example"))).toBe(true);
+    expect(isSharedBuild("/app/new", new URLSearchParams("template=blog"))).toBe(false);
+    expect(isSharedBuild("/app/tasks", new URLSearchParams("text=hello"))).toBe(false);
   });
 });
 

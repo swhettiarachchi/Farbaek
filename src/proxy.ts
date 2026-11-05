@@ -11,6 +11,7 @@ import { OFFICE_OPEN_PATH, officeDeviceKnown } from "@/server/office/device-gate
 import { DEVICE_COOKIE } from "@/server/office/device-token";
 import { createOfficeProxyClient } from "@/server/office/supabase";
 import { readSupabaseConfig, sessionCookieOptions, siteUrl } from "@/server/supabase/config";
+import { isSharedBuild } from "@/core/agent/prompt-start";
 
 /**
  * Carries out the host decision in src/server/http/hosts.ts: the preview
@@ -133,7 +134,15 @@ async function appRequest(request: NextRequest) {
   });
 
   // Validates the JWT and refreshes it when needed.
-  await supabase.auth.getClaims();
+  const { data } = await supabase.auth.getClaims();
+  // Something shared to Farbaek while signed out comes back after sign-in (ADR 0171). The app's own redirect has no address to keep.
+  if (!data?.claims?.sub && isSharedBuild(request.nextUrl.pathname, request.nextUrl.searchParams)) {
+    const signIn = new URL("/sign-in", siteUrl());
+    signIn.searchParams.set("next", `${request.nextUrl.pathname}${request.nextUrl.search}`);
+    const redirect = NextResponse.redirect(signIn, 303);
+    for (const cookie of response.cookies.getAll()) redirect.cookies.set(cookie);
+    return withCsp(redirect);
+  }
   return withCsp(response);
 }
 

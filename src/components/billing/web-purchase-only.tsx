@@ -41,7 +41,12 @@ export function AndroidAppMarker() {
  * nowhere else, as Google Play's Payments policy asks (ADR 0150).
  */
 export function WebPurchaseOnly({ children, fallback }: { children: React.ReactNode; fallback: React.ReactNode }) {
-  return useInAndroidApp() ? fallback : children;
+  // Until hydration the hook can't know, so the wrapper is hidden by CSS from the first paint (ADR 0171).
+  return useInAndroidApp() ? fallback : (
+    <span data-web-purchase className="contents">
+      {children}
+    </span>
+  );
 }
 
 /** The fallback for a buy button: the same dashed pill as other unavailable plan actions. */

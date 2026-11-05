@@ -1,10 +1,12 @@
 import { AnalyticsConsent } from "@/components/analytics/analytics-consent";
+import { AndroidEarlyMark } from "@/components/billing/android-early-mark";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 
 export default function SiteLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <>
+      <AndroidEarlyMark />
       <SiteHeader />
       <main id="main" className="overflow-x-clip">
         {children}

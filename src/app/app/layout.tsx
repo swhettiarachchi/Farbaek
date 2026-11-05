@@ -1,6 +1,9 @@
 import { HandPalmIcon, PlusIcon, ShieldStarIcon, SignOutIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
+import { AndroidEarlyMark } from "@/components/billing/android-early-mark";
+import { nonceFromCsp } from "@/server/http/app-headers";
 import { MobileTabBar, SidebarNav } from "@/components/app/app-nav";
 import { CommandPalette, PaletteTrigger } from "@/components/app/command-palette";
 import { CspSafe } from "@/components/app/csp-safe";
@@ -109,9 +112,11 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   const canBuild = live && ctx.writes.enabled && ctx.role !== null && CONTRIBUTOR_ROLES.includes(ctx.role);
   const approvals = tasks.filter((t) => t.state === "APPROVAL_PENDING").length;
   const trialDays = current.trial?.phase.phase === "active" ? current.trial.phase.daysRemaining : null;
+  const nonce = nonceFromCsp((await headers()).get("content-security-policy"));
 
   return (
     <div className="min-h-[100dvh] bg-canvas lg:grid lg:grid-cols-[272px_minmax(0,1fr)]">
+      <AndroidEarlyMark nonce={nonce} />
       {/* Children never shrink: on a short screen the sidebar scrolls instead of squeezing its controls. */}
       <aside className="sticky top-0 hidden h-[100dvh] flex-col gap-4 overflow-y-auto border-r border-line bg-canvas-2 px-4 py-5 [scrollbar-width:none] lg:flex [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
         <div className="px-1.5">

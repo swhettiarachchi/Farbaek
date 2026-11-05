@@ -387,7 +387,7 @@ export function ProposalReview({
             </p>
           ) : null}
           {open ? (
-            <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 -mx-5 flex flex-col gap-2 border-t border-line bg-surface/95 px-5 py-3 backdrop-blur-xl sm:-mx-6 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 sm:px-6 lg:bottom-0">
+            <div className="sticky bottom-[var(--tab-bar)] z-20 -mx-5 flex flex-col gap-2 border-t border-line bg-surface/95 px-5 py-3 backdrop-blur-xl sm:-mx-6 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 sm:px-6">
               {errorLine}
               <button type="button" onClick={approve} disabled={pending || kept.length === 0 || Boolean(approveReason)} className={buttonClasses("primary", "md", "w-full justify-center sm:w-auto")}>
                 <FingerprintIcon size={16} weight="bold" aria-hidden />

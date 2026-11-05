@@ -4,18 +4,21 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PromptComposer } from "@/components/build/prompt-composer";
 import { SiteThumb } from "@/components/app/site-thumb";
+import { promptFromShare } from "@/core/agent/prompt-start";
 import { TEMPLATE_STARTERS, getStarter } from "@/content/starters";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
 import { loadAppContext } from "@/server/workspace/context";
 
 export const metadata: Metadata = { title: "New build" };
 
-type Props = { searchParams: Promise<{ resume?: string; template?: string }> };
+type Props = { searchParams: Promise<{ resume?: string; template?: string; title?: string; text?: string; url?: string }> };
 
 export default async function NewBuildPage({ searchParams }: Props) {
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
-  const { resume, template: templateId } = await searchParams;
+  const { resume, template: templateId, title, text, url } = await searchParams;
+  // Shared to Farbaek from another app (ADR 0171): a draft to read, and never sent by itself.
+  const shared = promptFromShare({ title, text, url });
   const chosen = getStarter(templateId);
   const template = chosen?.kind === "template" ? chosen : null;
   const canBuild = ctx.role !== null && CONTRIBUTOR_ROLES.includes(ctx.role);
@@ -30,6 +33,7 @@ export default async function NewBuildPage({ searchParams }: Props) {
           Describe it in your own words. Farbaek sets up the project, drafts a plan you can read in a minute, and starts the agent once you approve it.
         </p>
       </div>
+      {shared ? <p className="-mt-4 text-[15px] text-ink-2">This comes from what you shared. Nothing starts until you press Plan it.</p> : null}
       {template ? (
         <div className="grid items-center gap-4 rounded-md border border-line bg-surface p-3 shadow-e1 sm:grid-cols-[200px_minmax(0,1fr)]">
           <SiteThumb src={`/app/templates/${template.id}/thumbnail`} name={template.name} />
@@ -46,7 +50,8 @@ export default async function NewBuildPage({ searchParams }: Props) {
       <div className="aurora">
         <PromptComposer
           mode="app"
-          autoResume={resume === "1" && !template}
+          autoResume={resume === "1" && !template && !shared}
+          initial={shared ?? undefined}
           disabledReason={reason}
           template={template ? { id: template.id, name: template.name, example: template.examplePrompt ?? template.summary } : undefined}
         />

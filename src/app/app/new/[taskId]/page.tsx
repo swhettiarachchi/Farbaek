@@ -1,6 +1,7 @@
 import { ArrowLeftIcon, CheckCircleIcon, FilePlusIcon, LockSimpleIcon, PencilSimpleLineIcon, ProhibitIcon, QuestionIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ReportResult } from "@/components/tasks/report-result";
 import { notFound } from "next/navigation";
 import { CancelTaskControl } from "@/components/app/forms";
 import { ApproveBuild } from "@/components/build/approve-build";
@@ -238,6 +239,7 @@ export default async function PlanCardPage({ params }: Params) {
                 result.
               </p>
             )}
+            <ReportResult about={{ taskId: task.id }} className="mt-2" />
           </div>
         </section>
       )}

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/app/primitives";
+import { ReportResult } from "@/components/tasks/report-result";
 import { RunLive } from "@/components/build/run-live";
 import { getRun, getRunUsage, listRunEvents } from "@/server/cloud-agent/store";
 import { createSupabaseServerClient } from "@/server/supabase/server";
@@ -54,6 +55,7 @@ export default async function BuildRunPage({ params }: Params) {
         }
       />
       <RunLive initialRun={run} initialEvents={events} initialUsage={usage} preview={preview} changePending={changePending} canAnswer={canAnswer} />
+      <ReportResult about={{ taskId: run.taskId }} />
     </div>
   );
 }

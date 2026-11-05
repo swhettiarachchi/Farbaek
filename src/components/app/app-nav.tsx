@@ -215,6 +215,7 @@ export function MobileTabBar({ approvals, helpUnread = 0 }: { approvals: number;
   return (
     <nav
       aria-label="App"
+      data-tab-bar
       className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
     >
       <ul className="mx-auto grid max-w-lg grid-cols-5">

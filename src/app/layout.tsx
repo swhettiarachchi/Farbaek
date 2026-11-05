@@ -29,13 +29,15 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  // The keyboard shrinks the page, so a box pinned to the bottom stays above it (ADR 0171).
+  interactiveWidget: "resizes-content",
   colorScheme: "light",
   themeColor: "#fbfbfc",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${sans.variable} ${mono.variable}`}>
+    <html lang="en" className={`${sans.variable} ${mono.variable}`} suppressHydrationWarning>
       <body className="min-h-[100dvh] antialiased">
         <a
           href="#main"

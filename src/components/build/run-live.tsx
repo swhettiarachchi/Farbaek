@@ -442,7 +442,7 @@ export function RunLive({
       {sheet ? (
         <>
           {/* On phones the approval rises as a sheet above the tab bar; on wide screens it sits in the page. */}
-          <div className="max-lg:fixed max-lg:inset-x-0 max-lg:bottom-[calc(4rem+env(safe-area-inset-bottom))] max-lg:z-40 max-lg:px-3 max-lg:pb-3">
+          <div className="max-lg:fixed max-lg:inset-x-0 max-lg:bottom-[var(--tab-bar)] max-lg:z-40 max-lg:px-3 max-lg:pb-3">
             <ApprovalCard run={run} request={waitingOn!} onAnswered={() => setRun((r) => ({ ...r, status: "working" }))} />
           </div>
         </>
