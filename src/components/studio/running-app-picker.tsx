@@ -92,7 +92,7 @@ export function RunningAppPicker({
   if (sessions.length === 0) {
     return (
       <p className="text-sm leading-relaxed text-ink-2">
-        No sandbox session is running this project. Start one from the Sandbox page with the project&apos;s files, run the app (for example <span className="font-mono text-[13px]">npm run dev</span>), then come back to pick elements in it.
+        No sandbox session is running this project. Start one from the Sandbox page with the project&apos;s files, run the app (for example <span className="font-mono text-[0.8125rem]">npm run dev</span>), then come back to pick elements in it.
       </p>
     );
   }

@@ -168,7 +168,7 @@ export function CapsuleOpen({ destinations, disabledReason }: { destinations: De
         className={`flex min-h-36 cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-line-strong/50 bg-surface px-6 py-8 text-center transition-colors duration-150 hover:border-accent/60 has-focus-visible:outline-2 has-focus-visible:outline-accent ${reading || importing ? "pointer-events-none opacity-60" : ""}`}
       >
         <FileZipIcon size={32} className="text-accent" aria-hidden />
-        <span className="text-[15px] font-medium">{reading ? "Checking every file…" : opened ? "Choose a different Capsule" : "Choose a Capsule"}</span>
+        <span className="text-[0.9375rem] font-medium">{reading ? "Checking every file…" : opened ? "Choose a different Capsule" : "Choose a Capsule"}</span>
         <span className="text-sm text-ink-3">A .capsule.zip from Farbaek, up to {formatBytes(CAPSULE_LIMITS.maxTotalBytes).replace(" ", "\u00a0")}. It&apos;s checked here before anything is sent.</span>
         <input type="file" accept=".zip,application/zip" className="sr-only" disabled={reading || importing} onChange={(e) => void onFile(e.target.files?.[0])} />
       </label>
@@ -181,7 +181,7 @@ export function CapsuleOpen({ destinations, disabledReason }: { destinations: De
 
       {opened && !opened.ok ? (
         <div role="alert" className="grid gap-3 rounded-sm border border-failed/30 bg-failed/[0.04] px-4 py-4">
-          <p className="flex items-start gap-2 text-[15px] font-medium text-failed">
+          <p className="flex items-start gap-2 text-[0.9375rem] font-medium text-failed">
             <XCircleIcon size={18} weight="bold" className="mt-0.5 shrink-0" aria-hidden />
             This Capsule didn&apos;t pass its checks, so it can&apos;t be opened.
           </p>
@@ -334,7 +334,7 @@ export function CapsuleOpen({ destinations, disabledReason }: { destinations: De
 
           {result?.status === "done" ? (
             <div role="status" className="grid gap-2 rounded-sm border border-verified/30 bg-verified/[0.05] px-4 py-4">
-              <p className="flex items-start gap-2 text-[15px]">
+              <p className="flex items-start gap-2 text-[0.9375rem]">
                 <CheckCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
                 <span>
                   <span className="font-medium">Imported.</span> {plural(result.written, "file", "files")} written
@@ -380,7 +380,7 @@ function Report({ opened }: { opened: Extract<OpenedCapsule, { ok: true }> }) {
     <div className="grid gap-5 sm:grid-cols-[132px_minmax(0,1fr)] sm:items-start">
       <ProofPackSeal hash={digest} caption="Capsule verified" hashText={blake3Short(digest)} size={132} idSuffix="-open" className="size-[132px] justify-self-center sm:justify-self-start" />
       <div className="grid min-w-0 gap-3">
-        <p className="flex items-start gap-2 text-[15px]">
+        <p className="flex items-start gap-2 text-[0.9375rem]">
           <CheckCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
           <span>
             <span className="font-medium">Every file matches its hash.</span> {plural(manifest.totals.files, "file", "files")}, {formatBytes(manifest.totals.bytes)}, all text. Nothing in a Capsule runs or installs.

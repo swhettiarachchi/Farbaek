@@ -104,10 +104,10 @@ export function ProofThread({ stages, label }: { stages: ThreadStage[]; label: s
             <div className="min-w-0 pb-8 lg:pb-0 lg:pr-4 lg:pt-5">
               {/* Side by side when stacked; label over status in the six-column row, so narrow columns never overlap. */}
               <p className="flex flex-wrap items-baseline gap-x-2 lg:flex-col lg:items-start lg:gap-0.5">
-                <span className="text-[17px] font-medium">{stage.label}</span>
-                <span className="text-[13px] text-ink-3">{sentence(stage.statusText ?? STATUS_TEXT[stage.status])}</span>
+                <span className="text-[1.0625rem] font-medium">{stage.label}</span>
+                <span className="text-[0.8125rem] text-ink-3">{sentence(stage.statusText ?? STATUS_TEXT[stage.status])}</span>
               </p>
-              <p className="mt-1.5 text-[15px] leading-relaxed text-ink-2">{stage.body}</p>
+              <p className="mt-1.5 text-[0.9375rem] leading-relaxed text-ink-2">{stage.body}</p>
             </div>
           </motion.li>
         );

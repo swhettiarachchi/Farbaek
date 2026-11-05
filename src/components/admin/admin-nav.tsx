@@ -27,7 +27,7 @@ export function AdminNav({ layout }: { layout: "column" | "row" }) {
                 href={item.href}
                 transitionTypes={PAGE_NAV}
                 aria-current={active ? "page" : undefined}
-                className={`flex items-center gap-2.5 rounded-full text-[14.5px] transition-colors duration-150 ${layout === "column" ? "h-10 px-3.5" : "h-11 px-4"} ${
+                className={`flex items-center gap-2.5 rounded-full text-[0.90625rem] transition-colors duration-150 ${layout === "column" ? "h-10 px-3.5" : "h-11 px-4"} ${
                   active ? "bg-surface font-medium text-ink shadow-e1" : "text-ink-2 hover:bg-surface/70 hover:text-ink"
                 }`}
               >

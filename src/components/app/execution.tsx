@@ -19,7 +19,7 @@ export function ChecksList({ checks, mode }: { checks: string[]; mode: Execution
   if (checks.length === 0) {
     return (
       <p className="text-sm text-ink-2">
-        The plan lists no checks, so nothing can confirm the change. Add checks such as <code className="font-mono text-[13px]">pnpm test</code> to the plan.
+        The plan lists no checks, so nothing can confirm the change. Add checks such as <code className="font-mono text-[0.8125rem]">pnpm test</code> to the plan.
       </p>
     );
   }
@@ -28,7 +28,7 @@ export function ChecksList({ checks, mode }: { checks: string[]; mode: Execution
       {checks.map((c) => (
         <li key={c} className="flex items-center gap-3 rounded-sm border border-line px-3 py-2">
           <MinusCircleIcon size={18} className="shrink-0 text-unverified" aria-hidden />
-          <code className="min-w-0 flex-1 truncate font-mono text-[13px]">{c}</code>
+          <code className="min-w-0 flex-1 truncate font-mono text-[0.8125rem]">{c}</code>
           <span className="shrink-0 text-xs text-ink-3">{mode.mode === "review_only" ? "Not run" : "Waiting to run"}</span>
         </li>
       ))}

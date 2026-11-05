@@ -111,8 +111,8 @@ export function Showroom() {
                   transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 300, damping: 30 }}
                 />
               ) : null}
-              <span className="hidden text-[12.5px] text-ink-3 lg:block">{c.category}</span>
-              <span className="font-medium lg:mt-0.5 lg:text-[17px] lg:tracking-[-0.01em]">{c.name}</span>
+              <span className="hidden text-[0.78125rem] text-ink-3 lg:block">{c.category}</span>
+              <span className="font-medium lg:mt-0.5 lg:text-[1.0625rem] lg:tracking-[-0.01em]">{c.name}</span>
             </button>
           );
         })}
@@ -187,9 +187,9 @@ export function Showroom() {
                 {concept.category} · {concept.kind}
               </p>
               <h3 className="mt-1 text-[1.6rem] font-medium leading-tight tracking-[-0.03em]">{concept.name}</h3>
-              <p className="mt-2 max-w-[46ch] text-[15px] leading-relaxed text-ink-2">{concept.line}</p>
+              <p className="mt-2 max-w-[46ch] text-[0.9375rem] leading-relaxed text-ink-2">{concept.line}</p>
               <p className="mt-4 text-sm text-ink-3">It starts with a sentence:</p>
-              <p className="mt-1.5 max-w-[52ch] rounded-sm border border-line bg-surface px-4 py-3 text-[15px] leading-relaxed text-ink">&ldquo;{concept.prompt}&rdquo;</p>
+              <p className="mt-1.5 max-w-[52ch] rounded-sm border border-line bg-surface px-4 py-3 text-[0.9375rem] leading-relaxed text-ink">&ldquo;{concept.prompt}&rdquo;</p>
               <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
                 <button
                   type="button"
@@ -204,9 +204,9 @@ export function Showroom() {
               </div>
             </div>
 
-            <dl className="grid content-start gap-4 border-t border-line pt-4 text-[14.5px] lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+            <dl className="grid content-start gap-4 border-t border-line pt-4 text-[0.90625rem] lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
               <div>
-                <dt className="text-[13px] font-medium text-ink-3">Palette</dt>
+                <dt className="text-[0.8125rem] font-medium text-ink-3">Palette</dt>
                 <dd className="mt-2 flex flex-wrap gap-2">
                   {concept.palette.map((p) => (
                     <span key={p.hex} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface py-1 pl-1 pr-2.5 text-xs text-ink-2">
@@ -218,15 +218,15 @@ export function Showroom() {
                 </dd>
               </div>
               <div>
-                <dt className="text-[13px] font-medium text-ink-3">Type</dt>
+                <dt className="text-[0.8125rem] font-medium text-ink-3">Type</dt>
                 <dd className="mt-1 text-ink-2">{concept.type}</dd>
               </div>
               <div>
-                <dt className="text-[13px] font-medium text-ink-3">Signature</dt>
+                <dt className="text-[0.8125rem] font-medium text-ink-3">Signature</dt>
                 <dd className="mt-1 text-ink-2">{concept.signature}</dd>
               </div>
               <div>
-                <dt className="text-[13px] font-medium text-ink-3">Skills it would use</dt>
+                <dt className="text-[0.8125rem] font-medium text-ink-3">Skills it would use</dt>
                 <dd className="mt-2 flex flex-wrap gap-1.5">
                   {concept.skills.map((s) => (
                     <span key={s} className="rounded-full bg-accent/[0.08] px-2.5 py-1 text-xs font-medium text-accent">

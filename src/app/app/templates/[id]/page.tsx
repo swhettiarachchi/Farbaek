@@ -40,7 +40,7 @@ export default async function TemplatePage({ params }: Params) {
         <StaticPreview versions={[{ id: "template", label: "Sample content", files }]} />
       </section>
       <p className="text-sm text-ink-2">
-        Files: <span className="font-mono text-[13px]">{t.files.map((f) => f.path).join(", ")}</span>
+        Files: <span className="font-mono text-[0.8125rem]">{t.files.map((f) => f.path).join(", ")}</span>
       </p>
     </div>
   );

@@ -137,7 +137,7 @@ export function AutonomySettings({
               className="mt-1 size-4 accent-[var(--color-accent)]"
             />
             <span className="grid gap-0.5">
-              <span className="flex flex-wrap items-center gap-2 text-[15px] font-medium">
+              <span className="flex flex-wrap items-center gap-2 text-[0.9375rem] font-medium">
                 {o.title}
                 {o.value === "shadow" ? (
                   <span className="inline-flex h-5 items-center gap-1 rounded-full border border-simulated/40 px-2 text-xs font-medium text-simulated">
@@ -154,7 +154,7 @@ export function AutonomySettings({
         <div className="flex items-start gap-3 rounded-sm border border-line px-4 py-3">
           <FlowArrowIcon size={16} className="mt-1 shrink-0 text-ink-3" aria-hidden />
           <span className="grid gap-0.5">
-            <span className="text-[15px] font-medium">Level 4: Workflows</span>
+            <span className="text-[0.9375rem] font-medium">Level 4: Workflows</span>
             <span className="text-sm text-ink-2">The agent carries out an approved plan of several steps in order, stopping for a person at checkpoints and whenever a change needs review.</span>
             <Link href="/app/workflows" className="inline-flex min-h-11 items-center text-sm font-medium text-accent hover:underline">
               Open Workflows

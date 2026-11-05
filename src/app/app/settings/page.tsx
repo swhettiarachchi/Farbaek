@@ -219,7 +219,7 @@ export default async function SettingsPage() {
                     {m.userId === ctx.user.id ? ctx.user.email.slice(0, 1).toUpperCase() : "·"}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[15px]">{m.userId === ctx.user.id ? `${ctx.user.email} (you)` : (emailOf.get(m.userId) ?? "Teammate")}</span>
+                    <span className="block truncate text-[0.9375rem]">{m.userId === ctx.user.id ? `${ctx.user.email} (you)` : (emailOf.get(m.userId) ?? "Teammate")}</span>
                     <span className="block text-xs text-ink-3">
                       Joined <RelativeTime iso={m.joinedAt} />
                     </span>
@@ -264,7 +264,7 @@ export default async function SettingsPage() {
                     {open.map((i) => (
                       <li key={i.id} className="flex flex-wrap items-center gap-3 py-3">
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[15px]">{i.email}</span>
+                          <span className="block truncate text-[0.9375rem]">{i.email}</span>
                           <span className="block text-xs text-ink-3">
                             {ROLE_LABEL[i.role]}, expires <RelativeTime iso={i.expiresAt} />
                           </span>

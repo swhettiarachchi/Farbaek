@@ -378,7 +378,7 @@ export function VisualEditor({
     return (
       <div className="grid gap-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="flex items-center gap-2 text-[15px] font-medium">
+          <p className="flex items-center gap-2 text-[0.9375rem] font-medium">
             <GitDiffIcon size={20} className="text-accent" aria-hidden /> Review the change to {changedPaths.length === 1 ? "1 file" : `${changedPaths.length} files`}
           </p>
           <button type="button" onClick={() => setMode("design")} className={buttonClasses("ghost", "sm")}>
@@ -765,7 +765,7 @@ function Inspector({
   return (
     <div className="grid gap-4">
       <div>
-        <p className="flex flex-wrap items-center gap-2 text-[15px] font-medium">
+        <p className="flex flex-wrap items-center gap-2 text-[0.9375rem] font-medium">
           {scene !== null ? "3D scene" : tagLabel(el.tag)}
           {attrValue(el, "data-farbaek-media") ? <span className="font-mono text-xs font-normal text-ink-3">{attrValue(el, "data-farbaek-media")}</span> : null}
           {!isMedia && hasAttr(el, "data-farbaek-placeholder") ? <PlaceholderChip /> : null}

@@ -130,7 +130,7 @@ export default async function BuildPage() {
             {ready.map((t) => (
               <li key={t.id} className="grid gap-4 rounded-md border border-line bg-surface p-5 shadow-e1">
                 <div className="min-w-0">
-                  <Link href={`/app/tasks/${t.id}`} className="-my-3 inline-flex min-h-11 items-center text-[15px] font-medium hover:underline">
+                  <Link href={`/app/tasks/${t.id}`} className="-my-3 inline-flex min-h-11 items-center text-[0.9375rem] font-medium hover:underline">
                     {t.title}
                   </Link>
                   <p className="mt-1 text-sm text-ink-3">Plan approved. Waiting for a change.</p>
@@ -154,7 +154,7 @@ export default async function BuildPage() {
               <li key={r.id}>
                 <Link href={`/app/build/${r.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-4 hover:bg-canvas-2 sm:px-5">
                   <span className="min-w-0 flex-1">
-                    <span className="line-clamp-2 text-[15px] font-medium">{r.taskTitle}</span>
+                    <span className="line-clamp-2 text-[0.9375rem] font-medium">{r.taskTitle}</span>
                     <span className="block text-xs text-ink-3">
                       {r.projectName}, {EFFORT_LABELS[r.effort].title.toLowerCase()} effort. Started <LocalTime iso={r.startedAt} />
                     </span>

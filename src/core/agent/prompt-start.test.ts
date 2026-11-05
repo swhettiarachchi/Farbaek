@@ -17,6 +17,7 @@ describe("promptFromShare", () => {
     expect(promptFromShare({ text: "A site like this for my bakery" })).toBe("A site like this for my bakery");
     expect(promptFromShare({ title: "Sweet Crumbs", url: "https://sweetcrumbs.example" })).toBe("Sweet Crumbs\nhttps://sweetcrumbs.example");
     expect(promptFromShare({ title: "Ignored", text: "Look at https://a.example please", url: "https://a.example" })).toBe("Look at https://a.example please");
+    expect(promptFromShare({ title: "Sweet Crumbs", text: "https://sweetcrumbs.example" })).toBe("Sweet Crumbs\nhttps://sweetcrumbs.example");
   });
 
   it("is null when there's nothing to use, and keeps within the limit", () => {

@@ -17,7 +17,7 @@ export default async function NewBuildPage({ searchParams }: Props) {
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
   const { resume, template: templateId, title, text, url } = await searchParams;
-  // Shared to Farbaek from another app (ADR 0171): a draft to read, and never sent by itself.
+  // Shared to Farbaek from another app (ADR 0171): the build box shows it as a draft, and this says where it came from.
   const shared = promptFromShare({ title, text, url });
   const chosen = getStarter(templateId);
   const template = chosen?.kind === "template" ? chosen : null;
@@ -29,17 +29,17 @@ export default async function NewBuildPage({ searchParams }: Props) {
     <div className="mx-auto grid w-full max-w-3xl gap-10 pt-2 sm:pt-8">
       <div className="grid gap-3">
         <h1 className="text-balance text-[2.2rem] font-medium leading-[1.05] tracking-[-0.035em] sm:text-5xl">What do you want to build?</h1>
-        <p className="max-w-[56ch] text-[15px] leading-relaxed text-ink-2">
+        <p className="max-w-[56ch] text-[0.9375rem] leading-relaxed text-ink-2">
           Describe it in your own words. Farbaek sets up the project, drafts a plan you can read in a minute, and starts the agent once you approve it.
         </p>
       </div>
-      {shared ? <p className="-mt-4 text-[15px] text-ink-2">This comes from what you shared. Nothing starts until you press Plan it.</p> : null}
+      {shared ? <p className="-mt-4 text-[0.9375rem] text-ink-2">This comes from what you shared. Nothing starts until you press Plan it.</p> : null}
       {template ? (
         <div className="grid items-center gap-4 rounded-md border border-line bg-surface p-3 shadow-e1 sm:grid-cols-[200px_minmax(0,1fr)]">
           <SiteThumb src={`/app/templates/${template.id}/thumbnail`} name={template.name} />
           <div className="grid gap-1 px-1">
-            <p className="text-[13px] font-medium text-ink-3">Template</p>
-            <p className="text-[17px] font-medium">{template.name}</p>
+            <p className="text-[0.8125rem] font-medium text-ink-3">Template</p>
+            <p className="text-[1.0625rem] font-medium">{template.name}</p>
             <p className="text-sm text-ink-2">{template.summary} Its content is sample text the agent replaces.</p>
             <Link href="/app/templates" className="mt-1 inline-flex min-h-11 w-fit items-center text-sm font-medium text-accent hover:underline">
               Choose another template
@@ -50,8 +50,7 @@ export default async function NewBuildPage({ searchParams }: Props) {
       <div className="aurora">
         <PromptComposer
           mode="app"
-          autoResume={resume === "1" && !template && !shared}
-          initial={shared ?? undefined}
+          autoResume={resume === "1" && !template}
           disabledReason={reason}
           template={template ? { id: template.id, name: template.name, example: template.examplePrompt ?? template.summary } : undefined}
         />

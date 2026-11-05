@@ -15,6 +15,7 @@
 //   pnpm qa:responsive                       every route, every width
 //   pnpm qa:responsive --widths=320,375 --routes=/,/pricing
 //   pnpm qa:responsive --shots=<folder>      also save a screenshot of each
+//   pnpm qa:responsive --text-scale=2        as Android's text size at 200% (ADR 0171)
 //
 // It writes a JSON report (--out, default the system temp folder) and exits 1
 // when a page scrolls sideways, has a crowded scroll frame or logs an error. These are emulated screens;
@@ -30,6 +31,8 @@ const BASE = flag("base") ?? "http://localhost:3000";
 const WIDTHS = (flag("widths") ?? "320,360,375,390,414,430,600,768,1024,1280,1440").split(",").map(Number);
 const SHOTS = flag("shots");
 const OUT = flag("out") ?? join(tmpdir(), `farbaek-responsive-${Date.now()}.json`);
+// The browser's default font size, which rem, em and rem-based media queries all follow.
+const TEXT_SCALE = Number(flag("text-scale") ?? 1);
 
 /** Routes with fixed paths. Dynamic ones are found from their list pages (DISCOVER). */
 const STATIC_ROUTES = [
@@ -156,7 +159,11 @@ function inspect(touch) {
   return { scrollWidth: document.documentElement.scrollWidth, viewport: vw, cut: cut.slice(0, 15), cutCount: cut.length, small: small.slice(0, 15), smallCount: small.length, crowded: crowded.slice(0, 5), crowdedCount: crowded.length };
 }
 
-const browser = await chromium.launch({ executablePath: chromePath(), headless: true });
+const browser = await chromium.launch({
+  executablePath: chromePath(),
+  headless: true,
+  args: TEXT_SCALE === 1 ? [] : [`--blink-settings=defaultFontSize=${Math.round(16 * TEXT_SCALE)}`],
+});
 const report = { base: BASE, ranAt: new Date().toISOString(), widths: WIDTHS, pages: [] };
 
 try {

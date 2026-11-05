@@ -62,7 +62,7 @@ export function ProjectSkills({ projectId, skills, disabledReason }: { projectId
                 <div className="flex flex-wrap items-start gap-3">
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-2">
-                      <span className="text-[15px] font-medium">{s.name}</span>
+                      <span className="text-[0.9375rem] font-medium">{s.name}</span>
                       <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs ${status.cls}`}>
                         <status.Icon size={13} weight="bold" aria-hidden /> {SKILL_PIN_LABELS[s.status]}
                       </span>

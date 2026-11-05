@@ -72,7 +72,7 @@ export function OfficeNav({ layout, badges = {} }: { layout: "column" | "bar"; b
                   href={item.href}
                   transitionTypes={PAGE_NAV}
                   aria-current={active ? "page" : undefined}
-                  className={`relative flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] ${active ? "font-medium text-ink" : "text-ink-3"}`}
+                  className={`relative flex min-h-14 flex-col items-center justify-center gap-1 text-[0.6875rem] ${active ? "font-medium text-ink" : "text-ink-3"}`}
                 >
                   <BarIcon
                     href={item.href}
@@ -83,7 +83,7 @@ export function OfficeNav({ layout, badges = {} }: { layout: "column" | "bar"; b
                   />
                   {item.short}
                   {item.href !== "/more" && (badges[item.href] ?? 0) > 0 ? (
-                    <span className="absolute right-[calc(50%-18px)] top-2 min-w-4 rounded-full bg-approval px-1 text-center text-[11px] font-semibold leading-4 text-surface tabular">
+                    <span className="absolute right-[calc(50%-18px)] top-2 min-w-4 rounded-full bg-approval px-1 text-center text-[0.6875rem] font-semibold leading-4 text-surface tabular">
                       {badges[item.href]}
                       <span className="sr-only"> waiting</span>
                     </span>
@@ -108,7 +108,7 @@ export function OfficeNav({ layout, badges = {} }: { layout: "column" | "bar"; b
                   href={item.href}
                   transitionTypes={PAGE_NAV}
                   aria-current={active ? "page" : undefined}
-                  className={`flex h-11 items-center gap-3 rounded-full px-3.5 text-[14.5px] transition-colors duration-150 ${
+                  className={`flex h-11 items-center gap-3 rounded-full px-3.5 text-[0.90625rem] transition-colors duration-150 ${
                     active
                       ? "bg-surface font-medium text-ink shadow-e1"
                       : "text-ink-3 hover:bg-surface/70 hover:text-ink"
@@ -123,7 +123,7 @@ export function OfficeNav({ layout, badges = {} }: { layout: "column" | "bar"; b
                   />
                   {item.label}
                   {(badges[item.href] ?? 0) > 0 ? (
-                    <span className="ml-auto min-w-5 rounded-full bg-approval px-1.5 text-center text-[11px] font-semibold leading-5 text-surface tabular">
+                    <span className="ml-auto min-w-5 rounded-full bg-approval px-1.5 text-center text-[0.6875rem] font-semibold leading-5 text-surface tabular">
                       {badges[item.href]}
                       <span className="sr-only"> waiting</span>
                     </span>

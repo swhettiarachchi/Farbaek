@@ -84,7 +84,7 @@ export function FeatureFilms({ features }: { features: Feature[] }) {
                   <FilmClip id={f.id} poster={f.poster} enabled={lg === false} />
                 </Bezel>
               </div>
-              <p className="text-[13px] font-medium text-accent">{f.label}</p>
+              <p className="text-[0.8125rem] font-medium text-accent">{f.label}</p>
               <h3
                 className={`mt-3 text-balance text-[1.75rem] font-medium leading-[1.12] tracking-[-0.03em] transition-colors duration-300 sm:text-[2rem] ${
                   current ? "text-ink" : "text-ink lg:text-ink-3"
@@ -92,7 +92,7 @@ export function FeatureFilms({ features }: { features: Feature[] }) {
               >
                 {f.title}
               </h3>
-              <ul className="mt-5 grid gap-3 text-[15px] leading-relaxed text-ink-2 sm:text-base">
+              <ul className="mt-5 grid gap-3 text-[0.9375rem] leading-relaxed text-ink-2 sm:text-base">
                 {f.points.map((p) => (
                   <li key={p} className="flex gap-3">
                     <span aria-hidden className="mt-[3px] inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">

@@ -10,7 +10,7 @@ export function TaskList({ tasks, showProject = true }: { tasks: Task[]; showPro
         <li key={t.id}>
           <Link href={`/app/tasks/${t.id}`} className="group flex flex-col gap-2 px-4 py-4 hover:bg-canvas-2 sm:flex-row sm:items-center sm:gap-4 sm:px-5">
             <span className="min-w-0 flex-1">
-              <span className="block text-[15px] font-medium group-hover:text-accent">{t.title}</span>
+              <span className="block text-[0.9375rem] font-medium group-hover:text-accent">{t.title}</span>
               <span className="mt-0.5 block text-xs text-ink-3">
                 {showProject && t.projectName ? `${t.projectName} · ` : ""}updated <RelativeTime iso={t.updatedAt} />
               </span>

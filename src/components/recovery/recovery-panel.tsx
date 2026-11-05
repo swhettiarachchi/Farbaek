@@ -111,7 +111,7 @@ export function RecoveryPanel({
                   <WarningCircleIcon size={20} weight="fill" className="mt-0.5 shrink-0 text-approval" aria-label="Left as it is" />
                 )}
                 <div className="grid min-w-0 gap-0.5">
-                  <Link href={fileHref(projectId, item.path)} className="font-mono text-[13px] font-medium break-all text-ink hover:text-accent hover:underline">
+                  <Link href={fileHref(projectId, item.path)} className="font-mono text-[0.8125rem] font-medium break-all text-ink hover:text-accent hover:underline">
                     {item.path}
                   </Link>
                   <p className="text-sm text-ink-2">{describe(item)}</p>

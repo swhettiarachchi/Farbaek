@@ -10,7 +10,7 @@ function Verdict({ summary, since, replay }: { summary: RehearsalSummary; since:
   const { verdict, total, wouldApply } = summary;
   if (verdict === "nothing_yet")
     return (
-      <p className="flex items-start gap-2 text-[15px]">
+      <p className="flex items-start gap-2 text-[0.9375rem]">
         <FlaskIcon size={18} className="mt-0.5 shrink-0 text-simulated" aria-hidden />
         {replay ? (
           <span>No changes since <LocalTime iso={since} /> to replay.</span>
@@ -23,27 +23,27 @@ function Verdict({ summary, since, replay }: { summary: RehearsalSummary; since:
     );
   if (verdict === "none_would_apply")
     return (
-      <p className="flex items-start gap-2 text-[15px]">
+      <p className="flex items-start gap-2 text-[0.9375rem]">
         <FlaskIcon size={18} className="mt-0.5 shrink-0 text-simulated" aria-hidden />
         <span>None of the {plural(total, "change", "changes")} would have applied on its own. Level 2 would have changed nothing yet.</span>
       </p>
     );
   if (verdict === "would_have_paused")
     return (
-      <p className="flex items-start gap-2 text-[15px]">
+      <p className="flex items-start gap-2 text-[0.9375rem]">
         <PauseCircleIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-failed" aria-hidden />
         <span>Level 2 would have paused itself: a change it would have applied failed its checks.</span>
       </p>
     );
   if (verdict === "people_disagreed")
     return (
-      <p className="flex items-start gap-2 text-[15px]">
+      <p className="flex items-start gap-2 text-[0.9375rem]">
         <WarningCircleIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-approval" aria-hidden />
         <span>Someone discarded a change that level 2 would have applied. Look at it before you turn level 2 on.</span>
       </p>
     );
   return (
-    <p className="flex items-start gap-2 text-[15px]">
+    <p className="flex items-start gap-2 text-[0.9375rem]">
       <CheckCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
       <span>
         Of the {plural(wouldApply, "change", "changes")} level 2 would have applied, none failed its checks and none was discarded.

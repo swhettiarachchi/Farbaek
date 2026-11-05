@@ -50,7 +50,7 @@ export function ContextReadinessCard({ passport, taskId }: { passport: ContextPa
         {[...counts.entries()].map(([status, n]) => {
           const s = FACT_LOOK[status];
           return (
-            <li key={status} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas-2 px-3 py-1 text-[13px] text-ink-2">
+            <li key={status} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas-2 px-3 py-1 text-[0.8125rem] text-ink-2">
               <s.icon size={14} className={s.tone} aria-hidden />
               {FACT_LABELS[status]}: {n}
             </li>
@@ -67,7 +67,7 @@ export function ContextReadinessCard({ passport, taskId }: { passport: ContextPa
               <s.icon size={18} className={`mt-0.5 shrink-0 ${s.tone}`} aria-hidden />
               <div className="min-w-0">
                 <p className="text-sm text-ink">{f.statement}</p>
-                <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[12px] text-ink-3">
+                <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[0.75rem] text-ink-3">
                   <span className={`font-medium ${s.tone}`}>{FACT_LABELS[f.status]}</span>
                   {refs.map((r) => (
                     <span key={r.ref} className="truncate font-mono">
@@ -81,7 +81,7 @@ export function ContextReadinessCard({ passport, taskId }: { passport: ContextPa
           );
         })}
       </ul>
-      {passport.facts.length > SHOWN ? <p className="mt-2 text-[13px] text-ink-3">{passport.facts.length - SHOWN} more in the passport download.</p> : null}
+      {passport.facts.length > SHOWN ? <p className="mt-2 text-[0.8125rem] text-ink-3">{passport.facts.length - SHOWN} more in the passport download.</p> : null}
 
       {passport.nextSteps.length ? (
         <div className="mt-5 rounded-sm border border-line bg-canvas-2 p-4">

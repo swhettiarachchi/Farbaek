@@ -37,7 +37,7 @@ export function DeleteAccount({ email, rows, disabledReason }: { email: string; 
             <li key={r.orgId} className="flex items-start gap-2.5">
               {ICON[r.outcome]}
               <span className="min-w-0">
-                <span className="block text-[15px] font-medium break-words">{r.orgName}</span>
+                <span className="block text-[0.9375rem] font-medium break-words">{r.orgName}</span>
                 <span className="block text-sm text-ink-2">{r.words}</span>
               </span>
             </li>
@@ -53,7 +53,7 @@ export function DeleteAccount({ email, rows, disabledReason }: { email: string; 
       </p>
       <form action={action} className="grid gap-3">
         <label htmlFor="delete-confirm" className="text-sm font-medium">
-          Type <span className="break-all font-mono text-[13px]">{email}</span> to confirm
+          Type <span className="break-all font-mono text-[0.8125rem]">{email}</span> to confirm
         </label>
         <input
           id="delete-confirm"

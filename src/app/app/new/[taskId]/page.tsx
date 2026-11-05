@@ -47,7 +47,7 @@ const Chips = ({ items, empty }: { items: string[]; empty: string }) =>
   items.length ? (
     <ul className="flex flex-wrap gap-1.5">
       {items.map((i) => (
-        <li key={i} className="rounded-full border border-line bg-surface px-2.5 py-0.5 font-mono text-[12.5px] text-ink-2">
+        <li key={i} className="rounded-full border border-line bg-surface px-2.5 py-0.5 font-mono text-[0.78125rem] text-ink-2">
           {i}
         </li>
       ))}
@@ -110,9 +110,9 @@ export default async function PlanCardPage({ params }: Params) {
 
       {!contract || !c ? (
         <section className="grid gap-4 rounded-lg border border-line bg-surface p-6 shadow-e2 sm:p-8">
-          <p className="text-[13px] font-medium text-ink-3">Your plan</p>
+          <p className="text-[0.8125rem] font-medium text-ink-3">Your plan</p>
           <h1 className="text-2xl font-medium tracking-[-0.02em]">{task.title}</h1>
-          <p className="text-[15px] leading-relaxed text-ink-2">
+          <p className="text-[0.9375rem] leading-relaxed text-ink-2">
             Your project <span className="font-medium text-ink">{project?.name ?? ""}</span> is ready, but there&apos;s no plan yet. The AI couldn&apos;t draft one this time.
             Open the task to draft it again or write it yourself; nothing was charged for a draft that didn&apos;t finish.
           </p>
@@ -123,7 +123,7 @@ export default async function PlanCardPage({ params }: Params) {
       ) : (
         <section aria-labelledby="plan-title" className="grid gap-6 rounded-lg border border-line bg-surface p-6 shadow-e2 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="flex flex-wrap items-baseline gap-x-2 text-[13px] text-ink-3">
+            <p className="flex flex-wrap items-baseline gap-x-2 text-[0.8125rem] text-ink-3">
               <span className="font-medium">Your plan, version {contract.version}</span>
             </p>
             {task.state === "CANCELLED" ? (
@@ -178,7 +178,7 @@ export default async function PlanCardPage({ params }: Params) {
             </Section>
             <Section title="If something goes wrong" icon={<ShieldCheckIcon size={16} weight="bold" className="text-ink-2" aria-hidden />} delay={320}>
               <p className="text-sm text-ink-2">{c.recovery}</p>
-              {c.assumptions.length ? <p className="text-[13px] text-ink-3">Assumes: {c.assumptions.join("; ")}</p> : null}
+              {c.assumptions.length ? <p className="text-[0.8125rem] text-ink-3">Assumes: {c.assumptions.join("; ")}</p> : null}
             </Section>
           </div>
 

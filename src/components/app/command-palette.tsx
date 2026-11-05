@@ -42,7 +42,7 @@ export function PaletteTrigger() {
     <button
       type="button"
       onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))}
-      className="flex h-10 w-full items-center gap-2.5 rounded-full border border-line bg-surface px-3.5 text-[13.5px] text-ink-3 shadow-e1 transition-colors duration-150 hover:text-ink"
+      className="flex h-10 w-full items-center gap-2.5 rounded-full border border-line bg-surface px-3.5 text-[0.84375rem] text-ink-3 shadow-e1 transition-colors duration-150 hover:text-ink"
     >
       <MagnifyingGlassIcon size={16} aria-hidden />
       <span className="flex-1 truncate whitespace-nowrap text-left">Search or jump to</span>
@@ -204,7 +204,7 @@ export function CommandPalette({
                   aria-selected={i === current}
                   onMouseMove={() => setActive(i)}
                   onClick={() => run(c.action)}
-                  className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-sm px-3 text-[14.5px] ${i === current ? "bg-surface-raised text-ink" : "text-ink-2"}`}
+                  className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-sm px-3 text-[0.90625rem] ${i === current ? "bg-surface-raised text-ink" : "text-ink-2"}`}
                 >
                   <c.icon size={17} weight={i === current ? "bold" : "regular"} className={c.group === "Build" ? "shrink-0 text-accent" : "shrink-0"} aria-hidden />
                   <span className="min-w-0 flex-1 truncate">{c.label}</span>

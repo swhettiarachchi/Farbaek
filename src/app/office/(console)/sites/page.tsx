@@ -56,11 +56,11 @@ export default async function OfficeSites() {
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4 sm:p-5">
                   <div className="min-w-0 flex-1">
                     {domain && s.live ? (
-                      <a href={`https://${address}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 break-all font-mono text-[15px] text-accent hover:underline">
+                      <a href={`https://${address}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 break-all font-mono text-[0.9375rem] text-accent hover:underline">
                         {address} <ArrowSquareOutIcon size={13} aria-hidden />
                       </a>
                     ) : (
-                      <p className="break-all font-mono text-[15px] text-ink">{address}</p>
+                      <p className="break-all font-mono text-[0.9375rem] text-ink">{address}</p>
                     )}
                     <p className="mt-1 text-xs text-ink-3">
                       <Link href={`/workspaces/${s.orgId}`} className="hover:text-ink hover:underline">

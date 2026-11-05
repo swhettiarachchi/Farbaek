@@ -84,7 +84,7 @@ export function ChecksPanel({
             {task.checks.length ? (
               <ul className="mt-3 grid gap-1.5">
                 {task.checks.map((c) => (
-                  <li key={c} className="rounded-sm border border-line px-3 py-2 font-mono text-[13px]">
+                  <li key={c} className="rounded-sm border border-line px-3 py-2 font-mono text-[0.8125rem]">
                     {c}
                   </li>
                 ))}
@@ -151,7 +151,7 @@ export function ChecksPanel({
               <li key={e.id} className="rounded-sm border border-failed/25 bg-failed/[0.04] px-3 py-2">
                 <p className="flex items-center gap-2 text-sm">
                   <XCircleIcon size={16} weight="bold" className="shrink-0 text-failed" aria-hidden />
-                  <code className="min-w-0 flex-1 truncate font-mono text-[13px]">{e.command}</code>
+                  <code className="min-w-0 flex-1 truncate font-mono text-[0.8125rem]">{e.command}</code>
                   <span className="shrink-0 text-xs text-failed">{e.exitCode !== null ? `exit ${e.exitCode}` : (e.failure ?? e.state)}</span>
                 </p>
                 {e.stderr ? <pre className="mt-1 max-h-24 overflow-hidden whitespace-pre-wrap break-words font-mono text-xs text-ink-2">{e.stderr.slice(-600)}</pre> : null}

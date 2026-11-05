@@ -668,7 +668,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
               <ol className="mt-4 grid gap-0">
                 <li className="relative border-l border-line pb-5 pl-5">
                   <span aria-hidden className="absolute -left-[5px] top-1.5 size-2.5 rounded-full bg-line-strong" />
-                  <p className="text-[15px]">Task received</p>
+                  <p className="text-[0.9375rem]">Task received</p>
                   <p className="text-xs text-ink-3">
                     <LocalTime iso={task.createdAt} />
                   </p>
@@ -676,7 +676,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
                 {history.map((h, i) => (
                   <li key={h.eventId} className={`relative pl-5 ${i < history.length - 1 ? "border-l border-line pb-5" : "border-l border-transparent"}`}>
                     <span aria-hidden className="absolute -left-[5px] top-1.5 size-2.5 rounded-full bg-accent" />
-                    <p className="text-[15px]">
+                    <p className="text-[0.9375rem]">
                       {TASK_STATE_LABELS[h.from]} <span className="text-ink-3">to</span> {TASK_STATE_LABELS[h.to]}
                     </p>
                     <p className="text-xs text-ink-3" title={`Event: ${h.eventType}`}>

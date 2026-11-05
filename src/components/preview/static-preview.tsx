@@ -81,7 +81,7 @@ export function StaticPreview({
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         {versions.length > 1 ? (
-          <div className="inline-flex rounded-full border border-line bg-surface p-1 shadow-e1" role="group" aria-label="Version">
+          <div className="inline-flex rounded-full border border-line bg-surface p-1 shadow-e1 max-[18em]:flex-wrap max-[18em]:rounded-md" role="group" aria-label="Version">
             {versions.map((v) => (
               <button
                 key={v.id}
@@ -95,7 +95,7 @@ export function StaticPreview({
             ))}
           </div>
         ) : (
-          <span className="text-[13px] font-medium text-ink-3">{version.label}</span>
+          <span className="text-[0.8125rem] font-medium text-ink-3">{version.label}</span>
         )}
         <div className="flex items-center gap-2">
           {pages.length > 1 ? (
@@ -110,7 +110,7 @@ export function StaticPreview({
               </select>
             </label>
           ) : null}
-          <div className="inline-flex rounded-full border border-line bg-surface p-1" role="group" aria-label="Device width">
+          <div className="inline-flex rounded-full border border-line bg-surface p-1 max-[18em]:flex-wrap max-[18em]:rounded-md" role="group" aria-label="Device width">
             {DEVICES.map((d) => (
               <button
                 key={d.id}

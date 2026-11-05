@@ -21,8 +21,9 @@ export function cleanPrompt(raw: unknown): string | null {
 export function promptFromShare(shared: { title?: unknown; text?: unknown; url?: unknown }): string | null {
   const part = (v: unknown) => (typeof v === "string" ? v.trim() : "");
   const [title, text, url] = [part(shared.title), part(shared.text), part(shared.url)];
-  // Apps differ: a page shared from a browser is a title and an address, and many put the address in the text too.
-  return cleanPrompt([text || title, text.includes(url) ? "" : url].filter(Boolean).join("\n"));
+  // Apps differ: a page shared from a browser is a title and an address, and the address may come in the text.
+  const onlyAddress = /^https?:\/\/\S+$/.test(text);
+  return cleanPrompt([onlyAddress ? title : text || title, onlyAddress ? text : text.includes(url) ? "" : url].filter(Boolean).join("\n"));
 }
 
 /** Whether an address carries something shared to Farbaek, which signing in shouldn't lose. */

@@ -45,12 +45,12 @@ export function LegalDocument({
               .
             </p>
             <div className="mt-8 rounded-md border border-line bg-surface p-5 sm:p-6">
-              <h2 className="text-[15px] font-medium">The short version</h2>
-              <div className="mt-3 text-[15px] leading-relaxed text-ink-2">{summary}</div>
+              <h2 className="text-[0.9375rem] font-medium">The short version</h2>
+              <div className="mt-3 text-[0.9375rem] leading-relaxed text-ink-2">{summary}</div>
             </div>
             <div className="lg:hidden">
               <details className="group mt-4 rounded-md border border-line bg-surface">
-                <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-5 text-[15px] font-medium [&::-webkit-details-marker]:hidden">
+                <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-5 text-[0.9375rem] font-medium [&::-webkit-details-marker]:hidden">
                   On this page
                   <CaretDownIcon size={16} className="shrink-0 text-ink-3 group-open:rotate-180 motion-safe:transition-transform motion-safe:duration-200" aria-hidden />
                 </summary>
@@ -63,10 +63,10 @@ export function LegalDocument({
               {sections.map((s, i) => (
                 <li key={s.id} id={s.id} className="scroll-mt-24">
                   <h2 className="flex items-baseline gap-3 text-[1.35rem] font-medium leading-snug tracking-[-0.02em]">
-                    <span className="tabular text-[15px] font-normal text-ink-3">{i + 1}</span>
+                    <span className="tabular text-[0.9375rem] font-normal text-ink-3">{i + 1}</span>
                     {s.title}
                   </h2>
-                  <div className="mt-3 grid gap-3 text-[15px] leading-relaxed text-ink-2">{s.body}</div>
+                  <div className="mt-3 grid gap-3 text-[0.9375rem] leading-relaxed text-ink-2">{s.body}</div>
                 </li>
               ))}
             </ol>

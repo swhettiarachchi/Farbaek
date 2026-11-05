@@ -26,7 +26,7 @@ function MutantLine({ m }: { m: Mutant }) {
   // A window around the change, so the mistake shows on a narrow screen; the full line is in the title.
   const e = mutantExcerpt(m, 14, 44);
   const row = (label: string, sign: string, line: ExcerptLine, full: string, className: string) => (
-    <span className={`min-w-0 overflow-hidden whitespace-pre ${className}`} title={full}>
+    <span className={`min-w-0 overflow-hidden whitespace-pre max-[18em]:whitespace-pre-wrap ${className}`} title={full}>
       <span className="sr-only">{label}: </span>
       <span aria-hidden>{sign} </span>
       {e.clipped ? "…" : ""}
@@ -39,12 +39,12 @@ function MutantLine({ m }: { m: Mutant }) {
   return (
     <div className="grid min-w-0 gap-1">
       <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
-        <span className="font-mono text-[12.5px] text-ink-2">
+        <span className="font-mono text-[0.78125rem] text-ink-2">
           {m.path}:{m.line}
         </span>
         <span className="text-ink-3">{MUTATION_OPERATOR_WORDS[m.operator]}</span>
       </p>
-      <div className="grid min-w-0 gap-0.5 rounded-sm border border-line bg-canvas-2 px-2.5 py-1.5 font-mono text-[12.5px] leading-relaxed">
+      <div className="grid min-w-0 gap-0.5 rounded-sm border border-line bg-canvas-2 px-2.5 py-1.5 font-mono text-[0.78125rem] leading-relaxed">
         {row("Before", "−", e.before, m.before, "text-ink-3")}
         {row("Mutant", "+", e.after, m.after, "text-ink")}
       </div>
@@ -93,7 +93,7 @@ export function MutationCard({ proposalId, taskId, planned, run, disabledReason 
 
       {done && summary ? (
         <div className="grid gap-3">
-          <p className="text-[15px] font-medium">
+          <p className="text-[0.9375rem] font-medium">
             {summary.judged > 0 ? `The tests caught ${summary.caught} of ${summary.judged} mistakes.` : "No mistake could be judged."}
             {summary.survived > 0 ? ` ${summary.survived} survived: no test noticed ${summary.survived === 1 ? "it" : "them"}.` : ""}
           </p>
@@ -108,7 +108,7 @@ export function MutationCard({ proposalId, taskId, planned, run, disabledReason 
                   <MutantLine m={m} />
                   {m.failingTest ? (
                     <p className="text-xs text-ink-3">
-                      Caught by <span className="font-mono text-[12.5px] text-ink-2">{m.failingTest}</span>
+                      Caught by <span className="font-mono text-[0.78125rem] text-ink-2">{m.failingTest}</span>
                     </p>
                   ) : null}
                 </li>
@@ -121,7 +121,7 @@ export function MutationCard({ proposalId, taskId, planned, run, disabledReason 
             </span>
             Tests ran for {duration(done.computeMs) ?? "an unknown time"} in all, {duration(done.baselineMs) ?? "unknown"} without mistakes. This covers these mutants only; it isn&apos;t a measure of overall test quality.
           </p>
-          {done.command ? <p className="break-all font-mono text-[12.5px] text-ink-3">{done.command}</p> : null}
+          {done.command ? <p className="break-all font-mono text-[0.78125rem] text-ink-3">{done.command}</p> : null}
         </div>
       ) : !running ? (
         planned.length > 0 ? (

@@ -18,7 +18,7 @@ function Frame({ children }: { children: ReactNode }) {
     <main className="mx-auto grid min-h-[100dvh] w-full max-w-[480px] content-center gap-8 px-4 py-10">
       <div className="flex items-center gap-2">
         <BrandLogo height={40} preload />
-        <span className="text-[18px] font-semibold tracking-[-0.02em]">Farbaek</span>
+        <span className="text-[1.125rem] font-semibold tracking-[-0.02em]">Farbaek</span>
       </div>
       <div className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
         <div className="rounded-md bg-surface p-6 shadow-e1">{children}</div>
@@ -44,7 +44,7 @@ export default async function ConnectPhonePage({ searchParams }: { searchParams:
       <Frame>
         <LinkBreakIcon size={28} className="text-failed" aria-hidden />
         <h1 className="mt-4 text-xl font-medium tracking-[-0.02em]">This page opens from the Farbaek app</h1>
-        <p className="mt-2 text-[15px] leading-relaxed text-ink-2">The link is missing what the app sends. Open Farbaek on your phone and tap Sign in again.</p>
+        <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink-2">The link is missing what the app sends. Open Farbaek on your phone and tap Sign in again.</p>
       </Frame>
     );
   }
@@ -54,7 +54,7 @@ export default async function ConnectPhonePage({ searchParams }: { searchParams:
     return (
       <Frame>
         <h1 className="text-xl font-medium tracking-[-0.02em]">Sign-in isn&apos;t connected here</h1>
-        <p className="mt-2 text-[15px] leading-relaxed text-ink-2">This server has no accounts, so phones can&apos;t connect to it.</p>
+        <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink-2">This server has no accounts, so phones can&apos;t connect to it.</p>
       </Frame>
     );
   }
@@ -71,14 +71,14 @@ export default async function ConnectPhonePage({ searchParams }: { searchParams:
     <Frame>
       <DeviceMobileIcon size={28} className="text-accent" aria-hidden />
       <h1 className="mt-4 text-[1.6rem] font-medium leading-tight tracking-[-0.03em]">Connect {name} to Farbaek</h1>
-      <p className="mt-2 text-[15px] leading-relaxed text-ink-2">
+      <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink-2">
         Signed in as <span className="font-medium text-ink">{email}</span>. The app signs in as you, with its own session.
       </p>
 
       <h2 className="mt-6 text-sm font-medium">The app can</h2>
       <ul className="mt-2 grid gap-2">
         {CAN.map((line) => (
-          <li key={line} className="flex gap-2.5 text-[15px] leading-snug text-ink-2">
+          <li key={line} className="flex gap-2.5 text-[0.9375rem] leading-snug text-ink-2">
             <CheckCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
             {line}
           </li>
@@ -87,7 +87,7 @@ export default async function ConnectPhonePage({ searchParams }: { searchParams:
       <h2 className="mt-5 text-sm font-medium">It can&apos;t</h2>
       <ul className="mt-2 grid gap-2">
         {CANNOT.map((line) => (
-          <li key={line} className="flex gap-2.5 text-[15px] leading-snug text-ink-2">
+          <li key={line} className="flex gap-2.5 text-[0.9375rem] leading-snug text-ink-2">
             <ProhibitIcon size={18} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
             {line}
           </li>

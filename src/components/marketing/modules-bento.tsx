@@ -31,7 +31,7 @@ function Cell({
           <CellIcon size={20} aria-hidden />
         </span>
       ) : null}
-      <h3 className={`flex flex-wrap items-center gap-2 text-[17px] font-medium tracking-[-0.01em] ${CellIcon ? "mt-4" : ""}`}>
+      <h3 className={`flex flex-wrap items-center gap-2 text-[1.0625rem] font-medium tracking-[-0.01em] ${CellIcon ? "mt-4" : ""}`}>
         {title}
         {beta ? (
           <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-line-strong/50 px-2 py-0.5 text-xs font-normal text-ink-3">
@@ -39,7 +39,7 @@ function Cell({
           </span>
         ) : null}
       </h3>
-      <p className="mt-1.5 text-[15px] leading-relaxed text-ink-2">{body}</p>
+      <p className="mt-1.5 text-[0.9375rem] leading-relaxed text-ink-2">{body}</p>
       {children}
     </li>
   );
@@ -85,7 +85,7 @@ export function ModulesBento() {
             <div aria-hidden className="dot-grid pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_bottom,transparent,black)]" />
             <ul className="relative mt-5 flex flex-wrap gap-2" aria-label="Policy outcomes">
               {POLICY_OUTCOMES.map((outcome) => (
-                <li key={outcome} className="rounded-full border border-line bg-surface px-3 py-1 text-[13px] text-ink-2 shadow-e1">
+                <li key={outcome} className="rounded-full border border-line bg-surface px-3 py-1 text-[0.8125rem] text-ink-2 shadow-e1">
                   {OUTCOME_WORDS[outcome]}
                 </li>
               ))}
@@ -100,7 +100,7 @@ export function ModulesBento() {
           />
 
           <Cell title="RealityLoop" body="Intent contracts, context readiness and outcome tracking for every task." className="bg-surface">
-            <ol className="mt-4 flex flex-wrap items-center gap-x-1 gap-y-1 text-[13px] text-ink-3" aria-label="A task's lifecycle">
+            <ol className="mt-4 flex flex-wrap items-center gap-x-1 gap-y-1 text-[0.8125rem] text-ink-3" aria-label="A task's lifecycle">
               {LIFECYCLE.map((step, i) => (
                 <li key={step} className="flex items-center gap-1">
                   {i > 0 ? <CaretRightIcon size={12} className="text-line-strong" aria-hidden /> : null}

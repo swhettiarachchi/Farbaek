@@ -18,7 +18,7 @@ const variants: Record<Variant, string> = {
 };
 
 const sizes: Record<Size, string> = {
-  md: "min-h-12 px-6 text-[15px]",
+  md: "min-h-12 px-6 text-[0.9375rem]",
   // 44px with a mouse, and 48px on touch, Google's size for primary controls (ADR 0171).
   sm: "min-h-11 px-4 text-sm pointer-coarse:min-h-12",
 };

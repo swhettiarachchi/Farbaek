@@ -10,7 +10,7 @@ export default function OfficeNotFound() {
           <CompassIcon size={24} aria-hidden />
         </span>
         <h1 className="text-2xl font-medium tracking-[-0.02em]">There&apos;s nothing at this address</h1>
-        <p className="text-[15px] text-ink-2">The page may have moved, or you may not have access to it.</p>
+        <p className="text-[0.9375rem] text-ink-2">The page may have moved, or you may not have access to it.</p>
         <Link href="/" className={buttonClasses("secondary", "sm", "mt-2")}>
           Go to the overview
         </Link>

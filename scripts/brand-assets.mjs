@@ -62,6 +62,9 @@ for (const [name, scale] of Object.entries(densities)) {
   const dir = `android/app/src/main/res/mipmap-${name}`;
   await mkdir(dir, { recursive: true });
   await icon(Math.round(48 * scale), `${dir}/ic_launcher.png`, { compressionLevel: 9 });
+  // The app's own launch (ADR 0171): the icon, 160dp, shown until Chrome paints.
+  await mkdir(`android/app/src/main/res/drawable-${name}`, { recursive: true });
+  await icon(Math.round(160 * scale), `android/app/src/main/res/drawable-${name}/splash.png`, { compressionLevel: 9 });
   const canvas = Math.round(108 * scale);
   const art = await sharp(ICON).resize(Math.round(66 * scale), Math.round(66 * scale)).png().toBuffer();
   await sharp({ create: { width: canvas, height: canvas, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })

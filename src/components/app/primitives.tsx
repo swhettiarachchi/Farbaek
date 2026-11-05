@@ -10,7 +10,7 @@ export function PageHeader({ title, description, actions }: { title: string; des
     <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
       <div className="min-w-0">
         <h1 className="text-balance text-[1.75rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2.1rem]">{title}</h1>
-        {description ? <p className="mt-2 max-w-[62ch] text-[15px] leading-relaxed text-ink-2">{description}</p> : null}
+        {description ? <p className="mt-2 max-w-[62ch] text-[0.9375rem] leading-relaxed text-ink-2">{description}</p> : null}
       </div>
       {actions ? <div className="flex min-w-0 flex-wrap gap-2 lg:justify-end">{actions}</div> : null}
     </div>
@@ -36,7 +36,7 @@ export function EmptyState({ icon: EmptyIcon, title, children, action }: { icon:
         <EmptyIcon size={24} aria-hidden />
       </span>
       <h2 className="mt-4 text-lg font-medium">{title}</h2>
-      <p className="mt-1.5 max-w-[46ch] text-[15px] leading-relaxed text-ink-2">{children}</p>
+      <p className="mt-1.5 max-w-[46ch] text-[0.9375rem] leading-relaxed text-ink-2">{children}</p>
       {action ? <div className="mt-6">{action}</div> : null}
     </div>
   );

@@ -89,7 +89,7 @@ export function ApprovalDemo() {
     <div className="grid gap-5 lg:grid-cols-[1fr_1.05fr] lg:gap-6">
       {/* Proposed action */}
       <section aria-labelledby="demo-action" className="rounded-md border border-line bg-surface p-5 shadow-e2 sm:p-6">
-        <h3 id="demo-action" className="text-[17px] font-medium">
+        <h3 id="demo-action" className="text-[1.0625rem] font-medium">
           Proposed action
         </h3>
         <p className="mt-1 text-sm text-ink-2">An agent wants to run this against the sample storefront. Edit it.</p>
@@ -107,7 +107,7 @@ export function ApprovalDemo() {
               max={500}
               value={count}
               onChange={(e) => setCount(Math.max(1, Math.min(500, Math.trunc(Number(e.target.value) || 1))))}
-              className="h-11 w-32 rounded-sm border border-line-strong bg-canvas px-3 text-base tabular"
+              className="h-11 w-32 max-w-full rounded-sm border border-line-strong bg-canvas px-3 text-base tabular"
             />
             <p className="text-xs text-ink-3">The contract allows at most {SAMPLE_CONTRACT.limits.maxRecords}.</p>
           </div>
@@ -142,8 +142,8 @@ export function ApprovalDemo() {
         </div>
 
         <div className="mt-6">
-          <p className="text-[13px] font-medium text-ink-3">Canonical payload (RFC 8785)</p>
-          <pre className="mt-2 max-h-40 overflow-auto rounded-sm bg-surface-raised px-3 py-2.5 font-mono text-[12px] leading-[1.6] text-ink-2 whitespace-pre-wrap break-all">
+          <p className="text-[0.8125rem] font-medium text-ink-3">Canonical payload (RFC 8785)</p>
+          <pre className="mt-2 max-h-40 overflow-auto rounded-sm bg-surface-raised px-3 py-2.5 font-mono text-[0.75rem] leading-[1.6] text-ink-2 whitespace-pre-wrap break-all">
             <code>{canonical}</code>
           </pre>
         </div>
@@ -152,7 +152,7 @@ export function ApprovalDemo() {
       {/* Approval */}
       <section aria-labelledby="demo-approval" className="flex flex-col rounded-md border border-line bg-surface p-5 shadow-e2 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-[13px] text-ink-3">
+          <p className="text-[0.8125rem] text-ink-3">
             Contract version {SAMPLE_VERSIONS.contractVersion}, policy version {SAMPLE_VERSIONS.policyVersion}
           </p>
           {blocked ? (
@@ -172,7 +172,7 @@ export function ApprovalDemo() {
 
         <dl className="mt-4 grid gap-1 text-sm">
           <dt className="text-ink-3">Binding hash of what you see</dt>
-          <dd className="font-mono text-[13px] break-all text-ink" aria-live="polite">
+          <dd className="font-mono text-[0.8125rem] break-all text-ink" aria-live="polite">
             {hash.status === "ready" ? hash.hash : hash.status === "pending" ? "computing…" : "unavailable"}
           </dd>
         </dl>

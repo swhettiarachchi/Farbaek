@@ -20,7 +20,7 @@ function ConnectionsStrip({ connections, deployment }: { connections: Connection
   return (
     <section aria-label="This deployment" className="rounded-md border border-line bg-surface px-4 py-3 shadow-e1">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <p className="text-[13px] font-medium text-ink-2">{deployment}</p>
+        <p className="text-[0.8125rem] font-medium text-ink-2">{deployment}</p>
         <ul className="flex flex-wrap gap-1.5">
           {connections.map((c) => (
             <li key={c.name}>
@@ -49,9 +49,9 @@ export default async function AdminLayout({ children }: Readonly<{ children: Rea
         <div className="grid gap-1 px-1.5">
           <Link href="/admin" className="flex w-fit items-center gap-2 rounded-full" aria-label="Farbaek admin console, overview">
             <BrandLogo height={30} />
-            <span className="text-[16px] font-semibold tracking-[-0.02em]">Farbaek</span>
+            <span className="text-[1rem] font-semibold tracking-[-0.02em]">Farbaek</span>
           </Link>
-          <p className="text-[13px] text-ink-3">Admin console</p>
+          <p className="text-[0.8125rem] text-ink-3">Admin console</p>
         </div>
         <AdminNav layout="column" />
         <div className="mt-auto grid gap-3 border-t border-line pt-4">
@@ -67,7 +67,7 @@ export default async function AdminLayout({ children }: Readonly<{ children: Rea
           <div className="flex items-center justify-between gap-3">
             <Link href="/admin" className="flex items-center gap-2 rounded-full" aria-label="Farbaek admin console, overview">
               <BrandLogo height={28} />
-              <span className="text-[13px] font-medium text-ink-2">Admin</span>
+              <span className="text-[0.8125rem] font-medium text-ink-2">Admin</span>
             </Link>
             <Link href="/app" className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2">
               <ArrowLeftIcon size={16} aria-hidden /> App

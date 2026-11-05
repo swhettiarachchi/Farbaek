@@ -259,22 +259,22 @@ const SECTIONS: LegalSection[] = [
         <Bullets
           items={[
             <>
-              <code className="font-mono text-[13px]">sb-…-auth-token</code>: keeps you signed in, until you sign out or the session ends.
+              <code className="font-mono text-[0.8125rem]">sb-…-auth-token</code>: keeps you signed in, until you sign out or the session ends.
             </>,
             <>
-              <code className="font-mono text-[13px]">fb_ws</code>: remembers which workspace you had open.
+              <code className="font-mono text-[0.8125rem]">fb_ws</code>: remembers which workspace you had open.
             </>,
             <>
-              <code className="font-mono text-[13px]">fb_steps</code>: remembers the workspaces where you hid the first steps.
+              <code className="font-mono text-[0.8125rem]">fb_steps</code>: remembers the workspaces where you hid the first steps.
             </>,
             <>
-              <code className="font-mono text-[13px]">__Host-fb-office</code>: Farbaek staff only, for our own console.
+              <code className="font-mono text-[0.8125rem]">__Host-fb-office</code>: Farbaek staff only, for our own console.
             </>,
             <>
-              <code className="font-mono text-[13px]">__Host-fb-device</code>: Farbaek staff only, so our console opens only on devices they&apos;ve approved.
+              <code className="font-mono text-[0.8125rem]">__Host-fb-device</code>: Farbaek staff only, so our console opens only on devices they&apos;ve approved.
             </>,
             <>
-              <code className="font-mono text-[13px]">_ga</code> and <code className="font-mono text-[13px]">_ga_…</code>: only if you allowed analytics, Google Analytics&apos; random
+              <code className="font-mono text-[0.8125rem]">_ga</code> and <code className="font-mono text-[0.8125rem]">_ga_…</code>: only if you allowed analytics, Google Analytics&apos; random
               ID for your browser, for up to 2 years. Choosing Decline deletes them.
             </>,
             <>

@@ -63,7 +63,7 @@ export function RescueImport({ disabledReason }: { disabledReason: string | null
         className={`flex min-h-36 cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-line-strong/50 bg-surface px-6 py-8 text-center transition-colors duration-150 hover:border-accent/60 has-focus-visible:outline-2 has-focus-visible:outline-accent ${disabledReason ? "pointer-events-none opacity-60" : ""}`}
       >
         <FileZipIcon size={32} className="text-accent" aria-hidden />
-        <span className="text-[15px] font-medium">{reading ? "Unpacking in your browser…" : prepared ? "Choose a different zip" : "Choose a .zip of your app"}</span>
+        <span className="text-[0.9375rem] font-medium">{reading ? "Unpacking in your browser…" : prepared ? "Choose a different zip" : "Choose a .zip of your app"}</span>
         <span className="text-sm text-ink-3">For example GitHub&apos;s &quot;Download ZIP&quot;, or an export from another builder.</span>
         <input type="file" accept=".zip,application/zip" className="sr-only" disabled={Boolean(disabledReason) || reading || pending} onChange={(e) => void onFile(e.target.files?.[0])} />
       </label>
@@ -76,7 +76,7 @@ export function RescueImport({ disabledReason }: { disabledReason: string | null
 
       {prepared ? (
         <div className="grid gap-4 rounded-md border border-line bg-surface p-5 shadow-e1 motion-safe:animate-[usage-in_220ms_cubic-bezier(0.16,1,0.3,1)_both]">
-          <p className="flex items-center gap-2 text-[15px]">
+          <p className="flex items-center gap-2 text-[0.9375rem]">
             <CheckCircleIcon size={18} weight="fill" className="text-verified" aria-hidden />
             <span>
               <span className="font-medium">{prepared.files.length.toLocaleString("en-US")} files</span> ready, {formatBytes(prepared.bytes)} of text.

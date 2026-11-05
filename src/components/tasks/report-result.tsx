@@ -8,7 +8,7 @@ import { reportHref } from "@/core/support/support";
  */
 export function ReportResult({ about, className = "" }: { about: Parameters<typeof reportHref>[0]; className?: string }) {
   return (
-    <Link href={reportHref(about)} className={`inline-flex min-h-11 w-fit items-center gap-1.5 text-[13px] text-ink-3 underline-offset-4 hover:text-ink hover:underline ${className}`}>
+    <Link href={reportHref(about)} className={`inline-flex min-h-11 w-fit items-center gap-1.5 text-[0.8125rem] text-ink-3 underline-offset-4 hover:text-ink hover:underline ${className}`}>
       <FlagIcon size={14} aria-hidden /> Report this result
     </Link>
   );

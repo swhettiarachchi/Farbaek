@@ -30,7 +30,7 @@ export function TaskModeControl({ taskId, mode, disabledReason }: { taskId: stri
 
   return (
     <div className="grid gap-2">
-      <div role="radiogroup" aria-label="Operating mode" className="inline-flex max-w-full gap-1 rounded-full border border-line bg-surface p-1">
+      <div role="radiogroup" aria-label="Operating mode" className="inline-flex max-w-full gap-1 rounded-full border border-line max-[18em]:flex-col max-[18em]:rounded-md bg-surface p-1">
         {TASK_MODES.map((m) => {
           const Icon = ICONS[m];
           const on = m === current;

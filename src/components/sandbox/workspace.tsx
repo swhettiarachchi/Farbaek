@@ -88,7 +88,7 @@ export function SandboxWorkspace(props: WorkspaceProps) {
             <h1 className="min-w-0 truncate text-[1.75rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2.1rem]">{session.name}</h1>
             <SessionStateBadge state={session.state} />
           </div>
-          <p className="mt-2 text-[15px] text-ink-2">
+          <p className="mt-2 text-[0.9375rem] text-ink-2">
             {props.labels.template}, {props.labels.size}. {props.labels.network}.{" "}
             {ended ? (
               session.endedAt ? (

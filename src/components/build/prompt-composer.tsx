@@ -4,7 +4,7 @@ import { ArrowUpIcon, CircleNotchIcon, InfoIcon, PaintBrushIcon, WarningCircleIc
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { startFromPromptAction, type PromptStartState } from "@/app/app/new/actions";
-import { PROMPT_MAX, PROMPT_MIN } from "@/core/agent/prompt-start";
+import { PROMPT_MAX, PROMPT_MIN, isSharedBuild, promptFromShare } from "@/core/agent/prompt-start";
 
 /** Where a prompt waits through sign-up. Only in this browser, never in a URL. */
 export const PROMPT_STORAGE_KEY = "farbaek.prompt";
@@ -44,6 +44,13 @@ function readStored(): string {
   }
 }
 
+/** Something shared to Farbaek from another app (ADR 0171): null when nothing was, and "" when what came can't be used. */
+function readShared(): string | null {
+  const search = new URLSearchParams(window.location.search);
+  if (!isSharedBuild(window.location.pathname, search)) return null;
+  return promptFromShare(Object.fromEntries(search)) ?? "";
+}
+
 function store(value: string) {
   try {
     if (value.trim()) window.localStorage.setItem(PROMPT_STORAGE_KEY, value);
@@ -61,7 +68,6 @@ function store(value: string) {
 export function PromptComposer({
   mode,
   autoResume = false,
-  initial,
   disabledReason = null,
   size = "large",
   projectId,
@@ -70,8 +76,6 @@ export function PromptComposer({
 }: {
   mode: "app" | "public";
   autoResume?: boolean;
-  /** A draft from elsewhere, such as text shared from another app. The person reads it and sends it; it's never sent for them. */
-  initial?: string;
   disabledReason?: string | null;
   size?: "large" | "compact";
   /** A follow-up for this project, rather than a new build. Not kept in the browser. */
@@ -87,8 +91,10 @@ export function PromptComposer({
   // A prompt kept from before sign-in shows until the person types; the server render has none.
   const stored = useSyncExternalStore(noSubscribe, readStored, () => "");
   const kept = followUp ? "" : stored;
-  const [draft, setDraft] = useState<string | null>(initial ?? null);
-  const value = draft ?? kept;
+  // A shared draft is for the person to read and send. It's never sent for them.
+  const shared = useSyncExternalStore(noSubscribe, readShared, () => null);
+  const [draft, setDraft] = useState<string | null>(null);
+  const value = draft ?? (followUp || mode !== "app" ? kept : shared || kept);
   const setValue = (next: string) => setDraft(next);
   const form = useRef<HTMLFormElement>(null);
   const box = useRef<HTMLTextAreaElement>(null);
@@ -114,10 +120,10 @@ export function PromptComposer({
 
   // After sign-in, send the kept prompt once without asking again.
   useEffect(() => {
-    if (!autoResume || initial || followUp || mode !== "app" || resumed.current || !readStored()) return;
+    if (!autoResume || readShared() !== null || followUp || mode !== "app" || resumed.current || !readStored()) return;
     resumed.current = true;
     queueMicrotask(() => form.current?.requestSubmit());
-  }, [autoResume, initial, followUp, mode]);
+  }, [autoResume, followUp, mode]);
 
   const tooShort = value.trim().length < PROMPT_MIN;
   const disabled = pending || Boolean(disabledReason);

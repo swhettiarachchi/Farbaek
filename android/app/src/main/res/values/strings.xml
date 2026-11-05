@@ -5,4 +5,6 @@
     <string name="launch_url" translatable="false">https://www.farbaek.com/app?client=android-app</string>
     <!-- The site this app may open full screen; the site names the app back in /.well-known/assetlinks.json. -->
     <string name="asset_statements" translatable="false">[{\"relation\": [\"delegate_permission/common.handle_all_urls\"], \"target\": {\"namespace\": \"web\", \"site\": \"https://www.farbaek.com\"}}]</string>
+    <!-- Where shared text goes: the same address and fields as share_target in src/app/manifest.ts. -->
+    <string name="share_target" translatable="false">{\"action\": \"https://www.farbaek.com/app/new\", \"method\": \"GET\", \"enctype\": \"application/x-www-form-urlencoded\", \"params\": {\"title\": \"title\", \"text\": \"text\", \"url\": \"url\"}}</string>
 </resources>

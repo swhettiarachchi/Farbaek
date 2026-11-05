@@ -9,7 +9,7 @@ export function CodeView({ content, label }: { content: string; label: string })
   return (
     <div className="overflow-hidden rounded-md border border-line bg-surface">
       <div className="max-h-[70vh] overflow-auto overscroll-contain" tabIndex={0} role="region" aria-label={label}>
-        <pre className="min-w-max py-3 font-mono text-[13px] leading-6 text-ink [tab-size:2]">
+        <pre className="min-w-max py-3 font-mono text-[0.8125rem] leading-6 text-ink [tab-size:2]">
           <code>
             {lines.map((line, i) => (
               <span key={i} id={`L${i + 1}`} className="flex scroll-mt-24 target:bg-accent/[0.08]">

@@ -35,7 +35,7 @@ export function SignInForm({
       <div role="status" className="rounded-md border border-line bg-surface p-6">
         <EnvelopeSimpleIcon size={28} className="text-accent" aria-hidden />
         <h2 className="mt-4 text-xl font-medium">Check your inbox</h2>
-        <p className="mt-2 text-[15px] leading-relaxed text-ink-2">
+        <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink-2">
           If <span className="font-medium text-ink">{state.email}</span> can receive mail, a sign-in link is on its way. The link works
           once and confirms your email address.
         </p>
@@ -75,7 +75,7 @@ export function SignInForm({
               </a>
             ) : null}
           </div>
-          <div className="flex items-center gap-3 text-[13px] text-ink-3" aria-hidden>
+          <div className="flex items-center gap-3 text-[0.8125rem] text-ink-3" aria-hidden>
             <span className="h-px flex-1 bg-line" />
             or with email
             <span className="h-px flex-1 bg-line" />
@@ -110,7 +110,7 @@ export function SignInForm({
           {pending ? "Sending link…" : "Email me a sign-in link"}
         </button>
       </div>
-      <p className="text-[13px] leading-relaxed text-ink-3">
+      <p className="text-[0.8125rem] leading-relaxed text-ink-3">
         By continuing, you accept the{" "}
         <Link href="/terms" className="text-ink-2 underline underline-offset-2 hover:text-ink">
           Terms of Service

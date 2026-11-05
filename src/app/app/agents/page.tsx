@@ -118,7 +118,7 @@ export default async function AgentsPage() {
                     <DesktopIcon size={20} aria-hidden />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[15px] font-medium">{a.name}</span>
+                    <span className="block truncate text-[0.9375rem] font-medium">{a.name}</span>
                     <span className="block text-xs leading-relaxed text-ink-3">
                       {PLATFORM_LABEL[a.platform]}
                       {a.appVersion ? `, app ${a.appVersion}` : ""}. Paired by {mine ? "you" : "a teammate"} <RelativeTime iso={a.createdAt} />.{" "}

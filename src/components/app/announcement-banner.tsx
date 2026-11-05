@@ -40,7 +40,7 @@ export function AnnouncementBanner({ items }: { items: Announcement[] }) {
         const incident = a.tone === "incident";
         const Icon = incident ? WarningIcon : InfoIcon;
         return (
-          <div key={a.id} className={`flex items-start gap-3 border-b px-4 py-2.5 text-[13.5px] ${incident ? "border-approval/30 bg-approval/[0.07]" : "border-info/20 bg-info/[0.05]"}`}>
+          <div key={a.id} className={`flex items-start gap-3 border-b px-4 py-2.5 text-[0.84375rem] ${incident ? "border-approval/30 bg-approval/[0.07]" : "border-info/20 bg-info/[0.05]"}`}>
             <Icon size={18} weight="bold" className={`mt-px shrink-0 ${incident ? "text-approval" : "text-info"}`} aria-hidden />
             <p className="min-w-0 flex-1 text-ink">
               <span className="font-medium">{incident ? "Incident: " : "From Farbaek: "}</span>

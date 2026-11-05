@@ -67,7 +67,7 @@ function Command({ label, value }: { label: string; value: PlanCommand | null })
       <dd className="flex min-w-0 flex-wrap items-center gap-2">
         {value ? (
           <>
-            <code className="break-all rounded-sm bg-surface-raised px-2 py-1 font-mono text-[13px] text-ink">{value.command}</code>
+            <code className="break-all rounded-sm bg-surface-raised px-2 py-1 font-mono text-[0.8125rem] text-ink">{value.command}</code>
             <span className={`text-xs ${value.source === "found" ? "text-ink-2" : "text-ink-3"}`}>{value.source === "found" ? "From the project" : "Usual default, assumed"}</span>
           </>
         ) : (
@@ -157,7 +157,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
             {live.evidence === "verified" && live.evidenceProofPack ? (
               <>
                 {" "}
-                It went live with verified evidence, ProofPack <span className="font-mono text-[13px]" title={`sha256:${live.evidenceProofPack}`}>{shortHash(live.evidenceProofPack)}</span>.
+                It went live with verified evidence, ProofPack <span className="font-mono text-[0.8125rem]" title={`sha256:${live.evidenceProofPack}`}>{shortHash(live.evidenceProofPack)}</span>.
               </>
             ) : live.evidence ? (
               <> It went live without verified evidence. The reason given: {live.overrideReason}</>
@@ -186,7 +186,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
 
       <section aria-labelledby="plan-title" className="relative overflow-hidden rounded-lg border border-line bg-surface p-6 shadow-e2 sm:p-8">
         <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-[radial-gradient(circle,var(--color-accent)_0%,transparent_70%)] opacity-[0.07]" />
-        <p className="text-[13px] font-medium text-ink-3">Launch plan</p>
+        <p className="text-[0.8125rem] font-medium text-ink-3">Launch plan</p>
         <h2 id="plan-title" className="mt-2 text-balance text-[1.7rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2.2rem]">
           {KIND_LABELS[plan.kind]}
           {sitesDestination.available ? <span className="text-ink-3">, ready for Farbaek Sites</span> : null}
@@ -297,7 +297,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
               {plan.nodeVersion ? (
                 <div className="grid gap-1.5 py-3 sm:grid-cols-[120px_minmax(0,1fr)] sm:items-center sm:gap-4">
                   <dt className="text-sm text-ink-3">Node.js</dt>
-                  <dd className="font-mono text-[13px] text-ink">{plan.nodeVersion}</dd>
+                  <dd className="font-mono text-[0.8125rem] text-ink">{plan.nodeVersion}</dd>
                 </div>
               ) : null}
             </dl>
@@ -325,9 +325,9 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
               <ul className="mt-4 divide-y divide-line">
                 {costs.map((c) => (
                   <li key={c.id} className="grid gap-1 py-3">
-                    <p className="text-[15px] font-medium text-ink">{c.title}</p>
+                    <p className="text-[0.9375rem] font-medium text-ink">{c.title}</p>
                     <p className="text-sm leading-relaxed text-ink-2">{c.detail}</p>
-                    {c.evidence ? <p className="break-all font-mono text-[12.5px] text-ink-3">{c.evidence}</p> : null}
+                    {c.evidence ? <p className="break-all font-mono text-[0.78125rem] text-ink-3">{c.evidence}</p> : null}
                   </li>
                 ))}
               </ul>
@@ -356,7 +356,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
               <ul className="mt-4 divide-y divide-line">
                 {plan.envNames.map((e) => (
                   <li key={e.name} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
-                    <code className="break-all font-mono text-[13px] text-ink">{e.name}</code>
+                    <code className="break-all font-mono text-[0.8125rem] text-ink">{e.name}</code>
                     <span className="flex items-center gap-2 text-xs text-ink-3">
                       {e.public ? (
                         <span className="inline-flex items-center gap-1 rounded-full border border-approval/40 px-2 py-0.5 font-medium text-approval">

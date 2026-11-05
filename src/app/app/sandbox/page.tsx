@@ -198,7 +198,7 @@ export default async function SandboxPage({ searchParams }: { searchParams: Prom
                 <li key={s.id}>
                   <Link href={`/app/sandbox/${s.id}`} className="block rounded-md border border-line bg-surface p-4 shadow-e1">
                     <div className="flex items-start justify-between gap-3">
-                      <span className="min-w-0 truncate text-[15px] font-medium">{s.name}</span>
+                      <span className="min-w-0 truncate text-[0.9375rem] font-medium">{s.name}</span>
                       <SessionStateBadge state={s.state} />
                     </div>
                     <p className="mt-1 text-sm text-ink-2">
@@ -286,7 +286,7 @@ export default async function SandboxPage({ searchParams }: { searchParams: Prom
                 {recent.map((e) => (
                   <li key={e.id} className="flex items-center gap-3 rounded-sm border border-line px-3 py-2">
                     <ExecutionStateBadge state={e.state} exitCode={e.exitCode} />
-                    <Link href={`/app/sandbox/${e.sessionId}`} className="min-w-0 flex-1 truncate font-mono text-[13px] hover:text-accent" title={e.command}>
+                    <Link href={`/app/sandbox/${e.sessionId}`} className="min-w-0 flex-1 truncate font-mono text-[0.8125rem] hover:text-accent" title={e.command}>
                       {e.command}
                     </Link>
                     <span className="hidden shrink-0 text-xs text-ink-3 sm:inline">{names.get(e.sessionId) ?? ""}</span>

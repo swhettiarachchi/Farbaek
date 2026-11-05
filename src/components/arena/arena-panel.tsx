@@ -73,7 +73,7 @@ export function ArenaPanel({ proposalId, taskId, checks, run, disabledReason }: 
       <LiveRefresh active={running} everyMs={3_000} />
 
       {verdict ? (
-        <p className={`flex items-start gap-2 text-[15px] font-medium ${verdict.className}`}>
+        <p className={`flex items-start gap-2 text-[0.9375rem] font-medium ${verdict.className}`}>
           <verdict.Icon size={20} weight="bold" className="mt-px shrink-0" aria-hidden />
           <span>{verdict.text}</span>
         </p>
@@ -90,7 +90,7 @@ export function ArenaPanel({ proposalId, taskId, checks, run, disabledReason }: 
           <ul className="grid divide-y divide-line rounded-sm border border-line bg-surface">
             {compared.rows.map((row, i) => (
               <li key={`${row.name}-${i}`} className="grid gap-2 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-4">
-                <span className="min-w-0 truncate font-mono text-[13px] text-ink" title={row.name}>
+                <span className="min-w-0 truncate font-mono text-[0.8125rem] text-ink" title={row.name}>
                   {row.name}
                 </span>
                 <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
@@ -115,7 +115,7 @@ export function ArenaPanel({ proposalId, taskId, checks, run, disabledReason }: 
           <p className="text-sm font-medium">Checks it runs</p>
           <ul className="flex flex-wrap gap-1.5">
             {checks.map((c) => (
-              <li key={c} className="rounded-full border border-line bg-surface px-2.5 py-0.5 font-mono text-[12.5px] text-ink-2">
+              <li key={c} className="rounded-full border border-line bg-surface px-2.5 py-0.5 font-mono text-[0.78125rem] text-ink-2">
                 {c}
               </li>
             ))}

@@ -32,7 +32,7 @@ export function AddSkillForm({ projectId, disabledReason }: { projectId: string;
           rows={8}
           placeholder={EXAMPLE}
           disabled={Boolean(disabledReason) || pending}
-          className="rounded-sm border border-line bg-surface px-3.5 py-3 font-mono text-[13px] leading-relaxed text-ink outline-none placeholder:text-ink-3 focus:border-accent/60"
+          className="rounded-sm border border-line bg-surface px-3.5 py-3 font-mono text-[0.8125rem] leading-relaxed text-ink outline-none placeholder:text-ink-3 focus:border-accent/60"
         />
       </label>
       <div className="flex flex-wrap items-center gap-3">

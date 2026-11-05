@@ -74,7 +74,7 @@ function Tree({
                 type="button"
                 style={pad}
                 onClick={() => setExpanded((s) => (s.has(e.path) ? new Set([...s].filter((p) => p !== e.path)) : new Set([...s, e.path])))}
-                className="flex min-h-9 w-full items-center gap-1.5 pr-3 text-left text-[13px] text-ink-2 hover:bg-surface-raised"
+                className="flex min-h-9 w-full items-center gap-1.5 pr-3 text-left text-[0.8125rem] text-ink-2 hover:bg-surface-raised"
               >
                 {isOpen ? <CaretDownIcon size={12} aria-hidden /> : <CaretRightIcon size={12} aria-hidden />}
                 <FolderIcon size={15} className="shrink-0 text-accent" aria-hidden />
@@ -90,7 +90,7 @@ function Tree({
               type="button"
               style={pad}
               onClick={() => onOpen(e.path)}
-              className={`flex min-h-9 w-full items-center gap-1.5 pr-3 text-left text-[13px] ${open === e.path ? "bg-accent/[0.08] font-medium text-ink" : "text-ink-2 hover:bg-surface-raised"}`}
+              className={`flex min-h-9 w-full items-center gap-1.5 pr-3 text-left text-[0.8125rem] ${open === e.path ? "bg-accent/[0.08] font-medium text-ink" : "text-ink-2 hover:bg-surface-raised"}`}
             >
               <span className="w-3" aria-hidden />
               <FileIcon size={15} className="shrink-0 text-ink-3" aria-hidden />
@@ -178,7 +178,7 @@ export function FilesPanel({ client, sessionId, canWrite, readReason }: { client
     <div className="grid min-h-[22rem] overflow-hidden rounded-md border border-line bg-surface shadow-e1 md:grid-cols-[var(--tree)_6px_minmax(0,1fr)]" style={{ ["--tree" as string]: `${width}px` }}>
       <div className="flex min-h-0 flex-col border-b border-line md:border-b-0">
         <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-2">
-          <span className="text-[13px] font-medium text-ink-3">Files</span>
+          <span className="text-[0.8125rem] font-medium text-ink-3">Files</span>
           <button type="button" onClick={() => setVersion((v) => v + 1)} className="inline-flex size-11 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised" aria-label="Refresh files">
             <ArrowClockwiseIcon size={16} aria-hidden />
           </button>
@@ -202,7 +202,7 @@ export function FilesPanel({ client, sessionId, canWrite, readReason }: { client
               value={newPath}
               onChange={(e) => setNewPath(e.target.value)}
               placeholder="src/new-file.ts"
-              className="h-10 min-w-0 flex-1 rounded-sm border border-line bg-surface px-2.5 text-base sm:text-[13px]"
+              className="h-10 min-w-0 flex-1 rounded-sm border border-line bg-surface px-2.5 text-base sm:text-[0.8125rem]"
             />
             <button type="submit" className="inline-flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised" aria-label="Create file">
               <FilePlusIcon size={18} aria-hidden />
@@ -236,7 +236,7 @@ export function FilesPanel({ client, sessionId, canWrite, readReason }: { client
       />
       <div className="flex min-h-0 min-w-0 flex-col">
         <div className="flex min-h-12 flex-wrap items-center justify-between gap-2 border-b border-line px-3 py-1.5">
-          <span className="min-w-0 truncate font-mono text-[13px] text-ink-2">
+          <span className="min-w-0 truncate font-mono text-[0.8125rem] text-ink-2">
             {open ?? "No file open"}
             {dirty ? <span className="ml-2 font-sans text-xs text-approval">Unsaved</span> : null}
           </span>

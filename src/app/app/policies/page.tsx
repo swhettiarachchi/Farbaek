@@ -60,7 +60,7 @@ export default async function PoliciesPage({ searchParams }: { searchParams: Pro
       <Card>
         <h2 className="text-lg font-medium">Built-in rules</h2>
         <p className="mt-1 text-sm leading-relaxed text-ink-2">These always apply, and no workspace rule can loosen them.</p>
-        <ul className="mt-4 grid gap-3 text-[15px] leading-relaxed">
+        <ul className="mt-4 grid gap-3 text-[0.9375rem] leading-relaxed">
           <li className="flex items-start gap-3">
             <ProhibitIcon size={18} weight="bold" className="mt-1 shrink-0 text-failed" aria-hidden />
             <span>A change that goes outside its approved plan is stopped.</span>

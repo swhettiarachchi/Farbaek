@@ -68,7 +68,7 @@ export function ComparisonTable() {
         </p>
         {GROUPS.map((group) => (
           <details key={group.title} open className="group min-w-0 rounded-md border border-line bg-surface">
-            <summary className="flex min-h-13 cursor-pointer list-none items-center justify-between px-5 py-3 text-[17px] font-medium [&::-webkit-details-marker]:hidden">
+            <summary className="flex min-h-13 cursor-pointer list-none items-center justify-between px-5 py-3 text-[1.0625rem] font-medium [&::-webkit-details-marker]:hidden">
               {group.title}
               <span className="text-sm font-normal text-ink-3 group-open:hidden">Show</span>
               <span className="hidden text-sm font-normal text-ink-3 group-open:inline">Hide</span>
@@ -84,7 +84,7 @@ export function ComparisonTable() {
                     {COMPARE_PLANS.map((plan) => (
                       <th key={plan.id} scope="col" className="min-w-26 px-3 py-3 text-center align-bottom">
                         <span className="block font-medium">{plan.name}</span>
-                        <span className="mt-0.5 block text-xs font-normal text-ink-3 tabular">{plan.pricing.kind === "paid" ? chargeLine(plan) : "$0"}</span>
+                        <span data-web-purchase className="mt-0.5 block text-xs font-normal text-ink-3 tabular">{plan.pricing.kind === "paid" ? chargeLine(plan) : "$0"}</span>
                       </th>
                     ))}
                   </tr>

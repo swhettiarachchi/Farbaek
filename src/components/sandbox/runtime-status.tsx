@@ -83,7 +83,7 @@ export function ConnectRuntimeSteps() {
           <li key={title} className="flex gap-3">
             <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent/[0.08] text-sm font-medium text-accent tabular">{i + 1}</span>
             <div>
-              <p className="text-[15px] font-medium">{title}</p>
+              <p className="text-[0.9375rem] font-medium">{title}</p>
               <p className="mt-0.5 text-sm text-ink-2">{body}</p>
             </div>
           </li>

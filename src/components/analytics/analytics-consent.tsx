@@ -134,10 +134,11 @@ function ChoiceBar({ current }: { current: AnalyticsChoice | null }) {
   return (
     <section
       aria-label="Cookies"
+      data-hide-for-keyboard
       className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-50 mx-auto max-w-3xl rounded-md bg-surface/90 p-3 shadow-e3 ring-1 ring-line backdrop-blur-md motion-safe:animate-[usage-in_260ms_cubic-bezier(0.16,1,0.3,1)_both] sm:bottom-5 sm:rounded-lg sm:py-2.5 sm:pl-5 sm:pr-2.5"
     >
       <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-5">
-        <p className="flex min-w-0 flex-1 items-start gap-2.5 text-[13px] leading-snug text-ink-2 sm:items-center sm:gap-3 sm:text-sm sm:leading-relaxed">
+        <p className="flex min-w-0 flex-1 items-start gap-2.5 text-[0.8125rem] leading-snug text-ink-2 sm:items-center sm:gap-3 sm:text-sm sm:leading-relaxed">
           <CookieIcon size={18} className="mt-px shrink-0 text-accent sm:mt-0" aria-hidden />
           <span>
             {current === "allowed"

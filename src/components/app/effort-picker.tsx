@@ -14,7 +14,7 @@ export function EffortPicker({ value, onChange, disabled = false, name = "effort
   return (
     <fieldset className="grid gap-1.5" disabled={disabled}>
       <legend className="sr-only">Effort</legend>
-      <div className="inline-flex w-full rounded-full border border-line bg-surface p-1 shadow-e1 sm:w-auto">
+      <div className="inline-flex w-full rounded-full border border-line bg-surface p-1 shadow-e1 max-[18em]:flex-col max-[18em]:rounded-md sm:w-auto">
         {EFFORTS.map((e) => (
           <label key={e} className="relative flex-1 sm:flex-none">
             <input

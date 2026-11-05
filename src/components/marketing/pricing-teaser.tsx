@@ -18,11 +18,11 @@ export function PricingTeaser() {
         <dl className="mt-12 grid gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-2 lg:grid-cols-5">
           {SELF_SERVE_PLANS.map((plan) => (
             <div key={plan.id} className="bg-surface p-5 sm:p-6">
-              <dt className="flex items-center justify-between gap-2 text-[15px] font-medium">
+              <dt className="flex items-center justify-between gap-2 text-[0.9375rem] font-medium">
                 {plan.name}
                 {plan.recommendedFor ? <span className="rounded-full bg-accent/[0.08] px-2 py-0.5 text-xs font-medium text-accent">Recommended</span> : null}
               </dt>
-              <dd className="mt-3">
+              <dd data-web-purchase className="mt-3">
                 <span className="text-3xl font-medium tracking-[-0.02em] tabular">{priceWords(plan).price}</span>
                 <span className="ml-1 text-sm text-ink-3">{priceWords(plan).per}</span>
                 {priceWords(plan).billed ? <span className="mt-1 block text-xs text-ink-3 tabular">{priceWords(plan).billed}</span> : null}
@@ -37,7 +37,7 @@ export function PricingTeaser() {
           ))}
         </dl>
 
-        <Link href="/pricing" className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-sm text-[15px] font-medium text-accent hover:underline">
+        <Link href="/pricing" className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-sm text-[0.9375rem] font-medium text-accent hover:underline">
           Compare plans <ArrowRightIcon size={16} weight="bold" aria-hidden />
         </Link>
       </Container>

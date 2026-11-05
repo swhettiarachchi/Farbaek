@@ -39,7 +39,7 @@ export function PublishForm({
       <label className="grid gap-1.5">
         <span className="text-sm font-medium">Address</span>
         <span className="flex min-w-0 items-center rounded-sm border border-line bg-surface focus-within:border-accent/60">
-          <span className="pl-3.5 font-mono text-[13px] text-ink-3">https://</span>
+          <span className="pl-3.5 font-mono text-[0.8125rem] text-ink-3">https://</span>
           <input
             name="name"
             value={name}
@@ -52,7 +52,7 @@ export function PublishForm({
             aria-describedby="site-name-help"
             className="h-11 min-w-0 flex-1 bg-transparent px-1 font-mono text-base text-ink outline-none"
           />
-          <span className="truncate pr-3.5 font-mono text-[13px] text-ink-3">.{domain}</span>
+          <span className="truncate pr-3.5 font-mono text-[0.8125rem] text-ink-3">.{domain}</span>
         </span>
         <span id="site-name-help" className={`text-xs ${problem && name ? "text-failed" : "text-ink-3"}`}>
           {problem && name ? SITE_NAME_MESSAGES[problem] : "Lowercase letters, numbers and hyphens. You can change it when you publish again."}
