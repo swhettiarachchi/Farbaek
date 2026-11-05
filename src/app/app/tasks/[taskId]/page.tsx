@@ -1,5 +1,6 @@
 import { ArrowCounterClockwiseIcon, ArrowLeftIcon, ClockCounterClockwiseIcon, GitPullRequestIcon, HammerIcon, TerminalWindowIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
+import { verifiedSeal } from "@/core/proof/verified-digest";
 import { ReportResult } from "@/components/tasks/report-result";
 import { NextStepCard } from "@/components/tasks/next-step";
 import { Disclosure } from "@/components/ui/disclosure";
@@ -316,6 +317,8 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
     canFix: fixable && !fixReason,
     canUndo: Boolean(recovery),
   });
+  // The product's own moment (ADR 0172): the Seal leads a finished task, and only from verified evidence.
+  const seal = task.state === "VERIFIED" ? await verifiedSeal(proofPacks, checkRuns) : null;
   const planFirst = !finished && (!approvedContract || task.state === "BLOCKED" || task.state === "CONTRACT_DRAFTED");
   const changeFirst = canPropose || reviewing;
   const checksFirst = showVerification && task.state === "VERIFYING";
@@ -556,7 +559,8 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
         ) : null}
       </div>
 
-      <NextStepCard step={nextStep} projectId={task.projectId} runId={liveRun?.id ?? null} />
+      {/* Keyed on the state, so a change of state plays its short entrance. A reload at the same state looks the same as ever. */}
+      <NextStepCard key={task.state} step={nextStep} projectId={task.projectId} runId={liveRun?.id ?? null} seal={seal} />
       {liveRun ? <LiveRefresh active everyMs={5_000} /> : null}
 
       {fixable ? <FixCard taskId={task.id} fix={fix} open={fixIsOpen(fix)} retryIncluded={retryIncluded} disabledReason={fixReason} error={fixError} /> : null}

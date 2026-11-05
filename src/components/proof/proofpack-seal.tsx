@@ -32,6 +32,8 @@ export function ProofPackSeal({
   const c = g.center;
   const written = hashText ?? shortHash(hash, 8, 6);
   const ringText = `${caption}  ${written}`.toUpperCase();
+  // A mono letter takes about 0.6em plus the spacing. Smaller Seals scale the words so they fit the ring, and lose none.
+  const fit = Math.min(1, (2 * Math.PI * r * 0.96) / (ringText.length * (8 * 0.6 + 1.4)));
 
   return (
     <svg
@@ -41,7 +43,8 @@ export function ProofPackSeal({
       className={`${tone === "media" ? "text-media-ink-2" : "text-seal"} ${className}`}
     >
       <defs>
-        <path id={pathId} d={`M ${c - r} ${c} a ${r} ${r} 0 1 1 ${2 * r} 0 a ${r} ${r} 0 1 1 ${-2 * r} 0`} />
+        {/* From the bottom, clockwise: the top is halfway along, so words centred there have the whole ring and lose no letters. */}
+        <path id={pathId} d={`M ${c} ${c + r} a ${r} ${r} 0 1 1 0 ${-2 * r} a ${r} ${r} 0 1 1 0 ${2 * r}`} />
       </defs>
       <g fill="none" stroke="currentColor">
         <circle className="seal-part" pathLength={1} cx={c} cy={c} r={g.outerRadius} strokeWidth={1} />
@@ -53,8 +56,8 @@ export function ProofPackSeal({
         ))}
       </g>
       <circle cx={c} cy={c} r={2.5} fill="currentColor" />
-      <text fill="currentColor" fontFamily="var(--font-mono)" fontSize={8} letterSpacing={1.4}>
-        <textPath href={`#${pathId}`} startOffset="25%" textAnchor="middle">
+      <text fill="currentColor" fontFamily="var(--font-mono)" fontSize={8 * fit} letterSpacing={1.4 * fit}>
+        <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">
           {ringText}
         </textPath>
       </text>

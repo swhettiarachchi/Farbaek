@@ -3,6 +3,7 @@
 import { RocketLaunchIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useState } from "react";
 import { publishAction, type PublishState } from "@/app/app/projects/[projectId]/publish-actions";
+import { PublishedMoment } from "@/components/publish/published-moment";
 import { buttonClasses } from "@/components/ui/button";
 import { OVERRIDE_REASON_MAX, overrideReasonProblem } from "@/core/publish/evidence";
 import { SITE_NAME_MAX, SITE_NAME_MESSAGES, siteNameProblem } from "@/core/publish/site";
@@ -18,6 +19,7 @@ export function PublishForm({
   domain,
   initialName,
   live,
+  address,
   override,
   disabledReason,
 }: {
@@ -25,6 +27,8 @@ export function PublishForm({
   domain: string;
   initialName: string;
   live: boolean;
+  /** Where the site is now, once it's published. */
+  address: string | null;
   override: boolean;
   disabledReason: string | null;
 }) {
@@ -89,6 +93,8 @@ export function PublishForm({
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
           <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {state.message}
         </p>
+      ) : state.status === "done" && live && address ? (
+        <PublishedMoment projectId={projectId} address={address} message={state.message} />
       ) : state.status === "done" && live ? (
         <p role="status" className="text-sm text-verified">
           {state.message}

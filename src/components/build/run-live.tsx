@@ -27,7 +27,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { answerBuildApprovalAction, cancelBuildRunAction, sendRunMessageAction } from "@/app/app/build/actions";
 import { buttonClasses } from "@/components/ui/button";
-import { CLOUD_RUN_MODE_LABELS, isLive } from "@/core/agent/cloud-run";
+import { CLOUD_RUN_MODE_LABELS, endedWhileWatching, isLive } from "@/core/agent/cloud-run";
 import { EFFORT_LABELS } from "@/core/agent/routing";
 import { latestActivity, runFiles, runPhase } from "@/core/agent/run-phase";
 import type { RunEventView, RunView } from "@/server/cloud-agent/store";
@@ -332,6 +332,10 @@ export function RunLive({
   const [error, setError] = useState<string | null>(null);
   const cursor = useRef(initialEvents.at(-1)?.id ?? 0);
   const live = isLive(run.status);
+  const [startedLive] = useState(() => isLive(initialRun.status));
+  // Once, when it's first seen: on a phone the result can be in a pane that isn't showing yet.
+  const [risen, setRisen] = useState(false);
+  const arrived = endedWhileWatching(startedLive, run.status) && !risen;
   const panes = usePanes();
 
   // When the run ends, load the page again so the preview can show the agent's change.
@@ -538,14 +542,20 @@ export function RunLive({
             </section>
 
             {run.outcome ? (
-              <section className="rounded-md border border-line bg-surface p-5 shadow-e1">
+              <section
+                className={`rounded-md border border-line bg-surface p-5 shadow-e1 ${arrived ? "moment-rise" : ""}`}
+                onAnimationEnd={(e) => {
+                  if (e.animationName === (run.status === "finished" ? "moment-pop" : "moment-lift")) setRisen(true);
+                }}
+              >
                 <h2 className="flex items-center gap-2 text-base font-medium">
-                  {run.status === "finished" ? <FlagCheckeredIcon size={18} weight="bold" aria-hidden /> : <ProhibitIcon size={18} weight="bold" aria-hidden />} Outcome
+                  {run.status === "finished" ? <FlagCheckeredIcon size={18} weight="bold" className={arrived ? "moment-pop" : ""} aria-hidden /> : <ProhibitIcon size={18} weight="bold" aria-hidden />}{" "}
+                  {run.status === "finished" ? "The agent finished" : "What happened"}
                 </h2>
                 <p className="mt-2 text-sm leading-relaxed text-ink-2">{run.outcome}</p>
                 {run.finish ? <p className="mt-3 text-sm leading-relaxed text-ink">{run.finish.summary}</p> : null}
                 {run.proposalId ? (
-                  <Link href={`/app/tasks/${run.taskId}#change`} className={buttonClasses("primary", "sm", "mt-4 w-full")}>
+                  <Link href={`/app/tasks/${run.taskId}#change`} className={buttonClasses("primary", "md", "mt-4 w-full")}>
                     Review and apply <ArrowRightIcon size={16} weight="bold" aria-hidden />
                   </Link>
                 ) : null}

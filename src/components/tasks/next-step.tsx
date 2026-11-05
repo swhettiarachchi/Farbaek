@@ -2,7 +2,10 @@ import { ArrowDownIcon, ArrowRightIcon, CheckCircleIcon, CircleNotchIcon, InfoIc
 import type { Icon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { buttonClasses } from "@/components/ui/button";
+import { ProofPackSeal } from "@/components/proof/proofpack-seal";
+import { SealReveal } from "@/components/proof/seal-reveal";
 import { JumpLink } from "@/components/ui/disclosure";
+import type { TaskSeal } from "@/core/proof/verified-digest";
 import type { NextStep, NextStepTarget, NextStepTone } from "@/core/realityloop/next-step";
 
 // Every tone has its own icon and word: status never relies on colour alone.
@@ -26,14 +29,20 @@ const ANCHORS: Record<Exclude<NextStepTarget, "project" | "run">, string> = {
 /**
  * The first thing on a task's page (ADR 0170): where it stands and the one
  * thing to do next, in plain words. A double-bezel panel, 28px around a 20px
- * card, so it reads as the page's main object.
+ * card, so it reads as the page's main object. On a task that's done and checked it carries the Seal, generated
+ * from the verified evidence's digest, which forms in 3D the first time (ADR 0172).
  */
-export function NextStepCard({ step, projectId, runId = null }: { step: NextStep; projectId: string; runId?: string | null }) {
+export function NextStepCard({ step, projectId, runId = null, seal = null }: { step: NextStep; projectId: string; runId?: string | null; seal?: TaskSeal | null }) {
   const tone = TONES[step.tone];
   const button = `${buttonClasses("primary", "md", "w-full justify-center sm:w-auto")} whitespace-nowrap`;
   return (
     <section aria-labelledby="next-step" className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line motion-safe:animate-[usage-in_260ms_cubic-bezier(0.16,1,0.3,1)_both]">
-      <div className="grid gap-4 rounded-md bg-surface p-5 shadow-e1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-6">
+      <div className={`grid gap-4 rounded-md bg-surface p-5 shadow-e1 sm:items-center sm:p-6 ${seal ? "sm:grid-cols-[auto_minmax(0,1fr)_auto]" : "sm:grid-cols-[minmax(0,1fr)_auto]"}`}>
+        {seal ? (
+          <SealReveal hash={seal.digest} className="justify-self-center">
+            <ProofPackSeal hash={seal.digest} caption={seal.caption} size={128} idSuffix="-next" className="block size-32" />
+          </SealReveal>
+        ) : null}
         <div className="min-w-0">
           <p className={`flex items-center gap-1.5 text-[0.8125rem] font-medium ${tone.className}`}>
             <tone.icon size={16} weight="bold" aria-hidden className={step.tone === "working" ? "motion-safe:animate-spin" : ""} /> {tone.word}

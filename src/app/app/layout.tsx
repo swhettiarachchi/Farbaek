@@ -69,7 +69,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   if (!ctx.current) {
     return (
       // Below desktop widths the build box's glow would reach past the screen's edge: clipped, as on the app's other pages.
-      <main id="main" className="mx-auto w-full max-w-3xl px-4 pb-16 pt-10 max-lg:overflow-x-clip sm:px-6 sm:pt-16">
+      <main id="main" data-signed-in className="mx-auto w-full max-w-3xl px-4 pb-16 pt-10 max-lg:overflow-x-clip sm:px-6 sm:pt-16">
         <Brand />
         <h1 className="mt-10 text-balance text-[2.1rem] font-medium leading-[1.05] tracking-[-0.035em] sm:text-5xl">What do you want to build?</h1>
         <p className="mt-3 max-w-[56ch] text-[0.9375rem] leading-relaxed text-ink-2">Describe it, and Farbaek drafts a plan for you to approve, then builds it.</p>
@@ -115,7 +115,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   const nonce = nonceFromCsp((await headers()).get("content-security-policy"));
 
   return (
-    <div className="min-h-[100dvh] bg-canvas lg:grid lg:grid-cols-[272px_minmax(0,1fr)]">
+    <div data-signed-in className="min-h-[100dvh] bg-canvas lg:grid lg:grid-cols-[272px_minmax(0,1fr)]">
       <AndroidEarlyMark nonce={nonce} />
       {/* Children never shrink: on a short screen the sidebar scrolls instead of squeezing its controls. */}
       <aside className="sticky top-0 hidden h-[100dvh] flex-col gap-4 overflow-y-auto border-r border-line bg-canvas-2 px-4 py-5 [scrollbar-width:none] lg:flex [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">

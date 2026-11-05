@@ -57,7 +57,7 @@ function Row({ meter, detailed }: { meter: UsageMeter; detailed: boolean }) {
         aria-valuenow={pct ?? 0}
         aria-valuetext={pct === null ? "Set by contract" : `${pct}% used`}
       >
-        <div className={`h-full rounded-full ${BAR[meter.state]} motion-safe:transition-[width] motion-safe:duration-500`} style={{ width: `${pct ?? 0}%` }} />
+        <div className={`h-full rounded-full ${BAR[meter.state]} motion-safe:transition-transform motion-safe:duration-[240ms] motion-safe:ease-standard`} style={{ transform: `translateX(${(pct ?? 0) - 100}%)` }} />
       </div>
       <p className="mt-1.5 text-xs text-ink-3">
         <ResetText resetsAt={meter.resetsAt} period={meter.period} />

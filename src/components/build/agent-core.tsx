@@ -95,7 +95,7 @@ export function AgentCore({ phase, activity = null, children }: { phase: CorePha
     setReady(false);
   }, []);
   const show3D = want3D && !reduce;
-  const fade = (on: boolean) => `transition-opacity duration-700 ${on ? "opacity-100" : "opacity-0"}`;
+  const fade = (on: boolean) => `transition-opacity duration-300 ${on ? "opacity-100" : "opacity-0"}`;
   const style = PHASE_STYLE[phase];
 
   return (

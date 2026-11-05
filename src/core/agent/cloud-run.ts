@@ -11,6 +11,9 @@ export type RunStatus = (typeof RUN_STATUSES)[number];
 export const LIVE_STATUSES: readonly RunStatus[] = ["starting", "working", "waiting"];
 export const isLive = (s: RunStatus) => LIVE_STATUSES.includes(s);
 
+/** A run that ended while someone watched (ADR 0172): this earns a moment, and a reload at a finished run doesn't replay it. */
+export const endedWhileWatching = (startedLive: boolean, s: RunStatus) => startedLive && !isLive(s);
+
 export const RUN_STATUS_LABELS: Record<RunStatus, string> = {
   starting: "Starting",
   working: "Working",

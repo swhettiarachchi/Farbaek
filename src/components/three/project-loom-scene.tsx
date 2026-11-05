@@ -10,7 +10,7 @@
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { FrameGovernor } from "./frame-governor";
+import { FrameGovernor, fallBackOnContextLoss } from "./frame-governor";
 import type { LoomEdge, LoomNode } from "./project-loom-layout";
 
 function Edges({ edges, solid }: { edges: readonly LoomEdge[]; solid: boolean }) {
@@ -107,6 +107,7 @@ export default function ProjectLoomScene({
 }) {
   return (
     <Canvas
+      onCreated={fallBackOnContextLoss(onSlow)}
       frameloop={running ? "always" : "never"}
       camera={{ position: [0, 6, 10.5], fov: 42 }}
       dpr={[1, 1.75]}
