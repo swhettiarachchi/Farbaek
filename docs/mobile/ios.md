@@ -115,7 +115,8 @@ Buying in the app is one tap with Face ID, in every country. Do these in order; 
 
    Order them in the group from Pro (level 1) down to Lite.
 4. **Notifications from Apple** (done by Claude, 2026-10-29; Apple now always uses Version 2). In **App Information**, under **App Store Server Notifications**, set both URLs to `https://www.farbaek.com/api/webhooks/apple` with **Version 2**.
-5. **Turn it on.** Ask Claude, or run:
+5. **Must do first: limit test purchases (ADR 0175).** A purchase in Apple's sandbox, which is what TestFlight and App Review use, is free, and today it grants a real plan. It can't simply be refused, because Apple's reviewers test purchases there. Ask Claude to limit sandbox purchases to the review account before turning this on. It's why this stays off until then.
+   **Turn it on.** Ask Claude, or run:
 
    ```bash
    ssh -i "$HOME\.ssh\farbaek_vps" farbaek@2.25.88.188 "echo APPLE_IAP=on | farbaek-set-env && farbaek-deploy --again"

@@ -10,6 +10,8 @@
  * own checks are never trusted. The agent's model steps go through the model
  * gateway (gateway.ts) and are metered from the workspace's usage.
  */
+import { CONTACT } from "@/config/contact";
+import type { LeaseNeed } from "@/core/agent/lease";
 import type { PinnedTool } from "@/core/agent/tool-pins";
 import { z } from "zod";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
@@ -37,11 +39,29 @@ export interface AgentIdentity {
   /** The paired person's role now; null once they've left the workspace. */
   role: OrgRole | null;
   name: string;
+  /** An owner or admin paused every agent in the workspace (ADR 0083). */
+  agentsPaused?: boolean;
+  /** Farbaek's staff suspended the workspace (ADR 0032). */
+  suspended?: boolean;
+  /** False when an owner or admin turned off running agents for this person (ADR 0087). */
+  mayRunAgents?: boolean;
   /** What the agent may do, where, and until when (ADR 0117). Checked on every request. */
   lease: AgentLease;
 }
 
 export { AGENT_CAPABILITIES, type AgentCapability, type AgentLease } from "@/core/agent/lease";
+
+/**
+ * The brakes (ADR 0175). The pause and a suspension stop everything an agent does, not only its changes: it can't keep
+ * spending AI or reading files. It can still say who it is, so the app can show why, and it can always be unpaired.
+ */
+export function agentStopped(agent: Pick<AgentIdentity, "agentsPaused" | "suspended" | "mayRunAgents">, need: LeaseNeed): { code: string; message: string } | null {
+  if (need === "none" || need === "unpair") return null;
+  if (agent.suspended) return { code: "WORKSPACE_SUSPENDED", message: `This workspace is suspended, so its agents can't do anything. Write to ${CONTACT.support}.` };
+  if (agent.agentsPaused) return { code: "AGENTS_PAUSED", message: "An owner or admin paused agents in this workspace. This one can't do anything until they resume them on the Problems and pause page." };
+  if (need === "model" && agent.mayRunAgents === false) return { code: "FORBIDDEN", message: "An owner or admin turned off running agents for you in this workspace." };
+  return null;
+}
 
 export const OUTSIDE_LEASE = "This agent's access doesn't cover that project. An owner, an admin or the person who paired it can widen it on the Desktop app page.";
 
@@ -172,7 +192,8 @@ export const PairBody = z.object({
 
 /** Redeems a pairing code. The token in the result is shown to the app once; only its hash is kept. */
 export async function pairAgent(store: AgentStore, body: unknown, clientKey: string): Promise<AgentResult<{ token: string; agentId: string; workspace: { id: string; name: string } }>> {
-  if (!(await store.rateLimit("agent:pair", 60, 60)) || !(await store.rateLimit(`agent:pair:${clientKey}`, 60, 10))) {
+  // One source's own limit first, so junk from it can't use up the shared limit and lock everyone else out.
+  if (!(await store.rateLimit(`agent:pair:${clientKey}`, 60, 10)) || !(await store.rateLimit("agent:pair", 60, 60))) {
     return agentFail("RATE_LIMITED", "Too many pairing attempts in the last minute. Wait a minute and try again.");
   }
   const parsed = PairBody.safeParse(body);

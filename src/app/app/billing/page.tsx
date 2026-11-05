@@ -170,6 +170,8 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                     ? "This workspace started on Free. Trials need a lasting email address, and yours is from a disposable-email service. Sign in with another address to start one."
                     : ws.trialWithheld === "address_used"
                       ? "This workspace started on Free, since your email address has already had its trial. Trials are one per address."
+                      : ws.trialWithheld === "domain_busy"
+                        ? "This workspace started on Free, because many trials started from your email's domain today. Write to Help if that's your company, and we'll sort it out."
                       : "Trials are one per person. This workspace started on Free."}
                 </p>
               )}

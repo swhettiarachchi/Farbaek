@@ -13,18 +13,28 @@
 
 export const CSP_REPORT_PATH = "/api/csp-report";
 
-export function appCsp(nonce: string, opts: { dev: boolean; https: boolean; previewDomain: string | null }): string {
+/** Cloudflare Turnstile, which only the sign-in pages load (ADR 0067). */
+const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
+
+/**
+ * The hash of the site layout's one inline script (`earlyMarkScript`, ADR 0171). That layout is static, so it can't carry a
+ * nonce, and this lets exactly that text run on the sign-in pages. A test fails if the script changes without this.
+ */
+export const EARLY_MARK_SHA256 = "v4vlSsk5ymab0cpdms4+s8jLp69jRLvdby3xOv/o3m8=";
+
+export function appCsp(nonce: string, opts: { dev: boolean; https: boolean; previewDomain: string | null; signIn?: boolean }): string {
   const preview = opts.previewDomain ? ` https://*.${opts.previewDomain}` : "";
+  const turnstile = opts.signIn ? ` ${TURNSTILE_ORIGIN}` : "";
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${opts.dev ? " 'unsafe-eval'" : ""}`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${opts.signIn ? ` 'sha256-${EARLY_MARK_SHA256}'` : ""}${opts.dev ? " 'unsafe-eval'" : ""}`,
     // Motion and React set style attributes, which nonces can't cover; previews of people's sites bring their own styles.
     "style-src 'self' 'unsafe-inline' https:",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data: https:",
     "media-src 'self' data: blob: https:",
-    `connect-src 'self'${opts.dev ? " ws: wss:" : ""}`,
-    `frame-src 'self'${preview}`,
+    `connect-src 'self'${turnstile}${opts.dev ? " ws: wss:" : ""}`,
+    `frame-src 'self'${preview}${turnstile}`,
     "worker-src 'self' blob:",
     "manifest-src 'self'",
     "object-src 'none'",
@@ -55,8 +65,14 @@ export function appCspEnforced(setting: string | undefined): boolean {
   return setting?.trim() !== "0";
 }
 
-/** The app's pages, where the policy applies. Sign-in isn't one: it loads Cloudflare Turnstile. */
+/** The app's pages, where the policy applies. */
 export const APP_CSP_PATH = /^\/(?:app|admin)(?:\/|$)/;
+
+/**
+ * Pages where people sign in or consent, which render per request so they can carry a nonce too (ADR 0175). Report-only for now,
+ * because a mistake here would stop anyone signing in.
+ */
+export const SIGN_IN_CSP_PATH = /^\/(?:sign-in|auth\/connect|invite)(?:\/|$)/;
 
 export interface CspViolation {
   directive: string;

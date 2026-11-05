@@ -6,12 +6,17 @@
  * through the same checks as any run; a refusal stops the workflow with
  * words, and nothing is retried on its own.
  */
+import { WORKFLOW_PLAN_CHANGED } from "@/core/realityloop/workflow";
 import type { WriteResult } from "@/server/workspace/use-cases";
 import type { RunPerson } from "@/server/cloud-agent/executor";
 
 export type StepResult = "verified" | "waiting" | "failed";
 
 export interface OrchestratorDeps {
+  /** Whether every step is still the plan that was approved (ADR 0092). Null when the workflow can't be read. */
+  stillAsApproved(workflowId: string, orgId: string): Promise<boolean | null>;
+  /** Stops the workflow, with the reason people will read. */
+  halt(workflowId: string, reason: string): Promise<void>;
   claimNext(workflowId: string): Promise<{ result: string; step: number | null; taskId: string | null; capUnits: number | null; approvedBy: string | null }>;
   stepResult(workflowId: string, step: number, result: StepResult, detail: string | null): Promise<void>;
   attachRun(workflowId: string, step: number, runId: string): Promise<void>;
@@ -29,6 +34,13 @@ export interface OrchestratorDeps {
  * words ("started", "busy", "checkpoint", "finished"…).
  */
 export async function advanceWorkflow(deps: OrchestratorDeps, workflow: { id: string; orgId: string }): Promise<string> {
+  // Runs act as the person who approved, so they only run what that person approved (ADR 0175).
+  const asApproved = await deps.stillAsApproved(workflow.id, workflow.orgId);
+  if (asApproved === false) {
+    await deps.halt(workflow.id, WORKFLOW_PLAN_CHANGED);
+    return "halted";
+  }
+  if (asApproved === null) return "busy";
   let started = false;
   for (let i = 0; i < 9; i++) {
     const c = await deps.claimNext(workflow.id);

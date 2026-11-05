@@ -25,7 +25,7 @@ It keeps a copy of the project for each task, prepares the change, and sends it 
 
 You choose how much it can do:
 - Review Only: reads the files and prepares a patch. No command runs and nothing on disk changes.
-- Controlled Development: edits its own copy of the project, with a checkpoint before each change. Read-only commands run; tests, builds, installs and anything risky wait for your approval.
+- Controlled Development: edits its own copy of the project, with a checkpoint before each change. Every command waits for your approval.
 
 When you hand a task to this computer from Farbaek, it lists the exact check commands first, runs them only when you choose to, and sends the results back to the task.
 

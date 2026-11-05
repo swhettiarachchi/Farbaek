@@ -157,6 +157,7 @@ export function createMemoryStore(now: () => Date, viewer: () => string | null =
         metrics: null,
         snapshotSha256: null,
         snapshotFiles: null,
+        purpose: "person",
         createdAt: iso(),
         updatedAt: iso(),
         endedAt: null,
@@ -309,6 +310,12 @@ export function createMemoryStore(now: () => Date, viewer: () => string | null =
       if (e.state !== "running") return ok({ pid: e.pid, providerSandboxId: s.providerSandboxId, alreadyFinished: true });
       e.cancelRequestedAt ??= iso();
       return ok({ pid: e.pid, providerSandboxId: s.providerSandboxId, alreadyFinished: false });
+    },
+    async reserveForVerification(sid, actor) {
+      const s = sessions.get(sid);
+      if (!s || s.createdBy !== actor || s.state !== "requested" || s.providerSandboxId) return no("NOT_FOUND");
+      s.purpose = "verification";
+      return ok(null);
     },
     async touchSession(sid, actor) {
       const s = sessions.get(sid);

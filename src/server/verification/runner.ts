@@ -8,8 +8,8 @@
  * moves the task, exactly as when a person runs the checks by hand; this
  * only records the attempt, and why it couldn't run when it couldn't.
  *
- * A cloud run that applied a change on its own checks it in its own sandbox
- * instead, before the sandbox stops (verifyInRunSession).
+ * A cloud run that applied a change on its own gets the same, and waits for
+ * the result (verifyAppliedChange).
  */
 import { templateFor } from "@/core/agent/cloud-run";
 import { checksToRun } from "@/core/realityloop/app-check";
@@ -22,7 +22,7 @@ import { codeFromDatabaseError, fail, type WriteResult } from "@/server/workspac
 import type { Notifier } from "@/server/email/notify";
 import type { VerificationStore } from "./store";
 
-export type VerificationSandbox = Pick<SandboxService, "overview" | "createSession" | "runCommand" | "runChecks" | "stopSession" | "writeFile">;
+export type VerificationSandbox = Pick<SandboxService, "overview" | "createSession" | "runCommand" | "runChecks" | "stopSession">;
 
 export interface VerificationDeps {
   store: VerificationStore;
@@ -51,6 +51,25 @@ const SETUP_SECONDS = 300;
 const RUNNING = "The checks are already running for this change.";
 
 export async function startTaskVerification(deps: VerificationDeps, person: VerifyPerson, taskId: string, trigger: VerificationTrigger): Promise<WriteResult<{ verificationId: string }>> {
+  const started = await startAttempt(deps, person, taskId, trigger);
+  if (!started.ok) return started;
+  const { id, task } = started.value;
+  void runTaskVerification(deps, person, { id, task }).catch((e) => {
+    log("error", "verification.crashed", { verification: id, error: e instanceof Error ? e.message : String(e) });
+  });
+  return { ok: true, value: { verificationId: id } };
+}
+
+/**
+ * Checks a change a cloud run just applied on its own, and waits for the result. In a fresh test space, never the one
+ * the run worked in: the agent could have changed anything there, so it can't be what proves the change (ADR 0175).
+ */
+export async function verifyAppliedChange(deps: VerificationDeps, person: VerifyPerson, taskId: string): Promise<VerificationOutcome> {
+  const started = await startAttempt(deps, person, taskId, "autonomy");
+  return started.ok ? runAttempt(deps, person, started.value) : { ok: false, reason: started.message };
+}
+
+async function startAttempt(deps: VerificationDeps, person: VerifyPerson, taskId: string, trigger: VerificationTrigger): Promise<WriteResult<{ id: string; task: { id: string; title: string; projectId: string } }>> {
   if (!CONTRIBUTOR_ROLES.includes(person.role)) return fail("FORBIDDEN", "Viewers can't run checks. Ask a member, admin or owner.");
   if ("unavailable" in deps.sandbox) return fail("INVALID_TRANSITION", deps.sandbox.unavailable);
   const task = await deps.checks.loadTask(person.orgId, taskId);
@@ -68,11 +87,7 @@ export async function startTaskVerification(deps: VerificationDeps, person: Veri
 
   const started = await deps.store.start({ orgId: person.orgId, actor: person.userId, taskId, trigger });
   if (!started.ok) return started.error.includes("VERIFICATION_RUNNING") ? fail("INVALID_TRANSITION", RUNNING) : fail(codeFromDatabaseError(started.error));
-  const id = started.value;
-  void runTaskVerification(deps, person, { id, task: { id: task.id, title: task.title, projectId: task.projectId } }).catch((e) => {
-    log("error", "verification.crashed", { verification: id, error: e instanceof Error ? e.message : String(e) });
-  });
-  return { ok: true, value: { verificationId: id } };
+  return { ok: true, value: { id: started.value, task: { id: task.id, title: task.title, projectId: task.projectId } } };
 }
 
 /** Runs a started attempt in a fresh session, then tells the person how it ended. Exported for tests; startTaskVerification runs it in the background. */
@@ -95,7 +110,7 @@ async function runAttempt(deps: VerificationDeps, person: VerifyPerson, input: {
   try {
     const files = await deps.checks.projectFiles(person.orgId, task.projectId);
     const paths = files.map((f) => f.path);
-    const manifests = files.filter((f) => f.path === "package.json");
+    const manifests = files.filter((f) => f.path === "package.json" || f.path === "pyproject.toml");
     const contents = manifests.length ? await deps.checks.fileContents(person.orgId, task.projectId, manifests) : new Map<string, string>();
     const setup = verificationSetup(paths, (p) => contents.get(p) ?? null);
 
@@ -116,6 +131,7 @@ async function runAttempt(deps: VerificationDeps, person: VerifyPerson, input: {
         include: [],
       },
       `verify:${input.id}`,
+      { verification: true },
     );
     if (!created.ok) return failed(`The test space didn't start: ${created.message}`);
     sessionId = created.value.sessionId;
@@ -123,7 +139,7 @@ async function runAttempt(deps: VerificationDeps, person: VerifyPerson, input: {
     if (!attached.ok) return failed("The test space started, but the attempt couldn't be linked to it.");
 
     if (setup) {
-      const r = await service.runCommand(actor, sessionId, { command: setup.command, timeoutSeconds: SETUP_SECONDS, kind: "setup", label: setup.label }, deps.newKey());
+      const r = await service.runCommand(actor, sessionId, { command: setup.command, timeoutSeconds: SETUP_SECONDS, kind: "setup", label: setup.label }, deps.newKey(), {}, { verification: true });
       if (!r.ok) return failed(`${setup.label} didn't run: ${r.message.replace(/[.\s]+$/, "")}. The checks didn't run.`);
       if (r.value.exitCode !== 0) {
         const how = r.value.state === "timed_out" ? "it timed out" : r.value.exitCode === null ? "it stopped" : `exit ${r.value.exitCode}`;
@@ -139,35 +155,8 @@ async function runAttempt(deps: VerificationDeps, person: VerifyPerson, input: {
   }
 }
 
-/**
- * Checks a change a cloud run just applied on its own, in the run's own
- * sandbox: exactly the applied files are written in first, so the check run
- * sees what was applied and nothing else the agent left unsynced.
- */
-export async function verifyInRunSession(
-  deps: { store: VerificationStore; service: Pick<SandboxService, "runChecks" | "writeFile">; actor: SandboxActor },
-  person: VerifyPerson,
-  input: { taskId: string; sessionId: string; files: { path: string; content: string }[] },
-): Promise<VerificationOutcome> {
-  const started = await deps.store.start({ orgId: person.orgId, actor: person.userId, taskId: input.taskId, trigger: "autonomy" });
-  if (!started.ok) return { ok: false, reason: started.error.includes("VERIFICATION_RUNNING") ? RUNNING : "The attempt couldn't be recorded." };
-  const id = started.value;
-  try {
-    const attached = await deps.store.attach({ id, actor: person.userId, sessionId: input.sessionId });
-    if (!attached.ok) return recordFailure(deps.store, person, id, "The attempt couldn't be linked to this run's test space.");
-    for (const f of input.files) {
-      const written = await deps.service.writeFile(deps.actor, input.sessionId, f.path, f.content);
-      if (!written.ok) return recordFailure(deps.store, person, id, `${f.path} couldn't be copied into the test space: ${written.message.replace(/[.\s]+$/, "")}.`);
-    }
-    return await checkAndFinish(deps.store, deps.service, deps.actor, person, id, input.sessionId);
-  } catch (e) {
-    log("error", "verification.failed", { verification: id, error: e instanceof Error ? e.message : String(e) });
-    return recordFailure(deps.store, person, id, "Something went wrong on Farbaek's side, so the checks didn't finish.");
-  }
-}
-
 async function checkAndFinish(store: VerificationStore, service: Pick<SandboxService, "runChecks">, actor: SandboxActor, person: VerifyPerson, id: string, sessionId: string): Promise<VerificationOutcome> {
-  const r = await service.runChecks(actor, sessionId, `verify:${id}`);
+  const r = await service.runChecks(actor, sessionId, `verify:${id}`, { verification: true });
   if (!r.ok) return recordFailure(store, person, id, `The checks didn't run: ${r.message.replace(/[.\s]+$/, "")}.`);
   const finished = await store.finish({ id, actor: person.userId, status: "done", receiptDigest: r.value.digest });
   if (!finished.ok) log("warn", "verification.finish_failed", { verification: id, error: finished.error });

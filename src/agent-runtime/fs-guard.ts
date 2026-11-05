@@ -23,7 +23,7 @@ import { constants, promises as fs, type BigIntStats } from "node:fs";
 import type { FileHandle } from "node:fs/promises";
 import path from "node:path";
 import { checkAgentDir, checkAgentPath } from "@/core/agent/paths";
-import { IGNORED_FOLDERS } from "@/core/workspace/files";
+import { isIgnoredFolder } from "@/core/workspace/files";
 
 export type GuardErrorCode = "INVALID_PATH" | "OUTSIDE_ROOT" | "LINK" | "NOT_FOUND" | "NOT_A_FILE" | "NOT_A_FOLDER" | "TOO_LARGE" | "BINARY" | "CHANGED";
 
@@ -297,7 +297,7 @@ export class ProjectFolder {
         const rel = dir === "" ? d.name : `${dir}/${d.name}`;
         if (!checkAgentPath(rel).ok) continue;
         if (d.isDirectory()) {
-          if (!IGNORED_FOLDERS.has(d.name)) queue.push(rel);
+          if (!isIgnoredFolder(d.name)) queue.push(rel);
         } else if (d.isFile()) {
           files.push(rel);
           if (files.length >= this.limits.maxWalkFiles) return { files: files.sort(), truncated: true };

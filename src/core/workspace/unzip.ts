@@ -76,7 +76,9 @@ export async function readZip(data: Uint8Array, options: ZipOptions): Promise<Zi
 
   const names = new TextDecoder("utf-8");
   const result: ZipResult = { entries: [], skipped: [] };
-  let total = 0;
+  // What's been unpacked, kept or not: the work is the same either way.
+  let inflated = 0;
+  const seenOffsets = new Set<number>();
   let at = cdOffset;
 
   for (let n = 0; n < count; n++) {
@@ -115,11 +117,16 @@ export async function readZip(data: Uint8Array, options: ZipOptions): Promise<Zi
       result.skipped.push({ path, reason: "corrupt" });
       continue;
     }
+    if (seenOffsets.has(local)) throw new ZipError("too_big", "This archive reuses the same data for several files, which a real one never does.");
+    seenOffsets.add(local);
     const body = data.subarray(start, start + compressed);
-    const limit = Math.min(options.maxFileBytes, maxTotal - total);
+    const limit = Math.min(options.maxFileBytes, maxTotal - inflated);
     const bytes = method === 0 ? (body.length <= limit ? body.slice() : null) : await inflateRaw(body, limit);
+    // An entry that claimed to be small and wasn't still cost this much, and only one that lied gets here.
+    if (bytes) inflated += bytes.length;
+    else if (method !== 0) inflated += limit;
     if (!bytes) {
-      if (total >= maxTotal || limit < options.maxFileBytes) throw new ZipError("too_big", "This archive unpacks to more than a rescue import reads. Zip just the app's source files.");
+      if (inflated >= maxTotal || limit < options.maxFileBytes) throw new ZipError("too_big", "This archive unpacks to more than a rescue import reads. Zip just the app's source files.");
       result.skipped.push({ path, reason: "too_large" });
       continue;
     }
@@ -127,7 +134,6 @@ export async function readZip(data: Uint8Array, options: ZipOptions): Promise<Zi
       result.skipped.push({ path, reason: "corrupt" });
       continue;
     }
-    total += bytes.length;
     result.entries.push({ path, bytes });
   }
   return result;

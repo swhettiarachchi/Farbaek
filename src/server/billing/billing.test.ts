@@ -133,6 +133,7 @@ function webhookDeps(over: Partial<WebhookDeps> & { sub?: Record<string, unknown
     },
     planForProduct: async (p) => (p === "pdt_mock_pro" ? "pro" : p === "pdt_mock_max" ? "max" : null),
     orgForSubscription: async () => null,
+    startedCheckout: async () => true,
     apply: async (orgId, _sub, state, _at, source) => {
       applied.push({ orgId, state, source });
       return "applied";
@@ -169,6 +170,43 @@ describe("POST /api/webhooks/dodo (mock deliveries)", () => {
     const { deps } = webhookDeps();
     const res = await receiveWebhook(new Request("https://x/api/webhooks/dodo", { method: "POST", headers: { "content-length": String(2 * 1024 * 1024) }, body: "{}" }), deps, () => {});
     expect(res.status).toBe(413);
+  });
+
+  describe("which workspace a subscription lands on (ADR 0175)", () => {
+    it("takes a first activation to the workspace whose owner started that checkout", async () => {
+      const asked: string[] = [];
+      const { deps, applied } = webhookDeps({ startedCheckout: async (org, product) => (asked.push(`${org} ${product}`), true) });
+      await post(deps, subscriptionBody());
+      expect(asked).toEqual([`${ORG} pdt_mock_pro`]);
+      expect(applied[0]).toMatchObject({ orgId: ORG });
+    });
+
+    it("gives nothing to a workspace a buyer named in their own checkout link", async () => {
+      const { deps, stored, applied } = webhookDeps({ startedCheckout: async () => false });
+      await post(deps, subscriptionBody());
+      expect(applied).toEqual([]);
+      expect(stored.get("msg_mock_1")).toMatchObject({ status: "failed", error: expect.stringMatching(/started a checkout/) });
+    });
+
+    it("ends quietly on a late event for a subscription that has ended and isn't on a workspace", async () => {
+      const { deps, stored, applied } = webhookDeps({ startedCheckout: async () => false, sub: mockSubscription({ status: "cancelled" }) });
+      await post(deps, subscriptionBody());
+      expect(applied).toEqual([]);
+      expect(stored.get("msg_mock_1")?.status).toBe("ignored");
+    });
+
+    it("keeps a renewal on the workspace that already has it, whatever the metadata says", async () => {
+      const elsewhere = "00000000-0000-4000-8000-00000000abcd";
+      const { deps, applied } = webhookDeps({
+        config: { ...config, testWorkspaces: new Set([ORG, elsewhere]) },
+        orgForSubscription: async () => elsewhere,
+        startedCheckout: async () => {
+          throw new Error("A renewal shouldn't need a checkout");
+        },
+      });
+      await post(deps, subscriptionBody());
+      expect(applied[0]).toMatchObject({ orgId: elsewhere });
+    });
   });
 
   it("stores a delivery once, applies the re-read subscription, and treats a replay as a no-op", async () => {

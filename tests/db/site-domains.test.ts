@@ -49,7 +49,8 @@ describe("adding a domain", () => {
   });
 
   it("refuses a domain another site has, a third domain, bad names and Farbaek's own zones", async () => {
-    await expect(add("www.example.com", USERS.alice, otherSite)).rejects.toThrow(/DOMAIN_TAKEN/);
+    // The same site asking twice. Another site may ask too, and whoever proves it holds it (ADR 0175).
+    await expect(add("www.example.com")).rejects.toThrow(/DOMAIN_TAKEN/);
     await add("shop.example.com");
     await expect(add("third.example.com")).rejects.toThrow(/DOMAIN_LIMIT/);
     for (const bad of ["Upper.Example.com", "nodot", "a..b.com", "evil.farbaek.si", "x.farbaek.com", "-x.example.com"]) {

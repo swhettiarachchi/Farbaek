@@ -8,7 +8,9 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
-  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
+  // No includeSubDomains here: these headers also reach people's published sites, and on their own domain it would force
+  // every other host of that domain to https. Farbaek's own host adds it below (ADR 0175).
+  { key: "Strict-Transport-Security", value: "max-age=63072000" },
   {
     key: "Content-Security-Policy",
     value: "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
@@ -73,7 +75,7 @@ const nextConfig: NextConfig = {
       { source: "/(.*)", has: [{ type: "host", value: OFFICE_HOST }], headers: [...OFFICE_STATIC_HEADERS] },
       // Later rules win for the same header: payment for Farbaek's own pages only.
       ...(APP_HOST
-        ? [{ source: NOT_PREVIEW_FRAME, has: [{ type: "host" as const, value: APP_HOST }], headers: [{ key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(self)" }] }]
+        ? [{ source: NOT_PREVIEW_FRAME, has: [{ type: "host" as const, value: APP_HOST }], headers: [{ key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(self)" }, { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" }] }]
         : []),
       // Farbaek Scenes and the media library (ADR 0156) load into people's published sites and
       // previews, from other origins: module scripts and WebGL textures need CORS. Library files

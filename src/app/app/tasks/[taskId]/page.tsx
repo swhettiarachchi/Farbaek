@@ -247,7 +247,8 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
     ? await Promise.all([
         ctx.reader
           .listAgents(orgId)
-          .then((all) => all.filter((a) => !a.revokedAt).map((a) => ({ id: a.id, name: a.name })))
+          // Only computers this person paired: a handoff runs the project's code there (ADR 0175).
+          .then((all) => all.filter((a) => !a.revokedAt && a.pairedBy === ctx.user.id).map((a) => ({ id: a.id, name: a.name })))
           .catch(() => []),
         ctx.mode === "live" ? createSupabaseServerClient().then((c) => (c ? readHandoffs(c, orgId, task.id) : [])).catch(() => []) : Promise.resolve([]),
       ])
@@ -313,6 +314,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
     canBuild: canPropose && !writeReason && !modeBlocks && !withheldFor(ctx.role, ctx.permissions, "run_agents"),
     sandboxed: execution.mode === "sandboxed",
     checking,
+    lastCheckUnverified: verification?.status === "done" && verification.result === "unverified",
     checks: requiredChecks,
     canFix: fixable && !fixReason,
     canUndo: Boolean(recovery),
@@ -472,10 +474,11 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
                   />
                   {verifyReason ? null : (
                     <p className="text-sm text-ink-3">
-                      Need to install something by hand first?{" "}
+                      Want to try something by hand?{" "}
                       <Link href={`/app/sandbox/new?project=${task.projectId}&task=${task.id}`} className="inline-flex min-h-11 items-center gap-1 font-medium text-accent hover:underline sm:min-h-0">
-                        <TerminalWindowIcon size={15} aria-hidden /> Open a test space yourself
+                        <TerminalWindowIcon size={15} aria-hidden /> Open a test space
                       </Link>
+                      . Checks you run there show what happened, but they don&apos;t mark this task verified.
                     </p>
                   )}
                 </>

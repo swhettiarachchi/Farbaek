@@ -32,13 +32,15 @@ export async function CheckReceiptCard({ receipt }: { receipt: CheckReceiptRecor
   const checks = Array.isArray(predicate?.checks) ? predicate.checks : [];
   const limits = Array.isArray(predicate?.limits) ? predicate.limits : [];
   const status = STATUS[receipt.status];
+  // Checks ran, but somewhere that can't count as proof (ADR 0175): saying they didn't run would be untrue.
+  const label = receipt.status === "unverified" && checks.length > 0 ? "Doesn't verify the task" : status.label;
 
   return (
     <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
       <div className="grid min-w-0 gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium ${status.cls}`}>
-            <status.Icon size={16} weight="bold" aria-hidden /> {status.label}
+            <status.Icon size={16} weight="bold" aria-hidden /> {label}
           </span>
           <span className="font-mono text-xs text-ink-3">{shortHash(receipt.digest)}</span>
         </div>

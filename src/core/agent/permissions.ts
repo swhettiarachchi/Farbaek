@@ -90,8 +90,9 @@ export function decide(call: ToolCall, ctx: PermissionContext): Decision {
         if (risk === "read_only" || risk === "test_build") return { kind: "allow", risk };
         return { kind: "needs_approval", reason: `${COMMAND_RISK_LABELS[risk]}. This crosses the test space's limits, so a person decides.`, risk };
       }
-      if (risk === "read_only") return { kind: "allow", risk };
-      return { kind: "needs_approval", reason: `${COMMAND_RISK_LABELS[risk]}. It runs on this computer and isn't isolated.`, risk };
+      // Nothing runs on someone's own computer without them (ADR 0175). No command is really read-only here: arguments can
+      // read any file, reach the network or write elsewhere, and a project's own config can make git or yarn run code.
+      return { kind: "needs_approval", reason: `${risk === "read_only" ? "Looks read-only, but what it's given can do more" : COMMAND_RISK_LABELS[risk]}. It runs on this computer and isn't isolated.`, risk };
     }
   }
 }

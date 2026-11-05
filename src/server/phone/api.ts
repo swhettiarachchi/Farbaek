@@ -423,8 +423,8 @@ function match(route: Route, method: string, segments: readonly string[]): Param
   return params;
 }
 
-/** Long enough for a cloud run and its checks: a phone refreshes first when its token is closer to expiring. */
-const LONG_TOKEN_MS = (CLOUD_RUN_MAX_MINUTES + 5) * 60_000;
+/** Long enough for a cloud run and its checks in a fresh test space: a phone refreshes first when its token is closer to expiring. */
+const LONG_TOKEN_MS = (CLOUD_RUN_MAX_MINUTES + 20) * 60_000;
 
 export async function handlePhoneApi(request: Request, segments: readonly string[], deps: PhoneApiDeps): Promise<Response> {
   const method = request.method.toUpperCase();

@@ -45,6 +45,9 @@ export function createSupabaseAgentStore(admin: SupabaseClient): AgentStore {
             lease_projects: z.array(z.string()).nullable(),
             lease_capabilities: z.array(z.enum(AGENT_CAPABILITIES)),
             lease_actions_per_hour: z.number().int(),
+            agents_paused: z.boolean(),
+            org_suspended: z.boolean(),
+            may_run_agents: z.boolean(),
           }),
         ),
       );
@@ -57,6 +60,9 @@ export function createSupabaseAgentStore(admin: SupabaseClient): AgentStore {
             userId: row.user_id,
             role: row.role,
             name: row.name,
+            agentsPaused: row.agents_paused,
+            suspended: row.org_suspended,
+            mayRunAgents: row.may_run_agents,
             lease: { expiresAt: row.lease_expires_at, projects: row.lease_projects, capabilities: row.lease_capabilities, actionsPerHour: row.lease_actions_per_hour },
           }
         : null;

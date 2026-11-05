@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { SITE_ROUTE } from "@/core/publish/site";
 import { decideRoute } from "@/server/http/hosts";
-import { APP_CSP_PATH, appCsp, appCspEnforced, appCspHeaders } from "@/server/http/app-headers";
+import { APP_CSP_PATH, SIGN_IN_CSP_PATH, appCsp, appCspEnforced, appCspHeaders } from "@/server/http/app-headers";
 import { newNonce, officeCsp, officeResponseHeaders } from "@/server/http/office-headers";
 import { withoutStrayEnd } from "@/server/http/stray-end";
 import { appHostFromEnv, officeConfig } from "@/server/office/config";
@@ -104,12 +104,15 @@ async function appRequest(request: NextRequest) {
   if (!SESSION_PATH.test(request.nextUrl.pathname)) return NextResponse.next();
 
   // The app's nonce CSP (ADR 0107): Next.js reads the nonce from this request header and puts it on its scripts.
-  const csp = APP_CSP_PATH.test(request.nextUrl.pathname)
-    ? appCsp(newNonce(), { dev: process.env.NODE_ENV === "development", https: siteUrl().startsWith("https://"), previewDomain: process.env.SANDBOX_PREVIEW_DOMAIN || null })
-    : null;
+  // Sign-in pages only report for now (ADR 0175): a mistake there would stop anyone signing in.
+  const signingIn = SIGN_IN_CSP_PATH.test(request.nextUrl.pathname);
+  const csp =
+    signingIn || APP_CSP_PATH.test(request.nextUrl.pathname)
+      ? appCsp(newNonce(), { dev: process.env.NODE_ENV === "development", https: siteUrl().startsWith("https://"), previewDomain: signingIn ? null : process.env.SANDBOX_PREVIEW_DOMAIN || null, signIn: signingIn })
+      : null;
   if (csp) request.headers.set("content-security-policy", csp);
   const withCsp = (response: NextResponse) => {
-    if (csp) for (const [key, value] of Object.entries(appCspHeaders(csp, appCspEnforced(process.env.APP_CSP_ENFORCE)))) response.headers.set(key, value);
+    if (csp) for (const [key, value] of Object.entries(appCspHeaders(csp, !signingIn && appCspEnforced(process.env.APP_CSP_ENFORCE)))) response.headers.set(key, value);
     return response;
   };
 
@@ -138,7 +141,7 @@ async function appRequest(request: NextRequest) {
 }
 
 // Where the customer app's session cookie is refreshed; every other page passes straight through.
-const SESSION_PATH = /^\/(?:app|admin|auth)(?:\/|$)|^\/sign-in(?:\/|$)/;
+const SESSION_PATH = /^\/(?:app|admin|auth|invite)(?:\/|$)|^\/sign-in(?:\/|$)/;
 
 export const config = {
   matcher: [

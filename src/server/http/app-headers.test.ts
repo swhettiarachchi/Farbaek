@@ -1,5 +1,7 @@
+import { createHash } from "node:crypto";
+import { earlyMarkScript } from "@/core/billing/store-client";
 import { describe, expect, it } from "vitest";
-import { APP_CSP_PATH, appCsp, appCspEnforced, appCspHeaders, parseCspReports } from "./app-headers";
+import { APP_CSP_PATH, appCsp, appCspEnforced, appCspHeaders, parseCspReports, SIGN_IN_CSP_PATH, EARLY_MARK_SHA256 } from "./app-headers";
 
 describe("the app's Content-Security-Policy (ADR 0107)", () => {
   it("allows scripts only from a nonce, talks only to Farbaek, and frames only previews", () => {
@@ -44,5 +46,25 @@ describe("the app's Content-Security-Policy (ADR 0107)", () => {
     expect(parseCspReports({ "csp-report": { "effective-directive": "script-src-elem", "blocked-uri": "inline" } })[0]?.page).toBe("(a preview frame)");
     expect(parseCspReports("nonsense")).toEqual([]);
     expect(parseCspReports(Array.from({ length: 50 }, () => modern.length && { type: "csp-violation", body: { effectiveDirective: "img-src" } }))).toHaveLength(20);
+  });
+});
+
+describe("the sign-in pages' policy (ADR 0175)", () => {
+  it("adds only Cloudflare Turnstile to what the page may frame and reach", () => {
+    const signIn = appCsp("n", { dev: false, https: true, previewDomain: null, signIn: true });
+    expect(signIn).toContain("frame-src 'self' https://challenges.cloudflare.com");
+    expect(signIn).toContain("connect-src 'self' https://challenges.cloudflare.com");
+    expect(appCsp("n", { dev: false, https: true, previewDomain: null })).not.toContain("challenges.cloudflare.com");
+  });
+
+  it("lets exactly the site layout's inline script run, by its hash, since that layout can't carry a nonce", () => {
+    expect(createHash("sha256").update(earlyMarkScript(), "utf8").digest("base64")).toBe(EARLY_MARK_SHA256);
+    expect(appCsp("n", { dev: false, https: true, previewDomain: null, signIn: true })).toContain(`'sha256-${EARLY_MARK_SHA256}'`);
+    expect(appCsp("n", { dev: false, https: true, previewDomain: null })).not.toContain("sha256-");
+  });
+
+  it("covers the pages where people sign in or consent, and not the marketing pages", () => {
+    for (const path of ["/sign-in", "/sign-in/password", "/auth/connect", "/invite/abc"]) expect(SIGN_IN_CSP_PATH.test(path)).toBe(true);
+    for (const path of ["/", "/pricing", "/auth/callback", "/sign-ins"]) expect(SIGN_IN_CSP_PATH.test(path)).toBe(false);
   });
 });

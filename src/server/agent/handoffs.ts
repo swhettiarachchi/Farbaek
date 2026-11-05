@@ -8,7 +8,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { HANDOFF_STATUSES, HandoffCheckResultSchema, HandoffReportSchema, handoffDigest, type HandoffCheckResult, type HandoffReport, type HandoffStatus } from "@/core/agent/handoff";
+import { HANDOFF_STATUSES, HandoffCheckResultSchema, HandoffReportSchema, handoffDigest, type HandoffCheckResult, type HandoffReport, type HandoffStatus, anyCheckForComputer } from "@/core/agent/handoff";
 import { trialChecksFor } from "@/server/arena/runner";
 import { CONTRIBUTOR_ROLES, type OrgRole } from "@/server/workspace/types";
 import { codeFromDatabaseError, fail, requirePermission, type RpcResult, type WriteResult } from "@/server/workspace/use-cases";
@@ -215,10 +215,12 @@ export async function requestHandoff(
   const proposal = await deps.handoffs.latestPendingProposal(person.orgId, task.id);
   const checks = await trialChecksFor(deps, person.orgId, { taskId: task.id, projectId: task.projectId });
   if (checks.length === 0) return fail("INVALID_TRANSITION", "The plan lists no checks, and Farbaek has none for this kind of project, so there's nothing for your computer to run.");
+  // A check that can't go is skipped there and says why, so the rest still run. With none left, there's nothing to send.
+  if (!anyCheckForComputer(checks)) return fail("INVALID_TRANSITION", "This task's checks only run in a test space, so there's nothing for your computer to run. Run them from this page instead.");
   const r = await deps.handoffs.request({ orgId: person.orgId, actor: person.userId, taskId: task.id, agentId: input.agentId, proposalId: proposal?.id ?? null, checks: checks.slice(0, 20), note: input.note?.trim() || null });
   if (!r.ok) {
     if (r.error.includes("HANDOFF_OPEN")) return fail("INVALID_TRANSITION", "This task is already waiting on that computer.");
-    if (r.error.includes("AGENT_NOT_FOUND")) return fail("NOT_FOUND", "That computer isn't paired with this workspace anymore.");
+    if (r.error.includes("AGENT_NOT_FOUND")) return fail("NOT_FOUND", "That isn't one of your paired computers. A task can only go to a computer you paired yourself.");
     return fail(codeFromDatabaseError(r.error));
   }
   return { ok: true, value: { handoffId: r.value } };

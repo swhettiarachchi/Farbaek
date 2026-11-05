@@ -18,7 +18,7 @@ export const SITE_NAME_MAX = 40;
 export const RESERVED_SITE_NAMES: ReadonlySet<string> = new Set([
   "www", "app", "api", "admin", "auth", "login", "signin", "sign-in", "signup", "account", "accounts", "billing",
   "mail", "email", "smtp", "imap", "pop", "ftp", "ssh", "status", "docs", "help", "support", "security", "abuse",
-  "farbaek", "preview", "previews", "static", "assets", "cdn", "dashboard", "console", "root", "localhost",
+  "farbaek", "preview", "previews", "static", "assets", "cdn", "dashboard", "console", "root", "localhost", "sites",
 ]);
 
 const NAME = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;

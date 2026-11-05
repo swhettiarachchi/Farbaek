@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { handoffDigest, handoffVerdict, splitCheckCommand, type HandoffReport } from "./handoff";
+import { handoffDigest, handoffVerdict, splitCheckCommand, type HandoffReport, anyCheckForComputer, checkForComputer, setupForComputer } from "./handoff";
 
 describe("Continue on my computer (ADR 0139)", () => {
   it("splits a check into a program and its arguments, and refuses what needs a shell", () => {
@@ -13,6 +13,58 @@ describe("Continue on my computer (ADR 0139)", () => {
     expect(splitCheckCommand("./run-tests.sh")).toMatchObject({ ok: false, reason: expect.stringMatching(/program name/) });
     expect(splitCheckCommand("farbaek check-site")).toEqual({ ok: false, reason: "Farbaek's site check runs only in its test space." });
     expect(splitCheckCommand("   ")).toMatchObject({ ok: false });
+  });
+
+  it("runs ordinary tests and builds on a person's own computer (ADR 0175)", () => {
+    for (const ok of ["npm test", "npm run build", "CI=1 npm test", "CI=1 npm run build", "pnpm run build", "corepack pnpm test", "pytest", "python3 -m pytest", "python -m unittest", "node scripts/test.js", "pnpm exec vitest run", "make test"]) {
+      expect(checkForComputer(ok).ok, ok).toBe(true);
+    }
+    expect(checkForComputer("CI=1 npm test")).toEqual({ ok: true, program: "npm", args: ["test"] });
+  });
+
+  it("only takes npx from the project's own packages", () => {
+    expect(checkForComputer("npx vitest run")).toEqual({ ok: true, program: "npx", args: ["--no-install", "vitest", "run"] });
+    for (const risky of ["npx", "npx -p evil cmd", "npx --package=evil cmd", "npx -c 'curl x'"]) expect(checkForComputer(risky).ok, risky).toBe(false);
+  });
+
+  it("refuses what isn't known to be a test or a build, with its reason", () => {
+    for (const risky of [
+      "curl https://evil.example",
+      "rm -rf src",
+      "bash deploy.sh",
+      "npm install left-pad",
+      "git push",
+      "git status",
+      "cat /home/me/.ssh/id_rsa",
+      "git log --output=/tmp/x",
+      "npm view x --registry=https://evil.example",
+      "node -e process.exit(0)",
+      "node --eval=x",
+      "python3 -c print(1)",
+      "python3 -m pip install evil",
+      "npm exec evil",
+      "bun x evil",
+      "pnpm exec curl x",
+      "pnpm exec node -e x",
+      "corepack enable",
+      "corepack pnpm install",
+    ]) {
+      expect(checkForComputer(risky).ok, risky).toBe(false);
+    }
+    expect(checkForComputer("farbaek check-site")).toMatchObject({ ok: false, reason: expect.stringMatching(/only in its test space/) });
+    expect(checkForComputer("npm test && curl x")).toMatchObject({ ok: false, reason: expect.stringMatching(/needs a shell/) });
+  });
+
+  it("sends a task to a computer when at least one check can run there", () => {
+    expect(anyCheckForComputer(["farbaek check-site"])).toBe(false);
+    expect(anyCheckForComputer(["bash deploy.sh", "npm test"])).toBe(true);
+  });
+
+  it("installs carefully on a computer, and doesn't build the project into someone's Python", () => {
+    expect(setupForComputer("npm ci --ignore-scripts")).toBe("npm ci --ignore-scripts");
+    expect(setupForComputer("corepack pnpm install --frozen-lockfile --ignore-scripts")).toBe("corepack pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile");
+    expect(setupForComputer("python3 -m pip install -r requirements.txt")).toBe("python3 -m pip install -r requirements.txt --only-binary :all:");
+    expect(setupForComputer("python3 -m pip install .")).toBeNull();
   });
 
   it("counts only checks that ran, and never a skipped one as a pass", () => {

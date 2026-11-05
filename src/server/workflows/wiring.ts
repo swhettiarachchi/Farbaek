@@ -6,6 +6,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { workflowHash } from "@/core/realityloop/workflow";
 import { parsePermissions } from "@/core/workspace/permissions";
 import { startCloudRun } from "@/server/cloud-agent/executor";
 import { cloudRunDeps } from "@/server/cloud-agent/wiring";
@@ -13,6 +14,7 @@ import { log } from "@/server/observability/log";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { ORG_ROLES } from "@/server/workspace/types";
 import { advanceWorkflow, settleStep, type OrchestratorDeps } from "./orchestrator";
+import { readWorkflow } from "./read";
 
 const Claim = z.object({ result: z.string(), step: z.number().nullable(), task_id: z.string().nullable(), cap_units: z.number().nullable(), approved_by: z.string().nullable() });
 
@@ -23,6 +25,14 @@ export function workflowDeps(admin: SupabaseClient): OrchestratorDeps {
     return data;
   }
   return {
+    async stillAsApproved(workflowId, orgId) {
+      const view = await readWorkflow(admin, orgId, workflowId).catch(() => null);
+      if (!view) return null;
+      return view.approvedSha256 !== null && (await workflowHash(view)) === view.approvedSha256;
+    },
+    halt: async (workflowId, reason) => {
+      await rpc("app_workflow_halt", { p_workflow: workflowId, p_reason: reason });
+    },
     async claimNext(workflowId) {
       const row = z.array(Claim).parse(await rpc("app_workflow_claim_next", { p_workflow: workflowId }))[0];
       if (!row) throw new Error("app_workflow_claim_next returned nothing");

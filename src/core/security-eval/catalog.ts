@@ -316,6 +316,41 @@ export const EVAL_SCENARIOS: readonly EvalScenario[] = [
     asserts: "A paired agent whose lease has ended can do nothing but unpair; one whose lease doesn't allow a capability or a project is refused it, and never sees that project's tasks; and the model gateway refuses a task outside the lease before reserving any usage.",
     file: "privilege.test.ts",
   },
+  {
+    id: "SE-037",
+    title: "A test space someone tampered with",
+    risks: ["ASI09", "LLM09"],
+    asserts: "Checks run in someone's own test space, or after someone edited the project, record what they did but can't mark a task verified or make a verified ProofPack, and nobody can write to or run commands in a test space Farbaek keeps for checking.",
+    file: "trust.test.ts",
+  },
+  {
+    id: "SE-038",
+    title: "A command that says it only reads",
+    risks: ["ASI02", "ASI05", "LLM06"],
+    asserts: "On a person's own computer nothing runs without them, including commands classed read-only whose arguments reach a private key or another registry, and the approval shows the whole of what it approves.",
+    file: "tool-misuse.test.ts",
+  },
+  {
+    id: "SE-039",
+    title: "A task sent to run on a computer",
+    risks: ["ASI02", "ASI05"],
+    asserts: "On a computer, only known tests and builds run: network, destructive, install, read-only and unknown commands are skipped with a reason, code given on the command line doesn't run, npx can't download anything, and a task with nothing left to run isn't sent.",
+    file: "tool-misuse.test.ts",
+  },
+  {
+    id: "SE-040",
+    title: "A desktop agent during the emergency pause",
+    risks: ["ASI03", "ASI10"],
+    asserts: "While a workspace is paused or suspended, a paired agent can do nothing but say who it is and unpair, and one whose person may not run agents can't call a model.",
+    file: "privilege.test.ts",
+  },
+  {
+    id: "SE-041",
+    title: "A subscription naming someone else's workspace",
+    risks: ["ASI03"],
+    asserts: "A signed subscription event whose buyer-set metadata names a workspace gives it nothing unless an owner or admin started that checkout there and it has no live subscription, and a subscription already on a workspace stays on it.",
+    file: "privilege.test.ts",
+  },
 ];
 
 /** What isn't tested for each risk, and the reason when a risk doesn't apply. */

@@ -18,7 +18,7 @@ const OrganizationRow = z.object({
       paid_through: z.string().nullable(),
       suspended_reason: z.enum(["payment", "paused"]).nullable(),
       // Why a workspace started without a trial (migration v38, ADR 0065).
-      trial_withheld: z.enum(["address_used", "disposable_address"]).nullable().optional(),
+      trial_withheld: z.enum(["address_used", "disposable_address", "domain_busy"]).nullable().optional(),
       // The paid subscription's start (migration v62, ADR 0100).
       subscription_started_at: z.string().nullable().optional(),
     }),
@@ -41,7 +41,7 @@ export interface WorkspaceSummary {
   plan: EffectivePlan;
   trial: { startedAt: string; endsAt: string; phase: TrialPhase } | null;
   /** Why the workspace started on Free instead of a trial, when it did (ADR 0065). */
-  trialWithheld: "address_used" | "disposable_address" | null;
+  trialWithheld: "address_used" | "disposable_address" | "domain_busy" | null;
   /** True when billing state is missing, so entitlements fail closed. */
   billingUnknown: boolean;
   /** Paused by Farbaek staff: members can read but not change anything, and the notice says why. */

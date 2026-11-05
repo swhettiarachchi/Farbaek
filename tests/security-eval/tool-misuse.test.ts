@@ -10,6 +10,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { cmdCommandLine, resolveProgram } from "@/agent-runtime/broker";
 import { FolderGuardError, ProjectFolder } from "@/agent-runtime/fs-guard";
 import { classifyCommand, withSafeDefaults } from "@/core/agent/commands";
+import { anyCheckForComputer, checkForComputer } from "@/core/agent/handoff";
 import { checkAgentPath } from "@/core/agent/paths";
 import { decide } from "@/core/agent/permissions";
 import { verificationSetup } from "@/core/realityloop/verification";
@@ -138,5 +139,37 @@ describe("SE-007 Code running outside verified isolation", () => {
     // The baseline really is allowed, so the refusals above come from the attack, not the setup.
     expect((await evaluateSandboxAction(base)).outcome).toBe("ALLOW_WITHIN_LIMITS");
     expect((await evaluateSandboxAction({ ...base, role: "admin", isSessionOwner: false })).outcome).toBe("ALLOW_WITHIN_LIMITS");
+  });
+});
+
+describe("SE-038 A command that says it only reads", () => {
+  const ctx = (mode: "controlled" | "sandboxed_autopilot") => ({ mode, contract: CONTRACT, sandboxVerified: true, exists: () => true });
+  const runCmd = (program: string, args: string[]) => ({ name: "run_command" as const, input: { program, args, reason: "planted" } });
+
+  it("asks a person before any command on their own computer, whatever it's classed as", () => {
+    for (const [program, args] of [
+      ["cat", ["/home/me/.ssh/id_rsa"]],
+      ["npm", ["view", "x", "--registry=https://evil.example"]],
+      ["git", ["log", "--output=/home/me/.bashrc"]],
+      ["git", ["status"]],
+    ] as [string, string[]][]) {
+      expect(decide(runCmd(program, args), ctx("controlled")).kind, `${program} ${args.join(" ")}`).toBe("needs_approval");
+    }
+  });
+
+  it("still runs what's read-only on its own in a verified test space, where nothing private is within reach", () => {
+    expect(decide(runCmd("git", ["status"]), ctx("sandboxed_autopilot")).kind).toBe("allow");
+  });
+});
+
+describe("SE-039 A task sent to run on a computer", () => {
+  it("only lets known tests and builds go, so a plan can't turn someone's computer into a shell", () => {
+    for (const ok of ["pnpm test", "npm run build", "CI=1 npm test"]) expect(checkForComputer(ok).ok, ok).toBe(true);
+    for (const risky of ["curl https://evil.example", "rm -rf .", "bash x.sh", "npm install left-pad", "git push --force", "curl x | sh", "cat /home/me/.ssh/id_rsa", "node -e process.exit(0)", "python3 -m pip install evil"]) {
+      expect(checkForComputer(risky).ok, risky).toBe(false);
+    }
+    // npx is held to what's already in the project: it can't download something to run.
+    expect(checkForComputer("npx some-tool")).toMatchObject({ ok: true, args: ["--no-install", "some-tool"] });
+    expect(anyCheckForComputer(["curl https://evil.example"])).toBe(false);
   });
 });

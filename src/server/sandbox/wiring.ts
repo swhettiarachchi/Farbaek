@@ -12,6 +12,8 @@ import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { readSupabaseConfig } from "@/server/supabase/config";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { WORKSPACE_COOKIE } from "@/server/workspace/context";
+import { checkFeature } from "@/core/billing/entitlements";
+import { resolveEffectivePlan } from "@/core/billing/trial";
 import { ORGANIZATION_SELECT, billingSnapshotFromRow } from "@/server/workspace/organizations";
 import { createSupabaseReader } from "@/server/workspace/supabase-reader";
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
@@ -23,6 +25,7 @@ import { createSandboxService, type SandboxActor, type SandboxService, type Task
 import { createSupabaseSandboxStore } from "./supabase-store";
 import type { SandboxStore } from "./types";
 import { signRecordedProofPack } from "@/server/proof/record";
+import { latestEvidence } from "@/server/publish/store";
 import { refreshPullStatusAfterProof } from "@/server/github/pull-requests";
 
 export interface SandboxRequest {
@@ -61,6 +64,7 @@ function taskBridge(user: SupabaseClient, admin: SupabaseClient | null, userId: 
       return null;
     },
     latestProjectProofPackDigest: async (orgId, projectId) => (writes ? writes.latestProofPackDigest(orgId, projectId) : null),
+    filesChangedAfterChange: async (orgId, projectId) => (await latestEvidence(user, orgId, projectId)).status === "changed",
     async recordVerificationProofPack(i) {
       if (!admin) return { ok: false, error: "WRITES_UNAVAILABLE" };
       const { data, error } = await admin.rpc("app_record_verification_proofpack", {
@@ -124,6 +128,25 @@ export function sameOrigin(request: Request): boolean {
   return allowed.has(origin);
 }
 
+/** A token is the developer API, which Lite and up sell (ADR 0175). The Test space page uses the cookie, on every plan. */
+async function developerApiRefusal(user: SupabaseClient, orgId: string): Promise<(SandboxRequestResult & { ok: false }) | null> {
+  const { data } = await user.from("organizations").select(ORGANIZATION_SELECT).eq("id", orgId).maybeSingle();
+  let snapshot = null;
+  try {
+    snapshot = data ? billingSnapshotFromRow(data) : null;
+  } catch {
+    snapshot = null;
+  }
+  const decision = checkFeature(snapshot ? resolveEffectivePlan(snapshot, new Date()) : null, "developer_api");
+  if (decision.allowed) return null;
+  return {
+    ok: false,
+    status: 403,
+    code: decision.code,
+    message: decision.code === "FEATURE_NOT_IN_PLAN" ? "The developer API comes with the Lite plan and up. You can still use the Test space in the app on this plan." : decision.message,
+  };
+}
+
 export async function sandboxRequest(request: Request): Promise<SandboxRequestResult> {
   const config = readSupabaseConfig();
   if (!config) return { ok: false, status: 503, code: "NOT_CONFIGURED", message: "Accounts aren't configured on this server." };
@@ -161,6 +184,10 @@ export async function sandboxRequest(request: Request): Promise<SandboxRequestRe
     return wanted
       ? { ok: false, status: 404, code: "NOT_FOUND", message: "That workspace doesn't exist or you're not a member." }
       : { ok: false, status: 403, code: "NO_WORKSPACE", message: "Create or join a workspace first." };
+  }
+  if (bearer) {
+    const refused = await developerApiRefusal(user, chosen.org_id);
+    if (refused) return refused;
   }
   const built = sandboxServiceFor(user, userId, chosen.org_id, chosen.role);
   return { ok: true, value: { ...built, via: bearer ? "bearer" : "cookie" } };

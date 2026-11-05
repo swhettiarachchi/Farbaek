@@ -230,7 +230,7 @@ describe("agent loop, Controlled Development", () => {
     };
   }
 
-  it("runs read-only commands, asks before tests, and binds the approval to the exact command", async () => {
+  it("asks before every command, even a read-only one, and binds the approval to the exact command", async () => {
     const log: string[] = [];
     const asked: ApprovalRequest[] = [];
     const fake = fakeModel([
@@ -251,7 +251,7 @@ describe("agent loop, Controlled Development", () => {
     ]);
     const approve = async (request: ApprovalRequest): Promise<ApprovalAnswer> => {
       asked.push(request);
-      if (request.display === "pnpm test") return { approved: true, bindingHash: request.bindingHash };
+      if (request.display === "pnpm test" || request.display === "git status") return { approved: true, bindingHash: request.bindingHash };
       if (request.display === "pnpm build") return { approved: true, bindingHash: "0".repeat(64) };
       return { approved: false };
     };
@@ -260,9 +260,10 @@ describe("agent loop, Controlled Development", () => {
 
     expect(report.outcome.kind).toBe("finished");
     expect(log).toEqual(["git status", "pnpm test"]);
-    expect(asked.map((a) => a.display)).toEqual(["pnpm test", "pnpm add left-pad --ignore-scripts", "pnpm build"]);
-    expect(asked[0]).toMatchObject({ risk: "test_build", where: "local", reason: expect.stringMatching(/isn't isolated/), why: "Check the change.", bindingHash: expect.stringMatching(/^[0-9a-f]{64}$/) });
-    expect(asked[1]!.args).toEqual(["add", "left-pad", "--ignore-scripts"]);
+    expect(asked.map((a) => a.display)).toEqual(["git status", "pnpm test", "pnpm add left-pad --ignore-scripts", "pnpm build"]);
+    expect(asked[0]).toMatchObject({ risk: "read_only", where: "local", why: "See the state." });
+    expect(asked[1]).toMatchObject({ risk: "test_build", where: "local", reason: expect.stringMatching(/isn't isolated/), why: "Check the change.", bindingHash: expect.stringMatching(/^[0-9a-f]{64}$/) });
+    expect(asked[2]!.args).toEqual(["add", "left-pad", "--ignore-scripts"]);
   });
 
   it("writes to disk with checkpoints that undo each step", async () => {

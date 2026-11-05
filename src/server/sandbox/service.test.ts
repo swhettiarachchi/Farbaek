@@ -56,7 +56,7 @@ let verificationPacks: Parameters<TaskBridge["recordVerificationProofPack"]>[0][
 let keyN = 0;
 const key = () => `test-key-${++keyN}`;
 
-function service(over: { runtime?: ReturnType<typeof createMockRuntime> | null; config?: Partial<SandboxServerConfig>; reason?: string; checks?: string[] } = {}) {
+function service(over: { runtime?: ReturnType<typeof createMockRuntime> | null; config?: Partial<SandboxServerConfig>; reason?: string; checks?: string[]; changedAfterApply?: boolean } = {}) {
   const rt = over.runtime === undefined ? runtime : over.runtime;
   const cfg = config(over.config);
   const tasks: TaskBridge = {
@@ -64,6 +64,7 @@ function service(over: { runtime?: ReturnType<typeof createMockRuntime> | null; 
     requiredChecks: async () => over.checks ?? ["echo hello", "exit 1"],
     appliedProofPack: async () => applied,
     latestProjectProofPackDigest: async () => "e".repeat(64),
+    filesChangedAfterChange: async () => over.changedAfterApply ?? false,
     recordVerificationProofPack: async (i) => {
       verificationPacks.push(i);
       return { ok: true, value: i.digest };
@@ -93,6 +94,13 @@ const request = (over: Record<string, unknown> = {}) => ({ name: "Try", template
 
 async function ready(user = ALICE, over: Record<string, unknown> = {}): Promise<string> {
   const r = await service().createSession(as(user), request(over), key());
+  if (!r.ok) throw new Error(r.message);
+  return r.value.sessionId;
+}
+
+/** A test space Farbaek keeps for checking a change, as the verification runner starts one (ADR 0175). */
+async function checking(): Promise<string> {
+  const r = await service().createSession(as(ALICE), request({ taskId: TASK, projectId: PROJECT }), key(), { verification: true });
   if (!r.ok) throw new Error(r.message);
   return r.value.sessionId;
 }
@@ -395,10 +403,61 @@ describe("previews", () => {
   });
 });
 
+describe("proof comes only from a test space nobody could change (ADR 0175)", () => {
+  it("records what checks did in someone's own test space, without proof and without moving the task", async () => {
+    const id = await ready(ALICE, { taskId: TASK, projectId: PROJECT });
+    // The attack: plant something the checks will run, then ask for them.
+    await service().writeFile(as(ALICE), id, "node_modules/.bin/test", "exit 0");
+    const r = await service().runChecks(as(ALICE), id, key());
+    expect(r).toMatchObject({ ok: true, value: { status: "unverified", taskEvent: null, applied: false, total: 2 } });
+    expect(taskState.applied).toEqual([]);
+    expect(verificationPacks).toEqual([]);
+    const statement = [...store.receipts.values()][0]!.statement as { predicate: { limits: string[] } };
+    expect(statement.predicate.limits.join(" ")).toMatch(/could change this test space/);
+  });
+
+  it("can't be talked into it: a route can't ask for verification on someone's own test space", async () => {
+    const id = await ready(ALICE, { taskId: TASK, projectId: PROJECT });
+    expect(await service().runChecks(as(ALICE), id, key(), { verification: true })).toMatchObject({ ok: true, value: { status: "unverified", applied: false } });
+    expect(verificationPacks).toEqual([]);
+  });
+
+  it("refuses to let anyone change a test space Farbaek is checking in", async () => {
+    const id = await checking();
+    expect(await service().writeFile(as(ALICE), id, "node_modules/.bin/test", "exit 0")).toMatchObject({ ok: false, code: "BLOCKED" });
+    expect(await service().runCommand(as(ALICE), id, { command: "touch tampered" }, key())).toMatchObject({ ok: false, code: "BLOCKED" });
+    expect(await service().runChecks(as(ALICE), id, key())).toMatchObject({ ok: false, code: "BLOCKED" });
+  });
+
+  it("won't call a change proven when someone edited the project after it went in, since that can change what the checks do", async () => {
+    const id = await checking();
+    const r = await service({ changedAfterApply: true, checks: ["echo hello"] }).runChecks(as(ALICE), id, key(), { verification: true });
+    expect(r).toMatchObject({ ok: true, value: { status: "unverified", taskEvent: null, applied: false } });
+    expect(verificationPacks).toEqual([]);
+    const statement = [...store.receipts.values()][0]!.statement as { predicate: { limits: string[] } };
+    expect(statement.predicate.limits.join(" ")).toMatch(/changed after this change was applied/);
+  });
+
+  it("still counts a failure then, so the task can move on and be fixed", async () => {
+    const id = await checking();
+    const r = await service({ changedAfterApply: true, checks: ["exit 1"] }).runChecks(as(ALICE), id, key(), { verification: true });
+    expect(r).toMatchObject({ ok: true, value: { status: "failed", taskEvent: "mark_failed", applied: true } });
+    expect(taskState.applied).toEqual(["mark_failed"]);
+  });
+
+  it("marks the test space before any sandbox exists, so there's no moment to reach in first", async () => {
+    const id = await checking();
+    expect(store.sessions.get(id)?.purpose).toBe("verification");
+    const own = await ready(ALICE, { taskId: TASK, projectId: PROJECT });
+    expect(store.sessions.get(own)?.purpose).toBe("person");
+    expect(await store.reserveForVerification(own, ALICE)).toMatchObject({ ok: false });
+  });
+});
+
 describe("Guard verification receipts", () => {
   it("runs the contract's checks, records a receipt and applies only the event the exit codes support", async () => {
-    const id = await ready(ALICE, { taskId: TASK, projectId: PROJECT });
-    const r = await service().runChecks(as(ALICE), id, key());
+    const id = await checking();
+    const r = await service().runChecks(as(ALICE), id, key(), { verification: true });
     expect(r).toMatchObject({ ok: true, value: { status: "partially_verified", taskEvent: "mark_partially_verified", applied: true } });
     const receipt = [...store.receipts.values()][0]!;
     const statement = receipt.statement as { predicate: { checks: { exitCode: number | null; status: string }[]; deployment: { authorized: boolean } } };
@@ -411,8 +470,8 @@ describe("Guard verification receipts", () => {
   });
 
   it("checks the applied files in the sandbox first, and appends a ProofPack with the real results", async () => {
-    const id = await ready(ALICE, { taskId: TASK, projectId: PROJECT });
-    await service().runChecks(as(ALICE), id, key());
+    const id = await checking();
+    await service().runChecks(as(ALICE), id, key(), { verification: true });
     const receipt = [...store.receipts.values()][0]!;
     const predicate = (receipt.statement as { predicate: { appliedChange: { matched: boolean; files: { path: string; actual: string | null }[] } } }).predicate;
     expect(predicate.appliedChange.matched).toBe(true);
@@ -427,10 +486,10 @@ describe("Guard verification receipts", () => {
   });
 
   it("never verifies a change from files edited in the sandbox", async () => {
-    const id = await ready(ALICE, { taskId: TASK, projectId: PROJECT });
+    const id = await checking();
     const sandboxId = store.sessions.get(id)!.providerSandboxId!;
     await runtime.writeFiles(sandboxId, [{ path: "src/index.ts", content: "export const edited = true;" }]);
-    const r = await service().runChecks(as(ALICE), id, key());
+    const r = await service().runChecks(as(ALICE), id, key(), { verification: true });
     expect(r).toMatchObject({ ok: true, value: { taskEvent: null, applied: false } });
     const receipt = [...store.receipts.values()][0]!;
     const predicate = (receipt.statement as { predicate: { appliedChange: { matched: boolean }; limits: string[] } }).predicate;
@@ -442,21 +501,21 @@ describe("Guard verification receipts", () => {
 
   it("doesn't verify a change whose files weren't copied in", async () => {
     const id = await ready(ALICE, { taskId: TASK });
-    expect(await service().runChecks(as(ALICE), id, key())).toMatchObject({ ok: true, value: { taskEvent: null, applied: false } });
+    expect(await service().runChecks(as(ALICE), id, key(), { verification: true })).toMatchObject({ ok: true, value: { taskEvent: null, applied: false } });
     expect(verificationPacks).toEqual([]);
   });
 
   it("records a receipt but leaves tasks that aren't waiting for verification alone", async () => {
     taskState.state = "EXECUTING";
     const id = await ready(ALICE, { taskId: TASK });
-    const r = await service().runChecks(as(ALICE), id, key());
+    const r = await service().runChecks(as(ALICE), id, key(), { verification: true });
     expect(r).toMatchObject({ ok: true, value: { applied: false } });
     expect(taskState.applied).toEqual([]);
   });
 
   it("runs Farbaek's site check from a script it writes into the sandbox, and names the script by hash (ADR 0054)", async () => {
-    const id = await ready(ALICE, { taskId: TASK, projectId: PROJECT });
-    const r = await service({ checks: [SITE_CHECK_COMMAND] }).runChecks(as(ALICE), id, key());
+    const id = await checking();
+    const r = await service({ checks: [SITE_CHECK_COMMAND] }).runChecks(as(ALICE), id, key(), { verification: true });
     expect(r).toMatchObject({ ok: true, value: { status: "verified", taskEvent: "mark_verified", applied: true } });
     const sandboxId = store.sessions.get(id)!.providerSandboxId!;
     expect(runtime.state.live.get(sandboxId)!.files.get(SITE_CHECK_PATH)).toBe(SITE_CHECK_SCRIPT);
@@ -466,11 +525,11 @@ describe("Guard verification receipts", () => {
 
   it("needs a task with checks", async () => {
     const id = await ready();
-    expect(await service().runChecks(as(ALICE), id, key())).toMatchObject({ ok: false, code: "INVALID_REQUEST" });
+    expect(await service().runChecks(as(ALICE), id, key(), { verification: true })).toMatchObject({ ok: false, code: "INVALID_REQUEST" });
   });
 
   it("runs a trial's checks without a receipt, a ProofPack or a task event (ADR 0076)", async () => {
-    const id = await ready(ALICE, { taskId: TASK, projectId: PROJECT });
+    const id = await checking();
     const r = await service().trialChecks(as(ALICE), id, ["echo hello", "exit 1", SITE_CHECK_COMMAND], key());
     expect(r.ok).toBe(true);
     if (!r.ok) return;
@@ -482,7 +541,7 @@ describe("Guard verification receipts", () => {
   });
 
   it("keeps a trial to the person's own workspace and a sensible number of checks", async () => {
-    const id = await ready(ALICE, { taskId: TASK, projectId: PROJECT });
+    const id = await checking();
     expect(await service().trialChecks(as(ALICE, "22222222-2222-4222-8222-222222222222"), id, ["echo hello"], key())).toMatchObject({ ok: false, code: "NOT_FOUND" });
     expect(await service().trialChecks(as(ALICE), id, [], key())).toMatchObject({ ok: false, code: "INVALID_REQUEST" });
     expect(await service().trialChecks(as(ALICE), id, Array.from({ length: 21 }, () => "echo hi"), key())).toMatchObject({ ok: false, code: "INVALID_REQUEST" });
@@ -543,9 +602,9 @@ describe("the egress ledger (ADR 0127)", () => {
   });
 
   it("puts every blocked address the checks asked for in the verification ProofPack", async () => {
-    const id = await ready(ALICE, { taskId: TASK, projectId: PROJECT });
+    const id = await checking();
     runtime.state.egressLog = [entry("evil.example", "blocked")].join("\n");
-    await service().runChecks(as(ALICE), id, key());
+    await service().runChecks(as(ALICE), id, key(), { verification: true });
     const pack = verificationPacks[0]!;
     expect(pack.statement.predicate.egress).toEqual({ observedBy: "farbaek-proxy-in-sandbox", allowed: [], blocked: [{ host: "evil.example", port: 443, attempts: 2 }], unreadable: 0, truncated: false });
     expect(pack.statement.predicate.limits.join(" ")).toMatch(/recorded by Farbaek's proxy inside the sandbox/);

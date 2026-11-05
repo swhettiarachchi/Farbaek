@@ -237,6 +237,7 @@ function HandoffsPanel() {
               {h?.note ? <p className="small">Your note: {h.note}</p> : null}
               {h ? (
                 <div className="small">
+                  <p className="muted">{"These run the project's own code on this computer, so start it only if you trust the project. If it needs packages, they're installed first, without running their install scripts."}</p>
                   <p className="muted">{h.proposal ? "With the change waiting for review. It runs:" : "There's no change waiting, so it runs on the project as it is:"}</p>
                   <ul className="mono">
                     {h.checks.map((c) => (

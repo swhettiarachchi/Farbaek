@@ -15,7 +15,7 @@ export const AGENT_MODE_LABELS: Record<AgentMode, { title: string; detail: strin
   },
   controlled: {
     title: "Controlled Development",
-    detail: "Edits files in the agent's copy of the project, with a checkpoint before each change. Read-only commands run; tests, builds, installs and anything risky wait for your approval. Commands run on this computer and aren't isolated.",
+    detail: "Edits files in the agent's copy of the project, with a checkpoint before each change. Every command waits for your approval. Commands run on this computer and aren't isolated.",
   },
   sandboxed_autopilot: {
     title: "Sandboxed Autopilot",

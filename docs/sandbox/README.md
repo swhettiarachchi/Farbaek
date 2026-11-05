@@ -110,3 +110,9 @@ There are no images to build: sessions start from `vercel/sandbox/universal`.
 ## Usage and cost
 
 Runtimes bill for the time a sandbox exists and runs, whatever it does. Farbaek meters running time per session (pauses close a segment) and derives vCPU-seconds and GiB-seconds from the sizes the runtime reports; active command time is tracked separately. Plan limits (`src/config/sandbox.ts`) cap concurrent sessions, session length, idle time, command length and period minutes. These are Farbaek's measurements, not a provider invoice, and no savings figures are claimed.
+
+## Who can verify a task (ADR 0175)
+
+Checks anyone runs in their own test space, from the page or the API, record a receipt marked unverified. They never make a verified ProofPack or move a task, because that person could have changed the space first. Only a test space the verification runner reserved before it existed can do that, and nobody can write to it or run commands in it.
+
+The API and SDK with a bearer token need the plan that sells them (Lite and up). The Test space page works on every plan.

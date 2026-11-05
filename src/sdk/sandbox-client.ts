@@ -249,7 +249,7 @@ export class FarbaekSandboxClient {
     return this.request<null>("DELETE", `/api/v1/sandboxes/${encodeURIComponent(id)}/previews/${encodeURIComponent(previewId)}`);
   }
   runChecks(id: string, options: { idempotencyKey?: string } = {}) {
-    return this.request<{ digest: string; status: string; taskEvent: string | null; applied: boolean }>(
+    return this.request<{ digest: string; status: string; taskEvent: string | null; applied: boolean; passed: number; total: number }>(
       "POST",
       `/api/v1/sandboxes/${encodeURIComponent(id)}/checks`,
       undefined,

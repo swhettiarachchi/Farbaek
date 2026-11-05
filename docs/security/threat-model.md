@@ -4,7 +4,7 @@ Version 0.1, 2026-10-13. Grows with each stage. Readiness notes only: this is no
 
 ## What exists today
 
-A static marketing site and pricing page. No accounts, no user data, no secrets, no server actions, no third-party scripts. The approval demo runs entirely in the browser on sample data and sends nothing.
+This first section is the outline from the first stage, kept for history: the sections below cover the product as it is now, with accounts, workspaces, agents, payments and published sites. When it was written: a static marketing site and pricing page. No accounts, no user data, no secrets, no server actions, no third-party scripts. The approval demo runs entirely in the browser on sample data and sends nothing.
 
 Enforced now:
 
@@ -80,7 +80,7 @@ The Farbaek Agent desktop app runs model-driven work on the person's own compute
 | Model output to tools | Goal hijack and prompt injection from project files (ASI01, LLM01), malformed or truncated calls | Zod registry; unknown tools and bad input are errors, never run; calls from a reply cut off at `max_tokens` never run; a refusal ends the run; file contents and command output go back marked as project data | `loop.test.ts`, `agent.test.ts` |
 | Tools to the disk | Path traversal, symlink and junction escapes, hard links to outside files, device names, TOCTOU swaps | Lexical rules (`..`, absolute, `:`, device names, trailing dots, 8.3 names); `realpath` root; `lstat` walk refusing links; multi-link files refused; opened handle identity checked; writes through an exclusive temp file and a rename (POSIX adds `O_NOFOLLOW`) | `fs-guard.test.ts` (real junctions and hard links in temp folders) |
 | Tools to processes | Shell injection, planted binaries, secret leakage into commands, runaway processes | No shell; bare program names resolved to absolute paths, skipping relative and in-project PATH entries; allowlisted environment (the app's provider keys never reach a command); cmd.exe metacharacters refused for `.cmd`/`.bat`; bounded output; timeout and cancel kill the process tree (`taskkill /T /F`, process groups) | `broker.test.ts` (real processes: both PIDs gone after timeout and cancel) |
-| Permissions | Tool misuse (ASI02), unexpected code execution (ASI05) | Modes and contract scope enforced per call; commands beyond read-only need a person's approval bound to the exact command by `approvalBindingHash`; the answer is checked against the pending request | `agent.test.ts`, `loop.test.ts`, `runs.test.ts` |
+| Permissions | Tool misuse (ASI02), unexpected code execution (ASI05) | Modes and contract scope enforced per call; every command on a person's own computer needs their approval, bound to the exact command by `approvalBindingHash` (ADR 0175; in a verified test space read-only commands run on their own); the answer is checked against the pending request | `agent.test.ts`, `loop.test.ts`, `runs.test.ts` |
 | Agent to Farbaek | Token theft or replay, acting after removal, cross-tenant writes, forged proposals | Only hashes of codes and tokens stored; codes single-use, 10 minutes, rate-limited; the person's role re-checked per request; proposals re-validated server-side and created by `app_create_agent_proposal`, which checks the agent, the person and the workspace; browsers can't read token hashes or pairing codes; HTTPS only (HTTP to localhost for development) | `tests/db/agents.test.ts`, `service.test.ts`, `farbaek-client.test.ts`, live smoke test |
 | Secrets on the computer | Token theft from disk, the token reaching the window | `safeStorage` (DPAPI, Keychain, libsecret or KWallet); nothing stored when only plain-text storage exists; the token never crosses the preload bridge; model keys are no longer stored (ADR 0021), and ones an earlier version stored are deleted on start | Live check: the token file holds ciphertext only |
 | The window | XSS reaching Node, remote content, navigation, permission abuse | Context isolation, Chromium sandbox, no Node integration, strict CSP, every page network request cancelled, navigation, new windows, webviews and permissions denied, Zod-validated IPC accepted only from the app's own page | Live check over the DevTools protocol: no `process` or `require`, page fetch blocked, invalid IPC refused |
@@ -424,3 +424,19 @@ Known limits: public repositories only. Private ones need a GitHub connection, w
 | What's kept | Altered or partial files kept as if they were whole | Every 4 MiB chunk and every file checked against its BLAKE3 hash; a mismatch, cancel or drop removes everything; only a fully checked transfer is sealed, and unsealed folders are removed after a reload | `browser-receive.test.ts`, SE-034, the live check |
 | Running what arrives | A received file run or opened by Farbaek | Files are only handed to the browser's download or share sheet; nothing is opened, previewed or run | Design |
 | The browser's storage | Filling the device | The Origin Private File System after a space check with 64 MB spare; otherwise memory capped at 200 MB, with Accept unavailable above it | Design; the live check |
+
+## What two audits found (ADR 0175)
+
+| Boundary | Threat | Mitigation | Test |
+| --- | --- | --- | --- |
+| Proof | A member plants a fake tool in a test space, then runs the checks to mint a verified ProofPack | Only a test space Farbaek reserved before it existed can record proof, and nobody can write to it or run commands in it | `service.test.ts`, SE-037 |
+| A person's computer | A hostile repo steers the agent into a command classed read-only whose arguments read a private key | Every command on a person's own computer asks; the approval shows all of it | `agent.test.ts`, `loop.test.ts`, SE-038 |
+| Handoffs | A member queues code for someone else's computer | Only a computer the person paired; only known tests and builds; setup can't run the project's code | `agent-handoffs.test.ts`, SE-039 |
+| The brakes | A paused or suspended workspace's agent keeps spending AI and reading files | The gateway refuses everything but saying who it is and unpairing | `security-audit.test.ts`, SE-040 |
+| Workflows | A member changes a later step's plan and runs it as the approver | The stored hash is compared before a step is claimed, and the workflow stops on a mismatch | `orchestrator.test.ts` |
+| Payments | A buyer's own metadata names someone else's workspace | The existing mapping wins, otherwise an owner's or admin's recent checkout must exist | `billing.test.ts`, SE-041 |
+| Custom domains | Someone holds a domain by only asking for it | Uniqueness only for verified domains; requests last a week; publish permission needed | `security-audit.test.ts` |
+| Leaving | A removed member's computers and invitations keep working | Removal revokes and ends them; the export stops reading that workspace | `security-audit.test.ts` |
+| Cost | A small zip costs gigabytes of inflating; a catch-all domain farms trials | Inflated bytes all count, shared streams are refused; five trials a day per private domain | `unzip.test.ts`, `security-audit.test.ts` |
+
+Left for later, with reasons, in ADR 0175: store sandbox purchases, the Public Suffix List, Auth's own limits behind the proxy, and phone sign-in over a custom scheme.

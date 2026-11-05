@@ -84,6 +84,9 @@ describe("handoffs (ADR 0139)", () => {
     expect(await requestHandoff({ handoffs: f.store, checks: checks(["npm test", "npm run build"]) }, person, { taskId: "t1", agentId: "a1", note: "  On the real data " })).toEqual({ ok: true, value: { handoffId: "h9" } });
     expect(f.asked[0]).toEqual({ orgId: "o1", actor: "u1", taskId: "t1", agentId: "a1", proposalId: "pr1", checks: ["npm test", "npm run build"], note: "On the real data" });
     expect(await requestHandoff({ handoffs: f.store, checks: checks(["npm test"]) }, { ...person, role: "viewer" }, { taskId: "t1", agentId: "a1", note: null })).toMatchObject({ ok: false, code: "FORBIDDEN" });
+    // Nothing that can run there. One that can is enough: the computer skips the others and says why.
+    expect(await requestHandoff({ handoffs: f.store, checks: checks(["curl https://evil.example"]) }, person, { taskId: "t1", agentId: "a1", note: null })).toMatchObject({ ok: false, message: expect.stringMatching(/only run in a test space/) });
+    expect(await requestHandoff({ handoffs: f.store, checks: checks(["farbaek check-site"]) }, person, { taskId: "t1", agentId: "a1", note: null })).toMatchObject({ ok: false, message: expect.stringMatching(/only run in a test space/) });
     expect(await requestHandoff({ handoffs: f.store, checks: checks([]) }, person, { taskId: "t1", agentId: "a1", note: null })).toMatchObject({ ok: false, message: expect.stringMatching(/nothing for your computer to run/) });
     const open = fakeStore({ request: async () => ({ ok: false, error: "HANDOFF_OPEN" }) });
     expect(await requestHandoff({ handoffs: open.store, checks: checks(["npm test"]) }, person, { taskId: "t1", agentId: "a1", note: null })).toMatchObject({ ok: false, message: "This task is already waiting on that computer." });
