@@ -68,6 +68,7 @@ Every scan and my own walk had passed. It still found these.
 - The fingerprint check said nothing about when to do it, and came after the steps.
 - Search lost a page's old name, which I'd swept by mistake and put back.
 - Several sentences the first pass left ungrammatical.
+- **The iPhone's Home had the same mismatch** as the web's: it counted by a task's state, so it promised two changes while Approvals listed one. That one came from reading the iPhone tour's screenshots.
 
 ## Found by looking at it
 

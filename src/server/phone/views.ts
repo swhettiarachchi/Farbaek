@@ -104,8 +104,15 @@ export function meView(ctx: AppContext, phone: { push: { available: boolean; on:
 /** The first screen: what waits for the person, what's running, and what happened lately. */
 export async function homeView(reader: WorkspaceReader, orgId: string, runs: RunReader) {
   const [tasks, projects, recentRuns] = await Promise.all([reader.listTasks(orgId, { limit: 50 }), reader.listProjects(orgId), runs.list({ limit: 10 })]);
+  // Counted as Approvals lists them, so Home and the tab's badge never promise a change that isn't there (ADR 0174).
+  const latest = await Promise.all(
+    tasks
+      .filter((t) => t.state === "APPROVAL_PENDING")
+      .slice(0, MAX_APPROVALS)
+      .map((t) => reader.getLatestProposal(orgId, t.id).catch(() => null)),
+  );
   return {
-    waiting: tasks.filter((t) => t.state === "APPROVAL_PENDING").length,
+    waiting: latest.filter((p) => p?.status === "pending").length,
     live: recentRuns.filter((r) => isLive(r.status)).map(runItem),
     recent: tasks.slice(0, 10).map(taskItem),
     projects: projects.filter((p) => !p.archivedAt).length,
