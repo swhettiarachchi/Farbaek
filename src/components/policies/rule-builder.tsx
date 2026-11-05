@@ -585,7 +585,7 @@ function TestResult({ summary, stale }: { summary: RulesTestSummary; stale: bool
           ) : null}
         </>
       )}
-      <p className="text-xs leading-relaxed text-ink-3">Judged with today&apos;s autonomy and sandbox. Nothing was applied or changed: these are predictions from past changes.</p>
+      <p className="text-xs leading-relaxed text-ink-3">Judged with today&apos;s settings. Nothing was applied or changed: these are predictions from past changes.</p>
     </section>
   );
 }

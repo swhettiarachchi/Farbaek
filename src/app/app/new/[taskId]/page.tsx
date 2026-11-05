@@ -12,7 +12,6 @@ import { ClearKeptPrompt } from "@/components/build/prompt-composer";
 import { buttonClasses } from "@/components/ui/button";
 import { kitTierFor, themeFromPrompt } from "@/core/media/studio-kit";
 import { contractHash } from "@/core/realityloop/contract";
-import { shortHash } from "@/core/trust/canonical-json";
 import { resolveAiProvider } from "@/server/ai/config";
 import { loadAppContext } from "@/server/workspace/context";
 import { runEstimates, runKindFor } from "@/server/workspace/plan-card-data";
@@ -91,7 +90,7 @@ export default async function PlanCardPage({ params }: Params) {
       : ai.provider !== "anthropic"
         ? "Cloud runs aren't available on this server yet. You can still approve the plan from the task page."
         : !intact
-          ? "The stored plan doesn't match its fingerprint. Open the task to check it."
+          ? "This plan doesn't match what was saved. Open the task to check it."
           : withheldFor(ctx.role, ctx.permissions, "run_agents")
             ? `${withheldFor(ctx.role, ctx.permissions, "run_agents")} You can still approve the plan from the task page.`
             : null;
@@ -125,9 +124,6 @@ export default async function PlanCardPage({ params }: Params) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="flex flex-wrap items-baseline gap-x-2 text-[13px] text-ink-3">
               <span className="font-medium">Your plan, version {contract.version}</span>
-              <span className="font-mono text-xs" title={`sha256:${contract.sha256}`}>
-                {shortHash(contract.sha256)}
-              </span>
             </p>
             {task.state === "CANCELLED" ? (
               <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line-strong px-3 text-xs font-medium text-ink-2">
@@ -238,8 +234,8 @@ export default async function PlanCardPage({ params }: Params) {
             )}
             {task.state === "CANCELLED" ? null : (
               <p className="mt-4 text-xs leading-relaxed text-ink-3">
-                Approving fixes this exact plan by its fingerprint. The agent works on a copy, can&apos;t go beyond the plan, and nothing changes in your project until you review
-                and apply the result.
+                Approving covers exactly this plan. The agent works on a copy, can&apos;t go beyond the plan, and nothing changes in your project until you review and approve the
+                result.
               </p>
             )}
           </div>

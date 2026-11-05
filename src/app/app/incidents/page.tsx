@@ -13,7 +13,7 @@ import { loadAppContext } from "@/server/workspace/context";
 import { INCIDENT_TOOLS_NOT_IN_PLAN, RESUME_MANAGERS_ONLY } from "@/server/workspace/incidents";
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES } from "@/server/workspace/types";
 
-export const metadata: Metadata = { title: "Incidents" };
+export const metadata: Metadata = { title: "Problems and pause" };
 
 /** Incidents and the emergency pause (ADR 0083). */
 export default async function IncidentsPage() {
@@ -30,7 +30,7 @@ export default async function IncidentsPage() {
 
   return (
     <div className="grid gap-8">
-      <PageHeader title="Incidents" description="What went wrong in this workspace, what was done about it, and what would keep it from happening again." />
+      <PageHeader title="Problems and pause" description="What went wrong in this workspace and what was done about it, plus a button that stops every agent at once." />
 
       <Card>
         <h2 className="text-lg font-medium">Emergency pause</h2>

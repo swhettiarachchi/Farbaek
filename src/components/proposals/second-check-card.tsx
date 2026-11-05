@@ -78,7 +78,7 @@ export function SecondCheckCard({
       {!check && recommended ? (
         <p className="flex items-start gap-2 rounded-sm border border-approval/30 bg-approval/[0.06] px-3 py-2 text-sm">
           <WarningIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-approval" aria-hidden />
-          Recommended for this change: the policy sent it to an owner or admin.
+          Recommended for this change: a rule sent it to an owner or admin.
         </p>
       ) : null}
 

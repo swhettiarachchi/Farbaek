@@ -31,12 +31,12 @@ const GROUPS: CompareGroup[] = [
         const n = planSessionsGuide(plan);
         return text(n === null ? "Contract" : number.format(n));
       }),
-      limitRow("Sandbox hours a month", "sandboxHours"),
+      limitRow("Test space hours a month", "sandboxHours"),
       row("Unused usage rolls over", (plan) => text(plan.features.includes("usage_rollover") ? "2 months" : "No")),
       limitRow("Projects", "workspaces"),
       limitRow("Seats", "seats"),
       limitRow("Desktop agents", "agents"),
-      limitRow("Governed evaluations a month", "evaluationsPerMonth"),
+      limitRow("Safety checks a month", "evaluationsPerMonth"),
       limitRow("Activity history", "historyDays", " days"),
     ],
   },

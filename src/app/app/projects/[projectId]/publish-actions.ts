@@ -52,7 +52,7 @@ export async function publishAction(_previous: PublishState, form: FormData): Pr
   return {
     status: "done",
     message: r.overridden
-      ? "Published without verified evidence. Your reason is saved with this version. It can take a few seconds to appear everywhere."
+      ? "Published without passed checks. Your reason is saved with this version. It can take a few seconds to appear everywhere."
       : "Published. It can take a few seconds to appear everywhere.",
   };
 }

@@ -31,22 +31,22 @@ describe("the trust graph (ADR 0132)", () => {
     const p1 = whoCanChange(g, "p1");
     expect(p1.map((a) => [a.node.label, a.via.map((e) => e.label)])).toEqual([
       ["ada@studio.example", ["can change and approve"]],
-      ["bo@studio.example", ["can propose changes"]],
-      ["Ada's laptop", ["paired", "can propose changes"]],
+      ["bo@studio.example", ["can suggest changes"]],
+      ["Ada's laptop", ["paired", "can suggest changes"]],
     ]);
     // The viewer's agent holds a lease but its person can only view, so it isn't counted; it's shown as limited.
-    expect(g.edges.find((e) => e.from === agentId("a2") && e.to === projectId("p1"))).toMatchObject({ limited: true, label: "lease, but its person can only view" });
+    expect(g.edges.find((e) => e.from === agentId("a2") && e.to === projectId("p1"))).toMatchObject({ limited: true, label: "has access, but its person can only view" });
     // An expired lease and a revoked agent reach nothing; an archived project takes no edges.
     expect(g.edges.some((e) => e.from === agentId("a3") || e.from === agentId("a4"))).toBe(false);
     expect(g.edges.some((e) => e.to === projectId("p3"))).toBe(false);
-    expect(g.nodes.find((n) => n.id === agentId("a3"))).toMatchObject({ inactive: true, detail: "Lease expired" });
+    expect(g.nodes.find((n) => n.id === agentId("a3"))).toMatchObject({ inactive: true, detail: "Its access has ended" });
   });
 
   it("includes workflows, which run as the person who approved them", () => {
     const g = buildTrustGraph(base);
     const p2 = whoCanChange(g, "p2");
     expect(p2.at(-1)).toMatchObject({ node: { kind: "workflow", label: "Harden checkout" } });
-    expect(p2.at(-1)!.via.map((e) => e.label)).toEqual(["approved; its runs start as them", "runs agents on"]);
+    expect(p2.at(-1)!.via.map((e) => e.label)).toEqual(["approved it; its runs use their access", "runs agents on this project"]);
   });
 
   it("shows what depends on a connected service, and who connected it", () => {

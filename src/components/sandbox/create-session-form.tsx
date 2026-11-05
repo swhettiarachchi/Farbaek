@@ -188,7 +188,7 @@ export function CreateSessionForm(props: CreateSessionFormProps) {
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-ink-3">A linked task can run its contract&apos;s required checks here and get a verification receipt.</p>
+                <p className="text-xs text-ink-3">A linked task can run its plan&apos;s checks here and get a receipt.</p>
               </div>
             </>
           ) : null}
@@ -200,7 +200,7 @@ export function CreateSessionForm(props: CreateSessionFormProps) {
         <ul className="grid gap-3 text-sm">
           <li className="flex gap-3">
             <ShieldCheckIcon size={18} className="mt-0.5 shrink-0 text-accent" aria-hidden />
-            <span>Its own microVM with its own kernel, separate from Farbaek and from other sessions. No Farbaek keys or settings are inside.</span>
+            <span>Its own private computer, separate from Farbaek and from other sessions. No Farbaek keys or settings are inside.</span>
           </li>
           <li className="flex gap-3">
             <CpuIcon size={18} className="mt-0.5 shrink-0 text-accent" aria-hidden />

@@ -15,9 +15,22 @@ describe("cleanPrompt", () => {
 describe("projectNameFromPrompt", () => {
   it("drops the request words and keeps the subject", () => {
     expect(projectNameFromPrompt("Build me a landing page for my bakery in Kandy")).toBe("Landing page for my bakery");
+    expect(projectNameFromPrompt("Make this the landing page for Ledgerline, a bookkeeping service")).toBe("Landing page for Ledgerline");
+    expect(projectNameFromPrompt("Turn this into a shop")).toBe("Turn this into a shop");
+    expect(projectNameFromPrompt("Make this into a one-page site for Volt")).toBe("One-page site for Volt");
     expect(projectNameFromPrompt("I want to create a portfolio site")).toBe("Portfolio site");
     expect(projectNameFromPrompt("Can you make an app that tracks my workouts")).toBe("App that tracks my workouts");
     expect(projectNameFromPrompt("bakery website!!")).toBe("Bakery website");
+  });
+
+  it("names the thing, however the sentence is punctuated", () => {
+    expect(projectNameFromPrompt("Build me a website, for my bakery Sweet Crumbs in Kandy")).toBe("Website for my bakery Sweet Crumbs");
+    expect(projectNameFromPrompt("Hi there, build me a website for my bakery")).toBe("Website for my bakery");
+    expect(projectNameFromPrompt("Please, make a bakery site.")).toBe("Bakery site");
+    expect(projectNameFromPrompt("Project name: Sweet Crumbs, a bakery site")).toBe("Sweet Crumbs");
+    expect(projectNameFromPrompt("Clone https://stripe.com for my bakery")).toBe("Clone stripe.com for my bakery");
+    expect(projectNameFromPrompt("Build a store selling 1,000 candles")).toBe("Store selling 1,000 candles");
+    expect(projectNameFromPrompt("🚀 🚀, build me a shop")).toBe("Shop");
   });
 
   it("falls back when nothing is left", () => {

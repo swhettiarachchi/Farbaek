@@ -14,7 +14,7 @@ import { loadAppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES } from "@/server/workspace/types";
 import { RULES_MANAGERS_ONLY, RULES_NOT_IN_PLAN } from "@/server/workspace/workspace-rules";
 
-export const metadata: Metadata = { title: "Policies" };
+export const metadata: Metadata = { title: "Rules" };
 
 /**
  * Policies (ADR 0082): the built-in change policy, the workspace's own rules
@@ -53,22 +53,17 @@ export default async function PoliciesPage({ searchParams }: { searchParams: Pro
   return (
     <div className="grid gap-8">
       <PageHeader
-        title="Policies"
-        description="Farbaek's built-in policy decides what every change needs. Your workspace rules add to it: they can make a change wait longer or stop it, never let more through."
+        title="Rules"
+        description="What has to happen before a change goes in. Farbaek's built-in rules always apply. Yours can add to them: they can make a change wait or stop it, but never let more through."
       />
 
       <Card>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-medium">Built-in policy</h2>
-          <span className="text-xs text-ink-3">
-            Rules <span className="font-mono">{shortHash(builtIn)}</span>
-          </span>
-        </div>
-        <p className="mt-1 text-sm leading-relaxed text-ink-2">It always applies, and no workspace rule can loosen it.</p>
+        <h2 className="text-lg font-medium">Built-in rules</h2>
+        <p className="mt-1 text-sm leading-relaxed text-ink-2">These always apply, and no workspace rule can loosen them.</p>
         <ul className="mt-4 grid gap-3 text-[15px] leading-relaxed">
           <li className="flex items-start gap-3">
             <ProhibitIcon size={18} weight="bold" className="mt-1 shrink-0 text-failed" aria-hidden />
-            <span>A change that breaks its approved contract is stopped.</span>
+            <span>A change that goes outside its approved plan is stopped.</span>
           </li>
           <li className="flex items-start gap-3">
             <ShieldWarningIcon size={18} weight="bold" className="mt-1 shrink-0 text-approval" aria-hidden />
@@ -79,14 +74,20 @@ export default async function PoliciesPage({ searchParams }: { searchParams: Pro
           <li className="flex items-start gap-3">
             <UserCheckIcon size={18} weight="bold" className="mt-1 shrink-0 text-ink-3" aria-hidden />
             <span>
-              Anything else needs a contributor&apos;s approval, or applies on its own within the limits of{" "}
+              Anything else needs a person&apos;s approval. If you{" "}
               <Link href="/app/settings" className="font-medium text-accent hover:underline">
-                autonomy level 2
-              </Link>{" "}
-              when the workspace turns it on.
+                turn on level 2 in Settings
+              </Link>
+              , it can go in on its own within the limits you set.
             </span>
           </li>
         </ul>
+        <details className="mt-3 text-xs text-ink-3">
+          <summary className="inline-flex min-h-11 cursor-pointer list-none items-center hover:text-ink [&::-webkit-details-marker]:hidden">Technical details</summary>
+          <p>
+            This version of the rules: <span className="font-mono">{shortHash(builtIn)}</span>
+          </p>
+        </details>
       </Card>
 
       <Card id="rules">
@@ -109,7 +110,7 @@ export default async function PoliciesPage({ searchParams }: { searchParams: Pro
             <RuleList rules={active.rules} />
           </div>
         ) : (
-          <p className="mt-2 text-sm leading-relaxed text-ink-2">Every change follows the built-in policy alone. Add a rule below to protect files that matter to you.</p>
+          <p className="mt-2 text-sm leading-relaxed text-ink-2">Every change follows the built-in rules alone. Add a rule below to protect files that matter to you.</p>
         )}
 
         {versions !== null ? (

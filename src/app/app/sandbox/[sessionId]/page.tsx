@@ -63,7 +63,7 @@ export default async function SandboxSessionPage({ params }: { params: Promise<{
     session.state === "failed"
       ? { tone: "failed", title: failure?.title ?? "The session failed", body: `${session.failureMessage ? `${session.failureMessage} ` : ""}${failure?.action ?? ""}` }
       : session.state === "requested" || session.state === "provisioning"
-        ? { tone: "info", title: "Starting the sandbox", body: "The runtime is booting a microVM and copying in the project files. This page updates on its own." }
+        ? { tone: "info", title: "Starting the test space", body: "Farbaek is starting a private, throwaway computer and copying in the project files. This page updates on its own." }
         : session.state === "paused"
           ? { tone: "warning", title: "Paused", body: "Nothing runs while paused, and running time isn't counted. Resume to keep working; the time limit still applies." }
           : session.state === "stopping"

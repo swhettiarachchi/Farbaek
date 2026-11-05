@@ -146,7 +146,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
   // The same evidence the publish gate reads (ADR 0050).
   const evidence: { state: StepState; text: ReactNode } = {
     state: proof.status === "verified" ? "done" : proof.status === "none" ? "missing" : "attention",
-    text: `${EVIDENCE_WORDS[proof.status].detail}${proof.status === "verified" ? "" : " Without verified evidence, publishing needs a reason from an owner or admin."}`,
+    text: `${EVIDENCE_WORDS[proof.status].detail}${proof.status === "verified" ? "" : " Without passed checks, publishing needs a reason from an owner or admin."}`,
   };
   const deployed: { state: StepState; text: ReactNode } = live
     ? {
@@ -169,7 +169,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
 
   const steps = [
     { key: "security", title: "Security check of these files", icon: ShieldCheckIcon, ...security, href: `/app/projects/${project.id}/security`, link: "Open Security" },
-    { key: "evidence", title: "Evidence for the latest change", icon: FingerprintIcon, ...evidence, href: proof.taskId ? `/app/tasks/${proof.taskId}` : null, link: "Open the task" },
+    { key: "evidence", title: "Proof for the latest change", icon: FingerprintIcon, ...evidence, href: proof.taskId ? `/app/tasks/${proof.taskId}` : null, link: "Open the task" },
     { key: "deployed", title: "The version that's live", icon: CubeIcon, ...deployed, href: null, link: null },
   ];
 

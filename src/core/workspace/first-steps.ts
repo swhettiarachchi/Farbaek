@@ -78,13 +78,13 @@ const COPY: Record<FirstStepKey, { short: string; title: string; detail: string;
   verify: {
     short: "Verify",
     title: "Get it verified",
-    detail: "Checks run in a sandbox against exactly what you applied, and the ProofPack records what they found.",
+    detail: "Farbaek tests exactly what you approved, on a safe copy, and keeps a record of what it found.",
     action: "Run the checks",
   },
   publish: {
     short: "Publish",
     title: "Publish your site",
-    detail: "Your site goes live at its own address, with the evidence for the version people see.",
+    detail: "Your site goes live at its own address, with proof of what's in it.",
     action: "Publish",
   },
 };
@@ -113,8 +113,8 @@ export function firstSteps(facts: FirstStepFacts, limits: FirstStepLimits): Firs
   const href: Record<FirstStepKey, string | null> = {
     describe: "#start",
     approve: drafting ? `/app/new/${drafting.id}` : "#start",
-    apply: reviewable ? `/app/tasks/${reviewable.id}` : "/app/build",
-    verify: unverified ? `/app/tasks/${unverified}` : "/app/tasks",
+    apply: reviewable ? `/app/tasks/${reviewable.id}#change` : "/app/build",
+    verify: unverified ? `/app/tasks/${unverified}#checks` : "/app/tasks",
     publish: publishProject ? `/app/projects/${publishProject}#publish` : "/app/projects",
   };
   const reason: Record<FirstStepKey, string | null> = { describe: null, approve: null, apply: null, verify: limits.checks, publish: limits.publishing };

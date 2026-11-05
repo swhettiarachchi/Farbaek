@@ -118,7 +118,7 @@ describe("checkProposal", () => {
 
   it("counts changed files against the record limit and enforces path scope", () => {
     const many = ["a", "b", "c", "d"].map((n) => change(`src/lib/${n}.ts`));
-    expect(checkProposal(contract, many)).toEqual([{ kind: "RECORD_LIMIT", detail: "4 files change, over the contract limit of 3." }]);
+    expect(checkProposal(contract, many)).toEqual([{ kind: "RECORD_LIMIT", detail: "4 files change, over the plan's limit of 3." }]);
     expect(checkProposal(contract, [change("src/app/page.tsx"), change("src/library/x.ts")]).map((v) => v.kind)).toEqual(["OUT_OF_SCOPE_PATH", "OUT_OF_SCOPE_PATH"]);
   });
 

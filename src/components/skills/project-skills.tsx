@@ -41,8 +41,8 @@ export function ProjectSkills({ projectId, skills, disabledReason }: { projectId
           <BookOpenTextIcon size={20} weight="bold" className="text-accent" aria-hidden /> Skills
         </h2>
         <p className="text-sm leading-relaxed text-ink-2">
-          Teach the agent how you like this project built: your brand, your stack, your rules. Skills use the open SKILL.md format, apply to every build here, and
-          can&apos;t widen what a plan allows. Each one is used only in the version someone approved, so a skill that arrives in an import or changes later waits for a review.
+          Teach the agent how you like this project built: your brand, your tools, your rules. A skill applies to every build here and can&apos;t widen what a plan allows. If one
+          changes or arrives in an import, it waits for your review first. Skills use the open SKILL.md format.
         </p>
       </div>
       {held ? (
@@ -83,7 +83,7 @@ export function ProjectSkills({ projectId, skills, disabledReason }: { projectId
                         </>
                       ) : s.pin ? (
                         <>
-                          Approved at revision {s.pin.revision}; now at revision {s.revision}. Not used in builds until reviewed.
+                          Approved at version {s.pin.revision}; now at version {s.revision}. Not used in builds until reviewed.
                         </>
                       ) : (
                         "Not used in builds until reviewed."

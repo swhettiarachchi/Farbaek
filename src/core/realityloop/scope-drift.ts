@@ -93,7 +93,7 @@ export const ORIGIN_LABELS: Record<DriftOrigin, string> = {
 };
 
 export const DRIFT_LABELS: Record<DriftReason, string> = {
-  outside_paths: "outside the contract's paths",
-  operation_forbidden: "an operation the contract forbids",
-  operation_not_allowed: "an operation the contract doesn't allow",
+  outside_paths: "outside the plan's paths",
+  operation_forbidden: "an operation the plan forbids",
+  operation_not_allowed: "an operation the plan doesn't allow",
 };

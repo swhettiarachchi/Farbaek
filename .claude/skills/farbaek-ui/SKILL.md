@@ -105,6 +105,23 @@ Sample data is labelled "sample". Never invent numbers, integrations, results or
 
 ## Copy
 
+**Say it the way anyone would (ADR 0170).** `tests/design/plain-words.test.ts` enforces this in the signed-in app.
+
+| Not this | This |
+|---|---|
+| Intent contract, contract | Plan |
+| Proposal, propose | Change, suggest |
+| Lifecycle | Progress |
+| Invariants / Acceptance / Resources / Forbidden | Must stay true / Done when / What it can change / Not allowed |
+| Evidence | Proof (a ProofPack keeps its name; explain it where it appears) |
+| Recovery | Undo |
+| Policy | Rules (the legal "Privacy Policy" stays) |
+| Hash, digest, fingerprint | Don't show them by default |
+| Mission Control | Home |
+| Sandbox / Agents / Mesh / Incidents / Activity / Integrations / Trust graph | Test space / Desktop app / Move projects / Problems and pause / History / Connections / Who can do what |
+
+**Lead with the next step.** A page with a job says what's happening and the one thing to do first, then the card for it. Everything else goes in one `Disclosure` (`src/components/ui/disclosure.tsx`). Two levels of disclosure at most.
+
 - Plain sentences from the person's side of the screen.
 - No em dashes in UI text, no filler verbs, no "first", "guaranteed" or "complete protection".
 - Buttons say what happens ("Approve and build", "Review and apply"), and the result uses the same verb.

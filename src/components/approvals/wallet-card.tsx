@@ -19,7 +19,6 @@ import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
 import { relativeLabel, useNow } from "@/components/ui/use-now";
 import { approvalWindow, type WalletFact, type WindowState } from "@/core/trust/approval-wallet";
-import { shortHash } from "@/core/trust/canonical-json";
 
 /** One waiting proposal as the approvals inbox shows it. Everything here comes from the server. */
 export interface WalletCardData {
@@ -118,7 +117,7 @@ export function WalletCard({ card, serverNow }: { card: WalletCardData; serverNo
               <TestTubeIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
               <span>
                 {card.checks.length === 0 ? (
-                  "The contract lists no checks, so nothing will verify it."
+                  "The plan lists no checks, so nothing will confirm it."
                 ) : card.checksReason ? (
                   <>Its checks can&apos;t run yet: {card.checksReason}</>
                 ) : (
@@ -129,7 +128,7 @@ export function WalletCard({ card, serverNow }: { card: WalletCardData; serverNo
                         {c}
                       </code>
                     ))}
-                    {card.checks.length === 1 ? "runs" : "run"} in a sandbox.
+                    {card.checks.length === 1 ? "runs" : "run"} in a test space.
                   </>
                 )}
               </span>
@@ -141,7 +140,7 @@ export function WalletCard({ card, serverNow }: { card: WalletCardData; serverNo
       {/* The stub: what you hand in. Its dashed edge is the tear line of a ticket. */}
       <div className="grid content-between gap-5 border-t border-dashed border-line-strong/40 bg-surface-raised/50 p-4 sm:p-5 md:border-t-0 md:border-l">
         <div className="grid gap-2">
-          <p className="text-[13px] font-medium text-ink-3">Approval window</p>
+          <p className="text-[13px] font-medium text-ink-3">Time to approve</p>
           {expired ? (
             <p className="text-sm">
               Expired {left}. <span className="text-ink-2">It can only be discarded now.</span>
@@ -157,19 +156,12 @@ export function WalletCard({ card, serverNow }: { card: WalletCardData; serverNo
           </div>
         </div>
 
-        <div className="grid gap-1">
-          <p className="text-[13px] font-medium text-ink-3">Proposal hash</p>
-          <p className="font-mono text-[13px] break-all" title={card.sha256}>
-            {shortHash(card.sha256, 8, 6)}
-          </p>
-        </div>
-
         <div className="grid gap-2">
           <Link href={`/app/tasks/${card.taskId}#change`} className={buttonClasses(expired ? "secondary" : "primary", "sm", "group w-full")}>
             {expired ? "Review and discard" : card.canApprove ? "Review and approve" : "Review"}
             <ArrowRightIcon size={14} weight="bold" className="transition-transform duration-[160ms] ease-standard group-hover:translate-x-0.5" aria-hidden />
           </Link>
-          {!expired && !card.canApprove ? <p className="text-xs text-ink-3">The policy escalated it, so an owner or admin approves.</p> : null}
+          {!expired && !card.canApprove ? <p className="text-xs text-ink-3">A rule says an owner or admin has to approve this.</p> : null}
         </div>
       </div>
     </article>

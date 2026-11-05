@@ -237,8 +237,8 @@ export function builtInRuleFor(path: string): { rule: string; why: string } | nu
 export const OUTCOME_LABELS: Record<PolicyOutcome, string> = {
   ALLOW: "Allowed",
   ALLOW_WITHIN_LIMITS: "Applies on its own within this workspace's limits",
-  REQUIRE_APPROVAL: "Needs a contributor's approval",
-  SIMULATE_FIRST: "Needs a simulation first",
+  REQUIRE_APPROVAL: "Needs a person's approval",
+  SIMULATE_FIRST: "Needs a trial first",
   ESCALATE: "Needs an owner or admin to approve",
   BLOCK: "Blocked",
 };

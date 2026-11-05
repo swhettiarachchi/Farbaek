@@ -26,14 +26,14 @@ export default async function WorkflowsPage() {
     <div className="grid gap-8">
       <PageHeader
         title="Workflows"
-        description="A goal that takes several changes, run in order by the agent once an owner or admin approves it. It stops for a person at checkpoints, whenever a change needs review, and on any failure."
+        description="A bigger goal, done step by step. The agent works through the steps in order once an owner or admin approves, and stops whenever a person needs to look."
         actions={planReason ? undefined : <ButtonLink href="/app/workflows/new">New workflow</ButtonLink>}
       />
       {planReason && ctx.mode !== "demo" ? <Notice>{planReason} You can still read workflows here.</Notice> : null}
 
       {workflows.length === 0 ? (
         <EmptyState icon={FlowArrowIcon} title="No workflows yet" action={planReason ? undefined : <ButtonLink href="/app/workflows/new">New workflow</ButtonLink>}>
-          Split a goal into steps. Each step becomes a task with its own contract, and the agent works through them one at a time.
+          Split a goal into steps. Each step becomes a task with its own plan, and the agent works through them one at a time.
         </EmptyState>
       ) : (
         <ul className="grid gap-4">

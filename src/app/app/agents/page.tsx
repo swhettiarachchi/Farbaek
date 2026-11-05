@@ -17,7 +17,7 @@ import { AGENT_MODE_LABELS } from "@/core/agent/modes";
 import { loadAppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES } from "@/server/workspace/types";
 
-export const metadata: Metadata = { title: "Agents" };
+export const metadata: Metadata = { title: "Desktop app" };
 
 const PLATFORM_LABEL = { windows: "Windows", macos: "macOS", linux: "Linux" } as const;
 
@@ -53,7 +53,7 @@ export default async function AgentsPage() {
       : !ctx.writes.enabled
         ? ctx.writes.reason
         : !canPair
-          ? "Viewers can't pair agents, since agents propose changes."
+          ? "Viewers can't pair agents, since agents suggest changes."
           : limit !== null && active.length >= limit
             ? `Every agent on this plan is in use (${active.length} of ${limit}). Revoke one to pair another computer.`
             : null;
@@ -68,8 +68,8 @@ export default async function AgentsPage() {
   return (
     <div className="grid gap-8">
       <PageHeader
-        title="Agents"
-        description="Farbaek Agent is a desktop app that works on a task's approved contract, using Farbaek's AI. No API key needed: each run uses your workspace's AI usage. Its work arrives here as a change proposal for you to review, apply and verify."
+        title="Desktop app"
+        description="Farbaek Agent lets the agent work on your own computer, under a plan you've approved. No API key needed: it uses your workspace's AI allowance. Its work arrives here as a change for you to review and approve."
       />
 
       <AgentDownload />

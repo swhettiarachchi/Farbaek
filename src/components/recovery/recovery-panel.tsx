@@ -83,7 +83,7 @@ export function RecoveryPanel({
   }
 
   const count = allBack ? 0 : chosen.size;
-  const label = allBack ? "Finish the recovery" : `Undo ${count} ${count === 1 ? "file" : "files"}`;
+  const label = allBack ? "Finish undoing" : `Undo ${count} ${count === 1 ? "file" : "files"}`;
 
   return (
     <div className="grid gap-5">
@@ -175,7 +175,7 @@ export function RecoveryPanel({
         <div className="grid gap-3 border-t border-line pt-5">
           <p className="text-sm">
             {allBack ? (
-              "Every file is already back at its earlier version. Confirming checks that again and records the recovery."
+              "Every file is already back at its earlier version. Confirming checks that again and records it."
             ) : (
               <>
                 You are approving the undo of{" "}
@@ -183,7 +183,7 @@ export function RecoveryPanel({
                   {count} of {items.length} {items.length === 1 ? "file" : "files"}
                 </span>{" "}
                 exactly as previewed. Farbaek checks each restored file against its earlier version before it records the recovery.
-                {conflicts || count < ready.length ? " The task stays in recovery pending until every file is back." : null}
+                {conflicts || count < ready.length ? " It stays here until every file is back." : null}
               </>
             )}
           </p>

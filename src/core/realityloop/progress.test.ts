@@ -52,7 +52,7 @@ describe("lifecycleProgress", () => {
 
   it("fails the stage where the task stopped", () => {
     expect(view("BLOCKED", "CONTEXT_ASSEMBLED", "CONTRACT_DRAFTED", "CONTRACT_APPROVED", "PLAN_PROPOSED", "POLICY_EVALUATED", "BLOCKED")[2]).toBe(
-      "policy:failed:blocked by policy",
+      "policy:failed:stopped by a rule",
     );
     expect(view("REJECTED", "CONTEXT_ASSEMBLED", "CONTRACT_DRAFTED", "REJECTED")[0]).toBe("contract:failed:rejected");
     expect(view("FAILED", ...HAPPY, "FAILED")[5]).toBe("verification:failed:failed");

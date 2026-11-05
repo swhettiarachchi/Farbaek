@@ -10,7 +10,7 @@ import { neighbours, projectId, rulesOn, whoCanChange, type Answer, type TrustNo
 import { loadTrustGraph } from "@/server/trust/trust-graph";
 import { loadAppContext } from "@/server/workspace/context";
 
-export const metadata: Metadata = { title: "Trust graph" };
+export const metadata: Metadata = { title: "Who can do what" };
 
 const KIND: Record<TrustNodeKind, { word: string; icon: Icon }> = {
   person: { word: "Person", icon: UserIcon },
@@ -84,7 +84,7 @@ export default async function TrustPage({ searchParams }: { searchParams: Promis
 
   return (
     <div className="grid gap-6">
-      <PageHeader title="Trust graph" description="Who and what can act in this workspace, and on what: people, paired agents with their leases and tools, workflows, rules and connected services, from the workspace's own records." />
+      <PageHeader title="Who can do what" description="Everyone and everything that can act in this workspace, and what each can change: people, desktop agents, workflows, rules and connected services." />
 
       {ctx.mode === "demo" ? <Notice>Sample data: the demo workspace&apos;s people, agents and projects.</Notice> : null}
       {unread.length ? <Notice tone="warning">Couldn&apos;t read {unread.join(", ")} just now, so the graph leaves them out. Reload to try again.</Notice> : null}
@@ -112,10 +112,10 @@ export default async function TrustPage({ searchParams }: { searchParams: Promis
         {askedNode ? (
           <div className="mt-4 grid gap-2">
             <h3 className="text-sm font-medium">Workspace rules on its changes</h3>
-            <AnswerList answers={rulesOn(graph, askedNode.id.replace(/^project:/, ""))} empty="No workspace rules. Farbaek's built-in policy still decides what needs a person." />
+            <AnswerList answers={rulesOn(graph, askedNode.id.replace(/^project:/, ""))} empty="No workspace rules. Farbaek's built-in rules still decide what needs a person." />
           </div>
         ) : null}
-        <p className="mt-3 text-xs text-ink-3">An agent always acts with the role of the person who paired it, checked again on every request, and only within its lease. It never has more authority than its person.</p>
+        <p className="mt-3 text-xs text-ink-3">An agent always acts with the role of the person who paired it, checked again on every request, and only within the access it was given. It never has more authority than its person.</p>
       </Card>
 
       <section aria-labelledby="map-title" className="grid gap-3">

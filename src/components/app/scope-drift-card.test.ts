@@ -9,8 +9,8 @@ describe("ScopeDriftCard", () => {
   const approvedAt = "2026-10-14T09:00:00.000Z";
 
   it("says plainly when nothing changed or everything stayed in scope", () => {
-    expect(render({ approvedAt, changes: 0, findings: [] })).toContain("No files changed since the contract was approved.");
-    expect(render({ approvedAt, changes: 3, findings: [] })).toContain("3 file changes since approval, all inside the contract.");
+    expect(render({ approvedAt, changes: 0, findings: [] })).toContain("No files changed since the plan was approved.");
+    expect(render({ approvedAt, changes: 3, findings: [] })).toContain("3 file changes since approval, all inside the plan.");
   });
 
   it("lists each drifting change with its operation, reasons and origin, not by colour alone", () => {
@@ -22,12 +22,12 @@ describe("ScopeDriftCard", () => {
         { path: "docs/a.md", operation: "files.create", reasons: ["outside_paths"], at: "2026-10-14T10:01:00.000Z", viaProposal: false, origin: "import" },
       ],
     });
-    expect(html).toContain("2 of 4 changes fall outside the contract");
+    expect(html).toContain("2 of 4 changes fall outside the plan");
     expect(html).toContain("Edited directly");
     expect(html).toContain("Imported");
     expect(html).toContain("src/app/page.tsx");
     expect(html).toContain("files.edit");
-    expect(html).toContain("outside the contract&#x27;s paths");
+    expect(html).toContain("outside the plan&#x27;s paths");
     expect(html).toContain("aria-hidden");
   });
 });

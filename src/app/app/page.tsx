@@ -15,7 +15,6 @@ import { firstSteps } from "@/core/workspace/first-steps";
 import { FirstStepsHidden, FirstStepsPanel } from "@/components/app/first-steps";
 import { siteDomain } from "@/server/publish/config";
 import { FIRST_STEPS_COOKIE, hiddenWorkspaces } from "@/server/workspace/first-steps";
-import { shortHash } from "@/core/trust/canonical-json";
 import { loadAppContext } from "@/server/workspace/context";
 import { currentExecutionMode } from "@/server/execution/sandbox";
 import { listRuns, proposalStates, type RunView } from "@/server/cloud-agent/store";
@@ -25,7 +24,7 @@ import { LiveRefresh } from "@/components/app/live-refresh";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { aiMeter, loadUsageSummary } from "@/server/workspace/usage-summary";
 
-export const metadata: Metadata = { title: "Mission Control" };
+export const metadata: Metadata = { title: "Home" };
 
 const number = new Intl.NumberFormat("en-US");
 
@@ -86,14 +85,13 @@ export default async function MissionControl() {
   return (
     <div className="grid gap-8">
       <PageHeader
-        title="Mission Control"
+        title="Home"
         description={
           <>
             {ws.name} is on the <span className="font-medium text-ink">{getPlan(ws.plan.planId).name}</span>
-            {ws.plan.source === "trial" ? " trial" : " plan"}. Everything here is read from your workspace&apos;s records.
+            {ws.plan.source === "trial" ? " trial" : " plan"}.
           </>
         }
-        actions={<ButtonLink href="/app/projects" size="sm">New project</ButtonLink>}
       />
 
       {composerInSteps ? null : (
@@ -110,7 +108,7 @@ export default async function MissionControl() {
           this workspace moves to Free and nothing is charged. <Link href="/app/billing" className="font-medium text-accent hover:underline">See usage</Link>
         </Notice>
       ) : null}
-      {ws.billingUnknown ? <Notice tone="warning">Billing state for this workspace is missing, so plan limits fail closed. Contact support.</Notice> : null}
+      {ws.billingUnknown ? <Notice tone="warning">We couldn&apos;t read this workspace&apos;s plan, so some things are paused for safety. Please contact support.</Notice> : null}
 
       {recent.length > 0 ? (
         <section aria-labelledby="recent-heading" className="grid gap-4">
@@ -156,21 +154,15 @@ export default async function MissionControl() {
         <LiveRefresh active={live} />
       </section>
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
         <StatTile
           label="Projects"
           value={`${projects.length}`}
-          detail={`Active projects. Your plan allows ${limits.workspaces === null ? "a contract number" : number.format(limits.workspaces)}.`}
+          detail={limits.workspaces === null ? "Active projects." : `Active. Your plan allows ${number.format(limits.workspaces)}.`}
           href="/app/projects"
         />
-        <StatTile label="Open tasks" value={number.format(open.length)} detail="Tasks not yet finished, cancelled or stopped." href="/app/tasks" />
-        <StatTile label="Awaiting approval" value={number.format(waiting.length)} detail="Tasks paused until a person approves the exact change." href="/app/approvals" />
-        <StatTile
-          label="Governed evaluations"
-          value={number.format(usage.evaluations)}
-          detail={`Since ${usage.period.start.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })}. Limit ${limits.evaluationsPerMonth === null ? "by contract" : number.format(limits.evaluationsPerMonth)}${usage.period.kind === "trial" ? " for the trial" : " a month"}.`}
-          href="/app/billing"
-        />
+        <StatTile label="Open tasks" value={number.format(open.length)} detail="Work that isn't finished yet." href="/app/tasks" />
+        <StatTile label="Waiting for you" value={number.format(waiting.length)} detail="Changes that need your yes or no." href="/app/approvals" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
@@ -188,7 +180,7 @@ export default async function MissionControl() {
                 title="No tasks yet"
                 action={<ButtonLink href={projects[0] ? `/app/projects/${projects[0].id}` : "/app/projects"} size="sm">{projects[0] ? "Add a task" : "Create a project"}</ButtonLink>}
               >
-                Tasks live inside projects. Describe one outcome and Farbaek tracks it from contract to proof.
+                Tasks live inside projects. Describe what you want, and Farbaek tracks it from plan to proof.
               </EmptyState>
             </div>
           ) : (
@@ -231,11 +223,10 @@ export default async function MissionControl() {
 
       <Card>
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-medium">Recent evidence</h2>
-          <span className="text-[13px] text-ink-3">ProofPacks</span>
+          <h2 className="text-lg font-medium">Recent proof</h2>
         </div>
         {recentEvidence.length === 0 ? (
-          <p className="mt-3 text-sm text-ink-2">No evidence yet. A ProofPack is recorded each time you approve and apply a change.</p>
+          <p className="mt-3 text-sm text-ink-2">Nothing yet. Each time you approve a change, Farbaek keeps a signed record of it, called a ProofPack.</p>
         ) : (
           <ul className="mt-4 divide-y divide-line">
             {recentEvidence.map((p) => {
@@ -245,10 +236,9 @@ export default async function MissionControl() {
                   <Link href={`/app/tasks/${p.taskId}`} className="group flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:gap-4">
                     <span className="min-w-0 flex-1">
                       <span className="line-clamp-2 text-[15px] font-medium group-hover:text-accent">{task?.title ?? "Task"}</span>
-                      <span className="mt-0.5 block font-mono text-xs text-ink-3">{shortHash(p.digest)}</span>
-                    </span>
+                                          </span>
                     <span className="text-xs text-ink-2">
-                      {p.status === "verified" ? "Verified" : p.status === "partially_verified" ? "Partially verified" : p.status === "failed" ? "Failed" : "Unverified"} ·{" "}
+                      {p.status === "verified" ? "Verified" : p.status === "partially_verified" ? "Partly verified" : p.status === "failed" ? "Failed" : "Unverified"} ·{" "}
                       <RelativeTime iso={p.createdAt} />
                     </span>
                   </Link>

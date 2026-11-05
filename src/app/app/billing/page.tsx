@@ -85,7 +85,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="grid gap-8">
-      <PageHeader title="Billing and usage" description="Your plan, its limits and what this workspace has used. Usage comes from your records." />
+      <PageHeader title="Billing and usage" description="Your plan, its limits and what this workspace has used." />
 
       {!billing.open ? (
         <Notice tone="warning">
@@ -175,7 +175,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
               )}
               {ws.plan.source === "trial" ? (
                 <p className="mt-3 text-xs text-ink-3">
-                  Trial caps: {TRIAL.limits.seats} seats, {TRIAL.limits.agents} agents and {TRIAL.limits.integrations} integration{TRIAL.limits.integrations === 1 ? "" : "s"}. AI usage and governed evaluations are counted across the whole trial.
+                  Trial caps: {TRIAL.limits.seats} seats, {TRIAL.limits.agents} agents and {TRIAL.limits.integrations} integration{TRIAL.limits.integrations === 1 ? "" : "s"}. AI usage and safety checks are counted across the whole trial.
                 </p>
               ) : null}
               <div className="mt-5 flex items-center gap-2 border-t border-line pt-4 text-sm text-ink-3">
@@ -202,8 +202,8 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
           <div className="mt-5 grid gap-6 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
             <UsageMeter label="Projects" used={usage.projects.length} limit={limits.workspaces} detail="Active projects in this workspace." reached="Project limit reached. Archive a project or choose a bigger plan to add another." />
             <UsageMeter label="Seats" used={usage.members} limit={limits.seats} detail="People in this workspace." reached="Seat limit reached. Adding people needs a bigger plan." />
-            <UsageMeter label="Registered agents" used={activeAgents} limit={limits.agents} detail="Desktop agents paired with this workspace and not revoked." />
-            <UsageMeter label="Integrations" used={0} limit={limits.integrations} detail="None connected. Public GitHub repositories import without one, from Projects; private ones need a connection, which isn't available yet." />
+            <UsageMeter label="Desktop apps" used={activeAgents} limit={limits.agents} detail="Computers connected to this workspace through the Farbaek desktop app." />
+            <UsageMeter label="Connections" used={0} limit={limits.integrations} detail="None connected. Public GitHub repositories import without one, from Projects; private ones need a connection, which isn't available yet." />
           </div>
         </Card>
       </div>

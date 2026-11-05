@@ -53,7 +53,7 @@ export function ChoosePlanStep({ planId, onTrial, error }: { planId: PaidPlanId;
       <ul className="mt-4 grid gap-1.5 text-sm text-ink-2 tabular">
         <li className="font-medium text-ink">{sessionsLine(plan)}</li>
         <li>
-          {plan.limits.sandboxHours} sandbox {plan.limits.sandboxHours === 1 ? "hour" : "hours"} a month
+          {plan.limits.sandboxHours} test space {plan.limits.sandboxHours === 1 ? "hour" : "hours"} a month
         </li>
         <li>{plan.limits.seats === 1 ? "1 seat" : `${plan.limits.seats} seats`}</li>
       </ul>

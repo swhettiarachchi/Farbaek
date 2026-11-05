@@ -22,7 +22,7 @@ import { ACTIVITY_CATEGORIES, type ActivityCategory } from "@/core/workspace/act
 import { loadActivity } from "@/server/workspace/activity";
 import { loadAppContext } from "@/server/workspace/context";
 
-export const metadata: Metadata = { title: "Activity" };
+export const metadata: Metadata = { title: "History" };
 
 const PAGE = 50;
 
@@ -65,8 +65,8 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
   return (
     <div className="grid gap-6">
       <PageHeader
-        title="Activity"
-        description="What happened in this workspace, from its audit log: who did it and when. Every member can read it."
+        title="History"
+        description="Everything that has happened in this workspace: what, who and when. Every member can read it."
         actions={
           <a href={`/app/activity/export${category ? `?category=${category}` : ""}`} download className={buttonClasses("secondary", "sm")}>
             <DownloadSimpleIcon size={16} aria-hidden /> Download CSV

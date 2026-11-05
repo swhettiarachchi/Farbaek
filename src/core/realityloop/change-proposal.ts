@@ -193,13 +193,13 @@ export function checkProposal(contract: IntentContract, changes: readonly Propos
   }
   const max = contract.limits.maxRecords;
   if (max !== undefined && changes.length > max) {
-    violations.push({ kind: "RECORD_LIMIT", detail: `${changes.length} files change, over the contract limit of ${max}.` });
+    violations.push({ kind: "RECORD_LIMIT", detail: `${changes.length} files change, over the plan's limit of ${max}.` });
   }
   const scope = pathScope(contract);
   if (scope.length > 0) {
     for (const change of changes) {
       if (!scope.some((s) => change.path === s || change.path.startsWith(`${s}/`))) {
-        violations.push({ kind: "OUT_OF_SCOPE_PATH", detail: `${change.path} is outside the contract's paths (${scope.join(", ")}).` });
+        violations.push({ kind: "OUT_OF_SCOPE_PATH", detail: `${change.path} is outside the plan's paths (${scope.join(", ")}).` });
       }
     }
   }

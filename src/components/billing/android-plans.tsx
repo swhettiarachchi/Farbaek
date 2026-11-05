@@ -59,7 +59,7 @@ export function AndroidPlans({ plans, current, currentLabel, notice = <AndroidPl
   );
 }
 
-/** "2 sandbox hours · 1 seat": a plan's sandbox time and seats on one line. */
+/** "2 test space hours · 1 seat": a plan's test space time and seats on one line. */
 export function planLimitsLine(p: Plan): string {
-  return `${p.limits.sandboxHours} sandbox ${p.limits.sandboxHours === 1 ? "hour" : "hours"} · ${p.limits.seats === 1 ? "1 seat" : `${p.limits.seats} seats`}`;
+  return `${p.limits.sandboxHours} test space ${p.limits.sandboxHours === 1 ? "hour" : "hours"} · ${p.limits.seats === 1 ? "1 seat" : `${p.limits.seats} seats`}`;
 }

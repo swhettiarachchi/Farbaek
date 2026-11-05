@@ -24,9 +24,9 @@ export const metadata: Metadata = { title: "Build" };
 // A real sequence: each step needs the one before it.
 const FLOW = [
   { icon: FileTextIcon, title: "Describe", text: "Write the outcome you want as a task in a project." },
-  { icon: SignatureIcon, title: "Agree", text: "Draft the intent contract with AI, check it and approve it." },
+  { icon: SignatureIcon, title: "Agree", text: "AI drafts a plan. You read it and approve it." },
   { icon: HammerIcon, title: "Build", text: "The agent works in the cloud, runs the checks and asks before anything risky." },
-  { icon: FingerprintIcon, title: "Review", text: "You review every change, apply it and get a ProofPack." },
+  { icon: FingerprintIcon, title: "Review", text: "You check every change and apply it. You also get a ProofPack, the record of what was checked." },
 ];
 
 export default async function BuildPage() {
@@ -63,7 +63,7 @@ export default async function BuildPage() {
     <div className="grid gap-8">
       <PageHeader
         title="Build"
-        description="Describe an outcome, agree the contract, and the Farbaek Agent builds it in the cloud on Farbaek's AI. No API key needed: each run uses your workspace's AI usage, and every change waits for your review."
+        description="Say what you want and approve the plan, and the agent builds it. You don't need your own AI account: each run uses your workspace's AI usage, and every change waits for your review."
       />
 
       <section aria-label="Start a build" className="aurora">
@@ -84,7 +84,7 @@ export default async function BuildPage() {
           ) : ready.length > 0 ? (
             `${ready.length} ${ready.length === 1 ? "task is" : "tasks are"} ready to build.`
           ) : (
-            "Approve a task's contract and it shows up below, ready for the agent."
+            "Approve a task's plan and it shows up below, ready for the agent."
           )}
         </p>
       </AgentCore>
@@ -123,7 +123,7 @@ export default async function BuildPage() {
               </Link>
             }
           >
-            Create a task in a project, draft its contract with AI and approve it. It shows up here, ready for the agent.
+            Create a task in a project, draft its plan with AI and approve it. It shows up here, ready for the agent.
           </EmptyState>
         ) : (
           <ul className="grid gap-4 lg:grid-cols-2">
@@ -133,7 +133,7 @@ export default async function BuildPage() {
                   <Link href={`/app/tasks/${t.id}`} className="-my-3 inline-flex min-h-11 items-center text-[15px] font-medium hover:underline">
                     {t.title}
                   </Link>
-                  <p className="mt-1 text-sm text-ink-3">Contract approved. Waiting for a change.</p>
+                  <p className="mt-1 text-sm text-ink-3">Plan approved. Waiting for a change.</p>
                 </div>
                 <StartRun taskId={t.id} disabledReason={busy.has(t.id) ? "The agent is already working on this task." : (startReason ?? withheldFor(ctx.role, ctx.permissions, "run_agents"))} />
               </li>

@@ -24,7 +24,7 @@ export async function loadRunPreview(reader: WorkspaceReader, orgId: string, run
   const profile = runProfile(paths, contents.find((f) => f.path === "package.json")?.content ?? null);
   if (profile.kind === "node") {
     const off = previewUnavailableReason(readSandboxConfig());
-    return { kind: "unavailable", reason: off ? `This is an app with a server, so it previews in a sandbox. ${off}` : "This is an app with a server: open it with Preview on its project page, which runs it in a sandbox." };
+    return { kind: "unavailable", reason: off ? `This is an app with a server, so it previews in a test space. ${off}` : "This is an app with a server: open it with Preview on its project page, which runs it in a sandbox." };
   }
   if (profile.kind !== "static") {
     const reason = paths.includes("index.html")

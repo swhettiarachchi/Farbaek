@@ -37,7 +37,7 @@ describe("lensForChange", () => {
     expect(readme.hunks[0]!.match!.shared).toEqual(expect.arrayContaining(["readme", "command"]));
   });
 
-  it("always flags a file outside the contract's paths, even when its words match", () => {
+  it("always flags a file outside the plan's paths, even when its words match", () => {
     const lens = lensForChange(contract, { path: "src/app/cart-page.tsx", kind: "edit", content: "// Fractional quantities in the cart are rejected\n", reason: "Reject fractional quantities in the cart." }, "// cart\n");
     const h = lens.hunks[0]!;
     expect(h.flags).toEqual([expect.objectContaining({ kind: "outside_paths", detail: expect.stringMatching(/src\/lib, README\.md/) })]);

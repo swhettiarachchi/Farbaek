@@ -17,7 +17,7 @@ export function TryChange({ proposalId, taskId, again, disabledReason }: { propo
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending || Boolean(disabledReason) || state.status === "started"} className={buttonClasses(again ? "secondary" : "primary", "sm")}>
           <FlaskIcon size={16} weight="bold" aria-hidden />
-          {pending ? "Starting the sandbox…" : state.status === "started" ? "Trial started" : again ? "Try it again" : "Try it in a sandbox"}
+          {pending ? "Starting…" : state.status === "started" ? "Trial started" : again ? "Try it again" : "Try it on a copy"}
         </button>
         {disabledReason ? <span className="text-sm text-ink-3">{disabledReason}</span> : null}
       </div>

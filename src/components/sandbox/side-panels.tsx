@@ -75,7 +75,7 @@ export function ChecksPanel({
   return (
     <div className="grid gap-6">
       <section>
-        <h3 className="text-base font-medium">Contract checks</h3>
+        <h3 className="text-base font-medium">Plan checks</h3>
         {task ? (
           <>
             <p className="mt-1 text-sm text-ink-2">
@@ -90,7 +90,7 @@ export function ChecksPanel({
                 ))}
               </ul>
             ) : (
-              <p className="mt-3 text-sm text-ink-3">The approved contract lists no required checks.</p>
+              <p className="mt-3 text-sm text-ink-3">The approved plan lists no checks.</p>
             )}
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <button type="button" onClick={() => void run()} disabled={!canRun || running || task.checks.length === 0} className={buttonClasses("accent", "sm")}>
@@ -105,7 +105,7 @@ export function ChecksPanel({
             ) : null}
           </>
         ) : (
-          <p className="mt-1 text-sm text-ink-2">This session isn&apos;t linked to a task. Start a session from a task to run its contract&apos;s checks here.</p>
+          <p className="mt-1 text-sm text-ink-2">This session isn&apos;t linked to a task. Start a session from a task to run its plan&apos;s checks here.</p>
         )}
       </section>
 

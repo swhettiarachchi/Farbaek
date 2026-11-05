@@ -56,7 +56,7 @@ describe("permission engine", () => {
 
   it("keeps writes inside the contract's paths and operations, without secrets", () => {
     expect(decide(call("edit_file", { path: "README.md", edits: [{ find: "a", replace: "b" }], reason: "r" }), ctx()).kind).toBe("allow");
-    expect(decide(call("write_file", { path: "src/app.ts", content: "x", reason: "r" }), ctx())).toMatchObject({ kind: "deny", reason: expect.stringMatching(/outside the contract's paths/) });
+    expect(decide(call("write_file", { path: "src/app.ts", content: "x", reason: "r" }), ctx())).toMatchObject({ kind: "deny", reason: expect.stringMatching(/outside the plan's paths/) });
     expect(decide(call("write_file", { path: "docs/new.md", content: "x", reason: "r" }), ctx())).toMatchObject({ kind: "deny", reason: expect.stringMatching(/doesn't allow files.create/) });
     expect(decide(call("write_file", { path: "README.md", content: "-----BEGIN RSA PRIVATE KEY-----\nabc\n-----END RSA PRIVATE KEY-----", reason: "r" }), ctx())).toMatchObject({
       kind: "deny",
