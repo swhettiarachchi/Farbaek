@@ -12,7 +12,7 @@ settings:
   base:
     # Swift 5 language mode on the current compiler: no strict concurrency errors.
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "1.0.0"
+    MARKETING_VERSION: "1.1.0"
     CURRENT_PROJECT_VERSION: "1"
     DEVELOPMENT_TEAM: 65BULQ4657
     CODE_SIGN_STYLE: Automatic

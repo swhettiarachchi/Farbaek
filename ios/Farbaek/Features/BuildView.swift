@@ -34,6 +34,7 @@ struct BuildView: View {
     @State private var failure: String?
     /// The plan refused it (402): in the US App Store, the way to see plans on the web.
     @State private var planBlocked = false
+    @State private var askAI = false
     @FocusState private var focused: Bool
 
     private var ready: Bool { prompt.trimmingCharacters(in: .whitespacesAndNewlines).count >= 8 }
@@ -85,7 +86,12 @@ struct BuildView: View {
                     Notice(text: blocker, symbol: "lock")
                 }
                 Button {
-                    Task { await start() }
+                    if AIConsent.given {
+                        Task { await start() }
+                    } else {
+                        focused = false
+                        askAI = true
+                    }
                 } label: {
                     if working { ProgressView().tint(Palette.onAccent) } else { Label("Plan it", systemImage: "arrow.up") }
                 }
@@ -103,6 +109,24 @@ struct BuildView: View {
         .navigationTitle("Build")
         .scrollDismissesKeyboard(.interactively)
         .task(id: model.revision) { await readProjects() }
+        .onAppear { takeChosenProject() }
+        .onChange(of: model.buildProject) { _, _ in takeChosenProject() }
+        .aiConsent(isPresented: $askAI) {
+            AIConsent.given = true
+            askAI = false
+            Task { await start() }
+        } onDecline: {
+            askAI = false
+            failure = "Nothing was sent. Farbaek needs your permission to use AI before it can plan this."
+        }
+    }
+
+    /// "Describe a change" on a project: Build opens with that project picked, ready to type.
+    private func takeChosenProject() {
+        guard let chosen = model.buildProject else { return }
+        model.buildProject = nil
+        projectId = chosen
+        focused = true
     }
 
     private var projectPicker: some View {
@@ -137,10 +161,14 @@ struct BuildView: View {
     }
 
     private func readProjects() async {
-        if let list: Listing<ProjectItem> = try? await model.api.get("projects") { projects = list.items }
+        guard let list: Listing<ProjectItem> = try? await model.api.get("projects") else { return }
+        projects = list.items
+        // A project from another workspace, or one archived since, is no longer a choice.
+        if let chosen = projectId, !list.items.contains(where: { $0.id == chosen && !$0.archived }) { projectId = nil }
     }
 
     private func start() async {
+        guard !working else { return }
         failure = nil
         focused = false
         working = true
@@ -172,6 +200,7 @@ struct PlanReviewView: View {
     /// The plan refused it (402): in the US App Store, the way to see plans on the web.
     @State private var planBlocked = false
     @State private var note: String?
+    @State private var askAI = false
 
     var body: some View {
         ScrollView {
@@ -186,10 +215,14 @@ struct PlanReviewView: View {
                         Notice(text: "There's no plan yet. Open the task on the web to write one.", symbol: "doc.badge.ellipsis").card()
                     }
                     if let note { Notice(text: note, tone: .approval, symbol: "info.circle.fill").card() }
-                    Link(destination: AppConfig.site("app/new/\(taskId)")) {
-                        Label("Edit the plan on the web", systemImage: "safari")
+                    if !model.isSample {
+                        Link(destination: AppConfig.site("app/new/\(taskId)")) {
+                            Label("Edit the plan on the web", systemImage: "safari")
+                                .frame(minHeight: 44, alignment: .leading)
+                                .contentShape(Rectangle())
+                        }
+                        .font(.subheadline.weight(.medium))
                     }
-                    .font(.subheadline.weight(.medium))
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 150)
@@ -202,6 +235,14 @@ struct PlanReviewView: View {
             if let detail = load.value { actions(detail) }
         }
         .task { await read() }
+        .aiConsent(isPresented: $askAI) {
+            AIConsent.given = true
+            askAI = false
+            if let detail = load.value { Task { await approve(detail) } }
+        } onDecline: {
+            askAI = false
+            failure = "Not started. Farbaek needs your permission to use AI before the agent can build this."
+        }
     }
 
     @ViewBuilder private func planBody(_ plan: PlanDetail.Plan) -> some View {
@@ -275,7 +316,11 @@ struct PlanReviewView: View {
                 }
                 .pickerStyle(.segmented)
                 Button {
-                    Task { await approve(detail) }
+                    if AIConsent.given {
+                        Task { await approve(detail) }
+                    } else {
+                        askAI = true
+                    }
                 } label: {
                     if working { ProgressView().tint(Palette.onAccent) } else { Label("Approve and build", systemImage: "faceid") }
                 }
@@ -301,14 +346,14 @@ struct PlanReviewView: View {
     }
 
     private func approve(_ detail: PlanDetail) async {
-        guard let plan = detail.plan else { return }
+        guard !working, let plan = detail.plan else { return }
         failure = nil
+        working = true
+        defer { working = false }
         guard await OwnerCheck.confirm("Approve the plan and start the agent") else {
             failure = "Not approved: Face ID or the passcode didn't confirm it was you."
             return
         }
-        working = true
-        defer { working = false }
         do {
             let started: PlanStarted = try await model.api.send("POST", "tasks/\(taskId)/plan/approve", body: [
                 "version": plan.version,

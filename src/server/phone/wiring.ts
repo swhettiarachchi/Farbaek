@@ -14,6 +14,8 @@ import { clientKey } from "@/server/agent/http";
 import { getRun, listRunEvents, listRuns } from "@/server/cloud-agent/store";
 import { currentExecutionMode } from "@/server/execution/sandbox";
 import { apnsConfig } from "@/server/push/apns";
+import { siteAddress } from "@/server/publish/config";
+import { getSite } from "@/server/publish/store";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { readSupabaseConfig, siteUrl } from "@/server/supabase/config";
 import { createSupabaseServerClient } from "@/server/supabase/server";
@@ -134,7 +136,18 @@ export function phoneApiDeps(): PhoneApiDeps {
     async live(caller, workspaceId) {
       const client = bearerClient(config!, caller.accessToken);
       const ctx = await liveContext(createSupabaseReader(client), { id: caller.userId, email: caller.email }, workspaceId ?? undefined);
-      return { ctx, runs: ctx.current ? supabaseRuns(client, ctx.current.id) : NO_RUNS };
+      const orgId = ctx.current?.id ?? null;
+      return {
+        ctx,
+        runs: orgId ? supabaseRuns(client, orgId) : NO_RUNS,
+        // Live means a version is really up, and it's read as the person. A site Farbaek took offline has no address to offer.
+        liveAddress: orgId
+          ? async (projectId) => {
+              const site = await getSite(client, orgId, projectId);
+              return site?.liveDeploymentId && !site.blocked ? siteAddress(site.name) : null;
+            }
+          : undefined,
+      };
     },
     sample: sampleContext,
     execution: () => currentExecutionMode(),

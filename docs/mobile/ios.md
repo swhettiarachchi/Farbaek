@@ -139,6 +139,12 @@ The key lets the server revoke a person's Apple sign-in when they delete their a
 
 Someone who chooses **Hide My Email** gets a separate account from one they already made with their real address. To use the existing account, they choose **Share My Email**, or sign in with email.
 
+## What the app has, and what it links to (ADR 0173)
+
+- **Native:** Home, Approvals, Build, Projects, You; a task with its next step; plans, changes and runs; permission before AI; Report this result.
+- **Linked, opening the default browser:** Test space, Desktop app, Move projects, Workflows, Rules, Problems and pause, History, Connections, Who can do what, Settings. Previewing and editing a site too, because a generated site can't run in the app (guideline 2.5.2).
+- **Waiting for you:** book Apple's free App Review consultation and decide about in-app purchase. Showing those tools inside the app waits for both.
+
 ## What's already done
 
 - **The app:** Sign in with Apple (step 9 done 2026-10-29), sign-in through the web with PKCE, approvals with diffs and Face ID, builds from one sentence, live runs and their questions, tasks, notifications, the sample, sign-out and account deletion through the web.

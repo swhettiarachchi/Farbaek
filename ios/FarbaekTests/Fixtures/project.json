@@ -1,0 +1,80 @@
+{
+  "data": {
+    "project": {
+      "id": "00000000-0000-4000-8000-00000000a001",
+      "name": "Storefront",
+      "description": "Customer-facing shop: catalogue, cart and checkout.",
+      "createdAt": "2026-10-24T12:00:00.000Z",
+      "archived": false
+    },
+    "tasks": [
+      {
+        "id": "00000000-0000-4000-8000-00000000b009",
+        "title": "Validate postcodes at checkout",
+        "state": "VERIFYING",
+        "stateLabel": "Checking",
+        "tone": "info",
+        "projectId": "00000000-0000-4000-8000-00000000a001",
+        "projectName": "Storefront",
+        "createdAt": "2026-10-29T11:00:00.000Z",
+        "updatedAt": "2026-10-29T11:54:00.000Z"
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000b007",
+        "title": "Reject fractional quantities in the cart",
+        "state": "APPROVAL_PENDING",
+        "stateLabel": "Waiting for approval",
+        "tone": "approval",
+        "projectId": "00000000-0000-4000-8000-00000000a001",
+        "projectName": "Storefront",
+        "createdAt": "2026-10-29T08:00:00.000Z",
+        "updatedAt": "2026-10-29T11:25:42.857Z"
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000b008",
+        "title": "Show stock levels on product cards",
+        "state": "CONTRACT_APPROVED",
+        "stateLabel": "Plan approved",
+        "tone": "info",
+        "projectId": "00000000-0000-4000-8000-00000000a001",
+        "projectName": "Storefront",
+        "createdAt": "2026-10-29T09:00:00.000Z",
+        "updatedAt": "2026-10-29T11:15:00.000Z"
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000b001",
+        "title": "Rewrite 100 product descriptions in the house style",
+        "state": "APPROVAL_PENDING",
+        "stateLabel": "Waiting for approval",
+        "tone": "approval",
+        "projectId": "00000000-0000-4000-8000-00000000a001",
+        "projectName": "Storefront",
+        "createdAt": "2026-10-28T06:00:00.000Z",
+        "updatedAt": "2026-10-29T07:42:51.428Z"
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000b002",
+        "title": "Add order export to CSV",
+        "state": "VERIFIED",
+        "stateLabel": "Verified",
+        "tone": "verified",
+        "projectId": "00000000-0000-4000-8000-00000000a001",
+        "projectName": "Storefront",
+        "createdAt": "2026-10-26T14:00:00.000Z",
+        "updatedAt": "2026-10-29T05:38:10.909Z"
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000b006",
+        "title": "Remove the legacy coupon system",
+        "state": "CANCELLED",
+        "stateLabel": "Cancelled",
+        "tone": "unverified",
+        "projectId": "00000000-0000-4000-8000-00000000a001",
+        "projectName": "Storefront",
+        "createdAt": "2026-10-25T12:00:00.000Z",
+        "updatedAt": "2026-10-28T04:00:00.000Z"
+      }
+    ],
+    "address": null
+  }
+}

@@ -15,6 +15,7 @@ struct RunView: View {
     @State private var message = ""
     @State private var sending = false
     @State private var confirmStop = false
+    @State private var askAI = false
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -26,7 +27,7 @@ struct RunView: View {
                         if let question { questionCard(question) }
                         stepsList
                         if let finish { finishCard(finish, run: run) }
-                        if run.live { controls }
+                        if run.live { controls } else { ReportLink(subject: .task(run.taskId)) }
                     } else if let loadError {
                         ContentUnavailableView {
                             Label("Couldn't load this run", systemImage: "exclamationmark.icloud")
@@ -52,9 +53,17 @@ struct RunView: View {
         .confirmationDialog("Stop the agent?", isPresented: $confirmStop, titleVisibility: .visible) {
             Button("Stop the run", role: .destructive) { Task { await stop() } }
         } message: {
-            Text("It stops after the step it's on. Nothing it hasn't proposed is applied.")
+            Text("It stops after the step it's on. Nothing it hasn't suggested is applied.")
         }
         .task(id: runId) { await follow() }
+        .aiConsent(isPresented: $askAI) {
+            AIConsent.given = true
+            askAI = false
+            Task { await send() }
+        } onDecline: {
+            askAI = false
+            failure = "Nothing was sent. Farbaek needs your permission to use AI before the agent can read this."
+        }
     }
 
     private func header(_ run: RunItem) -> some View {
@@ -148,7 +157,11 @@ struct RunView: View {
                     .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.input, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: Radius.input, style: .continuous).stroke(Palette.lineStrong.opacity(0.5), lineWidth: 1))
                 Button {
-                    Task { await send() }
+                    if AIConsent.given {
+                        Task { await send() }
+                    } else {
+                        askAI = true
+                    }
                 } label: {
                     Image(systemName: "arrow.up").font(.body.weight(.semibold)).frame(width: 44, height: 44)
                 }
@@ -219,7 +232,7 @@ struct RunView: View {
 
     private func send() async {
         let text = message.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
+        guard !text.isEmpty, !sending else { return }
         failure = nil
         sending = true
         defer { sending = false }
@@ -275,7 +288,7 @@ struct StepRow: View {
 
     private var symbol: String {
         switch step.kind {
-        case "model": return "brain"
+        case "model": return "ellipsis.bubble"
         case "tool": return "wrench.and.screwdriver"
         case "command": return "terminal"
         case "approval": return "hand.raised"

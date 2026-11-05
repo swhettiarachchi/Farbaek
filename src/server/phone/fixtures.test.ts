@@ -85,6 +85,7 @@ async function answers(): Promise<Record<string, unknown>> {
     task: await get(`tasks/${DEMO_PROPOSAL_TASK_ID}`),
     plan: await get(`tasks/${DEMO_PROPOSAL_TASK_ID}/plan`),
     projects: await get("projects"),
+    project: await get("projects/00000000-0000-4000-8000-00000000a001"),
     run: { data: run },
   };
 }
