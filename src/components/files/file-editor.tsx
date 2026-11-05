@@ -135,7 +135,7 @@ export function FileEditor({
               </p>
             </div>
           ) : (
-            <h2 className="mt-2 font-mono text-[15px] font-medium break-all">{initialPath}</h2>
+            <h2 className="mt-2 font-mono text-[0.9375rem] font-medium break-all">{initialPath}</h2>
           )}
         </div>
         <p className="shrink-0 text-xs text-ink-3" aria-live="polite">

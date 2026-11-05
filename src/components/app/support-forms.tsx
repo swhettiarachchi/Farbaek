@@ -20,7 +20,7 @@ function FormError({ state, id }: { state: HelpFormState; id: string }) {
 }
 
 /** A new request: what it's about, a subject and the message. */
-export function NewRequestForm({ topic, disabledReason }: { topic: SupportTopic | null; disabledReason: string | null }) {
+export function NewRequestForm({ topic, subject = "", body = "", disabledReason }: { topic: SupportTopic | null; subject?: string; body?: string; disabledReason: string | null }) {
   const [state, action, pending] = useActionState(openSupportAction, IDLE);
   const subjectId = useId();
   const bodyId = useId();
@@ -50,6 +50,7 @@ export function NewRequestForm({ topic, disabledReason }: { topic: SupportTopic 
         <input
           id={subjectId}
           name="subject"
+          defaultValue={subject}
           required
           minLength={SUPPORT_LIMITS.subjectMin}
           maxLength={SUPPORT_LIMITS.subjectMax}
@@ -66,6 +67,7 @@ export function NewRequestForm({ topic, disabledReason }: { topic: SupportTopic 
         <textarea
           id={bodyId}
           name="body"
+          defaultValue={body}
           required
           maxLength={SUPPORT_LIMITS.bodyMax}
           disabled={disabled}

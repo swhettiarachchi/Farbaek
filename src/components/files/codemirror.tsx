@@ -76,7 +76,7 @@ const theme = EditorView.theme({
   ".cm-deletedChunk .cm-chunkButtons": { position: "static", display: "flex", justifyContent: "flex-end", gap: "8px", padding: "6px 8px" },
   ".cm-deletedChunk button": {
     fontFamily: "var(--font-sans)",
-    fontSize: "14px",
+    fontSize: "0.875rem",
     minHeight: "44px",
     margin: "0",
     padding: "0 16px",
@@ -173,5 +173,5 @@ export default function CodeMirrorSurface({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mounted once; see the comment above.
   }, []);
 
-  return <div ref={host} className="overflow-hidden rounded-md border border-line bg-surface text-base sm:text-[13px]" />;
+  return <div ref={host} className="overflow-hidden rounded-md border border-line bg-surface text-base sm:text-[0.8125rem]" />;
 }

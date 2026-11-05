@@ -102,7 +102,7 @@ export function ProposeChange({
             <li key={f.path} className="border-b border-line last:border-b-0">
               <label className="flex min-h-11 cursor-pointer items-center gap-3 px-3 py-2 hover:bg-surface-raised">
                 <input type="checkbox" checked={selected.has(f.path)} onChange={() => toggle(f.path)} className="size-4 shrink-0 accent-[var(--accent)]" />
-                <span className="min-w-0 flex-1 truncate font-mono text-[13px]">{f.path}</span>
+                <span className="min-w-0 flex-1 truncate font-mono text-[0.8125rem]">{f.path}</span>
                 <span className="shrink-0 text-xs text-ink-3 tabular">{formatBytes(f.sizeBytes)}</span>
               </label>
             </li>

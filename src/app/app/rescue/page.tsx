@@ -41,7 +41,7 @@ export default async function RescuePage() {
         {STEPS.map((s, i) => (
           <li key={s.title} className="grid content-start gap-2 rounded-md border border-line bg-surface p-4 shadow-e1">
             <span className="flex items-center gap-2 text-sm font-medium">
-              <span className="grid size-7 place-items-center rounded-full bg-accent/[0.08] text-[13px] font-semibold text-accent tabular">{i + 1}</span>
+              <span className="grid size-7 place-items-center rounded-full bg-accent/[0.08] text-[0.8125rem] font-semibold text-accent tabular">{i + 1}</span>
               <s.icon size={16} className="text-accent" aria-hidden /> {s.title}
             </span>
             <span className="text-sm leading-relaxed text-ink-2">{s.body}</span>

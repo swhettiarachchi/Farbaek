@@ -65,7 +65,8 @@ The dev PC has 3.8 GB of RAM. Run checks one at a time, and stop any dev or prev
 - Status never relies on colour alone: icon, label and pattern.
 - Icons name the action (hammer for build, pen nib for drafting): no sparkles, robots, wands or brains, on the web or in the native apps (ADR 0153). `tests/design/plain-icons.test.ts` checks it.
 - Copy: plain sentences, no em dashes in UI text, no filler verbs.
-- Mobile first: 16px inputs, 44px targets, no horizontal page scroll (check at 375px). A button's own `inline-flex` overrides `hidden`: control visibility with a wrapper.
+- Mobile first: 16px inputs, 44px targets (`buttonClasses` gives 48px on touch), no horizontal page scroll (check at 375px). A button's own `inline-flex` overrides `hidden`: control visibility with a wrapper.
+- Text size and keyboard (ADR 0171): text is in rem, so Android's text size reaches it (`tests/design/rem-text.test.ts`; check with `pnpm qa:responsive --text-scale=2`). Anything pinned above the phone tab bar uses `bottom-[var(--tab-bar)]`, which is 0 while someone types.
 
 ## Workflow
 

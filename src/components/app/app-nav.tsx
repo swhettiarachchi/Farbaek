@@ -116,7 +116,7 @@ function writeToolsOpen(open: boolean) {
 function Badge({ count, tone = "approval", label = "waiting" }: { count: number; tone?: "approval" | "accent"; label?: string }) {
   if (count <= 0) return null;
   return (
-    <span className={`ml-auto min-w-5 rounded-full px-1.5 text-center text-[11px] font-semibold leading-5 text-surface tabular ${tone === "accent" ? "bg-accent" : "bg-approval"}`}>
+    <span className={`ml-auto min-w-5 rounded-full px-1.5 text-center text-[0.6875rem] font-semibold leading-5 text-surface tabular ${tone === "accent" ? "bg-accent" : "bg-approval"}`}>
       {count > 99 ? "99+" : count}
       <span className="sr-only"> {label}</span>
     </span>
@@ -134,7 +134,7 @@ export function SidebarNav({ approvals, helpUnread = 0 }: { approvals: number; h
           href={item.href}
           transitionTypes={PAGE_NAV}
           aria-current={active ? "page" : undefined}
-          className={`flex h-10 items-center gap-3 rounded-full px-3.5 text-[14.5px] transition-colors duration-150 ${
+          className={`flex h-10 items-center gap-3 rounded-full px-3.5 text-[0.90625rem] transition-colors duration-150 ${
             active ? "bg-surface font-medium text-ink shadow-e1" : "text-ink-2 hover:bg-surface/70 hover:text-ink"
           }`}
         >
@@ -165,7 +165,7 @@ export function SidebarNav({ approvals, helpUnread = 0 }: { approvals: number; h
             setClosedHere(open);
             writeToolsOpen(!open);
           }}
-          className="flex h-10 w-full items-center gap-3 rounded-full px-3.5 text-[14.5px] text-ink-2 transition-colors duration-150 hover:bg-surface/70 hover:text-ink"
+          className="flex h-10 w-full items-center gap-3 rounded-full px-3.5 text-[0.90625rem] text-ink-2 transition-colors duration-150 hover:bg-surface/70 hover:text-ink"
         >
           <SquaresFourIcon size={19} aria-hidden />
           More tools
@@ -192,8 +192,8 @@ export function MoreList({ helpUnread = 0, children }: { helpUnread?: number; ch
           <Link href={item.href} transitionTypes={PAGE_NAV} className="flex min-h-16 items-center gap-3 px-4 py-3 hover:bg-canvas-2">
             <item.icon size={20} className="shrink-0 text-ink-2" aria-hidden />
             <span className="grid min-w-0 gap-0.5">
-              <span className="text-[15px]">{item.label}</span>
-              <span className="text-[13px] leading-snug text-ink-3">{item.about}</span>
+              <span className="text-[0.9375rem]">{item.label}</span>
+              <span className="text-[0.8125rem] leading-snug text-ink-3">{item.about}</span>
             </span>
             {item.href === "/app/help" && helpUnread > 0 ? (
               <span className="ml-auto shrink-0 rounded-full bg-accent px-2 text-xs font-semibold leading-5 text-surface tabular">
@@ -215,6 +215,7 @@ export function MobileTabBar({ approvals, helpUnread = 0 }: { approvals: number;
   return (
     <nav
       aria-label="App"
+      data-hide-for-keyboard
       className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
     >
       <ul className="mx-auto grid max-w-lg grid-cols-5">
@@ -226,19 +227,19 @@ export function MobileTabBar({ approvals, helpUnread = 0 }: { approvals: number;
                 href={item.href}
                 transitionTypes={PAGE_NAV}
                 aria-current={active ? "page" : undefined}
-                className={`relative flex h-16 flex-col items-center justify-center gap-1 text-[11px] ${active ? "font-medium text-accent" : "text-ink-2"}`}
+                className={`relative flex h-[64px] flex-col items-center justify-center gap-1 text-[min(0.6875rem,14px)] leading-tight ${active ? "font-medium text-accent" : "text-ink-2"}`}
               >
                 <item.icon size={22} weight={active ? "fill" : "regular"} aria-hidden />
                 {item.short}
                 {item.href === "/app/approvals" && approvals > 0 ? (
-                  <span className="absolute right-[calc(50%-20px)] top-2 min-w-4 rounded-full bg-approval px-1 text-center text-[11px] font-semibold leading-4 text-surface tabular">
+                  <span className="absolute right-[calc(50%-20px)] top-[8px] flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-approval px-[4px] text-[min(0.6875rem,12px)] font-semibold text-surface tabular">
                     {approvals}
                     <span className="sr-only"> waiting</span>
                   </span>
                 ) : null}
                 {/* Help lives under More on phones; a dot there says Farbaek replied. */}
                 {item.href === "/app/more" && helpUnread > 0 ? (
-                  <span className="absolute right-[calc(50%-16px)] top-2.5 size-2.5 rounded-full bg-accent ring-2 ring-surface">
+                  <span className="absolute right-[calc(50%-16px)] top-[10px] size-[10px] rounded-full bg-accent ring-2 ring-surface">
                     <span className="sr-only">, Farbaek replied to your request</span>
                   </span>
                 ) : null}

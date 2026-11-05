@@ -37,6 +37,11 @@ export function appCsp(nonce: string, opts: { dev: boolean; https: boolean; prev
   ].join("; ");
 }
 
+/** The nonce in a policy, for the rare inline script of our own that has to run before the page paints. */
+export function nonceFromCsp(csp: string | null): string | undefined {
+  return csp?.match(/'nonce-([^']+)'/)?.[1];
+}
+
 /** The response header: enforced, or report-only when enforcing is switched off. */
 export function appCspHeaders(csp: string, enforce: boolean): Record<string, string> {
   return { [enforce ? "Content-Security-Policy" : "Content-Security-Policy-Report-Only"]: csp };

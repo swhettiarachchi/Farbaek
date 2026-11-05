@@ -34,3 +34,17 @@ export function isAndroidAppLaunch(referrer: string, search: string): boolean {
 export function inAndroidApp(stored: string | null, referrer: string, search: string): boolean {
   return stored === ANDROID_APP_CLIENT || isAndroidAppLaunch(referrer, search);
 }
+
+/** The attribute the early mark sets on <html>, which CSS uses to hide web purchase controls (globals.css). */
+export const ANDROID_APP_MARK = "data-client";
+
+/**
+ * The same question as inAndroidApp, as a script that runs inline before the page paints (ADR 0171). React
+ * can only answer after hydration, so without this the app would show prices until then. It reads no data
+ * of its own and takes no input from the page: it's built only from the constants above.
+ */
+export function earlyMarkScript(): string {
+  const client = JSON.stringify(ANDROID_APP_CLIENT);
+  const app = JSON.stringify(`android-app://${ANDROID_APP_PACKAGE}`);
+  return `(function(){try{var s=null;try{s=sessionStorage.getItem(${JSON.stringify(STORE_CLIENT_KEY)})}catch(e){}var r=document.referrer;if(s===${client}||r===${app}||r.indexOf(${app}+"/")===0||new URLSearchParams(location.search).get("client")===${client})document.documentElement.setAttribute(${JSON.stringify(ANDROID_APP_MARK)},${client})}catch(e){}})();`;
+}

@@ -29,7 +29,7 @@ function NodeName({ node }: { node: TrustNode }) {
   return (
     <Link href={`?node=${encodeURIComponent(node.id)}#focus`} className="inline-flex min-h-11 min-w-0 items-center gap-2 font-medium text-ink hover:text-accent">
       <k.icon size={18} className="shrink-0 text-ink-3" aria-hidden />
-      <span className="break-words">{node.label}</span>
+      <span className="min-w-0 break-words">{node.label}</span>
       {node.inactive ? (
         <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-line-strong/60 px-2 py-0.5 text-xs font-normal text-ink-3">
           <CircleDashedIcon size={12} aria-hidden /> inactive

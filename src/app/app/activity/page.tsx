@@ -109,7 +109,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
                   <RowIcon size={18} aria-hidden />
                 </span>
                 <div className="grid min-w-0 flex-1 gap-1">
-                  <p className="text-[15px] leading-snug">
+                  <p className="text-[0.9375rem] leading-snug">
                     {r.href ? (
                       <Link href={r.href} className="flex min-h-11 items-center underline decoration-line-strong/50 underline-offset-4 hover:decoration-ink">
                         {r.text}

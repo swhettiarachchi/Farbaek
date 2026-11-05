@@ -66,7 +66,7 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
 
       {live && address ? (
         <div className="grid gap-1">
-          <a href={address} target="_blank" rel="noopener noreferrer" className="inline-flex w-fit items-center gap-1.5 break-all font-mono text-[15px] text-accent hover:underline">
+          <a href={address} target="_blank" rel="noopener noreferrer" className="inline-flex w-fit items-center gap-1.5 break-all font-mono text-[0.9375rem] text-accent hover:underline">
             {address.replace(/^https?:\/\//, "")} <ArrowSquareOutIcon size={14} aria-hidden />
           </a>
           <p className="text-sm text-ink-2">

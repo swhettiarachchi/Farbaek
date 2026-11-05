@@ -22,7 +22,7 @@ const PROMISES = [
   { icon: ArrowsClockwiseIcon, title: "Nothing expires at the end of the month", body: "Unused AI usage rolls over for two months, oldest first." },
   { icon: ArrowCounterClockwiseIcon, title: "Failed attempts are given back", body: "When an AI call fails, or the agent's fix for failed checks doesn't pass them either, that usage returns to you, up to a monthly cap." },
   { icon: WalletIcon, title: "No surprise bills", body: "Plans never run into overage. You see the share used and when it resets." },
-  { icon: ShieldCheckIcon, title: "Security checks from Plus", body: "Others keep them for business plans. Farbaek includes them at $19.99, and every plan can publish a site after Farbaek's rules check." },
+  { icon: ShieldCheckIcon, title: "Security checks from Plus", body: "Others keep them for business plans. Farbaek includes them on Plus, and every plan can publish a site after Farbaek's rules check." },
 ] as const;
 
 const PRICING_FAQ: FaqItem[] = [
@@ -51,14 +51,17 @@ const PRICING_FAQ: FaqItem[] = [
     a: `Every eligible new workspace gets ${TRIAL.lengthDays} days of ${trialBase} features, with ${TRIAL.limits.sandboxHours} sandbox hours and AI usage equal to a month of Starter. No card is needed. At the end you move to Free automatically, and nothing is charged.`,
   },
   {
+    webOnly: true,
     q: "Can I pay yearly or monthly?",
     a: `Every plan is billed monthly. Lite and Maker can also be paid yearly, at ${formatUsd(chargeCents(getPlan("lite")))} and ${formatUsd(chargeCents(getPlan("maker")))} a year, with more AI usage; we email you about 30 days before each yearly renewal.`,
   },
   {
+    webOnly: true,
     q: "What currency are prices in, and is tax included?",
     a: "Prices are in US dollars, without tax. Tax is added at checkout based on where you are. You can also pay in your own currency, for Dodo Payments' conversion fee of up to 4%; you see the exact amount before you pay.",
   },
   {
+    webOnly: true,
     q: "Can I cancel, and what about refunds?",
     a: `Cancel any time in Billing. Your plan keeps working to the end of the period you paid for, then the workspace moves to Free. Payments aren't refunded for part of a period once it has started, except where the law requires a refund. If something went wrong on Farbaek's side, write to ${CONTACT.support} and we'll put it right.`,
   },

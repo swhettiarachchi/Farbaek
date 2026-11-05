@@ -19,7 +19,7 @@ export function SiteHeader() {
           <span className="flex h-11 shrink-0 items-center">
             <BrandLogo height={34} preload />
           </span>
-          <span className="flex h-11 items-center whitespace-nowrap text-[17px] font-semibold tracking-[-0.02em]">Farbaek</span>
+          <span className="flex h-11 items-center whitespace-nowrap text-[1.0625rem] font-semibold tracking-[-0.02em]">Farbaek</span>
         </Link>
 
         <nav aria-label="Main" className="hidden lg:block">
@@ -44,6 +44,8 @@ export function SiteHeader() {
               Sign in
             </Link>
           </span>
+          {/* With Android's largest text there's room for the logo and the menu, which has this too. */}
+          <span className="contents max-[19.9em]:hidden">
           <Link
             href="/sign-in?next=/app/new"
             className="group inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-full bg-primary pl-4 pr-4 text-sm font-medium text-on-primary shadow-e1 transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-primary/90 active:scale-[0.98] min-[400px]:pr-1.5"
@@ -54,6 +56,7 @@ export function SiteHeader() {
               <ArrowUpRightIcon size={15} weight="bold" aria-hidden />
             </span>
           </Link>
+          </span>
           <MobileMenu />
         </div>
       </div>

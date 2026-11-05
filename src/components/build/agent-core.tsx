@@ -117,12 +117,12 @@ export function AgentCore({ phase, activity = null, children }: { phase: CorePha
           ) : null}
         </div>
         <div className="min-w-0">
-          <p className="text-[13px] font-medium text-ink-3">Farbaek Agent</p>
+          <p className="text-[0.8125rem] font-medium text-ink-3">Farbaek Agent</p>
           <p className="mt-1 flex items-center gap-2 text-xl font-medium tracking-[-0.02em] sm:text-2xl" role="status" aria-live="polite">
             <style.icon size={22} weight="bold" className={`shrink-0 ${style.tone} ${style.spin ? "motion-safe:animate-spin" : ""}`} aria-hidden />
             {CORE_PHASE_LABELS[phase]}
           </p>
-          {activity ? <p className="mt-1.5 truncate font-mono text-[13px] text-ink-2">{activity}</p> : null}
+          {activity ? <p className="mt-1.5 truncate font-mono text-[0.8125rem] text-ink-2">{activity}</p> : null}
           {children ? <div className="mt-3">{children}</div> : null}
         </div>
       </div>

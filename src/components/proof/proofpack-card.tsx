@@ -60,7 +60,7 @@ export async function ProofPackCard({ pack }: { pack: ProofPackRecord }) {
           <ul className="grid gap-1 text-sm">
             {checks.map((c) => (
               <li key={c.command} className="flex items-center gap-2">
-                <code className="min-w-0 truncate font-mono text-[13px]">{c.command}</code>
+                <code className="min-w-0 truncate font-mono text-[0.8125rem]">{c.command}</code>
                 <span className="shrink-0 text-xs text-ink-3">{c.status === "not_run" ? "not run" : c.status}</span>
               </li>
             ))}

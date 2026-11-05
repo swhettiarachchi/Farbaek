@@ -17,6 +17,20 @@ export function cleanPrompt(raw: unknown): string | null {
   return text.slice(0, PROMPT_MAX);
 }
 
+/** What someone shared to Farbaek from another app, as a draft for the build box (ADR 0171). Null when there's nothing to use. */
+export function promptFromShare(shared: { title?: unknown; text?: unknown; url?: unknown }): string | null {
+  const part = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const [title, text, url] = [part(shared.title), part(shared.text), part(shared.url)];
+  // Apps differ: a page shared from a browser is a title and an address, and the address may come in the text.
+  const onlyAddress = /^https?:\/\/\S+$/.test(text);
+  return cleanPrompt([onlyAddress ? title : text || title, onlyAddress ? text : text.includes(url) ? "" : url].filter(Boolean).join("\n"));
+}
+
+/** Whether an address carries something shared to Farbaek, which signing in shouldn't lose. */
+export function isSharedBuild(pathname: string, search: URLSearchParams): boolean {
+  return pathname === "/app/new" && (search.has("text") || search.has("url") || search.has("title"));
+}
+
 const LEAD = /^(please\s+)?((can|could|would)\s+you\s+)?(i\s+(want|need|would\s+like)(\s+to)?\s+)?(help\s+me\s+)?(build|make|create|design|develop|code|generate|write|set\s+up)?\s*(me\s+)?(this\s+(?:into\s+)?)?(a|an|the|my|our)?\s+/i;
 
 /** What a prompt can open with before it says what it wants. */

@@ -3,6 +3,8 @@ import { Container } from "@/components/ui/container";
 import { SectionHeading } from "./section-heading";
 
 export interface FaqItem {
+  /** About how the website takes payment, which Farbaek for Android doesn't show (ADR 0150). */
+  webOnly?: boolean;
   q: string;
   a: string;
 }
@@ -11,8 +13,8 @@ export function FaqList({ items }: { items: FaqItem[] }) {
   return (
     <div className="divide-y divide-line border-y border-line">
       {items.map((item) => (
-        <details key={item.q} className="group">
-          <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 py-4 text-[17px] font-medium [&::-webkit-details-marker]:hidden">
+        <details key={item.q} data-web-purchase={item.webOnly ? "" : undefined} className="group">
+          <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 py-4 text-[1.0625rem] font-medium [&::-webkit-details-marker]:hidden">
             {item.q}
             <CaretDownIcon
               size={18}
@@ -20,7 +22,7 @@ export function FaqList({ items }: { items: FaqItem[] }) {
               aria-hidden
             />
           </summary>
-          <p className="max-w-[65ch] pb-5 text-[15px] leading-relaxed text-ink-2">{item.a}</p>
+          <p className="max-w-[65ch] pb-5 text-[0.9375rem] leading-relaxed text-ink-2">{item.a}</p>
         </details>
       ))}
     </div>

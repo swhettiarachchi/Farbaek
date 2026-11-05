@@ -17,7 +17,7 @@ export function DiffView({ lines, path }: { lines: DiffLine[]; path: string }) {
           <span className="text-failed">-{lines.filter((l) => l.kind === "removed").length}</span>
         </span>
       </figcaption>
-      <pre className="py-2 font-mono text-[12.5px] leading-[1.6]">
+      <pre className="py-2 font-mono text-[0.78125rem] leading-[1.6]">
         <code>
           {lines.map((line, i) => {
             const row = ROW[line.kind];

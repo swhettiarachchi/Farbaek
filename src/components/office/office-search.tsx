@@ -240,7 +240,7 @@ export function OfficeSearch() {
                 aria-selected={i === current}
                 onMouseMove={() => setActive(i)}
                 onClick={() => go(r.href)}
-                className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-sm px-3 text-[14.5px] ${i === current ? "bg-surface-raised text-ink" : "text-ink-2"}`}
+                className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-sm px-3 text-[0.90625rem] ${i === current ? "bg-surface-raised text-ink" : "text-ink-2"}`}
               >
                 <r.icon size={17} weight={i === current ? "bold" : "regular"} className="shrink-0" aria-hidden />
                 <span className="min-w-0 flex-1 truncate">{r.label}</span>

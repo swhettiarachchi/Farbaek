@@ -25,7 +25,7 @@ function Frame({ title, children }: { title: string; children: React.ReactNode }
     <Container className="flex min-h-[70dvh] items-start justify-center py-16 sm:items-center">
       <div className="w-full max-w-[460px]">
         <h1 className="text-3xl font-medium tracking-[-0.02em] text-balance">{title}</h1>
-        <div className="mt-6 grid gap-5 text-[15px] leading-relaxed text-ink-2">{children}</div>
+        <div className="mt-6 grid gap-5 text-[0.9375rem] leading-relaxed text-ink-2">{children}</div>
       </div>
     </Container>
   );

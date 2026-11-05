@@ -36,7 +36,7 @@ function Choice({ name, value, checked, disabled, onChange, title, detail, note 
     >
       <input type="radio" name={name} value={value} checked={checked} disabled={disabled} onChange={onChange} className="sr-only" />
       <span className="flex items-center justify-between gap-3">
-        <span className="text-[15px] font-medium">{title}</span>
+        <span className="text-[0.9375rem] font-medium">{title}</span>
         <span aria-hidden className={`size-4 shrink-0 rounded-full border-2 ${checked ? "border-accent bg-accent shadow-[inset_0_0_0_2px_var(--surface)]" : "border-line-strong/60"}`} />
       </span>
       <span className="mt-1 text-sm text-ink-2">{detail}</span>

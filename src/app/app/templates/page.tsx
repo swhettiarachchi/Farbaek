@@ -32,7 +32,7 @@ export default async function TemplatesPage() {
                 <SiteThumb src={`/app/templates/${t.id}/thumbnail`} name={t.name} />
               </Link>
               <div className="grid gap-1 px-1.5">
-                <h2 className="text-[17px] font-medium">{t.name}</h2>
+                <h2 className="text-[1.0625rem] font-medium">{t.name}</h2>
                 <p className="text-sm leading-relaxed text-ink-2">{t.summary}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2 px-1.5 pb-1.5">

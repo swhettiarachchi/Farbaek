@@ -43,13 +43,13 @@ export async function RecoveryRecordCard({ record }: { record: RecoveryRecord })
         <ul className="grid gap-1 text-sm">
           {operations.map((o) => (
             <li key={o.path} className="flex min-w-0 flex-wrap items-baseline gap-x-2">
-              <span className="min-w-0 font-mono text-[13px] break-all">{o.path}</span>
+              <span className="min-w-0 font-mono text-[0.8125rem] break-all">{o.path}</span>
               <span className="text-xs text-ink-3">{o.action === "restore" ? `restored revision ${o.toRevision}` : "removed"}</span>
             </li>
           ))}
           {left.map((l) => (
             <li key={l.path} className="flex min-w-0 flex-wrap items-baseline gap-x-2">
-              <span className="min-w-0 font-mono text-[13px] break-all">{l.path}</span>
+              <span className="min-w-0 font-mono text-[0.8125rem] break-all">{l.path}</span>
               <span className="text-xs text-ink-3">{l.reason === "not_selected" ? "not chosen" : "left as it is: it changed after the apply"}</span>
             </li>
           ))}

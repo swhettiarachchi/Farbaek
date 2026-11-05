@@ -126,7 +126,7 @@ export function ComponentEditor({
     return (
       <div className="grid gap-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="flex items-center gap-2 text-[15px] font-medium">
+          <p className="flex items-center gap-2 text-[0.9375rem] font-medium">
             <GitDiffIcon size={20} className="text-accent" aria-hidden /> Review the change to {changedPaths.length === 1 ? "1 file" : `${changedPaths.length} files`}
           </p>
           <button type="button" onClick={() => setMode("edit")} className={buttonClasses("ghost", "sm")}>
@@ -155,7 +155,7 @@ export function ComponentEditor({
     <div className="grid gap-5">
       {pick ? (
         <details className="group rounded-md border border-line bg-surface p-4" open={pick.sessions.length > 0}>
-          <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-[15px] font-medium">
+          <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-[0.9375rem] font-medium">
             <CursorClickIcon size={18} className="text-accent" aria-hidden /> Pick in the running app
           </summary>
           <div className="mt-3 grid gap-3">
@@ -312,7 +312,7 @@ function Inspector({ el, source, tailwind, onApply, onError }: { el: JsxElement;
   return (
     <div className="grid gap-4 rounded-md border border-line bg-surface p-4 shadow-e1">
       <p className="flex items-baseline justify-between gap-3 text-sm">
-        <span className="font-mono text-[13px] text-ink">&lt;{el.tag}&gt;</span>
+        <span className="font-mono text-[0.8125rem] text-ink">&lt;{el.tag}&gt;</span>
         <span className="text-xs text-ink-3">line {el.line}</span>
       </p>
       {el.text ? (

@@ -58,7 +58,7 @@ export function HandoffCard({ taskId, computers, handoffs, disabledReason }: { t
             return (
               <li key={h.id} className="grid gap-2.5 px-3 py-3.5 sm:px-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-[15px] font-medium">{h.agentName}</p>
+                  <p className="text-[0.9375rem] font-medium">{h.agentName}</p>
                   <span className={`inline-flex h-6 items-center gap-1 rounded-full border px-2.5 text-xs font-medium ${s.className}`}>
                     <s.Icon size={13} weight="bold" aria-hidden /> {HANDOFF_STATUS_WORDS[h.status]}
                   </span>
@@ -78,7 +78,7 @@ export function HandoffCard({ taskId, computers, handoffs, disabledReason }: { t
                       {h.result.map((c, i) => (
                         <li key={`${c.command}-${i}`} className="grid gap-1">
                           <p className="flex flex-wrap items-baseline gap-x-3 text-sm">
-                            <span className="font-mono text-[12.5px] text-ink">{c.command}</span>
+                            <span className="font-mono text-[0.78125rem] text-ink">{c.command}</span>
                             <span className={c.exitCode === 0 ? "text-verified" : c.exitCode === null ? "text-unverified" : "text-failed"}>
                               {c.skipped ? `Didn't run: ${c.skipped}` : c.timedOut ? "Ran out of time" : c.exitCode === 0 ? "Passed" : `Failed, exit ${c.exitCode}`}
                             </span>
@@ -87,7 +87,7 @@ export function HandoffCard({ taskId, computers, handoffs, disabledReason }: { t
                           {c.output ? (
                             <details className="rounded-sm border border-line">
                               <summary className="flex min-h-11 cursor-pointer items-center px-3 text-xs font-medium text-ink-2 hover:text-ink">The end of its output</summary>
-                              <pre className="max-h-56 overflow-auto border-t border-line bg-canvas-2 p-3 font-mono text-[12.5px] leading-relaxed text-ink-2">{c.output}</pre>
+                              <pre className="max-h-56 overflow-auto border-t border-line bg-canvas-2 p-3 font-mono text-[0.78125rem] leading-relaxed text-ink-2">{c.output}</pre>
                             </details>
                           ) : null}
                         </li>
@@ -98,7 +98,7 @@ export function HandoffCard({ taskId, computers, handoffs, disabledReason }: { t
                       {h.digest ? (
                         <>
                           {" "}
-                          Report digest <span className="font-mono text-[12.5px]" title={`sha256:${h.digest}`}>{shortHash(h.digest, 8, 6)}</span>
+                          Report digest <span className="font-mono text-[0.78125rem]" title={`sha256:${h.digest}`}>{shortHash(h.digest, 8, 6)}</span>
                         </>
                       ) : null}
                     </p>

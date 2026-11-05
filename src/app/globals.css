@@ -53,11 +53,78 @@
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
 }
 
+/*
+ * The phone tab bar's height, for everything pinned above it (ADR 0171). While the keyboard is up (KeyboardMark) the
+ * bars step aside, because with interactive-widget=resizes-content they would otherwise ride on top of it.
+ */
+:root {
+  --tab-bar: calc(64px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 64rem) {
+  :root {
+    --tab-bar: 0px;
+  }
+}
+
+:root[data-keyboard] {
+  --tab-bar: 0px;
+}
+
+:root[data-keyboard] [data-hide-for-keyboard] {
+  display: none;
+}
+
+/*
+ * Android's largest text sizes leave a phone only 12 to 18em wide (ADR 0171). Whatever stays on one line or
+ * side by side at normal sizes may wrap and stack here. A 320px phone at normal text is 20em, so it never gets this.
+ */
+@media (max-width: 18em) {
+  body {
+    overflow-wrap: anywhere;
+  }
+
+  .whitespace-nowrap {
+    white-space: normal;
+  }
+
+  :is(span, a, button, label, div).shrink-0 {
+    flex-shrink: 1;
+  }
+
+  :is(span, a, button).h-6,
+  :is(span, a, button).h-7,
+  :is(span, a, button).h-8 {
+    height: auto;
+    padding-block: 0.125rem;
+  }
+
+  .grid-cols-2,
+  .grid-cols-3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* A row wraps instead of squeezing its words into a column one letter wide. */
+  .flex:not(.flex-col) {
+    flex-wrap: wrap;
+  }
+
+  .flex-1 {
+    flex-basis: auto;
+  }
+}
+
+/* Inside Farbaek for Android nothing is bought from the web (ADR 0150), from the very first paint (ADR 0171). */
+:root[data-client="android-app"] [data-web-purchase] {
+  display: none;
+}
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
     scroll-padding-top: 5rem;
+    scroll-padding-bottom: calc(var(--tab-bar) + 1rem);
     background: var(--canvas);
   }
 

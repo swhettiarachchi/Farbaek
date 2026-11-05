@@ -88,7 +88,7 @@ export function CostCard({ cost, period }: { cost: TaskCost; period: "trial" | "
               {cost.operations.map((o) => (
                 <li key={o.operation} className="grid gap-1 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-baseline sm:gap-4">
                   <div className="min-w-0">
-                    <p className="text-[15px] font-medium">{o.label}</p>
+                    <p className="text-[0.9375rem] font-medium">{o.label}</p>
                     <p className="text-xs leading-relaxed text-ink-3">
                       {o.calls === 1 ? "1 call" : `${o.calls} calls`}
                       {o.ownKeyCalls ? ` (${o.ownKeyCalls === o.calls ? "all" : o.ownKeyCalls} on your own key, not counted)` : ""}

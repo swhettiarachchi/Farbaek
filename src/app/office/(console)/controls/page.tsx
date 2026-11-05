@@ -40,7 +40,7 @@ export default async function OfficeControls() {
               <div className="grid gap-4 rounded-md bg-surface p-5 shadow-e1">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h2 className="text-[17px] font-medium tracking-[-0.01em]">{d.label}</h2>
+                    <h2 className="text-[1.0625rem] font-medium tracking-[-0.01em]">{d.label}</h2>
                     <p className="mt-1 text-sm leading-relaxed text-ink-2">{d.pauses}</p>
                   </div>
                   {f.paused ? (

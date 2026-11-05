@@ -40,10 +40,10 @@ export function ShowcaseSection() {
                 </span>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <h4 className="text-[16px] font-medium tracking-[-0.01em]">{c.title}</h4>
+                    <h4 className="text-[1rem] font-medium tracking-[-0.01em]">{c.title}</h4>
                     <CapabilityStatusPill status={c.status} />
                   </div>
-                  <p className="mt-1 text-[14.5px] leading-relaxed text-ink-2">{c.body}</p>
+                  <p className="mt-1 text-[0.90625rem] leading-relaxed text-ink-2">{c.body}</p>
                   {c.waiting ? <p className="mt-1 text-xs text-ink-3">{c.waiting}</p> : null}
                 </div>
               </li>

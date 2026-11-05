@@ -148,7 +148,7 @@ export function EvidenceCheck() {
             className={`flex min-h-56 cursor-pointer flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed px-6 py-10 text-center transition-colors duration-150 has-focus-visible:outline-2 has-focus-visible:outline-accent ${dragging ? "border-accent bg-accent/[0.04]" : "border-line-strong/50 bg-surface hover:border-accent/60"} ${busy ? "pointer-events-none opacity-60" : ""}`}
           >
             <FileArrowUpIcon size={36} className="text-accent" aria-hidden />
-            <span className="text-[15px] font-medium">{busy ? "Checking…" : "Drop an evidence file or a Capsule"}</span>
+            <span className="text-[0.9375rem] font-medium">{busy ? "Checking…" : "Drop an evidence file or a Capsule"}</span>
             <span className="max-w-[34ch] text-sm text-ink-3">Or choose one. A ProofPack or receipt (.json), or a .capsule.zip.</span>
             <input type="file" accept=".json,application/json,.zip,application/zip" className="sr-only" onChange={(e) => void checkFile(e.target.files?.[0])} />
           </label>
@@ -168,7 +168,7 @@ export function EvidenceCheck() {
                 rows={9}
                 spellCheck={false}
                 required
-                className="min-h-44 w-full rounded-sm border border-line bg-surface px-3.5 py-3 font-mono text-[13px] leading-relaxed text-ink outline-none focus:border-accent/60"
+                className="min-h-44 w-full rounded-sm border border-line bg-surface px-3.5 py-3 font-mono text-[0.8125rem] leading-relaxed text-ink outline-none focus:border-accent/60"
                 placeholder='{ "_type": "https://in-toto.io/Statement/v1", … }'
               />
             </label>
@@ -199,11 +199,11 @@ export function EvidenceCheck() {
       <section aria-live="polite" aria-label="Result" className="min-w-0 rounded-md border border-line bg-surface p-5 shadow-e1 sm:p-7">
         {!result ? (
           <div className="grid gap-4">
-            <p className="text-[13px] font-medium text-ink-3">What can be checked</p>
+            <p className="text-[0.8125rem] font-medium text-ink-3">What can be checked</p>
             <ul className="grid gap-3">
               {KINDS.map((k) => (
                 <li key={k.label} className="grid gap-0.5 border-t border-line pt-3 first:border-t-0 first:pt-0">
-                  <span className="text-[15px] font-medium">{k.label}</span>
+                  <span className="text-[0.9375rem] font-medium">{k.label}</span>
                   <span className="text-sm text-ink-2">{k.body}</span>
                 </li>
               ))}
@@ -226,7 +226,7 @@ export function EvidenceCheck() {
 function Failure({ message }: { message: string }) {
   return (
     <div role="alert" className="grid gap-2">
-      <p className="flex items-start gap-2 text-[15px] font-medium text-failed">
+      <p className="flex items-start gap-2 text-[0.9375rem] font-medium text-failed">
         <XCircleIcon size={20} weight="bold" className="mt-0.5 shrink-0" aria-hidden /> Not checked
       </p>
       <p className="text-sm leading-relaxed text-ink-2">{message}</p>
@@ -271,7 +271,7 @@ function SignatureLine({ signature: s }: { signature: EvidenceSignature }) {
       return line(
         <SealCheckIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />,
         <>
-          Signed by Farbaek with key <span className="whitespace-nowrap font-mono text-[13px]">{s.keyid}</span>, which only Farbaek&apos;s server holds.
+          Signed by Farbaek with key <span className="whitespace-nowrap font-mono text-[0.8125rem]">{s.keyid}</span>, which only Farbaek&apos;s server holds.
         </>,
         "text-ink",
       );
@@ -281,7 +281,7 @@ function SignatureLine({ signature: s }: { signature: EvidenceSignature }) {
       return line(
         <WarningCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-approval" aria-hidden />,
         <>
-          Signed with a key Farbaek doesn&apos;t publish (<span className="font-mono text-[13px]">{s.keyid}</span>), so the signature can&apos;t be trusted.
+          Signed with a key Farbaek doesn&apos;t publish (<span className="font-mono text-[0.8125rem]">{s.keyid}</span>), so the signature can&apos;t be trusted.
         </>,
       );
     case "unchecked":
@@ -298,7 +298,7 @@ function DigestRow({ label, value, match }: { label: string; value: string; matc
   return (
     <div className="grid gap-1">
       <dt className="text-xs text-ink-3">{label}</dt>
-      <dd className={`break-all font-mono text-[13px] leading-relaxed ${match === false ? "text-failed" : "text-ink"}`}>sha256:{value}</dd>
+      <dd className={`break-all font-mono text-[0.8125rem] leading-relaxed ${match === false ? "text-failed" : "text-ink"}`}>sha256:{value}</dd>
     </div>
   );
 }
@@ -319,7 +319,7 @@ function EvidenceResult({ inspection: r }: { inspection: Extract<Inspection, { o
     <div className="grid gap-6 motion-safe:animate-[usage-in_220ms_cubic-bezier(0.16,1,0.3,1)_both]">
       <div className={`grid gap-5 ${sealed ? "sm:grid-cols-[minmax(0,1fr)_150px] sm:items-start" : ""}`}>
         <div className="grid min-w-0 gap-3">
-          <p className="flex flex-wrap items-center gap-2 text-[13px] font-medium text-accent">
+          <p className="flex flex-wrap items-center gap-2 text-[0.8125rem] font-medium text-accent">
             {label}
             {r.sample ? <StatusBadge status="simulated" label="Sample data" /> : null}
           </p>
@@ -347,18 +347,18 @@ function EvidenceResult({ inspection: r }: { inspection: Extract<Inspection, { o
         {r.summary.facts.map((f) => (
           <div key={f.label} className="contents">
             <dt className="text-ink-3">{f.label}</dt>
-            <dd className={`min-w-0 break-words ${f.mono ? "font-mono text-[13px]" : ""}`}>{f.time ? <When iso={f.value} /> : f.value}</dd>
+            <dd className={`min-w-0 break-words ${f.mono ? "font-mono text-[0.8125rem]" : ""}`}>{f.time ? <When iso={f.value} /> : f.value}</dd>
           </div>
         ))}
       </dl>
 
       {r.summary.files.length > 0 ? (
         <div className="grid gap-2">
-          <h3 className="text-[15px] font-medium">Files</h3>
+          <h3 className="text-[0.9375rem] font-medium">Files</h3>
           <ul className="divide-y divide-line rounded-sm border border-line">
             {r.summary.files.map((f) => (
               <li key={`${f.path}-${f.sha256}`} className="grid gap-0.5 px-3.5 py-2.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-4">
-                <span className="min-w-0 truncate font-mono text-[13px]" title={f.path}>
+                <span className="min-w-0 truncate font-mono text-[0.8125rem]" title={f.path}>
                   {f.path}
                 </span>
                 <span className="text-xs text-ink-3">
@@ -376,7 +376,7 @@ function EvidenceResult({ inspection: r }: { inspection: Extract<Inspection, { o
               <p className="flex items-start gap-2 text-sm">
                 <CheckCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
                 <span>
-                  <span className="font-medium">{match.name}</span> is exactly the content recorded for <span className="font-mono text-[13px]">{match.hits.map((h) => h.path).join(", ")}</span>.
+                  <span className="font-medium">{match.name}</span> is exactly the content recorded for <span className="font-mono text-[0.8125rem]">{match.hits.map((h) => h.path).join(", ")}</span>.
                 </span>
               </p>
             ) : (
@@ -395,7 +395,7 @@ function EvidenceResult({ inspection: r }: { inspection: Extract<Inspection, { o
 
       {r.summary.checks.length > 0 ? (
         <div className="grid gap-2">
-          <h3 className="text-[15px] font-medium">Checks</h3>
+          <h3 className="text-[0.9375rem] font-medium">Checks</h3>
           <ul className="grid gap-2">
             {r.summary.checks.map((c, i) => (
               <li key={`${c.name}-${i}`} className="flex items-start gap-2.5 text-sm">
@@ -421,7 +421,7 @@ function EvidenceResult({ inspection: r }: { inspection: Extract<Inspection, { o
 
       {r.summary.links.length > 0 ? (
         <div className="grid gap-2">
-          <h3 className="text-[15px] font-medium">Linked evidence</h3>
+          <h3 className="text-[0.9375rem] font-medium">Linked evidence</h3>
           <ul className="grid gap-1.5 text-sm">
             {r.summary.links.map((l) => (
               <li key={l.digest} className="grid gap-0.5">
@@ -453,7 +453,7 @@ function CapsuleResult({ name, opened }: { name: string; opened: OpenedCapsule }
   if (!opened.ok) {
     return (
       <div role="alert" className="grid gap-3">
-        <p className="text-[13px] font-medium text-accent">Workspace Capsule</p>
+        <p className="text-[0.8125rem] font-medium text-accent">Workspace Capsule</p>
         <p className="flex items-start gap-2.5 text-lg font-medium leading-snug text-failed">
           <XCircleIcon size={24} weight="fill" className="mt-0.5 shrink-0" aria-hidden /> This Capsule didn&apos;t pass its checks.
         </p>
@@ -472,7 +472,7 @@ function CapsuleResult({ name, opened }: { name: string; opened: OpenedCapsule }
     <div className="grid gap-6 motion-safe:animate-[usage-in_220ms_cubic-bezier(0.16,1,0.3,1)_both]">
       <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_150px] sm:items-start">
         <div className="grid min-w-0 gap-3">
-          <p className="text-[13px] font-medium text-accent">Workspace Capsule</p>
+          <p className="text-[0.8125rem] font-medium text-accent">Workspace Capsule</p>
           <p className="flex items-start gap-2.5 text-lg font-medium leading-snug">
             <CheckCircleIcon size={24} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
             <span>Intact. Every file matches its BLAKE3 hash.</span>
@@ -497,7 +497,7 @@ function CapsuleResult({ name, opened }: { name: string; opened: OpenedCapsule }
         <dt className="text-ink-3">Left out when packed</dt>
         <dd>{m.excluded.length === 0 ? "Nothing" : m.excluded.length.toLocaleString("en-US")}</dd>
         <dt className="text-ink-3">Digest</dt>
-        <dd className="break-all font-mono text-[13px]">blake3:{opened.digest}</dd>
+        <dd className="break-all font-mono text-[0.8125rem]">blake3:{opened.digest}</dd>
       </dl>
       <Link href="/app/mesh" className="inline-flex min-h-11 items-center gap-2 justify-self-start rounded-full border border-line bg-surface px-4 text-sm font-medium shadow-e1 transition-colors hover:bg-canvas-2">
         <PackageIcon size={16} aria-hidden /> Open it in a workspace

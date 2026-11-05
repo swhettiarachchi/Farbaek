@@ -83,14 +83,14 @@ export default async function WorkflowPage({ params }: { params: Promise<{ id: s
               // Agent teams (ADR 0128): the other steps that run at the same time as this one.
               const mates = w.steps.filter((m) => m.stage === s.stage && m.position !== s.position).map((m) => m.position);
               return (
-              <li key={s.position} className="relative grid grid-cols-[2.75rem_minmax(0,1fr)] gap-x-3 pb-6 last:pb-0">
+              <li key={s.position} className="relative grid grid-cols-[2.75rem_minmax(0,1fr)] gap-x-3 pb-6 last:pb-0 max-[18em]:grid-cols-1">
                 {i < w.steps.length - 1 ? (
                   <span aria-hidden className={`absolute bottom-0 left-[1.3rem] top-11 border-l-2 ${s.status === "verified" ? "border-solid border-accent/70" : "border-dashed border-line-strong/50"}`} />
                 ) : null}
                 <span className="relative z-10 flex size-11 items-center justify-center rounded-full border border-line bg-surface text-sm font-medium tabular text-ink-2">{s.position}</span>
                 <div className="grid min-w-0 gap-1.5 pt-1">
                   <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-                    <Link href={`/app/tasks/${s.taskId}`} className="-my-3 inline-block py-3 text-[15px] font-medium hover:text-accent hover:underline">
+                    <Link href={`/app/tasks/${s.taskId}`} className="-my-3 inline-block py-3 text-[0.9375rem] font-medium hover:text-accent hover:underline">
                       {s.title}
                     </Link>
                     <StepStatusBadge status={s.status} />
@@ -147,7 +147,7 @@ export default async function WorkflowPage({ params }: { params: Promise<{ id: s
         canCancel={!["finished", "cancelled"].includes(w.status)}
         disabledReason={disabledReason}
       />
-      {w.approvedSha256 ? <p className="font-mono text-[12px] text-ink-3">Approval bound to sha256 {w.approvedSha256}</p> : null}
+      {w.approvedSha256 ? <p className="font-mono text-[0.75rem] text-ink-3">Approval bound to sha256 {w.approvedSha256}</p> : null}
     </div>
   );
 }

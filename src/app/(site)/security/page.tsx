@@ -51,8 +51,8 @@ function RiskTile({ risk }: { risk: OwaspRisk }) {
         href={`#${risk.id}`}
         className={`grid h-full min-h-[118px] content-between gap-3 rounded-md p-4 transition-colors duration-150 hover:border-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${s.frame}`}
       >
-        <span className="text-[13px] font-medium text-ink-3 tabular">{risk.id}</span>
-        <span className="text-[15px] font-medium leading-snug tracking-[-0.01em] text-ink">{risk.title}</span>
+        <span className="text-[0.8125rem] font-medium text-ink-3 tabular">{risk.id}</span>
+        <span className="text-[0.9375rem] font-medium leading-snug tracking-[-0.01em] text-ink">{risk.title}</span>
         <span className={`flex items-center gap-1.5 text-xs font-medium ${s.tone}`}>
           <s.Icon size={15} weight="bold" aria-hidden /> {s.label}
         </span>
@@ -67,7 +67,7 @@ function RiskDetail({ risk }: { risk: OwaspRisk }) {
   return (
     <article id={risk.id} className="scroll-mt-24 rounded-md border border-line bg-surface p-5 sm:p-6">
       <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-        <h3 className="text-[17px] font-medium tracking-[-0.01em]">
+        <h3 className="text-[1.0625rem] font-medium tracking-[-0.01em]">
           <span className="mr-2 text-ink-3 tabular">{risk.id}</span>
           {risk.title}
         </h3>
@@ -110,25 +110,25 @@ export default function SecurityTestsPage() {
       <section className="pt-14 pb-12 sm:pt-20 lg:pt-24">
         <Container>
           <h1 className="max-w-[18ch] text-balance text-[2.5rem] font-medium leading-[1.05] tracking-[-0.04em] sm:text-[3.5rem]">Tested against agent risks, in the open.</h1>
-          <p className="mt-5 max-w-[60ch] text-[17px] leading-relaxed text-ink-2">
+          <p className="mt-5 max-w-[60ch] text-[1.0625rem] leading-relaxed text-ink-2">
             Farbaek&apos;s agents read code they didn&apos;t write and run commands, so its boundaries are attacked on purpose: {totals.scenarios} scenarios, mapped to the OWASP
             risk lists for agentic and LLM applications. Each one assumes the model has already been fooled, and checks that the boundary holds anyway.
           </p>
-          <dl className="mt-8 flex flex-wrap gap-x-10 gap-y-4 text-[13px] text-ink-3">
+          <dl className="mt-8 flex flex-wrap gap-x-10 gap-y-4 text-[0.8125rem] text-ink-3">
             <div>
               <dt>Last run</dt>
-              <dd className="mt-1 text-[15px] font-medium text-ink">{dateLabel(run.ranAt)}</dd>
+              <dd className="mt-1 text-[0.9375rem] font-medium text-ink">{dateLabel(run.ranAt)}</dd>
             </div>
             <div>
               <dt>Result</dt>
-              <dd className={`mt-1 flex items-center gap-1.5 text-[15px] font-medium ${totals.failed ? "text-failed" : "text-verified"}`}>
+              <dd className={`mt-1 flex items-center gap-1.5 text-[0.9375rem] font-medium ${totals.failed ? "text-failed" : "text-verified"}`}>
                 {totals.failed ? <XCircleIcon size={16} weight="bold" aria-hidden /> : <CheckCircleIcon size={16} weight="bold" aria-hidden />}
                 {totals.passed} of {totals.scenarios} scenarios passed
               </dd>
             </div>
             <div>
               <dt>Tests</dt>
-              <dd className="mt-1 text-[15px] font-medium text-ink tabular">{totals.tests}</dd>
+              <dd className="mt-1 text-[0.9375rem] font-medium text-ink tabular">{totals.tests}</dd>
             </div>
             <div>
               <dt>Commit</dt>
@@ -197,8 +197,8 @@ export default function SecurityTestsPage() {
             {MEANING.map((m) => (
               <li key={m.title} className="grid content-start gap-3">
                 <m.icon size={24} className="text-accent" aria-hidden />
-                <h3 className="text-[17px] font-medium">{m.title}</h3>
-                <p className="text-[15px] leading-relaxed text-ink-2">{m.body}</p>
+                <h3 className="text-[1.0625rem] font-medium">{m.title}</h3>
+                <p className="text-[0.9375rem] leading-relaxed text-ink-2">{m.body}</p>
               </li>
             ))}
           </ul>

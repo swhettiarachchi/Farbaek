@@ -91,7 +91,7 @@ export default async function FilesPage({
         </Link>
         <div className="mt-3 flex flex-col gap-1">
           <h1 className="text-[1.75rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2.1rem]">Files</h1>
-          <p className="text-[15px] text-ink-2">
+          <p className="text-[0.9375rem] text-ink-2">
             {files.length === 0 ? (
               "No files yet."
             ) : (
@@ -168,11 +168,11 @@ export default async function FilesPage({
                 </div>
                 {nameMatches.length > 0 ? (
                   <div className="mt-4">
-                    <p className="text-[13px] font-medium text-ink-3">Matching file names</p>
+                    <p className="text-[0.8125rem] font-medium text-ink-3">Matching file names</p>
                     <ul className="mt-2 grid gap-1">
                       {nameMatches.map((f) => (
                         <li key={f.path}>
-                          <Link href={fileHref(project.id, f.path)} className="font-mono text-[13px] break-all text-accent hover:underline">
+                          <Link href={fileHref(project.id, f.path)} className="font-mono text-[0.8125rem] break-all text-accent hover:underline">
                             {f.path}
                           </Link>
                         </li>
@@ -185,13 +185,13 @@ export default async function FilesPage({
                   <div className="mt-5 grid gap-5">
                     {[...grouped].map(([p, lines]) => (
                       <div key={p} className="min-w-0">
-                        <Link href={fileHref(project.id, p)} className="font-mono text-[13px] font-medium break-all hover:text-accent">
+                        <Link href={fileHref(project.id, p)} className="font-mono text-[0.8125rem] font-medium break-all hover:text-accent">
                           {p}
                         </Link>
                         <ul className="mt-1.5 overflow-hidden rounded-sm border border-line">
                           {lines.map((h) => (
                             <li key={h.line} className="border-b border-line last:border-b-0">
-                              <Link href={fileHref(project.id, p, h.line)} className="flex gap-3 px-3 py-1.5 font-mono text-[13px] hover:bg-surface-raised">
+                              <Link href={fileHref(project.id, p, h.line)} className="flex gap-3 px-3 py-1.5 font-mono text-[0.8125rem] hover:bg-surface-raised">
                                 <span className="w-10 shrink-0 text-right text-ink-3 tabular">{h.line}</span>
                                 <span className="min-w-0 truncate whitespace-pre">
                                   {highlight(h.text.trimEnd(), query).map((part, i) =>
@@ -218,7 +218,7 @@ export default async function FilesPage({
 
             {path && !file && !(historyMode && revisions.length > 0) ? (
               <EmptyState icon={FileDashedIcon} title="File not found" action={<Link href={base} className="text-sm text-accent hover:underline">Back to all files</Link>}>
-                There&apos;s no current file at <span className="font-mono text-[13px] break-all">{path}</span>. It may have been deleted or renamed.
+                There&apos;s no current file at <span className="font-mono text-[0.8125rem] break-all">{path}</span>. It may have been deleted or renamed.
               </EmptyState>
             ) : null}
 
@@ -232,7 +232,7 @@ export default async function FilesPage({
                   <AddImage projectId={project.id} disabledReason={writeReason} />
                 </div>
                 <div className="mt-6 border-t border-line pt-5">
-                  <h3 className="text-[15px] font-medium">Or generate one</h3>
+                  <h3 className="text-[0.9375rem] font-medium">Or generate one</h3>
                   <p className="mt-1 text-sm text-ink-2">Describe it, and Farbaek makes it straight into the project.</p>
                   <div className="mt-4">
                     <GenerateImage projectId={project.id} disabledReason={writeReason ?? imageGeneration().reason} />
@@ -244,7 +244,7 @@ export default async function FilesPage({
             {file && editing && !creating && isImage ? (
               <Card>
                 <h2 className="text-lg font-medium">
-                  Replace <span className="font-mono text-[15px] break-all">{file.path}</span>
+                  Replace <span className="font-mono text-[0.9375rem] break-all">{file.path}</span>
                 </h2>
                 <p className="mt-1 text-sm text-ink-2">The new image becomes the next revision. Pages that link to this path show it straight away.</p>
                 <div className="mt-4">
@@ -266,7 +266,7 @@ export default async function FilesPage({
                   <h2 className="mt-2 flex items-center gap-2 text-lg font-medium">
                     <ClockCounterClockwiseIcon size={20} className="text-ink-3" aria-hidden /> History
                   </h2>
-                  <p className="mt-0.5 font-mono text-[13px] break-all text-ink-2">{path}</p>
+                  <p className="mt-0.5 font-mono text-[0.8125rem] break-all text-ink-2">{path}</p>
                 </div>
                 {why ? <WhyCard graph={why} scanned={why.scanned} /> : null}
                 <ol className="overflow-hidden rounded-md border border-line bg-surface">
@@ -325,7 +325,7 @@ export default async function FilesPage({
                     <Link href={base} className="text-sm text-ink-2 hover:text-ink lg:hidden">
                       All files
                     </Link>
-                    <h2 className="font-mono text-[15px] font-medium break-all">{file.path}</h2>
+                    <h2 className="font-mono text-[0.9375rem] font-medium break-all">{file.path}</h2>
                     <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-ink-3">
                       <span>
                         {isImage ? "Image" : languageOf(file.path)}, {formatBytes(file.sizeBytes)}

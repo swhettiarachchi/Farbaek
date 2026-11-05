@@ -51,7 +51,7 @@ export function MemberControls({
     <div className="grid justify-items-start gap-2 sm:justify-items-end">
       <div className="flex flex-wrap items-center gap-2">
         {canChangeRole ? (
-          <form action={changeRole} className="flex items-center gap-2">
+          <form action={changeRole} className="flex flex-wrap items-center gap-2">
             <input type="hidden" name="userId" value={userId} />
             <label className="sr-only" htmlFor={`role-${userId}`}>
               Role for {name}
@@ -76,7 +76,7 @@ export function MemberControls({
         ) : null}
         {canRemove ? (
           confirming ? (
-            <form action={remove} className="flex items-center gap-2">
+            <form action={remove} className="flex flex-wrap items-center gap-2">
               <input type="hidden" name="userId" value={userId} />
               <button type="submit" disabled={blocked || removing} className={buttonClasses("danger", "sm")}>
                 {removing ? (isSelf ? "Leaving…" : "Removing…") : isSelf ? "Leave for good" : `Remove ${name}`}

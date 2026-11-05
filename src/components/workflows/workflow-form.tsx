@@ -148,7 +148,7 @@ export function WorkflowForm({
           <label key={c.choice} className="flex min-h-11 cursor-pointer items-start gap-3 py-1">
             <input type="radio" name="cap" value={c.choice} defaultChecked={i === 0} className="mt-1 size-4 accent-[var(--color-accent)]" />
             <span className="grid gap-0.5">
-              <span className="text-[15px] font-medium">{c.title}</span>
+              <span className="text-[0.9375rem] font-medium">{c.title}</span>
               <span className="text-sm text-ink-2">{c.detail}</span>
             </span>
           </label>

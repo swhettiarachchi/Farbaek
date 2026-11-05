@@ -43,8 +43,8 @@ describe("natural type", () => {
       .filter((f) => !f.rel.startsWith(SIZE_EXEMPT_PREFIX))
       .flatMap((f) =>
       lines(f.text).flatMap(({ line, n }) =>
-        [...line.matchAll(/text-\[(\d+(?:\.\d+)?)px\]/g)]
-          .map((m) => Number(m[1]))
+        [...line.matchAll(/text-\[(?:min\()?(\d*\.?\d+)(px|rem)\b/g)]
+          .map((m) => (m[2] === "rem" ? Number(m[1]) * 16 : Number(m[1])))
           .filter((px) => px < 11 || (px < 12 && !ELEVEN_PX_ALLOWED.has(f.rel)))
           .map((px) => `${f.rel}:${n} (${px}px)`),
       ),

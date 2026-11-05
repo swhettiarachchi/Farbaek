@@ -36,7 +36,7 @@ export async function EvidenceSection() {
           />
 
           <div className="flex flex-col items-center gap-4 lg:items-start">
-            <ProofPackSeal hash={digest} caption="Sample ProofPack" className="w-56 sm:w-64" />
+            <ProofPackSeal hash={digest} caption="Sample ProofPack" className="w-56 max-w-full sm:w-64" />
             <p className="max-w-[30ch] text-center text-sm text-ink-3 lg:text-left">
               Sample written to show the format. This seal and {shortHash(digest)} are computed from this sample&apos;s JSON.
             </p>
@@ -48,8 +48,8 @@ export async function EvidenceSection() {
 
         <div className="mt-12 grid gap-8 border-t border-line pt-8 sm:grid-cols-2">
           <div>
-            <h3 className="text-[17px] font-medium">What it proves</h3>
-            <ul className="mt-3 grid gap-2 text-[15px] text-ink-2">
+            <h3 className="text-[1.0625rem] font-medium">What it proves</h3>
+            <ul className="mt-3 grid gap-2 text-[0.9375rem] text-ink-2">
               {PROVES.map((line) => (
                 <li key={line} className="flex gap-2.5">
                   <CheckIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden />
@@ -59,8 +59,8 @@ export async function EvidenceSection() {
             </ul>
           </div>
           <div>
-            <h3 className="text-[17px] font-medium">What it doesn&apos;t</h3>
-            <ul className="mt-3 grid gap-2 text-[15px] text-ink-2">
+            <h3 className="text-[1.0625rem] font-medium">What it doesn&apos;t</h3>
+            <ul className="mt-3 grid gap-2 text-[0.9375rem] text-ink-2">
               {DOES_NOT_PROVE.map((line) => (
                 <li key={line} className="flex gap-2.5">
                   <MinusIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />

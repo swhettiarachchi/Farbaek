@@ -77,12 +77,12 @@ export function StatusSection() {
         <div className="mt-12 grid gap-10 lg:grid-cols-[1.25fr_1fr_1fr] lg:gap-0 lg:divide-x lg:divide-line">
           {GROUPS.map((group, i) => (
             <div key={group.title} className={i === 0 ? "lg:pr-10" : "lg:px-10"}>
-              <h3 className="flex items-center gap-2 text-[17px] font-medium">
+              <h3 className="flex items-center gap-2 text-[1.0625rem] font-medium">
                 <group.icon size={20} weight="bold" className={group.iconClass} aria-hidden />
                 {group.title}
               </h3>
               <p className="mt-1 text-sm text-ink-3">{group.note}</p>
-              <ul className="mt-5 grid gap-2.5 text-[15px] text-ink-2">
+              <ul className="mt-5 grid gap-2.5 text-[0.9375rem] text-ink-2">
                 {group.items.map((item) => (
                   <li key={item}>{item}</li>
                 ))}

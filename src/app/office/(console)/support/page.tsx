@@ -82,7 +82,7 @@ export default async function OfficeSupport({ searchParams }: { searchParams: Pr
               <Link href={`/support/${r.id}`} className="group grid gap-2 px-5 py-4 transition-colors duration-150 hover:bg-canvas-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-6">
                 <span className="grid min-w-0 gap-1.5">
                   <span className="flex min-w-0 flex-wrap items-center gap-2">
-                    <span className="truncate text-[15px] font-medium text-ink">{r.subject}</span>
+                    <span className="truncate text-[0.9375rem] font-medium text-ink">{r.subject}</span>
                     <Chip tone={r.topic === "abuse" ? "failed" : "neutral"}>
                       {r.topic === "abuse" ? <FlagIcon size={12} weight="fill" className="mr-1" aria-hidden /> : null}
                       {TOPIC_LABELS[r.topic]}

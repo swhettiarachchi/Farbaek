@@ -110,7 +110,7 @@ export function GraphAnalyticsView({ a }: { a: GraphAnalytics }) {
                 <li key={f.path} className="grid gap-0.5">
                   <span className="flex min-w-0 items-center gap-2">
                     <FileCodeIcon size={16} className="shrink-0 text-ink-3" aria-hidden />
-                    <span className="truncate font-mono text-[13px] text-ink" title={f.path}>
+                    <span className="truncate font-mono text-[0.8125rem] text-ink" title={f.path}>
                       {f.path}
                     </span>
                   </span>

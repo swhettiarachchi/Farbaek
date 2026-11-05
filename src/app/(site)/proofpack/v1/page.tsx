@@ -106,11 +106,11 @@ export default function ProofPackFormatPage() {
       <section className="pt-14 pb-10 sm:pt-20 lg:pt-24">
         <Container>
           <h1 className="max-w-[18ch] text-balance text-[2.5rem] font-medium leading-[1.05] tracking-[-0.04em] sm:text-[3.5rem]">The ProofPack format, version 1.</h1>
-          <p className="mt-5 max-w-[60ch] text-[17px] leading-relaxed text-ink-2">
+          <p className="mt-5 max-w-[60ch] text-[1.0625rem] leading-relaxed text-ink-2">
             Every change Farbaek applies, and every check run of it, leaves a ProofPack: a record of what was approved, what changed and what the checks returned. This is how one
             is built, so anyone can read and check it without Farbaek.
           </p>
-          <p className="mt-6 inline-flex max-w-full rounded-full border border-line bg-surface px-4 py-2 font-mono text-[13px] break-all text-ink">{PROOFPACK_PREDICATE_TYPE}</p>
+          <p className="mt-6 inline-flex max-w-full rounded-full border border-line bg-surface px-4 py-2 font-mono text-[0.8125rem] break-all text-ink">{PROOFPACK_PREDICATE_TYPE}</p>
           <div className="mt-6 flex flex-wrap gap-x-6 gap-y-1">
             <Link href="/verify" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-accent hover:underline">
               Check one on the verify page <ArrowRightIcon size={14} aria-hidden />
@@ -130,10 +130,10 @@ export default function ProofPackFormatPage() {
           <dl className="mt-8 grid gap-px overflow-hidden rounded-md border border-line bg-line">
             {ENVELOPE.map((e) => (
               <div key={e.term} className="grid gap-2 bg-surface p-5 sm:grid-cols-[180px_minmax(0,1fr)] sm:gap-6">
-                <dt className="text-[15px] font-medium">{e.term}</dt>
+                <dt className="text-[0.9375rem] font-medium">{e.term}</dt>
                 <dd className="grid min-w-0 gap-1.5">
-                  <span className="font-mono text-[13px] break-all text-ink">{e.value}</span>
-                  <span className="text-[15px] leading-relaxed text-ink-2">{e.body}</span>
+                  <span className="font-mono text-[0.8125rem] break-all text-ink">{e.value}</span>
+                  <span className="text-[0.9375rem] leading-relaxed text-ink-2">{e.body}</span>
                 </dd>
               </div>
             ))}
@@ -146,12 +146,12 @@ export default function ProofPackFormatPage() {
           <h2 id="fields-title" className="text-[1.75rem] font-medium leading-tight tracking-[-0.03em]">
             What the predicate records
           </h2>
-          <p className="mt-3 max-w-[60ch] text-[15px] leading-relaxed text-ink-2">The fields inside the statement&apos;s predicate.</p>
+          <p className="mt-3 max-w-[60ch] text-[0.9375rem] leading-relaxed text-ink-2">The fields inside the statement&apos;s predicate.</p>
           <dl className="mt-8 grid gap-x-10 gap-y-5 md:grid-cols-2">
             {FIELDS.map((f) => (
               <div key={f.name} className="grid content-start gap-1 border-t border-line pt-4">
-                <dt className="font-mono text-[14px] text-ink">{f.name}</dt>
-                <dd className="text-[15px] leading-relaxed text-ink-2">{f.body}</dd>
+                <dt className="font-mono text-[0.875rem] text-ink">{f.name}</dt>
+                <dd className="text-[0.9375rem] leading-relaxed text-ink-2">{f.body}</dd>
               </div>
             ))}
           </dl>
@@ -163,18 +163,18 @@ export default function ProofPackFormatPage() {
           <h2 id="check-title" className="text-[1.75rem] font-medium leading-tight tracking-[-0.03em]">
             Check one without Farbaek
           </h2>
-          <p className="mt-3 max-w-[60ch] text-[15px] leading-relaxed text-ink-2">
+          <p className="mt-3 max-w-[60ch] text-[0.9375rem] leading-relaxed text-ink-2">
             With a signed ProofPack downloaded from Farbaek as proofpack.json, these steps need a shell, curl, jq and OpenSSL 3. The verify page does the same in your browser.
           </p>
           <ol className="mt-8 grid max-w-3xl gap-8">
             {STEPS.map((s, i) => (
               <li key={s.title} className="grid min-w-0 gap-3">
-                <h3 className="flex items-baseline gap-3 text-[17px] font-medium">
-                  <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-line-strong text-[13px] text-ink-2">{i + 1}</span>
+                <h3 className="flex items-baseline gap-3 text-[1.0625rem] font-medium">
+                  <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-line-strong text-[0.8125rem] text-ink-2">{i + 1}</span>
                   {s.title}
                 </h3>
                 <CommandBlock label={s.label} command={s.command} />
-                <p className="text-[15px] leading-relaxed text-ink-2">{s.after}</p>
+                <p className="text-[0.9375rem] leading-relaxed text-ink-2">{s.after}</p>
               </li>
             ))}
           </ol>
@@ -190,8 +190,8 @@ export default function ProofPackFormatPage() {
             {PROVES.map((p) => (
               <li key={p.title} className="grid content-start gap-3">
                 <p.icon size={24} className="text-accent" aria-hidden />
-                <h3 className="text-[17px] font-medium">{p.title}</h3>
-                <p className="text-[15px] leading-relaxed text-ink-2">{p.body}</p>
+                <h3 className="text-[1.0625rem] font-medium">{p.title}</h3>
+                <p className="text-[0.9375rem] leading-relaxed text-ink-2">{p.body}</p>
               </li>
             ))}
           </ul>

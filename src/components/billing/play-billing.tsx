@@ -261,10 +261,16 @@ export function PlayPrice({
   const inApp = useInAndroidApp();
   const p = usePlay();
   const show = usePriceCurrency();
-  if (!inApp || !ready || !productId) return <>{children}</>;
+  // Hidden by CSS inside the Android app, from the first paint (ADR 0171).
+  const web = (
+    <span data-web-purchase className="contents">
+      {children}
+    </span>
+  );
+  if (!inApp || !ready || !productId) return web;
   if (p === null) return <span className={amountClass ?? "text-ink-3"}>…</span>;
   const price = playPrices(p, productId, show);
-  if (!price) return <>{children}</>;
+  if (!price) return web;
   return (
     <>
       <span className={amountClass}>{price.shown}</span>

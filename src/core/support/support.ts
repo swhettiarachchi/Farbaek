@@ -11,9 +11,23 @@ export const TOPIC_LABELS: Record<SupportTopic, string> = {
   not_working: "Something isn't working",
   billing: "Plans and usage",
   account: "Account and sign-in",
-  abuse: "Report a site or abuse",
+  abuse: "Report a site, an AI result or abuse",
   other: "Something else",
 };
+
+/** Where "Report this result" goes (ADR 0171): the in-app form, so reporting never means leaving the app. */
+export function reportHref(about: { taskId: string } | { projectId: string }): string {
+  const where = "taskId" in about ? `task=${encodeURIComponent(about.taskId)}` : `project=${encodeURIComponent(about.projectId)}`;
+  return `/app/help/new?topic=abuse&${where}`;
+}
+
+/** The report's opening words, from a record the person can read: nothing typed into the address reaches the form. */
+export function reportPrefill(about: { name: string; path: string }): { subject: string; body: string } {
+  return {
+    subject: `Report: ${about.name}`.slice(0, SUPPORT_LIMITS.subjectMax).trimEnd(),
+    body: `About: ${about.name}\nWhere: ${about.path}\n\nWhat's wrong with what the AI made:\n`,
+  };
+}
 
 export const SUPPORT_STATUSES = ["waiting_on_farbaek", "waiting_on_you", "closed"] as const;
 export type SupportStatus = (typeof SUPPORT_STATUSES)[number];

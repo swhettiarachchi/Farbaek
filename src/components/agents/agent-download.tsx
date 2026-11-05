@@ -66,8 +66,8 @@ export function AgentDownload() {
             <li className="grid min-w-0 content-start gap-2 rounded-md border border-line p-4">
               <Step n={1}>Check it&apos;s the real file</Step>
               <p className="text-xs leading-relaxed text-ink-3">In PowerShell, in your Downloads folder, run this. The hash it prints must match this one; capital letters don&apos;t matter.</p>
-              <code className="block break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[12px] text-ink-2">Get-FileHash {d.file}</code>
-              <p className="break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[12px] leading-relaxed text-ink">{d.sha256}</p>
+              <code className="block break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[0.75rem] text-ink-2">Get-FileHash {d.file}</code>
+              <p className="break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[0.75rem] leading-relaxed text-ink">{d.sha256}</p>
             </li>
             <li className="grid min-w-0 content-start gap-2 rounded-md border border-line p-4">
               <Step n={2}>Open it, then choose More info</Step>
@@ -93,8 +93,8 @@ export function AgentDownload() {
                 </span>
               </p>
               <p className="text-xs leading-relaxed text-ink-3">To check it&apos;s the real file, run this in Terminal, in your Downloads folder. It must print this fingerprint.</p>
-              <code className="block break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[12px] text-ink-2">shasum -a 256 {AGENT_MAC.file}</code>
-              <p className="break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[12px] leading-relaxed text-ink">{AGENT_MAC.sha256}</p>
+              <code className="block break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[0.75rem] text-ink-2">shasum -a 256 {AGENT_MAC.file}</code>
+              <p className="break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[0.75rem] leading-relaxed text-ink">{AGENT_MAC.sha256}</p>
             </div>
             <PrimaryLink href={`/downloads/${AGENT_MAC.file}`} download icon={<DownloadSimpleIcon size={17} weight="bold" aria-hidden />}>
               Download for Mac
@@ -115,8 +115,8 @@ export function AgentDownload() {
                 </span>
               </p>
               <p className="text-xs leading-relaxed text-ink-3">To check it&apos;s the real file, run this in a terminal, in your Downloads folder. It must print this fingerprint.</p>
-              <code className="block break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[12px] text-ink-2">sha256sum {AGENT_LINUX.file}</code>
-              <p className="break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[12px] leading-relaxed text-ink">{AGENT_LINUX.sha256}</p>
+              <code className="block break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[0.75rem] text-ink-2">sha256sum {AGENT_LINUX.file}</code>
+              <p className="break-all rounded-sm border border-line bg-surface-sunken px-3 py-2 font-mono text-[0.75rem] leading-relaxed text-ink">{AGENT_LINUX.sha256}</p>
             </div>
             <PrimaryLink href={`/downloads/${AGENT_LINUX.file}`} download icon={<DownloadSimpleIcon size={17} weight="bold" aria-hidden />}>
               Download for Linux
@@ -137,7 +137,7 @@ function PrimaryLink({ href, download, icon, children }: { href: string; downloa
       download={download}
       {...(download ? {} : { target: "_blank", rel: "noopener noreferrer" })}
       // It grows rather than spills when the label is long or the phone's text is large.
-      className="group inline-flex min-h-12 max-w-full items-center justify-between gap-2 justify-self-start rounded-full bg-primary py-1.5 pl-5 pr-1.5 text-left text-[15px] font-medium leading-snug text-on-primary shadow-e1 transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-primary/90 active:scale-[0.98] sm:gap-3"
+      className="group inline-flex min-h-12 max-w-full items-center justify-between gap-2 justify-self-start rounded-full bg-primary py-1.5 pl-5 pr-1.5 text-left text-[0.9375rem] font-medium leading-snug text-on-primary shadow-e1 transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-primary/90 active:scale-[0.98] sm:gap-3"
     >
       <span className="min-w-0">{children}</span>
       <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-on-primary/15 transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-y-0.5">{icon}</span>
@@ -171,15 +171,15 @@ function Step({ n, children }: { n: number; children: ReactNode }) {
 function ScreenSketch({ highlight }: { highlight: "more" | "run" }) {
   const mark = "rounded-[6px] ring-2 ring-accent ring-offset-2 ring-offset-surface-sunken";
   return (
-    <div aria-hidden className="grid gap-2 rounded-sm border border-line bg-surface-sunken p-3 text-[12px] leading-snug text-ink-2">
-      <span className="text-[13px] font-medium text-ink">Windows protected your PC</span>
+    <div aria-hidden className="grid gap-2 rounded-sm border border-line bg-surface-sunken p-3 text-[0.75rem] leading-snug text-ink-2">
+      <span className="text-[0.8125rem] font-medium text-ink">Windows protected your PC</span>
       {highlight === "more" ? (
         <span>
           Microsoft Defender SmartScreen prevented an unrecognized app from starting.{" "}
           <span className={`px-0.5 text-accent underline ${mark}`}>More info</span>
         </span>
       ) : (
-        <span className="grid gap-0.5 font-mono text-[12px] text-ink-3">
+        <span className="grid gap-0.5 font-mono text-[0.75rem] text-ink-3">
           <span>App: Farbaek-Agent-Setup….exe</span>
           <span>Publisher: Unknown publisher</span>
         </span>

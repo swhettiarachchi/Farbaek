@@ -9,6 +9,7 @@ import { PublishPanel } from "@/components/publish/publish-panel";
 import { placeholderCount } from "@/core/media/library";
 import { UPGRADE_DESIGN, usesStudioKit } from "@/core/media/studio-kit";
 import { ProjectSkills, type ProjectSkillView } from "@/components/skills/project-skills";
+import { ReportResult } from "@/components/tasks/report-result";
 import { Disclosure } from "@/components/ui/disclosure";
 import { skillPinStatus } from "@/core/agent/skill-pins";
 import { isProjectSkillPath, parseSkill } from "@/core/agent/skills";
@@ -176,6 +177,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
             </ButtonLink>
           </div>
           <StaticPreview versions={[{ id: "now", label: "Current", files: Object.fromEntries(contents.map((f) => [f.path, f.content])), images }]} />
+          <ReportResult about={{ projectId: project.id }} />
         </section>
       ) : null}
 

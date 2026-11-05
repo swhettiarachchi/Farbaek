@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { KeyboardMark } from "@/components/app/keyboard-mark";
 import { AndroidAppMarker } from "@/components/billing/web-purchase-only";
 import "./globals.css";
 
@@ -29,13 +30,19 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  // The keyboard shrinks the page, so a box pinned to the bottom stays above it (ADR 0171).
+  interactiveWidget: "resizes-content",
   colorScheme: "light",
   themeColor: "#fbfbfc",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${sans.variable} ${mono.variable}`}>
+    <html lang="en" className={`${sans.variable} ${mono.variable}`} suppressHydrationWarning>
+      <head>
+        {/* Android's text size setting applies here (ADR 0171): sizes are in rem, and this asks Chrome to scale the root. In the head by hand, because dynamic pages can stream their metadata later. */}
+        <meta name="text-scale" content="scale" />
+      </head>
       <body className="min-h-[100dvh] antialiased">
         <a
           href="#main"
@@ -45,6 +52,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         </a>
         {children}
         <AndroidAppMarker />
+        <KeyboardMark />
       </body>
     </html>
   );

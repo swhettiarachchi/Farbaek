@@ -88,7 +88,7 @@ export function InvitePeople({ roles, seats, disabledReason }: { roles: InviteRo
             Send this link to <span className="font-medium">{state.email}</span> yourself; Farbaek doesn&apos;t send email yet. It works once, only for that address, until{" "}
             <LocalTime iso={state.expiresAt} />. It isn&apos;t shown again.
           </p>
-          <code className="block rounded-sm border border-line bg-surface px-3 py-2 font-mono text-[13px] break-all">{state.link}</code>
+          <code className="block rounded-sm border border-line bg-surface px-3 py-2 font-mono text-[0.8125rem] break-all">{state.link}</code>
           <div>
             <button type="button" onClick={() => void copy(state.link)} className={buttonClasses("secondary", "sm")}>
               {copied ? <CheckIcon size={16} aria-hidden /> : <CopyIcon size={16} aria-hidden />} {copied ? "Copied" : "Copy link"}

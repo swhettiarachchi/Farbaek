@@ -63,7 +63,7 @@ export function TaskNotesCard({ taskId, kind, notes, disabledReason }: { taskId:
                 <span className="font-mono">{n.model}</span>
                 <RelativeTime iso={n.createdAt} />
               </p>
-              {n.summary ? <p className="text-[15px] leading-relaxed text-ink">{n.summary}</p> : null}
+              {n.summary ? <p className="text-[0.9375rem] leading-relaxed text-ink">{n.summary}</p> : null}
               {n.points.length ? (
                 <ul className="grid gap-3">
                   {n.points.map((p, i) => (

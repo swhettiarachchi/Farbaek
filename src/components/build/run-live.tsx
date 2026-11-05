@@ -95,7 +95,7 @@ export function EventRow({ e, latest }: { e: RunEventView; latest: boolean }) {
   let tone = "text-ink-2";
   if (e.kind === "model") {
     icon = ChatTextIcon;
-    body = <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-ink">{str(p.text)}</p>;
+    body = <p className="whitespace-pre-wrap text-[0.9375rem] leading-relaxed text-ink">{str(p.text)}</p>;
   } else if (e.kind === "tool") {
     const tool = str(p.tool);
     icon = TOOL_ICON[tool] ?? InfoIcon;
@@ -109,7 +109,7 @@ export function EventRow({ e, latest }: { e: RunEventView; latest: boolean }) {
             {TOOL_VERB[tool] ?? tool}
             {tool === "finish" && target ? ":" : ""}
           </span>
-          {target ? <span className={`break-all text-ink ${target.mono ? "font-mono text-[13px]" : ""}`}>{target.text}</span> : null}
+          {target ? <span className={`break-all text-ink ${target.mono ? "font-mono text-[0.8125rem]" : ""}`}>{target.text}</span> : null}
           {status !== "done" ? <span className={`text-xs font-medium ${tone}`}>{status === "failed" ? "Failed" : status === "denied" ? "Not allowed" : "Declined"}</span> : null}
         </p>
         {status !== "done" && str(p.detail) ? <p className="mt-1 text-xs text-ink-3">{str(p.detail)}</p> : null}
@@ -122,7 +122,7 @@ export function EventRow({ e, latest }: { e: RunEventView; latest: boolean }) {
     body = (
       <details className="group min-w-0">
         <summary className="flex cursor-pointer list-none flex-wrap items-baseline gap-x-2 text-sm">
-          <span className="break-all font-mono text-[13px] text-ink">{str(p.command)}</span>
+          <span className="break-all font-mono text-[0.8125rem] text-ink">{str(p.command)}</span>
           <span className={`text-xs font-medium ${tone}`}>{code === 0 ? "Passed" : code === null ? "Didn't finish" : `Exit ${code}`}</span>
           <span className="text-xs text-ink-3 group-open:hidden">Show output</span>
         </summary>
@@ -134,15 +134,15 @@ export function EventRow({ e, latest }: { e: RunEventView; latest: boolean }) {
     tone = "text-approval";
     body = (
       <p className="text-sm">
-        Asked to run <span className="break-all font-mono text-[13px] text-ink">{str(p.display)}</span>
+        Asked to run <span className="break-all font-mono text-[0.8125rem] text-ink">{str(p.display)}</span>
       </p>
     );
   } else if (e.kind === "note" && p.from === "person") {
     icon = UserIcon;
     tone = "text-accent";
     body = (
-      <p className="w-fit max-w-full rounded-md rounded-tl-xs bg-accent/[0.07] px-3.5 py-2 text-[15px] leading-relaxed text-ink">
-        <span className="mr-2 text-[13px] font-medium text-accent">You</span>
+      <p className="w-fit max-w-full rounded-md rounded-tl-xs bg-accent/[0.07] px-3.5 py-2 text-[0.9375rem] leading-relaxed text-ink">
+        <span className="mr-2 text-[0.8125rem] font-medium text-accent">You</span>
         {str(p.text)}
       </p>
     );
@@ -181,7 +181,7 @@ function ApprovalCard({ run, request, onAnswered }: { run: RunView; request: Run
       <h2 id="approval-heading" className="flex items-center gap-2 text-base font-medium">
         <ShieldWarningIcon size={18} weight="bold" className="text-approval" aria-hidden /> The agent wants to run a command
       </h2>
-      <pre className="overflow-x-auto rounded-sm bg-media p-3 font-mono text-[13px] text-media-ink">{str(p.display)}</pre>
+      <pre className="overflow-x-auto rounded-sm bg-media p-3 font-mono text-[0.8125rem] text-media-ink">{str(p.display)}</pre>
       <dl className="grid gap-1 text-sm">
         <div className="flex gap-2">
           <dt className="text-ink-3">Why it asks</dt>
@@ -388,7 +388,7 @@ export function RunLive({
           <li className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-ink-2">
             {EFFORT_LABELS[run.effort].title}
           </li>
-          <li className="inline-block h-7 max-w-full truncate rounded-full border border-line bg-surface px-3 font-mono leading-[26px] text-ink-2">{run.model ?? "Choosing a model"}</li>
+          <li className="inline-block h-7 max-w-full truncate rounded-full border border-line bg-surface px-3 font-mono leading-[1.625rem] text-ink-2">{run.model ?? "Choosing a model"}</li>
           {usage?.share ? (
             <li className="inline-flex h-7 items-center gap-1.5 rounded-full border border-accent/30 bg-accent/[0.05] px-3 text-ink-2">
               <GaugeIcon size={14} weight="bold" className="text-accent" aria-hidden />
@@ -442,7 +442,7 @@ export function RunLive({
       {sheet ? (
         <>
           {/* On phones the approval rises as a sheet above the tab bar; on wide screens it sits in the page. */}
-          <div className="max-lg:fixed max-lg:inset-x-0 max-lg:bottom-[calc(4rem+env(safe-area-inset-bottom))] max-lg:z-40 max-lg:px-3 max-lg:pb-3">
+          <div className="max-lg:fixed max-lg:inset-x-0 max-lg:bottom-[var(--tab-bar)] max-lg:z-40 max-lg:px-3 max-lg:pb-3">
             <ApprovalCard run={run} request={waitingOn!} onAnswered={() => setRun((r) => ({ ...r, status: "working" }))} />
           </div>
         </>
@@ -557,7 +557,7 @@ export function RunLive({
         <div id="pane-files" className={`${panes.paneClass("files")} lg:col-start-1 lg:row-start-3`}>
           <section aria-labelledby="files-heading" className="rounded-md border border-line bg-surface p-5 shadow-e1">
             <h2 id="files-heading" className="flex items-baseline justify-between gap-3 text-base font-medium">
-              Files <span className="text-[13px] font-normal text-ink-3">{files.read} read</span>
+              Files <span className="text-[0.8125rem] font-normal text-ink-3">{files.read} read</span>
             </h2>
             {files.changed.length === 0 ? (
               <p className="mt-3 text-sm text-ink-3">{live ? "No files changed yet." : "This run changed no files."}</p>
@@ -568,7 +568,7 @@ export function RunLive({
                   return (
                     <li key={f.path} className="flex items-center gap-2.5 text-sm">
                       <FileIcon size={16} weight="bold" className="shrink-0 text-accent" aria-hidden />
-                      <span className="min-w-0 flex-1 truncate font-mono text-[13px]" title={f.path}>
+                      <span className="min-w-0 flex-1 truncate font-mono text-[0.8125rem]" title={f.path}>
                         {f.path}
                       </span>
                       <span className="shrink-0 text-xs text-ink-3">

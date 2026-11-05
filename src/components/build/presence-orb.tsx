@@ -66,7 +66,7 @@ export function PresenceOrb({ orgId, initial, compact = false }: { orgId: string
   return (
     <Link
       href={href}
-      className={`flex min-h-11 items-center gap-2.5 rounded-full border px-2.5 text-[13.5px] transition-colors duration-150 hover:bg-surface ${
+      className={`flex min-h-11 items-center gap-2.5 rounded-full border px-2.5 text-[0.84375rem] transition-colors duration-150 hover:bg-surface ${
         presence.state === "waiting" ? "border-approval/45 text-ink" : "border-line text-ink-2"
       }`}
     >

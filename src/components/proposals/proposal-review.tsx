@@ -197,7 +197,7 @@ export function ProposalReview({
       ) : null}
 
       <div className="grid gap-3">
-        <p className="text-[15px] leading-relaxed">{proposal.plan.summary}</p>
+        <p className="text-[0.9375rem] leading-relaxed">{proposal.plan.summary}</p>
         {proposal.plan.steps.length ? (
           <ol className="grid list-decimal gap-1 pl-5 text-sm text-ink-2">
             {proposal.plan.steps.map((s, i) => (
@@ -298,7 +298,7 @@ export function ProposalReview({
           <ul className="mt-2 grid gap-1">
             {proposal.dropped.map((d, i) => (
               <li key={i}>
-                <span className="font-mono text-[13px] break-all">{d.path}</span>: <span className="text-ink-2">{DROP_LABELS[d.reason] ?? d.reason}</span>
+                <span className="font-mono text-[0.8125rem] break-all">{d.path}</span>: <span className="text-ink-2">{DROP_LABELS[d.reason] ?? d.reason}</span>
               </li>
             ))}
           </ul>
@@ -316,7 +316,7 @@ export function ProposalReview({
           <ul className="grid gap-1">
             {proposal.changes.map((c) => (
               <li key={c.path}>
-                <Link href={fileHref(projectId, c.path)} className="font-mono text-[13px] break-all text-accent hover:underline">
+                <Link href={fileHref(projectId, c.path)} className="font-mono text-[0.8125rem] break-all text-accent hover:underline">
                   {c.path}
                 </Link>
               </li>
@@ -345,7 +345,7 @@ export function ProposalReview({
           {proposal.changes.map((c, i) => (
             <section key={c.path} className="grid min-w-0 gap-2" aria-label={`Changes to ${c.path}`}>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <p className="min-w-0 font-mono text-[13px] font-medium break-all">{c.path}</p>
+                <p className="min-w-0 font-mono text-[0.8125rem] font-medium break-all">{c.path}</p>
                 <p className="text-xs text-ink-3">{c.kind === "create" ? "New file" : "Edited file"}</p>
               </div>
               {c.reason ? <p className="text-xs text-ink-2">{c.reason}</p> : null}
@@ -387,7 +387,7 @@ export function ProposalReview({
             </p>
           ) : null}
           {open ? (
-            <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 -mx-5 flex flex-col gap-2 border-t border-line bg-surface/95 px-5 py-3 backdrop-blur-xl sm:-mx-6 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 sm:px-6 lg:bottom-0">
+            <div className="sticky bottom-[var(--tab-bar)] z-20 -mx-5 flex flex-col gap-2 border-t border-line bg-surface/95 px-5 py-3 backdrop-blur-xl sm:-mx-6 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 sm:px-6">
               {errorLine}
               <button type="button" onClick={approve} disabled={pending || kept.length === 0 || Boolean(approveReason)} className={buttonClasses("primary", "md", "w-full justify-center sm:w-auto")}>
                 <FingerprintIcon size={16} weight="bold" aria-hidden />

@@ -57,7 +57,7 @@ export default async function OfficeSupportThread({ params }: { params: Promise<
                   <p className="text-xs text-ink-3">
                     <span className="font-medium text-ink-2">{thread.email}</span> · <LocalTime iso={m.createdAt} />
                   </p>
-                  <div className="whitespace-pre-wrap break-words rounded-md border border-line bg-surface px-4 py-3 text-[15px] leading-relaxed shadow-e1">{m.body}</div>
+                  <div className="whitespace-pre-wrap break-words rounded-md border border-line bg-surface px-4 py-3 text-[0.9375rem] leading-relaxed shadow-e1">{m.body}</div>
                 </li>
               ) : m.internal ? (
                 <li key={m.id} className="grid gap-1.5">
@@ -69,7 +69,7 @@ export default async function OfficeSupportThread({ params }: { params: Promise<
                     <span aria-hidden>·</span>
                     <LocalTime iso={m.createdAt} />
                   </p>
-                  <div className="whitespace-pre-wrap break-words rounded-md border border-dashed border-line-strong/50 bg-[repeating-linear-gradient(135deg,transparent_0_10px,var(--color-surface-raised)_10px_12px)] px-4 py-3 text-[15px] leading-relaxed text-ink">
+                  <div className="whitespace-pre-wrap break-words rounded-md border border-dashed border-line-strong/50 bg-[repeating-linear-gradient(135deg,transparent_0_10px,var(--color-surface-raised)_10px_12px)] px-4 py-3 text-[0.9375rem] leading-relaxed text-ink">
                     {m.body}
                   </div>
                 </li>
@@ -83,7 +83,7 @@ export default async function OfficeSupportThread({ params }: { params: Promise<
                     <span aria-hidden>·</span>
                     <LocalTime iso={m.createdAt} />
                   </p>
-                  <div className="whitespace-pre-wrap break-words rounded-md border border-accent/15 bg-accent/[0.05] px-4 py-3 text-[15px] leading-relaxed">{m.body}</div>
+                  <div className="whitespace-pre-wrap break-words rounded-md border border-accent/15 bg-accent/[0.05] px-4 py-3 text-[0.9375rem] leading-relaxed">{m.body}</div>
                 </li>
               ),
             )}
@@ -101,7 +101,7 @@ export default async function OfficeSupportThread({ params }: { params: Promise<
         <aside className="grid gap-4">
           <Card>
             <h2 className="text-sm font-medium text-ink-3">From</h2>
-            <p className="mt-1 break-all text-[15px] font-medium">{thread.email}</p>
+            <p className="mt-1 break-all text-[0.9375rem] font-medium">{thread.email}</p>
             {workspace ? (
               <div className="mt-4 grid gap-2 border-t border-line pt-4 text-sm">
                 <Link href={`/workspaces/${workspace.id}`} className="inline-flex min-h-11 items-center gap-2 font-medium text-accent hover:underline">

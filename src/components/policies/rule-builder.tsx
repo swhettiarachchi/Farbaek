@@ -525,10 +525,10 @@ function TestResult({ summary, stale }: { summary: RulesTestSummary; stale: bool
       ) : null}
 
       {summary.changes === 0 ? (
-        <p className="text-[15px]">There were no changes in the last {summary.days} days to test against. The rules still apply to every new change.</p>
+        <p className="text-[0.9375rem]">There were no changes in the last {summary.days} days to test against. The rules still apply to every new change.</p>
       ) : (
         <>
-          <p className="text-[15px]">
+          <p className="text-[0.9375rem]">
             {differ === 0
               ? `None of the ${plural(summary.changes, "change", "changes")} would have been decided differently.`
               : `Of ${plural(summary.changes, "change", "changes")}, ${summary.stricter.toLocaleString("en-US")} would have needed more and ${summary.looser.toLocaleString("en-US")} less than under today's rules.`}

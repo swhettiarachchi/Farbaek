@@ -122,18 +122,18 @@ export function AgentLeasePanel({
             <legend className="mb-1 text-sm font-medium">Projects</legend>
             <label className="flex min-h-11 cursor-pointer items-center gap-3">
               <input type="radio" name="scope" value="all" checked={scope === "all"} onChange={() => setScope("all")} className="size-4 shrink-0 accent-[var(--color-accent)]" />
-              <span className="text-[15px]">Every project, including new ones</span>
+              <span className="text-[0.9375rem]">Every project, including new ones</span>
             </label>
             <label className="flex min-h-11 cursor-pointer items-center gap-3">
               <input type="radio" name="scope" value="some" checked={scope === "some"} onChange={() => setScope("some")} disabled={projects.length === 0} className="size-4 shrink-0 accent-[var(--color-accent)]" />
-              <span className="text-[15px]">Only the projects I choose</span>
+              <span className="text-[0.9375rem]">Only the projects I choose</span>
             </label>
             {scope === "some" ? (
               <div className="ml-7 grid gap-0.5 border-l border-line pl-4">
                 {projects.map((p) => (
                   <label key={p.id} className="flex min-h-11 cursor-pointer items-center gap-3">
                     <input type="checkbox" name="project" value={p.id} defaultChecked={lease.projects?.includes(p.id) ?? false} className="size-4 shrink-0 accent-[var(--color-accent)]" />
-                    <span className="min-w-0 truncate text-[15px]">{p.name}</span>
+                    <span className="min-w-0 truncate text-[0.9375rem]">{p.name}</span>
                   </label>
                 ))}
               </div>
@@ -146,7 +146,7 @@ export function AgentLeasePanel({
               <label key={c} className="flex min-h-11 cursor-pointer items-start gap-3 py-1.5">
                 <input type="checkbox" name="capability" value={c} defaultChecked={lease.capabilities.includes(c)} className="mt-1 size-4 shrink-0 accent-[var(--color-accent)]" />
                 <span className="grid gap-0.5">
-                  <span className="text-[15px] font-medium">{CAPABILITY_LABELS[c].title}</span>
+                  <span className="text-[0.9375rem] font-medium">{CAPABILITY_LABELS[c].title}</span>
                   <span className="text-sm text-ink-2">{CAPABILITY_LABELS[c].detail}</span>
                 </span>
               </label>

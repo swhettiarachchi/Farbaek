@@ -63,8 +63,8 @@ export function Disclosure({ summary, hint, children, className = "" }: { summar
     <details ref={box} className={`[&[open]>summary>svg]:rotate-180 ${className}`}>
       <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 rounded-md border border-line bg-surface px-5 py-3 shadow-e1 transition-colors duration-150 hover:bg-canvas-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent [&::-webkit-details-marker]:hidden">
         <span className="grid min-w-0 gap-0.5">
-          <span className="text-[15px] font-medium">{summary}</span>
-          {hint ? <span className="text-[13px] leading-snug text-ink-3">{hint}</span> : null}
+          <span className="text-[0.9375rem] font-medium">{summary}</span>
+          {hint ? <span className="text-[0.8125rem] leading-snug text-ink-3">{hint}</span> : null}
         </span>
         <CaretDownIcon size={16} weight="bold" aria-hidden className="ml-auto shrink-0 text-ink-3 motion-safe:transition-transform motion-safe:duration-200" />
       </summary>

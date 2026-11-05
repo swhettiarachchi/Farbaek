@@ -100,7 +100,7 @@ export function CreateProjectForm({ disabledReason }: { disabledReason: string |
             >
               <input type="radio" name="starter" value={s.id} defaultChecked={(values?.starter ?? "blank") === s.id} className="mt-1 size-4 accent-[var(--color-accent)]" />
               <span className="grid gap-0.5">
-                <span className="text-[15px] font-medium">{s.name}</span>
+                <span className="text-[0.9375rem] font-medium">{s.name}</span>
                 <span className="text-sm text-ink-2">{s.summary}</span>
               </span>
             </label>

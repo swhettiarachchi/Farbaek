@@ -102,7 +102,7 @@ export function ProviderPanel(props: {
             ].map((row) => (
               <div key={row.k} className="grid gap-1 px-4 py-3 sm:grid-cols-[150px_minmax(0,1fr)] sm:gap-4">
                 <dt className="text-sm text-ink-3">{row.k}</dt>
-                <dd className={`min-w-0 break-words text-sm ${row.mono ? "font-mono text-[13px]" : ""} ${row.k === "Proof" ? (props.evidence === "verified" ? "text-verified" : "text-approval") : "text-ink"}`} title={row.title}>
+                <dd className={`min-w-0 break-words text-sm ${row.mono ? "font-mono text-[0.8125rem]" : ""} ${row.k === "Proof" ? (props.evidence === "verified" ? "text-verified" : "text-approval") : "text-ink"}`} title={row.title}>
                   {row.v}
                 </dd>
               </div>
@@ -125,7 +125,7 @@ export function ProviderPanel(props: {
                     <span className={`inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium ${s.className}`}>
                       <s.Icon size={14} weight="bold" aria-hidden /> {s.word ?? copy.working}
                     </span>
-                    <span className="font-mono text-[13px]">{o.targetName}</span>
+                    <span className="font-mono text-[0.8125rem]">{o.targetName}</span>
                     <span className="text-ink-3">
                       <RelativeTime iso={o.authorizedAt} />
                     </span>

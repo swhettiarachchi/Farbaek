@@ -63,7 +63,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
     <Container className="grid min-h-[calc(100dvh-4rem)] items-center gap-12 py-12 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-16 lg:py-16">
       <div className="w-full max-w-[440px] justify-self-center lg:justify-self-start">
         <h1 className="text-[2.4rem] font-medium leading-[1.05] tracking-[-0.035em]">Sign in to Farbaek</h1>
-        <p className="mt-3 text-[15px] leading-relaxed text-ink-2">
+        <p className="mt-3 text-[0.9375rem] leading-relaxed text-ink-2">
           {intro(google, apple)} New workspaces start with a 14-day Pro trial, with no card.
         </p>
         <div className="mt-8 rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">

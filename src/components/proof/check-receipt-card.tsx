@@ -57,7 +57,7 @@ export async function CheckReceiptCard({ receipt }: { receipt: CheckReceiptRecor
               return (
                 <li key={`${c.command}-${i}`} className="flex min-w-0 items-center gap-2">
                   <s.Icon size={16} weight="bold" className={`shrink-0 ${s.cls}`} aria-hidden />
-                  <code className="min-w-0 truncate font-mono text-[13px]">{c.command}</code>
+                  <code className="min-w-0 truncate font-mono text-[0.8125rem]">{c.command}</code>
                   <span className="shrink-0 text-xs text-ink-3">
                     {s.label}
                     {c.exitCode !== null ? `, exit ${c.exitCode}` : ""}

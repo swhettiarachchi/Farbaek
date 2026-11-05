@@ -31,7 +31,7 @@ export function JsonView({ value, label }: { value: unknown; label: string }) {
     <pre
       tabIndex={0}
       aria-label={label}
-      className="ledger max-h-[460px] overflow-auto px-5 py-4 font-mono text-[12.5px] leading-[1.6] text-media-ink-3"
+      className="ledger max-h-[460px] overflow-auto px-5 py-4 font-mono text-[0.78125rem] leading-[1.6] text-media-ink-3"
     >
       <code>{parts}</code>
     </pre>

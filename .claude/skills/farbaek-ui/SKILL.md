@@ -46,6 +46,10 @@ Farbaek's interface should feel premium because it is fast, calm and honest. It 
 - 16px text in inputs (`text-base`) and 44px targets (`min-h-11`, `size-11`).
 - No sideways scroll at 375px.
 - A button's own `inline-flex` beats `hidden`, so control visibility with a wrapper.
+- Text sizes are in rem (`text-[0.9375rem]`, not `text-[15px]`), so Android's text size reaches them. Look at a new screen with `pnpm qa:responsive --text-scale=2 --widths=375 --routes=…`, and with your own eyes: long words and small fixed pieces break in ways the audit can't see. Below 18em (`max-[18em]:`) is where a phone at its largest text sizes lands, and normal text never gets there.
+- Anything pinned above the phone tab bar uses `bottom-[var(--tab-bar)]`, which is 0 while someone types, so it stays above the keyboard.
+- Web purchase controls go in `WebPurchaseOnly`, so the Android app never shows a price, even at first paint.
+- Beside anything the AI made, offer `ReportResult`, so people can report it without leaving the app.
 
 ## Components to reuse
 

@@ -27,7 +27,7 @@ export function ProjectCard({
     >
       <SiteThumb src={`/app/projects/${id}/thumbnail`} name={name} className="ring-1 ring-line/80" />
       <span className={`flex flex-1 flex-col px-2.5 ${compact ? "pb-2 pt-3" : "pb-3 pt-4"}`}>
-        <span className="text-[15.5px] font-medium tracking-[-0.01em] transition-colors duration-200 group-hover:text-accent">{name}</span>
+        <span className="text-[0.96875rem] font-medium tracking-[-0.01em] transition-colors duration-200 group-hover:text-accent">{name}</span>
         {!compact ? <span className="mt-1 line-clamp-2 text-sm leading-relaxed text-ink-2">{description || "No description."}</span> : null}
         {meta ? <span className={`mt-auto text-xs text-ink-3 tabular ${compact ? "pt-1.5" : "pt-4"}`}>{meta}</span> : null}
       </span>

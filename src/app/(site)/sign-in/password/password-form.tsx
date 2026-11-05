@@ -62,7 +62,7 @@ export function PasswordSignInForm({ next = "/app", captchaSiteKey = null }: { n
           {pending ? "Signing in…" : "Sign in"}
         </button>
       </div>
-      <p className="text-[13px] leading-relaxed text-ink-3">
+      <p className="text-[0.8125rem] leading-relaxed text-ink-3">
         By continuing, you accept the{" "}
         <Link href="/terms" className="text-ink-2 underline underline-offset-2 hover:text-ink">
           Terms of Service
