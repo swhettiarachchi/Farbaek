@@ -11,7 +11,7 @@ import { LAUNCH_PROVIDERS, PROVIDER_NAMES } from "@/core/launch/providers";
 import { loadAppContext } from "@/server/workspace/context";
 import { loadIntegrations } from "@/server/workspace/integrations";
 
-export const metadata: Metadata = { title: "Integrations" };
+export const metadata: Metadata = { title: "Connections" };
 
 interface Row {
   id: string;
@@ -100,14 +100,14 @@ export default async function IntegrationsPage() {
     {
       id: "mesh",
       icon: PackageIcon,
-      name: "Mesh",
+      name: "Move projects",
       does: "Moves folders between your own computers, directly or through Farbaek's relay.",
       status: v.agents.reachable > 0 ? { tone: "verified", label: `${v.agents.reachable} reachable` } : { tone: "info", label: "Nearby only" },
       detail:
         v.agents.reachable > 0
           ? `${v.agents.reachable === 1 ? "1 computer is" : `${v.agents.reachable} computers are`} reachable through Farbaek.`
           : "No computer is reachable through Farbaek, so transfers work only on the same network.",
-      action: { href: "/app/mesh", label: "Open Mesh" },
+      action: { href: "/app/mesh", label: "Open Move projects" },
     },
     {
       id: "email",
@@ -133,7 +133,7 @@ export default async function IntegrationsPage() {
 
   return (
     <div className="grid gap-6">
-      <PageHeader title="Integrations" description="What this workspace is connected to, and what each connection does. Connect and disconnect each one where it's used." />
+      <PageHeader title="Connections" description="The services this workspace is linked to, and what each one does. Connect or disconnect each one where it's used." />
 
       <ul className="grid gap-4 md:grid-cols-2">
         {rows.map((r) => (

@@ -4,7 +4,7 @@
       "id": "00000000-0000-4000-8000-00000000b007",
       "title": "Reject fractional quantities in the cart",
       "state": "APPROVAL_PENDING",
-      "stateLabel": "Awaiting approval",
+      "stateLabel": "Waiting for approval",
       "tone": "approval",
       "projectId": "00000000-0000-4000-8000-00000000a001",
       "projectName": "Storefront",

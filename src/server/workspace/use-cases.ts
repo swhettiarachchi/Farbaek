@@ -190,7 +190,7 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   PROPOSAL_CHANGED: "The proposal changed since you reviewed it. Reload and review it again.",
   PROPOSAL_EXPIRED: "This proposal expired, so it can't be approved. Discard it and ask the agent to propose again against the files as they are now.",
   NOTHING_TO_APPLY: "Every change was rejected, so there's nothing to apply. Discard the proposal instead.",
-  EVALUATION_LIMIT: "This workspace has used its governed evaluations for the period, so new proposals are paused until it resets or the plan changes.",
+  EVALUATION_LIMIT: "This workspace has used its safety checks for this period, so new changes are paused until it resets or the plan changes.",
   APPROVER_ROLE_REQUIRED: "The policy escalated this change, so an owner or admin has to approve it.",
   PROJECT_ARCHIVED: "This project is archived, so its files can't change.",
   ALREADY_ARCHIVED: "This project is already archived.",

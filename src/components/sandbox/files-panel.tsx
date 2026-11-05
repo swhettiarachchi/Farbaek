@@ -254,7 +254,7 @@ export function FilesPanel({ client, sessionId, canWrite, readReason }: { client
           ) : open ? (
             <Surface key={open} path={open} value={saved} label={`Editing ${open} in the sandbox`} onChange={canWrite ? setDraft : undefined} />
           ) : (
-            <p className="p-4 text-sm text-ink-3">Choose a file to open it. Edits save to the sandbox only, not to the project; copy changes back through a proposal.</p>
+            <p className="p-4 text-sm text-ink-3">Choose a file to open it. Edits save to the sandbox only, not to the project; bring changes back as a change to review.</p>
           )}
         </div>
         {status ? (

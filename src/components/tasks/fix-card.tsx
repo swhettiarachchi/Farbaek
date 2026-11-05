@@ -24,7 +24,7 @@ export function FixCard({ taskId, fix, open, retryIncluded, disabledReason, erro
         <WrenchIcon size={20} className="text-ink-3" aria-hidden /> Ask the agent to fix it
       </h2>
       <p className="mt-1 text-sm leading-relaxed text-ink-2">
-        Farbaek opens a new task with this task&apos;s approved intent and a note naming the checks that failed. You review its contract, then start the agent. {freeRetryWords(retryIncluded)}
+        Farbaek opens a new task with this task&apos;s approved intent and a note naming the checks that failed. You review its plan, then start the agent. {freeRetryWords(retryIncluded)}
       </p>
       {error ? (
         <div className="mt-4">

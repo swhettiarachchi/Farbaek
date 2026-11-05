@@ -31,7 +31,7 @@ export async function startBuildRunAction(_previous: BuildActionState, form: For
   const parsed = z
     .object({ taskId: z.uuid(), effort: z.enum(EFFORTS).catch("balanced"), cap: z.enum(CAP_CHOICES).catch("double") })
     .safeParse({ taskId: form.get("taskId"), effort: form.get("effort"), cap: form.get("cap") ?? undefined });
-  if (!parsed.success) return { status: "error", message: "Choose a task with an approved contract." };
+  if (!parsed.success) return { status: "error", message: "Choose a task with an approved plan." };
   const p = await person();
   if ("error" in p) return { status: "error", message: p.error };
   const wiring = await cloudRunDeps(p.person);

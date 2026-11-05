@@ -94,7 +94,7 @@ export function lensForChange(contract: IntentContract, change: { path: string; 
   const fileFlags: LensFlag[] = [];
   const scope = pathScope(contract);
   if (scope.length > 0 && !scope.some((s) => change.path === s || change.path.startsWith(`${s}/`))) {
-    fileFlags.push({ kind: "outside_paths", detail: `Outside the contract's paths (${scope.join(", ")})` });
+    fileFlags.push({ kind: "outside_paths", detail: `Outside the plan's paths (${scope.join(", ")})` });
   }
   for (const v of checkActionAgainstContract(contract, { operation: CHANGE_OPERATIONS[change.kind], fields: [], recordCount: 1 })) {
     if (v.kind === "FORBIDDEN_OPERATION" || v.kind === "OPERATION_NOT_ALLOWED") fileFlags.push({ kind: "operation", detail: v.detail });

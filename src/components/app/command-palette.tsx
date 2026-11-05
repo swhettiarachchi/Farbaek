@@ -112,7 +112,7 @@ export function CommandPalette({
       all.push({ id: "build", group: "Build", label: `Plan a build: ${typed}`, hint: "You approve the plan first", icon: HammerIcon, action: { kind: "build", prompt: typed } });
     }
     all.push({ id: "new", group: "Build", label: "New build", icon: PlusIcon, keywords: ["create", "start", "prompt"], action: { kind: "go", href: "/app/new" } });
-    for (const page of APP_PAGES) all.push({ id: page.href, group: "Go to", label: page.label, icon: page.icon, keywords: [page.short], action: { kind: "go", href: page.href } });
+    for (const page of APP_PAGES) all.push({ id: page.href, group: "Go to", label: page.label, icon: page.icon, keywords: [page.short, ...(page.also ?? [])], action: { kind: "go", href: page.href } });
     all.push({ id: "/app/templates", group: "Go to", label: "Templates", icon: SquaresFourIcon, keywords: ["gallery", "starter", "site"], action: { kind: "go", href: "/app/templates" } });
     all.push({ id: "/app/rescue", group: "Go to", label: "Check an app built elsewhere", icon: ShieldCheckIcon, keywords: ["import", "zip", "security", "rescue"], action: { kind: "go", href: "/app/rescue" } });
     if (admin) all.push({ id: "/admin", group: "Go to", label: "Admin console", icon: ShieldStarIcon, action: { kind: "go", href: "/admin" } });

@@ -415,7 +415,7 @@ export function RunLive({
           ) : null}
         </ul>
         {!live && run.proposalId ? (
-          <Link href={`/app/tasks/${run.taskId}`} className={buttonClasses("primary", "sm", "mt-4")}>
+          <Link href={`/app/tasks/${run.taskId}#change`} className={buttonClasses("primary", "sm", "mt-4")}>
             Review and apply <ArrowRightIcon size={16} weight="bold" aria-hidden />
           </Link>
         ) : null}
@@ -545,7 +545,7 @@ export function RunLive({
                 <p className="mt-2 text-sm leading-relaxed text-ink-2">{run.outcome}</p>
                 {run.finish ? <p className="mt-3 text-sm leading-relaxed text-ink">{run.finish.summary}</p> : null}
                 {run.proposalId ? (
-                  <Link href={`/app/tasks/${run.taskId}`} className={buttonClasses("primary", "sm", "mt-4 w-full")}>
+                  <Link href={`/app/tasks/${run.taskId}#change`} className={buttonClasses("primary", "sm", "mt-4 w-full")}>
                     Review and apply <ArrowRightIcon size={16} weight="bold" aria-hidden />
                   </Link>
                 ) : null}

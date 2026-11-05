@@ -95,14 +95,14 @@ export function ProviderPanel(props: {
             {[
               { k: "Files", v: `${props.files.count.toLocaleString("en-US")} files, ${formatBytes(props.files.bytes)}`, mono: false, title: undefined },
               { k: "Fingerprint", v: shortHash(props.files.digest), mono: true, title: `sha256:${props.files.digest}` },
-              { k: "Evidence", v: EVIDENCE_WORDS[props.evidence].title, mono: false, title: EVIDENCE_WORDS[props.evidence].detail },
+              { k: "Proof", v: EVIDENCE_WORDS[props.evidence].title, mono: false, title: EVIDENCE_WORDS[props.evidence].detail },
               { k: "Account", v: `${connection.accountName}${connection.teamId ? `, team ${connection.teamId}` : ""}`, mono: false, title: undefined },
               { k: "Goes to", v: "Production", mono: false, title: undefined },
               { k: copy.buildsLabel, v: props.builds, mono: provider === "vercel", title: undefined },
             ].map((row) => (
               <div key={row.k} className="grid gap-1 px-4 py-3 sm:grid-cols-[150px_minmax(0,1fr)] sm:gap-4">
                 <dt className="text-sm text-ink-3">{row.k}</dt>
-                <dd className={`min-w-0 break-words text-sm ${row.mono ? "font-mono text-[13px]" : ""} ${row.k === "Evidence" ? (props.evidence === "verified" ? "text-verified" : "text-approval") : "text-ink"}`} title={row.title}>
+                <dd className={`min-w-0 break-words text-sm ${row.mono ? "font-mono text-[13px]" : ""} ${row.k === "Proof" ? (props.evidence === "verified" ? "text-verified" : "text-approval") : "text-ink"}`} title={row.title}>
                   {row.v}
                 </dd>
               </div>
@@ -132,7 +132,7 @@ export function ProviderPanel(props: {
                   </p>
                   <p className="text-xs leading-relaxed text-ink-3">
                     {o.fileCount.toLocaleString("en-US")} files, fingerprint <span className="font-mono" title={`sha256:${o.filesDigest}`}>{shortHash(o.filesDigest)}</span>.{" "}
-                    {o.evidence === "verified" ? "Verified evidence." : `Without verified evidence. The reason given: ${o.overrideReason}`}
+                    {o.evidence === "verified" ? "Checks passed." : `Without passed checks. The reason given: ${o.overrideReason}`}
                   </p>
                   {o.failure ? <p className="text-sm text-failed">{o.failure}</p> : null}
                   {o.status === "ready" && said ? <p className="text-sm text-ink-2">{said}</p> : null}

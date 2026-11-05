@@ -51,7 +51,7 @@ export function GraphAnalyticsView({ a }: { a: GraphAnalytics }) {
         <StatTile
           label="From ask to verified"
           value={time(a.askToVerified)}
-          detail={a.askToVerified.count ? `Median over ${a.askToVerified.count} ${a.askToVerified.count === 1 ? "task" : "tasks"} with verified evidence.` : "No task here has verified evidence yet."}
+          detail={a.askToVerified.count ? `Median over ${a.askToVerified.count} ${a.askToVerified.count === 1 ? "task" : "tasks"} with passed checks.` : "No task here has passed its checks yet."}
         />
         <StatTile
           label="Waiting for approval"
@@ -64,28 +64,28 @@ export function GraphAnalyticsView({ a }: { a: GraphAnalytics }) {
           detail={proofTotal ? "Applied changes whose newest ProofPack is verified." : "Nothing here has been applied and checked yet."}
         />
         <StatTile
-          label="Published with evidence"
+          label="Published with proof"
           value={a.releases.total ? `${a.releases.verified} of ${a.releases.total}` : "None yet"}
           detail={
             a.releases.total
               ? a.releases.override
                 ? `${a.releases.override} went out with an owner's or admin's reason instead.`
-                : "Every version went out with verified evidence."
+                : "Every version went out with passed checks."
               : "No version of this project has been published."
           }
         />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Panel title="How the policy decided">
+        <Panel title="How the rules decided">
           {outcomesTotal ? (
             <BarRows rows={a.outcomes.map((o) => ({ label: OUTCOME_WORDS[o.outcome] ?? o.outcome, count: o.count }))} of={outcomesTotal} noun="proposals" />
           ) : (
-            <p className="text-sm text-ink-3">No proposals with a recorded decision yet.</p>
+            <p className="text-sm text-ink-3">No changes with a recorded decision yet.</p>
           )}
           {a.rework.of ? (
             <p className="text-xs leading-relaxed text-ink-3">
-              {a.rework.tasks === 0 ? "Every task's first proposal was the one that counted." : `${a.rework.tasks} of ${a.rework.of} tasks needed more than one proposal.`}
+              {a.rework.tasks === 0 ? "Every task's first change was the one that counted." : `${a.rework.tasks} of ${a.rework.of} tasks needed more than one change.`}
             </p>
           ) : null}
         </Panel>

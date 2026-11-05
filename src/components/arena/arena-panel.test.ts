@@ -31,9 +31,9 @@ describe("ArenaPanel", () => {
   it("offers a trial, says nothing is applied, and labels the time as an estimate", () => {
     const html = render(null);
     expect(html).toContain("Nothing is applied");
-    expect(html).toContain("never counts as verification");
+    expect(html).toContain("never counts as verified");
     expect(html).toContain("Estimate");
-    expect(html).toContain("Try it in a sandbox");
+    expect(html).toContain("Try it on a copy");
   });
 
   it("leads with a break, in words and icons, and labels the results as observed", () => {
@@ -47,7 +47,7 @@ describe("ArenaPanel", () => {
 
   it("says a running trial updates by itself, without offering another", () => {
     const html = render({ ...base, status: "running", baseline: null, candidate: null, finishedAt: null });
-    expect(html).toContain("Trying it in a sandbox");
+    expect(html).toContain("Trying it on a copy");
     expect(html).not.toContain("Try it again");
   });
 

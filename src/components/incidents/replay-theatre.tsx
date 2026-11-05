@@ -92,7 +92,7 @@ export function ReplayTheatre({
               )}
             </div>
           ))}
-          <p className="text-xs leading-relaxed text-ink-3">The policy builder tests a rule against the last 90 days of changes before you can activate it. Nothing changes here.</p>
+          <p className="text-xs leading-relaxed text-ink-3">The rule builder tests a rule against the last 90 days of changes before you can activate it. Nothing changes here.</p>
         </div>
       ) : null}
     </section>

@@ -4,7 +4,7 @@ import { RelativeTime } from "@/components/ui/local-time";
 
 /** Who started an attempt, in words: the workspace's autonomy, the person looking, or a teammate. */
 function startedBy(v: VerificationRecord, viewerId: string | null): string {
-  if (v.trigger === "autonomy") return "on its own, right after the change applied (autonomy level 2)";
+  if (v.trigger === "autonomy") return "on its own, right after the change applied";
   return v.startedBy && v.startedBy === viewerId ? "by you" : "by a teammate";
 }
 

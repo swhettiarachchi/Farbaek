@@ -4,7 +4,7 @@
       "id": "00000000-0000-4000-8000-00000000b007",
       "title": "Reject fractional quantities in the cart",
       "state": "APPROVAL_PENDING",
-      "stateLabel": "Awaiting approval",
+      "stateLabel": "Waiting for approval",
       "tone": "approval",
       "projectId": "00000000-0000-4000-8000-00000000a001",
       "projectName": "Storefront",
@@ -14,19 +14,19 @@
     "stages": [
       {
         "key": "contract",
-        "label": "Contract",
-        "status": "verified",
-        "note": "done"
-      },
-      {
-        "key": "plan",
         "label": "Plan",
         "status": "verified",
         "note": "done"
       },
       {
+        "key": "plan",
+        "label": "Steps",
+        "status": "verified",
+        "note": "done"
+      },
+      {
         "key": "policy",
-        "label": "Policy",
+        "label": "Rules",
         "status": "verified",
         "note": "done"
       },
@@ -38,13 +38,13 @@
       },
       {
         "key": "execution",
-        "label": "Execution",
+        "label": "Building",
         "status": "unverified",
         "note": "not started"
       },
       {
         "key": "verification",
-        "label": "Verification",
+        "label": "Checks",
         "status": "unverified",
         "note": "not started"
       }
@@ -54,7 +54,7 @@
         "id": "00000000-0000-4000-8000-00000000b007-e1",
         "from": "RECEIVED",
         "to": "CONTEXT_ASSEMBLED",
-        "toLabel": "Context assembled",
+        "toLabel": "Reading the project",
         "actor": "agent",
         "at": "2026-10-29T08:34:17.142Z"
       },
@@ -62,7 +62,7 @@
         "id": "00000000-0000-4000-8000-00000000b007-e2",
         "from": "CONTEXT_ASSEMBLED",
         "to": "CONTRACT_DRAFTED",
-        "toLabel": "Contract drafted",
+        "toLabel": "Plan ready to read",
         "actor": "agent",
         "at": "2026-10-29T09:08:34.285Z"
       },
@@ -70,7 +70,7 @@
         "id": "00000000-0000-4000-8000-00000000b007-e3",
         "from": "CONTRACT_DRAFTED",
         "to": "CONTRACT_APPROVED",
-        "toLabel": "Contract approved",
+        "toLabel": "Plan approved",
         "actor": "user",
         "at": "2026-10-29T09:42:51.428Z"
       },
@@ -78,7 +78,7 @@
         "id": "00000000-0000-4000-8000-00000000b007-e4",
         "from": "CONTRACT_APPROVED",
         "to": "PLAN_PROPOSED",
-        "toLabel": "Plan proposed",
+        "toLabel": "Steps worked out",
         "actor": "agent",
         "at": "2026-10-29T10:17:08.571Z"
       },
@@ -86,7 +86,7 @@
         "id": "00000000-0000-4000-8000-00000000b007-e5",
         "from": "PLAN_PROPOSED",
         "to": "POLICY_EVALUATED",
-        "toLabel": "Policy evaluated",
+        "toLabel": "Rules checked",
         "actor": "system",
         "at": "2026-10-29T10:51:25.714Z"
       },
@@ -94,7 +94,7 @@
         "id": "00000000-0000-4000-8000-00000000b007-e6",
         "from": "POLICY_EVALUATED",
         "to": "APPROVAL_PENDING",
-        "toLabel": "Awaiting approval",
+        "toLabel": "Waiting for approval",
         "actor": "agent",
         "at": "2026-10-29T11:25:42.857Z"
       }

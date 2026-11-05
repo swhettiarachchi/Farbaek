@@ -114,7 +114,7 @@ export function ProposeChange({
             Showing {SHOWN} of {matching.length.toLocaleString("en-US")} files. Narrow the filter to find more.
           </p>
         ) : null}
-        <p className="text-xs text-ink-3">The agent sees every path but only the contents of the files you choose, and it can only edit those. It can also propose new files.</p>
+        <p className="text-xs text-ink-3">The agent sees every path but only the contents of the files you choose, and it can only edit those. It can also suggest new files.</p>
       </div>
 
       <div className="grid gap-2">
@@ -150,7 +150,7 @@ export function ProposeChange({
           disabled={pending || selected.size === 0 || tooMany || tooBig || Boolean(ai.disabledReason)}
           className={buttonClasses("primary", "sm")}
         >
-          <GitDiffIcon size={16} aria-hidden /> {pending ? "Proposing…" : "Propose a change"}
+          <GitDiffIcon size={16} aria-hidden /> {pending ? "Suggesting…" : "Suggest a change"}
         </button>
         <p className="text-xs text-ink-3">
           {ai.disabledReason ?? (

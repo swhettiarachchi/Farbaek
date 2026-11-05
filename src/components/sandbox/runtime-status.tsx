@@ -64,7 +64,7 @@ export function ConnectRuntimeSteps() {
   const steps: [string, string][] = [
     [
       "Choose a runtime you trust",
-      "Vercel Sandbox (a free, hard-capped Hobby plan; no previews), or E2B: E2B Cloud, or E2B Embed on a Linux host with KVM that you control. Each gives every session its own microVM.",
+      "Vercel Sandbox (a free, hard-capped Hobby plan; no previews), or E2B: E2B Cloud, or E2B Embed on a Linux host with KVM that you control. Each gives every session its own private computer.",
     ],
     ["Connect it", "Run node scripts/setup-env.mjs sandbox and choose the runtime. It asks for the token or key with hidden input and generates the rest. Keys stay on the server."],
     ["Build the images (E2B only)", "pnpm sandbox:templates builds the Node.js and Python images in two sizes on E2B. Vercel Sandbox uses its managed image, so there's nothing to build."],

@@ -23,7 +23,7 @@ import type { ProposalRecord } from "@/server/workspace/types";
 
 const diffLoading = (
   <div className="flex h-40 items-center justify-center rounded-md border border-line bg-surface-raised text-sm text-ink-3" role="status">
-    Loading the diff…
+    Loading the changes…
   </div>
 );
 
@@ -35,7 +35,7 @@ const short = (hex: string) => `sha256:${hex.slice(0, 6)}…${hex.slice(-4)}`;
 
 const STATUS = {
   pending: { label: "Waiting for your approval", Icon: HourglassMediumIcon, cls: "border-approval/30 bg-approval/[0.06] text-approval" },
-  blocked: { label: "Blocked by the contract", Icon: ProhibitIcon, cls: "border-failed/30 bg-failed/[0.05] text-failed" },
+  blocked: { label: "Outside the plan", Icon: ProhibitIcon, cls: "border-failed/30 bg-failed/[0.05] text-failed" },
   applied: { label: "Applied", Icon: CheckCircleIcon, cls: "border-verified/30 bg-verified/[0.05] text-verified" },
   discarded: { label: "Discarded", Icon: XCircleIcon, cls: "border-line bg-surface-raised text-ink-2" },
   // Past its approval window (ADR 0042): it can only be discarded.
@@ -107,7 +107,7 @@ export function ProposalReview({
   const approveReason =
     disabledReason ??
     approvalWithheldReason ??
-    (escalated && !canApproveEscalated ? "The policy escalated this change, so an owner or admin has to approve it." : null);
+    (escalated && !canApproveEscalated ? "A rule says an owner or admin has to approve this change." : null);
   const kept = proposal.changes.filter((c) => (c.kind === "create" ? finals[c.path] !== "" : finals[c.path] !== bases[c.path]));
   // Each hunk read against the contract: exact flags first, then a pointer to the clause it shares words with.
   // The AI mapping, when someone asked for it, sits beside the exact checks and never changes them (ADR 0044).
@@ -138,40 +138,60 @@ export function ProposalReview({
     });
   }
 
+  const errorLine = error ? (
+    <p role="alert" className="flex items-start gap-2 text-sm text-failed">
+      <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
+      {error}
+    </p>
+  ) : null;
+
   return (
-    <div className="grid gap-6">
+    <div className={`flex flex-col gap-6 ${open ? "[&_:is(a,button,summary)]:scroll-mb-40" : ""}`}>
       <div className="flex flex-wrap items-center gap-3">
         <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium ${status.cls}`}>
           <status.Icon size={16} weight="bold" aria-hidden /> {status.label}
         </span>
         {proposal.agentId ? (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-sm text-ink-2">
-            <DesktopIcon size={16} aria-hidden /> Proposed by Farbaek Agent{agentName ? ` (${agentName})` : ""}
+            <DesktopIcon size={16} aria-hidden /> Suggested by Farbaek Agent{agentName ? ` (${agentName})` : ""}
           </span>
         ) : null}
-        <span className="flex flex-wrap gap-x-3 text-xs text-ink-3">
-          <span>Contract version {proposal.contractVersion}</span>
-          <span className="font-mono" title={`sha256:${proposal.sha256}`}>
-            {shortHash(proposal.sha256, 8, 6)}
+        {/* ADR 0134: written by a model on the agent's own computer, not Farbaek's AI. */}
+        {proposal.model?.startsWith("local:") ? <span className="text-xs text-ink-3">A model on the agent&apos;s computer</span> : null}
+        <details className="text-xs text-ink-3">
+          <summary className="inline-flex min-h-11 cursor-pointer list-none items-center hover:text-ink [&::-webkit-details-marker]:hidden">Technical details</summary>
+          <span className="flex flex-wrap gap-x-3 pb-1">
+            <span>Plan version {proposal.contractVersion}</span>
+            <span className="font-mono" title={`sha256:${proposal.sha256}`}>
+              {shortHash(proposal.sha256, 8, 6)}
+            </span>
+            {proposal.model ? <span className="font-mono">{proposal.model}</span> : null}
+            {proposal.policy ? (
+              <span>
+                Rules <span className="font-mono">{short(proposal.policy.version)}</span>
+              </span>
+            ) : null}
+            {proposal.appliedSha256 ? (
+              <span>
+                Approved content <span className="font-mono">{short(proposal.appliedSha256)}</span>
+              </span>
+            ) : null}
           </span>
-          {proposal.model ? <span className="font-mono">{proposal.model}</span> : null}
-          {/* ADR 0134: written by a model on the agent's own computer, not Farbaek's AI. */}
-          {proposal.model?.startsWith("local:") ? <span>A model on the agent&apos;s computer</span> : null}
-        </span>
+        </details>
       </div>
 
       {open ? (
         <p className={`-mt-3 flex items-start gap-2 text-sm ${win.state === "closing" ? "text-approval" : "text-ink-2"}`}>
           <ClockCountdownIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
           <span>
-            Approve by <LocalTime iso={proposal.expiresAt} /> · closes {closesIn}. After that it can only be discarded.
+            You can approve this until <LocalTime iso={proposal.expiresAt} /> (closes {closesIn}). After that it can only be discarded.
           </span>
         </p>
       ) : expired ? (
         <p className="-mt-3 flex items-start gap-2 text-sm text-ink-2">
           <ProhibitIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
           <span>
-            This proposal expired {closesIn}, so it can&apos;t be approved. Discard it and ask the agent to propose again against the files as they are now.
+            This change ran out of time {closesIn}, so it can&apos;t be approved. Discard it and ask the agent to try again with the files as they are now.
           </span>
         </p>
       ) : null}
@@ -198,7 +218,7 @@ export function ProposalReview({
       </div>
 
       <div className="grid gap-2 rounded-sm border border-line bg-surface-raised/50 p-4 text-sm">
-        <p className="font-medium">Contract check</p>
+        <p className="font-medium">Does it fit the plan?</p>
         {proposal.violations.length ? (
           <>
             <ul className="grid gap-1.5">
@@ -208,16 +228,16 @@ export function ProposalReview({
                 </li>
               ))}
             </ul>
-            <p className="text-ink-2">Revise the contract to allow this, or discard the proposal and try again with different files or notes.</p>
+            <p className="text-ink-2">Change the plan to allow this, or discard this change and try again with different files or notes.</p>
           </>
         ) : (
           <p className="flex items-start gap-2 text-verified">
-            <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden /> Inside the contract: allowed operations, the record limit and the paths in scope all pass.
+            <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden /> Inside the plan: what it may do, its limits and the files in scope all pass.
           </p>
         )}
         {invariants.length ? (
           <div className="text-ink-2">
-            <p>These invariants are written in words, so no automatic check covers them. Check them yourself in the diffs:</p>
+            <p>These are written in words, so no automatic check covers them. Check them yourself in the changes below:</p>
             <ul className="mt-1 grid list-disc gap-0.5 pl-5">
               {invariants.map((s, i) => (
                 <li key={i}>{s}</li>
@@ -232,20 +252,13 @@ export function ProposalReview({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="flex items-center gap-2 font-medium">
               {escalated ? <ShieldWarningIcon size={16} className="text-approval" aria-hidden /> : <ScalesIcon size={16} className="text-ink-3" aria-hidden />}
-              Policy: {OUTCOME_LABELS[proposal.policy.outcome as PolicyOutcome] ?? proposal.policy.outcome}
+              Rules: {OUTCOME_LABELS[proposal.policy.outcome as PolicyOutcome] ?? proposal.policy.outcome}
             </p>
-            <span className="text-xs text-ink-3">
-              Rules <span className="font-mono">{short(proposal.policy.version)}</span>
-              {proposal.policy.workspaceRules ? (
-                <>
-                  {" "}
-                  and{" "}
-                  <Link href="/app/policies" className="font-medium text-accent hover:underline">
-                    workspace rules v{proposal.policy.workspaceRules.version}
-                  </Link>
-                </>
-              ) : null}
-            </span>
+            {proposal.policy.workspaceRules ? (
+              <Link href="/app/policies" className="-my-3 inline-flex min-h-11 items-center text-xs font-medium text-accent hover:underline">
+                Your workspace&apos;s rules, version {proposal.policy.workspaceRules.version}
+              </Link>
+            ) : null}
           </div>
           {proposal.policy.findings.filter((f) => f.rule !== "contract").length ? (
             <ul className="grid gap-1 text-ink-2">
@@ -256,7 +269,7 @@ export function ProposalReview({
                 ))}
             </ul>
           ) : (
-            <p className="text-ink-2">Autonomy level 0: every change needs a person&apos;s approval. Nothing sensitive was found.</p>
+            <p className="text-ink-2">Every change needs a person&apos;s approval here. Nothing sensitive was found.</p>
           )}
         </div>
       ) : null}
@@ -296,9 +309,9 @@ export function ProposalReview({
         <div className="grid gap-3">
           <p className="text-sm">
             {proposal.policy?.outcome === "ALLOW_WITHIN_LIMITS"
-              ? "Applied on its own as new file revisions, within this workspace's autonomy limits (level 2)"
-              : "Applied as new file revisions after your approval"}
-            . {proposal.appliedSha256 ? <span className="text-xs text-ink-3">Approved content <span className="font-mono">{short(proposal.appliedSha256)}</span></span> : null}
+              ? "Applied on its own, within the limits you set for this workspace"
+              : "Applied after your approval"}
+            .
           </p>
           <ul className="grid gap-1">
             {proposal.changes.map((c) => (
@@ -312,7 +325,7 @@ export function ProposalReview({
           <p className="flex items-start gap-2 rounded-sm border border-approval/30 bg-approval/[0.06] px-4 py-3 text-sm">
             <WarningCircleIcon size={18} className="mt-px shrink-0 text-approval" aria-hidden />
             <span>
-              {appliedNote ?? `Not verified. ${executionReason ?? "The contract's checks haven't run yet."} The task waits in verification until its checks run and pass.`}
+              {appliedNote ?? `Not verified. ${executionReason ?? "The checks haven't run yet."} It stays here until its checks run and pass.`}
             </span>
           </p>
         </div>
@@ -333,7 +346,7 @@ export function ProposalReview({
             <section key={c.path} className="grid min-w-0 gap-2" aria-label={`Changes to ${c.path}`}>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="min-w-0 font-mono text-[13px] font-medium break-all">{c.path}</p>
-                <p className="text-xs text-ink-3">{c.kind === "create" ? "New file" : `Edit of revision ${c.baseRevision}`}</p>
+                <p className="text-xs text-ink-3">{c.kind === "create" ? "New file" : "Edited file"}</p>
               </div>
               {c.reason ? <p className="text-xs text-ink-2">{c.reason}</p> : null}
               {lenses?.[i] ? <FileLensRows lens={lenses[i]!} /> : null}
@@ -343,7 +356,7 @@ export function ProposalReview({
                   value={c.content}
                   original={bases[c.path] ?? ""}
                   controls={open && !disabledReason}
-                  label={`Proposed changes to ${c.path}`}
+                  label={`Changes to ${c.path}`}
                   onChange={(doc) => setFinals((prev) => ({ ...prev, [c.path]: doc }))}
                 />
               </WhenNear>
@@ -352,47 +365,47 @@ export function ProposalReview({
           {proposal.plan.checks.length ? (
             <p className="text-xs text-ink-3">
               Checks the agent suggests: {proposal.plan.checks.map((c, i) => <code key={i} className="mr-2 font-mono">{c}</code>)}
-              {executionReason ? "They can't run here yet: Review Only." : null}
+              {executionReason ? "They can't run here yet." : null}
             </p>
           ) : null}
         </div>
       )}
 
-      {error ? (
-        <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
-          {error}
-        </p>
-      ) : null}
+      {/* While the button follows the reader, a failure shows beside it, wherever they've got to. */}
+      {open ? null : errorLine}
 
       {proposal.status === "pending" || proposal.status === "blocked" ? (
-        <div className="grid gap-3 border-t border-line pt-5">
+        <>
           {open ? (
-            <p className="text-sm">
+            <p className="border-t border-line pt-5 text-sm">
               You are approving{" "}
               <span className="font-medium">
                 {kept.length} of {proposal.changes.length} {proposal.changes.length === 1 ? "file" : "files"}
               </span>{" "}
               exactly as shown above, after your accept and reject decisions.
-              {executionReason || !checksOnApply ? null : " Once it's applied, its checks start on their own in a fresh sandbox."}
+              {executionReason || !checksOnApply ? null : " Once it's applied, its checks start on their own."}
             </p>
           ) : null}
-          <div className="flex flex-wrap items-center gap-3">
-            {proposal.status === "pending" ? (
-              <button type="button" onClick={approve} disabled={pending || expired || kept.length === 0 || Boolean(approveReason)} className={buttonClasses(expired ? "secondary" : "primary", "sm")}>
+          {open ? (
+            <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 -mx-5 flex flex-col gap-2 border-t border-line bg-surface/95 px-5 py-3 backdrop-blur-xl sm:-mx-6 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 sm:px-6 lg:bottom-0">
+              {errorLine}
+              <button type="button" onClick={approve} disabled={pending || kept.length === 0 || Boolean(approveReason)} className={buttonClasses("primary", "md", "w-full justify-center sm:w-auto")}>
                 <FingerprintIcon size={16} weight="bold" aria-hidden />
                 {pending ? "Applying…" : `Approve and apply ${kept.length} ${kept.length === 1 ? "file" : "files"}`}
               </button>
-            ) : null}
-            <button type="button" onClick={discard} disabled={pending || Boolean(disabledReason)} className={buttonClasses(expired ? "primary" : open ? "ghost" : "secondary", "sm")}>
-              Discard proposal
+              {/* A grey button says why, wherever the reader has got to. */}
+              {approveReason ? <p className="text-sm text-ink-3">{approveReason}</p> : null}
+              {kept.length === 0 ? <p className="text-sm text-ink-3">Every part is rejected. Discard the change instead.</p> : null}
+            </div>
+          ) : null}
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="button" onClick={discard} disabled={pending || Boolean(disabledReason)} className={buttonClasses(open ? "ghost" : "secondary", "sm")}>
+              Discard this change
             </button>
             {expired ? <p className="text-sm text-ink-3">Expired {closesIn}: it can only be discarded.</p> : null}
-            {/* Once expired, only the reason Discard is unavailable still matters. */}
-            {(expired ? disabledReason : approveReason) ? <p className="text-sm text-ink-3">{expired ? disabledReason : approveReason}</p> : null}
-            {open && kept.length === 0 ? <p className="text-sm text-ink-3">Every change is rejected. Discard the proposal instead.</p> : null}
+            {!open && disabledReason ? <p className="text-sm text-ink-3">{disabledReason}</p> : null}
           </div>
-        </div>
+        </>
       ) : null}
     </div>
   );

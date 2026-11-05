@@ -39,7 +39,7 @@ export const dynamic = "force-dynamic";
 
 function Brand() {
   return (
-    <Link href="/app" className="flex min-h-11 items-center gap-2 rounded-full" aria-label="Farbaek, Mission Control">
+    <Link href="/app" className="flex min-h-11 items-center gap-2 rounded-full" aria-label="Farbaek, Home">
       <BrandLogo height={32} />
       <span className="text-[16px] font-semibold tracking-[-0.02em]">Farbaek</span>
     </Link>
@@ -113,7 +113,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   return (
     <div className="min-h-[100dvh] bg-canvas lg:grid lg:grid-cols-[272px_minmax(0,1fr)]">
       {/* Children never shrink: on a short screen the sidebar scrolls instead of squeezing its controls. */}
-      <aside className="sticky top-0 hidden h-[100dvh] flex-col gap-4 overflow-y-auto border-r border-line bg-canvas-2 px-4 py-5 lg:flex [&>*]:shrink-0">
+      <aside className="sticky top-0 hidden h-[100dvh] flex-col gap-4 overflow-y-auto border-r border-line bg-canvas-2 px-4 py-5 [scrollbar-width:none] lg:flex [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
         <div className="px-1.5">
           <Brand />
         </div>

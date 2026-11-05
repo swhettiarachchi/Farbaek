@@ -30,14 +30,14 @@ describe("first steps", () => {
 
   it("points the review step at a change waiting for approval first", () => {
     const r = firstSteps({ ...none, tasks: [task("t2", "EXECUTING"), task("t1", "APPROVAL_PENDING")] }, OPEN);
-    expect(r.steps[2]).toMatchObject({ state: "next", href: "/app/tasks/t1" });
-    expect(firstSteps({ ...none, tasks: [task("t2", "EXECUTING")] }, OPEN).steps[2]!.href).toBe("/app/tasks/t2");
+    expect(r.steps[2]).toMatchObject({ state: "next", href: "/app/tasks/t1#change" });
+    expect(firstSteps({ ...none, tasks: [task("t2", "EXECUTING")] }, OPEN).steps[2]!.href).toBe("/app/tasks/t2#change");
   });
 
   it("counts an applied change from its ProofPack, and sends the unverified one to its checks", () => {
     const r = firstSteps({ ...none, tasks: [task("t1", "REJECTED")], latestProofPack: { taskId: "t1", status: "unverified" } }, OPEN);
     expect(r.steps.map((s) => s.state)).toEqual(["done", "done", "done", "next", "later"]);
-    expect(r.steps[3]!.href).toBe("/app/tasks/t1");
+    expect(r.steps[3]!.href).toBe("/app/tasks/t1#checks");
   });
 
   it("marks every earlier step done once a later one is, and sends publishing to the verified project", () => {
@@ -66,6 +66,6 @@ describe("first steps", () => {
 
   it("never claims a partly verified change as verified", () => {
     const r = firstSteps({ ...none, tasks: [task("t1", "PARTIALLY_VERIFIED")], latestProofPack: { taskId: "t1", status: "partially_verified" } }, OPEN);
-    expect(r.steps[3]).toMatchObject({ state: "next", href: "/app/tasks/t1" });
+    expect(r.steps[3]).toMatchObject({ state: "next", href: "/app/tasks/t1#checks" });
   });
 });

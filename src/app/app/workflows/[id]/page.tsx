@@ -39,7 +39,7 @@ export default async function WorkflowPage({ params }: { params: Promise<{ id: s
             ? WORKFLOWS_NOT_IN_PLAN
             : feature.message
           : missing.length
-            ? `Approve the contract for ${missing.map((s) => `step ${s.position}`).join(", ")} first.`
+            ? `Approve the plan for ${missing.map((s) => `step ${s.position}`).join(", ")} first.`
             : "";
   const disabledReason = ctx.mode === "demo" ? "The demo workspace is read-only. Sign in to run your own workflows." : !ctx.writes.enabled ? ctx.writes.reason : !contributor ? "Your role can view this workflow but not change it." : null;
   const stepShare = capShare(Math.floor(w.ceilingUnits / Math.max(1, w.steps.length)), periodUnits(ctx.current));

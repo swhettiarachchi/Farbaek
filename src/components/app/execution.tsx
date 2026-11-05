@@ -5,11 +5,11 @@ import type { ExecutionMode } from "@/core/execution/sandbox";
 export function ExecutionModeBadge({ mode }: { mode: ExecutionMode }) {
   return mode.mode === "sandboxed" ? (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-verified/30 bg-verified/[0.05] px-3 py-1 text-sm font-medium text-verified">
-      <CheckCircleIcon size={16} weight="fill" aria-hidden /> Sandboxed · {mode.provider}
+      <CheckCircleIcon size={16} weight="fill" aria-hidden /> Test space · {mode.provider}
     </span>
   ) : (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-line-strong/40 bg-surface-raised px-3 py-1 text-sm font-medium text-ink-2">
-      <EyeIcon size={16} weight="bold" aria-hidden /> Review Only
+      <EyeIcon size={16} weight="bold" aria-hidden /> Review only
     </span>
   );
 }
@@ -19,7 +19,7 @@ export function ChecksList({ checks, mode }: { checks: string[]; mode: Execution
   if (checks.length === 0) {
     return (
       <p className="text-sm text-ink-2">
-        The contract lists no required checks, so nothing can verify the change. Add checks such as <code className="font-mono text-[13px]">pnpm test</code> to the contract.
+        The plan lists no checks, so nothing can confirm the change. Add checks such as <code className="font-mono text-[13px]">pnpm test</code> to the plan.
       </p>
     );
   }

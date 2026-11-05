@@ -16,15 +16,15 @@ import { createSupabaseServerClient } from "@/server/supabase/server";
 import { loadAppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
 
-export const metadata: Metadata = { title: "Mesh" };
+export const metadata: Metadata = { title: "Move projects" };
 
 /** "a1b2c3d4e5f6a7b8" as "a1b2 c3d4 e5f6 a7b8", as the agent shows it. */
 const grouped = (fp: string) => fp.match(/.{1,4}/g)?.join(" ") ?? fp;
 
 const ROUTE = [
-  { label: "Pack", body: "Your files, each with a BLAKE3 hash. Credentials, keys and build folders stay behind." },
+  { label: "Pack", body: "Your files go into one file, each with its own fingerprint. Passwords, keys and build folders stay behind." },
   { label: "Move", body: "Email it, share it from a drive or carry it on a USB stick. The file is all that travels." },
-  { label: "Verify", body: "Every byte is hashed again on arrival, and you decide each file that differs." },
+  { label: "Verify", body: "Every file is checked again on arrival, and you decide what to do with any that differ." },
 ];
 
 export default async function MeshPage() {
@@ -55,8 +55,8 @@ export default async function MeshPage() {
   return (
     <div className="grid gap-8">
       <PageHeader
-        title="Mesh"
-        description="Move a project between workspaces and computers as a Workspace Capsule: one file that's checked byte by byte when it arrives, so nothing changes on the way without you knowing."
+        title="Move projects"
+        description="Send a project to another computer or workspace as one file, called a Capsule. Farbaek checks every part of it when it arrives, so you'll know if anything changed on the way."
       />
 
       <ol className="grid gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-3">

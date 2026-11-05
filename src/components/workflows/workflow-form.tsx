@@ -97,7 +97,7 @@ export function WorkflowForm({
                 <input value={s.title} onChange={(e) => update(s.key, { title: e.target.value })} required minLength={3} maxLength={200} placeholder="What this step changes" className={input} />
               </label>
               <label className="grid gap-1.5">
-                <span className="text-xs text-ink-3">Notes for the contract (optional)</span>
+                <span className="text-xs text-ink-3">Notes for the plan (optional)</span>
                 <textarea value={s.notes} onChange={(e) => update(s.key, { notes: e.target.value })} maxLength={2000} rows={2} className={`${input} h-auto min-h-16 py-2`} />
               </label>
               <label className="flex min-h-11 cursor-pointer items-center gap-3">
@@ -118,7 +118,7 @@ export function WorkflowForm({
                     <span className="text-xs text-ink-3">
                       {!s.together && teamBefore(i) >= MAX_TEAM
                         ? `At most ${MAX_TEAM} steps run at the same time.`
-                        : "Another agent works on it at once. Its contract must name files separate from the steps it runs with."}
+                        : "Another agent works on it at once. Its plan must name files separate from the steps it runs with."}
                     </span>
                   </span>
                 </label>

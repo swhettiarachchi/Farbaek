@@ -1,24 +1,8 @@
-import {
-  CaretRightIcon,
-  ChartPieSliceIcon,
-  ClockCounterClockwiseIcon,
-  DesktopIcon,
-  FlowArrowIcon,
-  GearSixIcon,
-  LifebuoyIcon,
-  ListChecksIcon,
-  LockSimpleIcon,
-  PackageIcon,
-  PlugsConnectedIcon,
-  ShieldCheckIcon,
-  ShieldStarIcon,
-  SirenIcon,
-  SignOutIcon,
-  TerminalWindowIcon,
-} from "@phosphor-icons/react/ssr";
+import { CaretRightIcon, LockSimpleIcon, ShieldStarIcon, SignOutIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { MoreList } from "@/components/app/app-nav";
 import { ROADMAP } from "@/components/app/roadmap";
 import { PageHeader } from "@/components/app/primitives";
 import { WorkspaceSwitcher } from "@/components/app/workspace-switcher";
@@ -51,84 +35,7 @@ export default async function MorePage() {
         <UsageMeterList meters={meters} />
       </section>
 
-      <ul className="divide-y divide-line overflow-hidden rounded-md border border-line bg-surface shadow-e1">
-        <li>
-          <Link href="/app/tasks" className={`${row} hover:bg-canvas-2`}>
-            <ListChecksIcon size={20} className="text-ink-2" aria-hidden /> Tasks
-            <CaretRightIcon size={16} className="ml-auto text-ink-3" aria-hidden />
-          </Link>
-        </li>
-        <li>
-          <Link href="/app/sandbox" className={`${row} hover:bg-canvas-2`}>
-            <TerminalWindowIcon size={20} className="text-ink-2" aria-hidden /> Sandbox
-            <CaretRightIcon size={16} className="ml-auto text-ink-3" aria-hidden />
-          </Link>
-        </li>
-        <li>
-          <Link href="/app/agents" className={`${row} hover:bg-canvas-2`}>
-            <DesktopIcon size={20} className="text-ink-2" aria-hidden /> Agents
-            <CaretRightIcon size={16} className="ml-auto text-ink-3" aria-hidden />
-          </Link>
-        </li>
-        <li>
-          <Link href="/app/mesh" className={`${row} hover:bg-canvas-2`}>
-            <PackageIcon size={20} className="text-ink-2" aria-hidden /> Mesh
-            <CaretRightIcon size={16} className="ml-auto text-ink-3" aria-hidden />
-          </Link>
-        </li>
-        <li>
-          <Link href="/app/workflows" className={`${row} hover:bg-canvas-2`}>
-            <FlowArrowIcon size={20} className="text-ink-2" aria-hidden /> Workflows
-            <CaretRightIcon size={16} className="ml-auto text-ink-3" aria-hidden />
-          </Link>
-        </li>
-        <li>
-          <Link href="/app/policies" className={`${row} hover:bg-canvas-2`}>
-            <ShieldCheckIcon size={20} className="text-ink-2" aria-hidden /> Policies
-            <CaretRightIcon size={16} className="ml-auto text-ink-3" aria-hidden />
-          </Link>
-        </li>
-        <li>
-          <Link href="/app/incidents" className={`${row} hover:bg-canvas-2`}>
-            <SirenIcon size={20} className="text-ink-2" aria-hidden /> Incidents
-            <CaretRightIcon size={16} className="ml-auto text-ink-3" aria-hidden />
-          </Link>
-        </li>
-        <li>
-          <Link href="/app/activity" className={`${row} hover:bg-canvas-2`}>
-            <ClockCounterClockwiseIcon size={20} className="text-ink-2" aria-hidden /> Activity
-            <CaretRightIcon size={16} className="ml-auto text-ink-3" aria-hidden />
-          </Link>
-        </li>
-        <li>
-          <Link href="/app/integrations" className={`${row} hover:bg-canvas-2`}>
-            <PlugsConnectedIcon size={20} className="text-ink-2" aria-hidden /> Integrations
-            <CaretRightIcon size={16} className="ml-auto text-ink-3" aria-hidden />
-          </Link>
-        </li>
-        <li>
-          <Link href="/app/billing" className={`${row} hover:bg-canvas-2`}>
-            <ChartPieSliceIcon size={20} className="text-ink-2" aria-hidden /> Billing and usage
-            <CaretRightIcon size={16} className="ml-auto text-ink-3" aria-hidden />
-          </Link>
-        </li>
-        <li>
-          <Link href="/app/settings" className={`${row} hover:bg-canvas-2`}>
-            <GearSixIcon size={20} className="text-ink-2" aria-hidden /> Settings
-            <CaretRightIcon size={16} className="ml-auto text-ink-3" aria-hidden />
-          </Link>
-        </li>
-        <li>
-          <Link href="/app/help" className={`${row} hover:bg-canvas-2`}>
-            <LifebuoyIcon size={20} className="text-ink-2" aria-hidden /> Help and support
-            {helpUnread > 0 ? (
-              <span className="ml-auto rounded-full bg-accent px-2 text-xs font-semibold leading-5 text-surface tabular">
-                {helpUnread} new {helpUnread === 1 ? "reply" : "replies"}
-              </span>
-            ) : null}
-            <CaretRightIcon size={16} className={`${helpUnread > 0 ? "" : "ml-auto "}text-ink-3`} aria-hidden />
-          </Link>
-        </li>
+      <MoreList helpUnread={helpUnread}>
         {/* A shortcut only: /admin checks the person again on the server (ADR 0026). */}
         {ctx.mode === "live" && isAdminEmail(ctx.user.email) ? (
           <li>
@@ -138,7 +45,7 @@ export default async function MorePage() {
             </Link>
           </li>
         ) : null}
-      </ul>
+      </MoreList>
 
       <section aria-labelledby="later-heading">
         <h2 id="later-heading" className="px-1 text-sm font-medium text-ink-3">
@@ -149,7 +56,7 @@ export default async function MorePage() {
             <li key={r.label} className={`${row} text-ink-3`}>
               <LockSimpleIcon size={18} aria-hidden /> {r.label}
               <span className="sr-only">, not available yet</span>
-              <span className="ml-auto rounded-full border border-dashed border-line-strong/50 px-2 text-xs">Planned</span>
+              <span className="ml-auto rounded-full border border-dashed border-line-strong/50 px-2 text-xs">{r.status}</span>
             </li>
           ))}
         </ul>

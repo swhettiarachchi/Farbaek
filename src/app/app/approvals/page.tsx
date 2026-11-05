@@ -64,11 +64,11 @@ export default async function ApprovalsPage() {
     <div className="grid gap-8">
       <PageHeader
         title="Approvals"
-        description="Changes waiting for a person. Each one can be approved for 72 hours, only as the exact content you review. Open one to read each file as a diff, then approve it or discard it."
+        description="Changes waiting for your yes or no. Open one to see exactly what changes, then approve it or discard it. Each one stays open for 72 hours."
       />
       {cards.length === 0 && unread.length === 0 ? (
         <EmptyState icon={CheckSquareOffsetIcon} title="Nothing waiting for you">
-          Approvals appear when the agent proposes a change under an approved contract. Every change needs a person at autonomy level 0.
+          When the agent finishes a change, it waits here for you. Nothing goes into your project until you approve it.
         </EmptyState>
       ) : (
         <ul className="grid gap-4">
@@ -83,7 +83,7 @@ export default async function ApprovalsPage() {
                 <span className="min-w-0 flex-1">
                   <span className="line-clamp-2 text-[15px] font-medium group-hover:text-accent">{t.title}</span>
                   <span className="mt-0.5 block text-xs text-ink-3">
-                    In {t.projectName ?? "its project"}, waiting since <RelativeTime iso={t.updatedAt} />. There&apos;s no open proposal on record, so nothing to approve here. Open the task to see why.
+                    In {t.projectName ?? "its project"}, waiting since <RelativeTime iso={t.updatedAt} />. There&apos;s no open change on record, so nothing to approve here. Open the task to see why.
                   </span>
                 </span>
                 <ArrowRightIcon size={14} className="shrink-0 text-ink-3" aria-hidden />

@@ -45,7 +45,7 @@ export default async function NewWorkflowPage({ searchParams }: { searchParams: 
         <div className="mt-3">
           <PageHeader
             title="New workflow"
-            description="Each step becomes a task. Draft and approve each one's contract, then an owner or admin approves the workflow and the agent works through the steps in order."
+            description="Each step becomes a task. Draft and approve each one's plan, then an owner or admin approves the workflow and the agent works through the steps in order."
           />
         </div>
       </div>

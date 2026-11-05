@@ -123,19 +123,19 @@ export default async function SettingsPage() {
 
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-medium">Execution</h2>
+          <h2 className="text-lg font-medium">Where checks run</h2>
           <ExecutionModeBadge mode={execution} />
         </div>
         {execution.mode === "review_only" ? (
           <div className="mt-3 grid gap-2 text-sm leading-relaxed text-ink-2">
             <p>{execution.reason}</p>
             <p>
-              What works: contracts, AI proposals, diffs, approvals and applying changes as file revisions. What doesn&apos;t: builds, tests and previews. Tasks wait in
-              verification and are never marked verified without real check results.
+              What works: plans, suggested changes, reviewing and approving them, and applying them. What doesn&apos;t: builds, tests and previews. Tasks wait at the
+              checks, and are never marked verified without real results.
             </p>
           </div>
         ) : (
-          <p className="mt-3 text-sm text-ink-2">Checks run in an isolated microVM with restricted network access.</p>
+          <p className="mt-3 text-sm text-ink-2">Checks run on a private, throwaway computer with limited internet access.</p>
         )}
       </Card>
 
@@ -146,7 +146,7 @@ export default async function SettingsPage() {
           shadowReason={shadowReason}
           replayReason={ctx.mode === "demo" ? "The demo workspace has no past changes to replay." : shadowReason}
           levelThreeReason={levelThreeReason}
-          disabledReason={ctx.mode === "demo" ? "The demo workspace is read-only." : !ctx.writes.enabled ? ctx.writes.reason : canManage ? null : "Only owners and admins can change autonomy."}
+          disabledReason={ctx.mode === "demo" ? "The demo workspace is read-only." : !ctx.writes.enabled ? ctx.writes.reason : canManage ? null : "Only owners and admins can change this."}
         />
         {autonomy.shadowSince ? (
           rehearsal ? (

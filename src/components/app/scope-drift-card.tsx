@@ -23,13 +23,13 @@ export function ScopeDriftCard({ approvedAt, changes, findings }: { approvedAt: 
         {findings.length === 0 ? (
           <p className="flex items-start gap-2 text-sm">
             <CheckCircleIcon size={18} weight="fill" className="mt-px shrink-0 text-verified" aria-hidden />
-            {changes === 0 ? "No files changed since the contract was approved." : `${changes} file ${changes === 1 ? "change" : "changes"} since approval, all inside the contract.`}
+            {changes === 0 ? "No files changed since the plan was approved." : `${changes} file ${changes === 1 ? "change" : "changes"} since approval, all inside the plan.`}
           </p>
         ) : (
           <div className="grid gap-4">
             <p className="flex items-start gap-2 text-sm text-approval">
               <WarningIcon size={18} weight="bold" className="mt-px shrink-0" aria-hidden />
-              {findings.length} of {changes} {changes === 1 ? "change falls" : "changes fall"} outside the contract. Review them, or revise the contract if the scope really changed.
+              {findings.length} of {changes} {changes === 1 ? "change falls" : "changes fall"} outside the plan. Review them, or revise the contract if the scope really changed.
             </p>
             {groups.map((g) => (
               <div key={g.origin} className="grid gap-2">

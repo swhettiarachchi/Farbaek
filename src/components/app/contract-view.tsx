@@ -2,7 +2,6 @@ import { CheckCircleIcon, QuestionIcon, ShieldCheckIcon, WarningIcon } from "@ph
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LocalTime } from "@/components/ui/local-time";
 import { contractHash } from "@/core/realityloop/contract";
-import { shortHash } from "@/core/trust/canonical-json";
 import type { ContractRecord } from "@/server/workspace/types";
 
 /** How each acceptance criterion is checked, in words. */
@@ -56,11 +55,11 @@ export async function ContractView({ record }: { record: ContractRecord }) {
         ) : record.status === "draft" ? (
           <StatusBadge status="approval" label="Draft, not approved" />
         ) : (
-          <StatusBadge status="unverified" label="Superseded" />
+          <StatusBadge status="unverified" label="Replaced by a newer version" />
         )}
         <span className={`inline-flex items-center gap-1 text-xs ${intact ? "text-verified" : "text-failed"}`}>
           {intact ? <ShieldCheckIcon size={14} weight="bold" aria-hidden /> : <WarningIcon size={14} weight="bold" aria-hidden />}
-          {intact ? `Hash checks out: ${shortHash(record.sha256)}` : "Stored hash doesn't match the contract. Don't approve it."}
+          {intact ? <span title={`sha256:${record.sha256}`}>Unchanged since it was written</span> : "This doesn't match what was saved. Don't approve it."}
         </span>
       </div>
       <p className="mt-3 text-lg font-medium leading-snug">{c.outcome}</p>
@@ -74,22 +73,22 @@ export async function ContractView({ record }: { record: ContractRecord }) {
       </p>
 
       <dl className="mt-4">
-        <Clause label="Resources">
+        <Clause label="What it can change">
           <Mono items={c.scope.resources} />
         </Clause>
         <Clause label="Allowed">
           <Mono items={c.allowedOperations} />
         </Clause>
-        <Clause label="Forbidden">
+        <Clause label="Not allowed">
           <Mono items={c.forbiddenOperations} />
         </Clause>
         <Clause label="Protected fields">
           <Mono items={c.protectedFields} />
         </Clause>
-        <Clause label="Invariants">
+        <Clause label="Must stay true">
           <List items={c.protectedInvariants.map((i) => i.statement)} />
         </Clause>
-        <Clause label="Acceptance">
+        <Clause label="Done when">
           <ul className="grid gap-1.5">
             {c.acceptanceCriteria.map((a) => (
               <li key={a.id} className="flex gap-2">
@@ -127,7 +126,7 @@ export async function ContractView({ record }: { record: ContractRecord }) {
             </span>
           </Clause>
         ) : null}
-        <Clause label="Recovery">{c.recovery}</Clause>
+        <Clause label="If you need to undo it">{c.recovery}</Clause>
       </dl>
     </div>
   );

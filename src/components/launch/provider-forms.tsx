@@ -107,7 +107,7 @@ export function LaunchToProvider({
       </label>
       {needsReason ? (
         <label htmlFor={`${id}-reason`} className="grid gap-2 text-sm">
-          <span className="font-medium">Why launch without verified evidence</span>
+          <span className="font-medium">Why launch before the checks have passed</span>
           <textarea id={`${id}-reason`} name="reason" required minLength={10} maxLength={500} rows={3} disabled={locked} className={`${input} py-2.5`} />
           <span className="text-xs text-ink-3">Recorded with the launch and in the audit log.</span>
         </label>

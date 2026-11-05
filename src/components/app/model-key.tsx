@@ -63,7 +63,7 @@ export function ModelKeyCard({
         </span>
       </p>
       <ul className="grid gap-1 text-sm leading-relaxed text-ink-2">
-        <li>With your own key, contract drafting, change proposals, rule drafting, AI mapping, security reviews, failure trials, notes and agent runs use it, and don&apos;t count against your plan&apos;s AI usage.</li>
+        <li>With your own key, drafting plans, suggesting changes, drafting rules, linking changes to the plan, security reviews, failure trials, notes and agent runs use it, and don&apos;t count against your plan&apos;s AI usage.</li>
         <li>The second check and image generation still use Farbaek&apos;s AI.</li>
         <li>Your code goes to Anthropic, or your gateway, under your own account&apos;s terms.</li>
       </ul>

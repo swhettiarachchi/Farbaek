@@ -147,7 +147,7 @@ describe("agent loop, Review Only", () => {
       }),
       (results) => {
         expect(results.map((r) => r.isError)).toEqual([true, true, true, true, true]);
-        expect(results[0]!.content).toMatch(/outside the contract's paths/);
+        expect(results[0]!.content).toMatch(/outside the plan's paths/);
         expect(results[1]!.content).toMatch(/isn't available/);
         expect(results[2]!.content).toMatch(/no tool named/);
         expect(results[3]!.content).toMatch(/"\.\."/);

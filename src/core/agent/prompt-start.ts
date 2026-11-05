@@ -17,13 +17,35 @@ export function cleanPrompt(raw: unknown): string | null {
   return text.slice(0, PROMPT_MAX);
 }
 
-const LEAD = /^(please\s+)?((can|could|would)\s+you\s+)?(i\s+(want|need|would\s+like)(\s+to)?\s+)?(help\s+me\s+)?(build|make|create|design|develop|code|generate|write|set\s+up)?\s*(me\s+)?(a|an|the|my|our)?\s+/i;
+const LEAD = /^(please\s+)?((can|could|would)\s+you\s+)?(i\s+(want|need|would\s+like)(\s+to)?\s+)?(help\s+me\s+)?(build|make|create|design|develop|code|generate|write|set\s+up)?\s*(me\s+)?(this\s+(?:into\s+)?)?(a|an|the|my|our)?\s+/i;
+
+/** What a prompt can open with before it says what it wants. */
+const OPENING = /^(?:(?:hi|hello|hey)(?:\s+there)?[,.!]*\s+|please[,.!]+\s+|(?:project\s+)?name\s*:\s*)+/i;
+
+/** Where a clause ends: a comma or semicolon before a space, or a dash on its own. The comma in "1,000" doesn't count. */
+const CLAUSE_END = /[,;]\s|\s[-–—]\s|[–—]/;
 
 /** A short project name from the prompt: its first words, without "Build me a". */
 export function projectNameFromPrompt(prompt: string): string {
-  const firstLine = prompt.split("\n")[0]!.replace(/[^\p{L}\p{N}\s'&.-]/gu, " ").replace(/\s+/g, " ").trim();
-  const stripped = firstLine.replace(LEAD, "").trim() || firstLine;
-  const kept = stripped.split(" ").slice(0, 6);
+  const line = prompt
+    .split("\n")[0]!
+    .replace(/^[^\p{L}\p{N}]+/u, "")
+    .replace(OPENING, "")
+    .replace(/https?:\/\/(?:www\.)?/gi, "")
+    .replace(/[^\p{L}\p{N}\s'&.,;–—-]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const subject = line.replace(LEAD, "").trim() || line;
+  // Up to the first comma or dash, when that still leaves a name: "Landing page for Ledgerline, a bookkeeping service".
+  const clause = subject.split(CLAUSE_END)[0]!.trim();
+  const chosen = clause.split(" ").length >= 2 ? clause : subject;
+  const kept = chosen
+    .replace(/[,;–—](?!\d)/g, " ")
+    .replace(/[.\s]+$/, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .slice(0, 6);
   // A name shouldn't end on "for", "in", "and" and the like.
   while (kept.length > 1 && /^(a|an|the|my|our|for|in|on|at|of|to|with|and|or|that|which)$/i.test(kept.at(-1)!)) kept.pop();
   const words = kept.join(" ");

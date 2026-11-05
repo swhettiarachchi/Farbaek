@@ -191,7 +191,7 @@ export async function saveContractAction(_previous: FormState, form: FormData): 
   const result = await saveContract(w.deps, { orgId: w.orgId, userId: ctx.user.id, taskId, expectedTaskVersion, basedOn, form: values });
   if (!result.ok) return { status: "error", message: result.message, values: { ...values } };
   revalidatePath("/app", "layout");
-  return { status: "done", message: `Contract version ${result.value} saved. Review it, then approve this exact version.` };
+  return { status: "done", message: `Plan version ${result.value} saved. Read it, then approve this exact version.` };
 }
 
 export async function approveContractAction(_previous: FormState, form: FormData): Promise<FormState> {
@@ -208,7 +208,7 @@ export async function approveContractAction(_previous: FormState, form: FormData
   const result = await approveContract(w.deps, { orgId: w.orgId, userId: ctx.user.id, taskId, expectedTaskVersion, version, sha256 });
   if (!result.ok) return { status: "error", message: result.message };
   revalidatePath("/app", "layout");
-  return { status: "done", message: "Contract approved." };
+  return { status: "done", message: "Plan approved." };
 }
 
 export type AiDraftState =
@@ -227,7 +227,7 @@ export async function draftContractWithAiAction(form: FormData): Promise<AiDraft
   const w = await writeDeps(ctx);
   if ("error" in w) return { status: "error", message: w.error };
   const ai = await aiForWorkspace(w.orgId, w.deps, { timeout: 90_000 });
-  if ("error" in ai) return { status: "error", message: `${ai.error} You can still write the contract yourself.` };
+  if ("error" in ai) return { status: "error", message: `${ai.error} You can still write the plan yourself.` };
 
   // Read through Row Level Security: the task and project must be visible to this user.
   const found = await ctx.reader.getTask(w.orgId, taskId);
@@ -495,7 +495,7 @@ export async function applyProposalAction(input: { proposalId: string; reviewedS
       files: z.array(z.object({ path: z.string().max(1000), content: z.string().max(WORKSPACE_LIMITS.maxFileBytes * 4) })).min(1).max(30),
     })
     .safeParse(input);
-  if (!parsed.success) return { status: "error", message: "Reload the page and review the proposal again." };
+  if (!parsed.success) return { status: "error", message: "Reload the page and review the change again." };
 
   const ctx = await requireContext();
   const w = await writeDeps(ctx);
@@ -525,7 +525,7 @@ export async function suggestLensMappingAction(input: { proposalId: string }): P
   const ctx = await requireContext();
   const w = await writeDeps(ctx);
   if ("error" in w) return { status: "error", message: w.error };
-  const ai = await aiForWorkspace(w.orgId, w.deps, { timeout: 120_000, claudeOnly: "AI mapping" });
+  const ai = await aiForWorkspace(w.orgId, w.deps, { timeout: 120_000, claudeOnly: "Linking changes to the plan" });
   if ("error" in ai) return { status: "error", message: ai.error };
   const result = await suggestLensMapping(ai.deps, { family: "anthropic", create: (s) => createAnthropicLensMapper({ model: s.model, effort: "low", client: ai.client }) }, { orgId: w.orgId, userId: ctx.user.id, proposalId: parsed.data.proposalId });
   if (!result.ok) return { status: "error", message: result.message };

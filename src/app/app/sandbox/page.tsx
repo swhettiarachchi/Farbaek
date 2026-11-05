@@ -15,7 +15,7 @@ import { formatDuration } from "@/core/sandbox/usage";
 import { healthWithin, sandboxForPage } from "@/server/sandbox/page-context";
 import { loadAppContext } from "@/server/workspace/context";
 
-export const metadata: Metadata = { title: "Sandbox" };
+export const metadata: Metadata = { title: "Test space" };
 export const dynamic = "force-dynamic";
 
 const FILTERS: Record<string, { label: string; states: SessionState[] }> = {
@@ -44,7 +44,7 @@ export default async function SandboxPage({ searchParams }: { searchParams: Prom
   if (!sandbox.ok) {
     return (
       <div className="grid gap-8">
-        <PageHeader title="Sandbox" description="Isolated environments where code runs, outside Farbaek's servers." />
+        <PageHeader title="Test space" description="A safe place to run your app and try it, kept apart from everything else." />
         <Notice tone="warning">{sandbox.reason}</Notice>
       </div>
     );
@@ -70,8 +70,8 @@ export default async function SandboxPage({ searchParams }: { searchParams: Prom
   return (
     <div className="grid gap-8">
       <PageHeader
-        title="Sandbox"
-        description="Isolated environments where code runs, outside Farbaek's servers. Every command is recorded with its real exit code."
+        title="Test space"
+        description="A safe place to run your app and try it, kept apart from everything else. Every command and its result is recorded."
         actions={
           canStart ? (
             <ButtonLink href="/app/sandbox/new" variant="accent" size="sm">
@@ -183,7 +183,7 @@ export default async function SandboxPage({ searchParams }: { searchParams: Prom
               }
             >
               {canStart
-                ? "Start a Node.js or Python session, copy in a project's files, and run its builds and tests in an isolated microVM."
+                ? "Start a Node.js or Python session, copy in a project's files, and run its builds and tests on a private, throwaway computer."
                 : "Sessions appear here once a runtime is connected and verified. Nothing has run in this workspace."}
             </EmptyState>
           ) : (

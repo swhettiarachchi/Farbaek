@@ -24,7 +24,7 @@ export default async function TasksPage() {
 
   return (
     <div className="grid gap-8">
-      <PageHeader title="Tasks" description="Every task in this workspace, grouped by what it needs. States change only through the task lifecycle." />
+      <PageHeader title="Tasks" description="Every task in this workspace, grouped by what it needs." />
       {tasks.length === 0 ? (
         <EmptyState icon={ListChecksIcon} title="No tasks yet" action={<ButtonLink href="/app/projects" size="sm">Go to projects</ButtonLink>}>
           Tasks are created inside a project.

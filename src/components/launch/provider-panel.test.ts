@@ -79,11 +79,11 @@ describe("ProviderPanel with Vercel", () => {
     expect(html).toContain("Production");
     expect(html).toContain("nextjs, next build");
     expect(html).toContain("to confirm");
-    expect(html).not.toContain("Why launch without verified evidence");
+    expect(html).not.toContain("Why launch before the checks have passed");
   });
 
   it("asks an owner for a reason without verified evidence, and tells a member why they can't", () => {
-    expect(render({ connection: CONNECTED, evidence: "none" })).toContain("Why launch without verified evidence");
+    expect(render({ connection: CONNECTED, evidence: "none" })).toContain("Why launch before the checks have passed");
     expect(render({ connection: CONNECTED, evidence: "none", canOverride: false })).toContain("an owner or admin has to launch it with a reason");
   });
 

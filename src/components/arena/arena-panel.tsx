@@ -60,14 +60,14 @@ export function ArenaPanel({ proposalId, taskId, checks, run, disabledReason }: 
         <span className="text-xs text-ink-3">Nothing is applied</span>
       </div>
       <p className="max-w-[68ch] text-sm leading-relaxed text-ink-2">
-        Farbaek runs the contract&apos;s checks twice in one disposable sandbox: on your current files, then with this change written over them. Your project stays as it is,
-        and a trial never counts as verification.
+        Farbaek tries this change on a throwaway copy: it runs the checks on your current files, then again with this change. Your project isn&apos;t touched, and a trial never
+        counts as verified.
       </p>
 
       {running ? (
         <p role="status" className="flex items-center gap-2 text-sm">
           <HourglassMediumIcon size={18} weight="bold" className="text-approval motion-safe:animate-pulse" aria-hidden />
-          Trying it in a sandbox, started <RelativeTime iso={run.startedAt} />. This page updates by itself.
+          Trying it on a copy, started <RelativeTime iso={run.startedAt} />. This page updates by itself.
         </p>
       ) : null}
       <LiveRefresh active={running} everyMs={3_000} />
@@ -107,7 +107,7 @@ export function ArenaPanel({ proposalId, taskId, checks, run, disabledReason }: 
             <span className="inline-flex h-6 items-center gap-1 rounded-full border border-line px-2 font-medium text-ink-2">
               <EyeIcon size={13} weight="bold" aria-hidden /> Observed
             </span>
-            Exit codes from a real sandbox run{run?.finishedAt ? <>, finished <LocalTime iso={run.finishedAt} /></> : null}. Left: your current files. Right: with this change.
+            Real results from this trial{run?.finishedAt ? <>, finished <LocalTime iso={run.finishedAt} /></> : null}. Left: your current files. Right: with this change.
           </p>
         </div>
       ) : !running ? (
@@ -122,7 +122,7 @@ export function ArenaPanel({ proposalId, taskId, checks, run, disabledReason }: 
           </ul>
           <p className="flex flex-wrap items-center gap-2 text-xs text-ink-3">
             <span className="inline-flex h-6 items-center rounded-full border border-dashed border-line-strong px-2 font-medium text-ink-2">Estimate</span>
-            Uses up to 20 minutes of your plan&apos;s sandbox time, usually a few.
+            Uses up to 20 minutes of your plan&apos;s test space time, usually a few.
           </p>
         </div>
       ) : null}

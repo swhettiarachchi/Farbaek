@@ -57,7 +57,7 @@ function checkWrite(path: string, content: string | null, ctx: PermissionContext
   if (!ctx.contract.allowedOperations.includes(operation)) return { kind: "deny", reason: `The contract doesn't allow ${operation}.` };
   const scope = pathScope(ctx.contract);
   if (scope.length > 0 && !scope.some((s) => path === s || path.startsWith(`${s}/`))) {
-    return { kind: "deny", reason: `${path} is outside the contract's paths (${scope.join(", ")}).` };
+    return { kind: "deny", reason: `${path} is outside the plan's paths (${scope.join(", ")}).` };
   }
   if (content !== null && containsSecret(content)) return { kind: "deny", reason: "The new content looks like it contains a secret. Keep secrets in environment variables." };
   return { kind: "allow" };

@@ -27,7 +27,7 @@ const FAILURES = {
   REFUSED: "The model declined to map these changes, so it wasn't counted. The exact checks still apply.",
   INCOMPLETE: "The mapping came back incomplete, so it wasn't counted. Try again.",
   PROVIDER_BUSY: "The AI provider is busy, so it wasn't counted. Try again in a minute.",
-  PROVIDER_ERROR: "The AI mapping didn't finish, so it wasn't counted. Try again.",
+  PROVIDER_ERROR: "The AI couldn't finish linking these changes, so it wasn't counted. Try again.",
 } as const;
 
 export async function suggestLensMapping(deps: Deps, source: ModelSource<LensMapper>, input: { orgId: string; userId: string; proposalId: string }): Promise<WriteResult<{ mapped: number; hunks: number; model: string }>> {

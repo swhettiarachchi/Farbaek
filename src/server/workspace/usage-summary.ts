@@ -103,7 +103,7 @@ export async function loadAiAvailability(ctx: AppContext, ws: WorkspaceSummary, 
     notConnectedReason: usable
       ? undefined
       : provider.provider
-        ? `${operation === "policy_draft" ? "Drafting rules" : operation === "second_check" ? "The second check" : operation === "task_note" ? "Notes" : operation === "failure_test" ? "Failure trials" : "AI mapping"} isn't available with this server's AI setup.`
+        ? `${operation === "policy_draft" ? "Drafting rules" : operation === "second_check" ? "The second check" : operation === "task_note" ? "Notes" : operation === "failure_test" ? "Failure trials" : "Linking changes to the plan"} isn't available with this server's AI setup.`
         : provider.reason,
     plan: ws.billingUnknown ? null : ws.plan,
     wallet,
@@ -172,9 +172,9 @@ export async function loadUsageMeters(ctx: AppContext, ws: WorkspaceSummary, now
   const meters: UsageMeter[] = [];
   const ai = wallet ? aiMeter(wallet) : null;
   if (ai) meters.push(ai);
-  if (evaluations !== null) meters.push(meter("evaluations", "Governed evaluations", evaluations, limits.evaluationsPerMonth, period));
+  if (evaluations !== null) meters.push(meter("evaluations", "Safety checks", evaluations, limits.evaluationsPerMonth, period));
   if (sandbox) {
-    meters.push(meter("sandbox", "Sandbox time", sandbox.minutesUsed, sandbox.limits.limits.minutesPerPeriod, { end: sandbox.limits.periodEnd, kind: sandbox.limits.periodKind }));
+    meters.push(meter("sandbox", "Test space time", sandbox.minutesUsed, sandbox.limits.limits.minutesPerPeriod, { end: sandbox.limits.periodEnd, kind: sandbox.limits.periodKind }));
   }
   return meters;
 }

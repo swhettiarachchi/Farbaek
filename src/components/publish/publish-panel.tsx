@@ -150,7 +150,7 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
                   {d.evidence ? (
                     <span className="inline-flex items-center gap-1 text-xs text-ink-2" title={d.evidenceProofPack ? `ProofPack sha256:${d.evidenceProofPack}` : undefined}>
                       <EvidenceIcon status={d.evidence} size={14} />
-                      {d.evidence === "verified" ? "Verified" : "Without verified evidence"}
+                      {d.evidence === "verified" ? "Verified" : "Without passed checks"}
                     </span>
                   ) : null}
                   <span className="ml-auto">

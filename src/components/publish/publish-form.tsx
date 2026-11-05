@@ -60,7 +60,7 @@ export function PublishForm({
       </label>
       {override ? (
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium">Why publish without verified evidence?</span>
+          <span className="text-sm font-medium">Why publish before the checks have passed?</span>
           <textarea
             name="overrideReason"
             value={reason}
@@ -81,7 +81,7 @@ export function PublishForm({
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending || Boolean(disabledReason) || Boolean(problem) || Boolean(reasonProblem)} className={buttonClasses("primary")}>
           <RocketLaunchIcon size={18} weight="bold" aria-hidden />{" "}
-          {pending ? "Publishing…" : override ? "Publish without verified evidence" : live ? "Publish the latest files" : "Publish"}
+          {pending ? "Publishing…" : override ? "Publish without passed checks" : live ? "Publish the latest files" : "Publish"}
         </button>
         {disabledReason ? <span className="text-sm text-ink-3">{disabledReason}</span> : null}
       </div>

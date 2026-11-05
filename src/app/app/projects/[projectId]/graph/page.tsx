@@ -12,7 +12,7 @@ import { buildLanes, graphAnalytics } from "@/core/insights/project-graph";
 import { GRAPH_LIMITS } from "@/server/insights/project-graph";
 import { loadAppContext } from "@/server/workspace/context";
 
-export const metadata: Metadata = { title: "Project graph" };
+export const metadata: Metadata = { title: "Project map" };
 
 /** A project's tasks from the ask to what's live, and what they add up to (ADR 0089). */
 export default async function ProjectGraphPage({ params }: { params: Promise<{ projectId: string }> }) {
@@ -33,7 +33,7 @@ export default async function ProjectGraphPage({ params }: { params: Promise<{ p
           <ArrowLeftIcon size={14} aria-hidden /> {project.name}
         </Link>
         <div className="mt-3">
-          <PageHeader title="Project graph" description="Every task, from what was asked to what's live, with the evidence between. Each step links to its record." />
+          <PageHeader title="Project map" description="Every task, from what was asked to what's live, with the proof between. Each step links to its record." />
         </div>
       </div>
 
@@ -47,7 +47,7 @@ export default async function ProjectGraphPage({ params }: { params: Promise<{ p
             </Link>
           }
         >
-          Each task you start here becomes a lane: its contract, the change, the checks that proved it, and the version that went live.
+          Each task you start here becomes a lane: its plan, the change, the checks that proved it, and the version that went live.
         </EmptyState>
       ) : (
         <>
@@ -84,7 +84,7 @@ export default async function ProjectGraphPage({ params }: { params: Promise<{ p
                       {r.live ? ", live now" : ""}
                     </Link>
                     <span className="text-ink-2">
-                      Published <RelativeTime iso={r.createdAt} />. {r.reason ? `Reason given: ${r.reason}` : "Published before evidence was recorded."}
+                      Published <RelativeTime iso={r.createdAt} />. {r.reason ? `Reason given: ${r.reason}` : "Published before proof was recorded."}
                     </span>
                   </li>
                 ))}

@@ -14,22 +14,22 @@ const IDLE: FormState = { status: "idle" };
 
 const FIELDS: { name: keyof ContractFormValues; label: string; hint?: string; rows?: number; required?: boolean; short?: boolean }[] = [
   { name: "outcome", label: "Outcome", hint: "What should be true when the task is done.", rows: 2, required: true },
-  { name: "resources", label: "Resources in scope", hint: "Comma-separated, for example: products", short: true, required: true },
-  { name: "allowed", label: "Allowed operations", hint: "One per line, for example: products.update", rows: 2, required: true },
-  { name: "forbidden", label: "Forbidden operations", hint: "One per line.", rows: 2 },
-  { name: "protectedFields", label: "Protected fields", hint: "Comma-separated fields that must not change, for example: price, stock", short: true },
-  { name: "invariants", label: "Protected invariants", hint: "One per line, for example: No orders are created or edited.", rows: 2 },
+  { name: "resources", label: "What it can change", hint: "Comma-separated, for example: products", short: true, required: true },
+  { name: "allowed", label: "What it can do", hint: "One per line, for example: products.update", rows: 2, required: true },
+  { name: "forbidden", label: "Not allowed", hint: "One per line.", rows: 2 },
+  { name: "protectedFields", label: "Fields to leave alone", hint: "Comma-separated fields that must not change, for example: price, stock", short: true },
+  { name: "invariants", label: "Must stay true", hint: "One per line, for example: No orders are created or edited.", rows: 2 },
   {
     name: "acceptance",
-    label: "Acceptance criteria",
+    label: "Done when",
     hint: 'One per line. Start a line with "read_back:", "assertion:" or "manual:" to change how it is verified (default: test).',
     rows: 3,
     required: true,
   },
-  { name: "checks", label: "Required checks", hint: "Commands that must pass, one per line, for example: pnpm test", rows: 2 },
+  { name: "checks", label: "Checks to run", hint: "Commands that must pass, one per line, for example: pnpm test", rows: 2 },
   { name: "assumptions", label: "Assumptions", hint: "One per line.", rows: 2 },
   { name: "questions", label: "Open questions", hint: "One per line.", rows: 2 },
-  { name: "recovery", label: "Recovery", hint: "How to undo the change if needed.", rows: 2, required: true },
+  { name: "recovery", label: "If you need to undo it", hint: "How to put things back.", rows: 2, required: true },
   { name: "maxRecords", label: "Record limit", hint: "Most records the task may change.", short: true },
   { name: "maxRetries", label: "Retry limit", short: true },
 ];
@@ -162,7 +162,7 @@ function AiDraftPanel({
   const percent = result?.status === "done" ? result.usage.percent : ai.percent;
   const reached = percent !== null && percent >= 100;
   const limitText = ai.period === "trial" ? "You've reached the AI usage included in the trial." : "You've reached your AI usage limit for this month.";
-  const reason = ai.disabledReason ?? (reached ? `${limitText} You can still write the contract yourself.` : null);
+  const reason = ai.disabledReason ?? (reached ? `${limitText} You can still write the plan yourself.` : null);
   return (
     <div className="grid gap-3 rounded-sm border border-line bg-surface-raised/60 p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -217,7 +217,7 @@ export function ReviseContract(props: Omit<Parameters<typeof ContractEditor>[0],
     return (
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={() => setOpen(true)} className={buttonClasses("secondary", "sm")}>
-          {props.disabledReason ? "View the editor" : "Revise contract"}
+          {props.disabledReason ? "View the editor" : "Change the plan"}
         </button>
         {props.disabledReason ? <p className="text-sm text-ink-3">{props.disabledReason}</p> : null}
       </div>
@@ -265,7 +265,7 @@ export function ApproveContractControl({
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending || Boolean(disabledReason)} className={buttonClasses("primary", "sm")}>
           <FingerprintIcon size={16} weight="bold" aria-hidden />
-          {pending ? "Approving…" : `Approve version ${version}`}
+          {pending ? "Approving…" : "Approve this plan"}
         </button>
         {disabledReason ? <p className="text-sm text-ink-3">{disabledReason}</p> : null}
       </div>

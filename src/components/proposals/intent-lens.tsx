@@ -31,9 +31,9 @@ const FIRST = 6;
 export function IntentLensSummary({ summary, ai = null }: { summary: LensSummary; ai?: LensAiState | null }) {
   if (summary.hunks === 0) return null;
   const parts = [
-    summary.matched ? `${summary.matched} ${summary.matched === 1 ? "matches" : "match"} a contract clause by its words` : null,
-    summary.unexplained ? `${summary.unexplained} no clause explains` : null,
-    summary.flagged ? `${summary.flagged} flagged by the contract` : null,
+    summary.matched ? `${summary.matched} ${summary.matched === 1 ? "matches" : "match"} a line of the plan by its words` : null,
+    summary.unexplained ? `${summary.unexplained} no line of the plan explains` : null,
+    summary.flagged ? `${summary.flagged} flagged by the plan` : null,
   ].filter(Boolean);
   return (
     <div className="grid gap-1.5 rounded-sm border border-line bg-surface-raised/50 px-4 py-3">
@@ -44,7 +44,7 @@ export function IntentLensSummary({ summary, ai = null }: { summary: LensSummary
         {parts.length ? `: ${parts.join(", ")}.` : "."}
       </p>
       <p className="text-xs leading-relaxed text-ink-3">
-        Flags come from the contract&apos;s paths, operations and protected fields, exactly. Matches only point to the clause a change shares words with; read the change to judge it.
+        A flag means it breaks the plan, and that part is exact. A match only means it shares words with a line of the plan, so read the change to judge it.
       </p>
       {ai ? <AskAi ai={ai} /> : null}
     </div>
@@ -69,14 +69,14 @@ function AskAi({ ai }: { ai: LensAiState }) {
         <p className="flex items-start gap-2 text-xs leading-relaxed text-ink-2">
           <TreeStructureIcon size={14} weight="bold" className="mt-px shrink-0 text-accent" aria-hidden />
           <span>
-            AI mapping by <span className="font-mono">{ai.suggestion.model}</span>, <RelativeTime iso={ai.suggestion.createdAt} />. Each AI chip is a suggestion, not a check; the flags above it still stand.
+            AI linked these changes to the plan (<span className="font-mono">{ai.suggestion.model}</span>), <RelativeTime iso={ai.suggestion.createdAt} />. Its notes are suggestions, not checks, and any flags still stand.
           </span>
         </p>
       ) : null}
       {ai.open ? (
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" onClick={ask} disabled={pending || Boolean(ai.disabledReason)} className={buttonClasses(ai.suggestion ? "ghost" : "secondary", "sm")}>
-            <TreeStructureIcon size={15} weight="bold" aria-hidden /> {pending ? "Mapping…" : ai.suggestion ? "Ask again" : "Ask AI to map each change"}
+            <TreeStructureIcon size={15} weight="bold" aria-hidden /> {pending ? "Asking…" : ai.suggestion ? "Ask again" : "Ask AI to link each change to the plan"}
           </button>
           <span className="text-xs text-ink-3">{ai.disabledReason ?? "Uses a little of this period's AI usage; refunded if it fails."}</span>
         </div>
@@ -113,7 +113,7 @@ export function FileLensRows({ lens }: { lens: SuggestedFileLens }) {
   const shown = all ? lens.hunks : lens.hunks.slice(0, FIRST);
   return (
     <div className="grid gap-1">
-      <ul className="grid divide-y divide-line rounded-sm border border-line" aria-label={`How the changes to ${lens.path} read against the contract`}>
+      <ul className="grid divide-y divide-line rounded-sm border border-line" aria-label={`How the changes to ${lens.path} read against the plan`}>
         {shown.map((h, i) => (
           <li key={i} className="flex flex-col gap-1.5 px-3 py-2 sm:flex-row sm:items-center sm:gap-3">
             <span className="shrink-0 font-mono text-xs text-ink-3 sm:w-36">{hunkRange(h.hunk)}</span>
@@ -125,17 +125,17 @@ export function FileLensRows({ lens }: { lens: SuggestedFileLens }) {
               ))}
               {h.match ? (
                 <Chip tone="verified" icon={CrosshairIcon} title={`${h.match.statement} Shared words: ${h.match.shared.join(", ")}.`}>
-                  <span className="font-medium">{h.match.label}:</span> {h.match.statement}
+                  <span className="font-medium">{h.match.id === "outcome" ? "The goal" : "Done when"}:</span> {h.match.statement}
                 </Chip>
               ) : null}
               {h.unexplained ? (
                 <Chip tone="approval" icon={QuestionIcon}>
-                  No contract clause explains this change
+                  No line of the plan explains this change
                 </Chip>
               ) : null}
               {h.ai ? (
-                <Chip tone="ai" icon={TreeStructureIcon} title={"none" in h.ai ? `AI: no clause fits. ${h.ai.reason}` : `AI: ${h.ai.label}, ${h.ai.statement} ${h.ai.reason}`}>
-                  <span className="font-medium">AI: {"none" in h.ai ? "no clause fits" : h.ai.label}.</span> {h.ai.reason}
+                <Chip tone="ai" icon={TreeStructureIcon} title={"none" in h.ai ? `AI: no line of the plan fits. ${h.ai.reason}` : `AI: ${h.ai.statement} ${h.ai.reason}`}>
+                  <span className="font-medium">AI{"none" in h.ai ? ": no line of the plan fits." : ":"}</span> {h.ai.reason}
                 </Chip>
               ) : null}
             </span>

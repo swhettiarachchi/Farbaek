@@ -9,6 +9,7 @@ import { PublishPanel } from "@/components/publish/publish-panel";
 import { placeholderCount } from "@/core/media/library";
 import { UPGRADE_DESIGN, usesStudioKit } from "@/core/media/studio-kit";
 import { ProjectSkills, type ProjectSkillView } from "@/components/skills/project-skills";
+import { Disclosure } from "@/components/ui/disclosure";
 import { skillPinStatus } from "@/core/agent/skill-pins";
 import { isProjectSkillPath, parseSkill } from "@/core/agent/skills";
 import { loadPublishPanel } from "@/server/publish/panel";
@@ -101,7 +102,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
             actions={
               <div className="flex flex-wrap gap-2">
                 <Link href={`/app/projects/${project.id}/graph`} className={buttonClasses("secondary", "sm")}>
-                  <GraphIcon size={16} aria-hidden /> Project graph
+                  <GraphIcon size={16} aria-hidden /> Project map
                 </Link>
                 <Link href={`/app/projects/${project.id}/launch`} className={buttonClasses("secondary", "sm")}>
                   <RocketLaunchIcon size={16} aria-hidden /> Launch plan
@@ -189,8 +190,6 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
       ) : null}
       {publish ? <PublishPanel projectId={project.id} data={publish} disabledReason={publishReason ?? withheldFor(ctx.role, ctx.permissions, "publish")} /> : null}
 
-      <ProjectSkills projectId={project.id} skills={skills} disabledReason={publishReason} />
-
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">
         <section aria-labelledby="tasks-heading" className="grid gap-4">
           <h2 id="tasks-heading" className="text-lg font-medium">
@@ -198,7 +197,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
           </h2>
           {tasks.length === 0 ? (
             <EmptyState icon={ListChecksIcon} title="No tasks in this project">
-              Describe one outcome. The task starts at Received, then you agree an intent contract before any change is planned.
+              Describe one thing you want. You read and approve a plan before anything changes.
             </EmptyState>
           ) : (
             <TaskList tasks={tasks} showProject={false} />
@@ -232,7 +231,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
                 </a>
               </div>
               <p className="mt-3 text-xs text-ink-3">
-                Export everything adds the tasks, contracts, ProofPacks and history, ready to build without Farbaek. Anyone can check its evidence at{" "}
+                Export everything adds the tasks, plans, ProofPacks and history, ready to build without Farbaek. Anyone can check its proof at{" "}
                 <Link href="/verify" className="underline underline-offset-2 hover:text-ink">
                   farbaek.com/verify
                 </Link>
@@ -290,6 +289,14 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
         ) : null}
         </div>
       </div>
+
+      {skills.some((s) => s.status !== "approved") ? (
+        <ProjectSkills projectId={project.id} skills={skills} disabledReason={publishReason} />
+      ) : (
+        <Disclosure summary="Skills" hint="Teach the agent how you like this project built">
+          <ProjectSkills projectId={project.id} skills={skills} disabledReason={publishReason} />
+        </Disclosure>
+      )}
     </div>
   );
 }

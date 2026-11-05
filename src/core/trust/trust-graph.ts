@@ -13,6 +13,9 @@
 import type { AgentCapability } from "../agent/lease";
 import { EFFECTS, type WorkspaceRule } from "./workspace-rules";
 
+/** An agent that can change a project, by way of suggesting changes for its person to approve. */
+const AGENT_CAN_SUGGEST = "can suggest changes";
+
 export type TrustNodeKind = "person" | "agent" | "project" | "integration" | "workflow" | "tool" | "rule";
 
 export interface TrustNode {
@@ -81,7 +84,7 @@ export function buildTrustGraph(input: TrustInput): TrustGraph {
         from: personId(m.userId),
         to: projectId(p.id),
         kind: changes ? "can_change" : "can_view",
-        label: changes ? (m.role === "member" && m.approveWithheld ? "can propose changes" : "can change and approve") : "can view",
+        label: changes ? (m.role === "member" && m.approveWithheld ? "can suggest changes" : "can change and approve") : "can view",
         source: `Their role: ${m.role}`,
         limited: false,
       });
@@ -97,7 +100,7 @@ export function buildTrustGraph(input: TrustInput): TrustGraph {
       id: agentId(a.id),
       kind: "agent",
       label: a.name,
-      detail: a.revoked ? "Revoked" : expired ? "Lease expired" : `May ${a.lease.capabilities.map((c) => CAPABILITY_WORDS[c]).join(", ")}`,
+      detail: a.revoked ? "Revoked" : expired ? "Its access has ended" : `May ${a.lease.capabilities.map((c) => CAPABILITY_WORDS[c]).join(", ")}`,
       inactive: a.revoked || expired,
     });
     edges.push({ from: personId(a.pairedBy), to: agentId(a.id), kind: "paired", label: "paired", source: "The agent's pairing", limited: false });
@@ -109,8 +112,8 @@ export function buildTrustGraph(input: TrustInput): TrustGraph {
         from: agentId(a.id),
         to: projectId(p.id),
         kind: "lease",
-        label: proposes ? (personCanChange ? "can propose changes" : "lease, but its person can only view") : `can ${a.lease.capabilities.map((c) => CAPABILITY_WORDS[c]).join(", ")}`,
-        source: `Its lease, until ${a.lease.expiresAt.slice(0, 10)}`,
+        label: proposes ? (personCanChange ? AGENT_CAN_SUGGEST : "has access, but its person can only view") : `can ${a.lease.capabilities.map((c) => CAPABILITY_WORDS[c]).join(", ")}`,
+        source: `Its access, until ${a.lease.expiresAt.slice(0, 10)}`,
         limited: proposes && !personCanChange,
       });
     }
@@ -129,8 +132,8 @@ export function buildTrustGraph(input: TrustInput): TrustGraph {
   for (const w of input.workflows) {
     const running = ["approved", "running", "waiting"].includes(w.status);
     nodes.push({ id: workflowId(w.id), kind: "workflow", label: w.title, detail: `Workflow, ${w.status}`, inactive: !running });
-    if (w.approvedBy && roleOf.has(w.approvedBy)) edges.push({ from: personId(w.approvedBy), to: workflowId(w.id), kind: "approved", label: "approved; its runs start as them", source: "The workflow's approval", limited: false });
-    if (running) edges.push({ from: workflowId(w.id), to: projectId(w.projectId), kind: "works_on", label: "runs agents on", source: "The workflow's project", limited: false });
+    if (w.approvedBy && roleOf.has(w.approvedBy)) edges.push({ from: personId(w.approvedBy), to: workflowId(w.id), kind: "approved", label: "approved it; its runs use their access", source: "The workflow's approval", limited: false });
+    if (running) edges.push({ from: workflowId(w.id), to: projectId(w.projectId), kind: "works_on", label: "runs agents on this project", source: "The workflow's project", limited: false });
   }
 
   // Tools an agent may call through Farbaek's model gateway: its pin (ADR 0133). A quarantined agent's steps are all refused.
@@ -180,14 +183,14 @@ export interface Answer {
   via: TrustEdge[];
 }
 
-/** "Who and what can change this project?": people who can, and agents and workflows that can propose there. */
+/** "Who and what can change this project?": people who can, and agents and workflows that can suggest changes there. */
 export function whoCanChange(graph: TrustGraph, project: string): Answer[] {
   const byId = new Map(graph.nodes.map((n) => [n.id, n]));
   const target = projectId(project);
   const out: Answer[] = [];
   for (const e of graph.edges) {
     if (e.to !== target) continue;
-    if (e.kind === "can_change" || (e.kind === "lease" && e.label === "can propose changes") || e.kind === "works_on") {
+    if (e.kind === "can_change" || (e.kind === "lease" && e.label === AGENT_CAN_SUGGEST) || e.kind === "works_on") {
       const via = [e];
       if (e.kind === "lease") {
         const paired = graph.edges.find((x) => x.kind === "paired" && x.to === e.from);
