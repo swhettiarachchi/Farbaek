@@ -25,7 +25,7 @@ When it submits, the app works out the proposal's hash from exactly what it sent
 | Mode | Files | Commands | Where |
 | --- | --- | --- | --- |
 | Review Only | A patch in memory; nothing on disk changes | None | This computer |
-| Controlled Development | The run's copy, with a checkpoint before each write | Read-only commands run; tests, builds, installs, network and anything destructive wait for your approval of that exact command | This computer, **not isolated** |
+| Controlled Development | The run's copy, with a checkpoint before each write | Every command waits for approval, since nothing keeps it apart from the rest of the computer (ADR 0175) | This computer, **not isolated** |
 | Sandboxed Autopilot | Not available yet | Not available yet | Needs the agent to reach Farbaek sandboxes, which isn't built |
 
 Writes must stay inside the contract's paths and allowed operations, and are refused if they look like they contain a secret or touch a credentials file. Installs always get `--ignore-scripts` unless you approve otherwise.

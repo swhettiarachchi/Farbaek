@@ -36,6 +36,8 @@ export interface WebhookDeps {
   finish(id: string, status: "processed" | "ignored" | "failed", error: string | null, orgId: string | null): Promise<string>;
   planForProduct(productId: string): Promise<PaidPlanId | null>;
   orgForSubscription(subscriptionId: string): Promise<string | null>;
+  /** Whether an owner or admin started a checkout for this workspace and product lately, and it has no live subscription to overwrite. */
+  startedCheckout(orgId: string, productId: string): Promise<boolean>;
   apply(orgId: string, sub: NormalizedSubscription, state: AppliedState, syncedAt: Date, source: string): Promise<ApplyResult>;
   now(): Date;
   /** For a one-time payment event: the payment it names and whether Farbaek marked it a top-up (ADR 0102). */
@@ -88,8 +90,16 @@ async function processOne(deps: WebhookDeps, event: ClaimedEvent): Promise<strin
     if (!read.ok) return finish("failed", `Reading the subscription failed: ${read.code}.`);
     const sub = read.value;
     const syncedAt = deps.now();
-    const orgId = sub.orgId ?? (await deps.orgForSubscription(sub.id));
-    if (!orgId) return finish("failed", "The subscription names no Farbaek workspace.");
+    // A buyer can set their own metadata on a public checkout link, so it never decides this by itself (ADR 0175). A subscription
+    // already on a workspace stays there. A new one lands where an owner or admin really started that checkout.
+    const mapped = await deps.orgForSubscription(sub.id);
+    const claimed = !mapped && sub.orgId && (await deps.startedCheckout(sub.orgId, sub.productId)) ? sub.orgId : null;
+    const orgId = mapped ?? claimed;
+    if (!orgId) {
+      // A late event for a subscription that has ended, and was since replaced, has nothing left to do.
+      if (sub.status === "cancelled" || sub.status === "expired" || sub.status === "failed") return finish("ignored", "A subscription that has ended and isn't on a workspace.");
+      return finish("failed", "The subscription names no Farbaek workspace that started a checkout for it.");
+    }
     if (!checkoutOpenFor(deps.config, orgId)) return finish("ignored", "Test checkout isn't open to this workspace.", orgId);
     const plan = await deps.planForProduct(sub.productId);
     if (!plan) return finish("failed", "The subscription's product isn't one of Farbaek's plans.", orgId);

@@ -28,7 +28,7 @@ import { pinMap, readSkillPins } from "@/server/workspace/skill-pins";
 import { limitsFrom, readAutonomy } from "@/server/workspace/autonomy";
 import { autoApplyWithinLimits } from "@/server/workspace/proposals";
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
-import { verifyInRunSession } from "@/server/verification/runner";
+import { verifyAppliedChange } from "@/server/verification/runner";
 import { createSupabaseVerificationStore } from "@/server/verification/store";
 import { serverNotifier } from "@/server/email/wiring";
 import { loadPassport } from "@/server/workspace/context-readiness";
@@ -117,8 +117,12 @@ export async function cloudRunDeps(person: { orgId: string; userId: string; role
       return {
         sessionId,
         runner: createSandboxRunner({ service, actor, sessionId, pending: input.pending, onCommand: input.onCommand, newKey: () => crypto.randomUUID() }),
-        // A change the run applied on its own is checked here, before the sandbox stops (ADR 0047).
-        verify: (files) => verifyInRunSession({ store: createSupabaseVerificationStore(admin), service, actor }, person, { taskId: input.taskId, sessionId, files }),
+        // A change the run applied on its own is checked straight away (ADR 0047), in a fresh test space rather than this
+        // one, which the agent could have changed (ADR 0175). Stopping this one first frees its place.
+        verify: async () => {
+          await service.stopSession(actor, sessionId).catch(() => undefined);
+          return verifyAppliedChange({ store: createSupabaseVerificationStore(admin), checks: createSupabaseAgentStore(admin), sandbox: { service, actor }, newKey: () => crypto.randomUUID() }, person, input.taskId);
+        },
         stop: async () => {
           await service.stopSession(actor, sessionId);
         },

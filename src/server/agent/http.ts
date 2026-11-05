@@ -7,7 +7,7 @@ import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { log } from "@/server/observability/log";
 import { json, problem } from "@/server/sandbox/http";
 import { LEASE_HELP, countsAgainstLease, leaseRefusal, type LeaseNeed } from "@/core/agent/lease";
-import { type AgentIdentity, type AgentResult, type AgentStore } from "./service";
+import { type AgentIdentity, type AgentResult, type AgentStore, agentStopped } from "./service";
 import { createSupabaseAgentStore } from "./supabase-store";
 import { AGENT_TOKEN_PATTERN, sha256 } from "./tokens";
 
@@ -68,6 +68,8 @@ export function withAgent(
     if (!AGENT_TOKEN_PATTERN.test(token)) return problem(401, "UNAUTHENTICATED", "Send the agent token as Authorization: Bearer fa_...");
     const agent = await store.session(sha256(token));
     if (!agent) return problem(401, "UNAUTHENTICATED", "This agent token isn't valid or was revoked. Pair the app again.");
+    const stopped = agentStopped(agent, need);
+    if (stopped) return problem(403, stopped.code, stopped.message);
     const refused = leaseRefusal(agent.lease, need, store.now());
     if (refused) return problem(403, refused.code, refused.message);
     if (!(await store.rateLimit(`${limit.bucket}:${agent.agentId}`, 60, limit.perMinute))) return problem(429, "RATE_LIMITED", "Too many requests from this agent in the last minute.", undefined, { "retry-after": "60" });

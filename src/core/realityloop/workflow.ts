@@ -70,6 +70,9 @@ export interface WorkflowView {
   steps: WorkflowStepView[];
 }
 
+/** Why a workflow stops when its steps aren't what was approved. Only a draft can be approved, so it says what comes next. */
+export const WORKFLOW_PLAN_CHANGED = "A step's plan changed after this workflow was approved, so it stopped here. Make a new workflow with the plan as it is now.";
+
 /** The approval's binding: exactly these steps, their contracts and the ceiling. */
 export function workflowHash(w: { id: string; title: string; ceilingUnits: number; steps: (Pick<WorkflowStepView, "position" | "title" | "checkpoint" | "taskId" | "contract"> & { stage?: number })[] }): Promise<string> {
   // Stages are bound only when a step shares one, so sequential workflows keep the hash they were approved with.
@@ -134,6 +137,7 @@ export function nextAction(w: WorkflowView): string {
       return review ? `Step ${review.position}'s change is waiting for review. Apply it and run its checks, and the workflow carries on.` : "Waiting for a person.";
     }
     case "halted":
+      if (w.haltedReason === WORKFLOW_PLAN_CHANGED) return WORKFLOW_PLAN_CHANGED;
       return `Stopped: ${w.haltedReason ?? "a step failed."} Fix it on the step's task, or cancel the workflow.`;
     case "finished":
       return "Every step is verified.";

@@ -10,7 +10,7 @@
  */
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { HANDOFF_OUTPUT_CHARS, splitCheckCommand, type HandoffCheckResult, type HandoffReport } from "@/core/agent/handoff";
+import { HANDOFF_OUTPUT_CHARS, splitCheckCommand, type HandoffCheckResult, type HandoffReport, checkForComputer, setupForComputer } from "@/core/agent/handoff";
 import { verificationSetup } from "@/core/realityloop/verification";
 import { sha256Hex } from "@/core/trust/canonical-json";
 import type { AgentHandoff, AgentHandoffDetail, SnapshotFile } from "@/agent-runtime/farbaek-client";
@@ -96,24 +96,28 @@ export class HandoffManager {
 
       // The project's packages, from its own lockfile, without running their install scripts.
       const setup = verificationSetup([...files.keys()], (p) => files.get(p) ?? null);
-      if (setup) {
+      const careful = setup ? setupForComputer(setup.command) : null;
+      if (setup && careful) {
         this.set(run, { step: setup.label });
-        const split = splitCheckCommand(setup.command);
-        if (!split.ok) throw new HandoffError(split.reason);
-        const done = await runner.run(split.program, split.args);
-        if (done.exitCode !== 0) throw new HandoffError(`${setup.label} failed${done.timedOut ? ": it ran out of time" : done.exitCode === null ? "" : ` (exit ${done.exitCode})`}, so the checks didn't run.`);
+        const split = careful ? splitCheckCommand(careful) : null;
+        if (split && !split.ok) throw new HandoffError(split.reason);
+        const done = split?.ok ? await runner.run(split.program, split.args) : null;
+        if (done && done.exitCode !== 0) {
+          const python = setup.command.includes("pip install") ? " A package may have no ready-made build, and Farbaek doesn't build packages on your computer. Run the checks from the task's page instead." : "";
+          throw new HandoffError(`${setup.label} failed${done.timedOut ? ": it ran out of time" : done.exitCode === null ? "" : ` (exit ${done.exitCode})`}, so the checks didn't run.${python}`);
+        }
       }
 
       const checks: HandoffCheckResult[] = [];
       for (const command of detail.checks) {
         this.set(run, { step: `Running ${command}`, checks: [...checks] });
-        const split = splitCheckCommand(command);
-        if (!split.ok) {
-          checks.push({ command, exitCode: null, durationMs: null, timedOut: false, outputSha256: null, output: "", skipped: split.reason.slice(0, 300) });
+        const check = checkForComputer(command);
+        if (!check.ok) {
+          checks.push({ command, exitCode: null, durationMs: null, timedOut: false, outputSha256: null, output: "", skipped: check.reason.slice(0, 300) });
           continue;
         }
         try {
-          const r = await runner.run(split.program, split.args);
+          const r = await runner.run(check.program, check.args);
           const output = [r.stdout, r.stderr].filter(Boolean).join("\n");
           checks.push({ command, exitCode: r.timedOut ? null : r.exitCode, durationMs: r.durationMs, timedOut: r.timedOut, outputSha256: output ? await sha256Hex(output) : null, output: tail(output), skipped: null });
         } catch (error) {

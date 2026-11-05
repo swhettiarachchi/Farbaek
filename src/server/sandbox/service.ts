@@ -114,6 +114,8 @@ export interface TaskBridge {
   appliedProofPack(orgId: string, taskId: string): Promise<{ digest: string; statement: ProofPackStatement } | null>;
   /** The project's latest ProofPack, which a new one must link to. */
   latestProjectProofPackDigest(orgId: string, projectId: string): Promise<string | null>;
+  /** Whether a project file changed after the project's latest change went in, the same rule publishing uses. */
+  filesChangedAfterChange(orgId: string, projectId: string): Promise<boolean>;
   /** Appends the ProofPack for a check run that matched the applied content. Returns its digest. */
   recordVerificationProofPack(input: { taskId: string; actor: string; receiptDigest: string; statement: ProofPackStatement; digest: string; status: string }): Promise<RpcResult<string>>;
   applyTransition(input: { taskId: string; actor: string; eventId: string; eventType: TaskEventType; from: TaskState; to: TaskState; expectedVersion: number }): Promise<RpcResult<number>>;
@@ -164,6 +166,8 @@ export interface SandboxServiceCapabilities {
   cancel: boolean;
   filesystem: boolean;
 }
+
+const CHECKING_ONLY = "Farbaek is using this test space to check a change, so it can't be changed by hand. Start your own to try something.";
 
 export function createSandboxService(deps: SandboxServiceDeps) {
   const { store, resolution } = deps;
@@ -250,7 +254,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
     return value;
   }
 
-  async function createSession(actor: SandboxActor, input: unknown, idempotencyKey: string): Promise<SandboxResult<{ sessionId: string; created: boolean }>> {
+  async function createSession(actor: SandboxActor, input: unknown, idempotencyKey: string, options: { verification?: boolean } = {}): Promise<SandboxResult<{ sessionId: string; created: boolean }>> {
     const role = await deps.role(actor.orgId);
     const lv = await limitsFor(actor.orgId);
     const spec = sessionSpec(input, lv.limits);
@@ -293,6 +297,11 @@ export function createSandboxService(deps: SandboxServiceDeps) {
     if (!created.ok) return fromDb(created.error);
     const sessionId = created.value.sessionId;
     if (!created.value.created) return { ok: true, value: created.value };
+    // Before any sandbox exists, so there's never a moment when someone could reach into it first.
+    if (options.verification) {
+      const reserved = await store.reserveForVerification(sessionId, actor.userId);
+      if (!reserved.ok) return fromDb(reserved.error);
+    }
 
     const provision = await store.transition(sessionId, actor.userId, 0, "provision", {});
     if (!provision.ok) return fromDb(provision.error);
@@ -345,9 +354,11 @@ export function createSandboxService(deps: SandboxServiceDeps) {
     input: { command: unknown; timeoutSeconds?: unknown; kind?: "command" | "check" | "setup"; label?: string | null },
     idempotencyKey: string,
     sink: OutputSink = {},
+    options: { verification?: boolean } = {},
   ): Promise<SandboxResult<ExecutionRecord>> {
     const session = await visibleSession(actor, sessionId);
     if (!session) return err("NOT_FOUND", "That session doesn't exist in this workspace.", "invalid_request");
+    if (session.purpose === "verification" && !options.verification) return err("BLOCKED", CHECKING_ONLY, "not_authorized");
     const cmd = checkCommand(input.command);
     if (!cmd.ok) return err("INVALID_REQUEST", cmd.reason, "invalid_request");
     const role = await deps.role(actor.orgId);
@@ -546,6 +557,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
     const role = await deps.role(actor.orgId);
     const refused = blocked<SessionRecord>(await guard(action, actor, role, session));
     if (refused) return refused;
+    if (action === "files.write" && session.purpose === "verification") return err("BLOCKED", CHECKING_ONLY, "not_authorized");
     if (!runtime || !session.providerSandboxId) return err("NOT_CONNECTED", resolution.reason ?? "The session has no test space.", "provider_rejected");
     if (await rateLimited(actor, "files")) return err("RATE_LIMITED", "Too many file requests in the last minute.", "quota_exceeded");
     return { ok: true, value: session };
@@ -710,7 +722,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
         results.push({ name, command, exitCode: null, durationMs: null, failure: "control_plane_interrupted", stdoutSha256: null, stderrSha256: null });
         continue;
       }
-      const run = await runCommand(actor, sessionId, { command, kind: "check", label: name }, `${baseKey}:check:${i}`);
+      const run = await runCommand(actor, sessionId, { command, kind: "check", label: name }, `${baseKey}:check:${i}`, {}, { verification: session.purpose === "verification" });
       if (!run.ok) {
         // A refused or failed-to-start check is recorded as not run, and the rest still run.
         results.push({ name, command, exitCode: null, durationMs: null, failure: run.category, stdoutSha256: null, stderrSha256: null });
@@ -748,9 +760,16 @@ export function createSandboxService(deps: SandboxServiceDeps) {
     return { ok: true, value: await executeChecks(actor, session, sessionId, checksList, baseKey) };
   }
 
-  async function runChecks(actor: SandboxActor, sessionId: string, baseKey: string): Promise<SandboxResult<{ digest: string; status: string; taskEvent: string | null; applied: boolean }>> {
+  /**
+   * Runs a task's plan checks and records a receipt. Only `verification`, which no route can pass, in a test space
+   * Farbaek kept for it, can produce proof or move the task. Anywhere else someone could have changed what the checks
+   * run on (ADR 0175), so it records what they did and nothing more.
+   */
+  async function runChecks(actor: SandboxActor, sessionId: string, baseKey: string, options: { verification?: boolean } = {}): Promise<SandboxResult<{ digest: string; status: string; taskEvent: string | null; applied: boolean; passed: number; total: number }>> {
     const session = await visibleSession(actor, sessionId);
     if (!session) return err("NOT_FOUND", "That session doesn't exist in this workspace.", "invalid_request");
+    if (session.purpose === "verification" && !options.verification) return err("BLOCKED", CHECKING_ONLY, "not_authorized");
+    const verifying = options.verification === true && session.purpose === "verification";
     if (!session.taskId || !deps.tasks) return err("INVALID_REQUEST", "Link the session to a task to run its plan's checks.", "invalid_request");
     const checksList = await deps.tasks.requiredChecks(actor.orgId, session.taskId);
     if (!checksList || checksList.length === 0) return err("INVALID_REQUEST", "The task's approved plan lists no required checks.", "invalid_request");
@@ -764,6 +783,10 @@ export function createSandboxService(deps: SandboxServiceDeps) {
       const actual = runtime && session.providerSandboxId ? await hashInSandbox(session.providerSandboxId, changes.map((c) => c.path)) : new Map<string, string>();
       appliedFiles = changes.map((c) => ({ path: c.path, expected: c.sha256, actual: actual.get(c.path) ?? null }));
     }
+
+    // The checks run on the whole project, and only the change's own files were hashed. So if anyone edited a file since it
+    // went in, as publishing already asks (launchEvidence), they could have changed what the checks do (ADR 0175).
+    const changedAfterApply = verifying && appliedPack && session.projectId ? await deps.tasks.filesChangedAfterChange(actor.orgId, session.projectId) : false;
 
     const checkEgress: (EgressSummary | null)[] = [];
     const results = await executeChecks(actor, session, sessionId, checksList, baseKey, checkEgress);
@@ -788,6 +811,8 @@ export function createSandboxService(deps: SandboxServiceDeps) {
       proofPackDigest: appliedDigest,
       appliedFiles,
       createdAt: deps.now().toISOString(),
+      byHand: !verifying,
+      changedAfterApply,
     });
     const digest = await sandboxReceiptDigest(statement);
     const recorded = await store.recordReceipt({ sessionId, actor: actor.userId, digest, status: statement.predicate.status, statement });
@@ -795,7 +820,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
 
     // A run against exactly the applied content, where checks ran, gets its own ProofPack in the chain.
     let verificationDigest: string | null = null;
-    if (appliedPack && statement.predicate.appliedChange?.matched && statement.predicate.status !== "unverified" && session.projectId) {
+    if (verifying && appliedPack && statement.predicate.appliedChange?.matched && statement.predicate.status !== "unverified" && session.projectId) {
       const pack = buildVerificationProofPack({
         applied: appliedPack.statement,
         appliedDigest: appliedPack.digest,
@@ -814,7 +839,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
 
     let applied = false;
     const taskEvent = statement.predicate.verdict.taskEvent;
-    if (taskEvent) {
+    if (verifying && taskEvent) {
       const task = await deps.tasks.loadTask(actor.orgId, session.taskId);
       if (task && task.state === "VERIFYING") {
         const snap: TaskSnapshot = { id: task.id, orgId: actor.orgId, state: task.state, version: task.version, history: [] };
@@ -838,7 +863,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
       }
     }
     log("info", "sandbox.receipt_recorded", { session: sessionId, digest, status: statement.predicate.status, taskEvent, applied });
-    return { ok: true, value: { digest, status: statement.predicate.status, taskEvent, applied } };
+    return { ok: true, value: { digest, status: statement.predicate.status, taskEvent, applied, passed: results.filter((r) => r.exitCode === 0).length, total: results.length } };
   }
 
   /**

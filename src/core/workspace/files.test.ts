@@ -41,7 +41,8 @@ describe("screening an import", () => {
   });
 
   it("skips dependency, VCS and build folders anywhere in the path", () => {
-    for (const p of ["node_modules/react/index.js", ".git/config", "apps/web/.next/server.js", "packages/ui/dist/index.js", ".DS_Store"]) {
+    // On Windows and macOS, .GIT is the real .git.
+    for (const p of ["node_modules/react/index.js", ".git/config", ".GIT/config", ".Git/hooks/pre-commit", "NODE_MODULES/x.js", "apps/web/.next/server.js", "packages/ui/dist/index.js", ".DS_Store"]) {
       expect(screenPath(p)).toEqual({ ok: false, reason: "ignored_folder" });
     }
   });
@@ -60,6 +61,11 @@ describe("screening an import", () => {
       fake("token: gh", "p_", "a".repeat(36)),
       fake("SUPABASE_SECRET_KEY=sb_secret_", "abcdefghijkl"),
       fake("stripe('sk_", "live_", "a".repeat(24), "')"),
+      fake("GOOGLE=AI", "za", "a".repeat(35)),
+      fake("WEBHOOK=whs", "ec_", "a".repeat(32)),
+      fake("TOKEN=glp", "at-", "a".repeat(20)),
+      fake("//registry.npmjs.org/:_authToken=np", "m_", "a".repeat(36)),
+      fake("FARBAEK=f", "a_", "a".repeat(40)),
     ];
     for (const content of samples) expect(screen("src/config.ts", content)).toEqual({ ok: false, reason: "secret_content" });
   });

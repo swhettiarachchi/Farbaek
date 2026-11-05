@@ -9,6 +9,7 @@
  */
 import { z } from "zod";
 import { canonicalHash } from "../trust/canonical-json";
+import { classifyCommand, programName } from "./commands";
 
 export const HANDOFF_STATUSES = ["waiting", "opened", "done", "failed", "cancelled", "expired"] as const;
 export type HandoffStatus = (typeof HANDOFF_STATUSES)[number];
@@ -68,6 +69,64 @@ export function splitCheckCommand(text: string): SplitCommand {
   if (!program) return { ok: false, reason: "The check is empty." };
   if (!/^[A-Za-z0-9][A-Za-z0-9._+-]{0,99}$/.test(program)) return { ok: false, reason: `${program} isn't a program name this computer can look up.` };
   return { ok: true, program, args };
+}
+
+const NOT_ON_A_COMPUTER = "This isn't a known test or build, so it only runs in a test space.";
+const PYTHON_TEST_MODULES = new Set(["pytest", "unittest", "doctest", "compileall", "mypy", "ruff", "black", "flake8", "pylint", "tox", "nox"]);
+
+/** A test or a build in name, but it runs code given right there, or fetches something to run. */
+function runsSomethingElse(program: string, args: readonly string[]): boolean {
+  const name = programName(program);
+  if (name === "node" || name === "deno") return args.some((a) => a === "-e" || a === "-p" || a === "--eval" || a === "--print" || a === "eval" || a.startsWith("--eval=") || a.startsWith("--print="));
+  if (name === "python" || name === "python3" || name === "py") {
+    if (args.includes("-c")) return true;
+    const flag = args.indexOf("-m");
+    return flag >= 0 && !PYTHON_TEST_MODULES.has(args[flag + 1] ?? "");
+  }
+  if (name === "npm" && args[0] === "exec") return true;
+  if (name === "bun" && args[0] === "x") return true;
+  if ((name === "pnpm" || name === "yarn") && args[0] === "exec") {
+    const inner = args[1];
+    return !inner || classifyCommand(inner, args.slice(2)) !== "test_build" || runsSomethingElse(inner, args.slice(2));
+  }
+  return false;
+}
+
+/**
+ * How a check runs on a person's own computer, or why it doesn't (ADR 0175). Nothing keeps it apart from everything else
+ * there, and a plan can list anything, so only what's known to be a test or a build goes. What's classed read-only doesn't:
+ * its arguments can read any file, and what it prints goes back to the workspace. The person still sees the list before
+ * they start it, so this is a filter and not a boundary.
+ */
+export function checkForComputer(command: string): { ok: true; program: string; args: string[] } | { ok: false; reason: string } {
+  // Every command there already runs with CI=1 (commandEnv), so a plan's own prefix adds nothing.
+  const split = splitCheckCommand(command.trim().replace(/^CI=1\s+/, ""));
+  if (!split.ok) return split;
+  const { program, args } = split;
+  const name = programName(program);
+  // Only from the project's own packages, never one downloaded for the occasion.
+  if (name === "npx") return args[0] && !args[0].startsWith("-") ? { ok: true, program, args: ["--no-install", ...args] } : { ok: false, reason: NOT_ON_A_COMPUTER };
+  // `corepack pnpm test` is `pnpm test`.
+  const [inner, innerArgs] = name === "corepack" && args[0] ? [args[0], args.slice(1)] : [program, args];
+  if (classifyCommand(inner, innerArgs) !== "test_build" || runsSomethingElse(inner, innerArgs)) return { ok: false, reason: NOT_ON_A_COMPUTER };
+  return { ok: true, program, args };
+}
+
+/** Whether any of a plan's checks can run on a computer: if none can, there's no point sending it there. */
+export function anyCheckForComputer(commands: readonly string[]): boolean {
+  return commands.some((c) => checkForComputer(c).ok);
+}
+
+/**
+ * The install a computer runs before the checks, or null when it shouldn't run one. A person's own computer gets the
+ * careful version: no pnpmfile and no building a package from source, since a package's own code has no business running
+ * during an install. Installing the project itself would build it into that person's Python, so that's skipped.
+ */
+export function setupForComputer(command: string): string | null {
+  if (command.endsWith("pip install .")) return null;
+  if (command.startsWith("corepack pnpm")) return `${command} --ignore-pnpmfile`;
+  if (command.includes("pip install")) return `${command} --only-binary :all:`;
+  return command;
 }
 
 export const HandoffCheckResultSchema = z.object({

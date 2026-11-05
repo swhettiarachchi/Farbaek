@@ -314,6 +314,7 @@ export async function taskView(ctx: AppContext, orgId: string, taskId: string, r
       canBuild,
       sandboxed: execution.mode === "sandboxed",
       checking: verification?.status === "running",
+      lastCheckUnverified: verification?.status === "done" && verification.result === "unverified",
       checks: contract?.body.requiredChecks.length ?? 0,
       // Neither is in the app yet, so it doesn't offer them.
       canFix: false,

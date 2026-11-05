@@ -49,6 +49,9 @@ export function verificationSetup(paths: readonly string[], read: (path: string)
     return { command: "npm install --ignore-scripts", label: "Install packages with npm", network: true };
   }
   if (has("requirements.txt")) return { command: "python3 -m pip install -r requirements.txt", label: "Install Python packages", network: true };
+  // A pyproject.toml can be only tools' settings, so the project is installed only when the file declares one.
+  const pyproject = has("pyproject.toml") ? read("pyproject.toml") : null;
+  if (pyproject && /^\[(project|build-system)\]/m.test(pyproject)) return { command: "python3 -m pip install .", label: "Install the Python project", network: true };
   return null;
 }
 
@@ -63,7 +66,7 @@ export const VERIFICATION_RESULT_WORDS: Record<VerificationResult, { title: stri
   verified: { title: "Verified", detail: "Every check passed against exactly the applied files." },
   partially_verified: { title: "Partly verified", detail: "Some checks passed and some failed. See the check run below." },
   failed: { title: "Checks failed", detail: "The checks ran against exactly the applied files and failed. See the check run below." },
-  unverified: { title: "Not verified", detail: "The checks couldn't run against exactly the applied files, so nothing was verified." },
+  unverified: { title: "Not verified", detail: "A project file changed after this change was applied, so passing checks can't prove it. See the check run below." },
 };
 
 /** What a cloud run says once a change it applied on its own has been checked (or couldn't be). */

@@ -3,10 +3,14 @@ import { advanceWorkflow, resultFor, settleStep, type OrchestratorDeps } from ".
 
 const person = { orgId: "o1", userId: "u-owner", role: "owner" as const, permissions: {} };
 
-function fakes(over: { claims?: Awaited<ReturnType<OrchestratorDeps["claimNext"]>>[]; states?: Record<string, string>; person?: boolean; start?: "ok" | string; step?: { status: string } | null } = {}) {
+function fakes(over: { asApproved?: boolean | null; claims?: Awaited<ReturnType<OrchestratorDeps["claimNext"]>>[]; states?: Record<string, string>; person?: boolean; start?: "ok" | string; step?: { status: string } | null } = {}) {
   const claims = [...(over.claims ?? [{ result: "started", step: 1, taskId: "t1", capUnits: 1_000, approvedBy: "u-owner" }])];
   const log: string[] = [];
   const deps: OrchestratorDeps = {
+    stillAsApproved: async () => (over.asApproved === undefined ? true : over.asApproved),
+    halt: async (_w, reason) => {
+      log.push(`halt: ${reason}`);
+    },
     claimNext: async () => claims.shift() ?? { result: "busy", step: null, taskId: null, capUnits: null, approvedBy: null },
     stepResult: async (_w, step, result, detail) => {
       log.push(`result ${step} ${result}: ${detail}`);
@@ -26,6 +30,18 @@ function fakes(over: { claims?: Awaited<ReturnType<OrchestratorDeps["claimNext"]
 }
 
 describe("advanceWorkflow", () => {
+  it("stops instead of running a plan nobody approved, since runs act as the person who approved (ADR 0175)", async () => {
+    const f = fakes({ asApproved: false });
+    expect(await advanceWorkflow(f.deps, { id: "w1", orgId: "o1" })).toBe("halted");
+    expect(f.log).toEqual([expect.stringMatching(/^halt: A step's plan changed after this workflow was approved/)]);
+  });
+
+  it("starts nothing when it can't tell what was approved", async () => {
+    const f = fakes({ asApproved: null });
+    expect(await advanceWorkflow(f.deps, { id: "w1", orgId: "o1" })).toBe("busy");
+    expect(f.log).toEqual([]);
+  });
+
   it("starts the claimed step's run, capped at its share, as the approver", async () => {
     const f = fakes();
     expect(await advanceWorkflow(f.deps, { id: "w1", orgId: "o1" })).toBe("started");

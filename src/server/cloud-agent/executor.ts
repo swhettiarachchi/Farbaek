@@ -64,7 +64,7 @@ export interface ExecutorDeps {
         runner: CommandRunner;
         sessionId: string;
         /** Runs the contract's checks in this sandbox against exactly these applied files (ADR 0047). */
-        verify?(files: { path: string; content: string }[]): Promise<VerificationOutcome>;
+        verify?(): Promise<VerificationOutcome>;
         stop(): Promise<void>;
       }
     | { error: string }
@@ -254,7 +254,7 @@ async function execute(
   const { runId, person, live } = r;
   const dir = path.join(deps.workRoot ?? path.join(os.tmpdir(), "farbaek-runs"), runId);
   let stopSandbox: (() => Promise<void>) | null = null;
-  let verifyInSandbox: ((files: { path: string; content: string }[]) => Promise<VerificationOutcome>) | null = null;
+  let verifyInSandbox: (() => Promise<VerificationOutcome>) | null = null;
 
   // Events are batched and written about once a second, and at once for approvals and the end.
   let pending: RunPatch = {};
@@ -443,14 +443,13 @@ async function execute(
             const autonomyNote = policy.findings.find((f) => f.rule === "autonomy");
             if (autonomyNote) event({ kind: "note", text: autonomyNote.detail });
             const applied = policy.outcome === "ALLOW_WITHIN_LIMITS" ? await deps.applyWithinLimits({ orgId: person.orgId, userId: person.userId, proposalId: created.value }) : null;
-            // Checked straight away, in this run's sandbox, against exactly what applied (ADR 0047).
+            // Checked straight away (ADR 0047), in a fresh test space: the agent could have changed this one (ADR 0175).
             let verified: VerificationOutcome | null = null;
             if (applied?.ok && verifyInSandbox) {
-              const files = prepared.value.input.changes.filter((c) => !(c.kind === "create" && c.content === "")).map((c) => ({ path: c.path, content: c.content }));
               const n = r.contract.body.requiredChecks.length;
-              event({ kind: "note", text: `Checking the applied change: running the plan's ${n === 1 ? "check" : `${n} checks`} in this run's test space.` });
+              event({ kind: "note", text: `Checking the applied change: running the plan's ${n === 1 ? "check" : `${n} checks`} in a fresh test space.` });
               await flush();
-              verified = await verifyInSandbox(files).catch(() => ({ ok: false as const, reason: "Something went wrong on Farbaek's side, so the checks didn't finish." }));
+              verified = await verifyInSandbox().catch(() => ({ ok: false as const, reason: "Something went wrong on Farbaek's side, so the checks didn't finish." }));
               event({
                 kind: "note",
                 text: verified.ok

@@ -47,7 +47,17 @@ function isSecretFileName(name: string): boolean {
 }
 
 /** Recognisable credential formats. A match blocks the file; the value is never echoed. */
+/** On Windows and macOS `.GIT` is the real `.git`, so case can't get a folder past this. */
+export function isIgnoredFolder(name: string): boolean {
+  return IGNORED_FOLDERS.has(name) || IGNORED_FOLDERS.has(name.toLowerCase());
+}
+
 const SECRET_PATTERNS: readonly RegExp[] = [
+  /\bAIza[0-9A-Za-z_-]{35}\b/,
+  /\bwhsec_[A-Za-z0-9+/=_-]{20,}/,
+  /\bglpat-[A-Za-z0-9_-]{20,}/,
+  /\bnpm_[A-Za-z0-9]{36}\b/,
+  /\bfa_[A-Za-z0-9_-]{32,}/,
   /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
   /\bAKIA[0-9A-Z]{16}\b/,
   /\bsk-ant-[A-Za-z0-9_-]{20,}/,
@@ -107,7 +117,7 @@ export function screenPath(raw: string): ScreenResult {
   if (!checked.ok) return { ok: false, reason: "invalid_path", detail: checked.reason };
   const segments = checked.path.split("/");
   const name = segments.at(-1)!;
-  if (segments.slice(0, -1).some((s) => IGNORED_FOLDERS.has(s)) || IGNORED_FILES.has(name)) return { ok: false, reason: "ignored_folder" };
+  if (segments.slice(0, -1).some(isIgnoredFolder) || IGNORED_FILES.has(name)) return { ok: false, reason: "ignored_folder" };
   if (isSecretFileName(name)) return { ok: false, reason: "secret_file" };
   return { ok: true, path: checked.path };
 }

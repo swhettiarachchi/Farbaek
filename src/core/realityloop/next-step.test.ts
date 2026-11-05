@@ -81,6 +81,9 @@ describe("a task's next step (ADR 0170)", () => {
     expect(taskNextStep(facts({ ...verifying, checking: true }))).toMatchObject({ tone: "working", action: null });
     expect(taskNextStep(facts({ ...verifying, checks: 0 }))).toMatchObject({ tone: "idle", action: { target: "project" } });
     expect(taskNextStep(facts(verifying))).toMatchObject({ tone: "action", action: { target: "checks" } });
+    // Running them again wouldn't help, so it doesn't send anyone back to them.
+    const unproven = taskNextStep(facts({ ...verifying, lastCheckUnverified: true, canUndo: true }));
+    expect(unproven).toMatchObject({ tone: "idle", title: expect.stringMatching(/can't prove/), action: { target: "undo" } });
   });
 
   it("offers a fix only when the agent can make one, and says 'done' only of a finished task", () => {

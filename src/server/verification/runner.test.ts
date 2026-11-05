@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { INTENT_CONTRACT_SCHEMA, type IntentContract } from "@/core/realityloop/contract";
 import type { TaskState } from "@/core/realityloop/task-machine";
 import type { ExecutionRecord } from "@/server/sandbox/types";
-import { runTaskVerification, startTaskVerification, verifyInRunSession, type VerificationDeps, type VerificationSandbox, type VerifyPerson } from "./runner";
+import { runTaskVerification, startTaskVerification, verifyAppliedChange, type VerificationDeps, type VerificationSandbox, type VerifyPerson } from "./runner";
 import type { VerificationStore } from "./store";
 
 const alice: VerifyPerson = { orgId: "o1", userId: "u-alice", role: "member" };
@@ -26,8 +26,9 @@ const contract: IntentContract = {
 
 const execution = (exitCode: number | null, state: ExecutionRecord["state"] = exitCode === 0 ? "succeeded" : "failed") => ({ exitCode, state }) as ExecutionRecord;
 
-function fakes(over: { files?: string[]; registries?: boolean; createFails?: string; setupExit?: number | null; setupState?: ExecutionRecord["state"]; checks?: string; checksFail?: string; state?: TaskState; checksList?: string[]; running?: boolean; writeFails?: string; manifest?: string } = {}) {
+function fakes(over: { files?: string[]; registries?: boolean; createFails?: string; setupExit?: number | null; setupState?: ExecutionRecord["state"]; checks?: string; checksFail?: string; state?: TaskState; checksList?: string[]; running?: boolean; manifest?: string } = {}) {
   const calls: string[] = [];
+  const flags: string[] = [];
   const finished: Parameters<VerificationStore["finish"]>[0][] = [];
   const store: VerificationStore = {
     start: async (i) => (calls.push(`start:${i.trigger}`), over.running ? { ok: false, error: "VERIFICATION_RUNNING" } : { ok: true, value: "v1" }),
@@ -36,14 +37,14 @@ function fakes(over: { files?: string[]; registries?: boolean; createFails?: str
   };
   const service: VerificationSandbox = {
     overview: async () => ({ limits: { limits: { networkProfiles: over.registries === false ? ["none"] : ["none", "package_registries"], sizes: ["small"], maxSessionMinutes: 30 } } }) as never,
-    createSession: async (_a, input) => {
+    createSession: async (_a, input, _key, options) => {
       calls.push(`create:${(input as { network: string }).network}`);
+      if (options?.verification) flags.push("session");
       return over.createFails ? { ok: false, code: "NOT_CONNECTED", message: over.createFails, category: "provider_rejected" } : { ok: true, value: { sessionId: "s1", created: true } };
     },
-    runCommand: async (_a, _s, input) => (calls.push(`setup:${String(input.command)}`), { ok: true, value: execution(over.setupExit === undefined ? 0 : over.setupExit, over.setupState) }),
-    runChecks: async () => (calls.push("checks"), over.checksFail ? { ok: false, code: "SESSION_NOT_RUNNING", message: over.checksFail, category: "provider_rejected" } : { ok: true, value: { digest: "r".repeat(64), status: over.checks ?? "verified", taskEvent: "mark_verified", applied: true } }),
+    runCommand: async (_a, _s, input, _k, _sink, options) => (options?.verification && flags.push("setup"), calls.push(`setup:${String(input.command)}`), { ok: true, value: execution(over.setupExit === undefined ? 0 : over.setupExit, over.setupState) }),
+    runChecks: async (_a, _s, _k, options) => (options?.verification && flags.push("checks"), calls.push("checks"), over.checksFail ? { ok: false, code: "SESSION_NOT_RUNNING", message: over.checksFail, category: "provider_rejected" } : { ok: true, value: { digest: "r".repeat(64), status: over.checks ?? "verified", taskEvent: "mark_verified", applied: true, passed: 1, total: 1 } }),
     stopSession: async () => (calls.push("stop"), { ok: true, value: { state: "stopping" } }),
-    writeFile: async (_a, _s, path, content) => (calls.push(`write:${String(path)}=${String(content)}`), over.writeFails ? { ok: false, code: "INVALID_REQUEST", message: over.writeFails, category: "invalid_request" } : { ok: true, value: { path: String(path), bytes: String(content).length } }),
   };
   const files = over.files ?? ["package.json", "package-lock.json", "src/cart.ts"];
   const deps: VerificationDeps = {
@@ -57,7 +58,7 @@ function fakes(over: { files?: string[]; registries?: boolean; createFails?: str
     sandbox: { service, actor: { orgId: "o1", userId: "u-alice" } },
     newKey: () => "k",
   };
-  return { deps, calls, finished, service };
+  return { deps, calls, flags, finished, service };
 }
 
 const task = { id: "t1", title: "Fix the cart total", projectId: "p1" };
@@ -140,19 +141,24 @@ describe("runTaskVerification", () => {
   });
 });
 
-describe("verifyInRunSession", () => {
-  it("writes exactly the applied files into the run's sandbox, then runs the checks there", async () => {
+describe("verifyAppliedChange", () => {
+  it("checks what a run applied in a fresh test space, never the one the agent worked in", async () => {
     const f = fakes();
-    const r = await verifyInRunSession({ store: f.deps.store, service: f.service, actor: { orgId: "o1", userId: "u-alice" } }, alice, { taskId: "t1", sessionId: "run-s1", files: [{ path: "src/cart.ts", content: "export const total = 2;" }] });
+    const r = await verifyAppliedChange(f.deps, alice, "t1");
     expect(r).toEqual({ ok: true, result: "verified", receiptDigest: "r".repeat(64) });
-    expect(f.calls).toEqual(["start:autonomy", "attach:run-s1", "write:src/cart.ts=export const total = 2;", "checks"]);
+    expect(f.calls[0]).toBe("start:autonomy");
+    expect(f.calls.some((c) => c.startsWith("create:"))).toBe(true);
+    expect(f.calls.at(-1)).toBe("stop");
   });
 
-  it("records a file it couldn't copy in, and runs no checks", async () => {
-    const f = fakes({ writeFails: "Files are limited to 512 KB here." });
-    const r = await verifyInRunSession({ store: f.deps.store, service: f.service, actor: { orgId: "o1", userId: "u-alice" } }, alice, { taskId: "t1", sessionId: "run-s1", files: [{ path: "src/cart.ts", content: "x" }] });
-    expect(r).toEqual({ ok: false, reason: "src/cart.ts couldn't be copied into the test space: Files are limited to 512 KB here." });
-    expect(f.calls).not.toContain("checks");
-    expect(f.finished[0]).toMatchObject({ status: "failed" });
+  it("asks for a test space kept for checking at every step, so the checks can count as proof", async () => {
+    const f = fakes();
+    await verifyAppliedChange(f.deps, alice, "t1");
+    expect(f.flags).toEqual(["session", "setup", "checks"]);
+  });
+
+  it("says why when the change can't be checked", async () => {
+    expect(await verifyAppliedChange(fakes({ state: "APPROVAL_PENDING" }).deps, alice, "t1")).toMatchObject({ ok: false, reason: expect.stringContaining("waiting for its checks") });
+    expect(await verifyAppliedChange(fakes({ running: true }).deps, alice, "t1")).toMatchObject({ ok: false, reason: expect.stringContaining("already running") });
   });
 });

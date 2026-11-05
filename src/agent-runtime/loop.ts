@@ -140,7 +140,7 @@ export function agentSystemPrompt(mode: AgentMode, commands: RunnerLocation | nu
     `Mode: ${AGENT_MODE_LABELS[mode].title}.`,
   ];
   if (mode === "review_only") lines.push("Your edits are kept as a patch for a person to review. Nothing on disk changes and no command runs.");
-  else if (commands === "local") lines.push("Commands run on the person's computer. Read-only commands run right away; tests, builds, installs and anything risky wait for the person's approval, which may be declined.");
+  else if (commands === "local") lines.push("Commands run on the person's computer. Every command waits for the person's approval, which may be declined.");
   else if (commands === "sandbox") lines.push("Commands run in an isolated sandbox. Tests and builds run right away; anything that crosses the sandbox's limits waits for the person's approval.");
   else lines.push("No command runner is connected, so you can't run commands.");
   lines.push("A person reviews your change before anything is applied to the real project.");
@@ -262,7 +262,8 @@ export async function runAgent(input: RunInput): Promise<RunReport> {
       step,
       program: `mcp:${known.server}`,
       args: [known.tool, shown],
-      display: `${known.tool} from the MCP server "${known.server}", with ${shown.length > 300 ? `${shown.slice(0, 300)}…` : shown}`,
+      // All of it: this approves this exact command, so nothing may hide past the end of what's shown (ADR 0175).
+      display: `${known.tool} from the MCP server "${known.server}", with ${shown}`,
       risk: "unknown",
       reason: "A tool from an MCP server you added. It runs on this computer and can do anything that server can, outside the project's copy and the contract's checks.",
       why: "",

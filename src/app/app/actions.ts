@@ -608,6 +608,7 @@ export async function renameWorkspaceAction(_previous: FormState, form: FormData
 
   const ctx = await requireContext();
   if (ctx.mode === "demo") return { status: "error", message: "The demo workspace is read-only.", values };
+  if (!ctx.writes.enabled) return { status: "error", message: ctx.writes.reason, values };
   if (!ctx.current || !ctx.role || !MANAGER_ROLES.includes(ctx.role)) {
     return { status: "error", message: "Only owners and admins can rename this workspace.", values };
   }
@@ -646,6 +647,7 @@ export async function setMemberRoleAction(_previous: FormState, form: FormData):
   const ctx = await requireContext();
   if (ctx.mode === "demo") return { status: "error", message: "The demo workspace is read-only." };
   const admin = createSupabaseAdminClient();
+  if (!ctx.writes.enabled) return { status: "error", message: ctx.writes.reason };
   if (!ctx.current || !admin) return { status: "error", message: "Supabase isn't connected in this environment." };
   const { error } = await admin.rpc("app_set_member_role", { p_org: ctx.current.id, p_actor: ctx.user.id, p_user: input.data.userId, p_role: input.data.role });
   if (error) return { status: "error", message: peopleError(error.message) };
@@ -679,6 +681,7 @@ export async function removeMemberAction(_previous: FormState, form: FormData): 
   const ctx = await requireContext();
   if (ctx.mode === "demo") return { status: "error", message: "The demo workspace is read-only." };
   const admin = createSupabaseAdminClient();
+  if (!ctx.writes.enabled && userId.data !== ctx.user.id) return { status: "error", message: ctx.writes.reason };
   if (!ctx.current || !admin) return { status: "error", message: "Supabase isn't connected in this environment." };
   const { error } = await admin.rpc("app_remove_member", { p_org: ctx.current.id, p_actor: ctx.user.id, p_user: userId.data });
   if (error) return { status: "error", message: peopleError(error.message) };
@@ -818,7 +821,7 @@ export async function pairAgentAction(): Promise<PairAgentState> {
   const ctx = await requireContext();
   const w = await writeDeps(ctx);
   if ("error" in w) return { status: "error", message: w.error };
-  const r = await createAgentPairing(w.deps, { orgId: w.orgId, userId: ctx.user.id });
+  const r = await createAgentPairing(w.deps, { orgId: w.orgId, userId: ctx.user.id, permissions: ctx.permissions });
   if (!r.ok) return { status: "error", message: r.message };
   return { status: "created", code: r.value.code, expiresAt: r.value.expiresAt };
 }

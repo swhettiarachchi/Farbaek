@@ -4,6 +4,7 @@
  * since the live version, what (if anything) stops the next publish, and
  * the evidence behind it (ADR 0050).
  */
+import { may } from "@/core/workspace/permissions";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { LaunchEvidence } from "@/core/publish/evidence";
 import { hasUnpublishedChanges, siteNameFrom, type PublishBlock } from "@/core/publish/site";
@@ -25,7 +26,7 @@ const TOKEN_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
 export function domainDeps(ctx: AppContext, user: SupabaseClient, admin: SupabaseClient): DomainDeps {
   const domain = siteDomain();
   return {
-    canChange: async () => ctx.role !== null && CONTRIBUTOR_ROLES.includes(ctx.role),
+    canChange: async () => ctx.role !== null && CONTRIBUTOR_ROLES.includes(ctx.role) && may(ctx.role, ctx.permissions, "publish"),
     target: siteTarget(domain),
     reserved: [domain, appZone(appHostFromEnv())].filter((z): z is string => Boolean(z)),
     add: (i) => addDomainRpc(admin, i),

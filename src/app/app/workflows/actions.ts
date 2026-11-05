@@ -18,6 +18,7 @@ const ADVANCE_WORDS: Record<string, string> = {
   started: "The first step's run has started.",
   paused: "Agents are paused in this workspace, so it starts when an owner or admin resumes them.",
   failed: "The first step couldn't start; the workflow shows why.",
+  halted: "It stopped, because a step's plan changed after it was approved.",
 };
 
 async function writer(): Promise<{ ctx: AppContext & { current: NonNullable<AppContext["current"]> }; deps: WorkflowWriteDeps } | { error: string }> {
@@ -105,7 +106,7 @@ export async function continueWorkflowAction(_previous: WorkflowState, form: For
   if (!r.ok) return { status: "error", message: r.message };
   const next = await advanceWorkflowNow({ id: id.data, orgId: w.ctx.current.id });
   revalidatePath(`/app/workflows/${id.data}`);
-  return { status: "done", message: next === "started" ? "Carrying on: the next step's run has started." : "Carrying on." };
+  return { status: "done", message: next === "started" ? "Carrying on: the next step's run has started." : next === "halted" ? ADVANCE_WORDS.halted! : "Carrying on." };
 }
 
 /** Stops the workflow for good. A run already working finishes its own step. */

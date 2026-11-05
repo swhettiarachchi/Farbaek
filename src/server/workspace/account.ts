@@ -7,7 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { OrgRole } from "./types";
 
-export type DeletionOutcome = "deleted" | "left" | "blocked_last_owner" | "blocked_paid";
+export type DeletionOutcome = "deleted" | "left" | "blocked_last_owner" | "blocked_paid" | "blocked_review";
 
 export interface DeletionPlanItem {
   orgId: string;
@@ -22,7 +22,7 @@ const Row = z.object({
   org_name: z.string(),
   role: z.enum(["owner", "admin", "member", "viewer"]),
   members: z.number().int(),
-  outcome: z.enum(["deleted", "left", "blocked_last_owner", "blocked_paid"]),
+  outcome: z.enum(["deleted", "left", "blocked_last_owner", "blocked_paid", "blocked_review"]),
 });
 
 /** Each of the person's workspaces and what deleting the account would do to it. */
@@ -48,6 +48,7 @@ export const DELETION_WORDS: Record<DeletionOutcome, string> = {
   left: "You leave it. It stays for the others, and what you made in it stays theirs.",
   blocked_last_owner: "You're its only owner and others are in it. Make one of them an owner first.",
   blocked_paid: "It has a paid plan. Cancel it first, where it was bought: Billing, the iPhone's Subscriptions, or Google Play.",
+  blocked_review: "Farbaek's team has it under review, so it can't be deleted yet. Write to support@farbaek.com.",
 };
 
 /** The database's refusals for people changes, in plain words. */

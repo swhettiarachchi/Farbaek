@@ -117,6 +117,10 @@ export function billingWebhookDeps(fetchImpl?: Fetch): WebhookDeps | null {
       const org = (data as { org_id?: unknown } | null)?.org_id;
       return typeof org === "string" ? org : null;
     },
+    async startedCheckout(orgId, productId) {
+      if (!UUID.test(orgId)) return false;
+      return (await rpc("app_billing_checkout_claimable", { p_org: orgId, p_product: productId })) === true;
+    },
     apply,
     now: () => new Date(),
     async paymentOf(eventId) {

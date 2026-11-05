@@ -58,6 +58,10 @@ export interface ReceiptInput {
    */
   appliedFiles?: { path: string; expected: string; actual: string | null }[] | null;
   createdAt: string;
+  /** Run in a test space a person could change, rather than one Farbaek kept for checking. */
+  byHand?: boolean;
+  /** A project file changed after the change went in. Failing still counts, but passing can't prove the change (ADR 0175). */
+  changedAfterApply?: boolean;
 }
 
 /** True when the sandbox held exactly the applied content of every file the change wrote. */
@@ -97,15 +101,21 @@ export function snapshotDigest(files: readonly { path: string; sha256: string }[
 
 export function buildSandboxReceipt(input: ReceiptInput): SandboxReceiptStatement {
   const results = input.checks.map(toCheckResult);
-  const status = proofPackStatus(results);
+  // A test space someone could change can't prove anything about the change, whatever its checks did (ADR 0175).
+  const byHand = input.byHand === true;
+  const outcome = proofPackStatus(results);
+  const withheld = input.changedAfterApply === true && outcome === "verified";
+  const status = byHand || withheld ? "unverified" : outcome;
   const compared = input.appliedFiles ?? null;
   const matched = compared === null ? true : appliedContentMatches(compared);
   // A run against content other than the applied change never moves the task.
-  const taskEvent = input.session.taskId && matched ? verificationEvent(results, input.proofPackDigest !== null) : null;
+  const taskEvent = !byHand && !withheld && input.session.taskId && matched ? verificationEvent(results, input.proofPackDigest !== null) : null;
   const limits = [
     "This record proves which commands ran against which files, with their real exit codes. It doesn't prove the code is secure or correct beyond those checks.",
     `Isolation as reported by ${input.runtime.provider}: ${input.runtime.isolation}.`,
   ];
+  if (byHand) limits.push("A person could change this test space before its checks ran, so this doesn't verify the change. It shows what the checks did here.");
+  if (withheld) limits.push("A project file changed after this change was applied, so passing checks can't prove it. This shows what they did.");
   if (input.snapshot === null) limits.push("No project files were copied into the sandbox for this run.");
   if (results.length === 0) limits.push("No checks ran, so nothing was verified.");
   if (results.some((r) => r.exitCode === null)) limits.push("Some checks didn't finish; they count as not run.");

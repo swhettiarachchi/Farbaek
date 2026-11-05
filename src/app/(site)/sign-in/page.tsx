@@ -70,7 +70,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
           <div className="rounded-md bg-surface p-5 shadow-e1 sm:p-6">
             <KeptPrompt />
             {supabase ? (
-              <SignInForm notice={error ? (NOTICES[error] ?? null) : null} providers={{ google, apple }} next={next} captchaSiteKey={turnstileSiteKey()} phone={phoneSignIn(next)} />
+              <SignInForm notice={error && Object.hasOwn(NOTICES, error) ? NOTICES[error]! : null} providers={{ google, apple }} next={next} captchaSiteKey={turnstileSiteKey()} phone={phoneSignIn(next)} />
             ) : (
               <p className="rounded-sm border border-dashed border-line-strong/60 p-5 text-sm text-ink-2">
                 Sign-in isn&apos;t connected in this environment. Add the Supabase URL and publishable key to <code>.env.local</code>.

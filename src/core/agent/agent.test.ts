@@ -66,12 +66,15 @@ describe("permission engine", () => {
     expect(decide(call("write_file", { path: "README.md", content: "x", reason: "r" }), ctx({ contract: null }))).toMatchObject({ kind: "deny" });
   });
 
-  it("runs no command in Review Only, read-only ones in Controlled, and asks for everything else", () => {
+  it("runs no command in Review Only, and asks for every command on someone's own computer", () => {
     const status = call("run_command", { program: "git", args: ["status"], reason: "r" });
     const test = call("run_command", { program: "pnpm", args: ["test"], reason: "r" });
     const install = call("run_command", { program: "pnpm", args: ["add", "left-pad"], reason: "r" });
     expect(decide(status, ctx({ mode: "review_only" })).kind).toBe("deny");
-    expect(decide(status, ctx())).toEqual({ kind: "allow", risk: "read_only" });
+    expect(decide(status, ctx())).toMatchObject({ kind: "needs_approval", risk: "read_only" });
+    // What's classed read-only can still read any file or reach the network through its arguments (ADR 0175).
+    expect(decide(call("run_command", { program: "cat", args: ["/home/me/.ssh/id_rsa"], reason: "r" }), ctx())).toMatchObject({ kind: "needs_approval" });
+    expect(decide(call("run_command", { program: "npm", args: ["view", "x", "--registry=https://evil.example"], reason: "r" }), ctx())).toMatchObject({ kind: "needs_approval" });
     expect(decide(test, ctx())).toMatchObject({ kind: "needs_approval", risk: "test_build", reason: expect.stringMatching(/isn't isolated/) });
     expect(decide(install, ctx())).toMatchObject({ kind: "needs_approval", risk: "install" });
   });

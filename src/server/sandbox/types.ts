@@ -44,6 +44,8 @@ export interface SessionRecord {
   metrics: ResourceSample | null;
   snapshotSha256: string | null;
   snapshotFiles: number | null;
+  /** "verification": Farbaek's own, for checking a change. Only it can produce proof, and nobody can change it (ADR 0175). */
+  purpose: "person" | "verification";
   createdAt: string;
   updatedAt: string;
   endedAt: string | null;
@@ -52,7 +54,7 @@ export interface SessionRecord {
 const nullableInt = z.number().int().nullable();
 
 export const SESSION_SELECT =
-  "id, org_id, project_id, task_id, created_by, name, template, size, image, network_profile, requested_vcpu, requested_memory_mib, vcpu, memory_mib, provider, provider_sandbox_id, isolation, state, version, ttl_seconds, idle_seconds, expires_at, last_activity_at, billed_seconds, running_since, end_reason, failure_category, failure_message, cleanup_status, cleanup_attempts, metrics, snapshot_sha256, snapshot_files, created_at, updated_at, ended_at";
+  "id, org_id, project_id, task_id, created_by, name, template, size, image, network_profile, requested_vcpu, requested_memory_mib, vcpu, memory_mib, provider, provider_sandbox_id, isolation, state, version, ttl_seconds, idle_seconds, expires_at, last_activity_at, billed_seconds, running_since, end_reason, failure_category, failure_message, cleanup_status, cleanup_attempts, metrics, snapshot_sha256, snapshot_files, purpose, created_at, updated_at, ended_at";
 
 const MetricsSchema = z
   .object({
@@ -101,6 +103,7 @@ export const SessionRowSchema = z.object({
   metrics: MetricsSchema,
   snapshot_sha256: z.string().nullable(),
   snapshot_files: nullableInt,
+  purpose: z.enum(["person", "verification"]),
   created_at: z.string(),
   updated_at: z.string(),
   ended_at: z.string().nullable(),
@@ -141,6 +144,7 @@ export function sessionFromRow(r: z.infer<typeof SessionRowSchema>): SessionReco
     metrics: r.metrics,
     snapshotSha256: r.snapshot_sha256,
     snapshotFiles: r.snapshot_files,
+    purpose: r.purpose,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     endedAt: r.ended_at,
@@ -353,6 +357,8 @@ export interface SandboxStore {
   recordEgress(executionId: string, egress: EgressSummary): Promise<RpcResult<null>>;
   requestCancel(executionId: string, actor: string): Promise<RpcResult<{ pid: number | null; providerSandboxId: string | null; alreadyFinished: boolean }>>;
   touchSession(sessionId: string, actor: string): Promise<RpcResult<null>>;
+  /** Marks a session that has no sandbox yet as Farbaek's own for checking a change. */
+  reserveForVerification(sessionId: string, actor: string): Promise<RpcResult<null>>;
   createPreview(input: { sessionId: string; actor: string; id: string; port: number; ttlSeconds: number }): Promise<RpcResult<string>>;
   launchPreview(id: string, user: string): Promise<RpcResult<{ sessionId: string | null; port: number | null; expiresAt: string }>>;
   createProjectPreview(input: { projectId: string; actor: string; id: string; ttlSeconds: number }): Promise<RpcResult<string>>;

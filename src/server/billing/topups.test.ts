@@ -108,6 +108,7 @@ describe("a top-up payment's webhook (signed mock deliveries)", () => {
       finish: async (_id, status, error) => (finished.push([status, error]), status),
       planForProduct: async () => null,
       orgForSubscription: async () => null,
+      startedCheckout: async () => true,
       apply: async () => "applied",
       now: () => NOW,
       paymentOf: async () => ref,

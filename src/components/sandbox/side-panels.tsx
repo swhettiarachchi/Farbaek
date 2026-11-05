@@ -55,15 +55,7 @@ export function ChecksPanel({
     setResult(null);
     try {
       const r = await client.runChecks(sessionId);
-      const verdict =
-        r.taskEvent === "mark_verified"
-          ? "Every check passed."
-          : r.taskEvent === "mark_partially_verified"
-            ? "Some checks passed."
-            : r.taskEvent === "mark_failed"
-              ? "No check passed."
-              : `Status: ${r.status.replace("_", " ")}.`;
-      setResult({ tone: "info", text: `${verdict} Receipt ${r.digest.slice(0, 12)}… recorded.${r.applied ? " The task moved on to match." : ""}` });
+      setResult({ tone: "info", text: `${r.passed} of ${r.total} ${r.total === 1 ? "check" : "checks"} passed, and that's recorded. This doesn't mark the task verified. Its own Run the checks does that, in a fresh test space nobody can change.` });
       onDone();
     } catch (e) {
       setResult({ tone: "error", text: e instanceof FarbaekApiError ? e.message : "The checks couldn't run." });
@@ -79,7 +71,7 @@ export function ChecksPanel({
         {task ? (
           <>
             <p className="mt-1 text-sm text-ink-2">
-              Linked to <span className="font-medium text-ink">{task.title}</span>. Each required check runs here with its real exit code, then Guard records a receipt. A receipt records what happened; it never allows a launch.
+              Linked to <span className="font-medium text-ink">{task.title}</span>. Each check runs here with its real exit code, and what happened is recorded. This is for trying things, so it doesn&apos;t mark the task verified. To do that, use Run the checks on the task&apos;s page, which runs them in a fresh test space nobody can change.
             </p>
             {task.checks.length ? (
               <ul className="mt-3 grid gap-1.5">

@@ -121,7 +121,7 @@ async function deps(over: { runId?: string; model?: ToolModel; state?: TaskState
       return {
         sessionId: "s1",
         stop: async () => undefined,
-        verify: over.verify === null ? undefined : async (files) => (verified.push(files), over.verify ?? { ok: true, result: "verified", receiptDigest: "r".repeat(64) }),
+        verify: over.verify === null ? undefined : async () => (verified.push([]), over.verify ?? { ok: true, result: "verified", receiptDigest: "r".repeat(64) }),
         runner: {
           where: "sandbox",
           async run(program, args, signal) {
@@ -308,9 +308,9 @@ describe("autonomy level 2 (ADR 0046)", () => {
     expect(t.proposals[0]!.policy.outcome).toBe("ALLOW_WITHIN_LIMITS");
     expect(t.applied).toEqual([{ orgId: alice.orgId, userId: alice.userId, proposalId: "proposal-1" }]);
     // Exactly the applied content goes into the check run.
-    expect(t.verified).toEqual([[{ path: "README.md", content: "# Demo\nRun the tests with pnpm test.\n" }]]);
+    expect(t.verified).toHaveLength(1);
     expect(notes(t)).toContainEqual(expect.stringMatching(/Within the limits this workspace set/));
-    expect(notes(t)).toContainEqual("Checking the applied change: running the plan's check in this run's test space.");
+    expect(notes(t)).toContainEqual("Checking the applied change: running the plan's check in a fresh test space.");
     expect(notes(t)).toContainEqual(expect.stringMatching(/^Verified\. Every check passed/));
   });
 

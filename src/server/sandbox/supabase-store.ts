@@ -310,6 +310,7 @@ export function createSupabaseSandboxStore(user: SupabaseClient | null, admin: S
           .transform((r) => ({ pid: r[0]!.pid, providerSandboxId: r[0]!.provider_sandbox_id, alreadyFinished: r[0]!.already_finished })),
       ),
 
+    reserveForVerification: (sessionId, actor) => rpc("app_reserve_sandbox_for_verification", { p_session: sessionId, p_actor: actor }, voidResult),
     touchSession: (sessionId, actor) => rpc("app_touch_sandbox_session", { p_session: sessionId, p_actor: actor }, voidResult),
 
     createPreview: (i) => rpc("app_create_sandbox_preview", { p_session: i.sessionId, p_actor: i.actor, p_id: i.id, p_port: i.port, p_ttl_seconds: i.ttlSeconds }, z.string()),

@@ -11,6 +11,13 @@ describe("verificationSetup", () => {
     expect(verificationSetup(["requirements.txt", "app.py"], none)?.command).toBe("python3 -m pip install -r requirements.txt");
   });
 
+  it("installs a Python project that declares itself, and not one with only tools' settings", () => {
+    expect(verificationSetup(["pyproject.toml"], () => "[project]\nname = \"x\"\n")?.command).toBe("python3 -m pip install .");
+    expect(verificationSetup(["pyproject.toml"], () => "[build-system]\nrequires = []\n")?.command).toBe("python3 -m pip install .");
+    expect(verificationSetup(["pyproject.toml"], () => "[tool.ruff]\nline-length = 100\n")).toBeNull();
+    expect(verificationSetup(["pyproject.toml"], () => null)).toBeNull();
+  });
+
   it("installs nothing for a project with no manifest, such as a static site", () => {
     expect(verificationSetup(["index.html", "styles.css", "scripts/check.mjs"], none)).toBeNull();
   });

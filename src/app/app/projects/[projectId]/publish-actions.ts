@@ -80,6 +80,7 @@ export async function addDomainAction(_previous: PublishState, form: FormData): 
   if (!parsed.success) return { status: "error", message: "Enter a domain, such as www.example.com." };
   const w = await writer();
   if ("error" in w) return { status: "error", message: w.error! };
+  if (!may(w.ctx.role, w.ctx.permissions, "publish")) return { status: "error", message: withheldReason("publish") };
   const site = await getSite(w.user, w.orgId, parsed.data.projectId);
   if (!site) return { status: "error", message: "Publish the site first, then connect a domain." };
   const r = await addSiteDomain(domainDeps(w.ctx, w.user, w.admin), { orgId: w.orgId, userId: w.ctx.user.id, siteId: site.id, domain: parsed.data.domain });
@@ -94,6 +95,7 @@ export async function checkDomainAction(_previous: PublishState, form: FormData)
   if (!parsed.success) return { status: "error", message: "Reload the page and try again." };
   const w = await writer();
   if ("error" in w) return { status: "error", message: w.error! };
+  if (!may(w.ctx.role, w.ctx.permissions, "publish")) return { status: "error", message: withheldReason("publish") };
   const r = await checkSiteDomain(domainDeps(w.ctx, w.user, w.admin), { orgId: w.orgId, userId: w.ctx.user.id, domainId: parsed.data.domainId });
   if (!r.ok) return { status: "error", message: r.message };
   revalidatePath(`/app/projects/${parsed.data.projectId}`);
@@ -105,6 +107,7 @@ export async function removeDomainAction(form: FormData): Promise<void> {
   if (!parsed.success) return;
   const w = await writer();
   if ("error" in w) return;
+  if (!may(w.ctx.role, w.ctx.permissions, "publish")) return;
   await removeSiteDomain(domainDeps(w.ctx, w.user, w.admin), { orgId: w.orgId, userId: w.ctx.user.id, domainId: parsed.data.domainId });
   revalidatePath(`/app/projects/${parsed.data.projectId}`);
 }

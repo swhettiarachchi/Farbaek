@@ -123,6 +123,33 @@ describe("readZip", () => {
     await expect(readZip(two, { maxFileBytes: 1_000, maxTotalBytes: 1_000 })).rejects.toMatchObject({ code: "too_big" });
   });
 
+  it("refuses entries that share one stream, which is how a small file costs gigabytes of work", async () => {
+    const zip = await buildZip([
+      { path: "a.txt", data: enc("same"), deflate: true },
+      { path: "b.txt", data: enc("same"), deflate: true },
+    ]);
+    // Point the second central-directory entry at the first file's data.
+    const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
+    let cd = 0;
+    while (view.getUint32(cd, true) !== 0x02014b50) cd += 1;
+    const second = cd + 46 + view.getUint16(cd + 28, true);
+    view.setUint32(second + 42, 0, true);
+    await expect(readZip(zip, { maxFileBytes: 1_000 })).rejects.toMatchObject({ code: "too_big" });
+  });
+
+  it("counts what it unpacks even when the file then fails its check", async () => {
+    const zip = await buildZip([
+      { path: "a.txt", data: enc("a".repeat(600)), deflate: true, crc: 1 },
+      { path: "b.txt", data: enc("b".repeat(600)), deflate: true, crc: 1 },
+    ]);
+    await expect(readZip(zip, { maxFileBytes: 1_000, maxTotalBytes: 1_000 })).rejects.toMatchObject({ code: "too_big" });
+  });
+
+  it("stops after enough entries lie about their size, instead of paying for each", async () => {
+    const liars = await buildZip([0, 1, 2, 3].map((i) => ({ path: `${i}.txt`, data: new Uint8Array(5_000), deflate: true, claimedSize: 10 })));
+    await expect(readZip(liars, { maxFileBytes: 1_000, maxTotalBytes: 2_000 })).rejects.toMatchObject({ code: "too_big" });
+  });
+
   it("refuses something that isn't a zip, and too many entries", async () => {
     await expect(readZip(enc("just text, not an archive at all"), { maxFileBytes: 1_000 })).rejects.toBeInstanceOf(ZipError);
     const many = await buildZip([0, 1, 2].map((i) => ({ path: `f${i}.txt`, data: enc(String(i)) })));

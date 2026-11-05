@@ -2,14 +2,14 @@
  * Identity and privilege abuse, and trust in approvals (ASI03, ASI08, ASI09,
  * ASI10): an approval reused for something else, sensitive changes slipping
  * through autonomy, a payment webhook forged to buy a plan, and a paired agent
- * acting past or outside its permission lease.
+ * acting past or outside its permission lease, or during the emergency pause.
  */
 import { afterEach, describe, expect, it } from "vitest";
 import { approvalBindingHash, checkApprovalForExecution, type ApprovalSubject } from "@/core/trust/approval";
 import { evaluateChangePolicy, type AutonomyLimits } from "@/core/trust/policy";
 import { leaseRefusal, type AgentLease } from "@/core/agent/lease";
 import { callModel, type GatewayDeps, type GatewayModel } from "@/server/agent/gateway";
-import { agentTask, listAgentTasks, type AgentIdentity, type AgentStore } from "@/server/agent/service";
+import { agentStopped, agentTask, listAgentTasks, type AgentIdentity, type AgentStore } from "@/server/agent/service";
 import type { AppliedState } from "@/core/billing/provider-state";
 import { createDodoClient } from "@/server/billing/providers/dodo/client";
 import { signWebhook } from "@/server/billing/providers/dodo/webhook";
@@ -172,6 +172,7 @@ describe("SE-035 A forged or replayed payment webhook", () => {
       finish: async (_id, status) => status,
       planForProduct: async () => "max_3x",
       orgForSubscription: async () => null,
+      startedCheckout: async () => true,
       apply: async (_o, _s, state) => (applied.push(state), "applied"),
       now: () => now,
     };
@@ -195,5 +196,65 @@ describe("SE-035 A forged or replayed payment webhook", () => {
     // Replayed: stored once, so it does nothing the second time.
     expect(await deliver(real, "msg_real")).toBe(200);
     expect(stored.size).toBe(1);
+  });
+});
+
+describe("SE-040 A desktop agent during the emergency pause", () => {
+  it("stops everything but saying who it is and unpairing", () => {
+    for (const brake of [{ agentsPaused: true }, { suspended: true }]) {
+      for (const need of ["read", "propose", "model", "mesh"] as const) expect(agentStopped(brake, need), need).not.toBeNull();
+      expect(agentStopped(brake, "none")).toBeNull();
+      expect(agentStopped(brake, "unpair")).toBeNull();
+    }
+    expect(agentStopped({ agentsPaused: false, suspended: false, mayRunAgents: true }, "model")).toBeNull();
+  });
+
+  it("stops model calls for someone an owner turned running agents off for", () => {
+    expect(agentStopped({ mayRunAgents: false }, "model")).toMatchObject({ code: "FORBIDDEN" });
+    expect(agentStopped({ mayRunAgents: false }, "read")).toBeNull();
+  });
+});
+
+describe("SE-041 A subscription naming someone else's workspace", () => {
+  const victim = "00000000-0000-4000-8000-0000000000f2";
+  const MINE = "00000000-0000-4000-8000-0000000000f3";
+  const now = new Date("2026-11-03T09:00:00Z");
+  const secret = `whsec_${Buffer.from("mock-secret-for-the-security-eval").toString("base64")}`;
+
+  async function deliver(over: Pick<WebhookDeps, "orgForSubscription" | "startedCheckout">) {
+    const applied: string[] = [];
+    const deps: WebhookDeps = {
+      config: { provider: "dodo", mode: "test", apiKey: "mock", webhookKey: secret, baseUrl: "https://test.dodopayments.com", testWorkspaces: new Set([victim, MINE]), siteUrl: "https://www.farbaek.com" },
+      provider: createDodoClient({
+        apiKey: "mock",
+        baseUrl: "https://test.dodopayments.com",
+        mode: "test",
+        fetch: async () =>
+          new Response(JSON.stringify({ subscription_id: "sub_mock", status: "active", product_id: "pdt_mock", created_at: now.toISOString(), next_billing_date: "2026-12-03T09:00:00Z", customer: { customer_id: "cus_mock" }, metadata: { farbaek_org: victim } }), { status: 200, headers: { "content-type": "application/json" } }),
+      }),
+      record: async (e) => e.webhookId,
+      claim: async (_l, id) => (id ? [{ id, mode: "test", type: "subscription.active", subscriptionId: "sub_mock", orgId: victim, attempts: 1 }] : []),
+      finish: async (_id, status) => status,
+      planForProduct: async () => "max_3x",
+      apply: async (org) => (applied.push(org), "applied"),
+      now: () => now,
+      ...over,
+    };
+    const body = JSON.stringify({ type: "subscription.active", timestamp: now.toISOString(), data: { subscription_id: "sub_mock", status: "active", metadata: { farbaek_org: victim } } });
+    const signature = `v1,${signWebhook("msg_sub", now.getTime() / 1000, body, secret)}`;
+    const later: (() => Promise<void>)[] = [];
+    const headers = { "webhook-id": "msg_sub", "webhook-timestamp": String(now.getTime() / 1000), "webhook-signature": signature };
+    await receiveWebhook(new Request("https://www.farbaek.com/api/webhooks/dodo", { method: "POST", headers, body }), deps, (w) => later.push(w));
+    for (const w of later) await w();
+    return applied;
+  }
+
+  it("gives a named workspace nothing unless its owner or admin started that checkout", async () => {
+    expect(await deliver({ orgForSubscription: async () => null, startedCheckout: async () => false })).toEqual([]);
+    expect(await deliver({ orgForSubscription: async () => null, startedCheckout: async () => true })).toEqual([victim]);
+  });
+
+  it("keeps a subscription on the workspace that has it", async () => {
+    expect(await deliver({ orgForSubscription: async () => MINE, startedCheckout: async () => true })).toEqual([MINE]);
   });
 });

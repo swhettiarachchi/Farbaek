@@ -7,13 +7,14 @@ import { buttonClasses } from "@/components/ui/button";
 
 const IDLE: FormState = { status: "idle" };
 
-export type DeletionRow = { orgId: string; orgName: string; outcome: "deleted" | "left" | "blocked_last_owner" | "blocked_paid"; words: string };
+export type DeletionRow = { orgId: string; orgName: string; outcome: "deleted" | "left" | "blocked_last_owner" | "blocked_paid" | "blocked_review"; words: string };
 
 const ICON = {
   deleted: <TrashIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-failed" aria-hidden />,
   left: <SignOutIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-ink-2" aria-hidden />,
   blocked_last_owner: <WarningCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-approval" aria-hidden />,
   blocked_paid: <WarningCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-approval" aria-hidden />,
+  blocked_review: <WarningCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-approval" aria-hidden />,
 };
 
 /**

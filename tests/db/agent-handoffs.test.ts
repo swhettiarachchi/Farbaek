@@ -89,6 +89,16 @@ describe("handing a task to a computer", () => {
     await expect(request(task, await newAgent(), proposal)).resolves.toMatch(/[0-9a-f-]{36}/);
   });
 
+  it("only goes to a computer the person paired themselves, since it runs the project's code there (ADR 0175)", async () => {
+    await admin("insert into public.organization_members (org_id, user_id, role) values ($1, $2, 'member') on conflict do nothing", [org, USERS.bob]);
+    const { task, proposal } = await pending("Someone else's computer");
+    const alices = await newAgent();
+    await expect(request(task, alices, proposal, USERS.bob)).rejects.toThrow(/AGENT_NOT_FOUND/);
+    const bobs = (await admin<{ id: string }>("insert into public.agents (org_id, name, platform, token_sha256, paired_by) values ($1, 'Bob laptop', 'windows', $2, $3) returning id", [org, H("9"), USERS.bob]))[0]!.id;
+    await expect(request(task, bobs, proposal, USERS.bob)).resolves.toMatch(/[0-9a-f-]{36}/);
+    await admin("delete from public.organization_members where org_id = $1 and user_id = $2", [org, USERS.bob]);
+  });
+
   it("refuses outsiders, revoked or foreign computers, a change that isn't waiting, and bad checks", async () => {
     const { task, proposal } = await pending("Refused");
     const agent = await newAgent();

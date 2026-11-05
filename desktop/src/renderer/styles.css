@@ -578,6 +578,11 @@ pre {
   font-size: 13.5px;
   white-space: pre-wrap;
   word-break: break-all;
+  /* All of it: an approval approves this exact command (ADR 0175). */
+  max-height: 16rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* Run steps */

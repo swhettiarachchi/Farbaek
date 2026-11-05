@@ -5,7 +5,7 @@
  *
  *   FARBAEK_SMOKE_BASE_URL       e.g. http://localhost:3000
  *   FARBAEK_SMOKE_ACCESS_TOKEN   a signed-in person's Supabase access token
- *   FARBAEK_SMOKE_WORKSPACE      optional workspace id
+ *   FARBAEK_SMOKE_WORKSPACE      optional workspace id, on Lite or up: a token is the developer API (ADR 0175)
  *
  * It starts a small session with no network, runs one harmless command,
  * reads its recorded output back, and stops the session.

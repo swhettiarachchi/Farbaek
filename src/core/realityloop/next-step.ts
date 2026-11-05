@@ -38,6 +38,8 @@ export interface NextStepFacts {
   sandboxed: boolean;
   /** The checks are running right now. */
   checking: boolean;
+  /** The last run couldn't count as proof, because a project file changed after the change went in (ADR 0175). */
+  lastCheckUnverified?: boolean;
   /** How many checks this change has to pass. */
   checks: number;
   /** The agent can be asked to fix what failed. */
@@ -211,6 +213,14 @@ function stepFor(facts: NextStepFacts): NextStep {
           title: "The change is in your project",
           body: "This plan lists no checks, so nothing can confirm it worked. Have a look at the result, or undo it.",
           action: { label: "Open the project", target: "project" },
+        };
+      }
+      if (facts.lastCheckUnverified) {
+        return {
+          tone: "idle",
+          title: "The checks ran, but they can't prove this change",
+          body: "A file in the project changed after this change was applied, so passing checks can't mark it verified. You can carry on: start a new task for your next change, or undo this one.",
+          action: undoOr(facts),
         };
       }
       return {

@@ -8,9 +8,10 @@
  */
 import { checkLeaseInput, type LeaseInput } from "@/core/agent/lease";
 import { resolveEffectivePlan } from "@/core/billing/trial";
+import type { WithheldPermissions } from "@/core/workspace/permissions";
 import { PAIRING_MINUTES, newPairingCode, normalizePairingCode, sha256 } from "@/server/agent/tokens";
 import { CONTRIBUTOR_ROLES } from "./types";
-import { codeFromDatabaseError, fail, type RpcResult, type WriteDeps, type WriteResult } from "./use-cases";
+import { codeFromDatabaseError, fail, requirePermission, type RpcResult, type WriteDeps, type WriteResult } from "./use-cases";
 
 export interface AgentAdminDeps {
   createAgentPairing(input: { orgId: string; actor: string; codeSha256: string; expiresAt: string; agentLimit: number | null }): Promise<RpcResult<string>>;
@@ -19,10 +20,12 @@ export interface AgentAdminDeps {
   setAgentLease(input: LeaseInput & { agentId: string; actor: string }): Promise<RpcResult<string>>;
 }
 
-export async function createAgentPairing(deps: WriteDeps & AgentAdminDeps, input: { orgId: string; userId: string }): Promise<WriteResult<{ code: string; expiresAt: string }>> {
+export async function createAgentPairing(deps: WriteDeps & AgentAdminDeps, input: { orgId: string; userId: string; permissions?: WithheldPermissions }): Promise<WriteResult<{ code: string; expiresAt: string }>> {
   const role = await deps.role(input.orgId);
   if (!role) return fail("NOT_FOUND");
   if (!CONTRIBUTOR_ROLES.includes(role)) return fail("FORBIDDEN", "Viewers can't pair agents, since agents suggest changes.");
+  const allowed = requirePermission(role, input.permissions ?? {}, "run_agents");
+  if (!allowed.ok) return allowed;
   const snapshot = await deps.billing(input.orgId);
   if (!snapshot) return fail("ENTITLEMENT_UNAVAILABLE");
   const plan = resolveEffectivePlan(snapshot, deps.now());
