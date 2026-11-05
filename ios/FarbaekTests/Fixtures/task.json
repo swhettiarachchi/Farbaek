@@ -11,6 +11,15 @@
       "createdAt": "2026-10-29T08:00:00.000Z",
       "updatedAt": "2026-10-29T11:25:42.857Z"
     },
+    "nextStep": {
+      "tone": "action",
+      "title": "The agent finished. Check what changed, then approve",
+      "body": "Nothing goes into your project until you approve it.",
+      "action": {
+        "label": "Review the change",
+        "target": "change"
+      }
+    },
     "stages": [
       {
         "key": "contract",

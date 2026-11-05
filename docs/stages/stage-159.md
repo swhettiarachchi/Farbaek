@@ -77,6 +77,6 @@ The research's runtime 3D checks on a mid-range phone also remain open.
 
 ## Next
 
-- **After the merge, on production in Chrome:** the Seal on a real verified task, and no policy violations.
+- **Checked after the merge (2026-11-05), on production in Chrome:** the Seal leads a real verified task, 128 px and drawn from its real digest, with no console errors or policy violations. #203's Report this result opens the abuse form pre-filled; nothing was sent.
 - **For the owner, in normal use:** the next publish and the next run's end are the first real look at those moments.
 - **Stage 160 on:** the iPhone, the biggest remaining gap.

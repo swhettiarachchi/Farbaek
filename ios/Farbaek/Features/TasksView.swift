@@ -70,7 +70,101 @@ struct TasksView: View {
     }
 }
 
-/// A task's story: its lifecycle, the change and its evidence, its runs and every transition.
+/// The next step on a task, first thing on its page (ADR 0173), in the web's own words. Its tone has its
+/// own symbol and word, so status never relies on colour alone.
+struct NextStepCard: View {
+    let step: NextStep
+    let detail: TaskDetail
+    @Environment(AppModel.self) private var model
+
+    private var word: String {
+        switch step.tone {
+        case "action": return "Your turn"
+        case "working": return "In progress"
+        case "done": return "Done"
+        case "problem": return "Needs attention"
+        default: return "For your information"
+        }
+    }
+
+    private var symbol: String {
+        switch step.tone {
+        case "action": return "pencil.line"
+        case "working": return "hourglass"
+        case "done": return "checkmark.seal.fill"
+        case "problem": return "exclamationmark.triangle.fill"
+        default: return "info.circle"
+        }
+    }
+
+    private var color: Color {
+        switch step.tone {
+        case "action": return Palette.accent
+        case "working": return Palette.info
+        case "done": return Palette.verified
+        case "problem": return Palette.failed
+        default: return Palette.ink2
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label(word, systemImage: symbol)
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(color)
+            Text(step.title)
+                .font(.title3.weight(.medium))
+                .tracking(-0.3)
+                .foregroundStyle(Palette.ink)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+            Text(step.body)
+                .font(.subheadline)
+                .foregroundStyle(Palette.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+            if let action = step.action { button(action) }
+        }
+        .panel()
+    }
+
+    @ViewBuilder private func button(_ action: NextStep.Action) -> some View {
+        switch action.target {
+        case "plan":
+            NavigationLink(value: Destination.plan(detail.task.id)) { Text(action.label) }
+                .buttonStyle(PillButtonStyle(kind: .accent))
+        case "change":
+            NavigationLink(value: Destination.approval(detail.task.id)) { Text(action.label) }
+                .buttonStyle(PillButtonStyle(kind: .accent))
+        case "project":
+            NavigationLink(value: Destination.project(detail.task.projectId)) { Text(action.label) }
+                .buttonStyle(PillButtonStyle(kind: .secondary))
+        case "run":
+            if let live = detail.runs.first(where: { $0.live }) {
+                NavigationLink(value: Destination.run(live.id)) { Text(action.label) }
+                    .buttonStyle(PillButtonStyle(kind: step.tone == "action" ? .accent : .secondary))
+            } else {
+                // It ended between the two reads: the web always has the task. Never a card with no way on.
+                onTheWeb(action)
+            }
+        default:
+            onTheWeb(action)
+        }
+    }
+
+    /// A sample's task doesn't exist on the web, so the sample says where this step would be.
+    @ViewBuilder private func onTheWeb(_ action: NextStep.Action) -> some View {
+        if model.isSample {
+            Notice(text: "With your own project, this step opens on the web.", symbol: "safari")
+        } else {
+            Link(destination: AppConfig.site("app/tasks/\(detail.task.id)")) {
+                Label(action.label, systemImage: "safari")
+            }
+            .buttonStyle(PillButtonStyle(kind: .secondary))
+        }
+    }
+}
+
+/// A task's story: its next step, its progress, the change and its proof, its runs and every transition.
 struct TaskDetailView: View {
     let taskId: String
     @Environment(AppModel.self) private var model
@@ -85,18 +179,23 @@ struct TaskDetailView: View {
                         Text(detail.task.title).font(.title2.weight(.medium)).tracking(-0.4).foregroundStyle(Palette.ink)
                         Text(detail.task.projectName).font(.subheadline).foregroundStyle(Palette.ink2)
                         StatusBadge(label: detail.task.stateLabel, tone: Tone(detail.task.tone))
-                        next(detail)
                     }
-                    .panel()
+
+                    if let step = detail.nextStep { NextStepCard(step: step, detail: detail) }
 
                     lifecycle(detail.stages)
                     if !detail.proofs.isEmpty || detail.verification != nil { evidence(detail) }
                     if !detail.runs.isEmpty { runs(detail.runs) }
                     history(detail.history)
-                    Link(destination: AppConfig.site("app/tasks/\(taskId)")) {
-                        Label("Open on the web", systemImage: "safari")
+                    if !model.isSample {
+                        Link(destination: AppConfig.site("app/tasks/\(taskId)")) {
+                            Label("Open on the web", systemImage: "safari")
+                                .frame(minHeight: 44, alignment: .leading)
+                                .contentShape(Rectangle())
+                        }
+                        .font(.subheadline.weight(.medium))
                     }
-                    .font(.subheadline.weight(.medium))
+                    ReportLink(subject: .task(taskId))
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 24)
@@ -109,29 +208,9 @@ struct TaskDetailView: View {
         .task(id: model.revision) { await read() }
     }
 
-    /// The one thing to do next, when there is one.
-    @ViewBuilder private func next(_ detail: TaskDetail) -> some View {
-        if detail.task.state == "APPROVAL_PENDING", detail.proposal?.status == "pending" {
-            NavigationLink(value: Destination.approval(taskId)) {
-                Label("Review the change", systemImage: "checkmark.seal")
-            }
-            .buttonStyle(PillButtonStyle(kind: .accent))
-        } else if detail.task.state == "CONTRACT_DRAFTED" {
-            NavigationLink(value: Destination.plan(taskId)) {
-                Label("Review the plan", systemImage: "doc.text.magnifyingglass")
-            }
-            .buttonStyle(PillButtonStyle(kind: .accent))
-        } else if let live = detail.runs.first(where: { $0.live }) {
-            NavigationLink(value: Destination.run(live.id)) {
-                Label("Watch the agent", systemImage: "dot.radiowaves.left.and.right")
-            }
-            .buttonStyle(PillButtonStyle(kind: .secondary))
-        }
-    }
-
     private func lifecycle(_ stages: [LifecycleStage]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            SectionTitle("Lifecycle")
+            SectionTitle("Progress")
             ForEach(stages, id: \.self) { stage in
                 HStack(alignment: .top, spacing: 12) {
                     Image(systemName: Tone(stage.status).symbol)
@@ -150,7 +229,7 @@ struct TaskDetailView: View {
 
     private func evidence(_ detail: TaskDetail) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            SectionTitle("Evidence")
+            SectionTitle("Proof")
             if let v = detail.verification {
                 let result = v.result ?? (v.status == "running" ? "running" : v.status)
                 Label {
@@ -164,10 +243,7 @@ struct TaskDetailView: View {
             ForEach(detail.proofs, id: \.self) { proof in
                 HStack(spacing: 10) {
                     Image(systemName: "seal").foregroundStyle(Palette.seal)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("ProofPack").font(.subheadline).foregroundStyle(Palette.ink)
-                        HashText(sha: proof.digest)
-                    }
+                    Text("ProofPack").font(.subheadline).foregroundStyle(Palette.ink)
                     Spacer()
                     StatusBadge(label: Self.proofWords(proof.status), tone: Tone(Self.tone(proof.status)))
                 }

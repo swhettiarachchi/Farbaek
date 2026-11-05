@@ -14,7 +14,7 @@ struct ApprovalsView: View {
                         ContentUnavailableView {
                             Label("Nothing waits for you", systemImage: "checkmark.seal")
                         } description: {
-                            Text("Changes appear here when the agent proposes one under an approved plan.")
+                            Text("Changes appear here when the agent suggests one under an approved plan.")
                         }
                         .frame(minHeight: 360)
                     } else {
@@ -129,6 +129,7 @@ struct ApprovalDetailView: View {
                     if let outcome {
                         Notice(text: outcome, tone: .verified, symbol: "checkmark.circle.fill").card()
                     }
+                    ReportLink(subject: .task(taskId))
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 140)
@@ -143,7 +144,7 @@ struct ApprovalDetailView: View {
         .confirmationDialog("Discard this change?", isPresented: $confirmDiscard, titleVisibility: .visible) {
             Button("Discard the change", role: .destructive) { Task { await discard() } }
         } message: {
-            Text("Nothing is applied. The agent can propose again under the same plan.")
+            Text("Nothing is applied. The agent can suggest another under the same plan.")
         }
         .refreshable { await read() }
         .task { await read() }
@@ -190,7 +191,7 @@ struct ApprovalDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionTitle("Before you approve")
             if let policy = proposal.policy {
-                Label("Policy: \(Self.policyWords(policy.outcome))", systemImage: policy.outcome == "ESCALATE" ? "person.badge.shield.checkmark" : "shield.lefthalf.filled")
+                Label("Rules: \(Self.policyWords(policy.outcome))", systemImage: policy.outcome == "ESCALATE" ? "person.badge.shield.checkmark" : "shield.lefthalf.filled")
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(policy.outcome == "ESCALATE" ? Palette.approval : Palette.ink)
                 ForEach(policy.findings, id: \.self) { finding in
@@ -253,7 +254,7 @@ struct ApprovalDetailView: View {
         switch outcome {
         case "ALLOW_WITHIN_LIMITS": return "within the workspace's limits"
         case "REQUIRE_APPROVAL": return "needs a person"
-        case "ESCALATE": return "escalated to an owner or admin"
+        case "ESCALATE": return "needs an owner or admin"
         case "BLOCK": return "blocked"
         default: return outcome.lowercased().replacingOccurrences(of: "_", with: " ")
         }

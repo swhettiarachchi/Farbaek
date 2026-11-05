@@ -79,6 +79,15 @@ final class FarbaekTests: XCTestCase {
         XCTAssertGreaterThan(plan.task.version, 0)
     }
 
+    func testDecodesAProjectAndATasksNextStep() throws {
+        let project = try fixture("project", as: ProjectDetail.self)
+        XCTAssertFalse(project.tasks.isEmpty)
+        XCTAssertNil(project.address)
+        let task = try fixture("task", as: TaskDetail.self)
+        XCTAssertEqual(task.nextStep?.tone, "action")
+        XCTAssertEqual(task.nextStep?.action?.target, "change")
+    }
+
     func testDecodesARunWaitingOnAQuestion() throws {
         let run = try fixture("run", as: RunDetail.self)
         XCTAssertTrue(run.run.live)

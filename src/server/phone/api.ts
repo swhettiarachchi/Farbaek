@@ -23,8 +23,9 @@ import type { AppContext } from "@/server/workspace/context";
 import { MANAGER_ROLES } from "@/server/workspace/types";
 import { authenticate, connectFromBrowser, exchangeCode, refreshPhone, signInWithApple, type PhoneAuthDeps, type PhoneCaller } from "./auth";
 import { PUSH_TOKEN_PATTERN } from "./tokens";
-import { approvalView, approvalsView, homeView, isTaskFilter, meView, planView, projectsView, runDetail, taskView, tasksView, type BillingFacts, type RunReader } from "./views";
+import { approvalView, approvalsView, homeView, isTaskFilter, meView, planView, projectView, projectsView, runDetail, taskView, tasksView, type BillingFacts, type RunReader } from "./views";
 import { readTextCapped } from "@/server/http/body";
+import { reportPrefill } from "@/core/support/support";
 
 export type PhoneOutcome<T> = { ok: true; value: T } | { ok: false; status: number; code: string; message: string };
 
@@ -47,6 +48,8 @@ export interface PhoneWrites {
   signOut(caller: PhoneCaller): Promise<"signed_out" | "refused" | "not_found">;
   /** The person's first workspace, "My workspace", made the way the web's build box makes it (the database applies the trial rules). */
   createWorkspace(caller: PhoneCaller): Promise<PhoneOutcome<{ workspaceId: string }>>;
+  /** Someone reporting what the AI made (ADR 0173), as the person. It goes in with the abuse topic, whatever the workspace's state. */
+  report(caller: PhoneCaller, input: { orgId: string; subject: string; body: string }): Promise<PhoneOutcome<{ requestId: string }>>;
   /** A purchase the app made with Apple's In-App Purchase (ADR 0112): its signed transaction. */
   appleTransaction(p: PhonePerson, jws: string): Promise<PhoneOutcome<{ state: string; planId: string | null; paidThrough: string | null }>>;
 }
@@ -57,8 +60,8 @@ export interface PhoneApiDeps {
   siteOrigin: string;
   /** The person signed in in this browser, for the connect form. */
   browserUser(): Promise<string | null>;
-  live(caller: PhoneCaller, workspaceId: string | null): Promise<{ ctx: AppContext; runs: RunReader }>;
-  sample(): Promise<{ ctx: AppContext; runs: RunReader }>;
+  live(caller: PhoneCaller, workspaceId: string | null): Promise<{ ctx: AppContext; runs: RunReader; liveAddress?: (projectId: string) => Promise<string | null> }>;
+  sample(): Promise<{ ctx: AppContext; runs: RunReader; liveAddress?: (projectId: string) => Promise<string | null> }>;
   execution(): { mode: string; reason?: string };
   writes: PhoneWrites;
   pushAvailable(): boolean;
@@ -79,6 +82,7 @@ interface Scope {
   url: URL;
   ctx: AppContext;
   runs: RunReader;
+  liveAddress?: (projectId: string) => Promise<string | null>;
   caller: PhoneCaller | null;
   deps: PhoneApiDeps;
 }
@@ -99,6 +103,9 @@ interface Route {
   anyWorkspace?: boolean;
   run: Handler;
 }
+
+/** Longer than this and it's a support conversation, which the web's Help is for. */
+export const REPORT_REASON_MAX = 1_000;
 
 const SAMPLE_READ_ONLY = "This is sample data, so nothing here can change. Sign in to approve and build for real.";
 const ok = (data: unknown, status = 200) => json({ data }, status);
@@ -215,7 +222,7 @@ const ROUTES: Route[] = [
       const org = orgOf(s);
       if (typeof org !== "string") return org;
       if (!Uuid.safeParse(s.params.taskId).success) return notFound("task");
-      const view = await taskView(s.ctx.reader, org, s.params.taskId!, s.runs);
+      const view = await taskView(s.ctx, org, s.params.taskId!, s.runs, s.deps.execution(), s.deps.now());
       return view ? ok(view) : notFound("task");
     },
   },
@@ -317,6 +324,38 @@ const ROUTES: Route[] = [
     run: async (s) => {
       const org = orgOf(s);
       return typeof org === "string" ? ok(await projectsView(s.ctx.reader, org)) : org;
+    },
+  },
+  {
+    method: "GET",
+    path: "projects/:projectId",
+    run: async (s) => {
+      const org = orgOf(s);
+      if (typeof org !== "string") return org;
+      if (!Uuid.safeParse(s.params.projectId).success) return notFound("project");
+      const view = await projectView(s.ctx.reader, org, s.params.projectId!, s.liveAddress);
+      return view ? ok(view) : notFound("project");
+    },
+  },
+  {
+    // Not a workspace write: a viewer can report, and so can anyone in a paused workspace. The record's name is read
+    // as the person, so nothing typed names it, and another workspace's record is simply not found.
+    method: "POST",
+    path: "reports",
+    run: async (s) => {
+      if (!s.caller) return problem(403, "SAMPLE_READ_ONLY", SAMPLE_READ_ONLY);
+      const org = orgOf(s);
+      if (typeof org !== "string") return org;
+      const raw = await body(s.request);
+      const parsed = z.object({ taskId: Uuid.optional(), projectId: Uuid.optional(), reason: z.string().trim().min(1).max(REPORT_REASON_MAX) }).safeParse(raw);
+      if (!parsed.success || Boolean(parsed.data.taskId) === Boolean(parsed.data.projectId)) return badBody();
+      const { taskId, projectId, reason } = parsed.data;
+      const about = taskId ? (await s.ctx.reader.getTask(org, taskId))?.task : await s.ctx.reader.getProject(org, projectId!);
+      if (!about) return notFound(taskId ? "task" : "project");
+      const opening = taskId
+        ? reportPrefill({ name: (about as { title: string }).title, path: `/app/tasks/${taskId}` })
+        : reportPrefill({ name: (about as { name: string }).name, path: `/app/projects/${projectId}` });
+      return fromOutcome(await s.deps.writes.report(s.caller, { orgId: org, subject: opening.subject, body: `${opening.body}${reason}` }), 201);
     },
   },
   {
@@ -443,8 +482,8 @@ export async function handlePhoneApi(request: Request, segments: readonly string
   if (sample) {
     if (route.write || method !== "GET") return problem(403, "SAMPLE_READ_ONLY", SAMPLE_READ_ONLY);
     if (deps.auth && !(await deps.auth.store.rateLimit(`phone-sample:${deps.clientKey(request)}`, 60, 120))) return problem(429, "RATE_LIMITED", "Too many requests in the last minute.");
-    const { ctx, runs } = await deps.sample();
-    return route.run({ request, params, url: new URL(request.url), ctx, runs, caller: null, deps });
+    const { ctx, runs, liveAddress } = await deps.sample();
+    return route.run({ request, params, url: new URL(request.url), ctx, runs, liveAddress, caller: null, deps });
   }
 
   if (!deps.auth) return problem(503, "NOT_CONFIGURED", "Accounts aren't configured on this server.");
@@ -454,7 +493,7 @@ export async function handlePhoneApi(request: Request, segments: readonly string
     return problem(409, "REFRESH_FIRST", "Your sign-in needs refreshing before the agent starts. The app does this by itself; try again.");
   }
   const workspace = request.headers.get("x-farbaek-workspace");
-  const { ctx, runs } = await deps.live(caller.value, workspace && Uuid.safeParse(workspace).success ? workspace : null);
+  const { ctx, runs, liveAddress } = await deps.live(caller.value, workspace && Uuid.safeParse(workspace).success ? workspace : null);
   if (workspace && ctx.current?.id !== workspace && !route.anyWorkspace) return problem(404, "NOT_FOUND", "That workspace doesn't exist or you're not a member.");
-  return route.run({ request, params, url: new URL(request.url), ctx, runs, caller: caller.value, deps });
+  return route.run({ request, params, url: new URL(request.url), ctx, runs, liveAddress, caller: caller.value, deps });
 }

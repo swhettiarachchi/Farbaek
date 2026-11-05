@@ -122,7 +122,7 @@ struct PlansView: View {
         failure = nil
         done = nil
         guard let token = model.me?.billing?.accountToken, let workspace = UUID(uuidString: token) else {
-            failure = "Farbaek couldn't tell which workspace this is for. Pull to refresh on Today, then try again."
+            failure = "Farbaek couldn't tell which workspace this is for. Pull to refresh on Home, then try again."
             return
         }
         working = product.id

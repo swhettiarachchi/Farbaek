@@ -227,6 +227,19 @@ struct HistoryItem: Decodable, Identifiable, Hashable {
     let at: String
 }
 
+/// The next step on a task, in the web's own words (ADR 0173). The target says where its button goes.
+struct NextStep: Decodable, Hashable {
+    struct Action: Decodable, Hashable {
+        let label: String
+        let target: String
+    }
+
+    let tone: String
+    let title: String
+    let body: String
+    let action: Action?
+}
+
 struct TaskDetail: Decodable {
     struct Contract: Decodable {
         let version: Int
@@ -253,6 +266,8 @@ struct TaskDetail: Decodable {
         let finishedAt: String?
     }
     let task: TaskItem
+    /// Optional, so the app still reads an older server.
+    let nextStep: NextStep?
     let stages: [LifecycleStage]
     let history: [HistoryItem]
     let contract: Contract?
@@ -350,6 +365,17 @@ struct ProjectItem: Decodable, Identifiable, Hashable {
     let description: String?
     let createdAt: String
     let archived: Bool
+}
+
+/// A project, its tasks, and its address when it's live.
+struct ProjectDetail: Decodable {
+    let project: ProjectItem
+    let tasks: [TaskItem]
+    let address: String?
+}
+
+struct ReportSent: Decodable {
+    let requestId: String
 }
 
 struct Listing<T: Decodable>: Decodable {

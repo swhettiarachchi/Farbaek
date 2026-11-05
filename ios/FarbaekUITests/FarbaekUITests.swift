@@ -20,9 +20,9 @@ final class FarbaekUITests: XCTestCase {
         app.launchArguments = ["-FarbaekSample"]
         app.launch()
 
-        XCTAssertTrue(app.navigationBars["Today"].waitForExistence(timeout: 30), "Today didn't open")
+        XCTAssertTrue(app.navigationBars["Home"].waitForExistence(timeout: 30), "Home didn't open")
         XCTAssertTrue(app.buttons["Review"].waitForExistence(timeout: 20), "The waiting changes didn't load")
-        snap(app, "1-today")
+        snap(app, "1-home")
 
         app.tabBars.buttons["Approvals"].tap()
         XCTAssertTrue(app.navigationBars["Approvals"].waitForExistence(timeout: 10))
@@ -40,13 +40,25 @@ final class FarbaekUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Build"].waitForExistence(timeout: 10))
         snap(app, "4-build")
 
-        app.tabBars.buttons["Tasks"].tap()
-        XCTAssertTrue(app.navigationBars["Tasks"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["Reject fractional quantities in the cart"].waitForExistence(timeout: 20))
-        snap(app, "5-tasks")
+        app.tabBars.buttons["Projects"].tap()
+        XCTAssertTrue(app.navigationBars["Projects"].waitForExistence(timeout: 10))
+        let project = app.staticTexts["Storefront"].firstMatch
+        XCTAssertTrue(project.waitForExistence(timeout: 20), "The sample projects didn't load")
+        snap(app, "5-projects")
+
+        project.tap()
+        XCTAssertTrue(app.navigationBars["Project"].waitForExistence(timeout: 10))
+        let task = app.staticTexts["Reject fractional quantities in the cart"].firstMatch
+        XCTAssertTrue(task.waitForExistence(timeout: 20), "The project's tasks didn't load")
+        snap(app, "6-project")
+
+        task.tap()
+        let next = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "The agent finished")).firstMatch
+        XCTAssertTrue(next.waitForExistence(timeout: 20), "The task didn't say what to do next")
+        snap(app, "7-task")
 
         app.tabBars.buttons["You"].tap()
         XCTAssertTrue(app.navigationBars["You"].waitForExistence(timeout: 10))
-        snap(app, "6-you")
+        snap(app, "8-you")
     }
 }

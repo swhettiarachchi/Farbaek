@@ -96,12 +96,12 @@ jobs:
             echo "Built for the simulator and its unit tests passed on $(xcodebuild -version | head -1)."
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # The tour reads the sample from www.farbaek.com, so it waits until the server has the phone API.
+      # The tour reads the sample from www.farbaek.com, so it waits until the server has the newest route it walks.
       - name: Tour the sample and take screenshots
         run: |
           set -euo pipefail
-          if ! curl -fsS -o /dev/null https://www.farbaek.com/api/v1/app/sample/me; then
-            echo "::notice::www.farbaek.com doesn't answer /api/v1/app/sample yet, so the UI tour didn't run."
+          if ! curl -fsS -o /dev/null https://www.farbaek.com/api/v1/app/sample/projects/00000000-0000-4000-8000-00000000a001; then
+            echo "::notice::www.farbaek.com doesn't answer the sample's projects yet, so the UI tour didn't run. Start it with Run workflow once the server is live."
             exit 0
           fi
           xcodebuild test \

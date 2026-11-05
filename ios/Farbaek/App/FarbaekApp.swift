@@ -88,7 +88,7 @@ struct MainTabs: View {
             NavigationStack(path: $model.todayPath) {
                 TodayView().withDestinations()
             }
-            .tabItem { Label("Today", systemImage: "sun.horizon") }
+            .tabItem { Label("Home", systemImage: "house") }
             .tag(AppTab.today)
 
             NavigationStack(path: $model.approvalsPath) {
@@ -104,11 +104,11 @@ struct MainTabs: View {
             .tabItem { Label("Build", systemImage: "hammer") }
             .tag(AppTab.build)
 
-            NavigationStack(path: $model.tasksPath) {
-                TasksView().withDestinations()
+            NavigationStack(path: $model.projectsPath) {
+                ProjectsView().withDestinations()
             }
-            .tabItem { Label("Tasks", systemImage: "list.bullet.rectangle") }
-            .tag(AppTab.tasks)
+            .tabItem { Label("Projects", systemImage: "folder") }
+            .tag(AppTab.projects)
 
             NavigationStack {
                 YouView()
@@ -127,6 +127,8 @@ extension View {
             case .task(let taskId): TaskDetailView(taskId: taskId)
             case .plan(let taskId): PlanReviewView(taskId: taskId)
             case .run(let runId): RunView(runId: runId)
+            case .project(let projectId): ProjectDetailView(projectId: projectId)
+            case .tasks: TasksView()
             }
         }
     }

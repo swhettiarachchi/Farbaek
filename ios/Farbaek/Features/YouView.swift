@@ -6,6 +6,31 @@ struct YouView: View {
     @State private var confirmSignOut = false
     @State private var showPlans = false
     @State private var manageSubscription = false
+    @State private var aiAllowed = AIConsent.given
+
+    /// Everything else Farbaek does, with the web's own words (ADR 0173). Billing is deliberately not here.
+    private struct WebTool: Identifiable {
+        let title: String
+        let about: String
+        let path: String
+        let symbol: String
+
+        var id: String { path }
+    }
+
+    private static let webTools: [WebTool] = [
+        WebTool(title: "Test space", about: "Run an app and try it, safely apart from everything else.", path: "app/sandbox", symbol: "terminal"),
+        WebTool(title: "Desktop app", about: "Let the agent work on your own computer.", path: "app/agents", symbol: "desktopcomputer"),
+        WebTool(title: "Move projects", about: "Send a project to another computer or workspace as one file.", path: "app/mesh", symbol: "shippingbox"),
+        WebTool(title: "Workflows", about: "A bigger goal, done step by step.", path: "app/workflows", symbol: "arrow.triangle.branch"),
+        WebTool(title: "Rules", about: "What needs a person's approval before it changes.", path: "app/policies", symbol: "checklist"),
+        WebTool(title: "Problems and pause", about: "What went wrong, and a button that stops every agent.", path: "app/incidents", symbol: "exclamationmark.triangle"),
+        WebTool(title: "History", about: "Everything that has happened in this workspace.", path: "app/activity", symbol: "clock.arrow.circlepath"),
+        WebTool(title: "Connections", about: "GitHub, hosting and the other services you've linked.", path: "app/integrations", symbol: "link"),
+        WebTool(title: "Who can do what", about: "See who and what can change each project.", path: "app/trust", symbol: "person.2"),
+        WebTool(title: "Settings", about: "Your workspace, and the people in it.", path: "app/settings", symbol: "gearshape"),
+        WebTool(title: "Help and support", about: "Ask a question or report a problem, and read the replies.", path: "app/help", symbol: "lifepreserver"),
+    ]
 
     var body: some View {
         List {
@@ -82,6 +107,37 @@ struct YouView: View {
 
             if !model.isSample { notifications }
 
+            if !model.isSample {
+                Section {
+                    Toggle("Allow AI to work on my builds", isOn: $aiAllowed)
+                } header: {
+                    Text("AI")
+                } footer: {
+                    Text("What you write and your project's files go to Anthropic (Claude) or Google (Gemini) to plan and build. Turned off, nothing more is sent from this iPhone. A run that's already going keeps working until it ends or you stop it.")
+                }
+            }
+
+            Section {
+                ForEach(Self.webTools) { tool in
+                    Link(destination: AppConfig.site(tool.path)) {
+                        HStack(spacing: 12) {
+                            Image(systemName: tool.symbol).foregroundStyle(Palette.accent).frame(width: 24).accessibilityHidden(true)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(tool.title).foregroundStyle(Palette.ink)
+                                Text(tool.about).font(.footnote).foregroundStyle(Palette.ink2)
+                            }
+                            Spacer(minLength: 8)
+                            Image(systemName: "arrow.up.right").font(.footnote).foregroundStyle(Palette.ink3).accessibilityHidden(true)
+                        }
+                        .frame(minHeight: 44)
+                    }
+                }
+            } header: {
+                Text("More on the web")
+            } footer: {
+                Text("These open in your browser, where you sign in.")
+            }
+
             Section("Farbaek") {
                 Link(destination: AppConfig.site("app")) { Label("Open Farbaek on the web", systemImage: "safari") }
                 Link(destination: AppConfig.privacyURL) { Label("Privacy", systemImage: "hand.raised") }
@@ -117,6 +173,8 @@ struct YouView: View {
             Text("This phone is disconnected and stops getting notifications. Sign in again any time.")
         }
         .refreshable { await model.loadMe(as: model.phase) }
+        .onAppear { aiAllowed = AIConsent.given }
+        .onChange(of: aiAllowed) { _, allowed in AIConsent.given = allowed }
         .sheet(isPresented: $showPlans) { PlansView().environment(model) }
         .manageSubscriptionsSheet(isPresented: $manageSubscription)
     }
