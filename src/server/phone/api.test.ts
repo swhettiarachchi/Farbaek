@@ -5,7 +5,8 @@ import type { AppContext } from "@/server/workspace/context";
 import { handlePhoneApi, type PhoneApiDeps, type PhoneWrites } from "./api";
 import type { PhoneAuthDeps } from "./auth";
 import { challengeFor } from "./tokens";
-import { NO_RUNS, fileDiff } from "./views";
+import { taskNextStep, type NextStepFacts } from "@/core/realityloop/next-step";
+import { NO_RUNS, fileDiff, phoneNextStep } from "./views";
 
 const SITE = "https://www.farbaek.com";
 const JWT = "eyJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJ4In0.c2ln";
@@ -53,6 +54,7 @@ function deps(options: { expiresAt?: number; ctx?: Partial<AppContext>; revoked?
     setPush: async () => true,
     signOut: async () => (calls.push("signOut"), "signed_out"),
     createWorkspace: async () => (calls.push("createWorkspace"), { ok: true, value: { workspaceId: "w" } }),
+    report: async (_c, i) => (calls.push(`report:${i.subject}|${i.body}`), { ok: true, value: { requestId: "r1" } }),
     appleTransaction: async () => (calls.push("apple"), { ok: true, value: { state: "active", planId: "starter", paidThrough: null } }),
   };
   const d: PhoneApiDeps = {
@@ -84,6 +86,122 @@ const call = (d: PhoneApiDeps, method: string, path: string, init: { body?: unkn
     d,
   );
 const data = async (r: Response) => ((await r.json()) as { data: Record<string, unknown> }).data;
+
+const TASK = "00000000-0000-4000-8000-00000000b007";
+const PROJECT = "00000000-0000-4000-8000-00000000a001";
+const NOWHERE = "00000000-0000-4000-8000-0000000000ff";
+
+describe("the iPhone app's next step, projects and reports (ADR 0173)", () => {
+  const stepOf = async (d: PhoneApiDeps, id: string) => (await data(await call(d, "GET", `tasks/${id}`))).nextStep as { tone: string; title: string; body: string; action: { label: string; target: string } | null };
+
+  it("says the web's next step on a task, with a native action where the app has a screen", async () => {
+    const { deps: d } = deps();
+    expect(await stepOf(d, TASK)).toMatchObject({ tone: "action", title: "The agent finished. Check what changed, then approve", action: { label: "Review the change", target: "change" } });
+  });
+
+  it("sends anything the app has no screen for to the web, and says so", async () => {
+    const { deps: d } = deps();
+    // A cancelled task leads to its project, which the app has; a verified one too.
+    expect(await stepOf(d, "00000000-0000-4000-8000-00000000b006")).toMatchObject({ title: "This task was cancelled", action: { target: "project" } });
+    // An approved plan can't start from the app yet, and it doesn't pretend it can.
+    const approved = await stepOf(d, "00000000-0000-4000-8000-00000000b008");
+    expect(approved.title).toBe("Your plan is approved");
+    expect(approved.body).toContain("on the web");
+    expect(approved.action).toEqual({ label: "Open on the web", target: "web" });
+  });
+
+  const FACTS: NextStepFacts = { state: "RECEIVED", hasChange: false, changeExpired: false, canApprove: true, canAct: true, run: "none", fix: "none", canBuild: false, sandboxed: true, checking: false, checks: 1, canFix: false, canUndo: false };
+  const phone = (over: Partial<NextStepFacts>, hasPlan = true) => {
+    const facts = { ...FACTS, ...over };
+    return phoneNextStep(taskNextStep(facts), { state: facts.state, hasChange: facts.hasChange, hasPlan, approvedWithNoRun: false }).action;
+  };
+  const WEB = { label: "Open on the web", target: "web" };
+
+  it("opens the plan screen only to read or approve a plan, which is all it can do", () => {
+    expect(phone({ state: "CONTRACT_DRAFTED" })).toEqual({ label: "Read the plan", target: "plan" });
+    // Writing one and changing one are on the web, so the button doesn't land on "There's no plan yet".
+    expect(phone({ state: "RECEIVED" }, false)).toEqual(WEB);
+    expect(phone({ state: "CONTEXT_ASSEMBLED" }, false)).toEqual(WEB);
+    expect(phone({ state: "BLOCKED" })).toEqual(WEB);
+    expect(phone({ state: "APPROVAL_PENDING" }, false)).toEqual(WEB);
+  });
+
+  it("opens the web page where the words offer undo, not a project that has none", () => {
+    expect(phone({ state: "FAILED" })).toEqual(WEB);
+    expect(phone({ state: "INTERRUPTED" })).toEqual(WEB);
+    expect(phone({ state: "VERIFYING", sandboxed: false })).toEqual(WEB);
+    expect(phone({ state: "VERIFYING", checks: 0 })).toEqual(WEB);
+    expect(phone({ state: "VERIFIED" })).toEqual({ label: "Open the project", target: "project" });
+    expect(phone({ state: "RECOVERED" })).toEqual({ label: "Open the project", target: "project" });
+  });
+
+  it("isn't anyone's turn in an archived project, as on the web", async () => {
+    const base = createDemoReader(NOW);
+    const reader = { ...base, getProject: async (org: string, id: string) => {
+      const project = await base.getProject(org, id);
+      return project && { ...project, archivedAt: NOW.toISOString() };
+    } };
+    const { deps: d } = deps({ ctx: { reader } });
+    expect(await stepOf(d, TASK)).toMatchObject({ tone: "idle", title: "This change needs someone else's approval", action: { label: "See the change", target: "change" } });
+    // The card says the reason is next to the button, so it has to be.
+    const archived = "This project is archived, so nothing in it can change.";
+    expect(await data(await call(d, "GET", `approvals/${TASK}`))).toMatchObject({ canApprove: false, approveReason: archived });
+    expect(await data(await call(d, "GET", `tasks/${TASK}/plan`))).toMatchObject({ canApprove: false, approveReason: archived });
+  });
+
+  it("isn't anyone's turn who can only look", async () => {
+    const { deps: d } = deps({ ctx: { mode: "live", role: "viewer" } });
+    expect(await stepOf(d, TASK)).toMatchObject({ tone: "idle", title: "This change needs someone else's approval", action: { label: "See the change", target: "change" } });
+  });
+
+  it("opens a project with its tasks, and refuses what isn't one", async () => {
+    const { deps: d } = deps();
+    const r = await data(await call(d, "GET", `projects/${PROJECT}`));
+    expect((r.project as { id: string }).id).toBe(PROJECT);
+    expect((r.tasks as unknown[]).length).toBeGreaterThan(0);
+    expect(r.address).toBeNull();
+    expect((await call(d, "GET", `projects/${NOWHERE}`)).status).toBe(404);
+    expect((await call(d, "GET", "projects/not-a-uuid")).status).toBe(404);
+  });
+
+  it("says where a project is live, and survives not being able to read it", async () => {
+    const { deps: d } = deps();
+    const live = d.live.bind(d);
+    d.live = async (c, w) => ({ ...(await live(c, w)), liveAddress: async () => "https://sweet-crumbs.farbaek.si" });
+    expect((await data(await call(d, "GET", `projects/${PROJECT}`))).address).toBe("https://sweet-crumbs.farbaek.si");
+    d.live = async (c, w) => ({ ...(await live(c, w)), liveAddress: async () => { throw new Error("no") } });
+    const stillOpens = await call(d, "GET", `projects/${PROJECT}`);
+    expect(stillOpens.status).toBe(200);
+    expect((await data(stillOpens)).address).toBeNull();
+  });
+
+  it("takes a report of a task or a project, named from the record and not from what's typed", async () => {
+    const { deps: d, calls } = deps();
+    const r = await call(d, "POST", "reports", { body: { taskId: TASK, reason: "It wrote something offensive." } });
+    expect(r.status).toBe(201);
+    expect(calls.at(-1)).toContain("report:Report: Reject fractional quantities in the cart|About: Reject fractional");
+    expect(calls.at(-1)).toContain(`Where: /app/tasks/${TASK}`);
+    expect(calls.at(-1)).toContain("It wrote something offensive.");
+    expect((await call(d, "POST", "reports", { body: { projectId: PROJECT, reason: "Copied a real brand." } })).status).toBe(201);
+  });
+
+  it("refuses a report that's unclear, too long, about nothing it can read, or from the sample", async () => {
+    const { deps: d } = deps();
+    const status = async (body: unknown) => (await call(d, "POST", "reports", { body })).status;
+    expect(await status({ reason: "No record named." })).toBe(400);
+    expect(await status({ taskId: TASK, projectId: PROJECT, reason: "Both named." })).toBe(400);
+    expect(await status({ taskId: TASK, reason: "   " })).toBe(400);
+    expect(await status({ taskId: TASK, reason: "x".repeat(1_001) })).toBe(400);
+    expect(await status({ taskId: "not-a-uuid", reason: "Bad id." })).toBe(400);
+    expect(await status({ taskId: NOWHERE, reason: "Not in this workspace." })).toBe(404);
+    expect((await call(d, "POST", "sample/reports", { token: false, body: { taskId: TASK, reason: "From the sample." } })).status).toBe(403);
+  });
+
+  it("lets a viewer report, because reporting isn't changing anything", async () => {
+    const { deps: d } = deps({ ctx: { mode: "live", role: "viewer", writes: { enabled: false, reason: "Read only." } } });
+    expect((await call(d, "POST", "reports", { body: { taskId: TASK, reason: "Report from a viewer." } })).status).toBe(201);
+  });
+});
 
 describe("the phone API (ADR 0110)", () => {
   it("answers the sample workspace's reads with no account, and refuses its writes", async () => {

@@ -6,14 +6,16 @@
  */
 import { lensForChange, lensSummary } from "@/core/realityloop/intent-lens";
 import { diffLines, splitLines } from "@/core/realityloop/line-diff";
+import { taskNextStep, type NextStep } from "@/core/realityloop/next-step";
+import type { TaskState } from "@/core/realityloop/task-machine";
 import { TASK_STATE_LABELS, lifecycleProgress, stateTone } from "@/core/realityloop/progress";
 import { EFFORT_LABELS } from "@/core/agent/routing";
 import { RUN_STATUS_LABELS, isLive, type RunStatus } from "@/core/agent/cloud-run";
 import { getPlan } from "@/core/billing/catalog";
-import { walletRisk } from "@/core/trust/approval-wallet";
+import { approvalWindow, walletRisk } from "@/core/trust/approval-wallet";
 import type { RunEventView, RunView } from "@/server/cloud-agent/store";
 import type { AppContext } from "@/server/workspace/context";
-import { MANAGER_ROLES, type Project, type Task, type WorkspaceReader } from "@/server/workspace/types";
+import { CONTRIBUTOR_ROLES, MANAGER_ROLES, type Project, type Task, type WorkspaceReader } from "@/server/workspace/types";
 
 /** The runs a view can read: the person's own, or none in the sample workspace. */
 export interface RunReader {
@@ -187,7 +189,7 @@ export async function approvalView(ctx: AppContext, orgId: string, taskId: strin
   if (!found) return null;
   const proposal = await ctx.reader.getLatestProposal(orgId, taskId);
   if (!proposal) return null;
-  const contract = await ctx.reader.getContract(orgId, taskId);
+  const [contract, project] = await Promise.all([ctx.reader.getContract(orgId, taskId), ctx.reader.getProject(orgId, found.task.projectId)]);
   const bases = await editBases(ctx.reader, orgId, found.task.projectId, proposal.changes);
   let budget = MAX_DIFF_LINES;
   const files = proposal.changes.map((c) => {
@@ -199,6 +201,7 @@ export async function approvalView(ctx: AppContext, orgId: string, taskId: strin
   const canApproveEscalated = ctx.role !== null && MANAGER_ROLES.includes(ctx.role);
   const blockers = [
     !ctx.writes.enabled ? ctx.writes.reason : null,
+    project?.archivedAt ? ARCHIVED_REASON : null,
     proposal.status !== "pending" ? "This change isn't waiting for approval any more." : null,
     found.task.state !== "APPROVAL_PENDING" ? "This task isn't waiting for approval." : null,
     escalated && !canApproveEscalated ? "The policy escalated this change, so an owner or admin approves it." : null,
@@ -244,19 +247,76 @@ export async function tasksView(reader: WorkspaceReader, orgId: string, filter: 
   return { items: tasks.filter(FILTERS[filter]).slice(0, 60).map(taskItem) };
 }
 
-/** A task's story: its lifecycle, every transition, the change and its evidence, and its runs. */
-export async function taskView(reader: WorkspaceReader, orgId: string, taskId: string, runs: RunReader) {
+/** The web's words for it. */
+const ARCHIVED_REASON = "This project is archived, so nothing in it can change.";
+
+const UNDO_IS_THE_NEXT_STEP: ReadonlySet<TaskState> = new Set<TaskState>(["FAILED", "INTERRUPTED", "VERIFYING"]);
+
+/**
+ * The web's next step, for the iPhone app (ADR 0173). Its words are the web's, so both always agree. An action the app
+ * has a screen for keeps its label, and anything else opens the task on the web, saying so.
+ */
+export function phoneNextStep(step: NextStep, facts: { state: TaskState; hasChange: boolean; hasPlan: boolean; approvedWithNoRun: boolean }) {
+  const { state, hasChange, hasPlan, approvedWithNoRun } = facts;
+  const target = step.action?.target;
+  // The app reads and approves a plan. Writing or changing one is on the web.
+  const planOpens = hasPlan && state !== "RECEIVED" && state !== "CONTEXT_ASSEMBLED" && state !== "BLOCKED";
+  // These states' words offer undo, which is on the task's web page and not on a project.
+  const projectOpens = !UNDO_IS_THE_NEXT_STEP.has(state);
+  const native = (target === "plan" && planOpens) || target === "run" || (target === "project" && projectOpens) || (target === "change" && hasChange);
+  return {
+    tone: step.tone,
+    title: step.title,
+    // The app can't start a run on an approved plan yet, so it says where that happens rather than "just below".
+    body: approvedWithNoRun ? "Start the agent on the web, where you can see why it hasn't started." : step.body,
+    action: step.action ? { label: native ? step.action.label : "Open on the web", target: native ? step.action.target : "web" } : null,
+  };
+}
+
+/** A task's story: its next step, its lifecycle, every transition, the change and its evidence, and its runs. */
+export async function taskView(ctx: AppContext, orgId: string, taskId: string, runs: RunReader, execution: { mode: string }, now: Date) {
+  const reader = ctx.reader;
   const found = await reader.getTask(orgId, taskId);
   if (!found) return null;
-  const [proposal, contract, proofs, verification, taskRuns] = await Promise.all([
+  const [proposal, contract, proofs, verification, taskRuns, project] = await Promise.all([
     reader.getLatestProposal(orgId, taskId),
     reader.getContract(orgId, taskId),
     reader.listProofPacks(orgId, taskId),
     reader.getLatestVerification(orgId, taskId),
     runs.list({ taskId, limit: 5 }),
+    reader.getProject(orgId, found.task.projectId),
   ]);
+  const state = found.task.state;
+  const hasChange = proposal?.status === "pending" || proposal?.status === "blocked";
+  const liveRun = taskRuns.find((r) => isLive(r.status));
+  // The sample is a tour of what people see, so its read-only state doesn't change the words (as on the web's demo).
+  const tour = ctx.mode === "demo";
+  // As on the web: nothing in an archived project can change, so it's nobody's turn.
+  const canChange = ctx.role !== null && CONTRIBUTOR_ROLES.includes(ctx.role) && ctx.writes.enabled && !project?.archivedAt;
+  const manager = ctx.role !== null && MANAGER_ROLES.includes(ctx.role);
+  const canBuild = false;
+  const nextStep = phoneNextStep(
+    taskNextStep({
+      state,
+      hasChange,
+      changeExpired: proposal?.status === "pending" && approvalWindow(proposal.createdAt, proposal.expiresAt, now).state === "expired",
+      canApprove: tour || (canChange && ctx.permissions.approve !== false && (proposal?.policy?.outcome !== "ESCALATE" || manager)),
+      canAct: tour || canChange,
+      run: liveRun ? (liveRun.status === "waiting" ? "waiting" : "working") : "none",
+      fix: "none",
+      canBuild,
+      sandboxed: execution.mode === "sandboxed",
+      checking: verification?.status === "running",
+      checks: contract?.body.requiredChecks.length ?? 0,
+      // Neither is in the app yet, so it doesn't offer them.
+      canFix: false,
+      canUndo: false,
+    }),
+    { state, hasChange, hasPlan: contract !== null, approvedWithNoRun: state === "CONTRACT_APPROVED" && !liveRun && !canBuild },
+  );
   return {
     task: taskItem(found.task),
+    nextStep,
     stages: lifecycleProgress(found.task.state, found.history).map((s) => ({ key: s.key, label: s.label, status: s.status, note: s.note })),
     history: found.history.map((h) => ({ id: h.eventId, from: h.from, to: h.to, toLabel: TASK_STATE_LABELS[h.to], actor: h.actorKind, at: h.at })),
     contract: contract ? { version: contract.version, status: contract.status, outcome: contract.body.outcome } : null,
@@ -271,9 +331,9 @@ export async function taskView(reader: WorkspaceReader, orgId: string, taskId: s
 export async function planView(ctx: AppContext, orgId: string, taskId: string) {
   const found = await ctx.reader.getTask(orgId, taskId);
   if (!found) return null;
-  const contract = await ctx.reader.getContract(orgId, taskId);
+  const [contract, project] = await Promise.all([ctx.reader.getContract(orgId, taskId), ctx.reader.getProject(orgId, found.task.projectId)]);
   const approvable = found.task.state === "CONTRACT_DRAFTED" && contract?.status === "draft";
-  const blockers = [!ctx.writes.enabled ? ctx.writes.reason : null, contract ? null : "There's no plan yet. Open the task on the web to write one.", contract && !approvable ? "This plan isn't waiting for approval." : null, ctx.permissions.run_agents === false ? "An owner or admin turned off running agents for you in this workspace." : null].filter(
+  const blockers = [!ctx.writes.enabled ? ctx.writes.reason : null, project?.archivedAt ? ARCHIVED_REASON : null, contract ? null : "There's no plan yet. Open the task on the web to write one.", contract && !approvable ? "This plan isn't waiting for approval." : null, ctx.permissions.run_agents === false ? "An owner or admin turned off running agents for you in this workspace." : null].filter(
     (r): r is string => r !== null,
   );
   return {
@@ -346,4 +406,12 @@ export async function runDetail(runs: RunReader, runId: string, after: number, v
 
 export async function projectsView(reader: WorkspaceReader, orgId: string) {
   return { items: (await reader.listProjects(orgId)).map(projectItem) };
+}
+
+/** A project in the app (ADR 0173): its tasks, newest first, and where it's live, if it is. */
+export async function projectView(reader: WorkspaceReader, orgId: string, projectId: string, liveAddress: ((projectId: string) => Promise<string | null>) | undefined) {
+  const project = await reader.getProject(orgId, projectId);
+  if (!project) return null;
+  const [tasks, address] = await Promise.all([reader.listTasks(orgId, { projectId, limit: 40 }), liveAddress ? liveAddress(projectId).catch(() => null) : Promise.resolve(null)]);
+  return { project: projectItem(project), tasks: tasks.map(taskItem), address };
 }

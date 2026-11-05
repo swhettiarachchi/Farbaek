@@ -27,7 +27,7 @@ struct TodayView: View {
             .padding(.bottom, 24)
         }
         .screenBackground()
-        .navigationTitle("Today")
+        .navigationTitle("Home")
         .toolbar { WorkspaceMenu(model: model) }
         .refreshable { await read() }
         .task(id: model.revision) { await read() }
@@ -95,7 +95,7 @@ struct TodayView: View {
                     .font(.headline.weight(.regular))
                     .foregroundStyle(Palette.ink2)
             }
-            Text(home.waiting > 0 ? "Each one can be approved for 72 hours, only as the exact content you review." : "Nothing waits for you. New changes appear here when the agent proposes one.")
+            Text(home.waiting > 0 ? "Each one can be approved for 72 hours, only as the exact content you review." : "Nothing waits for you. New changes appear here when the agent suggests one.")
                 .font(.subheadline)
                 .foregroundStyle(Palette.ink2)
                 .fixedSize(horizontal: false, vertical: true)
@@ -134,7 +134,17 @@ struct TodayView: View {
 
     private func recent(_ tasks: [TaskItem]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            SectionTitle("Recent")
+            HStack {
+                SectionTitle("Recent")
+                NavigationLink(value: Destination.tasks) {
+                    Text("All tasks")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(Palette.accent)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .fixedSize()
+            }
             if tasks.isEmpty {
                 Notice(text: "No tasks yet. Describe something to build and it starts here.")
                     .card()

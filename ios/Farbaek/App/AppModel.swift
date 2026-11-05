@@ -5,7 +5,7 @@ import UIKit
 import UserNotifications
 
 enum AppTab: Hashable {
-    case today, approvals, build, tasks, you
+    case today, approvals, build, projects, you
 }
 
 /// A screen any tab can open.
@@ -14,6 +14,8 @@ enum Destination: Hashable {
     case task(String)
     case plan(String)
     case run(String)
+    case project(String)
+    case tasks
 }
 
 /// The app's state: who's signed in (or the sample), the workspace, the tabs
@@ -31,7 +33,9 @@ final class AppModel {
     var todayPath = NavigationPath()
     var approvalsPath = NavigationPath()
     var buildPath = NavigationPath()
-    var tasksPath = NavigationPath()
+    var projectsPath = NavigationPath()
+    /// A project someone chose "Describe a change" on: Build opens with it picked, once.
+    var buildProject: String?
     /// Changes waiting for this person, for the Approvals badge.
     var waiting = 0
     /// Moves on after every change, so screens read again.
@@ -72,7 +76,7 @@ final class AppModel {
     var writeBlocker: String? {
         if phase == .sample { return "This is sample data, so nothing here can change. Sign in to approve and build for real." }
         guard let me else { return "Farbaek couldn't load your account yet. Pull to refresh." }
-        if currentWorkspace == nil { return "You don't have a workspace yet. Make one on Today." }
+        if currentWorkspace == nil { return "You don't have a workspace yet. Make one on Home." }
         return me.writes.enabled ? nil : me.writes.reason
     }
 
@@ -227,6 +231,7 @@ final class AppModel {
         }
         api.forget()
         api.sample = false
+        AIConsent.given = false
         forgetWorkspace()
         AppleSignIn.rememberedUser = nil
         transactionUpdates?.cancel()
@@ -237,6 +242,7 @@ final class AppModel {
     }
 
     private func signedOutElsewhere() {
+        AIConsent.given = false
         forgetWorkspace()
         AppleSignIn.rememberedUser = nil
         transactionUpdates?.cancel()
@@ -258,7 +264,8 @@ final class AppModel {
         todayPath = NavigationPath()
         approvalsPath = NavigationPath()
         buildPath = NavigationPath()
-        tasksPath = NavigationPath()
+        projectsPath = NavigationPath()
+        buildProject = nil
         waiting = 0
     }
 
@@ -296,8 +303,16 @@ final class AppModel {
         guard parts.first == "app", parts.count >= 2 else { return }
         switch parts[1] {
         case "tasks" where parts.count >= 3:
-            tab = .tasks
-            tasksPath = NavigationPath([Destination.task(parts[2])])
+            tab = .today
+            todayPath = NavigationPath([Destination.task(parts[2])])
+        case "tasks":
+            tab = .today
+            todayPath = NavigationPath([Destination.tasks])
+        case "projects" where parts.count >= 3:
+            tab = .projects
+            projectsPath = NavigationPath([Destination.project(parts[2])])
+        case "projects":
+            tab = .projects
         case "build" where parts.count >= 3:
             tab = .build
             buildPath = NavigationPath([Destination.run(parts[2])])

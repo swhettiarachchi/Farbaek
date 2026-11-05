@@ -27,6 +27,7 @@ import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
 import { approveContract, type WriteErrorCode, type WriteResult } from "@/server/workspace/use-cases";
 import { claimAppleTransaction } from "@/server/billing/apple/service";
 import { appleDeps, appleIapOn } from "@/server/billing/apple/wiring";
+import { openSupportRequest } from "@/server/workspace/support";
 import type { PhoneOutcome, PhonePerson, PhoneWrites } from "./api";
 import type { PhoneStore } from "./auth";
 
@@ -66,6 +67,13 @@ export function createPhoneWrites(options: { userClient: (accessToken: string) =
   const notConfigured = refuse(503, "NOT_CONFIGURED", "The server isn't configured for writes.");
 
   return {
+    async report(caller, input) {
+      const admin = createSupabaseAdminClient();
+      if (!admin) return notConfigured;
+      const opened = await openSupportRequest((fn, args) => admin.rpc(fn, args), caller.userId, { orgId: input.orgId, topic: "abuse", subject: input.subject, body: input.body });
+      if (opened.ok) return { ok: true, value: { requestId: opened.value } };
+      return refuse(opened.code === "SUPPORT_LIMIT" ? 429 : opened.code === "FORBIDDEN" ? 403 : 400, opened.code, opened.message);
+    },
     async approve(p, input) {
       const deps = writeDeps(p);
       if (!deps) return notConfigured;
