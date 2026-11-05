@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { ComponentEditor } from "@/components/studio/component-editor";
 import { VisualEditor } from "@/components/studio/visual-editor";
+import { studioEditorKey } from "@/core/studio/editor-key";
 import { kitTierFor } from "@/core/media/studio-kit";
 import { componentFiles, isTailwindProject } from "@/core/studio/jsx-edit";
 import { ButtonLink } from "@/components/ui/button";
@@ -121,7 +122,7 @@ export default async function DesignPage({ params, searchParams }: { params: Pro
 
       {!isStatic && !unavailable && componentContents ? (
         <ComponentEditor
-          key={files.map((f) => `${f.path}@${f.revision}`).join("|")}
+          key={studioEditorKey(files)}
           projectId={project.id}
           files={componentContents}
           revisions={Object.fromEntries(files.map((f) => [f.path, f.revision]))}
@@ -143,7 +144,7 @@ export default async function DesignPage({ params, searchParams }: { params: Pro
         </EmptyState>
       ) : (
         <VisualEditor
-          key={files.map((f) => `${f.path}@${f.revision}`).join("|")}
+          key={studioEditorKey(files)}
           projectId={project.id}
           files={text}
           revisions={Object.fromEntries(files.map((f) => [f.path, f.revision]))}
