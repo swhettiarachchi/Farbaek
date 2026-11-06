@@ -5,8 +5,8 @@
 #   2. Copies the desktop app's installers to the server, comparing each one's SHA-256 before it goes live,
 #      as docs/agent/README.md describes under "Publishing a release". Old installers stay.
 #
-# If the connection drops, it waits a minute and carries on from where it stopped, however many times that
-# takes, and a file that's already there isn't sent again. You can also close it and run it again at any time.
+# If the connection drops or stalls, it carries on from where it stopped, however many times that takes, and a
+# file that's already there isn't sent again. You can also close it and run it again at any time.
 # Nothing here reads a secret, and nothing is deleted. Run it in your own PowerShell window:
 #
 #   powershell -ExecutionPolicy Bypass -File "C:\Users\INTEL\Documents\FarBaek\scripts\release\publish-desktop.ps1"
@@ -16,19 +16,49 @@ param(
   [string]$Version = "0.10.0",
   [string]$Server = "2.25.88.188",
   [string]$Key = "$HOME\.ssh\farbaek_vps",
-  [int]$Tries = 40
+  [int]$Tries = 60,
+  # A question to the server gets this long. Finding a file's fingerprint takes seconds.
+  [int]$QuestionSeconds = 120,
+  # One connection sends for this long, then a fresh one carries on. Reconnecting costs seconds, and a stalled one costs no more than this.
+  [int]$SendSeconds = 300
 )
 
-$options = @("-i", $Key, "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=30", "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=8")
+$options = @("-i", $Key, "-o", "StrictHostKeyChecking=accept-new", "-o", "BatchMode=yes", "-o", "ConnectTimeout=30", "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=8")
 $target = "farbaek@$Server"
 $release = (Resolve-Path (Join-Path $PSScriptRoot "..\..\desktop\release")).Path
 $downloads = "/opt/farbaek/downloads"
+$ssh = (Get-Command ssh -ErrorAction Stop).Source
+$sftp = (Get-Command sftp -ErrorAction Stop).Source
+
+# A connection can stall with nothing to say so, and ssh's own time limits don't cover every stage of one. A stalled
+# question once sat for an hour with no message. So every call here has a limit of its own.
+function Invoke-Limited([string]$file, [string[]]$arguments, [int]$seconds, [bool]$capture) {
+  $info = New-Object System.Diagnostics.ProcessStartInfo
+  $info.FileName = $file
+  $info.Arguments = ($arguments | ForEach-Object { if ($_ -match '\s') { '"' + $_ + '"' } else { $_ } }) -join " "
+  $info.UseShellExecute = $false
+  $info.RedirectStandardInput = $true
+  if ($capture) { $info.RedirectStandardOutput = $true; $info.RedirectStandardError = $true }
+  $process = [System.Diagnostics.Process]::Start($info)
+  $process.StandardInput.Close()
+  $output = $null
+  if ($capture) {
+    $output = $process.StandardOutput.ReadToEndAsync()
+    [void]$process.StandardError.ReadToEndAsync()
+  }
+  if (-not $process.WaitForExit($seconds * 1000)) {
+    try { $process.Kill() } catch { }
+    return @{ ok = $false; timedOut = $true; text = $null }
+  }
+  if ($process.ExitCode -ne 0) { return @{ ok = $false; timedOut = $false; text = $null } }
+  $text = if ($capture) { $output.Result.Trim() } else { "" }
+  return @{ ok = $true; timedOut = $false; text = $text }
+}
 
 function Remote([string]$command) {
-  # A dropped connection answers with nothing, which every caller treats as "ask again".
-  $answer = ssh @options $target $command 2>$null
-  if ($LASTEXITCODE -ne 0) { return $null }
-  return "$answer".Trim()
+  # A dropped or stalled connection answers with nothing, which every caller treats as "ask again".
+  $result = Invoke-Limited $ssh ($options + @($target, $command)) $QuestionSeconds $true
+  return $result.text
 }
 
 function Send-Resuming([string]$path, [string]$part, [long]$size) {
@@ -41,8 +71,10 @@ function Send-Resuming([string]$path, [string]$part, [long]$size) {
         if ([long]$sent -ge $size) { return $true }
         Write-Host ("  {0} of {1} MB there so far..." -f [math]::Round([long]$sent / 1MB), [math]::Round($size / 1MB))
         Set-Content -LiteralPath $batch.FullName -Encoding ascii -Value @("progress", "reput `"$local`" `"$part`"")
-        sftp @options -b $batch.FullName $target
-        if ($LASTEXITCODE -eq 0) { return $true }
+        $result = Invoke-Limited $sftp ($options + @("-b", $batch.FullName, $target)) $SendSeconds $false
+        if ($result.ok) { return $true }
+        # This one is expected on a big file: the next connection carries on straight away.
+        if ($result.timedOut) { continue }
       }
       Write-Host "  The connection dropped. Carrying on from where it stopped in a minute (try $try of $Tries)..." -ForegroundColor Yellow
       Start-Sleep -Seconds 60
@@ -55,6 +87,11 @@ function Send-Resuming([string]$path, [string]$part, [long]$size) {
 
 Write-Host "1 of 2: making sure Supabase Auth has its new settings..." -ForegroundColor Cyan
 $limit = Remote "docker exec supabase-auth printenv GOTRUE_RATE_LIMIT_EMAIL_SENT"
+if ($null -eq $limit) {
+  # No answer says nothing about Auth, so this is no reason to restart it.
+  Write-Host "The server didn't answer. Nothing was changed. Run this again in a few minutes." -ForegroundColor Red
+  exit 1
+}
 if ($limit -ne "300") {
   $limit = Remote "cd /opt/farbaek/supabase/docker && docker compose up -d auth >/dev/null 2>&1 && sleep 6 && docker exec supabase-auth printenv GOTRUE_RATE_LIMIT_EMAIL_SENT"
 }
@@ -87,14 +124,23 @@ foreach ($name in $files) {
     continue
   }
   $remote = Remote "sha256sum '$part' | cut -d' ' -f1"
+  if ($null -eq $remote) {
+    Write-Host "  $name is there, but the check was interrupted. Run this again: nothing is lost." -ForegroundColor Red
+    $failed = $true
+    continue
+  }
   if ($remote -ne $local) {
-    # Only an interrupted check leaves this empty; a real difference means the partial copy can't be trusted.
-    if ($remote) { Remote "rm -f '$part'" | Out-Null }
+    # A real difference means the partial copy can't be trusted.
+    Remote "rm -f '$part'" | Out-Null
     Write-Host "  $name arrived different from what was sent, so it wasn't kept. Run this again." -ForegroundColor Red
     $failed = $true
     continue
   }
-  Remote "mv '$part' '$downloads/$name'" | Out-Null
+  if ((Remote "mv '$part' '$downloads/$name' && echo moved") -ne "moved") {
+    Write-Host "  $name is there, but the last step was interrupted. Run this again: nothing is lost." -ForegroundColor Red
+    $failed = $true
+    continue
+  }
   Write-Host "  $name is on the server, and its fingerprint matches." -ForegroundColor Green
 }
 if ($failed) { Write-Host "Something didn't finish. Run this again, then tell Claude." -ForegroundColor Red; exit 1 }
