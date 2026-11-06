@@ -13,7 +13,7 @@ export function DemoSection() {
           <ApprovalDemo />
         </div>
         <p className="mt-6 max-w-[62ch] text-sm text-ink-3">
-          Demo with sample data. It runs Farbaek&apos;s own canonical JSON, hashing and contract-check code in your browser. Nothing is
+          Demo with sample data. It runs Farbaek&apos;s own fingerprinting and plan-checking code in your browser. Nothing is
           executed, stored or sent.
         </p>
       </Container>

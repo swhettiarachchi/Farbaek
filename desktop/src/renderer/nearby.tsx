@@ -463,7 +463,7 @@ function SendCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: st
           </div>
           <p className="small muted">
             {toPhone
-              ? "Send is unavailable: phones and browsers receive over the internet. On the phone, open Mesh in Farbaek and turn on Be reachable, then choose Send over the internet."
+              ? "Send is unavailable: phones and browsers receive over the internet. On the phone, open Move projects in Farbaek and turn on Be reachable, then choose Send over the internet."
               : s.relay.available
                 ? "Send goes over this network. Send over the internet reaches the other computer anywhere, if it's open and reachable: directly when both networks allow it."
                 : `Send over the internet is unavailable: ${s.relay.reason}`}

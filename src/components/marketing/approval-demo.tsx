@@ -90,7 +90,7 @@ export function ApprovalDemo() {
       {/* Proposed action */}
       <section aria-labelledby="demo-action" className="rounded-md border border-line bg-surface p-5 shadow-e2 sm:p-6">
         <h3 id="demo-action" className="text-[1.0625rem] font-medium">
-          Proposed action
+          What the agent wants to do
         </h3>
         <p className="mt-1 text-sm text-ink-2">An agent wants to run this against the sample storefront. Edit it.</p>
 
@@ -109,7 +109,7 @@ export function ApprovalDemo() {
               onChange={(e) => setCount(Math.max(1, Math.min(500, Math.trunc(Number(e.target.value) || 1))))}
               className="h-11 w-32 max-w-full rounded-sm border border-line-strong bg-canvas px-3 text-base tabular"
             />
-            <p className="text-xs text-ink-3">The contract allows at most {SAMPLE_CONTRACT.limits.maxRecords}.</p>
+            <p className="text-xs text-ink-3">The plan allows at most {SAMPLE_CONTRACT.limits.maxRecords}.</p>
           </div>
 
           <div className="grid gap-2">
@@ -136,7 +136,7 @@ export function ApprovalDemo() {
             />
             <label htmlFor={ids.price} className="min-h-11 py-2.5 text-sm">
               Also raise prices by 5%
-              <span className="block text-xs text-ink-3">Price is a protected field in this contract.</span>
+              <span className="block text-xs text-ink-3">The price is protected in this plan.</span>
             </label>
           </div>
         </div>
@@ -153,7 +153,7 @@ export function ApprovalDemo() {
       <section aria-labelledby="demo-approval" className="flex flex-col rounded-md border border-line bg-surface p-5 shadow-e2 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-[0.8125rem] text-ink-3">
-            Contract version {SAMPLE_VERSIONS.contractVersion}, policy version {SAMPLE_VERSIONS.policyVersion}
+            Plan version {SAMPLE_VERSIONS.contractVersion}, rules version {SAMPLE_VERSIONS.policyVersion}
           </p>
           {blocked ? (
             <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-failed/40 px-2 text-xs font-medium text-failed">
@@ -188,12 +188,12 @@ export function ApprovalDemo() {
             {violations.map((v) => (
               <li key={v.kind + v.detail} className="flex gap-2">
                 <XCircleIcon size={18} className="mt-px shrink-0 text-failed" aria-hidden />
-                <span>{v.detail} The contract check runs before any approval is offered.</span>
+                <span>{v.detail} The check against the plan runs before any approval is offered.</span>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="mt-4 text-sm text-ink-2">Protected by the contract: {SAMPLE_CONTRACT.protectedFields.join(", ")}.</p>
+          <p className="mt-4 text-sm text-ink-2">Protected by the plan: {SAMPLE_CONTRACT.protectedFields.join(", ")}.</p>
         )}
 
         {approval ? (
@@ -234,7 +234,7 @@ export function ApprovalDemo() {
         </div>
         {blocked ? (
           <p id="demo-approve-reason" className="mt-2 text-xs text-ink-3">
-            Approval is unavailable while the contract blocks this action.
+            You can&apos;t approve this while the plan blocks it.
           </p>
         ) : null}
 
@@ -250,7 +250,7 @@ export function ApprovalDemo() {
                 className={`mt-4 rounded-sm px-3 py-2.5 text-sm ${result.valid ? "bg-verified/[0.08] text-ink" : "bg-failed/[0.07] text-ink"}`}
               >
                 {result.valid
-                  ? "Approval matches. In Farbaek this would now run in the sandbox. Here, nothing runs."
+                  ? "Approval matches. In Farbaek this would now run in a test space. Here, nothing runs."
                   : `Blocked: ${result.message}`}
               </motion.p>
             ) : null}

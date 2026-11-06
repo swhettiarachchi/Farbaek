@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ANDROID_APP_CLIENT, ANDROID_APP_MARK, STORE_CLIENT_KEY, earlyMarkScript, inAndroidApp, isAndroidAppLaunch } from "./store-client";
+import { ANDROID_APP_CLIENT, ANDROID_APP_MARK, STORE_CLIENT_KEY, earlyMarkScript, inAndroidApp, inStoreApp, isAndroidAppLaunch } from "./store-client";
 
 /** Runs the inline script against a stand-in page, and returns the mark it left on <html>, if any. */
 function markFrom(stored: string | null, referrer: string, search: string, storage: "ok" | "refused" = "ok"): string | null {
@@ -18,6 +18,21 @@ function markFrom(stored: string | null, referrer: string, search: string, stora
   );
   return mark;
 }
+
+describe("the iPhone app's in-app browser (ADR 0177)", () => {
+  it("is marked from the first paint, and remembered for later pages", () => {
+    expect(markFrom(null, "", "?client=ios-app")).toBe("ios-app");
+    expect(markFrom("ios-app", "https://www.farbaek.com/app", "")).toBe("ios-app");
+    expect(markFrom(null, "", "")).toBeNull();
+  });
+
+  it("counts as inside a store's app, without being mistaken for Android", () => {
+    expect(inStoreApp("ios-app", "", "")).toBe(true);
+    expect(inStoreApp(null, "", "?client=ios-app")).toBe(true);
+    expect(inStoreApp(null, "", "")).toBe(false);
+    expect(inAndroidApp("ios-app", "", "?client=ios-app")).toBe(false);
+  });
+});
 
 describe("the mark set before the page paints (ADR 0171)", () => {
   it("answers exactly as inAndroidApp does", () => {
@@ -42,6 +57,21 @@ describe("the mark set before the page paints (ADR 0171)", () => {
   it("is a fixed string, with nothing from the page in it", () => {
     expect(earlyMarkScript()).toBe(earlyMarkScript());
     expect(earlyMarkScript()).not.toMatch(/innerHTML|eval\(|<\/script/i);
+  });
+});
+
+describe("the iPhone app's in-app browser (ADR 0177)", () => {
+  it("is marked from the first paint, and remembered for later pages", () => {
+    expect(markFrom(null, "", "?client=ios-app")).toBe("ios-app");
+    expect(markFrom("ios-app", "https://www.farbaek.com/app", "")).toBe("ios-app");
+    expect(markFrom(null, "", "")).toBeNull();
+  });
+
+  it("counts as inside a store's app, without being mistaken for Android", () => {
+    expect(inStoreApp("ios-app", "", "")).toBe(true);
+    expect(inStoreApp(null, "", "?client=ios-app")).toBe(true);
+    expect(inStoreApp(null, "", "")).toBe(false);
+    expect(inAndroidApp("ios-app", "", "?client=ios-app")).toBe(false);
   });
 });
 

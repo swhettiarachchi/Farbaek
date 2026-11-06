@@ -276,7 +276,7 @@ export function PlanView({ t, from, approvedAt, compact = false }: { t: number; 
               </ul>
             </PlanSection>
             <PlanSection title="If something goes wrong" icon={<ShieldCheckIcon size={16} weight="bold" className="text-ink-2" aria-hidden />} shown={s(4)}>
-              <p className="text-sm text-ink-2">Each change arrives as a proposal you review, and an applied change can be undone.</p>
+              <p className="text-sm text-ink-2">Each change waits for your review, and an applied change can be undone.</p>
             </PlanSection>
           </>
         )}
@@ -564,7 +564,7 @@ export function PublishView({ t, from, publishAt }: { t: number; from: number; p
 type StepState = "done" | "now" | "todo";
 const CHAIN: { title: string; icon: Icon; text: string }[] = [
   { title: "Security check of these files", icon: ShieldCheckIcon, text: "The last check of exactly these files found nothing critical." },
-  { title: "Evidence for the latest change", icon: FingerprintIcon, text: "The change's checks ran against exactly what was applied." },
+  { title: "Proof for the latest change", icon: FingerprintIcon, text: "The change's checks ran against exactly what was applied." },
   { title: "The version that's live", icon: CubeIcon, text: "Version 1 is live: 5 files, recorded with a SHA-256 digest of exactly those revisions." },
 ];
 

@@ -104,7 +104,7 @@ struct ReportSheet: View {
     }
 
     private var helpLink: some View {
-        Link(destination: AppConfig.site("app/help")) {
+        WebLink(path: "app/help") {
             Label("Open Help on the web", systemImage: "safari")
                 .frame(minHeight: 44, alignment: .leading)
                 .contentShape(Rectangle())

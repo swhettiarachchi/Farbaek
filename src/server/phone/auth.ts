@@ -50,6 +50,8 @@ export interface PhoneStore {
 export interface SessionAuth {
   /** A new Supabase session for the person, separate from any browser's. Null when Auth can't make one. */
   newSession(userId: string): Promise<PhoneSession | null>;
+  /** A one-time token that signs someone in on the web, for /auth/open (ADR 0177). Null when Auth can't make one. */
+  signInToken(userId: string): Promise<string | null>;
   /** A refreshed session, or null when the refresh token is no longer valid. */
   refresh(refreshToken: string): Promise<PhoneSession | null>;
   /** The person behind a valid access token, or null. */

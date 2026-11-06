@@ -21,6 +21,12 @@ export const ANDROID_APP_PACKAGE = "com.farbaek.app";
 /** The query the app's launch address carries (launch_url in android/app/src/main/res/values/strings.xml). */
 export const ANDROID_APP_CLIENT = "android-app";
 
+/**
+ * What the iPhone app adds when it opens a page in its in-app browser (ADR 0177). App Store rules ask the same as Google
+ * Play's, so nothing can be bought from the web there either. It has no referrer to go by, so the address says.
+ */
+export const IOS_APP_CLIENT = "ios-app";
+
 /** Where the tab remembers it, for later pages whose referrer is Farbaek itself. */
 export const STORE_CLIENT_KEY = "farbaek-client";
 
@@ -35,6 +41,16 @@ export function inAndroidApp(stored: string | null, referrer: string, search: st
   return stored === ANDROID_APP_CLIENT || isAndroidAppLaunch(referrer, search);
 }
 
+/** Whether this page was opened by the iPhone app's in-app browser. */
+export function isIosAppLaunch(search: string): boolean {
+  return new URLSearchParams(search).get("client") === IOS_APP_CLIENT;
+}
+
+/** Whether this tab is inside either store's app, where nothing is bought from the web. */
+export function inStoreApp(stored: string | null, referrer: string, search: string): boolean {
+  return stored === IOS_APP_CLIENT || isIosAppLaunch(search) || inAndroidApp(stored, referrer, search);
+}
+
 /** The attribute the early mark sets on <html>, which CSS uses to hide web purchase controls (globals.css). */
 export const ANDROID_APP_MARK = "data-client";
 
@@ -45,6 +61,8 @@ export const ANDROID_APP_MARK = "data-client";
  */
 export function earlyMarkScript(): string {
   const client = JSON.stringify(ANDROID_APP_CLIENT);
+  const ios = JSON.stringify(IOS_APP_CLIENT);
   const app = JSON.stringify(`android-app://${ANDROID_APP_PACKAGE}`);
-  return `(function(){try{var s=null;try{s=sessionStorage.getItem(${JSON.stringify(STORE_CLIENT_KEY)})}catch(e){}var r=document.referrer;if(s===${client}||r===${app}||r.indexOf(${app}+"/")===0||new URLSearchParams(location.search).get("client")===${client})document.documentElement.setAttribute(${JSON.stringify(ANDROID_APP_MARK)},${client})}catch(e){}})();`;
+  const mark = JSON.stringify(ANDROID_APP_MARK);
+  return `(function(){try{var s=null;try{s=sessionStorage.getItem(${JSON.stringify(STORE_CLIENT_KEY)})}catch(e){}var r=document.referrer,c=new URLSearchParams(location.search).get("client");if(s===${client}||r===${app}||r.indexOf(${app}+"/")===0||c===${client})document.documentElement.setAttribute(${mark},${client});else if(s===${ios}||c===${ios})document.documentElement.setAttribute(${mark},${ios})}catch(e){}})();`;
 }

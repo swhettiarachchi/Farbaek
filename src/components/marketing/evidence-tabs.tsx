@@ -26,7 +26,7 @@ export function EvidenceTabs({ tabs }: { tabs: EvidenceTab[] }) {
   return (
     <div className="overflow-hidden rounded-[28px] bg-media shadow-e3">
       {/* On the narrowest phones, or with larger system text, the row scrolls instead of cutting a tab off. */}
-      <div role="tablist" aria-label="Evidence samples" className="flex overflow-x-auto border-b border-white/[0.07] px-1 [scrollbar-width:none] sm:px-2">
+      <div role="tablist" aria-label="Proof samples" className="flex overflow-x-auto border-b border-white/[0.07] px-1 [scrollbar-width:none] sm:px-2">
         {tabs.map((tab, i) => (
           <button
             key={tab.id}

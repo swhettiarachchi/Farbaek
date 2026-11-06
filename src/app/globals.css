@@ -193,7 +193,8 @@
 }
 
 /* Inside Farbaek for Android nothing is bought from the web (ADR 0150), from the very first paint (ADR 0171). */
-:root[data-client="android-app"] [data-web-purchase] {
+:root[data-client="android-app"] [data-web-purchase],
+:root[data-client="ios-app"] [data-web-purchase] {
   display: none;
 }
 

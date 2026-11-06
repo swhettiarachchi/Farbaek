@@ -94,7 +94,7 @@ struct ProjectDetailView: View {
                     header(detail)
                     tasks(detail.tasks)
                     if !model.isSample {
-                        Link(destination: AppConfig.site("app/projects/\(projectId)")) {
+                        WebLink(path: "app/projects/\(projectId)") {
                             Label("Preview and edit on the web", systemImage: "safari")
                                 .frame(minHeight: 44, alignment: .leading)
                                 .contentShape(Rectangle())

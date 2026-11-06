@@ -75,6 +75,13 @@ export function createSupabaseSessionAuth(admin: SupabaseClient, config: Config)
       }
       return null;
     },
+    async signInToken(userId) {
+      const { data: found } = await admin.auth.admin.getUserById(userId);
+      const email = found?.user?.email;
+      if (!email) return null;
+      const { data: link, error } = await admin.auth.admin.generateLink({ type: "magiclink", email });
+      return error ? null : (link?.properties?.hashed_token ?? null);
+    },
     async appleSession(identityToken, nonce) {
       // Auth checks Apple's signature, that the token is for com.farbaek.app, and that the nonce hashes to the token's.
       const { data, error } = await anon()

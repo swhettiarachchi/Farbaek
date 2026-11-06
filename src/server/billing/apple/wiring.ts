@@ -5,6 +5,7 @@
  * app doesn't offer them and the endpoints say they aren't open.
  */
 import { z } from "zod";
+import { testWorkspaces } from "@/server/billing/config";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { verifyAppleJws } from "./jws";
 import type { AppleAccount, AppleDeps, ApplyOutcome } from "./service";
@@ -26,6 +27,7 @@ export function appleDeps(): AppleDeps | null {
   };
   return {
     verify: (jws) => verifyAppleJws(jws),
+    testPurchaseOpen: (orgId) => testWorkspaces(process.env).has(orgId.toLowerCase()),
     async account(orgId): Promise<AppleAccount | null> {
       const { data, error } = await admin.from("billing_accounts").select("provider, state, provider_subscription_id").eq("org_id", orgId).maybeSingle();
       if (error) throw new Error(`billing_accounts: ${error.message}`);

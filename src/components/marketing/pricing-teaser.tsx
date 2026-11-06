@@ -9,7 +9,7 @@ export function PricingTeaser() {
   return (
     <section aria-labelledby="pricing-teaser-title" className="py-20 lg:py-28">
       <Container>
-        <SectionHeading id="pricing-teaser-title" title="One subscription. The models, sandboxes and checks are included.">
+        <SectionHeading id="pricing-teaser-title" title="One subscription. The models, test spaces and checks are included.">
           No API keys to bring. Every new organization gets a {TRIAL.lengthDays}-day {getPlan(TRIAL.basePlan).name} trial with no card. When it
           ends you move to Free, and nothing is charged.
         </SectionHeading>
@@ -30,7 +30,7 @@ export function PricingTeaser() {
               <dd className="mt-4 grid gap-1 text-sm text-ink-2 tabular">
                 <span>{sessionsLine(plan)}</span>
                 <span>
-                  {plan.limits.sandboxHours} sandbox {plan.limits.sandboxHours === 1 ? "hour" : "hours"}, {plan.limits.seats === 1 ? "1 seat" : `${plan.limits.seats} seats`}
+                  {plan.limits.sandboxHours} test space {plan.limits.sandboxHours === 1 ? "hour" : "hours"}, {plan.limits.seats === 1 ? "1 seat" : `${plan.limits.seats} seats`}
                 </span>
               </dd>
             </div>

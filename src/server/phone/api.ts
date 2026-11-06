@@ -14,6 +14,7 @@
  * Reads go through the WorkspaceReader as the person, so Row Level Security
  * decides what's visible; writes go through the same use cases as the web.
  */
+import { IOS_APP_CLIENT } from "@/core/billing/store-client";
 import { z } from "zod";
 import { CAP_CHOICES, type CapChoice } from "@/core/agent/run-cap";
 import { EFFORTS, type Effort } from "@/core/agent/routing";
@@ -178,6 +179,23 @@ const ROUTES: Route[] = [
       if (!Uuid.safeParse(s.params.taskId).success) return notFound("change");
       const view = await approvalView(s.ctx, org, s.params.taskId!, s.deps.execution());
       return view ? ok(view) : notFound("change");
+    },
+  },
+  {
+    // A page the app has no screen for, opened signed in, in its in-app browser (ADR 0177).
+    method: "POST",
+    path: "web-link",
+    anyWorkspace: true,
+    run: async (s) => {
+      const parsed = z.object({ path: z.string().max(300).regex(/^app(\/(?!\.)[A-Za-z0-9._~-]+)*$/) }).safeParse(await body(s.request));
+      if (!parsed.success) return badBody();
+      const page = `/${parsed.data.path}`;
+      const plain = `${s.deps.siteOrigin}${page}?client=${IOS_APP_CLIENT}`;
+      // Without a token the page still opens: the person signs in there, as they did before.
+      const auth = s.deps.auth;
+      if (!s.caller || !auth || !(await auth.store.rateLimit(`phone-web-link:${s.caller.userId}`, 60, 30))) return ok({ url: plain });
+      const token = await auth.auth.signInToken(s.caller.userId).catch(() => null);
+      return ok({ url: token ? `${s.deps.siteOrigin}/auth/open?${new URLSearchParams({ token_hash: token, next: page })}` : plain });
     },
   },
   {

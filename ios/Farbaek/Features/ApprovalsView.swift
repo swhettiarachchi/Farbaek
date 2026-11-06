@@ -72,7 +72,6 @@ struct WalletCardView: View {
                 Label(card.byAgent ? "Desktop agent" : "In Farbaek", systemImage: card.byAgent ? "desktopcomputer" : "cloud")
                     .font(.footnote)
                     .foregroundStyle(Palette.ink3)
-                HashText(sha: card.sha256)
             }
             if !card.canApprove {
                 Notice(text: "Escalated: an owner or admin approves this one.", tone: .approval, symbol: "person.badge.shield.checkmark")
@@ -176,11 +175,13 @@ struct ApprovalDetailView: View {
                     }
                 }
             }
-            HStack(spacing: 6) {
-                Text("Hash").font(.footnote).foregroundStyle(Palette.ink3)
-                HashText(sha: detail.proposal.sha256)
+            TechnicalDetails {
+                HStack(spacing: 6) {
+                    Text("Fingerprint")
+                    HashText(sha: detail.proposal.sha256)
+                }
                 if let modelName = detail.proposal.model {
-                    Text(modelName).font(.caption.monospaced()).foregroundStyle(Palette.ink3).lineLimit(1)
+                    Text(modelName).font(.caption.monospaced()).lineLimit(1)
                 }
             }
         }

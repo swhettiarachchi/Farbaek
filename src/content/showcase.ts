@@ -199,7 +199,7 @@ export interface Capability {
 }
 
 export const CAPABILITIES: readonly Capability[] = [
-  { id: "plan", title: "A plan before anything is built", body: "Describe it in plain words. Farbaek drafts an intent contract you edit and approve.", status: "working" },
+  { id: "plan", title: "A plan before anything is built", body: "Describe it in plain words. Farbaek drafts a plan you edit and approve.", status: "working" },
   {
     id: "design",
     title: "Design to a studio standard",
@@ -208,8 +208,8 @@ export const CAPABILITIES: readonly Capability[] = [
   },
   { id: "skills", title: "Skills, including your own", body: "Twelve built-in design skills, plus your own in the open SKILL.md format.", status: "working" },
   { id: "agent", title: "An agent you can steer", body: "It builds in the cloud under the plan you approved. Message it mid-run; every tool call is checked against the plan.", status: "working" },
-  { id: "preview", title: "Previews of real code", body: "Static sites preview instantly. Apps with a server run in an isolated sandbox.", status: "app-previews" },
-  { id: "checks", title: "Checks before it's done", body: "The agent reviews its own pages, security checks score the code, and contract checks run real commands.", status: "working" },
+  { id: "preview", title: "Previews of real code", body: "Static sites preview instantly. Apps with a server run in an isolated test space.", status: "app-previews" },
+  { id: "checks", title: "Checks before it's done", body: "The agent reviews its own pages, security checks score the code, and the plan's checks run real commands.", status: "working" },
   { id: "proof", title: "Approval and proof", body: "Approvals bind to the exact change, and a ProofPack records what ran and what it doesn't prove.", status: "working" },
   { id: "publish", title: "Publish to your own address", body: "A static site goes live on its own address after a security check finds nothing critical.", status: "site-domain" },
   { id: "bring", title: "Bring your project, take your code", body: "Import a .zip of an app built elsewhere for a security report, and download your code at any time.", status: "working" },

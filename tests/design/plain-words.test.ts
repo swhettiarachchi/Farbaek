@@ -28,16 +28,17 @@ function files(dir: string): string[] {
   return out;
 }
 
-// The public site, the films and the staff console have their own audiences.
-const SKIP = /components[\\/](marketing|films|three|office|admin|showcase|site)[\\/]/;
+// The staff console has its own audience, and the 3D scene has no words.
+const SKIP = /components[\\/](three|office|admin)[\\/]/;
 // What isn't read as a sentence on a screen: prompts, provider clients, the staff's own pages, and hand-off files for developers.
+// Also what has to stay exact: legal pages, the ProofPack format's specification, and the Security page's scenarios.
 const NOT_FOR_READING =
-  /[\\/](testing|admin)[\\/]|(app|components|server|core)[\\/]office[\\/]|core[\\/](ops|github)[\\/]|billing[\\/]apple|sample\.json|[\\/]server[\\/]ai[\\/]|[\\/]core[\\/]ai[\\/]|[\\/]core[\\/]sandbox[\\/]|security-eval|supabase-(reader|writer|store)|(e2b|vercel)-runtime|netlify-client|security-txt|core[\\/]agent[\\/](skills|studio-standard)|core[\\/]billing[\\/]allowance|core[\\/]workspace[\\/]export|core[\\/]security[\\/]rules|github[\\/]pull-requests/;
+  /\(site\)[\\/](acceptable-use|privacy|terms|proofpack|security)[\\/]|[\\/](testing|admin)[\\/]|(app|components|server|core)[\\/]office[\\/]|core[\\/](ops|github)[\\/]|billing[\\/]apple|sample\.json|[\\/]server[\\/]ai[\\/]|[\\/]core[\\/]ai[\\/]|[\\/]core[\\/]sandbox[\\/]|security-eval|supabase-(reader|writer|store)|(e2b|vercel)-runtime|netlify-client|security-txt|core[\\/]agent[\\/](skills|studio-standard)|core[\\/]billing[\\/]allowance|core[\\/]workspace[\\/]export|core[\\/]security[\\/]rules|github[\\/]pull-requests/;
 const APP = [
   ...files(path.join(ROOT, "src", "app", "app")),
-  ...files(path.join(ROOT, "src", "app", "(site)", "pricing")),
-  ...files(path.join(ROOT, "src", "app", "(site)", "verify")),
-  ...files(path.join(ROOT, "src", "app", "(site)", "offline")),
+  ...files(path.join(ROOT, "src", "app", "(site)")),
+  path.join(ROOT, "src", "content", "films.ts"),
+  path.join(ROOT, "src", "content", "showcase.ts"),
   ...files(path.join(ROOT, "src", "components")),
   ...files(path.join(ROOT, "src", "core")),
   ...files(path.join(ROOT, "src", "server")),

@@ -45,7 +45,7 @@ function Cell({
   );
 }
 
-const LIFECYCLE = ["Received", "Contract approved", "Executing", "Verifying", "Verified"] as const;
+const LIFECYCLE = ["Received", "Plan approved", "Building", "Checking", "Verified"] as const;
 
 /** The policy's six outcomes, in words. */
 const OUTCOME_WORDS: Record<(typeof POLICY_OUTCOMES)[number], string> = {
@@ -62,7 +62,7 @@ export function ModulesBento() {
     <section id="modules" aria-labelledby="modules-title" className="py-20 lg:py-28">
       <Container>
         <SectionHeading id="modules-title" title="Eight parts, one shared core.">
-          Studio, Agent, Mesh and LaunchOS all call the same policy, evidence and entitlement services. Nothing is built twice.
+          Studio, the agent, moving projects and launching all use the same rules, proof and plan limits. Nothing is built twice.
         </SectionHeading>
 
         <ul className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -79,7 +79,7 @@ export function ModulesBento() {
 
           <Cell
             title="Trust"
-            body="Policy, approvals, agent leases, autonomy limits and audit, enforced on the server. A prompt is never a security boundary."
+            body="Rules, approvals, what each agent may do, how much runs on its own, and a full history, all enforced on the server. Words in a prompt are never what keeps you safe."
             className="bg-canvas-2 md:col-span-2"
           >
             <div aria-hidden className="dot-grid pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_bottom,transparent,black)]" />
@@ -99,8 +99,8 @@ export function ModulesBento() {
             className="border-accent/20 bg-[linear-gradient(150deg,rgb(36_80_240/0.09),rgb(10_110_133/0.06)_60%,transparent)]"
           />
 
-          <Cell title="RealityLoop" body="Intent contracts, context readiness and outcome tracking for every task." className="bg-surface">
-            <ol className="mt-4 flex flex-wrap items-center gap-x-1 gap-y-1 text-[0.8125rem] text-ink-3" aria-label="A task's lifecycle">
+          <Cell title="Plans" body="A plan you approve for every task, what the agent needs to know first, and how it turned out." className="bg-surface">
+            <ol className="mt-4 flex flex-wrap items-center gap-x-1 gap-y-1 text-[0.8125rem] text-ink-3" aria-label="A task's progress">
               {LIFECYCLE.map((step, i) => (
                 <li key={step} className="flex items-center gap-1">
                   {i > 0 ? <CaretRightIcon size={12} className="text-line-strong" aria-hidden /> : null}
@@ -110,16 +110,16 @@ export function ModulesBento() {
             </ol>
           </Cell>
 
-          <Cell title="Core" body="Identity, organizations, projects, tasks and entitlements." icon={FingerprintIcon} className="bg-surface" />
+          <Cell title="Core" body="Sign-in, workspaces, projects, tasks and what each plan includes." icon={FingerprintIcon} className="bg-surface" />
           <Cell
-            title="Mesh"
+            title="Move projects"
             body="Send projects between your own devices: nearby, directly over the internet, or through Farbaek's relay, encrypted end to end and checked byte for byte."
             icon={ArrowsLeftRightIcon}
             className="bg-surface"
             beta
           />
           <Cell
-            title="LaunchOS"
+            title="Launch"
             body="Launch to your own Vercel or Netlify account, with what goes named first, your typed confirmation, and live checks after."
             icon={RocketLaunchIcon}
             className="bg-surface"
