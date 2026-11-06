@@ -158,7 +158,7 @@ const ROUTES: Route[] = [
     path: "home",
     run: async (s) => {
       const org = orgOf(s);
-      return typeof org === "string" ? ok(await homeView(s.ctx.reader, org, s.runs)) : org;
+      return typeof org === "string" ? ok(await homeView(s.ctx.reader, org, s.runs, s.deps.now())) : org;
     },
   },
   {
@@ -166,7 +166,7 @@ const ROUTES: Route[] = [
     path: "approvals",
     run: async (s) => {
       const org = orgOf(s);
-      return typeof org === "string" ? ok(await approvalsView(s.ctx, org, s.deps.execution())) : org;
+      return typeof org === "string" ? ok(await approvalsView(s.ctx, org, s.deps.execution(), s.deps.now())) : org;
     },
   },
   {
