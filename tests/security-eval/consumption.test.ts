@@ -6,7 +6,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { worstStepUnits } from "@/core/agent/run-cap";
 import { approxTokens } from "@/core/billing/rate-card";
-import { STEP_MAX_OUTPUT_TOKENS, callModel, type GatewayDeps, type GatewayModel, type GatewayRequest } from "@/server/agent/gateway";
+import { STEP_MAX_OUTPUT_TOKENS, STEP_MIN_OUTPUT_TOKENS, callModel, type GatewayDeps, type GatewayModel, type GatewayRequest } from "@/server/agent/gateway";
 import type { AgentIdentity } from "@/server/agent/service";
 import { obedientModel, project, recordingRunner, run, tool, type Project } from "./support";
 
@@ -20,7 +20,7 @@ afterEach(async () => {
 });
 
 describe("SE-018 A run spending past its cap", () => {
-  it("refuses a step whose worst case passes the cap, before reserving, charging or calling the model", async () => {
+  it("refuses a step that can't fit even a short reply, before reserving, charging or calling the model, and limits the rest", async () => {
     const calls: string[] = [];
     const deps: GatewayDeps = {
       billing: async () => ({ state: "active", paidPlanId: "pro" }),
@@ -42,11 +42,18 @@ describe("SE-018 A run spending past its cap", () => {
     };
     // A prompt padded to make the step expensive, as a looping or manipulated agent might.
     const body = { taskId: TASK, system: "You are the Farbaek Agent.", tools: [], messages: [{ role: "user", content: "x".repeat(200_000) }] };
-    const worst = worstStepUnits("claude-sonnet-5-5", approxTokens(JSON.stringify(body.system)) + approxTokens(JSON.stringify(body.tools)) + approxTokens(JSON.stringify(body.messages)), STEP_MAX_OUTPUT_TOKENS);
-    const r = await callModel(deps, model, agent, body, undefined, { remainingUnits: Math.floor(worst / 2) });
+    const prompt = approxTokens(JSON.stringify(body.system)) + approxTokens(JSON.stringify(body.tools)) + approxTokens(JSON.stringify(body.messages));
+    const worst = (tokens: number) => worstStepUnits("claude-sonnet-5-5", prompt, tokens);
+    const r = await callModel(deps, model, agent, body, undefined, { remainingUnits: worst(STEP_MIN_OUTPUT_TOKENS) - 1 });
     expect(r).toMatchObject({ ok: false, code: "RUN_CAP_REACHED" });
     expect(calls).toEqual([]);
     expect(requests).toEqual([]);
+
+    // With a little more left, the step goes ahead, with its reply limited so that even its worst case stays inside.
+    const left = Math.floor(worst(STEP_MAX_OUTPUT_TOKENS) / 2);
+    expect(await callModel(deps, model, agent, body, undefined, { remainingUnits: left })).toMatchObject({ ok: true });
+    expect(requests[0]!.maxTokens).toBeLessThan(STEP_MAX_OUTPUT_TOKENS);
+    expect(worst(requests[0]!.maxTokens)).toBeLessThanOrEqual(left);
   });
 });
 

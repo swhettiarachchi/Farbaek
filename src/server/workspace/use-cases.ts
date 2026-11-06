@@ -5,6 +5,7 @@
  * Supabase details live behind WriteDeps so this logic is unit-tested.
  */
 import { MODE_REFUSALS, type TaskMode } from "@/core/realityloop/modes";
+import { log } from "@/server/observability/log";
 import { checkQuota } from "@/core/billing/entitlements";
 import { resolveEffectivePlan, type BillingSnapshot } from "@/core/billing/trial";
 import { contractHash, type IntentContract } from "@/core/realityloop/contract";
@@ -308,6 +309,8 @@ export function codeFromDatabaseError(message: string): WriteErrorCode {
   ] as const) {
     if (message.includes(code)) return code;
   }
+  // The person is told something vague, so this line is the only record of what really happened (ADR 0178).
+  log("warn", "database.unknown_error", { error: message });
   return "UNKNOWN";
 }
 

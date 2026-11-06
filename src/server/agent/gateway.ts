@@ -17,7 +17,7 @@
 import { TOOLS_CHANGED, toolManifest, type PinnedTool } from "@/core/agent/tool-pins";
 import { TOOL_NAMES } from "@/core/agent/tools";
 import { z } from "zod";
-import { worstStepUnits } from "@/core/agent/run-cap";
+import { affordableOutputTokens } from "@/core/agent/run-cap";
 import { EFFORTS } from "@/core/agent/routing";
 import { routeModel } from "@/server/ai/routing";
 import { approxTokens, costUnits } from "@/core/billing/rate-card";
@@ -28,6 +28,8 @@ import { OUTSIDE_LEASE, agentFail, requireAgentContributor, type AgentIdentity, 
 
 /** The most a step may write, thinking included. */
 export const STEP_MAX_OUTPUT_TOKENS = 32_000;
+/** Near a run's cap, a shorter reply still gets useful work done, and a cut-off one is asked for in smaller steps. Below this, it's time to stop. */
+export const STEP_MIN_OUTPUT_TOKENS = 4_000;
 /** Output reserved before a step: most steps write far less than the maximum, and settling covers the rest. */
 export const STEP_OUTPUT_RESERVE = 16_000;
 /** Request body limit for one step, in bytes. */
@@ -178,9 +180,11 @@ export async function callModel(
   if (!billing.ok) return agentFail(billing.code, billing.message);
   const choice = routeModel({ plan: billing.value.plan, family: model.family, step: body.step, effort: body.effort, pinned: body.pinned, designPass: body.design === true && agent.agentId.startsWith("run:") });
 
+  let maxTokens = STEP_MAX_OUTPUT_TOKENS;
   if (options.remainingUnits !== undefined) {
     const input = approxTokens(JSON.stringify(body.system)) + approxTokens(JSON.stringify(body.tools)) + approxTokens(JSON.stringify(body.messages));
-    if (worstStepUnits(choice.model, input, STEP_MAX_OUTPUT_TOKENS) > options.remainingUnits) {
+    maxTokens = affordableOutputTokens(choice.model, input, options.remainingUnits, STEP_MAX_OUTPUT_TOKENS);
+    if (maxTokens < STEP_MIN_OUTPUT_TOKENS) {
       return agentFail("RUN_CAP_REACHED", "The next step could pass this run's cap, so the run stopped before it. Nothing more was charged.");
     }
   }
@@ -199,7 +203,7 @@ export async function callModel(
 
   let outcome: GatewayCallResult;
   try {
-    outcome = await model.call({ model: choice.model, thinking: choice.thinking, system: body.system, tools: body.tools, messages: body.messages, maxTokens: STEP_MAX_OUTPUT_TOKENS }, signal);
+    outcome = await model.call({ model: choice.model, thinking: choice.thinking, system: body.system, tools: body.tools, messages: body.messages, maxTokens }, signal);
   } catch {
     outcome = { ok: false, failure: "PROVIDER_ERROR" };
   }

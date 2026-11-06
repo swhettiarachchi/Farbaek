@@ -49,6 +49,8 @@ import type { SandboxServerConfig } from "./config";
 const WORK_DIR = "/tmp/farbaek";
 const MAX_LISTED_ENTRIES = 1000;
 const WRITE_BATCH = 100;
+/** Vercel refuses a bigger page with a 400, which stopped the sweep from finding forgotten test spaces. */
+const VERCEL_LIST_PAGE = 50;
 
 export const VERCEL_UNAVAILABLE = {
   previews:
@@ -426,7 +428,7 @@ export function createVercelRuntime(config: SandboxServerConfig): SandboxRuntime
       const [first] = Object.entries(vercelTags(metadata));
       if (!first) return [];
       try {
-        const result = await Sandbox.list({ ...creds, tags: { [first[0]]: first[1] } as Record<string, string>, limit: Math.min(Math.max(limit, 1), 100) });
+        const result = await Sandbox.list({ ...creds, tags: { [first[0]]: first[1] } as Record<string, string>, limit: Math.min(Math.max(limit, 1), VERCEL_LIST_PAGE) });
         const out: { sandboxId: string; metadata: Record<string, string> }[] = [];
         for await (const s of result) {
           if (out.length >= limit) break;

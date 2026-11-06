@@ -58,8 +58,14 @@ const fake = vi.hoisted(() => {
       if (state.missing) throw new APIError(404);
       return new FakeSandbox({ name: params.name, resources: { vcpus: 1 } });
     }
-    static async list() {
-      return { [Symbol.asyncIterator]: async function* () {} };
+    static async list(params?: { limit?: number }) {
+      if ((params?.limit ?? 0) > 50) throw new APIError(400);
+      return {
+        [Symbol.asyncIterator]: async function* () {
+          yield { name: "fb-left-behind", tags: { farbaek: "deployment-1" } };
+          yield { name: "fb-someone-elses", tags: { farbaek: "another-deployment" } };
+        },
+      };
     }
     async getDefaultUser() {
       return { username: "vercel-sandbox", group: "vercel-sandbox" };
@@ -176,6 +182,13 @@ describe("network policy", () => {
     expect(deny).toContain("10.0.0.0/8");
     // A deny-all range would also block the allowed hosts in Vercel's firewall.
     expect(deny).not.toContain("0.0.0.0/0");
+  });
+});
+
+describe("finding forgotten sandboxes", () => {
+  it("asks for no more than Vercel allows, and keeps only this deployment's", async () => {
+    const found = await createVercelRuntime(config()).listTagged({ farbaek: "deployment-1" }, 200);
+    expect(found.map((s) => s.sandboxId)).toEqual(["fb-left-behind"]);
   });
 });
 

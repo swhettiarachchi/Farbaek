@@ -5,6 +5,7 @@ import { ReportResult } from "@/components/tasks/report-result";
 import { NextStepCard } from "@/components/tasks/next-step";
 import { Disclosure } from "@/components/ui/disclosure";
 import { taskNextStep } from "@/core/realityloop/next-step";
+import { filesChangedSince } from "@/core/realityloop/change-proposal";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ApproveContractControl, ContractEditor, ReviseContract } from "@/components/app/contract-editor";
@@ -196,7 +197,9 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
   const siteCheck = fallback?.kind === "site";
   const checking = verification !== null && verificationState(verification, new Date(renderedAt)) === "running";
   // The Future-State Arena on a change waiting for review (ADR 0076).
-  const trying = showProposal && proposal!.status === "pending";
+  // A change that can't apply any more isn't worth test space time.
+  const outOfDate = task.state === "APPROVAL_PENDING" && proposal?.status === "pending" ? filesChangedSince(proposal.changes, projectFiles) : [];
+  const trying = showProposal && proposal!.status === "pending" && outOfDate.length === 0;
   const arenaClient = trying && ctx.mode === "live" ? await createSupabaseServerClient() : null;
   const arenaRun = arenaClient ? await readLatestArenaRun(arenaClient, orgId, proposal!.id).catch(() => null) : null;
   const arenaReason =
@@ -306,6 +309,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
   const nextStep = taskNextStep({
     state: task.state,
     hasChange: reviewing,
+    changeOutOfDate: outOfDate.length > 0,
     changeExpired: proposal?.status === "pending" && approvalWindow(proposal.createdAt, proposal.expiresAt, new Date(renderedAt)).state === "expired",
     canApprove: ctx.mode === "demo" || (!writeReason && !withheldFor(ctx.role, ctx.permissions, "approve") && (proposal?.policy?.outcome !== "ESCALATE" || isManager)),
     canAct,
@@ -380,6 +384,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
                 projectId={task.projectId}
                 proposal={proposal!}
                 bases={bases}
+                outOfDate={outOfDate}
                 invariants={contract?.body.protectedInvariants.map((i) => i.statement) ?? []}
                 disabledReason={writeReason}
                 executionReason={execution.mode === "review_only" ? execution.reason : null}

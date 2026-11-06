@@ -24,6 +24,8 @@ export interface NextStepFacts {
   hasChange: boolean;
   /** That change waited too long, so it can only be discarded now (ADR 0042). */
   changeExpired: boolean;
+  /** A file it was made from has changed since, so it can only be discarded now (ADR 0178). */
+  changeOutOfDate?: boolean;
   /** This person can approve that change. */
   canApprove: boolean;
   /** This person can do anything to this task: not a viewer, and the project isn't archived. */
@@ -145,6 +147,14 @@ function stepFor(facts: NextStepFacts): NextStep {
           tone: "problem",
           title: "This change ran out of time",
           body: "It can't be approved now. Discard it, and ask the agent to try again with the files as they are now.",
+          action: { label: "See the change", target: "change" },
+        };
+      }
+      if (facts.hasChange && facts.changeOutOfDate) {
+        return {
+          tone: "problem",
+          title: "This change is out of date",
+          body: "Its files changed after it was made, so it can't be approved. Discard it, and ask the agent to try again with the files as they are now.",
           action: { label: "See the change", target: "change" },
         };
       }

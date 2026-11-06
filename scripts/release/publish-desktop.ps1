@@ -1,27 +1,63 @@
 # The two server steps of a launch that only you can run (auto mode refuses them for Claude):
 #
-#   1. Restarts Supabase Auth, so it reads settings that changed in the repo (ADR 0176). Only Auth restarts,
-#      for a few seconds, and people who are signed in stay signed in.
+#   1. Restarts Supabase Auth if it hasn't read the settings that changed in the repo (ADR 0176). Only Auth
+#      restarts, for a few seconds, and people who are signed in stay signed in.
 #   2. Copies the desktop app's installers to the server, comparing each one's SHA-256 before it goes live,
 #      as docs/agent/README.md describes under "Publishing a release". Old installers stay.
 #
+# If the connection drops, it waits a minute and carries on from where it stopped, however many times that
+# takes, and a file that's already there isn't sent again. You can also close it and run it again at any time.
 # Nothing here reads a secret, and nothing is deleted. Run it in your own PowerShell window:
 #
 #   powershell -ExecutionPolicy Bypass -File "C:\Users\INTEL\Documents\FarBaek\scripts\release\publish-desktop.ps1"
 #
-# It's safe to run twice. A file that's missing from desktop\release is skipped, and it says so.
+# A file that's missing from desktop\release is skipped, and it says so.
 param(
   [string]$Version = "0.10.0",
   [string]$Server = "2.25.88.188",
-  [string]$Key = "$HOME\.ssh\farbaek_vps"
+  [string]$Key = "$HOME\.ssh\farbaek_vps",
+  [int]$Tries = 40
 )
 
-$ssh = @("-i", $Key, "-o", "StrictHostKeyChecking=accept-new", "farbaek@$Server")
-$release = Join-Path $PSScriptRoot "..\..\desktop\release"
+$options = @("-i", $Key, "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=30", "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=8")
+$target = "farbaek@$Server"
+$release = (Resolve-Path (Join-Path $PSScriptRoot "..\..\desktop\release")).Path
 $downloads = "/opt/farbaek/downloads"
 
-Write-Host "1 of 2: restarting Supabase Auth so it reads its new settings..." -ForegroundColor Cyan
-$limit = ssh @ssh "cd /opt/farbaek/supabase/docker && docker compose up -d auth >/dev/null 2>&1 && sleep 6 && docker exec supabase-auth printenv GOTRUE_RATE_LIMIT_EMAIL_SENT"
+function Remote([string]$command) {
+  # A dropped connection answers with nothing, which every caller treats as "ask again".
+  $answer = ssh @options $target $command 2>$null
+  if ($LASTEXITCODE -ne 0) { return $null }
+  return "$answer".Trim()
+}
+
+function Send-Resuming([string]$path, [string]$part, [long]$size) {
+  $batch = New-TemporaryFile
+  $local = $path -replace '\\', '/'
+  try {
+    for ($try = 1; $try -le $Tries; $try++) {
+      $sent = Remote "touch '$part' && stat -c %s '$part'"
+      if ($null -ne $sent -and $sent -match '^\d+$') {
+        if ([long]$sent -ge $size) { return $true }
+        Write-Host ("  {0} of {1} MB there so far..." -f [math]::Round([long]$sent / 1MB), [math]::Round($size / 1MB))
+        Set-Content -LiteralPath $batch.FullName -Encoding ascii -Value @("progress", "reput `"$local`" `"$part`"")
+        sftp @options -b $batch.FullName $target
+        if ($LASTEXITCODE -eq 0) { return $true }
+      }
+      Write-Host "  The connection dropped. Carrying on from where it stopped in a minute (try $try of $Tries)..." -ForegroundColor Yellow
+      Start-Sleep -Seconds 60
+    }
+    return $false
+  } finally {
+    Remove-Item -LiteralPath $batch.FullName -ErrorAction SilentlyContinue
+  }
+}
+
+Write-Host "1 of 2: making sure Supabase Auth has its new settings..." -ForegroundColor Cyan
+$limit = Remote "docker exec supabase-auth printenv GOTRUE_RATE_LIMIT_EMAIL_SENT"
+if ($limit -ne "300") {
+  $limit = Remote "cd /opt/farbaek/supabase/docker && docker compose up -d auth >/dev/null 2>&1 && sleep 6 && docker exec supabase-auth printenv GOTRUE_RATE_LIMIT_EMAIL_SENT"
+}
 if ($limit -ne "300") {
   Write-Host "Auth didn't come back with the new settings (it said: $limit). Tell Claude. Sign-in may need checking." -ForegroundColor Red
   exit 1
@@ -38,19 +74,28 @@ foreach ($name in $files) {
     continue
   }
   $local = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLower()
+  $size = (Get-Item -LiteralPath $path).Length
+  if ((Remote "sha256sum '$downloads/$name' 2>/dev/null | cut -d' ' -f1") -eq $local) {
+    Write-Host "  $name is already on the server, and its fingerprint matches." -ForegroundColor Green
+    continue
+  }
   $part = "$downloads/.$name.part"
-  Write-Host "  Sending $name ($([math]::Round((Get-Item -LiteralPath $path).Length / 1MB)) MB)..."
-  scp -i $Key -o StrictHostKeyChecking=accept-new $path "farbaek@${Server}:$part"
-  if ($LASTEXITCODE -ne 0) { Write-Host "  Sending $name failed. Nothing changed for that file." -ForegroundColor Red; $failed = $true; continue }
-  $remote = ssh @ssh "sha256sum '$part' | cut -d' ' -f1"
+  Write-Host "  Sending $name ($([math]::Round($size / 1MB)) MB)..."
+  if (-not (Send-Resuming $path $part $size)) {
+    Write-Host "  $name still isn't all there. Run this again later: it carries on from where it stopped." -ForegroundColor Red
+    $failed = $true
+    continue
+  }
+  $remote = Remote "sha256sum '$part' | cut -d' ' -f1"
   if ($remote -ne $local) {
-    ssh @ssh "rm -f '$part'"
+    # Only an interrupted check leaves this empty; a real difference means the partial copy can't be trusted.
+    if ($remote) { Remote "rm -f '$part'" | Out-Null }
     Write-Host "  $name arrived different from what was sent, so it wasn't kept. Run this again." -ForegroundColor Red
     $failed = $true
     continue
   }
-  ssh @ssh "mv '$part' '$downloads/$name'"
+  Remote "mv '$part' '$downloads/$name'" | Out-Null
   Write-Host "  $name is on the server, and its fingerprint matches." -ForegroundColor Green
 }
 if ($failed) { Write-Host "Something didn't finish. Run this again, then tell Claude." -ForegroundColor Red; exit 1 }
-Write-Host "Done. Tell Claude, who'll switch the Desktop app page to this version." -ForegroundColor Green
+Write-Host "Done. Tell Claude, who'll check the downloads on the live site." -ForegroundColor Green
