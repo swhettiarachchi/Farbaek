@@ -8,8 +8,8 @@ export const AGENT_DOWNLOAD = {
   version: "0.10.0",
   platform: "windows",
   file: "Farbaek-Agent-Setup-0.10.0.exe",
-  bytes: 114_124_010,
-  sha256: "5761f5bd8f376e49e8d06928afd6614d42a56429b1176e633ebf3e69e894cd51",
+  bytes: 114_124_227,
+  sha256: "29f9899724d50f20a9ec7a30557395a778d7c4e33bd4e456ffa79a5cb05e7429",
   builtOn: "2026-11-06",
 } as const;
 
@@ -26,8 +26,8 @@ export const AGENT_STORE_URL: string | null = "https://apps.microsoft.com/detail
 export const AGENT_MAC: { version: string; file: string; bytes: number; sha256: string; builtOn: string } | null = {
   version: "0.10.0",
   file: "Farbaek-Agent-0.10.0-mac.dmg",
-  bytes: 227_928_773,
-  sha256: "3685d36182f5b074c57c2a6fa7e5eab4168635182876d0e0788453af037c2431",
+  bytes: 227_927_326,
+  sha256: "961c044cc3d5e28e76281fa547a176b9ebac936d5d5c9233bcaed5399103585b",
   builtOn: "2026-11-06",
 };
 
@@ -40,7 +40,7 @@ export const AGENT_MAC: { version: string; file: string; bytes: number; sha256: 
 export const AGENT_LINUX: { version: string; file: string; bytes: number; sha256: string; builtOn: string } | null = {
   version: "0.10.0",
   file: "Farbaek-Agent-0.10.0-linux-x86_64.AppImage",
-  bytes: 130_331_536,
-  sha256: "534e5b2261a1456275b37b50ab4116698f3cb3d509ad40cf03c3117aebbde2a3",
+  bytes: 130_331_492,
+  sha256: "37812144d8e6e37d4891ee72e46353dcbca2b02d872f2519810e97a9f87ded58",
   builtOn: "2026-11-06",
 };

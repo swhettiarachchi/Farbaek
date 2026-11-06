@@ -16,10 +16,10 @@
 
 | File | Bytes | SHA-256 | Checked |
 | --- | --- | --- | --- |
-| `Farbaek-Agent-Setup-0.10.0.exe` | 114,124,010 | `5761f5bd…` | Built here. Starts, and its first screen reads correctly. |
-| `Farbaek-Agent-0.10.0-mac.dmg` | 227,928,773 | `3685d361…` | GitHub's macOS runner: signed, notarized, stapled, Gatekeeper accepts it, still running 20 seconds after opening. |
-| `Farbaek-Agent-0.10.0-linux-x86_64.AppImage` | 130,331,536 | `534e5b22…` | GitHub's Linux runner: still running 25 seconds after opening. |
-| `Farbaek-Agent-0.10.0.appx` | 157,780,592 | `fbb2a527…` | Built here, with Partner Center's reserved identity. Certification is Microsoft's. |
+| `Farbaek-Agent-Setup-0.10.0.exe` | 114,124,227 | `29f98997…` | Built here. Starts, and its first screen reads correctly. An earlier build of this version, one wording fix behind, paired with production, listed real tasks and unpaired. |
+| `Farbaek-Agent-0.10.0-mac.dmg` | 227,927,326 | `961c044c…` | GitHub's macOS runner: signed, notarized, stapled, Gatekeeper accepts it, still running 20 seconds after opening. |
+| `Farbaek-Agent-0.10.0-linux-x86_64.AppImage` | 130,331,492 | `37812144…` | GitHub's Linux runner: still running 25 seconds after opening. |
+| `Farbaek-Agent-0.10.0.appx` | 157,780,831 | `cc0072dd…` | Built here, with Partner Center's reserved identity. Certification is Microsoft's. |
 
 Each downloaded file's fingerprint was compared with the one its build run reported.
 
