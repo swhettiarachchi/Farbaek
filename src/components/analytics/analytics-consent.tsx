@@ -11,7 +11,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Script from "next/script";
 import { useEffect, useSyncExternalStore } from "react";
-import { useInAndroidApp } from "@/components/billing/web-purchase-only";
+import { useInStoreApp } from "@/components/billing/web-purchase-only";
 import { buttonClasses } from "@/components/ui/button";
 import { GA_MEASUREMENT_ID } from "@/config/analytics";
 import { CONSENT_KEY, isAnalyticsCookie, isPrivatePath, mayLoad, readChoice, shouldAsk, storeChoice, validMeasurementId, type AnalyticsChoice } from "@/core/analytics/consent";
@@ -80,7 +80,7 @@ function choose(choice: AnalyticsChoice) {
 
 /** In the site's layout: the question when there's no choice yet, and Google's tag once it's allowed. */
 export function AnalyticsConsent() {
-  const inApp = useInAndroidApp();
+  const inApp = useInStoreApp();
   const { choice, reopened: open } = useChoice();
   const id = GA_MEASUREMENT_ID;
   const ask = shouldAsk(id, choice, inApp) || (open && validMeasurementId(id) && !inApp);
@@ -166,7 +166,7 @@ function ChoiceBar({ current }: { current: AnalyticsChoice | null }) {
 
 /** The footer's way back to the question, shown only where analytics is set up. */
 export function CookieChoicesButton() {
-  const inApp = useInAndroidApp();
+  const inApp = useInStoreApp();
   if (!validMeasurementId(GA_MEASUREMENT_ID) || inApp) return null;
   return (
     <li>
