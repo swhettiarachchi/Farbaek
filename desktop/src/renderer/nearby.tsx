@@ -146,7 +146,7 @@ export function NearbyView({ intro }: { intro?: ReactNode }) {
       <header className="view-head">
         <h1>Nearby</h1>
         <p className="muted">
-          Send a folder straight to another computer on your network. It goes directly between the two, encrypted, and every piece is checked against its hash when it
+          Send a folder straight to another computer on your network. It goes directly between the two, encrypted, and every piece is checked when it
           arrives. Over the internet it goes directly between your computers too when the networks allow it, and through Farbaek&apos;s relay only if you choose it: encrypted end to end either way.
         </p>
         {intro}
@@ -374,7 +374,7 @@ function RelayCard({ snapshot: s, now, busy, act }: { snapshot: MeshSnapshot; no
             r.pairingUntil && Date.parse(r.pairingUntil) > now ? (
               <div className="stack-sm">
                 <p className="small">
-                  Open for a phone or browser for {left(r.pairingUntil, now)}. On it, open Farbaek&apos;s Mesh page, sign in, and choose this computer. The same code shows on both screens when it calls.
+                  Open for a phone or browser for {left(r.pairingUntil, now)}. On it, open Farbaek&apos;s Move projects page, sign in, and choose this computer. The same code shows on both screens when it calls.
                 </p>
                 <div className="row-start">
                   <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("pair-remote", () => mesh.pairRemote(false))}>
@@ -408,7 +408,7 @@ function SendCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: st
       <h2>Send a folder</h2>
       {!prepared ? (
         <>
-          <p className="muted">Choose a folder. Its files are checked and hashed here first; credentials, keys, .env files and dependency folders stay on this computer.</p>
+          <p className="muted">Choose a folder. Its files are checked here first; credentials, keys, .env files and dependency folders stay on this computer.</p>
           <div className="row-start">
             <button className="btn btn-primary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("prepare", () => mesh.prepare())}>
               {busy === "prepare" ? <CircleNotchIcon size={16} className="spin" aria-hidden /> : <FolderOpenIcon size={16} aria-hidden />}
