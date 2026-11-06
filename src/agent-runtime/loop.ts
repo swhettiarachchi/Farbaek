@@ -265,7 +265,7 @@ export async function runAgent(input: RunInput): Promise<RunReport> {
       // All of it: this approves this exact command, so nothing may hide past the end of what's shown (ADR 0175).
       display: `${known.tool} from the MCP server "${known.server}", with ${shown}`,
       risk: "unknown",
-      reason: "A tool from an MCP server you added. It runs on this computer and can do anything that server can, outside the project's copy and the contract's checks.",
+      reason: "A tool from an MCP server you added. It runs on this computer and can do anything that server can, outside the project's copy and the plan's checks.",
       why: "",
       where: "local",
       bindingHash,

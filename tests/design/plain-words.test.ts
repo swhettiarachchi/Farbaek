@@ -39,6 +39,7 @@ const APP = [
   ...files(path.join(ROOT, "src", "app", "(site)")),
   path.join(ROOT, "src", "content", "films.ts"),
   path.join(ROOT, "src", "content", "showcase.ts"),
+  ...files(path.join(ROOT, "desktop", "src", "renderer")),
   ...files(path.join(ROOT, "src", "components")),
   ...files(path.join(ROOT, "src", "core")),
   ...files(path.join(ROOT, "src", "server")),

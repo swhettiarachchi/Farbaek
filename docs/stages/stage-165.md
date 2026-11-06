@@ -10,6 +10,7 @@
 - Only known tests and builds run from a task sent to the computer, and the card says plainly that they run the project's own code.
 - `.GIT` is treated as `.git`.
 - The screens say plan, change, access and test space, and name pages as Farbaek does.
+- **It says when a newer version is out.** An app installed from the website had no way of knowing, so a safety fix could never reach it. This can't reach 0.9.0, which doesn't ask: people on 0.9.0 have to find the new version themselves.
 
 ## What was built and checked
 

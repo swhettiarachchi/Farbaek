@@ -1015,7 +1015,7 @@ function McpServersCard({ state, onState }: { state: AppState; onState: (s: AppS
     <div className="card stack-sm">
       <h2>Tools from MCP servers</h2>
       <p className="muted">
-        Add an MCP server to offer its tools to the agent in Controlled Development runs. It runs on this computer, outside the project&apos;s copy and the contract&apos;s checks, so every call waits for your approval. Review Only never offers them.
+        Add an MCP server to offer its tools to the agent in Controlled Development runs. It runs on this computer, outside the project&apos;s copy and the plan&apos;s checks, so every call waits for your approval. Review Only never offers them.
       </p>
       <p className="small muted">
         The first time this agent offers new tools, Farbaek holds its AI steps until an owner or admin approves them on the Desktop app page. Runs on a model on this computer don&apos;t go through Farbaek.
