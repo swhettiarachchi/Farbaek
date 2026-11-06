@@ -5,12 +5,12 @@
  * with this exact SHA-256 (docs/agent/README.md, "Publishing a release").
  */
 export const AGENT_DOWNLOAD = {
-  version: "0.9.0",
+  version: "0.10.0",
   platform: "windows",
-  file: "Farbaek-Agent-Setup-0.9.0.exe",
-  bytes: 114_113_152,
-  sha256: "406cbfc62d2eba76aec7435f9f466e9283cd87cf8345df585f8419f46dacaff6",
-  builtOn: "2026-10-31",
+  file: "Farbaek-Agent-Setup-0.10.0.exe",
+  bytes: 114_124_010,
+  sha256: "5761f5bd8f376e49e8d06928afd6614d42a56429b1176e633ebf3e69e894cd51",
+  builtOn: "2026-11-06",
 } as const;
 
 export const agentDownloadUrl = `/downloads/${AGENT_DOWNLOAD.file}`;
@@ -24,11 +24,11 @@ export const agentDownloadUrl = `/downloads/${AGENT_DOWNLOAD.file}`;
 export const AGENT_STORE_URL: string | null = "https://apps.microsoft.com/detail/9N4GNB94KH9M";
 
 export const AGENT_MAC: { version: string; file: string; bytes: number; sha256: string; builtOn: string } | null = {
-  version: "0.9.0",
-  file: "Farbaek-Agent-0.9.0-mac.dmg",
-  bytes: 227_928_858,
-  sha256: "f64015289e2a88f376d1b762c613e09dbc65a22e80d8e5f9dc78638283b65a11",
-  builtOn: "2026-11-01",
+  version: "0.10.0",
+  file: "Farbaek-Agent-0.10.0-mac.dmg",
+  bytes: 227_928_773,
+  sha256: "3685d36182f5b074c57c2a6fa7e5eab4168635182876d0e0788453af037c2431",
+  builtOn: "2026-11-06",
 };
 
 /**
@@ -38,9 +38,9 @@ export const AGENT_MAC: { version: string; file: string; bytes: number; sha256: 
  * SHA-256; the Agents page then offers it.
  */
 export const AGENT_LINUX: { version: string; file: string; bytes: number; sha256: string; builtOn: string } | null = {
-  version: "0.9.0",
-  file: "Farbaek-Agent-0.9.0-linux-x86_64.AppImage",
-  bytes: 130_319_103,
-  sha256: "df4e1194dbe3cc77f4367e57591d335759605c5c887d84e6b483ec94552550e4",
-  builtOn: "2026-11-01",
+  version: "0.10.0",
+  file: "Farbaek-Agent-0.10.0-linux-x86_64.AppImage",
+  bytes: 130_331_536,
+  sha256: "534e5b2261a1456275b37b50ab4116698f3cb3d509ad40cf03c3117aebbde2a3",
+  builtOn: "2026-11-06",
 };

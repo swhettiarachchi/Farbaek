@@ -37,7 +37,7 @@ export function SiteFooter() {
           <ul className="grid grid-cols-2 gap-x-10 text-sm">
             {[...NAV_LINKS, { href: "/verify", label: "Check a ProofPack" }, { href: "/security", label: "Security tests" }, { href: "/sign-in", label: "Sign in" }].map((link) => (
               <li key={link.href}>
-                <Link href={link.href} className="inline-flex min-h-11 items-center text-ink-2 hover:text-ink">
+                <Link href={link.href} className="inline-flex min-h-11 min-w-11 items-center text-ink-2 hover:text-ink">
                   {link.label}
                 </Link>
               </li>
@@ -50,7 +50,7 @@ export function SiteFooter() {
           <ul className="flex flex-wrap gap-x-6 text-sm">
             {LEGAL_DOCS.map((link) => (
               <li key={link.href}>
-                <Link href={link.href} className="inline-flex min-h-11 items-center text-ink-3 hover:text-ink">
+                <Link href={link.href} className="inline-flex min-h-11 min-w-11 items-center text-ink-3 hover:text-ink">
                   {link.label}
                 </Link>
               </li>
