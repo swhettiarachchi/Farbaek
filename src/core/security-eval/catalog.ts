@@ -187,7 +187,7 @@ export const EVAL_SCENARIOS: readonly EvalScenario[] = [
     id: "SE-018",
     title: "A run spending past its cap",
     risks: ["LLM10", "ASI08"],
-    asserts: "The gateway refuses a step whose worst case passes the run's cap, before reserving, charging or calling the model.",
+    asserts: "The gateway limits each step's reply so its worst case can't pass the run's cap, and refuses a step that can't fit even a short reply, before reserving, charging or calling the model.",
     file: "consumption.test.ts",
   },
   {

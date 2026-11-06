@@ -52,3 +52,9 @@ The run page shows the cap next to "Used", with a small meter of the cap used, a
 - **Cloud runs only.** The desktop agent's runs don't take a cap yet: its API doesn't pass one, so the gateway behaves exactly as before.
 - **A tight cap means more stops.** "The estimate" can stop a large change early. That's why the default is twice the estimate, and why the card says so.
 - **Partial proposals for every limit.** Runs that hit the fixed step, token or time limits also keep their work now. Before, they lost it.
+
+## Update (2026-11-06, stage 166): a step is limited, not refused
+
+The gateway refused a step if a full 32,000-token reply wouldn't fit in what was left of the cap. On Free, that one reply costs about 3% of the month's AI usage, and a Fast run's default cap is 4%. So every Fast run on Free stopped after its first step, having changed nothing, on the setting described as stretching usage furthest. Real steps cost about 0.4%.
+
+Now a step's reply is limited to what fits (`affordableOutputTokens`), and the run stops only when less than 4,000 tokens would fit. The promise is the same: even if the model writes all it's allowed, the step stays inside the cap. A reply that's cut off isn't run, and the agent is asked to use smaller steps, as it already was.

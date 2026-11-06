@@ -3,7 +3,7 @@ import type { BillingSnapshot } from "@/core/billing/trial";
 import type { TaskState } from "@/core/realityloop/task-machine";
 import { worstStepUnits } from "@/core/agent/run-cap";
 import { approxTokens } from "@/core/billing/rate-card";
-import { STEP_MAX_OUTPUT_TOKENS, callModel, stepReserveUnits, type GatewayCallResult, type GatewayDeps, type GatewayModel, type GatewayRequest } from "./gateway";
+import { STEP_MAX_OUTPUT_TOKENS, STEP_MIN_OUTPUT_TOKENS, callModel, stepReserveUnits, type GatewayCallResult, type GatewayDeps, type GatewayModel, type GatewayRequest } from "./gateway";
 import type { AgentIdentity } from "./service";
 
 const TASK = "22222222-2222-4222-8222-222222222222";
@@ -67,13 +67,36 @@ describe("a run's cap (ADR 0040)", () => {
   const b = body();
   const worst = worstStepUnits("claude-sonnet-5-5", approxTokens(JSON.stringify(b.system)) + approxTokens(JSON.stringify(b.tools)) + approxTokens(JSON.stringify(b.messages)), STEP_MAX_OUTPUT_TOKENS);
 
-  it("stops before a step whose worst case doesn't fit, without reserving or calling the model", async () => {
+  const words = approxTokens(JSON.stringify(b.system)) + approxTokens(JSON.stringify(b.tools)) + approxTokens(JSON.stringify(b.messages));
+
+  it("stops before a step when not even a short reply fits, without reserving or calling the model", async () => {
     const { deps, calls } = fakeDeps();
     const model = fakeModel(reply());
-    const r = await callModel(deps, model, agent, b, undefined, { remainingUnits: worst - 1 });
+    const r = await callModel(deps, model, agent, b, undefined, { remainingUnits: worstStepUnits("claude-sonnet-5-5", words, STEP_MIN_OUTPUT_TOKENS) - 1 });
     expect(r).toMatchObject({ ok: false, status: 402, code: "RUN_CAP_REACHED", message: expect.stringContaining("Nothing more was charged") });
     expect(calls).toEqual([]);
     expect(model.requests).toEqual([]);
+  });
+
+  it("limits the reply to what's left of the cap, instead of refusing a step for what it almost never writes", async () => {
+    const { deps } = fakeDeps();
+    const model = fakeModel(reply());
+    const remainingUnits = worst - 1;
+    expect(await callModel(deps, model, agent, b, undefined, { remainingUnits })).toMatchObject({ ok: true });
+    const asked = model.requests[0]!.maxTokens;
+    expect(asked).toBeLessThan(STEP_MAX_OUTPUT_TOKENS);
+    expect(asked).toBeGreaterThanOrEqual(STEP_MIN_OUTPUT_TOKENS);
+    // The promise holds: even if it writes all it may, the step stays inside the cap.
+    expect(worstStepUnits("claude-sonnet-5-5", words, asked)).toBeLessThanOrEqual(remainingUnits);
+  });
+
+  it("keeps the full reply when the cap has room, and when there's no cap", async () => {
+    const roomy = fakeModel(reply());
+    await callModel(fakeDeps().deps, roomy, agent, b, undefined, { remainingUnits: worst });
+    expect(roomy.requests[0]!.maxTokens).toBe(STEP_MAX_OUTPUT_TOKENS);
+    const uncapped = fakeModel(reply());
+    await callModel(fakeDeps().deps, uncapped, agent, b);
+    expect(uncapped.requests[0]!.maxTokens).toBe(STEP_MAX_OUTPUT_TOKENS);
   });
 
   it("lets a step through when even its worst case fits, and charges only what it really cost", async () => {

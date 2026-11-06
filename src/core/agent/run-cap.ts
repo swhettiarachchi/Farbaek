@@ -35,6 +35,25 @@ export function worstStepUnits(model: string, approxInputTokens: number, maxOutp
   return costUnits(model, { inputTokens: 0, cacheWriteTokens: Math.ceil(approxInputTokens * INPUT_MARGIN), cacheReadTokens: 0, outputTokens: maxOutputTokens });
 }
 
+/**
+ * The longest reply a step can be allowed without its worst case passing what's left of the cap. On a small plan
+ * one step's full allowance can be the whole cap, so a step is limited to what fits, and not refused for what it
+ * almost never writes. The promise holds: its worst case still fits. 0 when not even the prompt fits.
+ */
+export function affordableOutputTokens(model: string, approxInputTokens: number, remainingUnits: number, mostOutputTokens: number): number {
+  const fits = (tokens: number) => worstStepUnits(model, approxInputTokens, tokens) <= remainingUnits;
+  if (fits(mostOutputTokens)) return mostOutputTokens;
+  if (!fits(0)) return 0;
+  let low = 0;
+  let high = mostOutputTokens;
+  while (high - low > 1) {
+    const middle = Math.floor((low + high) / 2);
+    if (fits(middle)) low = middle;
+    else high = middle;
+  }
+  return low;
+}
+
 /** A cap as people see it: "6%". */
 export function capShare(units: number, periodUnits: number | null): string | null {
   if (!periodUnits || periodUnits <= 0) return null;
