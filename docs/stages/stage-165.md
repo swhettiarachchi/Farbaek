@@ -1,0 +1,36 @@
+# Stage 165: Desktop app 0.10.0
+
+- **Branch:** `feat/desktop-0.10`, from `main`.
+- **Skills used:** `chrome-browser` for the builds and Partner Center.
+
+## What's in it
+
+- Every command on a person's own computer asks first (ADR 0175). Until now, commands classed read-only ran on their own.
+- An MCP approval shows the whole input.
+- Only known tests and builds run from a task sent to the computer, and the card says plainly that they run the project's own code.
+- `.GIT` is treated as `.git`.
+- The screens say plan, change, access and test space, and name pages as Farbaek does.
+- **It says when a newer version is out.** An app installed from the website had no way of knowing, so a safety fix could never reach it. This can't reach 0.9.0, which doesn't ask: people on 0.9.0 have to find the new version themselves.
+
+## What was built and checked
+
+| File | Bytes | SHA-256 | Checked |
+| --- | --- | --- | --- |
+| `Farbaek-Agent-Setup-0.10.0.exe` | 114,124,227 | `29f98997…` | Built here. Starts, and its first screen reads correctly. An earlier build of this version, one wording fix behind, paired with production, listed real tasks and unpaired. |
+| `Farbaek-Agent-0.10.0-mac.dmg` | 227,927,326 | `961c044c…` | GitHub's macOS runner: signed, notarized, stapled, Gatekeeper accepts it, still running 20 seconds after opening. |
+| `Farbaek-Agent-0.10.0-linux-x86_64.AppImage` | 130,331,492 | `37812144…` | GitHub's Linux runner: still running 25 seconds after opening. |
+| `Farbaek-Agent-0.10.0.appx` | 157,780,831 | `cc0072dd…` | Built here, with Partner Center's reserved identity. Certification is Microsoft's. |
+
+Each downloaded file's fingerprint was compared with the one its build run reported.
+
+## What only the owner can do
+
+Auto mode refuses Claude's writes to the server and the Store's large upload, so:
+
+1. Run `scripts/release/publish-desktop.ps1`. It restarts Auth with its new settings, and copies the three installers to the server with their fingerprints compared.
+2. Merge this PR after that, because the page starts linking the new files as soon as it deploys.
+3. In Partner Center, Submission 2 is an open draft: under Packages, drag in `Farbaek-Agent-0.10.0.appx` from the Desktop folder "Farbaek Store submission", remove 0.9.0, and submit.
+
+**Until they update, people on 0.9.0 keep the old command rule.** The server's refusals (the pause, suspensions, access) reach them straight away.
+
+**Not tested here:** a full run on a real second computer, on any of the three systems.

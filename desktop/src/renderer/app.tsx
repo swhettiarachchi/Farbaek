@@ -1,3 +1,4 @@
+import { isNewerVersion } from "@/core/agent/app-version";
 import {
   ArrowClockwiseIcon,
   ArrowSquareOutIcon,
@@ -133,7 +134,7 @@ function PairScreen({ state, onPaired, onNearby }: { state: AppState; onPaired: 
         <img src="./logo.webp" alt="Farbaek" className="pair-logo" />
         <h1>Pair this computer</h1>
         <p className="muted">
-          In Farbaek, open Agents and create a pairing code. Type it here to connect this computer to your workspace. The code works once, for 10 minutes.
+          In Farbaek, open the Desktop app page and create a pairing code. Type it here to connect this computer to your workspace. The code works once, for 10 minutes.
         </p>
         {!state.keychain.available ? <Alert>{state.keychain.reason}</Alert> : null}
         <label className="field">
@@ -316,6 +317,9 @@ function TasksView({ state, onRunStarted }: { state: AppState; onRunStarted: (ru
         </button>
       </header>
       {error ? <Alert>{error}</Alert> : null}
+      {profile?.latestVersion && isNewerVersion(profile.latestVersion, state.version) ? (
+        <Alert>Version {profile.latestVersion} of this app is out, with safety fixes. Get it from the Desktop app page in Farbaek. If you installed it from the Microsoft Store, it updates by itself.</Alert>
+      ) : null}
       <HandoffsPanel />
       {profile && !profile.canPropose ? (
         <Alert>
@@ -823,7 +827,7 @@ function ApprovalCard({ run }: { run: RunDetail }) {
         <dt>Where</dt>
         <dd>{req.where === "local" ? "On this computer, not isolated" : "In a Farbaek test space"}</dd>
         <dt>Approval covers</dt>
-        <dd className="mono small">This exact command only · {req.bindingHash.slice(0, 12)}…</dd>
+        <dd className="mono small">This exact command only</dd>
       </dl>
       <div className="row-start">
         <button className="btn btn-primary btn-sm" type="button" disabled={busy} onClick={() => answer(true)}>
@@ -1011,10 +1015,10 @@ function McpServersCard({ state, onState }: { state: AppState; onState: (s: AppS
     <div className="card stack-sm">
       <h2>Tools from MCP servers</h2>
       <p className="muted">
-        Add an MCP server to offer its tools to the agent in Controlled Development runs. It runs on this computer, outside the project&apos;s copy and the contract&apos;s checks, so every call waits for your approval. Review Only never offers them.
+        Add an MCP server to offer its tools to the agent in Controlled Development runs. It runs on this computer, outside the project&apos;s copy and the plan&apos;s checks, so every call waits for your approval. Review Only never offers them.
       </p>
       <p className="small muted">
-        The first time this agent offers new tools, Farbaek holds its AI steps until an owner or admin approves them on the Agents page. Runs on a model on this computer don&apos;t go through Farbaek.
+        The first time this agent offers new tools, Farbaek holds its AI steps until an owner or admin approves them on the Desktop app page. Runs on a model on this computer don&apos;t go through Farbaek.
       </p>
       {state.mcpServers.length > 0 ? (
         <ul className="stack-sm">

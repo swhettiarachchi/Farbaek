@@ -40,6 +40,8 @@ export function checkServerUrl(raw: string): string {
 const ErrorBody = z.object({ error: z.object({ code: z.string(), message: z.string() }) });
 
 const Profile = z.object({
+  /** The newest version of the desktop app; an older server doesn't say. */
+  latestVersion: z.string().max(40).optional(),
   agent: z.object({ id: z.string(), name: z.string() }),
   workspace: z.object({ id: z.string(), name: z.string() }),
   role: z.enum(["owner", "admin", "member", "viewer"]),

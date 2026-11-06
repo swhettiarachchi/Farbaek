@@ -137,7 +137,7 @@ Old installers stay on the server, so earlier links keep working. Remove them by
 | Method and path | What it does |
 | --- | --- |
 | `POST /pair` | Redeems a pairing code; returns the token once |
-| `GET /me` | The agent, workspace, the person's role, its lease, and whether a verified sandbox is connected |
+| `GET /me` | The agent, workspace, the person's role, its lease, whether a verified sandbox is connected, and the newest version of the app, so it can say when it's out of date |
 | `GET /tasks` | Tasks whose contract is approved and that are waiting for a change |
 | `GET /tasks/{id}` | The task, its approved contract and the project's file list |
 | `GET /tasks/{id}/files?after=` | File contents in pages of up to 2 MB or 300 files |

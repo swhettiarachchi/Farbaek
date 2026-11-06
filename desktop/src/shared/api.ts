@@ -61,6 +61,8 @@ export interface Profile {
   sandbox: { mode: "sandboxed"; provider: string } | { mode: "review_only"; reason: string };
   /** What this agent may do, where and until when (ADR 0117). Missing from older servers. */
   lease?: { expiresAt: string; projects: string[] | null; capabilities: string[]; actionsPerHour: number };
+  /** The newest version of this app. Missing from older servers. */
+  latestVersion?: string;
 }
 
 export interface TaskSummary {
