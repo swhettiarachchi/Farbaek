@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { trialWindow, type BillingSnapshot } from "@/core/billing/trial";
 import type { TaskState } from "@/core/realityloop/task-machine";
 import type { OrgRole } from "./types";
@@ -130,6 +130,19 @@ describe("codeFromDatabaseError", () => {
     expect(codeFromDatabaseError("QUOTA_EXCEEDED")).toBe("QUOTA_EXCEEDED");
     expect(codeFromDatabaseError("VERSION_CONFLICT")).toBe("VERSION_CONFLICT");
     expect(codeFromDatabaseError("connection reset")).toBe("UNKNOWN");
+  });
+
+  it("records what really happened when the person can only be told something vague", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      expect(codeFromDatabaseError("upstream request timeout")).toBe("UNKNOWN");
+      expect(warn.mock.calls.flat().join("")).toContain("upstream request timeout");
+      warn.mockClear();
+      expect(codeFromDatabaseError("FILE_CHANGED")).toBe("FILE_CHANGED");
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
 
