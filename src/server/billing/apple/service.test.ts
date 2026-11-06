@@ -6,11 +6,12 @@ import { claimAppleTransaction, receiveAppleNotification, type AppleAccount, typ
 const NOW = new Date(fixtures.signedDate + 60_000);
 const ORG = fixtures.org;
 
-function deps(over: { account?: AppleAccount | null; owner?: string | null } = {}) {
+function deps(over: { account?: AppleAccount | null; owner?: string | null; testOpen?: boolean } = {}) {
   const applied: { orgId: string; state: string; plan: string | null; mode: string; source: string }[] = [];
   const notes = new Map<string, string>();
   const d: AppleDeps = {
     verify: (jws) => verifyAppleJws(jws, { rootSha256: fixtures.rootSha256, now: NOW }),
+    testPurchaseOpen: () => over.testOpen ?? true,
     account: async () => (over.account === undefined ? { provider: null, state: "trialing", subscriptionId: null } : over.account),
     orgForSubscription: async () => over.owner ?? null,
     apply: async (i) => (applied.push({ orgId: i.orgId, state: i.sub.state, plan: i.sub.planId, mode: i.mode, source: i.source }), "applied"),
@@ -22,6 +23,12 @@ function deps(over: { account?: AppleAccount | null; owner?: string | null } = {
 }
 
 describe("a purchase the iPhone app reports (ADR 0112)", () => {
+  it("doesn't let a free sandbox purchase change a workspace that isn't named for testing (ADR 0175)", async () => {
+    const f = deps({ testOpen: false });
+    expect(await claimAppleTransaction(f.d, { orgId: ORG, role: "owner", jws: fixtures.transaction })).toMatchObject({ ok: false, code: "TEST_PURCHASE" });
+    expect(f.applied).toEqual([]);
+  });
+
   it("gives the workspace its plan from Apple's signed transaction", async () => {
     const { d, applied } = deps();
     const r = await claimAppleTransaction(d, { orgId: ORG, role: "owner", jws: fixtures.transaction });

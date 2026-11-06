@@ -19,17 +19,17 @@ import { useRef } from "react";
 import { Container } from "@/components/ui/container";
 
 const TOOLS: { icon: Icon; label: string }[] = [
-  { icon: ChatTextIcon, label: "Intent" },
-  { icon: FileTextIcon, label: "Contract" },
+  { icon: ChatTextIcon, label: "Your idea" },
+  { icon: FileTextIcon, label: "Plan" },
   { icon: BracketsCurlyIcon, label: "Code" },
-  { icon: GitDiffIcon, label: "Diff review" },
+  { icon: GitDiffIcon, label: "Review" },
   { icon: FlaskIcon, label: "Tests" },
-  { icon: ShieldCheckIcon, label: "Policy" },
+  { icon: ShieldCheckIcon, label: "Rules" },
   { icon: FingerprintIcon, label: "Approval" },
   { icon: SealCheckIcon, label: "ProofPack" },
-  { icon: ArrowsLeftRightIcon, label: "Mesh handoff" },
+  { icon: ArrowsLeftRightIcon, label: "Move projects" },
   { icon: RocketLaunchIcon, label: "Launch" },
-  { icon: ArrowCounterClockwiseIcon, label: "Recovery" },
+  { icon: ArrowCounterClockwiseIcon, label: "Undo" },
 ];
 
 const STATEMENT =
@@ -55,7 +55,7 @@ export function StatementSection() {
     <section aria-labelledby="statement" className="overflow-hidden py-16 lg:py-24">
       <Container>
         {/* The lifecycle, as an arc of tools. Each chip names its stage. */}
-        <ul className="mx-auto flex max-w-[860px] items-end justify-center gap-2 sm:gap-3" aria-label="Lifecycle tools">
+        <ul className="mx-auto flex max-w-[860px] items-end justify-center gap-2 sm:gap-3" aria-label="The tools along the way">
           {TOOLS.map(({ icon: ToolIcon, label }, i) => {
             const lift = Math.round((1 - ((i - mid) / mid) ** 2) * 34);
             return (

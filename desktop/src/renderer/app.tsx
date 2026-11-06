@@ -170,7 +170,7 @@ const MODES: { id: AgentMode; icon: Icon }[] = [
   { id: "controlled", icon: PencilSimpleLineIcon },
   { id: "sandboxed_autopilot", icon: ShieldCheckIcon },
 ];
-const AUTOPILOT_REASON = "Not available yet: the desktop agent can't run commands in a Farbaek sandbox until that link is built.";
+const AUTOPILOT_REASON = "Not available yet: the desktop agent can't run commands in a Farbaek test space until that link is built.";
 
 /**
  * Continue on my computer (ADR 0139): tasks handed here from a phone or
@@ -309,7 +309,7 @@ function TasksView({ state, onRunStarted }: { state: AppState; onRunStarted: (ru
       <header className="view-head row">
         <div>
           <h1>Tasks</h1>
-          <p className="muted">Tasks in {state.paired?.workspaceName} whose contract is approved and that are waiting for a change.</p>
+          <p className="muted">Tasks in {state.paired?.workspaceName} whose plan is approved and that are waiting for a change.</p>
         </div>
         <button className="btn btn-secondary btn-sm" type="button" onClick={() => void load()}>
           <ArrowClockwiseIcon size={16} aria-hidden /> Refresh
@@ -320,19 +320,19 @@ function TasksView({ state, onRunStarted }: { state: AppState; onRunStarted: (ru
       {profile && !profile.canPropose ? (
         <Alert>
           {profile.lease && !profile.lease.capabilities.includes("propose")
-            ? "This agent's lease doesn't allow proposing changes. An owner, an admin or the person who paired it can change the lease on the Agents page in Farbaek."
-            : "You can only view this workspace, so the agent can't propose changes. Ask an owner for a member role."}
+            ? "This computer's access doesn't include suggesting changes. An owner, an admin or the person who paired it can change that on the Desktop app page in Farbaek."
+            : "You can only view this workspace, so the agent can't suggest changes. Ask an owner for a member role."}
         </Alert>
       ) : null}
       {profile?.lease && leaseEndsSoon(profile.lease.expiresAt) ? (
-        <Alert>This agent&apos;s lease ends on {time(profile.lease.expiresAt)}. Renew it on the Agents page in Farbaek to keep the agent working.</Alert>
+        <Alert>This computer&apos;s access ends on {time(profile.lease.expiresAt)}. Renew it on the Desktop app page in Farbaek to keep the agent working.</Alert>
       ) : null}
       {tasks === null && !error ? <p className="muted">Loading tasks…</p> : null}
       {tasks?.length === 0 ? (
         <div className="empty">
           <ListChecksIcon size={28} aria-hidden />
           <h2>No tasks are waiting for a change</h2>
-          <p className="muted">In Farbaek, approve a task&apos;s intent contract. It then shows here for the agent to work on.</p>
+          <p className="muted">In Farbaek, approve a task&apos;s plan. It then shows here for the agent to work on.</p>
         </div>
       ) : null}
       {tasks && tasks.length > 0 ? (
@@ -380,8 +380,8 @@ function TaskPanel({ taskId, profile, localModel, onRunStarted }: { taskId: stri
       ? "This task isn't waiting for a change anymore. Refresh the list."
       : profile && !profile.canPropose
         ? profile.lease && !profile.lease.capabilities.includes("propose")
-          ? "This agent's lease doesn't allow proposing changes."
-          : "Your role can't propose changes."
+          ? "This computer's access doesn't include suggesting changes."
+          : "Your role can't suggest changes."
         : null;
 
   async function start() {
@@ -421,7 +421,7 @@ function TaskPanel({ taskId, profile, localModel, onRunStarted }: { taskId: stri
                   </dd>
                 </>
               ) : null}
-              <dt>Contract</dt>
+              <dt>Plan</dt>
               <dd className="muted small">
                 Version {task.contract.version} · {task.fileCount} files in the project
               </dd>
@@ -540,7 +540,7 @@ function ReviewState({ review, sentSha256 }: { review: ProposalReview; sentSha25
   return (
     <>
       {review.matchesSent === false ? (
-        <Alert>Farbaek&apos;s record of this proposal doesn&apos;t match what this computer sent. Don&apos;t approve it: discard it in Farbaek and start a new run.</Alert>
+        <Alert>Farbaek&apos;s record of this change doesn&apos;t match what this computer sent. Don&apos;t approve it: discard it in Farbaek and start a new run.</Alert>
       ) : null}
       {expired ? (
         <p>
@@ -564,7 +564,7 @@ function ReviewState({ review, sentSha256 }: { review: ProposalReview; sentSha25
       ) : review.status === "discarded" ? (
         <p>Discarded in Farbaek. Nothing from this run was applied.</p>
       ) : (
-        <p>Farbaek blocked it: it breaks the contract.</p>
+        <p>Farbaek blocked it: it breaks the plan.</p>
       )}
       {review.matchesSent && sentSha256 ? (
         <p className="muted small">
@@ -821,7 +821,7 @@ function ApprovalCard({ run }: { run: RunDetail }) {
         <dt>The model says</dt>
         <dd className="muted">{req.why}</dd>
         <dt>Where</dt>
-        <dd>{req.where === "local" ? "On this computer, not isolated" : "In a Farbaek sandbox"}</dd>
+        <dd>{req.where === "local" ? "On this computer, not isolated" : "In a Farbaek test space"}</dd>
         <dt>Approval covers</dt>
         <dd className="mono small">This exact command only · {req.bindingHash.slice(0, 12)}…</dd>
       </dl>

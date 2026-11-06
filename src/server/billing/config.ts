@@ -33,7 +33,7 @@ export function requestedBillingMode(env: Env = process.env): BillingMode {
   return mode === "test" || mode === "live" ? mode : "not_connected";
 }
 
-function testWorkspaces(env: Env): Set<string> {
+export function testWorkspaces(env: Env): Set<string> {
   return new Set(
     (env.BILLING_TEST_WORKSPACES ?? "")
       .split(",")

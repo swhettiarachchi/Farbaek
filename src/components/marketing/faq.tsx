@@ -36,7 +36,7 @@ const HOME_FAQ: FaqItem[] = [
   },
   {
     q: "Does Farbaek run my code safely?",
-    a: "Builds, tests and checks run in isolated sandboxes with time and memory limits, away from Farbaek's own servers. Where isolation can't be verified, Farbaek drops to Review Only instead of pretending.",
+    a: "Builds, tests and checks run in isolated test spaces with time and memory limits, away from Farbaek's own servers. Where isolation can't be verified, Farbaek drops to Review Only instead of pretending.",
   },
   {
     q: "What does a ProofPack prove?",
@@ -48,7 +48,7 @@ const HOME_FAQ: FaqItem[] = [
   },
   {
     q: "Is there lock-in?",
-    a: "Projects are standard repositories. You can export the code, contracts, ProofPacks and history and build without Farbaek.",
+    a: "Projects are standard repositories. You can export the code, plans, ProofPacks and history and build without Farbaek.",
   },
 ];
 

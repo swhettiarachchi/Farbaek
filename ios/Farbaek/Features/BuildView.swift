@@ -216,7 +216,7 @@ struct PlanReviewView: View {
                     }
                     if let note { Notice(text: note, tone: .approval, symbol: "info.circle.fill").card() }
                     if !model.isSample {
-                        Link(destination: AppConfig.site("app/new/\(taskId)")) {
+                        WebLink(path: "app/new/\(taskId)") {
                             Label("Edit the plan on the web", systemImage: "safari")
                                 .frame(minHeight: 44, alignment: .leading)
                                 .contentShape(Rectangle())
@@ -249,8 +249,8 @@ struct PlanReviewView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Outcome").font(.footnote.weight(.medium)).foregroundStyle(Palette.ink3)
             Text(plan.outcome).font(.body).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: 6) {
-                Text("Version \(plan.version)").font(.footnote).foregroundStyle(Palette.ink3)
+            TechnicalDetails {
+                Text("Version \(plan.version)")
                 HashText(sha: plan.sha256)
             }
         }

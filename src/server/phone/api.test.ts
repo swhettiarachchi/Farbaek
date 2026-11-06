@@ -36,6 +36,7 @@ function deps(options: { expiresAt?: number; ctx?: Partial<AppContext>; revoked?
     },
     auth: {
       newSession: async () => ({ accessToken: JWT, refreshToken: "refresh-abc123", expiresAt: 2_000_000_000, sessionId: "s1" }),
+      signInToken: async () => "abc123def456abc123def456",
       refresh: async () => null,
       verify: async (t) => (t === JWT ? { userId: DEMO_USER.id, email: DEMO_USER.email, sessionId: "s1", expiresAt: options.expiresAt ?? NOW.getTime() / 1000 + 3600 } : null),
       // Auth checks Apple's token and nonce; here only one pair passes.
@@ -90,6 +91,28 @@ const data = async (r: Response) => ((await r.json()) as { data: Record<string, 
 const TASK = "00000000-0000-4000-8000-00000000b007";
 const PROJECT = "00000000-0000-4000-8000-00000000a001";
 const NOWHERE = "00000000-0000-4000-8000-0000000000ff";
+
+describe("a page the app has no screen for (ADR 0177)", () => {
+  it("opens signed in, by a one-time link back to the same page", async () => {
+    const { deps: d } = deps();
+    const url = new URL((await data(await call(d, "POST", "web-link", { body: { path: "app/sandbox" } }))).url as string);
+    expect(url.pathname).toBe("/auth/open");
+    expect(url.searchParams.get("next")).toBe("/app/sandbox");
+    expect(url.searchParams.get("token_hash")).toBe("abc123def456abc123def456");
+  });
+
+  it("only opens pages of the app, never somewhere else", async () => {
+    const { deps: d } = deps();
+    for (const path of ["https://evil.example", "//evil.example", "app/../../evil", "app/x?next=https://evil.example", "pricing", "sign-in", "app/sandbox#x", "app/%2e%2e/evil", "app/.hidden"]) {
+      expect((await call(d, "POST", "web-link", { body: { path } })).status, path).toBe(400);
+    }
+  });
+
+  it("doesn't hand a sign-in to someone who isn't signed in on the phone", async () => {
+    const { deps: d } = deps();
+    expect((await call(d, "POST", "web-link", { body: { path: "app/sandbox" }, token: false })).status).toBe(401);
+  });
+});
 
 describe("the iPhone app's next step, projects and reports (ADR 0173)", () => {
   const stepOf = async (d: PhoneApiDeps, id: string) => (await data(await call(d, "GET", `tasks/${id}`))).nextStep as { tone: string; title: string; body: string; action: { label: string; target: string } | null };

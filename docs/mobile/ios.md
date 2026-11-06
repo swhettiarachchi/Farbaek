@@ -115,7 +115,7 @@ Buying in the app is one tap with Face ID, in every country. Do these in order; 
 
    Order them in the group from Pro (level 1) down to Lite.
 4. **Notifications from Apple** (done by Claude, 2026-10-29; Apple now always uses Version 2). In **App Information**, under **App Store Server Notifications**, set both URLs to `https://www.farbaek.com/api/webhooks/apple` with **Version 2**.
-5. **Must do first: limit test purchases (ADR 0175).** A purchase in Apple's sandbox, which is what TestFlight and App Review use, is free, and today it grants a real plan. It can't simply be refused, because Apple's reviewers test purchases there. Ask Claude to limit sandbox purchases to the review account before turning this on. It's why this stays off until then.
+5. **Name the workspace for test purchases (ADR 0175).** A purchase in Apple's sandbox, which is what TestFlight and App Review use, is free, so it only counts for workspaces in `BILLING_TEST_WORKSPACES`. Add the review account's workspace id there, or Apple's reviewers will buy a plan and see nothing change.
    **Turn it on.** Ask Claude, or run:
 
    ```bash
@@ -143,8 +143,11 @@ Someone who chooses **Hide My Email** gets a separate account from one they alre
 ## What the app has, and what it links to (ADR 0173)
 
 - **Native:** Home, Approvals, Build, Projects, You; a task with its next step; plans, changes and runs; permission before AI; Report this result.
-- **Linked, opening the default browser:** Test space, Desktop app, Move projects, Workflows, Rules, Problems and pause, History, Connections, Who can do what, Settings. Previewing and editing a site too, because a generated site can't run in the app (guideline 2.5.2).
-- **Waiting for you:** book Apple's free App Review consultation and decide about in-app purchase. Showing those tools inside the app waits for both.
+- **Opening right here, in the system's in-app browser, already signed in (ADR 0177):** Test space, Desktop app, Move projects, Workflows, Rules, Problems and pause, History, Connections, Who can do what, Settings. Previewing and editing a site too, because a generated site can't run in the app (guideline 2.5.2).
+- **Decided (2026-11-06):** sell plans in the app with the next version, the research's recommendation (`reports/Hybrid iOS rules and premium UX.md`), so plans are bought the way Apple requires and every screen can open up later.
+- **App Review consultation:** the appointments on Nov 10-11 and Nov 12-13 are full. Requests for Nov 17-18 open on Nov 8 at 1:30 PM Sri Lanka time, at developer.apple.com/events/view/NLT5YC7N7L/dashboard. Showing the linked tools inside the app waits for that meeting. The request:
+
+  > App Apple ID 6828344835. Farbaek builds websites from a sentence, with a person approving each change. The iPhone app has native Home, Approvals, Build, Projects and You screens. We'd like to discuss showing the rest of the signed-in product (test space, rules, history, connections, settings) in authenticated web views, alongside native In-App Purchase, with no prices or purchase links inside those views. Which parts of guidelines 4.2, 4.7 and 3.1.3(b) should we pay attention to?
 
 ## What's already done
 

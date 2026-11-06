@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
-import { ANDROID_APP_CLIENT, STORE_CLIENT_KEY, inAndroidApp, isAndroidAppLaunch } from "@/core/billing/store-client";
+import { ANDROID_APP_CLIENT, IOS_APP_CLIENT, STORE_CLIENT_KEY, inAndroidApp, inStoreApp, isAndroidAppLaunch, isIosAppLaunch } from "@/core/billing/store-client";
 
 function readStored(): string | null {
   try {
@@ -19,15 +19,23 @@ export function useInAndroidApp(): boolean {
   return useSyncExternalStore(subscribe, snapshot, () => false);
 }
 
+const storeSnapshot = () => inStoreApp(readStored(), document.referrer, window.location.search);
+
+/** Whether this tab is inside either store's app, where nothing is bought from the web (ADR 0177). */
+export function useInStoreApp(): boolean {
+  return useSyncExternalStore(subscribe, storeSnapshot, () => false);
+}
+
 /**
  * In the root layout: when Farbaek for Android opens a page, the tab remembers
  * it, so later pages (whose referrer is Farbaek itself) still know.
  */
 export function AndroidAppMarker() {
   useEffect(() => {
-    if (!isAndroidAppLaunch(document.referrer, window.location.search)) return;
+    const client = isAndroidAppLaunch(document.referrer, window.location.search) ? ANDROID_APP_CLIENT : isIosAppLaunch(window.location.search) ? IOS_APP_CLIENT : null;
+    if (!client) return;
     try {
-      window.sessionStorage.setItem(STORE_CLIENT_KEY, ANDROID_APP_CLIENT);
+      window.sessionStorage.setItem(STORE_CLIENT_KEY, client);
     } catch {
       // Storage is off: each page still knows from its own referrer or address.
     }
@@ -42,7 +50,7 @@ export function AndroidAppMarker() {
  */
 export function WebPurchaseOnly({ children, fallback }: { children: React.ReactNode; fallback: React.ReactNode }) {
   // Until hydration the hook can't know, so the wrapper is hidden by CSS from the first paint (ADR 0171).
-  return useInAndroidApp() ? fallback : (
+  return useInStoreApp() ? fallback : (
     <span data-web-purchase className="contents">
       {children}
     </span>
@@ -50,6 +58,6 @@ export function WebPurchaseOnly({ children, fallback }: { children: React.ReactN
 }
 
 /** The fallback for a buy button: the same dashed pill as other unavailable plan actions. */
-export function NotInAndroidApp({ children = "Can't be bought in the Android app" }: { children?: string }) {
+export function NotInAndroidApp({ children = "Can't be bought in the app" }: { children?: string }) {
   return <span className="block rounded-full border border-dashed border-line-strong/50 px-3 py-2 text-center text-xs text-ink-3">{children}</span>;
 }

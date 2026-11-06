@@ -39,7 +39,7 @@ const short = (hex: string) => `sha256:${hex.slice(0, 8)}…${hex.slice(-4)}`;
 const HEADS: Head[] = [
   { from: -150, to: 2600, text: "Review every change.", accent: "change", sub: "File by file. Keep what you want, reject the rest." },
   { from: 6500, to: 9000, text: "Approve exactly what you saw.", accent: "exactly", sub: "The approval binds to a hash. Change one character and it stops matching." },
-  { from: 14_000, to: 16_500, text: "Checks that really ran.", accent: "ran", sub: "In a sandbox, against the applied files. Exit codes decide." },
+  { from: 14_000, to: 16_500, text: "Checks that really ran.", accent: "ran", sub: "In a test space, against the applied files. Exit codes decide." },
   { from: 22_500, to: 25_000, text: "Sealed as a ProofPack.", accent: "ProofPack", sub: "What ran, on which files, and what it doesn't prove." },
   { from: 29_000, to: 31_400, text: "A gate before launch.", accent: "gate", sub: "Publishing needs a clean check of these exact files." },
   { from: 35_500, to: 37_700, text: "Every change can be undone.", accent: "undone", sub: "And the undo is recorded too." },
@@ -70,7 +70,7 @@ function ReviewView({ t, from, rejectAt }: { t: number; from: number; rejectAt: 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs text-ink-3">{SAMPLE.project}</p>
-          <h1 className="text-[1.5rem] font-medium tracking-[-0.03em] max-sm:text-[1.2rem]">Proposed change</h1>
+          <h1 className="text-[1.5rem] font-medium tracking-[-0.03em] max-sm:text-[1.2rem]">Change to review</h1>
         </div>
         <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-approval/30 bg-approval/[0.06] px-3 text-xs font-medium text-approval">
           <HourglassMediumIcon size={14} weight="bold" aria-hidden /> Waiting for your approval
@@ -176,8 +176,8 @@ function ChecksView({ t, from }: { t: number; from: number }) {
     <div className="grid gap-4">
       <div>
         <p className="text-xs text-ink-3">{SAMPLE.project}</p>
-        <h1 className="text-[1.5rem] font-medium tracking-[-0.03em] max-sm:text-[1.2rem]">Checks in a sandbox</h1>
-        <p className="mt-1 text-sm text-ink-2">Run on Farbaek&apos;s side, in an isolated sandbox, against exactly the applied files.</p>
+        <h1 className="text-[1.5rem] font-medium tracking-[-0.03em] max-sm:text-[1.2rem]">Checks in a test space</h1>
+        <p className="mt-1 text-sm text-ink-2">Run on Farbaek&apos;s side, in an isolated test space, against exactly the applied files.</p>
       </div>
       <div data-lift="checks" className="grid gap-3">
         <ol className="grid min-h-[132px] content-start gap-2 rounded-md bg-media p-4 font-mono text-[12.5px] text-media-ink shadow-e2">

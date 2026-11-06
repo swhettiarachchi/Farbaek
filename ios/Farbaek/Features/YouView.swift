@@ -119,7 +119,7 @@ struct YouView: View {
 
             Section {
                 ForEach(Self.webTools) { tool in
-                    Link(destination: AppConfig.site(tool.path)) {
+                    WebLink(path: tool.path) {
                         HStack(spacing: 12) {
                             Image(systemName: tool.symbol).foregroundStyle(Palette.accent).frame(width: 24).accessibilityHidden(true)
                             VStack(alignment: .leading, spacing: 2) {
@@ -133,13 +133,13 @@ struct YouView: View {
                     }
                 }
             } header: {
-                Text("More on the web")
+                Text("More tools")
             } footer: {
-                Text("These open in your browser, where you sign in.")
+                Text("These open right here, already signed in.")
             }
 
             Section("Farbaek") {
-                Link(destination: AppConfig.site("app")) { Label("Open Farbaek on the web", systemImage: "safari") }
+                WebLink(path: "app") { Label("Open Farbaek on the web", systemImage: "safari") }
                 Link(destination: AppConfig.privacyURL) { Label("Privacy", systemImage: "hand.raised") }
                 Link(destination: AppConfig.termsURL) { Label("Terms", systemImage: "doc.plaintext") }
                 if let mail = URL(string: "mailto:\(AppConfig.supportEmail)") {

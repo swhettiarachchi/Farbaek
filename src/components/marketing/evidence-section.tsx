@@ -11,7 +11,7 @@ import { SectionHeading } from "./section-heading";
 const PROVES = [
   "Which exact files and commit were checked",
   "Which commands ran, and their exit codes",
-  "Which contract and approval it ran under",
+  "Which plan and approval it ran under",
 ];
 
 const DOES_NOT_PROVE = ["That the software has no other defects", "Anything a check didn't cover", "Claims from systems Farbaek can't read back"];
@@ -23,15 +23,15 @@ export async function EvidenceSection() {
   return (
     <section id="evidence" aria-labelledby="evidence-title" className="py-20 lg:py-28">
       <Container>
-        <SectionHeading id="evidence-title" title="Evidence you can check, not just read.">
-          A ProofPack is an in-toto attestation of what changed, what ran and what that does and doesn&apos;t prove.
+        <SectionHeading id="evidence-title" title="Proof you can check, not just read.">
+          A ProofPack is a signed record of what changed, what ran, and what that does and doesn&apos;t prove. It uses an open format, so anyone can check it.
         </SectionHeading>
 
         <div className="mt-12 grid gap-8 lg:grid-cols-[1fr_300px] lg:items-start lg:gap-12">
           <EvidenceTabs
             tabs={[
               { id: "proofpack", label: "proofpack.json", content: <JsonView value={proofPack} label="Sample ProofPack JSON" /> },
-              { id: "contract", label: "contract.json", content: <JsonView value={SAMPLE_CONTRACT} label="Sample intent contract JSON" /> },
+              { id: "contract", label: "plan.json", content: <JsonView value={SAMPLE_CONTRACT} label="Sample plan, as JSON" /> },
             ]}
           />
 

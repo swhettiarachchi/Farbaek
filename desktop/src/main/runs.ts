@@ -44,7 +44,7 @@ export interface ProposalStatusApi {
 
 /** What changed since the last check, in words for the run's log; null when nothing did. */
 function reviewNote(before: ProposalReview | undefined, after: ProposalReview): string | null {
-  if (after.matchesSent === false && before?.matchesSent !== false) return "Farbaek's record of this proposal doesn't match what this computer sent. Don't approve it: discard it in Farbaek.";
+  if (after.matchesSent === false && before?.matchesSent !== false) return "Farbaek's record of this change doesn't match what this computer sent. Don't approve it: discard it in Farbaek.";
   if (after.status !== (before?.status ?? "pending")) {
     if (after.status === "applied") return "Approved and applied in Farbaek.";
     if (after.status === "discarded") return "Discarded in Farbaek.";
@@ -222,7 +222,7 @@ export class RunManager {
   async start(input: { api: RunApi; taskId: string; mode: AgentMode; effort: Effort; local?: { base: string; model: string } | null; mcp?: readonly McpServerConfig[] }): Promise<string> {
     if (input.mode === "sandboxed_autopilot") throw new RunError("Sandboxed Autopilot isn't available yet. Use Review Only or Controlled Development.");
     const task = await input.api.task(input.taskId);
-    if (!task.task.readyForChange || !task.contract) throw new RunError("This task isn't waiting for a change: its contract isn't approved, or a proposal is already open.");
+    if (!task.task.readyForChange || !task.contract) throw new RunError("This task isn't waiting for a change: its plan isn't approved, or a change is already open.");
     const snapshot = await input.api.snapshot(input.taskId);
 
     const id = randomUUID();

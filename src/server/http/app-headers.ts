@@ -20,7 +20,7 @@ const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
  * The hash of the site layout's one inline script (`earlyMarkScript`, ADR 0171). That layout is static, so it can't carry a
  * nonce, and this lets exactly that text run on the sign-in pages. A test fails if the script changes without this.
  */
-export const EARLY_MARK_SHA256 = "v4vlSsk5ymab0cpdms4+s8jLp69jRLvdby3xOv/o3m8=";
+export const EARLY_MARK_SHA256 = "L3Nsn+QgUfcxU3eUyZIB4K+MFlBfOWKhS0c3yicwqAs=";
 
 export function appCsp(nonce: string, opts: { dev: boolean; https: boolean; previewDomain: string | null; signIn?: boolean }): string {
   const preview = opts.previewDomain ? ` https://*.${opts.previewDomain}` : "";

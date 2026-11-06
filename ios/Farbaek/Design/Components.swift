@@ -204,6 +204,22 @@ struct ClosesIn: View {
 }
 
 /// The first twelve characters of a hash, in the monospaced face.
+/// The exact version someone is approving, for whoever wants it. Folded away, as on the web (ADR 0170).
+struct TechnicalDetails<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        DisclosureGroup("Technical details") {
+            VStack(alignment: .leading, spacing: 6) { content() }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 4)
+        }
+        .font(.footnote)
+        .foregroundStyle(Palette.ink3)
+        .tint(Palette.ink3)
+    }
+}
+
 struct HashText: View {
     let sha: String
 
@@ -211,7 +227,7 @@ struct HashText: View {
         Text(String(sha.prefix(12)))
             .font(.caption.monospaced())
             .foregroundStyle(Palette.ink2)
-            .accessibilityLabel("Hash \(String(sha.prefix(12)))")
+            .accessibilityLabel("Fingerprint \(String(sha.prefix(12)))")
     }
 }
 

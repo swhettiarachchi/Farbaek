@@ -156,7 +156,7 @@ struct NextStepCard: View {
         if model.isSample {
             Notice(text: "With your own project, this step opens on the web.", symbol: "safari")
         } else {
-            Link(destination: AppConfig.site("app/tasks/\(detail.task.id)")) {
+            WebLink(path: "app/tasks/\(detail.task.id)") {
                 Label(action.label, systemImage: "safari")
             }
             .buttonStyle(PillButtonStyle(kind: .secondary))
@@ -188,7 +188,7 @@ struct TaskDetailView: View {
                     if !detail.runs.isEmpty { runs(detail.runs) }
                     history(detail.history)
                     if !model.isSample {
-                        Link(destination: AppConfig.site("app/tasks/\(taskId)")) {
+                        WebLink(path: "app/tasks/\(taskId)") {
                             Label("Open on the web", systemImage: "safari")
                                 .frame(minHeight: 44, alignment: .leading)
                                 .contentShape(Rectangle())

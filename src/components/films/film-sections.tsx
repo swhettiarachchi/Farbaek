@@ -75,7 +75,7 @@ const FEATURES: Omit<Feature, "poster">[] = [
       "Packages are checked for known vulnerabilities, and an AI reviews the riskiest files.",
       "Publishing needs a check of exactly these files that found nothing critical.",
     ],
-    link: { href: "#evidence", label: "See the evidence" },
+    link: { href: "#evidence", label: "See the proof" },
   },
   {
     id: "clip-live",
@@ -112,7 +112,7 @@ export function ProofFilmSection() {
       <Container>
         <div className="mb-10 flex flex-col gap-4 lg:mb-14 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
           <SectionHeading id="proof-film-title" title="Proof before anything ships.">
-            A change is reviewed, approved against a hash of exactly what you saw, checked in a sandbox and sealed with what it proves and what it doesn&apos;t.
+            A change is reviewed, approved exactly as you saw it, checked in a test space and sealed with what it proves and what it doesn&apos;t.
           </SectionHeading>
           <FilmMeta id="proof" />
         </div>
