@@ -17,7 +17,10 @@ extension AppModel {
         if let reply: WebLinkReply = try? await api.send("POST", "web-link", body: ["path": path]) {
             return WebPage(url: reply.url)
         }
-        return WebPage(url: AppConfig.site(path))
+        // Still with the mark that keeps purchases off these pages, however it opens (ADR 0177).
+        var plain = URLComponents(url: AppConfig.site(path), resolvingAgainstBaseURL: false)
+        plain?.queryItems = [URLQueryItem(name: "client", value: "ios-app")]
+        return WebPage(url: plain?.url ?? AppConfig.site(path))
     }
 }
 
