@@ -39,5 +39,5 @@
 - **The daily cap can pause AI for everyone** on a very busy day. It's set by the owner, and a later stage can alert before it trips.
 - **Not yet:**
   - **Turnstile at sign-in.** It needs a Cloudflare widget and the GoTrue CAPTCHA settings, an owner step.
-  - **The real client IP for GoTrue's rate limits** (`GOTRUE_RATE_LIMIT_HEADER`). A server setting.
+  - **The real client IP for GoTrue's rate limits** (`GOTRUE_RATE_LIMIT_HEADER`). A server setting. Done in ADR 0176.
   - **A separate Anthropic workspace for trial traffic** with its own spend limit. An owner step.

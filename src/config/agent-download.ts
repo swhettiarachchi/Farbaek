@@ -21,7 +21,7 @@ export const agentDownloadUrl = `/downloads/${AGENT_DOWNLOAD.file}`;
  * signed with the owner's Developer ID and notarized by Apple. Each stays
  * null until it's published; the Agents page then offers it first.
  */
-export const AGENT_STORE_URL: string | null = null;
+export const AGENT_STORE_URL: string | null = "https://apps.microsoft.com/detail/9N4GNB94KH9M";
 
 export const AGENT_MAC: { version: string; file: string; bytes: number; sha256: string; builtOn: string } | null = {
   version: "0.9.0",

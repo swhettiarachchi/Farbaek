@@ -29,6 +29,14 @@ async function privateImportFor(ctx: AppContext): Promise<PrivateImport> {
   return { ready: true, login: connection.login };
 }
 
+/** What the plan's limit means for someone, including someone with more than a smaller plan includes. */
+function projectCountWords(count: number, limit: number | null): string {
+  const lead = "A project is one site or app.";
+  if (limit === null) return lead;
+  if (count > limit) return `${lead} You have ${count}, and your plan includes ${limit}, so archive one before adding another.`;
+  return `${lead} You're using ${count} of the ${limit} your plan includes.`;
+}
+
 export default async function ProjectsPage() {
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
@@ -51,7 +59,7 @@ export default async function ProjectsPage() {
     <div className="grid gap-8">
       <PageHeader
         title="Projects"
-        description={`A project is one site or app. ${projects.length} of ${ws.plan.limits.workspaces ?? "contract"} allowed on your plan.`}
+        description={projectCountWords(projects.length, ws.plan.limits.workspaces)}
         actions={
           <div className="flex flex-wrap gap-2">
             <Link href="/app/templates" className={buttonClasses("secondary", "sm")}>

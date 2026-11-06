@@ -29,6 +29,8 @@ The package:
   > Farbaek Agent is an Electron developer app. Full trust lets it run developer tools as normal processes: after the user approves each one, it runs commands such as git, node and pnpm in its own copy of the user's project, and starts MCP servers the user adds. It stores its token with Windows DPAPI (Electron safeStorage) and copies project files into its own folder. Nothing runs until the user starts a task, and anything beyond reading files waits for their approval.
 - **Submitted:** every section said Complete, then **Submit for certification**. The status is "In certification", and it publishes as soon as it passes.
 
+**It passed, and it's in the Microsoft Store** (seen 2026-11-06). `AGENT_STORE_URL` is set, so the Desktop app page offers it first.
+
 Microsoft usually answers within 1 to 3 business days by email. When it passes, it goes public by itself. Then:
 1. Install it on this PC from https://apps.microsoft.com/detail/9N4GNB94KH9M, pair it and run one Review Only task.
 2. Tell Claude. `AGENT_STORE_URL` in `src/config/agent-download.ts` is then set to `https://apps.microsoft.com/detail/9N4GNB94KH9M`, and the Agents page offers "Get it from the Microsoft Store" first.

@@ -68,7 +68,7 @@ The real problems were inside a workspace and on the desktop. They mattered beca
 - **A test space kept for checking shows its controls** while it runs, for the few minutes it lives. They refuse with the honest reason.
 - **Store sandbox purchases grant real plans.** Not reachable while `APPLE_IAP` is off. They can't simply be refused, because Apple's reviewers test purchases in the sandbox, so the rule depends on the in-app purchase decision. It's a must-do on that checklist before switching it on.
 - **`farbaek.si` on the Public Suffix List** needs a DNS record only the owner can add.
-- **Auth's own limits behind the proxy** need checking on the server.
+- **Auth's own limits behind the proxy:** checked, found wanting, and fixed in ADR 0176.
 - **Phone sign-in over a custom scheme** moves to verified https links with the next iPhone release.
 - **A desktop app running on the person's own model key** talks to the provider directly, so the pause can't stop those calls. It can't reach the workspace's files or suggest changes while paused.
 - **Existing desktop installs** keep the old command rule until they update. The server-side refusals reach them straight away.

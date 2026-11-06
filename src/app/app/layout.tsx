@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { AndroidEarlyMark } from "@/components/billing/android-early-mark";
 import { nonceFromCsp } from "@/server/http/app-headers";
+import { waitingChanges } from "@/server/workspace/waiting-changes";
 import { MobileTabBar, SidebarNav } from "@/components/app/app-nav";
 import { CommandPalette, PaletteTrigger } from "@/components/app/command-palette";
 import { CspSafe } from "@/components/app/csp-safe";
@@ -110,7 +111,8 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   const presence = agentPresence(liveRuns);
   const admin = live && isAdminEmail(ctx.user.email);
   const canBuild = live && ctx.writes.enabled && ctx.role !== null && CONTRIBUTOR_ROLES.includes(ctx.role);
-  const approvals = tasks.filter((t) => t.state === "APPROVAL_PENDING").length;
+  // Only what this person can still decide: a change that ran out of time is listed, but it isn't their turn (ADR 0174).
+  const approvals = (await waitingChanges(ctx.reader, { orgId: current.id, tasks, archivedProjects: new Set(projects.filter((p) => p.archivedAt).map((p) => p.id)), role: ctx.role, permissions: ctx.permissions, tour: ctx.mode === "demo" }, new Date())).mine.length;
   const trialDays = current.trial?.phase.phase === "active" ? current.trial.phase.daysRemaining : null;
   const nonce = nonceFromCsp((await headers()).get("content-security-policy"));
 

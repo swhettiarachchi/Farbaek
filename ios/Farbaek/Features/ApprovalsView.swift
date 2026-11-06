@@ -44,7 +44,7 @@ struct ApprovalsView: View {
     private func read() async {
         do {
             let approvals: Approvals = try await model.api.get("approvals")
-            model.waiting = approvals.items.count + approvals.more
+            model.waiting = approvals.decidable.map { $0 + approvals.more } ?? (approvals.items.count + approvals.more)
             withAnimation(.easeOut(duration: 0.26)) { load = .loaded(approvals) }
         } catch {
             if load.value == nil { load = .failed(error.localizedDescription) }

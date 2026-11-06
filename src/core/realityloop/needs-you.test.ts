@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { needsYou, sortWaiting, type NeedsYouFacts, type NeedsYouPerson, type WaitingTask } from "./needs-you";
+import { approvalsOrder, needsYou, sortWaiting, type NeedsYouFacts, type NeedsYouPerson, type WaitingTask } from "./needs-you";
 
 const NOW = new Date("2026-11-05T12:00:00Z");
 const OPEN = { status: "pending", createdAt: "2026-11-05T10:00:00Z", expiresAt: "2026-11-08T10:00:00Z", escalated: false };
@@ -88,5 +88,26 @@ describe("what Home leads with", () => {
     expect(needsYou({ ...none, others: 1 })).toMatchObject({ tone: "idle", title: "A change is waiting for someone else's yes or no", action: null });
     expect(needsYou({ ...none, others: 2 })).toMatchObject({ title: "2 changes are waiting for someone else's yes or no", action: null });
     expect(needsYou({ ...none, others: 2, mine: ONE })?.tone).toBe("action");
+  });
+});
+
+describe("approvalsOrder", () => {
+  const at = (id: string, createdAt: string, expiresAt: string) => ({ id, createdAt, expiresAt });
+  const now = new Date("2026-11-06T10:00:00Z");
+
+  it("lists what can still be decided first, soonest to close, and what ran out of time last, newest first", () => {
+    const cards = [
+      at("old", "2026-10-20T10:00:00Z", "2026-10-23T10:00:00Z"),
+      at("later", "2026-11-05T10:00:00Z", "2026-11-08T10:00:00Z"),
+      at("newer-old", "2026-10-25T10:00:00Z", "2026-10-28T10:00:00Z"),
+      at("soon", "2026-11-04T10:00:00Z", "2026-11-07T10:00:00Z"),
+    ];
+    expect(approvalsOrder(cards, now).map((c) => c.id)).toEqual(["soon", "later", "newer-old", "old"]);
+  });
+
+  it("leaves the list it was given as it was", () => {
+    const cards = [at("b", "2026-11-05T10:00:00Z", "2026-11-08T10:00:00Z"), at("a", "2026-11-04T10:00:00Z", "2026-11-07T10:00:00Z")];
+    approvalsOrder(cards, now);
+    expect(cards.map((c) => c.id)).toEqual(["b", "a"]);
   });
 });

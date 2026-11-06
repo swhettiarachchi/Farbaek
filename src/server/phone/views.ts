@@ -4,6 +4,7 @@
  * what's visible, or from the sample workspace. Shapes are plain JSON the app
  * decodes; times are ISO strings, and every state comes with its words.
  */
+import { approvalsOrder } from "@/core/realityloop/needs-you";
 import { lensForChange, lensSummary } from "@/core/realityloop/intent-lens";
 import { diffLines, splitLines } from "@/core/realityloop/line-diff";
 import { taskNextStep, type NextStep } from "@/core/realityloop/next-step";
@@ -112,14 +113,14 @@ export async function homeView(reader: WorkspaceReader, orgId: string, runs: Run
       .map((t) => reader.getLatestProposal(orgId, t.id).catch(() => null)),
   );
   return {
-    waiting: latest.filter((p) => p?.status === "pending").length,
+    waiting: latest.filter((p) => p?.status === "pending" && approvalWindow(p.createdAt, p.expiresAt, new Date()).state !== "expired").length,
     live: recentRuns.filter((r) => isLive(r.status)).map(runItem),
     recent: tasks.slice(0, 10).map(taskItem),
     projects: projects.filter((p) => !p.archivedAt).length,
   };
 }
 
-/** The approvals inbox as wallet cards, soonest to close first (ADR 0042). */
+/** The approvals inbox as wallet cards: what can still be decided first, soonest to close (ADR 0042). */
 export async function approvalsView(ctx: AppContext, orgId: string, execution: { mode: string; reason?: string }) {
   const waiting = (await ctx.reader.listTasks(orgId)).filter((t) => t.state === "APPROVAL_PENDING");
   const canApproveEscalated = ctx.role !== null && MANAGER_ROLES.includes(ctx.role);
@@ -146,8 +147,10 @@ export async function approvalsView(ctx: AppContext, orgId: string, execution: {
       };
     }),
   );
-  const items = cards.filter((c) => c !== null).sort((a, b) => a.expiresAt.localeCompare(b.expiresAt));
-  return { items, more: Math.max(0, waiting.length - MAX_APPROVALS) };
+  const items = approvalsOrder(cards.filter((c) => c !== null), new Date());
+  const closed = (c: { createdAt: string; expiresAt: string }) => approvalWindow(c.createdAt, c.expiresAt, new Date()).state === "expired";
+  // `decidable` is what the tab's badge counts: a change that ran out of time is listed, but it isn't anyone's turn.
+  return { items, more: Math.max(0, waiting.length - MAX_APPROVALS), decidable: items.filter((c) => !closed(c)).length };
 }
 
 async function editBases(reader: WorkspaceReader, orgId: string, projectId: string, changes: readonly { path: string; kind: "create" | "edit"; baseRevision: number }[]) {

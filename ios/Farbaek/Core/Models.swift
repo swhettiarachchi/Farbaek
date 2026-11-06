@@ -140,6 +140,8 @@ struct ApprovalCard: Decodable, Identifiable, Hashable {
 struct Approvals: Decodable {
     let items: [ApprovalCard]
     let more: Int
+    /// What the badge counts: a change that ran out of time is listed, but it isn't anyone's turn.
+    let decidable: Int?
 }
 
 struct DiffLine: Decodable, Hashable {

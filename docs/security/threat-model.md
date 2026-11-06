@@ -221,7 +221,7 @@ Known limits: other email providers' aliasing schemes aren't normalised; disposa
 | The platform's AI spend | A burst of sign-ups, abuse or a bug spending Farbaek's keys without limit | Every reservation carries the day's platform limit; the database refuses past it under one lock, across all workspaces | `tests/db/launch-guards.test.ts`, `src/server/ai/config.test.ts` |
 | `/api/ready` | Leaking infrastructure details | Answers only ok, "unreachable" or "not configured", never hosts, keys or errors | Route review |
 
-Known limits: no CAPTCHA at sign-in yet (Turnstile needs the owner's Cloudflare widget); GoTrue's per-IP limits see the proxy's address until `GOTRUE_RATE_LIMIT_HEADER` is set.
+Known limits, from when this was written: both are closed now. Turnstile is on (ADR 0067), and outsiders can only reach Auth's sign-in redirects, limited per address (ADR 0176).
 
 ## Legal documents (2026-10-24, ADR 0066)
 
@@ -439,4 +439,6 @@ Known limits: public repositories only. Private ones need a GitHub connection, w
 | Leaving | A removed member's computers and invitations keep working | Removal revokes and ends them; the export stops reading that workspace | `security-audit.test.ts` |
 | Cost | A small zip costs gigabytes of inflating; a catch-all domain farms trials | Inflated bytes all count, shared streams are refused; five trials a day per private domain | `unzip.test.ts`, `security-audit.test.ts` |
 
-Left for later, with reasons, in ADR 0175: store sandbox purchases, the Public Suffix List, Auth's own limits behind the proxy, and phone sign-in over a custom scheme.
+| Sign-in | Guessing a 6-digit code at Auth directly | Outsiders can't reach those routes at all, and what's left is limited per address (ADR 0176) | `tests/ops/api-gateway.test.ts`, a live check after deploy |
+
+Left for later, with reasons, in ADR 0175: store sandbox purchases, the Public Suffix List, and phone sign-in over a custom scheme.

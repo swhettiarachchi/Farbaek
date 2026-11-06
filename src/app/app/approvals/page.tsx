@@ -1,3 +1,4 @@
+import { approvalsOrder } from "@/core/realityloop/needs-you";
 import { ArrowRightIcon, CheckSquareOffsetIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -55,10 +56,9 @@ export default async function ApprovalsPage() {
   const cards = read.filter((c): c is WalletCardData => c !== null);
   // Waiting with no open proposal on record: still listed, so the count in the menu adds up.
   const unread = shown.filter((_, i) => read[i] === null);
-  // Soonest to close first.
-  cards.sort((a, b) => a.expiresAt.localeCompare(b.expiresAt));
   // This request's time; a server component renders once per request.
   const serverNow = new Date().getTime();
+  const ordered = approvalsOrder(cards, new Date(serverNow));
 
   return (
     <div className="grid gap-8">
@@ -72,7 +72,7 @@ export default async function ApprovalsPage() {
         </EmptyState>
       ) : (
         <ul className="grid gap-4">
-          {cards.map((card, i) => (
+          {ordered.map((card, i) => (
             <li key={card.taskId} className="motion-safe:animate-[usage-in_260ms_cubic-bezier(0.16,1,0.3,1)_both]" style={{ animationDelay: `${i * 40}ms` }}>
               <WalletCard card={card} serverNow={serverNow} />
             </li>
