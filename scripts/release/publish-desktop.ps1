@@ -47,7 +47,9 @@ function Invoke-Limited([string]$file, [string[]]$arguments, [int]$seconds, [boo
     [void]$process.StandardError.ReadToEndAsync()
   }
   if (-not $process.WaitForExit($seconds * 1000)) {
-    try { $process.Kill() } catch { }
+    # sftp runs its connection as a child process, which would otherwise carry on without it and keep its files open.
+    & taskkill.exe /PID $process.Id /T /F 2>$null | Out-Null
+    [void]$process.WaitForExit(5000)
     return @{ ok = $false; timedOut = $true; text = $null }
   }
   if ($process.ExitCode -ne 0) { return @{ ok = $false; timedOut = $false; text = $null } }
@@ -65,12 +67,12 @@ function Send-Resuming([string]$path, [string]$part, [long]$size) {
   $batch = New-TemporaryFile
   $local = $path -replace '\\', '/'
   try {
+    Set-Content -LiteralPath $batch.FullName -Encoding ascii -Value @("progress", "reput `"$local`" `"$part`"")
     for ($try = 1; $try -le $Tries; $try++) {
       $sent = Remote "touch '$part' && stat -c %s '$part'"
       if ($null -ne $sent -and $sent -match '^\d+$') {
         if ([long]$sent -ge $size) { return $true }
         Write-Host ("  {0} of {1} MB there so far..." -f [math]::Round([long]$sent / 1MB), [math]::Round($size / 1MB))
-        Set-Content -LiteralPath $batch.FullName -Encoding ascii -Value @("progress", "reput `"$local`" `"$part`"")
         $result = Invoke-Limited $sftp ($options + @("-b", $batch.FullName, $target)) $SendSeconds $false
         if ($result.ok) { return $true }
         # This one is expected on a big file: the next connection carries on straight away.
