@@ -18,6 +18,7 @@ The owner's "Approve and apply 5 files" failed twice, after about 31 seconds eac
 - **An unknown database error is logged** (`database.unknown_error`), because production's database logs only fatal errors.
 - **Forgotten test spaces can be found again.** The same log showed the sweep failing every 15 minutes: it asked Vercel for 100 sandboxes per page, and Vercel allows 50, so forgotten ones were never cleaned up. Now it asks for 50.
 - **Fast runs on Free can get past their first step.** Discarding that change and starting a fresh Fast run on production stopped after one step, at 0.4% of a 4% cap, having changed nothing: the check assumed a full 32,000-token reply, which is about 3% of Free's month by itself. A step's reply is now limited to what's left of the cap, so the promise holds and the run carries on (ADR 0040's update).
+- **A link within the page works in a preview.** Clicking "Opening hours" in the Live preview blanked it with "This content is blocked", in every preview. Since ADR 0169 the site is a `srcdoc` frame inside `/preview-frame`, and a `srcdoc` document has no address of its own. So `#hours` meant `/preview-frame#hours`, which refuses to be framed by a sandboxed parent. The preview's script now scrolls there itself. Tried in real Chrome on a template, with the sticky header working. A site's `:target` styles and `hashchange` listeners don't fire in a preview, and they do on the published site.
 - **`publish-desktop.ps1` carries on when the connection drops** (found in stage 165).
 - **`stop-stuck-retries.ps1` and `check-approval.ps1`,** for the owner to run.
 
@@ -28,6 +29,7 @@ The owner's "Approve and apply 5 files" failed twice, after about 31 seconds eac
 - v89 went to production with its fingerprint checked, in one transaction, and it stops if any mention remains: it exited cleanly.
 - **On production, the owner's press:** before v89 it took 31.7 seconds and said "Something went wrong". After v89 it took 0.5 seconds, three times, and said "A file changed after this was made."
 - **The out-of-date page,** on the demo workspace at phone width, with the check temporarily forced on and then removed: the card, chip, notice and Discard read correctly, nothing overflows, and the ordinary state is unchanged.
+- **A whole change, end to end, on production:** the owner approved a fresh change on the opening hours task. It applied in 1.5 seconds, its check ran at 1:07 PM on Nov 6 in a fresh test space on Vercel Sandbox (exit 0), every applied file matched inside it, and the task reached Verified with ProofPack `sha256:02cdc5…88b5`. That's the live test of ADR 0175's proof rule.
 - The run cap, with Free's real numbers in a test: a prompt of 30,000 tokens with 182 units left gets a reply of over 20,000 tokens, and its worst case stays inside. `pnpm security:eval` was re-recorded for SE-018.
 
 ## Not checked yet
@@ -39,4 +41,4 @@ The owner's "Approve and apply 5 files" failed twice, after about 31 seconds eac
 ## What's next
 
 - Merge, then check `/api/health` and that `sandbox.orphan_scan_failed` has stopped.
-- A new change on the opening hours task, approved by the owner, to test the proof rule on production.
+- A real Fast run on Free, once this is live.

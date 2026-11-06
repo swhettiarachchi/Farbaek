@@ -58,3 +58,7 @@ Thumbnails (`SiteThumb`) run no scripts. The running-app frames already load fro
 - The editor's messages to the app are now addressed to the app's origin, stricter than the `"*"` a `srcdoc` frame had to use.
 - Each preview loads one small, cached document from Farbaek before the site appears.
 - Relative addresses a site leaves unresolved now point under `/preview-frame` rather than the app page. They're still blocked by the preview policy or fail as before.
+
+## Update (2026-11-06, stage 166): links within the page
+
+A `srcdoc` document has no address of its own, so inside this nested frame `#hours` resolved to `/preview-frame#hours`. The browser tried to load that in the frame, its policy refused a sandboxed parent, and the preview went blank. The preview's script now handles those links by scrolling there. A site's `:target` styles and `hashchange` listeners don't fire in a preview.

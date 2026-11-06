@@ -31,7 +31,9 @@ export const STATIC_PREVIEW_CSP = [
 ].join("; ");
 
 // Runs inside the preview: same-site page links switch pages through the parent; nothing navigates away.
-const NAV_SCRIPT = `<script>(function(){document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(!a)return;var h=a.getAttribute("href")||"";if(h.charAt(0)==="#")return;e.preventDefault();if(!/^[a-z][a-z0-9+.-]*:/i.test(h)&&!h.startsWith("//")){parent.postMessage({type:"${PREVIEW_NAV_MESSAGE}",href:h},"*");}},true);document.addEventListener("submit",function(e){e.preventDefault();},true);})();</script>`;
+// A link within the page scrolls here. Left to the browser, it resolves against the frame's own address, because a
+// srcdoc document has no address of its own, and that navigation is refused and blanks the preview (ADR 0178).
+const NAV_SCRIPT = `<script>(function(){document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(!a)return;var h=a.getAttribute("href")||"";e.preventDefault();if(h.charAt(0)==="#"){var id=h.slice(1);try{id=decodeURIComponent(id);}catch(x){}var t=id?document.getElementById(id)||document.getElementsByName(id)[0]:null;if(t)t.scrollIntoView();else if(!id||id.toLowerCase()==="top")scrollTo(0,0);return;}if(!/^[a-z][a-z0-9+.-]*:/i.test(h)&&!h.startsWith("//")){parent.postMessage({type:"${PREVIEW_NAV_MESSAGE}",href:h},"*");}},true);document.addEventListener("submit",function(e){e.preventDefault();},true);})();</script>`;
 
 /** A link from `fromPage` to `href`, as a project path, or null when it leaves the project. */
 export function resolveSitePath(fromPage: string, href: string): string | null {

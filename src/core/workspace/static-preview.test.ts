@@ -122,3 +122,52 @@ describe("images in the preview (ADR 0108)", () => {
     expect(buildStaticSrcdoc(files, "index.html")).toContain(`src="assets/dot.png"`);
   });
 });
+
+describe("links inside the preview", () => {
+  const script = /<script>(\(function\(\)\{document\.addEventListener\("click"[\s\S]*?)<\/script>/.exec(buildStaticSrcdoc({ "index.html": "<p>Hi</p>" })!)![1]!;
+
+  // The preview's script, in a stand-in for the page. A link the script doesn't stop is what blanked the preview.
+  function preview(ids: string[] = []) {
+    const listeners: Record<string, (e: unknown) => void> = {};
+    const scrolled: string[] = [];
+    const sent: unknown[] = [];
+    const target = (id: string) => ({ scrollIntoView: () => scrolled.push(id) });
+    const document = {
+      addEventListener: (type: string, fn: (e: unknown) => void) => (listeners[type] = fn),
+      getElementById: (id: string) => (ids.includes(id) ? target(id) : null),
+      getElementsByName: () => [],
+    };
+    new Function("document", "parent", "scrollTo", script)(document, { postMessage: (m: unknown) => sent.push(m) }, () => scrolled.push("top of the page"));
+    const click = (href: string) => {
+      const e = { prevented: false, preventDefault() { this.prevented = true; }, target: { closest: () => ({ getAttribute: () => href }) } };
+      listeners.click!(e);
+      return e.prevented;
+    };
+    return { click, scrolled, sent };
+  }
+
+  it("scrolls to a part of the page itself, and never leaves it to the browser", () => {
+    const p = preview(["hours"]);
+    expect(p.click("#hours")).toBe(true);
+    expect(p.scrolled).toEqual(["hours"]);
+    expect(p.sent).toEqual([]);
+  });
+
+  it("goes to the top for # and #top, reads an encoded name, and stays put when the name isn't there", () => {
+    const p = preview(["opening hours"]);
+    expect(p.click("#")).toBe(true);
+    expect(p.click("#top")).toBe(true);
+    expect(p.click("#opening%20hours")).toBe(true);
+    expect(p.click("#%E0%A4%A")).toBe(true);
+    expect(p.click("#nothing")).toBe(true);
+    expect(p.scrolled).toEqual(["top of the page", "top of the page", "opening hours"]);
+  });
+
+  it("still switches pages through the app, and goes nowhere outside the site", () => {
+    const p = preview();
+    expect(p.click("menu.html")).toBe(true);
+    expect(p.click("https://example.com/")).toBe(true);
+    expect(p.sent).toHaveLength(1);
+    expect(p.sent[0]).toMatchObject({ href: "menu.html" });
+  });
+});
