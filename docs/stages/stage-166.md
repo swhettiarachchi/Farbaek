@@ -39,7 +39,9 @@ The owner's "Approve and apply 5 files" failed twice, after about 31 seconds eac
 
 ## What's next
 
-- The owner's run of `check-approval.ps1` shows whether `sandbox.orphan_scan_failed` has stopped.
+- **The sweep for forgotten test spaces works again.** `sandbox.orphan_scan_failed` was logged every 15 minutes before the fix. In 19 minutes of the app's log after it, which spans at least one sweep, it wasn't logged, and no leftover test space was reported as destroyed.
+- **The retries have stopped.** The owner's `stop-stuck-retries.ps1` measured 0 transactions undone each second and 0 open. The gateway's log shows the whole story for this one button: 504 twice (the 30-second timeout), 400 four times after v89 (the true refusal), then 200 when the owner approved a fresh change.
+- **One thing to look at before enforcing the sign-in policy:** the first report on `/sign-in`, at 10:13 UTC on Nov 6, says script `eval` would have been blocked. It's report-only, so nobody was stopped. The report doesn't say what asked for it, and a browser extension or Turnstile's challenge could each be why.
 
 ## After the merge (#211, live as `7c4c7142649f`)
 

@@ -36,11 +36,10 @@ These are refused for Claude, by the rules of this work or by the tools, because
 
 1. **Try it as a new person:** sign up with an email that has never used Farbaek, and build something small.
 2. **Make a real payment:** buy the cheapest plan on that new workspace, then check `/app/billing` and cancel it.
-3. **Run `scripts/vps/stop-stuck-retries.ps1` and `scripts/vps/check-approval.ps1`,** so Claude can read that the retries stopped and the sweep for forgotten test spaces works.
-4. **Partner Center:** Submission 2 is an open draft. Under Packages, drag in `Farbaek-Agent-0.10.0.appx` from the Desktop folder "Farbaek Store submission", remove 0.9.0, then submit.
-5. **Google Play:** run `scripts/vps/set-google-play.ps1`, keep at least 12 testers opted in (15 or more is safer: one leaving at 12 restarts the 14 days), and apply for production around Nov 19.
-6. **Apple:** request the App Review appointment for Nov 17-18 once requests open on Nov 8 at 1:30 PM Sri Lanka time. The text is in `docs/mobile/ios.md`.
-7. **On your phones:** install iPhone 1.1.0 from TestFlight and open a tool under You. Do the Android check: Help typing and Send on first tap, largest text, 3-button navigation icons, no price flash on Billing.
+3. **Partner Center:** Submission 2 is an open draft. Under Packages, drag in `Farbaek-Agent-0.10.0.appx` from the Desktop folder "Farbaek Store submission", remove 0.9.0, then submit.
+4. **Google Play:** run `scripts/vps/set-google-play.ps1`, keep at least 12 testers opted in (15 or more is safer: one leaving at 12 restarts the 14 days), and apply for production around Nov 19.
+5. **Apple:** request the App Review appointment for Nov 17-18 once requests open on Nov 8 at 1:30 PM Sri Lanka time. The text is in `docs/mobile/ios.md`.
+6. **On your phones:** install iPhone 1.1.0 from TestFlight and open a tool under You. Do the Android check: Help typing and Send on first tap, largest text, 3-button navigation icons, no price flash on Billing.
 
 ## Worth doing, not needed to launch
 
