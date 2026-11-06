@@ -14,6 +14,7 @@ The owner's "Approve and apply 5 files" failed twice, after about 31 seconds eac
 
 - **v89:** every function's refusals use `P0001`, with the same words. It's rewritten from each function's live definition.
 - **A guard:** `tests/db/no-endless-retries.test.ts` fails if any function mentions these codes again.
+- **The page says a change is out of date before anyone presses anything.** With the refusal fixed, the owner pressed the button three more times and said it was "still like this": a correct red line beside the same black button still looks broken. Now the next-step card says "This change is out of date", the chip says "Out of date", and a notice says why. The main button is Discard, with no Approve. The approval deadline and the trial tools are gone too, because neither applies. The phone API's next step says the same.
 - **An unknown database error is logged** (`database.unknown_error`), because production's database logs only fatal errors.
 - **Forgotten test spaces can be found again.** The same log showed the sweep failing every 15 minutes: it asked Vercel for 100 sandboxes per page, and Vercel allows 50, so forgotten ones were never cleaned up. Now it asks for 50.
 - **`publish-desktop.ps1` carries on when the connection drops** (found in stage 165).
@@ -24,11 +25,12 @@ The owner's "Approve and apply 5 files" failed twice, after about 31 seconds eac
 - The new database tests fail without v89 and pass with it. All 543 database tests pass, and typecheck and lint are clean.
 - PostgREST v14.17's and hasql-transaction's source were read, along with the pinned Supabase commit's Envoy route timeout (30 seconds), which matches the delay.
 - v89 went to production with its fingerprint checked, in one transaction, and it stops if any mention remains: it exited cleanly.
+- **On production, the owner's press:** before v89 it took 31.7 seconds and said "Something went wrong". After v89 it took 0.5 seconds, three times, and said "A file changed after this was made."
+- **The out-of-date page,** on the demo workspace at phone width, with the check temporarily forced on and then removed: the card, chip, notice and Discard read correctly, nothing overflows, and the ordinary state is unchanged.
 
 ## Not checked yet
 
 - **That real retries were running.** The evidence is indirect: two PostgREST sessions at the start of a transaction in one snapshot. The owner's run of `stop-stuck-retries.ps1` measures it.
-- **The refusal on production,** until the owner presses the button again.
 - **The sweep against Vercel.** The fake in the test refuses over 50, like Vercel. The real test is production's log after this deploys.
 
 ## What's next

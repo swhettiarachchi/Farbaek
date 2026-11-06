@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { applyProposalAction, discardProposalAction } from "@/app/app/actions";
+import { Notice } from "@/components/app/primitives";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
 import { relativeLabel, useNow } from "@/components/ui/use-now";
@@ -40,6 +41,8 @@ const STATUS = {
   discarded: { label: "Discarded", Icon: XCircleIcon, cls: "border-line bg-surface-raised text-ink-2" },
   // Past its approval window (ADR 0042): it can only be discarded.
   expired: { label: "Expired", Icon: ProhibitIcon, cls: "border-line bg-surface-raised text-ink-2" },
+  // A file it was made from has changed since (ADR 0178): it can only be discarded.
+  outOfDate: { label: "Out of date", Icon: ProhibitIcon, cls: "border-line bg-surface-raised text-ink-2" },
 } as const;
 
 /**
@@ -51,6 +54,7 @@ export function ProposalReview({
   projectId,
   proposal,
   bases,
+  outOfDate = [],
   invariants,
   disabledReason,
   executionReason,
@@ -68,6 +72,8 @@ export function ProposalReview({
   proposal: ProposalRecord;
   /** Content of each edited file at the revision the proposal was made against. */
   bases: Record<string, string>;
+  /** The files that have changed since this was made, which the database would refuse it for (ADR 0178). */
+  outOfDate?: string[];
   /** Contract invariants written in words, which no automatic check covers. */
   invariants: string[];
   disabledReason: string | null;
@@ -94,13 +100,17 @@ export function ProposalReview({
 }) {
   const router = useRouter();
   const [finals, setFinals] = useState<Record<string, string>>(() => Object.fromEntries(proposal.changes.map((c) => [c.path, c.content])));
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<{ from: "approve" | "discard"; message: string } | null>(null);
   const [pending, start] = useTransition();
   const now = useNow(serverNow);
   const win = approvalWindow(proposal.createdAt, proposal.expiresAt, new Date(now));
   const expired = proposal.status === "pending" && win.state === "expired";
   const open = proposal.status === "pending" && !expired;
-  const status = STATUS[expired ? "expired" : proposal.status];
+  const stale = open && outOfDate.length > 0;
+  const fileCount = proposal.changes.length;
+  const status = STATUS[expired ? "expired" : stale ? "outOfDate" : proposal.status];
+  // Once the page says it's out of date, a refused approval has nothing to add.
+  const error = failure && !(stale && failure.from === "approve") ? failure.message : null;
   const closesIn = relativeLabel(Date.parse(proposal.expiresAt) - now);
 
   const escalated = proposal.policy?.outcome === "ESCALATE";
@@ -117,23 +127,24 @@ export function ProposalReview({
   );
 
   function approve() {
-    setError(null);
+    setFailure(null);
     start(async () => {
       const r = await applyProposalAction({
         proposalId: proposal.id,
         reviewedSha256: proposal.sha256,
         files: proposal.changes.map((c) => ({ path: c.path, content: finals[c.path] ?? c.content })),
       });
-      if (r.status === "error") return setError(r.message);
+      // A refusal can mean a file moved on while the page was open, so it reads the files again either way.
+      if (r.status === "error") setFailure({ from: "approve", message: r.message });
       router.refresh();
     });
   }
 
   function discard() {
-    setError(null);
+    setFailure(null);
     start(async () => {
       const r = await discardProposalAction({ proposalId: proposal.id });
-      if (r.status === "error") return setError(r.message);
+      if (r.status === "error") return setFailure({ from: "discard", message: r.message });
       router.refresh();
     });
   }
@@ -180,7 +191,7 @@ export function ProposalReview({
         </details>
       </div>
 
-      {open ? (
+      {open && !stale ? (
         <p className={`-mt-3 flex items-start gap-2 text-sm ${win.state === "closing" ? "text-approval" : "text-ink-2"}`}>
           <ClockCountdownIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
           <span>
@@ -376,7 +387,21 @@ export function ProposalReview({
 
       {proposal.status === "pending" || proposal.status === "blocked" ? (
         <>
-          {open ? (
+          {stale ? (
+            <div className="border-t border-line pt-5">
+              <Notice tone="warning">
+                <span className="font-medium">This change can&apos;t be applied.</span>{" "}
+                {outOfDate.length < fileCount
+                  ? `${outOfDate.length} of its ${fileCount} files changed after it was made.`
+                  : outOfDate.length === 1
+                    ? "Its file changed after it was made."
+                    : outOfDate.length === 2
+                      ? "Both of its files changed after it was made."
+                      : `All ${outOfDate.length} of its files changed after it was made.`}{" "}
+                Discard it, then ask the agent for a new one, made from the files as they are now.
+              </Notice>
+            </div>
+          ) : open ? (
             <p className="border-t border-line pt-5 text-sm">
               You are approving{" "}
               <span className="font-medium">
@@ -389,22 +414,35 @@ export function ProposalReview({
           {open ? (
             <div className="sticky bottom-[var(--tab-bar)] z-20 -mx-5 flex flex-col gap-2 border-t border-line bg-surface/95 px-5 py-3 backdrop-blur-xl sm:-mx-6 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 sm:px-6">
               {errorLine}
-              <button type="button" onClick={approve} disabled={pending || kept.length === 0 || Boolean(approveReason)} className={buttonClasses("primary", "md", "w-full justify-center sm:w-auto")}>
-                <FingerprintIcon size={16} weight="bold" aria-hidden />
-                {pending ? "Applying…" : `Approve and apply ${kept.length} ${kept.length === 1 ? "file" : "files"}`}
-              </button>
-              {/* A grey button says why, wherever the reader has got to. */}
-              {approveReason ? <p className="text-sm text-ink-3">{approveReason}</p> : null}
-              {kept.length === 0 ? <p className="text-sm text-ink-3">Every part is rejected. Discard the change instead.</p> : null}
+              {stale ? (
+                <>
+                  <button type="button" onClick={discard} disabled={pending || Boolean(disabledReason)} className={buttonClasses("primary", "md", "w-full justify-center sm:w-auto")}>
+                    {pending ? "Discarding…" : "Discard this change"}
+                  </button>
+                  {disabledReason ? <p className="text-sm text-ink-3">{disabledReason}</p> : null}
+                </>
+              ) : (
+                <>
+                  <button type="button" onClick={approve} disabled={pending || kept.length === 0 || Boolean(approveReason)} className={buttonClasses("primary", "md", "w-full justify-center sm:w-auto")}>
+                    <FingerprintIcon size={16} weight="bold" aria-hidden />
+                    {pending ? "Applying…" : `Approve and apply ${kept.length} ${kept.length === 1 ? "file" : "files"}`}
+                  </button>
+                  {/* A grey button says why, wherever the reader has got to. */}
+                  {approveReason ? <p className="text-sm text-ink-3">{approveReason}</p> : null}
+                  {kept.length === 0 ? <p className="text-sm text-ink-3">Every part is rejected. Discard the change instead.</p> : null}
+                </>
+              )}
             </div>
           ) : null}
-          <div className="flex flex-wrap items-center gap-3">
-            <button type="button" onClick={discard} disabled={pending || Boolean(disabledReason)} className={buttonClasses(open ? "ghost" : "secondary", "sm")}>
-              Discard this change
-            </button>
-            {expired ? <p className="text-sm text-ink-3">Expired {closesIn}: it can only be discarded.</p> : null}
-            {!open && disabledReason ? <p className="text-sm text-ink-3">{disabledReason}</p> : null}
-          </div>
+          {stale ? null : (
+            <div className="flex flex-wrap items-center gap-3">
+              <button type="button" onClick={discard} disabled={pending || Boolean(disabledReason)} className={buttonClasses(open ? "ghost" : "secondary", "sm")}>
+                Discard this change
+              </button>
+              {expired ? <p className="text-sm text-ink-3">Expired {closesIn}: it can only be discarded.</p> : null}
+              {!open && disabledReason ? <p className="text-sm text-ink-3">{disabledReason}</p> : null}
+            </div>
+          )}
         </>
       ) : null}
     </div>

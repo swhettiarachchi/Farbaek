@@ -8,6 +8,7 @@ import { approvalsOrder } from "@/core/realityloop/needs-you";
 import { lensForChange, lensSummary } from "@/core/realityloop/intent-lens";
 import { diffLines, splitLines } from "@/core/realityloop/line-diff";
 import { taskNextStep, type NextStep } from "@/core/realityloop/next-step";
+import { filesChangedSince } from "@/core/realityloop/change-proposal";
 import type { TaskState } from "@/core/realityloop/task-machine";
 import { TASK_STATE_LABELS, lifecycleProgress, stateTone } from "@/core/realityloop/progress";
 import { EFFORT_LABELS } from "@/core/agent/routing";
@@ -298,6 +299,7 @@ export async function taskView(ctx: AppContext, orgId: string, taskId: string, r
   ]);
   const state = found.task.state;
   const hasChange = proposal?.status === "pending" || proposal?.status === "blocked";
+  const outOfDate = state === "APPROVAL_PENDING" && proposal?.status === "pending" ? filesChangedSince(proposal.changes, await reader.listFiles(orgId, found.task.projectId)) : [];
   const liveRun = taskRuns.find((r) => isLive(r.status));
   // The sample is a tour of what people see, so its read-only state doesn't change the words (as on the web's demo).
   const tour = ctx.mode === "demo";
@@ -310,6 +312,7 @@ export async function taskView(ctx: AppContext, orgId: string, taskId: string, r
       state,
       hasChange,
       changeExpired: proposal?.status === "pending" && approvalWindow(proposal.createdAt, proposal.expiresAt, now).state === "expired",
+      changeOutOfDate: outOfDate.length > 0,
       canApprove: tour || (canChange && ctx.permissions.approve !== false && (proposal?.policy?.outcome !== "ESCALATE" || manager)),
       canAct: tour || canChange,
       run: liveRun ? (liveRun.status === "waiting" ? "waiting" : "working") : "none",

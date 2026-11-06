@@ -31,8 +31,10 @@ It's also a way to harm the service. PostgREST has a small pool of connections, 
 
 **`scripts/vps/stop-stuck-retries.ps1`** measures how many transactions are being undone each second, and restarts only PostgREST if that's abnormal. **`scripts/vps/check-approval.ps1`** reads what's known about a change that won't apply. Both are the owner's to run, because auto mode refuses production reads and writes for Claude.
 
+**A change that can't apply says so before anyone presses anything.** `filesChangedSince` compares each change's starting revision with the file now, the same comparison the database makes. The page then offers Discard and not Approve, and it doesn't offer trials. The database still decides, for a file that changes while the page is open.
+
 ## Consequences
 
-- A refused change now answers at once and says why. People whose change is out of date see "A file changed after this was made. Discard it and ask the agent to try again."
+- A refused change now answers at once and says why. If a file changes while the page is open, the person sees "A file changed after this was made. Discard it and ask the agent to try again."
 - Real deadlocks (`40P01`) are still retried by PostgREST, which is what it's for, and they end once the other transaction has gone.
 - HTTP status for these refusals changes from 500 to 400. Nothing reads it.

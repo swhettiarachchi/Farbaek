@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { sha256Hex } from "../trust/canonical-json";
-import { applyEdits, appliedHash, buildChanges, checkProposal, pathScope, proposalHash, type ContextFile, type ProposalOutput } from "./change-proposal";
+import { applyEdits, appliedHash, buildChanges, checkProposal, filesChangedSince, pathScope, proposalHash, type ContextFile, type ProposalOutput } from "./change-proposal";
 import { INTENT_CONTRACT_SCHEMA, type IntentContract } from "./contract";
 
 const fake = (...parts: string[]) => parts.join("");
@@ -140,5 +140,20 @@ describe("hashes", () => {
 
     const a = await appliedHash({ proposalSha256: h, files: [{ path: "b.ts", sha256: "1".repeat(64) }, { path: "a.ts", sha256: "2".repeat(64) }] });
     expect(a).toBe(await appliedHash({ proposalSha256: h, files: [{ path: "a.ts", sha256: "2".repeat(64) }, { path: "b.ts", sha256: "1".repeat(64) }] }));
+  });
+});
+
+describe("filesChangedSince (ADR 0178)", () => {
+  const change = (path: string, baseRevision: number) => ({ path, baseRevision });
+  const files = [{ path: "index.html", revision: 4 }, { path: "styles.css", revision: 2 }];
+
+  it("names a file that has moved on, a new file someone else made, and a file that's gone", () => {
+    expect(filesChangedSince([change("index.html", 2), change("styles.css", 2)], files)).toEqual(["index.html"]);
+    expect(filesChangedSince([change("styles.css", 0)], files)).toEqual(["styles.css"]);
+    expect(filesChangedSince([change("gone.txt", 3)], files)).toEqual(["gone.txt"]);
+  });
+
+  it("leaves alone a change made from the files as they are, and a new file that's still new", () => {
+    expect(filesChangedSince([change("index.html", 4), change("new.txt", 0)], files)).toEqual([]);
   });
 });

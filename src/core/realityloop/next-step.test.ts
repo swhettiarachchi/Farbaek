@@ -19,6 +19,15 @@ const facts = (over: Partial<NextStepFacts>): NextStepFacts => ({
   ...over,
 });
 
+describe("a change whose files have moved on (ADR 0178)", () => {
+  it("says so first, and doesn't offer an approval that can't work", () => {
+    const step = taskNextStep(facts({ state: "APPROVAL_PENDING", hasChange: true, changeOutOfDate: true }));
+    expect(step).toMatchObject({ tone: "problem", title: "This change is out of date" });
+    expect(step.body).toMatch(/Discard it/);
+    expect(taskNextStep(facts({ state: "APPROVAL_PENDING", hasChange: true })).title).toMatch(/then approve/);
+  });
+});
+
 describe("a task's next step (ADR 0170)", () => {
   it("says something plain for every state, with no jargon", () => {
     for (const state of TASK_STATES) {

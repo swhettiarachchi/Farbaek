@@ -61,6 +61,15 @@ export interface ProposedChange {
   reason: string;
 }
 
+/**
+ * The files that moved on after a change was made from them. The database refuses such a change (FILE_CHANGED),
+ * so a page can say so before anyone presses anything. A missing file counts as revision 0, as it does there.
+ */
+export function filesChangedSince(changes: readonly Pick<ProposedChange, "path" | "baseRevision">[], current: readonly { path: string; revision: number }[]): string[] {
+  const revisions = new Map(current.map((f) => [f.path, f.revision]));
+  return changes.filter((c) => (revisions.get(c.path) ?? 0) !== c.baseRevision).map((c) => c.path);
+}
+
 export type DropReason = "not_in_context" | "missing_file" | "already_exists" | "find_not_found" | "find_ambiguous" | "invalid_path" | "screened" | "no_change" | "duplicate" | "pair_step";
 
 export const DROP_LABELS: Record<DropReason, string> = {
