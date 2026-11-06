@@ -1,3 +1,4 @@
+import { isNewerVersion } from "@/core/agent/app-version";
 import {
   ArrowClockwiseIcon,
   ArrowSquareOutIcon,
@@ -316,6 +317,9 @@ function TasksView({ state, onRunStarted }: { state: AppState; onRunStarted: (ru
         </button>
       </header>
       {error ? <Alert>{error}</Alert> : null}
+      {profile?.latestVersion && isNewerVersion(profile.latestVersion, state.version) ? (
+        <Alert>Version {profile.latestVersion} of this app is out, with safety fixes. Get it from the Desktop app page in Farbaek. If you installed it from the Microsoft Store, it updates by itself.</Alert>
+      ) : null}
       <HandoffsPanel />
       {profile && !profile.canPropose ? (
         <Alert>
