@@ -46,10 +46,43 @@ farbaek.com {
 
 # Farbaek's own Supabase (ADR 0036). Only the two public API paths are
 # forwarded; Studio and everything else behind the gateway stay private.
+#
+# People never talk to these APIs themselves: the browser, the phone apps and the
+# desktop app all go through the app, which calls them from this server. From
+# outside, only what signing in with Google or Apple needs gets through, and an
+# email's link. So nobody outside can guess a sign-in code or a password here, or
+# reach the database API at all (ADR 0176). Auth limits those few by the address
+# in X-Farbaek-Client-Ip, which only Caddy sets, so the app's own calls for
+# everyone never share one person's limit.
 api.farbaek.com {
+	@signIn {
+		not remote_ip private_ranges 2.25.88.188
+		path /auth/v1/authorize /auth/v1/callback
+	}
+	@emailLink {
+		not remote_ip private_ranges 2.25.88.188
+		method GET
+		path /auth/v1/verify
+	}
+	@outside not remote_ip private_ranges 2.25.88.188
 	@api path /auth/v1/* /rest/v1/*
+	handle @signIn {
+		reverse_proxy supabase-gw:8000 {
+			header_up X-Farbaek-Client-Ip {remote_host}
+		}
+	}
+	handle @emailLink {
+		reverse_proxy supabase-gw:8000 {
+			header_up X-Farbaek-Client-Ip {remote_host}
+		}
+	}
+	handle @outside {
+		respond "Not found" 404
+	}
 	handle @api {
-		reverse_proxy supabase-gw:8000
+		reverse_proxy supabase-gw:8000 {
+			header_up -X-Farbaek-Client-Ip
+		}
 	}
 	handle {
 		respond "Not found" 404

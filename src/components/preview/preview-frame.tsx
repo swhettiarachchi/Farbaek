@@ -48,10 +48,16 @@ export function PreviewFrame({
         ready.current = true;
         send(latest.current);
       } else if (type === PREVIEW_LOADED_MESSAGE) {
+        // It got a document, so it's listening, whether or not this page heard it say so.
+        ready.current = true;
         onLoadRef.current?.();
       }
     };
     window.addEventListener("message", onMessage);
+    // The frame document is cached, so it can finish loading and say "ready" before this page has hydrated and is listening.
+    // That message is gone, and the preview would stay blank, so offer the site now as well: if the frame isn't listening
+    // yet, this goes nowhere and its "ready" still arrives.
+    send(latest.current);
     return () => window.removeEventListener("message", onMessage);
   }, [frameRef, send]);
 

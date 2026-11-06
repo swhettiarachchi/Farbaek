@@ -48,6 +48,19 @@ export function sortWaiting(tasks: readonly WaitingTask[], who: NeedsYouPerson, 
   return out;
 }
 
+/**
+ * The order changes are listed in: what can still be decided first, soonest to close, so the one that needs someone isn't
+ * buried under ones that ran out of time. Those come last, newest first.
+ */
+export function approvalsOrder<T extends { createdAt: string; expiresAt: string }>(cards: readonly T[], now: Date): T[] {
+  const closed = (c: T) => approvalWindow(c.createdAt, c.expiresAt, now).state === "expired";
+  return [...cards].sort((a, b) => {
+    const [x, y] = [closed(a), closed(b)];
+    if (x !== y) return x ? 1 : -1;
+    return x ? b.expiresAt.localeCompare(a.expiresAt) : a.expiresAt.localeCompare(b.expiresAt);
+  });
+}
+
 export interface NeedsYouFacts extends WaitingChanges {
   /** Runs stopped on a question this person is allowed to answer. */
   questions: readonly { id: string; taskTitle: string }[];

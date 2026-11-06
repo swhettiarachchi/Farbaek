@@ -51,4 +51,4 @@ The Privacy Policy says sign-in counts are deleted within 24 hours, and a test r
 - **Once the owner switches Turnstile on,** scripts need a real browser and Cloudflare's judgement to get a sign-in email, even when calling Auth directly.
 - **Auth verifies the token from the app server's address,** not the visitor's. Cloudflare treats `remoteip` as optional, but this is only proven once real keys are in, with the first sign-in after `set-turnstile.ps1`.
 - **People behind one network address** (an office, a school) share 20 links an hour.
-- **Not yet:** GoTrue's own per-IP limits still see the proxy (`GOTRUE_RATE_LIMIT_HEADER`).
+- **Not yet:** GoTrue's own per-IP limits still see the proxy (`GOTRUE_RATE_LIMIT_HEADER`). Done in ADR 0176.

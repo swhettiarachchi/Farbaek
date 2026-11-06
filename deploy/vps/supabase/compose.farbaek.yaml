@@ -34,6 +34,11 @@ services:
       GOTRUE_SECURITY_CAPTCHA_ENABLED: ${FARBAEK_CAPTCHA_ENABLED:-false}
       GOTRUE_SECURITY_CAPTCHA_PROVIDER: turnstile
       GOTRUE_SECURITY_CAPTCHA_SECRET: ${FARBAEK_CAPTCHA_SECRET:-}
+      # Auth sits behind two proxies, so it can't see who's asking. Caddy names the address for requests from
+      # outside this server, and Auth limits by it (ADR 0176). Without this header Auth applies no per-address limit.
+      GOTRUE_RATE_LIMIT_HEADER: X-Farbaek-Client-Ip
+      # Sign-in emails an hour, across the whole platform. The default of 30 would stop people signing in on a busy day.
+      GOTRUE_RATE_LIMIT_EMAIL_SENT: "300"
       # Sign-in emails (public/auth-email/, served by the app). Office Space's
       # carry only the 6-digit code; customers' carry the link. Auth falls back
       # to its built-in link-only emails if it can't fetch these.

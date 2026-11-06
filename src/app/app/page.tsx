@@ -1,3 +1,4 @@
+import { waitingChanges } from "@/server/workspace/waiting-changes";
 import { ArrowRightIcon, ListChecksIcon, SquaresFourIcon, TrayIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
@@ -11,15 +12,14 @@ import { PromptComposer } from "@/components/build/prompt-composer";
 import { ButtonLink } from "@/components/ui/button";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
 import { TRIAL, getPlan } from "@/core/billing/catalog";
-import { needsYou, sortWaiting, type WaitingTask } from "@/core/realityloop/needs-you";
+import { needsYou } from "@/core/realityloop/needs-you";
 import { TERMINAL_STATES } from "@/core/realityloop/task-machine";
 import { firstSteps } from "@/core/workspace/first-steps";
 import { FirstStepsHidden, FirstStepsPanel } from "@/components/app/first-steps";
 import { siteDomain } from "@/server/publish/config";
 import { FIRST_STEPS_COOKIE, hiddenWorkspaces } from "@/server/workspace/first-steps";
 import { loadAppContext } from "@/server/workspace/context";
-import { CONTRIBUTOR_ROLES, MANAGER_ROLES } from "@/server/workspace/types";
-import { may } from "@/core/workspace/permissions";
+import { MANAGER_ROLES } from "@/server/workspace/types";
 import { isRunLiveHere } from "@/server/cloud-agent/executor";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { currentExecutionMode } from "@/server/execution/sandbox";
@@ -34,8 +34,6 @@ import { aiMeter, loadUsageSummary } from "@/server/workspace/usage-summary";
 export const metadata: Metadata = { title: "Home" };
 
 const number = new Intl.NumberFormat("en-US");
-/** Approvals shows this many, so Home never reads more than that for one page. */
-const MAX_WAITING_READ = 25;
 
 /** Recent runs and the state of their proposals, read as the person. Null when they can't be read. */
 async function loadInbox(orgId: string): Promise<{ runs: RunView[]; proposals: Map<string, ProposalState> } | null> {
@@ -80,22 +78,12 @@ export default async function MissionControl() {
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
     .slice(0, 4);
   const unfinished = tasks.filter((t) => !TERMINAL_STATES.has(t.state));
-  const waiting = tasks.filter((t) => t.state === "APPROVAL_PENDING");
   // Nothing in an archived project can change, so it never asks for anyone's turn.
   const archived = new Set(projects.filter((p) => p.archivedAt).map((p) => p.id));
   // The demo is a tour of what people see, as on a task's page. A read-only workspace has its own notice, and nobody can act.
   const tour = ctx.mode === "demo";
   const manager = ctx.role !== null && MANAGER_ROLES.includes(ctx.role);
-  const open = await Promise.all(
-    waiting
-      .filter((t) => !archived.has(t.projectId))
-      .slice(0, MAX_WAITING_READ)
-      .map(async (t): Promise<WaitingTask> => {
-        const proposal = await ctx.reader.getLatestProposal(ws.id, t.id).catch(() => null);
-        return { id: t.id, title: t.title, change: proposal ? { status: proposal.status, createdAt: proposal.createdAt, expiresAt: proposal.expiresAt, escalated: proposal.policy?.outcome === "ESCALATE" } : null };
-      }),
-  );
-  const sorted = sortWaiting(open, { canAct: tour || (ctx.role !== null && CONTRIBUTOR_ROLES.includes(ctx.role)), canApprove: tour || may(ctx.role, ctx.permissions, "approve"), canApproveEscalated: tour || manager }, new Date());
+  const sorted = await waitingChanges(ctx.reader, { orgId: ws.id, tasks, archivedProjects: archived, role: ctx.role, permissions: ctx.permissions, tour }, new Date());
   // Only the person who started a run, or an owner or admin, can answer it.
   const questions = lanes.needs_you.filter((r) => !archived.has(r.projectId) && (tour || manager || r.startedBy === ctx.user.id));
   const needs = tour || ctx.writes.enabled ? needsYou({ ...sorted, questions }) : null;
