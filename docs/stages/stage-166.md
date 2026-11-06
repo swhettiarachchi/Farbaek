@@ -36,9 +36,14 @@ The owner's "Approve and apply 5 files" failed twice, after about 31 seconds eac
 
 - **That real retries were running.** The evidence is indirect: two PostgREST sessions at the start of a transaction in one snapshot. The owner's run of `stop-stuck-retries.ps1` measures it.
 - **The sweep against Vercel.** The fake in the test refuses over 50, like Vercel. The real test is production's log after this deploys.
-- **A real Fast run on Free,** until this deploys.
 
 ## What's next
 
-- Merge, then check `/api/health` and that `sandbox.orphan_scan_failed` has stopped.
-- A real Fast run on Free, once this is live.
+- The owner's run of `check-approval.ps1` shows whether `sandbox.orphan_scan_failed` has stopped.
+
+## After the merge (#211, live as `7c4c7142649f`)
+
+- **A real Fast build on Free** finished in 3 steps at 0.7% of its 4% cap. It's the same effort and cap that stopped after one step before the fix. The test task was then discarded and cancelled, so nothing from it reached the site.
+- **A link within the page** in the Live preview scrolls to the section on production, and the agent's change shows there, with Friday marked Today.
+- **The desktop upload finished,** after two more bugs in my script, both found by the owner's run. A question to the server had no time limit, so a stalled connection sat for an hour with nothing on screen. Then stopping a connection left its child process holding a temporary file, which stopped the next connection. Every call now has a time limit, each connection sends for 5 minutes and a fresh one carries on, and the whole process tree stops. Each file's SHA-256 matched on the server, and every link on the Desktop app page answers 200 with the right size.
+- **Not done by me:** a real download opened on a Mac or Linux computer from production. The same builds were opened on GitHub's runners (stage 165).
