@@ -75,6 +75,33 @@ Three helpers wrote the first drafts from the originals, each told to keep the a
   - the skill text showed raw `##` marks.
   All three are fixed.
 
+## What an independent review found, and the fixes
+
+A fresh reviewer read the actions that write files and the GitHub fetch. Every finding was real:
+- **Importing could replace a skill with the same name,** including the library's edition, and pasting the field's own example link would do it. Now a skill the project already has is never replaced: an identical one is reported as already there, and a different one is refused with the reason.
+- **A body that trickled past the time limit, or dropped halfway, crashed the action.** Now it says GitHub didn't answer.
+- **A skill could hide instructions from its reviewer.** It could use characters that don't show or that reorder text, or text far off to the side on one long line. Now:
+  - every project skill reaches the agent without those characters;
+  - one from GitHub that has direction or tag characters is refused;
+  - the review screen wraps long lines and marks hidden characters.
+- **Smaller fixes:**
+  - The import's message was lost, because the Skills section changed shape when a skill arrived for review. Now `Disclosure` opens itself instead.
+  - GNU licences were over the size cap and reported as missing.
+  - GitHub's Raw button links (`refs/heads/main/...`) and `github.com/.../raw/...` links weren't read.
+  - An unrecognised licence wasn't flagged, and a licence that failed to save was reported as saved.
+  - A licence is now saved before its skill.
+  - A same-named skill under `.claude/skills` would have hidden the library's copy. That's refused now, and "Added" counts it.
+  - Removing a skill deleted a `.claude/skills` licence.
+  - A name with no Latin letters gave an empty folder name.
+  - Viewers made the server fetch from GitHub before being refused.
+  - A full project blocked updating a skill it already had.
+  - A failed link was cleared, and the project choice jumped back after each add.
+  - The text box had no role.
+
+**Left as it was:**
+- **Import speed:** an import makes up to seven requests to GitHub, so it can take a while. There's no per-person limit on how often anyone imports.
+- **Overflow:** when a build's skill text passes 32,000 characters, the project's own skills are the ones left out, and the run's note still lists them. That was true before this stage.
+
 ## Not checked yet
 
 - **On production:** adding a library skill to a real project, bringing one in from GitHub (the server's own request to GitHub), and a build that follows a library skill. These need the merge.

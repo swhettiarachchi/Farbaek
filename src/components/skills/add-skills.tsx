@@ -19,6 +19,8 @@ type Way = (typeof WAYS)[number]["id"];
 /** A skill from a GitHub link (ADR 0179): it arrives for review, like any skill from outside. */
 function ImportSkillForm({ projectId, disabledReason }: { projectId: string; disabledReason: string | null }) {
   const [state, action, pending] = useActionState(importSkillAction, IDLE);
+  // Kept by hand: a form action clears its fields, and a link that failed is the one worth fixing, not retyping.
+  const [link, setLink] = useState("");
   const inputId = useId();
   const helpId = useId();
   return (
@@ -29,6 +31,8 @@ function ImportSkillForm({ projectId, disabledReason }: { projectId: string; dis
         <input
           id={inputId}
           name="link"
+          value={link}
+          onChange={(e) => setLink(e.target.value)}
           type="url"
           inputMode="url"
           required
@@ -81,7 +85,9 @@ export function AddSkills({
 }) {
   const [way, setWay] = useState<Way>("library");
   const full = used >= max;
-  const reason = disabledReason ?? (full ? `This project has ${max} skills, the most a build uses. Remove one to add another.` : null);
+  const fullNote = full ? `This project has ${max} skills, the most a build uses. Remove one to add another; you can still update one you have.` : null;
+  // A full project can't take another library skill, but its own skills can still be updated by writing them again.
+  const reason = disabledReason ?? fullNote;
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -116,9 +122,9 @@ export function AddSkills({
           </ul>
         </div>
       ) : way === "link" ? (
-        <ImportSkillForm projectId={projectId} disabledReason={reason} />
+        <ImportSkillForm projectId={projectId} disabledReason={disabledReason} />
       ) : (
-        <AddSkillForm projectId={projectId} disabledReason={reason} quietReason />
+        <AddSkillForm projectId={projectId} disabledReason={disabledReason} quietReason />
       )}
     </div>
   );

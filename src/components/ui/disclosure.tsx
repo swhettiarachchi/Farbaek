@@ -58,8 +58,25 @@ export function JumpLink({ target, className, children }: { target: string; clas
  * and in find-in-page. It opens by itself when the address points inside it,
  * so a link to a card in here still lands on that card.
  */
-export function Disclosure({ summary, hint, children, className = "" }: { summary: string; hint?: string; children: ReactNode; className?: string }) {
+export function Disclosure({
+  summary,
+  hint,
+  children,
+  className = "",
+  open = false,
+}: {
+  summary: string;
+  hint?: string;
+  children: ReactNode;
+  className?: string;
+  /** Opens it when something inside needs the person, and never closes it on them. The same tree either way, so what's inside keeps its state. */
+  open?: boolean;
+}) {
   const box = useRef<HTMLDetailsElement>(null);
+
+  useEffect(() => {
+    if (open && box.current) box.current.open = true;
+  }, [open]);
 
   useEffect(() => {
     const openForHash = () => {

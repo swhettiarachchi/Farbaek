@@ -292,13 +292,10 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
         </div>
       </div>
 
-      {skills.some((s) => s.status !== "approved") ? (
+      {/* One shape whatever the skills' state, so adding one doesn't reset the section and lose its message. */}
+      <Disclosure summary="Skills" hint="Teach the agent how you like this project built" open={skills.some((s) => s.status !== "approved")}>
         <ProjectSkills projectId={project.id} skills={skills} disabledReason={publishReason} />
-      ) : (
-        <Disclosure summary="Skills" hint="Teach the agent how you like this project built">
-          <ProjectSkills projectId={project.id} skills={skills} disabledReason={publishReason} />
-        </Disclosure>
-      )}
+      </Disclosure>
     </div>
   );
 }

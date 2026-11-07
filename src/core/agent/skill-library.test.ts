@@ -21,6 +21,14 @@ describe("parseSkillLink (ADR 0179)", () => {
     expect(ok("https://github.com/someone/house-style.git").repo).toBe("house-style");
   });
 
+  it("reads the links GitHub's own Raw button gives, with the branch named in full", () => {
+    const r = ok(`${RAW}/o/r/refs/heads/main/skills/x/SKILL.md`);
+    expect(r).toMatchObject({ ref: "refs/heads/main", path: "skills/x/SKILL.md", url: `${RAW}/o/r/refs/heads/main/skills/x/SKILL.md`, label: "o/r/skills/x/SKILL.md" });
+    expect(r.licenceUrls).toContain(`${RAW}/o/r/refs/heads/main/LICENSE`);
+    expect(ok("https://github.com/o/r/raw/main/skills/x/SKILL.md").url).toBe(`${RAW}/o/r/main/skills/x/SKILL.md`);
+    expect(ok("https://github.com/o/r/blob/refs/tags/v1/SKILL.md").url).toBe(`${RAW}/o/r/refs/tags/v1/SKILL.md`);
+  });
+
   it("looks for a licence beside the skill first, then at the top of the repository", () => {
     const urls = ok("https://github.com/a/b/tree/main/skills/x").licenceUrls;
     expect(urls[0]).toBe(`${RAW}/a/b/main/skills/x/LICENSE`);

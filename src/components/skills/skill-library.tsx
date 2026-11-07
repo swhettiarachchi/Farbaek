@@ -2,7 +2,7 @@
 
 import { ArrowSquareOutIcon, CheckCircleIcon, PlusIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
-import { useActionState, useId } from "react";
+import { useActionState, useId, useState } from "react";
 import { addLibrarySkillAction, type SkillState } from "@/app/app/projects/[projectId]/skill-actions";
 import { buttonClasses } from "@/components/ui/button";
 import { LICENCE_LABELS, SKILL_USE_LABELS, type LibrarySkillMeta } from "@/core/agent/skill-library";
@@ -76,6 +76,7 @@ function ReadIt({ skill }: { skill: LibraryCardSkill }) {
       <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-medium text-accent">Read the skill</summary>
       <div
         tabIndex={0}
+        role="region"
         aria-label={`The ${skill.label} skill`}
         className="mt-1 max-h-80 overflow-auto rounded-sm border border-line bg-surface-sunken p-4 text-[0.8125rem] leading-relaxed text-ink-2 focus-visible:outline-2 focus-visible:outline-accent"
       >
@@ -108,6 +109,8 @@ function Result({ state }: { state: SkillState }) {
 export function LibraryCard({ skill, projects, disabledReason }: { skill: LibraryCardSkill; projects: { id: string; name: string }[]; disabledReason: string | null }) {
   const [state, action, pending] = useActionState(addLibrarySkillAction, IDLE);
   const selectId = useId();
+  // Kept by hand: a form action resets its fields, and the next add is usually to the same project.
+  const [projectId, setProjectId] = useState(projects[0]?.id ?? "");
   return (
     <article className="grid h-full content-start gap-4 rounded-md border border-line bg-surface p-5 shadow-e1">
       <div className="grid gap-1.5">
@@ -134,6 +137,8 @@ export function LibraryCard({ skill, projects, disabledReason }: { skill: Librar
               <select
                 id={selectId}
                 name="projectId"
+                value={projectId}
+                onChange={(e) => setProjectId(e.target.value)}
                 disabled={Boolean(disabledReason) || pending}
                 className="h-11 min-w-0 rounded-sm border border-line bg-surface px-3 text-base text-ink outline-none focus:border-accent/60 sm:text-sm"
               >

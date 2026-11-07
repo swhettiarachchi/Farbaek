@@ -4,9 +4,10 @@
  * beside it, then at the top of the repository, so the person can see what they may do with it.
  */
 import { licenceName, parseSkillLink } from "@/core/agent/skill-library";
-import { parseSkill, type Skill } from "@/core/agent/skills";
+import { hasDeceptiveCharacters, parseSkill, type Skill } from "@/core/agent/skills";
 
-export const IMPORT_LIMITS = { skillBytes: 64 * 1024, licenceBytes: 32 * 1024, timeoutMs: 10_000 };
+/** A licence can be long: the GNU ones run to about 35 KB. */
+export const IMPORT_LIMITS = { skillBytes: 64 * 1024, licenceBytes: 96 * 1024, timeoutMs: 10_000 };
 
 export type Fetcher = (url: string, init: RequestInit) => Promise<Response>;
 
@@ -28,15 +29,20 @@ async function fetchText(fetcher: Fetcher, url: string, max: number): Promise<Fe
   const reader = res.body.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > max) {
-      await reader.cancel().catch(() => undefined);
-      return { ok: false, reason: "too_large" };
+  // The time limit also ends a body that trickles in, and a connection can drop halfway: both are "no answer".
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > max) {
+        await reader.cancel().catch(() => undefined);
+        return { ok: false, reason: "too_large" };
+      }
+      chunks.push(value);
     }
-    chunks.push(value);
+  } catch {
+    return { ok: false, reason: "unreachable" };
   }
   const bytes = new Uint8Array(size);
   let at = 0;
@@ -68,6 +74,9 @@ export async function importSkillFromLink(fetcher: Fetcher, link: string): Promi
   if ("error" in parsed) return { ok: false, message: parsed.error };
   const file = await fetchText(fetcher, parsed.url, IMPORT_LIMITS.skillBytes);
   if (!file.ok) return { ok: false, message: FAILURES[file.reason] };
+  if (hasDeceptiveCharacters(file.text)) {
+    return { ok: false, message: "That skill has characters that don't show on screen or that reorder text, which could hide instructions from you. It wasn't brought in." };
+  }
   const folderName = parsed.path.split("/").slice(-2, -1)[0] ?? parsed.repo;
   const skill = parseSkill(file.text, folderName, "project");
   if (!skill) return { ok: false, message: "That file isn't a skill: it needs a name (in a frontmatter block or the first line) and some instructions." };

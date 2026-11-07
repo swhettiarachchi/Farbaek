@@ -101,31 +101,33 @@ export function parseSkillLink(input: string): SkillLink | { error: string } {
     }
   });
 
-  let owner: string, repo: string, ref: string, rest: string[];
+  // A branch or tag can be named in full ("refs/heads/main"), as GitHub's own Raw button now links.
+  const refAt = (from: string[]): [string[], string[]] => (from[0] === "refs" && (from[1] === "heads" || from[1] === "tags") ? [from.slice(0, 3), from.slice(3)] : [from.slice(0, 1), from.slice(1)]);
+  let owner: string, repo: string, ref: string[], rest: string[];
   if (url.hostname === "github.com" || url.hostname === "www.github.com") {
     [owner = "", repo = ""] = parts;
     if (parts.length === 2) {
-      ref = "HEAD";
+      ref = ["HEAD"];
       rest = [];
-    } else if (parts[2] === "blob" || parts[2] === "tree") {
-      ref = parts[3] ?? "";
-      rest = parts.slice(4);
+    } else if (parts[2] === "blob" || parts[2] === "tree" || parts[2] === "raw") {
+      [ref, rest] = refAt(parts.slice(3));
     } else return { error: LINK_HELP };
   } else if (url.hostname === "raw.githubusercontent.com") {
-    [owner = "", repo = "", ref = ""] = parts;
-    rest = parts.slice(3);
+    [owner = "", repo = ""] = parts;
+    [ref, rest] = refAt(parts.slice(2));
   } else return { error: "Only GitHub links can be used here. Paste the skill's text instead for anywhere else." };
 
   repo = repo.replace(/\.git$/, "");
-  if (!NAME.test(owner) || !NAME.test(repo) || !SEGMENT.test(ref) || rest.some((p) => !SEGMENT.test(p) || p === "." || p === "..")) return { error: LINK_HELP };
+  const segmentOk = (p: string) => SEGMENT.test(p) && p !== "." && p !== "..";
+  if (!NAME.test(owner) || !NAME.test(repo) || ref.length === 0 || !ref.every(segmentOk) || !rest.every(segmentOk)) return { error: LINK_HELP };
 
   const folder = rest.length && /\.md$/i.test(rest[rest.length - 1]!) ? rest.slice(0, -1) : rest;
   const file = rest.length && /\.md$/i.test(rest[rest.length - 1]!) ? rest[rest.length - 1]! : "SKILL.md";
   const path = [...folder, file].join("/");
-  const at = (p: string[]) => [RAW, owner, repo, ref, ...p].map((s, i) => (i === 0 ? s : encodeURIComponent(s))).join("/");
+  const at = (p: string[]) => [RAW, owner, repo, ...ref, ...p].map((s, i) => (i === 0 ? s : encodeURIComponent(s))).join("/");
   const names = ["LICENSE", "LICENSE.txt", "LICENSE.md"];
   const licenceUrls = [...(folder.length ? names.map((n) => at([...folder, n])) : []), ...names.map((n) => at([n]))];
-  return { owner, repo, ref, path, url: at([...folder, file]), licenceUrls, label: `${owner}/${repo}/${path}` };
+  return { owner, repo, ref: ref.join("/"), path, url: at([...folder, file]), licenceUrls, label: `${owner}/${repo}/${path}` };
 }
 
 /** A plain name for the licence a file holds, or null when it isn't one we recognise. */

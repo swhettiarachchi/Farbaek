@@ -126,7 +126,7 @@ export function ProjectSkills({ projectId, skills, disabledReason }: { projectId
         <AddSkills
           projectId={projectId}
           library={SKILL_LIBRARY.map((s) => ({ id: s.id, label: s.label, summary: s.summary, uses: s.uses, author: s.author, licence: s.licence, source: s.source, text: skillText(s.markdown) }))}
-          added={SKILL_LIBRARY.filter((s) => skills.some((k) => k.path === skillFilePath(s.id))).map((s) => s.id)}
+          added={SKILL_LIBRARY.filter((s) => skills.some((k) => k.path === skillFilePath(s.id) || k.id === s.id)).map((s) => s.id)}
           used={skills.length}
           max={SKILL_LIMITS.projectSkills}
           disabledReason={disabledReason}
