@@ -1,4 +1,4 @@
-import { ArrowsLeftRightIcon, CaretRightIcon, DeviceMobileIcon, FingerprintIcon, FlaskIcon, RocketLaunchIcon, SteeringWheelIcon } from "@phosphor-icons/react/ssr";
+import { ArrowsLeftRightIcon, CaretRightIcon, DeviceMobileIcon, RocketLaunchIcon, SquaresFourIcon, SteeringWheelIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { DiffView } from "@/components/code/diff-view";
 import { Container } from "@/components/ui/container";
@@ -35,7 +35,7 @@ function Cell({
         {title}
         {beta ? (
           <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-line-strong/50 px-2 py-0.5 text-xs font-normal text-ink-3">
-            <FlaskIcon size={12} aria-hidden /> Beta
+            Beta
           </span>
         ) : null}
       </h3>
@@ -110,7 +110,7 @@ export function ModulesBento() {
             </ol>
           </Cell>
 
-          <Cell title="Core" body="Sign-in, workspaces, projects, tasks and what each plan includes." icon={FingerprintIcon} className="bg-surface" />
+          <Cell title="Core" body="Sign-in, workspaces, projects, tasks and what each plan includes." icon={SquaresFourIcon} className="bg-surface" />
           <Cell
             title="Move projects"
             body="Send projects between your own devices: nearby, directly over the internet, or through Farbaek's relay, encrypted end to end and checked byte for byte."

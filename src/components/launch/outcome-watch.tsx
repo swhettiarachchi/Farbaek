@@ -1,4 +1,4 @@
-import { CheckCircleIcon, CircleDashedIcon, HourglassMediumIcon, WarningIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, CircleDashedIcon, WarningIcon } from "@phosphor-icons/react/ssr";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
 import type { WatchView } from "@/server/launch/watch-store";
 import { WatchToggle } from "./watch-toggle";
@@ -28,7 +28,7 @@ function Badge({ watch }: { watch: WatchView | null }) {
     );
   return (
     <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-approval/40 px-3 text-xs font-medium text-approval">
-      <HourglassMediumIcon size={14} weight="bold" aria-hidden /> Waiting for the first check
+      Waiting for the first check
     </span>
   );
 }

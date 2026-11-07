@@ -1,4 +1,4 @@
-import { ArrowRightIcon, CheckCircleIcon, CircleDashedIcon, EyeIcon, HourglassMediumIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, CheckCircleIcon, CircleDashedIcon, CircleNotchIcon, EyeIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
 import { compareArena, type ArenaChange, type ArenaCheckState, type ArenaVerdict } from "@/core/realityloop/arena";
@@ -66,7 +66,7 @@ export function ArenaPanel({ proposalId, taskId, checks, run, disabledReason }: 
 
       {running ? (
         <p role="status" className="flex items-center gap-2 text-sm">
-          <HourglassMediumIcon size={18} weight="bold" className="text-approval motion-safe:animate-pulse" aria-hidden />
+          <CircleNotchIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-accent motion-safe:animate-spin" aria-hidden />
           Trying it on a copy, started <RelativeTime iso={run.startedAt} />. This page updates by itself.
         </p>
       ) : null}

@@ -184,8 +184,8 @@ ${chaseSteps}
               <h3 class="fs-h3">Paid by card or bank transfer</h3>
               <p>Every invoice carries a payment link. Clients pay in two taps, and you see it within the minute.</p>
               <div class="paysheet" aria-hidden="true">
-                <span class="ps-row"><span class="ps-dot"></span>Card ending 4242<span class="mono">$2,150.00</span></span>
-                <span class="ps-row muted"><span class="ps-dot"></span>Bank transfer<span class="mono">1 to 2 days</span></span>
+                <span class="ps-row"><svg class="ps-check" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Card ending 4242<span class="mono">$2,150.00</span></span>
+                <span class="ps-row muted"><span class="ps-gap"></span>Bank transfer<span class="mono">1 to 2 days</span></span>
                 <span class="ps-btn">Pay now</span>
               </div>
             </article>
@@ -464,8 +464,8 @@ const STYLES = `/* Ledgerly: the brand on top of the Farbaek Studio kit. The dec
 .ps-row { display: flex; align-items: center; gap: 10px; font-size: 14px; }
 .ps-row .mono { margin-left: auto; }
 .ps-row.muted { color: var(--ink-2); }
-.ps-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--paid); }
-.ps-row.muted .ps-dot { background: rgb(18 20 23 / 0.2); }
+.ps-check { width: 14px; height: 14px; flex: none; color: var(--paid); }
+.ps-gap { width: 14px; flex: none; }
 .ps-btn { justify-self: start; margin-top: 4px; padding: 10px 18px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 14px; font-weight: 600; }
 .tile .big { font: 600 clamp(48px, 6vw, 80px)/1 var(--font-display); letter-spacing: -0.05em; color: var(--ink); }
 .big__note { font: 400 16px var(--font-body); letter-spacing: 0; color: var(--ink-2); }

@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckIcon, HourglassMediumIcon, XIcon } from "@phosphor-icons/react";
+import { CheckIcon, XIcon } from "@phosphor-icons/react";
 import { motion, useReducedMotion, type Variants } from "motion/react";
 
 export type ThreadStatus = "verified" | "approval" | "unverified" | "failed";
@@ -42,9 +42,9 @@ function Node({ status }: { status: ThreadStatus }) {
       );
     case "approval":
       return (
-        <span className={`${common} border-[1.5px] border-approval bg-canvas text-approval`}>
-          <HourglassMediumIcon size={15} weight="bold" aria-hidden />
-        </span>
+        // An open ring: the step is waiting, and the words beside it say for whom (ADR 0180).
+        <span className={`${common} border-[1.5px] border-approval bg-canvas text-approval`} />
+
       );
     case "failed":
       return (

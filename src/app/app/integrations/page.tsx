@@ -1,4 +1,4 @@
-import { CircuitryIcon, CloudArrowUpIcon, DesktopIcon, EnvelopeSimpleIcon, GithubLogoIcon, GlobeIcon, LockSimpleIcon, PackageIcon } from "@phosphor-icons/react/ssr";
+import { CloudArrowUpIcon, PenNibIcon as DraftIcon, DesktopIcon, EnvelopeSimpleIcon, GithubLogoIcon, GlobeIcon, LockSimpleIcon, PackageIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -122,7 +122,7 @@ export default async function IntegrationsPage() {
     },
     {
       id: "ai",
-      icon: CircuitryIcon,
+      icon: DraftIcon,
       name: "AI models",
       does: v.modelKey ? "Plans, drafting and agent runs use this workspace's own Anthropic key." : "Plans, drafting and agent runs use Farbaek's AI. No API key needed.",
       status: v.modelKey ? { tone: "verified", label: "Your key" } : { tone: "verified", label: "Included" },

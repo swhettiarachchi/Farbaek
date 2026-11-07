@@ -90,7 +90,7 @@ struct NextStepCard: View {
     private var symbol: String {
         switch step.tone {
         case "action": return "pencil.line"
-        case "working": return "hourglass"
+        case "working": return "hammer"
         case "done": return "checkmark.seal.fill"
         case "problem": return "exclamationmark.triangle.fill"
         default: return "info.circle"
@@ -235,7 +235,11 @@ struct TaskDetailView: View {
                 Label {
                     Text(Self.verificationWords(result, failure: v.failure)).fixedSize(horizontal: false, vertical: true)
                 } icon: {
-                    Image(systemName: result == "running" ? "hourglass" : Tone(Self.tone(result)).symbol)
+                    if result == "running" {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Image(systemName: Tone(Self.tone(result)).symbol)
+                    }
                 }
                 .font(.subheadline)
                 .foregroundStyle(result == "running" ? Palette.info : Tone(Self.tone(result)).color)

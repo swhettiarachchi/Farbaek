@@ -9,7 +9,6 @@ import {
   CircleNotchIcon,
   FolderOpenIcon,
   GlobeSimpleIcon,
-  HourglassMediumIcon,
   LinkSimpleIcon,
   MagnifyingGlassIcon,
   PauseCircleIcon,
@@ -25,11 +24,11 @@ import type { MeshSnapshot, MeshState, PreparedView, Result } from "../shared/ap
 
 const mesh = window.farbaek.mesh;
 
-const STATE: Record<TransferState, { label: string; icon: Icon; tone: string; spin?: boolean }> = {
+const STATE: Record<TransferState, { label: string; icon: Icon | null; tone: string; spin?: boolean }> = {
   packing: { label: "Packing", icon: CircleNotchIcon, tone: "info", spin: true },
   connecting: { label: "Connecting", icon: CircleNotchIcon, tone: "info", spin: true },
-  waiting: { label: "Waiting for them", icon: HourglassMediumIcon, tone: "approval" },
-  offered: { label: "Waiting for you", icon: HourglassMediumIcon, tone: "approval" },
+  waiting: { label: "Waiting for them", icon: null, tone: "approval" },
+  offered: { label: "Waiting for you", icon: null, tone: "approval" },
   sending: { label: "Sending", icon: CircleNotchIcon, tone: "info", spin: true },
   receiving: { label: "Receiving", icon: CircleNotchIcon, tone: "info", spin: true },
   finishing: { label: "Checking", icon: CircleNotchIcon, tone: "info", spin: true },
@@ -73,10 +72,10 @@ function left(until: string, now: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-function Badge({ tone, icon: BadgeIcon, children, spin = false }: { tone: string; icon: Icon; children: ReactNode; spin?: boolean }) {
+function Badge({ tone, icon: BadgeIcon = null, children, spin = false }: { tone: string; icon?: Icon | null; children: ReactNode; spin?: boolean }) {
   return (
     <span className={`badge badge-${tone}`}>
-      <BadgeIcon size={14} weight="bold" className={spin ? "spin" : ""} aria-hidden /> {children}
+      {BadgeIcon ? <BadgeIcon size={14} weight="bold" className={spin ? "spin" : ""} aria-hidden /> : null} {children}
     </span>
   );
 }
@@ -176,9 +175,7 @@ function Nearby({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: stri
             <h2>
               {t.peer.name} wants to send {t.name}
             </h2>
-            <Badge tone="approval" icon={HourglassMediumIcon}>
-              Waiting for you
-            </Badge>
+            <Badge tone="approval">Waiting for you</Badge>
           </div>
           <p className="muted">
             {t.files.toLocaleString("en-US")} {t.files === 1 ? "file" : "files"}, {formatBytes(t.bytes)}. It&apos;s saved into a new folder in the place you choose, and nothing
@@ -288,7 +285,7 @@ function PairingCard({ pairing: p, now, act, busy }: { pairing: NonNullable<Mesh
             Not paired
           </Badge>
         ) : (
-          <Badge tone="approval" icon={HourglassMediumIcon}>
+          <Badge tone="approval" icon={ClockCountdownIcon}>
             {left(p.expiresAt, now)} left
           </Badge>
         )}

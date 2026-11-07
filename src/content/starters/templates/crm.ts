@@ -34,7 +34,7 @@ const total = (stage: Deal["stage"]) => DEALS.filter((d) => d.stage === stage).r
 const card = (d: Deal) =>
   `            <li class="deal" draggable="true" data-id="${d.id}"><p class="deal-co">${d.company}</p><p class="deal-who">${d.contact}</p><p class="deal-row"><span class="deal-value">${money(d.value)}</span><span class="deal-next">Next ${date(d.next)}</span></p></li>`;
 const column = (s: (typeof STAGES)[number]) => `        <section class="col" data-stage="${s.id}" aria-labelledby="col-${s.id}">
-          <header class="col-head"><h3 id="col-${s.id}"><span class="dot dot-${s.id}" aria-hidden="true"></span>${s.name}</h3><p class="col-total">${DEALS.filter((d) => d.stage === s.id).length} deals, ${money(total(s.id))}</p></header>
+          <header class="col-head col-head--${s.id}"><h3 id="col-${s.id}">${s.name}</h3><p class="col-total">${DEALS.filter((d) => d.stage === s.id).length} deals, ${money(total(s.id))}</p></header>
           <ol class="deals">
 ${DEALS.filter((d) => d.stage === s.id).map(card).join("\n")}
           </ol>
@@ -245,14 +245,13 @@ h1 { font-size: clamp(28px, 4vw, 40px); font-weight: 650; }
 .board { display: grid; grid-template-columns: repeat(4, minmax(220px, 1fr)); gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 6px; }
 .col { background: #eaf0eb; border-radius: var(--radius); padding: 12px; scroll-snap-align: start; min-height: 180px; transition: background 160ms; }
 .col.over { background: var(--pine-soft); outline: 2px dashed var(--pine); outline-offset: -2px; }
-.col-head { display: grid; gap: 2px; margin-bottom: 10px; }
+.col-head { display: grid; gap: 2px; margin-bottom: 10px; padding-top: 10px; border-top: 3px solid; }
 .col-head h3 { font-size: 15px; display: flex; align-items: center; gap: 8px; }
 .col-total { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-.dot-lead { background: var(--lead); }
-.dot-qualified { background: var(--qualified); }
-.dot-proposal { background: var(--proposal); }
-.dot-won { background: var(--won); }
+.col-head--lead { border-top-color: var(--lead); }
+.col-head--qualified { border-top-color: var(--qualified); }
+.col-head--proposal { border-top-color: var(--proposal); }
+.col-head--won { border-top-color: var(--won); }
 .deals { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .deal { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 2px; cursor: grab; box-shadow: 0 1px 0 rgba(20, 32, 25, 0.04); }
 .deal.dragging { opacity: 0.5; }

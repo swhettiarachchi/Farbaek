@@ -1,4 +1,4 @@
-import { CircleNotchIcon, LightningIcon, UserIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { CircleNotchIcon, PlayCircleIcon, UserIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import { VERIFICATION_RESULT_WORDS, verificationState, type VerificationRecord } from "@/core/realityloop/verification";
 import { RelativeTime } from "@/components/ui/local-time";
 
@@ -14,7 +14,7 @@ function startedBy(v: VerificationRecord, viewerId: string | null): string {
  */
 export function VerificationStatus({ verification: v, viewerId, now }: { verification: VerificationRecord; viewerId: string | null; now: Date }) {
   const state = verificationState(v, now);
-  const WhoIcon = v.trigger === "autonomy" ? LightningIcon : UserIcon;
+  const WhoIcon = v.trigger === "autonomy" ? PlayCircleIcon : UserIcon;
 
   if (state === "running") {
     return (

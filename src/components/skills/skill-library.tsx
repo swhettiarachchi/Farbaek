@@ -59,7 +59,7 @@ function SkillText({ text }: { text: string }) {
             {b.text}
           </p>
         ) : b.kind === "li" ? (
-          <p key={i} className="relative pl-4 before:absolute before:left-0.5 before:top-[0.6em] before:size-1.5 before:rounded-full before:bg-line-strong">
+          <p key={i} className="ml-4 list-item list-disc marker:text-ink-3">
             {b.text}
           </p>
         ) : (

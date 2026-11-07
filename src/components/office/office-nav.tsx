@@ -7,7 +7,7 @@ import {
   CpuIcon,
   CreditCardIcon,
   DotsThreeOutlineIcon,
-  FingerprintIcon,
+  ShieldCheckIcon,
   GlobeIcon,
   HeartbeatIcon,
   IdentificationBadgeIcon,
@@ -42,7 +42,7 @@ const ICONS: Record<OfficeHref | "/more", Icon> = {
   "/announcements": MegaphoneIcon,
   "/staff": IdentificationBadgeIcon,
   "/audit": ScrollIcon,
-  "/security": FingerprintIcon,
+  "/security": ShieldCheckIcon,
   "/more": DotsThreeOutlineIcon,
 };
 

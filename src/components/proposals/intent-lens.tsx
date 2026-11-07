@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { suggestLensMappingAction } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { modelName } from "@/core/billing/rate-card";
 import { RelativeTime } from "@/components/ui/local-time";
 import { hunkRange, type LensSummary } from "@/core/realityloop/intent-lens";
 import type { SuggestedFileLens } from "@/core/realityloop/lens-suggestion";
@@ -32,7 +33,7 @@ export function IntentLensSummary({ summary, ai = null }: { summary: LensSummary
   if (summary.hunks === 0) return null;
   const parts = [
     summary.matched ? `${summary.matched} ${summary.matched === 1 ? "shares" : "share"} words with the plan` : null,
-    summary.unexplained ? `${summary.unexplained} no line of the plan explains` : null,
+    summary.unexplained ? `${summary.unexplained} that no line of the plan explains` : null,
     summary.flagged ? `${summary.flagged} flagged by the plan` : null,
   ].filter(Boolean);
   return (
@@ -69,7 +70,7 @@ function AskAi({ ai }: { ai: LensAiState }) {
         <p className="flex items-start gap-2 text-xs leading-relaxed text-ink-2">
           <TreeStructureIcon size={14} weight="bold" className="mt-px shrink-0 text-accent" aria-hidden />
           <span>
-            AI linked these changes to the plan (<span className="font-mono">{ai.suggestion.model}</span>), <RelativeTime iso={ai.suggestion.createdAt} />. Its notes are suggestions, not checks, and any flags still stand.
+            AI linked these changes to the plan ({modelName(ai.suggestion.model)}), <RelativeTime iso={ai.suggestion.createdAt} />. Its notes are suggestions, not checks, and any flags still stand.
           </span>
         </p>
       ) : null}

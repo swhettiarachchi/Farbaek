@@ -1,4 +1,4 @@
-import { ArrowRightIcon, DownloadSimpleIcon, FingerprintIcon, SealCheckIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, DownloadSimpleIcon, SealCheckIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Container } from "@/components/ui/container";
@@ -92,7 +92,7 @@ const STEPS: { title: string; label: string; command: string; after: string }[] 
 
 const PROVES = [
   { icon: SealCheckIcon, title: "Nothing changed", body: "A matching digest shows the record is exactly as it was made." },
-  { icon: FingerprintIcon, title: "Farbaek recorded it", body: "A valid signature shows Farbaek's server recorded it. ProofPacks recorded before signing started have none." },
+  { icon: SealCheckIcon, title: "Farbaek recorded it", body: "A valid signature shows Farbaek's server recorded it. ProofPacks recorded before signing started have none." },
   {
     icon: WarningCircleIcon,
     title: "Not that the software is right",

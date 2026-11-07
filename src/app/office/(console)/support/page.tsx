@@ -1,4 +1,4 @@
-import { CaretRightIcon, ChatsCircleIcon, FlagIcon, LightningIcon, UserCircleIcon } from "@phosphor-icons/react/ssr";
+import { CaretRightIcon, ChatsCircleIcon, FlagIcon, LifebuoyIcon, UserCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Chip } from "@/components/admin/table";
@@ -89,7 +89,7 @@ export default async function OfficeSupport({ searchParams }: { searchParams: Pr
                     </Chip>
                     {r.priority ? (
                       <Chip tone="accent">
-                        <LightningIcon size={12} weight="fill" className="mr-1" aria-hidden />
+                        <LifebuoyIcon size={12} weight="fill" className="mr-1" aria-hidden />
                         Priority
                       </Chip>
                     ) : null}

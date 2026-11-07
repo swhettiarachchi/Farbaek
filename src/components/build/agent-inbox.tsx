@@ -1,4 +1,4 @@
-import { ArrowRightIcon, CheckCircleIcon, CircleNotchIcon, EyeIcon, HourglassMediumIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, ChatCircleDotsIcon, CheckCircleIcon, CircleNotchIcon, EyeIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { RelativeTime } from "@/components/ui/local-time";
@@ -8,7 +8,8 @@ import type { RunView } from "@/server/cloud-agent/store";
 import { CoreMark, type CoreMarkState } from "./core-mark";
 
 const LANE_STYLE: Record<InboxLane, { icon: Icon; tone: string; action: string }> = {
-  needs_you: { icon: HourglassMediumIcon, tone: "text-approval", action: "Answer" },
+  // The lane's action names its icon: a question to answer is a speech bubble (ADR 0180).
+  needs_you: { icon: ChatCircleDotsIcon, tone: "text-approval", action: "Answer" },
   working: { icon: CircleNotchIcon, tone: "text-accent", action: "Watch" },
   review: { icon: EyeIcon, tone: "text-accent", action: "Review" },
   done: { icon: CheckCircleIcon, tone: "text-ink-3", action: "Open" },

@@ -8,7 +8,6 @@ import {
   ClockCounterClockwiseIcon,
   EyeIcon,
   GearSixIcon,
-  HourglassMediumIcon,
   ListChecksIcon,
   LockSimpleIcon,
   PauseCircleIcon,
@@ -35,10 +34,11 @@ import { NearbyView } from "./nearby";
 const api = window.farbaek;
 type View = "tasks" | "runs" | "nearby" | "settings";
 
-const STATE: Record<RunState, { label: string; icon: Icon; tone: string }> = {
-  planned: { label: "Planned", icon: HourglassMediumIcon, tone: "info" },
-  approved: { label: "Approved", icon: HourglassMediumIcon, tone: "info" },
-  queued: { label: "Queued", icon: HourglassMediumIcon, tone: "info" },
+// Status is a word (ADR 0180): a spinner while it works, an icon for how it ended, none while it waits.
+const STATE: Record<RunState, { label: string; icon: Icon | null; tone: string }> = {
+  planned: { label: "Planned", icon: null, tone: "info" },
+  approved: { label: "Approved", icon: null, tone: "info" },
+  queued: { label: "Queued", icon: null, tone: "info" },
   running: { label: "Working", icon: CircleNotchIcon, tone: "info" },
   completed: { label: "Finished", icon: CheckCircleIcon, tone: "verified" },
   failed: { label: "Stopped", icon: XCircleIcon, tone: "failed" },
@@ -49,16 +49,16 @@ const STATE: Record<RunState, { label: string; icon: Icon; tone: string }> = {
 const time = (iso: string) => new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 const tokens = (n: number) => n.toLocaleString("en-US");
 
-function Badge({ tone, icon: BadgeIcon, children, spin = false }: { tone: string; icon: Icon; children: ReactNode; spin?: boolean }) {
+function Badge({ tone, icon: BadgeIcon = null, children, spin = false }: { tone: string; icon?: Icon | null; children: ReactNode; spin?: boolean }) {
   return (
     <span className={`badge badge-${tone}`}>
-      <BadgeIcon size={14} weight="bold" className={spin ? "spin" : ""} aria-hidden /> {children}
+      {BadgeIcon ? <BadgeIcon size={14} weight="bold" className={spin ? "spin" : ""} aria-hidden /> : null} {children}
     </span>
   );
 }
 
 /** Where a checked proposal stands, as one badge (ADR 0042). */
-function reviewBadge(review: ProposalReview, now: number): { tone: string; icon: Icon; label: string } {
+function reviewBadge(review: ProposalReview, now: number): { tone: string; icon: Icon | null; label: string } {
   if (review.matchesSent === false) return { tone: "failed", icon: WarningCircleIcon, label: "Doesn't match what was sent" };
   if (review.status === "applied") {
     const pack = review.proofPack?.status;
@@ -70,7 +70,7 @@ function reviewBadge(review: ProposalReview, now: number): { tone: string; icon:
   if (review.status === "blocked") return { tone: "failed", icon: XCircleIcon, label: "Blocked by Farbaek" };
   return approvalWindow(review.checkedAt, review.expiresAt, new Date(now)).state === "expired"
     ? { tone: "neutral", icon: ProhibitIcon, label: "Expired" }
-    : { tone: "approval", icon: HourglassMediumIcon, label: "Waiting for review" };
+    : { tone: "approval", icon: null, label: "Waiting for review" };
 }
 
 function StateBadge({ run }: { run: Pick<RunDetail, "state" | "discarded" | "proposal"> }) {
@@ -814,7 +814,7 @@ function ApprovalCard({ run }: { run: RunDetail }) {
   return (
     <div className="approval" role="region" aria-label="Approval needed">
       <p className="row-start">
-        <HourglassMediumIcon size={18} weight="bold" aria-hidden /> <strong>The agent wants to run a command</strong>
+        <TerminalWindowIcon size={18} weight="bold" aria-hidden /> <strong>The agent wants to run a command</strong>
       </p>
       <pre className="command">{req.display}</pre>
       <dl className="contract">

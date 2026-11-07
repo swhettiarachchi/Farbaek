@@ -1,6 +1,6 @@
 "use client";
 
-import { BrowserIcon, FileArrowUpIcon, FlaskIcon, GraphIcon, PathIcon, WarningCircleIcon, WarningIcon } from "@phosphor-icons/react";
+import { BrowserIcon, FileArrowUpIcon, GraphIcon, PathIcon, TerminalWindowIcon, WarningCircleIcon, WarningIcon } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { useState, useTransition } from "react";
 import { analyzeImpactAction, type ImpactState } from "@/app/app/impact-actions";
@@ -47,7 +47,7 @@ export function ImpactCard({ taskId, disabledReason }: { taskId: string; disable
         </h3>
         {state?.status === "done" && state.sample ? (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-line-strong/60 px-2.5 py-0.5 text-xs text-ink-2">
-            <FlaskIcon size={12} aria-hidden /> Sample: included in Max 2x and up
+            Sample: included in Max 2x and up
           </span>
         ) : null}
       </div>
@@ -72,7 +72,7 @@ export function ImpactCard({ taskId, disabledReason }: { taskId: string; disable
             <Group icon={FileArrowUpIcon} title="Imported by" items={r.direct.map((d) => ({ path: d.path, note: `imports ${d.via}` }))} />
             <Group icon={PathIcon} title="Further away" items={r.further.map((d) => ({ path: d.path, note: `through ${d.via}` }))} />
             <Group icon={BrowserIcon} title="Pages it reaches" items={r.pages.map((path) => ({ path }))} />
-            <Group icon={FlaskIcon} title="Tests that reach it" items={r.tests.map((path) => ({ path }))} />
+            <Group icon={TerminalWindowIcon} title="Tests that reach it" items={r.tests.map((path) => ({ path }))} />
             <Group icon={WarningIcon} tone="warning" title="Not reached by any test" items={r.untested.map((path) => ({ path }))} />
           </div>
           <p className="text-xs leading-relaxed text-ink-3">

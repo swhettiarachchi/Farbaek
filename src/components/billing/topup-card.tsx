@@ -1,4 +1,4 @@
-import { LightningIcon } from "@phosphor-icons/react/ssr";
+import { PlusCircleIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { setTopupCapAction, startTopupAction } from "@/app/app/billing/actions";
 import { Card, Notice } from "@/components/app/primitives";
@@ -21,7 +21,7 @@ export function TopupCard({ planId, planName, topups, canManage, error }: { plan
   return (
     <Card id="topups" className="scroll-mt-24">
       <h2 className="flex items-center gap-2 text-lg font-medium">
-        <LightningIcon size={20} className="text-ink-3" aria-hidden /> Top up AI usage
+        <PlusCircleIcon size={20} className="text-ink-3" aria-hidden /> Top up AI usage
       </h2>
       <p className="mt-1 text-sm leading-relaxed text-ink-2">
         More AI usage at {planName}&apos;s own rate, lasting {TOPUP_MONTHS} months and used after your plan&apos;s own usage. Top-ups never go past the monthly limit below.

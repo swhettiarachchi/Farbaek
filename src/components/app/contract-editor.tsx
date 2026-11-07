@@ -1,6 +1,6 @@
 "use client";
 
-import { FingerprintIcon, InfoIcon, PenNibIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckIcon, InfoIcon, PenNibIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useId, useRef, useState, useTransition } from "react";
 import { approveContractAction, draftContractWithAiAction, saveContractAction, type AiDraftState, type FormState } from "@/app/app/actions";
 import { EffortPicker } from "@/components/app/effort-picker";
@@ -9,6 +9,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { AiUsageNote } from "@/components/app/usage-meters";
 import type { ContractFormValues } from "@/core/realityloop/contract-form";
 import type { AiAvailability } from "@/server/workspace/ai-drafting";
+import { modelName } from "@/core/billing/rate-card";
 
 const IDLE: FormState = { status: "idle" };
 
@@ -189,7 +190,7 @@ function AiDraftPanel({
           <p role="status" className="flex items-start gap-2 text-sm text-ink-2">
             <InfoIcon size={16} className="mt-0.5 shrink-0 text-info" aria-hidden />
             <span>
-              Drafted by <span className="font-mono text-xs">{result.model}</span>. Nothing is saved yet: check every field, fix what&apos;s wrong, then save.
+              Drafted by {modelName(result.model)}. Nothing is saved yet: check every field, fix what&apos;s wrong, then save.
               {result.routeNote ? ` ${result.routeNote}` : null}
             </span>
           </p>
@@ -264,7 +265,7 @@ export function ApproveContractControl({
       ) : null}
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending || Boolean(disabledReason)} className={buttonClasses("primary", "sm")}>
-          <FingerprintIcon size={16} weight="bold" aria-hidden />
+          <CheckIcon size={16} weight="bold" aria-hidden />
           {pending ? "Approving…" : "Approve this plan"}
         </button>
         {disabledReason ? <p className="text-sm text-ink-3">{disabledReason}</p> : null}

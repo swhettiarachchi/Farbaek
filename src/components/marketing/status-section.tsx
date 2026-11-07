@@ -1,4 +1,4 @@
-import { CheckCircleIcon, FlaskIcon, HourglassMediumIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, CircleDashedIcon, CircleHalfIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { Container } from "@/components/ui/container";
 import { PLANS, formatUsd } from "@/core/billing/catalog";
@@ -41,7 +41,7 @@ const GROUPS: Group[] = [
   {
     title: "Beta",
     note: "Built and tested, being proven on real accounts and devices.",
-    icon: FlaskIcon,
+    icon: CircleHalfIcon,
     iconClass: "text-approval",
     items: [
       "Moving projects between your own devices, nearby or over the internet",
@@ -55,7 +55,7 @@ const GROUPS: Group[] = [
   {
     title: "Next",
     note: "Planned next, in no fixed order.",
-    icon: HourglassMediumIcon,
+    icon: CircleDashedIcon,
     iconClass: "text-unverified",
     items: [
       "The Android app on Google Play",

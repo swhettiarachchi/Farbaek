@@ -10,9 +10,8 @@
 import {
   ArrowCounterClockwiseIcon,
   CheckCircleIcon,
+  CheckIcon,
   CircleDashedIcon,
-  FingerprintIcon,
-  HourglassMediumIcon,
   MinusIcon,
   TerminalWindowIcon,
   WarningCircleIcon,
@@ -72,9 +71,7 @@ function ReviewView({ t, from, rejectAt }: { t: number; from: number; rejectAt: 
           <p className="text-xs text-ink-3">{SAMPLE.project}</p>
           <h1 className="text-[1.5rem] font-medium tracking-[-0.03em] max-sm:text-[1.2rem]">Change to review</h1>
         </div>
-        <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-approval/30 bg-approval/[0.06] px-3 text-xs font-medium text-approval">
-          <HourglassMediumIcon size={14} weight="bold" aria-hidden /> Waiting for your approval
-        </span>
+        <span className="inline-flex h-7 items-center rounded-full border border-approval/30 bg-approval/[0.06] px-3 text-xs font-medium text-approval">Waiting for your approval</span>
       </div>
       <div data-lift="hunks" className="grid gap-4">
         {HUNKS.map((h, i) => {
@@ -129,7 +126,7 @@ function ApproveView({ t, appliedAt, editAt }: { t: number; appliedAt: number; e
       <div data-lift="approve" className="grid gap-4">
         <div className="flex flex-wrap items-center gap-3">
           <span data-film-click="apply" className={`inline-flex h-11 items-center gap-2 rounded-full px-5 text-sm font-medium ${applied ? "border border-verified/40 text-verified" : "bg-primary text-on-primary shadow-e1"}`}>
-            {applied ? <CheckCircleIcon size={16} weight="bold" aria-hidden /> : <FingerprintIcon size={16} weight="bold" aria-hidden />}
+            {applied ? <CheckCircleIcon size={16} weight="bold" aria-hidden /> : <CheckIcon size={16} weight="bold" aria-hidden />}
             {applied ? "Applied" : "Approve and apply 2 files"}
           </span>
         </div>

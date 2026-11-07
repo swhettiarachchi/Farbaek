@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, ClockCountdownIcon, DesktopIcon, FingerprintIcon, FlaskIcon, HourglassMediumIcon, ProhibitIcon, ScalesIcon, ShieldWarningIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, CheckIcon, ClockCountdownIcon, DesktopIcon, ProhibitIcon, ScalesIcon, ShieldWarningIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -18,6 +18,7 @@ import { FileLensRows, IntentLensSummary } from "./intent-lens";
 import { approvalWindow } from "@/core/trust/approval-wallet";
 import { WhenNear } from "@/components/ui/when-near";
 import { shortHash } from "@/core/trust/canonical-json";
+import { modelName } from "@/core/billing/rate-card";
 import { OUTCOME_LABELS } from "@/core/trust/policy";
 import type { PolicyOutcome } from "@/core/billing/usage";
 import type { ProposalRecord } from "@/server/workspace/types";
@@ -34,8 +35,9 @@ const Surface = dynamic(() => import("@/components/files/codemirror"), { ssr: fa
 const fileHref = (projectId: string, path: string) => `/app/projects/${projectId}/files?path=${encodeURIComponent(path)}`;
 const short = (hex: string) => `sha256:${hex.slice(0, 6)}…${hex.slice(-4)}`;
 
-const STATUS = {
-  pending: { label: "Waiting for your approval", Icon: HourglassMediumIcon, cls: "border-approval/30 bg-approval/[0.06] text-approval" },
+// Status is a word (ADR 0180): a waiting state carries no glyph, and an icon says only how it ended.
+const STATUS: Record<"pending" | "blocked" | "applied" | "discarded" | "expired" | "outOfDate", { label: string; Icon: typeof CheckCircleIcon | null; cls: string }> = {
+  pending: { label: "Waiting for your approval", Icon: null, cls: "border-approval/30 bg-approval/[0.06] text-approval" },
   blocked: { label: "Outside the plan", Icon: ProhibitIcon, cls: "border-failed/30 bg-failed/[0.05] text-failed" },
   applied: { label: "Applied", Icon: CheckCircleIcon, cls: "border-verified/30 bg-verified/[0.05] text-verified" },
   discarded: { label: "Discarded", Icon: XCircleIcon, cls: "border-line bg-surface-raised text-ink-2" },
@@ -160,7 +162,7 @@ export function ProposalReview({
     <div className={`flex flex-col gap-6 ${open ? "[&_:is(a,button,summary)]:scroll-mb-40" : ""}`}>
       <div className="flex flex-wrap items-center gap-3">
         <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium ${status.cls}`}>
-          <status.Icon size={16} weight="bold" aria-hidden /> {status.label}
+          {status.Icon ? <status.Icon size={16} weight="bold" aria-hidden /> : null} {status.label}
         </span>
         {proposal.agentId ? (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-sm text-ink-2">
@@ -176,7 +178,7 @@ export function ProposalReview({
             <span className="font-mono" title={`sha256:${proposal.sha256}`}>
               {shortHash(proposal.sha256, 8, 6)}
             </span>
-            {proposal.model ? <span className="font-mono">{proposal.model}</span> : null}
+            {proposal.model ? <span>{modelName(proposal.model)}</span> : null}
             {proposal.policy ? (
               <span>
                 Rules <span className="font-mono">{short(proposal.policy.version)}</span>
@@ -290,11 +292,10 @@ export function ProposalReview({
         <div className="grid gap-1.5 rounded-sm border border-dashed border-simulated/45 bg-simulated/[0.03] p-4 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="flex items-center gap-2 font-medium">
-              <FlaskIcon size={16} className="text-simulated" aria-hidden />
-              Rehearsal: level 2 {proposal.policy.shadow.outcome === "ALLOW_WITHIN_LIMITS" ? "would have applied this on its own" : "would have waited for a person"}
+              Practice: level 2 {proposal.policy.shadow.outcome === "ALLOW_WITHIN_LIMITS" ? "would have applied this on its own" : "would have waited for a person"}
             </p>
             <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-simulated/40 px-2.5 text-xs font-medium text-simulated">
-              <FlaskIcon size={14} weight="bold" aria-hidden /> Simulated
+              Sample
             </span>
           </div>
           <p className="text-ink-2">{proposal.policy.shadow.detail} Nothing applied on its own: this workspace is in practice mode, so the change waits for your review as usual.</p>
@@ -424,7 +425,7 @@ export function ProposalReview({
               ) : (
                 <>
                   <button type="button" onClick={approve} disabled={pending || kept.length === 0 || Boolean(approveReason)} className={buttonClasses("primary", "md", "w-full justify-center sm:w-auto")}>
-                    <FingerprintIcon size={16} weight="bold" aria-hidden />
+                    <CheckIcon size={16} weight="bold" aria-hidden />
                     {pending ? "Applying…" : `Approve and apply ${kept.length} ${kept.length === 1 ? "file" : "files"}`}
                   </button>
                   {/* A grey button says why, wherever the reader has got to. */}

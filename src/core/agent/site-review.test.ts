@@ -134,6 +134,25 @@ describe("reviewSite", () => {
     expect(reviewSite({ "index.html": half }).findings.map((f) => f.message)).toEqual(expect.arrayContaining([expect.stringMatching(/stylesheet and script work together/)]));
   });
 
+  it("flags the small things that give a generated page away (ADR 0180)", () => {
+    const page = GOOD.replace(
+      "<main",
+      `<p><span>Scroll to explore</span></p><span>BETA</span><span>01 / 4</span><p>Quietly trusted by teams.</p><span>LIS 14:23 \u00b7 18\u00b0C</span><span class="dot"></span><small>OUR WORK</small><small>THE TEAM</small><small>GET IN TOUCH</small><small>SELECTED</small><main`,
+    );
+    const messages = reviewSite({ "index.html": page, "about.html": GOOD, "styles.css": CSS, "script.js": "" }).findings.map((f) => f.message);
+    expect(messages).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/tells people to scroll/),
+        expect.stringMatching(/version stamp/),
+        expect.stringMatching(/numbers a section/),
+        expect.stringMatching(/Quietly trusted by/),
+        expect.stringMatching(/city-and-time strip/),
+        expect.stringMatching(/coloured dot/),
+        expect.stringMatching(/uppercase labels/),
+      ]),
+    );
+  });
+
   it("leaves a business's real words, marks and own script imports alone", () => {
     const page = GOOD.replace(
       "<main",

@@ -1,6 +1,6 @@
 "use client";
 
-import { FlaskIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { PlayIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState } from "react";
 import { tryChangeAction, type ArenaState } from "@/app/app/tasks/arena-actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -16,7 +16,7 @@ export function TryChange({ proposalId, taskId, again, disabledReason }: { propo
       <input type="hidden" name="taskId" value={taskId} />
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending || Boolean(disabledReason) || state.status === "started"} className={buttonClasses(again ? "secondary" : "primary", "sm")}>
-          <FlaskIcon size={16} weight="bold" aria-hidden />
+          <PlayIcon size={16} weight="bold" aria-hidden />
           {pending ? "Starting…" : state.status === "started" ? "Trial started" : again ? "Try it again" : "Try it on a copy"}
         </button>
         {disabledReason ? <span className="text-sm text-ink-3">{disabledReason}</span> : null}

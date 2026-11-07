@@ -1,4 +1,5 @@
-import { CheckCircleIcon, CircleDashedIcon, HourglassMediumIcon, ProhibitIcon, QuestionIcon, SirenIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, CircleDashedIcon, CircleNotchIcon, ProhibitIcon, QuestionIcon, SirenIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { modelName } from "@/core/billing/rate-card";
 import Link from "next/link";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { RelativeTime } from "@/components/ui/local-time";
@@ -8,9 +9,9 @@ import { TryFailure } from "./try-failure";
 
 type Shown = FailureTrialStatus | "hypothetical";
 
-const STATUS: Record<Shown, { label: string; Icon: typeof CheckCircleIcon; className: string }> = {
+const STATUS: Record<Shown, { label: string; Icon: typeof CheckCircleIcon | null; className: string }> = {
   hypothetical: { label: "Hypothetical", Icon: QuestionIcon, className: "border-dashed border-line-strong text-ink-2" },
-  running: { label: LAB_OUTCOME_WORDS.running.label, Icon: HourglassMediumIcon, className: "border-approval/40 text-approval" },
+  running: { label: LAB_OUTCOME_WORDS.running.label, Icon: null, className: "border-approval/40 text-approval" },
   reproduced: { label: LAB_OUTCOME_WORDS.reproduced.label, Icon: XCircleIcon, className: "border-failed/40 text-failed" },
   handled: { label: LAB_OUTCOME_WORDS.handled.label, Icon: CheckCircleIcon, className: "border-verified/40 text-verified" },
   inconclusive: { label: LAB_OUTCOME_WORDS.inconclusive.label, Icon: CircleDashedIcon, className: "border-dashed border-unverified/60 text-unverified" },
@@ -24,7 +25,7 @@ function StatusPill({ status }: { status: Shown }) {
   const { label, Icon, className } = STATUS[status];
   return (
     <span className={`inline-flex h-6 shrink-0 items-center gap-1 rounded-full border px-2.5 text-xs font-medium ${className}`}>
-      <Icon size={13} weight="bold" aria-hidden /> {label}
+      {Icon ? <Icon size={13} weight="bold" aria-hidden /> : null} {label}
     </span>
   );
 }
@@ -75,7 +76,7 @@ function TrialDetail({ trial }: { trial: FailureTrialView }) {
             {trial.model ? (
               <>
                 <dt>Test written by</dt>
-                <dd className="font-mono text-[0.78125rem] text-ink-2">{trial.model}</dd>
+                <dd className="text-ink-2">{modelName(trial.model)}</dd>
               </>
             ) : null}
           </dl>
@@ -135,7 +136,7 @@ export function FailureFuturesCard({
 
       {running ? (
         <p role="status" className="flex items-center gap-2 text-sm">
-          <HourglassMediumIcon size={18} weight="bold" className="text-approval motion-safe:animate-pulse" aria-hidden />
+          <CircleNotchIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-accent motion-safe:animate-spin" aria-hidden />
           Trying &ldquo;{futures.find((f) => f.kind === running.kind)?.title ?? "a failure"}&rdquo;, started <RelativeTime iso={running.startedAt} />. This page updates by itself.
         </p>
       ) : null}

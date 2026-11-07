@@ -16,7 +16,7 @@ import {
   CircleNotchIcon,
   CubeIcon,
   FilePlusIcon,
-  FingerprintIcon,
+  SealCheckIcon,
   GlobeIcon,
   HammerIcon,
   HouseSimpleIcon,
@@ -451,7 +451,7 @@ export function CheckView({ t, from }: { t: number; from: number }) {
       {running ? (
         <div className="rounded-md border border-line bg-surface p-5 shadow-e1">
           <p className="flex items-center gap-2 text-sm text-ink-2">
-            <span className="size-2 rounded-full bg-accent" style={{ opacity: 0.4 + 0.6 * Math.abs(Math.sin(local / 300)) }} /> Checking the project. This takes a minute or two.
+            <CircleNotchIcon size={16} weight="bold" className="shrink-0 text-accent" style={{ transform: `rotate(${(local / 3) % 360}deg)` }} aria-hidden /> Checking the project. This takes a minute or two.
           </p>
           <span className="mt-4 block h-1.5 overflow-hidden rounded-full bg-surface-raised">
             <span className="block h-full rounded-full bg-accent" style={{ width: `${progress(local, 0, 2200) * 100}%` }} />
@@ -564,7 +564,7 @@ export function PublishView({ t, from, publishAt }: { t: number; from: number; p
 type StepState = "done" | "now" | "todo";
 const CHAIN: { title: string; icon: Icon; text: string }[] = [
   { title: "Security check of these files", icon: ShieldCheckIcon, text: "The last check of exactly these files found nothing critical." },
-  { title: "Proof for the latest change", icon: FingerprintIcon, text: "The change's checks ran against exactly what was applied." },
+  { title: "Proof for the latest change", icon: SealCheckIcon, text: "The change's checks ran against exactly what was applied." },
   { title: "The version that's live", icon: CubeIcon, text: "Version 1 is live: 5 files, recorded with a SHA-256 digest of exactly those revisions." },
 ];
 
@@ -608,10 +608,7 @@ export function LiveView({ t, from, checkedAt }: { t: number; from: number; chec
             <p className="font-medium text-ink">The live address answers with it</p>
             {checking ? (
               <p className="flex items-start gap-3 text-sm">
-                <span className="relative mt-1 flex size-4 items-center justify-center" aria-hidden>
-                  <span className="absolute inset-0 rounded-full bg-accent/30" style={{ transform: `scale(${1 + ((t / 700) % 1) * 0.8})`, opacity: 1 - ((t / 700) % 1) }} />
-                  <span className="size-2 rounded-full bg-accent" />
-                </span>
+                <CircleNotchIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-accent" style={{ transform: `rotate(${(t / 3) % 360}deg)` }} aria-hidden />
                 <span>
                   <span className="font-medium text-ink">Checking your live site</span>
                   <span className="block text-ink-2">Farbaek is opening the address and comparing what answers with this version.</span>

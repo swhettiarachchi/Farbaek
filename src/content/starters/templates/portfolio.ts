@@ -108,7 +108,7 @@ const INDEX = `<!doctype html>
           <h1 class="name" data-fs-reveal="words">Oru Studio</h1>
           <div class="hero__row">
             <p class="fs-lead" data-fs-reveal>Photographs of buildings, the objects in them and the odd fashion story. From Colombo, and wherever the light is good.</p>
-            <p class="hero__status" data-fs-reveal><span class="dot" aria-hidden="true"></span>Booking shoots from February</p>
+            <p class="hero__status" data-fs-reveal>Booking shoots from February</p>
           </div>
           <figure class="hero__latest">
             <div class="fs-frame fs-frame--wide" data-fs-reveal="mask">
@@ -260,7 +260,6 @@ h1, h2, h3, .fs-wordmark, .fs-stat__num, .work__title, .row__title { font-stretc
 .name { font-size: clamp(56px, 19vw, 300px); line-height: 0.82; text-transform: uppercase; letter-spacing: -0.02em; margin-left: -0.04em; }
 .hero__row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 20px 40px; margin: clamp(24px, 4vw, 48px) 0; }
 .hero__status { display: inline-flex; align-items: center; gap: 10px; padding: 10px 16px; border: 1px solid var(--line); border-radius: 999px; font-size: 15px; }
-.dot { width: 9px; height: 9px; border-radius: 999px; background: var(--accent); box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 22%, transparent); }
 .hero__latest { margin: 0; }
 
 /* Selected work: the mosaic's cards are buttons that open the viewer. */
@@ -447,7 +446,7 @@ The kit's signal look, re-cut: a cool stone paper, small 6px corners like a prin
 
 - \`--paper\` #eeeeeb, cool stone, and \`--paper-2\` #f7f7f5 for raised sections and the viewer.
 - \`--ink\` #0d0d0d and \`--ink-2\` #5a5a57.
-- \`--accent\` #0e7a55, a deep green, for the booking dot, step numbers, focus and the contact band.
+- \`--accent\` #0e7a55, a deep green, for the booking line, step numbers, focus and the contact band.
 - \`--accent-2\` #c9d63a, chartreuse, only in the contact band's light.
 
 ## Type

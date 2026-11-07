@@ -22,6 +22,7 @@ import {
   ClosedCaptioningIcon,
   CornersInIcon,
   CornersOutIcon,
+  CircleNotchIcon,
   PauseIcon,
   PlayIcon,
   WarningCircleIcon,
@@ -85,7 +86,6 @@ function ChapterRail({
                 </span>
                 <span className="flex items-baseline justify-between gap-3">
                   <span className={`font-medium transition-colors duration-200 ${current ? "text-ink" : "text-ink-3 group-hover:text-ink-2"}`}>{c.label}</span>
-                  <span className="font-mono text-xs text-ink-3 tabular">{clock(c.start)}</span>
                 </span>
               </button>
               {current && c.tryIt ? (
@@ -179,7 +179,7 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
       seekInput.current.value = String(Math.round(t));
       seekInput.current.setAttribute("aria-valuetext", `${clock(t)} of ${clock(duration)}, ${chapter.label}`);
     }
-    if (timeLabel.current) timeLabel.current.textContent = clock(t);
+    if (timeLabel.current) timeLabel.current.textContent = t > 0 ? `${clock(t)} of ${clock(duration)}` : clock(duration);
     setActive(index);
   }, [chapters, duration]);
 
@@ -337,14 +337,14 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
                           <PlayIcon size={16} weight="fill" aria-hidden />
                         </span>
                         Play the film
-                        <span className="font-mono text-xs text-ink-3 tabular">{clock(duration)}</span>
+                        <span className="text-xs text-ink-3 tabular">{clock(duration)}</span>
                       </span>
                     </button>
                   ) : null}
 
                   {notice === "loading" ? (
                     <p className="pointer-events-none absolute right-3 top-3 inline-flex items-center gap-2 rounded-full bg-surface px-3 py-1.5 text-xs text-ink-2 shadow-e1 ring-1 ring-line" role="status">
-                      <span aria-hidden className="size-1.5 rounded-full bg-accent motion-safe:animate-pulse" />
+                      <CircleNotchIcon size={14} weight="bold" className="text-accent motion-safe:animate-spin" aria-hidden />
                       Loading the film
                     </p>
                   ) : null}
@@ -352,7 +352,6 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
                   {notice === "slow" ? (
                     <div className="absolute inset-x-3 top-3 flex flex-wrap items-center justify-end gap-2" role="status">
                       <p className="inline-flex items-center gap-2 rounded-full bg-surface px-3 py-1.5 text-xs text-ink-2 shadow-e1 ring-1 ring-line">
-                        <span aria-hidden className="size-1.5 rounded-full bg-approval" />
                         This is taking longer than usual
                       </p>
                       <button
@@ -414,8 +413,9 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
                     >
                       {playing ? <PauseIcon size={18} weight="fill" aria-hidden /> : <PlayIcon size={18} weight="fill" aria-hidden />}
                     </button>
-                    <p className="shrink-0 font-mono text-xs text-ink-3 tabular">
-                      <span ref={timeLabel}>0:00</span> / {clock(duration)}
+                    {/* The film's length until it plays; then where it is (ADR 0180). */}
+                    <p className="shrink-0 text-xs text-ink-3 tabular">
+                      <span ref={timeLabel}>{clock(duration)}</span>
                     </p>
 
                     {/* The scrubber: one segment per chapter, with a native range input on top for touch, mouse and keys. */}
@@ -481,7 +481,7 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
             <ol className="mt-2 grid gap-2 text-left text-ink-2">
               {chapters.map((c) => (
                 <li key={c.id}>
-                  <span className="font-mono text-xs text-ink-3 tabular">{clock(c.start)}</span> <span className="font-medium text-ink">{c.label}.</span> {c.caption}
+                  <span className="font-medium text-ink">{c.label}.</span> {c.caption}
                 </li>
               ))}
             </ol>

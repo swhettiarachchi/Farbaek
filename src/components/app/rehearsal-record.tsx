@@ -1,4 +1,4 @@
-import { ArrowRightIcon, CheckCircleIcon, FlaskIcon, PauseCircleIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, CheckCircleIcon, InfoIcon, PauseCircleIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { LocalTime } from "@/components/ui/local-time";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -11,7 +11,7 @@ function Verdict({ summary, since, replay }: { summary: RehearsalSummary; since:
   if (verdict === "nothing_yet")
     return (
       <p className="flex items-start gap-2 text-[0.9375rem]">
-        <FlaskIcon size={18} className="mt-0.5 shrink-0 text-simulated" aria-hidden />
+        <InfoIcon size={18} className="mt-0.5 shrink-0 text-simulated" aria-hidden />
         {replay ? (
           <span>No changes since <LocalTime iso={since} /> to replay.</span>
         ) : (
@@ -24,7 +24,7 @@ function Verdict({ summary, since, replay }: { summary: RehearsalSummary; since:
   if (verdict === "none_would_apply")
     return (
       <p className="flex items-start gap-2 text-[0.9375rem]">
-        <FlaskIcon size={18} className="mt-0.5 shrink-0 text-simulated" aria-hidden />
+        <InfoIcon size={18} className="mt-0.5 shrink-0 text-simulated" aria-hidden />
         <span>None of the {plural(total, "change", "changes")} would have applied on its own. So far, this setting would have changed nothing.</span>
       </p>
     );

@@ -1,4 +1,4 @@
-import { CheckCircleIcon, CircleDashedIcon, EyeIcon, HourglassMediumIcon, ProhibitIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, CircleDashedIcon, CircleNotchIcon, EyeIcon, ProhibitIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { RelativeTime } from "@/components/ui/local-time";
 import { MUTATION_OPERATOR_WORDS, mutantExcerpt, mutationSummary, type ExcerptLine, type Mutant, type MutantResult } from "@/core/realityloop/mutation";
@@ -78,7 +78,7 @@ export function MutationCard({ proposalId, taskId, planned, run, disabledReason 
 
       {running ? (
         <p role="status" className="flex items-center gap-2 text-sm">
-          <HourglassMediumIcon size={18} weight="bold" className="text-approval motion-safe:animate-pulse" aria-hidden />
+          <CircleNotchIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-accent motion-safe:animate-spin" aria-hidden />
           Running the tests against each mistake, started <RelativeTime iso={run.startedAt} />. This page updates by itself.
         </p>
       ) : null}

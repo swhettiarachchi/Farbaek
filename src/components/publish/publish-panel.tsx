@@ -75,7 +75,7 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
           </p>
           {data.unpublishedChanges ? (
             <p className="flex items-center gap-2 text-sm text-ink">
-              <span className="size-2 rounded-full bg-approval" aria-hidden /> The files changed since this version. Publish again to put the changes live.
+              <WarningIcon size={16} weight="bold" className="shrink-0 text-approval" aria-hidden /> The files changed since this version. Publish again to put the changes live.
             </p>
           ) : null}
         </div>

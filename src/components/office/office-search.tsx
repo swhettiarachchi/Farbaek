@@ -6,7 +6,8 @@ import {
   ChatsCircleIcon,
   CpuIcon,
   CreditCardIcon,
-  FingerprintIcon,
+  CircleNotchIcon,
+  ShieldCheckIcon,
   GlobeIcon,
   HeartbeatIcon,
   IdentificationBadgeIcon,
@@ -44,7 +45,7 @@ const PAGE_ICONS: Record<OfficeHref, Icon> = {
   "/announcements": MegaphoneIcon,
   "/staff": IdentificationBadgeIcon,
   "/audit": ScrollIcon,
-  "/security": FingerprintIcon,
+  "/security": ShieldCheckIcon,
 };
 const HIT_ICONS: Record<OfficeSearchHit["kind"], Icon> = { workspace: BuildingsIcon, person: UserIcon, site: GlobeIcon };
 const GROUPS: Record<OfficeSearchHit["kind"] | "page", string> = { page: "Go to", workspace: "Workspaces", person: "People", site: "Sites" };
@@ -225,7 +226,7 @@ export function OfficeSearch() {
         <kbd className="hidden rounded-full border border-line px-1.5 font-mono text-xs text-ink-3 sm:inline">Esc</kbd>
       </div>
       <p aria-live="polite" className={status ? "flex items-center gap-2 border-b border-line px-4 py-2.5 text-xs text-ink-3" : "sr-only"}>
-        {remote.state === "searching" ? <span aria-hidden className="size-1.5 rounded-full bg-accent motion-safe:animate-pulse" /> : null}
+        {remote.state === "searching" ? <CircleNotchIcon size={12} weight="bold" className="text-accent motion-safe:animate-spin" aria-hidden /> : null}
         {status}
       </p>
       <ul id={listId} role="listbox" aria-label="Results" className="max-h-[min(60dvh,460px)] overflow-y-auto p-2">

@@ -1,4 +1,4 @@
-import { DownloadSimpleIcon, FingerprintIcon, LockKeyIcon, SealCheckIcon } from "@phosphor-icons/react/ssr";
+import { DownloadSimpleIcon, LockKeyIcon, SealCheckIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Container } from "@/components/ui/container";
@@ -16,7 +16,7 @@ const MEANING = [
     body: "Every record's digest is the SHA-256 of its canonical JSON. Change one character anywhere and the digest no longer matches.",
   },
   {
-    icon: FingerprintIcon,
+    icon: SealCheckIcon,
     title: "A signature shows who recorded it",
     body: "A signed ProofPack carries Farbaek's Ed25519 signature. This page checks it against the keys Farbaek publishes, and says plainly when a record isn't signed: then a match proves it's unchanged, not who made it.",
   },

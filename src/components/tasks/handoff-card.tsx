@@ -1,4 +1,4 @@
-import { CheckCircleIcon, CircleDashedIcon, ClockCountdownIcon, DesktopTowerIcon, HourglassMediumIcon, ProhibitIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, CircleDashedIcon, ClockCountdownIcon, DesktopTowerIcon, ProhibitIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { RelativeTime } from "@/components/ui/local-time";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
@@ -8,8 +8,8 @@ import type { HandoffView } from "@/server/agent/handoffs";
 import { cancelHandoffAction } from "@/app/app/tasks/handoff-actions";
 import { HandOff } from "./hand-off";
 
-const STATUS: Record<HandoffStatus, { Icon: typeof CheckCircleIcon; className: string }> = {
-  waiting: { Icon: HourglassMediumIcon, className: "border-approval/40 text-approval" },
+const STATUS: Record<HandoffStatus, { Icon: typeof CheckCircleIcon | null; className: string }> = {
+  waiting: { Icon: null, className: "border-approval/40 text-approval" },
   opened: { Icon: DesktopTowerIcon, className: "border-info/40 text-info" },
   done: { Icon: CheckCircleIcon, className: "border-line text-ink-2" },
   failed: { Icon: WarningCircleIcon, className: "border-dashed border-failed/40 text-failed" },
@@ -60,7 +60,7 @@ export function HandoffCard({ taskId, computers, handoffs, disabledReason }: { t
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-[0.9375rem] font-medium">{h.agentName}</p>
                   <span className={`inline-flex h-6 items-center gap-1 rounded-full border px-2.5 text-xs font-medium ${s.className}`}>
-                    <s.Icon size={13} weight="bold" aria-hidden /> {HANDOFF_STATUS_WORDS[h.status]}
+                    {s.Icon ? <s.Icon size={13} weight="bold" aria-hidden /> : null} {HANDOFF_STATUS_WORDS[h.status]}
                   </span>
                 </div>
                 <p className="text-xs text-ink-3">

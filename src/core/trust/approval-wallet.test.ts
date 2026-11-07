@@ -36,7 +36,7 @@ describe("walletRisk", () => {
     expect(walletRisk({ policyOutcome: "ESCALATE", lens: lens({ flagged: 1, unexplained: 2 }), changes: [{ kind: "edit" }] })).toEqual([
       { kind: "escalated", tone: "approval", label: "Escalated: an owner or admin approves" },
       { kind: "flagged", tone: "failed", label: "1 change flagged by the plan" },
-      { kind: "unexplained", tone: "approval", label: "2 changes no line of the plan explains" },
+      { kind: "unexplained", tone: "approval", label: "2 changes that no line of the plan explains" },
       { kind: "files", tone: "neutral", label: "1 edited file" },
     ]);
   });

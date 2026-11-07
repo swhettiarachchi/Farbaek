@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, CheckCircleIcon, CircleDashedIcon, InfoIcon, WarningIcon, WarningOctagonIcon, WrenchIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, CheckCircleIcon, CircleDashedIcon, CircleNotchIcon, InfoIcon, WarningIcon, WarningOctagonIcon, WrenchIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -104,7 +104,7 @@ export default async function SecurityPage({ params, searchParams }: Params) {
       {running ? (
         <Card>
           <p className="flex items-center gap-2 text-sm text-ink-2" role="status">
-            <span className="size-2 rounded-full bg-accent motion-safe:animate-pulse" aria-hidden /> Checking the project. This takes a minute or two. Started <LocalTime iso={latest!.startedAt} />.
+            <CircleNotchIcon size={16} weight="bold" className="shrink-0 text-accent motion-safe:animate-spin" aria-hidden /> Checking the project. This takes a minute or two. Started <LocalTime iso={latest!.startedAt} />.
           </p>
         </Card>
       ) : null}

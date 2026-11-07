@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowCounterClockwiseIcon, CheckCircleIcon, HourglassMediumIcon, ProhibitIcon, XCircleIcon } from "@phosphor-icons/react";
+import { ArrowCounterClockwiseIcon, CheckCircleIcon, ProhibitIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useId, useMemo, useState } from "react";
 import { buttonClasses } from "@/components/ui/button";
@@ -160,9 +160,7 @@ export function ApprovalDemo() {
               <ProhibitIcon size={14} weight="bold" aria-hidden /> Blocked
             </span>
           ) : (
-            <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-approval/40 px-2 text-xs font-medium text-approval">
-              <HourglassMediumIcon size={14} weight="bold" aria-hidden /> Needs approval
-            </span>
+            <span className="inline-flex h-6 items-center rounded-full border border-approval/40 px-2.5 text-xs font-medium text-approval">Needs approval</span>
           )}
         </div>
 
@@ -205,7 +203,7 @@ export function ApprovalDemo() {
             {matches ? (
               <CheckCircleIcon size={18} className="mt-px shrink-0 text-verified" aria-hidden />
             ) : (
-              <HourglassMediumIcon size={18} className="mt-px shrink-0 text-approval" aria-hidden />
+              <WarningCircleIcon size={18} className="mt-px shrink-0 text-approval" aria-hidden />
             )}
             <span>
               {matches

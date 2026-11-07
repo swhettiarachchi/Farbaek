@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, CopyIcon, HourglassMediumIcon, LinkSimpleIcon, PlusIcon, TrashIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, CopyIcon, LinkSimpleIcon, PlusIcon, TrashIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useState } from "react";
 import { addDomainAction, checkDomainAction, removeDomainAction, type PublishState } from "@/app/app/projects/[projectId]/publish-actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -47,7 +47,7 @@ function DomainCard({ projectId, domain, disabledReason }: { projectId: string; 
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-approval/40 px-2.5 py-0.5 text-xs text-approval">
-            <HourglassMediumIcon size={13} weight="bold" aria-hidden /> Waiting for DNS
+            Waiting for DNS
           </span>
         )}
         {disabledReason ? null : (

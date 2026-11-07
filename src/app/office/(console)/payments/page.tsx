@@ -1,4 +1,4 @@
-import { CheckCircleIcon, CircleDashedIcon, ClockIcon, FlaskIcon, ProhibitIcon, SkullIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, CircleDashedIcon, ClockIcon, InfoIcon, ProhibitIcon, SkullIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, Notice, PageHeader } from "@/components/app/primitives";
@@ -113,7 +113,7 @@ export default async function OfficePayments() {
             {status.on && requested === "live" ? (
               <CheckCircleIcon size={18} weight="fill" className="mt-px shrink-0 text-verified" aria-hidden />
             ) : status.on ? (
-              <FlaskIcon size={18} weight="bold" className="mt-px shrink-0 text-approval" aria-hidden />
+              <InfoIcon size={18} weight="bold" className="mt-px shrink-0 text-approval" aria-hidden />
             ) : (
               <CircleDashedIcon size={18} weight="bold" className="mt-px shrink-0 text-ink-3" aria-hidden />
             )}
