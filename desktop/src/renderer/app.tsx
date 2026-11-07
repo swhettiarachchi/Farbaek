@@ -527,7 +527,7 @@ function RunsView({ runs, selected, onSelect }: { runs: RunSummary[]; selected: 
                   <StateBadge run={r} />
                 </span>
                 <span className="muted small">
-                  {AGENT_MODE_LABELS[r.mode].title} · {EFFORT_LABELS[r.effort ?? "balanced"].title} · {time(r.startedAt)}
+                  {AGENT_MODE_LABELS[r.mode].title}, {EFFORT_LABELS[r.effort ?? "balanced"].title.toLowerCase()} effort. Started {time(r.startedAt)}
                 </span>
               </button>
             </li>
