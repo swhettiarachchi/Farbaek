@@ -74,8 +74,13 @@ struct Workspace: Decodable, Identifiable, Hashable {
     let id: String
     let name: String
     let plan: String
+    /// "trial" while the plan is the trial's; older servers leave it out.
+    let planSource: String?
     let paused: String?
     let agentsPaused: Bool
+
+    /// The web's sentence: "Harbour Lane Studio is on the Pro trial."
+    var planSentence: String { planSource == "trial" ? "\(name) is on the \(plan) trial." : "\(name) is on the \(plan) plan." }
 }
 
 struct TaskItem: Decodable, Identifiable, Hashable {
@@ -139,6 +144,8 @@ struct ApprovalCard: Decodable, Identifiable, Hashable {
 
 struct Approvals: Decodable {
     let items: [ApprovalCard]
+    /// Tasks that wait with no open change on record, listed as the web lists them; older servers leave it out.
+    let withoutChange: [TaskItem]?
     let more: Int
     /// What the badge counts: a change that ran out of time is listed, but it isn't anyone's turn.
     let decidable: Int?

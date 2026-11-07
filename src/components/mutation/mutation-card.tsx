@@ -73,7 +73,7 @@ export function MutationCard({ proposalId, taskId, planned, run, disabledReason 
         <span className="text-xs text-ink-3">Nothing is applied</span>
       </div>
       <p className="max-w-[68ch] text-sm leading-relaxed text-ink-2">
-        Farbaek makes small mistakes on purpose in the lines this change adds, such as moving a comparison&apos;s boundary, and runs the related tests once for each in a disposable sandbox. A mistake that makes a test fail was caught; one that doesn&apos;t survived. No AI is used.
+        Farbaek makes small mistakes on purpose in the lines this change adds, such as moving a comparison&apos;s boundary. It runs the related tests once for each, in a throwaway test space. A mistake that makes a test fail was caught; one that doesn&apos;t survived. No AI is used.
       </p>
 
       {running ? (

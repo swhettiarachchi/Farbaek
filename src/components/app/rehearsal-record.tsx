@@ -76,25 +76,17 @@ export function RehearsalRecord({ summary, since, replay }: { summary: Rehearsal
         <h3 id={replay ? "replay-heading" : "rehearsal-heading"} className="text-base font-medium">
           {replay ? "Replay of the last 30 days" : "Practice record"}
         </h3>
-        <StatusBadge status="simulated" label={replay ? "Predicted from past changes" : "Simulated decisions"} />
+        <StatusBadge status="simulated" label={replay ? "Predicted" : "Practice"} />
       </div>
 
       <Verdict summary={summary} since={since} replay={Boolean(replay)} />
 
       {summary.total > 0 ? (
         <>
-          <dl className="grid grid-cols-3 gap-3">
-            {[
-              { label: "Changes", value: summary.total },
-              { label: "Would have applied", value: summary.wouldApply },
-              { label: "Would have waited", value: summary.wouldWait },
-            ].map((s) => (
-              <div key={s.label} className="rounded-sm border border-line bg-surface px-3 py-2.5">
-                <dt className="text-xs text-ink-3">{s.label}</dt>
-                <dd className="mt-0.5 text-xl font-medium tabular">{s.value.toLocaleString("en-US")}</dd>
-              </div>
-            ))}
-          </dl>
+          <p className="text-sm leading-relaxed text-ink-2">
+            Of {summary.total.toLocaleString("en-US")} {summary.total === 1 ? "change" : "changes"}, {summary.wouldApply.toLocaleString("en-US")} would have applied on{" "}
+            {summary.wouldApply === 1 ? "its" : "their"} own and {summary.wouldWait.toLocaleString("en-US")} would have waited for a person.
+          </p>
 
           <div className="grid gap-4 sm:grid-cols-2">
             {outcomes.length > 0 ? (

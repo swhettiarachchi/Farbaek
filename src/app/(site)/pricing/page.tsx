@@ -8,21 +8,25 @@ import { WebPurchaseOnly } from "@/components/billing/web-purchase-only";
 import { PricingPlans } from "@/components/pricing/pricing-plans";
 import { Container } from "@/components/ui/container";
 import { CONTACT } from "@/config/contact";
-import { TRIAL, chargeCents, formatUsd, getPlan } from "@/core/billing/catalog";
+import { PLANS, TRIAL, chargeCents, formatUsd, getPlan } from "@/core/billing/catalog";
+
+const monthlyPrices = PLANS.flatMap((p) => (p.pricing.kind === "paid" ? [p.pricing.monthlyCents] : []));
+const FROM = formatUsd(Math.min(...monthlyPrices));
+const TO = formatUsd(Math.max(...monthlyPrices));
 
 export const metadata: Metadata = {
   title: "Pricing",
-  description: "Farbaek plans from $0.99 to $300 a month, with AI, test spaces and previews included, usage that rolls over, and a 14-day Pro trial with no card.",
+  description: `Farbaek plans from ${FROM} to ${TO} a month, with AI, test spaces and previews included, usage that carries over, and a ${TRIAL.lengthDays}-day ${getPlan(TRIAL.basePlan).name} trial with no card.`,
 };
 
 const trialBase = getPlan(TRIAL.basePlan).name;
 
 /** What makes a Farbaek plan worth more than its price elsewhere. Each line is a rule the platform enforces. */
 const PROMISES = [
-  { icon: ArrowsClockwiseIcon, title: "Nothing expires at the end of the month", body: "Unused AI usage rolls over for two months, oldest first." },
+  { icon: ArrowsClockwiseIcon, title: "Nothing expires at the end of the month", body: "Unused AI usage lasts one more month, and the oldest is spent first." },
   { icon: ArrowCounterClockwiseIcon, title: "Failed attempts are given back", body: "When an AI call fails, or the agent's fix for failed checks doesn't pass them either, that usage returns to you, up to a monthly cap." },
   { icon: WalletIcon, title: "No surprise bills", body: "Plans never run into overage. You see the share used and when it resets." },
-  { icon: ShieldCheckIcon, title: "Security checks from Plus", body: "Others keep them for business plans. Farbaek includes them on Plus, and every plan can publish a site after Farbaek's rules check." },
+  { icon: ShieldCheckIcon, title: "Security checks from Plus", body: "Farbaek includes full security checks from Plus, and every plan can publish a site after Farbaek's rules check." },
 ] as const;
 
 const PRICING_FAQ: FaqItem[] = [
@@ -36,11 +40,11 @@ const PRICING_FAQ: FaqItem[] = [
   },
   {
     q: "What happens to usage I don't use?",
-    a: "It rolls over. Each month's AI usage lasts two months, and Farbaek always spends the oldest first, so nothing you paid for disappears at the end of a month.",
+    a: "It carries over. Unused AI usage lasts one more month, and Farbaek always spends the oldest first, so nothing you paid for disappears at the end of a month.",
   },
   {
     q: "What if the AI gets it wrong?",
-    a: "When a call fails, times out or returns nothing usable, its usage is given back automatically. And when you ask the agent to fix what failed checks found and the fix doesn't pass them either, the fix's usage is given back too, up to about 5% of your monthly AI usage, on paid plans and during the trial.",
+    a: "When a call fails, times out or returns nothing usable, its usage is given back automatically. The same goes for a fix the agent makes for failed checks that doesn't pass them either: its usage comes back, up to about 5% of your monthly AI usage. That applies on paid plans and during the trial.",
   },
   {
     q: "What happens when I reach a limit?",

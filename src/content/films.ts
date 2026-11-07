@@ -55,7 +55,7 @@ export const FILMS = {
     posterAtMs: 1_800,
     chapters: [
       { id: "describe", label: "Describe", start: 0, caption: "Describe what you want in one sentence. Farbaek starts a project and drafts a plan.", tryIt: { href: "#hero-title", label: "Try the build box" } },
-      { id: "plan", label: "Plan", start: 8_500, caption: "Read the plan: the goal, what must not change and the design. Approve it to start the build.", tryIt: { href: "#showcase", label: "Start from a template" } },
+      { id: "plan", label: "Plan", start: 8_500, caption: "Read the plan: the goal, what must not change and the design. Approve it to start the build.", tryIt: { href: "#showcase", label: "Start from a concept" } },
       { id: "build", label: "Build", start: 18_500, caption: "The agent works in the open. Every step shows as it happens, and the preview updates." },
       { id: "check", label: "Check", start: 32_500, caption: "Before anything goes live, a security check reads exactly these files and scores them.", tryIt: { href: "#evidence", label: "See the proof" } },
       { id: "publish", label: "Publish", start: 40_500, caption: "Publish puts this exact version at its own address. Every version is kept." },

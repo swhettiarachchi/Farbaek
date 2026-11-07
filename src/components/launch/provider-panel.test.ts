@@ -76,7 +76,7 @@ describe("ProviderPanel with Vercel", () => {
     const html = render({ connection: CONNECTED });
     expect(html).toContain("Connected as suvin");
     expect(html).toContain("12 files, 40 KB");
-    expect(html).toContain("Production");
+    expect(html).toContain("The live site (what Vercel calls production)");
     expect(html).toContain("nextjs, next build");
     expect(html).toContain("to confirm");
     expect(html).not.toContain("Why launch before the checks have passed");

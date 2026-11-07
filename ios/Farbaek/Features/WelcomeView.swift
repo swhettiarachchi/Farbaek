@@ -11,11 +11,11 @@ struct WelcomeView: View {
     /// The headline grows with the reader's text size.
     @ScaledMetric(relativeTo: .largeTitle) private var titleSize: CGFloat = 34
 
-    private let promises: [(symbol: String, title: String, text: String)] = [
-        ("checkmark.seal", "Approve with Face ID", "Each change shows its files as a diff, the checks that will run and its hash. You approve exactly what you read."),
+    private var promises: [(symbol: String, title: String, text: String)] { [
+        ("checkmark.seal", Biometry.label("Approve"), "Each change shows its files as a diff, the checks that will run and its hash. You approve exactly what you read."),
         ("text.bubble", "Build from one sentence", "Describe it, approve the plan, and the agent starts in Farbaek's cloud."),
         ("bell.badge", "Know when it's ready", "A notification when a build finishes or its checks end."),
-    ]
+    ] }
 
     var body: some View {
         ScrollView {

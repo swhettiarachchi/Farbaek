@@ -47,29 +47,27 @@ const DONE_SHOWN = 4;
  * A summary row counts every lane; only lanes with runs open below it, two
  * to a row, so titles have room to read.
  */
+/** The lanes as one sentence: "1 run needs you, 2 are working and 4 are done." Zeros aren't counted out loud. */
+function lanesSentence(lanes: Record<InboxLane, RunView[]>): string {
+  const words: Record<InboxLane, (n: number) => string> = {
+    needs_you: (n) => `${n} ${n === 1 ? "needs" : "need"} you`,
+    working: (n) => `${n} ${n === 1 ? "is" : "are"} working`,
+    review: (n) => `${n} ${n === 1 ? "is" : "are"} ready to review`,
+    done: (n) => `${n} ${n === 1 ? "is" : "are"} done`,
+  };
+  const parts = INBOX_LANES.filter((lane) => lanes[lane].length > 0).map((lane) => words[lane](lanes[lane].length));
+  if (parts.length === 0) return "No runs yet.";
+  const total = INBOX_LANES.reduce((n, lane) => n + lanes[lane].length, 0);
+  const joined = parts.length === 1 ? parts[0]! : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+  const lead = total === 1 ? "One run: " : `${total} runs: `;
+  return `${lead}${joined}.${lanes.needs_you.length === 0 ? " Nothing needs you." : ""}`;
+}
+
 export function AgentInbox({ lanes, proposals }: { lanes: Record<InboxLane, RunView[]>; proposals: ReadonlyMap<string, ProposalState> }) {
   const open = INBOX_LANES.filter((lane) => lanes[lane].length > 0);
   return (
     <div className="grid gap-4">
-      <ul className="flex flex-wrap gap-2" aria-label="Runs by what they need">
-        {INBOX_LANES.map((lane) => {
-          const style = LANE_STYLE[lane];
-          const count = lanes[lane].length;
-          return (
-            <li
-              key={lane}
-              title={count === 0 ? INBOX_LANE_LABELS[lane].empty : undefined}
-              className={`inline-flex min-h-9 items-center gap-2 rounded-full border bg-surface px-3.5 text-sm shadow-e1 ${
-                lane === "needs_you" && count ? "border-approval/45 text-ink" : count ? "border-line text-ink" : "border-line text-ink-3"
-              }`}
-            >
-              <style.icon size={15} weight="bold" className={`${count ? style.tone : "text-ink-3"} ${lane === "working" && count ? "motion-safe:animate-spin" : ""}`} aria-hidden />
-              {INBOX_LANE_LABELS[lane].title}
-              <span className="tabular font-medium">{count}</span>
-            </li>
-          );
-        })}
-      </ul>
+      <p className="text-sm text-ink-2">{lanesSentence(lanes)}</p>
       <div className={`grid gap-4 ${open.length > 1 ? "lg:grid-cols-2" : ""}`}>
       {open.map((lane) => {
         const all = lanes[lane];
@@ -80,7 +78,6 @@ export function AgentInbox({ lanes, proposals }: { lanes: Record<InboxLane, RunV
             <h3 id={`lane-${lane}`} className="flex items-center gap-2 text-sm font-medium">
               <style.icon size={16} weight="bold" className={`${style.tone} ${lane === "working" ? "motion-safe:animate-spin" : ""}`} aria-hidden />
               {INBOX_LANE_LABELS[lane].title}
-              <span className="ml-auto rounded-full border border-line px-2 py-px text-xs font-normal text-ink-2 tabular">{all.length}</span>
             </h3>
               <ul className="mt-3 grid gap-1.5">
                 {runs.map((r, i) => {

@@ -90,7 +90,7 @@ export default async function MeshPage() {
           <h2 className="flex items-center gap-2 text-lg font-medium">
             <DeviceMobileIcon size={20} className="text-ink-3" aria-hidden /> This phone or browser
           </h2>
-          <StatusBadge status="info" label="No app to install" />
+          <span className="text-sm text-ink-3">No app to install</span>
         </div>
         <p className="mt-2 mb-5 max-w-[68ch] text-sm leading-relaxed text-ink-2">
           Pair this device once with one of your computers, then send it photos and files from here. They go directly between the two when the networks allow it, encrypted end to end, and the computer checks every piece.
@@ -107,7 +107,7 @@ export default async function MeshPage() {
             <h2 className="flex items-center gap-2 text-lg font-medium">
               <DevicesIcon size={20} className="text-ink-3" aria-hidden /> Your devices
             </h2>
-            <StatusBadge status="info" label="In the Farbaek Agent" />
+            <span className="text-sm text-ink-3">In the Farbaek Agent</span>
           </div>
           <p className="mt-3 text-sm leading-relaxed text-ink-2">
             The Farbaek Agent sends a folder straight to your other computer on the same network. Pair the two once with a six-digit code; every piece is then encrypted and checked against its hash as it arrives, and nothing passes through Farbaek. So far it has been checked between two agents on one computer.
@@ -177,9 +177,7 @@ export default async function MeshPage() {
                     <p className="mt-0.5 text-xs text-ink-3">
                       {h.files.toLocaleString("en-US")} {h.files === 1 ? "file" : "files"}, {formatBytes(h.bytes)}
                       {h.excluded > 0 ? `, ${h.excluded.toLocaleString("en-US")} left out` : ""}
-                      <span className="block truncate font-mono sm:inline sm:before:content-['_·_']" title={`blake3:${h.digest}`}>
-                        blake3:{h.digest.slice(0, 8)}…{h.digest.slice(-6)}
-                      </span>
+                      <span title={`blake3:${h.digest}`}>, recorded with its digest</span>
                     </p>
                   </div>
                   <span className="shrink-0 text-xs text-ink-3">

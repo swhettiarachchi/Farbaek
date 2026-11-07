@@ -141,7 +141,7 @@ export default async function SettingsPage() {
             <li key={m.userId} className="grid gap-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-raised text-sm font-medium text-ink-2">
-                  {m.userId === ctx.user.id ? ctx.user.email.slice(0, 1).toUpperCase() : "·"}
+                  {(m.userId === ctx.user.id ? ctx.user.email : (emailOf.get(m.userId) ?? "Teammate")).slice(0, 1).toUpperCase()}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[0.9375rem]">{m.userId === ctx.user.id ? `${ctx.user.email} (you)` : (emailOf.get(m.userId) ?? "Teammate")}</span>
@@ -345,7 +345,7 @@ export default async function SettingsPage() {
             Delete your account
           </h2>
           <p className="mt-1 max-w-[62ch] text-sm leading-relaxed text-ink-2">
-            Here&apos;s what happens to each workspace you&apos;re in. Want a copy first? Download your data above, and export each project from its page: the Capsule holds its files and history.
+            Here&apos;s what happens to each workspace you&apos;re in. Want a copy first? Download your data above, and use Export everything on each project&apos;s page for its files and history.
           </p>
           <div className="mt-5">
             <DeleteAccount

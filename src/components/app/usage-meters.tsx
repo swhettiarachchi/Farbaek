@@ -46,7 +46,7 @@ function Row({ meter, detailed }: { meter: UsageMeter; detailed: boolean }) {
           {meter.label}
           {meter.state === "reached" ? <WarningCircleIcon size={15} weight="bold" className="text-failed" aria-hidden /> : meter.state === "nearly" ? <WarningIcon size={15} weight="bold" className="text-approval" aria-hidden /> : null}
         </p>
-        <p className="shrink-0 text-sm text-ink-2 tabular">{pct === null ? "Set by contract" : meter.state === "reached" ? "Limit reached" : `${pct}% used`}</p>
+        <p className="shrink-0 text-sm text-ink-2 tabular">{pct === null ? "No fixed limit" : meter.state === "reached" ? "Limit reached" : `${pct}% used`}</p>
       </div>
       <div
         className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-sunken"
@@ -55,7 +55,7 @@ function Row({ meter, detailed }: { meter: UsageMeter; detailed: boolean }) {
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={pct ?? 0}
-        aria-valuetext={pct === null ? "Set by contract" : `${pct}% used`}
+        aria-valuetext={pct === null ? "No fixed limit" : `${pct}% used`}
       >
         <div className={`h-full rounded-full ${BAR[meter.state]} motion-safe:transition-transform motion-safe:duration-[240ms] motion-safe:ease-standard`} style={{ transform: `translateX(${(pct ?? 0) - 100}%)` }} />
       </div>

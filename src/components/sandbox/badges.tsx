@@ -1,35 +1,25 @@
-import {
-  CheckCircleIcon,
-  CircleNotchIcon,
-  PauseCircleIcon,
-  PlayCircleIcon,
-  ProhibitIcon,
-  StopCircleIcon,
-  TimerIcon,
-  WarningIcon,
-  XCircleIcon,
-} from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, CircleNotchIcon, WarningIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { EXECUTION_STATE_LABELS, SESSION_STATE_LABELS, type ExecutionState, type SessionState } from "@/core/sandbox/lifecycle";
 
-// Status is a word in its colour and border pattern (ADR 0180): a spinner while live, an icon for how it ended, none while it waits.
+// Status is a word in its colour and border pattern (ADR 0180): a spinner while live, an icon only for done and failed.
 const SESSION: Record<SessionState, { icon: Icon | null; className: string; live?: boolean }> = {
   requested: { icon: null, className: "text-info border-info/40" },
   provisioning: { icon: CircleNotchIcon, className: "text-info border-info/40", live: true },
-  ready: { icon: PlayCircleIcon, className: "text-verified border-verified/40" },
-  paused: { icon: PauseCircleIcon, className: "text-approval border-approval/40" },
+  ready: { icon: null, className: "text-verified border-verified/40" },
+  paused: { icon: null, className: "text-approval border-approval/40" },
   stopping: { icon: CircleNotchIcon, className: "text-info border-info/40", live: true },
-  terminated: { icon: StopCircleIcon, className: "text-unverified border-unverified/60 border-dashed" },
-  expired: { icon: TimerIcon, className: "text-unverified border-unverified/60 border-dashed" },
+  terminated: { icon: null, className: "text-unverified border-unverified/60 border-dashed" },
+  expired: { icon: null, className: "text-unverified border-unverified/60 border-dashed" },
   failed: { icon: XCircleIcon, className: "text-failed border-failed/40" },
 };
 
-const EXECUTION: Record<ExecutionState, { icon: Icon; className: string; live?: boolean }> = {
+const EXECUTION: Record<ExecutionState, { icon: Icon | null; className: string; live?: boolean }> = {
   running: { icon: CircleNotchIcon, className: "text-info border-info/40", live: true },
   succeeded: { icon: CheckCircleIcon, className: "text-verified border-verified/40" },
   failed: { icon: XCircleIcon, className: "text-failed border-failed/40" },
-  timed_out: { icon: TimerIcon, className: "text-approval border-approval/40" },
-  cancelled: { icon: ProhibitIcon, className: "text-unverified border-unverified/60 border-dashed" },
+  timed_out: { icon: null, className: "text-approval border-approval/40" },
+  cancelled: { icon: null, className: "text-unverified border-unverified/60 border-dashed" },
   error: { icon: WarningIcon, className: "text-failed border-failed/40 border-dashed" },
 };
 

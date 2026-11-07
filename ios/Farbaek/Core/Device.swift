@@ -116,6 +116,37 @@ final class WebSignIn: NSObject, ASWebAuthenticationPresentationContextProviding
     }
 }
 
+/// What this phone confirms with, so a button never promises Face ID on a phone that has Touch ID or only a passcode.
+enum Biometry {
+    private static var kind: LABiometryType {
+        let context = LAContext()
+        _ = context.canEvaluatePolicy(.deviceOwnerAuthentication, error: nil)
+        return context.biometryType
+    }
+
+    /// "Face ID", "Touch ID", or nil when the phone confirms with its passcode or nothing at all.
+    static var name: String? {
+        switch kind {
+        case .faceID: return "Face ID"
+        case .touchID: return "Touch ID"
+        default: return nil
+        }
+    }
+
+    static var symbol: String {
+        switch kind {
+        case .faceID: return "faceid"
+        case .touchID: return "touchid"
+        default: return "lock"
+        }
+    }
+
+    /// "Approve with Face ID", "Approve with Touch ID", or plain "Approve".
+    static func label(_ verb: String) -> String {
+        name.map { "\(verb) with \($0)" } ?? verb
+    }
+}
+
 /// Face ID, Touch ID or the passcode before a consequential step. The server
 /// checks everything again; this keeps someone else holding the unlocked
 /// phone from approving for you.

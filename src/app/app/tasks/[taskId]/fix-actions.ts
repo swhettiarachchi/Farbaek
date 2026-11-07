@@ -47,5 +47,6 @@ export async function startFixAction(form: FormData): Promise<void> {
     log("warn", "fix.start_refused", { task: source, code: r.code });
     back(r.message);
   }
-  redirect(`/app/tasks/${r.ok ? r.value.taskId : source}`);
+  const note = r.ok && r.value.planNote ? `?fix_note=${encodeURIComponent(r.value.planNote.slice(0, 240))}` : "";
+  redirect(`/app/tasks/${r.ok ? r.value.taskId : source}${note}`);
 }

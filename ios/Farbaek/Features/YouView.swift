@@ -20,6 +20,7 @@ struct YouView: View {
 
     private static let webTools: [WebTool] = [
         WebTool(title: "Test space", about: "Run an app and try it, safely apart from everything else.", path: "app/sandbox", symbol: "terminal"),
+        WebTool(title: "Skills", about: "Teach the agent how to design and build, from a library or your own.", path: "app/skills", symbol: "book"),
         WebTool(title: "Desktop app", about: "Let the agent work on your own computer.", path: "app/agents", symbol: "desktopcomputer"),
         WebTool(title: "Move projects", about: "Send a project to another computer or workspace as one file.", path: "app/mesh", symbol: "shippingbox"),
         WebTool(title: "Workflows", about: "A bigger goal, done step by step.", path: "app/workflows", symbol: "arrow.triangle.branch"),

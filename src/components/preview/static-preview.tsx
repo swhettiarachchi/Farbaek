@@ -88,7 +88,7 @@ export function StaticPreview({
                 type="button"
                 aria-pressed={v.id === version.id}
                 onClick={() => setVersionId(v.id)}
-                className={`min-h-9 rounded-full px-4 text-sm transition-colors duration-150 ${v.id === version.id ? "bg-primary font-medium text-on-primary" : "text-ink-2 hover:text-ink"}`}
+                className={`min-h-11 rounded-full px-4 text-sm transition-colors duration-150 lg:min-h-9 ${v.id === version.id ? "bg-primary font-medium text-on-primary" : "text-ink-2 hover:text-ink"}`}
               >
                 {v.label}
               </button>

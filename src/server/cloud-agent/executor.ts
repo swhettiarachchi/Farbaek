@@ -162,9 +162,12 @@ export async function startCloudRun(deps: ExecutorDeps, input: StartRunInput): P
 }
 
 /** The person's answer to the approval a run is waiting for. Only the person who started it, or an owner or admin, may answer. */
+/** Said when a run isn't in this server's registry: it ended, or the server restarted under it (production deploys on every merge). */
+const NOT_LIVE_HERE = "This run isn't going any more: it finished, or Farbaek's server restarted while it was waiting. Its work so far is kept; if it stopped early, the task offers Keep going.";
+
 export function answerRunApproval(person: RunPerson, input: { runId: string; requestId: string; approved: boolean; bindingHash: string }): WriteResult<null> {
   const live = registry.get(input.runId);
-  if (!live || live.orgId !== person.orgId) return fail("NOT_FOUND", "That run isn't working on this server right now.");
+  if (!live || live.orgId !== person.orgId) return fail("NOT_FOUND", NOT_LIVE_HERE);
   if (live.startedBy !== person.userId && !MANAGER_ROLES.includes(person.role)) return fail("FORBIDDEN", "Only the person who started the run, or an owner or admin, can answer it.");
   const pending = live.approvals.get(input.requestId);
   if (!pending) return fail("NOT_FOUND", "That request was already answered or has expired.");
@@ -184,7 +187,7 @@ export const RUN_MESSAGE_MAX = 1_000;
  */
 export function sendRunMessage(person: RunPerson, input: { runId: string; text: string }): WriteResult<null> {
   const live = registry.get(input.runId);
-  if (!live || live.orgId !== person.orgId) return fail("NOT_FOUND", "The agent has finished or isn't working on this server right now, so it can't read new messages.");
+  if (!live || live.orgId !== person.orgId) return fail("NOT_FOUND", `${NOT_LIVE_HERE} It can't read new messages.`);
   if (live.startedBy !== person.userId && !MANAGER_ROLES.includes(person.role)) return fail("FORBIDDEN", "Only the person who started the run, or an owner or admin, can message it.");
   const text = input.text.replace(/\s+/g, " ").trim();
   if (!text) return fail("INVALID_TITLE", "Write a message first.");
@@ -197,7 +200,7 @@ export function sendRunMessage(person: RunPerson, input: { runId: string; text: 
 
 export function cancelCloudRun(person: RunPerson, runId: string): WriteResult<null> {
   const live = registry.get(runId);
-  if (!live || live.orgId !== person.orgId) return fail("NOT_FOUND", "That run isn't working on this server right now.");
+  if (!live || live.orgId !== person.orgId) return fail("NOT_FOUND", NOT_LIVE_HERE);
   if (live.startedBy !== person.userId && !MANAGER_ROLES.includes(person.role)) return fail("FORBIDDEN", "Only the person who started the run, or an owner or admin, can stop it.");
   live.controller.abort();
   for (const p of live.approvals.values()) p.resolve({ approved: false });

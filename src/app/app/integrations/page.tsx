@@ -44,7 +44,7 @@ export default async function IntegrationsPage() {
       name: "Farbaek hosting",
       does: "Publishes a static site at its own address on farbaek.si, with custom domains.",
       status:
-        v.liveSites === null ? { tone: "unverified", label: unreadStatus } : v.liveSites > 0 ? { tone: "verified", label: `${v.liveSites} live` } : { tone: "info", label: "Ready" },
+        v.liveSites === null ? { tone: "unverified", label: unreadStatus } : v.liveSites > 0 ? { tone: "verified", label: "Live" } : { tone: "info", label: "Ready" },
       detail: v.liveSites === null ? unread : v.liveSites > 0 ? `${v.liveSites === 1 ? "1 site is" : `${v.liveSites} sites are`} live.` : "No site is live yet. Publish one from its project page.",
       action: { href: "/app/projects", label: "Open projects" },
     },
@@ -95,8 +95,8 @@ export default async function IntegrationsPage() {
       icon: DesktopIcon,
       name: "Farbaek Agent",
       does: "The desktop app that works on approved tasks on your computer, only for as long as you allow.",
-      status: v.agents.paired > 0 ? { tone: "verified", label: `${v.agents.paired} paired` } : { tone: "unverified", label: "None paired" },
-      detail: v.agents.paired > 0 ? `${v.agents.paired === 1 ? "1 agent is" : `${v.agents.paired} agents are`} paired with this workspace.` : "Pair a computer with a one-time code.",
+      status: v.agents.paired > 0 ? { tone: "verified", label: "Paired" } : { tone: "unverified", label: "None paired" },
+      detail: v.agents.paired > 0 ? `${v.agents.paired === 1 ? "1 computer is" : `${v.agents.paired} computers are`} paired with this workspace.` : "Pair a computer with a one-time code.",
       action: { href: "/app/agents", label: "Open Desktop app" },
     },
     {
@@ -104,7 +104,7 @@ export default async function IntegrationsPage() {
       icon: PackageIcon,
       name: "Move projects",
       does: "Moves folders between your own computers, directly or through Farbaek's relay.",
-      status: v.agents.reachable > 0 ? { tone: "verified", label: `${v.agents.reachable} reachable` } : { tone: "info", label: "Nearby only" },
+      status: v.agents.reachable > 0 ? { tone: "verified", label: "Reachable" } : { tone: "info", label: "Nearby only" },
       detail:
         v.agents.reachable > 0
           ? `${v.agents.reachable === 1 ? "1 computer is" : `${v.agents.reachable} computers are`} reachable through Farbaek.`

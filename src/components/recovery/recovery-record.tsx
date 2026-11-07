@@ -1,7 +1,7 @@
 import { ArrowCounterClockwiseIcon, DownloadSimpleIcon, ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import { LocalTime } from "@/components/ui/local-time";
 import type { RecoveryReceipt } from "@/core/proof/recovery-receipt";
-import { canonicalHash, shortHash } from "@/core/trust/canonical-json";
+import { canonicalHash } from "@/core/trust/canonical-json";
 import type { RecoveryRecord } from "@/server/workspace/types";
 
 const STATUS = {
@@ -9,7 +9,7 @@ const STATUS = {
   partially_recovered: { label: "Partly recovered", Icon: WarningCircleIcon, cls: "border-approval/30 bg-approval/[0.06] text-approval" },
 } as const;
 
-/** One recorded undo: its status, what each file went from and to, an integrity check, its limits and the attestation to download. */
+/** One recorded undo: its status, what each file went from and to, an integrity check, its limits and the signed record to download. */
 export async function RecoveryRecordCard({ record }: { record: RecoveryRecord }) {
   const intact = (await canonicalHash(record.statement).catch(() => null)) === record.digest;
   const predicate = (record.statement as RecoveryReceipt | null)?.predicate;
@@ -21,23 +21,17 @@ export async function RecoveryRecordCard({ record }: { record: RecoveryRecord })
   return (
     <div className="grid min-w-0 gap-3">
       <div className="flex flex-wrap items-center gap-3">
-        <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium ${status.cls}`}>
+        <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium ${status.cls}`} title={`sha256:${record.digest}`}>
           <status.Icon size={16} weight="bold" aria-hidden /> {status.label}
         </span>
-        <span className="font-mono text-xs text-ink-3">{shortHash(record.digest)}</span>
       </div>
       <p className={`flex items-center gap-2 text-sm ${intact ? "text-ink-2" : "text-failed"}`}>
         {intact ? <ShieldCheckIcon size={16} className="shrink-0 text-verified" aria-hidden /> : <WarningCircleIcon size={16} className="shrink-0" aria-hidden />}
-        {intact ? "Record intact: its digest was recomputed from the stored statement just now and matches." : "This record changed after it was made: the recomputed digest doesn't match."}
+        {intact ? "Record intact: unchanged since it was made, checked just now." : "This record changed after it was made, so don't rely on it."}
       </p>
       <p className="text-xs text-ink-3">
         Recorded <LocalTime iso={record.createdAt} />. {record.restored} {record.restored === 1 ? "file" : "files"} undone.
-        {predicate?.proofPack ? (
-          <>
-            {" "}
-            Undoes ProofPack <span className="font-mono">{shortHash(predicate.proofPack)}</span>.
-          </>
-        ) : null}
+        {predicate?.proofPack ? " It undoes the change whose ProofPack is named in the technical details." : ""}
       </p>
       {operations.length || left.length ? (
         <ul className="grid gap-1 text-sm">
@@ -64,9 +58,20 @@ export async function RecoveryRecordCard({ record }: { record: RecoveryRecord })
       ) : null}
       <p>
         <a href={`/app/recoveries/${record.digest}`} className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline">
-          <DownloadSimpleIcon size={16} aria-hidden /> Download the record (in-toto JSON)
+          <DownloadSimpleIcon size={16} aria-hidden /> Download the record
         </a>
       </p>
+      <details className="text-xs text-ink-3">
+        <summary className="inline-flex min-h-11 cursor-pointer list-none items-center hover:text-ink [&::-webkit-details-marker]:hidden">Technical details</summary>
+        <p className="break-all">
+          This record: <span className="font-mono">sha256:{record.digest}</span>
+        </p>
+        {predicate?.proofPack ? (
+          <p className="break-all">
+            Undoes ProofPack: <span className="font-mono">sha256:{predicate.proofPack}</span>
+          </p>
+        ) : null}
+      </details>
     </div>
   );
 }

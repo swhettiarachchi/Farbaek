@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, ClockCounterClockwiseIcon, FlowArrowIcon, PauseCircleIcon, ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, ClockCounterClockwiseIcon, FlowArrowIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useActionState, useState, useTransition } from "react";
 import { setAutonomyAction, type AutonomyState } from "@/app/app/actions";
@@ -83,22 +83,17 @@ export function AutonomySettings({
     <form action={action} className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-medium">How much the agent can do on its own</h2>
+        {/* The state is its words alone, in its colour and border (ADR 0180). */}
         {suspended ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-approval/40 px-2.5 py-1 text-xs text-approval">
-            <PauseCircleIcon size={14} weight="bold" aria-hidden /> Paused after a failure
-          </span>
+          <span className="inline-flex items-center rounded-full border border-dashed border-approval/40 px-2.5 py-1 text-xs font-medium text-approval">Paused after a failure</span>
         ) : view.level === 2 || view.level === 3 ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 px-2.5 py-1 text-xs text-accent">
+          <span className="inline-flex items-center rounded-full border border-accent/40 px-2.5 py-1 text-xs font-medium text-accent">
             {view.level === 3 ? "Bigger changes on their own" : "Small changes on their own"}
           </span>
         ) : view.shadowSince ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-simulated/50 px-2.5 py-1 text-xs text-simulated">
-            Practice mode on
-          </span>
+          <span className="inline-flex items-center rounded-full border border-dashed border-simulated/50 px-2.5 py-1 text-xs font-medium text-simulated">Practice mode</span>
         ) : (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs text-ink-2">
-            <ShieldCheckIcon size={14} weight="bold" aria-hidden /> Every change waits for a person
-          </span>
+          <span className="inline-flex items-center rounded-full border border-line px-2.5 py-1 text-xs font-medium text-ink-2">Waits for a person</span>
         )}
       </div>
 
@@ -119,7 +114,7 @@ export function AutonomySettings({
       ) : null}
 
       <fieldset className="grid gap-2" disabled={locked}>
-        <legend className="sr-only">How much the agent can do on its own</legend>
+        <legend className="sr-only">Choose a level</legend>
         {options.map((o) => (
           <label
             key={o.value}

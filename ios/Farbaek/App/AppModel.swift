@@ -51,6 +51,8 @@ final class AppModel {
     var googleOffered = false
     var creatingWorkspace = false
     var workspaceError: String?
+    /// Why a build's plan couldn't be drafted, kept until its plan screen shows it once.
+    var planNotes: [String: String] = [:]
 
     let api = APIClient(base: AppConfig.baseURL)
     private let web = WebSignIn()

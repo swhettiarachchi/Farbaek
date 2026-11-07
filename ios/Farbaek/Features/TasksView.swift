@@ -7,11 +7,12 @@ enum TaskFilter: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        // The web's groups, in the web's words, so a task is called the same thing on both.
         case .all: return "All"
-        case .waiting: return "Waiting"
-        case .active: return "Active"
-        case .done: return "Done"
-        case .stopped: return "Stopped"
+        case .waiting: return "Needs a person"
+        case .active: return "In progress"
+        case .done: return "Verified"
+        case .stopped: return "Stopped or cancelled"
         }
     }
 }

@@ -11,6 +11,7 @@ import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { loadAppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
+import { MESSAGES, codeFromDatabaseError } from "@/server/workspace/use-cases";
 import { may, withheldReason } from "@/core/workspace/permissions";
 
 export type PublishState = { status: "idle" } | { status: "error"; message: string } | { status: "done"; message: string };
@@ -69,7 +70,18 @@ export async function setLiveAction(_previous: PublishState, form: FormData): Pr
   if (!site) return { status: "error", message: "This project has no published site. Reload the page." };
   const offline = !parsed.data.deploymentId;
   const r = await setLiveDeployment(w.admin, { orgId: w.orgId, actor: w.ctx.user.id, siteId: site.id, deploymentId: parsed.data.deploymentId || null });
-  if (!r.ok) return { status: "error", message: r.error.includes("PERMISSION_WITHHELD") ? withheldReason("publish") : r.error === "FORBIDDEN" ? "Your role can view this project but not publish it." : `Couldn't ${offline ? "take the site offline" : "make that version live"}. Reload the page and try again.` };
+  if (!r.ok) {
+    // A refusal the database explains (a site Farbaek took offline, a pause) is said in its own words; only the unknown gets the generic line.
+    const code = codeFromDatabaseError(r.error);
+    const message = r.error.includes("PERMISSION_WITHHELD")
+      ? withheldReason("publish")
+      : code === "FORBIDDEN"
+        ? "Your role can view this project but not publish it."
+        : code !== "UNKNOWN"
+          ? MESSAGES[code]
+          : `Couldn't ${offline ? "take the site offline" : "make that version live"}. Reload the page and try again.`;
+    return { status: "error", message };
+  }
   revalidatePath(`/app/projects/${parsed.data.projectId}`);
   return { status: "done", message: offline ? "The site is offline. It can take a few seconds to disappear everywhere." : "That version is live again. It can take a few seconds to appear everywhere." };
 }

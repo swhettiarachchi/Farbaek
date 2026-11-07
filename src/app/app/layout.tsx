@@ -189,7 +189,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
               they are.
             </span>
             <Link href="/app/incidents" className="font-medium text-accent underline-offset-4 hover:underline">
-              Incidents
+              Problems and pause
             </Link>
           </p>
         ) : null}

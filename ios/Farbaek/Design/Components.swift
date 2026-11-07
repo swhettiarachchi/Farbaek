@@ -66,16 +66,17 @@ enum Tone: String {
         }
     }
 
-    var symbol: String {
+    /// A mark only for done and failed (ADR 0180). Every other state is its words, in its colour and border.
+    var symbol: String? {
         switch self {
         case .verified: return "checkmark.seal.fill"
-        case .approval: return "hand.raised.fill"
         case .failed: return "xmark.octagon.fill"
-        case .unverified: return "circle.dashed"
-        case .info: return "circle.inset.filled"
-        case .neutral: return "circle"
+        case .approval, .unverified, .info, .neutral: return nil
         }
     }
+
+    /// "Not yet" states carry a dashed border, as on the web, so colour is never the only signal.
+    var dashed: Bool { self == .unverified }
 }
 
 struct StatusBadge: View {
@@ -84,7 +85,7 @@ struct StatusBadge: View {
 
     var body: some View {
         HStack(spacing: 5) {
-            Image(systemName: tone.symbol).imageScale(.small)
+            if let symbol = tone.symbol { Image(systemName: symbol).imageScale(.small) }
             Text(label).lineLimit(1)
         }
         .font(.caption.weight(.medium))
@@ -92,7 +93,7 @@ struct StatusBadge: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         .background(tone.color.opacity(0.08), in: Capsule())
-        .overlay(Capsule().stroke(tone.color.opacity(0.28), lineWidth: 1))
+        .overlay(Capsule().stroke(tone.color.opacity(0.28), style: StrokeStyle(lineWidth: 1, dash: tone.dashed ? [3, 3] : [])))
         .accessibilityElement(children: .combine)
     }
 }

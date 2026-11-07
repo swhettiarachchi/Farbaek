@@ -30,6 +30,7 @@ import { loadAppContext } from "@/server/workspace/context";
 import { INCIDENT_TOOLS_NOT_IN_PLAN, RESUME_MANAGERS_ONLY } from "@/server/workspace/incidents";
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES } from "@/server/workspace/types";
 import { RULES_NOT_IN_PLAN } from "@/server/workspace/workspace-rules";
+import { StatusBadge } from "@/components/ui/status-badge";
 
 export const metadata: Metadata = { title: "Incident" };
 
@@ -84,7 +85,7 @@ export default async function IncidentPage({ params }: { params: Promise<{ numbe
             <span className="flex flex-wrap items-center gap-2">
               <SeverityBadge severity={incident.severity} />
               <IncidentStatusBadge status={incident.status} />
-              {demo ? <span className="rounded-full border border-dashed border-line-strong/60 px-2.5 py-0.5 text-xs text-ink-2">Sample incident</span> : null}
+              {demo ? <StatusBadge status="simulated" label="Sample" /> : null}
               <span className="text-sm text-ink-3">
                 {SOURCE_WORDS[incident.source]}, opened <RelativeTime iso={incident.openedAt} />
                 {project ? (

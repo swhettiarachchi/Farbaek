@@ -1,18 +1,25 @@
 "use client";
 
-import { ArrowsClockwiseIcon, CheckCircleIcon, CircleDashedIcon, ReceiptIcon, WarningIcon, XCircleIcon } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, CheckCircleIcon, ReceiptIcon, WarningIcon, XCircleIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { JsonView } from "@/components/code/json-view";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
 import { FarbaekApiError, type Execution, type FarbaekSandboxClient, type ResourceSample, type SandboxSession } from "@/sdk/sandbox-client";
 
+// Status is its word in its colour and border (ADR 0180); a mark only for how it ended.
 const RECEIPT_STATUS = {
   verified: { label: "Verified", icon: CheckCircleIcon, className: "text-verified border-verified/40" },
   partially_verified: { label: "Partly verified", icon: WarningIcon, className: "text-approval border-approval/40" },
   failed: { label: "Failed", icon: XCircleIcon, className: "text-failed border-failed/40" },
-  unverified: { label: "Not verified", icon: CircleDashedIcon, className: "text-unverified border-unverified/60 border-dashed" },
+  unverified: { label: "Not verified", icon: null, className: "text-unverified border-unverified/60 border-dashed" },
 } as const;
+
+/** The runtime's words for a person: product names, and what "isolation" means. The ids are for the server's settings. */
+const PROVIDER_WORDS: Record<string, string> = { e2b: "E2B", E2B: "E2B", vercel: "Vercel Sandbox" };
+const ISOLATION_WORDS: Record<string, string> = { microvm: "its own private computer", container: "its own container", process: "its own process" };
+const SIZE_WORDS: Record<string, string> = { small: "small", medium: "medium", large: "large" };
+const CLEANUP_WORDS: Record<string, string> = { pending: "not yet", done: "done", failed: "failed", not_needed: "not needed" };
 
 export interface ReceiptSummary {
   digest: string;
@@ -115,9 +122,11 @@ export function ChecksPanel({
                     <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 px-3 py-2">
                       <ReceiptIcon size={16} className="shrink-0 text-ink-3" aria-hidden />
                       <span className={`inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium ${s.className}`}>
-                        <s.icon size={14} weight="bold" aria-hidden /> {s.label}
+                        {s.icon ? <s.icon size={14} weight="bold" aria-hidden /> : null} {s.label}
                       </span>
-                      <code className="min-w-0 flex-1 truncate font-mono text-xs text-ink-2">sha256:{r.digest}</code>
+                      <span className="min-w-0 flex-1 truncate text-xs text-ink-2" title={`sha256:${r.digest}`}>
+                        Signed record
+                      </span>
                       <span className="shrink-0 text-xs text-ink-3">
                         <RelativeTime iso={r.createdAt} />
                       </span>
@@ -200,23 +209,23 @@ export function DetailsPanel({
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <dl>
-        {row("Runtime", `${session.provider}, ${session.isolation}`)}
-        {row("Environment", `${session.template === "node-ts" ? "Node.js and TypeScript" : "Python"}, ${session.size}`)}
+        {row("Runtime", `${PROVIDER_WORDS[session.provider] ?? session.provider}, ${ISOLATION_WORDS[session.isolation] ?? session.isolation}`)}
+        {row("Environment", `${session.template === "node-ts" ? "Node.js and TypeScript" : "Python"}, ${SIZE_WORDS[session.size] ?? session.size}`)}
         {row("Requested", `${session.resources.requested.vcpu} vCPU, ${session.resources.requested.memoryMiB} MiB`)}
         {row("Reported", session.resources.reported ? `${session.resources.reported.vcpu} vCPU, ${session.resources.reported.memoryMiB ?? "?"} MiB` : "Not reported by the runtime")}
         {row("Outbound allowed", egress.allowOut.length ? <span className="font-mono text-xs">{egress.allowOut.join(", ")}</span> : "Nothing")}
         {row("Always blocked", <span className="font-mono text-xs">{egress.denyOut.join(", ")}</span>)}
         {row("Started", <LocalTime iso={session.createdAt} />)}
         {row(session.endedAt ? "Ended" : "Ends by", <LocalTime iso={session.endedAt ?? session.expiresAt} />)}
-        {row("Cleanup", `${session.cleanup.status.replace("_", " ")}${session.cleanup.attempts ? `, ${session.cleanup.attempts} attempt${session.cleanup.attempts === 1 ? "" : "s"}` : ""}`)}
-        {row("Project files", session.snapshot ? <span>{session.snapshot.files} files, <code className="font-mono text-xs">sha256:{session.snapshot.sha256.slice(0, 16)}…</code></span> : "None copied in")}
+        {row("Cleanup", `${CLEANUP_WORDS[session.cleanup.status] ?? session.cleanup.status.replace(/_/g, " ")}${session.cleanup.attempts ? `, ${session.cleanup.attempts} attempt${session.cleanup.attempts === 1 ? "" : "s"}` : ""}`)}
+        {row("Project files", session.snapshot ? <span title={`sha256:${session.snapshot.sha256}`}>{session.snapshot.files} files copied in, recorded with their digest</span> : "None copied in")}
       </dl>
       <div className="grid content-start gap-4">
         <div className="rounded-md border border-line p-4">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-base font-medium">Resources now</h3>
             <button type="button" onClick={() => void refresh()} disabled={!metricsAvailable || state === "loading" || session.state !== "ready"} className={buttonClasses("secondary", "sm")}>
-              <ArrowsClockwiseIcon size={16} aria-hidden /> {state === "loading" ? "Reading…" : "Sample"}
+              <ArrowsClockwiseIcon size={16} aria-hidden /> {state === "loading" ? "Reading…" : "Read now"}
             </button>
           </div>
           {sample ? (

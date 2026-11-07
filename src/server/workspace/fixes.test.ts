@@ -59,7 +59,7 @@ const member = { orgId: "o1", userId: "u1", role: "member" as const, permissions
 describe("startFix (mock tasks)", () => {
   it("creates a linked task whose contract is the approved one plus what failed", async () => {
     const { d, calls } = deps();
-    expect(await startFix(d, member, "t-src")).toEqual({ ok: true, value: { taskId: "t-fix" } });
+    expect(await startFix(d, member, "t-src")).toEqual({ ok: true, value: { taskId: "t-fix", planNote: null } });
     expect(calls.map((c) => c.name)).toEqual(["createTask", "link", "saveContract"]);
     expect(calls[0]!.input).toMatchObject({ projectId: "p1", title: "Fix: Add the contact form" });
     expect(calls[1]!.input).toEqual({ orgId: "o1", actor: "u1", taskId: "t-fix", sourceId: "t-src" });

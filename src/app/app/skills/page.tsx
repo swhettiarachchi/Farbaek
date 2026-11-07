@@ -1,4 +1,4 @@
-import { ArrowRightIcon, CheckCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -83,12 +83,9 @@ export default async function SkillsPage() {
         </div>
         <ul className="grid gap-x-6 gap-y-3 rounded-md border border-line bg-surface p-5 shadow-e1 sm:grid-cols-2">
           {FARBAEK_SKILLS.map((s) => (
-            <li key={s.id} className="flex items-start gap-2.5">
-              <CheckCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
-              <span className="min-w-0">
-                <span className="block text-[0.9375rem] font-medium">{s.label}</span>
-                <span className="block text-sm leading-relaxed text-ink-2">{s.description}</span>
-              </span>
+            <li key={s.id} className="min-w-0">
+              <span className="block text-[0.9375rem] font-medium">{s.label}</span>
+              <span className="block text-sm leading-relaxed text-ink-2">{s.description}</span>
             </li>
           ))}
         </ul>

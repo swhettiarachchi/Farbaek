@@ -142,7 +142,7 @@ export function ApprovalDemo() {
         </div>
 
         <div className="mt-6">
-          <p className="text-[0.8125rem] font-medium text-ink-3">Canonical payload (RFC 8785)</p>
+          <p className="text-[0.8125rem] font-medium text-ink-3">Exactly what you&apos;re approving, as Farbaek hashes it</p>
           <pre className="mt-2 max-h-40 overflow-auto rounded-sm bg-surface-raised px-3 py-2.5 font-mono text-[0.75rem] leading-[1.6] text-ink-2 whitespace-pre-wrap break-all">
             <code>{canonical}</code>
           </pre>
@@ -169,7 +169,7 @@ export function ApprovalDemo() {
         </h3>
 
         <dl className="mt-4 grid gap-1 text-sm">
-          <dt className="text-ink-3">Binding hash of what you see</dt>
+          <dt className="text-ink-3">The hash your approval is tied to</dt>
           <dd className="font-mono text-[0.8125rem] break-all text-ink" aria-live="polite">
             {hash.status === "ready" ? hash.hash : hash.status === "pending" ? "computing…" : "unavailable"}
           </dd>
@@ -207,8 +207,8 @@ export function ApprovalDemo() {
             )}
             <span>
               {matches
-                ? `Approved ${shortHash(approval.bindingHash)}. It matches the payload above.`
-                : `You approved ${shortHash(approval.bindingHash)}, but the payload is now ${currentHash ? shortHash(currentHash) : "different"}. That approval no longer covers it.`}
+                ? `Approved ${shortHash(approval.bindingHash)}. It matches the change above.`
+                : `You approved ${shortHash(approval.bindingHash)}, but the change is now ${currentHash ? shortHash(currentHash) : "different"}. That approval no longer covers it.`}
             </span>
           </div>
         ) : null}
@@ -221,10 +221,10 @@ export function ApprovalDemo() {
             aria-describedby={blocked ? "demo-approve-reason" : undefined}
             className={buttonClasses("primary")}
           >
-            {matches ? "Approved" : "Approve this payload"}
+            {matches ? "Approved" : "Approve this change"}
           </button>
-          <button type="button" onClick={run} disabled={!approval} className={buttonClasses("secondary")}>
-            Run (demo)
+          <button type="button" onClick={run} disabled={!approval} aria-describedby={approval ? undefined : "demo-run-reason"} className={buttonClasses("secondary")}>
+            Run it
           </button>
           <button type="button" onClick={reset} className={buttonClasses("ghost")}>
             <ArrowCounterClockwiseIcon size={16} aria-hidden /> Reset
@@ -233,6 +233,10 @@ export function ApprovalDemo() {
         {blocked ? (
           <p id="demo-approve-reason" className="mt-2 text-xs text-ink-3">
             You can&apos;t approve this while the plan blocks it.
+          </p>
+        ) : !approval ? (
+          <p id="demo-run-reason" className="mt-2 text-xs text-ink-3">
+            Approve first, then run. Nothing really runs here.
           </p>
         ) : null}
 

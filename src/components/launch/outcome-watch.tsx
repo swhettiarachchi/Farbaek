@@ -1,4 +1,4 @@
-import { CheckCircleIcon, CircleDashedIcon, WarningIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, WarningIcon } from "@phosphor-icons/react/ssr";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
 import type { WatchView } from "@/server/launch/watch-store";
 import { WatchToggle } from "./watch-toggle";
@@ -7,17 +7,18 @@ const SLOTS = 24;
 // Failed checks are striped as well as red, so the strip never relies on colour alone.
 const FAILED_STRIPES = "repeating-linear-gradient(135deg, var(--color-failed) 0 3px, color-mix(in oklab, var(--color-failed) 45%, var(--color-surface)) 3px 6px)";
 
+// The state is a word or two in its colour and border (ADR 0180); the fact beside it is a line, not part of the chip.
 function Badge({ watch }: { watch: WatchView | null }) {
-  if (!watch)
-    return (
-      <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-dashed border-line-strong px-3 text-xs text-ink-2">
-        <CircleDashedIcon size={14} aria-hidden /> Off
-      </span>
-    );
+  if (!watch) return <span className="inline-flex h-7 items-center rounded-full border border-dashed border-line-strong px-3 text-xs font-medium text-ink-2">Off</span>;
   if (watch.state === "breached")
     return (
-      <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-failed/40 px-3 text-xs font-medium text-failed">
-        <WarningIcon size={14} weight="bold" aria-hidden /> Needs a look since <RelativeTime iso={watch.breachedAt!} />
+      <span className="flex flex-wrap items-center gap-2">
+        <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-failed/40 px-3 text-xs font-medium text-failed">
+          <WarningIcon size={14} weight="bold" aria-hidden /> Needs a look
+        </span>
+        <span className="text-xs text-ink-3">
+          Down since <RelativeTime iso={watch.breachedAt!} />
+        </span>
       </span>
     );
   if (watch.state === "ok")

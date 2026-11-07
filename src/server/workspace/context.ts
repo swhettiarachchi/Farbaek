@@ -52,6 +52,7 @@ function memoizeReader(reader: WorkspaceReader): WorkspaceReader {
     listWorkspaces: wrap("ws", reader.listWorkspaces),
     listMembers: wrap("members", reader.listMembers),
     listProjects: wrap("projects", reader.listProjects),
+    listArchivedProjects: wrap("archivedProjects", reader.listArchivedProjects),
     getProject: wrap("project", reader.getProject),
     listTasks: wrap("tasks", reader.listTasks),
     getTask: wrap("task", reader.getTask),

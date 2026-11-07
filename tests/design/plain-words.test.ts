@@ -52,7 +52,8 @@ function words(line: string): string[] {
   const quoted = [...t.matchAll(/(["'`])((?:(?!\1).)*)\1/g)].map((m) => m[2]!).filter((x) => (/\s/.test(x) || /^[A-Z][a-z]+$/.test(x)) && !/^(bg-|text-|border|flex|grid|rounded|min-|max-|mt-|inline|hover|sha256)/.test(x));
   const between = [...t.matchAll(/>([^<>{}]+)</g)].map((m) => m[1]!);
   // JSX text, as it reads: without its tags, expressions and entities.
-  const prose = t.replace(/<\/?[A-Za-z][^<>]*>/g, " ").replace(/\{[^{}]*\}/g, " ").replace(/&[a-z]+;/g, "'").replace(/\s+/g, " ").trim();
+  // A fragment (<> and </>) is a tag too, so text inside one reads as prose.
+  const prose = t.replace(/<\/?(?:[A-Za-z][^<>]*)?>/g, " ").replace(/\{[^{}]*\}/g, " ").replace(/&[a-z]+;/g, "'").replace(/\s+/g, " ").trim();
   const bare = /^[A-Z][a-z']* [^=;(){}]*[.,:?]?$/.test(prose) ? [prose] : [];
   return [...quoted, ...between, ...bare];
 }

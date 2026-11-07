@@ -44,11 +44,11 @@ const HOME_FAQ: FaqItem[] = [
   },
   {
     q: "Which AI models does it use?",
-    a: "Officially supported model APIs, through Farbaek's own provider layer. Farbaek records which model worked on each task and never switches providers silently.",
+    a: "Claude models from Anthropic for plans and code, and Google's Gemini for images. Farbaek records which model worked on each task and never switches quietly.",
   },
   {
     q: "Is there lock-in?",
-    a: "Projects are standard repositories. You can export the code, plans, ProofPacks and history and build without Farbaek.",
+    a: "No. Projects are plain files. Export everything gives you the code, plans, ProofPacks and history, and you can carry on without Farbaek.",
   },
 ];
 

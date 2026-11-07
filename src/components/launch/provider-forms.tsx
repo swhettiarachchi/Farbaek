@@ -1,6 +1,6 @@
 "use client";
 
-import { RocketLaunchIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CloudArrowUpIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useId, useState } from "react";
 import { connectProviderAction, launchProviderAction, type LaunchState } from "@/app/app/projects/[projectId]/launch/launch-actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -120,7 +120,7 @@ export function LaunchToProvider({
       </label>
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={locked} className={buttonClasses("primary")}>
-          <RocketLaunchIcon size={18} weight="bold" aria-hidden />
+          <CloudArrowUpIcon size={18} weight="bold" aria-hidden />
           {pending ? "Authorizing…" : state.status === "done" ? "Launch started" : `Launch to ${copy.name}`}
         </button>
         {disabledReason ? <span className="text-sm text-ink-3">{disabledReason}</span> : null}

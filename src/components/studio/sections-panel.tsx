@@ -142,7 +142,6 @@ export function SectionsPanel({
                   <DotsSixVerticalIcon size={18} weight="bold" aria-hidden />
                 </button>
                 <button type="button" onClick={() => onSelect(item.n)} aria-current={selected === item.n ? "true" : undefined} className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left text-sm">
-                  <span className="shrink-0 font-mono text-xs text-ink-3 tabular">{String(i + 1).padStart(2, "0")}</span>
                   <span className="line-clamp-2 min-w-0">{item.label}</span>
                 </button>
                 </div>

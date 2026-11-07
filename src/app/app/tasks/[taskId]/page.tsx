@@ -84,6 +84,8 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
   const { taskId } = await params;
   const sp = await searchParams;
   const fixError = typeof sp.fix_error === "string" ? sp.fix_error.slice(0, 160) : null;
+  // A fix task whose plan couldn't be copied says so, instead of opening with an empty plan and no word why.
+  const fixNote = typeof sp.fix_note === "string" ? sp.fix_note.slice(0, 240) : null;
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
   const found = await ctx.reader.getTask(ctx.current.id, taskId);
@@ -568,6 +570,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
       </div>
 
       {/* Keyed on the state, so a change of state plays its short entrance. A reload at the same state looks the same as ever. */}
+      {fixNote ? <Notice tone="warning">{fixNote}</Notice> : null}
       <NextStepCard key={task.state} step={nextStep} projectId={task.projectId} runId={liveRun?.id ?? null} seal={seal} />
       {liveRun ? <LiveRefresh active everyMs={5_000} /> : null}
 

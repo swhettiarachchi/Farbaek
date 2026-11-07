@@ -108,8 +108,8 @@ export default async function DesignPage({ params, searchParams }: { params: Pro
           />
         ) : (
           <PageHeader
-            title="Component editor"
-            description="Choose a component and an element in it, then change its words or Tailwind classes. Each change is an edit to the component's own JSX, which you review as a diff before it's saved."
+            title="Visual editor"
+            description="Choose a component and an element in it, then change its words or styling. Each change is an edit to the component's own code, which you review as a diff before it's saved."
           />
         )}
       </div>

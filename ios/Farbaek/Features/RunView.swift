@@ -26,7 +26,7 @@ struct RunView: View {
                         header(run)
                         if let question { questionCard(question) }
                         stepsList
-                        if let finish { finishCard(finish, run: run) }
+                        if let finish { finishCard(finish, run: run) } else if !run.live { outcomeCard(run) }
                         if run.live { controls } else { ReportLink(subject: .task(run.taskId)) }
                     } else if let loadError {
                         ContentUnavailableView {
@@ -72,15 +72,34 @@ struct RunView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(run.taskTitle).font(.headline.weight(.medium)).foregroundStyle(Palette.ink).lineLimit(3)
                 StatusBadge(label: run.statusLabel, tone: Self.tone(run.status))
-                HStack(spacing: 6) {
-                    Text("\(run.steps) steps, \(run.effortLabel)")
-                    if let modelName = run.model { Text(modelName).font(.caption.monospaced()).lineLimit(1) }
-                }
-                .font(.footnote)
-                .foregroundStyle(Palette.ink2)
+                Text(Self.summary(run))
+                    .font(.footnote)
+                    .foregroundStyle(Palette.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .panel()
+    }
+
+    /// The web's sentence: "Step 7 of a balanced run on Claude Haiku 5.5." The model arrives by its product name.
+    static func summary(_ run: RunItem) -> String {
+        let effort = run.effortLabel.lowercased()
+        let on = run.model.map { " on \($0)" } ?? ""
+        if run.live { return "Step \(run.steps) of a \(effort) run\(on)." }
+        return "\(run.steps) \(run.steps == 1 ? "step" : "steps"), a \(effort) run\(on)."
+    }
+
+    /// A run that ended without a summary says how it ended, and leads to the task.
+    private func outcomeCard(_ run: RunItem) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionTitle("How it ended")
+            Text(run.outcome ?? run.statusLabel).font(.body).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
+            NavigationLink(value: Destination.task(run.taskId)) {
+                Text("Open the task")
+            }
+            .buttonStyle(PillButtonStyle(kind: .secondary))
+        }
+        .card()
     }
 
     private func questionCard(_ q: RunQuestion) -> some View {
@@ -98,7 +117,7 @@ struct RunView: View {
                     Button {
                         Task { await answer(q, approved: true) }
                     } label: {
-                        Label("Allow", systemImage: "faceid")
+                        Label("Allow", systemImage: Biometry.symbol)
                     }
                     .buttonStyle(PillButtonStyle(kind: .accent))
                 }

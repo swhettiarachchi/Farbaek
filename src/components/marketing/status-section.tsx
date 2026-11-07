@@ -1,4 +1,4 @@
-import { CheckCircleIcon, CircleDashedIcon, CircleHalfIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { Container } from "@/components/ui/container";
 import { PLANS, formatUsd } from "@/core/billing/catalog";
@@ -7,7 +7,8 @@ import { SectionHeading } from "./section-heading";
 interface Group {
   title: string;
   note: string;
-  icon: Icon;
+  /** Only what's done carries a mark (ADR 0180); the other columns are their words alone. */
+  icon: Icon | null;
   iconClass: string;
   items: string[];
 }
@@ -39,10 +40,10 @@ const GROUPS: Group[] = [
     ],
   },
   {
-    title: "Beta",
+    title: "Being proven",
     note: "Built and tested, being proven on real accounts and devices.",
-    icon: CircleHalfIcon,
-    iconClass: "text-approval",
+    icon: null,
+    iconClass: "",
     items: [
       "Moving projects between your own devices, nearby or over the internet",
       "Launches to your own Vercel or Netlify account",
@@ -55,8 +56,8 @@ const GROUPS: Group[] = [
   {
     title: "Next",
     note: "Planned next, in no fixed order.",
-    icon: CircleDashedIcon,
-    iconClass: "text-unverified",
+    icon: null,
+    iconClass: "",
     items: [
       "The Android app on Google Play",
       "Farbaek for iPhone on the App Store, approving changes with Face ID (Farbaek installs from Safari today)",
@@ -71,14 +72,14 @@ export function StatusSection() {
     <section id="status" aria-labelledby="status-title" className="py-20 lg:py-28">
       <Container>
         <SectionHeading id="status-title" title="What works today, and what doesn't yet.">
-          Anyone can sign in and start a 14-day trial with no card. After it, stay on Free or choose a plan from {FROM} a month.
+          New workspaces start a 14-day trial with no card, one per email address. After it, stay on Free or choose a plan from {FROM} a month.
         </SectionHeading>
 
         <div className="mt-12 grid gap-10 lg:grid-cols-[1.25fr_1fr_1fr] lg:gap-0 lg:divide-x lg:divide-line">
           {GROUPS.map((group, i) => (
             <div key={group.title} className={i === 0 ? "lg:pr-10" : "lg:px-10"}>
               <h3 className="flex items-center gap-2 text-[1.0625rem] font-medium">
-                <group.icon size={20} weight="bold" className={group.iconClass} aria-hidden />
+                {group.icon ? <group.icon size={20} weight="bold" className={group.iconClass} aria-hidden /> : null}
                 {group.title}
               </h3>
               <p className="mt-1 text-sm text-ink-3">{group.note}</p>

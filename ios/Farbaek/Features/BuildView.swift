@@ -179,6 +179,8 @@ struct BuildView: View {
         do {
             let started: BuildStarted = try await model.api.send("POST", "builds", body: payload)
             prompt = ""
+            // The reason no plan was drafted travels to the plan screen, so it never just says "no plan yet".
+            if let note = started.planNote { model.planNotes[started.taskId] = note }
             model.changed()
             model.buildPath.append(Destination.plan(started.taskId))
         } catch {
@@ -322,7 +324,7 @@ struct PlanReviewView: View {
                         askAI = true
                     }
                 } label: {
-                    if working { ProgressView().tint(Palette.onAccent) } else { Label("Approve and build", systemImage: "faceid") }
+                    if working { ProgressView().tint(Palette.onAccent) } else { Label("Approve and build", systemImage: Biometry.symbol) }
                 }
                 .buttonStyle(PillButtonStyle(kind: .accent))
                 .disabled(working)
@@ -340,6 +342,8 @@ struct PlanReviewView: View {
         do {
             let detail: PlanDetail = try await model.api.get("tasks/\(taskId)/plan")
             load = .loaded(detail)
+            // Said once: why Build couldn't draft the plan, when it couldn't.
+            if note == nil, let kept = model.planNotes.removeValue(forKey: taskId) { note = kept }
         } catch {
             if load.value == nil { load = .failed(error.localizedDescription) }
         }

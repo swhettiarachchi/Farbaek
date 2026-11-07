@@ -27,10 +27,11 @@ describe("runPhase", () => {
 
 describe("latestActivity", () => {
   it("describes tools, commands and approvals, and nothing for model text", () => {
-    expect(latestActivity(tool("read_file", "src/app.ts"))).toBe("read_file src/app.ts");
-    expect(latestActivity(tool("finish", ""))).toBe("finish");
-    expect(latestActivity({ kind: "command", payload: { command: "npm run build" } })).toBe("npm run build");
-    expect(latestActivity({ kind: "approval", payload: { display: "npm install zod" } })).toBe("npm install zod");
+    expect(latestActivity(tool("read_file", "src/app.ts"))).toEqual({ words: "Read", detail: { text: "src/app.ts", mono: true } });
+    expect(latestActivity(tool("list_files", "(top)"))).toEqual({ words: "Looked in", detail: { text: "the project", mono: false } });
+    expect(latestActivity(tool("finish", ""))).toEqual({ words: "Finished", detail: null });
+    expect(latestActivity({ kind: "command", payload: { command: "npm run build" } })).toEqual({ words: "Ran", detail: { text: "npm run build", mono: true } });
+    expect(latestActivity({ kind: "approval", payload: { display: "npm install zod" } })).toEqual({ words: "Waiting to run", detail: { text: "npm install zod", mono: true } });
     expect(latestActivity({ kind: "model", payload: { text: "secret plan" } })).toBeNull();
     expect(latestActivity(undefined)).toBeNull();
   });

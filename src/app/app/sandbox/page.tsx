@@ -2,6 +2,7 @@ import { CaretLeftIcon, CaretRightIcon, MagnifyingGlassIcon, PlusIcon, TerminalW
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { LiveRefresh } from "@/components/app/live-refresh";
 import { Card, EmptyState, Notice, PageHeader, UsageMeter } from "@/components/app/primitives";
 import { ExecutionStateBadge, SessionStateBadge } from "@/components/sandbox/badges";
 import { ConnectRuntimeSteps, RuntimeStatus } from "@/components/sandbox/runtime-status";
@@ -67,8 +68,11 @@ export default async function SandboxPage({ searchParams }: { searchParams: Prom
     return `/app/sandbox?${p}`;
   };
 
+  const changing: SessionState[] = ["requested", "provisioning", "stopping"];
   return (
     <div className="grid gap-8">
+      {/* A session that's starting or stopping changes state on its own, so the list keeps up. */}
+      <LiveRefresh active={list.rows.some((s) => changing.includes(s.state))} />
       <PageHeader
         title="Test space"
         description="A safe place to run your app and try it, kept apart from everything else. Every command and its result is recorded."

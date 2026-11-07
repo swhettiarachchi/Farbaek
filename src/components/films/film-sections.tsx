@@ -53,7 +53,7 @@ const FEATURES: Omit<Feature, "poster">[] = [
       "Skills picked for this build, and an estimate of how much of your AI usage it will take.",
       "Nothing is built until you approve it.",
     ],
-    link: { href: "#showcase", label: "Start from a template" },
+    link: { href: "#showcase", label: "Start from a concept" },
   },
   {
     id: "clip-agent",
@@ -105,10 +105,10 @@ export function FeatureFilmsSection() {
   );
 }
 
-/** How a change is proven before it ships. Keeps the #how-it-works anchor. */
+/** How a change is proven before it ships. "How it works" in the menu goes to the build film (#film); this is the proof. */
 export function ProofFilmSection() {
   return (
-    <section id="how-it-works" aria-labelledby="proof-film-title" className="py-20 lg:py-28">
+    <section id="proof-film" aria-labelledby="proof-film-title" className="py-20 lg:py-28">
       <Container>
         <div className="mb-10 flex flex-col gap-4 lg:mb-14 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
           <SectionHeading id="proof-film-title" title="Proof before anything ships.">

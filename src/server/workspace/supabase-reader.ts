@@ -101,6 +101,17 @@ export function createSupabaseReader(client: SupabaseClient): WorkspaceReader {
       return z.array(ProjectRowSchema).parse(data).map(toProject);
     },
 
+    async listArchivedProjects(orgId) {
+      const { data, error } = await client
+        .from("projects")
+        .select("id, name, description, created_at, archived_at")
+        .eq("org_id", orgId)
+        .not("archived_at", "is", null)
+        .order("archived_at", { ascending: false });
+      if (error) fail("archived projects", error);
+      return z.array(ProjectRowSchema).parse(data).map(toProject);
+    },
+
     async getProject(orgId, projectId) {
       if (!z.uuid().safeParse(projectId).success) return null;
       const { data, error } = await client

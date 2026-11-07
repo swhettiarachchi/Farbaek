@@ -28,7 +28,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { CLOUD_RUN_MODE_LABELS, endedWhileWatching, isLive } from "@/core/agent/cloud-run";
 import { EFFORT_LABELS } from "@/core/agent/routing";
 import { modelName } from "@/core/billing/rate-card";
-import { latestActivity, runFiles, runPhase } from "@/core/agent/run-phase";
+import { TOOL_VERB, latestActivity, runFiles, runPhase, toolTarget } from "@/core/agent/run-phase";
 import type { RunEventView, RunView } from "@/server/cloud-agent/store";
 import { StaticPreview } from "@/components/preview/static-preview";
 import type { RunPreview } from "@/server/workspace/run-preview";
@@ -64,27 +64,6 @@ const PANE_ENTER = {
 } as const;
 
 const str = (v: unknown) => (typeof v === "string" ? v : "");
-
-/** What each tool did, as a person would say it. The tool's own name stays in the tooltip. */
-const TOOL_VERB: Record<string, string> = {
-  list_files: "Looked in",
-  search_files: "Searched for",
-  read_file: "Read",
-  write_file: "Wrote",
-  edit_file: "Edited",
-  run_command: "Ran",
-  review_site: "Reviewed the site",
-  finish: "Finished",
-};
-
-/** A tool's target: paths and commands stay mono; a search, a summary or the project's top folder are words. */
-function toolTarget(tool: string, target: string): { text: string; mono: boolean } | null {
-  if (!target || tool === "review_site") return null;
-  if (tool === "search_files") return { text: `“${target}”`, mono: false };
-  if (tool === "finish") return { text: target, mono: false };
-  if (target === "(top)") return { text: "the project", mono: false };
-  return { text: target, mono: true };
-}
 
 /** One step of a run, as the run workspace shows it. Also used by the product films (ADR 0034). */
 export function EventRow({ e, latest }: { e: RunEventView; latest: boolean }) {

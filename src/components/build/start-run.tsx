@@ -1,6 +1,6 @@
 "use client";
 
-import { RocketLaunchIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { HammerIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useState } from "react";
 import { startBuildRunAction, type BuildActionState } from "@/app/app/build/actions";
 import { EffortPicker } from "@/components/app/effort-picker";
@@ -19,7 +19,7 @@ export function StartRun({ taskId, disabledReason, compact = false }: { taskId: 
       {compact ? <input type="hidden" name="effort" value={effort} /> : <EffortPicker value={effort} onChange={setEffort} disabled={pending || Boolean(disabledReason)} />}
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending || Boolean(disabledReason)} className={buttonClasses("primary", "sm")}>
-          <RocketLaunchIcon size={16} weight="bold" aria-hidden />
+          <HammerIcon size={16} weight="bold" aria-hidden />
           {pending ? "Starting the agent…" : "Build with the agent"}
         </button>
         {disabledReason ? <p className="text-xs text-ink-3">{disabledReason}</p> : null}

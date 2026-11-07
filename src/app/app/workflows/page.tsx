@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EmptyState, Notice, PageHeader } from "@/components/app/primitives";
-import { ButtonLink } from "@/components/ui/button";
+import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/local-time";
 import { WorkflowStatusChip } from "@/components/workflows/workflow-status";
 import { checkFeature } from "@/core/billing/entitlements";
@@ -27,7 +27,19 @@ export default async function WorkflowsPage() {
       <PageHeader
         title="Workflows"
         description="A bigger goal, done step by step. The agent works through the steps in order once an owner or admin approves, and stops whenever a person needs to look."
-        actions={planReason ? undefined : <ButtonLink href="/app/workflows/new">New workflow</ButtonLink>}
+        actions={
+          planReason ? (
+            // The control stays visible and off, with its reason, so the page never has a missing button (no dead ends).
+            <span className="flex flex-col items-start gap-1 sm:items-end">
+              <button type="button" disabled className={buttonClasses("primary", "md")}>
+                New workflow
+              </button>
+              <span className="max-w-[36ch] text-xs text-ink-3 sm:text-right">{ctx.mode === "demo" ? "The demo workspace is read-only." : planReason}</span>
+            </span>
+          ) : (
+            <ButtonLink href="/app/workflows/new">New workflow</ButtonLink>
+          )
+        }
       />
       {planReason && ctx.mode !== "demo" ? <Notice>{planReason} You can still read workflows here.</Notice> : null}
 

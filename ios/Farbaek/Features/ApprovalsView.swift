@@ -10,7 +10,8 @@ struct ApprovalsView: View {
             VStack(alignment: .leading, spacing: 14) {
                 if model.isSample { SampleLabel() }
                 LoadView(load: load, retry: read) { approvals in
-                    if approvals.items.isEmpty {
+                    let withoutChange = approvals.withoutChange ?? []
+                    if approvals.items.isEmpty, withoutChange.isEmpty {
                         ContentUnavailableView {
                             Label("Nothing waits for you", systemImage: "checkmark.seal")
                         } description: {
@@ -22,6 +23,21 @@ struct ApprovalsView: View {
                             ForEach(approvals.items) { card in
                                 NavigationLink(value: Destination.approval(card.taskId)) {
                                     WalletCardView(card: card)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            // The web lists these too: waiting, but with no open change on record.
+                            ForEach(withoutChange) { task in
+                                NavigationLink(value: Destination.task(task.id)) {
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text(task.title).font(.body.weight(.medium)).foregroundStyle(Palette.ink).multilineTextAlignment(.leading)
+                                        Text("There's no open change on record, so nothing to approve here. Open the task to see why.")
+                                            .font(.footnote)
+                                            .foregroundStyle(Palette.ink2)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .card()
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -69,12 +85,15 @@ struct WalletCardView: View {
             HStack(spacing: 12) {
                 ClosesIn(expiresAt: card.expiresAt)
                 Spacer()
-                Label(card.byAgent ? "Desktop agent" : "In Farbaek", systemImage: card.byAgent ? "desktopcomputer" : "cloud")
-                    .font(.footnote)
-                    .foregroundStyle(Palette.ink3)
+                // The web names the desktop app's changes and says nothing for the cloud's.
+                if card.byAgent {
+                    Label("Farbaek Agent", systemImage: "desktopcomputer")
+                        .font(.footnote)
+                        .foregroundStyle(Palette.ink3)
+                }
             }
             if !card.canApprove {
-                Notice(text: "Escalated: an owner or admin approves this one.", tone: .approval, symbol: "person.badge.shield.checkmark")
+                Notice(text: "A rule says an owner or admin has to approve this.", tone: .approval, symbol: "person.badge.shield.checkmark")
             }
         }
         .card()
@@ -88,20 +107,25 @@ struct FlowFacts: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             ForEach(facts, id: \.self) { fact in
-                Label(fact.label, systemImage: Self.symbol(fact.kind))
-                    .font(.footnote)
-                    .foregroundStyle(Tone(fact.tone).color)
+                // As on the web: a mark only on what needs a decision (escalated, flagged); every other fact is its words.
+                if let symbol = Self.symbol(fact.kind) {
+                    Label(fact.label, systemImage: symbol)
+                        .font(.footnote)
+                        .foregroundStyle(Tone(fact.tone).color)
+                } else {
+                    Text(fact.label)
+                        .font(.footnote)
+                        .foregroundStyle(Tone(fact.tone).color)
+                }
             }
         }
     }
 
-    static func symbol(_ kind: String) -> String {
+    static func symbol(_ kind: String) -> String? {
         switch kind {
         case "escalated": return "person.badge.shield.checkmark"
         case "flagged": return "flag.fill"
-        case "unexplained": return "questionmark.circle"
-        case "matched": return "text.badge.checkmark"
-        default: return "doc.on.doc"
+        default: return nil
         }
     }
 }
@@ -123,10 +147,18 @@ struct ApprovalDetailView: View {
             LoadView(load: load, retry: read) { detail in
                 VStack(alignment: .leading, spacing: 18) {
                     summary(detail)
-                    if !detail.proposal.risks.isEmpty || detail.proposal.policy != nil { checksAndPolicy(detail.proposal) }
+                    // The checks that will run, and why they can't, are part of what's being approved: shown whenever there's anything to say.
+                    if !detail.proposal.risks.isEmpty || detail.proposal.policy != nil || !detail.proposal.checks.isEmpty || detail.proposal.checksNote != nil { checksAndPolicy(detail.proposal) }
                     files(detail.proposal)
                     if let outcome {
-                        Notice(text: outcome, tone: .verified, symbol: "checkmark.circle.fill").card()
+                        VStack(alignment: .leading, spacing: 12) {
+                            Notice(text: outcome, tone: .verified, symbol: "checkmark.circle.fill")
+                            NavigationLink(value: Destination.task(taskId)) {
+                                Text("Open the task")
+                            }
+                            .buttonStyle(PillButtonStyle(kind: .secondary))
+                        }
+                        .card()
                     }
                     ReportLink(subject: .task(taskId))
                 }
@@ -181,7 +213,7 @@ struct ApprovalDetailView: View {
                     HashText(sha: detail.proposal.sha256)
                 }
                 if let modelName = detail.proposal.model {
-                    Text(modelName).font(.caption.monospaced()).lineLimit(1)
+                    Text("Drafted by \(modelName).").font(.caption).lineLimit(1)
                 }
             }
         }
@@ -232,7 +264,7 @@ struct ApprovalDetailView: View {
                 Button {
                     Task { await approve(detail) }
                 } label: {
-                    if working { ProgressView().tint(Palette.onAccent) } else { Label("Approve with Face ID", systemImage: "faceid") }
+                    if working { ProgressView().tint(Palette.onAccent) } else { Label(Biometry.label("Approve"), systemImage: Biometry.symbol) }
                 }
                 .buttonStyle(PillButtonStyle(kind: .accent))
                 .disabled(working)
@@ -273,7 +305,7 @@ struct ApprovalDetailView: View {
     private func approve(_ detail: ApprovalDetail) async {
         failure = nil
         guard await OwnerCheck.confirm("Approve \(detail.task.title)") else {
-            failure = "Not approved: Face ID or the passcode didn't confirm it was you."
+            failure = "Not approved: \(Biometry.name ?? "the passcode") didn't confirm it was you."
             return
         }
         working = true
@@ -281,7 +313,8 @@ struct ApprovalDetailView: View {
         do {
             let applied: Applied = try await model.api.send("POST", "approvals/\(taskId)/approve", body: ["proposalId": detail.proposal.id, "sha256": detail.proposal.sha256])
             let files = applied.written == 1 ? "1 file" : "\(applied.written) files"
-            outcome = applied.checking ? "Approved and applied \(files). The checks have started; you'll be told how they end." : "Approved and applied \(files). Open the task to run its checks."
+            let told = model.me?.push.on == true ? " You'll be told how they end." : " Open the task to see how they end."
+            outcome = applied.checking ? "Approved and applied \(files). The checks have started.\(told)" : "Approved and applied \(files). Open the task to run its checks."
             model.changed()
         } catch {
             failure = error.localizedDescription

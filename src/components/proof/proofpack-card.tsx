@@ -1,22 +1,22 @@
-import { CheckCircleIcon, DownloadSimpleIcon, LinkIcon, MinusCircleIcon, ShieldCheckIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, DownloadSimpleIcon, ShieldCheckIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import { ProofPackSeal } from "@/components/proof/proofpack-seal";
 import { SealReveal } from "@/components/proof/seal-reveal";
 import { LocalTime } from "@/components/ui/local-time";
 import { verifyProofPack, type ProofPackStatement } from "@/core/proof/proofpack";
-import { shortHash } from "@/core/trust/canonical-json";
 import type { ProofPackRecord } from "@/server/workspace/types";
 
+// Status is its words in a colour and border (ADR 0180); a mark only for how it ended.
 const STATUS = {
   verified: { label: "Verified", Icon: CheckCircleIcon, cls: "border-verified/30 bg-verified/[0.05] text-verified" },
   partially_verified: { label: "Partially verified", Icon: WarningCircleIcon, cls: "border-approval/30 bg-approval/[0.06] text-approval" },
   failed: { label: "Failed", Icon: XCircleIcon, cls: "border-failed/30 bg-failed/[0.05] text-failed" },
-  unverified: { label: "Unverified", Icon: MinusCircleIcon, cls: "border-line-strong/40 bg-surface-raised text-ink-2" },
+  unverified: { label: "Unverified", Icon: null, cls: "border-line-strong/40 bg-surface-raised text-ink-2" },
 } as const;
 
 /**
- * One ProofPack: its status, digest and limits, an integrity check that
- * recomputes the digest from the stored statement on every load, and the
- * raw attestation to download. The Seal appears only when verified.
+ * One ProofPack: its status and limits, an integrity check that recomputes the
+ * digest from the stored statement on every load, and the signed record to
+ * download. The digests sit in Technical details; the Seal appears only when verified.
  */
 export async function ProofPackCard({ pack }: { pack: ProofPackRecord }) {
   const { intact } = await verifyProofPack(pack.statement, pack.digest);
@@ -24,37 +24,23 @@ export async function ProofPackCard({ pack }: { pack: ProofPackRecord }) {
   const status = STATUS[pack.status];
   const limits = Array.isArray(statement?.predicate?.limits) ? statement.predicate.limits : [];
   const checks = Array.isArray(statement?.predicate?.checks) ? statement.predicate.checks : [];
+  const verification = statement?.predicate?.verification ?? null;
 
   return (
     <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
       <div className="grid min-w-0 gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium ${status.cls}`}>
-            <status.Icon size={16} weight="bold" aria-hidden /> {status.label}
+          <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium ${status.cls}`} title={`sha256:${pack.digest}`}>
+            {status.Icon ? <status.Icon size={16} weight="bold" aria-hidden /> : null} {status.label}
           </span>
-          <span className="font-mono text-xs text-ink-3">{shortHash(pack.digest)}</span>
         </div>
         <p className={`flex items-center gap-2 text-sm ${intact ? "text-ink-2" : "text-failed"}`}>
           {intact ? <ShieldCheckIcon size={16} className="shrink-0 text-verified" aria-hidden /> : <WarningCircleIcon size={16} className="shrink-0" aria-hidden />}
-          {intact ? "Record intact: its digest was recomputed from the stored statement just now and matches." : "This record changed after it was made: the recomputed digest doesn't match."}
+          {intact ? "Record intact: unchanged since it was made, checked just now." : "This record changed after it was made, so don't rely on it."}
         </p>
         <p className="text-xs text-ink-3">
-          Recorded <LocalTime iso={pack.createdAt} />.
-          {statement?.predicate?.verification ? (
-            <>
-              {" "}
-              Verifies <span className="font-mono">{shortHash(statement.predicate.verification.appliedProofPack)}</span> from check run{" "}
-              <span className="font-mono">{shortHash(statement.predicate.verification.receipt)}</span>.
-            </>
-          ) : null}
-          {pack.previous ? (
-            <>
-              {" "}
-              <LinkIcon size={12} className="inline align-[-1px]" aria-hidden /> Follows <span className="font-mono">{shortHash(pack.previous)}</span>.
-            </>
-          ) : (
-            " The first in this project."
-          )}
+          Recorded <LocalTime iso={pack.createdAt} />.{verification ? " It verifies the ProofPack of the applied change, from a check run in a test space." : ""}
+          {pack.previous ? " It follows the one before it in this project." : " The first in this project."}
         </p>
         {checks.length ? (
           <ul className="grid gap-1 text-sm">
@@ -75,7 +61,7 @@ export async function ProofPackCard({ pack }: { pack: ProofPackRecord }) {
         ) : null}
         <p>
           <a href={`/app/proofpacks/${pack.digest}`} className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline">
-            <DownloadSimpleIcon size={16} aria-hidden /> Download the attestation (in-toto JSON)
+            <DownloadSimpleIcon size={16} aria-hidden /> Download the signed record
           </a>
           <span className="mt-1 block text-xs text-ink-3">
             Anyone you send it to can check it at{" "}
@@ -85,10 +71,40 @@ export async function ProofPackCard({ pack }: { pack: ProofPackRecord }) {
             , in their browser.
           </span>
         </p>
+        <details className="text-xs text-ink-3">
+          <summary className="inline-flex min-h-11 cursor-pointer list-none items-center hover:text-ink [&::-webkit-details-marker]:hidden">Technical details</summary>
+          <dl className="grid gap-1 break-all font-mono">
+            <div>
+              <dt className="inline font-sans">This ProofPack: </dt>
+              <dd className="inline">sha256:{pack.digest}</dd>
+            </div>
+            {verification ? (
+              <>
+                <div>
+                  <dt className="inline font-sans">Verifies: </dt>
+                  <dd className="inline">sha256:{verification.appliedProofPack}</dd>
+                </div>
+                <div>
+                  <dt className="inline font-sans">From check run: </dt>
+                  <dd className="inline">sha256:{verification.receipt}</dd>
+                </div>
+              </>
+            ) : null}
+            {pack.previous ? (
+              <div>
+                <dt className="inline font-sans">Follows: </dt>
+                <dd className="inline">sha256:{pack.previous}</dd>
+              </div>
+            ) : null}
+          </dl>
+          <p className="mt-1 font-sans">The file is an in-toto statement in a DSSE envelope, signed with Farbaek&apos;s Ed25519 key.</p>
+        </details>
       </div>
-      {pack.status === "verified" && intact ? <SealReveal hash={pack.digest} className="justify-self-center">
+      {pack.status === "verified" && intact ? (
+        <SealReveal hash={pack.digest} className="justify-self-center">
           <ProofPackSeal hash={pack.digest} caption="Farbaek ProofPack" size={160} className="block size-40" />
-        </SealReveal> : null}
+        </SealReveal>
+      ) : null}
     </div>
   );
 }

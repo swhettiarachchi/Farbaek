@@ -26,8 +26,8 @@ export function ArchiveProject({ projectId, name, disabledReason }: { projectId:
     <form action={action} className="grid gap-3 rounded-sm border border-approval/30 bg-approval/[0.06] p-4">
       <input type="hidden" name="projectId" value={projectId} />
       <p className="text-sm">
-        Archive <span className="font-medium">{name}</span>? It leaves the project list and stops counting toward your plan&apos;s project limit. Its files, tasks and proof stay
-        readable, and nothing is deleted. Its files can&apos;t change while it&apos;s archived.
+        Archive <span className="font-medium">{name}</span>? It moves to Archived projects at the foot of the Projects page and stops counting toward your plan&apos;s project
+        limit. Its files, tasks and proof stay readable, and nothing is deleted. Its files can&apos;t change while it&apos;s archived.
       </p>
       {state.status === "error" ? (
         <p role="alert" className="text-sm text-failed">

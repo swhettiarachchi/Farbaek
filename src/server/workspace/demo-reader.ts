@@ -216,6 +216,10 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
       return projects;
     },
 
+    async listArchivedProjects() {
+      return [];
+    },
+
     async getProject(_orgId, projectId) {
       return projects.find((p) => p.id === projectId) ?? null;
     },

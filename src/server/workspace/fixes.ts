@@ -49,7 +49,8 @@ export function fixNote(title: string, failed: readonly string[]): string {
   return note.slice(0, 300);
 }
 
-export async function startFix(deps: FixDeps, person: FixPerson, sourceTaskId: string): Promise<WriteResult<{ taskId: string }>> {
+/** Starts a fix task. `planNote` says why its plan is empty when the copy of the original plan couldn't be saved. */
+export async function startFix(deps: FixDeps, person: FixPerson, sourceTaskId: string): Promise<WriteResult<{ taskId: string; planNote: string | null }>> {
   if (!CONTRIBUTOR_ROLES.includes(person.role)) return fail("FORBIDDEN");
   const allowed = requirePermission(person.role, person.permissions, "run_agents");
   if (!allowed.ok) return allowed;
@@ -71,7 +72,7 @@ export async function startFix(deps: FixDeps, person: FixPerson, sourceTaskId: s
   const form = formFromContract(contract.body);
   const note = fixNote(source.title, await deps.failedChecks(person.orgId, source.id).catch(() => []));
   form.assumptions = [form.assumptions, note].filter(Boolean).join("\n");
-  // A new task starts at version 0 with no contract. If this save fails, the task is still linked and the person writes the contract.
-  await saveContract(deps.write, { orgId: person.orgId, userId: person.userId, taskId, expectedTaskVersion: 0, basedOn: 0, form });
-  return { ok: true, value: { taskId } };
+  // A new task starts at version 0 with no contract. If this save fails, the task is still linked, and the person is told why the plan is empty.
+  const saved = await saveContract(deps.write, { orgId: person.orgId, userId: person.userId, taskId, expectedTaskVersion: 0, basedOn: 0, form });
+  return { ok: true, value: { taskId, planNote: saved.ok ? null : `The plan couldn't be copied from the original task: ${saved.message} Write it here.` } };
 }

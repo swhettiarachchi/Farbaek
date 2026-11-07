@@ -168,7 +168,7 @@ export function EvidenceCheck() {
                 rows={9}
                 spellCheck={false}
                 required
-                className="min-h-44 w-full rounded-sm border border-line bg-surface px-3.5 py-3 font-mono text-[0.8125rem] leading-relaxed text-ink outline-none focus:border-accent/60"
+                className="min-h-44 w-full rounded-sm border border-line bg-surface px-3.5 py-3 font-mono text-base leading-relaxed text-ink outline-none focus:border-accent/60 sm:text-[0.8125rem]"
                 placeholder='{ "_type": "https://in-toto.io/Statement/v1", … }'
               />
             </label>

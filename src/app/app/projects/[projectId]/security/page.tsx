@@ -10,7 +10,6 @@ import { LocalTime } from "@/components/ui/local-time";
 import { PLAN_UNCONFIRMED_MESSAGE } from "@/core/billing/entitlements";
 import { SEVERITIES, SEVERITY_LABELS, type Finding, type Severity } from "@/core/security/findings";
 import { CHECK_LABELS } from "@/core/security/report";
-import { shortHash } from "@/core/trust/canonical-json";
 import { loadProjectReports } from "@/server/security/page-data";
 import { checkScope } from "@/server/security/runner";
 import type { SecurityReportView } from "@/server/security/store";
@@ -145,11 +144,8 @@ export default async function SecurityPage({ params, searchParams }: Params) {
                   </li>
                 ))}
               </ul>
-              <p className="text-xs text-ink-3">
-                Checked <LocalTime iso={p.generatedAt} />, {p.project.files} files. Report{" "}
-                <span className="font-mono" title={`sha256:${lastDone.digest}`}>
-                  {shortHash(lastDone.digest!)}
-                </span>
+              <p className="text-xs text-ink-3" title={`Report sha256:${lastDone.digest}`}>
+                Checked <LocalTime iso={p.generatedAt} />, {p.project.files} files. The report is a signed record you can download below.
               </p>
             </div>
           </section>

@@ -255,9 +255,12 @@ export function ApproveContractControl({
       <input type="hidden" name="version" value={version} />
       <input type="hidden" name="sha256" value={sha256} />
       <p className="text-sm">
-        You are approving <span className="font-medium">version {version}</span>, exactly as shown above.
+        You are approving <span className="font-medium">version {version}</span>, exactly as shown above. Your approval is tied to this exact text, so a later edit needs a new approval.
       </p>
-      <p className="font-mono text-xs break-all text-ink-2">sha256:{sha256}</p>
+      <details className="text-xs text-ink-3">
+        <summary className="inline-flex min-h-11 cursor-pointer list-none items-center hover:text-ink [&::-webkit-details-marker]:hidden">Technical details</summary>
+        <p className="break-all font-mono">sha256:{sha256}</p>
+      </details>
       {state.status === "error" ? (
         <p role="alert" className="text-sm text-failed">
           {state.message}

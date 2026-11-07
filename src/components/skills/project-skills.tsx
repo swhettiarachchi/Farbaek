@@ -1,11 +1,10 @@
-import { BookOpenTextIcon, QuestionIcon, ShieldCheckIcon, TrashIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { BookOpenTextIcon, ShieldCheckIcon, TrashIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import { removeSkillAction } from "@/app/app/projects/[projectId]/skill-actions";
 import { ConfirmAction } from "@/components/ui/confirm-action";
 import { RelativeTime } from "@/components/ui/local-time";
 import { SKILL_PIN_LABELS, type SkillPinStatus } from "@/core/agent/skill-pins";
 import { skillFilePath, skillText } from "@/core/agent/skill-library";
 import { SKILL_LIMITS, type Skill } from "@/core/agent/skills";
-import { shortHash } from "@/core/trust/canonical-json";
 import { SKILL_LIBRARY } from "@/content/skills/library";
 import { AddSkills } from "./add-skills";
 import { SkillReview } from "./skill-review";
@@ -23,10 +22,11 @@ export interface ProjectSkillView extends Skill {
   approvedContent: string | null;
 }
 
-const STATUS: Record<SkillPinStatus, { Icon: typeof ShieldCheckIcon; cls: string }> = {
+// A state is its words in a colour and border (ADR 0180); a mark only once it's approved.
+const STATUS: Record<SkillPinStatus, { Icon: typeof ShieldCheckIcon | null; cls: string }> = {
   approved: { Icon: ShieldCheckIcon, cls: "border-verified/35 text-verified" },
-  changed: { Icon: WarningCircleIcon, cls: "border-approval/40 border-dashed text-approval" },
-  new: { Icon: QuestionIcon, cls: "border-approval/40 border-dashed text-approval" },
+  changed: { Icon: null, cls: "border-approval/40 border-dashed text-approval" },
+  new: { Icon: null, cls: "border-approval/40 border-dashed text-approval" },
 };
 
 /**
@@ -66,24 +66,23 @@ export function ProjectSkills({ projectId, skills, disabledReason }: { projectId
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-2">
                       <span className="text-[0.9375rem] font-medium">{s.name}</span>
-                      <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs ${status.cls}`}>
-                        <status.Icon size={13} weight="bold" aria-hidden /> {SKILL_PIN_LABELS[s.status]}
+                      <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${status.cls}`}>
+                        {status.Icon ? <status.Icon size={13} weight="bold" aria-hidden /> : null} {SKILL_PIN_LABELS[s.status]}
                       </span>
                     </span>
                     {s.description ? <span className="mt-0.5 block text-sm text-ink-2">{s.description}</span> : null}
                     <span className="mt-1 block truncate font-mono text-xs text-ink-3">{s.path}</span>
                     <span className="mt-0.5 block text-xs text-ink-3">
                       {s.pin && s.status === "approved" ? (
-                        <>
-                          <span className="font-mono">{shortHash(s.pin.sha256, 8, 6)}</span> ·{" "}
+                        <span title={`Approved version sha256:${s.pin.sha256}`}>
                           {s.pin.by === "before" ? (
-                            "in use before approvals began"
+                            "In use before approvals began."
                           ) : (
                             <>
-                              approved <RelativeTime iso={s.pin.pinnedAt} /> by {s.pin.by === "you" ? "you" : "a teammate"}
+                              Approved <RelativeTime iso={s.pin.pinnedAt} /> by {s.pin.by === "you" ? "you" : "a teammate"}.
                             </>
                           )}
-                        </>
+                        </span>
                       ) : s.pin ? (
                         <>
                           Approved at version {s.pin.revision}; now at version {s.revision}. Not used in builds until reviewed.

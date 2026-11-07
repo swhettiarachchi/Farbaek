@@ -149,7 +149,7 @@ async function runAttempt(deps: VerificationDeps, person: VerifyPerson, input: {
     return await checkAndFinish(deps.store, service, actor, person, input.id, sessionId);
   } catch (e) {
     log("error", "verification.failed", { verification: input.id, error: e instanceof Error ? e.message : String(e) });
-    return failed("Something went wrong on Farbaek's side, so the checks didn't finish.");
+    return failed("Something went wrong on Farbaek's side, so the checks didn't finish. Run them again from the task; if it happens twice, write to support.");
   } finally {
     if (sessionId) await service.stopSession(actor, sessionId).catch(() => undefined);
   }

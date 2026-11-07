@@ -307,6 +307,8 @@ export interface WorkspaceReader {
   listWorkspaces(): Promise<WorkspaceSummary[]>;
   listMembers(orgId: string): Promise<Member[]>;
   listProjects(orgId: string): Promise<Project[]>;
+  /** Projects someone archived, newest archive first: still readable, so they're listed where they can be found. */
+  listArchivedProjects(orgId: string): Promise<Project[]>;
   getProject(orgId: string, projectId: string): Promise<Project | null>;
   listTasks(orgId: string, options?: { projectId?: string; limit?: number }): Promise<Task[]>;
   getTask(orgId: string, taskId: string): Promise<{ task: Task; history: Transition[] } | null>;

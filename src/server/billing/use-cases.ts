@@ -18,6 +18,7 @@ import { MANAGER_ROLES, type OrgRole } from "@/server/workspace/types";
 export type BillingErrorCode =
   | "FORBIDDEN"
   | "NOT_OPEN"
+  | "SUSPENDED"
   | "INVALID_PLAN"
   | "CONSENT_REQUIRED"
   | "ALREADY_SUBSCRIBED"
@@ -47,6 +48,7 @@ export const PROVIDER_MESSAGES: Record<ProviderErrorCode, string> = {
 export const BILLING_MESSAGES: Record<Exclude<BillingErrorCode, "PROVIDER">, string> = {
   FORBIDDEN: "Only the workspace's owners and admins manage its plan.",
   NOT_OPEN: "Payments aren't open to this workspace yet, so no plan can be bought and nothing is charged.",
+  SUSPENDED: "Farbaek has paused this workspace, so its plan can't change right now. The notice at the top of the page says why and how to reach us.",
   INVALID_PLAN: "Choose one of the plans shown.",
   CONSENT_REQUIRED: "Tick the box to agree to the price and renewal before checkout.",
   ALREADY_SUBSCRIBED: "This workspace already has a plan. Switch plans from Billing instead.",

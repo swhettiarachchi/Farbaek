@@ -74,7 +74,7 @@ function Tree({
                 type="button"
                 style={pad}
                 onClick={() => setExpanded((s) => (s.has(e.path) ? new Set([...s].filter((p) => p !== e.path)) : new Set([...s, e.path])))}
-                className="flex min-h-9 w-full items-center gap-1.5 pr-3 text-left text-[0.8125rem] text-ink-2 hover:bg-surface-raised"
+                className="flex min-h-11 w-full items-center gap-1.5 pr-3 text-left text-[0.8125rem] text-ink-2 hover:bg-surface-raised lg:min-h-9"
               >
                 {isOpen ? <CaretDownIcon size={12} aria-hidden /> : <CaretRightIcon size={12} aria-hidden />}
                 <FolderIcon size={15} className="shrink-0 text-accent" aria-hidden />
@@ -90,7 +90,7 @@ function Tree({
               type="button"
               style={pad}
               onClick={() => onOpen(e.path)}
-              className={`flex min-h-9 w-full items-center gap-1.5 pr-3 text-left text-[0.8125rem] ${open === e.path ? "bg-accent/[0.08] font-medium text-ink" : "text-ink-2 hover:bg-surface-raised"}`}
+              className={`flex min-h-11 w-full items-center gap-1.5 pr-3 text-left text-[0.8125rem] lg:min-h-9 ${open === e.path ? "bg-accent/[0.08] font-medium text-ink" : "text-ink-2 hover:bg-surface-raised"}`}
             >
               <span className="w-3" aria-hidden />
               <FileIcon size={15} className="shrink-0 text-ink-3" aria-hidden />
@@ -202,9 +202,9 @@ export function FilesPanel({ client, sessionId, canWrite, readReason }: { client
               value={newPath}
               onChange={(e) => setNewPath(e.target.value)}
               placeholder="src/new-file.ts"
-              className="h-10 min-w-0 flex-1 rounded-sm border border-line bg-surface px-2.5 text-base sm:text-[0.8125rem]"
+              className="h-11 min-w-0 flex-1 rounded-sm border border-line bg-surface px-2.5 text-base sm:text-[0.8125rem]"
             />
-            <button type="submit" className="inline-flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised" aria-label="Create file">
+            <button type="submit" className="inline-flex size-11 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised" aria-label="Create file">
               <FilePlusIcon size={18} aria-hidden />
             </button>
           </form>

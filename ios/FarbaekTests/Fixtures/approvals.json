@@ -29,6 +29,19 @@
         "canApprove": true
       }
     ],
+    "withoutChange": [
+      {
+        "id": "00000000-0000-4000-8000-00000000b001",
+        "title": "Rewrite 100 product descriptions in the house style",
+        "state": "APPROVAL_PENDING",
+        "stateLabel": "Waiting for approval",
+        "tone": "approval",
+        "projectId": "00000000-0000-4000-8000-00000000a001",
+        "projectName": "Storefront",
+        "createdAt": "2026-10-28T06:00:00.000Z",
+        "updatedAt": "2026-10-29T07:42:51.428Z"
+      }
+    ],
     "more": 0,
     "decidable": 1
   }

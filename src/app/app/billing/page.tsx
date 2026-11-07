@@ -187,7 +187,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
               )}
               {ws.plan.source === "trial" ? (
                 <p className="mt-3 text-xs text-ink-3">
-                  Trial caps: {TRIAL.limits.seats} seats, {TRIAL.limits.agents} agents and {TRIAL.limits.integrations} integration{TRIAL.limits.integrations === 1 ? "" : "s"}. AI usage and safety checks are counted across the whole trial.
+                  Trial caps: {TRIAL.limits.seats} seats, {TRIAL.limits.agents} computers with the desktop app and {TRIAL.limits.integrations} connection{TRIAL.limits.integrations === 1 ? "" : "s"}. AI usage and safety checks are counted across the whole trial.
                 </p>
               ) : null}
               <div className="mt-5 flex items-center gap-2 border-t border-line pt-4 text-sm text-ink-3">
