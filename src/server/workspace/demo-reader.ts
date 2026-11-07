@@ -399,7 +399,7 @@ export function createDemoReader(now: Date = new Date()): WorkspaceReader {
         dropped,
         violations,
         sha256: await proposalHash({ taskId, contractVersion: contract.version, contractSha256: contract.sha256, changes }),
-        model: "sample (no model call)",
+        model: "Sample model",
         createdAt: proposed.at,
         expiresAt: new Date(Date.parse(proposed.at) + 72 * DEMO_TIME.HOUR).toISOString(),
         decidedAt: null,
