@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowClockwiseIcon, CheckCircleIcon, ClockCounterClockwiseIcon, WarningIcon, WifiSlashIcon } from "@phosphor-icons/react";
+import { ArrowClockwiseIcon, CheckCircleIcon, CircleNotchIcon, ClockCounterClockwiseIcon, WarningIcon, WifiSlashIcon } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { checkLiveSiteAction, type LiveCheckState } from "@/app/app/projects/[projectId]/launch/actions";
@@ -53,10 +53,7 @@ export function LiveCheck({ projectId, last, autoRun }: { projectId: string; las
       <div aria-live="polite" className="flex min-h-11 items-start gap-3">
         {pending ? (
           <>
-            <span className="relative mt-1 flex size-4 shrink-0 items-center justify-center" aria-hidden>
-              <span className="absolute inset-0 rounded-full bg-accent/30 motion-safe:animate-ping" />
-              <span className="size-2 rounded-full bg-accent" />
-            </span>
+            <CircleNotchIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-accent motion-safe:animate-spin" aria-hidden />
             <span className="text-sm">
               <span className="font-medium text-ink">Checking your live site</span>
               <span className="block text-ink-2">Farbaek is opening the address and comparing what answers with this version.</span>

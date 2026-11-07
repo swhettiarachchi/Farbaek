@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, ClockCountdownIcon, HourglassMediumIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, ClockCountdownIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useId, useState } from "react";
 import { renewAgentLeaseAction, setAgentLeaseAction, type AgentLeaseState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -11,7 +11,7 @@ const IDLE: AgentLeaseState = { status: "idle" };
 
 const STATE_LOOK: Record<LeaseState, { icon: typeof CheckCircleIcon; className: string }> = {
   active: { icon: CheckCircleIcon, className: "text-verified" },
-  ending_soon: { icon: HourglassMediumIcon, className: "text-approval" },
+  ending_soon: { icon: ClockCountdownIcon, className: "text-approval" },
   ended: { icon: XCircleIcon, className: "text-failed" },
 };
 

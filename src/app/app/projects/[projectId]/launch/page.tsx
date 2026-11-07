@@ -6,7 +6,7 @@ import {
   CubeIcon,
   CurrencyCircleDollarIcon,
   EyeIcon,
-  FingerprintIcon,
+  SealCheckIcon,
   GlobeIcon,
   InfoIcon,
   KeyIcon,
@@ -169,7 +169,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
 
   const steps = [
     { key: "security", title: "Security check of these files", icon: ShieldCheckIcon, ...security, href: `/app/projects/${project.id}/security`, link: "Open Security" },
-    { key: "evidence", title: "Proof for the latest change", icon: FingerprintIcon, ...evidence, href: proof.taskId ? `/app/tasks/${proof.taskId}` : null, link: "Open the task" },
+    { key: "evidence", title: "Proof for the latest change", icon: SealCheckIcon, ...evidence, href: proof.taskId ? `/app/tasks/${proof.taskId}` : null, link: "Open the task" },
     { key: "deployed", title: "The version that's live", icon: CubeIcon, ...deployed, href: null, link: null },
   ];
 

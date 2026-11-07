@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRightIcon, CheckCircleIcon, CircleNotchIcon, DeviceMobileIcon, GlobeSimpleIcon, HourglassMediumIcon, LinkSimpleIcon, PauseCircleIcon, ProhibitIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
+import { ArrowUpRightIcon, CheckCircleIcon, CircleNotchIcon, DeviceMobileIcon, GlobeSimpleIcon, LinkSimpleIcon, PauseCircleIcon, ProhibitIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { buttonClasses } from "@/components/ui/button";
@@ -23,11 +23,11 @@ export interface WorkspaceComputer {
   reachableNow: boolean;
 }
 
-const STATE: Record<TransferState, { label: string; icon: Icon; tone: string; spin?: boolean }> = {
+const STATE: Record<TransferState, { label: string; icon: Icon | null; tone: string; spin?: boolean }> = {
   packing: { label: "Checking files", icon: CircleNotchIcon, tone: "text-ink-2", spin: true },
   connecting: { label: "Connecting", icon: CircleNotchIcon, tone: "text-ink-2", spin: true },
-  waiting: { label: "Waiting for them", icon: HourglassMediumIcon, tone: "text-approval" },
-  offered: { label: "Waiting for you", icon: HourglassMediumIcon, tone: "text-approval" },
+  waiting: { label: "Waiting for them", icon: null, tone: "text-approval" },
+  offered: { label: "Waiting for you", icon: null, tone: "text-approval" },
   sending: { label: "Sending", icon: CircleNotchIcon, tone: "text-ink-2", spin: true },
   receiving: { label: "Receiving", icon: CircleNotchIcon, tone: "text-ink-2", spin: true },
   finishing: { label: "Checking", icon: CircleNotchIcon, tone: "text-ink-2", spin: true },
@@ -261,7 +261,7 @@ export function PhoneMesh({ computers, unavailable }: { computers: WorkspaceComp
           <p className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <span className="text-ink">{`${transfer.name} to ${transfer.device.name}`}</span>
             <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${st.tone}`}>
-              <st.icon size={14} weight="bold" className={st.spin ? "motion-safe:animate-spin" : ""} aria-hidden /> {st.label}
+              {st.icon ? <st.icon size={14} weight="bold" className={st.spin ? "motion-safe:animate-spin" : ""} aria-hidden /> : null} {st.label}
             </span>
           </p>
           <div className="h-1.5 overflow-hidden rounded-full bg-surface-raised" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label="Bytes sent">

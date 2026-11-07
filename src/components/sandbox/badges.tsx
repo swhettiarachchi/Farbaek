@@ -1,7 +1,6 @@
 import {
   CheckCircleIcon,
   CircleNotchIcon,
-  HourglassMediumIcon,
   PauseCircleIcon,
   PlayCircleIcon,
   ProhibitIcon,
@@ -13,9 +12,9 @@ import {
 import type { Icon } from "@phosphor-icons/react";
 import { EXECUTION_STATE_LABELS, SESSION_STATE_LABELS, type ExecutionState, type SessionState } from "@/core/sandbox/lifecycle";
 
-// Status never relies on colour alone: each state has its own icon, a label and a border pattern.
-const SESSION: Record<SessionState, { icon: Icon; className: string; live?: boolean }> = {
-  requested: { icon: HourglassMediumIcon, className: "text-info border-info/40" },
+// Status is a word in its colour and border pattern (ADR 0180): a spinner while live, an icon for how it ended, none while it waits.
+const SESSION: Record<SessionState, { icon: Icon | null; className: string; live?: boolean }> = {
+  requested: { icon: null, className: "text-info border-info/40" },
   provisioning: { icon: CircleNotchIcon, className: "text-info border-info/40", live: true },
   ready: { icon: PlayCircleIcon, className: "text-verified border-verified/40" },
   paused: { icon: PauseCircleIcon, className: "text-approval border-approval/40" },
@@ -34,10 +33,10 @@ const EXECUTION: Record<ExecutionState, { icon: Icon; className: string; live?: 
   error: { icon: WarningIcon, className: "text-failed border-failed/40 border-dashed" },
 };
 
-function Pill({ icon: PillIcon, className, live, label }: { icon: Icon; className: string; live?: boolean; label: string }) {
+function Pill({ icon: PillIcon, className, live, label }: { icon: Icon | null; className: string; live?: boolean; label: string }) {
   return (
     <span className={`inline-flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-xs font-medium ${className}`}>
-      <PillIcon size={14} weight="bold" aria-hidden className={live ? "motion-safe:animate-spin" : undefined} />
+      {PillIcon ? <PillIcon size={14} weight="bold" aria-hidden className={live ? "motion-safe:animate-spin" : undefined} /> : null}
       {label}
     </span>
   );

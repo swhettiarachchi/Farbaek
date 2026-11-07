@@ -1,4 +1,4 @@
-import { ArrowRightIcon, FileTextIcon, FingerprintIcon, HammerIcon, SignatureIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, CheckCircleIcon, FileTextIcon, HammerIcon, SignatureIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -26,7 +26,7 @@ const FLOW = [
   { icon: FileTextIcon, title: "Describe", text: "Write the outcome you want as a task in a project." },
   { icon: SignatureIcon, title: "Agree", text: "AI drafts a plan. You read it and approve it." },
   { icon: HammerIcon, title: "Build", text: "The agent works in the cloud, runs the checks and asks before anything risky." },
-  { icon: FingerprintIcon, title: "Review", text: "You check every change and apply it. You also get a ProofPack, the record of what was checked." },
+  { icon: CheckCircleIcon, title: "Review", text: "You check every change and apply it. You also get a ProofPack, the record of what was checked." },
 ];
 
 export default async function BuildPage() {

@@ -1,4 +1,4 @@
-import { CheckCircleIcon, ClockIcon, CpuIcon, QuestionIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, ClockIcon, PulseIcon, QuestionIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { Notice, PageHeader } from "@/components/app/primitives";
 import { LiveRefresh } from "@/components/app/live-refresh";
@@ -10,7 +10,7 @@ import { CANARY_SUITE } from "@/content/canary-suite";
 import { TIER_MODELS, TIERS, tierModels, type Tier } from "@/core/agent/routing";
 import { pricedModel, type CanarySide } from "@/core/ai/model-canary";
 import { findingWords, listedAs } from "@/core/ai/model-watch";
-import { RATE_CARD, USD_PER_UNIT } from "@/core/billing/rate-card";
+import { RATE_CARD, USD_PER_UNIT, modelName } from "@/core/billing/rate-card";
 import { estimateSuite } from "@/server/ai/model-canary-runner";
 import { requireStaff } from "@/server/office/access";
 import { readModelsPage, type CanaryRun } from "@/server/office/models-data";
@@ -44,7 +44,7 @@ function SideRow({ label, s }: { label: string; s: CanarySide }) {
     <tr>
       <Cell>
         <span className="block text-xs text-ink-3">{label}</span>
-        <span className="font-mono text-[0.8125rem]">{s.model}</span>
+        <span>{modelName(s.model)}</span>
       </Cell>
       <Cell>
         {s.ok ? (
@@ -131,7 +131,7 @@ export default async function OfficeModels() {
                     <div className="min-w-0">
                       <h3 className="text-[1.0625rem] font-medium tracking-[-0.01em]">{TIER_WORDS[tier].label}</h3>
                       <p className="mt-1 text-sm text-ink-2">{TIER_WORDS[tier].use}</p>
-                      <p className="mt-2 font-mono text-[0.8125rem] text-ink">{model}</p>
+                      <p className="mt-2 text-[0.9375rem] font-medium text-ink">{modelName(model)}</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {sw ? <Chip tone="accent">Switched</Chip> : <Chip>Default</Chip>}
@@ -231,7 +231,7 @@ export default async function OfficeModels() {
 
       <section aria-labelledby="runs-heading" className="grid gap-4">
         <h2 id="runs-heading" className="flex items-center gap-2 text-lg font-medium">
-          <CpuIcon size={20} className="text-ink-3" aria-hidden /> Canaries
+          <PulseIcon size={20} className="text-ink-3" aria-hidden /> Canaries
         </h2>
         {runs.length === 0 ? <p className="text-sm text-ink-3">No canary has run yet.</p> : null}
         <ul className="grid gap-4">

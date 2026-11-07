@@ -1,11 +1,11 @@
-import { ChatCircleDotsIcon, CheckCircleIcon, HourglassMediumIcon } from "@phosphor-icons/react/ssr";
+import { ChatCircleDotsIcon, CheckCircleIcon } from "@phosphor-icons/react/ssr";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { LocalTime } from "@/components/ui/local-time";
 import { CUSTOMER_STATUS_WORDS, type SupportStatus } from "@/core/support/support";
 import type { SupportMessageView } from "@/server/workspace/support";
 
-const STATUS_LOOK: Record<SupportStatus, { icon: typeof CheckCircleIcon; className: string }> = {
-  waiting_on_farbaek: { icon: HourglassMediumIcon, className: "bg-surface-raised text-ink-2" },
+const STATUS_LOOK: Record<SupportStatus, { icon: typeof CheckCircleIcon | null; className: string }> = {
+  waiting_on_farbaek: { icon: null, className: "bg-surface-raised text-ink-2" },
   waiting_on_you: { icon: ChatCircleDotsIcon, className: "bg-accent/[0.08] text-accent" },
   closed: { icon: CheckCircleIcon, className: "bg-surface-raised text-ink-3" },
 };
@@ -15,7 +15,7 @@ export function SupportStatusChip({ status }: { status: SupportStatus }) {
   const look = STATUS_LOOK[status];
   return (
     <span className={`inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium ${look.className}`}>
-      <look.icon size={14} weight="bold" aria-hidden />
+      {look.icon ? <look.icon size={14} weight="bold" aria-hidden /> : null}
       {CUSTOMER_STATUS_WORDS[status]}
     </span>
   );

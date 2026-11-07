@@ -6,7 +6,6 @@ import {
   CircleDashedIcon,
   CircleNotchIcon,
   EyeIcon,
-  HourglassMediumIcon,
   PencilSimpleLineIcon,
   ProhibitIcon,
   TerminalWindowIcon,
@@ -21,7 +20,8 @@ import { CORE_PHASE_LABELS, type CorePhase } from "@/core/agent/run-phase";
 const AgentCoreScene = dynamic(() => import("@/components/three/agent-core-scene"), { ssr: false });
 
 // Each phase has its own icon and label, so the colour is never the only signal.
-const PHASE_STYLE: Record<CorePhase, { icon: Icon; tone: string; spin?: boolean }> = {
+// A waiting phase carries no glyph: the words say who it waits for (ADR 0180).
+const PHASE_STYLE: Record<CorePhase, { icon: Icon | null; tone: string; spin?: boolean }> = {
   idle: { icon: CircleDashedIcon, tone: "text-accent" },
   starting: { icon: CircleNotchIcon, tone: "text-accent", spin: true },
   working: { icon: CircleNotchIcon, tone: "text-accent", spin: true },
@@ -29,7 +29,7 @@ const PHASE_STYLE: Record<CorePhase, { icon: Icon; tone: string; spin?: boolean 
   reading: { icon: EyeIcon, tone: "text-accent" },
   writing: { icon: PencilSimpleLineIcon, tone: "text-accent" },
   running: { icon: TerminalWindowIcon, tone: "text-accent" },
-  waiting: { icon: HourglassMediumIcon, tone: "text-approval" },
+  waiting: { icon: null, tone: "text-approval" },
   done: { icon: CheckCircleIcon, tone: "text-verified" },
   stopped: { icon: ProhibitIcon, tone: "text-ink-3" },
 };
@@ -119,7 +119,7 @@ export function AgentCore({ phase, activity = null, children }: { phase: CorePha
         <div className="min-w-0">
           <p className="text-[0.8125rem] font-medium text-ink-3">Farbaek Agent</p>
           <p className="mt-1 flex items-center gap-2 text-xl font-medium tracking-[-0.02em] sm:text-2xl" role="status" aria-live="polite">
-            <style.icon size={22} weight="bold" className={`shrink-0 ${style.tone} ${style.spin ? "motion-safe:animate-spin" : ""}`} aria-hidden />
+            {style.icon ? <style.icon size={22} weight="bold" className={`shrink-0 ${style.tone} ${style.spin ? "motion-safe:animate-spin" : ""}`} aria-hidden /> : null}
             {CORE_PHASE_LABELS[phase]}
           </p>
           {activity ? <p className="mt-1.5 truncate font-mono text-[0.8125rem] text-ink-2">{activity}</p> : null}

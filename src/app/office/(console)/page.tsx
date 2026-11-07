@@ -106,7 +106,7 @@ export default async function OfficeOverview({ searchParams }: { searchParams: P
               <dl className="mt-3 grid grid-cols-3 gap-3 text-sm">
                 <div>
                   <dt className="flex items-center gap-1.5 text-ink-3">
-                    <span aria-hidden className="size-2.5 rounded-full bg-accent" /> Active
+                    Active
                   </dt>
                   <dd className="text-lg tabular">{number.format(m.trials.active)}</dd>
                 </div>

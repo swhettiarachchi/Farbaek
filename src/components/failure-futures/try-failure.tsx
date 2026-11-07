@@ -1,6 +1,6 @@
 "use client";
 
-import { FlaskIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { PlayIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState } from "react";
 import { tryFailureAction, type FailureTrialState } from "@/app/app/tasks/failure-actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -18,7 +18,7 @@ export function TryFailure({ proposalId, taskId, kind, again, disabled }: { prop
       <input type="hidden" name="kind" value={kind} />
       <div>
         <button type="submit" disabled={pending || disabled || state.status === "started"} className={buttonClasses("secondary", "sm")}>
-          <FlaskIcon size={16} weight="bold" aria-hidden />
+          <PlayIcon size={16} weight="bold" aria-hidden />
           {pending ? "Writing the test…" : state.status === "started" ? "Trial started" : again ? "Try it again" : "Try this failure"}
         </button>
       </div>

@@ -5,7 +5,7 @@ import {
   ChatsCircleIcon,
   CpuIcon,
   CreditCardIcon,
-  FingerprintIcon,
+  ShieldCheckIcon,
   GlobeIcon,
   HeartbeatIcon,
   IdentificationBadgeIcon,
@@ -44,7 +44,7 @@ const ICONS: Record<OfficeHref, Icon> = {
   "/announcements": MegaphoneIcon,
   "/staff": IdentificationBadgeIcon,
   "/audit": ScrollIcon,
-  "/security": FingerprintIcon,
+  "/security": ShieldCheckIcon,
 };
 
 /** On phones, every office page in one list. */

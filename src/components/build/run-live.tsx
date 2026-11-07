@@ -1,14 +1,12 @@
 "use client";
 
 import {
-  ArrowCounterClockwiseIcon,
   ArrowRightIcon,
   ChatTextIcon,
   CheckIcon,
   EyeIcon,
   FilePlusIcon,
   FlagCheckeredIcon,
-  GaugeIcon,
   InfoIcon,
   MagnifyingGlassIcon,
   PaperPlaneRightIcon,
@@ -29,6 +27,7 @@ import { answerBuildApprovalAction, cancelBuildRunAction, sendRunMessageAction }
 import { buttonClasses } from "@/components/ui/button";
 import { CLOUD_RUN_MODE_LABELS, endedWhileWatching, isLive } from "@/core/agent/cloud-run";
 import { EFFORT_LABELS } from "@/core/agent/routing";
+import { modelName } from "@/core/billing/rate-card";
 import { latestActivity, runFiles, runPhase } from "@/core/agent/run-phase";
 import type { RunEventView, RunView } from "@/server/cloud-agent/store";
 import { StaticPreview } from "@/components/preview/static-preview";
@@ -385,39 +384,25 @@ export function RunLive({
   return (
     <div className="grid gap-6">
       <AgentCore phase={phase} activity={live ? latestActivity(latest) : run.outcome}>
-        <ul className="flex flex-wrap gap-2 text-xs" aria-label="Run details">
-          <li className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-ink-2">
-            Steps <span className="tabular font-medium text-ink">{run.steps}</span>
-          </li>
-          <li className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-ink-2">
-            {EFFORT_LABELS[run.effort].title}
-          </li>
-          <li className="inline-block h-7 max-w-full truncate rounded-full border border-line bg-surface px-3 font-mono leading-[1.625rem] text-ink-2">{run.model ?? "Choosing a model"}</li>
+        {/* What a person wants to know, said in sentences (ADR 0180): where the run is, on what, and what it has used. */}
+        <div className="grid gap-1.5 text-sm text-ink-2">
+          <p>
+            {live ? (run.steps === 0 ? "Starting" : <>Step <span className="tabular font-medium text-ink">{run.steps}</span></>) : <><span className="tabular font-medium text-ink">{run.steps}</span> {run.steps === 1 ? "step" : "steps"}</>}
+            {live ? " of a" : " in a"} {EFFORT_LABELS[run.effort].title.toLowerCase()} run{run.model ? ` on ${modelName(run.model)}` : ""}.
+          </p>
           {usage?.share ? (
-            <li className="inline-flex h-7 items-center gap-1.5 rounded-full border border-accent/30 bg-accent/[0.05] px-3 text-ink-2">
-              <GaugeIcon size={14} weight="bold" className="text-accent" aria-hidden />
-              {live ? "Used so far" : "Used"} <span className="tabular font-medium text-ink">{usage.share}</span>
-            </li>
+            <p>
+              {live ? "Used so far: " : "Used: "}
+              <span className="tabular font-medium text-ink">{usage.share}</span> of this month&apos;s AI usage
+              {usage.cap ? <>, with a cap of <span className="tabular font-medium text-ink">{usage.cap}</span></> : null}.
+            </p>
           ) : null}
-          {usage?.cap ? (
-            <li className="inline-flex h-7 items-center gap-2 rounded-full border border-line bg-surface px-3 text-ink-2">
-              <span>
-                Cap <span className="tabular font-medium text-ink">{usage.cap}</span>
-              </span>
-              {usage.capUsed !== null ? (
-                <span className="block h-1.5 w-12 overflow-hidden rounded-full bg-surface-sunken" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={usage.capUsed} aria-label={`${usage.capUsed}% of this run's cap used`}>
-                  <span className="block h-full rounded-full bg-accent" style={{ width: `${usage.capUsed}%` }} />
-                </span>
-              ) : null}
-            </li>
+          {usage?.cap && usage.capUsed !== null ? (
+            <span className="block h-1.5 w-40 max-w-full overflow-hidden rounded-full bg-surface-sunken" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={usage.capUsed} aria-label={`${usage.capUsed}% of this run's cap used`}>
+              <span className="block h-full rounded-full bg-accent" style={{ width: `${usage.capUsed}%` }} />
+            </span>
           ) : null}
-          {usage && usage.refunded > 0 ? (
-            <li className="inline-flex h-7 items-center gap-1.5 rounded-full border border-verified/35 px-3 text-ink-2">
-              <ArrowCounterClockwiseIcon size={14} weight="bold" className="text-verified" aria-hidden />
-              {usage.refunded} {usage.refunded === 1 ? "step" : "steps"} refunded
-            </li>
-          ) : null}
-        </ul>
+        </div>
         {!live && run.proposalId ? (
           <Link href={`/app/tasks/${run.taskId}#change`} className={buttonClasses("primary", "sm", "mt-4")}>
             Review and apply <ArrowRightIcon size={16} weight="bold" aria-hidden />
@@ -515,7 +500,7 @@ export function RunLive({
                 </div>
                 <div className="flex justify-between gap-3">
                   <dt className="text-ink-3">Model</dt>
-                  <dd className="font-mono text-xs">{run.model ?? "Choosing"}</dd>
+                  <dd>{run.model ? modelName(run.model) : "Choosing"}</dd>
                 </div>
                 <div className="flex justify-between gap-3">
                   <dt className="text-ink-3">Steps</dt>

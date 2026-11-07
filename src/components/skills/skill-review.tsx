@@ -1,6 +1,6 @@
 "use client";
 
-import { CaretDownIcon, CheckCircleIcon, FingerprintIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CaretDownIcon, CheckCircleIcon, CheckIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import dynamic from "next/dynamic";
 import { useActionState, useState } from "react";
 import { pinSkillAction, type SkillState } from "@/app/app/projects/[projectId]/skill-actions";
@@ -76,7 +76,7 @@ export function SkillReview({
               <input type="hidden" name="revision" value={revision} />
               <input type="hidden" name="sha256" value={sha256} />
               <button type="submit" disabled={pending || Boolean(disabledReason)} className={buttonClasses("primary", "sm")}>
-                <FingerprintIcon size={16} weight="bold" aria-hidden /> {pending ? "Approving…" : "Approve this version"}
+                <CheckIcon size={16} weight="bold" aria-hidden /> {pending ? "Approving…" : "Approve this version"}
               </button>
               {disabledReason ? <span className="text-sm text-ink-3">{disabledReason}</span> : null}
             </form>

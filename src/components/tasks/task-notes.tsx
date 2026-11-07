@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { writeTaskNoteAction } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/local-time";
+import { modelName } from "@/core/billing/rate-card";
 import type { TaskNoteView } from "@/core/realityloop/modes";
 
 /**
@@ -60,7 +61,7 @@ export function TaskNotesCard({ taskId, kind, notes, disabledReason }: { taskId:
                 <span className="inline-flex items-center gap-1 rounded-full border border-line bg-surface px-2.5 py-0.5 font-medium text-ink-2">
                   <PenNibIcon size={12} aria-hidden /> AI-written {n.kind === "explanation" ? "explanation" : "audit report"}
                 </span>
-                <span className="font-mono">{n.model}</span>
+                <span>{modelName(n.model)}</span>
                 <RelativeTime iso={n.createdAt} />
               </p>
               {n.summary ? <p className="text-[0.9375rem] leading-relaxed text-ink">{n.summary}</p> : null}

@@ -1,10 +1,10 @@
-import { BookOpenTextIcon, FileArrowUpIcon, FlaskIcon, GitDiffIcon, QuestionIcon, TreeStructureIcon } from "@phosphor-icons/react/ssr";
+import { BookOpenTextIcon, FileArrowUpIcon, GitDiffIcon, QuestionIcon, TerminalWindowIcon, TreeStructureIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { LocalTime } from "@/components/ui/local-time";
 import type { WhyFact, WhyGraph } from "@/core/insights/why-graph";
 
-const ICONS: Record<WhyFact["kind"], Icon> = { origin: FileArrowUpIcon, change: GitDiffIcon, doc: BookOpenTextIcon, test: FlaskIcon };
+const ICONS: Record<WhyFact["kind"], Icon> = { origin: FileArrowUpIcon, change: GitDiffIcon, doc: BookOpenTextIcon, test: TerminalWindowIcon };
 
 /**
  * Why this file is like this (ADR 0123): facts from the workspace's records,

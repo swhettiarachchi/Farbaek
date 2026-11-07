@@ -1,4 +1,4 @@
-import { ArrowUpRightIcon, CheckCircleIcon, CircleDashedIcon, FlaskIcon, MinusCircleIcon, ShieldWarningIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowUpRightIcon, CheckCircleIcon, ArrowsClockwiseIcon, CircleDashedIcon, MinusCircleIcon, ShieldWarningIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { Container } from "@/components/ui/container";
 import RUN from "@/content/security-eval-run.json";
@@ -14,7 +14,7 @@ const LISTS: RiskList[] = ["agentic-2026", "llm-2025"];
 
 const MEANING = [
   {
-    icon: FlaskIcon,
+    icon: ArrowsClockwiseIcon,
     title: "Deterministic, and run on every change",
     body: "Each scenario drives Farbaek's real permission engine, command broker, sandbox guard, approvals and database with attack-shaped input, and asserts what must be refused. They run with every test run, not once for a report.",
   },

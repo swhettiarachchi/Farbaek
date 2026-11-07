@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, ClockCounterClockwiseIcon, FlaskIcon, FlowArrowIcon, LightningIcon, PauseCircleIcon, ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, ClockCounterClockwiseIcon, FlowArrowIcon, PauseCircleIcon, ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useActionState, useState, useTransition } from "react";
 import { setAutonomyAction, type AutonomyState } from "@/app/app/actions";
@@ -89,11 +89,11 @@ export function AutonomySettings({
           </span>
         ) : view.level === 2 || view.level === 3 ? (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 px-2.5 py-1 text-xs text-accent">
-            <LightningIcon size={14} weight="bold" aria-hidden /> {view.level === 3 ? "Bigger changes on their own" : "Small changes on their own"}
+            {view.level === 3 ? "Bigger changes on their own" : "Small changes on their own"}
           </span>
         ) : view.shadowSince ? (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-simulated/50 px-2.5 py-1 text-xs text-simulated">
-            <FlaskIcon size={14} weight="bold" aria-hidden /> Practice mode on
+            Practice mode on
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs text-ink-2">
@@ -141,7 +141,7 @@ export function AutonomySettings({
                 {o.title}
                 {o.value === "shadow" ? (
                   <span className="inline-flex h-5 items-center gap-1 rounded-full border border-simulated/40 px-2 text-xs font-medium text-simulated">
-                    <FlaskIcon size={12} weight="bold" aria-hidden /> Simulated
+                    Sample
                   </span>
                 ) : null}
               </span>

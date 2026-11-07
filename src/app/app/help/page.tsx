@@ -1,4 +1,4 @@
-import { CaretRightIcon, EnvelopeSimpleIcon, LifebuoyIcon, LightningIcon, PlusIcon } from "@phosphor-icons/react/ssr";
+import { CaretRightIcon, EnvelopeSimpleIcon, LifebuoyIcon, PlusIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -47,7 +47,7 @@ export default async function HelpPage() {
       {live && checkFeature(ctx.current.plan, "priority_support").allowed ? (
         // Priority support (ADR 0084): what it does, and nothing more.
         <p className="flex items-start gap-2 text-sm text-ink-2">
-          <LightningIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-accent" aria-hidden />
+          <LifebuoyIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-accent" aria-hidden />
           <span>Your plan includes priority support: requests from {ctx.current.name} go first in Farbaek&apos;s queue while they wait on us.</span>
         </p>
       ) : null}

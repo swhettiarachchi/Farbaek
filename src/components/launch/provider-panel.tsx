@@ -1,4 +1,4 @@
-import { ArrowSquareOutIcon, CheckCircleIcon, CircleDashedIcon, HourglassMediumIcon, InfoIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowSquareOutIcon, CheckCircleIcon, CircleDashedIcon, InfoIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { buttonClasses } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/local-time";
@@ -12,11 +12,12 @@ import type { ConnectionView, LaunchOrderView } from "@/server/launch/provider-s
 import { PROVIDER_COPY, type ProviderCopy } from "./provider-copy";
 import { ConnectProvider, LaunchToProvider } from "./provider-forms";
 
-const STATUS: Record<OrderStatus, { word: string | null; Icon: typeof CheckCircleIcon; className: string }> = {
-  authorized: { word: "Authorized", Icon: HourglassMediumIcon, className: "border-approval/40 text-approval" },
-  uploading: { word: "Sending files", Icon: HourglassMediumIcon, className: "border-approval/40 text-approval" },
+// A state under way is its word alone (ADR 0180); an icon only says how it ended.
+const STATUS: Record<OrderStatus, { word: string | null; Icon: typeof CheckCircleIcon | null; className: string }> = {
+  authorized: { word: "Authorized", Icon: null, className: "border-approval/40 text-approval" },
+  uploading: { word: "Sending files", Icon: null, className: "border-approval/40 text-approval" },
   // The provider's own word: building on Vercel, publishing on Netlify.
-  building: { word: null, Icon: HourglassMediumIcon, className: "border-approval/40 text-approval" },
+  building: { word: null, Icon: null, className: "border-approval/40 text-approval" },
   ready: { word: "Live", Icon: CheckCircleIcon, className: "border-verified/40 text-verified" },
   failed: { word: "Failed", Icon: XCircleIcon, className: "border-failed/40 text-failed" },
 };
@@ -123,7 +124,7 @@ export function ProviderPanel(props: {
                 <li key={o.id} className="grid gap-2 rounded-md border border-line p-4">
                   <p className="flex flex-wrap items-center gap-2 text-sm">
                     <span className={`inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium ${s.className}`}>
-                      <s.Icon size={14} weight="bold" aria-hidden /> {s.word ?? copy.working}
+                      {s.Icon ? <s.Icon size={14} weight="bold" aria-hidden /> : null} {s.word ?? copy.working}
                     </span>
                     <span className="font-mono text-[0.8125rem]">{o.targetName}</span>
                     <span className="text-ink-3">

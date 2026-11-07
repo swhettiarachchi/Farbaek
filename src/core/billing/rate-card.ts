@@ -118,3 +118,8 @@ export function sampleSessionUnits(model: ModelId): number {
     false,
   );
 }
+
+/** A model as people see it: its product name ("Claude Haiku 5.5"), never its id in monospace (ADR 0180). */
+export function modelName(model: string): string {
+  return (RATE_CARD as Record<string, ModelRate>)[model]?.label ?? model;
+}

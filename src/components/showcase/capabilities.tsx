@@ -5,7 +5,6 @@ import {
   EyeIcon,
   FileZipIcon,
   GlobeIcon,
-  HourglassMediumIcon,
   ImageIcon,
   PaletteIcon,
   PuzzlePieceIcon,
@@ -32,9 +31,10 @@ const ICONS: Record<string, Icon> = {
   images: ImageIcon,
 };
 
-const STATUS: Record<CapabilityStatus, { icon: Icon; className: string; pattern: string }> = {
+// Status is a word in its colour and border (ADR 0180): a check for what works, a dashed ring for what isn't there yet.
+const STATUS: Record<CapabilityStatus, { icon: Icon | null; className: string; pattern: string }> = {
   working: { icon: CheckCircleIcon, className: "text-verified", pattern: "border-solid border-verified/40" },
-  "turning-on": { icon: HourglassMediumIcon, className: "text-approval", pattern: "border-solid border-approval/40" },
+  "turning-on": { icon: null, className: "text-approval", pattern: "border-solid border-approval/40" },
   "not-yet": { icon: CircleDashedIcon, className: "text-unverified", pattern: "border-dashed border-unverified/50" },
 };
 
@@ -76,7 +76,7 @@ export function CapabilityStatusPill({ status }: { status: CapabilityStatus }) {
   const S = STATUS[status];
   return (
     <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${S.pattern} ${S.className}`}>
-      <S.icon size={13} weight="bold" aria-hidden />
+      {S.icon ? <S.icon size={13} weight="bold" aria-hidden /> : null}
       {CAPABILITY_STATUS_LABEL[status]}
     </span>
   );

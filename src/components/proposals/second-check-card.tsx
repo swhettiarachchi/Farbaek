@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { secondCheckAction } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
+import { modelName } from "@/core/billing/rate-card";
 import { TOPIC_LABELS, VERDICT_LABELS, type SecondCheckResult, type SecondCheckVerdict } from "@/core/trust/second-check";
 
 const VERDICT_LOOK: Record<SecondCheckVerdict, { icon: Icon; className: string }> = {
@@ -113,7 +114,7 @@ export function SecondCheckCard({
             </p>
           ) : null}
           <p className="text-xs leading-relaxed text-ink-3">
-            Checked by <span className="font-mono">{check.model}</span> on <LocalTime iso={check.createdAt} />.{" "}
+            Checked by {modelName(check.model)} on <LocalTime iso={check.createdAt} />.{" "}
             {check.independent ? "A different model from the one that wrote the change." : "The same model that wrote the change, because the plan has no other: a second read, not an independent one."}
           </p>
         </div>

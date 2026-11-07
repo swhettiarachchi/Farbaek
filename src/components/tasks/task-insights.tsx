@@ -1,5 +1,6 @@
 import { ArrowCounterClockwiseIcon, CheckCircleIcon, CircleDashedIcon, CoinsIcon, InfoIcon, WarningIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
+import { modelName } from "@/core/billing/rate-card";
 import { shareLabel, type TaskCost } from "@/core/insights/cost-brain";
 import { AREA_LABELS, REVERSIBILITY_LABELS, type FileReversibility, type Reversibility } from "@/core/insights/reversibility";
 
@@ -96,7 +97,7 @@ export function CostCard({ cost, period }: { cost: TaskCost; period: "trial" | "
                       {o.models.length ? (
                         <>
                           {", "}
-                          <span className="font-mono">{o.models.join(", ")}</span>
+                          {o.models.map(modelName).join(", ")}
                         </>
                       ) : null}
                     </p>

@@ -47,7 +47,7 @@ export function walletRisk(input: { policyOutcome: string | null; lens: LensSumm
   const lens = input.lens;
   if (lens && lens.hunks > 0) {
     if (lens.flagged) facts.push({ kind: "flagged", tone: "failed", label: `${count(lens.flagged, "change")} flagged by the plan` });
-    if (lens.unexplained) facts.push({ kind: "unexplained", tone: "approval", label: `${count(lens.unexplained, "change")} no line of the plan explains` });
+    if (lens.unexplained) facts.push({ kind: "unexplained", tone: "approval", label: `${count(lens.unexplained, "change")} that no line of the plan explains` });
     if (lens.matched) facts.push({ kind: "matched", tone: "neutral", label: `${count(lens.matched, "change")} ${lens.matched === 1 ? "shares" : "share"} words with the plan` });
   }
   const created = input.changes.filter((c) => c.kind === "create").length;

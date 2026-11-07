@@ -88,8 +88,7 @@ export function ContextReadinessCard({ passport, taskId }: { passport: ContextPa
           <h3 className="text-sm font-medium">Before the agent starts</h3>
           <ul className="mt-2 grid gap-1.5 text-sm text-ink-2">
             {passport.nextSteps.map((step) => (
-              <li key={step} className="flex gap-2">
-                <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-ink-3" />
+              <li key={step} className="ml-4 list-disc marker:text-ink-3">
                 {step}
               </li>
             ))}

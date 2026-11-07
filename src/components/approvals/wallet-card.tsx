@@ -4,14 +4,10 @@ import {
   ArrowCounterClockwiseIcon,
   ArrowRightIcon,
   ClockCountdownIcon,
-  CrosshairIcon,
   DesktopIcon,
-  FilesIcon,
-  HourglassMediumIcon,
   ProhibitIcon,
-  QuestionIcon,
   ShieldWarningIcon,
-  TestTubeIcon,
+  TerminalWindowIcon,
   XCircleIcon,
 } from "@phosphor-icons/react";
 import Link from "next/link";
@@ -38,24 +34,23 @@ export interface WalletCardData {
   canApprove: boolean;
 }
 
-const STATE: Record<WindowState, { label: string; Icon: typeof HourglassMediumIcon; cls: string; bar: string }> = {
-  open: { label: "Waiting for approval", Icon: HourglassMediumIcon, cls: "border-approval/30 bg-approval/[0.06] text-approval", bar: "bg-accent" },
+// Status is a word (ADR 0180): the open window carries no glyph, closing soon a countdown, expired a prohibit sign.
+const STATE: Record<WindowState, { label: string; Icon: typeof ProhibitIcon | null; cls: string; bar: string }> = {
+  open: { label: "Waiting for approval", Icon: null, cls: "border-approval/30 bg-approval/[0.06] text-approval", bar: "bg-accent" },
   closing: { label: "Closing soon", Icon: ClockCountdownIcon, cls: "border-approval/50 bg-approval/[0.1] text-approval", bar: "bg-approval" },
   expired: { label: "Expired", Icon: ProhibitIcon, cls: "border-line bg-surface-raised text-ink-2", bar: "bg-ink-3" },
 };
 
-const FACT_ICON: Record<WalletFact["kind"], typeof XCircleIcon> = {
+// Facts are lines, not chips (ADR 0180): an icon only where one says "look here".
+const FACT_ICON: Partial<Record<WalletFact["kind"], typeof XCircleIcon>> = {
   escalated: ShieldWarningIcon,
   flagged: XCircleIcon,
-  unexplained: QuestionIcon,
-  matched: CrosshairIcon,
-  files: FilesIcon,
 };
 
 const FACT_CLS: Record<WalletFact["tone"], string> = {
-  failed: "border-failed/35 text-failed",
-  approval: "border-approval/40 border-dashed text-approval",
-  neutral: "border-line text-ink-2",
+  failed: "text-failed",
+  approval: "text-approval",
+  neutral: "text-ink-2",
 };
 
 /**
@@ -76,7 +71,7 @@ export function WalletCard({ card, serverNow }: { card: WalletCardData; serverNo
       <div className="grid min-w-0 content-start gap-4 p-4 sm:p-5">
         <div className="flex flex-wrap items-center gap-2">
           <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${state.cls}`}>
-            <state.Icon size={14} weight="bold" aria-hidden /> {state.label}
+            {state.Icon ? <state.Icon size={14} weight="bold" aria-hidden /> : null} {state.label}
           </span>
           {card.byAgent ? (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs text-ink-2">
@@ -93,13 +88,13 @@ export function WalletCard({ card, serverNow }: { card: WalletCardData; serverNo
         </div>
 
         {card.facts.length ? (
-          <ul className="flex flex-wrap gap-1.5" aria-label="What the checks found">
+          <ul className="grid gap-1 text-sm" aria-label="What the checks found">
             {card.facts.map((f) => {
               const FactIcon = FACT_ICON[f.kind];
               return (
-                <li key={f.kind} className={`inline-flex min-h-7 max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${FACT_CLS[f.tone]}`}>
-                  <FactIcon size={13} weight="bold" className="shrink-0" aria-hidden />
-                  <span className="min-w-0 leading-snug">{f.label}</span>
+                <li key={f.kind} className={`flex items-start gap-2 ${FACT_CLS[f.tone]}`}>
+                  {FactIcon ? <FactIcon size={16} weight="bold" className="mt-0.5 shrink-0" aria-hidden /> : null}
+                  <span>{f.label}</span>
                 </li>
               );
             })}
@@ -114,7 +109,7 @@ export function WalletCard({ card, serverNow }: { card: WalletCardData; serverNo
               <span>Undo it afterwards, file by file. Undo never overwrites a newer change.</span>
             </p>
             <p className="flex items-start gap-2">
-              <TestTubeIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
+              <TerminalWindowIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
               <span>
                 {card.checks.length === 0 ? (
                   "The plan lists no checks, so nothing will confirm it."

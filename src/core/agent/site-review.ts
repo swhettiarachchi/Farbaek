@@ -175,6 +175,21 @@ export function reviewSite(input: Record<string, string> | ReadonlyMap<string, s
     if (cliche) add("consider", page, `An icon called "${cliche[1]}" reads as an AI cliché. Use an icon that names the real action or object.`);
     const placeholder = /\[(?:your|add|insert|todo|placeholder)[^\]]{0,40}\]/i.exec(text);
     if (placeholder) add("fix", page, `A placeholder is still in the copy: ${placeholder[0]}`);
+    // Human-made, not generated (ADR 0180): the small things that give a generated page away, where a scan can find them.
+    const shortText = [...html.matchAll(/<(span|small|em|strong|b|p|li|a|button|div|h[1-6])\b[^>]*>([^<]{1,40})<\/\1>/gi)].map((m) => m[2]!.replace(/\s+/g, " ").trim()).filter(Boolean);
+    const scroll = shortText.find((t) => /^(?:[\u2193\u2304v]\s*)?scroll(?:\s*(?:down|to explore|to discover|to walk through it|for more))?(?:\s*[\u2193\u2304v])?$/i.test(t));
+    if (scroll) add("consider", page, `"${scroll}" tells people to scroll. They know. Take the cue out.`);
+    const stamp = shortText.find((t) => /^(?:v\s?\d+(?:\.\d+)+|beta|alpha|early access|invite[- ]only(?: preview)?)$/i.test(t));
+    if (stamp) add("consider", page, `"${stamp}" is a version stamp. Say what's true in a sentence, or leave it out.`);
+    const numbered = shortText.find((t) => /^(?:0?\d{1,2}\s*[/\u00b7|]\s*(?:\d{1,2}|[A-Za-z].{0,24})|(?:section|step|phase|stage|pass|no\.?)\s*0?\d{1,2})$/i.test(t));
+    if (numbered) add("consider", page, `"${numbered}" numbers a section. The headline is the label; take the number out.`);
+    if (/\bquietly (?:trusted|in use|used|loved)\b/i.test(text)) add("fix", page, '"Quietly trusted by" is a copy tell. Say "Trusted by", or let the logos speak.');
+    const strip = shortText.find((t) => /^[A-Z]{3}\s+\d{1,2}:\d{2}\b|\b\d{1,2}:\d{2}\b.*\u00b0/.test(t));
+    if (strip) add("consider", page, `"${strip}" is a city-and-time strip. Unless the business is about a place, take it out.`);
+    const caps = shortText.filter((t) => /^[A-Z0-9][A-Z0-9 .,&/-]{3,30}$/.test(t) && /[A-Z]{3}/.test(t));
+    const sections = Math.max((html.match(/<section\b/gi) ?? []).length, (html.match(/<h2\b/gi) ?? []).length, 1);
+    if (caps.length > Math.ceil(sections / 3) + 1) add("consider", page, `${caps.length} short uppercase labels on ${sections} sections. At most one eyebrow per three sections; the headline alone is enough.`);
+    if (/<span\b[^>]*class\s*=\s*["'][^"']*\b(?:status-)?dot\b[^"']*["'][^>]*>\s*<\/span>/i.test(html)) add("consider", page, "A coloured dot before text is decoration dressed as status. Say the state in words.");
   }
 
   const animates = /@keyframes|\banimation\s*:|\btransition\s*:/.test(allStyles) || /\.animate\(|requestAnimationFrame|gsap\.|IntersectionObserver/.test(allScripts);

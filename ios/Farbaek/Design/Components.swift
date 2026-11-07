@@ -189,7 +189,7 @@ struct ClosesIn: View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
             let left = (FarbaekDate.parse(expiresAt) ?? context.date).timeIntervalSince(context.date)
             let closing = left < 12 * 3600
-            Label(Self.words(left), systemImage: closing ? "hourglass.bottomhalf.filled" : "hourglass")
+            Label(Self.words(left), systemImage: "clock")
                 .font(.footnote)
                 .foregroundStyle(closing ? Palette.approval : Palette.ink2)
         }
