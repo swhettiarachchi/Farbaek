@@ -16,7 +16,7 @@ import { HighlightStyle, bracketMatching, indentOnInput, syntaxHighlighting } fr
 import { Chunk, unifiedMergeView } from "@codemirror/merge";
 import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
 import { EditorState, Text, type Extension } from "@codemirror/state";
-import { EditorView, drawSelection, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from "@codemirror/view";
+import { EditorView, drawSelection, highlightActiveLine, highlightActiveLineGutter, highlightSpecialChars, keymap, lineNumbers } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
 import { useEffect, useRef } from "react";
 
@@ -157,7 +157,9 @@ export default function CodeMirrorSurface({
       EditorView.updateListener.of((u) => {
         if (u.docChanged) onChangeRef.current?.(u.state.doc.toString());
       }),
-      ...(narrow ? [EditorView.lineWrapping] : []),
+      // In review nothing may sit off to the side: a long line wraps, and characters that don't show are marked (ADR 0179).
+      ...(narrow || review ? [EditorView.lineWrapping] : []),
+      ...(review ? [highlightSpecialChars({ addSpecialChars: /[​-‏‪-‮⁠-⁩﻿]/ })] : []),
     ];
     if (review) {
       extensions.push(

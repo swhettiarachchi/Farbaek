@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BookOpenTextIcon,
   CaretDownIcon,
   CaretRightIcon,
   GraphIcon,
@@ -54,6 +55,7 @@ const CORE: NavItem[] = [
 /** Useful, not needed every day: one labelled group, opened when wanted. */
 const TOOLS: NavItem[] = [
   { href: "/app/sandbox", label: "Test space", short: "Test space", icon: TerminalWindowIcon, about: "Run an app and try it, safely apart from everything else.", also: ["Sandbox", "Terminal"] },
+  { href: "/app/skills", label: "Skills", short: "Skills", icon: BookOpenTextIcon, about: "Teach the agent how to design and build, from a library or your own.", also: ["SKILL.md", "Claude Skills", "Design skills"] },
   { href: "/app/agents", label: "Desktop app", short: "Desktop app", icon: DesktopIcon, about: "Let the agent work on your own computer.", also: ["Agents", "Farbaek Agent"] },
   { href: "/app/mesh", label: "Move projects", short: "Move", icon: PackageIcon, about: "Send a project to another computer or workspace as one file.", also: ["Mesh", "Capsule"] },
   { href: "/app/workflows", label: "Workflows", short: "Workflows", icon: FlowArrowIcon, about: "A bigger goal, done step by step." },

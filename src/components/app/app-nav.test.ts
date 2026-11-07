@@ -21,6 +21,7 @@ describe("the app's navigation (ADR 0170)", () => {
     expect(also("/app/trust")).toContain("Trust graph");
     expect(also("/app")).toContain("Mission Control");
     expect(also("/app/policies")).toContain("Policies");
+    expect(also("/app/skills")).toContain("SKILL.md");
   });
 
   it("gives phones every page the tabs don't show, including who can do what", () => {

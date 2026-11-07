@@ -92,7 +92,12 @@ export function ApproveBuild({
           {suggested.length
             ? `motion, 3D and brand identity are on for anything people will see${suggested.includes("flagship-site-craft") ? ", flagship site craft for this website" : ""}, and the others that fit your plan are chosen.`
             : "none stood out for this plan, so tick any that fit."}
-          {projectSkills.length ? ` This project's own skills apply too: ${projectSkills.join(", ")}.` : ""}
+          {projectSkills.length ? ` This project's own skills apply too: ${projectSkills.join(", ")}.` : ""}{" "}
+          {skillsHref ? (
+            <Link href={skillsHref} className="font-medium underline underline-offset-2 hover:text-ink">
+              Add a skill
+            </Link>
+          ) : null}
         </p>
         <p className="text-xs leading-relaxed text-ink-3">
           {kitPro ? (

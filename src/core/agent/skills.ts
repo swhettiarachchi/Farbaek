@@ -24,8 +24,11 @@ export const SKILL_LIMITS = {
   bodyChars: 8_000,
   /** Project skills the agent loads, at most. */
   projectSkills: 5,
-  /** All skill text in one run, at most. */
-  totalChars: 24_000,
+  /**
+   * All skill text in one run, at most: the built-in skills a plan ticks (about 13,000 characters at most) and
+   * room for three of the library's editions, which stay under 4,500 each (ADR 0179).
+   */
+  totalChars: 32_000,
 };
 
 const PROJECT_SKILL_PATH = /^(?:\.farbaek|\.claude)\/skills\/([^/]+)\/SKILL\.md$/i;
@@ -35,9 +38,19 @@ function unquote(value: string): string {
   return (v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'")) ? v.slice(1, -1) : v;
 }
 
+/**
+ * Characters that don't show on screen: zero-width ones, direction controls and Unicode tag characters. In a
+ * skill they could carry instructions a reviewer never sees, so a skill's text reaches the agent without them.
+ */
+const HIDDEN = /[​-‏‪-‮⁠-⁤⁦-⁩﻿]|[\u{e0000}-\u{e007f}]/gu;
+/** The ones with no honest use in a skill: they reorder or hide text. A skill from outside that has them is refused. */
+const DECEPTIVE = /[‪-‮⁦-⁩]|[\u{e0000}-\u{e007f}]/u;
+
+export const hasDeceptiveCharacters = (text: string) => DECEPTIVE.test(text);
+
 /** Parses a SKILL.md file. Null when it has no usable name or instructions. */
 export function parseSkill(text: string, fallbackId: string, source: Skill["source"]): Skill | null {
-  const normalized = text.replace(/\r\n/g, "\n").replace(/^﻿/, "");
+  const normalized = text.replace(/\r\n/g, "\n").replace(HIDDEN, "");
   let name = "";
   let description = "";
   let body = normalized;
