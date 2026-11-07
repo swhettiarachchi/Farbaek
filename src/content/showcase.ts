@@ -206,7 +206,7 @@ export const CAPABILITIES: readonly Capability[] = [
     body: "Every site builds on the Farbaek Studio kit: a design read, a 3D moment, choreographed motion, and photos and video you can replace in a click. Paid plans add Studio kit Pro.",
     status: "working",
   },
-  { id: "skills", title: "Skills, including your own", body: "Twelve built-in design skills, plus your own in the open SKILL.md format.", status: "working" },
+  { id: "skills", title: "Skills, including your own", body: "Twelve built-in design skills, a library of open-licensed ones to add in a click, and your own or any from GitHub, in the open SKILL.md format.", status: "working" },
   { id: "agent", title: "An agent you can steer", body: "It builds in the cloud under the plan you approved. Message it mid-run; every tool call is checked against the plan.", status: "working" },
   { id: "preview", title: "Previews of real code", body: "Static sites preview instantly. Apps with a server run in an isolated test space.", status: "app-previews" },
   { id: "checks", title: "Checks before it's done", body: "The agent reviews its own pages, security checks score the code, and the plan's checks run real commands.", status: "working" },

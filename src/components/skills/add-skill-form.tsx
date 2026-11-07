@@ -17,7 +17,7 @@ description: How our brand looks and sounds.
 - Always show opening hours and the phone number in the footer.`;
 
 /** Paste or upload a SKILL.md; the server checks it again and saves it as a project file. */
-export function AddSkillForm({ projectId, disabledReason }: { projectId: string; disabledReason: string | null }) {
+export function AddSkillForm({ projectId, disabledReason, quietReason = false }: { projectId: string; disabledReason: string | null; quietReason?: boolean }) {
   const [state, action, pending] = useActionState(addSkillAction, IDLE);
   const [content, setContent] = useState("");
   return (
@@ -52,7 +52,8 @@ export function AddSkillForm({ projectId, disabledReason }: { projectId: string;
             }}
           />
         </label>
-        {disabledReason ? <span className="text-sm text-ink-3">{disabledReason}</span> : null}
+        {/* Said once above the choices when this sits in Add a skill. */}
+        {disabledReason && !quietReason ? <span className="text-sm text-ink-3">{disabledReason}</span> : null}
       </div>
       {state.status === "error" ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">

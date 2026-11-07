@@ -24,8 +24,11 @@ export const SKILL_LIMITS = {
   bodyChars: 8_000,
   /** Project skills the agent loads, at most. */
   projectSkills: 5,
-  /** All skill text in one run, at most. */
-  totalChars: 24_000,
+  /**
+   * All skill text in one run, at most: the built-in skills a plan ticks (about 13,000 characters at most) and
+   * room for three of the library's editions, which stay under 4,500 each (ADR 0179).
+   */
+  totalChars: 32_000,
 };
 
 const PROJECT_SKILL_PATH = /^(?:\.farbaek|\.claude)\/skills\/([^/]+)\/SKILL\.md$/i;

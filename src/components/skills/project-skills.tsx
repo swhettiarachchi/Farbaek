@@ -2,9 +2,11 @@ import { BookOpenTextIcon, QuestionIcon, ShieldCheckIcon, TrashIcon, WarningCirc
 import { removeSkillAction } from "@/app/app/projects/[projectId]/skill-actions";
 import { RelativeTime } from "@/components/ui/local-time";
 import { SKILL_PIN_LABELS, type SkillPinStatus } from "@/core/agent/skill-pins";
-import type { Skill } from "@/core/agent/skills";
+import { skillFilePath, skillText } from "@/core/agent/skill-library";
+import { SKILL_LIMITS, type Skill } from "@/core/agent/skills";
 import { shortHash } from "@/core/trust/canonical-json";
-import { AddSkillForm } from "./add-skill-form";
+import { SKILL_LIBRARY } from "@/content/skills/library";
+import { AddSkills } from "./add-skills";
 import { SkillReview } from "./skill-review";
 
 export interface ProjectSkillView extends Skill {
@@ -41,8 +43,8 @@ export function ProjectSkills({ projectId, skills, disabledReason }: { projectId
           <BookOpenTextIcon size={20} weight="bold" className="text-accent" aria-hidden /> Skills
         </h2>
         <p className="text-sm leading-relaxed text-ink-2">
-          Teach the agent how you like this project built: your brand, your tools, your rules. A skill applies to every build here and can&apos;t widen what a plan allows. If one
-          changes or arrives in an import, it waits for your review first. Skills use the open SKILL.md format.
+          Teach the agent how you like this project built: a proven design skill from the library, one from GitHub, or your own brand and rules. A skill applies to every
+          build here and can&apos;t widen what a plan allows. If one changes or arrives from outside, it waits for your review first. Skills use the open SKILL.md format.
         </p>
       </div>
       {held ? (
@@ -118,14 +120,18 @@ export function ProjectSkills({ projectId, skills, disabledReason }: { projectId
           })}
         </ul>
       ) : (
-        <p className="text-sm text-ink-3">No skills of this project&apos;s own yet. Farbaek&apos;s built-in skills are chosen on each plan.</p>
+        <p className="text-sm text-ink-3">No skills of this project&apos;s own yet. Farbaek&apos;s built-in skills are chosen on each plan, and you can add more below.</p>
       )}
-      <details>
-        <summary className="min-h-11 cursor-pointer content-center text-sm font-medium text-accent">Add a skill</summary>
-        <div className="mt-3">
-          <AddSkillForm projectId={projectId} disabledReason={disabledReason} />
-        </div>
-      </details>
+      <div className="border-t border-line pt-4">
+        <AddSkills
+          projectId={projectId}
+          library={SKILL_LIBRARY.map((s) => ({ id: s.id, label: s.label, summary: s.summary, uses: s.uses, author: s.author, licence: s.licence, source: s.source, text: skillText(s.markdown) }))}
+          added={SKILL_LIBRARY.filter((s) => skills.some((k) => k.path === skillFilePath(s.id))).map((s) => s.id)}
+          used={skills.length}
+          max={SKILL_LIMITS.projectSkills}
+          disabledReason={disabledReason}
+        />
+      </div>
     </section>
   );
 }

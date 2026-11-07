@@ -196,6 +196,10 @@ description: App-native phone screens that feel made for a hand, not a website s
 - Lock a small design system before the second screen (palette with one accent, type scale, spacing, corner radii, icon style) and use it on every screen after, so the flow feels like one app.
 - Build flows, not single screens: when the brief implies a journey (onboarding, sign-in, browse to detail, cart to checkout), make each step its own screen with real transitions, and vary the composition from screen to screen without changing the system.
 - Text stays readable: body at least 16 px, labels at least 13 px, and a scrim or a soft fade under any text that sits on an image.
+- Hierarchy through few choices: at most four type sizes and two weights a screen, values larger than their labels (a big number, a small caption), tabular figures for numbers.
+- Space on an 8 px grid (4 px in tight spots): things that belong together sit close, and the gap between groups is about twice the gap inside one.
+- Colour in proportion: mostly a tinted neutral, then ink, and one accent kept for actions and key signals. Strong colours such as red only where they mean something, and shadows tinted with the surface beneath, never flat grey on colour.
+- Every state designed: loading shaped like the content, empty screens that say what to do first, errors that say what happened and how to fix it. The peak of a flow (a goal reached, an order placed) gets the best moment, and the end leaves a clear sense of progress.
 - Use imagery and texture with intent: an image-led welcome, a photo header that fades into the page, or a light grain on one hero area makes an app feel crafted. Keep it consistent across screens and never at the cost of legibility.
 - Avoid the mobile AI tells: purple-blue gradients, glass cards everywhere, fake chart dashboards, rows of tiny pills, and one screen repeated with only the icon changed.
 - In a website, show the app in a clean phone frame with even margins. In an app project, build real screens with working navigation, and when there's no backend yet keep the data in the browser and say so.`,
