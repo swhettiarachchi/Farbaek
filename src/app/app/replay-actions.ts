@@ -32,7 +32,7 @@ export async function replayAutonomyAction(input: { maxFiles: number; allowCreat
   const feature = checkFeature(ctx.current.plan, "shadow_mode");
   if (!feature.allowed) return { status: "error", message: feature.code === "FEATURE_NOT_IN_PLAN" ? SHADOW_NOT_IN_PLAN : feature.message };
   const client = await createSupabaseServerClient();
-  if (!client) return { status: "error", message: "The server isn't configured for this yet." };
+  if (!client) return { status: "error", message: "Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com." };
 
   let changes;
   let rules;

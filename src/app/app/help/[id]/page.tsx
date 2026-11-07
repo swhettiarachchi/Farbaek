@@ -4,13 +4,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ReplyForm } from "@/components/app/support-forms";
 import { SupportConversation, SupportStatusChip } from "@/components/app/support-thread";
-import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
 import { TOPIC_LABELS } from "@/core/support/support";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { loadAppContext } from "@/server/workspace/context";
 import { loadMyRequest, markSupportSeen } from "@/server/workspace/support";
+import { ConfirmAction } from "@/components/ui/confirm-action";
 import { closeSupportAction } from "../actions";
 
 export const metadata: Metadata = { title: "Support request" };
@@ -65,12 +65,22 @@ export default async function HelpRequestPage({ params }: { params: Promise<{ id
         </section>
 
         {!closed ? (
-          <form action={closeSupportAction} className="justify-self-start">
-            <input type="hidden" name="threadId" value={request.id} />
-            <button type="submit" className={buttonClasses("ghost", "sm")}>
-              <CheckCircleIcon size={16} aria-hidden /> Close request, it&apos;s sorted
-            </button>
-          </form>
+          <ConfirmAction
+            action={closeSupportAction}
+            fields={{ threadId: request.id }}
+            className="justify-self-start"
+            trigger={
+              <>
+                <CheckCircleIcon size={16} aria-hidden /> Close request, it&apos;s sorted
+              </>
+            }
+            triggerVariant="ghost"
+            question="Close this request? You can still read it here, and open a new one any time."
+            confirmLabel="Close it"
+            pendingLabel="Closing…"
+            keepLabel="Keep it open"
+            danger={false}
+          />
         ) : null}
       </div>
     </div>

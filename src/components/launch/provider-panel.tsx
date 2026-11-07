@@ -1,6 +1,5 @@
 import { ArrowSquareOutIcon, CheckCircleIcon, CircleDashedIcon, InfoIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import { LiveRefresh } from "@/components/app/live-refresh";
-import { buttonClasses } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/local-time";
 import type { LaunchProvider } from "@/core/launch/providers";
 import type { OrderStatus } from "@/core/launch/vercel";
@@ -8,6 +7,7 @@ import { EVIDENCE_WORDS, type EvidenceStatus } from "@/core/publish/evidence";
 import { shortHash } from "@/core/trust/canonical-json";
 import { formatBytes } from "@/core/workspace/files";
 import { disconnectProviderAction } from "@/app/app/projects/[projectId]/launch/launch-actions";
+import { ConfirmAction } from "@/components/ui/confirm-action";
 import type { ConnectionView, LaunchOrderView } from "@/server/launch/provider-store";
 import { PROVIDER_COPY, type ProviderCopy } from "./provider-copy";
 import { ConnectProvider, LaunchToProvider } from "./provider-forms";
@@ -162,13 +162,15 @@ export function ProviderPanel(props: {
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
         <p className="max-w-[68ch] text-xs leading-relaxed text-ink-3">{copy.domainNote}</p>
         {connection && props.canDisconnect ? (
-          <form action={disconnectProviderAction}>
-            <input type="hidden" name="provider" value={provider} />
-            <input type="hidden" name="projectId" value={props.projectId} />
-            <button type="submit" className={buttonClasses("secondary", "sm")}>
-              Disconnect {copy.name}
-            </button>
-          </form>
+          <ConfirmAction
+            action={disconnectProviderAction}
+            fields={{ provider, projectId: props.projectId }}
+            trigger={`Disconnect ${copy.name}`}
+            question={<>Disconnect {copy.name}? New launches stop until it&apos;s connected again. Anything already live there stays live.</>}
+            confirmLabel={`Disconnect ${copy.name}`}
+            pendingLabel="Disconnecting…"
+            keepLabel="Keep it connected"
+          />
         ) : null}
       </div>
     </section>

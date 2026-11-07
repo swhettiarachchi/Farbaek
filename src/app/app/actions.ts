@@ -54,6 +54,9 @@ import { revokeAppleSignIn } from "@/server/auth/apple-wiring";
 
 export type FormState = { status: "idle" } | { status: "error"; message: string; values?: Record<string, string> } | { status: "done"; message: string };
 
+/** Said to a person on a server that can't write. The reason is in the server's log, never on the screen. */
+const NOT_SET_UP = "Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com.";
+
 const COOKIE_OPTIONS = {
   httpOnly: true,
   sameSite: "lax" as const,
@@ -73,7 +76,7 @@ async function writeDeps(ctx: AppContext): Promise<{ deps: WriteDeps & AiUsageDe
   if (!ctx.writes.enabled) return { error: ctx.writes.reason };
   if (!ctx.current) return { error: "Create a workspace first." };
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
-  if (!user || !admin) return { error: "The server isn't configured for writes." };
+  if (!user || !admin) return { error: "Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com." };
   return { deps: createSupabaseWriteDeps(user, admin, ctx.user.id), orgId: ctx.current.id };
 }
 
@@ -83,7 +86,7 @@ export async function createOrganization(_previous: FormState, form: FormData): 
   if (isDemoMode()) return { status: "error", message: "The demo workspace is read-only.", values: { name } };
 
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return { status: "error", message: "Supabase isn't connected in this environment.", values: { name } };
+  if (!supabase) return { status: "error", message: "Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com.", values: { name } };
   const { data: claims } = await supabase.auth.getClaims();
   if (!claims?.claims) redirect("/sign-in");
 
@@ -614,7 +617,7 @@ export async function renameWorkspaceAction(_previous: FormState, form: FormData
   }
 
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return { status: "error", message: "Supabase isn't connected in this environment.", values };
+  if (!supabase) return { status: "error", message: "Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com.", values };
   // Row Level Security allows this update for owners and admins only.
   const { data, error } = await supabase.from("organizations").update({ name }).eq("id", ctx.current.id).select("id");
   if (error || !data?.length) return { status: "error", message: "The name couldn't be saved. Nothing was changed.", values };
@@ -627,7 +630,7 @@ export async function setEmailPreferencesAction(_previous: FormState, form: Form
   const ctx = await requireContext();
   if (ctx.mode === "demo") return { status: "error", message: "The demo workspace is read-only." };
   const admin = createSupabaseAdminClient();
-  if (!admin) return { status: "error", message: "Supabase isn't connected in this environment." };
+  if (!admin) return { status: "error", message: "Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com." };
   const { error } = await admin.rpc("app_set_email_preferences", {
     p_user: ctx.user.id,
     p_work_updates: form.get("workUpdates") === "on",
@@ -648,7 +651,8 @@ export async function setMemberRoleAction(_previous: FormState, form: FormData):
   if (ctx.mode === "demo") return { status: "error", message: "The demo workspace is read-only." };
   const admin = createSupabaseAdminClient();
   if (!ctx.writes.enabled) return { status: "error", message: ctx.writes.reason };
-  if (!ctx.current || !admin) return { status: "error", message: "Supabase isn't connected in this environment." };
+  if (!ctx.current) return { status: "error", message: "Create or join a workspace first." };
+  if (!admin) return { status: "error", message: NOT_SET_UP };
   const { error } = await admin.rpc("app_set_member_role", { p_org: ctx.current.id, p_actor: ctx.user.id, p_user: input.data.userId, p_role: input.data.role });
   if (error) return { status: "error", message: peopleError(error.message) };
   revalidatePath("/app/settings");
@@ -682,7 +686,8 @@ export async function removeMemberAction(_previous: FormState, form: FormData): 
   if (ctx.mode === "demo") return { status: "error", message: "The demo workspace is read-only." };
   const admin = createSupabaseAdminClient();
   if (!ctx.writes.enabled && userId.data !== ctx.user.id) return { status: "error", message: ctx.writes.reason };
-  if (!ctx.current || !admin) return { status: "error", message: "Supabase isn't connected in this environment." };
+  if (!ctx.current) return { status: "error", message: "Create or join a workspace first." };
+  if (!admin) return { status: "error", message: NOT_SET_UP };
   const { error } = await admin.rpc("app_remove_member", { p_org: ctx.current.id, p_actor: ctx.user.id, p_user: userId.data });
   if (error) return { status: "error", message: peopleError(error.message) };
   if (userId.data === ctx.user.id) {
@@ -706,25 +711,29 @@ export async function deleteAccountAction(_previous: FormState, form: FormData):
   const typed = String(form.get("confirm") ?? "").trim().toLowerCase();
   if (typed !== ctx.user.email.toLowerCase()) return { status: "error", message: "Type the address you sign in with, exactly, to confirm." };
   const admin = createSupabaseAdminClient();
-  if (!admin) return { status: "error", message: "Supabase isn't connected in this environment." };
+  if (!admin) return { status: "error", message: NOT_SET_UP };
+  // Once the workspaces are gone, every later failure has to say so: "nothing was changed" would be untrue.
+  const SIGN_IN_KEPT = "Your workspaces were deleted, but your sign-in couldn't be removed yet. Try again, or write to support.";
+  let dataDeleted = false;
   try {
     if (await isStaffAccount(admin, ctx.user.id)) return { status: "error", message: "This is a Farbaek staff account, so it's kept. Write to support to close it." };
     const blocked = (await deletionPlan(admin, ctx.user.id)).filter((p) => p.outcome.startsWith("blocked"));
     if (blocked.length) return { status: "error", message: `Nothing was deleted. First sort out: ${blocked.map((b) => b.orgName).join(", ")}.` };
     const { error } = await admin.rpc("app_delete_account_data", { p_user: ctx.user.id });
     if (error) return { status: "error", message: /BLOCKED/.test(error.message) ? "Something changed in one of your workspaces. Check the list and try again." : "Your account couldn't be deleted. Nothing was changed." };
+    dataDeleted = true;
     // Apple requires ending the Apple ID's link when the account goes (ADR 0113). It never blocks the deletion.
     await revokeAppleSignIn(admin, ctx.user.id);
     const { error: authError } = await admin.auth.admin.deleteUser(ctx.user.id);
     if (authError) {
       // The workspaces are gone; the sign-in record stays until a retry. Logged without the address.
       log("error", "account.delete_auth_failed", { user: ctx.user.id, error: authError.message.slice(0, 200) });
-      return { status: "error", message: "Your workspaces were deleted, but your sign-in couldn't be removed yet. Try again, or write to support." };
+      return { status: "error", message: SIGN_IN_KEPT };
     }
     log("info", "account.deleted", { user: ctx.user.id });
   } catch (e) {
-    log("error", "account.delete_failed", { user: ctx.user.id, error: e instanceof Error ? e.message.slice(0, 200) : String(e) });
-    return { status: "error", message: "Your account couldn't be deleted. Nothing was changed." };
+    log("error", "account.delete_failed", { user: ctx.user.id, dataDeleted, error: e instanceof Error ? e.message.slice(0, 200) : String(e) });
+    return { status: "error", message: dataDeleted ? SIGN_IN_KEPT : "Your account couldn't be deleted. Nothing was changed." };
   }
   const supabase = await createSupabaseServerClient();
   if (supabase) await supabase.auth.signOut().catch(() => undefined);
@@ -788,14 +797,18 @@ export async function setAutonomyAction(_previous: AutonomyState, form: FormData
   };
 }
 
-export async function revokeInvitationAction(form: FormData): Promise<void> {
+/** Ends an open invitation. Says why when it can't, so a press never goes quiet. */
+export async function revokeInvitationAction(_previous: FormState, form: FormData): Promise<FormState> {
   const parsed = z.uuid().safeParse(form.get("invitationId"));
-  if (!parsed.success) return;
+  if (!parsed.success) return { status: "error", message: "Reload the page and try again." };
   const ctx = await requireContext();
+  if (ctx.mode === "demo") return { status: "error", message: "The demo workspace is read-only." };
   const w = await writeDeps(ctx);
-  if ("error" in w) return;
-  await revokeInvitation(w.deps, { orgId: w.orgId, userId: ctx.user.id, invitationId: parsed.data });
+  if ("error" in w) return { status: "error", message: w.error };
+  const r = await revokeInvitation(w.deps, { orgId: w.orgId, userId: ctx.user.id, invitationId: parsed.data });
+  if (!r.ok) return { status: "error", message: r.message };
   revalidatePath("/app/settings");
+  return { status: "done", message: "Invitation revoked. Its link no longer works." };
 }
 
 export type AcceptInviteState = { status: "idle" } | { status: "error"; message: string };
@@ -806,7 +819,7 @@ export async function acceptInvitationAction(_previous: AcceptInviteState, form:
   const ctx = await loadAppContext();
   if (!ctx) redirect(`/sign-in?next=${encodeURIComponent(`/invite/${token}`)}`);
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
-  if (!user || !admin) return { status: "error", message: "The server isn't configured for this yet." };
+  if (!user || !admin) return { status: "error", message: "Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com." };
   const r = await acceptInvitation({ ...createSupabaseWriteDeps(user, admin, ctx.user.id), now: () => new Date() }, { userId: ctx.user.id, token });
   if (!r.ok) return { status: "error", message: r.message };
   (await cookies()).set(WORKSPACE_COOKIE, r.value.orgId, COOKIE_OPTIONS);
@@ -826,14 +839,18 @@ export async function pairAgentAction(): Promise<PairAgentState> {
   return { status: "created", code: r.value.code, expiresAt: r.value.expiresAt };
 }
 
-export async function revokeAgentAction(form: FormData): Promise<void> {
+/** Cuts a paired computer off. The database decides who may; the answer is said beside the button. */
+export async function revokeAgentAction(_previous: FormState, form: FormData): Promise<FormState> {
   const parsed = z.uuid().safeParse(form.get("agentId"));
-  if (!parsed.success) return;
+  if (!parsed.success) return { status: "error", message: "Reload the page and try again." };
   const ctx = await requireContext();
+  if (ctx.mode === "demo") return { status: "error", message: "The demo workspace is read-only." };
   const w = await writeDeps(ctx);
-  if ("error" in w) return;
-  await revokeAgent(w.deps, { orgId: w.orgId, userId: ctx.user.id, agentId: parsed.data });
+  if ("error" in w) return { status: "error", message: w.error };
+  const r = await revokeAgent(w.deps, { orgId: w.orgId, userId: ctx.user.id, agentId: parsed.data });
+  if (!r.ok) return { status: "error", message: r.message };
   revalidatePath("/app/agents");
+  return { status: "done", message: "Revoked. That computer can't act for this workspace any more." };
 }
 
 export type AgentLeaseState = { status: "idle" } | { status: "error"; message: string } | { status: "saved"; expiresAt: string };

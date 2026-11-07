@@ -9,7 +9,7 @@ import { readToolPins } from "@/server/agent/tool-pins";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { PairAgent } from "@/components/agents/pair-agent";
 import { Card, EmptyState, Notice, PageHeader } from "@/components/app/primitives";
-import { buttonClasses } from "@/components/ui/button";
+import { ConfirmAction } from "@/components/ui/confirm-action";
 import { RelativeTime } from "@/components/ui/local-time";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LEASE_WARNING_DAYS, leaseDaysLeft, leaseState } from "@/core/agent/lease";
@@ -137,12 +137,15 @@ export default async function AgentsPage() {
                   </span>
                   {a.revokedAt ? <StatusBadge status="unverified" label="Revoked" /> : <StatusBadge status="info" label="Paired" />}
                   {canRevoke ? (
-                    <form action={revokeAgentAction}>
-                      <input type="hidden" name="agentId" value={a.id} />
-                      <button type="submit" className={buttonClasses("secondary", "sm")}>
-                        Revoke
-                      </button>
-                    </form>
+                    <ConfirmAction
+                      action={revokeAgentAction}
+                      fields={{ agentId: a.id }}
+                      trigger="Revoke"
+                      question={<>Revoke {a.name}? It stops acting for this workspace at once. To use that computer again, pair it with a new code.</>}
+                      confirmLabel="Revoke this computer"
+                      pendingLabel="Revoking…"
+                      keepLabel="Keep it paired"
+                    />
                   ) : null}
                   {a.revokedAt ? null : (
                     <ToolPinPanel agentId={a.id} pin={pins.get(a.id) ?? null} canApprove={canManage} disabledReason={leaseReason} />

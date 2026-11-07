@@ -64,7 +64,7 @@ export function createPhoneWrites(options: { userClient: (accessToken: string) =
     const admin = createSupabaseAdminClient();
     return admin ? createSupabaseWriteDeps(options.userClient(p.caller.accessToken), admin, p.caller.userId) : null;
   }
-  const notConfigured = refuse(503, "NOT_CONFIGURED", "The server isn't configured for writes.");
+  const notConfigured = refuse(503, "NOT_CONFIGURED", "Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com.");
 
   return {
     async report(caller, input) {

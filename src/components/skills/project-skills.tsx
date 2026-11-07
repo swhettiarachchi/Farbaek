@@ -1,5 +1,6 @@
 import { BookOpenTextIcon, QuestionIcon, ShieldCheckIcon, TrashIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import { removeSkillAction } from "@/app/app/projects/[projectId]/skill-actions";
+import { ConfirmAction } from "@/components/ui/confirm-action";
 import { RelativeTime } from "@/components/ui/local-time";
 import { SKILL_PIN_LABELS, type SkillPinStatus } from "@/core/agent/skill-pins";
 import { skillFilePath, skillText } from "@/core/agent/skill-library";
@@ -93,14 +94,20 @@ export function ProjectSkills({ projectId, skills, disabledReason }: { projectId
                     </span>
                   </span>
                   {disabledReason ? null : (
-                    <form action={removeSkillAction}>
-                      <input type="hidden" name="projectId" value={projectId} />
-                      <input type="hidden" name="path" value={s.path} />
-                      <input type="hidden" name="revision" value={s.revision} />
-                      <button type="submit" className="inline-flex size-11 items-center justify-center rounded-full text-ink-3 hover:bg-surface-raised hover:text-failed" aria-label={`Remove the ${s.name} skill`}>
-                        <TrashIcon size={17} aria-hidden />
-                      </button>
-                    </form>
+                    <ConfirmAction
+                      action={removeSkillAction}
+                      fields={{ projectId, path: s.path, revision: s.revision }}
+                      triggerClassName="inline-flex size-11 items-center justify-center rounded-full text-ink-3 hover:bg-surface-raised hover:text-failed"
+                      trigger={
+                        <>
+                          <TrashIcon size={17} aria-hidden />
+                          <span className="sr-only">Remove the {s.name} skill</span>
+                        </>
+                      }
+                      question={<>Remove the {s.name} skill from this project? Builds stop following it. Its file history is kept.</>}
+                      confirmLabel="Remove skill"
+                      pendingLabel="Removing…"
+                    />
                   )}
                 </div>
                 {s.status !== "approved" ? (

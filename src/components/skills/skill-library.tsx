@@ -17,8 +17,8 @@ function Byline({ skill }: { skill: LibraryCardSkill }) {
     <p className="text-xs leading-relaxed text-ink-3">
       {skill.licence === "Farbaek" ? "By Farbaek." : `By ${skill.author}, ${LICENCE_LABELS[skill.licence]}.`}{" "}
       {skill.source ? (
-        <a href={skill.source} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-6 items-center gap-1 font-medium text-ink-2 underline underline-offset-2 hover:text-ink">
-          Original <ArrowSquareOutIcon size={12} aria-hidden />
+        <a href={skill.source} target="_blank" rel="noopener noreferrer" className="font-medium text-ink-2 underline underline-offset-2 hover:text-ink">
+          Original <ArrowSquareOutIcon size={12} className="inline align-[-0.0625em]" aria-hidden />
           <span className="sr-only">(opens GitHub in a new tab)</span>
         </a>
       ) : null}

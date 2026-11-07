@@ -28,7 +28,7 @@ export async function checkLiveSiteAction(projectId: string): Promise<LiveCheckS
   if (paused) return { status: "error", message: `Farbaek has paused published sites for a short while, so there's nothing to check. ${paused}` };
 
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
-  if (!user || !admin) return { status: "error", message: "The server isn't configured for this yet." };
+  if (!user || !admin) return { status: "error", message: "Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com." };
   const site = await getSite(user, ctx.current.id, id.data).catch(() => null);
   if (!site?.liveDeploymentId) return { status: "error", message: "Nothing is live for this project, so there's no site to check." };
   if (site.blocked) return { status: "error", message: "Farbaek has taken this site offline, so visitors see that it isn't available." };

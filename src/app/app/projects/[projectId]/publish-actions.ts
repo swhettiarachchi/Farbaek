@@ -23,7 +23,7 @@ async function writer() {
   if (!ctx.current || !ctx.role) return { error: "Create or join a workspace first." };
   if (!CONTRIBUTOR_ROLES.includes(ctx.role)) return { error: "Your role can view this project but not publish it." };
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
-  if (!user || !admin) return { error: "The server isn't configured for writes." };
+  if (!user || !admin) return { error: "Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com." };
   return { ctx, user, admin, orgId: ctx.current.id };
 }
 
@@ -102,12 +102,15 @@ export async function checkDomainAction(_previous: PublishState, form: FormData)
   return r.value.verified ? { status: "done", message: r.value.message } : { status: "error", message: r.value.message };
 }
 
-export async function removeDomainAction(form: FormData): Promise<void> {
+/** Disconnects one of the site's own domains. The site stays live at its Farbaek address. */
+export async function removeDomainAction(_previous: PublishState, form: FormData): Promise<PublishState> {
   const parsed = z.object({ projectId: z.uuid(), domainId: z.uuid() }).safeParse({ projectId: form.get("projectId"), domainId: form.get("domainId") });
-  if (!parsed.success) return;
+  if (!parsed.success) return { status: "error", message: "Reload the page and try again." };
   const w = await writer();
-  if ("error" in w) return;
-  if (!may(w.ctx.role, w.ctx.permissions, "publish")) return;
-  await removeSiteDomain(domainDeps(w.ctx, w.user, w.admin), { orgId: w.orgId, userId: w.ctx.user.id, domainId: parsed.data.domainId });
+  if ("error" in w) return { status: "error", message: w.error! };
+  if (!may(w.ctx.role, w.ctx.permissions, "publish")) return { status: "error", message: withheldReason("publish") };
+  const r = await removeSiteDomain(domainDeps(w.ctx, w.user, w.admin), { orgId: w.orgId, userId: w.ctx.user.id, domainId: parsed.data.domainId });
+  if (!r.ok) return { status: "error", message: r.message };
   revalidatePath(`/app/projects/${parsed.data.projectId}`);
+  return { status: "done", message: "Domain removed. The site stays live at its Farbaek address." };
 }

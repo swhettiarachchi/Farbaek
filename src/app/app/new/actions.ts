@@ -55,7 +55,7 @@ export async function startFromPromptAction(_previous: PromptStartState, form: F
 
   if (!ctx.writes.enabled) return { status: "error", message: ctx.writes.reason };
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
-  if (!user || !admin) return { status: "error", message: "The server isn't configured for writes." };
+  if (!user || !admin) return { status: "error", message: "Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com." };
   const deps = createSupabaseWriteDeps(user, admin, ctx.user.id);
 
   // The workspace's own AI key when it has one (ADR 0125), otherwise Farbaek's provider.
@@ -108,7 +108,7 @@ export async function approveAndBuildAction(_previous: ApproveBuildState, form: 
   if (!ctx.current || !ctx.role) return { status: "error", message: "Create or join a workspace first." };
   if (!ctx.writes.enabled) return { status: "error", message: ctx.writes.reason };
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
-  if (!user || !admin) return { status: "error", message: "The server isn't configured for writes." };
+  if (!user || !admin) return { status: "error", message: "Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com." };
 
   const { taskId, version, expectedTaskVersion, sha256, effort, cap, theme } = parsed.data;
   const approved = await approveContract(createSupabaseWriteDeps(user, admin, ctx.user.id), { orgId: ctx.current.id, userId: ctx.user.id, taskId, expectedTaskVersion, version, sha256 });

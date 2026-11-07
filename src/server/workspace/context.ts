@@ -154,7 +154,7 @@ export async function liveContext(source: WorkspaceReader, user: { id: string; e
   if (!hasServerWriteKey()) {
     writes = {
       enabled: false,
-      reason: "Creating and changing items needs the server key (SUPABASE_SECRET_KEY), which isn't set in this environment.",
+      reason: "Farbaek's server isn't set up to save changes yet, so nothing here can be changed. Write to support@farbaek.com.",
     };
   } else if (current?.suspension) {
     // Paused by Farbaek staff (ADR 0032); the database refuses writes too.

@@ -1,11 +1,12 @@
 import { CheckCircleIcon, CircleDashedIcon, ClockCountdownIcon, DesktopTowerIcon, ProhibitIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { RelativeTime } from "@/components/ui/local-time";
-import { ButtonLink, buttonClasses } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import { HANDOFF_STATUS_WORDS, handoffVerdict, type HandoffStatus } from "@/core/agent/handoff";
 import { shortHash } from "@/core/trust/canonical-json";
 import type { HandoffView } from "@/server/agent/handoffs";
 import { cancelHandoffAction } from "@/app/app/tasks/handoff-actions";
+import { ConfirmAction } from "@/components/ui/confirm-action";
 import { HandOff } from "./hand-off";
 
 const STATUS: Record<HandoffStatus, { Icon: typeof CheckCircleIcon | null; className: string }> = {
@@ -105,13 +106,18 @@ export function HandoffCard({ taskId, computers, handoffs, disabledReason }: { t
                   </div>
                 ) : null}
                 {h.status === "waiting" || h.status === "opened" ? (
-                  <form action={cancelHandoffAction}>
-                    <input type="hidden" name="taskId" value={taskId} />
-                    <input type="hidden" name="handoffId" value={h.id} />
-                    <button type="submit" disabled={Boolean(disabledReason)} className={buttonClasses("ghost", "sm")}>
-                      Withdraw
-                    </button>
-                  </form>
+                  <ConfirmAction
+                    action={cancelHandoffAction}
+                    fields={{ taskId, handoffId: h.id }}
+                    trigger="Withdraw"
+                    triggerVariant="ghost"
+                    question="Withdraw this handoff? The computer won't run these checks."
+                    confirmLabel="Withdraw it"
+                    pendingLabel="Withdrawing…"
+                    keepLabel="Leave it"
+                    danger={false}
+                    disabledReason={disabledReason}
+                  />
                 ) : null}
               </li>
             );

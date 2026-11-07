@@ -30,6 +30,7 @@ import { RenameWorkspaceForm } from "@/components/app/forms";
 import { InvitePeople } from "@/components/app/invite-people";
 import { revokeInvitationAction } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { ConfirmAction } from "@/components/ui/confirm-action";
 import { CONTACT } from "@/config/contact";
 import { invitableRoles } from "@/core/workspace/invitations";
 import { currentExecutionMode } from "@/server/execution/sandbox";
@@ -193,12 +194,16 @@ export default async function SettingsPage() {
                           {ROLE_LABEL[i.role]}, expires <RelativeTime iso={i.expiresAt} />
                         </span>
                       </span>
-                      <form action={revokeInvitationAction}>
-                        <input type="hidden" name="invitationId" value={i.id} />
-                        <button type="submit" disabled={inviteReason === "The demo workspace is read-only."} className={buttonClasses("secondary", "sm")}>
-                          Revoke
-                        </button>
-                      </form>
+                      <ConfirmAction
+                        action={revokeInvitationAction}
+                        fields={{ invitationId: i.id }}
+                        trigger="Revoke"
+                        question={<>Revoke the invitation to {i.email}? Its link stops working and the seat is free again.</>}
+                        confirmLabel="Revoke invitation"
+                        pendingLabel="Revoking…"
+                        keepLabel="Keep it open"
+                        disabledReason={peopleReason}
+                      />
                     </li>
                   ))}
                 </ul>

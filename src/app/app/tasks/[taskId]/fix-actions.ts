@@ -24,7 +24,7 @@ export async function startFixAction(form: FormData): Promise<void> {
   if (!ctx.current || !ctx.role) redirect("/app");
   if (!ctx.writes.enabled) back(ctx.writes.reason);
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
-  if (!user || !admin) back("The server isn't configured for writes.");
+  if (!user || !admin) back("Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com.");
   const orgId = ctx.current!.id;
 
   const deps: FixDeps = {

@@ -23,7 +23,7 @@ async function context() {
   if (!ctx.writes.enabled) return { error: ctx.writes.reason } as const;
   if (!ctx.current || !ctx.role) return { error: "Create or join a workspace first." } as const;
   const deps = launchDeps(ctx);
-  if (!deps) return { error: "The server isn't configured for this yet." } as const;
+  if (!deps) return { error: "Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com." } as const;
   return { ctx, deps, person: { orgId: ctx.current.id, userId: ctx.user.id, role: ctx.role, permissions: ctx.permissions } } as const;
 }
 
@@ -42,14 +42,17 @@ export async function connectProviderAction(_previous: LaunchState, form: FormDa
   return { status: "done", message: `Connected to ${PROVIDER_NAMES[provider.data]} as ${r.value.accountName}.` };
 }
 
-export async function disconnectProviderAction(form: FormData): Promise<void> {
+/** Forgets the workspace's hosting account. What's already live there stays live; new launches stop until it's connected again. */
+export async function disconnectProviderAction(_previous: LaunchState, form: FormData): Promise<LaunchState> {
   const provider = Provider.safeParse(form.get("provider"));
   const projectId = z.uuid().safeParse(form.get("projectId"));
-  if (!provider.success) return;
+  if (!provider.success) return { status: "error", message: "The form couldn't be read. Reload the page." };
   const c = await context();
-  if ("error" in c) return;
-  await disconnectProvider(c.deps, c.person, provider.data);
+  if ("error" in c) return { status: "error", message: c.error ?? "" };
+  const r = await disconnectProvider(c.deps, c.person, provider.data);
+  if (!r.ok) return { status: "error", message: r.message };
   if (projectId.success) revalidatePath(`/app/projects/${projectId.data}/launch`);
+  return { status: "done", message: `Disconnected from ${PROVIDER_NAMES[provider.data]}. Anything already live there stays live.` };
 }
 
 /**

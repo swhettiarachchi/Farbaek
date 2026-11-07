@@ -23,6 +23,7 @@ import { billingDeps } from "@/server/billing/wiring";
 import { billingErrorMessage, previewPlanChange } from "@/server/billing/use-cases";
 import { loadBillingView } from "@/server/billing/view";
 import { loadAppContext } from "@/server/workspace/context";
+import { loadIntegrations } from "@/server/workspace/integrations";
 import { MANAGER_ROLES } from "@/server/workspace/types";
 import { UsageMeterList } from "@/components/app/usage-meters";
 import { loadUsageMeters, loadUsageSummary } from "@/server/workspace/usage-summary";
@@ -37,13 +38,22 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   if (!ctx?.current) notFound();
   const ws = ctx.current;
   const sp = await searchParams;
-  const [usage, meters, agents, billing] = await Promise.all([
+  const [usage, meters, agents, billing, integrations] = await Promise.all([
     loadUsageSummary(ctx, ws),
     loadUsageMeters(ctx, ws),
     ctx.reader.listAgents(ws.id),
     loadBillingView(ws.id, ctx.mode === "demo"),
+    loadIntegrations(ctx, ws.id),
   ]);
   const activeAgents = agents.filter((a) => !a.revokedAt).length;
+  // The same records the Connections page reads: GitHub and each hosting account. Never a made-up zero.
+  const connections = (integrations.github?.login ? 1 : 0) + Object.keys(integrations.connections ?? {}).length;
+  const connectionsDetail =
+    integrations.connections === null && integrations.github === null
+      ? "What's connected is listed on the Connections page."
+      : connections === 0
+        ? "None connected yet. GitHub and hosting accounts connect on the Connections page."
+        : "GitHub and hosting accounts connected to this workspace. Manage them on the Connections page.";
   const plan = getPlan(ws.plan.planId);
   const limits = ws.plan.limits;
   const canManage = Boolean(ctx.role && MANAGER_ROLES.includes(ctx.role)) && ctx.writes.enabled;
@@ -155,12 +165,12 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                 <p className="mt-3 text-sm leading-relaxed text-ink-2">
                   {ws.trial.phase.phase === "active" ? (
                     <>
-                      {ws.trial.phase.daysRemaining} {ws.trial.phase.daysRemaining === 1 ? "day" : "days"} left. Ends <LocalTime iso={ws.trial.endsAt} />. Then
+                      {ws.trial.phase.daysRemaining} {ws.trial.phase.daysRemaining === 1 ? "day" : "days"} left. It ends on <LocalTime iso={ws.trial.endsAt} date />. Then
                       this workspace moves to Free automatically and nothing is charged.
                     </>
                   ) : (
                     <>
-                      Your trial ended <LocalTime iso={ws.trial.endsAt} />. You&apos;re on Free and nothing was charged.
+                      Your trial ended on <LocalTime iso={ws.trial.endsAt} date />. You&apos;re on Free and nothing was charged.
                     </>
                   )}
                 </p>
@@ -205,7 +215,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
             <UsageMeter label="Projects" used={usage.projects.length} limit={limits.workspaces} detail="Active projects in this workspace." reached="Project limit reached. Archive a project or choose a bigger plan to add another." />
             <UsageMeter label="Seats" used={usage.members} limit={limits.seats} detail="People in this workspace." reached="Seat limit reached. Adding people needs a bigger plan." />
             <UsageMeter label="Desktop apps" used={activeAgents} limit={limits.agents} detail="Computers connected to this workspace through the Farbaek desktop app." />
-            <UsageMeter label="Connections" used={0} limit={limits.integrations} detail="None connected. Public GitHub repositories import without one, from Projects; private ones need a connection, which isn't available yet." />
+            <UsageMeter label="Connections" used={connections} limit={limits.integrations} detail={connectionsDetail} />
           </div>
         </Card>
       </div>

@@ -29,7 +29,7 @@ async function rulesDeps(ctx: AppContext) {
   if (!ctx.current) return { error: "Create a workspace first." } as const;
   if (!ctx.writes.enabled) return { error: ctx.writes.reason } as const;
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
-  if (!user || !admin) return { error: "The server isn't configured for this yet." } as const;
+  if (!user || !admin) return { error: "Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com." } as const;
   const rules: RulesDeps = {
     activeRules: (orgId) => readActiveRules(user, orgId),
     history: (orgId, days) => readChangeHistory(user, orgId, days),

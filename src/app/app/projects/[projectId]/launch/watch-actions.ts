@@ -19,7 +19,7 @@ export async function setOutcomeWatchAction(_previous: WatchState, form: FormDat
   if (!ctx.writes.enabled) return { status: "error", message: ctx.writes.reason };
   if (!ctx.current || !ctx.role || !CONTRIBUTOR_ROLES.includes(ctx.role)) return { status: "error", message: "Viewers can't change the watch." };
   const admin = createSupabaseAdminClient();
-  if (!admin) return { status: "error", message: "The server isn't configured for this yet." };
+  if (!admin) return { status: "error", message: "Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com." };
   const { error } = await admin.rpc("app_set_outcome_watch", { p_org: ctx.current.id, p_actor: ctx.user.id, p_project: parsed.data.projectId, p_on: parsed.data.on === "true" });
   if (error) return { status: "error", message: error.message.includes("NOT_FOUND") ? "That project doesn't exist, or it's archived." : "The watch couldn't be changed. Try again." };
   revalidatePath(`/app/projects/${parsed.data.projectId}/launch`);

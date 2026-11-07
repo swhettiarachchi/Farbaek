@@ -36,22 +36,23 @@ export async function startSecurityCheckAction(_previous: SecurityActionState, f
   return { status: "started" };
 }
 
-/** Turns one finding into a task in the project, ready for a contract and the agent. */
-export async function fixWithAgentAction(form: FormData): Promise<void> {
+export type FixState = { status: "idle" } | { status: "error"; message: string };
+
+/** Turns one finding into a task in the project, ready for a plan and the agent, and opens it. Says why when it can't. */
+export async function fixWithAgentAction(_previous: FixState, form: FormData): Promise<FixState> {
   const parsed = z.object({ projectId: z.uuid(), reportId: z.uuid(), findingId: z.string().regex(/^F\d{3}$/) }).safeParse(Object.fromEntries(form));
-  if (!parsed.success) return;
+  if (!parsed.success) return { status: "error", message: "Reload the page and try again." };
   const p = await person();
-  if ("error" in p) return;
+  if ("error" in p) return { status: "error", message: p.error! };
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
-  if (!user || !admin) return;
+  if (!user || !admin) return { status: "error", message: "Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com." };
   const report = (await listSecurityReports(user, p.person.orgId, parsed.data.projectId, 20)).find((r) => r.id === parsed.data.reportId);
   const finding = report?.statement?.predicate.findings.find((f) => f.id === parsed.data.findingId);
-  if (!finding) return;
+  if (!finding) return { status: "error", message: "That finding isn't in this project's latest report any more. Reload the page." };
   const where = finding.file ? ` in ${finding.file}${finding.line ? `:${finding.line}` : ""}` : "";
   const title = `Fix: ${finding.title}${where}`.slice(0, 200);
   const created = await createTask(createSupabaseWriteDeps(user, admin, p.person.userId), { orgId: p.person.orgId, userId: p.person.userId, projectId: parsed.data.projectId, title });
-  if (created.ok) {
-    revalidatePath("/app", "layout");
-    redirect(`/app/tasks/${created.value}`);
-  }
+  if (!created.ok) return { status: "error", message: created.message };
+  revalidatePath("/app", "layout");
+  redirect(`/app/tasks/${created.value}`);
 }

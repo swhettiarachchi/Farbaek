@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ComponentProps } from "react";
 
 type Variant = "primary" | "accent" | "secondary" | "outline" | "ghost" | "danger";
+export type ButtonVariant = Variant;
 type Size = "md" | "sm";
 
 const base =

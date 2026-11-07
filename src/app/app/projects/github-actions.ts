@@ -43,7 +43,7 @@ export async function importGitHubAction(_previous: GitHubImportState, form: For
   if (!ctx.writes.enabled) return fail(ctx.writes.reason);
   if (!ctx.current || !ctx.role) return fail("Create or join a workspace first.");
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
-  if (!user || !admin) return fail("The server isn't configured for writes.");
+  if (!user || !admin) return fail("Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com.");
 
   const limit = await admin.rpc("app_rate_limit", { p_key: `github-import:${ctx.user.id}`, p_window_seconds: 3600, p_limit: PER_HOUR });
   if (limit.error) return fail("Importing isn't available right now. Try again in a few minutes.");

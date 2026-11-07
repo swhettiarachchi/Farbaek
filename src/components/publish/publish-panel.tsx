@@ -160,7 +160,7 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
                         <CheckCircleIcon size={14} weight="bold" aria-hidden /> Live
                       </span>
                     ) : disabledReason ? null : (
-                      <SetLiveForm projectId={projectId} deploymentId={d.id} />
+                      <SetLiveForm projectId={projectId} deploymentId={d.id} version={d.number} />
                     )}
                   </span>
                   {d.overrideReason ? <p className="basis-full text-xs leading-relaxed text-ink-2">Reason: {d.overrideReason}</p> : null}

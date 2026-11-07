@@ -35,11 +35,16 @@ export async function requestHandoffAction(_previous: HandoffState, form: FormDa
   return { status: "sent" };
 }
 
-export async function cancelHandoffAction(form: FormData): Promise<void> {
+export type WithdrawState = { status: "idle" } | { status: "error"; message: string } | { status: "done"; message: string };
+
+/** Takes a handoff back before the computer picks it up. Says when it's too late. */
+export async function cancelHandoffAction(_previous: WithdrawState, form: FormData): Promise<WithdrawState> {
   const parsed = z.object({ taskId: z.uuid(), handoffId: z.uuid() }).safeParse({ taskId: form.get("taskId"), handoffId: form.get("handoffId") });
-  if (!parsed.success) return;
+  if (!parsed.success) return { status: "error", message: "Reload the page and try again." };
   const p = await person();
-  if ("error" in p) return;
-  await cancelHandoff({ handoffs: createSupabaseHandoffStore(p.admin) }, p.person, parsed.data.handoffId);
+  if ("error" in p) return { status: "error", message: p.error };
+  const r = await cancelHandoff({ handoffs: createSupabaseHandoffStore(p.admin) }, p.person, parsed.data.handoffId);
+  if (!r.ok) return { status: "error", message: r.message };
   revalidatePath(`/app/tasks/${parsed.data.taskId}`);
+  return { status: "done", message: "Withdrawn. The computer won't run these checks." };
 }
