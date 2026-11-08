@@ -5,6 +5,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Container } from "@/components/ui/container";
 import { CONTACT } from "@/config/contact";
+import { TRIAL, getPlan } from "@/core/billing/catalog";
 import { oauthAvailable } from "@/server/auth/oauth-wiring";
 import { turnstileSiteKey } from "@/server/auth/captcha";
 import { readSupabaseConfig, safeNextPath, siteUrl } from "@/server/supabase/config";
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
 const NEXT_STEPS: { icon: Icon; title: string; body: string }[] = [
   { icon: ChatTextIcon, title: "Describe it", body: "One sentence is enough: what it is and who it's for." },
   { icon: ClipboardTextIcon, title: "Approve the plan", body: "Farbaek drafts what it will build and how it will check it. Nothing starts until you approve." },
-  { icon: HammerIcon, title: "The agent builds it", body: "In the cloud, on Farbaek's AI, designed to the Studio standard. You can message it while it works." },
+  { icon: HammerIcon, title: "The agent builds it", body: "In the cloud, on Farbaek's AI, with Farbaek's design standard. You can message it while it works." },
   { icon: SealCheckIcon, title: "Review, apply, publish", body: "See every change before it lands, then put a static site live at its own address." },
 ];
 
@@ -64,7 +65,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
       <div className="w-full max-w-[440px] justify-self-center lg:justify-self-start">
         <h1 className="text-[2.4rem] font-medium leading-[1.05] tracking-[-0.035em]">Sign in to Farbaek</h1>
         <p className="mt-3 text-[0.9375rem] leading-relaxed text-ink-2">
-          {intro(google, apple)} New workspaces start with a 14-day Pro trial, with no card.
+          {intro(google, apple)} New workspaces start with a {TRIAL.lengthDays}-day {getPlan(TRIAL.basePlan).name} trial, with no card.
         </p>
         <div className="mt-8 rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
           <div className="rounded-md bg-surface p-5 shadow-e1 sm:p-6">
@@ -73,14 +74,14 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
               <SignInForm notice={error && Object.hasOwn(NOTICES, error) ? NOTICES[error]! : null} providers={{ google, apple }} next={next} captchaSiteKey={turnstileSiteKey()} phone={phoneSignIn(next)} />
             ) : (
               <p className="rounded-sm border border-dashed border-line-strong/60 p-5 text-sm text-ink-2">
-                Sign-in isn&apos;t connected on this server yet, so nobody can sign in here. Write to support@farbaek.com if you see this on www.farbaek.com.
+                Sign-in isn&apos;t connected on this server yet, so nobody can sign in here. Write to {CONTACT.support} if you see this on www.farbaek.com.
               </p>
             )}
           </div>
         </div>
         <p className="mt-6 text-sm text-ink-2">
           Trouble signing in? Write to{" "}
-          <a href={`mailto:${CONTACT.support}`} className="font-medium text-accent hover:underline">
+          <a href={`mailto:${CONTACT.support}`} className="inline-flex min-h-11 items-center font-medium text-accent hover:underline">
             {CONTACT.support}
           </a>
           .

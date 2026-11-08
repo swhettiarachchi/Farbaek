@@ -5,6 +5,8 @@ import { useState } from "react";
 import { JsonView } from "@/components/code/json-view";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
+import { FAILURE_LABELS, type FailureCategory } from "@/core/sandbox/failures";
+import { EXECUTION_STATE_LABELS } from "@/core/sandbox/lifecycle";
 import { FarbaekApiError, type Execution, type FarbaekSandboxClient, type ResourceSample, type SandboxSession } from "@/sdk/sandbox-client";
 
 // Status is its word in its colour and border (ADR 0180); a mark only for how it ended.
@@ -83,7 +85,7 @@ export function ChecksPanel({
             {task.checks.length ? (
               <ul className="mt-3 grid gap-1.5">
                 {task.checks.map((c) => (
-                  <li key={c} className="rounded-sm border border-line px-3 py-2 font-mono text-[0.8125rem]">
+                  <li key={c} className="break-all rounded-sm border border-line px-3 py-2 font-mono text-[0.8125rem]">
                     {c}
                   </li>
                 ))}
@@ -152,9 +154,12 @@ export function ChecksPanel({
               <li key={e.id} className="rounded-sm border border-failed/25 bg-failed/[0.04] px-3 py-2">
                 <p className="flex items-center gap-2 text-sm">
                   <XCircleIcon size={16} weight="bold" className="shrink-0 text-failed" aria-hidden />
-                  <code className="min-w-0 flex-1 truncate font-mono text-[0.8125rem]">{e.command}</code>
-                  <span className="shrink-0 text-xs text-failed">{e.exitCode !== null ? `exit ${e.exitCode}` : (e.failure ?? e.state)}</span>
+                  <code className="min-w-0 flex-1 truncate font-mono text-[0.8125rem]" title={e.command}>
+                    {e.command}
+                  </code>
+                  <span className="shrink-0 text-xs text-failed">{e.exitCode !== null ? `Failed (exit ${e.exitCode})` : EXECUTION_STATE_LABELS[e.state]}</span>
                 </p>
+                {e.exitCode === null && e.failure && Object.hasOwn(FAILURE_LABELS, e.failure) ? <p className="mt-1 text-xs text-ink-2">{FAILURE_LABELS[e.failure as FailureCategory].title}.</p> : null}
                 {e.stderr ? <pre className="mt-1 max-h-24 overflow-hidden whitespace-pre-wrap break-words font-mono text-xs text-ink-2">{e.stderr.slice(-600)}</pre> : null}
               </li>
             ))}
@@ -213,8 +218,8 @@ export function DetailsPanel({
         {row("Environment", `${session.template === "node-ts" ? "Node.js and TypeScript" : "Python"}, ${SIZE_WORDS[session.size] ?? session.size}`)}
         {row("Requested", `${session.resources.requested.vcpu} vCPU, ${session.resources.requested.memoryMiB} MiB`)}
         {row("Reported", session.resources.reported ? `${session.resources.reported.vcpu} vCPU, ${session.resources.reported.memoryMiB ?? "?"} MiB` : "Not reported by the runtime")}
-        {row("Outbound allowed", egress.allowOut.length ? <span className="font-mono text-xs">{egress.allowOut.join(", ")}</span> : "Nothing")}
-        {row("Always blocked", <span className="font-mono text-xs">{egress.denyOut.join(", ")}</span>)}
+        {row("Outbound allowed", egress.allowOut.length ? <span className="break-all font-mono text-xs">{egress.allowOut.join(", ")}</span> : "Nothing")}
+        {row("Always blocked", <span className="break-all font-mono text-xs">{egress.denyOut.join(", ")}</span>)}
         {row("Started", <LocalTime iso={session.createdAt} />)}
         {row(session.endedAt ? "Ended" : "Ends by", <LocalTime iso={session.endedAt ?? session.expiresAt} />)}
         {row("Cleanup", `${CLEANUP_WORDS[session.cleanup.status] ?? session.cleanup.status.replace(/_/g, " ")}${session.cleanup.attempts ? `, ${session.cleanup.attempts} attempt${session.cleanup.attempts === 1 ? "" : "s"}` : ""}`)}
@@ -270,7 +275,7 @@ export function DetailsPanel({
               <dd className="font-medium tabular">{usage.running}</dd>
             </div>
             <div>
-              <dt className="text-xs text-ink-3">Commands ran</dt>
+              <dt className="text-xs text-ink-3">Time running commands</dt>
               <dd className="font-medium tabular">{usage.active}</dd>
             </div>
             <div>

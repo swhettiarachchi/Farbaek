@@ -16,7 +16,7 @@ const TO = formatUsd(Math.max(...monthlyPrices));
 
 export const metadata: Metadata = {
   title: "Pricing",
-  description: `Farbaek plans from ${FROM} to ${TO} a month, with AI, test spaces and previews included, usage that carries over, and a ${TRIAL.lengthDays}-day ${getPlan(TRIAL.basePlan).name} trial with no card.`,
+  description: `Farbaek plans from ${FROM} to ${TO} a month, with AI, test spaces and previews included and usage that carries over. Start with a ${TRIAL.lengthDays}-day ${getPlan(TRIAL.basePlan).name} trial, no card needed.`,
 };
 
 const trialBase = getPlan(TRIAL.basePlan).name;
@@ -24,7 +24,7 @@ const trialBase = getPlan(TRIAL.basePlan).name;
 /** What makes a Farbaek plan worth more than its price elsewhere. Each line is a rule the platform enforces. */
 const PROMISES = [
   { icon: ArrowsClockwiseIcon, title: "Nothing expires at the end of the month", body: "Unused AI usage lasts one more month, and the oldest is spent first." },
-  { icon: ArrowCounterClockwiseIcon, title: "Failed attempts are given back", body: "When an AI call fails, or the agent's fix for failed checks doesn't pass them either, that usage returns to you, up to a monthly cap." },
+  { icon: ArrowCounterClockwiseIcon, title: "Failed attempts are given back", body: "When an AI call fails, that usage returns to you. So does an agent's fix that still doesn't pass the checks, up to a monthly cap." },
   { icon: WalletIcon, title: "No surprise bills", body: "Plans never run into overage. You see the share used and when it resets." },
   { icon: ShieldCheckIcon, title: "Security checks from Plus", body: "Farbaek includes full security checks from Plus, and every plan can publish a site after Farbaek's rules check." },
 ] as const;
@@ -40,11 +40,11 @@ const PRICING_FAQ: FaqItem[] = [
   },
   {
     q: "What happens to usage I don't use?",
-    a: "It carries over. Unused AI usage lasts one more month, and Farbaek always spends the oldest first, so nothing you paid for disappears at the end of a month.",
+    a: "It carries over. Unused AI usage lasts one more month, and Farbaek always spends the oldest first. Nothing you paid for disappears at the end of a month.",
   },
   {
     q: "What if the AI gets it wrong?",
-    a: "When a call fails, times out or returns nothing usable, its usage is given back automatically. The same goes for a fix the agent makes for failed checks that doesn't pass them either: its usage comes back, up to about 5% of your monthly AI usage. That applies on paid plans and during the trial.",
+    a: "When a call fails, times out or returns nothing usable, its usage is given back automatically. If the agent's fix for failed checks still doesn't pass them, its usage comes back too, up to about 5% of your monthly AI usage. That applies on paid plans and during the trial.",
   },
   {
     q: "What happens when I reach a limit?",
@@ -57,7 +57,7 @@ const PRICING_FAQ: FaqItem[] = [
   {
     webOnly: true,
     q: "Can I pay yearly or monthly?",
-    a: `Every plan is billed monthly. Lite and Maker can also be paid yearly, at ${formatUsd(chargeCents(getPlan("lite")))} and ${formatUsd(chargeCents(getPlan("maker")))} a year, with more AI usage; we email you about 30 days before each yearly renewal.`,
+    a: `Every plan is billed monthly. Lite and Maker can also be paid yearly, at ${formatUsd(chargeCents(getPlan("lite")))} and ${formatUsd(chargeCents(getPlan("maker")))} a year, with more AI usage. We email you about 30 days before each yearly renewal.`,
   },
   {
     webOnly: true,

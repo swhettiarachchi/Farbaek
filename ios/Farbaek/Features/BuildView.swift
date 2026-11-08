@@ -93,7 +93,8 @@ struct BuildView: View {
                         askAI = true
                     }
                 } label: {
-                    if working { ProgressView().tint(Palette.onAccent) } else { Label("Plan it", systemImage: "arrow.up") }
+                    // Drafting is the pen nib (ADR 0153).
+                    if working { ProgressView().tint(Palette.onAccent) } else { Label("Plan it", systemImage: "pencil.tip") }
                 }
                 .buttonStyle(PillButtonStyle(kind: .accent))
                 .disabled(!ready || working || model.writeBlocker != nil)
@@ -236,6 +237,8 @@ struct PlanReviewView: View {
         .safeAreaInset(edge: .bottom) {
             if let detail = load.value { actions(detail) }
         }
+        // A plan drafted or edited on the web comes in with a pull.
+        .refreshable { await read() }
         .task { await read() }
         .aiConsent(isPresented: $askAI) {
             AIConsent.given = true
@@ -261,14 +264,18 @@ struct PlanReviewView: View {
         if !plan.criteria.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 SectionTitle("Done when")
+                // As on the web: each line and how it's checked, in words. Nothing is done yet, so no check marks.
                 ForEach(plan.criteria, id: \.self) { criterion in
-                    Label {
-                        Text(criterion.statement).fixedSize(horizontal: false, vertical: true)
-                    } icon: {
-                        Image(systemName: criterion.verification == "manual" ? "person.fill.checkmark" : "checkmark.circle")
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(criterion.statement)
+                            .font(.subheadline)
+                            .foregroundStyle(Palette.ink)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(Self.checkedWords(criterion.verification))
+                            .font(.footnote)
+                            .foregroundStyle(Palette.ink3)
                     }
-                    .font(.subheadline)
-                    .foregroundStyle(Palette.ink)
+                    .accessibilityElement(children: .combine)
                 }
             }
             .card()
@@ -336,6 +343,17 @@ struct PlanReviewView: View {
         .padding(.top, 12)
         .padding(.bottom, 8)
         .background(.bar)
+    }
+
+    /// The web's words for how a line of the plan is checked.
+    static func checkedWords(_ verification: String) -> String {
+        switch verification {
+        case "test": return "Checked by a test"
+        case "assertion": return "Checked by an assertion"
+        case "read_back": return "Checked by reading it back"
+        case "manual": return "Checked by a person"
+        default: return "Checked by \(verification.replacingOccurrences(of: "_", with: " "))"
+        }
     }
 
     private func read() async {

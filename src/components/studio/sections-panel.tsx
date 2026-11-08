@@ -22,6 +22,7 @@ import {
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { useRef, useState } from "react";
+import { buttonClasses } from "@/components/ui/button";
 import { SNIPPETS, type SnippetId } from "@/core/studio/snippets";
 import type { SectionInfo, VisualEdit } from "@/core/studio/visual-edit";
 
@@ -38,10 +39,11 @@ const SNIPPET_ICONS: Record<SnippetId, Icon> = {
   marquee: TextAaIcon,
 };
 
+// 44px with a mouse and 48px on touch, as buttonClasses gives (ADR 0171).
 const iconButton =
-  "inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 hover:bg-surface-raised hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+  "inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 hover:bg-surface-raised hover:text-ink pointer-coarse:size-12 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ink-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 const actionButton =
-  "inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm text-ink-2 transition-colors duration-150 hover:bg-surface-raised hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+  "inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm text-ink-2 transition-colors duration-150 hover:bg-surface-raised hover:text-ink pointer-coarse:min-h-12 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
 /**
  * The page's sections (ADR 0159): drag one by its handle, or use the arrows,
@@ -141,8 +143,10 @@ export function SectionsPanel({
                 >
                   <DotsSixVerticalIcon size={18} weight="bold" aria-hidden />
                 </button>
-                <button type="button" onClick={() => onSelect(item.n)} aria-current={selected === item.n ? "true" : undefined} className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left text-sm">
-                  <span className="line-clamp-2 min-w-0">{item.label}</span>
+                <button type="button" onClick={() => onSelect(item.n)} aria-current={selected === item.n ? "true" : undefined} className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left text-sm pointer-coarse:min-h-12">
+                  <span className="line-clamp-2 min-w-0" title={item.label}>
+                    {item.label}
+                  </span>
                 </button>
                 </div>
                 {selected === item.n ? (
@@ -156,9 +160,16 @@ export function SectionsPanel({
                     <button type="button" onClick={() => onEdit(item.n, { kind: "duplicate" })} className={actionButton}>
                       <CopyIcon size={15} aria-hidden /> Duplicate
                     </button>
-                    <button type="button" onClick={() => onEdit(item.n, { kind: "remove" })} disabled={items.length <= 1} className={`${actionButton} hover:text-failed`}>
+                    <button
+                      type="button"
+                      onClick={() => onEdit(item.n, { kind: "remove" })}
+                      disabled={items.length <= 1}
+                      title={items.length <= 1 ? "A page keeps at least one section." : undefined}
+                      className={`${actionButton} hover:text-failed`}
+                    >
                       <TrashIcon size={15} aria-hidden /> Delete
                     </button>
+                    {items.length <= 1 ? <p className="w-full px-2 pb-1 text-xs text-ink-3">A page keeps at least one section, so this one can&apos;t be deleted.</p> : null}
                   </div>
                 ) : null}
               </li>
@@ -210,15 +221,11 @@ export function SectionsPanel({
           </ul>
         </div>
       ) : (
-        <div>
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            disabled={anchor === null}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-medium transition-colors duration-150 hover:border-accent/60 disabled:opacity-50"
-          >
+        <div className="grid justify-items-start gap-1.5">
+          <button type="button" onClick={() => setAdding(true)} disabled={anchor === null} className={buttonClasses("secondary", "sm")}>
             <PlusIcon size={16} aria-hidden /> Add a section
           </button>
+          {anchor === null ? <p className="text-xs text-ink-3">There&apos;s nowhere on this page to add a section yet. Ask the agent to build out this page first.</p> : null}
         </div>
       )}
     </div>

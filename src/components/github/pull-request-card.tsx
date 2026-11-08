@@ -1,4 +1,4 @@
-import { ArrowSquareOutIcon, GitPullRequestIcon } from "@phosphor-icons/react/ssr";
+import { ArrowSquareOutIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { Card } from "@/components/app/primitives";
 import { RelativeTime } from "@/components/ui/local-time";
@@ -14,9 +14,7 @@ import { PullStatusChip } from "./pull-status";
 export function PullRequestCard({ projectId, proposalId, pull, repo, openReason }: { projectId: string; proposalId: string; pull: PullRequestView | null; repo: string | null; openReason: string | null }) {
   return (
     <Card>
-      <h2 className="flex items-center gap-2 text-lg font-medium">
-        <GitPullRequestIcon size={20} aria-hidden /> Pull request
-      </h2>
+      <h2 className="text-lg font-medium">Pull request</h2>
       {pull ? (
         <div className="mt-3 grid gap-3">
           <div className="flex flex-wrap items-center justify-between gap-3">

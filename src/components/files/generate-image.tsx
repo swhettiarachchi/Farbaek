@@ -85,10 +85,19 @@ export function GenerateImage({ projectId, disabledReason }: { projectId: string
         </p>
       ) : state.status === "done" ? (
         <p role="status" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-verified">
-          <CheckCircleIcon size={18} weight="fill" className="shrink-0" aria-hidden /> Saved as <span className="font-mono text-[0.8125rem]">{state.message}</span>
-          <Link href={`/app/projects/${projectId}/files?path=${encodeURIComponent(state.message)}`} className="inline-flex min-h-11 items-center gap-1 font-medium text-accent hover:underline">
-            Open it <ArrowRightIcon size={14} aria-hidden />
-          </Link>
+          <CheckCircleIcon size={18} weight="fill" className="shrink-0" aria-hidden />
+          {state.path ? (
+            <>
+              <span>
+                Saved as <span className="font-mono text-[0.8125rem]">{state.path}</span>.
+              </span>
+              <Link href={`/app/projects/${projectId}/files?path=${encodeURIComponent(state.path)}`} className="inline-flex min-h-11 items-center gap-1 font-medium text-accent hover:underline">
+                Open it <ArrowRightIcon size={14} aria-hidden />
+              </Link>
+            </>
+          ) : (
+            state.message
+          )}
         </p>
       ) : null}
       {disabledReason ? <p className="text-xs text-ink-3">{disabledReason}</p> : null}

@@ -92,7 +92,7 @@ export default async function DesignPage({ params, searchParams }: { params: Pro
     : textBytes > MAX_TEXT_BYTES
       ? "This site's text files are over 3 MB, more than the visual editor loads at once. Change it in code or describe the change to the agent."
       : pages.length === 0
-        ? "This project has no HTML pages yet. Add an index.html, or describe the site to the agent."
+        ? "This project has no pages yet. Add the site's main page in the files, or describe the site to the agent."
         : null;
 
   return (
@@ -116,7 +116,7 @@ export default async function DesignPage({ params, searchParams }: { params: Pro
 
       {saved > 0 ? (
         <Notice>
-          Saved {saved === 1 ? "1 file" : `${saved} files`} as new revisions. Each file&apos;s history on the Files page shows the change and can restore the version before it.
+          Saved {saved === 1 ? "1 file as a new revision" : `${saved} files as new revisions`}. Each file&apos;s history on the Files page shows the change and can restore the version before it.
         </Notice>
       ) : null}
 

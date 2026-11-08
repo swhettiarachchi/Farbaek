@@ -125,7 +125,7 @@ const fake = vi.hoisted(() => {
 vi.mock("@vercel/sandbox", () => ({ Sandbox: fake.FakeSandbox, APIError: fake.APIError, StreamError: fake.StreamError }));
 
 const { createVercelRuntime, networkPolicyFor, parseFindOutput, toRuntimeError, vercelCredentialProblem, vercelTags, VERCEL_UNAVAILABLE } = await import("./vercel-runtime");
-const { resolveSandboxRuntime, sandboxExecutionMode } = await import("./registry");
+const { CHECKS_CANT_RUN, resolveSandboxRuntime, sandboxExecutionMode, sandboxExecutionStatus } = await import("./registry");
 
 function config(over: Partial<SandboxServerConfig["vercel"]> = {}, rest: Partial<SandboxServerConfig> = {}): SandboxServerConfig {
   return {
@@ -158,14 +158,18 @@ describe("Vercel credentials and selection", () => {
   it("is chosen with SANDBOX_PROVIDER=vercel and stays in Review Only until verified", () => {
     const resolution = resolveSandboxRuntime(config());
     expect(resolution.runtime?.id).toBe("vercel");
-    expect(sandboxExecutionMode(resolution)).toMatchObject({ mode: "review_only", reason: expect.stringMatching(/Vercel Sandbox is connected, but its isolation hasn't been verified/) });
-    expect(resolveSandboxRuntime(config({ token: null })).reason).toMatch(/SANDBOX_VERCEL_TOKEN isn't set/);
+    // People read one sentence; the setting to fix is for staff and the logs (ADR 0180).
+    expect(sandboxExecutionMode(resolution)).toEqual({ mode: "review_only", reason: CHECKS_CANT_RUN });
+    expect(sandboxExecutionStatus(resolution).detail).toMatch(/Vercel Sandbox is connected, but its isolation hasn't been verified/);
+    const missing = resolveSandboxRuntime(config({ token: null }));
+    expect(missing).toMatchObject({ runtime: null, reason: CHECKS_CANT_RUN });
+    expect(missing.detail).toMatch(/SANDBOX_VERCEL_TOKEN isn't set/);
   });
 
   it("says plainly which capabilities are off, and why", () => {
     const { capabilities } = createVercelRuntime(config());
     expect(capabilities).toMatchObject({ provider: "Vercel Sandbox", isolation: "microvm", previews: false, pauseResume: false, metrics: false, cancel: true, maxDurationSeconds: 45 * 60 });
-    expect(capabilities.unavailable?.previews).toMatch(/SANDBOX_PREVIEW_SECRET/);
+    expect(capabilities.unavailable?.previews).toBe("Previews aren't available on this server yet.");
   });
 });
 
@@ -259,7 +263,7 @@ describe("creating and destroying sandboxes", () => {
   it("says so when the relay doesn't start, and never exposes an app port", async () => {
     fake.state.relayStarts = false;
     const runtime = createVercelRuntime(config({}, { preview: { domain: "preview.example.test", secret: "q".repeat(48), protocol: "https" } }));
-    await expect(runtime.previewTarget("fb-xyz", 3000, { method: "GET", path: "/" })).rejects.toThrow(/relay didn't start/);
+    await expect(runtime.previewTarget("fb-xyz", 3000, { method: "GET", path: "/" })).rejects.toThrow(/preview didn't start/);
     expect(fake.state.ports).toEqual([]);
   }, 15_000);
 
@@ -342,7 +346,10 @@ describe("files", () => {
 
 describe("errors and labels", () => {
   it("maps Vercel's answers to categories people can act on", () => {
-    expect(toRuntimeError(new fake.APIError(401), "Starting")).toMatchObject({ category: "provider_rejected", message: expect.stringMatching(/SANDBOX_VERCEL_TOKEN/) });
+    // People read a sentence; the setting to check goes to the logs (ADR 0180).
+    const refused = toRuntimeError(new fake.APIError(401), "Starting");
+    expect(refused).toMatchObject({ category: "provider_rejected", message: "Starting: the test space service turned this server away, so nothing can run there right now. Try again later." });
+    expect(refused.message).not.toMatch(/SANDBOX_VERCEL_TOKEN/);
     expect(toRuntimeError(new fake.APIError(402), "Starting")).toMatchObject({ category: "quota_exceeded" });
     expect(toRuntimeError(new fake.APIError(404), "Starting")).toMatchObject({ category: "sandbox_gone" });
     expect(toRuntimeError(new fake.APIError(429), "Starting")).toMatchObject({ category: "provider_rejected", retryable: true });

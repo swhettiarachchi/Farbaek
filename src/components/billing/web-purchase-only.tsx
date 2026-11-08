@@ -57,7 +57,7 @@ export function WebPurchaseOnly({ children, fallback }: { children: React.ReactN
   );
 }
 
-/** The fallback for a buy button: the same dashed pill as other unavailable plan actions. */
-export function NotInAndroidApp({ children = "Can't be bought in the app" }: { children?: string }) {
-  return <span className="block rounded-full border border-dashed border-line-strong/50 px-3 py-2 text-center text-xs text-ink-3">{children}</span>;
+/** The fallback for a buy button: a plain sentence, like other unavailable plan actions. */
+export function NotInAndroidApp({ children = "This can't be bought in the app." }: { children?: string }) {
+  return <span className="block text-sm text-ink-3">{children}</span>;
 }

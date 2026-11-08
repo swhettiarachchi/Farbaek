@@ -43,6 +43,8 @@ final class AppModel {
     var signingIn = false
     var signInError: String?
     var pushNote: String?
+    /// iOS has notifications turned off for Farbaek, so nothing Farbaek sends can show on this phone.
+    var notificationsDenied = false
     /// The US App Store only: the app may open Billing on the web (WebPurchase).
     var canBuyOnWeb = false
     /// Sign in with Apple is open on Farbaek's server (ADR 0113).
@@ -332,16 +334,33 @@ final class AppModel {
         let center = UNUserNotificationCenter.current()
         let granted = (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
         guard granted else {
-            pushNote = "Notifications are off for Farbaek. Turn them on in the iPhone's Settings, then try again."
+            await readNotificationPermission()
+            // Turned off in Settings has its own words and an Open Settings button; anything else is said here.
+            pushNote = notificationsDenied ? nil : "Notifications are off for Farbaek. Turn them on in the iPhone's Settings, then try again."
             return
         }
+        notificationsDenied = false
         UIApplication.shared.registerForRemoteNotifications()
+    }
+
+    /// Whether iOS lets Farbaek show notifications, read again whenever You opens or the app comes back from Settings.
+    func readNotificationPermission() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        let wasDenied = notificationsDenied
+        notificationsDenied = settings.authorizationStatus == .denied
+        // Allowed again in Settings: register, so what Farbaek sends reaches this phone again.
+        if wasDenied, settings.authorizationStatus == .authorized, phase == .signedIn, me?.push.on == true {
+            UIApplication.shared.registerForRemoteNotifications()
+        }
     }
 
     /// Apple can change a phone's token, so a signed-in phone that allowed notifications registers on each launch.
     private func refreshPushToken() async {
-        guard phase == .signedIn, me?.push.on == true else { return }
+        guard phase == .signedIn else { return }
         let settings = await UNUserNotificationCenter.current().notificationSettings()
+        // Never skipped silently: You says when iOS has them turned off.
+        notificationsDenied = settings.authorizationStatus == .denied
+        guard me?.push.on == true else { return }
         if settings.authorizationStatus == .authorized { UIApplication.shared.registerForRemoteNotifications() }
     }
 

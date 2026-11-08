@@ -112,7 +112,7 @@ export default async function TrustPage({ searchParams }: { searchParams: Promis
             <AnswerList answers={rulesOn(graph, askedNode.id.replace(/^project:/, ""))} empty="No workspace rules. Farbaek's built-in rules still decide what needs a person." />
           </div>
         ) : null}
-        <p className="mt-3 text-xs text-ink-3">An agent always acts with the role of the person who paired it, checked again on every request, and only within the access it was given. It never has more authority than its person.</p>
+        <p className="mt-3 text-xs text-ink-3">An agent always acts with the role of the person who paired it, checked again on every request. It acts only within the access it was given, and never has more authority than its person.</p>
       </Card>
 
       <section aria-labelledby="map-title" className="grid gap-3">
@@ -120,8 +120,8 @@ export default async function TrustPage({ searchParams }: { searchParams: Promis
           <h2 id="map-title" className="text-lg font-medium">
             Map
           </h2>
-          <p className="text-xs text-ink-3">
-            {graph.nodes.length} records, {graph.edges.length} connections{limited ? `, ${limited} limited (dashed)` : ""}. Select one to see what it reaches.
+          <p className="text-sm text-ink-3">
+            Select anything on the map to see what it reaches.{limited ? " A dashed line means that access is limited." : ""}
           </p>
         </div>
         <TrustMap graph={graph} focus={focusId} />

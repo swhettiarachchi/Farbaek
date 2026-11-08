@@ -52,8 +52,8 @@ export function PauseControl({
           <p className="flex items-start gap-2.5 text-[0.9375rem]">
             <CheckCircleIcon size={20} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden />
             <span>
-              <span className="font-medium">Agents are running.</span> Pausing stops live cloud runs at once, refuses desktop agents&apos; changes and anything that would apply
-              on its own, until an owner or admin resumes them.
+              <span className="font-medium">Agents are running.</span> Pausing stops live cloud runs at once, and refuses desktop agents&apos; changes and anything that would
+              apply on its own. It lasts until an owner or admin resumes them.
             </span>
           </p>
           <div className="grid gap-1.5">

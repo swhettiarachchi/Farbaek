@@ -124,7 +124,7 @@ export function RecoveryPanel({
                 <div className="grid gap-2 pl-0 sm:pl-11">
                   <button
                     type="button"
-                    className="justify-self-start text-sm font-medium text-accent hover:underline"
+                    className={buttonClasses("ghost", "sm", "-ml-4 justify-self-start")}
                     aria-expanded={open === item.path}
                     onClick={() => setOpen((p) => (p === item.path ? null : item.path))}
                   >
@@ -150,7 +150,7 @@ export function RecoveryPanel({
       <div className="grid gap-2 rounded-sm border border-line bg-surface-raised/50 p-4 text-sm">
         <p className="flex items-center gap-2 font-medium">
           {escalated ? <ShieldWarningIcon size={16} className="text-approval" aria-hidden /> : <ScalesIcon size={16} className="text-ink-3" aria-hidden />}
-          Policy: {OUTCOME_LABELS[policy.outcome as PolicyOutcome] ?? policy.outcome}
+          Rules: {OUTCOME_LABELS[policy.outcome as PolicyOutcome] ?? policy.outcome}
         </p>
         {policy.findings.length ? (
           <ul className="grid gap-1 text-ink-2">
@@ -182,13 +182,13 @@ export function RecoveryPanel({
                 <span className="font-medium">
                   {count} of {items.length} {items.length === 1 ? "file" : "files"}
                 </span>{" "}
-                exactly as previewed. Farbaek checks each restored file against its earlier version before it records the recovery.
+                exactly as previewed. Farbaek checks each restored file against its earlier version before it records the undo.
                 {conflicts || count < ready.length ? " It stays here until every file is back." : null}
               </>
             )}
           </p>
           <div>
-            <button type="button" className={buttonClasses("primary")} onClick={confirm} disabled={pending || disabledReason !== null || (!allBack && count === 0)}>
+            <button type="button" className={buttonClasses("primary", "md", "w-full sm:w-auto")} onClick={confirm} disabled={pending || disabledReason !== null || (!allBack && count === 0)}>
               <ArrowCounterClockwiseIcon size={18} aria-hidden /> {pending ? "Undoing…" : label}
             </button>
           </div>

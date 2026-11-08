@@ -1,4 +1,4 @@
-import { CaretRightIcon, LockSimpleIcon, ShieldStarIcon, SignOutIcon } from "@phosphor-icons/react/ssr";
+import { CaretRightIcon, ShieldStarIcon, SignOutIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -54,7 +54,7 @@ export default async function MorePage() {
         <ul className="mt-2 divide-y divide-line overflow-hidden rounded-md border border-line bg-surface">
           {ROADMAP.map((r) => (
             <li key={r.label} className={`${row} text-ink-3`}>
-              <LockSimpleIcon size={18} aria-hidden /> {r.label}
+              {r.label}
               <span className="sr-only">, not available yet</span>
               <span className="ml-auto rounded-full border border-dashed border-line-strong/50 px-2 text-xs">{r.status}</span>
             </li>

@@ -37,6 +37,6 @@ export function SessionStateBadge({ state }: { state: SessionState }) {
 }
 
 export function ExecutionStateBadge({ state, exitCode }: { state: ExecutionState; exitCode: number | null }) {
-  const label = state === "failed" && exitCode !== null ? `Exit ${exitCode}` : EXECUTION_STATE_LABELS[state];
+  const label = state === "failed" && exitCode !== null ? `Failed (exit ${exitCode})` : EXECUTION_STATE_LABELS[state];
   return <Pill {...EXECUTION[state]} label={label} />;
 }

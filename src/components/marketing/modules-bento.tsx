@@ -57,7 +57,7 @@ export function ModulesBento() {
         <ul className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Cell
             title="Studio"
-            body="A visual editor for static sites and a real code workspace on one source of truth. Every visual edit, and every change the agent proposes, is a reviewable diff."
+            body="A visual editor for static sites and a real code workspace on one source of truth. Every visual edit, and every change the agent suggests, is shown line by line for you to review."
             className="bg-surface md:col-span-2 lg:row-span-2"
           >
             <div className="mt-6">

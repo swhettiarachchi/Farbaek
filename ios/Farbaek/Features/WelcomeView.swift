@@ -10,9 +10,11 @@ struct WelcomeView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// The headline grows with the reader's text size.
     @ScaledMetric(relativeTo: .largeTitle) private var titleSize: CGFloat = 34
+    /// The wordmark grows with it too.
+    @ScaledMetric(relativeTo: .title3) private var wordmarkSize: CGFloat = 20
 
     private var promises: [(symbol: String, title: String, text: String)] { [
-        ("checkmark.seal", Biometry.label("Approve"), "Each change shows its files as a diff, the checks that will run and its hash. You approve exactly what you read."),
+        ("checkmark.seal", Biometry.label("Approve"), "Each change shows its files as a diff and the checks that will run. You approve exactly what you read."),
         ("text.bubble", "Build from one sentence", "Describe it, approve the plan, and the agent starts in Farbaek's cloud."),
         ("bell.badge", "Know when it's ready", "A notification when a build finishes or its checks end."),
     ] }
@@ -22,7 +24,7 @@ struct WelcomeView: View {
             VStack(alignment: .leading, spacing: 32) {
                 HStack(spacing: 8) {
                     Image("Logo").resizable().scaledToFit().frame(height: 44).accessibilityHidden(true)
-                    Text("Farbaek").font(.system(size: 20, weight: .semibold)).tracking(-0.4).foregroundStyle(Palette.ink)
+                    Text("Farbaek").font(.system(size: wordmarkSize, weight: .semibold)).tracking(-0.4).foregroundStyle(Palette.ink)
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("Farbaek")
@@ -112,9 +114,14 @@ struct WelcomeView: View {
                     Text("By continuing, you accept the Terms and the Privacy Policy.")
                         .font(.footnote)
                         .foregroundStyle(Palette.ink3)
+                    // Small words, full-size targets: each link is at least 44pt wide and tall.
                     HStack(spacing: 20) {
-                        Link("Privacy", destination: AppConfig.privacyURL)
-                        Link("Terms", destination: AppConfig.termsURL)
+                        Link(destination: AppConfig.privacyURL) {
+                            Text("Privacy").frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
+                        }
+                        Link(destination: AppConfig.termsURL) {
+                            Text("Terms").frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
+                        }
                     }
                     .font(.footnote.weight(.medium))
                 }

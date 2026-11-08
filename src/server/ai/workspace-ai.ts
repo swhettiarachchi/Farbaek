@@ -61,13 +61,13 @@ export function checkGatewayUrl(raw: string): { ok: true; url: string; host: str
   } catch {
     return { ok: false, reason: "That isn't a web address." };
   }
-  if (url.protocol !== "https:") return { ok: false, reason: "The gateway must use https." };
+  if (url.protocol !== "https:") return { ok: false, reason: "Your company's server must use https." };
   if (url.username || url.password) return { ok: false, reason: "Leave the user name and password out of the address." };
-  if (url.port && url.port !== "443") return { ok: false, reason: "The gateway must use the standard https port." };
+  if (url.port && url.port !== "443") return { ok: false, reason: "Your company's server must use the standard https port." };
   if (url.search || url.hash) return { ok: false, reason: "Leave query strings and fragments out of the address." };
   const host = url.hostname.toLowerCase();
-  if (isIP(host.replace(/^\[|\]$/g, ""))) return { ok: false, reason: "Use the gateway's name, not an IP address." };
-  if (host === "localhost" || /\.(local|localhost|internal|lan|home|corp)$/.test(host) || !host.includes(".")) return { ok: false, reason: "The gateway must have a public name." };
+  if (isIP(host.replace(/^\[|\]$/g, ""))) return { ok: false, reason: "Use your company server's name, not an IP address." };
+  if (host === "localhost" || /\.(local|localhost|internal|lan|home|corp)$/.test(host) || !host.includes(".")) return { ok: false, reason: "Your company's server must have a public name." };
   const path = url.pathname.replace(/\/+$/, "");
   if (!/^(\/[A-Za-z0-9._~-]+)*$/.test(path)) return { ok: false, reason: "The address's path has characters Farbaek doesn't accept." };
   return { ok: true, url: `https://${host}${path}`, host };
@@ -92,10 +92,10 @@ export async function checkAnthropicKey(apiKey: string, baseURL: string | null, 
       redirect: "error",
     });
     if (r.ok) return { ok: true };
-    if (r.status === 401 || r.status === 403) return { ok: false, reason: baseURL ? "The gateway didn't accept that key." : "Anthropic didn't accept that key. Check you copied all of it." };
-    return { ok: false, reason: `${baseURL ? "The gateway" : "Anthropic"} answered with an error (${r.status}). Try again in a minute.` };
+    if (r.status === 401 || r.status === 403) return { ok: false, reason: baseURL ? "Your company's server didn't accept that key." : "Anthropic didn't accept that key. Check you copied all of it." };
+    return { ok: false, reason: `${baseURL ? "Your company's server" : "Anthropic"} answered with an error (${r.status}). Try again in a minute.` };
   } catch {
-    return { ok: false, reason: baseURL ? "Farbaek couldn't reach the gateway at that address." : "Farbaek couldn't reach Anthropic just now. Try again in a minute." };
+    return { ok: false, reason: baseURL ? "Farbaek couldn't reach your company's server at that address." : "Farbaek couldn't reach Anthropic just now. Try again in a minute." };
   }
 }
 

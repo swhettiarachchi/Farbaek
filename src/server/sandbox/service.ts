@@ -33,7 +33,7 @@ import { sha256Hex } from "@/core/trust/canonical-json";
 import type { PolicyDecision } from "@/core/trust/policy";
 import { SANDBOX_HARD_LIMITS, sandboxLimitsFor, type SandboxPlanLimits } from "@/config/sandbox";
 import { log } from "@/server/observability/log";
-import { previewUnavailableReason } from "./config";
+import { PREVIEWS_UNAVAILABLE, previewUnavailableReason } from "./config";
 import { sandboxExecutionMode, type RuntimeResolution } from "./registry";
 import { meteredFrom, type ExecutionRecord, type RpcResult, type SandboxStore, type SessionRecord } from "./types";
 
@@ -236,7 +236,8 @@ export function createSandboxService(deps: SandboxServiceDeps) {
         cancel: Boolean(caps?.cancel),
         filesystem: Boolean(caps?.filesystem),
       },
-      previewReason: !runtime ? (resolution.reason ?? "No runtime is connected.") : !caps?.previews ? (caps?.unavailable?.previews ?? "This runtime doesn't support previews.") : previewUnavailableReason(config),
+      // Previews get their own sentence: the resolution's reason is about checks, not previews.
+      previewReason: !runtime ? PREVIEWS_UNAVAILABLE : !caps?.previews ? (caps?.unavailable?.previews ?? "This runtime doesn't support previews.") : previewUnavailableReason(config),
       limits: lv,
       usage,
       minutesUsed: wholeMinutes(usage.runningSeconds),

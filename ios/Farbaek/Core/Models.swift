@@ -114,10 +114,22 @@ struct RunItem: Decodable, Identifiable, Hashable {
 }
 
 struct Home: Decodable {
+    /// This period's share of AI usage, as the web's Home meter shows it. Never units.
+    struct Usage: Decodable {
+        /// 0 to 100, or null when the plan sets no fixed limit.
+        let percent: Double?
+        /// "trial" or "month".
+        let period: String
+        /// When the period resets, or the trial ends.
+        let endsAt: String?
+    }
+
     let waiting: Int
     let live: [RunItem]
     let recent: [TaskItem]
     let projects: Int
+    /// Null when it couldn't be read; older servers leave it out.
+    let usage: Usage?
 }
 
 struct WalletFact: Decodable, Hashable {

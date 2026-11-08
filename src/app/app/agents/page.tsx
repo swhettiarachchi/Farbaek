@@ -72,7 +72,7 @@ export default async function AgentsPage() {
     <div className="grid gap-8">
       <PageHeader
         title="Desktop app"
-        description="Farbaek Agent lets the agent work on your own computer, under a plan you've approved. No API key needed: it uses your workspace's AI allowance. Its work arrives here as a change for you to review and approve."
+        description="Farbaek Agent lets the agent work on your own computer, under a plan you've approved. You don't need an AI account of your own, since it uses your workspace's AI allowance. Its work arrives here as a change for you to review and approve."
       />
 
       <AgentDownload />
@@ -81,7 +81,8 @@ export default async function AgentsPage() {
         <Card>
           <h2 className="text-lg font-medium">Pair a computer</h2>
           <p className="mt-2 text-sm leading-relaxed text-ink-2">
-            Create a code, then type it into Farbaek Agent. The agent acts for you, only while you can contribute to this workspace, for 90 days on every project to start, which you can narrow or renew below. {usage}
+            Create a code, then type it into Farbaek Agent. The agent acts for you only while you can contribute to this workspace. To start, it can work on every project for 90
+            days, and you can narrow or renew that below. {usage}
           </p>
           <div className="mt-5">
             <PairAgent disabledReason={pairReason} />
@@ -96,7 +97,9 @@ export default async function AgentsPage() {
             <li>The agent&apos;s sign-in, kept in your computer&apos;s keychain.</li>
           </ul>
           <p className="mt-3 text-sm leading-relaxed text-ink-2">
-            Each model step goes through Farbaek to our AI provider (named in the Privacy Policy): the conversation, including the files the agent reads and the command output it shows the model. Farbaek doesn&apos;t keep the conversation. It counts what each step used against your AI usage, and checks the finished change again before you see it.
+            Each model step goes through Farbaek to our AI provider, named in the Privacy Policy. It carries the conversation, including the files the agent reads and the command
+            output it shows the model. Farbaek doesn&apos;t keep the conversation. It counts what each step used against your AI usage, and checks the finished change again before
+            you see it.
           </p>
         </Card>
       </div>

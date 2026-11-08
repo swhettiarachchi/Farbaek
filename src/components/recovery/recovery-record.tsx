@@ -1,13 +1,15 @@
-import { ArrowCounterClockwiseIcon, DownloadSimpleIcon, ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { DownloadSimpleIcon, ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import { LocalTime } from "@/components/ui/local-time";
+import { StatusBadge, type Status } from "@/components/ui/status-badge";
 import type { RecoveryReceipt } from "@/core/proof/recovery-receipt";
 import { canonicalHash } from "@/core/trust/canonical-json";
 import type { RecoveryRecord } from "@/server/workspace/types";
 
-const STATUS = {
-  recovered: { label: "Recovered", Icon: ArrowCounterClockwiseIcon, cls: "border-verified/30 bg-verified/[0.05] text-verified" },
-  partially_recovered: { label: "Partly recovered", Icon: WarningCircleIcon, cls: "border-approval/30 bg-approval/[0.06] text-approval" },
-} as const;
+// Status is a word (ADR 0180): a finished undo carries the check, a partial one only its word.
+const STATUS: Record<RecoveryRecord["status"], { label: string; status: Status }> = {
+  recovered: { label: "Undone", status: "verified" },
+  partially_recovered: { label: "Partly undone", status: "approval" },
+};
 
 /** One recorded undo: its status, what each file went from and to, an integrity check, its limits and the signed record to download. */
 export async function RecoveryRecordCard({ record }: { record: RecoveryRecord }) {
@@ -20,11 +22,7 @@ export async function RecoveryRecordCard({ record }: { record: RecoveryRecord })
 
   return (
     <div className="grid min-w-0 gap-3">
-      <div className="flex flex-wrap items-center gap-3">
-        <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium ${status.cls}`} title={`sha256:${record.digest}`}>
-          <status.Icon size={16} weight="bold" aria-hidden /> {status.label}
-        </span>
-      </div>
+      <StatusBadge status={status.status} label={status.label} />
       <p className={`flex items-center gap-2 text-sm ${intact ? "text-ink-2" : "text-failed"}`}>
         {intact ? <ShieldCheckIcon size={16} className="shrink-0 text-verified" aria-hidden /> : <WarningCircleIcon size={16} className="shrink-0" aria-hidden />}
         {intact ? "Record intact: unchanged since it was made, checked just now." : "This record changed after it was made, so don't rely on it."}
@@ -57,7 +55,7 @@ export async function RecoveryRecordCard({ record }: { record: RecoveryRecord })
         </ul>
       ) : null}
       <p>
-        <a href={`/app/recoveries/${record.digest}`} className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline">
+        <a href={`/app/recoveries/${record.digest}`} className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-accent hover:underline">
           <DownloadSimpleIcon size={16} aria-hidden /> Download the record
         </a>
       </p>

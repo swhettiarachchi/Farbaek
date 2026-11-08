@@ -1,14 +1,15 @@
-import { CheckCircleIcon, CircleDashedIcon, ClockIcon, MinusCircleIcon, SirenIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, SirenIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { STAGES, STAGE_TITLES, type Lane, type StageNode, type StageState } from "@/core/insights/project-graph";
 import { RelativeTime } from "@/components/ui/local-time";
 
-const STATE: Record<StageState, { icon: typeof CheckCircleIcon; tone: string; words: string }> = {
+// Status is a word (ADR 0180): a check for done and a cross for failed; every other state is an empty ring in its colour, beside its word.
+const STATE: Record<StageState, { icon: typeof CheckCircleIcon | null; tone: string; words: string }> = {
   reached: { icon: CheckCircleIcon, tone: "text-verified", words: "Done" },
-  waiting: { icon: ClockIcon, tone: "text-approval", words: "Waiting" },
-  stopped: { icon: MinusCircleIcon, tone: "text-ink-3", words: "Stopped" },
+  waiting: { icon: null, tone: "text-approval", words: "Waiting" },
+  stopped: { icon: null, tone: "text-ink-3", words: "Stopped" },
   failed: { icon: XCircleIcon, tone: "text-failed", words: "Failed" },
-  not_yet: { icon: CircleDashedIcon, tone: "text-ink-3", words: "Not yet" },
+  not_yet: { icon: null, tone: "text-ink-3", words: "Not yet" },
 };
 
 /** The line from a stage to the next: solid where the work got there, dashed where it hasn't yet. Decorative; the nodes say it in words. */
@@ -34,7 +35,11 @@ function Node({ stage }: { stage: StageNode }) {
   } ease-[cubic-bezier(0.16,1,0.3,1)]`;
   const inner = (
     <>
-      <Icon size={18} weight={stage.state === "not_yet" ? "regular" : "fill"} className={`shrink-0 ${s.tone}`} aria-hidden />
+      {Icon ? (
+        <Icon size={18} weight="fill" className={`shrink-0 ${s.tone}`} aria-hidden />
+      ) : (
+        <span aria-hidden className="size-[18px] shrink-0" />
+      )}
       <span className="truncate">
         {/* The column header names the stage from md up; on phones the pill does. */}
         <span className="text-ink-3 md:sr-only">{STAGE_TITLES[stage.key]}: </span>
@@ -99,7 +104,7 @@ export function LaneGraph({ lanes }: { lanes: Lane[] }) {
                     {lane.incidents.map((incident) => (
                       <li key={incident.number}>
                         <Link href={`/app/incidents/${incident.number}`} className="inline-flex min-h-11 items-center gap-1.5 text-left text-xs font-medium text-failed hover:underline">
-                          <SirenIcon size={14} weight="bold" className="shrink-0" aria-hidden /> Incident {incident.number}: {incident.title} ({incident.status})
+                          <SirenIcon size={14} weight="bold" className="shrink-0" aria-hidden /> Problem {incident.number}, {incident.status}: {incident.title}
                         </Link>
                       </li>
                     ))}

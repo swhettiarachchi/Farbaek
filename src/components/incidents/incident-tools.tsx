@@ -119,9 +119,9 @@ export function IncidentTools({
             disabled={pending || Boolean(resolveReason) || outcome.trim().length < 10}
             className={buttonClasses("primary", "sm")}
           >
-            <CheckCircleIcon size={16} aria-hidden /> Resolve the incident
+            <CheckCircleIcon size={16} aria-hidden /> Resolve the problem
           </button>
-          <span className="text-xs text-ink-3">{resolveReason ?? "Resolving is final. Open a new incident if something else goes wrong."}</span>
+          <span className="text-xs text-ink-3">{resolveReason ?? "Resolving is final. Report a new problem if something else goes wrong."}</span>
         </div>
       </div>
 

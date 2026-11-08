@@ -4,6 +4,7 @@ import { ArrowUpIcon, CircleNotchIcon, InfoIcon, PaintBrushIcon, WarningCircleIc
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { startFromPromptAction, type PromptStartState } from "@/app/app/new/actions";
+import { buttonClasses } from "@/components/ui/button";
 import { PROMPT_MAX, PROMPT_MIN, isSharedBuild, promptFromShare } from "@/core/agent/prompt-start";
 
 /** Where a prompt waits through sign-up. Only in this browser, never in a URL. */
@@ -189,7 +190,9 @@ export function PromptComposer({
             {pending ? (
               <PlanningStages stages={projectId ? FOLLOW_UP_STAGES : STAGES} />
             ) : disabledReason ? (
-              <span className="line-clamp-2">{disabledReason}</span>
+              <span className="line-clamp-2" title={disabledReason}>
+                {disabledReason}
+              </span>
             ) : (
               <span className="hidden truncate sm:inline">You approve the plan before anything is built.</span>
             )}
@@ -229,7 +232,7 @@ export function PromptComposer({
               setValue(suggestion.text);
               box.current?.focus();
             }}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-medium text-ink shadow-e1 transition-colors hover:border-line-strong/50 disabled:opacity-50"
+            className={buttonClasses("secondary", "sm")}
           >
             <PaintBrushIcon size={16} aria-hidden /> {suggestion.label}
           </button>
@@ -247,7 +250,7 @@ export function PromptComposer({
                   setValue(ex);
                   store(ex);
                 }}
-                className="min-h-11 rounded-full border border-line bg-surface px-4 py-2 text-left text-sm text-ink-2 transition-colors hover:border-line-strong/50 hover:text-ink disabled:opacity-50"
+                className="min-h-11 rounded-full border border-line bg-surface px-4 py-2 text-left text-sm text-ink-2 transition-colors hover:border-line-strong/50 hover:text-ink pointer-coarse:min-h-12 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-line disabled:hover:text-ink-2"
               >
                 {ex}
               </button>

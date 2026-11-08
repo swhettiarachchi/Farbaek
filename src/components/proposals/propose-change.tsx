@@ -80,12 +80,7 @@ export function ProposeChange({
   return (
     <div className="grid gap-4">
       <div className="grid gap-2">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <p className="text-sm font-medium">Files the change needs</p>
-          <p className={`text-xs tabular ${tooMany || tooBig ? "text-failed" : "text-ink-3"}`}>
-            {selected.size} of {MAX_FILES} files · {formatBytes(bytes)} of {formatBytes(MAX_BYTES)}
-          </p>
-        </div>
+        <p className="text-sm font-medium">Files the change needs</p>
         <label className="relative block">
           <span className="sr-only">Filter files</span>
           <MagnifyingGlassIcon size={16} className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-ink-3" aria-hidden />
@@ -109,6 +104,11 @@ export function ProposeChange({
           ))}
           {matching.length === 0 ? <li className="px-3 py-3 text-sm text-ink-3">No files match.</li> : null}
         </ul>
+        <p className={`text-xs tabular ${tooMany || tooBig ? "text-failed" : "text-ink-3"}`}>
+          {selected.size === 0
+            ? `Choose up to ${MAX_FILES} files, ${formatBytes(MAX_BYTES)} in all.`
+            : `You chose ${selected.size} of up to ${MAX_FILES} files, ${formatBytes(bytes)} of ${formatBytes(MAX_BYTES)}.`}
+        </p>
         {matching.length > SHOWN ? (
           <p className="text-xs text-ink-3">
             Showing {SHOWN} of {matching.length.toLocaleString("en-US")} files. Narrow the filter to find more.

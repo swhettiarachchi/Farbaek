@@ -18,6 +18,7 @@ import { getPlan } from "@/core/billing/catalog";
 import { modelName } from "@/core/billing/rate-card";
 import { may } from "@/core/workspace/permissions";
 import { waitingChanges } from "@/server/workspace/waiting-changes";
+import { aiMeter, loadWallet } from "@/server/workspace/usage-summary";
 import { approvalWindow, walletRisk } from "@/core/trust/approval-wallet";
 import type { RunEventView, RunView } from "@/server/cloud-agent/store";
 import type { AppContext } from "@/server/workspace/context";
@@ -110,10 +111,29 @@ export function meView(ctx: AppContext, phone: { push: { available: boolean; on:
   };
 }
 
-/** The first screen: what waits for the person, what's running, and what happened lately. */
+/** This period's share of AI usage, as the phone's Home says it. */
+export type HomeUsage = { percent: number | null; period: "trial" | "month"; endsAt: string | null };
+
+/**
+ * The web Home's AI usage meter (the wallet's current period), for the phone's Home, so a used-up allowance is
+ * seen before an AI action is refused. Null when the workspace's usage can't be read; it never throws.
+ */
+export async function homeUsage(ctx: AppContext, now: Date): Promise<HomeUsage | null> {
+  const ws = ctx.current;
+  if (!ws) return null;
+  try {
+    const wallet = await loadWallet(ctx, ws, now);
+    const ai = wallet ? aiMeter(wallet) : null;
+    return ai ? { percent: ai.percent, period: ai.period, endsAt: ai.resetsAt } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The first screen: what waits for the person, what's running, what happened lately, and the share of AI usage used. */
 export async function homeView(ctx: AppContext, orgId: string, runs: RunReader, now: Date) {
   const reader = ctx.reader;
-  const [tasks, projects, recentRuns] = await Promise.all([reader.listTasks(orgId, { limit: 50 }), reader.listProjects(orgId), runs.list({ limit: 10 })]);
+  const [tasks, projects, recentRuns, usage] = await Promise.all([reader.listTasks(orgId, { limit: 50 }), reader.listProjects(orgId), runs.list({ limit: 10 }), homeUsage(ctx, now)]);
   // Counted as the web's Home counts them (ADR 0174): only changes this person can decide, so the tab's badge never promises what the list won't offer.
   const waiting = await waitingChanges(
     reader,
@@ -125,6 +145,7 @@ export async function homeView(ctx: AppContext, orgId: string, runs: RunReader, 
     live: recentRuns.filter((r) => isLive(r.status)).map(runItem),
     recent: tasks.slice(0, 10).map(taskItem),
     projects: projects.filter((p) => !p.archivedAt).length,
+    usage,
   };
 }
 

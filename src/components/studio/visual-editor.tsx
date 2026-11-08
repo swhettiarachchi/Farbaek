@@ -385,10 +385,10 @@ export function VisualEditor({
             Back to editing
           </button>
         </div>
-        <p className="text-sm text-ink-2">This is exactly what will change in the project&apos;s files. Reject any part you don&apos;t want, then save.</p>
+        <p className="text-sm text-ink-2">This is exactly what will change in the project&apos;s files. Press Leave out on any part you don&apos;t want, then save.</p>
         {changedPaths.map((path) => (
           <div key={path} className="grid gap-2">
-            <p className="font-mono text-xs text-ink-3">{path}</p>
+            <p className="break-all font-mono text-xs text-ink-3">{path}</p>
             <Surface key={`review:${path}`} path={path} value={draft[path]!} original={files[path] ?? ""} label={`Changes to ${path}`} onChange={(next) => setReviewed((r) => ({ ...r, [path]: next }))} />
           </div>
         ))}
@@ -454,7 +454,8 @@ export function VisualEditor({
             <p className="grid h-72 place-items-center px-6 text-center text-sm text-ink-3">There&apos;s no {page} to show.</p>
           ) : (
             <div className="mx-auto overflow-hidden rounded-sm bg-surface shadow-e1 motion-safe:transition-[max-width] motion-safe:duration-300" style={{ maxWidth: width ?? "100%" }}>
-              {/* The preview frame document (ADR 0169) relays the editor's messages both ways, so the bridge is unchanged. */}
+              {/* The preview frame document (ADR 0169) relays the editor's messages both ways, so the bridge is unchanged.
+                  bg-white on purpose: it's the browser's own canvas a site draws on when it sets no background, not Farbaek's surface. */}
               <PreviewFrame
                 frameRef={frame}
                 html={doc}
@@ -570,8 +571,8 @@ export function VisualEditor({
         {tab === "element" && media.length ? (
           <details className="group" open={media.some((m) => m.placeholder)}>
             <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium">
-              Media on this page ({media.length}
-              {media.some((m) => m.placeholder) ? `, ${media.filter((m) => m.placeholder).length} to replace` : ""})
+              Media on this page
+              {media.some((m) => m.placeholder) ? `, ${media.filter((m) => m.placeholder).length} to replace` : ""}
             </summary>
             <ul className="mt-1 grid max-h-72 gap-0.5 overflow-y-auto pr-1">
               {media.map((m) => {
@@ -586,7 +587,9 @@ export function VisualEditor({
                     >
                       <KindIcon size={16} className="shrink-0 text-ink-3" aria-hidden />
                       <span className="sr-only">{m.kind === "scene" ? "3D scene" : m.kind === "image" ? "Image" : "Video"}: </span>
-                      <span className="min-w-0 flex-1 truncate">{m.slot ?? m.source ?? "(no address)"}</span>
+                      <span className="min-w-0 flex-1 truncate" title={m.slot ?? m.source ?? undefined}>
+                        {m.slot ?? m.source ?? "(no address)"}
+                      </span>
                       {m.placeholder ? <PlaceholderChip /> : null}
                     </button>
                   </li>
@@ -597,7 +600,7 @@ export function VisualEditor({
         ) : null}
 
         <details className={`group ${tab === "element" ? "" : "hidden"}`}>
-          <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium">Elements on this page ({items.length})</summary>
+          <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium">Elements on this page</summary>
           {items.length === 0 ? (
             <p className="text-sm text-ink-3">This page has no headings, text, links or images inside its body.</p>
           ) : (
@@ -612,7 +615,9 @@ export function VisualEditor({
                     style={{ paddingLeft: `${8 + Math.min(item.depth, 6) * 10}px` }}
                   >
                     <span className="shrink-0 text-xs text-ink-3">{tagLabel(item.tag)}</span>
-                    <span className="min-w-0 truncate">{item.label || "(no text)"}</span>
+                    <span className="min-w-0 truncate" title={item.label || undefined}>
+                      {item.label || "(no text)"}
+                    </span>
                   </button>
                 </li>
               ))}
@@ -987,10 +992,11 @@ function ColorField({ id, label, value, onChange }: { id: string; label: string;
       <label htmlFor={id} className="text-xs text-ink-2">
         {label}
       </label>
-      <span className="flex min-h-11 items-center gap-2 rounded-sm border border-line bg-surface px-2">
+      {/* The whole 44px row opens the colour picker, not only the swatch. */}
+      <label htmlFor={id} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-sm border border-line bg-surface px-2">
         <input id={id} type="color" value={value} onChange={(e) => onChange(e.target.value)} className="size-8 shrink-0 cursor-pointer rounded-sm border-0 bg-transparent p-0" />
-        <span className="font-mono text-xs text-ink-2">{value}</span>
-      </span>
+        <span aria-hidden className="font-mono text-xs text-ink-2">{value}</span>
+      </label>
     </div>
   );
 }

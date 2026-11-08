@@ -314,8 +314,9 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   );
 }
 
+/** Why a plan card has no button, as a plain sentence. */
 function Unavailable({ children }: { children: string }) {
-  return <span className="block rounded-full border border-dashed border-line-strong/50 px-3 py-2 text-center text-xs text-ink-3">{children}</span>;
+  return <p className="text-sm text-ink-3">{children}</p>;
 }
 
 /** What a plan card offers: a real next step when payments are open to this workspace, otherwise the honest reason there isn't one. */
@@ -338,17 +339,17 @@ function PlanAction({
   appleBilled?: boolean;
   googleBilled?: boolean;
 }) {
-  if (isCurrent) return <Unavailable>Your current plan</Unavailable>;
+  if (isCurrent) return <Unavailable>This is your current plan.</Unavailable>;
   // Billed through the App Store (ADR 0112): plans change in the iPhone's Subscriptions, never here.
-  if (appleBilled) return <Unavailable>Change it on the iPhone, in Subscriptions</Unavailable>;
+  if (appleBilled) return <Unavailable>Change it on the iPhone, in Subscriptions.</Unavailable>;
   // Billed through Google Play (ADR 0154): plans change in Farbaek for Android; one Google Play doesn't sell waits for the cancellation there.
-  if (googleBilled) return <Unavailable>{planId === "free" ? "Cancel in Google Play to move to Free" : googlePlayProductForPlan(planId) ? "Change it in Farbaek for Android" : "Cancel in Google Play first"}</Unavailable>;
-  if (planId === "free") return <Unavailable>{currentPaid ? "Cancel a plan to move to Free" : "Available after the trial"}</Unavailable>;
-  if (!open) return <Unavailable>Unavailable until payments open</Unavailable>;
-  if (!canManage) return <Unavailable>Owners and admins choose plans</Unavailable>;
+  if (googleBilled) return <Unavailable>{planId === "free" ? "Cancel in Google Play to move to Free." : googlePlayProductForPlan(planId) ? "Change it in Farbaek for Android." : "Cancel in Google Play first."}</Unavailable>;
+  if (planId === "free") return <Unavailable>{currentPaid ? "Cancel your plan to move to Free." : "Available after the trial."}</Unavailable>;
+  if (!open) return <Unavailable>Not available until payments open.</Unavailable>;
+  if (!canManage) return <Unavailable>Owners and admins choose plans.</Unavailable>;
   const name = getPlan(planId as Parameters<typeof getPlan>[0]).name;
   if (currentPaid && isPaidPlanId(currentPaid) && isPaidPlanId(planId)) {
-    if (cancelling) return <Unavailable>Keep your plan to switch</Unavailable>;
+    if (cancelling) return <Unavailable>Keep your plan to switch to this one.</Unavailable>;
     const direction = planChangeDirection(currentPaid, planId);
     return (
       <WebPurchaseOnly fallback={<NotInAndroidApp />}>

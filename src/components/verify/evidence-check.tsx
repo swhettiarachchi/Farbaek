@@ -1,10 +1,11 @@
 "use client";
 
-import { CheckCircleIcon, CircleDashedIcon, FileArrowUpIcon, FileMagnifyingGlassIcon, PackageIcon, SealCheckIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, FileArrowUpIcon, FileMagnifyingGlassIcon, PackageIcon, SealCheckIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useId, useState, type DragEvent } from "react";
 import { ProofPackSeal } from "@/components/proof/proofpack-seal";
 import { SealReveal } from "@/components/proof/seal-reveal";
+import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { CAPSULE_LIMITS } from "@/config/workspace";
@@ -17,8 +18,6 @@ type Result = { type: "evidence"; name: string; inspection: Inspection } | { typ
 
 /** Evidence files are small; this keeps a stray large file from freezing the tab. */
 const MAX_JSON_BYTES = 8 * 1024 * 1024;
-
-const short = (hex: string) => `${hex.slice(0, 10)}…${hex.slice(-8)}`;
 
 /** A time from a file someone was sent: shown as local time only when it's a real date. */
 function When({ iso }: { iso: string }) {
@@ -184,7 +183,7 @@ export function EvidenceCheck() {
               />
               <span className="text-xs text-ink-3">Optional when the JSON already holds its digest.</span>
             </label>
-            <button type="submit" disabled={busy || !pasted.trim()} className="inline-flex h-11 items-center justify-center gap-2 justify-self-start rounded-full bg-primary px-5 text-sm font-medium text-on-primary shadow-e1 transition-[transform,background-color] duration-[160ms] hover:bg-primary/85 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50">
+            <button type="submit" disabled={busy || !pasted.trim()} className={buttonClasses("primary", "md", "justify-self-start")}>
               <FileMagnifyingGlassIcon size={16} aria-hidden /> Check it
             </button>
           </form>
@@ -255,15 +254,11 @@ function Verdict({ intact, signature, label }: { intact: boolean | null; signatu
   if (signature === "bad") return failed(<>Not what Farbaek signed. Don&apos;t rely on this {label}.</>);
   if (signature === "signed") return passed(<>Intact. This {label} is exactly what Farbaek recorded.</>);
   if (intact === true) return passed(<>Intact. This {label} matches its digest, so nothing in it changed.</>);
-  return (
-    <p className="flex items-start gap-2.5 text-lg font-medium leading-snug">
-      <CircleDashedIcon size={24} weight="bold" className="mt-0.5 shrink-0 text-unverified" aria-hidden />
-      <span>Read, but not compared. Paste the digest you were given to check it.</span>
-    </p>
-  );
+  // Not compared is neither a pass nor a failure, so it's words alone (ADR 0180).
+  return <p className="text-lg font-medium leading-snug text-unverified">This {label} was read, but not compared. Paste the digest you were given to check it.</p>;
 }
 
-/** Who signed it, in words and an icon: never by colour alone. */
+/** Who signed it, in words, never by colour alone: an icon only for a signature that checks out or doesn't. */
 function SignatureLine({ signature: s }: { signature: EvidenceSignature }) {
   const line = (icon: React.ReactNode, text: React.ReactNode, tone = "text-ink-2") => <p className={`flex items-start gap-2 text-sm leading-relaxed ${tone}`}>{icon}<span>{text}</span></p>;
   switch (s.status) {
@@ -271,7 +266,7 @@ function SignatureLine({ signature: s }: { signature: EvidenceSignature }) {
       return line(
         <SealCheckIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />,
         <>
-          Signed by Farbaek with key <span className="whitespace-nowrap font-mono text-[0.8125rem]">{s.keyid}</span>, which only Farbaek&apos;s server holds.
+          Signed by Farbaek with key <span className="break-all font-mono text-[0.8125rem]">{s.keyid}</span>, which only Farbaek&apos;s server holds.
         </>,
         "text-ink",
       );
@@ -281,16 +276,14 @@ function SignatureLine({ signature: s }: { signature: EvidenceSignature }) {
       return line(
         <WarningCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-approval" aria-hidden />,
         <>
-          Signed with a key Farbaek doesn&apos;t publish (<span className="font-mono text-[0.8125rem]">{s.keyid}</span>), so the signature can&apos;t be trusted.
+          Signed with a key Farbaek doesn&apos;t publish (<span className="break-all font-mono text-[0.8125rem]">{s.keyid}</span>), so the signature can&apos;t be trusted.
         </>,
       );
+    // Neither a pass nor a failure: words alone (ADR 0180).
     case "unchecked":
-      return line(<CircleDashedIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-unverified" aria-hidden />, "Signed, but Farbaek's keys couldn't be loaded to check the signature. Try again.");
+      return line(null, "Signed, but Farbaek's keys couldn't be loaded to check the signature. Try again.");
     default:
-      return line(
-        <CircleDashedIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-unverified" aria-hidden />,
-        "Not signed. Its digest still shows whether it changed, but not who recorded it.",
-      );
+      return line(null, "Not signed. Its digest still shows whether it changed, but not who recorded it.");
   }
 }
 
@@ -319,11 +312,12 @@ function EvidenceResult({ inspection: r }: { inspection: Extract<Inspection, { o
     <div className="grid gap-6 motion-safe:animate-[usage-in_220ms_cubic-bezier(0.16,1,0.3,1)_both]">
       <div className={`grid gap-5 ${sealed ? "sm:grid-cols-[minmax(0,1fr)_150px] sm:items-start" : ""}`}>
         <div className="grid min-w-0 gap-3">
-          <p className="flex flex-wrap items-center gap-2 text-[0.8125rem] font-medium text-accent">
-            {label}
-            {r.sample ? <StatusBadge status="simulated" label="Sample data" /> : null}
-          </p>
           <Verdict intact={r.intact} signature={r.signature.status} label={label} />
+          {r.sample ? (
+            <div>
+              <StatusBadge status="simulated" label="Sample data" />
+            </div>
+          ) : null}
           <SignatureLine signature={r.signature} />
           {r.recordedAt ? (
             <p className="text-sm text-ink-3">
@@ -361,8 +355,8 @@ function EvidenceResult({ inspection: r }: { inspection: Extract<Inspection, { o
                 <span className="min-w-0 truncate font-mono text-[0.8125rem]" title={f.path}>
                   {f.path}
                 </span>
-                <span className="text-xs text-ink-3">
-                  {f.note} · <span className="font-mono">{short(f.sha256)}</span>
+                <span className="text-xs text-ink-3" title={`sha256:${f.sha256}`}>
+                  {f.note}
                 </span>
               </li>
             ))}
@@ -376,7 +370,7 @@ function EvidenceResult({ inspection: r }: { inspection: Extract<Inspection, { o
               <p className="flex items-start gap-2 text-sm">
                 <CheckCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
                 <span>
-                  <span className="font-medium">{match.name}</span> is exactly the content recorded for <span className="font-mono text-[0.8125rem]">{match.hits.map((h) => h.path).join(", ")}</span>.
+                  <span className="font-medium">{match.name}</span> is exactly the content recorded for <span className="break-all font-mono text-[0.8125rem]">{match.hits.map((h) => h.path).join(", ")}</span>.
                 </span>
               </p>
             ) : (
@@ -404,14 +398,19 @@ function EvidenceResult({ inspection: r }: { inspection: Extract<Inspection, { o
                 ) : c.status === "failed" ? (
                   <XCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-label="Failed" />
                 ) : (
-                  <CircleDashedIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-unverified" aria-label="Not run" />
+                  // Not run is said in words beside the name; the space keeps the names in line.
+                  <span className="size-[18px] shrink-0" aria-hidden />
                 )}
                 <span className="min-w-0">
                   <span className="font-medium">{c.name}</span>{" "}
                   <span className="text-ink-3">
-                    {c.status === "not_run" ? "didn't run" : c.exitCode !== null ? `exit code ${c.exitCode}` : c.status}
+                    {c.status === "not_run" ? "didn't run" : c.status === "failed" ? (c.exitCode !== null ? `failed (exit code ${c.exitCode})` : "failed") : "passed"}
                   </span>
-                  {c.command ? <span className="block truncate font-mono text-xs text-ink-3">{c.command}</span> : null}
+                  {c.command ? (
+                    <span className="block truncate font-mono text-xs text-ink-3" title={c.command}>
+                      {c.command}
+                    </span>
+                  ) : null}
                 </span>
               </li>
             ))}
@@ -434,9 +433,9 @@ function EvidenceResult({ inspection: r }: { inspection: Extract<Inspection, { o
       ) : null}
 
       {r.summary.limits.length > 0 ? (
-        <details className="rounded-sm border border-line bg-surface-raised/50 px-4 py-3 text-sm">
-          <summary className="cursor-pointer font-medium">What this record says it doesn&apos;t prove</summary>
-          <ul className="mt-3 grid gap-2 pl-4 text-ink-2">
+        <details className="rounded-sm border border-line bg-surface-raised/50 px-4 py-1 text-sm">
+          <summary className="flex min-h-11 cursor-pointer items-center font-medium">What this record says it doesn&apos;t prove</summary>
+          <ul className="mb-3 mt-1 grid gap-2 pl-4 text-ink-2">
             {r.summary.limits.map((l) => (
               <li key={l} className="list-disc">
                 {l}
@@ -453,9 +452,8 @@ function CapsuleResult({ name, opened }: { name: string; opened: OpenedCapsule }
   if (!opened.ok) {
     return (
       <div role="alert" className="grid gap-3">
-        <p className="text-[0.8125rem] font-medium text-accent">Workspace Capsule</p>
         <p className="flex items-start gap-2.5 text-lg font-medium leading-snug text-failed">
-          <XCircleIcon size={24} weight="fill" className="mt-0.5 shrink-0" aria-hidden /> This Capsule didn&apos;t pass its checks.
+          <XCircleIcon size={24} weight="fill" className="mt-0.5 shrink-0" aria-hidden /> This Workspace Capsule didn&apos;t pass its checks.
         </p>
         <ul className="grid gap-1.5 pl-5 text-sm text-ink-2">
           {opened.problems.map((p, i) => (
@@ -472,12 +470,13 @@ function CapsuleResult({ name, opened }: { name: string; opened: OpenedCapsule }
     <div className="grid gap-6 motion-safe:animate-[usage-in_220ms_cubic-bezier(0.16,1,0.3,1)_both]">
       <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_150px] sm:items-start">
         <div className="grid min-w-0 gap-3">
-          <p className="text-[0.8125rem] font-medium text-accent">Workspace Capsule</p>
           <p className="flex items-start gap-2.5 text-lg font-medium leading-snug">
             <CheckCircleIcon size={24} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
-            <span>Intact. Every file matches its BLAKE3 hash.</span>
+            <span>Intact. Every file in this Workspace Capsule matches its BLAKE3 hash.</span>
           </p>
-          <p className="truncate text-sm text-ink-3">{name}</p>
+          <p className="truncate text-sm text-ink-3" title={name}>
+            {name}
+          </p>
         </div>
         <SealReveal hash={opened.digest} className="justify-self-center">
           <ProofPackSeal hash={opened.digest} caption="Capsule verified" hashText={`blake3:${opened.digest.slice(0, 8)}…${opened.digest.slice(-6)}`} size={150} idSuffix="-verify" className="size-[150px]" />
@@ -496,10 +495,14 @@ function CapsuleResult({ name, opened }: { name: string; opened: OpenedCapsule }
         </dd>
         <dt className="text-ink-3">Left out when packed</dt>
         <dd>{m.excluded.length === 0 ? "Nothing" : m.excluded.length.toLocaleString("en-US")}</dd>
-        <dt className="text-ink-3">Digest</dt>
-        <dd className="break-all font-mono text-[0.8125rem]">blake3:{opened.digest}</dd>
       </dl>
-      <Link href="/app/mesh" className="inline-flex min-h-11 items-center gap-2 justify-self-start rounded-full border border-line bg-surface px-4 text-sm font-medium shadow-e1 transition-colors hover:bg-canvas-2">
+      <details className="text-sm">
+        <summary className="flex min-h-11 cursor-pointer items-center text-ink-2">Technical details</summary>
+        <p className="text-xs text-ink-3">
+          The Capsule&apos;s BLAKE3 digest: <span className="break-all font-mono">blake3:{opened.digest}</span>
+        </p>
+      </details>
+      <Link href="/app/mesh" className={buttonClasses("secondary", "sm", "justify-self-start")}>
         <PackageIcon size={16} aria-hidden /> Open it in a workspace
       </Link>
     </div>

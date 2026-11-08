@@ -85,7 +85,9 @@ export function SandboxWorkspace(props: WorkspaceProps) {
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="min-w-0 truncate text-[1.75rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2.1rem]">{session.name}</h1>
+            <h1 className="min-w-0 truncate text-[1.75rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2.1rem]" title={session.name}>
+              {session.name}
+            </h1>
             <SessionStateBadge state={session.state} />
           </div>
           <p className="mt-2 text-[0.9375rem] text-ink-2">
@@ -144,7 +146,9 @@ export function SandboxWorkspace(props: WorkspaceProps) {
           role="status"
           className={`flex gap-3 rounded-md border px-4 py-3 ${props.notice.tone === "failed" ? "border-failed/30 bg-failed/[0.04]" : props.notice.tone === "warning" ? "border-approval/30 bg-approval/[0.06]" : "border-info/25 bg-info/[0.05]"}`}
         >
-          <WarningIcon size={18} weight="bold" className={`mt-0.5 shrink-0 ${props.notice.tone === "failed" ? "text-failed" : props.notice.tone === "warning" ? "text-approval" : "text-info"}`} aria-hidden />
+          {props.notice.tone === "info" ? null : (
+            <WarningIcon size={18} weight="bold" className={`mt-0.5 shrink-0 ${props.notice.tone === "failed" ? "text-failed" : "text-approval"}`} aria-hidden />
+          )}
           <div>
             <p className="text-sm font-medium">{props.notice.title}</p>
             <p className="mt-0.5 text-sm text-ink-2">{props.notice.body}</p>

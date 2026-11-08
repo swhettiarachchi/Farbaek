@@ -1,4 +1,4 @@
-import { DownloadSimpleIcon, LockKeyIcon, SealCheckIcon } from "@phosphor-icons/react/ssr";
+import { DownloadSimpleIcon, KeyIcon, LockKeyIcon, SealCheckIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Container } from "@/components/ui/container";
@@ -16,9 +16,9 @@ const MEANING = [
     body: "Every record's digest is the SHA-256 of its canonical JSON. Change one character anywhere and the digest no longer matches.",
   },
   {
-    icon: SealCheckIcon,
+    icon: KeyIcon,
     title: "A signature shows who recorded it",
-    body: "A signed ProofPack carries Farbaek's Ed25519 signature. This page checks it against the keys Farbaek publishes, and says plainly when a record isn't signed: then a match proves it's unchanged, not who made it.",
+    body: "A signed ProofPack carries Farbaek's Ed25519 signature. This page checks it against the keys Farbaek publishes. When a record isn't signed, it says so: a match then proves it's unchanged, not who made it.",
   },
   {
     icon: LockKeyIcon,
@@ -64,8 +64,8 @@ export default function VerifyPage() {
             ))}
           </ul>
           <p className="mt-10 max-w-[70ch] text-sm leading-relaxed text-ink-3">
-            Proof files come from Farbaek: download one from a ProofPack, or export a whole project with everything it holds. Each file is an in-toto statement you can also
-            check without this page.{" "}
+            Proof files come from Farbaek: download one from a ProofPack, or export a whole project with everything it holds. Each file uses an open format, so you can also
+            check it without this page.{" "}
             <Link href="/proofpack/v1" className="font-medium text-accent underline-offset-2 hover:underline">
               The ProofPack format, and how to check one with OpenSSL
             </Link>

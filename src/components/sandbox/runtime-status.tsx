@@ -52,52 +52,26 @@ export function RuntimeStatus({ overview, health }: { overview: SandboxOverview;
           {cannot.length ? `, but not ${list(cannot)}.` : "."}
         </p>
       ) : null}
-      {overview.provider && overview.previewReason ? <p className="mt-3 text-xs text-ink-3">Previews: {overview.previewReason}</p> : null}
+      {overview.provider && overview.previewReason ? <p className="mt-3 text-xs text-ink-3">{overview.previewReason}</p> : null}
     </section>
   );
 }
 
 /**
- * Shown when no runtime is connected. A member reads one honest sentence; the
- * steps are for whoever runs this Farbaek, folded away so they never read as
- * something a member is meant to do.
+ * Shown when no runtime is connected. A member reads one honest sentence. How
+ * to connect one is for whoever runs the server, in docs/sandbox/README.md and
+ * the staff console, never on a page customers see (ADR 0180).
  */
 export function ConnectRuntimeSteps() {
-  const steps: [string, string][] = [
-    [
-      "Choose a runtime you trust",
-      "Vercel Sandbox (a free, hard-capped Hobby plan; no previews), or E2B: E2B Cloud, or E2B Embed on a Linux host with KVM that you control. Each gives every session its own private computer.",
-    ],
-    ["Connect it", "Run node scripts/setup-env.mjs sandbox and choose the runtime. It asks for the token or key with hidden input and generates the rest. Keys stay on the server."],
-    ["Build the images (E2B only)", "pnpm sandbox:templates builds the Node.js and Python images in two sizes on E2B. Vercel Sandbox uses its managed image, so there's nothing to build."],
-    ["Prove the isolation", "pnpm sandbox:smoke starts a sandbox, runs a harmless command, checks the network rules and cleans up. When it passes, set SANDBOX_ISOLATION_VERIFIED_AT."],
-  ];
   return (
     <section aria-labelledby="connect-heading" className="rounded-md border border-line bg-surface p-5 shadow-e1 sm:p-6">
       <h2 id="connect-heading" className="text-lg font-medium">
         Test spaces aren&apos;t connected here
       </h2>
       <p className="mt-1 max-w-[62ch] text-sm leading-relaxed text-ink-2">
-        This Farbaek has no runtime connected yet, so checks can&apos;t run here and nothing is shown as if it had. Changes still wait for your review; they stay unverified. Ask
-        whoever runs this Farbaek to connect one.
+        Checks can&apos;t run on this server yet, and nothing is shown as if they had. Changes still wait for your review, and they stay unverified. Ask whoever runs this
+        Farbaek to connect test spaces.
       </p>
-      <details className="mt-4 text-sm">
-        <summary className="inline-flex min-h-11 cursor-pointer list-none items-center font-medium text-ink-2 hover:text-ink [&::-webkit-details-marker]:hidden">
-          For whoever runs this server
-        </summary>
-        <p className="mt-2 max-w-[62ch] text-ink-2">The full guide is in docs/sandbox/README.md.</p>
-        <ol className="mt-4 grid gap-4 sm:grid-cols-2">
-          {steps.map(([title, body], i) => (
-            <li key={title} className="flex gap-3">
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent/[0.08] text-sm font-medium text-accent tabular">{i + 1}</span>
-              <div>
-                <p className="text-[0.9375rem] font-medium">{title}</p>
-                <p className="mt-0.5 text-sm text-ink-2">{body}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </details>
     </section>
   );
 }

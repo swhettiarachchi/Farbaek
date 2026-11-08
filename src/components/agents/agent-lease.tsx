@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, ClockCountdownIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
+import { ArrowClockwiseIcon, CheckCircleIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useId, useState } from "react";
 import { renewAgentLeaseAction, setAgentLeaseAction, type AgentLeaseState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -9,9 +9,10 @@ import { AGENT_CAPABILITIES, CAPABILITY_LABELS, LEASE_DAY_CHOICES, LEASE_LIMITS,
 
 const IDLE: AgentLeaseState = { status: "idle" };
 
-const STATE_LOOK: Record<LeaseState, { icon: typeof CheckCircleIcon; className: string }> = {
+// Access is its words (ADR 0180): a mark while it's on and once it's ended, none while it's running out.
+const STATE_LOOK: Record<LeaseState, { icon: typeof CheckCircleIcon | null; className: string }> = {
   active: { icon: CheckCircleIcon, className: "text-verified" },
-  ending_soon: { icon: ClockCountdownIcon, className: "text-approval" },
+  ending_soon: { icon: null, className: "text-approval" },
   ended: { icon: XCircleIcon, className: "text-failed" },
 };
 
@@ -49,13 +50,14 @@ export function AgentLeasePanel({
   const panelId = `${id}-lease`;
   const blocked = Boolean(disabledReason) || renewing || saving;
   const look = STATE_LOOK[state];
+  const LookIcon = look.icon;
   const result = saveState.status !== "idle" ? saveState : renewState;
 
   return (
     <div className="grid gap-3 basis-full">
       <div className="grid gap-1 rounded-sm border border-line bg-surface-sunken/50 px-3.5 py-3">
         <p className="flex items-start gap-2 text-sm">
-          <look.icon size={16} weight="bold" className={`mt-0.5 shrink-0 ${look.className}`} aria-hidden />
+          {LookIcon ? <LookIcon size={16} weight="bold" className={`mt-0.5 shrink-0 ${look.className}`} aria-hidden /> : null}
           <span>
             {state === "ended" ? (
               <>
@@ -69,7 +71,7 @@ export function AgentLeasePanel({
             )}
           </span>
         </p>
-        <p className="pl-6 text-xs leading-relaxed text-ink-2">{leaseSummary(lease)}</p>
+        <p className={`text-xs leading-relaxed text-ink-2 ${LookIcon ? "pl-6" : ""}`}>{leaseSummary(lease)}</p>
       </div>
 
       {canEdit ? (
@@ -77,7 +79,7 @@ export function AgentLeasePanel({
           <form action={renew}>
             <input type="hidden" name="agentId" value={agentId} />
             <button type="submit" disabled={blocked} className={buttonClasses(state === "active" ? "ghost" : "secondary", "sm")}>
-              <ClockCountdownIcon size={16} aria-hidden /> {renewing ? "Renewing…" : "Renew for 90 days"}
+              <ArrowClockwiseIcon size={16} aria-hidden /> {renewing ? "Renewing…" : "Renew for 90 days"}
             </button>
           </form>
           <button type="button" aria-expanded={open} aria-controls={panelId} disabled={Boolean(disabledReason)} onClick={() => setOpen((o) => !o)} className={buttonClasses("ghost", "sm")}>
@@ -171,7 +173,7 @@ export function AgentLeasePanel({
               className="min-h-11 w-full max-w-48 rounded-sm border border-line bg-surface px-3 text-base tabular focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             />
             <p id={`${id}-rate-help`} className="text-xs text-ink-3">
-              {LEASE_LIMITS.minActionsPerHour} to {LEASE_LIMITS.maxActionsPerHour.toLocaleString("en-US")}. Each model step is one request, plus a few to read the task and send the change. Mesh transfers aren&apos;t counted.
+              {LEASE_LIMITS.minActionsPerHour} to {LEASE_LIMITS.maxActionsPerHour.toLocaleString("en-US")}. Each model step is one request, plus a few to read the task and send the change. Sending files between your devices isn&apos;t counted.
             </p>
           </div>
 

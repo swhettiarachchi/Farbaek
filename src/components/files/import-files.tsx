@@ -64,7 +64,10 @@ function SkippedList({ skipped }: { skipped: Prepared["skipped"] }) {
         {[...byReason].map(([reason, paths]) => (
           <li key={reason}>
             <p className="text-ink-2">
-              {SKIP_LABELS[reason]} <span className="text-ink-3 tabular">({paths.length.toLocaleString("en-US")})</span>
+              {SKIP_LABELS[reason]}:{" "}
+              <span className="tabular">
+                {paths.length.toLocaleString("en-US")} {paths.length === 1 ? "file" : "files"}
+              </span>
             </p>
             {reason === "ignored_folder" ? null : (
               <ul className="mt-1 grid gap-0.5 font-mono text-xs text-ink-3">
@@ -79,7 +82,9 @@ function SkippedList({ skipped }: { skipped: Prepared["skipped"] }) {
           </li>
         ))}
       </ul>
-      <p className="mt-3 text-xs text-ink-3">Credentials files and anything that looks like a key or token are never imported. Keep secrets in environment variables.</p>
+      <p className="mt-3 text-xs text-ink-3">
+        Files that hold keys and passwords, and anything that looks like a key or token, are never imported. Keep keys and passwords in your host&apos;s settings, not in the code.
+      </p>
     </details>
   );
 }
@@ -134,8 +139,8 @@ export function ImportFiles({ projectId, disabledReason, compact = false }: { pr
         </button>
       </div>
       <p className={`text-xs leading-relaxed text-ink-3 ${compact ? "" : "text-center"}`}>
-        Text files only, up to {formatBytes(WORKSPACE_LIMITS.maxFileBytes)} each and {formatBytes(WORKSPACE_LIMITS.maxImportBytes)} per import. Dependency and build folders,
-        credentials files and anything that looks like a secret are skipped. Files are read in your browser first so you can check the list before anything is uploaded.
+        Text files only, up to {formatBytes(WORKSPACE_LIMITS.maxFileBytes)} each and {formatBytes(WORKSPACE_LIMITS.maxImportBytes)} per import. Dependency and build folders are
+        skipped, and so are files that hold or seem to hold keys and passwords. Files are read in your browser first so you can check the list before anything is uploaded.
       </p>
       {disabledReason ? <p className={`text-sm text-ink-2 ${compact ? "" : "text-center"}`}>{disabledReason}</p> : null}
 
@@ -144,8 +149,8 @@ export function ImportFiles({ projectId, disabledReason, compact = false }: { pr
         {prepared && !reading ? (
           <div className="grid gap-3 rounded-sm border border-line bg-surface p-4">
             <p className="text-sm">
-              <span className="font-medium tabular">{prepared.files.length.toLocaleString("en-US")}</span> {prepared.files.length === 1 ? "file" : "files"} ready to import
-              <span className="text-ink-3"> · {formatBytes(prepared.bytes)}</span>
+              <span className="font-medium tabular">{prepared.files.length.toLocaleString("en-US")}</span> {prepared.files.length === 1 ? "file" : "files"} ready to import,{" "}
+              {formatBytes(prepared.bytes)} in all.
             </p>
             {tooBig ? (
               <p role="alert" className="flex items-start gap-2 text-sm text-failed">

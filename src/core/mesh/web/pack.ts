@@ -104,7 +104,7 @@ export async function packPicked(files: readonly PickedFile[], name: string, onP
     sources.set(path, file);
     onProgress?.(entries.length);
   }
-  if (entries.length === 0) throw new WebPackError("None of these files can be sent. Credentials files, secret-looking text and names a computer can't hold safely stay on this device.");
+  if (entries.length === 0) throw new WebPackError("None of these files can be sent. Files that hold keys or passwords, text that looks like a key or password, and names a computer can't hold safely stay on this device.");
   entries.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
   const manifest: CapsuleManifest = {
     format: CAPSULE_FORMAT,

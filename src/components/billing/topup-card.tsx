@@ -63,14 +63,14 @@ export function TopupCard({ planId, planName, topups, canManage, error }: { plan
       <ul className="mt-5 grid gap-3 sm:grid-cols-3">
         {TOPUP_PACKS_CENTS.map((pack) => {
           const reason =
-            !canManage ? "Owners and admins buy usage" : topups.capCents === null ? "Set a monthly limit first" : pack > room ? "Over this month's limit" : null;
+            !canManage ? "Owners and admins buy usage." : topups.capCents === null ? "Set a monthly limit first." : pack > room ? "This is over this month's limit." : null;
           return (
             <li key={pack} className="flex flex-col rounded-md border border-line bg-surface p-4">
               <p className="text-xl font-medium tracking-[-0.02em] tabular">{formatUsd(pack)}</p>
               <p className="mt-1 text-sm text-ink-2">About {topupSharePercent(planId, pack)}% of a month of {planName} usage.</p>
               <div className="mt-auto pt-4">
                 {reason ? (
-                  <span className="block rounded-full border border-dashed border-line-strong/50 px-3 py-2 text-center text-xs text-ink-3">{reason}</span>
+                  <p className="text-sm text-ink-3">{reason}</p>
                 ) : (
                   <WebPurchaseOnly fallback={<NotInAndroidApp />}>
                     <Link href={`/app/billing?topup=${pack}#billing-step`} className={buttonClasses("secondary", "sm", "w-full")}>
@@ -96,7 +96,7 @@ export function TopupStep({ planId, pack, error }: { planId: PaidPlanId; pack: T
           Buy {formatUsd(pack)} of AI usage
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-ink-2">
-          Paid once, plus applicable tax. Pay in US dollars or your own currency: Dodo Payments shows the exact amount before you pay, and another currency adds its conversion fee of up to 4%. See the{" "}
+          Paid once, plus applicable tax. Pay in US dollars or your own currency: Dodo Payments shows the exact amount before you pay. Another currency adds its conversion fee of up to 4%. See the{" "}
           <Link href="/terms#paid-plans" className="text-accent underline-offset-4 hover:underline">
             terms for paid plans
           </Link>

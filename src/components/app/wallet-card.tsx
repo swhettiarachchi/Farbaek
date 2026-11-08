@@ -82,13 +82,13 @@ export function WalletCard({ wallet, paid }: { wallet: WalletView | null; paid: 
         </Rule>
         <Rule icon={<ClockCounterClockwiseIcon size={15} weight="bold" />} title="Free retries after failed checks">
           {paid
-            ? "When the agent's fix for failed checks doesn't pass them either, the fix's usage is given back, up to about 5% of your plan's AI usage a month."
+            ? "When the agent's fix for failed checks doesn't pass them either, its usage is given back. That's up to about 5% of your plan's AI usage a month."
             : "On paid plans and during the trial, a fix for failed checks that doesn't pass them either gets its usage back. Start one from a task whose checks failed."}
         </Rule>
         <Rule icon={<ShieldCheckIcon size={15} weight="bold" />} title="Spend cap">
           {paid
-            ? "Buying more AI usage never goes past the monthly limit an owner or admin sets in Billing, and nothing is ever bought on its own."
-            : "On paid plans, buying more AI usage never goes past a monthly limit an owner or admin sets, and nothing is ever bought on its own."}
+            ? "Buying more AI usage never goes past the monthly limit an owner or admin sets in Billing. Nothing is ever bought on its own."
+            : "On paid plans, buying more AI usage never goes past a monthly limit an owner or admin sets. Nothing is ever bought on its own."}
         </Rule>
       </ul>
     </Card>

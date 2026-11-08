@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, FlagIcon, UsersThreeIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -62,7 +62,7 @@ export default async function WorkflowPage({ params }: { params: Promise<{ id: s
           ) : (
             "A project"
           )}
-          . Each step&apos;s run stops at {stepShare ?? "its share of the ceiling"}.{" "}
+          . Each step&apos;s run stops at {stepShare ?? "its share of the limit"}.{" "}
           {w.approvedAt ? (
             <>
               Approved <RelativeTime iso={w.approvedAt} /> (<LocalTime iso={w.approvedAt} />).
@@ -78,17 +78,13 @@ export default async function WorkflowPage({ params }: { params: Promise<{ id: s
           <h2 id="steps-heading" className="text-lg font-medium">
             Steps
           </h2>
-          <ol className="mt-4 grid">
-            {w.steps.map((s, i) => {
+          <ol className="mt-2 grid list-decimal divide-y divide-line pl-5 marker:text-sm marker:text-ink-3">
+            {w.steps.map((s) => {
               // Agent teams (ADR 0128): the other steps that run at the same time as this one.
               const mates = w.steps.filter((m) => m.stage === s.stage && m.position !== s.position).map((m) => m.position);
               return (
-              <li key={s.position} className="relative grid grid-cols-[2.75rem_minmax(0,1fr)] gap-x-3 pb-6 last:pb-0 max-[18em]:grid-cols-1">
-                {i < w.steps.length - 1 ? (
-                  <span aria-hidden className={`absolute bottom-0 left-[1.3rem] top-11 border-l-2 ${s.status === "verified" ? "border-solid border-accent/70" : "border-dashed border-line-strong/50"}`} />
-                ) : null}
-                <span className="relative z-10 flex size-11 items-center justify-center rounded-full border border-line bg-surface text-sm font-medium tabular text-ink-2">{s.position}</span>
-                <div className="grid min-w-0 gap-1.5 pt-1">
+              <li key={s.position} value={s.position} className="py-4 last:pb-0">
+                <div className="grid min-w-0 gap-1.5">
                   <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
                     <Link href={`/app/tasks/${s.taskId}`} className="-my-3 inline-block py-3 text-[0.9375rem] font-medium hover:text-accent hover:underline">
                       {s.title}
@@ -123,15 +119,11 @@ export default async function WorkflowPage({ params }: { params: Promise<{ id: s
                     </Link>
                   ) : null}
                   {mates.length ? (
-                    <p className="inline-flex items-center gap-1.5 text-xs font-medium text-accent">
-                      <UsersThreeIcon size={14} weight="bold" aria-hidden /> Runs at the same time as step {mates.join(" and ")}, with its own agent.
+                    <p className="text-sm text-ink-2">
+                      Runs at the same time as {mates.length === 1 ? "step" : "steps"} {mates.join(" and ")}, with its own agent.
                     </p>
                   ) : null}
-                  {s.checkpoint ? (
-                    <p className="inline-flex items-center gap-1.5 text-xs text-ink-3">
-                      <FlagIcon size={14} weight="bold" aria-hidden /> Checkpoint: stops for a person after this step.
-                    </p>
-                  ) : null}
+                  {s.checkpoint ? <p className="text-sm text-ink-2">Stops for a person after this step.</p> : null}
                 </div>
               </li>
               );

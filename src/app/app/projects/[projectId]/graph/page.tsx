@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, GraphIcon, ShieldWarningIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, GraphIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -73,8 +73,8 @@ export default async function ProjectGraphPage({ params }: { params: Promise<{ p
 
           {unverifiedReleases.length ? (
             <section aria-labelledby="unverified-heading" className="grid gap-3 rounded-md border border-approval/40 bg-surface p-5 shadow-e1 sm:p-6">
-              <h2 id="unverified-heading" className="flex items-center gap-2 text-base font-medium">
-                <ShieldWarningIcon size={18} weight="bold" className="text-approval" aria-hidden /> Published without passed checks
+              <h2 id="unverified-heading" className="text-base font-medium">
+                Published without passed checks
               </h2>
               <ul className="grid gap-3">
                 {unverifiedReleases.map((r) => (

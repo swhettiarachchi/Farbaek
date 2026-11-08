@@ -73,7 +73,7 @@ export function AddImage({ projectId, replacePath, disabledReason }: { projectId
             disabled={Boolean(disabledReason) || pending}
             className="h-11 rounded-sm border border-line-strong/60 bg-surface px-3.5 font-mono text-base shadow-e1 focus:border-accent sm:text-sm"
           />
-          <span className="text-xs text-ink-3">Link to it from a page with this path, for example &lt;img src=&quot;{path || "assets/photo.jpg"}&quot;&gt;.</span>
+          <span className="text-xs text-ink-3">Use it in a page by its path.</span>
         </label>
       )}
 

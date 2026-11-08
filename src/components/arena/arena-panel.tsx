@@ -1,27 +1,30 @@
-import { ArrowRightIcon, CheckCircleIcon, CircleDashedIcon, CircleNotchIcon, EyeIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, CheckCircleIcon, CircleNotchIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
+import { StatusBadge, type Status } from "@/components/ui/status-badge";
 import { compareArena, type ArenaChange, type ArenaCheckState, type ArenaVerdict } from "@/core/realityloop/arena";
 import type { ArenaRecord } from "@/server/arena/store";
 import { TryChange } from "./try-change";
 
-const STATE: Record<ArenaCheckState, { word: string; Icon: typeof CheckCircleIcon; className: string }> = {
+// Status is a word (ADR 0180): a mark only for passed and failed; a check that didn't run says so in words.
+const STATE: Record<ArenaCheckState, { word: string; Icon: typeof CheckCircleIcon | null; className: string }> = {
   passed: { word: "Passed", Icon: CheckCircleIcon, className: "text-verified" },
   failed: { word: "Failed", Icon: XCircleIcon, className: "text-failed" },
-  not_run: { word: "Didn't run", Icon: CircleDashedIcon, className: "text-unverified" },
+  not_run: { word: "Didn't run", Icon: null, className: "text-unverified" },
 };
 
-const CHANGE: Record<ArenaChange, { word: string; className: string }> = {
-  breaks: { word: "Breaks", className: "border-failed/40 text-failed" },
-  fixes: { word: "Fixes", className: "border-verified/40 text-verified" },
-  still_passes: { word: "Still passes", className: "border-line text-ink-2" },
-  still_fails: { word: "Still fails", className: "border-approval/40 text-approval" },
-  not_run: { word: "No result", className: "border-dashed border-unverified/60 text-unverified" },
+// What the change did to a check. A row that didn't change stays a quiet word, so the badges mark only what moved.
+const CHANGE: Record<ArenaChange, { word: string; status: Status | null }> = {
+  breaks: { word: "Breaks", status: "failed" },
+  fixes: { word: "Fixes", status: "verified" },
+  still_passes: { word: "Still passes", status: null },
+  still_fails: { word: "Still fails", status: "approval" },
+  not_run: { word: "No result", status: "unverified" },
 };
 
-const VERDICT: Record<ArenaVerdict, { text: string; Icon: typeof CheckCircleIcon; className: string }> = {
+const VERDICT: Record<ArenaVerdict, { text: string; Icon: typeof CheckCircleIcon | null; className: string }> = {
   breaks_checks: { text: "This change breaks a check that passes now.", Icon: XCircleIcon, className: "text-failed" },
-  incomplete: { text: "Some checks didn't run, so this trial can't say how the change does.", Icon: CircleDashedIcon, className: "text-unverified" },
+  incomplete: { text: "Some checks didn't run, so this trial can't say how the change does.", Icon: null, className: "text-unverified" },
   fixes_checks: { text: "This change fixes every check that fails now.", Icon: CheckCircleIcon, className: "text-verified" },
   keeps_passing: { text: "Every check still passes with this change.", Icon: CheckCircleIcon, className: "text-verified" },
   still_failing: { text: "Some checks fail both now and with this change.", Icon: WarningCircleIcon, className: "text-approval" },
@@ -33,11 +36,16 @@ function State({ state, ms }: { state: ArenaCheckState; ms: number | null }) {
   const { word, Icon, className } = STATE[state];
   return (
     <span className={`inline-flex items-center gap-1.5 ${className}`}>
-      <Icon size={16} weight="bold" aria-hidden />
+      {Icon ? <Icon size={16} weight="bold" aria-hidden /> : null}
       <span className="font-medium">{word}</span>
       {state !== "not_run" && seconds(ms) ? <span className="text-xs text-ink-3">{seconds(ms)}</span> : null}
     </span>
   );
+}
+
+function ChangeWord({ change }: { change: ArenaChange }) {
+  const { word, status } = CHANGE[change];
+  return status ? <StatusBadge status={status} label={word} /> : <span className="text-xs font-medium text-ink-3">{word}</span>;
 }
 
 /**
@@ -50,6 +58,7 @@ export function ArenaPanel({ proposalId, taskId, checks, run, disabledReason }: 
   const running = run?.status === "running";
   const compared = run && run.baseline ? compareArena(run.baseline, run.candidate ?? []) : null;
   const verdict = run?.status === "done" && compared ? VERDICT[compared.verdict] : null;
+  const VerdictIcon = verdict?.Icon ?? null;
 
   return (
     <section aria-labelledby="arena-heading" className="grid gap-4 rounded-md border border-line bg-canvas-2/60 p-4 sm:p-5">
@@ -74,7 +83,7 @@ export function ArenaPanel({ proposalId, taskId, checks, run, disabledReason }: 
 
       {verdict ? (
         <p className={`flex items-start gap-2 text-[0.9375rem] font-medium ${verdict.className}`}>
-          <verdict.Icon size={20} weight="bold" className="mt-px shrink-0" aria-hidden />
+          {VerdictIcon ? <VerdictIcon size={20} weight="bold" className="mt-px shrink-0" aria-hidden /> : null}
           <span>{verdict.text}</span>
         </p>
       ) : null}
@@ -98,32 +107,26 @@ export function ArenaPanel({ proposalId, taskId, checks, run, disabledReason }: 
                   <State state={row.before} ms={run!.baseline?.[i]?.durationMs ?? null} />
                   <ArrowRightIcon size={14} className="text-ink-3" aria-label="with this change" />
                   {run!.candidate ? <State state={row.after} ms={run!.candidate[i]?.durationMs ?? null} /> : <State state="not_run" ms={null} />}
-                  {run?.status === "done" ? <span className={`inline-flex h-6 items-center rounded-full border px-2.5 text-xs font-medium ${CHANGE[row.change].className}`}>{CHANGE[row.change].word}</span> : null}
+                  {run?.status === "done" ? <ChangeWord change={row.change} /> : null}
                 </span>
               </li>
             ))}
           </ul>
-          <p className="flex flex-wrap items-center gap-2 text-xs text-ink-3">
-            <span className="inline-flex h-6 items-center gap-1 rounded-full border border-line px-2 font-medium text-ink-2">
-              <EyeIcon size={13} weight="bold" aria-hidden /> Observed
-            </span>
-            Real results from this trial{run?.finishedAt ? <>, finished <LocalTime iso={run.finishedAt} /></> : null}. Left: your current files. Right: with this change.
+          <p className="text-xs leading-relaxed text-ink-3">
+            Observed in this trial{run?.finishedAt ? <>, finished <LocalTime iso={run.finishedAt} /></> : null}. Left: your current files. Right: with this change.
           </p>
         </div>
       ) : !running ? (
         <div className="grid gap-2">
           <p className="text-sm font-medium">Checks it runs</p>
-          <ul className="flex flex-wrap gap-1.5">
+          <ul className="grid gap-1">
             {checks.map((c) => (
-              <li key={c} className="rounded-full border border-line bg-surface px-2.5 py-0.5 font-mono text-[0.78125rem] text-ink-2">
+              <li key={c} className="min-w-0 break-all font-mono text-[0.8125rem] text-ink-2">
                 {c}
               </li>
             ))}
           </ul>
-          <p className="flex flex-wrap items-center gap-2 text-xs text-ink-3">
-            <span className="inline-flex h-6 items-center rounded-full border border-dashed border-line-strong px-2 font-medium text-ink-2">Estimate</span>
-            Uses up to 20 minutes of your plan&apos;s test space time, usually a few.
-          </p>
+          <p className="text-xs leading-relaxed text-ink-3">Estimate: it uses up to 20 minutes of your plan&apos;s test space time, usually a few.</p>
         </div>
       ) : null}
 

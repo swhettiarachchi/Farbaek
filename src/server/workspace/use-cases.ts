@@ -105,6 +105,8 @@ export type WriteErrorCode =
   | "WORKFLOW_CLOSED"
   | "CONTRACTS_NOT_APPROVED"
   | "NOT_AT_CHECKPOINT"
+  // A request the page could never have sent as it stands, such as a malformed hash: the page is out of date.
+  | "INVALID_REQUEST"
   | "UNKNOWN";
 
 export type WriteResult<T> = { ok: true; value: T } | { ok: false; code: WriteErrorCode; message: string };
@@ -188,7 +190,7 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   IMAGE_PATH: "That name ends like an image's, so it can only hold an image. Add images with Add an image, or choose another name.",
   INVALID_IMAGE: "That isn't an image Farbaek can store. Use a PNG, JPEG, GIF, WebP, AVIF or icon file up to 2 MB.",
   NOTHING_TO_IMPORT: "None of the selected files can be imported.",
-  SECRET_IN_CONTENT: "This looks like it contains a secret, such as a private key or an API token. Remove it and try again. Keep secrets in environment variables.",
+  SECRET_IN_CONTENT: "This looks like it holds a key or password, such as a private key or an API token. Remove it and try again, and keep it in your host's settings, not in the code.",
   NO_CONTEXT: "Choose the files the change needs, up to 20.",
   CONTEXT_TOO_LARGE: "The chosen files are too large to send together. Choose fewer or smaller files, up to 300 KB in total.",
   NO_APPLICABLE_CHANGES: "There were no changes that could be applied safely.",
@@ -196,7 +198,7 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   PROPOSAL_CLOSED: "This change was already applied or discarded. Reload to see the latest state.",
   PROPOSAL_CHANGED: "This change is different from the one you reviewed. Reload and review it again.",
   PROPOSAL_EXPIRED: "This change ran out of time, so it can't be approved. Discard it and ask the agent to try again with the files as they are now.",
-  NOTHING_TO_APPLY: "Every change was rejected, so there's nothing to apply. Discard the whole change instead.",
+  NOTHING_TO_APPLY: "Every change was left out, so there's nothing to apply. Discard the whole change instead.",
   EVALUATION_LIMIT: "This workspace has used its safety checks for this period, so new changes are paused until it resets or the plan changes.",
   APPROVER_ROLE_REQUIRED: "This change needs an owner or admin to approve it.",
   PROJECT_ARCHIVED: "This project is archived, so its files can't change.",
@@ -237,8 +239,8 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   INVALID_RULES: "These rules aren't valid. Fix the marked fields and try again.",
   RULES_NOT_TESTED: "These rules changed after they were tested. Test them against past changes again before activating them.",
   AGENTS_PAUSED: "Agents are paused in this workspace, so no agent runs or automatic changes start until an owner or admin resumes them on the Problems and pause page.",
-  INVALID_INCIDENT: "That incident update isn't valid. Check the marked fields and try again.",
-  INCIDENT_RESOLVED: "This incident is resolved, so it can't change any more. Open a new one if something else went wrong.",
+  INVALID_INCIDENT: "That change to the problem isn't valid. Check the marked fields and try again.",
+  INCIDENT_RESOLVED: "This problem is resolved, so it can't change any more. Report a new one if something else went wrong.",
   AUTONOMY_NOT_EARNED: "Bigger changes on their own aren't earned yet: it takes 10 changes applied on their own that passed their checks in the last 30 days, with none failing.",
   AUTONOMY_DAILY_LIMIT: "The workspace reached its daily limit of changes applied on their own. This change waits for a person.",
   PERMISSION_WITHHELD: "An owner or admin turned this off for you in this workspace. Ask one of them if you need it.",
@@ -247,6 +249,7 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   WORKFLOW_CLOSED: "This workflow has already moved on, so it can't do that any more. Reload the page.",
   CONTRACTS_NOT_APPROVED: "Every step's plan has to be approved before the workflow can be.",
   NOT_AT_CHECKPOINT: "The workflow isn't waiting at a checkpoint, so there's nothing to continue.",
+  INVALID_REQUEST: "Reload the page and try again.",
   UNKNOWN: "Something went wrong and nothing was changed. Try again in a moment.",
 };
 
@@ -520,7 +523,8 @@ export async function approveContract(
 ): Promise<WriteResult<null>> {
   const role = await requireContributor(deps, input.orgId);
   if (!role.ok) return role;
-  if (!/^[0-9a-f]{64}$/.test(input.sha256)) return fail("CONTRACT_CHANGED");
+  // A malformed hash isn't a changed plan: the page sent something it never showed. A real mismatch is the database's CONTRACT_CHANGED below.
+  if (!/^[0-9a-f]{64}$/.test(input.sha256)) return fail("INVALID_REQUEST");
 
   const task = await deps.loadTask(input.orgId, input.taskId);
   if (!task) return fail("NOT_FOUND");

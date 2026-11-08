@@ -1,6 +1,6 @@
 "use client";
 
-import { MinusCircleIcon, PlusIcon, UsersThreeIcon } from "@phosphor-icons/react";
+import { MinusCircleIcon, PlusIcon } from "@phosphor-icons/react";
 import { useActionState, useState } from "react";
 import { createWorkflowAction, type WorkflowState } from "@/app/app/workflows/actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -78,13 +78,9 @@ export function WorkflowForm({
           {steps.map((s, i) => (
             <li key={s.key} className={`grid gap-3 rounded-md border bg-surface p-4 ${i > 0 && s.together ? "border-accent/45 shadow-[inset_3px_0_0_var(--color-accent)]" : "border-line"}`}>
               <div className="flex items-center justify-between gap-3">
-                <span className="flex items-center gap-2 text-xs font-medium text-ink-3">
+                <span className="flex flex-wrap items-center gap-x-2 text-xs font-medium text-ink-3">
                   Step {i + 1}
-                  {i > 0 && s.together ? (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-accent/40 bg-accent/[0.07] px-2 py-0.5 text-xs text-accent">
-                      <UsersThreeIcon size={12} aria-hidden /> With step {i}
-                    </span>
-                  ) : null}
+                  {i > 0 && s.together ? <span className="font-normal text-accent">Runs with step {i}</span> : null}
                 </span>
                 {steps.length > 2 ? (
                   <button type="button" onClick={() => setSteps((all) => all.filter((x) => x.key !== s.key))} className={buttonClasses("ghost", "sm")}>

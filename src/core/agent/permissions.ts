@@ -59,7 +59,7 @@ function checkWrite(path: string, content: string | null, ctx: PermissionContext
   if (scope.length > 0 && !scope.some((s) => path === s || path.startsWith(`${s}/`))) {
     return { kind: "deny", reason: `${path} is outside the plan's paths (${scope.join(", ")}).` };
   }
-  if (content !== null && containsSecret(content)) return { kind: "deny", reason: "The new content looks like it contains a secret. Keep secrets in environment variables." };
+  if (content !== null && containsSecret(content)) return { kind: "deny", reason: "The new content looks like it holds a secret, such as a key or password. Keep it in your host's settings, not in the code." };
   return { kind: "allow" };
 }
 

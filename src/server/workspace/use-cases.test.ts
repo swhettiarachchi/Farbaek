@@ -212,7 +212,7 @@ describe("approveContract", () => {
 
   it("refuses when there's no draft to approve or the hash is malformed", async () => {
     expect(await approveContract(fakeDeps().deps, { orgId: "o1", userId: "u1", taskId: "t1", expectedTaskVersion: 0, version: 1, sha256: sha })).toMatchObject({ code: "INVALID_TRANSITION" });
-    expect(await approveContract(fakeDeps().deps, { orgId: "o1", userId: "u1", taskId: "t1", expectedTaskVersion: 0, version: 1, sha256: "nope" })).toMatchObject({ code: "CONTRACT_CHANGED" });
+    expect(await approveContract(fakeDeps().deps, { orgId: "o1", userId: "u1", taskId: "t1", expectedTaskVersion: 0, version: 1, sha256: "nope" })).toEqual({ ok: false, code: "INVALID_REQUEST", message: "Reload the page and try again." });
   });
 });
 

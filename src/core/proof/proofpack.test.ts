@@ -46,7 +46,7 @@ describe("buildProofPack", () => {
     expect(s.predicate.status).toBe("unverified");
     expect(s.predicate.checks).toEqual([{ name: "pnpm test", command: "pnpm test", exitCode: null, status: "not_run" }]);
     expect(s.predicate.limits.join(" ")).toMatch(/does not prove that external claims/);
-    expect(s.predicate.limits.join(" ")).toMatch(/Checks did not run: No isolated sandbox/);
+    expect(s.predicate.limits.join(" ")).toMatch(/Checks did not run. No isolated sandbox/);
     expect(s.predicate.limits.join(" ")).toMatch(/No Seal is issued/);
   });
 

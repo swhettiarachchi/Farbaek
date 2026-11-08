@@ -1,9 +1,20 @@
-import { FileCodeIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
-import { formatDuration, OUTCOME_WORDS, PROOF_WORDS, type GraphAnalytics, type Median, type ProofStatus } from "@/core/insights/project-graph";
+import { WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { formatDuration, OUTCOME_WORDS, PROOF_WORDS, type GraphAnalytics, type ProofStatus } from "@/core/insights/project-graph";
 import type { ReactNode } from "react";
-import { StatTile } from "@/components/app/primitives";
 
-const time = (m: Median) => (m.ms === null ? "None yet" : formatDuration(m.ms));
+const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
+
+/** "3 h" as it's said in a sentence: "3 hours". */
+function spoken(ms: number): string {
+  const [n = "", unit] = formatDuration(ms).split(" ");
+  const word = unit === "min" ? "minute" : unit === "h" ? "hour" : "day";
+  return `${n} ${n === "1" ? word : `${word}s`}`;
+}
+
+/** A number in a sentence: tabular, in ink, so it reads at a glance without a tile around it. */
+function Num({ children }: { children: ReactNode }) {
+  return <span className="tabular font-medium text-ink">{children}</span>;
+}
 
 /**
  * Counts as labelled bars: one hue for magnitude, the label carries the
@@ -47,34 +58,45 @@ export function GraphAnalyticsView({ a }: { a: GraphAnalytics }) {
   const proofOrder: ProofStatus[] = ["verified", "partially_verified", "failed", "unverified"];
   return (
     <div className="grid gap-4">
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        <StatTile
-          label="From ask to verified"
-          value={time(a.askToVerified)}
-          detail={a.askToVerified.count ? `Median over ${a.askToVerified.count} ${a.askToVerified.count === 1 ? "task" : "tasks"} with passed checks.` : "No task here has passed its checks yet."}
-        />
-        <StatTile
-          label="Waiting for approval"
-          value={time(a.approvalWait)}
-          detail={a.approvalWait.count ? `Median over ${a.approvalWait.count} ${a.approvalWait.count === 1 ? "change" : "changes"} a person approved.` : "No change here has been approved by a person yet."}
-        />
-        <StatTile
-          label="Passed their checks"
-          value={proofTotal ? `${a.proof.verified} of ${proofTotal}` : "None yet"}
-          detail={proofTotal ? "Applied changes whose newest ProofPack is verified." : "Nothing here has been applied and checked yet."}
-        />
-        <StatTile
-          label="Published with proof"
-          value={a.releases.total ? `${a.releases.verified} of ${a.releases.total}` : "None yet"}
-          detail={
-            a.releases.total
-              ? a.releases.override
-                ? `${a.releases.override} went out with an owner's or admin's reason instead.`
-                : "Every version went out with passed checks."
-              : "No version of this project has been published."
-          }
-        />
-      </div>
+      {/* The totals as a person would say them (ADR 0180): numbers in sentences, each with what it counts. */}
+      <p className="max-w-3xl text-[0.9375rem] leading-relaxed text-ink-2">
+        {a.askToVerified.count && a.askToVerified.ms !== null ? (
+          <>
+            A task here usually takes <Num>{spoken(a.askToVerified.ms)}</Num> from the ask to passed checks, the median over <Num>{a.askToVerified.count}</Num>{" "}
+            {plural(a.askToVerified.count, "task", "tasks")}.{" "}
+          </>
+        ) : (
+          "No task here has passed its checks yet. "
+        )}
+        {a.approvalWait.count && a.approvalWait.ms !== null ? (
+          <>
+            A change waits <Num>{spoken(a.approvalWait.ms)}</Num> for a person&apos;s approval, the median over <Num>{a.approvalWait.count}</Num>{" "}
+            {plural(a.approvalWait.count, "change", "changes")}.{" "}
+          </>
+        ) : (
+          "No change here has been approved by a person yet. "
+        )}
+        {proofTotal ? (
+          <>
+            <Num>{a.proof.verified}</Num> of <Num>{proofTotal}</Num> applied {plural(proofTotal, "change", "changes")} passed their checks.{" "}
+          </>
+        ) : (
+          "Nothing here has been applied and checked yet. "
+        )}
+        {a.releases.total ? (
+          <>
+            <Num>{a.releases.verified}</Num> of <Num>{a.releases.total}</Num> published {plural(a.releases.total, "version", "versions")} went out with passed checks
+            {a.releases.override ? (
+              <>
+                , and <Num>{a.releases.override}</Num> with an owner&apos;s or admin&apos;s reason instead
+              </>
+            ) : null}
+            .
+          </>
+        ) : (
+          "No version of this project has been published."
+        )}
+      </p>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Panel title="How the rules decided">
@@ -98,7 +120,7 @@ export function GraphAnalyticsView({ a }: { a: GraphAnalytics }) {
           )}
           {a.incidents ? (
             <p className="flex items-center gap-1.5 text-xs text-ink-2">
-              <WarningCircleIcon size={14} weight="bold" className="text-failed" aria-hidden /> {a.incidents} {a.incidents === 1 ? "incident is" : "incidents are"} linked to these changes.
+              <WarningCircleIcon size={14} weight="bold" className="text-failed" aria-hidden /> {a.incidents} {a.incidents === 1 ? "problem is" : "problems are"} linked to these changes.
             </p>
           ) : null}
         </Panel>
@@ -107,14 +129,11 @@ export function GraphAnalyticsView({ a }: { a: GraphAnalytics }) {
           {a.hotFiles.length ? (
             <ul className="grid gap-2.5">
               {a.hotFiles.map((f) => (
-                <li key={f.path} className="grid gap-0.5">
-                  <span className="flex min-w-0 items-center gap-2">
-                    <FileCodeIcon size={16} className="shrink-0 text-ink-3" aria-hidden />
-                    <span className="truncate font-mono text-[0.8125rem] text-ink" title={f.path}>
-                      {f.path}
-                    </span>
+                <li key={f.path} className="grid min-w-0 gap-0.5">
+                  <span className="truncate font-mono text-[0.8125rem] text-ink" title={f.path}>
+                    {f.path}
                   </span>
-                  <span className="pl-6 text-xs text-ink-3">
+                  <span className="text-xs text-ink-3">
                     {f.changes} {f.changes === 1 ? "change" : "changes"}
                     {f.failed ? (
                       <span className="text-failed">

@@ -1,5 +1,4 @@
-import { ArrowLeftIcon, CheckCircleIcon, CircleDashedIcon, CircleNotchIcon, InfoIcon, WarningIcon, WarningOctagonIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
-import type { Icon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, CheckCircleIcon, CircleNotchIcon, ShieldCheckIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -19,25 +18,31 @@ import { FixWithAgent } from "@/components/security/fix-with-agent";
 
 export const metadata: Metadata = { title: "Security" };
 
-// Severity never relies on colour alone: each has its own icon and label.
-const SEVERITY_STYLE: Record<Severity, { icon: Icon; className: string }> = {
-  critical: { icon: XCircleIcon, className: "text-failed border-failed/50" },
-  high: { icon: WarningOctagonIcon, className: "text-failed border-failed/30" },
-  medium: { icon: WarningIcon, className: "text-approval border-approval/40" },
-  low: { icon: InfoIcon, className: "text-info border-info/40" },
-  info: { icon: CircleDashedIcon, className: "text-ink-3 border-line-strong/50 border-dashed" },
+// Severity is its word in a colour and border (ADR 0180), so colour is never the only signal and no glyph is needed.
+const SEVERITY_STYLE: Record<Severity, string> = {
+  critical: "text-failed border-failed/50",
+  high: "text-failed border-failed/30",
+  medium: "text-approval border-approval/40",
+  low: "text-info border-info/40",
+  info: "text-ink-3 border-line-strong/50 border-dashed",
 };
 
 const SOURCE_LABEL: Record<Finding["source"], string> = { rules: "Rule", dependencies: "Packages", sast: "Semgrep", secrets: "Secret scan", ai: "AI review" };
 
 function SeverityBadge({ severity }: { severity: Severity }) {
-  const s = SEVERITY_STYLE[severity];
   return (
-    <span className={`inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium ${s.className}`}>
-      <s.icon size={14} weight="bold" aria-hidden />
-      {SEVERITY_LABELS[severity]}
-    </span>
+    <span className={`inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-full border px-2.5 text-xs font-medium ${SEVERITY_STYLE[severity]}`}>{SEVERITY_LABELS[severity]}</span>
   );
+}
+
+/** "3 high and 1 low findings", from the counts that aren't zero; informational notes aren't counted. */
+function severityWords(counts: Record<Severity, number>): string | null {
+  const counted = SEVERITIES.filter((s) => s !== "info" && counts[s] > 0);
+  if (counted.length === 0) return null;
+  const parts = counted.map((s) => `${counts[s]} ${SEVERITY_LABELS[s].toLowerCase()}`);
+  const total = counted.reduce((n, s) => n + counts[s], 0);
+  const list = parts.length === 1 ? parts[0]! : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+  return `${list} ${total === 1 ? "finding" : "findings"}`;
 }
 
 type Params = { params: Promise<{ projectId: string }>; searchParams: Promise<{ rescue?: string }> };
@@ -73,6 +78,7 @@ export default async function SecurityPage({ params, searchParams }: Params) {
 
   const p = lastDone?.statement?.predicate ?? null;
   const grouped = p ? SEVERITIES.map((s) => ({ severity: s, findings: p.findings.filter((f) => f.severity === s) })).filter((g) => g.findings.length > 0) : [];
+  const found = p ? severityWords(p.counts) : null;
 
   return (
     <div className="grid gap-6">
@@ -115,7 +121,7 @@ export default async function SecurityPage({ params, searchParams }: Params) {
       ) : null}
 
       {!p && !running ? (
-        <EmptyState icon={CheckCircleIcon} title="No security check yet">
+        <EmptyState icon={ShieldCheckIcon} title="No security check yet">
           Run one to see what to fix first. It reads the project&apos;s files on Farbaek&apos;s side and changes nothing.
         </EmptyState>
       ) : null}
@@ -125,18 +131,23 @@ export default async function SecurityPage({ params, searchParams }: Params) {
           <section className="grid gap-6 rounded-md border border-line bg-surface p-5 shadow-e1 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center sm:p-6" aria-label="Score">
             <ScoreRing score={p.score} grade={p.grade} />
             <div className="grid gap-4">
-              <p className="text-sm font-medium">{p.scope === "rules" ? "Rules check" : "Security check"}</p>
-              <ul className="flex flex-wrap gap-2" aria-label="Findings by severity">
-                {SEVERITIES.filter((s) => s !== "info").map((s) => (
-                  <li key={s} className="flex items-center gap-2 text-sm">
-                    <SeverityBadge severity={s} /> <span className="tabular text-ink-2">{p.counts[s]}</span>
-                  </li>
-                ))}
-              </ul>
+              <div className="grid gap-1">
+                <p className="text-sm font-medium">{p.scope === "rules" ? "Rules check" : "Security check"}</p>
+                <p className="text-sm text-ink-2">
+                  {found ? (
+                    <>
+                      It found <span className="font-medium text-ink tabular">{found}</span>.
+                    </>
+                  ) : (
+                    "It found nothing critical, high, medium or low."
+                  )}
+                </p>
+              </div>
               <ul className="grid gap-1.5 text-sm">
                 {p.checks.map((c) => (
                   <li key={c.name} className="flex items-start gap-2">
-                    {c.ran ? <CheckCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden /> : <CircleDashedIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />}
+                    {/* A mark for a part that ran; a skipped one says so in words, with the space kept so the lines align. */}
+                    {c.ran ? <CheckCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden /> : <span className="size-4 shrink-0" aria-hidden />}
                     <span>
                       <span className="text-ink">{CHECK_LABELS[c.name]}</span>
                       <span className="text-ink-3">: {c.ran ? `${c.findings} found${c.detail ? `. ${c.detail}` : ""}` : `skipped. ${c.reason}`}</span>
@@ -145,7 +156,7 @@ export default async function SecurityPage({ params, searchParams }: Params) {
                 ))}
               </ul>
               <p className="text-xs text-ink-3" title={`Report sha256:${lastDone.digest}`}>
-                Checked <LocalTime iso={p.generatedAt} />, {p.project.files} files. The report is a signed record you can download below.
+                Checked <LocalTime iso={p.generatedAt} />, {p.project.files} {p.project.files === 1 ? "file" : "files"}.
               </p>
             </div>
           </section>
@@ -159,8 +170,8 @@ export default async function SecurityPage({ params, searchParams }: Params) {
           ) : (
             grouped.map((g) => (
               <section key={g.severity} aria-labelledby={`sev-${g.severity}`} className="grid gap-3">
-                <h2 id={`sev-${g.severity}`} className="flex items-center gap-2 text-lg font-medium">
-                  {SEVERITY_LABELS[g.severity]} <span className="text-ink-3 tabular">{g.findings.length}</span>
+                <h2 id={`sev-${g.severity}`} className="text-lg font-medium">
+                  {SEVERITY_LABELS[g.severity]}
                 </h2>
                 <ul className="grid gap-3">
                   {g.findings.map((f) => (
@@ -176,7 +187,7 @@ export default async function SecurityPage({ params, searchParams }: Params) {
                           ) : null}
                         </div>
                         <span className="flex shrink-0 items-center gap-2">
-                          <span className="rounded-full border border-line px-2 py-0.5 text-xs text-ink-3">{SOURCE_LABEL[f.source]}</span>
+                          <span className="text-xs text-ink-3">{SOURCE_LABEL[f.source]}</span>
                           <SeverityBadge severity={f.severity} />
                         </span>
                       </div>
@@ -205,7 +216,7 @@ export default async function SecurityPage({ params, searchParams }: Params) {
               <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm sm:px-5">
                 <LocalTime iso={r.startedAt} />
                 <span className="tabular text-ink-2">
-                  {r.status === "done" ? `${r.statement?.predicate.scope === "rules" ? "Rules check, " : ""}${r.score}, grade ${r.grade}` : r.status === "failed" ? "Failed" : "Running"}
+                  {r.status === "done" ? `${r.statement?.predicate.scope === "rules" ? "Rules check: score" : "Score"} ${r.score}, grade ${r.grade}` : r.status === "failed" ? "Failed" : "Running"}
                 </span>
               </li>
             ))}

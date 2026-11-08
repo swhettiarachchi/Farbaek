@@ -16,9 +16,9 @@ describe("ToolPinPanel (ADR 0133, ADR 0148)", () => {
       }),
     );
     expect(html).toContain("Its tools changed, so its AI steps are paused until they&#x27;re reviewed.");
-    expect(html).toContain("a tool from the MCP server “notes” added on that computer. Each call still waits for the person there to approve it.");
+    expect(html).toContain("a tool from “notes”, a tool server added on that computer. Each call still waits for the person there to approve it.");
     // Farbaek's own tool gets no such note.
-    expect(html.match(/a tool from the MCP server/g)).toHaveLength(1);
+    expect(html.match(/a tool server added on that computer/g)).toHaveLength(1);
     expect(html).toContain("Approve these tools");
   });
 });

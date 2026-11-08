@@ -55,15 +55,22 @@ struct PlansView: View {
                     }
                     .disabled(working != nil)
 
+                    // Small words, full-size targets: each link is at least 44pt tall.
                     HStack(spacing: 18) {
-                        Link("Terms of Use", destination: AppConfig.termsURL)
-                        Link("Privacy Policy", destination: AppConfig.privacyURL)
+                        Link(destination: AppConfig.termsURL) {
+                            Text("Terms of Use").frame(minHeight: 44).contentShape(Rectangle())
+                        }
+                        Link(destination: AppConfig.privacyURL) {
+                            Text("Privacy Policy").frame(minHeight: 44).contentShape(Rectangle())
+                        }
                     }
                     .font(.footnote.weight(.medium))
 
                     if model.canBuyOnWeb {
                         Link(destination: WebPurchase.billingURL) {
                             Label("Or pay on www.farbaek.com", systemImage: "arrow.up.right.square")
+                                .frame(minHeight: 44)
+                                .contentShape(Rectangle())
                         }
                         .font(.footnote.weight(.medium))
                     }

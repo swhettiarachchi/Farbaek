@@ -22,7 +22,6 @@ import { useId, useMemo, useState, useTransition } from "react";
 import { activateRulesAction, draftRulesAction, testRulesAction } from "@/app/app/policies/actions";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { canonicalize } from "@/core/trust/canonical-json";
 import { compilePattern, normalizePattern } from "@/core/trust/path-pattern";
 import { MAX_REQUEST } from "@/core/trust/rule-draft";
@@ -242,9 +241,9 @@ export function RuleBuilder({
           <span>
             The rule suggested by{" "}
             <Link href={`/app/incidents/${suggested.incident}`} className="font-medium text-accent hover:underline">
-              incident #{suggested.incident}
+              problem #{suggested.incident}
             </Link>{" "}
-            is added below. Test the set against past changes, then activate it; the incident will record it.
+            is added below. Test the set against past changes, then activate it, and the problem will record it.
           </span>
         </p>
       ) : null}
@@ -512,12 +511,9 @@ function TestResult({ summary, stale }: { summary: RulesTestSummary; stale: bool
   const differ = summary.stricter + summary.looser;
   return (
     <section aria-labelledby={id} className="grid gap-4 rounded-md border border-dashed border-simulated/40 bg-simulated/[0.03] p-4 sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 id={id} className="text-base font-medium">
-          Tested against the last {summary.days} days
-        </h4>
-        <StatusBadge status="simulated" label="Predicted from past changes" />
-      </div>
+      <h4 id={id} className="text-base font-medium">
+        Tested against the last {summary.days} days
+      </h4>
       {stale ? (
         <p role="status" className="flex items-start gap-2 text-sm">
           <WarningIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-approval" aria-hidden /> These rules changed after this test. Test them again before activating.
@@ -604,9 +600,7 @@ function VersionHistory({ versions, onLoad }: { versions: VersionItem[]; onLoad:
               <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
                 Version {v.version}
                 {v.active ? (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-accent/40 px-2 py-0.5 text-xs font-normal text-accent">
-                    <CheckCircleIcon size={12} weight="bold" aria-hidden /> Active
-                  </span>
+                  <span className="inline-flex items-center rounded-full border border-accent/40 px-2.5 py-0.5 text-xs font-medium text-accent">Active</span>
                 ) : null}
               </p>
               <p className="text-xs leading-relaxed text-ink-3">

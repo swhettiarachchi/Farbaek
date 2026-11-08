@@ -74,11 +74,13 @@ function Tree({
                 type="button"
                 style={pad}
                 onClick={() => setExpanded((s) => (s.has(e.path) ? new Set([...s].filter((p) => p !== e.path)) : new Set([...s, e.path])))}
-                className="flex min-h-11 w-full items-center gap-1.5 pr-3 text-left text-[0.8125rem] text-ink-2 hover:bg-surface-raised lg:min-h-9"
+                className="flex min-h-11 w-full items-center gap-1.5 pr-3 text-left text-[0.8125rem] text-ink-2 hover:bg-surface-raised lg:pointer-fine:min-h-9"
               >
                 {isOpen ? <CaretDownIcon size={12} aria-hidden /> : <CaretRightIcon size={12} aria-hidden />}
                 <FolderIcon size={15} className="shrink-0 text-accent" aria-hidden />
-                <span className="truncate">{e.name}</span>
+                <span className="truncate" title={e.name}>
+                  {e.name}
+                </span>
               </button>
               {isOpen ? <Tree client={client} sessionId={sessionId} dir={e.path} depth={depth + 1} open={open} onOpen={onOpen} version={version} /> : null}
             </li>
@@ -90,11 +92,13 @@ function Tree({
               type="button"
               style={pad}
               onClick={() => onOpen(e.path)}
-              className={`flex min-h-11 w-full items-center gap-1.5 pr-3 text-left text-[0.8125rem] lg:min-h-9 ${open === e.path ? "bg-accent/[0.08] font-medium text-ink" : "text-ink-2 hover:bg-surface-raised"}`}
+              className={`flex min-h-11 w-full items-center gap-1.5 pr-3 text-left text-[0.8125rem] lg:pointer-fine:min-h-9 ${open === e.path ? "bg-accent/[0.08] font-medium text-ink" : "text-ink-2 hover:bg-surface-raised"}`}
             >
               <span className="w-3" aria-hidden />
               <FileIcon size={15} className="shrink-0 text-ink-3" aria-hidden />
-              <span className="truncate">{e.name}</span>
+              <span className="truncate" title={e.name}>
+                {e.name}
+              </span>
             </button>
           </li>
         );
@@ -236,7 +240,7 @@ export function FilesPanel({ client, sessionId, canWrite, readReason }: { client
       />
       <div className="flex min-h-0 min-w-0 flex-col">
         <div className="flex min-h-12 flex-wrap items-center justify-between gap-2 border-b border-line px-3 py-1.5">
-          <span className="min-w-0 truncate font-mono text-[0.8125rem] text-ink-2">
+          <span className="min-w-0 truncate font-mono text-[0.8125rem] text-ink-2" title={open ?? undefined}>
             {open ?? "No file open"}
             {dirty ? <span className="ml-2 font-sans text-xs text-approval">Unsaved</span> : null}
           </span>

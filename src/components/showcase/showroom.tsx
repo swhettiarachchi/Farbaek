@@ -10,7 +10,7 @@
 import { HammerIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion, useInView, useMotionValue, useReducedMotion, useSpring } from "motion/react";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { Fragment, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { offerPrompt } from "@/components/build/prompt-composer";
 import { SHOWCASE } from "@/content/showcase";
 import { ConceptComposition, StageMotionContext } from "./mockups";
@@ -183,10 +183,10 @@ export function Showroom() {
             className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-8"
           >
             <div>
-              <p className="text-sm text-ink-3">
+              <h3 className="text-[1.6rem] font-medium leading-tight tracking-[-0.03em]">{concept.name}</h3>
+              <p className="mt-1 text-sm text-ink-3">
                 {concept.category} · {concept.kind}
               </p>
-              <h3 className="mt-1 text-[1.6rem] font-medium leading-tight tracking-[-0.03em]">{concept.name}</h3>
               <p className="mt-2 max-w-[46ch] text-[0.9375rem] leading-relaxed text-ink-2">{concept.line}</p>
               <p className="mt-4 text-sm text-ink-3">It starts with a sentence:</p>
               <p className="mt-1.5 max-w-[52ch] rounded-sm border border-line bg-surface px-4 py-3 text-[0.9375rem] leading-relaxed text-ink">&ldquo;{concept.prompt}&rdquo;</p>
@@ -204,41 +204,43 @@ export function Showroom() {
               </div>
             </div>
 
-            <dl className="grid content-start gap-4 border-t border-line pt-4 text-[0.90625rem] lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
-              <div>
-                <dt className="text-[0.8125rem] font-medium text-ink-3">Palette</dt>
-                <dd className="mt-2 flex flex-wrap gap-2">
-                  {concept.palette.map((p) => (
-                    <span key={p.hex} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface py-1 pl-1 pr-2.5 text-xs text-ink-2">
-                      <span className="size-4 rounded-full ring-1 ring-ink/10" style={{ background: p.hex }} aria-hidden />
-                      {p.name}
-                      {p.role === "accent" ? <span className="text-ink-3">(accent)</span> : null}
-                    </span>
-                  ))}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-[0.8125rem] font-medium text-ink-3">Type</dt>
-                <dd className="mt-1 text-ink-2">{concept.type}</dd>
-              </div>
-              <div>
-                <dt className="text-[0.8125rem] font-medium text-ink-3">Signature</dt>
-                <dd className="mt-1 text-ink-2">{concept.signature}</dd>
-              </div>
-              <div>
-                <dt className="text-[0.8125rem] font-medium text-ink-3">Skills it would use</dt>
-                <dd className="mt-2 flex flex-wrap gap-1.5">
-                  {concept.skills.map((s) => (
-                    <span key={s} className="rounded-full bg-accent/[0.08] px-2.5 py-1 text-xs font-medium text-accent">
-                      {s}
-                    </span>
-                  ))}
-                </dd>
-              </div>
+            <div className="grid content-start gap-4 border-t border-line pt-4 text-[0.90625rem] lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+              <dl className="grid gap-4">
+                <div>
+                  <dt className="text-[0.8125rem] font-medium text-ink-3">Palette</dt>
+                  <dd className="mt-2 flex flex-wrap gap-2">
+                    {concept.palette.map((p) => (
+                      <span key={p.hex} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface py-1 pl-1 pr-2.5 text-xs text-ink-2">
+                        <span className="size-4 rounded-full ring-1 ring-ink/10" style={{ background: p.hex }} aria-hidden />
+                        {p.name}
+                        {p.role === "accent" ? <span className="text-ink-3">(accent)</span> : null}
+                      </span>
+                    ))}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-[0.8125rem] font-medium text-ink-3">Type</dt>
+                  <dd className="mt-1 text-ink-2">{concept.type}</dd>
+                </div>
+                <div>
+                  <dt className="text-[0.8125rem] font-medium text-ink-3">Signature</dt>
+                  <dd className="mt-1 text-ink-2">{concept.signature}</dd>
+                </div>
+              </dl>
+              <p className="text-ink-2">
+                It would use the{" "}
+                {concept.skills.map((s, i) => (
+                  <Fragment key={s}>
+                    {i === 0 ? null : i === concept.skills.length - 1 ? " and " : ", "}
+                    <span className="font-medium text-ink">{s}</span>
+                  </Fragment>
+                ))}{" "}
+                {concept.skills.length === 1 ? "skill" : "skills"}.
+              </p>
               <p className="text-xs leading-relaxed text-ink-3">
                 A build writes its own design read like this one into DESIGN.md before any page.
               </p>
-            </dl>
+            </div>
           </motion.div>
         </AnimatePresence>
       </div>

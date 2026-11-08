@@ -1,8 +1,11 @@
 import SwiftUI
+import UIKit
 
 /// The account, the workspace, this phone's notifications, and signing out.
 struct YouView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
     @State private var confirmSignOut = false
     @State private var showPlans = false
     @State private var manageSubscription = false
@@ -173,7 +176,15 @@ struct YouView: View {
         } message: {
             Text("This phone is disconnected and stops getting notifications. Sign in again any time.")
         }
-        .refreshable { await model.loadMe(as: model.phase) }
+        .refreshable {
+            await model.loadMe(as: model.phase)
+            await model.readNotificationPermission()
+        }
+        .task { await model.readNotificationPermission() }
+        // Back from Settings: say what's true now.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await model.readNotificationPermission() } }
+        }
         .onAppear { aiAllowed = AIConsent.given }
         .onChange(of: aiAllowed) { _, allowed in AIConsent.given = allowed }
         .sheet(isPresented: $showPlans) { PlansView().environment(model) }
@@ -187,6 +198,20 @@ struct YouView: View {
                     Text("Notifications on iPhone aren't set up on Farbaek's server yet. Everything still shows here when you open the app.")
                         .font(.subheadline)
                         .foregroundStyle(Palette.ink2)
+                } else if model.notificationsDenied {
+                    // Whatever Farbaek has on record, iOS decides what shows: say so, and offer the way to change it.
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Turned off in the iPhone's Settings")
+                            .foregroundStyle(Palette.approval)
+                        Text("Nothing Farbaek sends can show on this iPhone until notifications are allowed for it.")
+                            .font(.footnote)
+                            .foregroundStyle(Palette.ink2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.vertical, 4)
+                    Button("Open Settings") {
+                        if let settings = URL(string: UIApplication.openSettingsURLString) { openURL(settings) }
+                    }
                 } else if push.on {
                     Label("On for this iPhone", systemImage: "bell.badge.fill").foregroundStyle(Palette.verified)
                     Button("Turn off") { Task { await model.disableNotifications() } }

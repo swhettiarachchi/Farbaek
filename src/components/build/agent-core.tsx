@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  ChatCircleDotsIcon,
-  CheckCircleIcon,
-  CircleDashedIcon,
-  CircleNotchIcon,
-  EyeIcon,
-  PencilSimpleLineIcon,
-  ProhibitIcon,
-  TerminalWindowIcon,
-} from "@phosphor-icons/react";
+import { CheckCircleIcon, CircleNotchIcon, ProhibitIcon } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { useReducedMotion } from "motion/react";
 import dynamic from "next/dynamic";
@@ -19,16 +10,16 @@ import { CORE_PHASE_LABELS, type Activity, type CorePhase } from "@/core/agent/r
 
 const AgentCoreScene = dynamic(() => import("@/components/three/agent-core-scene"), { ssr: false });
 
-// Each phase has its own icon and label, so the colour is never the only signal.
-// A waiting phase carries no glyph: the words say who it waits for (ADR 0180).
+// Each phase is a word (ADR 0180): a spinner while the agent works, an icon only for how it ended.
+// Idle and waiting carry no glyph: the words say what's next and who it waits for.
 const PHASE_STYLE: Record<CorePhase, { icon: Icon | null; tone: string; spin?: boolean }> = {
-  idle: { icon: CircleDashedIcon, tone: "text-accent" },
+  idle: { icon: null, tone: "text-accent" },
   starting: { icon: CircleNotchIcon, tone: "text-accent", spin: true },
   working: { icon: CircleNotchIcon, tone: "text-accent", spin: true },
-  thinking: { icon: ChatCircleDotsIcon, tone: "text-accent" },
-  reading: { icon: EyeIcon, tone: "text-accent" },
-  writing: { icon: PencilSimpleLineIcon, tone: "text-accent" },
-  running: { icon: TerminalWindowIcon, tone: "text-accent" },
+  thinking: { icon: CircleNotchIcon, tone: "text-accent", spin: true },
+  reading: { icon: CircleNotchIcon, tone: "text-accent", spin: true },
+  writing: { icon: CircleNotchIcon, tone: "text-accent", spin: true },
+  running: { icon: CircleNotchIcon, tone: "text-accent", spin: true },
   waiting: { icon: null, tone: "text-approval" },
   done: { icon: CheckCircleIcon, tone: "text-verified" },
   stopped: { icon: ProhibitIcon, tone: "text-ink-3" },
@@ -99,11 +90,14 @@ export function AgentCore({ phase, activity = null, children }: { phase: CorePha
   const style = PHASE_STYLE[phase];
 
   return (
-    <section aria-label="Agent" className="relative isolate overflow-hidden rounded-lg border border-line bg-surface shadow-e2">
+    <section aria-label="Farbaek Agent" className="relative isolate overflow-hidden rounded-lg border border-line bg-surface shadow-e2">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10"
-        style={{ background: "radial-gradient(60% 90% at 12% 50%, rgb(36 80 240 / 0.07), transparent 70%), radial-gradient(40% 70% at 0% 100%, rgb(10 110 133 / 0.06), transparent 70%)" }}
+        style={{
+          background:
+            "radial-gradient(60% 90% at 12% 50%, color-mix(in oklab, var(--color-accent) 7%, transparent), transparent 70%), radial-gradient(40% 70% at 0% 100%, color-mix(in oklab, var(--color-accent-2) 6%, transparent), transparent 70%)",
+        }}
       />
       <div className="grid grid-cols-[104px_minmax(0,1fr)] items-center gap-4 p-4 sm:grid-cols-[168px_minmax(0,1fr)] sm:gap-6 sm:p-6">
         <div ref={box} className="relative aspect-square">
@@ -117,8 +111,7 @@ export function AgentCore({ phase, activity = null, children }: { phase: CorePha
           ) : null}
         </div>
         <div className="min-w-0">
-          <p className="text-[0.8125rem] font-medium text-ink-3">Farbaek Agent</p>
-          <p className="mt-1 flex items-center gap-2 text-xl font-medium tracking-[-0.02em] sm:text-2xl" role="status" aria-live="polite">
+          <p className="flex items-center gap-2 text-xl font-medium tracking-[-0.02em] sm:text-2xl" role="status" aria-live="polite">
             {style.icon ? <style.icon size={22} weight="bold" className={`shrink-0 ${style.tone} ${style.spin ? "motion-safe:animate-spin" : ""}`} aria-hidden /> : null}
             {CORE_PHASE_LABELS[phase]}
           </p>
@@ -126,7 +119,7 @@ export function AgentCore({ phase, activity = null, children }: { phase: CorePha
           {typeof activity === "string" ? (
             <p className="mt-1.5 line-clamp-2 text-[0.8125rem] text-ink-2">{activity}</p>
           ) : activity ? (
-            <p className="mt-1.5 truncate text-[0.8125rem] text-ink-2">
+            <p className="mt-1.5 truncate text-[0.8125rem] text-ink-2" title={activity.detail ? `${activity.words} ${activity.detail.text}` : activity.words}>
               {activity.words}
               {activity.detail ? <> {activity.detail.mono ? <span className="font-mono">{activity.detail.text}</span> : activity.detail.text}</> : null}
             </p>

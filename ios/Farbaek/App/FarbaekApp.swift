@@ -53,6 +53,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
 struct RootView: View {
     @Environment(AppModel.self) private var model
+    /// The wordmark grows with the reader's text size.
+    @ScaledMetric(relativeTo: .title3) private var wordmarkSize: CGFloat = 20
 
     var body: some View {
         Group {
@@ -61,7 +63,7 @@ struct RootView: View {
                 VStack(spacing: 24) {
                     HStack(spacing: 8) {
                         Image("Logo").resizable().scaledToFit().frame(height: 44).accessibilityHidden(true)
-                        Text("Farbaek").font(.system(size: 20, weight: .semibold)).tracking(-0.4).foregroundStyle(Palette.ink)
+                        Text("Farbaek").font(.system(size: wordmarkSize, weight: .semibold)).tracking(-0.4).foregroundStyle(Palette.ink)
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Farbaek")

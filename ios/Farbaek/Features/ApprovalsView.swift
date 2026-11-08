@@ -79,7 +79,7 @@ struct WalletCardView: View {
                     Text(card.projectName).font(.footnote).foregroundStyle(Palette.ink2)
                 }
                 Spacer(minLength: 8)
-                Image(systemName: "chevron.right").font(.footnote).foregroundStyle(Palette.ink3)
+                Image(systemName: "chevron.right").font(.footnote).foregroundStyle(Palette.ink3).accessibilityHidden(true)
             }
             FlowFacts(facts: card.facts)
             HStack(spacing: 12) {
@@ -340,6 +340,8 @@ struct ApprovalDetailView: View {
 struct FileDiffCard: View {
     let file: FileChange
     @State private var open = true
+    /// The line-number column's width, as DiffLineRow sizes it, so the "..." between hunks lines up with the code.
+    @ScaledMetric(relativeTo: .caption) private var numberWidth: CGFloat = 40
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -368,7 +370,7 @@ struct FileDiffCard: View {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(Array(file.hunks.enumerated()), id: \.offset) { index, hunk in
                         if index > 0 {
-                            Text("...").font(.caption.monospaced()).foregroundStyle(Palette.ink3).padding(.vertical, 2).padding(.leading, 52)
+                            Text("...").font(.caption.monospaced()).foregroundStyle(Palette.ink3).padding(.vertical, 2).padding(.leading, numberWidth + 18)
                         }
                         ForEach(Array(hunk.lines.enumerated()), id: \.offset) { _, line in
                             DiffLineRow(line: line)
@@ -391,17 +393,20 @@ struct FileDiffCard: View {
 
 struct DiffLineRow: View {
     let line: DiffLine
+    /// Wide enough for a five-digit line number at any text size, so a long file's numbers never wrap.
+    @ScaledMetric(relativeTo: .caption) private var numberWidth: CGFloat = 40
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(number).foregroundStyle(Palette.ink3).frame(width: 34, alignment: .trailing)
+            Text(number).lineLimit(1).foregroundStyle(Palette.ink3).frame(width: numberWidth, alignment: .trailing)
             Text(sign).foregroundStyle(signColor).frame(width: 10)
             Text(line.text.isEmpty ? " " : line.text)
                 .foregroundStyle(Palette.ink)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .font(.caption2.monospaced())
+        // 12pt at the default text size, the smallest the app shows.
+        .font(.caption.monospaced())
         .padding(.vertical, 1.5)
         .padding(.horizontal, 6)
         .background(background)

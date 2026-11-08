@@ -40,7 +40,7 @@ export async function setModelKeyAction(_previous: ModelKeyState, form: FormData
   if (rawGateway) {
     const checked = checkGatewayUrl(rawGateway);
     if (!checked.ok) return { status: "error", message: checked.reason };
-    if (!(await gatewayResolvesPublic(checked.host))) return { status: "error", message: "The gateway's name doesn't point to a public address, so Farbaek won't send anything to it." };
+    if (!(await gatewayResolvesPublic(checked.host))) return { status: "error", message: "That web address doesn't point to a public server, so Farbaek won't send anything to it." };
     gateway = { url: checked.url, host: checked.host };
   }
   const works = await checkAnthropicKey(key.data, gateway?.url ?? null);

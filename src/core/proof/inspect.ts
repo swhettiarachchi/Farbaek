@@ -176,8 +176,8 @@ const STATUS_WORDS: Record<string, string> = {
   partially_verified: "Partly verified",
   unverified: "Not verified",
   failed: "Failed",
-  recovered: "Recovered",
-  partially_recovered: "Partly recovered",
+  recovered: "Undone",
+  partially_recovered: "Partly undone",
 };
 const words = (status: string) => STATUS_WORDS[status] ?? status;
 
@@ -201,7 +201,7 @@ function summarize(kind: EvidenceKind, predicate: unknown): { summary: EvidenceS
           { label: "Plan", value: `Version ${d.contract.version}, sha256:${d.contract.sha256.slice(0, 12)}…`, mono: true },
           { label: "Rules", value: d.policy ? d.policy.outcome : "Not recorded" },
           { label: "Approved", value: d.approval.approvedAt, time: true },
-          { label: "Where checks ran", value: d.execution.mode === "sandboxed" ? `In a test space (${d.execution.provider})` : `Not run: ${d.execution.reason}` },
+          { label: "Where checks ran", value: d.execution.mode === "sandboxed" ? `In a test space (${d.execution.provider})` : `Not run. ${d.execution.reason}` },
           ...(d.proposal.model ? [{ label: "Model", value: d.proposal.model, mono: true }] : []),
           ...(d.egress
             ? [

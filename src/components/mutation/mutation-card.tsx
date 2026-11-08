@@ -1,16 +1,18 @@
-import { CheckCircleIcon, CircleDashedIcon, CircleNotchIcon, EyeIcon, ProhibitIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { CircleNotchIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { RelativeTime } from "@/components/ui/local-time";
+import { StatusBadge, type Status } from "@/components/ui/status-badge";
 import { MUTATION_OPERATOR_WORDS, mutantExcerpt, mutationSummary, type ExcerptLine, type Mutant, type MutantResult } from "@/core/realityloop/mutation";
 import type { MutationRunView } from "@/server/mutation/store";
 import { RunMutation } from "./run-mutation";
 
-const RESULT: Record<MutantResult, { label: string; Icon: typeof CheckCircleIcon; className: string }> = {
-  survived: { label: "Survived", Icon: WarningCircleIcon, className: "border-approval/50 text-approval" },
-  killed: { label: "Caught", Icon: CheckCircleIcon, className: "border-verified/40 text-verified" },
-  timed_out: { label: "Caught: timed out", Icon: CheckCircleIcon, className: "border-verified/40 text-verified" },
-  not_viable: { label: "Didn't load", Icon: ProhibitIcon, className: "border-dashed border-line-strong text-ink-2" },
-  not_run: { label: "Not run", Icon: CircleDashedIcon, className: "border-dashed border-unverified/60 text-unverified" },
+// Status is a word (ADR 0180), drawn by StatusBadge: a caught mistake carries the check, the rest only their word.
+const RESULT: Record<MutantResult, { label: string; status: Status; note?: string }> = {
+  survived: { label: "Survived", status: "approval" },
+  killed: { label: "Caught", status: "verified" },
+  timed_out: { label: "Caught", status: "verified", note: "The tests ran too long with this mistake, which counts as caught." },
+  not_viable: { label: "Didn't load", status: "unverified" },
+  not_run: { label: "Not run", status: "unverified" },
 };
 // Survivors first: they're what a person can act on.
 const ORDER: MutantResult[] = ["survived", "killed", "timed_out", "not_viable", "not_run"];
@@ -46,7 +48,7 @@ function MutantLine({ m }: { m: Mutant }) {
       </p>
       <div className="grid min-w-0 gap-0.5 rounded-sm border border-line bg-canvas-2 px-2.5 py-1.5 font-mono text-[0.78125rem] leading-relaxed">
         {row("Before", "−", e.before, m.before, "text-ink-3")}
-        {row("Mutant", "+", e.after, m.after, "text-ink")}
+        {row("With the mistake", "+", e.after, m.after, "text-ink")}
       </div>
     </div>
   );
@@ -102,10 +104,9 @@ export function MutationCard({ proposalId, taskId, planned, run, disabledReason 
               const r = RESULT[m.result];
               return (
                 <li key={m.id} className="grid gap-2 px-3 py-3 sm:px-4">
-                  <span className={`inline-flex h-6 w-fit items-center gap-1 rounded-full border px-2.5 text-xs font-medium ${r.className}`}>
-                    <r.Icon size={13} weight="bold" aria-hidden /> {r.label}
-                  </span>
+                  <StatusBadge status={r.status} label={r.label} />
                   <MutantLine m={m} />
+                  {r.note ? <p className="text-xs text-ink-3">{r.note}</p> : null}
                   {m.failingTest ? (
                     <p className="text-xs text-ink-3">
                       Caught by <span className="font-mono text-[0.78125rem] text-ink-2">{m.failingTest}</span>
@@ -115,11 +116,9 @@ export function MutationCard({ proposalId, taskId, planned, run, disabledReason 
               );
             })}
           </ul>
-          <p className="flex flex-wrap items-center gap-2 text-xs text-ink-3">
-            <span className="inline-flex h-6 items-center gap-1 rounded-full border border-line px-2 font-medium text-ink-2">
-              <EyeIcon size={13} weight="bold" aria-hidden /> Observed
-            </span>
-            Tests ran for {duration(done.computeMs) ?? "an unknown time"} in all, {duration(done.baselineMs) ?? "unknown"} without mistakes. This covers these mutants only; it isn&apos;t a measure of overall test quality.
+          <p className="text-xs leading-relaxed text-ink-3">
+            Measured in the test space: the tests ran for {duration(done.computeMs) ?? "an unknown time"} in all, and {duration(done.baselineMs) ?? "an unknown time"} without mistakes. This covers these
+            mistakes only, and it isn&apos;t a measure of overall test quality.
           </p>
           {done.command ? <p className="break-all font-mono text-[0.78125rem] text-ink-3">{done.command}</p> : null}
         </div>
@@ -143,10 +142,7 @@ export function MutationCard({ proposalId, taskId, planned, run, disabledReason 
       ) : null}
 
       {planned.length > 0 || done ? (
-        <p className="flex flex-wrap items-center gap-2 text-xs text-ink-3">
-          <span className="inline-flex h-6 items-center rounded-full border border-dashed border-line-strong px-2 font-medium text-ink-2">Estimate</span>
-          Uses up to 20 minutes of your plan&apos;s test space time, and no AI usage.
-        </p>
+        <p className="text-xs leading-relaxed text-ink-3">Estimate: it uses up to 20 minutes of your plan&apos;s test space time, and no AI usage.</p>
       ) : null}
       {running || planned.length === 0 ? null : <RunMutation proposalId={proposalId} taskId={taskId} again={run !== null} disabledReason={disabledReason} />}
     </section>

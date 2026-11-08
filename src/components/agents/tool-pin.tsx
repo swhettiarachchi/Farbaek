@@ -16,7 +16,7 @@ export function ToolPinPanel({ agentId, pin, canApprove, disabledReason }: { age
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
 
-  if (!pin) return <p className="flex items-center gap-2 text-sm text-ink-3"><LockSimpleIcon size={16} aria-hidden /> Its tools are pinned the first time it asks the AI for a step.</p>;
+  if (!pin) return <p className="text-sm text-ink-3">Its tools are pinned the first time it asks the AI for a step.</p>;
   if (pin.status === "pinned") {
     return (
       <p className="flex items-center gap-2 text-sm text-ink-2">
@@ -27,9 +27,7 @@ export function ToolPinPanel({ agentId, pin, canApprove, disabledReason }: { age
   const d = pin.diff;
   return (
     <div className="grid gap-3 rounded-md border border-approval/50 bg-approval/[0.06] p-4">
-      <p className="flex items-start gap-2 text-sm font-medium text-ink">
-        <WarningIcon size={18} className="mt-0.5 shrink-0 text-approval" aria-hidden /> Its tools changed, so its AI steps are paused until they&apos;re reviewed.
-      </p>
+      <p className="text-sm font-medium text-ink">Its tools changed, so its AI steps are paused until they&apos;re reviewed.</p>
       {d ? (
         <ul className="grid gap-2 text-sm text-ink-2">
           {d.added.map((n) => {
@@ -37,8 +35,8 @@ export function ToolPinPanel({ agentId, pin, canApprove, disabledReason }: { age
             return (
               <li key={`a-${n}`}>
                 Added <span className="font-mono text-ink">{n}</span>
-                {/* A tool from an MCP server the agent's person added on that computer (ADR 0148). */}
-                {mcp ? <>: a tool from the MCP server &ldquo;{mcp.server}&rdquo; added on that computer. Each call still waits for the person there to approve it.</> : null}
+                {/* A tool from an MCP server the agent's person added on that computer (ADR 0148), said in words. */}
+                {mcp ? <>: a tool from &ldquo;{mcp.server}&rdquo;, a tool server added on that computer. Each call still waits for the person there to approve it.</> : null}
               </li>
             );
           })}

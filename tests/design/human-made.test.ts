@@ -54,8 +54,8 @@ describe("human-made, not generated", () => {
 
   it("draws no status dots: words, a spinner, a check or a warning instead", () => {
     // A tiny filled circle in a status colour, or a drawn bullet. The one exception is the unread marker, as in every mail app.
-    // (A 2.5 dot inside a ring is a radio control, which is a real thing.)
-    const dot = /(?:\bsize-(?:1\.5|2)(?![.\d])|\bh-(?:1\.5|2) w-(?:1\.5|2)(?![.\d])).*\brounded-full\b.*\bbg-(?:accent|approval|verified|failed|info|unverified|simulated|ink-3|line-strong)\b|\bbefore:size-\d|\bbefore:rounded-full\b/;
+    // Any size up to 3. A dot that scales in inside a ring when chosen is a radio control, which is a real thing.
+    const dot = /^(?!.*\bscale-0\b).*(?:(?:\bsize-(?:1\.5|2\.5|2|3)(?![.\d])|\bh-(?:1\.5|2\.5|2|3) w-(?:1\.5|2\.5|2|3)(?![.\d])).*\brounded-full\b.*\bbg-(?:accent|approval|verified|failed|info|unverified|simulated|ink-3|line-strong)\b|\bbefore:size-\d|\bbefore:rounded-full\b)/;
     expect(hits(web, dot, (rel) => MOCKUPS(rel) || rel === "src/app/app/help/page.tsx")).toEqual([]);
   });
 

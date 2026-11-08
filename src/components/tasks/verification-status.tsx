@@ -1,4 +1,4 @@
-import { CircleNotchIcon, PlayCircleIcon, UserIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { CircleNotchIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import { VERIFICATION_RESULT_WORDS, verificationState, type VerificationRecord } from "@/core/realityloop/verification";
 import { RelativeTime } from "@/components/ui/local-time";
 
@@ -14,7 +14,6 @@ function startedBy(v: VerificationRecord, viewerId: string | null): string {
  */
 export function VerificationStatus({ verification: v, viewerId, now }: { verification: VerificationRecord; viewerId: string | null; now: Date }) {
   const state = verificationState(v, now);
-  const WhoIcon = v.trigger === "autonomy" ? PlayCircleIcon : UserIcon;
 
   if (state === "running") {
     return (
@@ -26,7 +25,7 @@ export function VerificationStatus({ verification: v, viewerId, now }: { verific
             A test space is preparing the project and running the checks against exactly the applied files. This page updates on its own.
           </p>
           <p className="text-xs text-ink-3">
-            <WhoIcon size={14} className="mr-1 inline-block align-[-2px]" aria-hidden /> Started <RelativeTime iso={v.startedAt} />, {startedBy(v, viewerId)}.
+            Started <RelativeTime iso={v.startedAt} />, {startedBy(v, viewerId)}.
           </p>
         </div>
       </div>
@@ -41,7 +40,7 @@ export function VerificationStatus({ verification: v, viewerId, now }: { verific
           <p className="font-medium text-ink">The last check run couldn&apos;t finish</p>
           <p className="text-ink-2">{state === "stale" ? "It stopped without finishing, so nothing was recorded." : v.failure}</p>
           <p className="text-xs text-ink-3">
-            <WhoIcon size={14} className="mr-1 inline-block align-[-2px]" aria-hidden /> Started <RelativeTime iso={v.startedAt} />, {startedBy(v, viewerId)}. Nothing was verified, and nothing else changed.
+            Started <RelativeTime iso={v.startedAt} />, {startedBy(v, viewerId)}. Nothing was verified, and nothing else changed.
           </p>
         </div>
       </div>
@@ -57,7 +56,7 @@ export function VerificationStatus({ verification: v, viewerId, now }: { verific
         <p className="font-medium text-ink">Last check run: {words.title.toLowerCase()}</p>
         <p className="text-ink-2">{words.detail}</p>
         <p className="text-xs text-ink-3">
-          <WhoIcon size={14} className="mr-1 inline-block align-[-2px]" aria-hidden /> Started <RelativeTime iso={v.startedAt} />, {startedBy(v, viewerId)}.
+          Started <RelativeTime iso={v.startedAt} />, {startedBy(v, viewerId)}.
         </p>
       </div>
     </div>

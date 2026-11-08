@@ -23,7 +23,7 @@ describe("prevention rules from an incident", () => {
       ["person_approval", ["src/lib/"]],
       ["owner_approval", ["src/lib/"]],
     ]);
-    expect(rules[0]!.reason).toContain("incident #7");
+    expect(rules[0]!.reason).toContain("problem #7");
     expect(suggestPreventionRules([], 1)).toEqual([]);
   });
 });
@@ -49,7 +49,7 @@ describe("the replay", () => {
   });
 
   it("says when the link is only timing", () => {
-    expect(linkWords(true, 24)).toBe("The change this incident is about.");
+    expect(linkWords(true, 24)).toBe("The change this problem is about.");
     expect(linkWords(false, 24)).toContain("can't tell which, if any, caused it");
   });
 });

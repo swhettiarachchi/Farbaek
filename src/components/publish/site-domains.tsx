@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { addDomainAction, checkDomainAction, removeDomainAction, type PublishState } from "@/app/app/projects/[projectId]/publish-actions";
 import { buttonClasses } from "@/components/ui/button";
 import { ConfirmAction } from "@/components/ui/confirm-action";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { DOMAINS_PER_SITE, type DnsRecord } from "@/core/publish/domains";
 
 const IDLE: PublishState = { status: "idle" };
@@ -42,15 +43,7 @@ function DomainCard({ projectId, domain, disabledReason }: { projectId: string; 
     <li className="grid min-w-0 gap-3 rounded-sm border border-line px-4 py-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="min-w-0 break-all font-mono text-[0.875rem]">{domain.hostname}</span>
-        {verified ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-verified/40 px-2.5 py-0.5 text-xs text-verified">
-            <CheckCircleIcon size={13} weight="bold" aria-hidden /> Verified
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-approval/40 px-2.5 py-0.5 text-xs text-approval">
-            Waiting for DNS
-          </span>
-        )}
+        {verified ? <StatusBadge status="verified" /> : <StatusBadge status="approval" label="Waiting for DNS" />}
         {disabledReason ? null : (
           <ConfirmAction
             action={removeDomainAction}

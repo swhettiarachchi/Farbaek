@@ -230,23 +230,25 @@ export function planLaunch(input: PlannerInput): LaunchPlan {
 
   if (has.has("package.json") && (nextConfig || deps.has("next"))) {
     kind = "nextjs";
-    evidence.push(nextConfig ?? "next in package.json");
+    evidence.push(nextConfig ?? "Next.js in package.json");
     build = script(pkg, "build") ?? assumed("next build");
     start = script(pkg, "start") ?? assumed("next start");
   } else if (has.has("package.json") && (astroConfig || deps.has("astro"))) {
     kind = "astro";
-    evidence.push(astroConfig ?? "astro in package.json");
+    evidence.push(astroConfig ?? "Astro in package.json");
     build = script(pkg, "build") ?? assumed("astro build");
     output = assumed("dist");
   } else if (has.has("package.json") && (viteConfig || deps.has("vite"))) {
     kind = "vite";
-    evidence.push(viteConfig ?? "vite in package.json");
+    evidence.push(viteConfig ?? "Vite in package.json");
     build = script(pkg, "build") ?? assumed("vite build");
     output = assumed("dist");
   } else if (has.has("package.json") && (pkg?.scripts.start !== undefined || ["express", "fastify", "koa", "hono", "@hono/node-server"].some((d) => deps.has(d)))) {
     kind = "node_server";
     const framework = ["express", "fastify", "koa", "hono"].find((d) => deps.has(d));
-    evidence.push(framework ? `${framework} in package.json` : "a start script in package.json");
+    // The framework by its own name, as people know it, not as a package id.
+    const FRAMEWORK_NAMES: Record<string, string> = { express: "Express", fastify: "Fastify", koa: "Koa", hono: "Hono" };
+    evidence.push(framework ? `${FRAMEWORK_NAMES[framework]} in package.json` : "a start script in package.json");
     build = script(pkg, "build");
     start = script(pkg, "start") ?? (pkg?.main ? assumed(`node ${pkg.main}`) : null);
   } else if (python) {
@@ -277,8 +279,7 @@ export function planLaunch(input: PlannerInput): LaunchPlan {
 
   if (kind === "static" && !has.has("index.html")) notes.push("There's no index.html, the page people see first.");
   if (kind === "unknown") notes.push(has.has("package.json") ? "package.json has no build or start script Farbaek recognises." : "There's no index.html or package.json to start from.");
-  if ((kind === "vite" || kind === "astro") && build) notes.push("It needs a build step first. Farbaek Sites serves files as they are, so publish the built folder or a static version.");
-  if (hosting === "server") notes.push("It runs a server, so it needs a host that runs code. Farbaek Sites only serves static files.");
+  // Whether Farbaek Sites fits (a build step, a server) is said once, in its reason beside the plan, not again as a note.
   const secretish = envNames.filter((e) => !e.public).length;
   if (secretish > 0) notes.push(`It reads ${secretish} ${secretish === 1 ? "setting" : "settings"} the host must provide. Keep their values in the host's settings, never in the files.`);
   const leaking = envNames.filter((e) => e.public && /SECRET|PRIVATE|SERVICE_ROLE|PASSWORD|TOKEN/.test(e.name));
@@ -294,9 +295,9 @@ export function planLaunch(input: PlannerInput): LaunchPlan {
       reason: directStatic
         ? "Ready: it's static files, served at your own address on Farbaek after a clean security check."
         : kind === "vite" || kind === "astro"
-          ? "Not yet: it needs a build step, and Farbaek Sites serves files as they are."
+          ? "Not yet: it needs a build step first, and Farbaek Sites serves files as they are. Publish the built folder or a static version."
           : hosting === "server"
-            ? "Not for this project: it runs a server, and Farbaek Sites serves static files."
+            ? "Not for this project: Farbaek Sites serves static files, and this needs a host that runs code."
             : has.has("index.html")
               ? "Not yet: it has an index.html, but its package.json installs or runs something, so Farbaek can't tell how it runs."
               : "Not yet: Farbaek can't tell how this project runs. Add an index.html for a static site.",

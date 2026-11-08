@@ -102,12 +102,7 @@ function Picker({ options, current, googleBilled, cancelling, canManage, unavail
   return (
     <div className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
       <div className="rounded-md bg-surface p-4 shadow-e1 sm:p-5">
-        <div className="flex items-center justify-between gap-3">
-          <p className="font-medium">{mode === "change" ? "Switch your plan" : "Choose a plan"}</p>
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs text-ink-2">
-            <GooglePlayLogoIcon size={14} weight="fill" aria-hidden /> Google Play
-          </span>
-        </div>
+        <p className="font-medium">{mode === "change" ? "Switch your plan" : "Choose a plan"}</p>
         <p className="mt-1 text-sm leading-relaxed text-ink-2">Monthly plans, billed through Google Play.</p>
         {local ? (
           <div className="mt-4 flex items-center justify-between gap-3">
@@ -175,7 +170,7 @@ function Picker({ options, current, googleBilled, cancelling, canManage, unavail
             <CheckCircleIcon size={20} weight="fill" className="mt-px shrink-0 text-verified" aria-hidden /> {status.text}
           </p>
         ) : !canManage ? (
-          <Reason>Owners and admins choose plans</Reason>
+          <Reason>Owners and admins choose plans.</Reason>
         ) : cancelling ? (
           <>
             <p className="text-sm leading-relaxed text-ink-2">{currentName} is set to end. Restore it in Google Play first, then switch here.</p>
@@ -227,8 +222,9 @@ function Picker({ options, current, googleBilled, cancelling, canManage, unavail
   );
 }
 
+/** Why there's no button, as a plain sentence. */
 function Reason({ children }: { children: string }) {
-  return <span className="block rounded-full border border-dashed border-line-strong/50 px-3 py-2 text-center text-xs text-ink-3">{children}</span>;
+  return <p className="text-sm leading-relaxed text-ink-3">{children}</p>;
 }
 
 /** While Google Play is asked for its prices: the picker's own shape, so nothing jumps when they arrive. */

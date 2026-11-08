@@ -361,7 +361,7 @@ export const RISK_NOTES: Record<string, { untested: string; notApplicable?: stri
   ASI04: { untested: "Vulnerabilities inside third-party packages beyond the npm audit in security checks; MCP servers, which Farbaek doesn't connect to agents." },
   ASI05: { untested: "Escapes from the sandbox's microVM, which belong to the runtime provider." },
   ASI06: { untested: "Poisoning of the model's own training data; long-term agent memory, which Farbaek doesn't keep between runs." },
-  ASI07: { untested: "Network-level attacks on the agent API (it relies on HTTPS), and Mesh transfers between computers, which have their own tests." },
+  ASI07: { untested: "Network-level attacks on the agent API (it relies on HTTPS), and sending files between devices, which has its own tests." },
   ASI08: { untested: "Failures across Farbaek's infrastructure, such as the database or a model provider going down." },
   ASI09: { untested: "How people read and act on what they see; the suite checks only that what's shown is backed by evidence." },
   ASI10: { untested: "Behavioural detection of an agent drifting from its task, which Farbaek doesn't do; it relies on limits and switches instead." },

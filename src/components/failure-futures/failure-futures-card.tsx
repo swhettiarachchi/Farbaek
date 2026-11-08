@@ -1,42 +1,33 @@
-import { CheckCircleIcon, CircleNotchIcon, SirenIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { CircleNotchIcon, SirenIcon } from "@phosphor-icons/react/ssr";
 import { modelName } from "@/core/billing/rate-card";
 import Link from "next/link";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { RelativeTime } from "@/components/ui/local-time";
+import { StatusBadge, type Status } from "@/components/ui/status-badge";
 import { LAB_OUTCOME_WORDS, type FailureFuture } from "@/core/realityloop/failure-futures";
 import type { FailureTrialStatus, FailureTrialView } from "@/server/failure-futures/store";
 import { TryFailure } from "./try-failure";
 
 type Shown = FailureTrialStatus | "hypothetical";
 
-// A state is its words in a colour and border (ADR 0180); a mark only for how a trial ended.
-const STATUS: Record<Shown, { label: string; Icon: typeof CheckCircleIcon | null; className: string }> = {
-  hypothetical: { label: "Not tried yet", Icon: null, className: "border-dashed border-line-strong text-ink-2" },
-  running: { label: LAB_OUTCOME_WORDS.running.label, Icon: null, className: "border-approval/40 text-approval" },
-  reproduced: { label: LAB_OUTCOME_WORDS.reproduced.label, Icon: XCircleIcon, className: "border-failed/40 text-failed" },
-  handled: { label: LAB_OUTCOME_WORDS.handled.label, Icon: CheckCircleIcon, className: "border-verified/40 text-verified" },
-  inconclusive: { label: LAB_OUTCOME_WORDS.inconclusive.label, Icon: null, className: "border-dashed border-unverified/60 text-unverified" },
-  not_testable: { label: LAB_OUTCOME_WORDS.not_testable.label, Icon: null, className: "border-line text-ink-2" },
-  failed: { label: LAB_OUTCOME_WORDS.failed.label, Icon: WarningCircleIcon, className: "border-dashed border-failed/40 text-failed" },
+// A state is its words in a colour and border (ADR 0180), drawn by StatusBadge: a mark only for how a trial ended.
+const STATUS: Record<Shown, { label: string; status: Status }> = {
+  hypothetical: { label: "Not tried yet", status: "unverified" },
+  running: { label: LAB_OUTCOME_WORDS.running.label, status: "info" },
+  reproduced: { label: LAB_OUTCOME_WORDS.reproduced.label, status: "failed" },
+  handled: { label: LAB_OUTCOME_WORDS.handled.label, status: "verified" },
+  inconclusive: { label: LAB_OUTCOME_WORDS.inconclusive.label, status: "unverified" },
+  not_testable: { label: LAB_OUTCOME_WORDS.not_testable.label, status: "unverified" },
+  failed: { label: LAB_OUTCOME_WORDS.failed.label, status: "unverified" },
 };
 
 const seconds = (ms: number | null) => (ms === null ? null : ms < 1000 ? "under 1 s" : `${Math.round(ms / 1000)} s`);
 
-function StatusPill({ status }: { status: Shown }) {
-  const { label, Icon, className } = STATUS[status];
-  return (
-    <span className={`inline-flex h-6 shrink-0 items-center gap-1 rounded-full border px-2.5 text-xs font-medium ${className}`}>
-      {Icon ? <Icon size={13} weight="bold" aria-hidden /> : null} {label}
-    </span>
-  );
-}
-
-/** What one finished trial did: the AI-written test, the command, and the output, so a person can judge it. */
 /** Why a past incident put this scenario here (ADR 0145), in words and with a link to it. */
 function IncidentNote({ incident }: { incident: NonNullable<FailureFuture["incident"]> }) {
   const link = (
     <Link href={`/app/incidents/${incident.number}`} className="font-medium text-accent hover:underline">
-      incident #{incident.number}
+      problem #{incident.number}
     </Link>
   );
   return (
@@ -49,6 +40,7 @@ function IncidentNote({ incident }: { incident: NonNullable<FailureFuture["incid
   );
 }
 
+/** What one finished trial did: the AI-written test, the command, and the output, so a person can judge it. */
 function TrialDetail({ trial }: { trial: FailureTrialView }) {
   return (
     <details className="group rounded-sm border border-line bg-surface">
@@ -132,7 +124,8 @@ export function FailureFuturesCard({
         <span className="text-xs text-ink-3">Nothing is applied</span>
       </div>
       <p className="max-w-[68ch] text-sm leading-relaxed text-ink-2">
-        Failures this change could meet, found in the lines it adds and in this project&apos;s past incidents. Each one is hypothetical until you try it: Farbaek writes one test that simulates the failure, and a disposable test space runs it with this change.
+        Failures this change could meet, found in the lines it adds and in this project&apos;s past problems. Each one is hypothetical until you try it. Then Farbaek writes one test
+        that simulates the failure, and a throwaway test space runs it with this change.
       </p>
 
       {running ? (
@@ -151,11 +144,12 @@ export function FailureFuturesCard({
         <ul className="grid divide-y divide-line rounded-sm border border-line bg-surface">
           {futures.map((f) => {
             const trial = latest(f.kind);
+            const shown = STATUS[trial?.status ?? "hypothetical"];
             return (
               <li key={f.kind} className="grid gap-2.5 px-3 py-3.5 sm:px-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <p className="min-w-0 text-[0.9375rem] font-medium leading-snug">{f.title}</p>
-                  <StatusPill status={trial?.status ?? "hypothetical"} />
+                  <StatusBadge status={shown.status} label={shown.label} />
                 </div>
                 {f.incident ? <IncidentNote incident={f.incident} /> : null}
                 <p className="max-w-[68ch] text-sm leading-relaxed text-ink-2">{f.risk}</p>
@@ -181,10 +175,7 @@ export function FailureFuturesCard({
       )}
 
       {futures.length > 0 ? (
-        <p className="flex flex-wrap items-center gap-2 text-xs text-ink-3">
-          <span className="inline-flex h-6 items-center rounded-full border border-dashed border-line-strong px-2 font-medium text-ink-2">Estimate</span>
-          Each trial uses one AI call from your workspace&apos;s usage and up to 15 minutes of test space time.
-        </p>
+        <p className="text-xs leading-relaxed text-ink-3">Estimate: each trial uses one AI call from your workspace&apos;s usage and up to 15 minutes of test space time.</p>
       ) : null}
       {disabledReason && futures.length > 0 ? <p className="text-sm text-ink-3">{disabledReason}</p> : null}
     </section>

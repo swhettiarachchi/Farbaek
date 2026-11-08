@@ -1,7 +1,8 @@
-import { ArrowSquareOutIcon, CheckCircleIcon, CircleDashedIcon, GlobeIcon, ProhibitIcon, SealCheckIcon, ShieldCheckIcon, WarningIcon } from "@phosphor-icons/react/ssr";
+import { ArrowSquareOutIcon, ProhibitIcon, SealCheckIcon, WarningIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { RelativeTime } from "@/components/ui/local-time";
 import { buttonClasses } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { EVIDENCE_WORDS, type EvidenceStatus } from "@/core/publish/evidence";
 import { formatBytes } from "@/core/workspace/files";
 import type { PublishPanelData } from "@/server/publish/panel";
@@ -9,10 +10,11 @@ import { PublishForm } from "./publish-form";
 import { SetLiveForm } from "./set-live-form";
 import { SiteDomains } from "./site-domains";
 
-function EvidenceIcon({ status, size }: { status: EvidenceStatus; size: number }) {
-  if (status === "verified") return <SealCheckIcon size={size} weight="bold" className="shrink-0 text-verified" aria-hidden />;
-  if (status === "none") return <CircleDashedIcon size={size} weight="bold" className="shrink-0 text-ink-3" aria-hidden />;
-  return <WarningIcon size={size} weight="bold" className={`shrink-0 ${status === "failed" ? "text-failed" : "text-approval"}`} aria-hidden />;
+// A mark only for how it ended (ADR 0180): verified or failed. Every other state is its words alone.
+function EvidenceIcon({ status, size, className = "" }: { status: EvidenceStatus; size: number; className?: string }) {
+  if (status === "verified") return <SealCheckIcon size={size} weight="bold" className={`shrink-0 text-verified ${className}`} aria-hidden />;
+  if (status === "failed") return <WarningIcon size={size} weight="bold" className={`shrink-0 text-failed ${className}`} aria-hidden />;
+  return null;
 }
 
 /**
@@ -36,16 +38,10 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
   return (
     <section id="publish" aria-labelledby="publish-heading" className="grid scroll-mt-24 gap-4 rounded-md border border-line bg-surface p-5 shadow-e1">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="publish-heading" className="flex items-center gap-2 text-lg font-medium">
-          <GlobeIcon size={20} weight="bold" className="text-accent" aria-hidden /> Publish
+        <h2 id="publish-heading" className="text-lg font-medium">
+          Publish
         </h2>
-        {live && address ? (
-          <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-verified/40 px-3 text-xs font-medium text-verified">
-            <CheckCircleIcon size={14} weight="bold" aria-hidden /> Live
-          </span>
-        ) : (
-          <span className="inline-flex h-7 items-center rounded-full border border-dashed border-line-strong/60 px-3 text-xs font-medium text-ink-2">Not published</span>
-        )}
+        {live && address ? <StatusBadge status="verified" label="Live" /> : <StatusBadge status="unverified" label="Not published" />}
       </div>
 
       {site?.blocked ? (
@@ -71,9 +67,7 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
             {live.securityScore !== null ? ` after a security check that scored ${live.securityScore}` : ""}.
           </p>
           {data.unpublishedChanges ? (
-            <p className="flex items-center gap-2 text-sm text-ink">
-              <WarningIcon size={16} weight="bold" className="shrink-0 text-approval" aria-hidden /> The files changed since this version. Publish again to put the changes live.
-            </p>
+            <p className="text-sm font-medium text-ink">The files changed since this version. Publish again to put the changes live.</p>
           ) : null}
         </div>
       ) : (
@@ -83,9 +77,7 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
       )}
 
       <div className="flex flex-wrap items-start gap-3 rounded-sm border border-line px-4 py-3 text-sm">
-        <span className="mt-px">
-          <EvidenceIcon status={evidence.status} size={18} />
-        </span>
+        <EvidenceIcon status={evidence.status} size={18} className="mt-px" />
         <p className="min-w-0 flex-1 leading-relaxed text-ink-2">
           <span className="font-medium text-ink">{words.title}.</span> {words.detail}
           {data.needsOverride ? " Publishing without it needs a reason from an owner or admin." : ""}
@@ -99,7 +91,6 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
 
       {data.block ? (
         <div className="flex flex-wrap items-center gap-3 rounded-sm border border-line bg-surface-raised/60 px-4 py-3 text-sm">
-          <ShieldCheckIcon size={18} className="shrink-0 text-ink-3" aria-hidden />
           <span className="min-w-0 flex-1 text-ink-2">{data.block.message}</span>
           {blockLink ? (
             <Link href={blockLink.href} className={buttonClasses("secondary", "sm")}>
@@ -117,7 +108,7 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
           live={Boolean(live)}
           address={address}
           override={data.needsOverride && data.canOverride}
-          disabledReason={publishDisabled ?? (data.block ? "See above." : null)}
+          disabledReason={publishDisabled ?? (data.block ? "Publishing waits on the step above." : null)}
         />
       ) : null}
 
@@ -132,7 +123,7 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
 
       {site && data.deployments.length > 0 ? (
         <details className="group">
-          <summary className="min-h-11 cursor-pointer content-center text-sm font-medium text-ink-2">History ({data.deployments.length})</summary>
+          <summary className="min-h-11 cursor-pointer content-center text-sm font-medium text-ink-2">Every version</summary>
           <ol className="mt-2 grid gap-2">
             {data.deployments.map((d) => {
               const isLive = d.id === site.liveDeploymentId;
@@ -150,9 +141,7 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
                   ) : null}
                   <span className="ml-auto">
                     {isLive ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-verified">
-                        <CheckCircleIcon size={14} weight="bold" aria-hidden /> Live
-                      </span>
+                      <StatusBadge status="verified" label="Live" />
                     ) : disabledReason ? null : (
                       <SetLiveForm projectId={projectId} deploymentId={d.id} version={d.number} />
                     )}
@@ -171,7 +160,7 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
             <SetLiveForm projectId={projectId} deploymentId={null} className="mt-3" />
           ) : null}
           <p className="mt-3 text-xs leading-relaxed text-ink-3">
-            Each version records exactly which file revisions went live, with their digest. It shows what was published, not that the site works.
+            Each version records exactly which file revisions went live. It shows what was published, not that the site works.
           </p>
         </details>
       ) : null}

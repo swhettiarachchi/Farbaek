@@ -86,13 +86,13 @@ export async function resumeAgentsAction(): Promise<IncidentActionState> {
 
 export async function openIncidentAction(input: { title: string; severity: string; projectId: string; text: string }): Promise<IncidentActionState> {
   const parsed = z.object({ title: z.string().max(500), severity: z.string().max(20), projectId: z.string().max(80), text: z.string().max(5_000) }).safeParse(input);
-  if (!parsed.success) return { status: "error", message: "Give the incident a title and a severity." };
+  if (!parsed.success) return { status: "error", message: "Give the problem a title and a severity." };
   const projectId = z.uuid().safeParse(parsed.data.projectId).success ? parsed.data.projectId : null;
   return withDeps(async ({ deps, orgId, ctx }) => {
     const r = await openIncidentByHand(deps, { orgId, userId: ctx.user.id, title: parsed.data.title, severity: parsed.data.severity, projectId, text: parsed.data.text });
     if (!r.ok) return { status: "error", message: r.message };
     revalidatePath("/app/incidents");
-    return { status: "done", message: `Incident #${r.value.number} is open.`, number: r.value.number };
+    return { status: "done", message: `Problem #${r.value.number} is open.`, number: r.value.number };
   });
 }
 

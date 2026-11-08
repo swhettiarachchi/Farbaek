@@ -1,4 +1,4 @@
-import { BookOpenTextIcon, ShieldCheckIcon, TrashIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { ShieldCheckIcon, TrashIcon } from "@phosphor-icons/react/ssr";
 import { removeSkillAction } from "@/app/app/projects/[projectId]/skill-actions";
 import { ConfirmAction } from "@/components/ui/confirm-action";
 import { RelativeTime } from "@/components/ui/local-time";
@@ -38,22 +38,15 @@ const STATUS: Record<SkillPinStatus, { Icon: typeof ShieldCheckIcon | null; cls:
 export function ProjectSkills({ projectId, skills, disabledReason }: { projectId: string; skills: ProjectSkillView[]; disabledReason: string | null }) {
   const held = skills.filter((s) => s.status !== "approved").length;
   return (
-    <section id="skills" aria-labelledby="skills-heading" className="grid scroll-mt-24 gap-4 rounded-md border border-line bg-surface p-5 shadow-e1">
-      <div className="grid gap-1">
-        <h2 id="skills-heading" className="flex items-center gap-2 text-lg font-medium">
-          <BookOpenTextIcon size={20} weight="bold" className="text-accent" aria-hidden /> Skills
-        </h2>
-        <p className="text-sm leading-relaxed text-ink-2">
-          Teach the agent how you like this project built: a proven design skill from the library, one from GitHub, or your own brand and rules. A skill applies to every
-          build here and can&apos;t widen what a plan allows. If one changes or arrives from outside, it waits for your review first. Skills use the open SKILL.md format.
-        </p>
-      </div>
+    // It sits inside the project page's Skills fold, which carries the title and what skills are for, so it doesn't repeat them.
+    <section id="skills" aria-label="Skills" className="grid scroll-mt-24 gap-4 rounded-md border border-line bg-surface p-5 shadow-e1">
+      <p className="text-sm leading-relaxed text-ink-2">
+        Add a proven design skill from the library, one from GitHub, or write your own brand and rules. A skill applies to every build here and can&apos;t widen what a
+        plan allows. If one changes or arrives from outside, it waits for your review first. Skills use the open SKILL.md format.
+      </p>
       {held ? (
-        <p className="flex items-start gap-2 rounded-sm border border-dashed border-approval/40 bg-approval/[0.05] px-4 py-3 text-sm">
-          <WarningCircleIcon size={18} className="mt-px shrink-0 text-approval" aria-hidden />
-          <span>
-            {held === 1 ? "1 skill is" : `${held} skills are`} waiting for review. Builds leave {held === 1 ? "it" : "them"} out until someone approves the exact version.
-          </span>
+        <p className="rounded-sm border border-dashed border-approval/40 bg-approval/[0.05] px-4 py-3 text-sm">
+          {held === 1 ? "1 skill is" : `${held} skills are`} waiting for your review. Builds leave {held === 1 ? "it" : "them"} out until someone approves the exact version.
         </p>
       ) : null}
       {skills.length ? (

@@ -90,10 +90,10 @@ export function AddSkills({
   const reason = disabledReason ?? fullNote;
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="grid gap-1">
         <h3 className="text-[0.9375rem] font-medium">Add a skill</h3>
-        <p className="text-xs text-ink-3">
-          {used} of {max} in use
+        <p className="text-sm text-ink-3">
+          A project can keep up to {max} skills, and this one has {used}.
         </p>
       </div>
       <div role="group" aria-label="Where the skill comes from" className="grid grid-cols-3 gap-1 rounded-full border border-line bg-surface-sunken p-1 sm:inline-flex sm:w-fit">

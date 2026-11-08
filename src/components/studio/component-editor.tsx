@@ -133,10 +133,10 @@ export function ComponentEditor({
             Back to editing
           </button>
         </div>
-        <p className="text-sm text-ink-2">This is exactly what will change in the project&apos;s files. Reject any part you don&apos;t want, then save.</p>
+        <p className="text-sm text-ink-2">This is exactly what will change in the project&apos;s files. Press Leave out on any part you don&apos;t want, then save.</p>
         {changedPaths.map((p) => (
           <div key={p} className="grid gap-2">
-            <p className="font-mono text-xs text-ink-3">{p}</p>
+            <p className="break-all font-mono text-xs text-ink-3">{p}</p>
             <Surface key={`review:${p}`} path={p} value={draft[p]!} original={files[p] ?? ""} label={`Changes to ${p}`} onChange={(next) => setReviewed((r) => ({ ...r, [p]: next }))} />
           </div>
         ))}
@@ -175,7 +175,7 @@ export function ComponentEditor({
                         }}
                         className={`flex min-h-11 w-full min-w-0 items-center gap-2 rounded-sm px-3 text-left text-sm transition-colors duration-150 ${path === c.path && selected === c.n ? "bg-accent/[0.09] ring-1 ring-accent/40" : "hover:bg-surface-raised"}`}
                       >
-                        <span className="min-w-0 truncate font-mono text-xs">
+                        <span className="min-w-0 truncate font-mono text-xs" title={`${c.path}:${c.line} <${c.tag}>`}>
                           {c.path}:{c.line} &lt;{c.tag}&gt;
                         </span>
                         <span className="ml-auto shrink-0 text-xs text-ink-3">{c.why}</span>
@@ -224,13 +224,15 @@ export function ComponentEditor({
                   >
                     <span className={`shrink-0 font-mono text-xs ${e.builtin ? "text-ink-2" : "text-accent"}`}>&lt;{e.tag}&gt;</span>
                     {e.text ? (
-                      <span className="min-w-0 truncate text-ink-2">{e.text.value}</span>
+                      <span className="min-w-0 truncate text-ink-2" title={e.text.value}>
+                        {e.text.value}
+                      </span>
                     ) : e.className ? (
                       <span className="min-w-0 truncate font-mono text-xs text-ink-3" title={e.className.value}>
                         {e.className.value || "no classes"}
                       </span>
                     ) : null}
-                    <span className="ml-auto shrink-0 font-mono text-xs text-ink-3">{e.line}</span>
+                    <span className="ml-auto shrink-0 text-xs text-ink-3">line {e.line}</span>
                   </button>
                 </li>
               ))}

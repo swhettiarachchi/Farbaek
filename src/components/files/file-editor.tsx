@@ -59,7 +59,7 @@ export function FileEditor({
       ? pathCheck.reason === "invalid_path"
         ? (pathCheck.detail ?? SKIP_LABELS.invalid_path)
         : pathCheck.reason === "secret_file"
-          ? "Credentials files such as .env or private keys can't be stored in a project. Keep secrets in environment variables."
+          ? "Files that hold keys and passwords, such as .env or a private key, can't be stored in a project. Keep keys and passwords in your host's settings, not in the code."
           : pathCheck.reason === "ignored_folder"
             ? "Files can't go inside dependency or build folders."
             : SKIP_LABELS[pathCheck.reason]
@@ -87,7 +87,7 @@ export function FileEditor({
     setError(null);
     if (isNew && (!path.trim() || pathError)) return setError(pathError ?? "Give the file a path, for example src/lib/new-file.ts.");
     if (bytes > WORKSPACE_LIMITS.maxFileBytes) return setError(`Files can be up to ${formatBytes(WORKSPACE_LIMITS.maxFileBytes)}.`);
-    if (containsSecret(draft)) return setError("This looks like it contains a secret, such as a private key or an API token. Remove it first. Keep secrets in environment variables.");
+    if (containsSecret(draft)) return setError("This looks like it holds a key or password, such as a private key or an API token. Remove it first, and keep it in your host's settings, not in the code.");
     setReviewed(draft);
     setMode("review");
   }
@@ -131,7 +131,7 @@ export function FileEditor({
                 className="h-11 w-full max-w-md rounded-sm border border-line-strong/60 bg-surface px-3.5 font-mono text-base shadow-e1 focus:border-accent sm:text-sm"
               />
               <p id="new-file-path-hint" className={`text-xs ${pathError ? "text-failed" : "text-ink-3"}`}>
-                {pathError ?? "Relative to the project root."}
+                {pathError ?? "Its path in the project, like src/app.ts."}
               </p>
             </div>
           ) : (
@@ -153,11 +153,11 @@ export function FileEditor({
               <GitDiffIcon size={18} className="text-accent" aria-hidden /> Review the change
             </span>
             {stats ? (
-              <span className="font-mono text-xs">
-                <span className="text-verified">+{stats.added}</span> <span className="text-failed">−{stats.removed}</span> lines
+              <span className="tabular text-xs text-ink-2">
+                {stats.added} {stats.added === 1 ? "line" : "lines"} added, {stats.removed} removed
               </span>
             ) : null}
-            <span className="text-xs text-ink-3">Reject a chunk to put the saved text back. What you see here is exactly what gets saved.</span>
+            <span className="text-xs text-ink-3">Press Leave out beside a change to put the saved text back there. What you see here is exactly what gets saved.</span>
           </p>
           <Surface key="review" path={isNew ? path : initialPath!} value={draft} original={initialContent} label={`Changes to ${isNew ? path : initialPath}`} onChange={setReviewed} />
         </div>
@@ -175,7 +175,7 @@ export function FileEditor({
             <CheckCircleIcon size={16} weight="fill" aria-hidden /> Saved as revision {saved}.
           </p>
         ) : null}
-        {unchanged ? <p className="text-sm text-ink-2">Every change was rejected, so there&apos;s nothing to save.</p> : null}
+        {unchanged ? <p className="text-sm text-ink-2">Every change was left out, so there&apos;s nothing to save.</p> : null}
       </div>
 
       <div className="flex flex-wrap items-center gap-3">

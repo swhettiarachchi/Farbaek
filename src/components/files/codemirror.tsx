@@ -165,6 +165,8 @@ export default function CodeMirrorSurface({
       extensions.push(
         // Not typeable, but the accept and reject controls can still change the text.
         EditorView.editable.of(false),
+        // The merge view's own button words, said from the person's side: keep a change, or leave it out.
+        EditorState.phrases.of({ Accept: "Keep", Reject: "Leave out" }),
         unifiedMergeView({ original, mergeControls: controls, highlightChanges: true, gutter: true, collapseUnchanged: { margin: 3, minSize: 6 } }),
       );
     } else {
