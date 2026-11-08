@@ -1,6 +1,7 @@
+import { WarningCircleIcon, WrenchIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { startFixAction } from "@/app/app/tasks/[taskId]/fix-actions";
-import { Card, Notice, TaskStateBadge } from "@/components/app/primitives";
+import { Card, CardTitle, TaskStateBadge } from "@/components/app/primitives";
 import { PendingSubmit } from "@/components/ui/pending-submit";
 import type { TaskFix } from "@/server/workspace/types";
 
@@ -19,14 +20,15 @@ export function freeRetryWords(included: boolean): string {
 export function FixCard({ taskId, fix, open, retryIncluded, disabledReason, error }: { taskId: string; fix: TaskFix | null; open: boolean; retryIncluded: boolean; disabledReason: string | null; error: string | null }) {
   return (
     <Card id="fix" className="scroll-mt-24">
-      <h2 className="text-lg font-medium">Ask the agent to fix it</h2>
+      <CardTitle icon={WrenchIcon}>Ask the agent to fix it</CardTitle>
       <p className="mt-1 text-sm leading-relaxed text-ink-2">
         Farbaek opens a new task with this task&apos;s approved plan and a note naming the checks that failed. You review its plan, then start the agent. {freeRetryWords(retryIncluded)}
       </p>
       {error ? (
-        <div className="mt-4">
-          <Notice tone="warning">{error}</Notice>
-        </div>
+        <p role="alert" className="mt-4 flex items-start gap-2 text-sm text-failed">
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+          <span>{error}</span>
+        </p>
       ) : null}
       {fix && fix.state === "VERIFIED" ? (
         <div className="mt-5 flex flex-wrap items-center gap-3 rounded-sm border border-line bg-canvas-2 px-4 py-3 text-sm">

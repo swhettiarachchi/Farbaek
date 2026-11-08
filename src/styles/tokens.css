@@ -6,6 +6,11 @@
  *
  * One accent family: signal blue, with signal cyan only inside the aurora and
  * the Proof Thread gradient. No gold in the UI (the logo keeps its own colours).
+ *
+ * Status (ADR 0183): blue means your turn ("approval" is signal blue), burnt
+ * orange means look before going on ("caution", for real warnings only), steel
+ * is information and work in progress, graphite is a sample. No amber, no
+ * purple. Shadows are tinted with ink, never with the accent.
  */
 
 :root {
@@ -17,6 +22,7 @@
   --surface-raised: #f2f4f7;
   --surface-sunken: #eceff3;
   --line: #e4e7ec;
+  --line-2: #d0d5dd;
   --line-strong: #7d828c;
 
   --ink: #121317;
@@ -24,19 +30,22 @@
   --ink-3: #636975;
 
   --accent: #2450f0;
+  --accent-strong: #1e43d0;
   --accent-2: #0a6e85;
   --on-accent: #ffffff;
   --seal: #5a616e;
 
   --primary: #121317;
+  --primary-hover: #23252b;
   --on-primary: #fbfbfc;
 
-  --verified: #137347;
-  --approval: #9a4d00;
-  --failed: #b42318;
-  --info: #1f4fd6;
+  --verified: #0b6e4f;
+  --approval: #2450f0;
+  --caution: #b04508;
+  --failed: #b3243b;
+  --info: #3d5572;
   --unverified: #5f636b;
-  --simulated: #6941c6;
+  --simulated: #4b5160;
 
   /* Media panels (evidence terminal, sandbox output): dark frames inside the white page,
      the way a video player is. Not a second theme. */
@@ -47,10 +56,10 @@
   --media-accent: #7f9cff;
   --media-cyan: #5fd3e8;
   --media-green: #4ade80;
-  --media-amber: #fbbf24;
-  --media-red: #f97066;
+  --media-caution: #ff9466;
+  --media-red: #ff6b81;
 
-  --elev-1: 0 1px 2px rgb(18 19 23 / 0.04), 0 0 0 1px rgb(18 19 23 / 0.04);
-  --elev-2: 0 1px 2px rgb(18 19 23 / 0.04), 0 12px 32px -12px rgb(36 80 240 / 0.12), 0 0 0 1px rgb(18 19 23 / 0.05);
-  --elev-3: 0 2px 4px rgb(18 19 23 / 0.04), 0 32px 80px -24px rgb(36 80 240 / 0.22), 0 0 0 1px rgb(18 19 23 / 0.05);
+  --elev-1: 0 1px 2px rgb(16 24 40 / 0.05), 0 1px 3px rgb(16 24 40 / 0.03);
+  --elev-2: 0 1px 2px rgb(16 24 40 / 0.04), 0 12px 28px -12px rgb(16 24 40 / 0.14), 0 0 0 1px rgb(16 24 40 / 0.05);
+  --elev-3: 0 2px 4px rgb(16 24 40 / 0.04), 0 28px 64px -20px rgb(16 24 40 / 0.22), 0 0 0 1px rgb(16 24 40 / 0.06);
 }

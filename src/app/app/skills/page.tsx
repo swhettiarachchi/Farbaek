@@ -1,8 +1,8 @@
-import { ArrowRightIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, BookOpenTextIcon, ClipboardTextIcon, NotePencilIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { PageHeader } from "@/components/app/primitives";
+import { CardTitle, PageHeader } from "@/components/app/primitives";
 import { LibraryCard } from "@/components/skills/skill-library";
 import { buttonClasses } from "@/components/ui/button";
 import { skillText } from "@/core/agent/skill-library";
@@ -29,16 +29,16 @@ export default async function SkillsPage() {
         description="Skills teach the agent how to design and build. Farbaek's own come with every plan. Add any of these to a project, and every build there follows it."
         actions={
           <Link href="/app/projects" className={buttonClasses("secondary", "sm")}>
-            Choose a project <ArrowRightIcon size={15} weight="bold" aria-hidden />
+            Choose a project <ArrowRightIcon size={16} weight="bold" aria-hidden />
           </Link>
         }
       />
 
       <section aria-labelledby="library-heading" className="grid gap-4">
         <div className="grid gap-1">
-          <h2 id="library-heading" className="text-xl font-medium tracking-[-0.02em]">
+          <CardTitle id="library-heading" icon={BookOpenTextIcon}>
             The library
-          </h2>
+          </CardTitle>
           <p className="max-w-[68ch] text-sm leading-relaxed text-ink-2">
             Proven design skills from people who share them openly. Each one keeps its author&apos;s rules, shortened to fit a build, and travels with its licence. A skill guides
             the agent; it can&apos;t widen what a plan allows.
@@ -58,34 +58,37 @@ export default async function SkillsPage() {
       </section>
 
       <section aria-labelledby="own-heading" className="grid gap-3 rounded-md border border-line bg-surface p-5 shadow-e1">
-        <h2 id="own-heading" className="text-lg font-medium tracking-[-0.01em]">
+        <CardTitle id="own-heading" icon={NotePencilIcon}>
           Your own, or one from GitHub
-        </h2>
+        </CardTitle>
         <p className="max-w-[68ch] text-sm leading-relaxed text-ink-2">
           Write your brand, your tools and your rules as a skill, or bring in any skill from a GitHub link. Both live with a project: open it and go to Skills. One from
           GitHub waits for you to read and approve it before any build uses it.
         </p>
         <div>
           <Link href="/app/projects" className={buttonClasses("secondary", "sm")}>
-            Choose a project <ArrowRightIcon size={15} weight="bold" aria-hidden />
+            Choose a project <ArrowRightIcon size={16} weight="bold" aria-hidden />
           </Link>
         </div>
       </section>
 
       <section aria-labelledby="builtin-heading" className="grid gap-3">
         <div className="grid gap-1">
-          <h2 id="builtin-heading" className="text-xl font-medium tracking-[-0.02em]">
+          <CardTitle id="builtin-heading" icon={ClipboardTextIcon}>
             Built into every plan
-          </h2>
+          </CardTitle>
           <p className="max-w-[68ch] text-sm leading-relaxed text-ink-2">
             Farbaek chooses the ones that fit each plan, and you can untick any of them before a build starts. Nothing to add.
           </p>
         </div>
         <ul className="grid gap-x-6 gap-y-3 rounded-md border border-line bg-surface p-5 shadow-e1 sm:grid-cols-2">
           {FARBAEK_SKILLS.map((s) => (
-            <li key={s.id} className="min-w-0">
-              <span className="block text-[0.9375rem] font-medium">{s.label}</span>
-              <span className="block text-sm leading-relaxed text-ink-2">{s.description}</span>
+            <li key={s.id} className="flex min-w-0 items-start gap-2.5">
+              <BookOpenTextIcon size={16} weight="bold" className="mt-1 shrink-0 text-ink-3" aria-hidden />
+              <span className="min-w-0">
+                <span className="block text-[0.9375rem] font-medium">{s.label}</span>
+                <span className="block text-sm leading-relaxed text-ink-2">{s.description}</span>
+              </span>
             </li>
           ))}
         </ul>

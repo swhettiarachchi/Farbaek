@@ -23,9 +23,9 @@ export function KeptPrompt() {
   const prompt = useSyncExternalStore(noSubscribe, read, () => "");
   if (!prompt.trim()) return null;
   return (
-    <div className="mb-6 rounded-sm border border-accent/25 bg-accent/[0.05] px-4 py-3">
-      <p className="flex items-center gap-1.5 text-xs font-medium text-accent">
-        <QuotesIcon size={13} weight="fill" aria-hidden /> Your build starts with
+    <div className="mb-6 rounded-sm border border-line bg-surface-raised/70 px-4 py-3">
+      <p className="flex items-center gap-1.5 text-xs font-medium text-ink-2">
+        <QuotesIcon size={14} weight="bold" className="text-ink-3" aria-hidden /> Your build starts with
       </p>
       <p className="mt-1 line-clamp-3 text-[0.9375rem] leading-relaxed text-ink">&ldquo;{prompt}&rdquo;</p>
       <p className="mt-1.5 text-xs text-ink-3">It&apos;s kept in this browser and waits in the build box after you sign in.</p>

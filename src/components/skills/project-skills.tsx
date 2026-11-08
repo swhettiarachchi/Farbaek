@@ -1,7 +1,8 @@
-import { ShieldCheckIcon, TrashIcon } from "@phosphor-icons/react/ssr";
+import { TrashIcon } from "@phosphor-icons/react/ssr";
 import { removeSkillAction } from "@/app/app/projects/[projectId]/skill-actions";
 import { ConfirmAction } from "@/components/ui/confirm-action";
 import { RelativeTime } from "@/components/ui/local-time";
+import { StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { SKILL_PIN_LABELS, type SkillPinStatus } from "@/core/agent/skill-pins";
 import { skillFilePath, skillText } from "@/core/agent/skill-library";
 import { SKILL_LIMITS, type Skill } from "@/core/agent/skills";
@@ -22,11 +23,12 @@ export interface ProjectSkillView extends Skill {
   approvedContent: string | null;
 }
 
-// A state is its words in a colour and border (ADR 0180); a mark only once it's approved.
-const STATUS: Record<SkillPinStatus, { Icon: typeof ShieldCheckIcon | null; cls: string }> = {
-  approved: { Icon: ShieldCheckIcon, cls: "border-verified/35 text-verified" },
-  changed: { Icon: null, cls: "border-approval/40 border-dashed text-approval" },
-  new: { Icon: null, cls: "border-approval/40 border-dashed text-approval" },
+// Each skill's state is its kind (ADR 0183): approved is verified, a changed one needs a look, and a new one waits
+// for a person to approve it.
+const STATUS: Record<SkillPinStatus, Status> = {
+  approved: "verified",
+  changed: "attention",
+  new: "approval",
 };
 
 /**
@@ -45,23 +47,22 @@ export function ProjectSkills({ projectId, skills, disabledReason }: { projectId
         plan allows. If one changes or arrives from outside, it waits for your review first. Skills use the open SKILL.md format.
       </p>
       {held ? (
-        <p className="rounded-sm border border-dashed border-approval/40 bg-approval/[0.05] px-4 py-3 text-sm">
-          {held === 1 ? "1 skill is" : `${held} skills are`} waiting for your review. Builds leave {held === 1 ? "it" : "them"} out until someone approves the exact version.
+        <p className="flex items-start gap-2.5 rounded-sm border border-approval/35 bg-approval/[0.05] px-4 py-3 text-sm">
+          <StatusGlyph status="approval" className="mt-0.5" />
+          <span>
+            {held === 1 ? "1 skill is" : `${held} skills are`} waiting for your review. Builds leave {held === 1 ? "it" : "them"} out until someone approves the exact version.
+          </span>
         </p>
       ) : null}
       {skills.length ? (
         <ul className="grid gap-2">
-          {skills.map((s) => {
-            const status = STATUS[s.status];
-            return (
+          {skills.map((s) => (
               <li key={s.path} className="grid min-w-0 gap-3 rounded-sm border border-line px-4 py-3">
                 <div className="flex flex-wrap items-start gap-3">
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-2">
                       <span className="text-[0.9375rem] font-medium">{s.name}</span>
-                      <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${status.cls}`}>
-                        {status.Icon ? <status.Icon size={13} weight="bold" aria-hidden /> : null} {SKILL_PIN_LABELS[s.status]}
-                      </span>
+                      <StatusBadge status={STATUS[s.status]} label={SKILL_PIN_LABELS[s.status]} />
                     </span>
                     {s.description ? <span className="mt-0.5 block text-sm text-ink-2">{s.description}</span> : null}
                     <span className="mt-1 block truncate font-mono text-xs text-ink-3">{s.path}</span>
@@ -92,7 +93,7 @@ export function ProjectSkills({ projectId, skills, disabledReason }: { projectId
                       triggerClassName="inline-flex size-11 items-center justify-center rounded-full text-ink-3 hover:bg-surface-raised hover:text-failed"
                       trigger={
                         <>
-                          <TrashIcon size={17} aria-hidden />
+                          <TrashIcon size={16} weight="bold" aria-hidden />
                           <span className="sr-only">Remove the {s.name} skill</span>
                         </>
                       }
@@ -115,8 +116,7 @@ export function ProjectSkills({ projectId, skills, disabledReason }: { projectId
                   />
                 ) : null}
               </li>
-            );
-          })}
+          ))}
         </ul>
       ) : (
         <p className="text-sm text-ink-3">No skills of this project&apos;s own yet. Farbaek&apos;s built-in skills are chosen on each plan, and you can add more below.</p>

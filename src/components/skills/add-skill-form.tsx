@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusIcon, UploadSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, PlusIcon, UploadSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useState } from "react";
 import { addSkillAction, type SkillState } from "@/app/app/projects/[projectId]/skill-actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -37,10 +37,10 @@ export function AddSkillForm({ projectId, disabledReason, quietReason = false }:
       </label>
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending || Boolean(disabledReason) || !content.trim()} className={buttonClasses("primary", "sm")}>
-          <PlusIcon size={15} weight="bold" aria-hidden /> {pending ? "Saving…" : "Add skill"}
+          <PlusIcon size={16} weight="bold" aria-hidden /> {pending ? "Saving…" : "Add skill"}
         </button>
         <label className={`${buttonClasses("secondary", "sm")} cursor-pointer has-focus-visible:outline-2 has-focus-visible:outline-accent`}>
-          <UploadSimpleIcon size={15} aria-hidden /> Load a .md file
+          <UploadSimpleIcon size={16} weight="bold" aria-hidden /> Load a .md file
           <input
             type="file"
             accept=".md,text/markdown,text/plain"
@@ -57,11 +57,11 @@ export function AddSkillForm({ projectId, disabledReason, quietReason = false }:
       </div>
       {state.status === "error" ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {state.message}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden /> {state.message}
         </p>
       ) : state.status === "done" ? (
-        <p role="status" className="text-sm text-verified">
-          {state.message}
+        <p role="status" className="flex items-start gap-2 text-sm text-verified">
+          <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden /> {state.message}
         </p>
       ) : null}
     </form>

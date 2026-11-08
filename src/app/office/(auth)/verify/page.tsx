@@ -1,4 +1,6 @@
+import { KeyIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
+import { CardTitle } from "@/components/app/primitives";
 import { redirect } from "next/navigation";
 import { firstFactorAt } from "@/core/office/session-policy";
 import { getStaff, officeClients } from "@/server/office/access";
@@ -22,7 +24,7 @@ export default async function OfficeVerify() {
     <div className="grid gap-6">
       <SignInSteps current={1} />
       <div>
-        <h2 className="text-2xl font-medium tracking-[-0.02em]">Your authenticator code</h2>
+        <CardTitle icon={KeyIcon}>Your authenticator code</CardTitle>
         <p className="mt-1.5 text-sm text-ink-2">Open your authenticator app and enter the 6-digit code for Farbaek Office Space.</p>
       </div>
       <TotpForm />

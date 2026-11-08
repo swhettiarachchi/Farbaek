@@ -18,7 +18,7 @@ export function FaqList({ items }: { items: FaqItem[] }) {
           <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 py-4 text-[1.0625rem] font-medium [&::-webkit-details-marker]:hidden">
             {item.q}
             <CaretDownIcon
-              size={18}
+              size={20}
               className="shrink-0 text-ink-3 transition-transform duration-[220ms] ease-standard group-open:rotate-180 motion-reduce:transition-none"
               aria-hidden
             />

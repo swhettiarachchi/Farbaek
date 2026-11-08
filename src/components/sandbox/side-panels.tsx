@@ -1,21 +1,25 @@
 "use client";
 
-import { ArrowsClockwiseIcon, CheckCircleIcon, ReceiptIcon, WarningIcon, XCircleIcon } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, ReceiptIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { JsonView } from "@/components/code/json-view";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
+import { STATUS_KINDS, StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { FAILURE_LABELS, type FailureCategory } from "@/core/sandbox/failures";
 import { EXECUTION_STATE_LABELS } from "@/core/sandbox/lifecycle";
 import { FarbaekApiError, type Execution, type FarbaekSandboxClient, type ResourceSample, type SandboxSession } from "@/sdk/sandbox-client";
+import { EXECUTION_STATE_KIND } from "./badges";
 
-// Status is its word in its colour and border (ADR 0180); a mark only for how it ended.
-const RECEIPT_STATUS = {
-  verified: { label: "Verified", icon: CheckCircleIcon, className: "text-verified border-verified/40" },
-  partially_verified: { label: "Partly verified", icon: WarningIcon, className: "text-approval border-approval/40" },
-  failed: { label: "Failed", icon: XCircleIcon, className: "text-failed border-failed/40" },
-  unverified: { label: "Not verified", icon: null, className: "text-unverified border-unverified/60 border-dashed" },
-} as const;
+// Each receipt's status is one of the shared kinds (ADR 0183): its words, icon, colour and border together.
+const RECEIPT_STATUS: Record<"verified" | "partially_verified" | "failed" | "unverified", { label: string; kind: Status }> = {
+  verified: { label: "Verified", kind: "verified" },
+  partially_verified: { label: "Partly verified", kind: "attention" },
+  failed: { label: "Failed", kind: "failed" },
+  unverified: { label: "Not verified", kind: "unverified" },
+};
+
+const kindText = (kind: Status) => STATUS_KINDS[kind].className.split(" ").find((c) => c.startsWith("text-")) ?? "text-ink-3";
 
 /** The runtime's words for a person: product names, and what "isolation" means. The ids are for the server's settings. */
 const ISOLATION_WORDS: Record<string, string> = { microvm: "its own private computer", container: "its own container", process: "its own process" };
@@ -56,14 +60,15 @@ export function ChecksPanel({
   onDone: () => void;
 }) {
   const [running, setRunning] = useState(false);
-  const [result, setResult] = useState<{ tone: "info" | "error"; text: string } | null>(null);
+  const [result, setResult] = useState<{ tone: "done" | "warning" | "failed" | "error"; text: string } | null>(null);
 
   async function run() {
     setRunning(true);
     setResult(null);
     try {
       const r = await client.runChecks(sessionId);
-      setResult({ tone: "info", text: `${r.passed} of ${r.total} ${r.total === 1 ? "check" : "checks"} passed, and that's recorded. This doesn't mark the task verified. Its own Run the checks does that, in a fresh test space nobody can change.` });
+      // All passed is done, not verified: these checks never mark the task verified. None passed is failed.
+      setResult({ tone: r.passed === r.total ? "done" : r.passed === 0 ? "failed" : "warning", text: `${r.passed} of ${r.total} ${r.total === 1 ? "check" : "checks"} passed, and that's recorded. This doesn't mark the task verified. Its own Run the checks does that, in a fresh test space nobody can change.` });
       onDone();
     } catch (e) {
       setResult({ tone: "error", text: e instanceof FarbaekApiError ? e.message : "The checks couldn't run." });
@@ -99,8 +104,13 @@ export function ChecksPanel({
               {!canRun && reason ? <span className="text-xs text-ink-3">{reason}</span> : null}
             </div>
             {result ? (
-              <p role={result.tone === "error" ? "alert" : "status"} className={`mt-3 text-sm ${result.tone === "error" ? "text-failed" : "text-ink"}`}>
-                {result.text}
+              <p role={result.tone === "error" ? "alert" : "status"} className={`mt-3 flex items-start gap-2 text-sm ${result.tone === "error" ? "text-failed" : "text-ink"}`}>
+                {result.tone === "error" ? (
+                  <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+                ) : (
+                  <StatusGlyph status={result.tone === "done" ? "done" : result.tone === "failed" ? "failed" : "attention"} className="mt-0.5" />
+                )}
+                <span>{result.text}</span>
               </p>
             ) : null}
           </>
@@ -121,10 +131,8 @@ export function ChecksPanel({
                 <li key={r.digest} className="rounded-sm border border-line">
                   <details>
                     <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 px-3 py-2">
-                      <ReceiptIcon size={16} className="shrink-0 text-ink-3" aria-hidden />
-                      <span className={`inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium ${s.className}`}>
-                        {s.icon ? <s.icon size={14} weight="bold" aria-hidden /> : null} {s.label}
-                      </span>
+                      <ReceiptIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
+                      <StatusBadge status={s.kind} label={s.label} />
                       <span className="min-w-0 flex-1 truncate text-xs text-ink-2" title={`sha256:${r.digest}`}>
                         Signed record
                       </span>
@@ -149,19 +157,22 @@ export function ChecksPanel({
           <p className="mt-1 text-sm text-ink-3">No failed commands in this session.</p>
         ) : (
           <ul className="mt-3 grid gap-2">
-            {problems.slice(0, 5).map((e) => (
-              <li key={e.id} className="rounded-sm border border-failed/25 bg-failed/[0.04] px-3 py-2">
-                <p className="flex items-center gap-2 text-sm">
-                  <XCircleIcon size={16} weight="bold" className="shrink-0 text-failed" aria-hidden />
-                  <code className="min-w-0 flex-1 truncate font-mono text-[0.8125rem]" title={e.command}>
-                    {e.command}
-                  </code>
-                  <span className="shrink-0 text-xs text-failed">{e.exitCode !== null ? `Failed (exit ${e.exitCode})` : EXECUTION_STATE_LABELS[e.state]}</span>
-                </p>
-                {e.exitCode === null && e.failure && Object.hasOwn(FAILURE_LABELS, e.failure) ? <p className="mt-1 text-xs text-ink-2">{FAILURE_LABELS[e.failure as FailureCategory].title}.</p> : null}
-                {e.stderr ? <pre className="mt-1 max-h-24 overflow-hidden whitespace-pre-wrap break-words font-mono text-xs text-ink-2">{e.stderr.slice(-600)}</pre> : null}
-              </li>
-            ))}
+            {problems.slice(0, 5).map((e) => {
+              const kind: Status = e.exitCode !== null ? "failed" : EXECUTION_STATE_KIND[e.state];
+              return (
+                <li key={e.id} className="rounded-sm border border-line px-3 py-2">
+                  <p className="flex items-center gap-2 text-sm">
+                    <StatusGlyph status={kind} size={16} />
+                    <code className="min-w-0 flex-1 truncate font-mono text-[0.8125rem]" title={e.command}>
+                      {e.command}
+                    </code>
+                    <span className={`shrink-0 text-xs font-medium ${kindText(kind)}`}>{e.exitCode !== null ? `Failed (exit ${e.exitCode})` : EXECUTION_STATE_LABELS[e.state]}</span>
+                  </p>
+                  {e.exitCode === null && e.failure && Object.hasOwn(FAILURE_LABELS, e.failure) ? <p className="mt-1 text-xs text-ink-2">{FAILURE_LABELS[e.failure as FailureCategory].title}.</p> : null}
+                  {e.stderr ? <pre className="mt-1 max-h-24 overflow-hidden whitespace-pre-wrap break-words font-mono text-xs text-ink-2">{e.stderr.slice(-600)}</pre> : null}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
@@ -229,7 +240,7 @@ export function DetailsPanel({
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-base font-medium">Resources now</h3>
             <button type="button" onClick={() => void refresh()} disabled={!metricsAvailable || state === "loading" || session.state !== "ready"} className={buttonClasses("secondary", "sm")}>
-              <ArrowsClockwiseIcon size={16} aria-hidden /> {state === "loading" ? "Reading…" : "Read now"}
+              <ArrowsClockwiseIcon size={16} weight="bold" aria-hidden /> {state === "loading" ? "Reading…" : "Read now"}
             </button>
           </div>
           {sample ? (
@@ -255,14 +266,17 @@ export function DetailsPanel({
               </p>
             </dl>
           ) : (
-            <p className="mt-3 text-sm text-ink-3">
-              {state === "none"
-                ? "The runtime has no sample yet. It collects one every few seconds."
-                : state === "error"
-                  ? "Reading metrics failed."
-                  : metricsAvailable
-                    ? "No sample taken yet."
-                    : "This runtime doesn't report metrics."}
+            <p className={`mt-3 flex items-start gap-2 text-sm ${state === "error" ? "text-failed" : "text-ink-3"}`}>
+              {state === "error" ? <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden /> : null}
+              <span>
+                {state === "none"
+                  ? "The runtime has no sample yet. It collects one every few seconds."
+                  : state === "error"
+                    ? "Reading metrics failed."
+                    : metricsAvailable
+                      ? "No sample taken yet."
+                      : "This runtime doesn't report metrics."}
+              </span>
             </p>
           )}
         </div>

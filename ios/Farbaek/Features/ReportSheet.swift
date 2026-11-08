@@ -71,13 +71,13 @@ struct ReportSheet: View {
                             .overlay(RoundedRectangle(cornerRadius: Radius.input, style: .continuous).stroke(focused ? Palette.accent : Palette.lineStrong.opacity(0.5), lineWidth: focused ? 2 : 1))
                             .accessibilityLabel("What's wrong with it")
                         if length > Self.limit {
-                            Notice(text: "That's \(length) characters. Shorten it to \(Self.limit) to send it.", tone: .failed, symbol: "exclamationmark.triangle.fill")
+                            Notice(text: "That's \(length) characters. Shorten it to \(Self.limit) to send it.", tone: .failed, symbol: "exclamationmark.circle.fill")
                         }
                         if model.isSample {
-                            Notice(text: "This is sample data, so nothing is sent from here.", symbol: "eye")
+                            Notice(text: "This is sample data, so nothing is sent from here.", tone: .simulated, symbol: Tone.simulated.symbol)
                         }
                         if let failure {
-                            Notice(text: failure, tone: .failed, symbol: "exclamationmark.triangle.fill")
+                            Notice(text: failure, tone: .failed, symbol: "exclamationmark.circle.fill")
                             helpLink
                         }
                         Button {

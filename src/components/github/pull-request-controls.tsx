@@ -18,7 +18,7 @@ export function PullRequestControls({ proposalId, mode, disabledReason }: { prop
     <div className="grid gap-2">
       <form action={run} className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={busy} className={buttonClasses(mode === "open" ? "primary" : "secondary", "sm")}>
-          {mode === "open" ? <GitPullRequestIcon size={16} aria-hidden /> : null}
+          {mode === "open" ? <GitPullRequestIcon size={16} weight="bold" aria-hidden /> : null}
           {running ? LABELS[mode][1] : LABELS[mode][0]}
         </button>
         {disabledReason ? <span className="text-sm text-ink-3">{disabledReason}</span> : null}
@@ -26,12 +26,12 @@ export function PullRequestControls({ proposalId, mode, disabledReason }: { prop
       <div aria-live="polite" className="empty:hidden">
         {state.status === "error" ? (
           <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-            <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden />
             {state.message}
           </p>
         ) : state.status === "done" ? (
           <p role="status" className="flex items-start gap-2 text-sm text-ink-2">
-            <CheckCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+            <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
             {state.message}
           </p>
         ) : null}

@@ -139,7 +139,7 @@ function ChoiceBar({ current }: { current: AnalyticsChoice | null }) {
     >
       <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-5">
         <p className="flex min-w-0 flex-1 items-start gap-2.5 text-[0.8125rem] leading-snug text-ink-2 sm:items-center sm:gap-3 sm:text-sm sm:leading-relaxed">
-          <CookieIcon size={18} className="mt-px shrink-0 text-accent sm:mt-0" aria-hidden />
+          <CookieIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-2 sm:mt-0" aria-hidden />
           <span>
             {current === "allowed"
               ? "Analytics cookies are on for this browser."

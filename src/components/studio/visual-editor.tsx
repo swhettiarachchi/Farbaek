@@ -10,6 +10,7 @@ import {
   DeviceMobileIcon,
   DeviceTabletIcon,
   FilmStripIcon,
+  FloppyDiskIcon,
   GitDiffIcon,
   ImageSquareIcon,
   PaletteIcon,
@@ -379,7 +380,7 @@ export function VisualEditor({
       <div className="grid gap-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="flex items-center gap-2 text-[0.9375rem] font-medium">
-            <GitDiffIcon size={20} className="text-accent" aria-hidden /> Review the change to {changedPaths.length === 1 ? "1 file" : `${changedPaths.length} files`}
+            <GitDiffIcon size={20} className="shrink-0 text-ink-3" aria-hidden /> Review the change to {changedPaths.length === 1 ? "1 file" : `${changedPaths.length} files`}
           </p>
           <button type="button" onClick={() => setMode("design")} className={buttonClasses("ghost", "sm")}>
             Back to editing
@@ -395,7 +396,7 @@ export function VisualEditor({
         <Feedback message={message} />
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" onClick={save} disabled={saving || disabledReason !== null} className={buttonClasses("primary", "md")}>
-            <CheckCircleIcon size={18} aria-hidden /> {saving ? "Saving…" : changedPaths.length === 1 ? "Save the change" : `Save ${changedPaths.length} files`}
+            <FloppyDiskIcon size={16} weight="bold" aria-hidden /> {saving ? "Saving…" : changedPaths.length === 1 ? "Save the change" : `Save ${changedPaths.length} files`}
           </button>
           {disabledReason ? <p className="text-sm text-ink-3">{disabledReason}</p> : <p className="text-sm text-ink-3">Each file becomes a new revision you can see and restore in its history.</p>}
         </div>
@@ -443,7 +444,7 @@ export function VisualEditor({
                 }}
                 className={`inline-flex size-11 items-center justify-center rounded-full transition-colors duration-150 ${device === d.id ? "bg-surface-raised text-ink" : "text-ink-3 hover:text-ink"}`}
               >
-                <d.icon size={17} weight={device === d.id ? "fill" : "regular"} aria-hidden />
+                <d.icon size={20} weight={device === d.id ? "fill" : "regular"} aria-hidden />
               </button>
             ))}
           </div>
@@ -480,10 +481,10 @@ export function VisualEditor({
           </p>
           <div className="flex items-center gap-1">
             <button type="button" onClick={undo} disabled={history.length === 0} aria-label="Undo" title="Undo (Ctrl+Z)" className={buttonClasses("ghost", "sm")}>
-              <ArrowCounterClockwiseIcon size={16} aria-hidden />
+              <ArrowCounterClockwiseIcon size={16} weight="bold" aria-hidden />
             </button>
             <button type="button" onClick={redo} disabled={future.length === 0} aria-label="Redo" title="Redo (Ctrl+Shift+Z)" className={buttonClasses("ghost", "sm")}>
-              <ArrowClockwiseIcon size={16} aria-hidden />
+              <ArrowClockwiseIcon size={16} weight="bold" aria-hidden />
             </button>
             <button
               type="button"
@@ -495,7 +496,7 @@ export function VisualEditor({
               disabled={changedPaths.length === 0}
               className={buttonClasses("secondary", "sm")}
             >
-              <GitDiffIcon size={16} aria-hidden /> Review
+              <GitDiffIcon size={16} weight="bold" aria-hidden /> Review
             </button>
           </div>
         </div>
@@ -519,7 +520,7 @@ export function VisualEditor({
               }}
               className={`inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-sm transition-colors duration-150 ${tab === t ? "bg-primary font-medium text-on-primary" : "text-ink-2 hover:text-ink"}`}
             >
-              <TabIcon size={15} aria-hidden /> {label}
+              <TabIcon size={16} weight="bold" aria-hidden /> {label}
             </button>
           ))}
         </div>
@@ -562,8 +563,8 @@ export function VisualEditor({
             }}
           />
         ) : (
-          <div className="grid justify-items-start gap-2 rounded-sm border border-dashed border-line-strong/40 p-4 text-sm text-ink-2">
-            <CursorClickIcon size={22} className="text-accent" aria-hidden />
+          <div className="grid justify-items-start gap-2 rounded-sm border border-line bg-surface p-4 text-sm text-ink-2">
+            <CursorClickIcon size={24} className="text-ink-3" aria-hidden />
             Pick an element in the page, or choose one from the list below.
           </div>
         )}
@@ -585,7 +586,7 @@ export function VisualEditor({
                       aria-current={selected?.n === m.n ? "true" : undefined}
                       className={`flex min-h-11 w-full items-center gap-2 rounded-sm px-2 text-left text-sm hover:bg-surface-raised ${selected?.n === m.n ? "bg-accent/[0.08] text-ink" : "text-ink-2"}`}
                     >
-                      <KindIcon size={16} className="shrink-0 text-ink-3" aria-hidden />
+                      <KindIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
                       <span className="sr-only">{m.kind === "scene" ? "3D scene" : m.kind === "image" ? "Image" : "Video"}: </span>
                       <span className="min-w-0 flex-1 truncate" title={m.slot ?? m.source ?? undefined}>
                         {m.slot ?? m.source ?? "(no address)"}
@@ -635,9 +636,9 @@ function Feedback({ message }: { message: Message | null }) {
       {message ? (
         <p role={message.tone === "error" ? "alert" : "status"} className={`flex items-start gap-2 text-sm ${message.tone === "error" ? "text-failed" : "text-ink-2"}`}>
           {message.tone === "ok" ? (
-            <CheckCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+            <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
           ) : (
-            <WarningCircleIcon size={16} weight="bold" className={`mt-0.5 shrink-0 ${message.tone === "warning" ? "text-approval" : ""}`} aria-hidden />
+            <WarningCircleIcon size={16} weight="fill" className={`mt-0.5 shrink-0 ${message.tone === "warning" ? "text-caution" : "text-failed"}`} aria-hidden />
           )}
           <span>{message.text}</span>
         </p>
@@ -778,7 +779,7 @@ function Inspector({
         {picked === null ? <p className="text-xs text-ink-3">Reading its styles from the page…</p> : null}
         {sectionAround !== null && sectionAround !== el.n ? (
           <button type="button" onClick={() => onSelectSection(sectionAround)} className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line px-3 text-sm text-ink-2 transition-colors duration-150 hover:text-ink">
-            <SelectionIcon size={15} aria-hidden /> Select the section around this
+            <SelectionIcon size={16} weight="bold" aria-hidden /> Select the section around this
           </button>
         ) : null}
       </div>
@@ -873,7 +874,7 @@ function Inspector({
                 onClick={() => onScreen(value)}
                 className={`inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full px-4 text-sm transition-colors duration-150 ${screen === value ? "bg-primary font-medium text-on-primary" : "text-ink-2 hover:text-ink"}`}
               >
-                <Glyph size={16} weight={screen === value ? "fill" : "regular"} aria-hidden />
+                <Glyph size={16} weight={screen === value ? "fill" : "bold"} aria-hidden />
                 {word}
               </button>
             ))}

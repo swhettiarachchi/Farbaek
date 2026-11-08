@@ -1,5 +1,6 @@
-import { ChatCenteredTextIcon, EyeIcon, GlobeIcon, PenNibIcon } from "@phosphor-icons/react/ssr";
+import { BrowserIcon, ChatCenteredTextIcon, GlobeIcon, HammerIcon, LayoutIcon, ListChecksIcon, PenNibIcon } from "@phosphor-icons/react/ssr";
 import type { ReactNode } from "react";
+import { CardTitle } from "@/components/app/primitives";
 import { CoreMark } from "@/components/build/core-mark";
 import { CapabilityStatusPill, capabilityRows } from "@/components/showcase/capabilities";
 import { Showroom } from "@/components/showcase/showroom";
@@ -20,16 +21,16 @@ export function FirstRunTour() {
     { title: "Watch it build", body: "The agent builds in the cloud under your plan, and you can message it while it works.", node: <CoreMark state="working" /> },
     publishes
       ? { title: "Preview and publish", body: "Try it in a live preview, then publish it to its own web address.", node: <GlobeIcon size={20} aria-hidden /> }
-      : { title: "Preview and download", body: "Try it in a live preview, then download the code whenever you like.", node: <EyeIcon size={20} aria-hidden /> },
+      : { title: "Preview and download", body: "Try it in a live preview, then download the code whenever you like.", node: <BrowserIcon size={20} aria-hidden /> },
   ];
   const capabilities = capabilityRows();
 
   return (
     <>
       <section aria-labelledby="first-run-how" className="home-later mt-16">
-        <h2 id="first-run-how" className="text-2xl font-medium tracking-[-0.03em]">
+        <CardTitle id="first-run-how" icon={HammerIcon}>
           How a build goes
-        </h2>
+        </CardTitle>
         <div className="mt-5 rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
           <ol className="grid gap-7 rounded-md bg-surface p-5 shadow-e1 sm:p-7">
             {steps.map((s, i) => (
@@ -53,9 +54,9 @@ export function FirstRunTour() {
       </section>
 
       <section aria-labelledby="first-run-ideas" className="home-later mt-16">
-        <h2 id="first-run-ideas" className="text-2xl font-medium tracking-[-0.03em]">
+        <CardTitle id="first-run-ideas" icon={LayoutIcon}>
           Start from something like these
-        </h2>
+        </CardTitle>
         <p className="mt-2 max-w-[56ch] text-[0.9375rem] leading-relaxed text-ink-2">
           Concept mockups of the kind of thing you can ask for. Pick one, and its sentence goes into the build box for you to change.
         </p>
@@ -65,9 +66,9 @@ export function FirstRunTour() {
       </section>
 
       <section aria-labelledby="first-run-included" className="home-later mt-16">
-        <h2 id="first-run-included" className="text-2xl font-medium tracking-[-0.03em]">
+        <CardTitle id="first-run-included" icon={ListChecksIcon}>
           What every build comes with
-        </h2>
+        </CardTitle>
         {/* A row to swipe on phones (it takes focus, so it scrolls from the keyboard too), two columns on wider screens. */}
         <ul
           tabIndex={0}
@@ -77,7 +78,7 @@ export function FirstRunTour() {
           {capabilities.map((c) => (
             <li key={c.id} className="flex w-[80%] shrink-0 snap-start flex-col rounded-md border border-line bg-surface p-5 shadow-e1 sm:w-auto">
               <div className="flex items-start justify-between gap-3">
-                <span className="flex size-10 items-center justify-center rounded-full bg-accent/[0.08] text-accent">
+                <span className="flex size-10 items-center justify-center rounded-full bg-surface-raised text-ink-2 ring-1 ring-line">
                   <c.icon size={20} aria-hidden />
                 </span>
                 <CapabilityStatusPill status={c.status} />

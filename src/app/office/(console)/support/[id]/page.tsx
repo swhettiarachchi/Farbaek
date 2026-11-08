@@ -1,13 +1,14 @@
-import { ArrowLeftIcon, BuildingsIcon, FlagIcon, LockSimpleIcon, ProhibitIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, BuildingsIcon, FlagIcon, LockSimpleIcon, UserCircleIcon, UserSwitchIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Chip } from "@/components/admin/table";
-import { Card, Notice } from "@/components/app/primitives";
+import { Card, CardTitle, Notice } from "@/components/app/primitives";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { OfficeActionForm } from "@/components/office/action-form";
 import { SupportReplyForm } from "@/components/office/support-reply";
 import { LocalTime } from "@/components/ui/local-time";
+import { StatusGlyph } from "@/components/ui/status-badge";
 import { STAFF_STATUS_WORDS, TOPIC_LABELS } from "@/core/support/support";
 import { requireStaff } from "@/server/office/access";
 import { loadWorkspaceBrief } from "@/server/office/controls-data";
@@ -31,16 +32,21 @@ export default async function OfficeSupportThread({ params }: { params: Promise<
   return (
     <div className="grid gap-6">
       <Link href="/support" className="inline-flex min-h-11 w-fit items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
-        <ArrowLeftIcon size={14} aria-hidden /> Support
+        <ArrowLeftIcon size={14} weight="bold" aria-hidden /> Support
       </Link>
 
       <header className="grid gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <Chip tone={thread.status === "waiting_on_farbaek" ? "approval" : closed ? "neutral" : "accent"}>{STAFF_STATUS_WORDS[thread.status]}</Chip>
-          <Chip tone={thread.topic === "abuse" ? "failed" : "neutral"}>
-            {thread.topic === "abuse" ? <FlagIcon size={12} weight="fill" className="mr-1" aria-hidden /> : null}
-            {TOPIC_LABELS[thread.topic]}
-          </Chip>
+          {/* Waiting on Farbaek is the staff's turn; waiting on the customer is someone else's; closed is done (ADR 0183). */}
+          <Chip kind={thread.status === "waiting_on_farbaek" ? "approval" : closed ? "done" : "pending"}>{STAFF_STATUS_WORDS[thread.status]}</Chip>
+          {thread.topic === "abuse" ? (
+            <span className="inline-flex h-6 items-center gap-1.5 whitespace-nowrap rounded-full border border-failed/35 px-2.5 text-xs font-medium text-failed">
+              <FlagIcon size={14} weight="bold" className="shrink-0" aria-hidden />
+              {TOPIC_LABELS[thread.topic]}
+            </span>
+          ) : (
+            <Chip>{TOPIC_LABELS[thread.topic]}</Chip>
+          )}
           <span className="text-xs text-ink-3">
             Opened <LocalTime iso={thread.createdAt} />
           </span>
@@ -62,14 +68,14 @@ export default async function OfficeSupportThread({ params }: { params: Promise<
               ) : m.internal ? (
                 <li key={m.id} className="grid gap-1.5">
                   <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-ink-3">
-                    <LockSimpleIcon size={13} aria-hidden />
+                    <LockSimpleIcon size={14} weight="bold" aria-hidden />
                     <span>
                       <span className="font-medium text-ink-2">Internal note</span> by <span className="break-all">{m.staffEmail ?? "a former staff member"}</span>
                     </span>
                     <span aria-hidden>·</span>
                     <LocalTime iso={m.createdAt} />
                   </p>
-                  <div className="whitespace-pre-wrap break-words rounded-md border border-dashed border-line-strong/50 bg-[repeating-linear-gradient(135deg,transparent_0_10px,var(--color-surface-raised)_10px_12px)] px-4 py-3 text-[0.9375rem] leading-relaxed text-ink">
+                  <div className="whitespace-pre-wrap break-words rounded-md border border-line-2 bg-surface-raised px-4 py-3 text-[0.9375rem] leading-relaxed text-ink">
                     {m.body}
                   </div>
                 </li>
@@ -100,20 +106,20 @@ export default async function OfficeSupportThread({ params }: { params: Promise<
 
         <aside className="grid gap-4">
           <Card>
-            <h2 className="text-sm font-medium text-ink-3">From</h2>
+            <CardTitle icon={UserCircleIcon}>From</CardTitle>
             <p className="mt-1 break-all text-[0.9375rem] font-medium">{thread.email}</p>
             {workspace ? (
               <div className="mt-4 grid gap-2 border-t border-line pt-4 text-sm">
                 <Link href={`/workspaces/${workspace.id}`} className="inline-flex min-h-11 items-center gap-2 font-medium text-accent hover:underline">
-                  <BuildingsIcon size={16} aria-hidden /> {workspace.name}
+                  <BuildingsIcon size={16} weight="bold" aria-hidden /> {workspace.name}
                 </Link>
                 <p className="text-ink-2">
                   {workspace.plan}
                   {workspace.trialDaysLeft !== null ? `, ${workspace.trialDaysLeft} trial ${workspace.trialDaysLeft === 1 ? "day" : "days"} left` : ""}
                 </p>
                 {workspace.suspension ? (
-                  <p className="flex items-start gap-1.5 text-failed">
-                    <ProhibitIcon size={15} weight="bold" className="mt-0.5 shrink-0" aria-hidden />
+                  <p className="flex items-start gap-1.5">
+                    <StatusGlyph status="blocked" className="mt-0.5" />
                     <span className="text-ink">Suspended. Members see: &ldquo;{workspace.suspension.notice}&rdquo;</span>
                   </p>
                 ) : null}
@@ -125,7 +131,7 @@ export default async function OfficeSupportThread({ params }: { params: Promise<
 
           {canReply ? (
             <Card>
-              <h2 className="text-sm font-medium text-ink-3">Handling</h2>
+              <CardTitle icon={UserSwitchIcon}>Handling</CardTitle>
               <div className="mt-3 grid gap-3">
                 <OfficeActionForm action={staffSupportUpdateAction} submit={mine ? "Unassign me" : "Assign to me"} tone="secondary" className="grid gap-2">
                   <input type="hidden" name="threadId" value={thread.id} />

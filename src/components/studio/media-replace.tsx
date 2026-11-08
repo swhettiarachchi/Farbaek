@@ -7,9 +7,10 @@
  * proposes the edit: the visual editor checks it, applies it to the draft and
  * shows it in review. An upload is saved to the project's files at once.
  */
-import { CubeIcon, ImagesIcon, LinkSimpleIcon, SelectionIcon, SwapIcon, UploadSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CubeIcon, ImagesIcon, LinkSimpleIcon, SwapIcon, UploadSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useId, useState } from "react";
 import { buttonClasses } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { COLOURWAYS, MEDIA_LIBRARY, SCENE_DESCRIPTIONS, SCENE_NAMES, mediaUrl, type LibraryItem } from "@/core/media/library";
 import { PHOTO_SUBJECTS, photoFacts, photoUrl, subjectForText, type PhotoSubject } from "@/core/media/photos";
 import { IMAGE_ACCEPT } from "@/core/workspace/images";
@@ -20,13 +21,9 @@ const SHAPES = { wide: { library: "still-16x9.webp", w: 1600, h: 900 }, tall: { 
 
 const fieldClass = "min-h-11 w-full rounded-sm border border-line bg-surface px-3 text-base focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
-/** The "Placeholder" mark: words, an icon and a dashed edge, never colour alone. */
+/** The "Placeholder" mark: a stand-in to look at before the site goes out, so it needs a look (ADR 0183). */
 export function PlaceholderChip() {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-approval/60 px-2 py-0.5 text-xs text-ink-2">
-      <SelectionIcon size={12} weight="bold" className="text-approval" aria-hidden /> Placeholder
-    </span>
-  );
+  return <StatusBadge status="attention" label="Placeholder" />;
 }
 
 export function MediaReplace({
@@ -113,7 +110,7 @@ export function MediaReplace({
     <section aria-labelledby={`${id}-title`} className="grid gap-3 rounded-md border border-line bg-surface-raised/50 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 id={`${id}-title`} className="flex items-center gap-1.5 text-sm font-medium">
-          <SwapIcon size={16} aria-hidden /> Replace {kind === "image" ? "image" : "video"}
+          <SwapIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> Replace {kind === "image" ? "image" : "video"}
         </h3>
         {placeholder ? <PlaceholderChip /> : null}
       </div>
@@ -207,7 +204,7 @@ export function MediaReplace({
           <label
             className={`relative flex min-h-11 items-center justify-center gap-2 rounded-full border border-dashed border-line-strong/70 bg-surface px-4 text-sm font-medium transition-colors duration-150 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent ${uploadDisabledReason || uploading ? "cursor-not-allowed text-ink-3" : "cursor-pointer hover:border-accent/60"}`}
           >
-            <UploadSimpleIcon size={16} aria-hidden /> {uploading ? "Uploading…" : "Upload a photo"}
+            <UploadSimpleIcon size={16} weight="bold" aria-hidden /> {uploading ? "Uploading…" : "Upload a photo"}
             <input
               type="file"
               accept={IMAGE_ACCEPT}
@@ -223,7 +220,7 @@ export function MediaReplace({
           </label>
           {uploadError ? (
             <p role="alert" className="flex items-start gap-1.5 text-xs text-failed">
-              <WarningCircleIcon size={14} weight="bold" className="mt-px shrink-0" aria-hidden /> {uploadError}
+              <WarningCircleIcon size={16} weight="fill" className="shrink-0 text-failed" aria-hidden /> {uploadError}
             </p>
           ) : (
             <p className="text-xs text-ink-3">
@@ -283,7 +280,7 @@ export function MediaReplace({
           <p className="text-xs text-ink-3">{kind === "image" ? "An https address of an image." : "An https address of an mp4 or webm file, such as one you host yourself."}</p>
           <div>
             <button type="button" onClick={() => onReplace({ src: link })} disabled={!link.trim()} className={buttonClasses("secondary", "sm")}>
-              <LinkSimpleIcon size={16} aria-hidden /> Use this address
+              <LinkSimpleIcon size={16} weight="bold" aria-hidden /> Use this address
             </button>
           </div>
         </div>
@@ -306,7 +303,7 @@ export function ScenePicker({ current, onPick }: { current: string; onPick: (sce
   return (
     <section aria-labelledby={`${id}-title`} className="grid gap-2 rounded-md border border-line bg-surface-raised/50 p-3">
       <h3 id={`${id}-title`} className="flex items-center gap-1.5 text-sm font-medium">
-        <CubeIcon size={16} aria-hidden /> 3D scene
+        <CubeIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> 3D scene
       </h3>
       <ul className="grid gap-1" role="radiogroup" aria-labelledby={`${id}-title`}>
         {SCENE_NAMES.map((s) => (

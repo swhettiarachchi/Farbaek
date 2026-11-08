@@ -1,4 +1,19 @@
-import { ArchiveIcon, ArrowLeftIcon, ArrowRightIcon, CloudArrowUpIcon, DownloadSimpleIcon, GithubLogoIcon, GraphIcon, ListChecksIcon, PaintBrushIcon } from "@phosphor-icons/react/ssr";
+import {
+  ArchiveIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  BookOpenTextIcon,
+  BrowserIcon,
+  CloudArrowUpIcon,
+  DownloadSimpleIcon,
+  FolderOpenIcon,
+  GithubLogoIcon,
+  GraphIcon,
+  ListBulletsIcon,
+  PaletteIcon,
+  PlusIcon,
+  ShieldCheckIcon,
+} from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -23,7 +38,7 @@ import { previewUnavailableReason, readSandboxConfig } from "@/server/sandbox/co
 import { ArchiveProject } from "@/components/app/archive-project";
 import { LocalTime } from "@/components/ui/local-time";
 import { MANAGER_ROLES } from "@/server/workspace/types";
-import { Card, EmptyState, Notice, PageHeader } from "@/components/app/primitives";
+import { Card, CardTitle, EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { TaskList } from "@/components/app/task-list";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { formatBytes } from "@/core/workspace/files";
@@ -94,7 +109,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
     <div className="grid gap-8">
       <div>
         <Link href="/app/projects" className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
-          <ArrowLeftIcon size={14} aria-hidden /> Projects
+          <ArrowLeftIcon size={14} weight="bold" aria-hidden /> Projects
         </Link>
         <div className="mt-3">
           <PageHeader
@@ -104,12 +119,12 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
               <div className="flex flex-wrap gap-2">
                 {/* Two at most here, so a phone shows the page's job first; the project map and GitHub sit lower down. */}
                 <Link href={`/app/projects/${project.id}/launch`} className={buttonClasses("secondary", "sm")}>
-                  <CloudArrowUpIcon size={16} aria-hidden /> Launch plan
+                  <CloudArrowUpIcon size={16} weight="bold" aria-hidden /> Launch plan
                 </Link>
                 {/* Apps with a build step get the component editor (ADR 0129); static sites open it from the live preview below. */}
                 {!isStatic && files.some((f) => /.(tsx|jsx)$/.test(f.path)) ? (
                   <Link href={`/app/projects/${project.id}/design`} className={buttonClasses("secondary", "sm")}>
-                    <PaintBrushIcon size={16} aria-hidden /> Visual editor
+                    <PaletteIcon size={16} weight="bold" aria-hidden /> Visual editor
                   </Link>
                 ) : null}
               </div>
@@ -173,11 +188,11 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
       {contents ? (
         <section aria-labelledby="preview-heading" className="grid gap-3 rounded-md border border-line bg-surface p-4 shadow-e1 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 id="preview-heading" className="text-lg font-medium">
+            <CardTitle id="preview-heading" icon={BrowserIcon}>
               Live preview
-            </h2>
+            </CardTitle>
             <ButtonLink href={`/app/projects/${project.id}/design`} variant="secondary" size="sm">
-              <PaintBrushIcon size={16} aria-hidden /> Visual editor
+              <PaletteIcon size={16} weight="bold" aria-hidden /> Visual editor
             </ButtonLink>
           </div>
           <StaticPreview versions={[{ id: "now", label: "Current", files: Object.fromEntries(contents.map((f) => [f.path, f.content])), images }]} />
@@ -198,11 +213,11 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">
         <section aria-labelledby="tasks-heading" className="grid gap-4">
-          <h2 id="tasks-heading" className="text-lg font-medium">
+          <CardTitle id="tasks-heading" icon={ListBulletsIcon}>
             Tasks
-          </h2>
+          </CardTitle>
           {tasks.length === 0 ? (
-            <EmptyState icon={ListChecksIcon} title="No tasks in this project">
+            <EmptyState icon={ListBulletsIcon} title="No tasks in this project">
               Describe one thing you want. You read and approve a plan before anything changes.
             </EmptyState>
           ) : (
@@ -213,10 +228,10 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
         <div className="grid gap-6">
         <Card>
           <div className="flex items-start justify-between gap-3">
-            <h2 className="text-lg font-medium">Files</h2>
+            <CardTitle icon={FolderOpenIcon}>Files</CardTitle>
             {files.length > 0 ? (
               <Link href={`/app/projects/${project.id}/files`} className="inline-flex min-h-11 items-center gap-1 text-sm text-accent hover:underline">
-                Open <ArrowRightIcon size={14} aria-hidden />
+                Open <ArrowRightIcon size={14} weight="bold" aria-hidden />
               </Link>
             ) : null}
           </div>
@@ -228,10 +243,10 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
               <div className="mt-4 flex flex-wrap items-start gap-3">
                 <PreviewButton projectId={project.id} disabledReason={previewReason} variant="primary" />
                 <a href={`/app/projects/${project.id}/download`} download className={buttonClasses("secondary", "sm")}>
-                  <DownloadSimpleIcon size={16} aria-hidden /> Download .zip
+                  <DownloadSimpleIcon size={16} weight="bold" aria-hidden /> Download .zip
                 </a>
                 <a href={`/app/projects/${project.id}/export`} download className={buttonClasses("secondary", "sm")}>
-                  <ArchiveIcon size={16} aria-hidden /> Export everything
+                  <DownloadSimpleIcon size={16} weight="bold" aria-hidden /> Export everything
                 </a>
               </div>
               <p className="mt-3 text-xs text-ink-3">
@@ -260,9 +275,9 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
         </Card>
         <Card>
           <div className="flex items-start justify-between gap-3">
-            <h2 className="text-lg font-medium">Security</h2>
+            <CardTitle icon={ShieldCheckIcon}>Security</CardTitle>
             <Link href={`/app/projects/${project.id}/security`} className="inline-flex min-h-11 items-center gap-1 text-sm text-accent hover:underline">
-              Open <ArrowRightIcon size={14} aria-hidden />
+              Open <ArrowRightIcon size={14} weight="bold" aria-hidden />
             </Link>
           </div>
           <p className="mt-2 text-sm text-ink-2">Check the code for leaked secrets, unsafe patterns, vulnerable packages and risky logic, then fix findings with the agent.</p>
@@ -273,15 +288,15 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
           </p>
           <div className="flex flex-wrap gap-x-6">
             <Link href={`/app/projects/${project.id}/graph`} className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-ink-2 hover:text-ink">
-              <GraphIcon size={16} aria-hidden /> Project map
+              <GraphIcon size={16} weight="bold" aria-hidden /> Project map
             </Link>
             <Link href={`/app/projects/${project.id}/github`} className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-ink-2 hover:text-ink">
-              <GithubLogoIcon size={16} aria-hidden /> GitHub
+              <GithubLogoIcon size={16} weight="bold" aria-hidden /> GitHub
             </Link>
           </div>
         </nav>
         {/* Describing a change above drafts the plan; this is for work someone will plan later, so it stays folded. */}
-        <Disclosure summary="Add a task without a plan" hint="For work you'll plan later. Describing a change above drafts the plan for you.">
+        <Disclosure summary="Add a task without a plan" icon={<PlusIcon size={20} />} hint="For work you'll plan later. Describing a change above drafts the plan for you.">
           <Card>
             <CreateTaskForm
               projectId={project.id}
@@ -291,7 +306,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
         </Disclosure>
         {!project.archivedAt ? (
           <Card>
-            <h2 className="text-lg font-medium">Archive</h2>
+            <CardTitle icon={ArchiveIcon}>Archive</CardTitle>
             <p className="mt-1 text-sm text-ink-2">Take a finished or paused project out of the list. Nothing is deleted.</p>
             <div className="mt-4">
               <ArchiveProject
@@ -308,7 +323,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
       </div>
 
       {/* One shape whatever the skills' state, so adding one doesn't reset the section and lose its message. */}
-      <Disclosure summary="Skills" hint="Teach the agent how you like this project built" open={skills.some((s) => s.status !== "approved")}>
+      <Disclosure summary="Skills" icon={<BookOpenTextIcon size={20} />} hint="Teach the agent how you like this project built" open={skills.some((s) => s.status !== "approved")}>
         <ProjectSkills projectId={project.id} skills={skills} disabledReason={publishReason} />
       </Disclosure>
     </div>

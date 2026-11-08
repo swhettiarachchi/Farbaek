@@ -29,7 +29,7 @@ export function SetLiveForm({ projectId, deploymentId, version, className }: { p
       className={className}
       trigger={
         <>
-          <ArrowCounterClockwiseIcon size={14} aria-hidden /> Make live
+          <ArrowCounterClockwiseIcon size={14} weight="bold" aria-hidden /> Make live
         </>
       }
       question={`Make ${version ? `version ${version}` : "this earlier version"} live instead of the current one? Visitors see it within a few seconds, and the current version stays in the history.`}

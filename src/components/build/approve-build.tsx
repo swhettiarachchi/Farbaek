@@ -114,8 +114,8 @@ export function ApproveBuild({
           )}
         </p>
         {heldSkills.length ? (
-          <p className="flex items-start gap-2 text-xs leading-relaxed text-approval">
-            <WarningCircleIcon size={14} className="mt-px shrink-0" aria-hidden />
+          <p className="flex items-start gap-2 text-xs leading-relaxed text-ink-2">
+            <WarningCircleIcon size={14} weight="fill" className="mt-px shrink-0 text-caution" aria-hidden />
             <span>
               {heldSkills.length === 1 ? "1 skill is" : `${heldSkills.length} skills are`} waiting for review and won&apos;t apply: {heldSkills.join(", ")}.{" "}
               {skillsHref ? (
@@ -139,7 +139,7 @@ export function ApproveBuild({
             <label key={value} className="relative flex-1 sm:flex-none">
               <input type="radio" name="theme" value={value} checked={theme === value} onChange={() => setTheme(value)} className="peer sr-only" />
               <span className="flex min-h-11 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full px-4 text-sm text-ink-2 transition-colors duration-[160ms] peer-checked:bg-primary peer-checked:font-medium peer-checked:text-on-primary peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent peer-disabled:cursor-not-allowed peer-disabled:opacity-50 sm:px-5">
-                <Icon size={16} aria-hidden />
+                <Icon size={16} weight="bold" aria-hidden />
                 {label}
               </span>
             </label>
@@ -180,7 +180,7 @@ export function ApproveBuild({
       ) : null}
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending || Boolean(disabledReason)} className={buttonClasses("primary")}>
-          <HammerIcon size={18} weight="bold" aria-hidden />
+          <HammerIcon size={16} weight="bold" aria-hidden />
           {pending ? "Approving and starting…" : "Approve and build"}
         </button>
         <Link href={`/app/tasks/${taskId}`} className={buttonClasses("secondary")}>
@@ -190,7 +190,7 @@ export function ApproveBuild({
       {disabledReason ? <p className="text-sm text-ink-3">{disabledReason}</p> : null}
       {state.status === "error" ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
           <span>
             {state.message}
             {state.approved ? (

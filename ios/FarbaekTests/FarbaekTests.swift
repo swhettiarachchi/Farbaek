@@ -46,6 +46,28 @@ final class FarbaekTests: XCTestCase {
         XCTAssertEqual(ClosesIn.words(-5), "Expired")
     }
 
+    func testEveryStatusHasItsKindAndMark() {
+        // The API's tone words still read, with a plain fact ("neutral") as information (ADR 0183).
+        XCTAssertEqual(Tone("verified"), .verified)
+        XCTAssertEqual(Tone("approval"), .approval)
+        XCTAssertEqual(Tone("failed"), .failed)
+        XCTAssertEqual(Tone("unverified"), .unverified)
+        XCTAssertEqual(Tone("neutral"), .info)
+        XCTAssertEqual(Tone("something new"), .info)
+        // A task's kind comes from its state, as the web's stateKind() works it out.
+        XCTAssertEqual(Tone(taskState: "EXECUTING", tone: "info"), .working)
+        XCTAssertEqual(Tone(taskState: "PARTIALLY_VERIFIED", tone: "unverified"), .attention)
+        XCTAssertEqual(Tone(taskState: "CANCELLED", tone: "unverified"), .off)
+        XCTAssertEqual(Tone(taskState: "BLOCKED", tone: "failed"), .blocked)
+        XCTAssertEqual(Tone(taskState: "A_STATE_FROM_LATER", tone: "approval"), .approval)
+        // Every kind draws a mark; none is left blank.
+        for tone in Tone.allCases {
+            XCTAssertFalse(tone.symbol.isEmpty, "\(tone) has no symbol")
+        }
+        XCTAssertEqual(RunView.tone("finished"), .done)
+        XCTAssertEqual(RunView.tone("interrupted"), .paused)
+    }
+
     func testSaysHowMuchAIUsageIsUsed() {
         XCTAssertEqual(TodayView.usageSentence(percent: 2, period: "month", endsAt: nil), "Used 2% of this month's AI usage.")
         XCTAssertEqual(TodayView.usageSentence(percent: 100, period: "trial", endsAt: nil), "You've used all of the trial's AI usage.")

@@ -70,14 +70,14 @@ export function RescueImport({ disabledReason }: { disabledReason: string | null
 
       {error ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {error}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden /> {error}
         </p>
       ) : null}
 
       {prepared ? (
         <div className="grid gap-4 rounded-md border border-line bg-surface p-5 shadow-e1 motion-safe:animate-[usage-in_220ms_cubic-bezier(0.16,1,0.3,1)_both]">
           <p className="flex items-center gap-2 text-[0.9375rem]">
-            <CheckCircleIcon size={18} weight="fill" className="text-verified" aria-hidden />
+            <CheckCircleIcon size={16} weight="fill" className="shrink-0 text-verified" aria-hidden />
             <span>
               <span className="font-medium">{prepared.files.length.toLocaleString("en-US")} files</span> ready, {formatBytes(prepared.bytes)} of text.
             </span>
@@ -113,10 +113,13 @@ export function RescueImport({ disabledReason }: { disabledReason: string | null
           ) : null}
 
           {tooBig || tooMany ? (
-            <p role="alert" className="text-sm text-failed">
-              {tooBig
-                ? `That's more than ${formatBytes(WORKSPACE_LIMITS.maxImportBytes)} of text for one import. Zip just the folder with your code, for example src.`
-                : `That's more than ${WORKSPACE_LIMITS.maxProjectFiles.toLocaleString("en-US")} files. Zip just the folder with your code.`}
+            <p role="alert" className="flex items-start gap-2 text-sm text-failed">
+              <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+              <span>
+                {tooBig
+                  ? `That's more than ${formatBytes(WORKSPACE_LIMITS.maxImportBytes)} of text for one import. Zip just the folder with your code, for example src.`
+                  : `That's more than ${WORKSPACE_LIMITS.maxProjectFiles.toLocaleString("en-US")} files. Zip just the folder with your code.`}
+              </span>
             </p>
           ) : (
             <form
@@ -142,7 +145,7 @@ export function RescueImport({ disabledReason }: { disabledReason: string | null
               </label>
               <div className="flex flex-wrap items-center gap-3">
                 <button type="submit" disabled={pending || Boolean(blocked) || !name.trim()} className={buttonClasses("primary")}>
-                  <ShieldCheckIcon size={18} weight="bold" aria-hidden /> {pending ? "Importing and starting the check…" : "Import and check"}
+                  <ShieldCheckIcon size={16} weight="bold" aria-hidden /> {pending ? "Importing and starting the check…" : "Import and check"}
                 </button>
                 {blocked ? <span className="text-sm text-ink-3">{blocked}</span> : null}
               </div>

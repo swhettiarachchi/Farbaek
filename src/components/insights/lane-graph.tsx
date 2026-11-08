@@ -1,16 +1,21 @@
-import { CheckCircleIcon, SirenIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { SirenIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { STAGES, STAGE_TITLES, type Lane, type StageNode, type StageState } from "@/core/insights/project-graph";
 import { RelativeTime } from "@/components/ui/local-time";
+import { StatusGlyph, type Status } from "@/components/ui/status-badge";
 
-// Status is a word (ADR 0180): a check for done and a cross for failed; every other state is an empty ring in its colour, beside its word.
-const STATE: Record<StageState, { icon: typeof CheckCircleIcon | null; tone: string; words: string }> = {
-  reached: { icon: CheckCircleIcon, tone: "text-verified", words: "Done" },
-  waiting: { icon: null, tone: "text-approval", words: "Waiting" },
-  stopped: { icon: null, tone: "text-ink-3", words: "Stopped" },
-  failed: { icon: XCircleIcon, tone: "text-failed", words: "Failed" },
-  not_yet: { icon: null, tone: "text-ink-3", words: "Not yet" },
+// Each stage is one of the shared kinds (ADR 0183), its icon beside its words: blue where it waits for a person.
+const STATE: Record<StageState, { kind: Status; words: string }> = {
+  reached: { kind: "verified", words: "Done" },
+  // Waiting covers system work too (checks running, a launch building), so it's pending, not a person's turn.
+  waiting: { kind: "pending", words: "Waiting" },
+  stopped: { kind: "off", words: "Stopped" },
+  failed: { kind: "failed", words: "Failed" },
+  not_yet: { kind: "unverified", words: "Not yet" },
 };
+
+/** A problem's colour says where it stands (ADR 0183): open or contained needs a look, resolved is done. */
+const INCIDENT_TONE: Record<string, string> = { open: "text-caution", contained: "text-caution", resolved: "text-verified" };
 
 /** The line from a stage to the next: solid where the work got there, dashed where it hasn't yet. Decorative; the nodes say it in words. */
 function Connector({ next, delay }: { next: StageState; delay: number }) {
@@ -29,17 +34,12 @@ function Connector({ next, delay }: { next: StageState; delay: number }) {
 
 function Node({ stage }: { stage: StageNode }) {
   const s = STATE[stage.state];
-  const Icon = s.icon;
   const pill = `relative z-10 inline-flex min-h-11 max-w-full items-center gap-2 rounded-full border bg-surface px-3.5 text-sm transition-[border-color,box-shadow,transform] duration-200 ${
     stage.state === "not_yet" ? "border-dashed border-line-strong/50 text-ink-3" : "border-line text-ink shadow-e1"
   } ease-[cubic-bezier(0.16,1,0.3,1)]`;
   const inner = (
     <>
-      {Icon ? (
-        <Icon size={18} weight="fill" className={`shrink-0 ${s.tone}`} aria-hidden />
-      ) : (
-        <span aria-hidden className="size-[18px] shrink-0" />
-      )}
+      <StatusGlyph status={s.kind} size={16} />
       <span className="truncate">
         {/* The column header names the stage from md up; on phones the pill does. */}
         <span className="text-ink-3 md:sr-only">{STAGE_TITLES[stage.key]}: </span>
@@ -103,7 +103,7 @@ export function LaneGraph({ lanes }: { lanes: Lane[] }) {
                   <ul className="mt-1 grid gap-1">
                     {lane.incidents.map((incident) => (
                       <li key={incident.number}>
-                        <Link href={`/app/incidents/${incident.number}`} className="inline-flex min-h-11 items-center gap-1.5 text-left text-xs font-medium text-failed hover:underline">
+                        <Link href={`/app/incidents/${incident.number}`} className={`inline-flex min-h-11 items-center gap-1.5 text-left text-xs font-medium hover:underline ${INCIDENT_TONE[incident.status] ?? "text-failed"}`}>
                           <SirenIcon size={14} weight="bold" className="shrink-0" aria-hidden /> Problem {incident.number}, {incident.status}: {incident.title}
                         </Link>
                       </li>

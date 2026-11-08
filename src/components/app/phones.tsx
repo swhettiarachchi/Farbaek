@@ -3,6 +3,7 @@
 import { CheckCircleIcon, DeviceMobileIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState } from "react";
 import { disconnectPhoneAction, type DisconnectState } from "@/app/app/phone-actions";
+import { CardTitle } from "@/components/app/primitives";
 import { buttonClasses } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/local-time";
 
@@ -23,23 +24,23 @@ export function Phones({ phones, disabledReason }: { phones: PhoneRow[]; disable
   const [state, action, pending] = useActionState<DisconnectState, FormData>(disconnectPhoneAction, { status: "idle" });
   return (
     <div>
-      <h2 id="phones-title" className="text-lg font-medium">
+      <CardTitle id="phones-title" icon={DeviceMobileIcon}>
         Phones
-      </h2>
+      </CardTitle>
       <p className="mt-1 text-sm leading-relaxed text-ink-2">Phones signed in with the Farbaek app. Disconnecting one signs the app out there and stops its notifications.</p>
       {state.status === "done" ? (
-        <p role="status" className="mt-3 flex items-center gap-1.5 text-sm text-verified">
-          <CheckCircleIcon size={16} weight="fill" aria-hidden />
-          {state.message}
+        <p role="status" className="mt-3 flex items-start gap-2 text-sm text-verified">
+          <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+          <span>{state.message}</span>
         </p>
       ) : state.status === "error" ? (
-        <p role="alert" className="mt-3 flex items-center gap-1.5 text-sm text-failed">
-          <WarningCircleIcon size={16} aria-hidden />
-          {state.message}
+        <p role="alert" className="mt-3 flex items-start gap-2 text-sm text-failed">
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+          <span>{state.message}</span>
         </p>
       ) : null}
       {phones.length === 0 ? (
-        <p className="mt-4 rounded-sm border border-dashed border-line-strong/60 p-4 text-sm text-ink-2">
+        <p className="mt-4 rounded-sm border border-line bg-surface-raised/60 p-4 text-sm text-ink-2">
           {disabledReason ?? "No phones are signed in. When you sign in with the Farbaek app, the phone appears here."}
         </p>
       ) : (
@@ -47,7 +48,7 @@ export function Phones({ phones, disabledReason }: { phones: PhoneRow[]; disable
           {phones.map((p) => (
             <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
               <div className="flex min-w-0 items-center gap-3">
-                <DeviceMobileIcon size={22} className="shrink-0 text-ink-2" aria-hidden />
+                <DeviceMobileIcon size={20} className="shrink-0 text-ink-3" aria-hidden />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{p.name}</p>
                   <p className="text-xs text-ink-3">

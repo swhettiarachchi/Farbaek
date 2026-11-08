@@ -12,9 +12,13 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { buttonClasses } from "@/components/ui/button";
+import { StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { canRun3D } from "@/components/three/capability";
 import { LOOM_STATE_COLORS, LOOM_STATE_WORDS, loomLayout, type LoomNode } from "@/components/three/project-loom-layout";
-import { STAGES, STAGE_TITLES, type Lane } from "@/core/insights/project-graph";
+import { STAGES, STAGE_TITLES, type Lane, type StageState } from "@/core/insights/project-graph";
+
+/** The legend's marks: each state's kind (ADR 0183), the same icon and colour as the lanes below. */
+const LEGEND_KIND: Record<StageState, Status> = { reached: "verified", waiting: "pending", stopped: "off", failed: "failed", not_yet: "unverified" };
 
 const Scene = dynamic(() => import("@/components/three/project-loom-scene"), { ssr: false });
 
@@ -98,7 +102,7 @@ export function ProjectLoom({ lanes }: { lanes: readonly Lane[] }) {
         <ul className="pointer-events-none absolute inset-x-3 bottom-3 flex flex-wrap gap-x-4 gap-y-1">
           {(Object.keys(LOOM_STATE_COLORS) as (keyof typeof LOOM_STATE_COLORS)[]).map((s) => (
             <li key={s} className="flex items-center gap-1.5 rounded-full bg-surface/90 px-2.5 py-0.5 text-xs text-ink-2">
-              <span className="inline-block size-2.5 rounded-full" style={{ background: LOOM_STATE_COLORS[s] }} aria-hidden />
+              <StatusGlyph status={LEGEND_KIND[s]} size={14} />
               {LOOM_STATE_WORDS[s]}
             </li>
           ))}

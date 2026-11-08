@@ -2,15 +2,15 @@ import {
   BuildingsIcon,
   CaretRightIcon,
   ChartLineUpIcon,
-  ChatsCircleIcon,
+  ClockCounterClockwiseIcon,
   CpuIcon,
   CreditCardIcon,
   ShieldCheckIcon,
   GlobeIcon,
   HeartbeatIcon,
   IdentificationBadgeIcon,
+  LifebuoyIcon,
   MegaphoneIcon,
-  PulseIcon,
   ScrollIcon,
   SignOutIcon,
   SlidersHorizontalIcon,
@@ -34,8 +34,8 @@ const ICONS: Record<OfficeHref, Icon> = {
   "/": ChartLineUpIcon,
   "/workspaces": BuildingsIcon,
   "/people": UsersThreeIcon,
-  "/support": ChatsCircleIcon,
-  "/activity": PulseIcon,
+  "/support": LifebuoyIcon,
+  "/activity": ClockCounterClockwiseIcon,
   "/sites": GlobeIcon,
   "/health": HeartbeatIcon,
   "/controls": SlidersHorizontalIcon,
@@ -68,7 +68,7 @@ export default async function OfficeMore() {
               >
                 <PageIcon size={20} className="text-ink-2" aria-hidden />
                 <span className="flex-1">{p.label}</span>
-                <CaretRightIcon size={14} className="text-ink-3" aria-hidden />
+                <CaretRightIcon size={14} weight="bold" className="text-ink-3" aria-hidden />
               </Link>
             </li>
           );
@@ -79,7 +79,7 @@ export default async function OfficeMore() {
           type="submit"
           className="inline-flex min-h-11 items-center gap-2 text-sm text-ink-2 hover:text-ink"
         >
-          <SignOutIcon size={16} aria-hidden /> Sign out
+          <SignOutIcon size={16} weight="bold" aria-hidden /> Sign out
         </button>
       </form>
     </div>

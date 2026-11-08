@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowSquareOutIcon, CheckCircleIcon, PlusIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowUpRightIcon, CheckCircleIcon, PlusIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useActionState, useId, useState } from "react";
 import { addLibrarySkillAction, type SkillState } from "@/app/app/projects/[projectId]/skill-actions";
@@ -18,7 +18,7 @@ function Byline({ skill }: { skill: LibraryCardSkill }) {
       {skill.licence === "Farbaek" ? "By Farbaek." : `By ${skill.author}, ${LICENCE_LABELS[skill.licence]}.`}{" "}
       {skill.source ? (
         <a href={skill.source} target="_blank" rel="noopener noreferrer" className="font-medium text-ink-2 underline underline-offset-2 hover:text-ink">
-          Original <ArrowSquareOutIcon size={12} className="inline align-[-0.0625em]" aria-hidden />
+          Original <ArrowUpRightIcon size={14} weight="bold" className="inline align-[-0.125em]" aria-hidden />
           <span className="sr-only">(opens GitHub in a new tab)</span>
         </a>
       ) : null}
@@ -86,7 +86,7 @@ function Result({ state }: { state: SkillState }) {
   if (state.status === "error")
     return (
       <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-        <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {state.message}
+        <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden /> {state.message}
       </p>
     );
   if (state.status === "done")
@@ -150,7 +150,7 @@ export function LibraryCard({ skill, projects, disabledReason }: { skill: Librar
           )}
           <div className="flex flex-wrap items-center gap-3">
             <button type="submit" disabled={pending || Boolean(disabledReason)} className={buttonClasses("primary", "sm")}>
-              <PlusIcon size={15} weight="bold" aria-hidden /> {pending ? "Adding…" : projects.length > 1 ? "Add to this project" : `Add to ${projects[0]!.name}`}
+              <PlusIcon size={16} weight="bold" aria-hidden /> {pending ? "Adding…" : projects.length > 1 ? "Add to this project" : `Add to ${projects[0]!.name}`}
             </button>
             {disabledReason ? <span className="text-sm text-ink-3">{disabledReason}</span> : null}
           </div>
@@ -180,7 +180,7 @@ export function LibraryRow({ skill, projectId, added, disabledReason }: { skill:
             <input type="hidden" name="projectId" value={projectId} />
             <input type="hidden" name="skillId" value={skill.id} />
             <button type="submit" disabled={pending || Boolean(disabledReason)} className={buttonClasses("secondary", "sm")} aria-label={`Add ${skill.label}`}>
-              <PlusIcon size={15} weight="bold" aria-hidden /> {pending ? "Adding…" : "Add"}
+              <PlusIcon size={16} weight="bold" aria-hidden /> {pending ? "Adding…" : "Add"}
             </button>
           </form>
         )}

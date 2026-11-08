@@ -1,8 +1,9 @@
-import { CheckCircleIcon, CircleDashedIcon, HandWavingIcon, ProhibitIcon, StopCircleIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, ClockIcon, CoinsIcon, HammerIcon, HandWavingIcon, PlugsConnectedIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AdminTable, Cell } from "@/components/admin/table";
-import { Card, Notice, PageHeader } from "@/components/app/primitives";
+import { Card, CardTitle, Notice, PageHeader } from "@/components/app/primitives";
+import { StatusGlyph } from "@/components/ui/status-badge";
 import { KpiTile, Sparkline } from "@/components/office/kpi";
 import { deploymentConnections, loadOverview } from "@/server/admin/data";
 import { usd } from "@/server/admin/summaries";
@@ -40,8 +41,8 @@ export default async function OfficeOverview({ searchParams }: { searchParams: P
       <PageHeader title="Overview" description="Farbaek right now, read live with the server key. Nothing on this page changes data." />
 
       {welcome ? (
-        <p className="flex items-start gap-3 rounded-md border border-accent/20 bg-accent/[0.05] px-5 py-4 text-sm">
-          <HandWavingIcon size={20} className="mt-px shrink-0 text-accent" aria-hidden />
+        <p className="flex items-start gap-3 rounded-md border border-line bg-surface-raised/70 px-5 py-4 text-sm">
+          <HandWavingIcon size={20} className="shrink-0 text-ink-3" aria-hidden />
           <span>
             <span className="font-medium text-ink">You&apos;re in.</span>{" "}
             <span className="text-ink-2">
@@ -93,7 +94,7 @@ export default async function OfficeOverview({ searchParams }: { searchParams: P
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
         <Card>
-          <h2 className="text-lg font-medium">Trials</h2>
+          <CardTitle icon={ClockIcon}>Trials</CardTitle>
           <p className="mt-1 text-sm text-ink-2">
             {number.format(m.trials.started30)} started in the last 30 days{m.trials.extended ? `, ${m.trials.extended} extended by Farbaek` : ""}.
           </p>
@@ -101,25 +102,25 @@ export default async function OfficeOverview({ searchParams }: { searchParams: P
             <div className="mt-5">
               <div className="flex h-3 overflow-hidden rounded-full bg-surface-raised" role="img" aria-label={`${m.trials.active} active, ${m.trials.ended} ended`}>
                 <span className="h-full bg-accent" style={{ width: `${activeShare}%` }} />
-                <span className="h-full bg-[repeating-linear-gradient(135deg,var(--color-line-strong)_0_3px,transparent_3px_6px)]" style={{ width: `${100 - activeShare}%` }} />
+                <span className="h-full bg-line-strong/45" style={{ width: `${100 - activeShare}%` }} />
               </div>
               <dl className="mt-3 grid grid-cols-3 gap-3 text-sm">
                 <div>
                   <dt className="flex items-center gap-1.5 text-ink-3">
-                    Active
+                    <span aria-hidden className="h-2.5 w-4 rounded-[3px] bg-accent" /> Active
                   </dt>
                   <dd className="text-lg tabular">{number.format(m.trials.active)}</dd>
                 </div>
                 <div>
                   <dt className="flex items-center gap-1.5 text-ink-3">
-                    <span aria-hidden className="size-2.5 rounded-full bg-[repeating-linear-gradient(135deg,var(--color-line-strong)_0_2px,transparent_2px_4px)] ring-1 ring-line-strong" /> Ended
+                    <span aria-hidden className="h-2.5 w-4 rounded-[3px] bg-line-strong/45" /> Ended
                   </dt>
                   <dd className="text-lg tabular">{number.format(m.trials.ended)}</dd>
                 </div>
                 <div>
                   <dt className="text-ink-3">Became paid</dt>
                   <dd className="flex items-center gap-1 pt-1 text-xs text-ink-3">
-                    <CircleDashedIcon size={14} aria-hidden /> Billing not connected
+                    <StatusGlyph status="off" size={14} /> Billing not connected
                   </dd>
                 </div>
               </dl>
@@ -130,24 +131,24 @@ export default async function OfficeOverview({ searchParams }: { searchParams: P
         </Card>
 
         <Card>
-          <h2 className="text-lg font-medium">Agent runs, 7 days</h2>
+          <CardTitle icon={HammerIcon}>Agent runs, 7 days</CardTitle>
           <p className="mt-1 text-[2rem] font-medium leading-none tracking-[-0.03em] tabular">{number.format(m.runs7.total)}</p>
           <ul className="mt-4 grid gap-2 text-sm">
             <li className="flex items-center justify-between gap-3">
               <span className="flex items-center gap-2 text-ink-2">
-                <CheckCircleIcon size={16} weight="fill" className="text-verified" aria-hidden /> Finished
+                <StatusGlyph status="done" /> Finished
               </span>
               <span className="tabular">{number.format(m.runs7.finished)}</span>
             </li>
             <li className="flex items-center justify-between gap-3">
               <span className="flex items-center gap-2 text-ink-2">
-                <XCircleIcon size={16} weight="fill" className="text-failed" aria-hidden /> Failed
+                <StatusGlyph status="failed" /> Failed
               </span>
               <span className="tabular">{number.format(m.runs7.failed)}</span>
             </li>
             <li className="flex items-center justify-between gap-3">
               <span className="flex items-center gap-2 text-ink-2">
-                <StopCircleIcon size={16} weight="fill" className="text-ink-3" aria-hidden /> Stopped or interrupted
+                <StatusGlyph status="off" /> Stopped or interrupted
               </span>
               <span className="tabular">{number.format(m.runs7.stopped)}</span>
             </li>
@@ -177,9 +178,9 @@ export default async function OfficeOverview({ searchParams }: { searchParams: P
 
       <section aria-labelledby="billing-title" className="grid gap-3">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <h2 id="billing-title" className="text-lg font-medium">
+          <CardTitle id="billing-title" icon={CoinsIcon}>
             Revenue
-          </h2>
+          </CardTitle>
           <Link href="/payments" className="inline-flex min-h-11 items-center text-sm text-accent underline-offset-4 hover:underline">
             Payments and webhooks
           </Link>
@@ -188,10 +189,10 @@ export default async function OfficeOverview({ searchParams }: { searchParams: P
           <>
             <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {BILLING_TILES.map((label) => (
-                <li key={label} className="rounded-md border border-dashed border-line-strong/40 bg-surface px-5 py-4">
+                <li key={label} className="rounded-md border border-line bg-surface px-5 py-4">
                   <p className="text-sm text-ink-2">{label}</p>
                   <p className="mt-2 flex items-center gap-1.5 text-sm font-medium text-ink-3">
-                    <CircleDashedIcon size={16} aria-hidden /> Live payments are off
+                    <StatusGlyph status="off" /> Live payments are off
                   </p>
                 </li>
               ))}
@@ -234,9 +235,9 @@ export default async function OfficeOverview({ searchParams }: { searchParams: P
                   trend={
                     revenue.margin ? (
                       revenue.margin.share >= target ? (
-                        <CheckCircleIcon size={22} weight="fill" className="text-verified" aria-label={`At or above the ${percent(target)} target`} />
+                        <CheckCircleIcon size={24} weight="fill" className="text-verified" aria-label={`At or above the ${percent(target)} target`} />
                       ) : (
-                        <WarningCircleIcon size={22} weight="fill" className="text-approval" aria-label={`Below the ${percent(target)} target`} />
+                        <WarningCircleIcon size={24} weight="fill" className="text-caution" aria-label={`Below the ${percent(target)} target`} />
                       )
                     ) : null
                   }
@@ -270,19 +271,14 @@ export default async function OfficeOverview({ searchParams }: { searchParams: P
       </section>
 
       <Card>
-        <h2 className="text-lg font-medium">Connections</h2>
+        <CardTitle icon={PlugsConnectedIcon}>Connections</CardTitle>
         <p className="mt-1 text-sm text-ink-2">What this deployment can do. Names only: no key or secret is ever shown here.</p>
         <ul className="mt-4 grid gap-3 md:grid-cols-2">
           {connections.map((c) => (
             <li key={c.name} className="flex items-start gap-3 text-sm">
-              {c.on ? (
-                <CheckCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-label="On" />
-              ) : c.detail.toLowerCase().includes("paused") ? (
-                <ProhibitIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-approval" aria-label="Paused" />
-              ) : (
-                <CircleDashedIcon size={18} className="mt-0.5 shrink-0 text-ink-3" aria-label="Off" />
-              )}
+              <StatusGlyph status={c.on ? "verified" : c.detail.toLowerCase().includes("paused") ? "paused" : "off"} className="mt-0.5" />
               <span className="min-w-0">
+                <span className="sr-only">{c.on ? "On: " : c.detail.toLowerCase().includes("paused") ? "Paused: " : "Off: "}</span>
                 <span className="font-medium text-ink">{c.name}</span>
                 <span className="block text-ink-2">{c.detail}</span>
               </span>

@@ -1,8 +1,8 @@
-import { CaretRightIcon, EnvelopeSimpleIcon, LifebuoyIcon, PlusIcon } from "@phosphor-icons/react/ssr";
+import { CaretRightIcon, EnvelopeSimpleIcon, LifebuoyIcon, ListBulletsIcon, PlusIcon, UsersThreeIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { EmptyState, Notice, PageHeader } from "@/components/app/primitives";
+import { CardTitle, EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { SupportStatusChip } from "@/components/app/support-thread";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { buttonClasses } from "@/components/ui/button";
@@ -47,16 +47,16 @@ export default async function HelpPage() {
       {live && checkFeature(ctx.current.plan, "priority_support").allowed ? (
         // Priority support (ADR 0084): what it does, and nothing more.
         <p className="flex items-start gap-2 text-sm text-ink-2">
-          <LifebuoyIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-accent" aria-hidden />
+          <LifebuoyIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
           <span>Your plan includes priority support: requests from {ctx.current.name} go first in Farbaek&apos;s queue while they wait on us.</span>
         </p>
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         <section aria-labelledby="requests-title" className="grid gap-3">
-          <h2 id="requests-title" className="sr-only">
+          <CardTitle id="requests-title" icon={ListBulletsIcon} className="sr-only">
             Your requests
-          </h2>
+          </CardTitle>
           {!live ? (
             <Notice>Support isn&apos;t available in the demo workspace, because nothing here is saved. Sign in with your own email to write to Farbaek.</Notice>
           ) : readError ? (
@@ -91,7 +91,7 @@ export default async function HelpPage() {
                         </span>
                       </span>
                     </span>
-                    <CaretRightIcon size={16} className="shrink-0 text-ink-3 transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden />
+                    <CaretRightIcon size={16} weight="bold" className="shrink-0 text-ink-3 transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden />
                   </Link>
                 </li>
               ))}
@@ -102,13 +102,13 @@ export default async function HelpPage() {
         <aside className="grid gap-4 rounded-lg border border-line bg-surface p-6 shadow-e1">
           <BrandLogo height={34} />
           <div className="grid gap-1.5">
-            <h2 className="text-base font-medium">Real people at Farbaek</h2>
+            <CardTitle icon={UsersThreeIcon}>Real people at Farbaek</CardTitle>
             <p className="text-sm leading-relaxed text-ink-2">
               Requests go to Farbaek&apos;s own team, not a bot. Tell us the project, the site or the run it&apos;s about, and what you expected to happen.
             </p>
           </div>
           <p className="flex items-start gap-2 border-t border-line pt-4 text-sm text-ink-2">
-            <EnvelopeSimpleIcon size={17} className="mt-0.5 shrink-0" aria-hidden />
+            <EnvelopeSimpleIcon size={16} weight="bold" className="mt-0.5 shrink-0" aria-hidden />
             <span>
               Can&apos;t sign in? Email{" "}
               <a href={`mailto:${CONTACT.support}`} className="font-medium text-accent hover:underline">

@@ -45,7 +45,7 @@ export function TaskModeControl({ taskId, mode, disabledReason }: { taskId: stri
               className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-medium transition-colors duration-150 sm:px-4 ${on ? "bg-primary text-on-primary" : "text-ink-2 hover:bg-surface-raised hover:text-ink disabled:opacity-60"}`}
             >
               <span className="hidden sm:inline-flex">
-                <Icon size={16} weight={on ? "bold" : "regular"} aria-hidden />
+                <Icon size={16} weight="bold" aria-hidden />
               </span>
               {MODE_INFO[m].label}
             </button>
@@ -56,7 +56,7 @@ export function TaskModeControl({ taskId, mode, disabledReason }: { taskId: stri
       <div aria-live="polite" className="empty:hidden">
         {error ? (
           <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-            <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
             {error}
           </p>
         ) : disabledReason ? (

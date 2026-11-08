@@ -1,6 +1,7 @@
-import { CheckCircleIcon, PauseCircleIcon } from "@phosphor-icons/react/ssr";
+import { SlidersHorizontalIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
-import { Notice, PageHeader } from "@/components/app/primitives";
+import { CardTitle, Notice, PageHeader } from "@/components/app/primitives";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { OfficeActionForm } from "@/components/office/action-form";
 import { officeInputClass, ReasonField, StepUpField } from "@/components/office/fields";
 import { RelativeTime } from "@/components/ui/local-time";
@@ -34,24 +35,16 @@ export default async function OfficeControls() {
           return (
             <li
               key={f.key}
-              className={`relative grid content-start gap-4 overflow-hidden rounded-lg p-2 ring-1 ${f.paused ? "bg-approval/[0.06] ring-approval/35" : "bg-surface-raised/60 ring-line"}`}
+              // A paused switch says so in its chip and a burnt-orange edge; no hazard stripe (ADR 0183).
+              className={`grid content-start gap-4 rounded-lg bg-surface-raised/60 p-2 ring-1 ${f.paused ? "ring-caution/35" : "ring-line"}`}
             >
-              {f.paused ? <span aria-hidden className="absolute inset-y-0 left-0 w-1.5 bg-[repeating-linear-gradient(135deg,var(--color-approval)_0_4px,transparent_4px_8px)]" /> : null}
               <div className="grid gap-4 rounded-md bg-surface p-5 shadow-e1">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h2 className="text-[1.0625rem] font-medium tracking-[-0.01em]">{d.label}</h2>
+                    <CardTitle icon={SlidersHorizontalIcon}>{d.label}</CardTitle>
                     <p className="mt-1 text-sm leading-relaxed text-ink-2">{d.pauses}</p>
                   </div>
-                  {f.paused ? (
-                    <span className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-approval/40 bg-approval/[0.08] px-3 text-xs font-medium text-ink">
-                      <PauseCircleIcon size={16} weight="fill" className="text-approval" aria-hidden /> Paused
-                    </span>
-                  ) : (
-                    <span className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-verified/35 px-3 text-xs font-medium text-ink">
-                      <CheckCircleIcon size={16} weight="fill" className="text-verified" aria-hidden /> Running
-                    </span>
-                  )}
+                  {f.paused ? <StatusBadge status="paused" label="Paused" /> : <StatusBadge status="verified" label="Running" />}
                 </div>
                 {f.paused && f.message ? <p className="rounded-sm bg-surface-raised px-3 py-2 text-sm text-ink">Customers see: &ldquo;{f.message}&rdquo;</p> : null}
                 {f.updatedAt ? (

@@ -9,8 +9,8 @@ const base =
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium max-[18em]:whitespace-normal max-[18em]:py-2 max-[18em]:text-center transition-[background-color,border-color,color,transform,box-shadow] duration-[160ms] ease-standard active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-primary text-on-primary shadow-e1 hover:bg-primary/85",
-  accent: "bg-accent text-on-accent shadow-e1 hover:bg-accent/90",
+  primary: "bg-primary text-on-primary shadow-e1 hover:bg-primary-hover",
+  accent: "bg-accent text-on-accent shadow-e1 hover:bg-accent-strong",
   secondary: "border border-line bg-surface text-ink shadow-e1 hover:border-line-strong/50 hover:bg-canvas-2",
   // White with a dark outline: Apple's outlined style for Sign in with Apple, beside a primary button.
   outline: "border border-ink bg-surface text-ink shadow-e1 hover:bg-canvas-2",

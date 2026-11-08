@@ -38,7 +38,7 @@ export default function VerifyPage() {
             changed and checked.
           </p>
           <a href="/verify/sample.json" download className="mt-6 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-accent hover:underline">
-            <DownloadSimpleIcon size={16} aria-hidden /> No file yet? Try the sample ProofPack
+            <DownloadSimpleIcon size={16} weight="bold" aria-hidden /> No file yet? Try the sample ProofPack
           </a>
         </Container>
       </section>
@@ -57,7 +57,7 @@ export default function VerifyPage() {
           <ul className="mt-10 grid gap-8 sm:grid-cols-3">
             {MEANING.map((m) => (
               <li key={m.title} className="grid content-start gap-3">
-                <m.icon size={24} className="text-accent" aria-hidden />
+                <m.icon size={24} className="text-ink-2" aria-hidden />
                 <h3 className="text-[1.0625rem] font-medium">{m.title}</h3>
                 <p className="text-[0.9375rem] leading-relaxed text-ink-2">{m.body}</p>
               </li>

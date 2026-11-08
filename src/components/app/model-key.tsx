@@ -34,9 +34,9 @@ export function ModelKeyCard({
     <div className="grid gap-4">
       <p className="flex items-start gap-2 text-sm leading-relaxed">
         {current ? (
-          <CheckCircleIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+          <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
         ) : (
-          <KeyIcon size={18} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
+          <KeyIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
         )}
         <span>
           {current ? (
@@ -104,14 +104,16 @@ export function ModelKeyCard({
       <div aria-live="polite" className="empty:hidden">
         {message ? (
           <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-            <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
-            {message}
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+            <span>{message}</span>
           </p>
         ) : saveState.status === "saved" ? (
           <p role="status" className="flex items-start gap-2 text-sm text-ink-2">
-            <CheckCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden />
-            Saved. Anthropic accepted the key ending <span className="font-mono">{saveState.hint}</span>
-            {saveState.gateway ? ` through ${saveState.gateway}` : ""}.
+            <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+            <span>
+              Saved. Anthropic accepted the key ending <span className="font-mono">{saveState.hint}</span>
+              {saveState.gateway ? ` through ${saveState.gateway}` : ""}.
+            </span>
           </p>
         ) : null}
       </div>

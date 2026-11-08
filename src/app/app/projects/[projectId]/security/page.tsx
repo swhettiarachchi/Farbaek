@@ -1,11 +1,13 @@
-import { ArrowLeftIcon, CheckCircleIcon, CircleNotchIcon, ShieldCheckIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, CheckCircleIcon, ClockCounterClockwiseIcon, InfoIcon, ShieldCheckIcon, WarningCircleIcon, WarningIcon, WarningOctagonIcon } from "@phosphor-icons/react/ssr";
+import type { Icon } from "@phosphor-icons/react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Card, EmptyState, Notice, PageHeader } from "@/components/app/primitives";
+import { Card, CardTitle, EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { RunSecurityCheck } from "@/components/security/run-check";
 import { ScoreRing } from "@/components/security/score-ring";
 import { LocalTime } from "@/components/ui/local-time";
+import { StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { PLAN_UNCONFIRMED_MESSAGE } from "@/core/billing/entitlements";
 import { SEVERITIES, SEVERITY_LABELS, type Finding, type Severity } from "@/core/security/findings";
 import { CHECK_LABELS } from "@/core/security/report";
@@ -18,22 +20,41 @@ import { FixWithAgent } from "@/components/security/fix-with-agent";
 
 export const metadata: Metadata = { title: "Security" };
 
-// Severity is its word in a colour and border (ADR 0180), so colour is never the only signal and no glyph is needed.
-const SEVERITY_STYLE: Record<Severity, string> = {
-  critical: "text-failed border-failed/50",
-  high: "text-failed border-failed/30",
-  medium: "text-approval border-approval/40",
-  low: "text-info border-info/40",
-  info: "text-ink-3 border-line-strong/50 border-dashed",
+// The severity ladder (ADR 0183): each step has its word, a filled icon, its colour and its border, the same in the
+// section heading and on each finding's chip, so colour is never the only signal.
+const SEVERITY_LOOK: Record<Severity, { icon: Icon; tone: string; chip: string }> = {
+  critical: { icon: WarningOctagonIcon, tone: "text-failed", chip: "border-failed/35 bg-failed/[0.05]" },
+  high: { icon: WarningIcon, tone: "text-failed", chip: "border-failed/35" },
+  medium: { icon: WarningCircleIcon, tone: "text-caution", chip: "border-caution/35" },
+  low: { icon: InfoIcon, tone: "text-info", chip: "border-info/30" },
+  info: { icon: InfoIcon, tone: "text-ink-3", chip: "border-line-2" },
 };
 
 const SOURCE_LABEL: Record<Finding["source"], string> = { rules: "Rule", dependencies: "Packages", sast: "Semgrep", secrets: "Secret scan", ai: "AI review" };
 
 function SeverityBadge({ severity }: { severity: Severity }) {
+  const { icon: SeverityIcon, tone, chip } = SEVERITY_LOOK[severity];
   return (
-    <span className={`inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-full border px-2.5 text-xs font-medium ${SEVERITY_STYLE[severity]}`}>{SEVERITY_LABELS[severity]}</span>
+    <span className={`inline-flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-xs font-medium ${tone} ${chip}`}>
+      <SeverityIcon size={14} weight="fill" className="shrink-0" aria-hidden />
+      {SEVERITY_LABELS[severity]}
+    </span>
   );
 }
+
+/** A severity section's title: the same shape as every section title, with the severity's own filled icon in its colour. */
+function SeverityTitle({ severity, id }: { severity: Severity; id: string }) {
+  const { icon: SeverityIcon, tone } = SEVERITY_LOOK[severity];
+  return (
+    <h2 id={id} className="flex items-center gap-2.5 text-lg font-medium">
+      <SeverityIcon size={20} weight="fill" className={`shrink-0 ${tone}`} aria-hidden />
+      <span className="min-w-0">{SEVERITY_LABELS[severity]}</span>
+    </h2>
+  );
+}
+
+// An earlier check's run, as its kind: finished, failed, or still going.
+const RUN_KIND: Record<SecurityReportView["status"], Status> = { done: "done", failed: "failed", running: "working" };
 
 /** "3 high and 1 low findings", from the counts that aren't zero; informational notes aren't counted. */
 function severityWords(counts: Record<Severity, number>): string | null {
@@ -83,7 +104,7 @@ export default async function SecurityPage({ params, searchParams }: Params) {
   return (
     <div className="grid gap-6">
       <Link href={`/app/projects/${project.id}`} className="inline-flex min-h-11 w-fit items-center gap-2 text-sm text-ink-2 hover:text-ink">
-        <ArrowLeftIcon size={16} aria-hidden /> {project.name}
+        <ArrowLeftIcon size={14} weight="bold" aria-hidden /> {project.name}
       </Link>
       <PageHeader
         title="Security"
@@ -108,14 +129,14 @@ export default async function SecurityPage({ params, searchParams }: Params) {
       {running ? (
         <Card>
           <p className="flex items-center gap-2 text-sm text-ink-2" role="status">
-            <CircleNotchIcon size={16} weight="bold" className="shrink-0 text-accent motion-safe:animate-spin" aria-hidden /> Checking the project. This takes a minute or two. Started <LocalTime iso={latest!.startedAt} />.
+            <StatusGlyph status="working" /> Checking the project. This takes a minute or two. Started <LocalTime iso={latest!.startedAt} />.
           </p>
         </Card>
       ) : null}
       {latest?.status === "failed" ? (
         <Card>
           <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-            <XCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {latest.error ?? "The check failed."}
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden /> {latest.error ?? "The check failed."}
           </p>
         </Card>
       ) : null}
@@ -146,8 +167,8 @@ export default async function SecurityPage({ params, searchParams }: Params) {
               <ul className="grid gap-1.5 text-sm">
                 {p.checks.map((c) => (
                   <li key={c.name} className="flex items-start gap-2">
-                    {/* A mark for a part that ran; a skipped one says so in words, with the space kept so the lines align. */}
-                    {c.ran ? <CheckCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden /> : <span className="size-4 shrink-0" aria-hidden />}
+                    {/* A part that ran is verified; a skipped one is "not yet", and says why in words. */}
+                    <StatusGlyph status={c.ran ? "verified" : "unverified"} className="mt-0.5" />
                     <span>
                       <span className="text-ink">{CHECK_LABELS[c.name]}</span>
                       <span className="text-ink-3">: {c.ran ? `${c.findings} found${c.detail ? `. ${c.detail}` : ""}` : `skipped. ${c.reason}`}</span>
@@ -164,15 +185,13 @@ export default async function SecurityPage({ params, searchParams }: Params) {
           {grouped.length === 0 ? (
             <Card>
               <p className="flex items-center gap-2 text-sm text-ink-2">
-                <CheckCircleIcon size={18} weight="bold" className="text-verified" aria-hidden /> Nothing to fix in what was checked.
+                <CheckCircleIcon size={16} weight="fill" className="shrink-0 text-verified" aria-hidden /> Nothing to fix in what was checked.
               </p>
             </Card>
           ) : (
             grouped.map((g) => (
               <section key={g.severity} aria-labelledby={`sev-${g.severity}`} className="grid gap-3">
-                <h2 id={`sev-${g.severity}`} className="text-lg font-medium">
-                  {SEVERITY_LABELS[g.severity]}
-                </h2>
+                <SeverityTitle severity={g.severity} id={`sev-${g.severity}`} />
                 <ul className="grid gap-3">
                   {g.findings.map((f) => (
                     <li key={f.id} className="grid gap-3 rounded-md border border-line bg-surface p-5 shadow-e1">
@@ -208,14 +227,15 @@ export default async function SecurityPage({ params, searchParams }: Params) {
 
       {reports.length > 1 ? (
         <section aria-labelledby="history-heading" className="grid gap-3">
-          <h2 id="history-heading" className="text-lg font-medium">
+          <CardTitle id="history-heading" icon={ClockCounterClockwiseIcon}>
             Earlier checks
-          </h2>
+          </CardTitle>
           <ul className="divide-y divide-line overflow-hidden rounded-md border border-line bg-surface shadow-e1">
             {reports.slice(1).map((r) => (
               <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm sm:px-5">
                 <LocalTime iso={r.startedAt} />
-                <span className="tabular text-ink-2">
+                <span className="inline-flex items-center gap-1.5 tabular text-ink-2">
+                  <StatusGlyph status={RUN_KIND[r.status]} size={14} />
                   {r.status === "done" ? `${r.statement?.predicate.scope === "rules" ? "Rules check: score" : "Score"} ${r.score}, grade ${r.grade}` : r.status === "failed" ? "Failed" : "Running"}
                 </span>
               </li>

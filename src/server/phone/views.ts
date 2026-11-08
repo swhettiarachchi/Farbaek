@@ -10,7 +10,7 @@ import { diffLines, splitLines } from "@/core/realityloop/line-diff";
 import { taskNextStep, type NextStep } from "@/core/realityloop/next-step";
 import { filesChangedSince } from "@/core/realityloop/change-proposal";
 import type { TaskState } from "@/core/realityloop/task-machine";
-import { TASK_STATE_LABELS, lifecycleProgress, stateTone } from "@/core/realityloop/progress";
+import { TASK_STATE_LABELS, lifecycleProgress, stateTone, taskGroup } from "@/core/realityloop/progress";
 import { EFFORT_LABELS } from "@/core/agent/routing";
 import { RUN_STATUS_LABELS, isLive, type RunStatus } from "@/core/agent/cloud-run";
 import { TOOL_VERB, toolTarget } from "@/core/agent/run-phase";
@@ -279,13 +279,13 @@ export async function approvalView(ctx: AppContext, orgId: string, taskId: strin
   };
 }
 
-// The web's Tasks page groups by the state's tone; the phone's filters are the same groups, so a task is in the same place on both.
+// The web's Tasks page groups by taskGroup; the phone's filters are the same groups, so a task is in the same place on both.
 const FILTERS = {
   all: () => true,
-  waiting: (t: Task) => stateTone(t.state) === "approval",
-  active: (t: Task) => stateTone(t.state) === "info",
-  done: (t: Task) => stateTone(t.state) === "verified",
-  stopped: (t: Task) => ["failed", "unverified"].includes(stateTone(t.state)),
+  waiting: (t: Task) => taskGroup(t.state) === "needs-you",
+  active: (t: Task) => taskGroup(t.state) === "in-progress",
+  done: (t: Task) => taskGroup(t.state) === "verified",
+  stopped: (t: Task) => taskGroup(t.state) === "stopped",
 } as const;
 export type TaskFilter = keyof typeof FILTERS;
 export const isTaskFilter = (v: unknown): v is TaskFilter => typeof v === "string" && Object.hasOwn(FILTERS, v);

@@ -1,18 +1,18 @@
-import { ArrowRightIcon, ChatCircleDotsIcon, CheckCircleIcon, CircleNotchIcon, EyeIcon } from "@phosphor-icons/react/ssr";
-import type { Icon } from "@phosphor-icons/react";
+import { ArrowRightIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { RelativeTime } from "@/components/ui/local-time";
+import { StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { RUN_STATUS_LABELS } from "@/core/agent/cloud-run";
 import { INBOX_LANE_LABELS, INBOX_LANES, firstSentence, type InboxLane, type ProposalState } from "@/core/agent/inbox";
 import type { RunView } from "@/server/cloud-agent/store";
 import { CoreMark, type CoreMarkState } from "./core-mark";
 
-const LANE_STYLE: Record<InboxLane, { icon: Icon; tone: string; action: string }> = {
-  // The lane's action names its icon: a question to answer is a speech bubble (ADR 0180).
-  needs_you: { icon: ChatCircleDotsIcon, tone: "text-approval", action: "Answer" },
-  working: { icon: CircleNotchIcon, tone: "text-accent", action: "Watch" },
-  review: { icon: EyeIcon, tone: "text-accent", action: "Review" },
-  done: { icon: CheckCircleIcon, tone: "text-ink-3", action: "Open" },
+// Each lane is where its runs stand, as one of the shared kinds (ADR 0183): blue where it's the person's turn.
+const LANE_STYLE: Record<InboxLane, { kind: Status; action: string }> = {
+  needs_you: { kind: "approval", action: "Answer" },
+  working: { kind: "working", action: "Watch" },
+  review: { kind: "approval", action: "Review" },
+  done: { kind: "done", action: "Open" },
 };
 
 function markState(lane: InboxLane, run: RunView): CoreMarkState {
@@ -74,9 +74,9 @@ export function AgentInbox({ lanes, proposals }: { lanes: Record<InboxLane, RunV
         const runs = lane === "done" ? all.slice(0, DONE_SHOWN) : all;
         const style = LANE_STYLE[lane];
         return (
-          <section key={lane} aria-labelledby={`lane-${lane}`} className={`rounded-md border bg-surface p-4 shadow-e1 ${lane === "needs_you" ? "border-approval/45" : "border-line"}`}>
+          <section key={lane} aria-labelledby={`lane-${lane}`} className={`rounded-md border bg-surface p-4 shadow-e1 ${lane === "needs_you" ? "border-approval/30" : "border-line"}`}>
             <h3 id={`lane-${lane}`} className="flex items-center gap-2 text-sm font-medium">
-              <style.icon size={16} weight="bold" className={`${style.tone} ${lane === "working" ? "motion-safe:animate-spin" : ""}`} aria-hidden />
+              <StatusGlyph status={style.kind} size={16} />
               {INBOX_LANE_LABELS[lane].title}
             </h3>
               <ul className="mt-3 grid gap-1.5">
@@ -93,7 +93,7 @@ export function AgentInbox({ lanes, proposals }: { lanes: Record<InboxLane, RunV
                           </span>
                           <span className="mt-1.5 line-clamp-2 block text-[0.8125rem] leading-snug text-ink-2">{summary(lane, r, proposal)}</span>
                           <span className={`mt-2 inline-flex items-center gap-1 text-xs font-medium ${lane === "needs_you" ? "text-approval" : "text-accent"}`}>
-                            {style.action} <ArrowRightIcon size={12} weight="bold" aria-hidden />
+                            {style.action} <ArrowRightIcon size={14} weight="bold" aria-hidden />
                           </span>
                         </span>
                       </Link>
@@ -103,7 +103,7 @@ export function AgentInbox({ lanes, proposals }: { lanes: Record<InboxLane, RunV
               </ul>
             {all.length > runs.length ? (
               <Link href="/app/build" className="mt-2 inline-flex min-h-11 items-center gap-1 px-2 text-sm text-accent hover:underline">
-                {all.length - runs.length} more on the Build page <ArrowRightIcon size={13} aria-hidden />
+                {all.length - runs.length} more on the Build page <ArrowRightIcon size={14} weight="bold" aria-hidden />
               </Link>
             ) : null}
           </section>

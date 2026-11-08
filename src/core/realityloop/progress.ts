@@ -75,6 +75,75 @@ export function stateTone(state: TaskState): StateTone {
   }
 }
 
+/**
+ * Where a task stands, as one of the status kinds every chip uses (ADR 0183), so each state has its own icon.
+ * `stateTone` stays for the phone API, which older iPhone builds read.
+ */
+export type StateKind = "verified" | "done" | "approval" | "pending" | "working" | "attention" | "paused" | "failed" | "blocked" | "off";
+
+export function stateKind(state: TaskState): StateKind {
+  switch (state) {
+    case "VERIFIED":
+    case "RECOVERED":
+      return "verified";
+    case "CONTRACT_DRAFTED":
+    case "APPROVAL_PENDING":
+    case "REVIEW_REQUIRED":
+    case "REQUIRES_HUMAN_INTERVENTION":
+      return "approval";
+    case "CONTRACT_APPROVED":
+      return "done";
+    case "RECEIVED":
+    case "EXECUTION_AUTHORIZED":
+      return "pending";
+    case "CONTEXT_ASSEMBLED":
+    case "PLAN_PROPOSED":
+    case "POLICY_EVALUATED":
+    case "EXECUTING":
+    case "VERIFYING":
+    case "RECOVERY_PENDING":
+      return "working";
+    case "PARTIALLY_VERIFIED":
+      return "attention";
+    case "INTERRUPTED":
+      return "paused";
+    case "FAILED":
+    case "REJECTED":
+      return "failed";
+    case "BLOCKED":
+      return "blocked";
+    case "CANCELLED":
+    case "EXPIRED":
+      return "off";
+  }
+}
+
+/**
+ * Which group a task is listed under, on the web's Tasks page and in the phone's filters alike, worked out from
+ * its kind so a task's chip and its heading always agree: anything a person should act on or look at, work
+ * going on, proven, or stopped.
+ */
+export type TaskGroup = "needs-you" | "in-progress" | "verified" | "stopped";
+
+export function taskGroup(state: TaskState): TaskGroup {
+  switch (stateKind(state)) {
+    case "approval":
+    case "attention":
+    case "paused":
+      return "needs-you";
+    case "pending":
+    case "working":
+    case "done":
+      return "in-progress";
+    case "verified":
+      return "verified";
+    case "failed":
+    case "blocked":
+    case "off":
+      return "stopped";
+  }
+}
+
 export function isTaskState(value: string): value is TaskState {
   return (TASK_STATES as readonly string[]).includes(value);
 }

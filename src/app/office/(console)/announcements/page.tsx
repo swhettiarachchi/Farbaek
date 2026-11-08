@@ -1,6 +1,6 @@
-import { InfoIcon, MegaphoneIcon, WarningIcon } from "@phosphor-icons/react/ssr";
+import { InfoIcon, MegaphoneIcon, PencilSimpleLineIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
-import { EmptyState, Notice, PageHeader } from "@/components/app/primitives";
+import { CardTitle, EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { OfficeActionForm } from "@/components/office/action-form";
 import { officeInputClass, ReasonField } from "@/components/office/fields";
 import { RelativeTime } from "@/components/ui/local-time";
@@ -25,9 +25,9 @@ export default async function OfficeAnnouncements() {
       {can ? (
         <section aria-labelledby="new-title" className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
           <div className="grid gap-4 rounded-md bg-surface p-5 shadow-e1 sm:p-6">
-            <h2 id="new-title" className="text-lg font-medium">
+            <CardTitle id="new-title" icon={PencilSimpleLineIcon}>
               Post a message
-            </h2>
+            </CardTitle>
             <OfficeActionForm action={publishAnnouncementAction} submit="Post it" className="grid gap-4">
               <label htmlFor="announce-message" className="grid gap-1.5 text-sm">
                 <span className="font-medium text-ink">Message</span>
@@ -58,9 +58,9 @@ export default async function OfficeAnnouncements() {
       ) : null}
 
       <section aria-labelledby="live-title" className="grid gap-3">
-        <h2 id="live-title" className="text-lg font-medium">
+        <CardTitle id="live-title" icon={MegaphoneIcon}>
           Showing now
-        </h2>
+        </CardTitle>
         {live.length === 0 ? (
           <EmptyState icon={MegaphoneIcon} title="Nothing showing">
             Everyone sees the app without a message from Farbaek.
@@ -70,7 +70,7 @@ export default async function OfficeAnnouncements() {
             {live.map((a) => (
               <li key={a.id} className="grid gap-3 rounded-md border border-line bg-surface p-4 shadow-e1 sm:p-5">
                 <p className="flex items-start gap-2 text-sm text-ink">
-                  {a.tone === "incident" ? <WarningIcon size={18} weight="bold" className="mt-px shrink-0 text-approval" aria-hidden /> : <InfoIcon size={18} weight="bold" className="mt-px shrink-0 text-info" aria-hidden />}
+                  {a.tone === "incident" ? <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden /> : <InfoIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-info" aria-hidden />}
                   <span>
                     <span className="font-medium">{a.tone === "incident" ? "Incident: " : "Notice: "}</span>
                     {a.message}

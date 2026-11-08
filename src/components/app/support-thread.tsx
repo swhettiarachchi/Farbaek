@@ -1,24 +1,19 @@
-import { CheckCircleIcon } from "@phosphor-icons/react/ssr";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { LocalTime } from "@/components/ui/local-time";
+import { StatusBadge, type Status } from "@/components/ui/status-badge";
 import { CUSTOMER_STATUS_WORDS, type SupportStatus } from "@/core/support/support";
 import type { SupportMessageView } from "@/server/workspace/support";
 
-const STATUS_LOOK: Record<SupportStatus, { icon: typeof CheckCircleIcon | null; className: string }> = {
-  waiting_on_farbaek: { icon: null, className: "bg-surface-raised text-ink-2" },
-  waiting_on_you: { icon: null, className: "bg-accent/[0.08] text-accent" },
-  closed: { icon: CheckCircleIcon, className: "bg-surface-raised text-ink-3" },
+/** Waiting on Farbaek is someone else's turn, waiting on you is yours, and closed is done (ADR 0183). */
+const STATUS_KIND: Record<SupportStatus, Status> = {
+  waiting_on_farbaek: "pending",
+  waiting_on_you: "approval",
+  closed: "done",
 };
 
-/** A request's state in words (ADR 0180), never colour alone; a mark only once it's closed. */
+/** A request's state: its words, icon, colour and border together, never colour alone. */
 export function SupportStatusChip({ status }: { status: SupportStatus }) {
-  const look = STATUS_LOOK[status];
-  return (
-    <span className={`inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium ${look.className}`}>
-      {look.icon ? <look.icon size={14} weight="bold" aria-hidden /> : null}
-      {CUSTOMER_STATUS_WORDS[status]}
-    </span>
-  );
+  return <StatusBadge status={STATUS_KIND[status]} label={CUSTOMER_STATUS_WORDS[status]} />;
 }
 
 /**

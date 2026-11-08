@@ -1,9 +1,10 @@
 "use client";
 
-import { ArrowCounterClockwiseIcon, CheckCircleIcon, ProhibitIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
+import { ArrowCounterClockwiseIcon, CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useId, useMemo, useState } from "react";
 import { buttonClasses } from "@/components/ui/button";
+import { StatusBadge, StatusGlyph } from "@/components/ui/status-badge";
 import { SAMPLE_CONTRACT, SAMPLE_DESCRIPTION, SAMPLE_VERSIONS } from "@/content/samples";
 import { checkActionAgainstContract } from "@/core/realityloop/contract";
 import { approvalBindingHash, checkApprovalForExecution, type ApprovalCheck, type ApprovalRecord, type ApprovalSubject } from "@/core/trust/approval";
@@ -155,13 +156,7 @@ export function ApprovalDemo() {
           <p className="text-[0.8125rem] text-ink-3">
             Plan version {SAMPLE_VERSIONS.contractVersion}, rules version {SAMPLE_VERSIONS.policyVersion}
           </p>
-          {blocked ? (
-            <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-failed/40 px-2 text-xs font-medium text-failed">
-              <ProhibitIcon size={14} weight="bold" aria-hidden /> Blocked
-            </span>
-          ) : (
-            <span className="inline-flex h-6 items-center rounded-full border border-approval/40 px-2.5 text-xs font-medium text-approval">Needs approval</span>
-          )}
+          {blocked ? <StatusBadge status="blocked" label="Blocked" /> : <StatusBadge status="approval" label="Needs your approval" />}
         </div>
 
         <h3 id="demo-approval" className="mt-4 text-xl font-medium leading-snug tracking-[-0.01em]">
@@ -176,7 +171,8 @@ export function ApprovalDemo() {
         </dl>
 
         {hash.status === "unavailable" ? (
-          <p className="mt-3 text-sm text-failed">
+          <p className="mt-3 flex items-start gap-2 text-sm text-failed">
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
             This browser blocked Web Crypto on this connection (it needs HTTPS or localhost), so the demo can&apos;t compute hashes.
           </p>
         ) : null}
@@ -185,7 +181,7 @@ export function ApprovalDemo() {
           <ul className="mt-4 grid gap-2 rounded-sm border border-failed/30 bg-failed/[0.05] p-3 text-sm">
             {violations.map((v) => (
               <li key={v.kind + v.detail} className="flex gap-2">
-                <XCircleIcon size={18} className="mt-px shrink-0 text-failed" aria-hidden />
+                <StatusGlyph status="blocked" className="mt-0.5" />
                 <span>{v.detail} The check against the plan runs before any approval is offered.</span>
               </li>
             ))}
@@ -197,13 +193,13 @@ export function ApprovalDemo() {
         {approval ? (
           <div
             className={`mt-4 flex items-start gap-2 rounded-sm border p-3 text-sm ${
-              matches ? "border-verified/40 text-ink" : "border-approval/50 text-ink"
+              matches ? "border-verified/35 bg-verified/[0.05] text-ink" : "border-caution/35 bg-caution/[0.05] text-ink"
             }`}
           >
             {matches ? (
-              <CheckCircleIcon size={18} className="mt-px shrink-0 text-verified" aria-hidden />
+              <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
             ) : (
-              <WarningCircleIcon size={18} className="mt-px shrink-0 text-approval" aria-hidden />
+              <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
             )}
             <span>
               {matches
@@ -227,7 +223,7 @@ export function ApprovalDemo() {
             Run it
           </button>
           <button type="button" onClick={reset} className={buttonClasses("ghost")}>
-            <ArrowCounterClockwiseIcon size={16} aria-hidden /> Reset
+            <ArrowCounterClockwiseIcon size={16} weight="bold" aria-hidden /> Reset
           </button>
         </div>
         {blocked ? (
@@ -249,11 +245,18 @@ export function ApprovalDemo() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={reduce ? { opacity: 0 } : { opacity: 0, y: -4, transition: { duration: 0.1 } }}
                 transition={{ duration: 0.22, ease: [0, 0, 0, 1] }}
-                className={`mt-4 rounded-sm px-3 py-2.5 text-sm ${result.valid ? "bg-verified/[0.08] text-ink" : "bg-failed/[0.07] text-ink"}`}
+                className={`mt-4 flex items-start gap-2 rounded-sm px-3 py-2.5 text-sm ${result.valid ? "bg-verified/[0.08] text-ink" : "bg-failed/[0.07] text-ink"}`}
               >
-                {result.valid
-                  ? "Approval matches. In Farbaek this would now run in a test space. Here, nothing runs."
-                  : `Blocked: ${result.message}`}
+                {result.valid ? (
+                  <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+                ) : (
+                  <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+                )}
+                <span>
+                  {result.valid
+                    ? "Approval matches. In Farbaek this would now run in a test space. Here, nothing runs."
+                    : `Blocked: ${result.message}`}
+                </span>
               </motion.p>
             ) : null}
           </AnimatePresence>

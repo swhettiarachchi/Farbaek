@@ -1,6 +1,6 @@
 "use client";
 
-import { GlobeIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, GlobeIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useState } from "react";
 import { publishAction, type PublishState } from "@/app/app/projects/[projectId]/publish-actions";
 import { PublishedMoment } from "@/components/publish/published-moment";
@@ -84,20 +84,20 @@ export function PublishForm({
       ) : null}
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending || Boolean(disabledReason) || Boolean(problem) || Boolean(reasonProblem)} className={buttonClasses("primary")}>
-          <GlobeIcon size={18} weight="bold" aria-hidden />{" "}
+          <GlobeIcon size={16} weight="bold" aria-hidden />{" "}
           {pending ? "Publishing…" : override ? "Publish without passed checks" : live ? "Publish the latest files" : "Publish"}
         </button>
         {disabledReason ? <span className="text-sm text-ink-3">{disabledReason}</span> : null}
       </div>
       {state.status === "error" ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {state.message}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden /> {state.message}
         </p>
       ) : state.status === "done" && live && address ? (
         <PublishedMoment projectId={projectId} address={address} message={state.message} />
       ) : state.status === "done" && live ? (
-        <p role="status" className="text-sm text-verified">
-          {state.message}
+        <p role="status" className="flex items-start gap-2 text-sm text-verified">
+          <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden /> {state.message}
         </p>
       ) : null}
     </form>

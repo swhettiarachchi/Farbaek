@@ -20,7 +20,7 @@ export function PricingTeaser() {
             <div key={plan.id} className="bg-surface p-5 sm:p-6">
               <dt className="flex items-center justify-between gap-2 text-[0.9375rem] font-medium">
                 {plan.name}
-                {plan.recommendedFor ? <span className="rounded-full bg-accent/[0.08] px-2 py-0.5 text-xs font-medium text-accent">Recommended</span> : null}
+                {plan.recommendedFor ? <span className="rounded-full bg-primary px-2.5 py-0.5 text-xs font-medium text-on-primary">Recommended</span> : null}
               </dt>
               <dd data-web-purchase className="mt-3">
                 <span className="text-3xl font-medium tracking-[-0.02em] tabular">{priceWords(plan).price}</span>

@@ -97,13 +97,14 @@ export function NewIncident({ projects, disabledReason }: { projects: { id: stri
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={submit} disabled={pending || locked || title.trim().length < 3} className={buttonClasses("secondary", "sm")}>
-          <PlusIcon size={16} aria-hidden /> {pending ? "Reporting…" : "Report the problem"}
+          <PlusIcon size={16} weight="bold" aria-hidden /> {pending ? "Reporting…" : "Report the problem"}
         </button>
         {disabledReason ? <span className="text-xs text-ink-3">{disabledReason}</span> : null}
       </div>
       {error ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {error}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+          <span>{error}</span>
         </p>
       ) : null}
     </div>

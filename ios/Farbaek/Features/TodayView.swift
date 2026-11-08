@@ -61,7 +61,7 @@ struct TodayView: View {
             .buttonStyle(PillButtonStyle(kind: .primary))
             .disabled(model.creatingWorkspace)
             if let error = model.workspaceError {
-                Notice(text: error, tone: .failed, symbol: "exclamationmark.triangle.fill")
+                Notice(text: error, tone: .failed, symbol: "exclamationmark.circle.fill")
             }
         }
         .panel()
@@ -79,13 +79,13 @@ struct TodayView: View {
                 if !needsWorkspace, let usage = load.value?.usage, let percent = usage.percent, percent >= 1 {
                     Text(Self.usageSentence(percent: percent, period: usage.period, endsAt: usage.endsAt))
                         .font(.subheadline)
-                        .foregroundStyle(percent >= 100 ? Palette.failed : percent >= 80 ? Palette.approval : Palette.ink2)
+                        .foregroundStyle(percent >= 100 ? Palette.failed : percent >= 80 ? Palette.caution : Palette.ink2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 if let paused = workspace.paused {
                     Notice(text: "Farbaek has paused this workspace: \(paused)", tone: .failed, symbol: "pause.circle.fill")
                 } else if workspace.agentsPaused {
-                    Notice(text: "Agents are paused in this workspace. An owner or admin resumes them on the web.", tone: .approval, symbol: "pause.circle.fill")
+                    Notice(text: "Agents are paused in this workspace. An owner or admin resumes them on the web.", tone: .paused, symbol: Tone.paused.symbol)
                 }
             }
         }
@@ -96,10 +96,11 @@ struct TodayView: View {
             // A number only when there is something to count (ADR 0180); "0" is a counter with nothing behind it.
             if home.waiting > 0 {
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    // Your turn is the brand's blue (ADR 0183).
                     Text("\(home.waiting)")
                         .font(.system(size: countSize, weight: .medium))
                         .tracking(-1)
-                        .foregroundStyle(Palette.approval)
+                        .foregroundStyle(Palette.accent)
                         .contentTransition(.numericText())
                     Text(home.waiting == 1 ? "change waits for you" : "changes wait for you")
                         .font(.headline.weight(.regular))
@@ -139,7 +140,7 @@ struct TodayView: View {
                             Text("\(run.projectName), \(run.steps == 1 ? "1 step" : "\(run.steps) steps") so far").font(.footnote).foregroundStyle(Palette.ink2)
                         }
                         Spacer(minLength: 8)
-                        StatusBadge(label: run.statusLabel, tone: run.status == "waiting" ? .approval : .info)
+                        StatusBadge(label: run.statusLabel, tone: RunView.tone(run.status))
                     }
                     .card()
                 }
@@ -221,7 +222,7 @@ struct TaskRow: View {
                 .foregroundStyle(Palette.ink3)
             }
             Spacer(minLength: 8)
-            StatusBadge(label: task.stateLabel, tone: Tone(task.tone))
+            StatusBadge(label: task.stateLabel, tone: Tone(taskState: task.state, tone: task.tone))
             Image(systemName: "chevron.right").font(.footnote).foregroundStyle(Palette.ink3).accessibilityHidden(true)
         }
         .padding(.horizontal, 12)

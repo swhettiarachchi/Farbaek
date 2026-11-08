@@ -41,7 +41,7 @@ export async function EvidenceSection() {
               Sample written to show the format. This seal is drawn from the sample&apos;s own JSON.
             </p>
             <Link href="/verify" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-accent hover:underline">
-              Check a ProofPack yourself <ArrowRightIcon size={14} aria-hidden />
+              Check a ProofPack yourself <ArrowRightIcon size={14} weight="bold" aria-hidden />
             </Link>
           </div>
         </div>
@@ -52,7 +52,7 @@ export async function EvidenceSection() {
             <ul className="mt-3 grid gap-2 text-[0.9375rem] text-ink-2">
               {PROVES.map((line) => (
                 <li key={line} className="flex gap-2.5">
-                  <CheckIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+                  <CheckIcon size={16} weight="bold" className="mt-1 shrink-0 text-verified" aria-hidden />
                   {line}
                 </li>
               ))}
@@ -63,7 +63,7 @@ export async function EvidenceSection() {
             <ul className="mt-3 grid gap-2 text-[0.9375rem] text-ink-2">
               {DOES_NOT_PROVE.map((line) => (
                 <li key={line} className="flex gap-2.5">
-                  <MinusIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
+                  <MinusIcon size={16} weight="bold" className="mt-1 shrink-0 text-ink-3" aria-hidden />
                   {line}
                 </li>
               ))}

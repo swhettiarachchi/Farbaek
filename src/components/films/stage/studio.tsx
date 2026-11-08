@@ -161,7 +161,7 @@ export function Headline({ t, head, x, y, size, width, subSize, subWidth, align 
   );
 }
 
-/** Frosted glass around the window: a bright edge, a soft lift off the stage and light from the accent. */
+/** Frosted glass around the window: a bright edge and a soft lift off the stage, its shadows tinted with ink (ADR 0183). */
 function Glass({ w, h, pad, radius, children }: { w: number; h: number; pad: number; radius: number; children: ReactNode }) {
   return (
     <div
@@ -176,7 +176,7 @@ function Glass({ w, h, pad, radius, children }: { w: number; h: number; pad: num
           "inset 0 1px 0 var(--color-surface)",
           "0 0 0 1px color-mix(in oklab, var(--color-line) 90%, transparent)",
           "0 70px 120px -50px color-mix(in oklab, var(--color-ink) 38%, transparent)",
-          "0 36px 80px -40px color-mix(in oklab, var(--color-accent) 34%, transparent)",
+          "0 36px 80px -40px color-mix(in oklab, var(--color-ink) 14%, transparent)",
           "0 2px 8px color-mix(in oklab, var(--color-ink) 6%, transparent)",
         ].join(", "),
       }}
@@ -269,7 +269,7 @@ export function StudioFilm({ t, layout, scenes, content, pad, scroll, frame, hea
           : `translate(${PERSPECTIVE_ORIGIN.x * layout.width}px, ${PERSPECTIVE_ORIGIN.y * layout.height}px) perspective(${layout.perspective}px) translate(${-PERSPECTIVE_ORIGIN.x * layout.width}px, ${-PERSPECTIVE_ORIGIN.y * layout.height}px) translate3d(${tx}px, ${ty}px, ${tz}px) rotateX(${rx}deg) rotateY(${ry}deg) scale(${sc}) translate(${ix}px, ${iy}px)`;
       const clip = card.firstElementChild as HTMLElement;
       clip.style.borderRadius = `${radius}px`;
-      clip.style.boxShadow = `0 0 0 1px color-mix(in oklab, var(--color-line) ${Math.round(40 + 60 * e)}%, transparent), 0 ${Math.round(18 + 50 * e)}px ${Math.round(40 + 90 * e)}px -${Math.round(20 + 20 * e)}px color-mix(in oklab, var(--color-ink) ${Math.round(14 + 22 * e)}%, transparent), 0 ${Math.round(10 + 30 * e)}px ${Math.round(30 + 60 * e)}px -24px color-mix(in oklab, var(--color-accent) ${Math.round(10 + 26 * e)}%, transparent)`;
+      clip.style.boxShadow = `0 0 0 1px color-mix(in oklab, var(--color-line) ${Math.round(40 + 60 * e)}%, transparent), 0 ${Math.round(18 + 50 * e)}px ${Math.round(40 + 90 * e)}px -${Math.round(20 + 20 * e)}px color-mix(in oklab, var(--color-ink) ${Math.round(14 + 22 * e)}%, transparent), 0 ${Math.round(10 + 30 * e)}px ${Math.round(30 + 60 * e)}px -24px color-mix(in oklab, var(--color-ink) ${Math.round(4 + 10 * e)}%, transparent)`;
       // Only the element itself shows; any room around it is the card's own canvas.
       const box = clip.firstElementChild as HTMLElement;
       box.style.left = `${pad}px`;
@@ -360,7 +360,7 @@ export function StudioFilm({ t, layout, scenes, content, pad, scroll, frame, hea
           </Glass>
           {/* Where a lifted card came from: an empty, lightly sunken place in the window. */}
           {lifts.map((_, i) => (
-            <div key={i} data-socket={i} aria-hidden className="absolute border border-dashed border-line-strong/30 bg-canvas-2" style={{ visibility: "hidden", boxShadow: "inset 0 2px 10px color-mix(in oklab, var(--color-ink) 7%, transparent)" }} />
+            <div key={i} data-socket={i} aria-hidden className="absolute border border-line-2/70 bg-canvas-2" style={{ visibility: "hidden", boxShadow: "inset 0 2px 10px color-mix(in oklab, var(--color-ink) 7%, transparent)" }} />
           ))}
         </div>
       </div>

@@ -1,15 +1,13 @@
-import { CheckCircleIcon } from "@phosphor-icons/react/ssr";
-import type { Icon } from "@phosphor-icons/react";
 import { Container } from "@/components/ui/container";
+import { StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { PLANS, TRIAL, formatUsd } from "@/core/billing/catalog";
 import { SectionHeading } from "./section-heading";
 
 interface Group {
   title: string;
   note: string;
-  /** Only what's done carries a mark (ADR 0180); the other columns are their words alone. */
-  icon: Icon | null;
-  iconClass: string;
+  /** Each column carries its kind's mark (ADR 0183): working, being proven, or not yet. */
+  kind: Status;
   items: string[];
 }
 
@@ -24,8 +22,7 @@ const GROUPS: Group[] = [
   {
     title: "Built and working",
     note: "Live at www.farbaek.com, tested and used end to end.",
-    icon: CheckCircleIcon,
-    iconClass: "text-verified",
+    kind: "verified",
     items: [
       "Sign-in by email link, and workspaces kept strictly apart",
       "One sentence to a plan: Farbaek drafts it, and you read and approve it",
@@ -43,8 +40,7 @@ const GROUPS: Group[] = [
   {
     title: "Being proven",
     note: "Built and tested, being proven on real accounts and devices.",
-    icon: null,
-    iconClass: "",
+    kind: "pending",
     items: [
       "Moving projects between your own devices, nearby or over the internet",
       "Launches to your own Vercel or Netlify account",
@@ -57,8 +53,7 @@ const GROUPS: Group[] = [
   {
     title: "Next",
     note: "Planned next, in no fixed order.",
-    icon: null,
-    iconClass: "",
+    kind: "unverified",
     items: [
       "The Android app on Google Play",
       "Farbaek for iPhone on the App Store, approving changes with Face ID or Touch ID (Farbaek installs from Safari today)",
@@ -79,7 +74,7 @@ export function StatusSection() {
           {GROUPS.map((group, i) => (
             <div key={group.title} className={i === 0 ? "lg:pr-10" : "lg:px-10"}>
               <h3 className="flex items-center gap-2 text-[1.0625rem] font-medium">
-                {group.icon ? <group.icon size={20} weight="bold" className={group.iconClass} aria-hidden /> : null}
+                <StatusGlyph status={group.kind} size={20} />
                 {group.title}
               </h3>
               <p className="mt-1 text-sm text-ink-3">{group.note}</p>

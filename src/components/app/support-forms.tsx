@@ -13,8 +13,8 @@ function FormError({ state, id }: { state: HelpFormState; id: string }) {
   if (state.status !== "error") return null;
   return (
     <p id={id} role="alert" className="flex items-start gap-2 text-sm text-failed">
-      <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
-      {state.message}
+      <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+      <span>{state.message}</span>
     </p>
   );
 }
@@ -84,7 +84,7 @@ export function NewRequestForm({ topic, subject = "", body = "", disabledReason 
       {disabledReason ? <p className="text-sm text-ink-2">{disabledReason}</p> : null}
       <div>
         <button type="submit" disabled={disabled || pending} className={buttonClasses("primary", "md")}>
-          <PaperPlaneTiltIcon size={17} aria-hidden /> {pending ? "Sending…" : "Send to Farbaek"}
+          <PaperPlaneTiltIcon size={16} weight="bold" aria-hidden /> {pending ? "Sending…" : "Send to Farbaek"}
         </button>
       </div>
     </form>
@@ -114,7 +114,7 @@ export function ReplyForm({ threadId, closed }: { threadId: string; closed: bool
           className={`${field} field-sizing-content min-h-11 max-h-[35dvh] min-w-0 flex-1 py-2.5 leading-relaxed sm:min-h-24`}
         />
         <button type="submit" disabled={pending} aria-label={closed ? "Send and reopen" : "Send"} className={buttonClasses("primary", "sm", "shrink-0")}>
-          <PaperPlaneTiltIcon size={16} aria-hidden />
+          <PaperPlaneTiltIcon size={16} weight="bold" aria-hidden />
           <span className="hidden sm:inline">{pending ? "Sending…" : closed ? "Send and reopen" : "Send"}</span>
         </button>
       </div>

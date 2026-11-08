@@ -64,7 +64,7 @@ export function ComparisonTable() {
 
       <div className="hidden gap-4 md:grid">
         <p className="flex items-center gap-2 text-sm text-ink-3">
-          <ArrowsLeftRightIcon size={16} aria-hidden /> Scroll a table sideways to see all {COMPARE_PLANS.length} plans. The feature names stay in place.
+          <ArrowsLeftRightIcon size={16} weight="bold" aria-hidden /> Scroll a table sideways to see all {COMPARE_PLANS.length} plans. The feature names stay in place.
         </p>
         {GROUPS.map((group) => (
           <details key={group.title} open className="group min-w-0 rounded-md border border-line bg-surface">

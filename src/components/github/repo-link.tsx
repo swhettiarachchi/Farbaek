@@ -55,12 +55,12 @@ export function RepoLinkForm({ projectId, linked, suggestion, disabledReason }: 
       <div aria-live="polite" className="empty:hidden">
         {message ? (
           <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-            <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden />
             {message}
           </p>
         ) : linkState.status === "linked" ? (
           <p role="status" className="flex items-start gap-2 text-sm text-ink-2">
-            <CheckCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+            <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
             Linked to <span className="font-mono">{linkState.repo}</span>. Pull requests go to <span className="font-mono">{linkState.branch}</span>.
           </p>
         ) : null}

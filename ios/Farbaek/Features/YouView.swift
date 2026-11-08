@@ -201,8 +201,9 @@ struct YouView: View {
                 } else if model.notificationsDenied {
                     // Whatever Farbaek has on record, iOS decides what shows: say so, and offer the way to change it.
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Turned off in the iPhone's Settings")
-                            .foregroundStyle(Palette.approval)
+                        // A warning to look at, in burnt orange with its mark (ADR 0183), not the blue of your turn.
+                        Label("Turned off in the iPhone's Settings", systemImage: Tone.attention.symbol)
+                            .foregroundStyle(Palette.caution)
                         Text("Nothing Farbaek sends can show on this iPhone until notifications are allowed for it.")
                             .font(.footnote)
                             .foregroundStyle(Palette.ink2)
@@ -224,7 +225,7 @@ struct YouView: View {
                 }
             }
             if let note = model.pushNote {
-                Notice(text: note, tone: .failed, symbol: "exclamationmark.triangle")
+                Notice(text: note, tone: .failed, symbol: "exclamationmark.circle.fill")
             }
         } header: {
             Text("Notifications")

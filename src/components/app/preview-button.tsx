@@ -39,7 +39,8 @@ export function PreviewButton({ projectId, disabledReason, variant = "secondary"
       </span>
       {error ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {error}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+          <span>{error}</span>
         </p>
       ) : null}
     </div>

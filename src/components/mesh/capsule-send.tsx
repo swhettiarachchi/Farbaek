@@ -74,14 +74,14 @@ export function CapsuleSend({ projects }: { projects: SendableProject[] }) {
 
         {preview?.status === "error" ? (
           <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-            <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {preview.message}
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden /> {preview.message}
           </p>
         ) : null}
 
         {preview?.status === "ok" ? (
           <div className="grid gap-4 motion-safe:animate-[usage-in_220ms_cubic-bezier(0.16,1,0.3,1)_both]">
             <p className="flex items-start gap-2 text-[0.9375rem]">
-              <CheckCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+              <CheckCircleIcon size={16} weight="fill" className="mt-1 shrink-0 text-verified" aria-hidden />
               <span>
                 <span className="font-medium">
                   {preview.files.toLocaleString("en-US")} {preview.files === 1 ? "file" : "files"}

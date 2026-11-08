@@ -1,4 +1,4 @@
-import { ArrowDownIcon, ArrowRightIcon, CheckCircleIcon, CircleNotchIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowCircleRightIcon, ArrowDownIcon, ArrowRightIcon, CheckCircleIcon, CircleNotchIcon, InfoIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { buttonClasses } from "@/components/ui/button";
@@ -8,14 +8,14 @@ import { JumpLink } from "@/components/ui/disclosure";
 import type { TaskSeal } from "@/core/proof/verified-digest";
 import type { NextStep, NextStepTarget, NextStepTone } from "@/core/realityloop/next-step";
 
-// Every tone has its own word, so status never relies on colour alone. A mark only for done and a problem,
-// and a spinner while work is live (ADR 0180).
-const TONES: Record<NextStepTone, { icon: Icon | null; word: string; className: string }> = {
-  action: { icon: null, word: "Your turn", className: "text-accent" },
-  working: { icon: CircleNotchIcon, word: "In progress", className: "text-info" },
-  done: { icon: CheckCircleIcon, word: "Done", className: "text-verified" },
-  problem: { icon: WarningCircleIcon, word: "Needs attention", className: "text-failed" },
-  idle: { icon: null, word: "For your information", className: "text-ink-2" },
+// Every tone has its own icon and word, so status never relies on colour alone (ADR 0183). Filled icons report the
+// state; the spinner turns while work is live.
+const TONES: Record<NextStepTone, { icon: Icon; weight: "fill" | "bold"; word: string; className: string }> = {
+  action: { icon: ArrowCircleRightIcon, weight: "fill", word: "Your turn", className: "text-accent" },
+  working: { icon: CircleNotchIcon, weight: "bold", word: "In progress", className: "text-info" },
+  done: { icon: CheckCircleIcon, weight: "fill", word: "Done", className: "text-verified" },
+  problem: { icon: WarningCircleIcon, weight: "fill", word: "Needs attention", className: "text-failed" },
+  idle: { icon: InfoIcon, weight: "fill", word: "For your information", className: "text-ink-2" },
 };
 
 const ANCHORS: Record<Exclude<NextStepTarget, "project" | "run">, string> = {
@@ -46,7 +46,7 @@ export function NextStepCard({ step, projectId, runId = null, seal = null }: { s
         ) : null}
         <div className="min-w-0">
           <p className={`flex items-center gap-1.5 text-[0.8125rem] font-medium ${tone.className}`}>
-            {tone.icon ? <tone.icon size={16} weight="bold" aria-hidden className={step.tone === "working" ? "motion-safe:animate-spin" : ""} /> : null} {tone.word}
+            <tone.icon size={16} weight={tone.weight} aria-hidden className={`shrink-0 ${step.tone === "working" ? "motion-safe:animate-spin" : ""}`} /> {tone.word}
           </p>
           <h2 id="next-step" className="mt-2 text-balance text-[1.25rem] font-medium leading-snug tracking-[-0.02em]">
             {step.title}

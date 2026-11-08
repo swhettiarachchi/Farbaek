@@ -32,7 +32,7 @@ export function SupportReplyForm({ threadId, action }: { threadId: string; actio
             onClick={() => setMode(m)}
             className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-4 text-sm transition-colors duration-150 sm:min-h-9 ${mode === m ? "bg-surface font-medium text-ink shadow-e1" : "text-ink-2 hover:text-ink"}`}
           >
-            {m === "reply" ? <PaperPlaneTiltIcon size={15} aria-hidden /> : <LockSimpleIcon size={15} aria-hidden />}
+            {m === "reply" ? <PaperPlaneTiltIcon size={16} weight="bold" aria-hidden /> : <LockSimpleIcon size={16} weight="bold" aria-hidden />}
             {m === "reply" ? "Reply to them" : "Internal note"}
           </button>
         ))}
@@ -46,20 +46,18 @@ export function SupportReplyForm({ threadId, action }: { threadId: string; actio
         required
         maxLength={SUPPORT_LIMITS.bodyMax}
         placeholder={internal ? "Only Farbaek staff see this note" : "They'll see this under Help, signed Farbaek support"}
-        className={`${officeInputClass} field-sizing-content h-auto min-h-28 max-h-[45dvh] py-3 leading-relaxed ${
-          internal ? "bg-[repeating-linear-gradient(135deg,transparent_0_10px,var(--color-surface-raised)_10px_12px)]" : ""
-        }`}
+        className={`${officeInputClass} field-sizing-content h-auto min-h-28 max-h-[45dvh] py-3 leading-relaxed ${internal ? "bg-surface-raised" : ""}`}
       />
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending} className={buttonClasses(internal ? "secondary" : "primary", "sm")}>
-          {internal ? <LockSimpleIcon size={16} aria-hidden /> : <PaperPlaneTiltIcon size={16} aria-hidden />}
+          {internal ? <LockSimpleIcon size={16} weight="bold" aria-hidden /> : <PaperPlaneTiltIcon size={16} weight="bold" aria-hidden />}
           {pending ? "Working…" : internal ? "Add note" : "Send reply"}
         </button>
         <span className="text-xs text-ink-3">{internal ? "Not shown to the person." : "Signed Farbaek support, never your name."}</span>
       </div>
       {state.message ? (
         <p role={state.ok ? "status" : "alert"} className={`flex items-start gap-2 text-sm ${state.ok ? "text-verified" : "text-failed"}`}>
-          {state.ok ? <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden /> : <WarningCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0" aria-hidden />}
+          {state.ok ? <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden /> : <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />}
           <span className="text-ink">{state.message}</span>
         </p>
       ) : null}

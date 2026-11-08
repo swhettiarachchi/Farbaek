@@ -1,8 +1,9 @@
-import { ProhibitIcon, ShieldWarningIcon, UserCheckIcon } from "@phosphor-icons/react/ssr";
+import { ProhibitIcon, ScalesIcon, ShieldCheckIcon, ShieldWarningIcon, UserCheckIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Card, PageHeader } from "@/components/app/primitives";
+import { Card, CardTitle, PageHeader } from "@/components/app/primitives";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { RuleBuilder } from "@/components/policies/rule-builder";
 import { RuleList } from "@/components/policies/rule-list";
 import { checkFeature } from "@/core/billing/entitlements";
@@ -58,15 +59,16 @@ export default async function PoliciesPage({ searchParams }: { searchParams: Pro
       />
 
       <Card>
-        <h2 className="text-lg font-medium">Built-in rules</h2>
+        <CardTitle icon={ShieldCheckIcon}>Built-in rules</CardTitle>
         <p className="mt-1 text-sm leading-relaxed text-ink-2">These always apply, and no workspace rule can loosen them.</p>
         <ul className="mt-4 grid gap-3 text-[0.9375rem] leading-relaxed">
           <li className="flex items-start gap-3">
-            <ProhibitIcon size={18} weight="bold" className="mt-1 shrink-0 text-failed" aria-hidden />
+            <ProhibitIcon size={16} weight="bold" className="mt-1 shrink-0 text-failed" aria-hidden />
             <span>A change that goes outside its approved plan is stopped.</span>
           </li>
           <li className="flex items-start gap-3">
-            <ShieldWarningIcon size={18} weight="bold" className="mt-1 shrink-0 text-approval" aria-hidden />
+            {/* An owner or admin has to decide: the approval blue (ADR 0183). */}
+            <ShieldWarningIcon size={16} weight="bold" className="mt-1 shrink-0 text-approval" aria-hidden />
             <div className="grid gap-1.5">
               <span>An owner or admin approves a change that:</span>
               <ul className="grid list-disc gap-1 pl-5 text-ink-2">
@@ -78,7 +80,7 @@ export default async function PoliciesPage({ searchParams }: { searchParams: Pro
             </div>
           </li>
           <li className="flex items-start gap-3">
-            <UserCheckIcon size={18} weight="bold" className="mt-1 shrink-0 text-ink-3" aria-hidden />
+            <UserCheckIcon size={16} weight="bold" className="mt-1 shrink-0 text-ink-3" aria-hidden />
             <span>
               Anything else needs a person&apos;s approval. If you{" "}
               <Link href="/app/settings#autonomy" className="font-medium text-accent hover:underline">
@@ -98,16 +100,13 @@ export default async function PoliciesPage({ searchParams }: { searchParams: Pro
 
       <Card id="rules">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-medium">Workspace rules</h2>
-          {active && active.rules.length > 0 ? (
-            <span className="inline-flex items-center rounded-full border border-accent/40 px-2.5 py-1 text-xs font-medium text-accent">Active</span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs text-ink-2">No rules active</span>
-          )}
+          <CardTitle icon={ScalesIcon}>Workspace rules</CardTitle>
+          {active && active.rules.length > 0 ? <StatusBadge status="verified" label="Active" /> : <StatusBadge status="off" label="No rules active" />}
         </div>
         {versions === null ? (
-          <p role="alert" className="mt-3 text-sm text-failed">
-            The workspace&apos;s rules couldn&apos;t be read. Reload the page to try again. New changes wait until they can be read.
+          <p role="alert" className="mt-3 flex items-start gap-2 text-sm text-failed">
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+            <span>The workspace&apos;s rules couldn&apos;t be read. Reload the page to try again. New changes wait until they can be read.</span>
           </p>
         ) : active && active.rules.length > 0 ? (
           <div className="mt-4">

@@ -1,42 +1,32 @@
-import { CheckCircleIcon, CircleNotchIcon, WarningIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
-import type { Icon } from "@phosphor-icons/react";
+import { StatusBadge, type Status } from "@/components/ui/status-badge";
 import { EXECUTION_STATE_LABELS, SESSION_STATE_LABELS, type ExecutionState, type SessionState } from "@/core/sandbox/lifecycle";
 
-// Status is a word in its colour and border pattern (ADR 0180): a spinner while live, an icon only for done and failed.
-const SESSION: Record<SessionState, { icon: Icon | null; className: string; live?: boolean }> = {
-  requested: { icon: null, className: "text-info border-info/40" },
-  provisioning: { icon: CircleNotchIcon, className: "text-info border-info/40", live: true },
-  ready: { icon: null, className: "text-verified border-verified/40" },
-  paused: { icon: null, className: "text-approval border-approval/40" },
-  stopping: { icon: CircleNotchIcon, className: "text-info border-info/40", live: true },
-  terminated: { icon: null, className: "text-unverified border-unverified/60 border-dashed" },
-  expired: { icon: null, className: "text-unverified border-unverified/60 border-dashed" },
-  failed: { icon: XCircleIcon, className: "text-failed border-failed/40" },
+// Each state is one of the shared kinds (ADR 0183): its words, icon, colour and border together.
+export const SESSION_STATE_KIND: Record<SessionState, Status> = {
+  requested: "pending",
+  provisioning: "working",
+  ready: "verified",
+  paused: "paused",
+  stopping: "working",
+  terminated: "off",
+  expired: "off",
+  failed: "failed",
 };
 
-const EXECUTION: Record<ExecutionState, { icon: Icon | null; className: string; live?: boolean }> = {
-  running: { icon: CircleNotchIcon, className: "text-info border-info/40", live: true },
-  succeeded: { icon: CheckCircleIcon, className: "text-verified border-verified/40" },
-  failed: { icon: XCircleIcon, className: "text-failed border-failed/40" },
-  timed_out: { icon: null, className: "text-approval border-approval/40" },
-  cancelled: { icon: null, className: "text-unverified border-unverified/60 border-dashed" },
-  error: { icon: WarningIcon, className: "text-failed border-failed/40 border-dashed" },
+export const EXECUTION_STATE_KIND: Record<ExecutionState, Status> = {
+  running: "working",
+  succeeded: "verified",
+  failed: "failed",
+  timed_out: "attention",
+  cancelled: "off",
+  error: "failed",
 };
-
-function Pill({ icon: PillIcon, className, live, label }: { icon: Icon | null; className: string; live?: boolean; label: string }) {
-  return (
-    <span className={`inline-flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-xs font-medium ${className}`}>
-      {PillIcon ? <PillIcon size={14} weight="bold" aria-hidden className={live ? "motion-safe:animate-spin" : undefined} /> : null}
-      {label}
-    </span>
-  );
-}
 
 export function SessionStateBadge({ state }: { state: SessionState }) {
-  return <Pill {...SESSION[state]} label={SESSION_STATE_LABELS[state]} />;
+  return <StatusBadge status={SESSION_STATE_KIND[state]} label={SESSION_STATE_LABELS[state]} />;
 }
 
 export function ExecutionStateBadge({ state, exitCode }: { state: ExecutionState; exitCode: number | null }) {
   const label = state === "failed" && exitCode !== null ? `Failed (exit ${exitCode})` : EXECUTION_STATE_LABELS[state];
-  return <Pill {...EXECUTION[state]} label={label} />;
+  return <StatusBadge status={EXECUTION_STATE_KIND[state]} label={label} />;
 }

@@ -277,8 +277,7 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
       }`}
     >
       <figure className={`m-0 min-w-0 ${rail === "left" ? "lg:order-last" : ""}`}>
-        <div className="aurora">
-          <Rise>
+        <Rise>
             <div
               ref={frame}
               className="rounded-lg bg-surface-raised/60 p-1.5 shadow-e3 ring-1 ring-line sm:p-2 [&:fullscreen]:flex [&:fullscreen]:flex-col [&:fullscreen]:justify-center [&:fullscreen]:rounded-none [&:fullscreen]:bg-canvas [&:fullscreen]:p-6"
@@ -344,7 +343,7 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
 
                   {notice === "loading" ? (
                     <p className="pointer-events-none absolute right-3 top-3 inline-flex items-center gap-2 rounded-full bg-surface px-3 py-1.5 text-xs text-ink-2 shadow-e1 ring-1 ring-line" role="status">
-                      <CircleNotchIcon size={14} weight="bold" className="text-accent motion-safe:animate-spin" aria-hidden />
+                      <CircleNotchIcon size={14} weight="bold" className="text-info motion-safe:animate-spin" aria-hidden />
                       Loading the film
                     </p>
                   ) : null}
@@ -352,6 +351,7 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
                   {notice === "slow" ? (
                     <div className="absolute inset-x-3 top-3 flex flex-wrap items-center justify-end gap-2" role="status">
                       <p className="inline-flex items-center gap-2 rounded-full bg-surface px-3 py-1.5 text-xs text-ink-2 shadow-e1 ring-1 ring-line">
+                        <WarningCircleIcon size={14} weight="fill" className="shrink-0 text-caution" aria-hidden />
                         This is taking longer than usual
                       </p>
                       <button
@@ -367,7 +367,7 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
                   {notice === "error" ? (
                     <div className="absolute inset-0 flex items-center justify-center bg-canvas/80 p-4" role="alert">
                       <div className="max-w-xs rounded-md bg-surface p-5 text-center shadow-e2 ring-1 ring-line">
-                        <WarningCircleIcon size={22} weight="bold" aria-hidden className="mx-auto text-failed" />
+                        <WarningCircleIcon size={20} weight="fill" aria-hidden className="mx-auto text-failed" />
                         <p className="mt-2 font-medium text-ink">The film couldn&apos;t load.</p>
                         <p className="mt-1 text-sm text-ink-2">Check your connection and try again, or read what happens in it.</p>
                         <div className="mt-4 flex flex-wrap justify-center gap-2">
@@ -389,7 +389,7 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
                     <p id={captionId} className="flex min-h-[2.75rem] flex-wrap items-center gap-x-3 text-[0.9375rem] leading-snug text-ink-2">
                       Playing as a silent loop.
                       <button type="button" onClick={play} className="inline-flex min-h-11 items-center gap-1.5 rounded-full font-medium text-accent">
-                        <ClosedCaptioningIcon size={18} weight="fill" aria-hidden /> Play with captions
+                        <ClosedCaptioningIcon size={16} weight="bold" aria-hidden /> Play with captions
                       </button>
                     </p>
                   ) : captions ? (
@@ -411,7 +411,7 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
                       aria-keyshortcuts="Space K"
                       className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink transition-colors hover:bg-surface-raised"
                     >
-                      {playing ? <PauseIcon size={18} weight="fill" aria-hidden /> : <PlayIcon size={18} weight="fill" aria-hidden />}
+                      {playing ? <PauseIcon size={20} weight="fill" aria-hidden /> : <PlayIcon size={20} weight="fill" aria-hidden />}
                     </button>
                     {/* The film's length until it plays; then where it is (ADR 0180). */}
                     <p className="shrink-0 text-xs text-ink-3 tabular">
@@ -462,15 +462,14 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
                         aria-keyshortcuts="F"
                         className="inline-flex size-11 items-center justify-center rounded-full text-ink transition-colors hover:bg-surface-raised"
                       >
-                        {fullscreen ? <CornersInIcon size={18} weight="bold" aria-hidden /> : <CornersOutIcon size={18} weight="bold" aria-hidden />}
+                        {fullscreen ? <CornersInIcon size={20} aria-hidden /> : <CornersOutIcon size={20} aria-hidden />}
                       </button>
                     </span>
                   </div>
                 </div>
               </div>
             </div>
-          </Rise>
-        </div>
+        </Rise>
 
         <figcaption className="mt-4 flex flex-col gap-2 text-sm text-ink-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
           <span>{FILM_LABEL} No sound.</span>

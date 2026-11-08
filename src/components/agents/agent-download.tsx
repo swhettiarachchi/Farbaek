@@ -1,5 +1,6 @@
 import { AppleLogoIcon, ArrowUpRightIcon, CaretRightIcon, DesktopIcon, DownloadSimpleIcon, LinuxLogoIcon, SealCheckIcon, ShieldWarningIcon, WindowsLogoIcon } from "@phosphor-icons/react/ssr";
 import type { ReactNode } from "react";
+import { CardTitle } from "@/components/app/primitives";
 import { AGENT_DOWNLOAD, AGENT_LINUX, AGENT_MAC, AGENT_STORE_URL, agentDownloadUrl } from "@/config/agent-download";
 
 const mb = (bytes: number) => `${Math.round(bytes / 1024 / 1024)} MB`;
@@ -22,15 +23,15 @@ export function AgentDownload() {
       <div className="grid gap-6 rounded-md bg-surface p-4 shadow-e1 min-[400px]:p-5 sm:p-7">
         <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
           <div className="min-w-0">
-            <h2 id="download-heading" className="text-xl font-medium tracking-[-0.02em]">
+            <CardTitle id="download-heading" icon={DownloadSimpleIcon}>
               Get Farbaek Agent
-            </h2>
+            </CardTitle>
             <p className="mt-2 hidden items-start gap-2 rounded-sm bg-surface-raised/60 px-3 py-2 text-sm text-ink-2 pointer-coarse:flex">
-              <DesktopIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
+              <DesktopIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
               <span>This runs on a computer, so open this page on one to download it.</span>
             </p>
             <p className="mt-1 flex items-start gap-2 text-sm text-ink-2">
-              <WindowsLogoIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
+              <WindowsLogoIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
               <span>
                 For Windows 10 and 11, 64-bit. Version {d.version}, {mb(d.bytes)}.
               </span>
@@ -38,7 +39,7 @@ export function AgentDownload() {
           </div>
           {storeUrl !== null ? (
             <div className="grid justify-items-start gap-2">
-              <PrimaryLink href={storeUrl} icon={<ArrowUpRightIcon size={17} weight="bold" aria-hidden />}>
+              <PrimaryLink href={storeUrl} icon={<ArrowUpRightIcon size={16} weight="bold" aria-hidden />}>
                 Get it from the Microsoft Store
               </PrimaryLink>
               <a href={agentDownloadUrl} download className="inline-flex min-h-11 items-center px-1 text-sm text-ink-2 underline underline-offset-4 hover:text-ink">
@@ -46,7 +47,7 @@ export function AgentDownload() {
               </a>
             </div>
           ) : (
-            <PrimaryLink href={agentDownloadUrl} download icon={<DownloadSimpleIcon size={17} weight="bold" aria-hidden />}>
+            <PrimaryLink href={agentDownloadUrl} download icon={<DownloadSimpleIcon size={16} weight="bold" aria-hidden />}>
               Download for Windows
             </PrimaryLink>
           )}
@@ -62,7 +63,7 @@ export function AgentDownload() {
         <div className="grid gap-4 border-t border-line pt-5">
           <div className="grid gap-1">
             <p className="flex items-center gap-2 text-sm font-medium">
-              <ShieldWarningIcon size={18} weight="bold" className="text-approval" aria-hidden /> Opening it the first time
+              <ShieldWarningIcon size={16} weight="bold" className="shrink-0 text-caution" aria-hidden /> Opening it the first time
             </p>
             <p className="max-w-[68ch] text-sm leading-relaxed text-ink-2">
               The installer isn&apos;t code-signed yet, so Windows shows a blue &quot;Windows protected your PC&quot; screen with only Don&apos;t run on it. That&apos;s expected, and it asks only once.
@@ -88,14 +89,14 @@ export function AgentDownload() {
           <div className="grid gap-4 border-t border-line pt-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
             <div className="grid min-w-0 gap-2">
               <p className="flex items-start gap-2 text-sm text-ink-2">
-                <AppleLogoIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
+                <AppleLogoIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
                 <span>
                   For macOS 12 or later, Apple silicon and Intel. Version {AGENT_MAC.version}, {mb(AGENT_MAC.bytes)}. Notarized by Apple, so it opens without a warning.
                 </span>
               </p>
               <CheckTheFile how="Run this in Terminal, in your Downloads folder. What it prints must match the line under it." command={`shasum -a 256 ${AGENT_MAC.file}`} fingerprint={AGENT_MAC.sha256} />
             </div>
-            <PrimaryLink href={`/downloads/${AGENT_MAC.file}`} download icon={<DownloadSimpleIcon size={17} weight="bold" aria-hidden />}>
+            <PrimaryLink href={`/downloads/${AGENT_MAC.file}`} download icon={<DownloadSimpleIcon size={16} weight="bold" aria-hidden />}>
               Download for Mac
             </PrimaryLink>
           </div>
@@ -107,7 +108,7 @@ export function AgentDownload() {
           <div className="grid gap-4 border-t border-line pt-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
             <div className="grid min-w-0 gap-2">
               <p className="flex items-start gap-2 text-sm text-ink-2">
-                <LinuxLogoIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
+                <LinuxLogoIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
                 <span>
                   For 64-bit Linux with a desktop keyring (GNOME Keyring or KWallet), which keeps the agent&apos;s sign-in safe. Version {AGENT_LINUX.version}, {mb(AGENT_LINUX.bytes)}. An
                   AppImage: allow it to run as a program, then open it.
@@ -115,7 +116,7 @@ export function AgentDownload() {
               </p>
               <CheckTheFile how="Run this in a terminal, in your Downloads folder. What it prints must match the line under it." command={`sha256sum ${AGENT_LINUX.file}`} fingerprint={AGENT_LINUX.sha256} />
             </div>
-            <PrimaryLink href={`/downloads/${AGENT_LINUX.file}`} download icon={<DownloadSimpleIcon size={17} weight="bold" aria-hidden />}>
+            <PrimaryLink href={`/downloads/${AGENT_LINUX.file}`} download icon={<DownloadSimpleIcon size={16} weight="bold" aria-hidden />}>
               Download for Linux
             </PrimaryLink>
           </div>

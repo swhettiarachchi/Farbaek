@@ -1,5 +1,5 @@
-import { CheckCircleIcon, WarningIcon } from "@phosphor-icons/react/ssr";
-import { Card } from "@/components/app/primitives";
+import { CheckCircleIcon, FolderOpenIcon, GitDiffIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { Card, CardTitle } from "@/components/app/primitives";
 import { LocalTime } from "@/components/ui/local-time";
 import { DRIFT_LABELS, ORIGIN_LABELS, groupDrift, type DriftFinding } from "@/core/realityloop/scope-drift";
 
@@ -14,7 +14,7 @@ export function ScopeDriftCard({ approvedAt, changes, findings }: { approvedAt: 
   const groups = groupDrift(findings);
   return (
     <Card>
-      <h2 className="text-lg font-medium">Scope since approval</h2>
+      <CardTitle icon={GitDiffIcon}>Scope since approval</CardTitle>
       <p className="mt-1 text-sm text-ink-2">
         Every file change in this project since the plan was approved <LocalTime iso={approvedAt} />, compared with what the plan allows. Direct edits, imports, restores and
         applied changes all count.
@@ -22,14 +22,17 @@ export function ScopeDriftCard({ approvedAt, changes, findings }: { approvedAt: 
       <div className="mt-4">
         {findings.length === 0 ? (
           <p className="flex items-start gap-2 text-sm">
-            <CheckCircleIcon size={18} weight="fill" className="mt-px shrink-0 text-verified" aria-hidden />
-            {changes === 0 ? "No files changed since the plan was approved." : `${changes} file ${changes === 1 ? "change" : "changes"} since approval, all inside the plan.`}
+            <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+            <span>{changes === 0 ? "No files changed since the plan was approved." : `${changes} file ${changes === 1 ? "change" : "changes"} since approval, all inside the plan.`}</span>
           </p>
         ) : (
           <div className="grid gap-4">
-            <p className="flex items-start gap-2 text-sm text-approval">
-              <WarningIcon size={18} weight="bold" className="mt-px shrink-0" aria-hidden />
-              {findings.length} of {changes} {changes === 1 ? "change falls" : "changes fall"} outside the plan. Review them, or change the plan if what it covers really changed.
+            {/* Outside the plan is a look first, not a turn to act: burnt orange (ADR 0183). */}
+            <p className="flex items-start gap-2 text-sm text-ink">
+              <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
+              <span>
+                {findings.length} of {changes} {changes === 1 ? "change falls" : "changes fall"} outside the plan. Review them, or change the plan if what it covers really changed.
+              </span>
             </p>
             {groups.map((g) => (
               <div key={g.origin} className="grid gap-2">
@@ -41,6 +44,7 @@ export function ScopeDriftCard({ approvedAt, changes, findings }: { approvedAt: 
                     <li key={f.folder}>
                       <details className="group">
                         <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 px-3 py-2 text-sm hover:bg-surface-raised [&::-webkit-details-marker]:hidden">
+                          <FolderOpenIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
                           <span className="min-w-0 flex-1 truncate font-mono text-[0.8125rem]">{f.folder}</span>
                           <span className="shrink-0 text-xs text-ink-3 tabular">
                             {f.findings.length} {f.findings.length === 1 ? "file" : "files"}

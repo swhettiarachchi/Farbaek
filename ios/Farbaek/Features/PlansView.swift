@@ -30,14 +30,14 @@ struct PlansView: View {
                     if loading {
                         ProgressView().tint(Palette.accent).frame(maxWidth: .infinity, minHeight: 200)
                     } else if products.isEmpty {
-                        Notice(text: "The App Store didn't send the plans. Check your connection and try again in a moment.", tone: .approval, symbol: "exclamationmark.icloud")
+                        Notice(text: "The App Store didn't send the plans. Check your connection and try again in a moment.", tone: .attention, symbol: "exclamationmark.icloud")
                             .card()
                     }
                     ForEach(products, id: \.id) { product in
                         planCard(product)
                     }
 
-                    if let failure { Notice(text: failure, tone: .failed, symbol: "exclamationmark.triangle.fill") }
+                    if let failure { Notice(text: failure, tone: .failed, symbol: "exclamationmark.circle.fill") }
                     if let done { Notice(text: done, tone: .verified, symbol: "checkmark.circle.fill").card() }
 
                     Text("Billed monthly to your Apple account. It renews automatically each month at the price shown until you cancel, at least 24 hours before it renews, in Settings, your name, Subscriptions.")
@@ -104,7 +104,13 @@ struct PlansView: View {
                 Text(product.description).font(.footnote).foregroundStyle(Palette.ink2).fixedSize(horizontal: false, vertical: true)
             }
             if current {
-                StatusBadge(label: "Your plan", tone: .verified)
+                // A tag, not a state (ADR 0183): a neutral pill with no mark.
+                Text("Your plan")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(Palette.ink2)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .overlay(Capsule().stroke(Palette.line2, lineWidth: 1))
             } else {
                 Button {
                     Task { await buy(product) }

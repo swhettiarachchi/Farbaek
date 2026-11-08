@@ -48,8 +48,8 @@ function useTokens() {
   return useMemo(
     () => ({
       accent: token("accent", "#2450f0"),
-      approval: token("approval", "#9a4d00"),
-      verified: token("verified", "#137347"),
+      approval: token("approval", "#2450f0"),
+      verified: token("verified", "#0b6e4f"),
       "ink-3": token("ink-3", "#636975"),
       // Signal cyan is allowed in the orbit only (ADR 0008).
       orbit: token("accent-2", "#0a6e85"),

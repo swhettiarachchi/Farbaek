@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRightIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowRightIcon, CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState } from "react";
 import { officeInputClass } from "@/components/office/fields";
 import { buttonClasses } from "@/components/ui/button";
@@ -29,8 +29,11 @@ export function SignInForm({ sentMessage }: { sentMessage: string }) {
         </form>
       ) : (
         <form action={check} className="grid gap-4">
-          <p className="rounded-sm bg-surface-raised px-4 py-3 text-sm text-ink-2" aria-live="polite">
-            {sentMessage} <span className="font-medium text-ink">{sent.email}</span>
+          <p className="flex items-start gap-2 rounded-sm bg-surface-raised px-4 py-3 text-sm text-ink-2" aria-live="polite">
+            <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+            <span>
+              {sentMessage} <span className="font-medium text-ink">{sent.email}</span>
+            </span>
           </p>
           <input type="hidden" name="email" value={sent.email} />
           <label htmlFor="office-code" className="grid gap-1.5 text-sm">
@@ -48,7 +51,7 @@ export function SignInForm({ sentMessage }: { sentMessage: string }) {
       )}
       {error ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0" aria-hidden /> {error}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden /> <span>{error}</span>
         </p>
       ) : null}
     </div>

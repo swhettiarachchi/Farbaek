@@ -13,8 +13,8 @@ export const LOOM_COLORS = {
   accent: "#2450f0",
   cyan: "#0a6e85",
   ink: "#121317",
-  /** Intent, Code, Test (verified) · Approval (waiting) · Proof, Launch (not yet). */
-  stages: ["#2450f0", "#2450f0", "#2450f0", "#d98e04", "#9aa0aa", "#9aa0aa"],
+  /** Intent, Code, Test (reached), then Approval (your turn: the accent at 45%), then Proof, Launch (not yet). No gold (ADR 0183). */
+  stages: ["#2450f0", "#2450f0", "#2450f0", "#9cb0f8", "#9aa0aa", "#9aa0aa"],
   motes: ["#2450f0", "#0a6e85", "#7f9cff", "#9aa0aa"],
 } as const;
 

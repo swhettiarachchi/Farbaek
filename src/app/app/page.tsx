@@ -1,10 +1,11 @@
 import { waitingChanges } from "@/server/workspace/waiting-changes";
-import { ArrowRightIcon, ListChecksIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, GaugeIcon, HammerIcon, ListBulletsIcon, SealCheckIcon, SquaresFourIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Card, EmptyState, Notice, PageHeader, TaskStateBadge } from "@/components/app/primitives";
+import { Card, CardTitle, EmptyState, Notice, PageHeader, TaskStateBadge } from "@/components/app/primitives";
+import { StatusBadge, type Status } from "@/components/ui/status-badge";
 import { NeedsYouCard } from "@/components/app/needs-you-card";
 import { ProjectCard } from "@/components/app/project-card";
 import { UsageMeterList } from "@/components/app/usage-meters";
@@ -143,11 +144,11 @@ export default async function MissionControl() {
       {recent.length > 0 ? (
         <section aria-labelledby="recent-heading" className="grid gap-4">
           <div className="flex items-center justify-between gap-3">
-            <h2 id="recent-heading" className="text-lg font-medium">
+            <CardTitle id="recent-heading" icon={SquaresFourIcon}>
               Recent work
-            </h2>
+            </CardTitle>
             <Link href="/app/projects" className="inline-flex min-h-11 items-center gap-1 text-sm text-accent hover:underline">
-              All projects <ArrowRightIcon size={14} aria-hidden />
+              All projects <ArrowRightIcon size={14} weight="bold" aria-hidden />
             </Link>
           </div>
           {/* A swipeable rail on phones, with the next card peeking in; a grid from tablets up. */}
@@ -163,11 +164,11 @@ export default async function MissionControl() {
 
       <section aria-labelledby="inbox-heading" className="grid gap-4">
         <div className="flex items-center justify-between gap-3">
-          <h2 id="inbox-heading" className="text-lg font-medium">
+          <CardTitle id="inbox-heading" icon={HammerIcon}>
             What the agent is doing
-          </h2>
+          </CardTitle>
           <Link href="/app/build" className="inline-flex min-h-11 items-center gap-1 text-sm text-accent hover:underline">
-            Build <ArrowRightIcon size={14} aria-hidden />
+            Build <ArrowRightIcon size={14} weight="bold" aria-hidden />
           </Link>
         </div>
         {ctx.mode !== "live" ? (
@@ -188,9 +189,9 @@ export default async function MissionControl() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <Card>
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-medium">Recent tasks</h2>
+            <CardTitle icon={ListBulletsIcon}>Recent tasks</CardTitle>
             <Link href="/app/tasks" className="-my-3 inline-flex min-h-11 items-center gap-1 text-sm text-accent hover:underline">
-              All tasks <ArrowRightIcon size={14} aria-hidden />
+              All tasks <ArrowRightIcon size={14} weight="bold" aria-hidden />
             </Link>
           </div>
           {/* The counts as a sentence, not tiles (ADR 0180): each number is real, and says what it counts. */}
@@ -198,7 +199,7 @@ export default async function MissionControl() {
           {tasks.length === 0 ? (
             <div className="mt-5">
               <EmptyState
-                icon={ListChecksIcon}
+                icon={ListBulletsIcon}
                 title="No tasks yet"
                 action={<ButtonLink href={projects[0] ? `/app/projects/${projects[0].id}` : "/app/projects"} size="sm">{projects[0] ? "Add a task" : "Create a project"}</ButtonLink>}
               >
@@ -227,9 +228,9 @@ export default async function MissionControl() {
         <div className="grid content-start gap-6">
           <Card>
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-medium">AI usage</h2>
+              <CardTitle icon={GaugeIcon}>AI usage</CardTitle>
               <Link href="/app/billing" className="-my-3 inline-flex min-h-11 items-center gap-1 text-sm text-accent hover:underline">
-                Details <ArrowRightIcon size={14} aria-hidden />
+                Details <ArrowRightIcon size={14} weight="bold" aria-hidden />
               </Link>
             </div>
             <div className="mt-4">
@@ -245,7 +246,7 @@ export default async function MissionControl() {
 
       <Card>
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-medium">Recent proof</h2>
+          <CardTitle icon={SealCheckIcon}>Recent proof</CardTitle>
         </div>
         {recentEvidence.length === 0 ? (
           <p className="mt-3 text-sm text-ink-2">Nothing yet. Each time you approve a change, Farbaek keeps a signed record of it, called a ProofPack.</p>
@@ -258,9 +259,9 @@ export default async function MissionControl() {
                   <Link href={`/app/tasks/${p.taskId}`} className="group flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:gap-4">
                     <span className="min-w-0 flex-1">
                       <span className="line-clamp-2 text-[0.9375rem] font-medium group-hover:text-accent">{task?.title ?? "Task"}</span>
-                                          </span>
-                    <span className="text-xs text-ink-2">
-                      {p.status === "verified" ? "Verified" : p.status === "partially_verified" ? "Partly verified" : p.status === "failed" ? "Failed" : "Unverified"} ·{" "}
+                    </span>
+                    <span className="flex items-center gap-2 text-xs text-ink-3">
+                      <StatusBadge {...proofStatus(p.status)} />
                       <RelativeTime iso={p.createdAt} />
                     </span>
                   </Link>
@@ -274,6 +275,14 @@ export default async function MissionControl() {
       {stepsHidden && !steps.complete ? <FirstStepsHidden data={steps} /> : null}
     </div>
   );
+}
+
+/** A ProofPack's result, as its kind and word (ADR 0183). */
+function proofStatus(status: string): { status: Status; label: string } {
+  if (status === "verified") return { status: "verified", label: "Verified" };
+  if (status === "partially_verified") return { status: "attention", label: "Partly verified" };
+  if (status === "failed") return { status: "failed", label: "Failed" };
+  return { status: "unverified", label: "Unverified" };
 }
 
 /** Home's counts in one or two sentences, with the number in each as its link. */

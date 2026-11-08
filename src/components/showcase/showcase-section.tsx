@@ -35,7 +35,7 @@ export function ShowcaseSection() {
           <ul className="mt-8 grid gap-x-10 md:grid-cols-2">
             {capabilityRows().map((c) => (
               <li key={c.id} className="flex gap-4 border-t border-line py-5">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent/[0.08] text-accent">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface text-ink-2 shadow-e1 ring-1 ring-line">
                   <c.icon size={20} aria-hidden />
                 </span>
                 <div className="min-w-0">

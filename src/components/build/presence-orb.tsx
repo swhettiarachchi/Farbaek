@@ -67,7 +67,7 @@ export function PresenceOrb({ orgId, initial, compact = false }: { orgId: string
     <Link
       href={href}
       className={`flex min-h-11 items-center gap-2.5 rounded-full border px-2.5 text-[0.84375rem] transition-colors duration-150 hover:bg-surface ${
-        presence.state === "waiting" ? "border-approval/45 text-ink" : "border-line text-ink-2"
+        presence.state === "waiting" ? "border-accent/45 text-ink" : "border-line text-ink-2"
       }`}
     >
       <CoreMark state={presence.state} size="sm" />

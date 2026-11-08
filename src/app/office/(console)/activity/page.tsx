@@ -1,6 +1,7 @@
+import { ClockCounterClockwiseIcon, HammerIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { AdminTable, Cell, Chip } from "@/components/admin/table";
-import { PageHeader } from "@/components/app/primitives";
+import { CardTitle, PageHeader } from "@/components/app/primitives";
 import { RunStatusBadge } from "@/components/build/run-status";
 import { RelativeTime } from "@/components/ui/local-time";
 import { RUN_STATUSES, type RunStatus } from "@/core/agent/cloud-run";
@@ -14,7 +15,7 @@ const number = new Intl.NumberFormat("en-US");
 const isRunStatus = (s: string): s is RunStatus => (RUN_STATUSES as readonly string[]).includes(s);
 
 function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="rounded-md border border-dashed border-line-strong/40 bg-surface px-5 py-6 text-sm text-ink-2">{children}</p>;
+  return <p className="rounded-md border border-line bg-surface px-5 py-6 text-sm text-ink-2">{children}</p>;
 }
 
 export default async function OfficeActivity() {
@@ -28,9 +29,9 @@ export default async function OfficeActivity() {
       <PageHeader title="Activity" description="The latest agent runs, security checks and recorded actions across every workspace, newest first." />
 
       <section aria-labelledby="runs-heading" className="grid gap-3">
-        <h2 id="runs-heading" className="text-lg font-medium">
+        <CardTitle id="runs-heading" icon={HammerIcon}>
           Agent runs
-        </h2>
+        </CardTitle>
         {activity.runs.length === 0 ? (
           <Empty>No cloud runs yet. They appear here when anyone starts the agent from Build.</Empty>
         ) : (
@@ -57,9 +58,9 @@ export default async function OfficeActivity() {
       </section>
 
       <section aria-labelledby="checks-heading" className="grid gap-3">
-        <h2 id="checks-heading" className="text-lg font-medium">
+        <CardTitle id="checks-heading" icon={ShieldCheckIcon}>
           Security checks
-        </h2>
+        </CardTitle>
         {activity.checks.length === 0 ? (
           <Empty>No security checks yet.</Empty>
         ) : (
@@ -70,11 +71,11 @@ export default async function OfficeActivity() {
                 <Cell muted>{c.workspace}</Cell>
                 <Cell>
                   {c.status === "done" && c.score !== null ? (
-                    <Chip tone={c.score >= 80 ? "verified" : c.score >= 60 ? "approval" : "failed"}>
+                    <Chip kind={c.score >= 80 ? "verified" : c.score >= 60 ? "attention" : "failed"}>
                       {c.score} · grade {c.grade}
                     </Chip>
                   ) : (
-                    <Chip tone={c.status === "failed" ? "failed" : "neutral"}>{c.status === "failed" ? "Failed" : "Running"}</Chip>
+                    <Chip kind={c.status === "failed" ? "failed" : "working"}>{c.status === "failed" ? "Failed" : "Running"}</Chip>
                   )}
                 </Cell>
                 <Cell muted>
@@ -87,9 +88,9 @@ export default async function OfficeActivity() {
       </section>
 
       <section aria-labelledby="audit-heading" className="grid gap-3">
-        <h2 id="audit-heading" className="text-lg font-medium">
+        <CardTitle id="audit-heading" icon={ClockCounterClockwiseIcon}>
           Recorded actions
-        </h2>
+        </CardTitle>
         {activity.audit.length === 0 ? (
           <Empty>Nothing recorded yet.</Empty>
         ) : (

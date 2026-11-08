@@ -1,8 +1,9 @@
-import { ClockIcon, DesktopIcon, DeviceMobileIcon, SealCheckIcon } from "@phosphor-icons/react/ssr";
-import { Card } from "@/components/app/primitives";
+import { DesktopIcon, DeviceMobileIcon, DevicesIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { Card, CardTitle } from "@/components/app/primitives";
 import { OfficeActionForm } from "@/components/office/action-form";
 import { StepUpField, officeInputClass } from "@/components/office/fields";
 import { LocalTime } from "@/components/ui/local-time";
+import { StatusBadge, StatusGlyph } from "@/components/ui/status-badge";
 import type { StaffDevice } from "@/server/office/staff-store";
 import { approveDeviceAction, revokeDeviceAction } from "./actions";
 import { AddDeviceForm } from "./add-device-form";
@@ -20,19 +21,23 @@ export function DevicesCard({ devices, currentHash }: { devices: StaffDevice[] |
 
   return (
     <Card>
-      <h2 className="text-lg font-medium">Devices</h2>
+      <CardTitle icon={DevicesIcon}>Devices</CardTitle>
       <p className="mt-1 text-sm leading-relaxed text-ink-2">Office Space opens only on these. Every other device sees nothing at officespace.farbaek.com, not even the sign-in page.</p>
 
       {devices === null ? (
-        <p className="mt-4 text-sm text-failed">Your devices couldn&apos;t be loaded. Reload the page.</p>
+        <p role="alert" className="mt-4 flex items-start gap-2 text-sm text-failed">
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+          <span>Your devices couldn&apos;t be loaded. Reload the page.</span>
+        </p>
       ) : (
         <>
           {waiting.length > 0 ? (
             <ul className="mt-4 grid gap-3">
               {waiting.map((d) => (
-                <li key={d.id} className="grid gap-3 rounded-sm border border-approval/40 bg-approval/[0.05] p-4">
+                // Waiting for you to approve it: your turn, in the approval blue (ADR 0183).
+                <li key={d.id} className="grid gap-3 rounded-sm border border-approval/35 bg-surface p-4">
                   <p className="flex flex-wrap items-center gap-2 text-sm">
-                    <ClockIcon size={18} weight="bold" className="text-approval" aria-hidden />
+                    <StatusGlyph status="approval" />
                     <span className="font-medium">{d.label}</span>
                     <span className="text-ink-2">
                       is waiting, asked <LocalTime iso={d.requestedAt} />
@@ -64,12 +69,10 @@ export function DevicesCard({ devices, currentHash }: { devices: StaffDevice[] |
               return (
                 <li key={d.id} className="grid gap-2 rounded-sm border border-line p-4">
                   <p className="flex flex-wrap items-center gap-2 text-sm">
-                    <Icon size={18} className="text-ink-2" aria-hidden />
+                    <Icon size={16} weight="bold" className="text-ink-3" aria-hidden />
                     <span className="font-medium">{d.label}</span>
-                    <span className="inline-flex items-center gap-1 rounded-full border border-verified/35 bg-verified/[0.06] px-2 py-0.5 text-xs font-medium text-verified">
-                      <SealCheckIcon size={12} weight="fill" aria-hidden /> Trusted
-                    </span>
-                    {here ? <span className="rounded-full border border-line px-2 py-0.5 text-xs text-ink-2">This device</span> : null}
+                    <StatusBadge status="verified" label="Trusted" />
+                    {here ? <span className="rounded-full border border-line-2 px-2 py-0.5 text-xs text-ink-2">This device</span> : null}
                   </p>
                   <p className="text-xs text-ink-3">
                     {d.approvedVia === "first_device" ? "Your first device, trusted" : "Approved"} {d.approvedAt ? <LocalTime iso={d.approvedAt} /> : null}. Last used <LocalTime iso={d.lastSeenAt} />.

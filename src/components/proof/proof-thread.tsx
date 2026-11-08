@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckIcon, XIcon } from "@phosphor-icons/react";
+import { CheckIcon, ClockUserIcon, XIcon } from "@phosphor-icons/react";
 import { motion, useReducedMotion, type Variants } from "motion/react";
 
 export type ThreadStatus = "verified" | "approval" | "unverified" | "failed";
@@ -25,7 +25,7 @@ const STATUS_TEXT: Record<ThreadStatus, string> = {
 };
 
 const SEGMENT: Record<ThreadStatus, string> = {
-  verified: "border-solid border-accent",
+  verified: "border-solid border-verified",
   approval: "border-solid border-approval",
   unverified: "border-dashed border-unverified",
   failed: "border-solid border-failed",
@@ -36,20 +36,21 @@ function Node({ status }: { status: ThreadStatus }) {
   switch (status) {
     case "verified":
       return (
-        <span className={`${common} bg-accent text-on-accent`}>
-          <CheckIcon size={15} weight="bold" aria-hidden />
+        <span className={`${common} bg-verified text-on-accent`}>
+          <CheckIcon size={14} weight="bold" aria-hidden />
         </span>
       );
     case "approval":
       return (
-        // An open ring: the step is waiting, and the words beside it say for whom (ADR 0180).
-        <span className={`${common} border-[1.5px] border-approval bg-canvas text-approval`} />
-
+        // An open ring with a clock: the step waits for a person, and the words beside it say who (ADR 0183).
+        <span className={`${common} border-[1.5px] border-approval bg-canvas text-approval`}>
+          <ClockUserIcon size={14} weight="bold" aria-hidden />
+        </span>
       );
     case "failed":
       return (
         <span className={`${common} bg-failed text-canvas`}>
-          <XIcon size={15} weight="bold" aria-hidden />
+          <XIcon size={14} weight="bold" aria-hidden />
         </span>
       );
     case "unverified":
@@ -64,7 +65,7 @@ const lineY: Variants = { hidden: { scaleY: 0 }, shown: { scaleY: 1, transition:
 
 /**
  * The Proof Thread. Segment style follows the status of the stage it leads to:
- * solid blue when verified, amber while awaiting approval, dashed while
+ * solid blue when verified or awaiting approval, dashed while
  * unverified, red when failed. Horizontal from lg up, vertical below.
  */
 export function ProofThread({ stages, label }: { stages: ThreadStage[]; label: string }) {

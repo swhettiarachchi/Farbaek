@@ -1,10 +1,10 @@
 "use client";
 
-import { CheckCircleIcon, CircleNotchIcon, DownloadSimpleIcon, GlobeSimpleIcon, ShareNetworkIcon, TrashIcon, TrayArrowDownIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
-import type { Icon } from "@phosphor-icons/react";
+import { DownloadSimpleIcon, GlobeSimpleIcon, ShareNetworkIcon, TrashIcon, TrayArrowDownIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useEffect, useId, useState, useSyncExternalStore } from "react";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
+import { StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-badge";
 import type { TransferState } from "@/core/mesh/protocol";
 import { WebMeshListener } from "@/core/mesh/web/listen";
 import type { WebIncoming } from "@/core/mesh/web/receive";
@@ -13,19 +13,20 @@ import { MEMORY_LIMIT, memorySink, opfsAvailable, opfsKept, opfsSink, type FileS
 import { formatBytes } from "@/core/workspace/files";
 import { listComputers, type BrowserDevice } from "./device-store";
 
-const STATE: Record<TransferState, { label: string; icon: Icon | null; tone: string; spin?: boolean }> = {
-  packing: { label: "Checking", icon: CircleNotchIcon, tone: "text-ink-2", spin: true },
-  connecting: { label: "Connecting", icon: CircleNotchIcon, tone: "text-ink-2", spin: true },
-  waiting: { label: "Waiting", icon: null, tone: "text-approval" },
-  offered: { label: "Waiting for you", icon: null, tone: "text-approval" },
-  sending: { label: "Sending", icon: CircleNotchIcon, tone: "text-ink-2", spin: true },
-  receiving: { label: "Receiving", icon: CircleNotchIcon, tone: "text-ink-2", spin: true },
-  finishing: { label: "Checking", icon: CircleNotchIcon, tone: "text-ink-2", spin: true },
-  done: { label: "Received and checked", icon: CheckCircleIcon, tone: "text-verified" },
-  declined: { label: "Declined", icon: null, tone: "text-ink-3" },
-  cancelled: { label: "Cancelled", icon: null, tone: "text-ink-3" },
-  interrupted: { label: "Stopped", icon: null, tone: "text-approval" },
-  failed: { label: "Stopped", icon: XCircleIcon, tone: "text-failed" },
+// Each transfer state is one of the shared kinds (ADR 0183): its words, icon, colour and border together.
+const STATE: Record<TransferState, { label: string; kind: Status }> = {
+  packing: { label: "Checking", kind: "working" },
+  connecting: { label: "Connecting", kind: "working" },
+  waiting: { label: "Waiting", kind: "pending" },
+  offered: { label: "Waiting for you", kind: "approval" },
+  sending: { label: "Sending", kind: "working" },
+  receiving: { label: "Receiving", kind: "working" },
+  finishing: { label: "Checking", kind: "working" },
+  done: { label: "Received and checked", kind: "verified" },
+  declined: { label: "Declined", kind: "off" },
+  cancelled: { label: "Cancelled", kind: "off" },
+  interrupted: { label: "Stopped", kind: "paused" },
+  failed: { label: "Stopped", kind: "failed" },
 };
 
 const REASONS: Record<string, string> = {
@@ -144,7 +145,10 @@ export function ReceiveFiles({ device, stun, pairedCount }: { device: BrowserDev
           <span id={`${ids}-switch`} className="text-sm text-ink">
             Be reachable while this page is open
           </span>
-          <span className={`text-xs font-medium ${on ? "text-verified" : "text-ink-3"}`}>{on ? "Reachable: your paired computers can send here" : "Off: computers can't send here"}</span>
+          <span className={`flex items-start gap-1.5 text-xs font-medium ${on ? "text-verified" : "text-ink-3"}`}>
+            <StatusGlyph status={on ? "verified" : "off"} size={14} className="mt-px" />
+            <span>{on ? "Reachable: your paired computers can send here" : "Off: computers can't send here"}</span>
+          </span>
         </span>
         <button
           type="button"
@@ -165,13 +169,13 @@ export function ReceiveFiles({ device, stun, pairedCount }: { device: BrowserDev
         It stops when you close this page, or when the phone locks or sleeps. Only computers you paired with here can send, and you choose whether to accept. Turn it on, then choose Send over the internet in the Farbaek Agent.
       </p>
       {listener?.problem ? (
-        <p role="alert" className="flex items-start gap-2 text-sm text-approval">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> <span>{listener.problem}</span>
+        <p role="alert" className="flex items-start gap-2 text-sm text-ink">
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden /> <span>{listener.problem}</span>
         </p>
       ) : null}
       {problem ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> <span>{problem}</span>
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden /> <span>{problem}</span>
         </p>
       ) : null}
 
@@ -183,9 +187,7 @@ export function ReceiveFiles({ device, stun, pairedCount }: { device: BrowserDev
         <div key={k.id} className="grid gap-2 rounded-md border border-line p-4">
           <p className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <span className="min-w-0 text-ink">{`${k.meta.name} from ${k.meta.from}`}</span>
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-verified">
-              <CheckCircleIcon size={14} weight="bold" aria-hidden /> Received and checked
-            </span>
+            <StatusBadge status="verified" label="Received and checked" />
           </p>
           <p className="text-xs text-ink-3">
             Received <LocalTime iso={k.meta.at} />. {STORAGE_WORDS.browser}
@@ -208,12 +210,10 @@ function IncomingCard({ incoming, onDismiss }: { incoming: WebIncoming; onDismis
   for (const e of v.excluded) byReason.set(e.reason, [...(byReason.get(e.reason) ?? []), e.path]);
 
   return (
-    <div className={`grid gap-2 rounded-md border p-4 ${v.state === "offered" ? "border-accent/30 bg-accent/[0.04]" : "border-line"}`} aria-live="polite">
+    <div className={`grid gap-2 rounded-md border p-4 ${v.state === "offered" ? "border-approval/30 bg-approval/[0.04]" : "border-line"}`} aria-live="polite">
       <p className="flex flex-wrap items-center justify-between gap-2 text-sm">
         <span className="min-w-0 text-ink">{`${v.name} from ${v.peer.name}`}</span>
-        <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${st.tone}`}>
-          {st.icon ? <st.icon size={14} weight="bold" className={st.spin ? "motion-safe:animate-spin" : ""} aria-hidden /> : null} {st.label}
-        </span>
+        <StatusBadge status={st.kind} label={st.label} />
       </p>
       <p className="text-xs text-ink-3">{`${v.files.toLocaleString("en-US")} ${v.files === 1 ? "file" : "files"}, ${formatBytes(v.bytes)}`}</p>
       {v.peer.fingerprint ? (
@@ -251,7 +251,7 @@ function IncomingCard({ incoming, onDismiss }: { incoming: WebIncoming; onDismis
       ) : null}
       {v.state !== "offered" && v.state !== "declined" ? (
         <p className="flex items-center gap-1.5 text-xs text-ink-3">
-          <GlobeSimpleIcon size={14} aria-hidden /> {v.via === "direct" ? "Directly over the internet, encrypted end to end" : "Through Farbaek, encrypted end to end"}
+          <GlobeSimpleIcon size={14} weight="bold" className="shrink-0" aria-hidden /> {v.via === "direct" ? "Directly over the internet, encrypted end to end" : "Through Farbaek, encrypted end to end"}
         </p>
       ) : null}
       {v.message ? <p className="text-sm text-ink-2">{v.message}</p> : null}
@@ -261,7 +261,7 @@ function IncomingCard({ incoming, onDismiss }: { incoming: WebIncoming; onDismis
           <p className="text-xs text-ink-3">{tooBig ? `This browser can receive up to ${formatBytes(MEMORY_LIMIT)} at a time, so Accept is unavailable. Decline, then send fewer files at once or send them to a computer.` : memoryOnly ? STORAGE_WORDS.memory : STORAGE_WORDS.browser}</p>
           <div className="flex flex-wrap gap-2">
             <button type="button" className={buttonClasses("primary", "sm")} disabled={tooBig} title={tooBig ? "Too large for this browser to keep" : undefined} onClick={() => void incoming.accept(memoryOnly ? memorySink() : opfsSink(globalThis.crypto.randomUUID()))}>
-              <TrayArrowDownIcon size={16} aria-hidden /> Accept
+              <TrayArrowDownIcon size={16} weight="bold" aria-hidden /> Accept
             </button>
             <button type="button" className={buttonClasses("secondary", "sm")} onClick={() => void incoming.decline()}>
               Decline
@@ -337,11 +337,11 @@ function SavedFiles({ sink, onCleared }: { sink: FileSink; onCleared: () => void
             <span className="flex gap-1">
               {canShare(f.file) ? (
                 <button type="button" className={buttonClasses("ghost", "sm")} aria-label={`Share ${f.path}`} onClick={() => void navigator.share({ files: [f.file] }).catch(() => undefined)}>
-                  <ShareNetworkIcon size={16} aria-hidden /> Share
+                  <ShareNetworkIcon size={16} weight="bold" aria-hidden /> Share
                 </button>
               ) : null}
               <button type="button" className={buttonClasses("secondary", "sm")} aria-label={`Save ${f.path}`} onClick={() => download(f.file, f.path)}>
-                <DownloadSimpleIcon size={16} aria-hidden /> Save
+                <DownloadSimpleIcon size={16} weight="bold" aria-hidden /> Save
               </button>
             </span>
           </li>
@@ -350,11 +350,11 @@ function SavedFiles({ sink, onCleared }: { sink: FileSink; onCleared: () => void
       <div className="flex flex-wrap gap-2">
         {files.length > 1 ? (
           <button type="button" className={buttonClasses("primary", "sm")} disabled={saving} onClick={() => void saveAll()}>
-            <DownloadSimpleIcon size={16} aria-hidden /> {saving ? "Saving…" : `Save all ${files.length}`}
+            <DownloadSimpleIcon size={16} weight="bold" aria-hidden /> {saving ? "Saving…" : `Save all ${files.length}`}
           </button>
         ) : null}
         <button type="button" className={buttonClasses("ghost", "sm")} onClick={() => void sink.clear().then(onCleared)}>
-          <TrashIcon size={16} aria-hidden /> Clear from this browser
+          <TrashIcon size={16} weight="bold" aria-hidden /> Clear from this browser
         </button>
       </div>
       {files.length > 1 ? <p className="text-xs text-ink-3">Saving puts each file in your downloads by its name, without its folder. Your browser may ask once to allow several downloads.</p> : null}

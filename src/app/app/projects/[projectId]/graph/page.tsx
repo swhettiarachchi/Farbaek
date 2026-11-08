@@ -1,8 +1,8 @@
-import { ArrowLeftIcon, GraphIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, ChartBarIcon, GraphIcon, ListBulletsIcon, ShieldWarningIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { EmptyState, PageHeader } from "@/components/app/primitives";
+import { CardTitle, EmptyState, PageHeader } from "@/components/app/primitives";
 import { GraphAnalyticsView } from "@/components/insights/graph-analytics";
 import { LaneGraph } from "@/components/insights/lane-graph";
 import { ProjectLoom } from "@/components/insights/project-loom";
@@ -30,7 +30,7 @@ export default async function ProjectGraphPage({ params }: { params: Promise<{ p
     <div className="grid gap-8">
       <div>
         <Link href={`/app/projects/${project.id}`} className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
-          <ArrowLeftIcon size={14} aria-hidden /> {project.name}
+          <ArrowLeftIcon size={14} weight="bold" aria-hidden /> {project.name}
         </Link>
         <div className="mt-3">
           <PageHeader title="Project map" description="Every task, from what was asked to what's live, with the proof between. Each step links to its record." />
@@ -52,17 +52,17 @@ export default async function ProjectGraphPage({ params }: { params: Promise<{ p
       ) : (
         <>
           <section aria-labelledby="totals-heading" className="grid gap-4">
-            <h2 id="totals-heading" className="text-lg font-medium">
+            <CardTitle id="totals-heading" icon={ChartBarIcon}>
               What it adds up to
-            </h2>
+            </CardTitle>
             <GraphAnalyticsView a={analytics} />
           </section>
 
           <section aria-labelledby="lanes-heading" className="grid gap-4">
             <div className="grid gap-1">
-              <h2 id="lanes-heading" className="text-lg font-medium">
+              <CardTitle id="lanes-heading" icon={ListBulletsIcon}>
                 Every task
-              </h2>
+              </CardTitle>
               <p className="text-sm text-ink-2">
                 {records.truncated ? `The ${GRAPH_LIMITS.tasks} newest tasks, newest first.` : "Newest first."} A solid line means the work got there; a dashed one, that it hasn&apos;t yet.
               </p>
@@ -72,9 +72,11 @@ export default async function ProjectGraphPage({ params }: { params: Promise<{ p
           </section>
 
           {unverifiedReleases.length ? (
-            <section aria-labelledby="unverified-heading" className="grid gap-3 rounded-md border border-approval/40 bg-surface p-5 shadow-e1 sm:p-6">
-              <h2 id="unverified-heading" className="text-base font-medium">
-                Published without passed checks
+            <section aria-labelledby="unverified-heading" className="grid gap-3 rounded-md border border-caution/35 bg-surface p-5 shadow-e1 sm:p-6">
+              {/* A callout's title carries its kind's icon in its colour (ADR 0183): this one asks for a look. */}
+              <h2 id="unverified-heading" className="flex items-center gap-2.5 text-base font-medium">
+                <ShieldWarningIcon size={20} weight="fill" className="shrink-0 text-caution" aria-hidden />
+                <span className="min-w-0">Published without passed checks</span>
               </h2>
               <ul className="grid gap-3">
                 {unverifiedReleases.map((r) => (

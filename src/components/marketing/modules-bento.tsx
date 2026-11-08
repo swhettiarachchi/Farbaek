@@ -1,4 +1,4 @@
-import { ArrowsLeftRightIcon, DeviceMobileIcon, GlobeIcon, SquaresFourIcon, SteeringWheelIcon } from "@phosphor-icons/react/ssr";
+import { CloudArrowUpIcon, DeviceMobileIcon, HammerIcon, PackageIcon, SquaresFourIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { DiffView } from "@/components/code/diff-view";
@@ -27,7 +27,7 @@ function Cell({
       className={`relative flex flex-col overflow-hidden rounded-md border border-line p-5 shadow-e1 transition-[transform,box-shadow] duration-300 ease-enter hover:-translate-y-0.5 hover:shadow-e2 sm:p-6 ${className}`}
     >
       {CellIcon ? (
-        <span className="flex size-10 items-center justify-center rounded-full bg-accent/[0.08] text-accent">
+        <span className="flex size-10 items-center justify-center rounded-full bg-surface text-ink-2 shadow-e1 ring-1 ring-line">
           <CellIcon size={20} aria-hidden />
         </span>
       ) : null}
@@ -71,8 +71,7 @@ export function ModulesBento() {
             body="Rules, approvals, what each agent may do, how much runs on its own, and a full history, all enforced on the server. Words in a prompt are never what keeps you safe."
             className="bg-canvas-2 md:col-span-2"
           >
-            <div aria-hidden className="dot-grid pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_bottom,transparent,black)]" />
-            <p className="relative mt-4 text-sm leading-relaxed text-ink-2">
+            <p className="mt-4 text-sm leading-relaxed text-ink-2">
               Each change is allowed, allowed within limits, held for your approval, tried first in a test space, sent to an owner, or blocked.
             </p>
           </Cell>
@@ -80,8 +79,8 @@ export function ModulesBento() {
           <Cell
             title="Agent"
             body="Farbaek's own runtime. The model suggests; Farbaek checks every action against your plan before it runs."
-            icon={SteeringWheelIcon}
-            className="border-accent/20 bg-[linear-gradient(150deg,color-mix(in_oklab,var(--color-accent)_9%,transparent),transparent_60%)]"
+            icon={HammerIcon}
+            className="bg-surface"
           />
 
           <Cell
@@ -94,14 +93,14 @@ export function ModulesBento() {
           <Cell
             title="Move projects"
             body="Send projects between your own devices: nearby, directly over the internet, or through Farbaek's relay, encrypted end to end and checked byte for byte."
-            icon={ArrowsLeftRightIcon}
+            icon={PackageIcon}
             className="bg-surface"
             beta
           />
           <Cell
             title="Launch"
             body="Launch to your own Vercel or Netlify account, with what goes named first, your typed confirmation, and live checks after."
-            icon={GlobeIcon}
+            icon={CloudArrowUpIcon}
             className="bg-surface"
             beta
           />

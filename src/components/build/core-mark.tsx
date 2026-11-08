@@ -9,7 +9,7 @@ export type CoreMarkState = "idle" | "working" | "waiting" | "review" | "done" |
 const TONE: Record<CoreMarkState, { core: string; glass: string }> = {
   idle: { core: "bg-accent/45", glass: "--color-accent" },
   working: { core: "bg-accent", glass: "--color-accent" },
-  waiting: { core: "bg-approval", glass: "--color-approval" },
+  waiting: { core: "bg-accent", glass: "--color-accent" },
   review: { core: "bg-accent", glass: "--color-accent" },
   done: { core: "bg-verified", glass: "--color-verified" },
   stopped: { core: "bg-ink-3", glass: "--color-ink-3" },
@@ -21,7 +21,7 @@ export function CoreMark({ state, size = "md" }: { state: CoreMarkState; size?: 
   const dot = size === "sm" ? "size-2" : "size-2.5";
   return (
     <span className={`relative inline-flex ${box} shrink-0 items-center justify-center`} aria-hidden>
-      {state === "waiting" ? <span className="absolute inset-0 rounded-full border-2 border-approval/70 motion-safe:animate-[core-call_1.8s_ease-out_infinite]" /> : null}
+      {state === "waiting" ? <span className="absolute inset-0 rounded-full border-2 border-accent/70 motion-safe:animate-[core-call_1.8s_ease-out_infinite]" /> : null}
       <span
         className="absolute inset-[3px] rounded-full border border-line"
         style={{ background: `radial-gradient(circle at 35% 30%, var(--color-surface), color-mix(in oklab, var(${tone.glass}) 16%, var(--color-surface)) 70%)` }}

@@ -1,9 +1,11 @@
-import { ArrowLeftIcon, PencilSimpleLineIcon } from "@phosphor-icons/react/ssr";
+import { ArrowCounterClockwiseIcon, ArrowLeftIcon, GitDiffIcon, ListChecksIcon, PencilSimpleLineIcon, QuestionIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
+import type { Icon } from "@phosphor-icons/react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ReportResult } from "@/components/tasks/report-result";
 import { notFound } from "next/navigation";
 import { CancelTaskControl } from "@/components/app/forms";
+import { CardTitle } from "@/components/app/primitives";
 import { sayOperation } from "@/components/app/contract-view";
 import { ApproveBuild } from "@/components/build/approve-build";
 import { FARBAEK_SKILLS, defaultSkills } from "@/content/skills";
@@ -27,11 +29,11 @@ export const metadata: Metadata = { title: "Your plan" };
 // Sections assemble once, in reading order (motion-safe only).
 const rise = "motion-safe:animate-[usage-in_420ms_cubic-bezier(0.16,1,0.3,1)_both]";
 
-/** Headings stand alone, with no glyph beside each one (ADR 0180). */
-function Section({ title, delay, children }: { title: string; delay: number; children: React.ReactNode }) {
+/** Each section's title carries the icon that names it (ADR 0183), the same way on every section. */
+function Section({ title, icon, delay, children }: { title: string; icon: Icon; delay: number; children: React.ReactNode }) {
   return (
     <section className={`grid content-start gap-3 rounded-md border border-line bg-canvas-2/60 p-5 ${rise}`} style={{ animationDelay: `${delay}ms` }}>
-      <h2 className="text-sm font-medium text-ink">{title}</h2>
+      <CardTitle icon={icon}>{title}</CardTitle>
       {children}
     </section>
   );
@@ -102,7 +104,7 @@ export default async function PlanCardPage({ params }: Params) {
     <div className="mx-auto grid w-full max-w-4xl gap-6">
       <ClearKeptPrompt />
       <Link href="/app/build" className="inline-flex min-h-11 w-fit items-center gap-2 text-sm text-ink-2 hover:text-ink">
-        <ArrowLeftIcon size={16} aria-hidden /> Build
+        <ArrowLeftIcon size={16} weight="bold" aria-hidden /> Build
       </Link>
 
       {!contract || !c ? (
@@ -113,16 +115,16 @@ export default async function PlanCardPage({ params }: Params) {
             Open the task to draft it again or write it yourself; nothing was charged for a draft that didn&apos;t finish.
           </p>
           <Link href={`/app/tasks/${task.id}`} className={buttonClasses("primary", "md", "w-fit")}>
-            <PencilSimpleLineIcon size={18} weight="bold" aria-hidden /> Write the plan
+            <PencilSimpleLineIcon size={16} weight="bold" aria-hidden /> Write the plan
           </Link>
         </section>
       ) : (
         <section aria-labelledby="plan-title" className="grid gap-6 rounded-lg border border-line bg-surface p-6 shadow-e2 sm:p-8">
           <div className="flex">
             {task.state === "CANCELLED" ? (
-              <StatusBadge status="unverified" label="Cancelled" />
+              <StatusBadge status="off" label="Cancelled" />
             ) : contract.status === "approved" ? (
-              <StatusBadge status="verified" label="Approved" />
+              <StatusBadge status="done" label="Approved" />
             ) : (
               <StatusBadge status="approval" label="Waiting for your approval" />
             )}
@@ -137,11 +139,11 @@ export default async function PlanCardPage({ params }: Params) {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <Section title="What will change" delay={80}>
+            <Section title="What will change" icon={GitDiffIcon} delay={80}>
               <p className="text-sm text-ink-2">{c.allowedOperations.length ? c.allowedOperations.map(sayOperation).join(", ") : "Nothing yet: the plan allows no changes."}</p>
               <Chips items={c.scope.resources} empty="Anywhere in the project." />
             </Section>
-            <Section title="How it will be checked" delay={160}>
+            <Section title="How it will be checked" icon={ListChecksIcon} delay={160}>
               <ul className="grid list-disc gap-1.5 pl-5 text-sm text-ink marker:text-ink-3">
                 {c.acceptanceCriteria.map((a) => (
                   <li key={a.id}>{a.statement}</li>
@@ -149,7 +151,7 @@ export default async function PlanCardPage({ params }: Params) {
               </ul>
               {c.requiredChecks.length ? <Chips items={c.requiredChecks} empty="" /> : null}
             </Section>
-            <Section title="What stays untouched" delay={240}>
+            <Section title="What stays untouched" icon={ShieldCheckIcon} delay={240}>
               {kept.length ? (
                 <ul className="grid gap-1 text-sm text-ink-2">
                   {kept.map((k) => (
@@ -160,15 +162,18 @@ export default async function PlanCardPage({ params }: Params) {
                 <p className="text-sm text-ink-2">Nothing is marked as protected.</p>
               )}
             </Section>
-            <Section title="If something goes wrong" delay={320}>
+            <Section title="If something goes wrong" icon={ArrowCounterClockwiseIcon} delay={320}>
               <p className="text-sm text-ink-2">{c.recovery}</p>
               {c.assumptions.length ? <p className="text-[0.8125rem] text-ink-3">Assumes: {c.assumptions.join("; ")}</p> : null}
             </Section>
           </div>
 
           {c.openQuestions.length ? (
-            <div className={`grid gap-2 rounded-md border border-approval/40 bg-approval/[0.06] p-5 ${rise}`} style={{ animationDelay: "400ms" }}>
-              <p className="text-sm font-medium text-approval">Questions to settle</p>
+            // Questions need a person to settle them, so the box is in the "your turn" blue (ADR 0183).
+            <div className={`grid gap-2 rounded-md border border-approval/30 bg-approval/[0.04] p-5 ${rise}`} style={{ animationDelay: "400ms" }}>
+              <p className="flex items-center gap-2 text-sm font-medium text-approval">
+                <QuestionIcon size={20} className="shrink-0" aria-hidden /> Questions to settle
+              </p>
               <ul className="grid gap-1 text-sm text-ink">
                 {c.openQuestions.map((q) => (
                   <li key={q}>{q}</li>

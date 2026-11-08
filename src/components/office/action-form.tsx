@@ -33,7 +33,7 @@ export function OfficeActionForm({
       </button>
       {state.message ? (
         <p role={state.ok ? "status" : "alert"} className={`flex items-start gap-2 text-sm ${state.ok ? "text-verified" : "text-failed"}`}>
-          {state.ok ? <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden /> : <WarningCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0" aria-hidden />}
+          {state.ok ? <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden /> : <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />}
           <span className="text-ink">{state.message}</span>
         </p>
       ) : null}

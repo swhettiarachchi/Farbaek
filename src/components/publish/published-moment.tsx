@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowSquareOutIcon, CheckCircleIcon, CopyIcon } from "@phosphor-icons/react";
+import { ArrowUpRightIcon, CheckCircleIcon, CopyIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { SiteThumb } from "@/components/app/site-thumb";
 import { buttonClasses } from "@/components/ui/button";
@@ -35,10 +35,10 @@ export function PublishedMoment({ projectId, address, message }: { projectId: st
         <p className="break-all font-mono text-[0.8125rem] text-ink-2">{address.replace(/^https?:\/\//, "")}</p>
         <div className="flex flex-wrap gap-2">
           <a href={address} target="_blank" rel="noopener noreferrer" className={buttonClasses("primary", "sm")}>
-            Open your site <ArrowSquareOutIcon size={16} weight="bold" aria-hidden />
+            Open your site <ArrowUpRightIcon size={16} weight="bold" aria-hidden />
           </a>
           <button type="button" onClick={copyAddress} className={buttonClasses("secondary", "sm")}>
-            <CopyIcon size={16} aria-hidden /> {copy === "copied" ? "Copied" : copy === "failed" ? "Couldn't copy" : "Copy address"}
+            <CopyIcon size={16} weight="bold" aria-hidden /> {copy === "copied" ? "Copied" : copy === "failed" ? "Couldn't copy" : "Copy address"}
           </button>
         </div>
       </div>

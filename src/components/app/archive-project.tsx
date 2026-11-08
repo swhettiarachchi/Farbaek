@@ -1,6 +1,6 @@
 "use client";
 
-import { ArchiveIcon } from "@phosphor-icons/react";
+import { ArchiveIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useState } from "react";
 import { archiveProjectAction, type FormState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -16,22 +16,23 @@ export function ArchiveProject({ projectId, name, disabledReason }: { projectId:
     return (
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={() => setConfirming(true)} disabled={Boolean(disabledReason)} className={buttonClasses("secondary", "sm")}>
-          <ArchiveIcon size={16} aria-hidden /> Archive project
+          <ArchiveIcon size={16} weight="bold" aria-hidden /> Archive project
         </button>
         {disabledReason ? <p className="text-sm text-ink-3">{disabledReason}</p> : null}
       </div>
     );
   }
   return (
-    <form action={action} className="grid gap-3 rounded-sm border border-approval/30 bg-approval/[0.06] p-4">
+    <form action={action} className="grid gap-3 rounded-sm border border-line bg-surface-raised/70 p-4">
       <input type="hidden" name="projectId" value={projectId} />
       <p className="text-sm">
         Archive <span className="font-medium">{name}</span>? It moves to Archived projects at the foot of the Projects page and stops counting toward your plan&apos;s project
         limit. Its files, tasks and proof stay readable, and nothing is deleted. Its files can&apos;t change while it&apos;s archived.
       </p>
       {state.status === "error" ? (
-        <p role="alert" className="text-sm text-failed">
-          {state.message}
+        <p role="alert" className="flex items-start gap-2 text-sm text-failed">
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+          <span>{state.message}</span>
         </p>
       ) : null}
       <div className="flex flex-wrap gap-3">

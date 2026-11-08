@@ -1,8 +1,8 @@
-import { ArrowRightIcon, EyeIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, BrowserIcon, LayoutIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { PageHeader } from "@/components/app/primitives";
+import { CardTitle, PageHeader } from "@/components/app/primitives";
 import { SiteThumb } from "@/components/app/site-thumb";
 import { buttonClasses } from "@/components/ui/button";
 import { TEMPLATE_STARTERS } from "@/content/starters";
@@ -32,15 +32,15 @@ export default async function TemplatesPage() {
                 <SiteThumb src={`/app/templates/${t.id}/thumbnail`} name={t.name} />
               </Link>
               <div className="grid gap-1 px-1.5">
-                <h2 className="text-[1.0625rem] font-medium">{t.name}</h2>
+                <CardTitle icon={LayoutIcon}>{t.name}</CardTitle>
                 <p className="text-sm leading-relaxed text-ink-2">{t.summary}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2 px-1.5 pb-1.5">
                 <Link href={`/app/new?template=${t.id}`} className={buttonClasses("primary", "sm")}>
-                  Use this template <ArrowRightIcon size={15} weight="bold" aria-hidden />
+                  Use this template <ArrowRightIcon size={16} weight="bold" aria-hidden />
                 </Link>
                 <Link href={`/app/templates/${t.id}`} className={buttonClasses("secondary", "sm")}>
-                  <EyeIcon size={15} aria-hidden /> Preview
+                  <BrowserIcon size={16} weight="bold" aria-hidden /> Preview
                 </Link>
               </div>
             </article>

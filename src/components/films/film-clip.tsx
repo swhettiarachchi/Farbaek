@@ -93,7 +93,7 @@ export function FilmClip({ id, poster, active = true, enabled = true }: { id: Fi
         >
           {playing ? null : (
             <span className="absolute bottom-3 right-3 inline-flex min-h-9 items-center gap-1.5 rounded-full bg-surface/95 px-3 text-sm font-medium text-ink shadow-e2 ring-1 ring-line">
-              <PlayIcon size={13} weight="fill" aria-hidden /> {userPaused ? "Paused" : "Play"}
+              <PlayIcon size={14} weight="fill" aria-hidden /> {userPaused ? "Paused" : "Play"}
             </span>
           )}
         </button>

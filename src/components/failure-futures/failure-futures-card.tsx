@@ -1,23 +1,23 @@
-import { CircleNotchIcon, SirenIcon } from "@phosphor-icons/react/ssr";
+import { SirenIcon, WarningIcon } from "@phosphor-icons/react/ssr";
 import { modelName } from "@/core/billing/model-names";
 import Link from "next/link";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { RelativeTime } from "@/components/ui/local-time";
-import { StatusBadge, type Status } from "@/components/ui/status-badge";
+import { StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { LAB_OUTCOME_WORDS, type FailureFuture } from "@/core/realityloop/failure-futures";
 import type { FailureTrialStatus, FailureTrialView } from "@/server/failure-futures/store";
 import { TryFailure } from "./try-failure";
 
 type Shown = FailureTrialStatus | "hypothetical";
 
-// A state is its words in a colour and border (ADR 0180), drawn by StatusBadge: a mark only for how a trial ended.
+// Each state is a status kind with its icon (ADR 0183): not tried yet is dashed, a running trial turns.
 const STATUS: Record<Shown, { label: string; status: Status }> = {
   hypothetical: { label: "Not tried yet", status: "unverified" },
-  running: { label: LAB_OUTCOME_WORDS.running.label, status: "info" },
+  running: { label: LAB_OUTCOME_WORDS.running.label, status: "working" },
   reproduced: { label: LAB_OUTCOME_WORDS.reproduced.label, status: "failed" },
   handled: { label: LAB_OUTCOME_WORDS.handled.label, status: "verified" },
   inconclusive: { label: LAB_OUTCOME_WORDS.inconclusive.label, status: "unverified" },
-  not_testable: { label: LAB_OUTCOME_WORDS.not_testable.label, status: "unverified" },
+  not_testable: { label: LAB_OUTCOME_WORDS.not_testable.label, status: "off" },
   failed: { label: LAB_OUTCOME_WORDS.failed.label, status: "unverified" },
 };
 
@@ -32,7 +32,7 @@ function IncidentNote({ incident }: { incident: NonNullable<FailureFuture["incid
   );
   return (
     <p className="flex max-w-[68ch] items-start gap-2 text-sm leading-relaxed">
-      <SirenIcon size={16} className="mt-0.5 shrink-0 text-approval" aria-hidden />
+      <SirenIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-caution" aria-hidden />
       <span>
         {incident.exact ? <>This happened before: {link}, &ldquo;{incident.title}&rdquo;, came from a change to a file this one edits.</> : <>Seen before: {link}, &ldquo;{incident.title}&rdquo;, opened within a day of a change to a file this one edits.</>}
       </span>
@@ -118,8 +118,8 @@ export function FailureFuturesCard({
   return (
     <section aria-labelledby="failure-futures-heading" className="grid gap-4 rounded-md border border-line bg-canvas-2/60 p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 id="failure-futures-heading" className="text-base font-medium">
-          Failure futures
+        <h3 id="failure-futures-heading" className="flex items-center gap-2 text-base font-medium">
+          <WarningIcon size={20} className="shrink-0 text-ink-3" aria-hidden /> Failure futures
         </h3>
         <span className="text-xs text-ink-3">Nothing is applied</span>
       </div>
@@ -130,7 +130,7 @@ export function FailureFuturesCard({
 
       {running ? (
         <p role="status" className="flex items-center gap-2 text-sm">
-          <CircleNotchIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-accent motion-safe:animate-spin" aria-hidden />
+          <StatusGlyph status="working" />
           Trying &ldquo;{futures.find((f) => f.kind === running.kind)?.title ?? "a failure"}&rdquo;, started <RelativeTime iso={running.startedAt} />. This page updates by itself.
         </p>
       ) : null}

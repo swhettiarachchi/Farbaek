@@ -9,17 +9,18 @@
  * template, the way a build from it looks.
  */
 import {
+  ArrowCounterClockwiseIcon,
   ArrowUpIcon,
   CaretDownIcon,
   CheckCircleIcon,
   CircleNotchIcon,
   CubeIcon,
-  FilePlusIcon,
+  GitDiffIcon,
+  ListChecksIcon,
   SealCheckIcon,
   GlobeIcon,
   HammerIcon,
   HouseSimpleIcon,
-  LockSimpleIcon,
   MagnifyingGlassIcon,
   DotsThreeOutlineIcon,
   CheckSquareOffsetIcon,
@@ -30,6 +31,7 @@ import {
 import type { Icon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { APP_PAGES } from "@/components/app/app-nav";
+import { CardTitle } from "@/components/app/primitives";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { ApproveBuild } from "@/components/build/approve-build";
 import { CoreMark, type CoreMarkState } from "@/components/build/core-mark";
@@ -38,6 +40,7 @@ import { RunStatusBadge } from "@/components/build/run-status";
 import { LiveCheck } from "@/components/launch/live-check";
 import { PublishPanel } from "@/components/publish/publish-panel";
 import { ScoreRing } from "@/components/security/score-ring";
+import { StatusBadge, StatusGlyph } from "@/components/ui/status-badge";
 import { TEMPLATES } from "@/content/starters/templates";
 import { FARBAEK_SKILLS } from "@/content/skills";
 import { modelName } from "@/core/billing/model-names";
@@ -89,11 +92,11 @@ export function AppShell({ active, core = "idle", children }: { active: NavKey; 
           <span className="text-[16px] font-semibold tracking-[-0.02em]">Farbaek</span>
         </div>
         <span className="flex h-10 items-center gap-2.5 rounded-full border border-line bg-surface px-3.5 text-[13px] text-ink-3 shadow-e1">
-          <MagnifyingGlassIcon size={15} className="shrink-0" aria-hidden /> <span className="flex-1 truncate whitespace-nowrap">Search or jump to</span>
+          <MagnifyingGlassIcon size={16} weight="bold" className="shrink-0" aria-hidden /> <span className="flex-1 truncate whitespace-nowrap">Search or jump to</span>
           <span className="rounded-full border border-line px-1.5 font-mono text-[10px]">Ctrl K</span>
         </span>
         <span className="flex h-10 items-center justify-between rounded-full border border-line bg-surface px-3.5 text-[13.5px] font-medium shadow-e1">
-          {SAMPLE.project} <CaretDownIcon size={13} className="text-ink-3" aria-hidden />
+          {SAMPLE.project} <CaretDownIcon size={14} weight="bold" className="text-ink-3" aria-hidden />
         </span>
         <span className="flex h-11 items-center justify-center gap-2 rounded-full bg-primary text-sm font-medium text-on-primary shadow-e1">
           <PlusIcon size={16} weight="bold" aria-hidden /> New build
@@ -107,7 +110,7 @@ export function AppShell({ active, core = "idle", children }: { active: NavKey; 
             return (
               <li key={item.href}>
                 <span className={`flex h-10 items-center gap-3 rounded-full px-3.5 text-[14px] ${on ? "bg-surface font-medium text-ink shadow-e1" : "text-ink-2"}`}>
-                  <item.icon size={18} weight={on ? "fill" : "regular"} className={on ? "text-accent" : ""} aria-hidden />
+                  <item.icon size={20} weight={on ? "fill" : "regular"} className={on ? "text-accent" : ""} aria-hidden />
                   {item.label}
                 </span>
               </li>
@@ -152,7 +155,7 @@ export function MobileShell({ active, core = "idle", children }: { active: NavKe
           const on = tab.key === active;
           return (
             <span key={tab.key} className={`flex flex-col items-center justify-center gap-1 text-[11px] ${on ? "font-medium text-accent" : "text-ink-2"}`}>
-              <tab.icon size={21} weight={on ? "fill" : "regular"} aria-hidden />
+              <tab.icon size={24} weight={on ? "fill" : "regular"} aria-hidden />
               {tab.label}
             </span>
           );
@@ -185,7 +188,7 @@ export function DescribeView({ t, typeFrom, submitAt }: { t: number; typeFrom: n
           <p className="flex min-w-0 items-center gap-1.5 truncate pl-2 text-xs text-ink-3">
             {submitted ? (
               <>
-                <CircleNotchIcon size={14} weight="bold" className="shrink-0 text-accent" style={{ transform: `rotate(${(t * 0.36) % 360}deg)` }} aria-hidden />
+                <CircleNotchIcon size={14} weight="bold" className="shrink-0 text-info" style={{ transform: `rotate(${(t * 0.36) % 360}deg)` }} aria-hidden />
                 <span className="truncate">{stage}…</span>
               </>
             ) : (
@@ -203,13 +206,11 @@ export function DescribeView({ t, typeFrom, submitAt }: { t: number; typeFrom: n
 
 // ------------------------------------------------------------------ plan
 
-function PlanSection({ title, icon, children, shown }: { title: string; icon: ReactNode; children: ReactNode; shown: number }) {
+/** A plan section as the plan page draws it: its title with the icon that names it (ADR 0183). */
+function PlanSection({ title, icon, children, shown }: { title: string; icon: Icon; children: ReactNode; shown: number }) {
   return (
     <section className="grid content-start gap-2.5 rounded-md border border-line bg-canvas-2/60 p-4" style={{ opacity: shown, transform: `translateY(${(1 - shown) * 14}px)` }}>
-      <h2 className="flex items-center gap-2 text-sm font-medium text-ink">
-        {icon}
-        {title}
-      </h2>
+      <CardTitle icon={icon}>{title}</CardTitle>
       {children}
     </section>
   );
@@ -225,13 +226,7 @@ export function PlanView({ t, from, approvedAt, compact = false }: { t: number; 
     <div className="grid gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3" style={{ opacity: s(0) }}>
         <p className="text-[13px] font-medium text-ink-3">Your plan, version 1</p>
-        {approved ? (
-          <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-verified/40 px-3 text-xs font-medium text-verified">
-            <CheckCircleIcon size={14} weight="bold" aria-hidden /> Approved
-          </span>
-        ) : (
-          <span className="inline-flex h-7 items-center rounded-full border border-approval/40 px-3 text-xs font-medium text-approval">Waiting for your approval</span>
-        )}
+        {approved ? <StatusBadge status="done" label="Approved" /> : <StatusBadge status="approval" label="Waiting for your approval" />}
       </div>
       <div className="grid gap-1.5" style={{ opacity: s(0) }}>
         <h1 className="text-balance text-[1.7rem] font-medium leading-tight tracking-[-0.03em] max-sm:text-[1.35rem]">{SAMPLE.outcome}</h1>
@@ -240,7 +235,7 @@ export function PlanView({ t, from, approvedAt, compact = false }: { t: number; 
         </p>
       </div>
       <div data-lift="plan-grid" className={`grid gap-3 ${compact ? "" : "md:grid-cols-2"}`}>
-        <PlanSection title="What will change" icon={<FilePlusIcon size={16} weight="bold" className="text-accent" aria-hidden />} shown={s(1)}>
+        <PlanSection title="What will change" icon={GitDiffIcon} shown={s(1)}>
           <p className="text-sm text-ink-2">Create files, edit files</p>
           <ul className="flex flex-wrap gap-1.5">
             {["index.html", "styles.css", "script.js", "DESIGN.md"].map((f) => (
@@ -250,25 +245,22 @@ export function PlanView({ t, from, approvedAt, compact = false }: { t: number; 
             ))}
           </ul>
         </PlanSection>
-        <PlanSection title="How it will be checked" icon={<CheckCircleIcon size={16} weight="bold" className="text-verified" aria-hidden />} shown={s(2)}>
-          <ul className="grid gap-1.5 text-sm text-ink">
+        <PlanSection title="How it will be checked" icon={ListChecksIcon} shown={s(2)}>
+          <ul className="grid list-disc gap-1.5 pl-5 text-sm text-ink marker:text-ink-3">
             {["The menu lists coffee, breakfast and bakes with prices", "Opening hours are on the first screen", "The page reads well on a phone"].map((a) => (
-              <li key={a} className="flex gap-2">
-                <CheckCircleIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
-                {a}
-              </li>
+              <li key={a}>{a}</li>
             ))}
           </ul>
         </PlanSection>
         {compact ? null : (
           <>
-            <PlanSection title="What stays untouched" icon={<LockSimpleIcon size={16} weight="bold" className="text-ink-2" aria-hidden />} shown={s(3)}>
+            <PlanSection title="What stays untouched" icon={ShieldCheckIcon} shown={s(3)}>
               <ul className="grid gap-1 text-sm text-ink-2">
                 <li>Files outside this project</li>
                 <li>Payments and accounts</li>
               </ul>
             </PlanSection>
-            <PlanSection title="If something goes wrong" icon={<ShieldCheckIcon size={16} weight="bold" className="text-ink-2" aria-hidden />} shown={s(4)}>
+            <PlanSection title="If something goes wrong" icon={ArrowCounterClockwiseIcon} shown={s(4)}>
               <p className="text-sm text-ink-2">Each change waits for your review, and an applied change can be undone.</p>
             </PlanSection>
           </>
@@ -436,7 +428,7 @@ export function CheckView({ t, from }: { t: number; from: number }) {
       {running ? (
         <div className="rounded-md border border-line bg-surface p-5 shadow-e1">
           <p className="flex items-center gap-2 text-sm text-ink-2">
-            <CircleNotchIcon size={16} weight="bold" className="shrink-0 text-accent" style={{ transform: `rotate(${(local / 3) % 360}deg)` }} aria-hidden /> Checking the project. This takes a minute or two.
+            <CircleNotchIcon size={16} weight="bold" className="shrink-0 text-info" style={{ transform: `rotate(${(local / 3) % 360}deg)` }} aria-hidden /> Checking the project. This takes a minute or two.
           </p>
           <span className="mt-4 block h-1.5 overflow-hidden rounded-full bg-surface-raised">
             <span className="block h-full rounded-full bg-accent" style={{ width: `${progress(local, 0, 2200) * 100}%` }} />
@@ -459,7 +451,7 @@ export function CheckView({ t, from }: { t: number; from: number }) {
                 { name: "ai_review" as const, ran: true, note: "0 found" },
               ].map((c, i) => (
                 <li key={c.name} className="flex items-start gap-2" style={{ opacity: progress(local, 2600 + i * 250, 3100 + i * 250) }}>
-                  {c.ran ? <CheckCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden /> : <span className="size-4 shrink-0" aria-hidden />}
+                  <StatusGlyph status={c.ran ? "verified" : "unverified"} className="mt-0.5" />
                   <span>
                     <span className="text-ink">{CHECK_LABELS[c.name]}</span>
                     <span className="text-ink-3">: {c.note}</span>
@@ -474,7 +466,7 @@ export function CheckView({ t, from }: { t: number; from: number }) {
       {!running ? (
         <div className="rounded-md border border-line bg-surface p-4 shadow-e1" style={{ opacity: progress(local, 3600, 4200) }}>
           <p className="flex items-center gap-2 text-sm text-ink-2">
-            <CheckCircleIcon size={18} weight="bold" className="text-verified" aria-hidden /> Nothing to fix in what was checked.
+            <CheckCircleIcon size={16} weight="fill" className="shrink-0 text-verified" aria-hidden /> Nothing to fix in what was checked.
           </p>
         </div>
       ) : null}
@@ -557,17 +549,18 @@ export function LiveView({ t, from, checkedAt }: { t: number; from: number; chec
       <ol data-lift="chain" className="grid">
         {CHAIN.map((s, i) => {
           const st = state(i);
-          const ring = st === "done" ? "border-verified/45 bg-verified/[0.08] text-verified" : st === "now" ? "border-accent/50 bg-accent/[0.06] text-accent" : "border-dashed border-line-strong/60 bg-surface text-ink-3";
+          // Each step's state is its kind (ADR 0183): done is verified, the one going on is working (steel), the rest are quiet.
+          const ring = st === "done" ? "border-verified/35 bg-verified/[0.05] text-verified" : st === "now" ? "border-info/30 bg-info/[0.05] text-info" : "border-line-2 bg-surface text-ink-3";
           return (
             <li key={s.title} className="relative grid grid-cols-[44px_minmax(0,1fr)] gap-4 pb-6">
               <span aria-hidden className="absolute bottom-0 left-[21px] top-11 w-px bg-line" />
               <span className={`relative z-10 flex size-11 items-center justify-center rounded-full border ${ring}`}>
-                <s.icon size={20} weight={st === "done" ? "fill" : "regular"} aria-hidden />
+                <s.icon size={20} aria-hidden />
               </span>
               <div className="grid gap-1 pt-1">
-                <p className="flex flex-wrap items-center gap-x-2">
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <span className="font-medium text-ink">{s.title}</span>
-                  {st === "done" ? <span className="text-xs font-medium text-verified">Done</span> : null}
+                  {st === "done" ? <StatusBadge status="verified" label="Done" /> : null}
                 </p>
                 <p className="text-sm leading-relaxed text-ink-2">{s.text}</p>
               </div>
@@ -575,14 +568,14 @@ export function LiveView({ t, from, checkedAt }: { t: number; from: number; chec
           );
         })}
         <li className="relative grid grid-cols-[44px_minmax(0,1fr)] gap-4">
-          <span className={`relative z-10 flex size-11 items-center justify-center rounded-full border ${checked ? "border-verified/45 bg-verified/[0.08] text-verified" : "border-accent/50 bg-accent/[0.06] text-accent"}`}>
-            <GlobeIcon size={20} weight={checked ? "fill" : "regular"} aria-hidden />
+          <span className={`relative z-10 flex size-11 items-center justify-center rounded-full border ${checked ? "border-verified/35 bg-verified/[0.05] text-verified" : "border-info/30 bg-info/[0.05] text-info"}`}>
+            <GlobeIcon size={20} aria-hidden />
           </span>
           <div className="grid gap-2 pt-1">
             <p className="font-medium text-ink">The live address answers with it</p>
             {checking ? (
               <p className="flex items-start gap-3 text-sm">
-                <CircleNotchIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-accent" style={{ transform: `rotate(${(t / 3) % 360}deg)` }} aria-hidden />
+                <CircleNotchIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-info" style={{ transform: `rotate(${(t / 3) % 360}deg)` }} aria-hidden />
                 <span>
                   <span className="font-medium text-ink">Checking your live site</span>
                   <span className="block text-ink-2">Farbaek is opening the address and comparing what answers with this version.</span>

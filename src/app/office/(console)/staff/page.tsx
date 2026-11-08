@@ -1,7 +1,7 @@
-import { CaretDownIcon, IdentificationBadgeIcon } from "@phosphor-icons/react/ssr";
+import { CaretDownIcon, EnvelopeSimpleIcon, IdentificationBadgeIcon, ShieldCheckIcon, UserPlusIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { Chip } from "@/components/admin/table";
-import { EmptyState, Notice, PageHeader } from "@/components/app/primitives";
+import { CardTitle, EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { OfficeActionForm } from "@/components/office/action-form";
 import { RoleBadge } from "@/components/office/badges";
 import { officeInputClass, ReasonField, StepUpField } from "@/components/office/fields";
@@ -40,9 +40,9 @@ export default async function OfficeStaff() {
       {!owner ? <Notice>Your role can see the staff but not change it. An owner can.</Notice> : null}
 
       <section aria-labelledby="team-title" className="grid gap-3">
-        <h2 id="team-title" className="text-lg font-medium">
+        <CardTitle id="team-title" icon={IdentificationBadgeIcon}>
           On the staff
-        </h2>
+        </CardTitle>
         <ul className="grid gap-3">
           {active.map((m) => {
             const self = m.userId === staff.user.id;
@@ -53,7 +53,7 @@ export default async function OfficeStaff() {
                     <p className="flex flex-wrap items-center gap-2">
                       <span className="break-all font-medium">{m.email}</span>
                       {self ? <Chip>You</Chip> : null}
-                      {m.resetUntil ? <Chip tone="approval">Can add a new authenticator</Chip> : null}
+                      {m.resetUntil ? <Chip kind="info">Can add a new authenticator</Chip> : null}
                     </p>
                     <p className="mt-1 text-xs text-ink-3">
                       Since <LocalTime iso={m.since} /> ·{" "}
@@ -71,7 +71,7 @@ export default async function OfficeStaff() {
                 {owner && !self ? (
                   <details className="group border-t border-line">
                     <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 text-sm text-ink-2 hover:text-ink sm:px-5 [&::-webkit-details-marker]:hidden">
-                      <CaretDownIcon size={14} className="transition-transform group-open:rotate-180" aria-hidden /> Manage {m.email}
+                      <CaretDownIcon size={14} weight="bold" className="transition-transform group-open:rotate-180" aria-hidden /> Manage {m.email}
                     </summary>
                     <div className="grid gap-6 px-4 pb-5 sm:px-5 lg:grid-cols-2">
                       <OfficeActionForm action={changeRoleAction} submit="Change role" tone="secondary" className="grid content-start gap-3 rounded-sm bg-surface-raised/60 p-4">
@@ -107,11 +107,11 @@ export default async function OfficeStaff() {
       </section>
 
       <section aria-labelledby="invites-title" className="grid gap-3">
-        <h2 id="invites-title" className="text-lg font-medium">
+        <CardTitle id="invites-title" icon={EnvelopeSimpleIcon}>
           Open invites
-        </h2>
+        </CardTitle>
         {invites.length === 0 ? (
-          <p className="rounded-md border border-dashed border-line-strong/40 bg-surface px-5 py-4 text-sm text-ink-2">No open invites.</p>
+          <p className="rounded-md border border-line bg-surface px-5 py-4 text-sm text-ink-2">No open invites.</p>
         ) : (
           <ul className="grid gap-3">
             {invites.map((i) => (
@@ -139,9 +139,9 @@ export default async function OfficeStaff() {
         <section aria-labelledby="invite-title" className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
           <div className="grid gap-5 rounded-md bg-surface p-5 shadow-e1 sm:p-6">
             <div>
-              <h2 id="invite-title" className="text-lg font-medium">
+              <CardTitle id="invite-title" icon={UserPlusIcon}>
                 Invite someone
-              </h2>
+              </CardTitle>
               <p className="mt-1 text-sm text-ink-2">
                 They sign in with this address within the invite&apos;s time, set up an authenticator and join with the role you choose. Farbaek doesn&apos;t email invites yet, so tell them yourself.
               </p>
@@ -172,9 +172,9 @@ export default async function OfficeStaff() {
       ) : null}
 
       <section aria-labelledby="roles-title" className="grid gap-3">
-        <h2 id="roles-title" className="text-lg font-medium">
+        <CardTitle id="roles-title" icon={ShieldCheckIcon}>
           What each role can do
-        </h2>
+        </CardTitle>
         <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {STAFF_ROLES.map((r) => (
             <div key={r} className="rounded-md border border-line bg-surface p-4">

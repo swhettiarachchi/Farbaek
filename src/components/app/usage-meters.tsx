@@ -1,9 +1,11 @@
 "use client";
 
-import { ArrowUpRightIcon, ChartBarIcon, WarningCircleIcon, WarningIcon } from "@phosphor-icons/react";
+import { ArrowUpRightIcon, GaugeIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { loadUsageAction } from "@/app/app/actions";
+import { CardTitle } from "@/components/app/primitives";
+import { StatusGlyph } from "@/components/ui/status-badge";
 import { resetText, usageNote, type UsageMeter } from "@/core/billing/usage-view";
 
 const subscribe = () => () => {};
@@ -35,7 +37,8 @@ export function DayText({ at }: { at: string }) {
   return <time dateTime={at}>{text}</time>;
 }
 
-const BAR = { ok: "bg-accent", nearly: "bg-approval", reached: "bg-failed" } as const;
+// Over 80% is a limit near, so it's a caution, not a turn to act (ADR 0183).
+const BAR = { ok: "bg-accent", nearly: "bg-caution", reached: "bg-failed" } as const;
 
 function Row({ meter, detailed }: { meter: UsageMeter; detailed: boolean }) {
   const pct = meter.percent;
@@ -44,7 +47,7 @@ function Row({ meter, detailed }: { meter: UsageMeter; detailed: boolean }) {
       <div className="flex items-baseline justify-between gap-3">
         <p className="flex items-center gap-1.5 text-sm font-medium text-ink">
           {meter.label}
-          {meter.state === "reached" ? <WarningCircleIcon size={15} weight="bold" className="text-failed" aria-hidden /> : meter.state === "nearly" ? <WarningIcon size={15} weight="bold" className="text-approval" aria-hidden /> : null}
+          {meter.state === "reached" ? <StatusGlyph status="blocked" /> : meter.state === "nearly" ? <StatusGlyph status="attention" /> : null}
         </p>
         <p className="shrink-0 text-sm text-ink-2 tabular">{pct === null ? "No fixed limit" : meter.state === "reached" ? "Limit reached" : `${pct}% used`}</p>
       </div>
@@ -67,13 +70,19 @@ function Row({ meter, detailed }: { meter: UsageMeter; detailed: boolean }) {
           <span className="tabular">{meter.rollover.percentOfMonth}%</span> of a month&apos;s usage carried over, and it&apos;s used first. It expires <DayText at={meter.rollover.expiresAt} />.
         </p>
       ) : null}
-      {detailed && meter.state !== "ok" ? <p className={`mt-1 text-xs ${meter.state === "reached" ? "text-failed" : "text-approval"}`}>{meter.atLimit}</p> : null}
+      {detailed && meter.state !== "ok" ? <p className={`mt-1 text-xs ${meter.state === "reached" ? "text-failed" : "text-caution"}`}>{meter.atLimit}</p> : null}
     </div>
   );
 }
 
 export function UsageMeterList({ meters, detailed = false }: { meters: UsageMeter[]; detailed?: boolean }) {
-  if (meters.length === 0) return <p className="text-sm text-ink-3">Usage couldn&apos;t be read right now.</p>;
+  if (meters.length === 0)
+    return (
+      <p className="flex items-start gap-2 text-sm text-ink-2">
+        <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+        <span>Usage couldn&apos;t be read right now.</span>
+      </p>
+    );
   return (
     <div className={detailed ? "grid gap-6" : "grid gap-4"}>
       {meters.map((m) => (
@@ -88,7 +97,7 @@ export function AiUsageNote({ percent, resetsAt, period }: { percent: number | n
   const note = usageNote(percent);
   if (!note) return null;
   return (
-    <span className={percent !== null && percent >= 100 ? "text-failed" : "text-approval"}>
+    <span className={percent !== null && percent >= 100 ? "text-failed" : "text-caution"}>
       {note} <ResetText resetsAt={resetsAt} period={period} />.
     </span>
   );
@@ -158,7 +167,7 @@ export function UsagePanel({ planLabel }: { planLabel: string }) {
         className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-xs text-ink-2 hover:bg-surface aria-expanded:bg-surface"
       >
         <span className="min-w-0 flex-1 truncate">{planLabel}</span>
-        <ChartBarIcon size={15} className="shrink-0 text-ink-3" aria-hidden />
+        <GaugeIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
         <span className="sr-only">Show usage</span>
       </button>
       {open ? (
@@ -172,16 +181,19 @@ export function UsagePanel({ planLabel }: { planLabel: string }) {
           className="fixed z-40 w-[min(300px,calc(100vw-16px))] origin-bottom-left rounded-md border border-line bg-surface p-5 shadow-e2 outline-none motion-safe:animate-[usage-in_150ms_cubic-bezier(0.16,1,0.3,1)]"
         >
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="text-base font-medium">Usage</h2>
-            <Link href="/app/billing" onClick={() => setOpen(false)} className="inline-flex size-8 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised hover:text-ink" aria-label="Billing and usage">
-              <ArrowUpRightIcon size={16} aria-hidden />
+            <CardTitle icon={GaugeIcon}>Usage</CardTitle>
+            <Link href="/app/billing" onClick={() => setOpen(false)} className="-my-2 -mr-2 inline-flex size-11 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised hover:text-ink" aria-label="Billing and usage">
+              <ArrowUpRightIcon size={16} weight="bold" aria-hidden />
             </Link>
           </div>
           {data.status === "ready" ? (
             <UsageMeterList meters={data.meters} />
           ) : data.status === "error" ? (
             <div className="grid gap-3">
-              <p className="text-sm text-ink-2">Usage couldn&apos;t be loaded.</p>
+              <p className="flex items-start gap-2 text-sm text-ink-2">
+                <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+                <span>Usage couldn&apos;t be loaded.</span>
+              </p>
               <button type="button" onClick={() => void load()} className="inline-flex min-h-11 w-fit items-center rounded-full border border-line px-4 text-sm font-medium text-ink hover:bg-surface-raised">
                 Try again
               </button>

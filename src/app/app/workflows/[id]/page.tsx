@@ -1,9 +1,9 @@
-import { ArrowLeftIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, ListNumbersIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LiveRefresh } from "@/components/app/live-refresh";
-import { PageHeader } from "@/components/app/primitives";
+import { CardTitle, PageHeader } from "@/components/app/primitives";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
 import { WorkflowControls } from "@/components/workflows/workflow-controls";
 import { StepStatusBadge, WorkflowStatusChip } from "@/components/workflows/workflow-status";
@@ -49,7 +49,7 @@ export default async function WorkflowPage({ params }: { params: Promise<{ id: s
       <LiveRefresh active={w.status === "running" || w.status === "approved"} />
       <div>
         <Link href="/app/workflows" className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
-          <ArrowLeftIcon size={14} aria-hidden /> Workflows
+          <ArrowLeftIcon size={14} weight="bold" aria-hidden /> Workflows
         </Link>
         <div className="mt-3">
           <PageHeader title={w.title} description={nextAction(w)} actions={<WorkflowStatusChip status={w.status} />} />
@@ -75,9 +75,9 @@ export default async function WorkflowPage({ params }: { params: Promise<{ id: s
 
       <section aria-labelledby="steps-heading" className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
         <div className="rounded-md bg-surface p-5 shadow-e1 sm:p-6">
-          <h2 id="steps-heading" className="text-lg font-medium">
+          <CardTitle id="steps-heading" icon={ListNumbersIcon}>
             Steps
-          </h2>
+          </CardTitle>
           <ol className="mt-2 grid list-decimal divide-y divide-line pl-5 marker:text-sm marker:text-ink-3">
             {w.steps.map((s) => {
               // Agent teams (ADR 0128): the other steps that run at the same time as this one.

@@ -1,6 +1,6 @@
-import { DeviceMobileIcon } from "@phosphor-icons/react/ssr";
+import { DeviceMobileIcon, KeyIcon, SignInIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
-import { Card, Notice, PageHeader } from "@/components/app/primitives";
+import { Card, CardTitle, Notice, PageHeader } from "@/components/app/primitives";
 import { OfficeActionForm } from "@/components/office/action-form";
 import { RoleBadge } from "@/components/office/badges";
 import { StepUpField } from "@/components/office/fields";
@@ -30,12 +30,12 @@ export default async function OfficeSecurity() {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <Card>
-          <h2 className="text-lg font-medium">Authenticators</h2>
+          <CardTitle icon={KeyIcon}>Authenticators</CardTitle>
           <ul className="mt-4 grid gap-3">
             {factors.map((f) => (
               <li key={f.id} className="grid gap-3 rounded-sm border border-line p-4">
                 <p className="flex items-center gap-2 text-sm">
-                  <DeviceMobileIcon size={18} className="text-ink-2" aria-hidden />
+                  <DeviceMobileIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
                   <span className="font-medium">{f.friendlyName ?? "Authenticator app"}</span>
                 </p>
                 {factors.length > 1 ? (
@@ -56,7 +56,7 @@ export default async function OfficeSecurity() {
         </Card>
 
         <Card>
-          <h2 className="text-lg font-medium">This session</h2>
+          <CardTitle icon={SignInIcon}>This session</CardTitle>
           <dl className="mt-4 grid gap-3 text-sm">
             <div className="flex items-center justify-between gap-3">
               <dt className="text-ink-2">Signed in as</dt>

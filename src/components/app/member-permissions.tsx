@@ -1,5 +1,6 @@
 "use client";
 
+import { CheckCircleIcon, LockSimpleIcon, LockSimpleOpenIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useState } from "react";
 import { setMemberPermissionsAction, type FormState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -41,8 +42,11 @@ export function MemberPermissions({
   return (
     <div className="grid gap-3 sm:col-span-2">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        {/* A plain line (ADR 0180): what's off is said in words, with no mark before it. */}
-        <p className="text-xs text-ink-2">{summary ? `${isSelf ? "For you here: " : ""}${summary}` : "Every permission is on."}</p>
+        {/* A plain line, with a lock that names it (ADR 0183): closed when something is off, open when everything is on. */}
+        <p className="flex items-start gap-1.5 text-xs text-ink-2">
+          {summary ? <LockSimpleIcon size={14} weight="bold" className="mt-px shrink-0 text-ink-3" aria-hidden /> : <LockSimpleOpenIcon size={14} weight="bold" className="mt-px shrink-0 text-ink-3" aria-hidden />}
+          <span>{summary ? `${isSelf ? "For you here: " : ""}${summary}` : "Every permission is on."}</span>
+        </p>
         {canManage ? (
           <button type="button" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((o) => !o)} className={buttonClasses("ghost", "sm")}>
             {open ? "Close permissions" : "Permissions"}
@@ -80,13 +84,15 @@ export function MemberPermissions({
         </form>
       ) : null}
       {state.status === "done" ? (
-        <p role="status" className="text-xs text-verified">
-          {state.message}
+        <p role="status" className="flex items-start gap-1.5 text-xs text-verified">
+          <CheckCircleIcon size={16} weight="fill" className="shrink-0 text-verified" aria-hidden />
+          <span>{state.message}</span>
         </p>
       ) : null}
       {state.status === "error" ? (
-        <p role="alert" className="text-xs text-failed">
-          {state.message}
+        <p role="alert" className="flex items-start gap-1.5 text-xs text-failed">
+          <WarningCircleIcon size={16} weight="fill" className="shrink-0 text-failed" aria-hidden />
+          <span>{state.message}</span>
         </p>
       ) : null}
     </div>

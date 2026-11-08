@@ -1,5 +1,6 @@
 "use client";
 
+import { CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState } from "react";
 import { approveWorkflowAction, cancelWorkflowAction, continueWorkflowAction, type WorkflowState } from "@/app/app/workflows/actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -9,8 +10,13 @@ const IDLE: WorkflowState = { status: "idle" };
 function Message({ state }: { state: WorkflowState }) {
   if (state.status === "idle") return null;
   return (
-    <p role={state.status === "done" ? "status" : "alert"} className={`text-sm ${state.status === "done" ? "text-verified" : "text-failed"}`}>
-      {state.message}
+    <p role={state.status === "done" ? "status" : "alert"} className={`flex items-start gap-2 text-sm ${state.status === "done" ? "text-verified" : "text-failed"}`}>
+      {state.status === "done" ? (
+        <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+      ) : (
+        <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+      )}
+      <span>{state.message}</span>
     </p>
   );
 }

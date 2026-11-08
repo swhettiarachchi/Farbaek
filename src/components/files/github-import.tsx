@@ -26,7 +26,7 @@ export function GitHubImportForm({ disabledReason, privateImport }: { disabledRe
         Repository
       </label>
       <div className="relative">
-        <GithubLogoIcon size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-3" aria-hidden />
+        <GithubLogoIcon size={16} weight="bold" className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-3" aria-hidden />
         <input
           id={id}
           name="source"
@@ -47,7 +47,7 @@ export function GitHubImportForm({ disabledReason, privateImport }: { disabledRe
         Farbaek downloads the latest commit, leaves out secrets, binaries and dependency folders, and notes which commit it came from.
       </p>
       <p id={`${id}-private`} className="flex items-start gap-2 text-xs leading-relaxed text-ink-2">
-        <LockSimpleIcon size={14} className="mt-0.5 shrink-0" aria-hidden />
+        <LockSimpleIcon size={14} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
         {privateImport.ready ? (
           <span>
             Private repositories are read with the workspace&apos;s GitHub connection ({privateImport.login}), when that connection can read them. Each one is recorded in History.
@@ -64,7 +64,7 @@ export function GitHubImportForm({ disabledReason, privateImport }: { disabledRe
       ) : null}
       {error ? (
         <p id={`${id}-error`} role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {error}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden /> {error}
         </p>
       ) : null}
       <div className="flex flex-wrap items-center gap-3">

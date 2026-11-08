@@ -31,7 +31,7 @@ export function AdminNav({ layout }: { layout: "column" | "row" }) {
                   active ? "bg-surface font-medium text-ink shadow-e1" : "text-ink-2 hover:bg-surface/70 hover:text-ink"
                 }`}
               >
-                <item.icon size={18} weight={active ? "fill" : "regular"} className={active ? "text-accent" : ""} aria-hidden />
+                <item.icon size={20} weight={active ? "fill" : "regular"} className={active ? "text-accent" : ""} aria-hidden />
                 {item.label}
               </Link>
             </li>

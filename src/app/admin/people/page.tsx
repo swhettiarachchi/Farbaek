@@ -27,8 +27,8 @@ export default async function AdminPeople() {
               <Cell>
                 <span className="flex flex-wrap items-center gap-1.5">
                   <span className="break-all font-medium">{p.email}</span>
-                  {isAdminEmail(p.email) ? <Chip tone="accent">Admin</Chip> : null}
-                  {!p.confirmed ? <Chip tone="approval">Not confirmed</Chip> : null}
+                  {isAdminEmail(p.email) ? <Chip>Admin</Chip> : null}
+                  {!p.confirmed ? <Chip kind="unverified">Not confirmed</Chip> : null}
                 </span>
               </Cell>
               <Cell muted>

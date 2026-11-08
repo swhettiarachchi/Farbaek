@@ -1,4 +1,5 @@
-import { InfoIcon } from "@phosphor-icons/react/ssr";
+import { InfoIcon, SignInIcon } from "@phosphor-icons/react/ssr";
+import { CardTitle } from "@/components/app/primitives";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getStaff } from "@/server/office/access";
@@ -18,17 +19,19 @@ export default async function OfficeSignIn({ searchParams }: { searchParams: Pro
     <div className="grid gap-6">
       <SignInSteps current={0} />
       <div>
-        <h2 className="text-2xl font-medium tracking-[-0.02em]">Sign in to Office Space</h2>
+        <CardTitle icon={SignInIcon}>Sign in to Office Space</CardTitle>
         <p className="mt-1.5 text-sm text-ink-2">For Farbaek staff only. We&apos;ll email you a code.</p>
       </div>
       {ended ? (
-        <p className="flex items-start gap-2 rounded-sm border border-info/25 bg-info/[0.05] px-4 py-3 text-sm">
-          <InfoIcon size={18} weight="bold" className="mt-px shrink-0 text-info" aria-hidden /> Your session ended, so nobody can use it from this browser. Sign in again to carry on.
+        <p className="flex items-start gap-2.5 rounded-sm border border-line bg-surface-raised/70 px-4 py-3 text-sm">
+          <InfoIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-info" aria-hidden />
+          <span>Your session ended, so nobody can use it from this browser. Sign in again to carry on.</span>
         </p>
       ) : null}
       {code ? (
-        <p className="flex items-start gap-2 rounded-sm border border-info/25 bg-info/[0.05] px-4 py-3 text-sm">
-          <InfoIcon size={18} weight="bold" className="mt-px shrink-0 text-info" aria-hidden /> Office Space signs in with the 6-digit code from that email, not its link. Enter your address to get a fresh code.
+        <p className="flex items-start gap-2.5 rounded-sm border border-line bg-surface-raised/70 px-4 py-3 text-sm">
+          <InfoIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-info" aria-hidden />
+          <span>Office Space signs in with the 6-digit code from that email, not its link. Enter your address to get a fresh code.</span>
         </p>
       ) : null}
       <SignInForm sentMessage={CODE_SENT_MESSAGE} />

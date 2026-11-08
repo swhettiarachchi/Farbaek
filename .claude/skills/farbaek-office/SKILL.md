@@ -34,9 +34,9 @@ Office Space is where Farbaek's own staff run the platform. It holds the server 
 
 ## UI patterns
 
-- **Shell:** the `(console)` layout gives the dimmed sidebar and the phone bottom bar (`OfficeNav`), the environment pill (`EnvPill`: label, icon and hatched band), `RoleBadge`, and the idle warning, which appears at least 20 seconds ahead.
+- **Shell:** the `(console)` layout gives the dimmed sidebar and the phone bottom bar (`OfficeNav`), the environment pill (`EnvPill`: label and icon, no hatched band, ADR 0183), `RoleBadge`, and the idle warning, which appears at least 20 seconds ahead.
 - **Forms:** use `OfficeActionForm` with an outcome-named button ("Remove ada@…", not "Submit"). Danger actions use `tone="danger"` (the failed token), never the accent.
-- **Lists and status:** `AdminTable`, `Cell` and `Chip`. Status is shown by icon, label and pattern together, never by colour alone.
+- **Lists and status:** `AdminTable`, `Cell` and `Chip`. A status `Chip` takes a `kind` (ADR 0183), which gives it its icon, words, colour and border; a tag (a role, a plan) has no kind and no icon. Never colour alone.
 - **Records:** ids, hashes and timestamps go in Geist Mono. Show relative time with the exact time beside it.
 - **Everything else follows `farbaek-ui`:** tokens only, pills, 12px inputs, 20px cards, 28px panels, 44px targets, 16px inputs and no em dashes.
 

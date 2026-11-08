@@ -1,17 +1,17 @@
-import { CircleNotchIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { ListChecksIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { RelativeTime } from "@/components/ui/local-time";
-import { StatusBadge, type Status } from "@/components/ui/status-badge";
+import { StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { MUTATION_OPERATOR_WORDS, mutantExcerpt, mutationSummary, type ExcerptLine, type Mutant, type MutantResult } from "@/core/realityloop/mutation";
 import type { MutationRunView } from "@/server/mutation/store";
 import { RunMutation } from "./run-mutation";
 
-// Status is a word (ADR 0180), drawn by StatusBadge: a caught mistake carries the check, the rest only their word.
+// Each result is a status kind with its icon (ADR 0183): a survivor needs a look, a caught mistake is verified.
 const RESULT: Record<MutantResult, { label: string; status: Status; note?: string }> = {
-  survived: { label: "Survived", status: "approval" },
+  survived: { label: "Survived", status: "attention" },
   killed: { label: "Caught", status: "verified" },
   timed_out: { label: "Caught", status: "verified", note: "The tests ran too long with this mistake, which counts as caught." },
-  not_viable: { label: "Didn't load", status: "unverified" },
+  not_viable: { label: "Didn't load", status: "off" },
   not_run: { label: "Not run", status: "unverified" },
 };
 // Survivors first: they're what a person can act on.
@@ -69,8 +69,8 @@ export function MutationCard({ proposalId, taskId, planned, run, disabledReason 
   return (
     <section aria-labelledby="mutation-heading" className="grid gap-4 rounded-md border border-line bg-canvas-2/60 p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 id="mutation-heading" className="text-base font-medium">
-          Do the tests catch mistakes here?
+        <h3 id="mutation-heading" className="flex items-center gap-2 text-base font-medium">
+          <ListChecksIcon size={20} className="shrink-0 text-ink-3" aria-hidden /> Do the tests catch mistakes here?
         </h3>
         <span className="text-xs text-ink-3">Nothing is applied</span>
       </div>
@@ -80,7 +80,7 @@ export function MutationCard({ proposalId, taskId, planned, run, disabledReason 
 
       {running ? (
         <p role="status" className="flex items-center gap-2 text-sm">
-          <CircleNotchIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-accent motion-safe:animate-spin" aria-hidden />
+          <StatusGlyph status="working" />
           Running the tests against each mistake, started <RelativeTime iso={run.startedAt} />. This page updates by itself.
         </p>
       ) : null}
@@ -88,7 +88,7 @@ export function MutationCard({ proposalId, taskId, planned, run, disabledReason 
 
       {run?.status === "failed" ? (
         <p className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={18} className="mt-px shrink-0" aria-hidden />
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
           <span>{run.reason}</span>
         </p>
       ) : null}

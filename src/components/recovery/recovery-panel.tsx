@@ -108,7 +108,7 @@ export function RecoveryPanel({
                 ) : item.status === "done" ? (
                   <CheckCircleIcon size={20} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-label="Already back" />
                 ) : (
-                  <WarningCircleIcon size={20} weight="fill" className="mt-0.5 shrink-0 text-approval" aria-label="Left as it is" />
+                  <WarningCircleIcon size={20} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-label="Left as it is" />
                 )}
                 <div className="grid min-w-0 gap-0.5">
                   <Link href={fileHref(projectId, item.path)} className="font-mono text-[0.8125rem] font-medium break-all text-ink hover:text-accent hover:underline">
@@ -149,7 +149,11 @@ export function RecoveryPanel({
 
       <div className="grid gap-2 rounded-sm border border-line bg-surface-raised/50 p-4 text-sm">
         <p className="flex items-center gap-2 font-medium">
-          {escalated ? <ShieldWarningIcon size={16} className="text-approval" aria-hidden /> : <ScalesIcon size={16} className="text-ink-3" aria-hidden />}
+          {escalated ? (
+            <ShieldWarningIcon size={16} weight="fill" className="shrink-0 text-approval" aria-hidden />
+          ) : (
+            <ScalesIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
+          )}
           Rules: {OUTCOME_LABELS[policy.outcome as PolicyOutcome] ?? policy.outcome}
         </p>
         {policy.findings.length ? (
@@ -166,7 +170,7 @@ export function RecoveryPanel({
 
       {error ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
           {error}
         </p>
       ) : null}
@@ -189,7 +193,7 @@ export function RecoveryPanel({
           </p>
           <div>
             <button type="button" className={buttonClasses("primary", "md", "w-full sm:w-auto")} onClick={confirm} disabled={pending || disabledReason !== null || (!allBack && count === 0)}>
-              <ArrowCounterClockwiseIcon size={18} aria-hidden /> {pending ? "Undoing…" : label}
+              <ArrowCounterClockwiseIcon size={16} weight="bold" aria-hidden /> {pending ? "Undoing…" : label}
             </button>
           </div>
           {disabledReason ? <p className="text-sm text-ink-3">{disabledReason}</p> : null}

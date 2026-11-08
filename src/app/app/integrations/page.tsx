@@ -3,7 +3,7 @@ import type { Icon } from "@phosphor-icons/react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
-import { PageHeader } from "@/components/app/primitives";
+import { CardTitle, PageHeader } from "@/components/app/primitives";
 import { ButtonLink } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
 import { StatusBadge, type Status } from "@/components/ui/status-badge";
@@ -55,7 +55,7 @@ export default async function IntegrationsPage() {
         icon: CloudArrowUpIcon,
         name: PROVIDER_NAMES[p],
         does: `Launches a project to your own ${PROVIDER_NAMES[p]} account with its Launch plan, after you approve it.`,
-        status: v.connections === null ? { tone: "unverified", label: unreadStatus } : c ? { tone: "verified", label: "Connected" } : { tone: "unverified", label: "Not connected" },
+        status: v.connections === null ? { tone: "unverified", label: unreadStatus } : c ? { tone: "verified", label: "Connected" } : { tone: "off", label: "Not connected" },
         detail:
           v.connections === null ? (
             unread
@@ -95,7 +95,7 @@ export default async function IntegrationsPage() {
       icon: DesktopIcon,
       name: "Farbaek Agent",
       does: "The desktop app that works on approved tasks on your computer, only for as long as you allow.",
-      status: v.agents.paired > 0 ? { tone: "verified", label: "Paired" } : { tone: "unverified", label: "None paired" },
+      status: v.agents.paired > 0 ? { tone: "verified", label: "Paired" } : { tone: "off", label: "None paired" },
       detail: v.agents.paired > 0 ? `${v.agents.paired === 1 ? "1 computer is" : `${v.agents.paired} computers are`} paired with this workspace.` : "Pair a computer with a one-time code.",
       action: { href: "/app/agents", label: "Open Desktop app" },
     },
@@ -116,7 +116,7 @@ export default async function IntegrationsPage() {
       icon: EnvelopeSimpleIcon,
       name: "Email",
       does: "Sends updates about your work, trial reminders and billing notices.",
-      status: v.emailSending ? { tone: "verified", label: "Sending" } : { tone: "unverified", label: "Not sending" },
+      status: v.emailSending ? { tone: "verified", label: "Sending" } : { tone: "off", label: "Not sending" },
       detail: v.emailSending ? "Each person chooses work updates and trial reminders in Settings. Owners and admins always get billing notices." : "Farbaek isn't sending email from this server yet.",
       action: { href: "/app/settings#email", label: "Email choices" },
     },
@@ -143,12 +143,9 @@ export default async function IntegrationsPage() {
         {rows.map((r) => (
           <li key={r.id} className="grid content-start gap-3 rounded-md border border-line bg-surface p-5 shadow-e1">
             <div className="flex items-start justify-between gap-3">
-              <span className="flex items-center gap-3">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-raised text-ink-2">
-                  <r.icon size={20} aria-hidden />
-                </span>
-                <h2 className="text-base font-medium">{r.name}</h2>
-              </span>
+              <CardTitle icon={r.icon} className="min-h-6">
+                {r.name}
+              </CardTitle>
               <StatusBadge status={r.status.tone} label={r.status.label} />
             </div>
             <p className="text-sm leading-relaxed text-ink-2">{r.does}</p>
@@ -164,10 +161,10 @@ export default async function IntegrationsPage() {
         ))}
       </ul>
 
-      <section aria-labelledby="not-yet" className="grid gap-3 rounded-md border border-dashed border-line-strong/40 bg-canvas p-5">
-        <h2 id="not-yet" className="flex items-center gap-2 text-base font-medium text-ink-2">
-          <LockSimpleIcon size={18} aria-hidden /> Not available yet
-        </h2>
+      <section aria-labelledby="not-yet" className="grid gap-3 rounded-md border border-line bg-canvas p-5">
+        <CardTitle id="not-yet" icon={LockSimpleIcon}>
+          Not available yet
+        </CardTitle>
         <ul className="grid gap-1.5 text-sm leading-relaxed text-ink-2">
           <li>Importing private GitHub repositories.</li>
           <li>Local models running on your own computer.</li>

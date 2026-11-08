@@ -36,19 +36,19 @@ export function TaskNotesCard({ taskId, kind, notes, disabledReason }: { taskId:
           }}
           className={buttonClasses("primary", "sm")}
         >
-          <PenNibIcon size={16} aria-hidden /> {pending ? "Writing…" : label}
+          <PenNibIcon size={16} weight="bold" aria-hidden /> {pending ? "Writing…" : label}
         </button>
         {disabledReason ? <span className="text-sm text-ink-3">{disabledReason}</span> : <span className="text-xs text-ink-3">Uses AI from this workspace&apos;s usage. Nothing in the project changes.</span>}
       </div>
       <div aria-live="polite" className="empty:hidden">
         {error ? (
           <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-            <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
             {error}
           </p>
         ) : done ? (
           <p role="status" className="flex items-start gap-2 text-sm text-ink-2">
-            <CheckCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+            <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
             Written. It&apos;s the first note below.
           </p>
         ) : null}
@@ -57,8 +57,13 @@ export function TaskNotesCard({ taskId, kind, notes, disabledReason }: { taskId:
         <ol className="grid gap-4">
           {notes.map((n) => (
             <li key={n.id} className="grid gap-3 rounded-md border border-line bg-surface-sunken/50 p-4">
-              <p className="text-xs text-ink-3">
-                Written by {modelName(n.model)}, <RelativeTime iso={n.createdAt} />.
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-3">
+                <span className="inline-flex h-6 items-center gap-1.5 whitespace-nowrap rounded-full border border-line-2 bg-surface px-2.5 font-medium text-ink-2">
+                  <PenNibIcon size={14} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> AI-written
+                </span>
+                <span>
+                  Written by {modelName(n.model)}, <RelativeTime iso={n.createdAt} />.
+                </span>
               </p>
               {n.summary ? <p className="text-[0.9375rem] leading-relaxed text-ink">{n.summary}</p> : null}
               {n.points.length ? (

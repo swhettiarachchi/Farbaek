@@ -1,28 +1,27 @@
 "use client";
 
-import { CheckCircleIcon, CircleNotchIcon, ProhibitIcon } from "@phosphor-icons/react";
-import type { Icon } from "@phosphor-icons/react";
 import { useReducedMotion } from "motion/react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { canRun3D, whenIdle } from "@/components/three/capability";
+import { StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { CORE_PHASE_LABELS, type Activity, type CorePhase } from "@/core/agent/run-phase";
 
 const AgentCoreScene = dynamic(() => import("@/components/three/agent-core-scene"), { ssr: false });
 
-// Each phase is a word (ADR 0180): a spinner while the agent works, an icon only for how it ended.
-// Idle and waiting carry no glyph: the words say what's next and who it waits for.
-const PHASE_STYLE: Record<CorePhase, { icon: Icon | null; tone: string; spin?: boolean }> = {
-  idle: { icon: null, tone: "text-accent" },
-  starting: { icon: CircleNotchIcon, tone: "text-accent", spin: true },
-  working: { icon: CircleNotchIcon, tone: "text-accent", spin: true },
-  thinking: { icon: CircleNotchIcon, tone: "text-accent", spin: true },
-  reading: { icon: CircleNotchIcon, tone: "text-accent", spin: true },
-  writing: { icon: CircleNotchIcon, tone: "text-accent", spin: true },
-  running: { icon: CircleNotchIcon, tone: "text-accent", spin: true },
-  waiting: { icon: null, tone: "text-approval" },
-  done: { icon: CheckCircleIcon, tone: "text-verified" },
-  stopped: { icon: ProhibitIcon, tone: "text-ink-3" },
+// Each phase is one of the shared kinds (ADR 0183), so its words always come with their icon: not yet while idle,
+// a turning circle while the agent works, "your turn" while it waits, and how it ended. `tone` colours the core itself.
+const PHASE_STYLE: Record<CorePhase, { kind: Status; tone: string }> = {
+  idle: { kind: "unverified", tone: "text-accent" },
+  starting: { kind: "working", tone: "text-accent" },
+  working: { kind: "working", tone: "text-accent" },
+  thinking: { kind: "working", tone: "text-accent" },
+  reading: { kind: "working", tone: "text-accent" },
+  writing: { kind: "working", tone: "text-accent" },
+  running: { kind: "working", tone: "text-accent" },
+  waiting: { kind: "approval", tone: "text-approval" },
+  done: { kind: "done", tone: "text-verified" },
+  stopped: { kind: "off", tone: "text-ink-3" },
 };
 
 /** The still version: shown first, under reduced motion, Save-Data, weak hardware or a slow first second. */
@@ -53,7 +52,8 @@ function StaticCore({ phase }: { phase: CorePhase }) {
  * phase in words beside it. The static core renders first; the 3D scene
  * loads once the browser is idle on a capable device and cross-fades in.
  */
-export function AgentCore({ phase, activity = null, children }: { phase: CorePhase; activity?: Activity | string | null; children?: React.ReactNode }) {
+/** `kind` says how a stopped run ended (failed, cancelled, interrupted), which the phase alone doesn't. */
+export function AgentCore({ phase, activity = null, kind, children }: { phase: CorePhase; activity?: Activity | string | null; kind?: Status; children?: React.ReactNode }) {
   const reduce = useReducedMotion();
   const box = useRef<HTMLDivElement>(null);
   const [want3D, setWant3D] = useState(false);
@@ -112,7 +112,7 @@ export function AgentCore({ phase, activity = null, children }: { phase: CorePha
         </div>
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-xl font-medium tracking-[-0.02em] sm:text-2xl" role="status" aria-live="polite">
-            {style.icon ? <style.icon size={22} weight="bold" className={`shrink-0 ${style.tone} ${style.spin ? "motion-safe:animate-spin" : ""}`} aria-hidden /> : null}
+            <StatusGlyph status={kind ?? style.kind} size={24} />
             {CORE_PHASE_LABELS[phase]}
           </p>
           {/* The step in words (ADR 0180); only a path or a command is mono. A finished run's outcome is a sentence. */}

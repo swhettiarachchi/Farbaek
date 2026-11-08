@@ -67,3 +67,31 @@ describe("human-made, not generated", () => {
     expect(hits([...web, ...desktop], /[>"'`\s]0:00[<"'`\s]/, MOCKUPS)).toEqual([]);
   });
 });
+
+/** The film studio draws a 30px outline behind its 24px cursor, and mockups are other people's sites. */
+const DRAWN = (rel: string) => MOCKUPS(rel) || rel.startsWith("src/components/films/stage/") || rel.startsWith("src/components/showcase/art");
+
+describe("one status system and one icon set (ADR 0183)", () => {
+  it("gives every status its icon: no state table leaves one out", () => {
+    expect(hits([...web, ...desktop], /\bicon: null\b/)).toEqual([]);
+  });
+
+  it("draws every status kind on the iPhone with its symbol", () => {
+    expect(hits(ios, /var symbol: String\?/)).toEqual([]);
+    expect(hits(ios, /Color\.clear\.frame\(width: 22/)).toEqual([]);
+  });
+
+  it("uses icons at 14, 16, 20, 24 or 32 pixels only", () => {
+    expect(hits([...web, ...desktop], /Icon size=\{(?!(?:14|16|20|24|32)\})\d+\}/, DRAWN)).toEqual([]);
+  });
+
+  it("uses two icon weights for outlines and fill for states, never duotone, light or thin", () => {
+    expect(hits([...web, ...desktop], /weight="(?:duotone|light|thin)"/)).toEqual([]);
+  });
+
+  it("has no hazard stripes and no gold, amber or purple colour classes", () => {
+    expect(hits([...web, ...desktop], /repeating-linear-gradient/, MOCKUPS)).toEqual([]);
+    expect(hits([...web, ...desktop], /\b(?:text|bg|border|ring|from|to|via|fill|stroke)-(?:amber|yellow|orange|purple|violet|fuchsia|gold)-\d{2,3}\b/, MOCKUPS)).toEqual([]);
+    expect(hits([...web, ...desktop], /media-amber|#9a4d00|#d98e04|#6941c6/i, MOCKUPS)).toEqual([]);
+  });
+});

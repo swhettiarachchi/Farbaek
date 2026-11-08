@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowCounterClockwiseIcon, CheckCircleIcon, CursorClickIcon, GitDiffIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowCounterClockwiseIcon, CheckCircleIcon, CursorClickIcon, FloppyDiskIcon, GitDiffIcon, InfoIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -127,7 +127,7 @@ export function ComponentEditor({
       <div className="grid gap-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="flex items-center gap-2 text-[0.9375rem] font-medium">
-            <GitDiffIcon size={20} className="text-accent" aria-hidden /> Review the change to {changedPaths.length === 1 ? "1 file" : `${changedPaths.length} files`}
+            <GitDiffIcon size={20} className="shrink-0 text-ink-3" aria-hidden /> Review the change to {changedPaths.length === 1 ? "1 file" : `${changedPaths.length} files`}
           </p>
           <button type="button" onClick={() => setMode("edit")} className={buttonClasses("ghost", "sm")}>
             Back to editing
@@ -143,7 +143,7 @@ export function ComponentEditor({
         <Feedback message={message} />
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" onClick={save} disabled={saving || disabledReason !== null} className={buttonClasses("primary", "md")}>
-            <CheckCircleIcon size={18} aria-hidden /> {saving ? "Saving…" : changedPaths.length === 1 ? "Save the change" : `Save ${changedPaths.length} files`}
+            <FloppyDiskIcon size={16} weight="bold" aria-hidden /> {saving ? "Saving…" : changedPaths.length === 1 ? "Save the change" : `Save ${changedPaths.length} files`}
           </button>
           {disabledReason ? <p className="text-sm text-ink-3">{disabledReason}</p> : <p className="text-sm text-ink-3">Each file becomes a new revision you can see and restore in its history.</p>}
         </div>
@@ -156,7 +156,7 @@ export function ComponentEditor({
       {pick ? (
         <details className="group rounded-md border border-line bg-surface p-4" open={pick.sessions.length > 0}>
           <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-[0.9375rem] font-medium">
-            <CursorClickIcon size={18} className="text-accent" aria-hidden /> Pick in the running app
+            <CursorClickIcon size={20} className="shrink-0 text-ink-3" aria-hidden /> Pick in the running app
           </summary>
           <div className="mt-3 grid gap-3">
             <RunningAppPicker projectId={projectId} sessions={pick.sessions} unavailable={pick.unavailable} onPicked={onPicked} />
@@ -238,7 +238,10 @@ export function ComponentEditor({
               ))}
             </ol>
           ) : (
-            <p className="rounded-md border border-dashed border-line-strong/50 p-4 text-sm text-ink-2">{scan.reason}</p>
+            <p className="flex items-start gap-2 rounded-md border border-line bg-surface p-4 text-sm text-ink-2">
+              <InfoIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-info" aria-hidden />
+              <span>{scan.reason}</span>
+            </p>
           )}
         </div>
 
@@ -247,10 +250,10 @@ export function ComponentEditor({
           <Feedback message={message} />
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={() => setMode("review")} disabled={changedPaths.length === 0} className={buttonClasses("primary", "sm")}>
-              <GitDiffIcon size={16} aria-hidden /> Review {changedPaths.length ? (changedPaths.length === 1 ? "1 file" : `${changedPaths.length} files`) : "changes"}
+              <GitDiffIcon size={16} weight="bold" aria-hidden /> Review {changedPaths.length ? (changedPaths.length === 1 ? "1 file" : `${changedPaths.length} files`) : "changes"}
             </button>
             <button type="button" onClick={undo} disabled={history.length === 0} className={buttonClasses("ghost", "sm")}>
-              <ArrowCounterClockwiseIcon size={16} aria-hidden /> Undo
+              <ArrowCounterClockwiseIcon size={16} weight="bold" aria-hidden /> Undo
             </button>
           </div>
           <p className="text-xs text-ink-3">
@@ -271,7 +274,7 @@ function Feedback({ message }: { message: Message | null }) {
     <div aria-live="polite" className="empty:hidden">
       {message ? (
         <p role={message.tone === "error" ? "alert" : "status"} className={`flex items-start gap-2 text-sm ${message.tone === "error" ? "text-failed" : "text-ink-2"}`}>
-          {message.tone === "error" ? <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> : <CheckCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden />}
+          {message.tone === "error" ? <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden /> : <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />}
           {message.text}
         </p>
       ) : null}

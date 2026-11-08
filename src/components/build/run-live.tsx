@@ -2,16 +2,20 @@
 
 import {
   ArrowRightIcon,
+  BrowserIcon,
   ChatTextIcon,
+  CheckCircleIcon,
   CheckIcon,
   EyeIcon,
   FilePlusIcon,
   FlagCheckeredIcon,
+  FolderOpenIcon,
+  HammerIcon,
   InfoIcon,
+  ListNumbersIcon,
   MagnifyingGlassIcon,
   PaperPlaneRightIcon,
   PencilSimpleLineIcon,
-  ProhibitIcon,
   ShieldWarningIcon,
   StopCircleIcon,
   TerminalWindowIcon,
@@ -24,7 +28,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { answerBuildApprovalAction, cancelBuildRunAction, sendRunMessageAction } from "@/app/app/build/actions";
+import { CardTitle, Notice } from "@/components/app/primitives";
 import { buttonClasses } from "@/components/ui/button";
+import { STATUS_KINDS, StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { CLOUD_RUN_MODE_LABELS, endedWhileWatching, isLive } from "@/core/agent/cloud-run";
 import { EFFORT_LABELS } from "@/core/agent/effort";
 import { modelName } from "@/core/billing/model-names";
@@ -34,9 +40,24 @@ import { StaticPreview } from "@/components/preview/static-preview";
 import type { RunPreview } from "@/server/workspace/run-preview";
 import { AgentCore } from "./agent-core";
 import { PromptComposer } from "./prompt-composer";
-import { RunStatusBadge } from "./run-status";
+import { RUN_STATUS_KIND, RunStatusBadge } from "./run-status";
 
 const POLL_MS = 1_500;
+
+/** A step's result in its kind's colour, with the kind's icon beside the words (ADR 0183). */
+function StepResult({ kind, children }: { kind: Status; children: React.ReactNode }) {
+  const color = STATUS_KINDS[kind].className.split(" ").find((c) => c.startsWith("text-")) ?? "text-ink-3";
+  return (
+    <span className={`inline-flex items-center gap-1 self-center text-xs font-medium ${color}`}>
+      <StatusGlyph status={kind} size={14} />
+      {children}
+    </span>
+  );
+}
+
+/** How a tool call ended, as a kind: refused by a rule, declined by a person, failed, or still going. */
+const TOOL_KIND: Record<string, Status> = { failed: "failed", denied: "blocked", declined: "off" };
+const TOOL_WORDS: Record<string, string> = { failed: "Failed", denied: "Not allowed", declined: "Declined" };
 
 const TOOL_ICON: Record<string, Icon> = {
   read_file: EyeIcon,
@@ -78,7 +99,8 @@ export function EventRow({ e, latest }: { e: RunEventView; latest: boolean }) {
     const tool = str(p.tool);
     icon = TOOL_ICON[tool] ?? InfoIcon;
     const status = str(p.status);
-    tone = status === "done" ? "text-ink-2" : status === "failed" ? "text-failed" : "text-approval";
+    const kind = TOOL_KIND[status] ?? "off";
+    tone = status === "done" ? "text-ink-2" : kind === "off" ? "text-ink-3" : "text-failed";
     const target = toolTarget(tool, str(p.target));
     body = (
       <div className="min-w-0">
@@ -88,7 +110,7 @@ export function EventRow({ e, latest }: { e: RunEventView; latest: boolean }) {
             {tool === "finish" && target ? ":" : ""}
           </span>
           {target ? <span className={`break-all text-ink ${target.mono ? "font-mono text-[0.8125rem]" : ""}`}>{target.text}</span> : null}
-          {status !== "done" ? <span className={`text-xs font-medium ${tone}`}>{status === "failed" ? "Failed" : status === "denied" ? "Not allowed" : "Declined"}</span> : null}
+          {status !== "done" ? <StepResult kind={kind}>{TOOL_WORDS[status] ?? "Declined"}</StepResult> : null}
         </p>
         {status !== "done" && str(p.detail) ? <p className="mt-1 text-xs text-ink-3">{str(p.detail)}</p> : null}
       </div>
@@ -96,12 +118,12 @@ export function EventRow({ e, latest }: { e: RunEventView; latest: boolean }) {
   } else if (e.kind === "command") {
     icon = TerminalWindowIcon;
     const code = typeof p.exitCode === "number" ? p.exitCode : null;
-    tone = code === 0 ? "text-verified" : "text-failed";
+    tone = code === 0 ? "text-verified" : code === null ? "text-caution" : "text-failed";
     body = (
       <details className="group min-w-0">
         <summary className="flex cursor-pointer list-none flex-wrap items-baseline gap-x-2 text-sm pointer-coarse:min-h-11 pointer-coarse:items-center">
           <span className="break-all font-mono text-[0.8125rem] text-ink">{str(p.command)}</span>
-          <span className={`text-xs font-medium ${tone}`}>{code === 0 ? "Passed" : code === null ? "Didn't finish" : `Failed (exit ${code})`}</span>
+          <StepResult kind={code === 0 ? "verified" : code === null ? "attention" : "failed"}>{code === 0 ? "Passed" : code === null ? "Didn't finish" : `Failed (exit ${code})`}</StepResult>
           <span className="text-xs text-ink-3 group-open:hidden">Show output</span>
         </summary>
         <pre className="mt-2 max-h-72 overflow-auto rounded-sm bg-media p-3 font-mono text-xs leading-relaxed text-media-ink">{str(p.output) || "No output."}</pre>
@@ -131,7 +153,7 @@ export function EventRow({ e, latest }: { e: RunEventView; latest: boolean }) {
   return (
     <li className="relative grid grid-cols-[28px_minmax(0,1fr)] gap-3 pb-5 motion-safe:animate-[usage-in_220ms_cubic-bezier(0.16,1,0.3,1)]">
       <span className={`relative z-10 mt-0.5 inline-flex size-7 items-center justify-center rounded-full border border-line bg-surface ${tone}`}>
-        <RowIcon size={15} weight="bold" aria-hidden />
+        <RowIcon size={16} weight="bold" aria-hidden />
         {latest ? <span className="absolute inset-0 rounded-full ring-2 ring-accent/40 motion-safe:animate-ping" aria-hidden /> : null}
       </span>
       <div className="min-w-0 pt-1">{body}</div>
@@ -153,11 +175,11 @@ function ApprovalCard({ run, request, onAnswered }: { run: RunView; request: Run
   return (
     <section
       aria-labelledby="approval-heading"
-      className="grid gap-3 rounded-md border border-approval/40 bg-approval/[0.06] p-5 max-lg:max-h-[62dvh] max-lg:overflow-y-auto max-lg:rounded-lg max-lg:bg-surface max-lg:shadow-e3 max-lg:motion-safe:animate-[sheet-up_320ms_cubic-bezier(0.16,1,0.3,1)]"
+      className="grid gap-3 rounded-md border border-approval/30 bg-approval/[0.04] p-5 max-lg:max-h-[62dvh] max-lg:overflow-y-auto max-lg:rounded-lg max-lg:bg-surface max-lg:shadow-e3 max-lg:motion-safe:animate-[sheet-up_320ms_cubic-bezier(0.16,1,0.3,1)]"
     >
       <span className="mx-auto -mt-1 h-1 w-10 rounded-full bg-line lg:hidden" aria-hidden />
-      <h2 id="approval-heading" className="flex items-center gap-2 text-base font-medium">
-        <ShieldWarningIcon size={18} weight="bold" className="text-approval" aria-hidden /> The agent wants to run a command
+      <h2 id="approval-heading" className="flex items-center gap-2.5 text-base font-medium text-ink">
+        <TerminalWindowIcon size={20} className="shrink-0 text-approval" aria-hidden /> The agent wants to run a command
       </h2>
       <pre className="overflow-x-auto rounded-sm bg-media p-3 font-mono text-[0.8125rem] text-media-ink">{str(p.display)}</pre>
       <dl className="grid gap-1 text-sm">
@@ -175,7 +197,7 @@ function ApprovalCard({ run, request, onAnswered }: { run: RunView; request: Run
       <p className="text-xs text-ink-3">It runs in the run&apos;s own test space, never on Farbaek&apos;s servers or your computer.</p>
       {error ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {error}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden /> {error}
         </p>
       ) : null}
       <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
@@ -231,12 +253,17 @@ function MessageBar({ runId }: { runId: string }) {
           className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Send to the agent"
         >
-          <PaperPlaneRightIcon size={18} weight="fill" aria-hidden />
+          <PaperPlaneRightIcon size={20} aria-hidden />
         </button>
       </div>
       {note ? (
-        <p role={note.ok ? "status" : "alert"} className={`px-5 text-xs ${note.ok ? "text-ink-3" : "text-failed"}`}>
-          {note.text}
+        <p role={note.ok ? "status" : "alert"} className={`flex items-start gap-2 px-5 text-xs ${note.ok ? "text-ink-3" : "text-failed"}`}>
+          {note.ok ? (
+            <CheckCircleIcon size={16} weight="fill" className="shrink-0 text-verified" aria-hidden />
+          ) : (
+            <WarningCircleIcon size={16} weight="fill" className="shrink-0 text-failed" aria-hidden />
+          )}
+          <span>{note.text}</span>
         </p>
       ) : (
         <p className="px-5 text-xs text-ink-3">It can&apos;t widen the plan: the agent stays within what you approved.</p>
@@ -362,7 +389,7 @@ export function RunLive({
 
   return (
     <div className="grid gap-6">
-      <AgentCore phase={phase} activity={live ? latestActivity(latest) : run.outcome}>
+      <AgentCore phase={phase} kind={phase === "stopped" ? RUN_STATUS_KIND[run.status] : undefined} activity={live ? latestActivity(latest) : run.outcome}>
         {/* What a person wants to know, said in sentences (ADR 0180): where the run is, on what, and what it has used. */}
         <div className="grid gap-1.5 text-sm text-ink-2">
           <p>
@@ -392,12 +419,12 @@ export function RunLive({
       {live && canAnswer ? <MessageBar runId={run.id} /> : null}
       {!live && canAnswer ? (
         <section aria-labelledby="next-heading" className="grid gap-3">
-          <h2 id="next-heading" className="text-base font-medium">
+          <CardTitle id="next-heading" icon={HammerIcon}>
             Keep going
-          </h2>
+          </CardTitle>
           {changePending ? (
             <p className="flex items-start gap-2 text-sm leading-relaxed text-ink-2">
-              <InfoIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-accent" aria-hidden />
+              <InfoIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-info" aria-hidden />
               <span>
                 This change isn&apos;t in your project yet. Apply it first and the next change builds on it; otherwise the agent starts from your project as it is now.
               </span>
@@ -416,7 +443,7 @@ export function RunLive({
         </>
       ) : null}
       {waitingOn && !canAnswer ? (
-        <p className="rounded-md border border-approval/40 bg-approval/[0.06] p-4 text-sm">The agent is waiting for the person who started the run to approve a command.</p>
+        <Notice>The agent is waiting for the person who started the run to approve a command.</Notice>
       ) : null}
 
       <div className="lg:hidden">
@@ -440,9 +467,9 @@ export function RunLive({
       <div className="grid gap-6 [touch-action:pan-y] lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:grid-rows-[auto_auto_1fr] lg:items-start" {...panes.swipe}>
         <div id="pane-steps" className={`${panes.paneClass("steps")} lg:col-start-1 lg:row-start-1`}>
           <section aria-labelledby="steps-heading" className="rounded-md border border-line bg-surface p-5 shadow-e1 sm:p-6">
-            <h2 id="steps-heading" className="mb-5 text-lg font-medium">
+            <CardTitle id="steps-heading" icon={ListNumbersIcon} className="mb-5">
               Steps
-            </h2>
+            </CardTitle>
             {events.length === 0 ? (
               <p className="text-sm text-ink-3">{live ? "The agent is getting ready…" : "This run recorded no steps."}</p>
             ) : (
@@ -458,9 +485,9 @@ export function RunLive({
         {/* On wide screens the preview holds the right column and stays in view while the steps scroll. */}
         <div id="pane-preview" className={`${panes.paneClass("preview")} lg:sticky lg:top-6 lg:col-start-2 lg:row-span-3 lg:row-start-1`}>
           <section aria-labelledby="preview-heading" className="rounded-md border border-line bg-surface p-4 shadow-e1 sm:p-5">
-            <h2 id="preview-heading" className="mb-3 flex items-center gap-2 text-base font-medium">
-              <EyeIcon size={18} weight="bold" className="text-accent" aria-hidden /> Preview
-            </h2>
+            <CardTitle id="preview-heading" icon={BrowserIcon} className="mb-3">
+              Preview
+            </CardTitle>
             {preview.kind === "static" ? <StaticPreview versions={preview.versions} frameClassName="h-[min(70dvh,640px)] lg:h-[max(22rem,calc(100dvh-17rem))]" /> :<p className="text-sm leading-relaxed text-ink-3">{preview.reason}</p>}
           </section>
         </div>
@@ -469,7 +496,7 @@ export function RunLive({
           <div className="grid gap-4">
             <section className="rounded-md border border-line bg-surface p-5 shadow-e1">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-base font-medium">Run</h2>
+                <CardTitle icon={HammerIcon}>Run</CardTitle>
                 <RunStatusBadge status={run.status} />
               </div>
               <dl className="mt-4 grid gap-2 text-sm">
@@ -502,7 +529,12 @@ export function RunLive({
                   <StopCircleIcon size={16} weight="bold" aria-hidden /> {cancelling ? "Stopping…" : "Stop the run"}
                 </button>
               ) : null}
-              {error ? <p role="alert" className="mt-2 text-sm text-failed">{error}</p> : null}
+              {error ? (
+                <p role="alert" className="mt-2 flex items-start gap-2 text-sm text-failed">
+                  <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+                  <span>{error}</span>
+                </p>
+              ) : null}
             </section>
 
             {run.outcome ? (
@@ -512,9 +544,14 @@ export function RunLive({
                   if (e.animationName === (run.status === "finished" ? "moment-pop" : "moment-lift")) setRisen(true);
                 }}
               >
-                <h2 className="flex items-center gap-2 text-base font-medium">
-                  {run.status === "finished" ? <FlagCheckeredIcon size={18} weight="bold" className={arrived ? "moment-pop" : ""} aria-hidden /> : <ProhibitIcon size={18} weight="bold" aria-hidden />}{" "}
-                  {run.status === "finished" ? "The agent finished" : "What happened"}
+                {/* Laid out as CardTitle, so the finish flag can carry the moment's pop; any other ending shows its kind. */}
+                <h2 className="flex items-center gap-2.5 text-lg font-medium">
+                  {run.status === "finished" ? (
+                    <FlagCheckeredIcon size={20} className={`shrink-0 text-ink-3 ${arrived ? "moment-pop" : ""}`} aria-hidden />
+                  ) : (
+                    <StatusGlyph status={RUN_STATUS_KIND[run.status]} size={20} />
+                  )}
+                  <span className="min-w-0">{run.status === "finished" ? "The agent finished" : "What happened"}</span>
                 </h2>
                 <p className="mt-2 text-sm leading-relaxed text-ink-2">{run.outcome}</p>
                 {run.finish ? <p className="mt-3 text-sm leading-relaxed text-ink">{run.finish.summary}</p> : null}
@@ -530,9 +567,9 @@ export function RunLive({
 
         <div id="pane-files" className={`${panes.paneClass("files")} lg:col-start-1 lg:row-start-3`}>
           <section aria-labelledby="files-heading" className="rounded-md border border-line bg-surface p-5 shadow-e1">
-            <h2 id="files-heading" className="text-base font-medium">
+            <CardTitle id="files-heading" icon={FolderOpenIcon}>
               Files
-            </h2>
+            </CardTitle>
             {files.read > 0 ? (
               <p className="mt-1 text-sm text-ink-2">
                 The agent {live ? "has read" : "read"} <span className="tabular font-medium text-ink">{files.read}</span> {files.read === 1 ? "file" : "files"}
@@ -547,7 +584,7 @@ export function RunLive({
                   const FileIcon = f.change === "written" ? FilePlusIcon : PencilSimpleLineIcon;
                   return (
                     <li key={f.path} className="flex items-center gap-2.5 text-sm">
-                      <FileIcon size={16} weight="bold" className="shrink-0 text-accent" aria-hidden />
+                      <FileIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
                       <span className="min-w-0 flex-1 truncate font-mono text-[0.8125rem]" title={f.path}>
                         {f.path}
                       </span>

@@ -132,10 +132,10 @@ export function ImportFiles({ projectId, disabledReason, compact = false }: { pr
 
       <div className={`flex flex-wrap items-center gap-3 ${compact ? "" : "justify-center"}`}>
         <button type="button" disabled={blocked} onClick={() => folderInput.current?.click()} className={buttonClasses(compact ? "secondary" : "primary", compact ? "sm" : "md")}>
-          <FolderOpenIcon size={18} aria-hidden /> Choose a folder
+          <FolderOpenIcon size={16} weight="bold" aria-hidden /> Choose a folder
         </button>
         <button type="button" disabled={blocked} onClick={() => filesInput.current?.click()} className={buttonClasses(compact ? "ghost" : "secondary", compact ? "sm" : "md")}>
-          <FilesIcon size={18} aria-hidden /> Choose files
+          <FilesIcon size={16} weight="bold" aria-hidden /> Choose files
         </button>
       </div>
       <p className={`text-xs leading-relaxed text-ink-3 ${compact ? "" : "text-center"}`}>
@@ -154,13 +154,13 @@ export function ImportFiles({ projectId, disabledReason, compact = false }: { pr
             </p>
             {tooBig ? (
               <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-                <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
+                <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
                 That&apos;s more than {formatBytes(WORKSPACE_LIMITS.maxImportBytes)} of text. Choose a smaller folder, for example src.
               </p>
             ) : null}
             {tooMany ? (
               <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-                <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
+                <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
                 A project can hold up to {WORKSPACE_LIMITS.maxProjectFiles.toLocaleString("en-US")} files.
               </p>
             ) : null}
@@ -178,7 +178,7 @@ export function ImportFiles({ projectId, disabledReason, compact = false }: { pr
         {result?.status === "done" ? (
           <div role="status" className="grid gap-3 rounded-sm border border-verified/30 bg-verified/[0.05] p-4 text-sm">
             <p className="flex items-start gap-2">
-              <CheckCircleIcon size={18} weight="fill" className="mt-px shrink-0 text-verified" aria-hidden />
+              <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
               <span>
                 Imported. {result.summary.created} new, {result.summary.updated} updated, {result.summary.unchanged} unchanged.
               </span>
@@ -188,7 +188,7 @@ export function ImportFiles({ projectId, disabledReason, compact = false }: { pr
         ) : null}
         {result?.status === "error" ? (
           <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-            <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
             {result.message}
           </p>
         ) : null}

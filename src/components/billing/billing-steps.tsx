@@ -1,14 +1,15 @@
-import { CheckCircleIcon, CreditCardIcon, WarningIcon } from "@phosphor-icons/react/ssr";
+import { CreditCardIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { NotInAndroidApp, WebPurchaseOnly } from "./web-purchase-only";
 import { ManageInGooglePlay } from "./play-billing";
 import { googlePlayProductForPlan } from "@/core/billing/google-play";
 import { cancelPlanAction, changePlanAction, openPortalAction, resumePlanAction, startCheckoutAction } from "@/app/app/billing/actions";
-import { Notice } from "@/components/app/primitives";
+import { CardTitle, Notice } from "@/components/app/primitives";
 import { sessionsLine } from "@/components/pricing/pricing-plans";
 import { LocalTime } from "@/components/ui/local-time";
 import { buttonClasses } from "@/components/ui/button";
+import { StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { chargeCents, chargeLine, formatUsd, getPlan, isYearly } from "@/core/billing/catalog";
 import { checkoutConsentText, formatMinorUnits } from "@/core/billing/provider-state";
 import type { PaidPlanId } from "@/core/billing/provider";
@@ -21,9 +22,9 @@ function StepShell({ title, children }: { title: string; children: ReactNode }) 
   return (
     <section id="billing-step" aria-labelledby="billing-step-title" className="scroll-mt-24 rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line motion-safe:animate-[usage-in_260ms_cubic-bezier(0.16,1,0.3,1)_both]">
       <div className="rounded-md border border-line bg-surface p-5 shadow-e1 sm:p-6">
-        <h2 id="billing-step-title" className="text-lg font-medium tracking-[-0.02em]">
+        <CardTitle id="billing-step-title" icon={CreditCardIcon}>
           {title}
-        </h2>
+        </CardTitle>
         {children}
       </div>
     </section>
@@ -167,25 +168,24 @@ export function CancelStep({ subscription, error }: { subscription: NonNullable<
   );
 }
 
-// A state is its word in its colour (ADR 0180); a mark only for the good state and the payment states (due, paused).
-const STATE_LINES: Record<string, { icon: typeof CheckCircleIcon | null; tone: string; label: string }> = {
-  active: { icon: CheckCircleIcon, tone: "text-verified", label: "Active" },
-  past_due: { icon: WarningIcon, tone: "text-approval", label: "Payment due" },
-  cancellation_scheduled: { icon: null, tone: "text-ink-2", label: "Cancelled" },
-  suspended: { icon: WarningIcon, tone: "text-failed", label: "Paused" },
+// Each state is its kind (ADR 0183): its word and icon in its colour.
+const STATE_LINES: Record<string, { status: Status; label: string }> = {
+  active: { status: "verified", label: "Active" },
+  past_due: { status: "attention", label: "Payment due" },
+  cancellation_scheduled: { status: "off", label: "Cancelled" },
+  suspended: { status: "paused", label: "Paused" },
 };
 
 /** The subscription inside the Current plan card: its state in words, its date, and what an owner or admin can do. */
 export function SubscriptionSummary({ subscription, canManage }: { subscription: NonNullable<BillingView["subscription"]>; canManage: boolean }) {
   const line = STATE_LINES[subscription.state] ?? STATE_LINES.active!;
-  const StateIcon = line.icon;
   const date = subscription.paidThrough ? <LocalTime iso={subscription.paidThrough} /> : null;
   return (
     <div className="mt-4 grid gap-4">
       <p className="flex items-start gap-2 text-sm text-ink">
-        {StateIcon ? <StateIcon size={18} weight="bold" className={`mt-px shrink-0 ${line.tone}`} aria-hidden /> : null}
+        <StatusGlyph status={line.status} className="mt-0.5" />
         <span>
-          <span className={`font-medium ${StateIcon ? "" : line.tone}`}>{line.label}.</span>{" "}
+          <span className="font-medium">{line.label}.</span>{" "}
           {subscription.state === "active" ? <>Renews {date ?? "each month"}.</> : null}
           {subscription.state === "cancellation_scheduled" ? <>Runs until {date ?? "the end of the period"}, then this workspace moves to Free.</> : null}
           {subscription.state === "past_due" ? <>The last payment didn&apos;t go through. Paid features keep working while you update your payment method.</> : null}
@@ -234,7 +234,7 @@ export function SubscriptionSummary({ subscription, canManage }: { subscription:
         <p className="text-xs text-ink-3">Only the workspace&apos;s owners and admins change its plan or payment method.</p>
       )}
       <p className="flex items-center gap-2 border-t border-line pt-4 text-sm text-ink-3">
-        <CreditCardIcon size={18} aria-hidden />{" "}
+        <CreditCardIcon size={16} weight="bold" className="shrink-0" aria-hidden />{" "}
         {subscription.provider === "apple" ? "Receipts come from Apple." : subscription.provider === "google" ? "Receipts come from Google Play." : <>Invoices and receipts are in Dodo Payments&apos; portal.</>}
       </p>
     </div>

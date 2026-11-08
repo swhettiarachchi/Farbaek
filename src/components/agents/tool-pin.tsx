@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, LockSimpleIcon, WarningIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, LockSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useState, useTransition } from "react";
 import { approveAgentToolsAction } from "@/app/app/agents/tool-actions";
 import { parseMcpToolName } from "@/agent-runtime/mcp/names";
@@ -20,14 +20,18 @@ export function ToolPinPanel({ agentId, pin, canApprove, disabledReason }: { age
   if (pin.status === "pinned") {
     return (
       <p className="flex items-center gap-2 text-sm text-ink-2">
-        <LockSimpleIcon size={16} className="text-verified" aria-hidden /> {pin.tools === 1 ? "1 tool" : `${pin.tools} tools`} pinned. A change pauses its AI steps until someone approves it.
+        <LockSimpleIcon size={16} weight="bold" className="shrink-0 text-verified" aria-hidden /> {pin.tools === 1 ? "1 tool" : `${pin.tools} tools`} pinned. A change pauses its AI steps until someone approves it.
       </p>
     );
   }
   const d = pin.diff;
   return (
-    <div className="grid gap-3 rounded-md border border-approval/50 bg-approval/[0.06] p-4">
-      <p className="text-sm font-medium text-ink">Its tools changed, so its AI steps are paused until they&apos;re reviewed.</p>
+    // A change to look at first: a neutral surface, with the warning in burnt orange (ADR 0183).
+    <div className="grid gap-3 rounded-md border border-line bg-surface-raised/70 p-4">
+      <p className="flex items-start gap-2 text-sm font-medium text-ink">
+        <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
+        <span>Its tools changed, so its AI steps are paused until they&apos;re reviewed.</span>
+      </p>
       {d ? (
         <ul className="grid gap-2 text-sm text-ink-2">
           {d.added.map((n) => {
@@ -84,8 +88,12 @@ export function ToolPinPanel({ agentId, pin, canApprove, disabledReason }: { age
       <div aria-live="polite" className="empty:hidden">
         {message ? (
           <p role={message.ok ? "status" : "alert"} className={`flex items-start gap-2 text-sm ${message.ok ? "text-ink-2" : "text-failed"}`}>
-            {message.ok ? <CheckCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden /> : <WarningIcon size={16} className="mt-0.5 shrink-0" aria-hidden />}
-            {message.text}
+            {message.ok ? (
+              <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+            ) : (
+              <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+            )}
+            <span>{message.text}</span>
           </p>
         ) : null}
       </div>

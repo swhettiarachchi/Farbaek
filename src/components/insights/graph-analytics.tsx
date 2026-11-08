@@ -1,4 +1,4 @@
-import { WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { FileCodeIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import { formatDuration, OUTCOME_WORDS, PROOF_WORDS, type GraphAnalytics, type ProofStatus } from "@/core/insights/project-graph";
 import type { ReactNode } from "react";
 
@@ -120,7 +120,7 @@ export function GraphAnalyticsView({ a }: { a: GraphAnalytics }) {
           )}
           {a.incidents ? (
             <p className="flex items-center gap-1.5 text-xs text-ink-2">
-              <WarningCircleIcon size={14} weight="bold" className="text-failed" aria-hidden /> {a.incidents} {a.incidents === 1 ? "problem is" : "problems are"} linked to these changes.
+              <WarningCircleIcon size={14} weight="fill" className="shrink-0 text-caution" aria-hidden /> {a.incidents} {a.incidents === 1 ? "problem is" : "problems are"} linked to these changes.
             </p>
           ) : null}
         </Panel>
@@ -129,17 +129,20 @@ export function GraphAnalyticsView({ a }: { a: GraphAnalytics }) {
           {a.hotFiles.length ? (
             <ul className="grid gap-2.5">
               {a.hotFiles.map((f) => (
-                <li key={f.path} className="grid min-w-0 gap-0.5">
-                  <span className="truncate font-mono text-[0.8125rem] text-ink" title={f.path}>
-                    {f.path}
-                  </span>
-                  <span className="text-xs text-ink-3">
-                    {f.changes} {f.changes === 1 ? "change" : "changes"}
-                    {f.failed ? (
-                      <span className="text-failed">
-                        , {f.failed} ended in failed checks
-                      </span>
-                    ) : null}
+                <li key={f.path} className="flex min-w-0 gap-2.5">
+                  <FileCodeIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
+                  <span className="grid min-w-0 gap-0.5">
+                    <span className="truncate font-mono text-[0.8125rem] text-ink" title={f.path}>
+                      {f.path}
+                    </span>
+                    <span className="text-xs text-ink-3">
+                      {f.changes} {f.changes === 1 ? "change" : "changes"}
+                      {f.failed ? (
+                        <span className="text-failed">
+                          , {f.failed} ended in failed checks
+                        </span>
+                      ) : null}
+                    </span>
                   </span>
                 </li>
               ))}

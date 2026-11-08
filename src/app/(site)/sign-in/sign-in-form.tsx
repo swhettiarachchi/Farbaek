@@ -33,7 +33,7 @@ export function SignInForm({
   if (state.status === "sent") {
     return (
       <div role="status" className="rounded-md border border-line bg-surface p-6">
-        <EnvelopeSimpleIcon size={28} className="text-accent" aria-hidden />
+        <EnvelopeSimpleIcon size={32} className="text-accent" aria-hidden />
         <h2 className="mt-4 text-xl font-medium">Check your inbox</h2>
         <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink-2">
           If <span className="font-medium text-ink">{state.email}</span> can receive mail, a sign-in link is on its way. The link works
@@ -53,7 +53,7 @@ export function SignInForm({
       <input type="hidden" name="next" value={next} />
       {formNotice ? (
         <p role="alert" className="flex gap-2 rounded-sm border border-failed/30 bg-failed/5 px-3 py-2.5 text-sm text-failed">
-          <WarningCircleIcon size={18} weight="bold" className="mt-px shrink-0" aria-hidden />
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
           {formNotice}
         </p>
       ) : null}
@@ -70,7 +70,7 @@ export function SignInForm({
             ) : null}
             {providers.apple ? (
               <a href={`/auth/apple?${new URLSearchParams({ next })}`} className={buttonClasses("outline", "md", "w-full")}>
-                <AppleLogoIcon size={19} weight="fill" aria-hidden />
+                <AppleLogoIcon size={20} weight="fill" aria-hidden />
                 Continue with Apple
               </a>
             ) : null}
@@ -99,7 +99,8 @@ export function SignInForm({
           className="h-11 rounded-sm border border-line-strong bg-canvas px-3 text-base"
         />
         {message ? (
-          <p id={errorId} role="alert" className="text-sm text-failed">
+          <p id={errorId} role="alert" className="flex items-start gap-1.5 text-sm text-failed">
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
             {message}
           </p>
         ) : null}

@@ -1,9 +1,10 @@
-import { ArrowClockwiseIcon, CaretRightIcon, CheckCircleIcon, CircleDashedIcon, ProhibitIcon, QuestionIcon, WarningIcon } from "@phosphor-icons/react/ssr";
+import { ArrowClockwiseIcon, CaretRightIcon, CheckCircleIcon, HardDrivesIcon, PlugsConnectedIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Card, Notice, PageHeader } from "@/components/app/primitives";
+import { Card, CardTitle, Notice, PageHeader } from "@/components/app/primitives";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
+import { StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { deploymentConnections } from "@/server/admin/data";
 import { liveRunsHere } from "@/server/cloud-agent/executor";
 import { requireStaff } from "@/server/office/access";
@@ -11,10 +12,11 @@ import { loadHealth, serverFacts, type CheckState } from "@/server/office/health
 
 export const metadata: Metadata = { title: "Health" };
 
-const LOOK: Record<CheckState, { icon: typeof CheckCircleIcon; word: string; tone: string; edge: string }> = {
-  ok: { icon: CheckCircleIcon, word: "OK", tone: "text-verified", edge: "border-line" },
-  attention: { icon: WarningIcon, word: "Needs a look", tone: "text-approval", edge: "border-approval/40" },
-  unknown: { icon: QuestionIcon, word: "Unknown", tone: "text-ink-3", edge: "border-dashed border-line-strong/50" },
+// Each check is its kind (ADR 0183): OK is verified, needs a look is attention, unknown is not checked yet.
+const LOOK: Record<CheckState, { kind: Status; word: string; edge: string }> = {
+  ok: { kind: "verified", word: "OK", edge: "border-line" },
+  attention: { kind: "attention", word: "Needs a look", edge: "border-caution/35" },
+  unknown: { kind: "unverified", word: "Unknown", edge: "border-line-2" },
 };
 
 export default async function OfficeHealth() {
@@ -31,14 +33,14 @@ export default async function OfficeHealth() {
         description="Is Farbaek working right now? Read live from the database and this server. Nothing here is estimated."
         actions={
           <Link href="/health" className={buttonClasses("secondary", "sm")}>
-            <ArrowClockwiseIcon size={16} aria-hidden /> Check again
+            <ArrowClockwiseIcon size={16} weight="bold" aria-hidden /> Check again
           </Link>
         }
       />
 
       {"error" in health ? (
-        <p role="alert" className="flex items-start gap-3 rounded-lg border border-failed/35 bg-failed/[0.05] p-5 text-sm">
-          <ProhibitIcon size={22} weight="bold" className="shrink-0 text-failed" aria-hidden />
+        <p role="alert" className="flex items-start gap-3 rounded-lg border border-failed/35 bg-surface p-5 text-sm">
+          <WarningCircleIcon size={20} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
           <span>
             <span className="block text-base font-medium text-ink">The platform check didn&apos;t complete</span>
             <span className="text-ink-2">{health.error}</span>
@@ -48,13 +50,11 @@ export default async function OfficeHealth() {
         <>
           <section
             aria-label="Summary"
-            className={`flex flex-wrap items-center gap-4 rounded-lg border p-5 sm:p-6 ${attention === 0 ? "border-verified/30 bg-verified/[0.05]" : "border-approval/35 bg-approval/[0.06]"}`}
+            className={`flex flex-wrap items-center gap-4 rounded-lg border bg-surface p-5 shadow-e1 sm:p-6 ${attention === 0 ? "border-verified/30" : "border-caution/35"}`}
           >
-            <span className={`relative flex size-11 shrink-0 items-center justify-center rounded-full bg-surface shadow-e1 ${attention === 0 ? "text-verified" : "text-approval"}`}>
-              {attention === 0 ? (
-                <span aria-hidden className="absolute inset-0 rounded-full ring-2 ring-verified/40 motion-safe:animate-ping [animation-duration:2.4s]" />
-              ) : null}
-              {attention === 0 ? <CheckCircleIcon size={24} weight="fill" aria-hidden /> : <WarningIcon size={24} weight="fill" aria-hidden />}
+            {/* A neutral callout; the icon's colour says which (ADR 0183). */}
+            <span className={`flex size-11 shrink-0 items-center justify-center rounded-full bg-surface-raised ${attention === 0 ? "text-verified" : "text-caution"}`}>
+              {attention === 0 ? <CheckCircleIcon size={24} weight="fill" aria-hidden /> : <WarningCircleIcon size={24} weight="fill" aria-hidden />}
             </span>
             <span className="grid gap-0.5">
               <span className="text-lg font-medium">{attention === 0 ? "Everything checked is working" : `${attention} ${attention === 1 ? "check needs" : "checks need"} a look`}</span>
@@ -71,9 +71,7 @@ export default async function OfficeHealth() {
                 <>
                   <span className="flex items-center justify-between gap-3">
                     <span className="text-sm text-ink-2">{c.label}</span>
-                    <span className={`inline-flex items-center gap-1 text-xs font-medium ${look.tone}`}>
-                      <look.icon size={15} weight="fill" aria-hidden /> {look.word}
-                    </span>
+                    <StatusBadge status={look.kind} label={look.word} />
                   </span>
                   <span className="mt-2 block font-mono text-[1.6rem] font-medium leading-tight tracking-[-0.03em] tabular">{c.value}</span>
                   <span className="mt-2 block text-xs leading-relaxed text-ink-3">{c.detail}</span>
@@ -86,7 +84,7 @@ export default async function OfficeHealth() {
                     <Link href={c.href} className={`${cls} group transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-e2 motion-reduce:hover:translate-y-0`}>
                       {body}
                       <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-accent">
-                        Open <CaretRightIcon size={12} className="transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden />
+                        Open <CaretRightIcon size={14} weight="bold" className="transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden />
                       </span>
                     </Link>
                   ) : (
@@ -101,7 +99,7 @@ export default async function OfficeHealth() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <h2 className="text-lg font-medium">This server</h2>
+          <CardTitle icon={HardDrivesIcon}>This server</CardTitle>
           <p className="mt-1 text-sm text-ink-2">The process that answered this page.</p>
           <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
             {facts.map((f) => (
@@ -118,17 +116,14 @@ export default async function OfficeHealth() {
         </Card>
 
         <Card>
-          <h2 className="text-lg font-medium">Connections</h2>
+          <CardTitle icon={PlugsConnectedIcon}>Connections</CardTitle>
           <p className="mt-1 text-sm text-ink-2">What this deployment is set up to do. Names only, never a key.</p>
           <ul className="mt-4 grid gap-3">
             {connections.map((c) => (
               <li key={c.name} className="flex items-start gap-3 text-sm">
-                {c.on ? (
-                  <CheckCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-label="On" />
-                ) : (
-                  <CircleDashedIcon size={18} className="mt-0.5 shrink-0 text-ink-3" aria-label="Off" />
-                )}
+                <StatusGlyph status={c.on ? "verified" : "off"} className="mt-0.5" />
                 <span className="min-w-0">
+                  <span className="sr-only">{c.on ? "On: " : "Off: "}</span>
                   <span className="font-medium text-ink">{c.name}</span>
                   <span className="block text-ink-2">{c.detail}</span>
                 </span>

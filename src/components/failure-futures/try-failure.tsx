@@ -24,7 +24,7 @@ export function TryFailure({ proposalId, taskId, kind, again, disabled }: { prop
       </div>
       {state.status === "error" ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {state.message}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden /> {state.message}
         </p>
       ) : null}
     </form>

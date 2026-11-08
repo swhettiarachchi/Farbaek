@@ -37,7 +37,7 @@ struct RunView: View {
                     } else {
                         ProgressView().tint(Palette.accent).frame(maxWidth: .infinity, minHeight: 260)
                     }
-                    if let failure { Notice(text: failure, tone: .failed, symbol: "exclamationmark.triangle.fill") }
+                    if let failure { Notice(text: failure, tone: .failed, symbol: "exclamationmark.circle.fill") }
                     Color.clear.frame(height: 1).id("end")
                 }
                 .padding(.horizontal, 16)
@@ -104,10 +104,10 @@ struct RunView: View {
 
     private func questionCard(_ q: RunQuestion) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            // A waiting state is its words in its colour, with no glyph (ADR 0180); the card's border carries it too.
-            Text("The agent is waiting for you")
+            // Your turn: the raised hand in the brand's blue (ADR 0183), and the card's border carries it too.
+            Label("The agent is waiting for you", systemImage: "hand.raised.fill")
                 .font(.subheadline.weight(.medium))
-                .foregroundStyle(Palette.approval)
+                .foregroundStyle(Palette.accent)
                 .accessibilityAddTraits(.isHeader)
             Text(q.display).font(.callout.monospaced()).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
             if !q.reason.isEmpty { Text(q.reason).font(.footnote).foregroundStyle(Palette.ink2) }
@@ -129,7 +129,7 @@ struct RunView: View {
             }
         }
         .card()
-        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(Palette.approval.opacity(0.4), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(Palette.accent.opacity(0.4), lineWidth: 1))
     }
 
     private var stepsList: some View {
@@ -150,7 +150,7 @@ struct RunView: View {
             SectionTitle("What the agent did")
             Text(finish.summary).font(.body).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
             ForEach(finish.risks, id: \.self) { risk in
-                Label(risk, systemImage: "exclamationmark.triangle").font(.footnote).foregroundStyle(Palette.approval)
+                Label(risk, systemImage: "exclamationmark.triangle").font(.footnote).foregroundStyle(Palette.caution)
             }
             if run.proposalId != nil {
                 NavigationLink(value: Destination.approval(run.taskId)) {
@@ -197,12 +197,15 @@ struct RunView: View {
         }
     }
 
+    /// A run's kind, as the web's RunStatusBadge (ADR 0183). A finished run has no proof yet, so it's "done", not verified.
     static func tone(_ status: String) -> Tone {
         switch status {
-        case "finished": return .verified
+        case "starting", "working": return .working
         case "waiting": return .approval
-        case "failed", "interrupted": return .failed
-        case "cancelled": return .unverified
+        case "finished": return .done
+        case "failed": return .failed
+        case "cancelled": return .off
+        case "interrupted": return .paused
         default: return .info
         }
     }
@@ -280,9 +283,9 @@ struct StepRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: symbol)
+            Image(systemName: ended?.symbol ?? symbol)
                 .font(.footnote)
-                .foregroundStyle(step.exitCode.map { $0 == 0 ? Palette.verified : Palette.failed } ?? Palette.accent)
+                .foregroundStyle(ended?.color ?? step.exitCode.map { $0 == 0 ? Palette.verified : Palette.failed } ?? Palette.accent)
                 .frame(width: 22, height: 22)
             VStack(alignment: .leading, spacing: 3) {
                 Text(step.title.isEmpty ? label : step.title)
@@ -306,6 +309,16 @@ struct StepRow: View {
         }
         .padding(12)
         .accessibilityElement(children: .combine)
+    }
+
+    /// A step that didn't go through shows how, with its kind's mark, as the desktop app's steps do (ADR 0183).
+    private var ended: Tone? {
+        switch step.status ?? "" {
+        case "denied": return .blocked
+        case "declined": return .off
+        case "failed": return .failed
+        default: return nil
+        }
     }
 
     private var symbol: String {

@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, CheckIcon, ClockCountdownIcon, ProhibitIcon, ScalesIcon, ShieldWarningIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, CheckIcon, ClockIcon, DesktopIcon, ScalesIcon, ShieldWarningIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -9,7 +9,7 @@ import { applyProposalAction, discardProposalAction } from "@/app/app/actions";
 import { Notice } from "@/components/app/primitives";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
-import { StatusBadge, type Status } from "@/components/ui/status-badge";
+import { StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { relativeLabel, useNow } from "@/components/ui/use-now";
 import { DROP_LABELS } from "@/core/realityloop/change-proposal";
 import type { IntentContract } from "@/core/realityloop/contract";
@@ -36,16 +36,16 @@ const Surface = dynamic(() => import("@/components/files/codemirror"), { ssr: fa
 const fileHref = (projectId: string, path: string) => `/app/projects/${projectId}/files?path=${encodeURIComponent(path)}`;
 const short = (hex: string) => `sha256:${hex.slice(0, 6)}…${hex.slice(-4)}`;
 
-// Status is a word (ADR 0180), drawn by StatusBadge: a waiting state carries no glyph, and an icon says only how it ended.
+// Each state is a status kind (ADR 0183), with its words, icon and colour. Applied isn't verified: its checks still have to pass.
 const STATUS: Record<"pending" | "blocked" | "applied" | "discarded" | "expired" | "outOfDate", { label: string; status: Status }> = {
   pending: { label: "Waiting for your approval", status: "approval" },
-  blocked: { label: "Outside the plan", status: "failed" },
-  applied: { label: "Applied", status: "verified" },
-  discarded: { label: "Discarded", status: "unverified" },
+  blocked: { label: "Outside the plan", status: "blocked" },
+  applied: { label: "Applied", status: "done" },
+  discarded: { label: "Discarded", status: "off" },
   // Past its approval window (ADR 0042): it can only be discarded.
-  expired: { label: "Expired", status: "unverified" },
+  expired: { label: "Expired", status: "off" },
   // A file it was made from has changed since (ADR 0178): it can only be discarded.
-  outOfDate: { label: "Out of date", status: "unverified" },
+  outOfDate: { label: "Out of date", status: "attention" },
 } as const;
 
 /**
@@ -154,7 +154,7 @@ export function ProposalReview({
 
   const errorLine = error ? (
     <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-      <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
+      <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
       {error}
     </p>
   ) : null;
@@ -163,7 +163,12 @@ export function ProposalReview({
     <div className={`flex flex-col gap-6 ${open ? "[&_:is(a,button,summary)]:scroll-mb-40" : ""}`}>
       <div className="flex flex-wrap items-center gap-3">
         <StatusBadge status={status.status} label={status.label} />
-        {proposal.agentId ? <span className="text-sm text-ink-2">Suggested by Farbaek Agent{agentName ? ` (${agentName})` : ""}</span> : null}
+        {proposal.agentId ? (
+          <span className="inline-flex items-center gap-1.5 text-sm text-ink-2">
+            <DesktopIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
+            Suggested by Farbaek Agent{agentName ? ` (${agentName})` : ""}
+          </span>
+        ) : null}
         {/* ADR 0134: written by a model on the agent's own computer, not Farbaek's AI. */}
         {proposal.model?.startsWith("local:") ? <span className="text-xs text-ink-3">A model on the agent&apos;s computer</span> : null}
         <details className="text-xs text-ink-3">
@@ -189,15 +194,15 @@ export function ProposalReview({
       </div>
 
       {open && !stale ? (
-        <p className={`-mt-3 flex items-start gap-2 text-sm ${win.state === "closing" ? "text-approval" : "text-ink-2"}`}>
-          <ClockCountdownIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
+        <p className={`-mt-3 flex items-start gap-2 text-sm ${win.state === "closing" ? "text-caution" : "text-ink-2"}`}>
+          <ClockIcon size={16} weight="bold" className="mt-0.5 shrink-0" aria-hidden />
           <span>
             You can approve this until <LocalTime iso={proposal.expiresAt} /> (closes {closesIn}). After that it can only be discarded.
           </span>
         </p>
       ) : expired ? (
         <p className="-mt-3 flex items-start gap-2 text-sm text-ink-2">
-          <ProhibitIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
+          <StatusGlyph status="off" className="mt-0.5" />
           <span>
             This change ran out of time {closesIn}, so it can&apos;t be approved. Discard it and ask the agent to try again with the files as they are now.
           </span>
@@ -232,7 +237,7 @@ export function ProposalReview({
             <ul className="grid gap-1.5">
               {proposal.violations.map((v, i) => (
                 <li key={i} className="flex items-start gap-2 text-failed">
-                  <ProhibitIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {v.detail}
+                  <StatusGlyph status="blocked" className="mt-0.5" /> {v.detail}
                 </li>
               ))}
             </ul>
@@ -259,7 +264,11 @@ export function ProposalReview({
         <div className="grid gap-2 rounded-sm border border-line bg-surface-raised/50 p-4 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="flex items-center gap-2 font-medium">
-              {escalated ? <ShieldWarningIcon size={16} className="text-approval" aria-hidden /> : <ScalesIcon size={16} className="text-ink-3" aria-hidden />}
+              {escalated ? (
+                <ShieldWarningIcon size={16} weight="fill" className="shrink-0 text-approval" aria-hidden />
+              ) : (
+                <ScalesIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
+              )}
               Rules: {OUTCOME_LABELS[proposal.policy.outcome as PolicyOutcome] ?? proposal.policy.outcome}
             </p>
             {proposal.policy.workspaceRules ? (
@@ -284,7 +293,7 @@ export function ProposalReview({
 
       {proposal.policy?.shadow ? (
         // Shadow mode (ADR 0075): a simulated decision, never acted on, marked as one.
-        <div className="grid gap-1.5 rounded-sm border border-dashed border-simulated/45 bg-simulated/[0.03] p-4 text-sm">
+        <div className="grid gap-1.5 rounded-sm border border-line-2 bg-surface-raised/60 p-4 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="flex items-center gap-2 font-medium">
               Practice: this change {proposal.policy.shadow.outcome === "ALLOW_WITHIN_LIMITS" ? "would have applied on its own" : "would have waited for a person"}
@@ -327,12 +336,7 @@ export function ProposalReview({
               </li>
             ))}
           </ul>
-          <p className="flex items-start gap-2 rounded-sm border border-approval/30 bg-approval/[0.06] px-4 py-3 text-sm">
-            <WarningCircleIcon size={18} className="mt-px shrink-0 text-approval" aria-hidden />
-            <span>
-              {appliedNote ?? `Not verified. ${executionReason ?? "The checks haven't run yet."} It stays here until its checks run and pass.`}
-            </span>
-          </p>
+          <Notice tone="warning">{appliedNote ?? `Not verified. ${executionReason ?? "The checks haven't run yet."} It stays here until its checks run and pass.`}</Notice>
         </div>
       ) : proposal.status === "discarded" ? null : (
         <div className="grid gap-5">

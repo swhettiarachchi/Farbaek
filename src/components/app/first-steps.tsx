@@ -1,8 +1,9 @@
-import { ArrowRightIcon, CheckIcon, LockSimpleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, CheckIcon, ListNumbersIcon, LockSimpleIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { FirstStep, FirstSteps } from "@/core/workspace/first-steps";
 import { hideFirstStepsAction, showFirstStepsAction } from "@/app/app/actions";
+import { CardTitle } from "@/components/app/primitives";
 
 const STATE_WORDS: Record<FirstStep["state"], string> = { done: "done", next: "next", later: "to do", unavailable: "not available here" };
 
@@ -19,7 +20,7 @@ function Station({ step, n }: { step: FirstStep; n: number }) {
     <li className="relative grid justify-items-center gap-2 text-center" aria-current={step.state === "next" ? "step" : undefined}>
       <span className={`relative flex size-11 items-center justify-center rounded-full border text-sm font-medium tabular ${ring}`} aria-hidden>
         {step.state === "next" ? <span className="absolute inset-0 rounded-full border border-primary motion-safe:animate-[core-call_2.4s_cubic-bezier(0.16,1,0.3,1)_infinite]" /> : null}
-        {step.state === "done" ? <CheckIcon size={18} weight="bold" /> : step.state === "unavailable" ? <LockSimpleIcon size={16} /> : n}
+        {step.state === "done" ? <CheckIcon size={16} weight="bold" /> : step.state === "unavailable" ? <LockSimpleIcon size={16} weight="bold" /> : n}
       </span>
       <span className={`text-xs font-medium ${step.state === "next" ? "text-ink" : step.state === "done" ? "text-ink-2" : "text-ink-3"}`}>
         {step.short}
@@ -47,9 +48,9 @@ export function FirstStepsPanel({ data, composer }: { data: FirstSteps; composer
       <div className="rounded-md bg-surface p-5 shadow-e1 sm:p-7">
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
           <div className="min-w-0">
-            <h2 id="first-steps-heading" className="text-xl font-medium tracking-[-0.02em]">
+            <CardTitle id="first-steps-heading" icon={ListNumbersIcon}>
               First steps
-            </h2>
+            </CardTitle>
             <p className="mt-1 max-w-[56ch] text-sm leading-relaxed text-ink-2">From one sentence to a live, verified site. Each step ticks itself off from your workspace&apos;s records.</p>
           </div>
           <div className="flex items-center gap-1">
@@ -92,7 +93,7 @@ export function FirstStepsPanel({ data, composer }: { data: FirstSteps; composer
                 >
                   {next.action}
                   <span className="flex size-8 items-center justify-center rounded-full bg-on-primary/15 transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-0.5">
-                    <ArrowRightIcon size={15} weight="bold" aria-hidden />
+                    <ArrowRightIcon size={16} weight="bold" aria-hidden />
                   </span>
                 </Link>
               )}
@@ -105,7 +106,7 @@ export function FirstStepsPanel({ data, composer }: { data: FirstSteps; composer
           <ul className="mt-4 grid gap-1.5">
             {unavailable.map((s) => (
               <li key={s.key} className="flex items-start gap-2 text-xs leading-relaxed text-ink-3">
-                <LockSimpleIcon size={14} className="mt-px shrink-0" aria-hidden />
+                <LockSimpleIcon size={14} weight="bold" className="mt-px shrink-0" aria-hidden />
                 <span>
                   <span className="font-medium text-ink-2">{s.title}:</span> {s.reason}
                 </span>

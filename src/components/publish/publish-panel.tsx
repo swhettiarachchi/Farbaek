@@ -1,21 +1,16 @@
-import { ArrowSquareOutIcon, ProhibitIcon, SealCheckIcon, WarningIcon } from "@phosphor-icons/react/ssr";
+import { ArrowUpRightIcon, GlobeIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
+import { CardTitle } from "@/components/app/primitives";
 import { RelativeTime } from "@/components/ui/local-time";
 import { buttonClasses } from "@/components/ui/button";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { EVIDENCE_WORDS, type EvidenceStatus } from "@/core/publish/evidence";
+import { StatusBadge, StatusGlyph } from "@/components/ui/status-badge";
+import { EVIDENCE_WORDS } from "@/core/publish/evidence";
 import { formatBytes } from "@/core/workspace/files";
 import type { PublishPanelData } from "@/server/publish/panel";
+import { EVIDENCE_KIND } from "./evidence-kind";
 import { PublishForm } from "./publish-form";
 import { SetLiveForm } from "./set-live-form";
 import { SiteDomains } from "./site-domains";
-
-// A mark only for how it ended (ADR 0180): verified or failed. Every other state is its words alone.
-function EvidenceIcon({ status, size, className = "" }: { status: EvidenceStatus; size: number; className?: string }) {
-  if (status === "verified") return <SealCheckIcon size={size} weight="bold" className={`shrink-0 text-verified ${className}`} aria-hidden />;
-  if (status === "failed") return <WarningIcon size={size} weight="bold" className={`shrink-0 text-failed ${className}`} aria-hidden />;
-  return null;
-}
 
 /**
  * Publish (ADR 0029): put the project's static site live at its own address
@@ -38,15 +33,15 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
   return (
     <section id="publish" aria-labelledby="publish-heading" className="grid scroll-mt-24 gap-4 rounded-md border border-line bg-surface p-5 shadow-e1">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="publish-heading" className="text-lg font-medium">
+        <CardTitle id="publish-heading" icon={GlobeIcon}>
           Publish
-        </h2>
-        {live && address ? <StatusBadge status="verified" label="Live" /> : <StatusBadge status="unverified" label="Not published" />}
+        </CardTitle>
+        {live && address ? <StatusBadge status="verified" label="Live" /> : <StatusBadge status="off" label="Not published" />}
       </div>
 
       {site?.blocked ? (
         <p role="status" className="flex items-start gap-2.5 rounded-sm border border-failed/30 bg-failed/[0.05] px-4 py-3 text-sm text-ink">
-          <ProhibitIcon size={18} weight="bold" className="mt-px shrink-0 text-failed" aria-hidden />
+          <StatusGlyph status="blocked" className="mt-0.5" />
           <span>
             <span className="font-medium">Farbaek took this site offline</span> <RelativeTime iso={site.blocked.at} />. {site.blocked.notice} It can&apos;t go live again until
             Farbaek lifts this; visitors see that the site isn&apos;t available.{" "}
@@ -60,7 +55,7 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
       {live && address ? (
         <div className="grid gap-1">
           <a href={address} target="_blank" rel="noopener noreferrer" className="inline-flex w-fit items-center gap-1.5 break-all font-mono text-[0.9375rem] text-accent hover:underline">
-            {address.replace(/^https?:\/\//, "")} <ArrowSquareOutIcon size={14} aria-hidden />
+            {address.replace(/^https?:\/\//, "")} <ArrowUpRightIcon size={14} weight="bold" aria-hidden />
           </a>
           <p className="text-sm text-ink-2">
             Version {live.number}, published <RelativeTime iso={live.createdAt} />
@@ -77,7 +72,7 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
       )}
 
       <div className="flex flex-wrap items-start gap-3 rounded-sm border border-line px-4 py-3 text-sm">
-        <EvidenceIcon status={evidence.status} size={18} className="mt-px" />
+        <StatusGlyph status={EVIDENCE_KIND[evidence.status]} className="mt-[0.1875rem]" />
         <p className="min-w-0 flex-1 leading-relaxed text-ink-2">
           <span className="font-medium text-ink">{words.title}.</span> {words.detail}
           {data.needsOverride ? " Publishing without it needs a reason from an owner or admin." : ""}
@@ -91,7 +86,10 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
 
       {data.block ? (
         <div className="flex flex-wrap items-center gap-3 rounded-sm border border-line bg-surface-raised/60 px-4 py-3 text-sm">
-          <span className="min-w-0 flex-1 text-ink-2">{data.block.message}</span>
+          <span className="flex min-w-0 flex-1 items-start gap-2.5 text-ink-2">
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
+            {data.block.message}
+          </span>
           {blockLink ? (
             <Link href={blockLink.href} className={buttonClasses("secondary", "sm")}>
               {blockLink.label}
@@ -134,8 +132,8 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
                     <RelativeTime iso={d.createdAt} /> · {d.fileCount} {d.fileCount === 1 ? "file" : "files"}, {formatBytes(d.totalBytes)}
                   </span>
                   {d.evidence ? (
-                    <span className="inline-flex items-center gap-1 text-xs text-ink-2">
-                      <EvidenceIcon status={d.evidence} size={14} />
+                    <span className="inline-flex items-center gap-1.5 text-xs text-ink-2">
+                      <StatusGlyph status={EVIDENCE_KIND[d.evidence]} size={14} />
                       {d.evidence === "verified" ? "Verified" : "Without passed checks"}
                     </span>
                   ) : null}

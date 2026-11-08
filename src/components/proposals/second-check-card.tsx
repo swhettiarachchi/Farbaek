@@ -1,28 +1,31 @@
 "use client";
 
-import { EyesIcon, WarningCircleIcon, WarningIcon, XCircleIcon } from "@phosphor-icons/react";
-import type { Icon } from "@phosphor-icons/react";
+import { EyesIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useState, useTransition } from "react";
 import { secondCheckAction } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
-import { StatusBadge, type Status } from "@/components/ui/status-badge";
+import { STATUS_KINDS, StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { modelName } from "@/core/billing/model-names";
 import type { SecondCheckResult } from "@/core/trust/second-check";
 import { TOPIC_LABELS, VERDICT_LABELS, type SecondCheckVerdict } from "@/core/trust/second-check-labels";
 
-// Status is a word (ADR 0180): only a clear result carries an icon.
+// Each verdict is a status kind (ADR 0183), with its icon: concerns need a look, they aren't a decision.
 const VERDICT_STATUS: Record<SecondCheckVerdict, Status> = {
   consistent: "verified",
-  concerns: "approval",
+  concerns: "attention",
   unclear: "unverified",
 };
 
-const SEVERITY_LOOK: Record<"serious" | "concern" | "note", { icon: Icon | null; label: string; className: string }> = {
-  serious: { icon: XCircleIcon, label: "Serious", className: "text-failed" },
-  concern: { icon: null, label: "Concern", className: "text-approval" },
-  note: { icon: null, label: "Note", className: "text-ink-3" },
+// A finding's weight, as a kind: serious in the failed colour, a concern needs a look, a note is information.
+const SEVERITY: Record<"serious" | "concern" | "note", { status: Status; label: string }> = {
+  serious: { status: "failed", label: "Serious" },
+  concern: { status: "attention", label: "Concern" },
+  note: { status: "info", label: "Note" },
 };
+
+/** The kind's text colour, so a severity's word matches its icon. */
+const kindText = (status: Status) => STATUS_KINDS[status].className.split(" ").find((c) => c.startsWith("text-")) ?? "text-ink-3";
 
 type Stored = SecondCheckResult & { createdAt: string };
 
@@ -65,7 +68,7 @@ export function SecondCheckCard({
     <section aria-labelledby="second-check-title" className="grid gap-4 rounded-md border border-line bg-surface-raised/40 p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 id="second-check-title" className="flex items-center gap-2 text-base font-medium">
-          <EyesIcon size={18} className="text-ink-3" aria-hidden /> Second check
+          <EyesIcon size={20} className="shrink-0 text-ink-3" aria-hidden /> Second check
         </h3>
         {check ? <StatusBadge status={VERDICT_STATUS[check.verdict]} label={VERDICT_LABELS[check.verdict].title} /> : null}
       </div>
@@ -75,8 +78,8 @@ export function SecondCheckCard({
       </p>
 
       {!check && recommended ? (
-        <p className="flex items-start gap-2 rounded-sm border border-approval/30 bg-approval/[0.06] px-3 py-2 text-sm">
-          <WarningIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-approval" aria-hidden />
+        <p className="flex items-start gap-2 rounded-sm border border-caution/35 bg-caution/[0.05] px-3 py-2 text-sm">
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
           Recommended for this change: a rule sent it to an owner or admin.
         </p>
       ) : null}
@@ -87,13 +90,12 @@ export function SecondCheckCard({
           {check.findings.length > 0 ? (
             <ul className="grid gap-2">
               {check.findings.map((f, i) => {
-                const s = SEVERITY_LOOK[f.severity];
-                const SeverityIcon = s.icon;
+                const s = SEVERITY[f.severity];
                 return (
                   <li key={i} className="grid gap-1 rounded-sm border border-line bg-surface px-3 py-2.5">
                     <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                      <span className={`inline-flex items-center gap-1 font-medium ${s.className}`}>
-                        {SeverityIcon ? <SeverityIcon size={14} weight="bold" aria-hidden /> : null} {s.label}
+                      <span className={`inline-flex items-center gap-1 font-medium ${kindText(s.status)}`}>
+                        <StatusGlyph status={s.status} size={14} /> {s.label}
                       </span>
                       <span className="text-ink-3">{TOPIC_LABELS[f.topic]}</span>
                       {f.path ? <span className="break-all font-mono text-ink-2">{f.path}</span> : null}
@@ -122,7 +124,7 @@ export function SecondCheckCard({
       {pending ? (
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" onClick={ask} disabled={running || disabledReason !== null} className={buttonClasses("secondary", "sm")}>
-            <EyesIcon size={16} aria-hidden /> {running ? "Checking…" : check ? "Check again" : "Ask a second model"}
+            <EyesIcon size={16} weight="bold" aria-hidden /> {running ? "Checking…" : check ? "Check again" : "Ask a second model"}
           </button>
           <span className="text-xs text-ink-3">{disabledReason ?? "Uses a little of this workspace's AI usage."}</span>
         </div>
@@ -131,7 +133,7 @@ export function SecondCheckCard({
       <div aria-live="polite" className="empty:hidden">
         {error ? (
           <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-            <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
             {error}
           </p>
         ) : null}

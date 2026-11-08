@@ -1,3 +1,4 @@
+import { WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -40,8 +41,11 @@ export default async function PasswordSignInPage({ searchParams }: { searchParam
             {supabase ? (
               <PasswordSignInForm next={next} captchaSiteKey={turnstileSiteKey()} />
             ) : (
-              <p className="rounded-sm border border-dashed border-line-strong/60 p-5 text-sm text-ink-2">
-                Sign-in isn&apos;t connected in this environment. Add the Supabase URL and publishable key to <code>.env.local</code>.
+              <p className="flex items-start gap-2.5 rounded-sm border border-line bg-surface-raised/70 px-4 py-3 text-sm text-ink">
+                <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
+                <span>
+                  Sign-in isn&apos;t connected in this environment. Add the Supabase URL and publishable key to <code>.env.local</code>.
+                </span>
               </p>
             )}
           </div>

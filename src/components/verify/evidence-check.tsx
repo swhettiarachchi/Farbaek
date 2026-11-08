@@ -1,13 +1,13 @@
 "use client";
 
-import { CheckCircleIcon, FileArrowUpIcon, FileMagnifyingGlassIcon, PackageIcon, SealCheckIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, FileArrowUpIcon, FileMagnifyingGlassIcon, PackageIcon, SealCheckIcon, ShieldCheckIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useId, useState, type DragEvent } from "react";
 import { ProofPackSeal } from "@/components/proof/proofpack-seal";
 import { SealReveal } from "@/components/proof/seal-reveal";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { StatusBadge, StatusGlyph } from "@/components/ui/status-badge";
 import { CAPSULE_LIMITS } from "@/config/workspace";
 import { openCapsule, type OpenedCapsule } from "@/core/mesh/capsule";
 import { EVIDENCE_LABELS, inspectEvidence, matchFile, type EvidenceFile, type EvidenceSignature, type Inspection } from "@/core/proof/inspect";
@@ -146,7 +146,7 @@ export function EvidenceCheck() {
             onDrop={onDrop}
             className={`flex min-h-56 cursor-pointer flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed px-6 py-10 text-center transition-colors duration-150 has-focus-visible:outline-2 has-focus-visible:outline-accent ${dragging ? "border-accent bg-accent/[0.04]" : "border-line-strong/50 bg-surface hover:border-accent/60"} ${busy ? "pointer-events-none opacity-60" : ""}`}
           >
-            <FileArrowUpIcon size={36} className="text-accent" aria-hidden />
+            <FileArrowUpIcon size={32} className="text-accent" aria-hidden />
             <span className="text-[0.9375rem] font-medium">{busy ? "Checking…" : "Drop a proof file or a Capsule"}</span>
             <span className="max-w-[34ch] text-sm text-ink-3">Or choose one. A ProofPack or receipt (.json), or a .capsule.zip.</span>
             <input type="file" accept=".json,application/json,.zip,application/zip" className="sr-only" onChange={(e) => void checkFile(e.target.files?.[0])} />
@@ -184,13 +184,13 @@ export function EvidenceCheck() {
               <span className="text-xs text-ink-3">Optional when the JSON already holds its digest.</span>
             </label>
             <button type="submit" disabled={busy || !pasted.trim()} className={buttonClasses("primary", "md", "justify-self-start")}>
-              <FileMagnifyingGlassIcon size={16} aria-hidden /> Check it
+              <FileMagnifyingGlassIcon size={16} weight="bold" aria-hidden /> Check it
             </button>
           </form>
         )}
 
         <p className="flex items-start gap-2 text-xs leading-relaxed text-ink-3">
-          <CheckCircleIcon size={14} className="mt-0.5 shrink-0 text-verified" aria-hidden />
+          <ShieldCheckIcon size={14} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
           Checked here, in your browser. Nothing you choose or paste is uploaded.
         </p>
       </div>
@@ -226,7 +226,7 @@ function Failure({ message }: { message: string }) {
   return (
     <div role="alert" className="grid gap-2">
       <p className="flex items-start gap-2 text-[0.9375rem] font-medium text-failed">
-        <XCircleIcon size={20} weight="bold" className="mt-0.5 shrink-0" aria-hidden /> Not checked
+        <WarningCircleIcon size={20} weight="fill" className="mt-px shrink-0 text-failed" aria-hidden /> Not checked
       </p>
       <p className="text-sm leading-relaxed text-ink-2">{message}</p>
     </div>
@@ -254,36 +254,41 @@ function Verdict({ intact, signature, label }: { intact: boolean | null; signatu
   if (signature === "bad") return failed(<>Not what Farbaek signed. Don&apos;t rely on this {label}.</>);
   if (signature === "signed") return passed(<>Intact. This {label} is exactly what Farbaek recorded.</>);
   if (intact === true) return passed(<>Intact. This {label} matches its digest, so nothing in it changed.</>);
-  // Not compared is neither a pass nor a failure, so it's words alone (ADR 0180).
-  return <p className="text-lg font-medium leading-snug text-unverified">This {label} was read, but not compared. Paste the digest you were given to check it.</p>;
+  // Not compared is neither a pass nor a failure: "not yet", with its dashed circle (ADR 0183).
+  return (
+    <p className="flex items-start gap-2.5 text-lg font-medium leading-snug text-unverified">
+      <StatusGlyph status="unverified" size={24} className="mt-0.5" />
+      <span>This {label} was read, but not compared. Paste the digest you were given to check it.</span>
+    </p>
+  );
 }
 
-/** Who signed it, in words, never by colour alone: an icon only for a signature that checks out or doesn't. */
+/** Who signed it, in words and with its kind's icon, never by colour alone (ADR 0183). */
 function SignatureLine({ signature: s }: { signature: EvidenceSignature }) {
   const line = (icon: React.ReactNode, text: React.ReactNode, tone = "text-ink-2") => <p className={`flex items-start gap-2 text-sm leading-relaxed ${tone}`}>{icon}<span>{text}</span></p>;
   switch (s.status) {
     case "signed":
       return line(
-        <SealCheckIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />,
+        <SealCheckIcon size={16} weight="fill" className="mt-1 shrink-0 text-verified" aria-hidden />,
         <>
           Signed by Farbaek with key <span className="break-all font-mono text-[0.8125rem]">{s.keyid}</span>, which only Farbaek&apos;s server holds.
         </>,
         "text-ink",
       );
     case "bad":
-      return line(<XCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0" aria-hidden />, <>Signature doesn&apos;t check out. {s.reason}</>, "text-failed");
+      return line(<StatusGlyph status="failed" size={16} className="mt-1" />, <>Signature doesn&apos;t check out. {s.reason}</>, "text-failed");
     case "unknown_key":
       return line(
-        <WarningCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-approval" aria-hidden />,
+        <StatusGlyph status="attention" size={16} className="mt-1" />,
         <>
           Signed with a key Farbaek doesn&apos;t publish (<span className="break-all font-mono text-[0.8125rem]">{s.keyid}</span>), so the signature can&apos;t be trusted.
         </>,
       );
-    // Neither a pass nor a failure: words alone (ADR 0180).
+    // Neither a pass nor a failure: "not yet", with its dashed circle (ADR 0183).
     case "unchecked":
-      return line(null, "Signed, but Farbaek's keys couldn't be loaded to check the signature. Try again.");
+      return line(<StatusGlyph status="unverified" size={16} className="mt-1" />, "Signed, but Farbaek's keys couldn't be loaded to check the signature. Try again.");
     default:
-      return line(null, "Not signed. Its digest still shows whether it changed, but not who recorded it.");
+      return line(<StatusGlyph status="unverified" size={16} className="mt-1" />, "Not signed. Its digest still shows whether it changed, but not who recorded it.");
   }
 }
 
@@ -362,20 +367,20 @@ function EvidenceResult({ inspection: r }: { inspection: Extract<Inspection, { o
             ))}
           </ul>
           <label className="mt-1 inline-flex min-h-11 cursor-pointer items-center gap-2 justify-self-start rounded-full border border-line bg-surface px-4 text-sm font-medium shadow-e1 transition-colors hover:bg-canvas-2 has-focus-visible:outline-2 has-focus-visible:outline-accent">
-            <FileMagnifyingGlassIcon size={16} aria-hidden /> Match a file to this record
+            <FileMagnifyingGlassIcon size={16} weight="bold" aria-hidden /> Match a file to this record
             <input type="file" className="sr-only" onChange={(e) => void matchOne(e.target.files?.[0])} />
           </label>
           {match ? (
             match.hits.length > 0 ? (
               <p className="flex items-start gap-2 text-sm">
-                <CheckCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+                <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
                 <span>
                   <span className="font-medium">{match.name}</span> is exactly the content recorded for <span className="break-all font-mono text-[0.8125rem]">{match.hits.map((h) => h.path).join(", ")}</span>.
                 </span>
               </p>
             ) : (
               <p className="flex items-start gap-2 text-sm">
-                <XCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+                <XCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
                 <span>
                   <span className="font-medium">{match.name}</span> doesn&apos;t match any file in this record. A single changed character gives a different hash.
                 </span>
@@ -394,12 +399,12 @@ function EvidenceResult({ inspection: r }: { inspection: Extract<Inspection, { o
             {r.summary.checks.map((c, i) => (
               <li key={`${c.name}-${i}`} className="flex items-start gap-2.5 text-sm">
                 {c.status === "passed" ? (
-                  <CheckCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-label="Passed" />
+                  <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-label="Passed" />
                 ) : c.status === "failed" ? (
-                  <XCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-label="Failed" />
+                  <XCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-label="Failed" />
                 ) : (
-                  // Not run is said in words beside the name; the space keeps the names in line.
-                  <span className="size-[18px] shrink-0" aria-hidden />
+                  // Not run: "not yet", the dashed circle (ADR 0183); the words beside the name say it too.
+                  <StatusGlyph status="unverified" size={16} className="mt-0.5" />
                 )}
                 <span className="min-w-0">
                   <span className="font-medium">{c.name}</span>{" "}
@@ -503,7 +508,7 @@ function CapsuleResult({ name, opened }: { name: string; opened: OpenedCapsule }
         </p>
       </details>
       <Link href="/app/mesh" className={buttonClasses("secondary", "sm", "justify-self-start")}>
-        <PackageIcon size={16} aria-hidden /> Open it in a workspace
+        <PackageIcon size={16} weight="bold" aria-hidden /> Open it in a workspace
       </Link>
     </div>
   );

@@ -1,4 +1,4 @@
-import { ChatTextIcon, CheckCircleIcon, ClipboardTextIcon, HammerIcon, SealCheckIcon } from "@phosphor-icons/react/ssr";
+import { ChatTextIcon, CheckCircleIcon, ClipboardTextIcon, HammerIcon, SealCheckIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -73,8 +73,11 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
             {supabase ? (
               <SignInForm notice={error && Object.hasOwn(NOTICES, error) ? NOTICES[error]! : null} providers={{ google, apple }} next={next} captchaSiteKey={turnstileSiteKey()} phone={phoneSignIn(next)} />
             ) : (
-              <p className="rounded-sm border border-dashed border-line-strong/60 p-5 text-sm text-ink-2">
-                Sign-in isn&apos;t connected on this server yet, so nobody can sign in here. Write to {CONTACT.support} if you see this on www.farbaek.com.
+              <p className="flex items-start gap-2.5 rounded-sm border border-line bg-surface-raised/70 px-4 py-3 text-sm text-ink">
+                <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
+                <span>
+                  Sign-in isn&apos;t connected on this server yet, so nobody can sign in here. Write to {CONTACT.support} if you see this on www.farbaek.com.
+                </span>
               </p>
             )}
           </div>
@@ -111,8 +114,8 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
                   className="relative flex gap-4 motion-safe:animate-[usage-in_600ms_cubic-bezier(0.32,0.72,0,1)_both]"
                   style={{ animationDelay: `${200 + i * 120}ms` }}
                 >
-                  <span className="relative flex size-10 shrink-0 items-center justify-center rounded-full bg-surface text-accent shadow-e1 ring-1 ring-line">
-                    <s.icon size={19} aria-hidden />
+                  <span className="relative flex size-10 shrink-0 items-center justify-center rounded-full bg-surface text-ink-2 shadow-e1 ring-1 ring-line">
+                    <s.icon size={20} aria-hidden />
                   </span>
                   <span>
                     <span className="block font-medium">{s.title}</span>
@@ -122,7 +125,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
               ))}
             </ol>
             <p className="mt-8 flex items-center gap-2 border-t border-line pt-5 text-sm text-ink-2">
-              <CheckCircleIcon size={16} weight="bold" className="text-verified" aria-hidden /> No API key to bring: the AI is part of every plan.
+              <CheckCircleIcon size={16} weight="fill" className="shrink-0 text-verified" aria-hidden /> No API key to bring: the AI is part of every plan.
             </p>
           </div>
         </div>

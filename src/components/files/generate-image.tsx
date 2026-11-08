@@ -81,18 +81,18 @@ export function GenerateImage({ projectId, disabledReason }: { projectId: string
 
       {state.status === "error" ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={18} weight="bold" className="mt-px shrink-0" aria-hidden /> {state.message}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden /> {state.message}
         </p>
       ) : state.status === "done" ? (
         <p role="status" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-verified">
-          <CheckCircleIcon size={18} weight="fill" className="shrink-0" aria-hidden />
+          <CheckCircleIcon size={16} weight="fill" className="shrink-0 text-verified" aria-hidden />
           {state.path ? (
             <>
               <span>
                 Saved as <span className="font-mono text-[0.8125rem]">{state.path}</span>.
               </span>
               <Link href={`/app/projects/${projectId}/files?path=${encodeURIComponent(state.path)}`} className="inline-flex min-h-11 items-center gap-1 font-medium text-accent hover:underline">
-                Open it <ArrowRightIcon size={14} aria-hidden />
+                Open it <ArrowRightIcon size={14} weight="bold" aria-hidden />
               </Link>
             </>
           ) : (
@@ -104,7 +104,7 @@ export function GenerateImage({ projectId, disabledReason }: { projectId: string
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <button type="submit" disabled={off} className={buttonClasses("primary", "sm")}>
-          <ImageSquareIcon size={16} aria-hidden /> {pending ? "Making the image…" : "Generate image"}
+          <ImageSquareIcon size={16} weight="bold" aria-hidden /> {pending ? "Making the image…" : "Generate image"}
         </button>
         <p className="text-xs text-ink-3">Counts toward your AI usage. Images carry Google&apos;s SynthID watermark.</p>
       </div>

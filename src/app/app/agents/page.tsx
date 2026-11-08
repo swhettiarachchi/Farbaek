@@ -1,4 +1,4 @@
-import { DesktopIcon, EyeIcon, LockSimpleIcon, PencilSimpleLineIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
+import { DesktopIcon, EyeIcon, HammerIcon, LinkSimpleIcon, LockSimpleIcon, PencilSimpleLineIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { revokeAgentAction } from "@/app/app/actions";
@@ -8,7 +8,7 @@ import { ToolPinPanel } from "@/components/agents/tool-pin";
 import { readToolPins } from "@/server/agent/tool-pins";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { PairAgent } from "@/components/agents/pair-agent";
-import { Card, EmptyState, Notice, PageHeader } from "@/components/app/primitives";
+import { Card, CardTitle, EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { ConfirmAction } from "@/components/ui/confirm-action";
 import { RelativeTime } from "@/components/ui/local-time";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -79,7 +79,7 @@ export default async function AgentsPage() {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         <Card>
-          <h2 className="text-lg font-medium">Pair a computer</h2>
+          <CardTitle icon={LinkSimpleIcon}>Pair a computer</CardTitle>
           <p className="mt-2 text-sm leading-relaxed text-ink-2">
             Create a code, then type it into Farbaek Agent. The agent acts for you only while you can contribute to this workspace. To start, it can work on every project for 90
             days, and you can narrow or renew that below. {usage}
@@ -90,7 +90,7 @@ export default async function AgentsPage() {
         </Card>
 
         <Card>
-          <h2 className="text-lg font-medium">What stays on your computer</h2>
+          <CardTitle icon={ShieldCheckIcon}>What stays on your computer</CardTitle>
           <ul className="mt-3 grid gap-2 text-sm leading-relaxed text-ink-2">
             <li>The agent&apos;s working copy of the project, one folder per task.</li>
             <li>Commands you approve. They run with your account&apos;s rights, which is why the agent asks first.</li>
@@ -105,9 +105,9 @@ export default async function AgentsPage() {
       </div>
 
       <section aria-labelledby="agents-heading" className="grid gap-4">
-        <h2 id="agents-heading" className="text-lg font-medium">
+        <CardTitle id="agents-heading" icon={DesktopIcon}>
           Paired computers
-        </h2>
+        </CardTitle>
         {leaseNotice ? <Notice tone="warning">{leaseNotice}</Notice> : null}
         {agents.length === 0 ? (
           <EmptyState icon={DesktopIcon} title="No computers paired yet">
@@ -141,7 +141,7 @@ export default async function AgentsPage() {
                       )}
                     </span>
                   </span>
-                  {a.revokedAt ? <StatusBadge status="unverified" label="Revoked" /> : <StatusBadge status="info" label="Paired" />}
+                  {a.revokedAt ? <StatusBadge status="off" label="Revoked" /> : <StatusBadge status="verified" label="Paired" />}
                   {canRevoke ? (
                     <ConfirmAction
                       action={revokeAgentAction}
@@ -176,14 +176,14 @@ export default async function AgentsPage() {
       </section>
 
       <section aria-labelledby="modes-heading" className="grid gap-4">
-        <h2 id="modes-heading" className="text-lg font-medium">
+        <CardTitle id="modes-heading" icon={HammerIcon}>
           How the agent works
-        </h2>
+        </CardTitle>
         <ul className="grid gap-4 md:grid-cols-3">
           {modes.map((m) => (
-            <li key={m.id} className={`rounded-md border p-5 ${m.available ? "border-line bg-surface shadow-e1" : "border-dashed border-line-strong/40 bg-canvas"}`}>
+            <li key={m.id} className={`rounded-md border p-5 ${m.available ? "border-line bg-surface shadow-e1" : "border-line bg-canvas"}`}>
               <div className="flex items-center gap-2">
-                {m.available ? <m.icon size={20} className="text-accent" aria-hidden /> : <LockSimpleIcon size={20} className="text-ink-3" aria-hidden />}
+                {m.available ? <m.icon size={20} className="shrink-0 text-ink-3" aria-hidden /> : <LockSimpleIcon size={20} className="shrink-0 text-ink-3" aria-hidden />}
                 <h3 className={`text-base font-medium ${m.available ? "" : "text-ink-2"}`}>{AGENT_MODE_LABELS[m.id].title}</h3>
               </div>
               <p className="mt-2 text-sm leading-relaxed text-ink-2">{AGENT_MODE_LABELS[m.id].detail}</p>

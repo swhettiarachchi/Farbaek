@@ -1,5 +1,6 @@
 "use client";
 
+import { CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useState } from "react";
 import { removeMemberAction, setMemberRoleAction, type FormState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -93,8 +94,13 @@ export function MemberControls({
         ) : null}
       </div>
       {message ? (
-        <p role={roleState.status === "done" && removeState.status !== "error" ? "status" : "alert"} className={`text-xs ${roleState.status === "done" && removeState.status !== "error" ? "text-verified" : "text-failed"}`}>
-          {message}
+        <p role={roleState.status === "done" && removeState.status !== "error" ? "status" : "alert"} className={`flex items-start gap-1.5 text-xs ${roleState.status === "done" && removeState.status !== "error" ? "text-verified" : "text-failed"}`}>
+          {roleState.status === "done" && removeState.status !== "error" ? (
+            <CheckCircleIcon size={16} weight="fill" className="shrink-0 text-verified" aria-hidden />
+          ) : (
+            <WarningCircleIcon size={16} weight="fill" className="shrink-0 text-failed" aria-hidden />
+          )}
+          <span>{message}</span>
         </p>
       ) : null}
     </div>

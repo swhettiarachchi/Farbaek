@@ -1,7 +1,7 @@
-import { ArrowUpRightIcon, CheckCircleIcon, ArrowsClockwiseIcon, MinusCircleIcon, ShieldWarningIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
-import type { Icon } from "@phosphor-icons/react";
+import { ArrowUpRightIcon, ArrowsClockwiseIcon, SealWarningIcon, ShieldWarningIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { Container } from "@/components/ui/container";
+import { STATUS_KINDS, StatusGlyph, type Status } from "@/components/ui/status-badge";
 import RUN from "@/content/security-eval-run.json";
 import { OWASP_RISKS, RISK_LISTS, coverageFor, runTotals, type EvalRun, type OwaspRisk, type RiskCoverage, type RiskList } from "@/core/security-eval/catalog";
 
@@ -25,7 +25,7 @@ const MEANING = [
     body: "The scenarios don't measure whether an AI model resists manipulation. They script a model that obeys planted instructions, and check that the boundaries hold anyway.",
   },
   {
-    icon: MinusCircleIcon,
+    icon: SealWarningIcon,
     title: "Not a certification, and not complete",
     body: "A tested risk means at least one scenario covers part of it. Every risk lists what isn't tested. This is Farbaek's own suite, not an audit by anyone else.",
   },
@@ -35,14 +35,25 @@ function dateLabel(iso: string): string {
   return new Intl.DateTimeFormat("en-GB", { dateStyle: "long", timeZone: "UTC" }).format(new Date(iso));
 }
 
-/** A risk's state in words and its frame: a check when tested and passing, a cross when failing, and words alone otherwise (ADR 0180). */
-function tileState(c: RiskCoverage): { label: string; Icon: Icon | null; tone: string; frame: string } {
-  if (c.state === "not_applicable") return { label: "Not applicable", Icon: null, tone: "text-ink-3", frame: "border border-transparent bg-surface-sunken" };
-  if (c.state === "not_tested") return { label: "Not tested", Icon: null, tone: "text-ink-3", frame: "border border-dashed border-line-strong" };
+/** The text colour of a kind, for words that sit beside its glyph. */
+const toneOf = (kind: Status) => STATUS_KINDS[kind].className.split(" ").find((c) => c.startsWith("text-")) ?? "text-ink-3";
+
+/** A risk's state as its kind (ADR 0183): tested, failing, not applicable or not tested, each with its words, icon and colour. */
+function tileState(c: RiskCoverage): { label: string; kind: Status; frame: string } {
+  if (c.state === "not_applicable") return { label: "Not applicable", kind: "off", frame: "border border-transparent bg-surface-sunken" };
+  if (c.state === "not_tested") return { label: "Not tested", kind: "unverified", frame: "border border-line-2 bg-surface" };
   const failing = c.scenarios.filter((s) => s.result?.status === "failed").length;
-  if (failing > 0) return { label: `${failing} failing`, Icon: XCircleIcon, tone: "text-failed", frame: "border border-failed/40 bg-surface shadow-e1" };
+  if (failing > 0) return { label: `${failing} failing`, kind: "failed", frame: "border border-failed/40 bg-surface shadow-e1" };
   const n = c.scenarios.length;
-  return { label: `Tested in ${n} ${n === 1 ? "scenario" : "scenarios"}`, Icon: CheckCircleIcon, tone: "text-verified", frame: "border border-line bg-surface shadow-e1" };
+  return { label: `Tested in ${n} ${n === 1 ? "scenario" : "scenarios"}`, kind: "verified", frame: "border border-line bg-surface shadow-e1" };
+}
+
+function TileStatus({ label, kind }: { label: string; kind: Status }) {
+  return (
+    <span className={`flex items-center gap-1.5 text-xs font-medium ${toneOf(kind)}`}>
+      <StatusGlyph status={kind} size={14} /> {label}
+    </span>
+  );
 }
 
 function RiskTile({ risk }: { risk: OwaspRisk }) {
@@ -55,9 +66,7 @@ function RiskTile({ risk }: { risk: OwaspRisk }) {
       >
         <span className="text-[0.8125rem] font-medium text-ink-3 tabular">{risk.id}</span>
         <span className="text-[0.9375rem] font-medium leading-snug tracking-[-0.01em] text-ink">{risk.title}</span>
-        <span className={`flex items-center gap-1.5 text-xs font-medium ${s.tone}`}>
-          {s.Icon ? <s.Icon size={15} weight="bold" aria-hidden /> : null} {s.label}
-        </span>
+        <TileStatus label={s.label} kind={s.kind} />
       </a>
     </li>
   );
@@ -73,9 +82,7 @@ function RiskDetail({ risk }: { risk: OwaspRisk }) {
           <span className="mr-2 text-ink-3 tabular">{risk.id}</span>
           {risk.title}
         </h4>
-        <span className={`flex items-center gap-1.5 text-xs font-medium ${s.tone}`}>
-          {s.Icon ? <s.Icon size={15} weight="bold" aria-hidden /> : null} {s.label}
-        </span>
+        <TileStatus label={s.label} kind={s.kind} />
       </header>
       {c.state === "tested" ? (
         <ul className="mt-4 grid gap-3">
@@ -85,11 +92,14 @@ function RiskDetail({ risk }: { risk: OwaspRisk }) {
                 <span className="text-ink-3 tabular">{scenario.id}</span> {scenario.title}
                 {result ? (
                   <span className={`inline-flex items-center gap-1 text-xs ${result.status === "passed" ? "text-verified" : "text-failed"}`}>
-                    {result.status === "passed" ? <CheckCircleIcon size={13} weight="bold" aria-hidden /> : <XCircleIcon size={13} weight="bold" aria-hidden />}
+                    <StatusGlyph status={result.status === "passed" ? "verified" : "failed"} size={14} />
                     {result.status === "passed" ? "Passed" : "Failed"}
                   </span>
                 ) : (
-                  <span className="text-xs text-ink-3">Not in the last run</span>
+                  <span className="inline-flex items-center gap-1 text-xs text-unverified">
+                    <StatusGlyph status="unverified" size={14} />
+                    Not in the last run
+                  </span>
                 )}
               </p>
               <p className="text-sm leading-relaxed text-ink-2">{scenario.asserts}</p>
@@ -118,7 +128,7 @@ export default function SecurityTestsPage() {
           </p>
           {/* One sentence, not a strip of tiles (ADR 0180). The engineering facts sit behind a fold for anyone checking the run. */}
           <p className={`mt-8 flex items-center gap-2 text-[1.0625rem] font-medium ${totals.failed ? "text-failed" : "text-ink"}`}>
-            {totals.failed ? <XCircleIcon size={20} weight="bold" className="shrink-0 text-failed" aria-hidden /> : <CheckCircleIcon size={20} weight="bold" className="shrink-0 text-verified" aria-hidden />}
+            <StatusGlyph status={totals.failed ? "failed" : "verified"} size={20} />
             <span>
               Last run on {dateLabel(run.ranAt)}: {totals.passed} of {totals.scenarios} scenarios passed.
             </span>
@@ -145,7 +155,7 @@ export default function SecurityTestsPage() {
                   </p>
                 </div>
                 <a href={meta.url} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-accent hover:underline">
-                  The list on owasp.org <ArrowUpRightIcon size={14} aria-hidden />
+                  The list on owasp.org <ArrowUpRightIcon size={14} weight="bold" aria-hidden />
                 </a>
               </div>
               <ul className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
@@ -184,7 +194,7 @@ export default function SecurityTestsPage() {
           <ul className="mt-10 grid gap-8 sm:grid-cols-3">
             {MEANING.map((m) => (
               <li key={m.title} className="grid content-start gap-3">
-                <m.icon size={24} className="text-accent" aria-hidden />
+                <m.icon size={24} className="text-ink-2" aria-hidden />
                 <h3 className="text-[1.0625rem] font-medium">{m.title}</h3>
                 <p className="text-[0.9375rem] leading-relaxed text-ink-2">{m.body}</p>
               </li>

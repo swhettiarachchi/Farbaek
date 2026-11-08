@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, PaintBrushIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, PaletteIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -99,7 +99,7 @@ export default async function DesignPage({ params, searchParams }: { params: Pro
     <div className="grid gap-6">
       <div>
         <Link href={`/app/projects/${project.id}`} className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
-          <ArrowLeftIcon size={16} aria-hidden /> {project.name}
+          <ArrowLeftIcon size={14} weight="bold" aria-hidden /> {project.name}
         </Link>
         {isStatic ? (
           <PageHeader
@@ -132,7 +132,7 @@ export default async function DesignPage({ params, searchParams }: { params: Pro
         />
       ) : unavailable || !text ? (
         <EmptyState
-          icon={PaintBrushIcon}
+          icon={PaletteIcon}
           title="Not available for this project"
           action={
             <ButtonLink href={`/app/projects/${project.id}/files`} variant="secondary" size="sm">

@@ -1,8 +1,8 @@
-import { CaretRightIcon, SirenIcon } from "@phosphor-icons/react/ssr";
+import { CaretRightIcon, MegaphoneIcon, PauseCircleIcon, SirenIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Card, EmptyState, PageHeader } from "@/components/app/primitives";
+import { Card, CardTitle, EmptyState, PageHeader } from "@/components/app/primitives";
 import { IncidentStatusBadge, SeverityBadge } from "@/components/incidents/badges";
 import { NewIncident } from "@/components/incidents/new-incident";
 import { PauseControl } from "@/components/incidents/pause-control";
@@ -34,7 +34,7 @@ export default async function IncidentsPage() {
       <PageHeader title="Problems and pause" description="What went wrong in this workspace and what was done about it, plus a button that stops every agent at once." />
 
       <Card>
-        <h2 className="text-lg font-medium">Emergency pause</h2>
+        <CardTitle icon={PauseCircleIcon}>Emergency pause</CardTitle>
         <div className="mt-4">
           <PauseControl
             paused={ws.agentsPaused}
@@ -45,12 +45,13 @@ export default async function IncidentsPage() {
       </Card>
 
       <section aria-labelledby="incidents-title" className="grid gap-4">
-        <h2 id="incidents-title" className="text-lg font-medium">
+        <CardTitle id="incidents-title" icon={SirenIcon}>
           Problems
-        </h2>
+        </CardTitle>
         {incidents === null ? (
-          <p role="alert" className="text-sm text-failed">
-            Problems couldn&apos;t be read just now. Reload the page to try again.
+          <p role="alert" className="flex items-start gap-2 text-sm text-failed">
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+            <span>Problems couldn&apos;t be read just now. Reload the page to try again.</span>
           </p>
         ) : incidents.length === 0 ? (
           <EmptyState icon={SirenIcon} title="No problems">
@@ -74,7 +75,7 @@ export default async function IncidentsPage() {
                     <SeverityBadge severity={i.severity} />
                     <IncidentStatusBadge status={i.status} />
                   </div>
-                  <CaretRightIcon size={16} className="shrink-0 text-ink-3" aria-hidden />
+                  <CaretRightIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
                 </Link>
               </li>
             ))}
@@ -83,7 +84,7 @@ export default async function IncidentsPage() {
       </section>
 
       <Card>
-        <h2 className="text-lg font-medium">Report a problem</h2>
+        <CardTitle icon={MegaphoneIcon}>Report a problem</CardTitle>
         <p className="mt-1 text-sm leading-relaxed text-ink-2">For something Farbaek didn&apos;t notice on its own: a customer report, a wrong price, a change that looked fine and wasn&apos;t.</p>
         <div className="mt-4">
           <NewIncident projects={projects.filter((p) => !p.archivedAt).map((p) => ({ id: p.id, name: p.name }))} disabledReason={toolsReason} />

@@ -7,7 +7,7 @@
  * scripts and fetches nothing (the document carries the preview CSP). Apps
  * that need a server get a drawn cover instead, and empty projects say so.
  */
-import { BracketsCurlyIcon, FileDashedIcon } from "@phosphor-icons/react";
+import { BracketsCurlyIcon, FileDashedIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 
 type Thumb = { kind: "static"; srcdoc: string } | { kind: "app" } | { kind: "empty" } | { kind: "loading" } | { kind: "error" };
@@ -71,11 +71,10 @@ export function SiteThumb({ src, name, className = "" }: { src: string; name: st
           className={`pointer-events-none absolute left-0 top-0 h-[400%] w-[400%] origin-top-left scale-25 bg-white motion-safe:transition-opacity motion-safe:duration-200 ${painted ? "opacity-100" : "opacity-0"}`}
         />
       ) : thumb.kind === "app" ? (
-        <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(ellipse_at_30%_20%,rgb(36_80_240/0.10),transparent_60%),radial-gradient(ellipse_at_80%_90%,rgb(10_110_133/0.10),transparent_55%)]">
-          <div aria-hidden className="dot-grid absolute inset-0" />
+        <div className="absolute inset-0 grid place-items-center bg-surface-raised">
           <span className="relative grid justify-items-center gap-1.5 text-center">
-            <span className="flex size-11 items-center justify-center rounded-full bg-surface text-accent shadow-e2">
-              <BracketsCurlyIcon size={22} />
+            <span className="flex size-11 items-center justify-center rounded-full bg-surface text-ink-2 shadow-e1 ring-1 ring-line">
+              <BracketsCurlyIcon size={24} />
             </span>
             <span className="text-xs text-ink-2">An app with a server</span>
             <span className="text-xs text-ink-3">It previews in a test space</span>
@@ -84,8 +83,17 @@ export function SiteThumb({ src, name, className = "" }: { src: string; name: st
       ) : thumb.kind === "loading" ? null : (
         <div className="absolute inset-0 grid place-items-center">
           <span className="grid justify-items-center gap-1.5 text-center">
-            <FileDashedIcon size={24} className="text-ink-3" />
-            <span className="text-xs text-ink-3">{thumb.kind === "error" ? "The preview couldn't load" : "No page to show yet"}</span>
+            {thumb.kind === "error" ? (
+              <span className="flex items-center gap-1.5 text-xs text-ink-2">
+                <WarningCircleIcon size={16} weight="fill" className="shrink-0 text-failed" aria-hidden />
+                The preview couldn&apos;t load
+              </span>
+            ) : (
+              <>
+                <FileDashedIcon size={24} className="text-ink-3" aria-hidden />
+                <span className="text-xs text-ink-3">No page to show yet</span>
+              </>
+            )}
           </span>
         </div>
       )}

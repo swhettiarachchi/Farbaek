@@ -1,5 +1,6 @@
 "use client";
 
+import { CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useId, useState } from "react";
 import {
   cancelTaskAction,
@@ -57,8 +58,9 @@ function Field({
         </p>
       ) : null}
       {error ? (
-        <p id={errorId} role="alert" className="text-sm text-failed">
-          {error}
+        <p id={errorId} role="alert" className="flex items-start gap-2 text-sm text-failed">
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+          <span>{error}</span>
         </p>
       ) : null}
     </div>
@@ -96,7 +98,7 @@ export function CreateProjectForm({ disabledReason }: { disabledReason: string |
           {STARTERS.filter((s) => s.kind === "starter").map((s) => (
             <label
               key={s.id}
-              className="flex cursor-pointer items-start gap-3 rounded-md border border-line bg-surface p-4 has-checked:border-accent has-checked:shadow-[0_0_0_1px_var(--color-accent)] has-focus-visible:outline-2 has-focus-visible:outline-accent"
+              className="flex cursor-pointer items-start gap-3 rounded-md border border-line bg-surface p-4 has-checked:border-accent has-checked:ring-1 has-checked:ring-accent has-focus-visible:outline-2 has-focus-visible:outline-accent"
             >
               <input type="radio" name="starter" value={s.id} defaultChecked={(values?.starter ?? "blank") === s.id} className="mt-1 size-4 accent-[var(--color-accent)]" />
               <span className="grid gap-0.5">
@@ -149,8 +151,9 @@ export function CancelTaskControl({ taskId, version, disabledReason }: { taskId:
 
   if (state.status === "done") {
     return (
-      <p role="status" className="text-sm text-ink-2">
-        {state.message}
+      <p role="status" className="flex items-start gap-2 text-sm text-ink-2">
+        <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+        <span>{state.message}</span>
       </p>
     );
   }
@@ -165,13 +168,14 @@ export function CancelTaskControl({ taskId, version, disabledReason }: { taskId:
     );
   }
   return (
-    <form action={action} className="grid gap-3 rounded-sm border border-failed/30 bg-failed/[0.04] p-4">
+    <form action={action} className="grid gap-3 rounded-sm border border-line bg-surface-raised/70 p-4">
       <input type="hidden" name="taskId" value={taskId} />
       <input type="hidden" name="expectedVersion" value={version} />
       <p className="text-sm">Cancel this task? A cancelled task can&apos;t be resumed. Its history is kept.</p>
       {state.status === "error" ? (
-        <p role="alert" className="text-sm text-failed">
-          {state.message}
+        <p role="alert" className="flex items-start gap-2 text-sm text-failed">
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+          <span>{state.message}</span>
         </p>
       ) : null}
       <div className="flex flex-wrap gap-2">
@@ -197,8 +201,9 @@ export function RenameWorkspaceForm({ name, disabledReason }: { name: string; di
           {pending ? "Saving…" : "Save name"}
         </button>
         {state.status === "done" ? (
-          <p role="status" className="text-sm text-verified">
-            {state.message}
+          <p role="status" className="flex items-start gap-2 text-sm text-verified">
+            <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+            <span>{state.message}</span>
           </p>
         ) : null}
         <DisabledReason reason={disabledReason} />

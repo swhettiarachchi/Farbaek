@@ -10,11 +10,12 @@ const IDLE: FormState = { status: "idle" };
 export type DeletionRow = { orgId: string; orgName: string; outcome: "deleted" | "left" | "blocked_last_owner" | "blocked_paid" | "blocked_review"; words: string };
 
 const ICON = {
-  deleted: <TrashIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-failed" aria-hidden />,
-  left: <SignOutIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-ink-2" aria-hidden />,
-  blocked_last_owner: <WarningCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-approval" aria-hidden />,
-  blocked_paid: <WarningCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-approval" aria-hidden />,
-  blocked_review: <WarningCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-approval" aria-hidden />,
+  deleted: <TrashIcon size={16} weight="bold" className="mt-1 shrink-0 text-failed" aria-hidden />,
+  left: <SignOutIcon size={16} weight="bold" className="mt-1 shrink-0 text-ink-3" aria-hidden />,
+  // Each one has to be sorted out before the account can go: a look first, so burnt orange (ADR 0183).
+  blocked_last_owner: <WarningCircleIcon size={16} weight="fill" className="mt-1 shrink-0 text-caution" aria-hidden />,
+  blocked_paid: <WarningCircleIcon size={16} weight="fill" className="mt-1 shrink-0 text-caution" aria-hidden />,
+  blocked_review: <WarningCircleIcon size={16} weight="fill" className="mt-1 shrink-0 text-caution" aria-hidden />,
 };
 
 /**
@@ -46,7 +47,7 @@ export function DeleteAccount({ email, rows, disabledReason }: { email: string; 
         </ul>
       ) : (
         <p className="flex items-start gap-2.5 text-sm text-ink-2">
-          <CheckCircleIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden /> You&apos;re not in any workspace.
+          <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden /> You&apos;re not in any workspace.
         </p>
       )}
       <p className="text-sm leading-relaxed text-ink-2">
@@ -71,8 +72,9 @@ export function DeleteAccount({ email, rows, disabledReason }: { email: string; 
             {pending ? "Deleting…" : "Delete my account"}
           </button>
           {state.status === "error" ? (
-            <p role="alert" className="text-sm text-failed">
-              {state.message}
+            <p role="alert" className="flex items-start gap-2 text-sm text-failed">
+              <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+              <span>{state.message}</span>
             </p>
           ) : null}
           {reason ? <p className="text-sm text-ink-3">{reason}</p> : null}

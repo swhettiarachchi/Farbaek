@@ -4,6 +4,7 @@ import {
   CheckCircleIcon,
   CheckIcon,
   ClockCounterClockwiseIcon,
+  GitDiffIcon,
   InfoIcon,
   PenNibIcon,
   PlusIcon,
@@ -14,7 +15,6 @@ import {
   TrashIcon,
   UserCheckIcon,
   WarningCircleIcon,
-  WarningIcon,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import Link from "next/link";
@@ -22,6 +22,7 @@ import { useId, useMemo, useState, useTransition } from "react";
 import { activateRulesAction, draftRulesAction, testRulesAction } from "@/app/app/policies/actions";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { canonicalize } from "@/core/trust/canonical-json";
 import { compilePattern, normalizePattern } from "@/core/trust/path-pattern";
 import { MAX_REQUEST } from "@/core/trust/rule-draft";
@@ -77,7 +78,7 @@ interface AiNotes {
 const EFFECT_ICON: Record<RuleEffect, { icon: Icon; className: string }> = {
   block: { icon: ProhibitIcon, className: "text-failed" },
   owner_approval: { icon: ShieldWarningIcon, className: "text-approval" },
-  person_approval: { icon: UserCheckIcon, className: "text-accent" },
+  person_approval: { icon: UserCheckIcon, className: "text-ink-3" },
 };
 
 const SHORT: Record<TestOutcome, string> = { stopped: "Stopped", owner: "Owner or admin", person: "A person", own: "On its own" };
@@ -229,15 +230,15 @@ export function RuleBuilder({
         />
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" onClick={draft} disabled={drafting || Boolean(draftReason) || request.trim().length < 5} className={buttonClasses("secondary", "sm")}>
-            <PenNibIcon size={16} aria-hidden /> {drafting ? "Drafting…" : "Draft with AI"}
+            <PenNibIcon size={16} weight="bold" aria-hidden /> {drafting ? "Drafting…" : "Draft with AI"}
           </button>
           <span className="text-xs text-ink-3">{draftReason ?? "AI only fills in the rules below. You check, test and activate them."}</span>
         </div>
       </div>
 
       {suggested ? (
-        <p className="flex items-start gap-2.5 rounded-sm border border-accent/30 bg-accent/[0.04] px-4 py-3 text-sm leading-relaxed">
-          <ScalesIcon size={18} className="mt-px shrink-0 text-accent" aria-hidden />
+        <p className="flex items-start gap-2.5 rounded-sm border border-line bg-surface-raised/70 px-4 py-3 text-sm leading-relaxed">
+          <ScalesIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
           <span>
             The rule suggested by{" "}
             <Link href={`/app/incidents/${suggested.incident}`} className="font-medium text-accent hover:underline">
@@ -273,14 +274,14 @@ export function RuleBuilder({
 
       <div>
         <button type="button" onClick={add} disabled={rules.length >= MAX_RULES} className={buttonClasses("secondary", "sm")}>
-          <PlusIcon size={16} aria-hidden /> Add a rule
+          <PlusIcon size={16} weight="bold" aria-hidden /> Add a rule
         </button>
       </div>
 
       <div className="grid gap-3 border-t border-line pt-5">
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" onClick={runTest} disabled={testing || Boolean(testReason)} className={buttonClasses("secondary", "sm")}>
-            <ClockCounterClockwiseIcon size={16} aria-hidden /> {testing ? "Testing…" : "Test against the last 90 days"}
+            <ClockCounterClockwiseIcon size={16} weight="bold" aria-hidden /> {testing ? "Testing…" : "Test against the last 90 days"}
           </button>
           <span className="text-xs text-ink-3">{testReason ?? "See what these rules would have done with your real changes. Nothing is applied."}</span>
         </div>
@@ -289,18 +290,20 @@ export function RuleBuilder({
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={activate} disabled={activating || Boolean(activateReason)} className={buttonClasses("primary", "sm")}>
-          <ShieldCheckIcon size={16} aria-hidden /> {activating ? "Activating…" : !hasRules && activeHasRules ? "Turn every rule off" : `Activate as version ${nextVersion}`}
+          <ShieldCheckIcon size={16} weight="bold" aria-hidden /> {activating ? "Activating…" : !hasRules && activeHasRules ? "Turn every rule off" : `Activate as version ${nextVersion}`}
         </button>
         <span className="text-sm text-ink-3">{activateReason ?? "Every new change follows it from then on. Earlier changes keep the decision they had."}</span>
       </div>
       {message ? (
         message.tone === "error" ? (
           <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-            <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {message.text}
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+            <span>{message.text}</span>
           </p>
         ) : (
           <p role="status" className="flex items-start gap-2 text-sm text-verified">
-            <CheckCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {message.text}
+            <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+            <span>{message.text}</span>
           </p>
         )
       ) : null}
@@ -349,7 +352,7 @@ function RuleCard({
           aria-label={`Remove rule ${index + 1}`}
           className="inline-flex size-11 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 hover:bg-surface-raised hover:text-failed"
         >
-          <TrashIcon size={18} aria-hidden />
+          <TrashIcon size={20} aria-hidden />
         </button>
       </div>
 
@@ -415,7 +418,7 @@ function RuleCard({
 
       {valid.length > 0 ? (
         <p className="flex items-start gap-2 rounded-sm bg-surface-raised/60 px-3 py-2.5 text-sm leading-relaxed">
-          <ScalesIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
+          <ScalesIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
           <span>
             <span className="font-medium">Reads as: </span>
             {explainRule({ paths: valid, effect: rule.effect })}
@@ -446,10 +449,11 @@ function RuleCard({
         <ul className="grid gap-1.5">
           {flags.map((f, i) => (
             <li key={`${f.kind}-${i}`} className={`flex items-start gap-2 text-sm ${f.tone === "warning" ? "text-ink" : "text-ink-2"}`}>
+              {/* A flag is a look first (burnt orange) or a note (steel), never a turn to act (ADR 0183). */}
               {f.tone === "warning" ? (
-                <WarningIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-approval" aria-hidden />
+                <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
               ) : (
-                <InfoIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
+                <InfoIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-info" aria-hidden />
               )}
               <span>
                 <span className="sr-only">{f.tone === "warning" ? "Check: " : "Note: "}</span>
@@ -469,7 +473,8 @@ function FieldErrors({ errors }: { errors: RuleError[] }) {
     <ul className="grid gap-1">
       {errors.map((e, i) => (
         <li key={i} className="flex items-start gap-1.5 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {e.message}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+          <span>{e.message}</span>
         </li>
       ))}
     </ul>
@@ -483,9 +488,9 @@ function AiNotesPanel({ notes }: { notes: AiNotes }) {
     { title: "Patterns it left out because they weren't valid", items: notes.dropped, mono: true },
   ].filter((g) => g.items.length > 0);
   return (
-    <div className="grid gap-3 rounded-sm border border-dashed border-line-strong/60 p-4 text-sm">
+    <div className="grid gap-3 rounded-sm border border-line bg-surface-raised/60 p-4 text-sm">
       <p className="flex items-center gap-2 font-medium">
-        <PenNibIcon size={16} className="text-accent" aria-hidden /> AI noted
+        <PenNibIcon size={16} weight="bold" className="text-ink-3" aria-hidden /> AI noted
       </p>
       <p className="text-ink-2">
         {notes.drafted === 0 ? "It couldn't draft a rule from that description. Try different words, or add a rule by hand." : `It added ${plural(notes.drafted, "rule", "rules")} below. Check each one.`}
@@ -510,13 +515,14 @@ function TestResult({ summary, stale }: { summary: RulesTestSummary; stale: bool
   const id = useId();
   const differ = summary.stricter + summary.looser;
   return (
-    <section aria-labelledby={id} className="grid gap-4 rounded-md border border-dashed border-simulated/40 bg-simulated/[0.03] p-4 sm:p-5">
+    <section aria-labelledby={id} className="grid gap-4 rounded-md border border-line bg-surface-raised p-4 sm:p-5">
       <h4 id={id} className="text-base font-medium">
         Tested against the last {summary.days} days
       </h4>
       {stale ? (
         <p role="status" className="flex items-start gap-2 text-sm">
-          <WarningIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-approval" aria-hidden /> These rules changed after this test. Test them again before activating.
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
+          <span>These rules changed after this test. Test them again before activating.</span>
         </p>
       ) : null}
 
@@ -563,6 +569,7 @@ function TestResult({ summary, stale }: { summary: RulesTestSummary; stale: bool
                 {summary.changed.map((c) => (
                   <li key={c.proposalId}>
                     <Link href={`/app/tasks/${c.taskId}`} className="inline-flex min-h-11 flex-wrap items-center gap-x-2 text-sm hover:underline">
+                      <GitDiffIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
                       <span className="font-mono text-xs text-accent">{c.paths[0] ?? "A change"}</span>
                       {c.paths.length > 1 ? <span className="text-ink-3">and {plural(c.paths.length - 1, "other", "others")}</span> : null}
                       <span className="text-ink-2">
@@ -599,9 +606,7 @@ function VersionHistory({ versions, onLoad }: { versions: VersionItem[]; onLoad:
             <div className="grid gap-0.5">
               <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
                 Version {v.version}
-                {v.active ? (
-                  <span className="inline-flex items-center rounded-full border border-accent/40 px-2.5 py-0.5 text-xs font-medium text-accent">Active</span>
-                ) : null}
+                {v.active ? <StatusBadge status="verified" label="Active" /> : null}
               </p>
               <p className="text-xs leading-relaxed text-ink-3">
                 {v.rules.length === 0 ? "Every rule off" : plural(v.rules.length, "rule", "rules")}, activated <RelativeTime iso={v.createdAt} /> by {v.byYou ? "you" : "another owner or admin"}.

@@ -1,9 +1,11 @@
-import { ArrowLeftIcon, ArrowSquareOutIcon, ProhibitIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, ArrowUpRightIcon, ClockIcon, GaugeIcon, HammerIcon, PlusCircleIcon, ProhibitIcon, SquaresFourIcon, UsersThreeIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Chip } from "@/components/admin/table";
-import { Card, Notice } from "@/components/app/primitives";
+import { Card, CardTitle, Notice } from "@/components/app/primitives";
+import { RunStatusBadge } from "@/components/build/run-status";
+import { RUN_STATUSES, type RunStatus } from "@/core/agent/cloud-run";
 import { OfficeActionForm } from "@/components/office/action-form";
 import { officeInputClass, ReasonField, StepUpField } from "@/components/office/fields";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
@@ -19,6 +21,7 @@ import { addUsageAction, extendTrialAction, restoreWorkspaceAction, suspendWorks
 export const metadata: Metadata = { title: "Workspace" };
 
 const number = new Intl.NumberFormat("en-US");
+const isRunStatus = (s: string): s is RunStatus => (RUN_STATUSES as readonly string[]).includes(s);
 const GRANT_LABELS: Record<string, string> = { plan: "Plan", trial: "Trial", free: "Free", topup: "Top-up", adjustment: "Added by Farbaek" };
 
 export default async function OfficeWorkspace({ params }: { params: Promise<{ id: string }> }) {
@@ -39,13 +42,13 @@ export default async function OfficeWorkspace({ params }: { params: Promise<{ id
     <div className="grid gap-8">
       <div className="grid gap-4">
         <Link href="/workspaces" className="inline-flex min-h-11 w-fit items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
-          <ArrowLeftIcon size={14} aria-hidden /> All workspaces
+          <ArrowLeftIcon size={14} weight="bold" aria-hidden /> All workspaces
         </Link>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-balance text-[1.75rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2.1rem]">{ws.name}</h1>
             <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink-2">
-              <Chip tone={ws.trialDaysLeft !== null ? "accent" : "neutral"}>{ws.plan}</Chip>
+              <Chip>{ws.plan}</Chip>
               {ws.trialDaysLeft !== null ? <span>{ws.trialDaysLeft} trial days left</span> : null}
               <span className="text-ink-3">
                 Created <LocalTime iso={ws.createdAt} />
@@ -55,8 +58,8 @@ export default async function OfficeWorkspace({ params }: { params: Promise<{ id
           </div>
         </div>
         {ws.suspension ? (
-          <p role="status" className="flex items-start gap-2.5 rounded-sm border border-failed/30 bg-failed/[0.05] px-4 py-3 text-sm text-ink">
-            <ProhibitIcon size={18} weight="bold" className="mt-px shrink-0 text-failed" aria-hidden />
+          <p role="status" className="flex items-start gap-2.5 rounded-sm border border-line bg-surface-raised/70 px-4 py-3 text-sm text-ink">
+            <ProhibitIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
             <span>
               <span className="font-medium">Suspended</span> <RelativeTime iso={ws.suspension.at} />. Members see: &ldquo;{ws.suspension.notice}&rdquo;
             </span>
@@ -67,7 +70,7 @@ export default async function OfficeWorkspace({ params }: { params: Promise<{ id
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <div className="grid content-start gap-6">
           <Card>
-            <h2 className="text-lg font-medium">Members</h2>
+            <CardTitle icon={UsersThreeIcon}>Members</CardTitle>
             <ul className="mt-3 divide-y divide-line">
               {ws.members.map((m) => (
                 <li key={m.userId} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
@@ -79,7 +82,7 @@ export default async function OfficeWorkspace({ params }: { params: Promise<{ id
           </Card>
 
           <Card>
-            <h2 className="text-lg font-medium">Projects and sites</h2>
+            <CardTitle icon={SquaresFourIcon}>Projects and sites</CardTitle>
             {ws.projects.length === 0 ? <p className="mt-2 text-sm text-ink-2">No projects yet.</p> : null}
             <ul className="mt-3 grid gap-2 text-sm">
               {ws.projects.map((p) => (
@@ -95,12 +98,12 @@ export default async function OfficeWorkspace({ params }: { params: Promise<{ id
                   <li key={s.id} className="flex flex-wrap items-center justify-between gap-2">
                     {domain && s.live ? (
                       <a href={`https://${s.name}.${domain}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-mono text-accent hover:underline">
-                        {s.name}.{domain} <ArrowSquareOutIcon size={13} aria-hidden />
+                        {s.name}.{domain} <ArrowUpRightIcon size={14} weight="bold" className="shrink-0" aria-hidden />
                       </a>
                     ) : (
                       <span className="font-mono text-ink-2">{domain ? `${s.name}.${domain}` : s.name}</span>
                     )}
-                    <Chip tone={s.blocked ? "failed" : s.live ? "verified" : "neutral"}>{s.blocked ? "Taken offline" : s.live ? "Live" : "Offline"}</Chip>
+                    <Chip kind={s.blocked ? "blocked" : s.live ? "verified" : "off"}>{s.blocked ? "Taken offline" : s.live ? "Live" : "Offline"}</Chip>
                   </li>
                 ))}
                 <li>
@@ -113,7 +116,7 @@ export default async function OfficeWorkspace({ params }: { params: Promise<{ id
           </Card>
 
           <Card>
-            <h2 className="text-lg font-medium">Recent agent runs</h2>
+            <CardTitle icon={HammerIcon}>Recent agent runs</CardTitle>
             {ws.runs.length === 0 ? (
               <p className="mt-2 text-sm text-ink-2">No runs yet.</p>
             ) : (
@@ -122,7 +125,7 @@ export default async function OfficeWorkspace({ params }: { params: Promise<{ id
                   <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
                     <span className="min-w-0 truncate">{r.task}</span>
                     <span className="flex items-center gap-2 text-xs text-ink-3">
-                      <Chip>{r.status}</Chip> <RelativeTime iso={r.startedAt} />
+                      {isRunStatus(r.status) ? <RunStatusBadge status={r.status} /> : <Chip>{r.status}</Chip>} <RelativeTime iso={r.startedAt} />
                     </span>
                   </li>
                 ))}
@@ -133,7 +136,7 @@ export default async function OfficeWorkspace({ params }: { params: Promise<{ id
 
         <div className="grid content-start gap-6">
           <Card>
-            <h2 className="text-lg font-medium">AI usage</h2>
+            <CardTitle icon={GaugeIcon}>AI usage</CardTitle>
             <dl className="mt-3 grid grid-cols-2 gap-4 text-sm">
               <div>
                 <dt className="text-ink-3">This period used</dt>
@@ -161,9 +164,9 @@ export default async function OfficeWorkspace({ params }: { params: Promise<{ id
           {staff.can("trial.extend") && ws.trial ? (
             <section aria-labelledby="trial-title" className="grid gap-4 rounded-md border border-line bg-surface p-5 shadow-e1">
               <div>
-                <h2 id="trial-title" className="text-lg font-medium">
+                <CardTitle id="trial-title" icon={ClockIcon}>
                   Extend the trial
-                </h2>
+                </CardTitle>
                 <p className="mt-1 text-sm text-ink-2">
                   {ws.trial.days} days so far, ending <LocalTime iso={ws.trial.endsAt} />. A trial can run {TRIAL_MAX_DAYS} days at most; the trial&apos;s AI usage moves with it.
                 </p>
@@ -196,9 +199,9 @@ export default async function OfficeWorkspace({ params }: { params: Promise<{ id
             <section aria-labelledby="add-usage-title" className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
               <div className="grid gap-4 rounded-md bg-surface p-5 shadow-e1">
                 <div>
-                  <h2 id="add-usage-title" className="text-lg font-medium">
+                  <CardTitle id="add-usage-title" icon={PlusCircleIcon}>
                     Add AI usage
-                  </h2>
+                  </CardTitle>
                   <p className="mt-1 text-sm text-ink-2">
                     Shown to the workspace as &ldquo;Added by Farbaek&rdquo;. It isn&apos;t a payment and doesn&apos;t touch billing. Your role can add up to {usd(cap * USD_PER_UNIT)} at once; above{" "}
                     {usd(USAGE_STEP_UP_UNITS * USD_PER_UNIT)} it needs a fresh code.
@@ -234,8 +237,9 @@ export default async function OfficeWorkspace({ params }: { params: Promise<{ id
 
           {staff.can("workspace.suspend") ? (
             <section aria-labelledby="danger-title" className="grid gap-4 rounded-md border border-failed/25 p-5">
-              <h2 id="danger-title" className="flex items-center gap-2 text-lg font-medium">
-                <ProhibitIcon size={18} weight="bold" className="text-failed" aria-hidden /> {ws.suspension ? "Restore this workspace" : "Suspend this workspace"}
+              {/* A callout with its title: its icon in the failed colour (ADR 0183). */}
+              <h2 id="danger-title" className="flex items-center gap-2.5 text-lg font-medium">
+                <ProhibitIcon size={20} className="shrink-0 text-failed" aria-hidden /> {ws.suspension ? "Restore this workspace" : "Suspend this workspace"}
               </h2>
               {ws.suspension ? (
                 <OfficeActionForm action={restoreWorkspaceAction} submit={`Restore ${ws.name}`} tone="secondary" className="grid gap-3">

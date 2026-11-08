@@ -1,10 +1,8 @@
 import { isNewerVersion } from "@/core/agent/app-version";
 import {
   ArrowClockwiseIcon,
-  ArrowSquareOutIcon,
+  ArrowUpRightIcon,
   BroadcastIcon,
-  CheckCircleIcon,
-  CircleNotchIcon,
   ClockCounterClockwiseIcon,
   EyeIcon,
   GearSixIcon,
@@ -15,11 +13,9 @@ import {
   ShieldCheckIcon,
   TerminalWindowIcon,
   TrashIcon,
-  WarningCircleIcon,
-  XCircleIcon,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
-import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { AGENT_MODE_LABELS, type AgentMode } from "@/core/agent/modes";
 import { COMMAND_RISK_LABELS, type CommandRisk } from "@/core/agent/commands";
 import type { RunState } from "@/core/agent/operations";
@@ -31,70 +27,60 @@ import { shortHash } from "@/core/trust/canonical-json";
 import { relativeLabel, useNow } from "@/components/ui/use-now";
 import type { AgentHandoff, AppState, HandoffRun, McpCheck, McpServerSetting, Profile, ProposalReview, RunDetail, RunSummary, TaskSummary, TaskView } from "../shared/api";
 import { NearbyView } from "./nearby";
+import { Alert, Notice, StatusBadge, StatusGlyph, type Status } from "./status";
 
 const api = window.farbaek;
 type View = "tasks" | "runs" | "nearby" | "settings";
 
-// Status is a word (ADR 0180): a spinner while it works, an icon for how it ended, none while it waits.
-const STATE: Record<RunState, { label: string; icon: Icon | null; tone: string }> = {
-  planned: { label: "Planned", icon: null, tone: "info" },
-  approved: { label: "Approved", icon: null, tone: "info" },
-  queued: { label: "Queued", icon: null, tone: "info" },
-  running: { label: "Working", icon: CircleNotchIcon, tone: "info" },
-  completed: { label: "Finished", icon: CheckCircleIcon, tone: "verified" },
-  failed: { label: "Stopped", icon: XCircleIcon, tone: "failed" },
-  cancelled: { label: "Cancelled", icon: null, tone: "neutral" },
-  interrupted: { label: "Interrupted", icon: null, tone: "approval" },
+// Every state has its kind (ADR 0183), so each has its own icon, colour and border, as on the web's runs.
+// A finished run has no proof behind it yet, so it's "done", not "verified": verified is the ProofPack's word.
+const STATE: Record<RunState, { label: string; kind: Status }> = {
+  planned: { label: "Planned", kind: "pending" },
+  approved: { label: "Approved", kind: "pending" },
+  queued: { label: "Queued", kind: "pending" },
+  running: { label: "Working", kind: "working" },
+  completed: { label: "Finished", kind: "done" },
+  failed: { label: "Stopped", kind: "failed" },
+  cancelled: { label: "Cancelled", kind: "off" },
+  interrupted: { label: "Interrupted", kind: "paused" },
 };
+
+/** How a step that touched the files ended, as its kind's icon: through, not allowed by a rule, declined, or failed. */
+const TOOL_KIND: Record<"done" | "denied" | "declined" | "failed", Status> = { done: "done", denied: "blocked", declined: "off", failed: "failed" };
 
 const time = (iso: string) => new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 const tokens = (n: number) => n.toLocaleString("en-US");
 
-function Badge({ tone, icon: BadgeIcon = null, children, spin = false }: { tone: string; icon?: Icon | null; children: ReactNode; spin?: boolean }) {
-  return (
-    <span className={`badge badge-${tone}`}>
-      {BadgeIcon ? <BadgeIcon size={14} weight="bold" className={spin ? "spin" : ""} aria-hidden /> : null} {children}
-    </span>
-  );
-}
-
 /** Where a checked proposal stands, as one badge (ADR 0042). */
-function reviewBadge(review: ProposalReview, now: number): { tone: string; icon: Icon | null; label: string } {
-  if (review.matchesSent === false) return { tone: "failed", icon: WarningCircleIcon, label: "Doesn't match what was sent" };
+function reviewBadge(review: ProposalReview, now: number): { kind: Status; label: string } {
+  if (review.matchesSent === false) return { kind: "failed", label: "Doesn't match what was sent" };
   if (review.status === "applied") {
     const pack = review.proofPack?.status;
-    if (pack === "verified") return { tone: "verified", icon: ShieldCheckIcon, label: "Verified" };
-    if (pack === "failed") return { tone: "failed", icon: XCircleIcon, label: "Checks failed" };
-    // Applied but not verified is a "not yet": its colour and dashed border say so, never a check.
-    return { tone: "neutral", icon: null, label: "Applied, not verified" };
+    if (pack === "verified") return { kind: "verified", label: "Verified" };
+    if (pack === "failed") return { kind: "failed", label: "Checks failed" };
+    if (pack === "partially_verified") return { kind: "attention", label: "Partly verified" };
+    // Applied but not verified is a "not yet": the dashed circle and border say so, never a check.
+    return { kind: "unverified", label: "Applied, not verified" };
   }
-  if (review.status === "discarded") return { tone: "neutral", icon: null, label: "Discarded in Farbaek" };
-  if (review.status === "blocked") return { tone: "failed", icon: XCircleIcon, label: "Blocked by Farbaek" };
+  if (review.status === "discarded") return { kind: "off", label: "Discarded in Farbaek" };
+  if (review.status === "blocked") return { kind: "blocked", label: "Blocked by Farbaek" };
   return approvalWindow(review.checkedAt, review.expiresAt, new Date(now)).state === "expired"
-    ? { tone: "neutral", icon: null, label: "Expired" }
-    : { tone: "approval", icon: null, label: "Waiting for review" };
+    ? { kind: "off", label: "Expired" }
+    : { kind: "approval", label: "Waiting for review" };
 }
 
 function StateBadge({ run }: { run: Pick<RunDetail, "state" | "discarded" | "proposal"> }) {
   // This app has no server render, so the fallback time is never drawn.
   const now = useNow(0);
-  if (run.discarded) return <Badge tone="neutral">Discarded</Badge>;
+  if (run.discarded) return <StatusBadge kind="off">Discarded</StatusBadge>;
   if (run.proposal?.review) {
     const b = reviewBadge(run.proposal.review, now);
-    return (
-      <Badge tone={b.tone} icon={b.icon}>
-        {b.label}
-      </Badge>
-    );
+    return <StatusBadge kind={b.kind}>{b.label}</StatusBadge>;
   }
-  // Submitted is waiting for a person in Farbaek: the approval colour, no mark (ADR 0180).
-  if (run.proposal) return <Badge tone={run.proposal.status === "pending" ? "approval" : "failed"} icon={run.proposal.status === "pending" ? null : XCircleIcon}>{run.proposal.status === "pending" ? "Submitted" : "Blocked by Farbaek"}</Badge>;
+  // Submitted is waiting for a person in Farbaek: their turn, in the blue of "your turn".
+  if (run.proposal) return run.proposal.status === "pending" ? <StatusBadge kind="approval">Submitted</StatusBadge> : <StatusBadge kind="blocked">Blocked by Farbaek</StatusBadge>;
   const s = STATE[run.state];
-  return (
-    <Badge tone={s.tone} icon={s.icon} spin={run.state === "running"}>
-      {s.label}
-    </Badge>
-  );
+  return <StatusBadge kind={s.kind}>{s.label}</StatusBadge>;
 }
 
 /** A plan's operations in words, as the web's plan shows them; one Farbaek doesn't name stays as it was written. */
@@ -108,15 +94,6 @@ const looksLikePath = (s: string) => /[/.\\:_]/.test(s) && !/\s[a-z]+\s/.test(s)
 function leaseEndsSoon(expiresAt: string): boolean {
   const left = Date.parse(expiresAt) - Date.now();
   return Number.isFinite(left) && left < 14 * 86_400_000;
-}
-
-function Alert({ children }: { children: ReactNode }) {
-  return (
-    <p role="alert" className="alert">
-      <WarningCircleIcon size={18} weight="bold" aria-hidden />
-      <span>{children}</span>
-    </p>
-  );
 }
 
 /* ------------------------------------------------------------------ pairing */
@@ -259,10 +236,10 @@ function HandoffsPanel() {
               ) : null}
               {run?.step ? <p className="small">{run.step}…</p> : null}
               {run && run.checks.length > 0 ? (
-                <ul className="small">
+                <ul className="small checks">
                   {run.checks.map((c, i) => (
                     <li key={`${c.command}-${i}`}>
-                      <span className="mono">{c.command}</span>: {c.skipped ? `didn't run (${c.skipped})` : c.timedOut ? "ran out of time" : c.exitCode === 0 ? "passed" : `failed (exit ${c.exitCode})`}
+                      <StatusGlyph kind={c.skipped ? "unverified" : c.timedOut ? "attention" : c.exitCode === 0 ? "verified" : "failed"} size={14} /> <span className="mono">{c.command}</span>: {c.skipped ? `didn't run (${c.skipped})` : c.timedOut ? "ran out of time" : c.exitCode === 0 ? "passed" : `failed (exit ${c.exitCode})`}
                     </li>
                   ))}
                 </ul>
@@ -323,28 +300,30 @@ function TasksView({ state, onRunStarted }: { state: AppState; onRunStarted: (ru
           <p className="muted">Tasks in {state.paired?.workspaceName} whose plan is approved and that are waiting for a change.</p>
         </div>
         <button className="btn btn-secondary btn-sm" type="button" onClick={() => void load()}>
-          <ArrowClockwiseIcon size={16} aria-hidden /> Refresh
+          <ArrowClockwiseIcon size={16} weight="bold" aria-hidden /> Refresh
         </button>
       </header>
       {error ? <Alert>{error}</Alert> : null}
       {profile?.latestVersion && isNewerVersion(profile.latestVersion, state.version) ? (
-        <Alert>Version {profile.latestVersion} of this app is out, with safety fixes. Get it from the Desktop app page in Farbaek. If you installed it from the Microsoft Store, it updates by itself.</Alert>
+        <Notice tone="warning">Version {profile.latestVersion} of this app is out, with safety fixes. Get it from the Desktop app page in Farbaek. If you installed it from the Microsoft Store, it updates by itself.</Notice>
       ) : null}
       <HandoffsPanel />
       {profile && !profile.canPropose ? (
-        <Alert>
+        <Notice>
           {profile.lease && !profile.lease.capabilities.includes("propose")
             ? "This computer's access doesn't include suggesting changes. An owner, an admin or the person who paired it can change that on the Desktop app page in Farbaek."
             : "You can only view this workspace, so the agent can't suggest changes. Ask an owner for a member role."}
-        </Alert>
+        </Notice>
       ) : null}
       {profile?.lease && leaseEndsSoon(profile.lease.expiresAt) ? (
-        <Alert>This computer&apos;s access ends on {time(profile.lease.expiresAt)}. Renew it on the Desktop app page in Farbaek to keep the agent working.</Alert>
+        <Notice tone="warning">This computer&apos;s access ends on {time(profile.lease.expiresAt)}. Renew it on the Desktop app page in Farbaek to keep the agent working.</Notice>
       ) : null}
       {tasks === null && !error ? <p className="muted">Loading tasks…</p> : null}
       {tasks?.length === 0 ? (
         <div className="empty">
-          <ListChecksIcon size={28} aria-hidden />
+          <span className="empty-icon">
+            <ListChecksIcon size={24} aria-hidden />
+          </span>
           <h2>No tasks are waiting for a change</h2>
           <p className="muted">In Farbaek, approve a task&apos;s plan. It then shows here for the agent to work on.</p>
         </div>
@@ -458,7 +437,7 @@ function TaskPanel({ taskId, profile, localModel, onRunStarted }: { taskId: stri
                 <label key={m.id} className={`mode ${mode === m.id ? "is-selected" : ""} ${unavailable ? "is-disabled" : ""}`}>
                   <input type="radio" name="mode" value={m.id} checked={mode === m.id} disabled={unavailable} onChange={() => setMode(m.id)} />
                   <span className="mode-head">
-                    {unavailable ? <LockSimpleIcon size={18} aria-hidden /> : <m.icon size={18} aria-hidden />} {AGENT_MODE_LABELS[m.id].title}
+                    {unavailable ? <LockSimpleIcon size={20} aria-hidden /> : <m.icon size={20} aria-hidden />} {AGENT_MODE_LABELS[m.id].title}
                   </span>
                   <span className="muted small">{unavailable ? AUTOPILOT_REASON : AGENT_MODE_LABELS[m.id].detail}</span>
                 </label>
@@ -529,7 +508,9 @@ function RunsView({ runs, selected, onSelect }: { runs: RunSummary[]; selected: 
       </header>
       {runs.length === 0 ? (
         <div className="empty">
-          <ClockCounterClockwiseIcon size={28} aria-hidden />
+          <span className="empty-icon">
+            <ClockCounterClockwiseIcon size={24} aria-hidden />
+          </span>
           <h2>No runs yet</h2>
           <p className="muted">Start one from Tasks.</p>
         </div>
@@ -591,7 +572,7 @@ function ReviewState({ review, sentSha256 }: { review: ProposalReview; sentSha25
       )}
       {review.matchesSent && sentSha256 ? (
         <p className="muted small">
-          <ShieldCheckIcon size={14} weight="bold" aria-hidden /> Farbaek&apos;s record matches what this computer sent: <span className="mono">{shortHash(sentSha256, 8, 6)}</span>
+          <ShieldCheckIcon size={14} weight="bold" className="glyph" aria-hidden /> Farbaek&apos;s record matches what this computer sent: <span className="mono">{shortHash(sentSha256, 8, 6)}</span>
         </p>
       ) : null}
       {review.appliedSha256 ? <p className="muted small mono">Approved content {shortHash(review.appliedSha256, 8, 6)}</p> : null}
@@ -690,11 +671,11 @@ function RunPanel({ runId }: { runId: string }) {
         {total > 0 ? ` It has used about ${tokens(total)} tokens so far.` : ""}
       </p>
       {run.usagePercent !== null && run.usagePercent !== undefined ? (
-        <p className={`small ${run.usagePercent >= 80 ? "text-approval" : "muted"}`}>Your workspace has used {run.usagePercent}% of its AI usage.</p>
+        <p className={`small ${run.usagePercent >= 80 ? "text-caution" : "muted"}`}>Your workspace has used {run.usagePercent}% of its AI usage.</p>
       ) : null}
       {run.mode === "controlled" ? (
         <p className="tag-local">
-          <TerminalWindowIcon size={16} aria-hidden /> Commands run on this computer, not isolated.
+          <TerminalWindowIcon size={16} weight="bold" aria-hidden /> Commands run on this computer, not isolated.
         </p>
       ) : null}
       {run.outcome ? <p>{run.outcome}</p> : null}
@@ -704,7 +685,7 @@ function RunPanel({ runId }: { runId: string }) {
       {working ? (
         <div>
           <button className="btn btn-secondary btn-sm" type="button" disabled={busy} onClick={() => void tryTo(() => api.cancelRun(run.id), "The run couldn't be cancelled. Try again.")}>
-            <ProhibitIcon size={16} aria-hidden /> Cancel run
+            <ProhibitIcon size={16} weight="bold" aria-hidden /> Cancel run
           </button>
         </div>
       ) : null}
@@ -785,10 +766,10 @@ function RunPanel({ runId }: { runId: string }) {
           ) : null}
           <div>
             <button className="btn btn-secondary btn-sm" type="button" onClick={() => void api.openTaskInFarbaek(run.taskId)}>
-              <ArrowSquareOutIcon size={16} aria-hidden /> {review?.status === "applied" || review?.status === "discarded" ? "Open it in Farbaek" : "Review it in Farbaek"}
+              <ArrowUpRightIcon size={16} weight="bold" aria-hidden /> {review?.status === "applied" || review?.status === "discarded" ? "Open it in Farbaek" : "Review it in Farbaek"}
             </button>{" "}
             <button className="btn btn-ghost btn-sm" type="button" disabled={busy} onClick={() => void checkNow()}>
-              <ArrowClockwiseIcon size={16} aria-hidden /> {busy ? "Checking…" : "Check now"}
+              <ArrowClockwiseIcon size={16} weight="bold" aria-hidden /> {busy ? "Checking…" : "Check now"}
             </button>
           </div>
           {review ? (
@@ -807,7 +788,7 @@ function RunPanel({ runId }: { runId: string }) {
           ) : null}
           {!working && !confirmDiscard ? (
             <button className="btn btn-secondary btn-sm" type="button" disabled={busy} onClick={() => setConfirmDiscard(true)}>
-              <TrashIcon size={16} aria-hidden /> Discard run
+              <TrashIcon size={16} weight="bold" aria-hidden /> Discard run
             </button>
           ) : null}
         </div>
@@ -834,10 +815,9 @@ function RunPanel({ runId }: { runId: string }) {
               {e.kind === "model" ? (
                 <p className="model-text">{e.text}</p>
               ) : e.kind === "tool" ? (
-                // The step in words (ADR 0180): a verb, the path in mono, and a mark only when it didn't go through.
+                // The step in words: its kind's icon (ADR 0183), a verb, the path in mono, and why when it didn't go through.
                 <p className="small">
-                  {e.status === "done" ? null : <WarningCircleIcon size={14} weight="bold" className="text-approval" aria-hidden />}{" "}
-                  {TOOL_VERB[e.tool] ?? e.tool.replace(/_/g, " ")}
+                  <StatusGlyph kind={TOOL_KIND[e.status]} size={14} /> {TOOL_VERB[e.tool] ?? e.tool.replace(/_/g, " ")}
                   {(() => {
                     const t = toolTarget(e.tool, e.target);
                     return t ? <> {t.mono ? <span className="mono">{t.text}</span> : t.text}</> : null;
@@ -877,7 +857,7 @@ function ApprovalCard({ run }: { run: RunDetail }) {
   return (
     <div className="approval" role="region" aria-label="Approval needed">
       <p className="row-start">
-        <TerminalWindowIcon size={18} weight="bold" aria-hidden /> <strong>The agent wants to run a command</strong>
+        <TerminalWindowIcon size={20} aria-hidden /> <strong>The agent wants to run a command</strong>
       </p>
       {error ? <Alert>{error}</Alert> : null}
       <pre className="command">{req.display}</pre>
@@ -1108,7 +1088,7 @@ function McpServersCard({ state, onState }: { state: AppState; onState: (s: AppS
       {checked ? (
         <div className="stack-sm" role="status">
           <p className="small">
-            {checked.name}
+            <StatusGlyph kind={checked.check.problems.length > 0 ? "attention" : "verified"} /> {checked.name}
             {checked.check.server ? ` (${checked.check.server.name} ${checked.check.server.version})` : ""} offers {checked.check.tools.length} {checked.check.tools.length === 1 ? "tool" : "tools"}:
           </p>
           <ul className="small stack-sm">
@@ -1207,7 +1187,7 @@ export function App() {
             {NAV.map((n) => (
               <li key={n.id}>
                 <button type="button" className={`nav-item ${view === n.id ? "is-active" : ""}`} aria-current={view === n.id ? "page" : undefined} onClick={() => setView(n.id)}>
-                  <n.icon size={19} weight={view === n.id ? "fill" : "regular"} aria-hidden /> {n.label}
+                  <n.icon size={20} weight={view === n.id ? "fill" : "regular"} aria-hidden /> {n.label}
                   {n.id === "runs" && waiting > 0 ? <span className="count">{waiting}</span> : null}
                 </button>
               </li>
