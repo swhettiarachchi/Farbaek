@@ -85,6 +85,12 @@ export type WriteErrorCode =
   | "WORKSPACE_SUSPENDED"
   | "PAUSED_BY_FARBAEK"
   | "SITE_BLOCKED"
+  | "TEAM_TOO_LARGE"
+  | "INVALID_AUTONOMY"
+  | "INVALID_LIMITS"
+  | "DUPLICATE_PATH"
+  | "INVALID_IMPORT"
+  | "INVALID_CONTENT"
   | "WORKSPACE_RULES_CHANGED"
   | "INVALID_RULES"
   | "RULES_NOT_TESTED"
@@ -209,7 +215,7 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   INVALID_RECOVERY: "The undo didn't match the change it was for, so nothing was changed. Reload and review it again.",
   POLICY_BLOCKED: "The rules stopped this undo, so nothing was changed.",
   RECOVERY_UNVERIFIED: "The restored files didn't match their earlier versions, so nothing was changed.",
-  AI_UNAVAILABLE: "AI isn't available right now.",
+  AI_UNAVAILABLE: "AI isn't available right now. Try again in a minute, or write it yourself.",
   AI_REFUSED: "The model declined to draft this plan. Write it yourself, or reword the task and try again.",
   AI_INCOMPLETE: "The draft came back incomplete. Try again, or write the plan yourself.",
   AI_BUSY: "The AI provider is busy. Try again in a minute.",
@@ -221,6 +227,12 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   WORKSPACE_SUSPENDED: "Farbaek has paused this workspace, so nothing in it can change right now. The notice at the top of the page says why and how to reach us.",
   PAUSED_BY_FARBAEK: "Farbaek has paused this for everyone for a short while. Your work is safe; try again soon.",
   SITE_BLOCKED: "Farbaek has taken this site offline, so it can't go live again for now. The notice on the project page says why.",
+  TEAM_TOO_LARGE: "Up to 3 steps can run together. Untick one and try again.",
+  INVALID_AUTONOMY: "Those settings for changes on their own aren't valid. Choose a level and limits within the ranges shown.",
+  INVALID_LIMITS: "Those limits aren't allowed on this plan. Choose smaller ones.",
+  DUPLICATE_PATH: "Two of the files have the same path. Rename one and try again. Nothing was changed.",
+  INVALID_IMPORT: "That import isn't valid, so nothing was changed. Choose the files again.",
+  INVALID_CONTENT: "One of the files holds something Farbaek can't store. Leave it out and try again. Nothing was changed.",
   WORKSPACE_RULES_CHANGED: "This workspace's rules changed while the change was being prepared, so nothing was saved. Try again.",
   INVALID_RULES: "These rules aren't valid. Fix the marked fields and try again.",
   RULES_NOT_TESTED: "These rules changed after they were tested. Test them against past changes again before activating them.",
@@ -247,6 +259,12 @@ export function codeFromDatabaseError(message: string): WriteErrorCode {
     "WORKSPACE_SUSPENDED",
     "PAUSED_BY_FARBAEK",
     "SITE_BLOCKED",
+    "TEAM_TOO_LARGE",
+    "INVALID_AUTONOMY",
+    "INVALID_LIMITS",
+    "DUPLICATE_PATH",
+    "INVALID_IMPORT",
+    "INVALID_CONTENT",
     "MODE_NO_CHANGES",
     "PAIR_TOO_LARGE",
     "PAIR_NEEDS_PERSON",

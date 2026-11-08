@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, CheckCircleIcon, FilePlusIcon, LockSimpleIcon, PencilSimpleLineIcon, ProhibitIcon, QuestionIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, CheckCircleIcon, FilePlusIcon, LockSimpleIcon, PencilSimpleLineIcon, QuestionIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ReportResult } from "@/components/tasks/report-result";
@@ -11,6 +11,7 @@ import { isProjectSkillPath } from "@/core/agent/skills";
 import { pinMap } from "@/server/workspace/skill-pins";
 import { ClearKeptPrompt } from "@/components/build/prompt-composer";
 import { buttonClasses } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { kitTierFor, themeFromPrompt } from "@/core/media/studio-kit";
 import { contractHash } from "@/core/realityloop/contract";
 import { resolveAiProvider } from "@/server/ai/config";
@@ -43,11 +44,14 @@ function Section({ title, icon, delay, children }: { title: string; icon: React.
   );
 }
 
+/** Mono only for something that reads as a path or a command; a word like "products" is a word (ADR 0180). */
+const looksLikeCode = (s: string) => /[/.\\:_]|^[a-z]+(?: [-\w]+)+$/.test(s) && !/\s[a-z]+\s/.test(s);
+
 const Chips = ({ items, empty }: { items: string[]; empty: string }) =>
   items.length ? (
     <ul className="flex flex-wrap gap-1.5">
       {items.map((i) => (
-        <li key={i} className="rounded-full border border-line bg-surface px-2.5 py-0.5 font-mono text-[0.78125rem] text-ink-2">
+        <li key={i} className={`rounded-full border border-line bg-surface px-2.5 py-0.5 text-ink-2 ${looksLikeCode(i) ? "font-mono text-[0.78125rem]" : "text-[0.8125rem]"}`}>
           {i}
         </li>
       ))}
@@ -110,7 +114,6 @@ export default async function PlanCardPage({ params }: Params) {
 
       {!contract || !c ? (
         <section className="grid gap-4 rounded-lg border border-line bg-surface p-6 shadow-e2 sm:p-8">
-          <p className="text-[0.8125rem] font-medium text-ink-3">Your plan</p>
           <h1 className="text-2xl font-medium tracking-[-0.02em]">{task.title}</h1>
           <p className="text-[0.9375rem] leading-relaxed text-ink-2">
             Your project <span className="font-medium text-ink">{project?.name ?? ""}</span> is ready, but there&apos;s no plan yet. The AI couldn&apos;t draft one this time.
@@ -123,21 +126,13 @@ export default async function PlanCardPage({ params }: Params) {
       ) : (
         <section aria-labelledby="plan-title" className="grid gap-6 rounded-lg border border-line bg-surface p-6 shadow-e2 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="flex flex-wrap items-baseline gap-x-2 text-[0.8125rem] text-ink-3">
-              <span className="font-medium">Your plan, version {contract.version}</span>
-            </p>
+            <p className="text-[0.8125rem] font-medium text-ink-3">Your plan</p>
             {task.state === "CANCELLED" ? (
-              <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line-strong px-3 text-xs font-medium text-ink-2">
-                <ProhibitIcon size={14} weight="bold" aria-hidden /> Cancelled
-              </span>
+              <StatusBadge status="unverified" label="Cancelled" />
             ) : contract.status === "approved" ? (
-              <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-verified/40 px-3 text-xs font-medium text-verified">
-                <CheckCircleIcon size={14} weight="bold" aria-hidden /> Approved
-              </span>
+              <StatusBadge status="verified" label="Approved" />
             ) : (
-              <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-approval/40 px-3 text-xs font-medium text-approval">
-                <ShieldCheckIcon size={14} weight="bold" aria-hidden /> Waiting for your approval
-              </span>
+              <StatusBadge status="approval" label="Waiting for your approval" />
             )}
           </div>
           <div className={`grid gap-2 ${rise}`}>
@@ -155,12 +150,9 @@ export default async function PlanCardPage({ params }: Params) {
               <Chips items={c.scope.resources} empty="Anywhere in the project." />
             </Section>
             <Section title="How it will be checked" icon={<CheckCircleIcon size={16} weight="bold" className="text-verified" aria-hidden />} delay={160}>
-              <ul className="grid gap-1.5 text-sm text-ink">
+              <ul className="grid list-disc gap-1.5 pl-5 text-sm text-ink marker:text-ink-3">
                 {c.acceptanceCriteria.map((a) => (
-                  <li key={a.id} className="flex gap-2">
-                    <CheckCircleIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
-                    {a.statement}
-                  </li>
+                  <li key={a.id}>{a.statement}</li>
                 ))}
               </ul>
               {c.requiredChecks.length ? <Chips items={c.requiredChecks} empty="" /> : null}

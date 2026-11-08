@@ -19,7 +19,7 @@ async function supportWriter(): Promise<{ actor: string; orgId: string | null; r
   if (!ctx) redirect("/sign-in");
   if (ctx.mode !== "live") return { error: "Support isn't available in the demo workspace. Sign in to write to Farbaek." };
   const admin = createSupabaseAdminClient();
-  if (!admin) return { error: "The server isn't configured for this yet." };
+  if (!admin) return { error: "Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com." };
   return { actor: ctx.user.id, orgId: ctx.current?.id ?? null, rpc: (fn, args) => admin.rpc(fn, args) };
 }
 
@@ -42,11 +42,16 @@ export async function replySupportAction(_prev: HelpFormState, form: FormData): 
   return { status: "sent", at: Date.now() };
 }
 
-export async function closeSupportAction(form: FormData): Promise<void> {
+export type CloseState = { status: "idle" } | { status: "error"; message: string } | { status: "done"; message: string };
+
+/** Marks a request sorted. The thread stays readable, and a new request can be opened any time. */
+export async function closeSupportAction(_previous: CloseState, form: FormData): Promise<CloseState> {
   const thread = z.uuid().safeParse(form.get("threadId"));
-  if (!thread.success) return;
+  if (!thread.success) return { status: "error", message: "That request doesn't exist or isn't yours." };
   const w = await supportWriter();
-  if ("error" in w) return;
-  await closeSupportRequest(w.rpc, w.actor, thread.data);
+  if ("error" in w) return { status: "error", message: w.error };
+  const r = await closeSupportRequest(w.rpc, w.actor, thread.data);
+  if (!r.ok) return { status: "error", message: r.message };
   refresh();
+  return { status: "done", message: "Closed. Thanks for letting us know it's sorted." };
 }

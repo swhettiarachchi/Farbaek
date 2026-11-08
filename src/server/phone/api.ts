@@ -132,13 +132,13 @@ const badBody = () => problem(400, "INVALID_REQUEST", "That request isn't valid.
 /** The person behind a write, or why they can't write here. */
 function person(s: Scope): PhonePerson | Response {
   if (!s.caller) return problem(403, "SAMPLE_READ_ONLY", SAMPLE_READ_ONLY);
-  if (!s.ctx.current) return problem(409, "NO_WORKSPACE", "Create a workspace on the web first.");
+  if (!s.ctx.current) return problem(409, "NO_WORKSPACE", "Make a workspace first.");
   if (!s.ctx.writes.enabled) return problem(403, "READ_ONLY", s.ctx.writes.reason);
   return { ctx: s.ctx, orgId: s.ctx.current.id, caller: s.caller };
 }
 
 function orgOf(s: Scope): string | Response {
-  return s.ctx.current?.id ?? problem(409, "NO_WORKSPACE", "Create a workspace on the web first.");
+  return s.ctx.current?.id ?? problem(409, "NO_WORKSPACE", "Make a workspace first.");
 }
 
 const ROUTES: Route[] = [
@@ -159,7 +159,7 @@ const ROUTES: Route[] = [
     path: "home",
     run: async (s) => {
       const org = orgOf(s);
-      return typeof org === "string" ? ok(await homeView(s.ctx.reader, org, s.runs, s.deps.now())) : org;
+      return typeof org === "string" ? ok(await homeView(s.ctx, org, s.runs, s.deps.now())) : org;
     },
   },
   {
@@ -441,8 +441,13 @@ function match(route: Route, method: string, segments: readonly string[]): Param
   return params;
 }
 
-/** Long enough for a cloud run and its checks in a fresh test space: a phone refreshes first when its token is closer to expiring. */
-const LONG_TOKEN_MS = (CLOUD_RUN_MAX_MINUTES + 20) * 60_000;
+/**
+ * Long enough for a cloud run and its checks in a fresh test space: a phone
+ * refreshes first when its token is closer to expiring. Access tokens live an
+ * hour, so the margin has to be well under that or no token, however fresh,
+ * could ever pass (a token one network hop old is already short of an hour).
+ */
+export const LONG_TOKEN_MS = (CLOUD_RUN_MAX_MINUTES + 5) * 60_000;
 
 export async function handlePhoneApi(request: Request, segments: readonly string[], deps: PhoneApiDeps): Promise<Response> {
   const method = request.method.toUpperCase();

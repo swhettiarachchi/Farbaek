@@ -127,8 +127,8 @@ export default async function MissionControl() {
 
       {trialActive && ws.trial ? (
         <Notice>
-          {ws.trial.phase.phase === "active" ? ws.trial.phase.daysRemaining : 0} days left in your {getPlan(TRIAL.basePlan).name} trial. It ends <LocalTime iso={ws.trial.endsAt} />, then
-          this workspace moves to Free and nothing is charged. <Link href="/app/billing" className="font-medium text-accent hover:underline">See usage</Link>
+          {ws.trial.phase.phase === "active" ? `${ws.trial.phase.daysRemaining} ${ws.trial.phase.daysRemaining === 1 ? "day" : "days"}` : "No time"} left in your {getPlan(TRIAL.basePlan).name} trial. It ends on{" "}
+          <LocalTime iso={ws.trial.endsAt} date />, then this workspace moves to Free and nothing is charged. <Link href="/app/billing" className="font-medium text-accent hover:underline">See usage</Link>
         </Notice>
       ) : null}
       {ws.billingUnknown ? <Notice tone="warning">We couldn&apos;t read this workspace&apos;s plan, so some things are paused for safety. Please contact support.</Notice> : null}

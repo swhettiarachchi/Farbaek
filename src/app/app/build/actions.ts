@@ -12,7 +12,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { CAP_CHOICES } from "@/core/agent/run-cap";
 import { EFFORTS } from "@/core/agent/routing";
-import { answerRunApproval, cancelCloudRun, sendRunMessage, startCloudRun } from "@/server/cloud-agent/executor";
+import { RUN_MESSAGE_MAX, answerRunApproval, cancelCloudRun, sendRunMessage, startCloudRun } from "@/server/cloud-agent/executor";
 import { cloudRunDeps } from "@/server/cloud-agent/wiring";
 import { loadAppContext, type AppContext } from "@/server/workspace/context";
 import { runCapUnits } from "@/server/workspace/plan-card-data";
@@ -54,8 +54,8 @@ export async function answerBuildApprovalAction(input: { runId: string; requestI
 
 /** A message for the running agent, read at its next step (ADR 0027). */
 export async function sendRunMessageAction(input: { runId: string; text: string }): Promise<BuildActionState> {
-  const parsed = z.object({ runId: z.uuid(), text: z.string().max(2_000) }).safeParse(input);
-  if (!parsed.success) return { status: "error", message: "That message can't be sent." };
+  const parsed = z.object({ runId: z.uuid(), text: z.string().max(RUN_MESSAGE_MAX) }).safeParse(input);
+  if (!parsed.success) return { status: "error", message: parsed.error.issues.some((i) => i.path[0] === "text") ? `Keep messages under ${RUN_MESSAGE_MAX.toLocaleString("en-US")} characters.` : "That message can't be sent. Reload the page and try again." };
   const p = await person();
   if ("error" in p) return { status: "error", message: p.error };
   const r = sendRunMessage(p.person, parsed.data);

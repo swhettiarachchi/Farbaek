@@ -71,7 +71,7 @@ struct TodayView: View {
         VStack(alignment: .leading, spacing: 8) {
             if model.isSample { SampleLabel() }
             if let workspace = model.currentWorkspace {
-                Text("\(workspace.name), \(workspace.plan)")
+                Text(workspace.planSentence)
                     .font(.subheadline)
                     .foregroundStyle(Palette.ink2)
                 if let paused = workspace.paused {
@@ -85,15 +85,22 @@ struct TodayView: View {
 
     private func waitingPanel(_ home: Home) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text("\(home.waiting)")
-                    .font(.system(size: countSize, weight: .medium))
-                    .tracking(-1)
-                    .foregroundStyle(home.waiting > 0 ? Palette.approval : Palette.ink)
-                    .contentTransition(.numericText())
-                Text(home.waiting == 1 ? "change waits for you" : "changes wait for you")
-                    .font(.headline.weight(.regular))
-                    .foregroundStyle(Palette.ink2)
+            // A number only when there is something to count (ADR 0180); "0" is a counter with nothing behind it.
+            if home.waiting > 0 {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text("\(home.waiting)")
+                        .font(.system(size: countSize, weight: .medium))
+                        .tracking(-1)
+                        .foregroundStyle(Palette.approval)
+                        .contentTransition(.numericText())
+                    Text(home.waiting == 1 ? "change waits for you" : "changes wait for you")
+                        .font(.headline.weight(.regular))
+                        .foregroundStyle(Palette.ink2)
+                }
+            } else {
+                Text("Your turn")
+                    .font(.headline.weight(.medium))
+                    .foregroundStyle(Palette.ink)
             }
             Text(home.waiting > 0 ? "Each one can be approved for 72 hours, only as the exact content you review." : "Nothing waits for you. New changes appear here when the agent suggests one.")
                 .font(.subheadline)
@@ -164,6 +171,8 @@ struct TodayView: View {
     }
 
     private func read() async {
+        // The account may not have loaded (offline at launch). Home is where people pull to refresh, so it loads it here too.
+        if model.me == nil, model.phase == .signedIn { await model.loadMe(as: .signedIn) }
         guard !needsWorkspace else { return }
         do {
             let home: Home = try await model.api.get("home")

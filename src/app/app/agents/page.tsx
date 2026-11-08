@@ -9,7 +9,7 @@ import { readToolPins } from "@/server/agent/tool-pins";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { PairAgent } from "@/components/agents/pair-agent";
 import { Card, EmptyState, Notice, PageHeader } from "@/components/app/primitives";
-import { buttonClasses } from "@/components/ui/button";
+import { ConfirmAction } from "@/components/ui/confirm-action";
 import { RelativeTime } from "@/components/ui/local-time";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LEASE_WARNING_DAYS, leaseDaysLeft, leaseState } from "@/core/agent/lease";
@@ -38,9 +38,9 @@ export default async function AgentsPage() {
   const endingSoon = active.filter((a) => leaseState(a.lease, now) === "ending_soon");
   const leaseNotice =
     ended.length > 0
-      ? `${ended.length === 1 ? `${ended[0]!.name}'s access has` : `${ended.length} agents' access has`} ended, so ${ended.length === 1 ? "it" : "they"} can't do anything until someone renews ${ended.length === 1 ? "it" : "them"} below.`
+      ? `${ended.length === 1 ? `${ended[0]!.name}'s access has` : `${ended.length} computers' access has`} ended, so ${ended.length === 1 ? "it" : "they"} can't do anything until someone renews ${ended.length === 1 ? "it" : "them"} below.`
       : endingSoon.length > 0
-        ? `${endingSoon.length === 1 ? `${endingSoon[0]!.name}'s access ends` : `${endingSoon.length} agents' access ends`} within ${LEASE_WARNING_DAYS} days. Renew below to keep ${endingSoon.length === 1 ? "it" : "them"} working.`
+        ? `${endingSoon.length === 1 ? `${endingSoon[0]!.name}'s access ends` : `${endingSoon.length} computers' access ends`} within ${LEASE_WARNING_DAYS} days. Renew below to keep ${endingSoon.length === 1 ? "it" : "them"} working.`
         : null;
   const openProjects = projects.filter((p) => !p.archivedAt).map((p) => ({ id: p.id, name: p.name }));
   const leaseReason = ctx.mode === "demo" ? "The demo workspace is read-only." : !ctx.writes.enabled ? ctx.writes.reason : null;
@@ -53,11 +53,14 @@ export default async function AgentsPage() {
       : !ctx.writes.enabled
         ? ctx.writes.reason
         : !canPair
-          ? "Viewers can't pair agents, since agents suggest changes."
+          ? "Viewers can't pair a computer, since the app suggests changes."
           : limit !== null && active.length >= limit
-            ? `Every agent on this plan is in use (${active.length} of ${limit}). Revoke one to pair another computer.`
+            ? `Every computer this plan allows is paired (${active.length} of ${limit}). Revoke one to pair another.`
             : null;
-  const usage = limit === null ? `${active.length} agents paired.` : `${active.length} of ${limit} agents on this plan.`;
+  const usage =
+    limit === null
+      ? `${active.length === 1 ? "1 computer is" : `${active.length} computers are`} paired.`
+      : `${active.length} of the ${limit} ${limit === 1 ? "computer" : "computers"} this plan allows ${active.length === 1 ? "is" : "are"} paired.`;
 
   const modes = [
     { id: "review_only" as const, icon: EyeIcon, available: true, note: "No command runs and nothing on your disk changes." },
@@ -100,12 +103,12 @@ export default async function AgentsPage() {
 
       <section aria-labelledby="agents-heading" className="grid gap-4">
         <h2 id="agents-heading" className="text-lg font-medium">
-          Paired agents <span className="text-ink-3 tabular">{active.length}</span>
+          Paired computers
         </h2>
         {leaseNotice ? <Notice tone="warning">{leaseNotice}</Notice> : null}
         {agents.length === 0 ? (
-          <EmptyState icon={DesktopIcon} title="No agents yet">
-            Pair a computer with a code above. Each paired agent shows here with when it was last seen, and you can revoke it at any time.
+          <EmptyState icon={DesktopIcon} title="No computers paired yet">
+            Pair a computer with a code above. Each one shows here with when it was last seen, and you can revoke it at any time.
           </EmptyState>
         ) : (
           <ul className="divide-y divide-line overflow-hidden rounded-md border border-line bg-surface shadow-e1">
@@ -137,12 +140,15 @@ export default async function AgentsPage() {
                   </span>
                   {a.revokedAt ? <StatusBadge status="unverified" label="Revoked" /> : <StatusBadge status="info" label="Paired" />}
                   {canRevoke ? (
-                    <form action={revokeAgentAction}>
-                      <input type="hidden" name="agentId" value={a.id} />
-                      <button type="submit" className={buttonClasses("secondary", "sm")}>
-                        Revoke
-                      </button>
-                    </form>
+                    <ConfirmAction
+                      action={revokeAgentAction}
+                      fields={{ agentId: a.id }}
+                      trigger="Revoke"
+                      question={<>Revoke {a.name}? It stops acting for this workspace at once. To use that computer again, pair it with a new code.</>}
+                      confirmLabel="Revoke this computer"
+                      pendingLabel="Revoking…"
+                      keepLabel="Keep it paired"
+                    />
                   ) : null}
                   {a.revokedAt ? null : (
                     <ToolPinPanel agentId={a.id} pin={pins.get(a.id) ?? null} canApprove={canManage} disabledReason={leaseReason} />

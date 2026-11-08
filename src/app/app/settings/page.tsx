@@ -30,6 +30,7 @@ import { RenameWorkspaceForm } from "@/components/app/forms";
 import { InvitePeople } from "@/components/app/invite-people";
 import { revokeInvitationAction } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { ConfirmAction } from "@/components/ui/confirm-action";
 import { CONTACT } from "@/config/contact";
 import { invitableRoles } from "@/core/workspace/invitations";
 import { currentExecutionMode } from "@/server/execution/sandbox";
@@ -140,7 +141,7 @@ export default async function SettingsPage() {
             <li key={m.userId} className="grid gap-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-raised text-sm font-medium text-ink-2">
-                  {m.userId === ctx.user.id ? ctx.user.email.slice(0, 1).toUpperCase() : "·"}
+                  {(m.userId === ctx.user.id ? ctx.user.email : (emailOf.get(m.userId) ?? "Teammate")).slice(0, 1).toUpperCase()}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[0.9375rem]">{m.userId === ctx.user.id ? `${ctx.user.email} (you)` : (emailOf.get(m.userId) ?? "Teammate")}</span>
@@ -193,12 +194,16 @@ export default async function SettingsPage() {
                           {ROLE_LABEL[i.role]}, expires <RelativeTime iso={i.expiresAt} />
                         </span>
                       </span>
-                      <form action={revokeInvitationAction}>
-                        <input type="hidden" name="invitationId" value={i.id} />
-                        <button type="submit" disabled={inviteReason === "The demo workspace is read-only."} className={buttonClasses("secondary", "sm")}>
-                          Revoke
-                        </button>
-                      </form>
+                      <ConfirmAction
+                        action={revokeInvitationAction}
+                        fields={{ invitationId: i.id }}
+                        trigger="Revoke"
+                        question={<>Revoke the invitation to {i.email}? Its link stops working and the seat is free again.</>}
+                        confirmLabel="Revoke invitation"
+                        pendingLabel="Revoking…"
+                        keepLabel="Keep it open"
+                        disabledReason={peopleReason}
+                      />
                     </li>
                   ))}
                 </ul>
@@ -340,7 +345,7 @@ export default async function SettingsPage() {
             Delete your account
           </h2>
           <p className="mt-1 max-w-[62ch] text-sm leading-relaxed text-ink-2">
-            Here&apos;s what happens to each workspace you&apos;re in. Want a copy first? Download your data above, and export each project from its page: the Capsule holds its files and history.
+            Here&apos;s what happens to each workspace you&apos;re in. Want a copy first? Download your data above, and use Export everything on each project&apos;s page for its files and history.
           </p>
           <div className="mt-5">
             <DeleteAccount

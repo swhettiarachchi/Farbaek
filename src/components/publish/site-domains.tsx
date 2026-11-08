@@ -4,6 +4,7 @@ import { CheckCircleIcon, CopyIcon, LinkSimpleIcon, PlusIcon, TrashIcon, Warning
 import { useActionState, useState } from "react";
 import { addDomainAction, checkDomainAction, removeDomainAction, type PublishState } from "@/app/app/projects/[projectId]/publish-actions";
 import { buttonClasses } from "@/components/ui/button";
+import { ConfirmAction } from "@/components/ui/confirm-action";
 import { DOMAINS_PER_SITE, type DnsRecord } from "@/core/publish/domains";
 
 const IDLE: PublishState = { status: "idle" };
@@ -51,13 +52,21 @@ function DomainCard({ projectId, domain, disabledReason }: { projectId: string; 
           </span>
         )}
         {disabledReason ? null : (
-          <form action={removeDomainAction} className="ml-auto">
-            <input type="hidden" name="projectId" value={projectId} />
-            <input type="hidden" name="domainId" value={domain.id} />
-            <button type="submit" className="inline-flex size-11 items-center justify-center rounded-full text-ink-3 hover:bg-surface-raised hover:text-failed" aria-label={`Remove ${domain.hostname}`}>
-              <TrashIcon size={17} aria-hidden />
-            </button>
-          </form>
+          <ConfirmAction
+            action={removeDomainAction}
+            fields={{ projectId, domainId: domain.id }}
+            className="ml-auto"
+            triggerClassName="inline-flex size-11 items-center justify-center rounded-full text-ink-3 hover:bg-surface-raised hover:text-failed"
+            trigger={
+              <>
+                <TrashIcon size={17} aria-hidden />
+                <span className="sr-only">Remove {domain.hostname}</span>
+              </>
+            }
+            question={<>Remove {domain.hostname}? {verified ? "It stops serving this site, and visitors there see nothing until it's added and checked again." : "You can add it again later."} The site stays live at its Farbaek address.</>}
+            confirmLabel="Remove domain"
+            pendingLabel="Removing…"
+          />
         )}
       </div>
 

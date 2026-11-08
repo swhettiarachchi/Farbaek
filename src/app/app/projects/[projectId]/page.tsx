@@ -114,7 +114,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
                 {/* Apps with a build step get the component editor (ADR 0129); static sites open it from the live preview below. */}
                 {!isStatic && files.some((f) => /.(tsx|jsx)$/.test(f.path)) ? (
                   <Link href={`/app/projects/${project.id}/design`} className={buttonClasses("secondary", "sm")}>
-                    <PaintBrushIcon size={16} aria-hidden /> Edit components
+                    <PaintBrushIcon size={16} aria-hidden /> Visual editor
                   </Link>
                 ) : null}
               </div>
@@ -149,6 +149,15 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
               </Link>
               .
             </>
+          ) : query.linked === "failed" ? (
+            <>
+              {" "}
+              It couldn&apos;t be linked to its repository just now. An owner or admin can link it on the{" "}
+              <Link href={`/app/projects/${project.id}/github`} className="font-medium text-accent hover:underline">
+                project&apos;s GitHub page
+              </Link>
+              .
+            </>
           ) : null}
         </Notice>
       ) : null}
@@ -173,7 +182,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
               <EyeIcon size={20} weight="bold" className="text-accent" aria-hidden /> Live preview
             </h2>
             <ButtonLink href={`/app/projects/${project.id}/design`} variant="secondary" size="sm">
-              <PaintBrushIcon size={16} aria-hidden /> Edit visually
+              <PaintBrushIcon size={16} aria-hidden /> Visual editor
             </ButtonLink>
           </div>
           <StaticPreview versions={[{ id: "now", label: "Current", files: Object.fromEntries(contents.map((f) => [f.path, f.content])), images }]} />
@@ -183,9 +192,9 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
 
       {publish && placeholders > 0 ? (
         <Notice>
-          This site still shows {placeholders} stand-in {placeholders === 1 ? "image or video" : "images or videos"}. Put your own in with Replace in{" "}
+          This site still shows {placeholders} stand-in {placeholders === 1 ? "image or video" : "images or videos"}. Put your own in with Replace in the{" "}
           <Link href={`/app/projects/${project.id}/design`} className="font-medium text-accent hover:underline">
-            Studio
+            visual editor
           </Link>
           , or publish it as it is.
         </Notice>
@@ -265,15 +274,15 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
           </div>
           <p className="mt-2 text-sm text-ink-2">Check the code for leaked secrets, unsafe patterns, vulnerable packages and risky logic, then fix findings with the agent.</p>
         </Card>
-        <Card>
-          <h2 className="text-lg font-medium">New task</h2>
-          <div className="mt-4">
+        {/* Describing a change above drafts the plan; this is for work someone will plan later, so it stays folded. */}
+        <Disclosure summary="Add a task without a plan" hint="For work you'll plan later. Describing a change above drafts the plan for you.">
+          <Card>
             <CreateTaskForm
               projectId={project.id}
               disabledReason={!ctx.writes.enabled ? ctx.writes.reason : project.archivedAt ? "This project is archived, so new tasks can't be added." : null}
             />
-          </div>
-        </Card>
+          </Card>
+        </Disclosure>
         {!project.archivedAt ? (
           <Card>
             <h2 className="text-lg font-medium">Archive</h2>

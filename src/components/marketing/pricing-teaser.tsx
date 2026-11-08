@@ -10,8 +10,8 @@ export function PricingTeaser() {
     <section aria-labelledby="pricing-teaser-title" className="py-20 lg:py-28">
       <Container>
         <SectionHeading id="pricing-teaser-title" title="One subscription. The models, test spaces and checks are included.">
-          No API keys to bring. Every new organization gets a {TRIAL.lengthDays}-day {getPlan(TRIAL.basePlan).name} trial with no card. When it
-          ends you move to Free, and nothing is charged.
+          No API keys to bring. New workspaces get a {TRIAL.lengthDays}-day {getPlan(TRIAL.basePlan).name} trial with no card, one per email address.
+          When it ends you move to Free, and nothing is charged.
         </SectionHeading>
 
         {/* gap-px over the line colour draws the dividers for any number of plans. */}

@@ -46,9 +46,14 @@ function Feature({ feature }: { feature: FeatureKey }) {
  */
 export function PricingPlans() {
   return (
+    <>
+      {/* On a phone the plans scroll sideways, so say how many there are before the first card. */}
+      <p className="mb-3 text-sm text-ink-3 lg:hidden">
+        {SELF_SERVE_PLANS.length} plans. Swipe sideways to compare them.
+      </p>
     <ul
       aria-label="Plans"
-      className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 sm:-mx-6 sm:px-6 lg:mx-0 lg:grid lg:grid-cols-4 lg:overflow-visible lg:px-0 lg:pb-0"
+      className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 sm:-mx-6 sm:px-6 lg:mx-0 lg:grid lg:grid-cols-5 lg:overflow-visible lg:px-0 lg:pb-0"
     >
       {SELF_SERVE_PLANS.map((plan, i) => {
         const featured = plan.recommendedFor !== undefined;
@@ -133,6 +138,7 @@ export function PricingPlans() {
         );
       })}
     </ul>
+    </>
   );
 }
 

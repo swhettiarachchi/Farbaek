@@ -14,7 +14,6 @@ import { buttonClasses } from "@/components/ui/button";
 import { FileTree, fileHref } from "@/components/files/file-tree";
 import { ImportFiles } from "@/components/files/import-files";
 import { RelativeTime } from "@/components/ui/local-time";
-import { shortHash } from "@/core/trust/canonical-json";
 import { buildTree, formatBytes, languageOf } from "@/core/workspace/files";
 import { loadAppContext } from "@/server/workspace/context";
 import { loadWhyGraph } from "@/server/insights/why-graph";
@@ -280,7 +279,6 @@ export default async function FilesPage({
                         <span className="min-w-0 flex-1 truncate text-xs text-ink-3">
                           <RelativeTime iso={r.createdAt} />
                           {r.sizeBytes !== null ? <>, {formatBytes(r.sizeBytes)}</> : null}
-                          {r.sha256 ? <span className="ml-2 font-mono">{shortHash(r.sha256)}</span> : null}
                         </span>
                         {isCurrent ? <span className="shrink-0 rounded-full bg-accent/[0.08] px-2.5 py-0.5 text-xs font-medium text-accent">Current</span> : null}
                       </>
@@ -330,11 +328,8 @@ export default async function FilesPage({
                       <span>
                         {isImage ? "Image" : languageOf(file.path)}, {formatBytes(file.sizeBytes)}
                       </span>
-                      <span>
+                      <span title={`sha256:${file.sha256}`}>
                         Revision <span className="tabular">{file.revision}</span>, updated <RelativeTime iso={file.updatedAt} />
-                      </span>
-                      <span className="font-mono" title={`sha256:${file.sha256}`}>
-                        {shortHash(file.sha256)}
                       </span>
                     </p>
                     {writeReason ? <p className="mt-1 text-xs text-ink-3">{writeReason}</p> : null}

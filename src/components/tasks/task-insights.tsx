@@ -59,8 +59,6 @@ export function ReversibilityCard({ overall, files }: { overall: Reversibility; 
   );
 }
 
-const compact = (n: number) => n.toLocaleString("en-US", { notation: n >= 10_000 ? "compact" : "standard", maximumFractionDigits: 1 });
-
 /** Developer Cost Brain for a task (ADR 0122): what it has actually used, as shares, with estimates and refunds labelled. */
 export function CostCard({ cost, period }: { cost: TaskCost; period: "trial" | "month" | null }) {
   // A task can run across months, so its share is of one period's allowance, not of this month's.
@@ -93,13 +91,7 @@ export function CostCard({ cost, period }: { cost: TaskCost; period: "trial" | "
                     <p className="text-xs leading-relaxed text-ink-3">
                       {o.calls === 1 ? "1 call" : `${o.calls} calls`}
                       {o.ownKeyCalls ? ` (${o.ownKeyCalls === o.calls ? "all" : o.ownKeyCalls} on your own key, not counted)` : ""}
-                      {o.tokens.input + o.tokens.output > 0 ? `, ${compact(o.tokens.input)} tokens in, ${compact(o.tokens.output)} out${o.tokens.cached ? `, ${compact(o.tokens.cached)} cached` : ""}` : ""}
-                      {o.models.length ? (
-                        <>
-                          {", "}
-                          {o.models.map(modelName).join(", ")}
-                        </>
-                      ) : null}
+                      {o.models.length ? ` on ${o.models.map(modelName).join(" and ")}` : ""}
                     </p>
                   </div>
                   <p className="text-sm tabular text-ink-2 sm:text-right">
@@ -118,14 +110,12 @@ export function CostCard({ cost, period }: { cost: TaskCost; period: "trial" | "
             ) : null}
             {cost.sandbox.sessions > 0 ? (
               <li>
-                Sandbox: {cost.sandbox.sessions === 1 ? "1 session" : `${cost.sandbox.sessions} sessions`}, {cost.sandbox.minutes === 1 ? "1 minute" : `${cost.sandbox.minutes} minutes`} counted while running
+                Test space: {cost.sandbox.sessions === 1 ? "1 session" : `${cost.sandbox.sessions} sessions`}, {cost.sandbox.minutes === 1 ? "1 minute" : `${cost.sandbox.minutes} minutes`} counted while running
                 {cost.sandbox.running ? `, ${cost.sandbox.running} still open` : ""}.
               </li>
             ) : null}
           </ul>
-          <p className="text-xs leading-relaxed text-ink-3">
-            Shares are {of}, at each model&apos;s real token price. Tokens are as each provider reported them. A call still in progress counts at its reserved estimate until it settles.
-          </p>
+          <p className="text-xs leading-relaxed text-ink-3">Shares are {of}, at each model&apos;s real price. A call still in progress counts at its reserved estimate until it settles.</p>
         </>
       )}
     </section>

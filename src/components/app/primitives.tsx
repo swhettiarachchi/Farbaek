@@ -99,7 +99,7 @@ export function UsageMeter({
       <div className="flex items-baseline justify-between gap-3">
         <p className="text-sm font-medium">{label}</p>
         <p className="text-sm text-ink-2 tabular">
-          {number.format(used)} <span className="text-ink-3">of {limit === null ? "contract" : number.format(limit)}</span>
+          {number.format(used)} <span className="text-ink-3">{limit === null ? ", no fixed limit" : `of ${number.format(limit)}`}</span>
         </p>
       </div>
       <div

@@ -1,4 +1,4 @@
-import { CheckCircleIcon, CircleDashedIcon, CircleNotchIcon, ProhibitIcon, QuestionIcon, SirenIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, CircleNotchIcon, SirenIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import { modelName } from "@/core/billing/rate-card";
 import Link from "next/link";
 import { LiveRefresh } from "@/components/app/live-refresh";
@@ -9,13 +9,14 @@ import { TryFailure } from "./try-failure";
 
 type Shown = FailureTrialStatus | "hypothetical";
 
+// A state is its words in a colour and border (ADR 0180); a mark only for how a trial ended.
 const STATUS: Record<Shown, { label: string; Icon: typeof CheckCircleIcon | null; className: string }> = {
-  hypothetical: { label: "Hypothetical", Icon: QuestionIcon, className: "border-dashed border-line-strong text-ink-2" },
+  hypothetical: { label: "Not tried yet", Icon: null, className: "border-dashed border-line-strong text-ink-2" },
   running: { label: LAB_OUTCOME_WORDS.running.label, Icon: null, className: "border-approval/40 text-approval" },
   reproduced: { label: LAB_OUTCOME_WORDS.reproduced.label, Icon: XCircleIcon, className: "border-failed/40 text-failed" },
   handled: { label: LAB_OUTCOME_WORDS.handled.label, Icon: CheckCircleIcon, className: "border-verified/40 text-verified" },
-  inconclusive: { label: LAB_OUTCOME_WORDS.inconclusive.label, Icon: CircleDashedIcon, className: "border-dashed border-unverified/60 text-unverified" },
-  not_testable: { label: LAB_OUTCOME_WORDS.not_testable.label, Icon: ProhibitIcon, className: "border-line text-ink-2" },
+  inconclusive: { label: LAB_OUTCOME_WORDS.inconclusive.label, Icon: null, className: "border-dashed border-unverified/60 text-unverified" },
+  not_testable: { label: LAB_OUTCOME_WORDS.not_testable.label, Icon: null, className: "border-line text-ink-2" },
   failed: { label: LAB_OUTCOME_WORDS.failed.label, Icon: WarningCircleIcon, className: "border-dashed border-failed/40 text-failed" },
 };
 

@@ -22,7 +22,7 @@ async function incidentDeps(ctx: AppContext) {
   if (!ctx.current) return { error: "Create a workspace first." } as const;
   if (ctx.mode !== "live") return { error: "The demo workspace is read-only." } as const;
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
-  if (!user || !admin) return { error: "The server isn't configured for this yet." } as const;
+  if (!user || !admin) return { error: "Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com." } as const;
   async function rpc<T>(fn: string, args: Record<string, unknown>, schema: z.ZodType<T>): Promise<RpcResult<T>> {
     const { data, error } = await admin!.rpc(fn, args);
     if (error) return { ok: false, error: error.message };

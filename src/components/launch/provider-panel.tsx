@@ -1,13 +1,12 @@
 import { ArrowSquareOutIcon, CheckCircleIcon, CircleDashedIcon, InfoIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import { LiveRefresh } from "@/components/app/live-refresh";
-import { buttonClasses } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/local-time";
 import type { LaunchProvider } from "@/core/launch/providers";
 import type { OrderStatus } from "@/core/launch/vercel";
 import { EVIDENCE_WORDS, type EvidenceStatus } from "@/core/publish/evidence";
-import { shortHash } from "@/core/trust/canonical-json";
 import { formatBytes } from "@/core/workspace/files";
 import { disconnectProviderAction } from "@/app/app/projects/[projectId]/launch/launch-actions";
+import { ConfirmAction } from "@/components/ui/confirm-action";
 import type { ConnectionView, LaunchOrderView } from "@/server/launch/provider-store";
 import { PROVIDER_COPY, type ProviderCopy } from "./provider-copy";
 import { ConnectProvider, LaunchToProvider } from "./provider-forms";
@@ -94,11 +93,10 @@ export function ProviderPanel(props: {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <dl className="grid content-start divide-y divide-line rounded-md border border-line">
             {[
-              { k: "Files", v: `${props.files.count.toLocaleString("en-US")} files, ${formatBytes(props.files.bytes)}`, mono: false, title: undefined },
-              { k: "Fingerprint", v: shortHash(props.files.digest), mono: true, title: `sha256:${props.files.digest}` },
+              { k: "Files", v: `${props.files.count.toLocaleString("en-US")} files, ${formatBytes(props.files.bytes)}, recorded with their digest`, mono: false, title: `sha256:${props.files.digest}` },
               { k: "Proof", v: EVIDENCE_WORDS[props.evidence].title, mono: false, title: EVIDENCE_WORDS[props.evidence].detail },
               { k: "Account", v: `${connection.accountName}${connection.teamId ? `, team ${connection.teamId}` : ""}`, mono: false, title: undefined },
-              { k: "Goes to", v: "Production", mono: false, title: undefined },
+              { k: "Goes to", v: `The live site (what ${copy.name} calls production)`, mono: false, title: undefined },
               { k: copy.buildsLabel, v: props.builds, mono: provider === "vercel", title: undefined },
             ].map((row) => (
               <div key={row.k} className="grid gap-1 px-4 py-3 sm:grid-cols-[150px_minmax(0,1fr)] sm:gap-4">
@@ -131,9 +129,8 @@ export function ProviderPanel(props: {
                       <RelativeTime iso={o.authorizedAt} />
                     </span>
                   </p>
-                  <p className="text-xs leading-relaxed text-ink-3">
-                    {o.fileCount.toLocaleString("en-US")} files, fingerprint <span className="font-mono" title={`sha256:${o.filesDigest}`}>{shortHash(o.filesDigest)}</span>.{" "}
-                    {o.evidence === "verified" ? "Checks passed." : `Without passed checks. The reason given: ${o.overrideReason}`}
+                  <p className="text-xs leading-relaxed text-ink-3" title={`Files sha256:${o.filesDigest}`}>
+                    {o.fileCount.toLocaleString("en-US")} files. {o.evidence === "verified" ? "Checks passed." : `Without passed checks. The reason given: ${o.overrideReason}`}
                   </p>
                   {o.failure ? <p className="text-sm text-failed">{o.failure}</p> : null}
                   {o.status === "ready" && said ? <p className="text-sm text-ink-2">{said}</p> : null}
@@ -162,13 +159,15 @@ export function ProviderPanel(props: {
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
         <p className="max-w-[68ch] text-xs leading-relaxed text-ink-3">{copy.domainNote}</p>
         {connection && props.canDisconnect ? (
-          <form action={disconnectProviderAction}>
-            <input type="hidden" name="provider" value={provider} />
-            <input type="hidden" name="projectId" value={props.projectId} />
-            <button type="submit" className={buttonClasses("secondary", "sm")}>
-              Disconnect {copy.name}
-            </button>
-          </form>
+          <ConfirmAction
+            action={disconnectProviderAction}
+            fields={{ provider, projectId: props.projectId }}
+            trigger={`Disconnect ${copy.name}`}
+            question={<>Disconnect {copy.name}? New launches stop until it&apos;s connected again. Anything already live there stays live.</>}
+            confirmLabel={`Disconnect ${copy.name}`}
+            pendingLabel="Disconnecting…"
+            keepLabel="Keep it connected"
+          />
         ) : null}
       </div>
     </section>

@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, CheckCircleIcon, CircleDashedIcon, CircleNotchIcon, InfoIcon, WarningIcon, WarningOctagonIcon, WrenchIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, CheckCircleIcon, CircleDashedIcon, CircleNotchIcon, InfoIcon, WarningIcon, WarningOctagonIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -7,17 +7,15 @@ import { Card, EmptyState, Notice, PageHeader } from "@/components/app/primitive
 import { RunSecurityCheck } from "@/components/security/run-check";
 import { ScoreRing } from "@/components/security/score-ring";
 import { LocalTime } from "@/components/ui/local-time";
-import { buttonClasses } from "@/components/ui/button";
 import { PLAN_UNCONFIRMED_MESSAGE } from "@/core/billing/entitlements";
 import { SEVERITIES, SEVERITY_LABELS, type Finding, type Severity } from "@/core/security/findings";
 import { CHECK_LABELS } from "@/core/security/report";
-import { shortHash } from "@/core/trust/canonical-json";
 import { loadProjectReports } from "@/server/security/page-data";
 import { checkScope } from "@/server/security/runner";
 import type { SecurityReportView } from "@/server/security/store";
 import { loadAppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
-import { fixWithAgentAction } from "./actions";
+import { FixWithAgent } from "@/components/security/fix-with-agent";
 
 export const metadata: Metadata = { title: "Security" };
 
@@ -146,11 +144,8 @@ export default async function SecurityPage({ params, searchParams }: Params) {
                   </li>
                 ))}
               </ul>
-              <p className="text-xs text-ink-3">
-                Checked <LocalTime iso={p.generatedAt} />, {p.project.files} files. Report{" "}
-                <span className="font-mono" title={`sha256:${lastDone.digest}`}>
-                  {shortHash(lastDone.digest!)}
-                </span>
+              <p className="text-xs text-ink-3" title={`Report sha256:${lastDone.digest}`}>
+                Checked <LocalTime iso={p.generatedAt} />, {p.project.files} files. The report is a signed record you can download below.
               </p>
             </div>
           </section>
@@ -190,16 +185,7 @@ export default async function SecurityPage({ params, searchParams }: Params) {
                         <span className="font-medium">Fix: </span>
                         {f.fix}
                       </p>
-                      {!reason ? (
-                        <form action={fixWithAgentAction}>
-                          <input type="hidden" name="projectId" value={project.id} />
-                          <input type="hidden" name="reportId" value={lastDone.id} />
-                          <input type="hidden" name="findingId" value={f.id} />
-                          <button type="submit" className={buttonClasses("secondary", "sm")}>
-                            <WrenchIcon size={16} weight="bold" aria-hidden /> Fix with the agent
-                          </button>
-                        </form>
-                      ) : null}
+                      {!reason ? <FixWithAgent projectId={project.id} reportId={lastDone.id} findingId={f.id} /> : null}
                     </li>
                   ))}
                 </ul>

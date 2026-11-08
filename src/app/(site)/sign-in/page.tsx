@@ -87,9 +87,9 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
         </p>
         {supabase ? (
           // App store review accounts (ADR 0151): the only accounts with a password.
-          <p className="text-sm text-ink-2">
-            App review account?{" "}
-            <Link href={`/sign-in/password?${new URLSearchParams({ next })}`} className="inline-flex min-h-11 items-center font-medium text-accent hover:underline">
+          <p className="text-sm text-ink-3">
+            Reviewing Farbaek for an app store?{" "}
+            <Link href={`/sign-in/password?${new URLSearchParams({ next })}`} className="inline-flex min-h-11 items-center font-medium text-ink-2 underline-offset-4 hover:underline">
               Sign in with a password
             </Link>
           </p>

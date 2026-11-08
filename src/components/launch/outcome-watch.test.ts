@@ -36,7 +36,9 @@ describe("OutcomeWatch", () => {
   });
 
   it("says since when it has needed a look", () => {
-    expect(render({ ...base, state: "breached", breachedAt: "2026-10-25T09:00:00.000Z" })).toContain("Needs a look since");
+    const html = render({ ...base, state: "breached", breachedAt: "2026-10-25T09:00:00.000Z" });
+    expect(html).toContain("Needs a look");
+    expect(html).toContain("Down since");
   });
 
   it("shows why it can't be changed", () => {

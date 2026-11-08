@@ -66,18 +66,49 @@ export function workspacePhase(statuses: readonly RunStatus[]): CorePhase {
   return "idle";
 }
 
+/** What each tool did, as a person would say it (ADR 0180). The tool's own name never reaches the screen. */
+export const TOOL_VERB: Record<string, string> = {
+  list_files: "Looked in",
+  search_files: "Searched for",
+  read_file: "Read",
+  write_file: "Wrote",
+  edit_file: "Edited",
+  run_command: "Ran",
+  review_site: "Reviewed the site",
+  finish: "Finished",
+};
+
+/** A tool's target: paths and commands stay mono; a search, a summary or the project's top folder are words. */
+export function toolTarget(tool: string, target: string): { text: string; mono: boolean } | null {
+  if (!target || tool === "review_site") return null;
+  if (tool === "search_files") return { text: `“${target}”`, mono: false };
+  if (tool === "finish") return { text: target, mono: false };
+  if (target === "(top)") return { text: "the project", mono: false };
+  return { text: target, mono: true };
+}
+
+/** The latest step in words: a verb, and what it acted on (mono when it's a path or a command). */
+export interface Activity {
+  words: string;
+  detail: { text: string; mono: boolean } | null;
+}
+
 /** A one-line description of the latest step, for under the phase label. */
-export function latestActivity(latest: PhaseEvent | undefined): string | null {
+export function latestActivity(latest: PhaseEvent | undefined): Activity | null {
   if (!latest) return null;
   const p = latest.payload;
   const s = (v: unknown) => (typeof v === "string" ? v : "");
   switch (latest.kind) {
-    case "tool":
-      return s(p.target) ? `${s(p.tool)} ${s(p.target)}` : s(p.tool) || null;
+    case "tool": {
+      const tool = s(p.tool);
+      if (!tool) return null;
+      const verb = TOOL_VERB[tool] ?? tool.replace(/_/g, " ");
+      return { words: verb, detail: toolTarget(tool, s(p.target)) };
+    }
     case "command":
-      return s(p.command) || null;
+      return s(p.command) ? { words: "Ran", detail: { text: s(p.command), mono: true } } : null;
     case "approval":
-      return s(p.display) || null;
+      return s(p.display) ? { words: "Waiting to run", detail: { text: s(p.display), mono: true } } : null;
     case "model":
     case "note":
       return null;

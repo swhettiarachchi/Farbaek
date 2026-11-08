@@ -67,6 +67,7 @@ Farbaek's interface should feel premium because it is fast, calm and honest. It 
 | Refreshing live server data | `LiveRefresh active={…}` |
 | A project, as a card | `ProjectCard` (`src/components/app/project-card.tsx`): a live picture of its site (`SiteThumb`, lazy, no scripts) above its name. `SiteThumb src=…` draws any site picture from a thumbnail route (projects and templates) |
 | Handing a sentence to the build box | `offerPrompt(text)` from `prompt-composer.tsx`: it fills the page's box, scrolls to it and focuses it |
+| A press that removes, cuts off or changes what visitors see | `ConfirmAction` (`src/components/ui/confirm-action.tsx`, ADR 0181): one press shows the question and the real button, the result is said beside it, and `disabledReason` keeps the trigger visible but off. Its server action returns `{ status, message }`, never `void` |
 | A premium panel (plans, promises, showcase) | The double bezel: an outer shell `rounded-lg p-2 ring-1 ring-line bg-surface-raised/60` around an inner `rounded-md bg-surface` card. 28px minus 8px of padding gives the 20px card radius, so the curves stay concentric |
 | A primary call to action with an arrow | Button-in-button: a pill with the arrow in its own `size-8 rounded-full` circle that shifts up and right on hover (see `SiteHeader`) |
 

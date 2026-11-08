@@ -9,7 +9,8 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-const ROOTS = ["src/app", "src/components"].map((r) => path.join(process.cwd(), r));
+// The desktop app's renderer is an interface too (ADR 0180), so it holds to the same type.
+const ROOTS = ["src/app", "src/components", "desktop/src/renderer"].map((r) => path.join(process.cwd(), r));
 /** Sample designs of other people's sites, drawn in container units: their type is theirs. */
 const EXEMPT = new Set(["src/components/showcase/mockups.tsx"]);
 /** Tab-bar labels and count badges may be 11px, as on every phone. */

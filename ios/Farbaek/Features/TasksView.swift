@@ -7,11 +7,12 @@ enum TaskFilter: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        // The web's groups, in the web's words, so a task is called the same thing on both.
         case .all: return "All"
-        case .waiting: return "Waiting"
-        case .active: return "Active"
-        case .done: return "Done"
-        case .stopped: return "Stopped"
+        case .waiting: return "Needs a person"
+        case .active: return "In progress"
+        case .done: return "Verified"
+        case .stopped: return "Stopped or cancelled"
         }
     }
 }
@@ -213,9 +214,14 @@ struct TaskDetailView: View {
             SectionTitle("Progress")
             ForEach(stages, id: \.self) { stage in
                 HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: Tone(stage.status).symbol)
-                        .foregroundStyle(Tone(stage.status).color)
-                        .frame(width: 22)
+                    // A mark only where a stage is done or failed (ADR 0180); the words carry the rest, in their colour.
+                    if let symbol = Tone(stage.status).symbol {
+                        Image(systemName: symbol)
+                            .foregroundStyle(Tone(stage.status).color)
+                            .frame(width: 22)
+                    } else {
+                        Color.clear.frame(width: 22, height: 1)
+                    }
                     VStack(alignment: .leading, spacing: 2) {
                         Text(stage.label).font(.subheadline.weight(.medium)).foregroundStyle(Palette.ink)
                         if !stage.note.isEmpty { Text(stage.note).font(.footnote).foregroundStyle(Palette.ink2).fixedSize(horizontal: false, vertical: true) }
@@ -237,8 +243,8 @@ struct TaskDetailView: View {
                 } icon: {
                     if result == "running" {
                         ProgressView().controlSize(.small)
-                    } else {
-                        Image(systemName: Tone(Self.tone(result)).symbol)
+                    } else if let symbol = Tone(Self.tone(result)).symbol {
+                        Image(systemName: symbol)
                     }
                 }
                 .font(.subheadline)

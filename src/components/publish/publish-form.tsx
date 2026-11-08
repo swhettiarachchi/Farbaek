@@ -1,6 +1,6 @@
 "use client";
 
-import { RocketLaunchIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { GlobeIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useState } from "react";
 import { publishAction, type PublishState } from "@/app/app/projects/[projectId]/publish-actions";
 import { PublishedMoment } from "@/components/publish/published-moment";
@@ -84,7 +84,7 @@ export function PublishForm({
       ) : null}
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending || Boolean(disabledReason) || Boolean(problem) || Boolean(reasonProblem)} className={buttonClasses("primary")}>
-          <RocketLaunchIcon size={18} weight="bold" aria-hidden />{" "}
+          <GlobeIcon size={18} weight="bold" aria-hidden />{" "}
           {pending ? "Publishing…" : override ? "Publish without passed checks" : live ? "Publish the latest files" : "Publish"}
         </button>
         {disabledReason ? <span className="text-sm text-ink-3">{disabledReason}</span> : null}

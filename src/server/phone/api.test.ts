@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEMO_PROPOSAL_TASK_ID, DEMO_USER } from "@/content/demo-workspace";
 import { createDemoReader } from "@/server/workspace/demo-reader";
 import type { AppContext } from "@/server/workspace/context";
-import { handlePhoneApi, type PhoneApiDeps, type PhoneWrites } from "./api";
+import { handlePhoneApi, LONG_TOKEN_MS, type PhoneApiDeps, type PhoneWrites } from "./api";
 import type { PhoneAuthDeps } from "./auth";
 import { challengeFor } from "./tokens";
 import { taskNextStep, type NextStepFacts } from "@/core/realityloop/next-step";
@@ -293,6 +293,10 @@ describe("the phone API (ADR 0110)", () => {
     const long = deps();
     expect((await call(long.deps, "POST", `tasks/${DEMO_PROPOSAL_TASK_ID}/plan/approve`, { body })).status).toBe(200);
     expect(long.calls).toEqual(["approvePlan"]);
+    // A token minted an hour long and already a few seconds old, which is what a phone has after refreshing: it must pass.
+    const fresh = deps({ expiresAt: NOW.getTime() / 1000 + 3600 - 5 });
+    expect((await call(fresh.deps, "POST", `tasks/${DEMO_PROPOSAL_TASK_ID}/plan/approve`, { body })).status).toBe(200);
+    expect(LONG_TOKEN_MS).toBeLessThan(55 * 60_000);
   });
 
   it("connects a phone end to end: browser form, done page, code exchange", async () => {

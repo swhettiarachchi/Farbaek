@@ -12,11 +12,11 @@ function utcLabel(iso: string): string {
  * Shows an instant in the viewer's own time zone. The server render uses UTC
  * (labelled), then the browser swaps in local time after hydration.
  */
-export function LocalTime({ iso }: { iso: string }) {
+export function LocalTime({ iso, date = false }: { iso: string; date?: boolean }) {
   const text = useSyncExternalStore(
     subscribe,
-    () => new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso)),
-    () => utcLabel(iso),
+    () => new Intl.DateTimeFormat(undefined, date ? { dateStyle: "long" } : { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso)),
+    () => (date ? new Intl.DateTimeFormat("en-GB", { dateStyle: "long", timeZone: "UTC" }).format(new Date(iso)) : utcLabel(iso)),
   );
   return <time dateTime={iso}>{text}</time>;
 }

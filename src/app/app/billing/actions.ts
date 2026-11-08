@@ -8,6 +8,7 @@ import { GOOGLE_MESSAGES, claimGooglePlayPurchase, openGooglePlayIntent, type Go
 import { googlePlayDeps, googlePlayOn } from "@/server/billing/google/wiring";
 import { log } from "@/server/observability/log";
 import { loadAppContext } from "@/server/workspace/context";
+import { MANAGER_ROLES } from "@/server/workspace/types";
 
 const BILLING = "/app/billing";
 
@@ -17,7 +18,8 @@ async function who(): Promise<{ ws: BillingWorkspace; actor: BillingActor }> {
   if (!ctx) redirect("/sign-in");
   if (!ctx.current) redirect("/app");
   if (ctx.mode === "demo") redirect(`${BILLING}?error=NOT_OPEN`);
-  if (!ctx.writes.enabled) redirect(`${BILLING}?error=NOT_OPEN`);
+  // The real reason, not "payments aren't open": a viewer's role, or a workspace Farbaek paused.
+  if (!ctx.writes.enabled) redirect(`${BILLING}?error=${ctx.role && MANAGER_ROLES.includes(ctx.role) ? "SUSPENDED" : "FORBIDDEN"}`);
   return { ws: { id: ctx.current.id, onTrial: ctx.current.plan.source === "trial" }, actor: { userId: ctx.user.id, email: ctx.user.email, role: ctx.role } };
 }
 

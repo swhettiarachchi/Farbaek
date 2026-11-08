@@ -1,10 +1,9 @@
-import { ArrowSquareOutIcon, CheckCircleIcon, CircleDashedIcon, CircleIcon, GlobeIcon, ProhibitIcon, SealCheckIcon, ShieldCheckIcon, WarningIcon } from "@phosphor-icons/react/ssr";
+import { ArrowSquareOutIcon, CheckCircleIcon, CircleDashedIcon, GlobeIcon, ProhibitIcon, SealCheckIcon, ShieldCheckIcon, WarningIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { RelativeTime } from "@/components/ui/local-time";
 import { buttonClasses } from "@/components/ui/button";
 import { EVIDENCE_WORDS, type EvidenceStatus } from "@/core/publish/evidence";
 import { formatBytes } from "@/core/workspace/files";
-import { shortHash } from "@/core/trust/canonical-json";
 import type { PublishPanelData } from "@/server/publish/panel";
 import { PublishForm } from "./publish-form";
 import { SetLiveForm } from "./set-live-form";
@@ -45,9 +44,7 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
             <CheckCircleIcon size={14} weight="bold" aria-hidden /> Live
           </span>
         ) : (
-          <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line px-3 text-xs text-ink-2">
-            <CircleIcon size={12} aria-hidden /> Not published
-          </span>
+          <span className="inline-flex h-7 items-center rounded-full border border-dashed border-line-strong/60 px-3 text-xs font-medium text-ink-2">Not published</span>
         )}
       </div>
 
@@ -145,11 +142,8 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
                   <span className="text-ink-3">
                     <RelativeTime iso={d.createdAt} /> · {d.fileCount} {d.fileCount === 1 ? "file" : "files"}, {formatBytes(d.totalBytes)}
                   </span>
-                  <span className="font-mono text-xs text-ink-3" title={`sha256:${d.digest}`}>
-                    {shortHash(d.digest)}
-                  </span>
                   {d.evidence ? (
-                    <span className="inline-flex items-center gap-1 text-xs text-ink-2" title={d.evidenceProofPack ? `ProofPack sha256:${d.evidenceProofPack}` : undefined}>
+                    <span className="inline-flex items-center gap-1 text-xs text-ink-2">
                       <EvidenceIcon status={d.evidence} size={14} />
                       {d.evidence === "verified" ? "Verified" : "Without passed checks"}
                     </span>
@@ -160,10 +154,15 @@ export function PublishPanel({ projectId, data, disabledReason: given }: { proje
                         <CheckCircleIcon size={14} weight="bold" aria-hidden /> Live
                       </span>
                     ) : disabledReason ? null : (
-                      <SetLiveForm projectId={projectId} deploymentId={d.id} />
+                      <SetLiveForm projectId={projectId} deploymentId={d.id} version={d.number} />
                     )}
                   </span>
                   {d.overrideReason ? <p className="basis-full text-xs leading-relaxed text-ink-2">Reason: {d.overrideReason}</p> : null}
+                  <details className="basis-full text-xs text-ink-3">
+                    <summary className="inline-flex min-h-11 cursor-pointer list-none items-center hover:text-ink [&::-webkit-details-marker]:hidden">Technical details</summary>
+                    <p className="break-all font-mono">sha256:{d.digest}</p>
+                    {d.evidenceProofPack ? <p className="break-all font-mono">ProofPack sha256:{d.evidenceProofPack}</p> : null}
+                  </details>
                 </li>
               );
             })}

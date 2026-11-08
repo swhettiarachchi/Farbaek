@@ -34,8 +34,8 @@ export function Hero() {
             <PromptComposer mode="public" size="compact" />
           </div>
           <p className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-            <Link href="#demo" className="inline-flex min-h-11 items-center gap-1.5 font-medium text-ink-2 hover:text-ink">
-              Watch the demo <ArrowRightIcon size={14} weight="bold" aria-hidden />
+            <Link href="#film" className="inline-flex min-h-11 items-center gap-1.5 font-medium text-ink-2 hover:text-ink">
+              Watch a build <ArrowRightIcon size={14} weight="bold" aria-hidden />
             </Link>
             <Link href="/pricing" className="inline-flex min-h-11 items-center gap-1.5 font-medium text-ink-2 hover:text-ink">
               See pricing <ArrowRightIcon size={14} weight="bold" aria-hidden />

@@ -1,20 +1,21 @@
-import { CheckCircleIcon, CircleDashedIcon, ClockCountdownIcon, DesktopTowerIcon, ProhibitIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { RelativeTime } from "@/components/ui/local-time";
-import { ButtonLink, buttonClasses } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import { HANDOFF_STATUS_WORDS, handoffVerdict, type HandoffStatus } from "@/core/agent/handoff";
-import { shortHash } from "@/core/trust/canonical-json";
 import type { HandoffView } from "@/server/agent/handoffs";
 import { cancelHandoffAction } from "@/app/app/tasks/handoff-actions";
+import { ConfirmAction } from "@/components/ui/confirm-action";
 import { HandOff } from "./hand-off";
 
+// A state is its words in a colour and border (ADR 0180); a mark only for how it ended.
 const STATUS: Record<HandoffStatus, { Icon: typeof CheckCircleIcon | null; className: string }> = {
   waiting: { Icon: null, className: "border-approval/40 text-approval" },
-  opened: { Icon: DesktopTowerIcon, className: "border-info/40 text-info" },
+  opened: { Icon: null, className: "border-info/40 text-info" },
   done: { Icon: CheckCircleIcon, className: "border-line text-ink-2" },
   failed: { Icon: WarningCircleIcon, className: "border-dashed border-failed/40 text-failed" },
-  cancelled: { Icon: ProhibitIcon, className: "border-dashed border-line-strong text-ink-3" },
-  expired: { Icon: ClockCountdownIcon, className: "border-dashed border-line-strong text-ink-3" },
+  cancelled: { Icon: null, className: "border-dashed border-line-strong text-ink-3" },
+  expired: { Icon: null, className: "border-dashed border-line-strong text-ink-3" },
 };
 
 const seconds = (ms: number | null) => (ms === null ? null : ms < 1000 ? "under 1 s" : `${Math.round(ms / 1000)} s`);
@@ -71,7 +72,7 @@ export function HandoffCard({ taskId, computers, handoffs, disabledReason }: { t
                 {h.result && v ? (
                   <div className="grid gap-2">
                     <p className={`flex items-center gap-2 text-sm font-medium ${v.verdict === "all_passed" ? "text-verified" : v.verdict === "some_failed" ? "text-failed" : "text-unverified"}`}>
-                      {v.verdict === "all_passed" ? <CheckCircleIcon size={18} weight="bold" aria-hidden /> : v.verdict === "some_failed" ? <XCircleIcon size={18} weight="bold" aria-hidden /> : <CircleDashedIcon size={18} weight="bold" aria-hidden />}
+                      {v.verdict === "all_passed" ? <CheckCircleIcon size={18} weight="bold" aria-hidden /> : v.verdict === "some_failed" ? <XCircleIcon size={18} weight="bold" aria-hidden /> : null}
                       {v.verdict === "none_ran" ? "No check ran on that computer." : `${v.passed} of ${h.result.length} ${h.result.length === 1 ? "check" : "checks"} passed on ${h.agentName}.`}
                     </p>
                     <ul className="grid gap-1.5">
@@ -93,25 +94,24 @@ export function HandoffCard({ taskId, computers, handoffs, disabledReason }: { t
                         </li>
                       ))}
                     </ul>
-                    <p className="text-xs text-ink-3">
+                    <p className="text-xs text-ink-3" title={h.digest ? `Report sha256:${h.digest}` : undefined}>
                       Reported by your computer: Farbaek didn&apos;t watch these run, so they don&apos;t verify the change.
-                      {h.digest ? (
-                        <>
-                          {" "}
-                          Report digest <span className="font-mono text-[0.78125rem]" title={`sha256:${h.digest}`}>{shortHash(h.digest, 8, 6)}</span>
-                        </>
-                      ) : null}
                     </p>
                   </div>
                 ) : null}
                 {h.status === "waiting" || h.status === "opened" ? (
-                  <form action={cancelHandoffAction}>
-                    <input type="hidden" name="taskId" value={taskId} />
-                    <input type="hidden" name="handoffId" value={h.id} />
-                    <button type="submit" disabled={Boolean(disabledReason)} className={buttonClasses("ghost", "sm")}>
-                      Withdraw
-                    </button>
-                  </form>
+                  <ConfirmAction
+                    action={cancelHandoffAction}
+                    fields={{ taskId, handoffId: h.id }}
+                    trigger="Withdraw"
+                    triggerVariant="ghost"
+                    question="Withdraw this handoff? The computer won't run these checks."
+                    confirmLabel="Withdraw it"
+                    pendingLabel="Withdrawing…"
+                    keepLabel="Leave it"
+                    danger={false}
+                    disabledReason={disabledReason}
+                  />
                 ) : null}
               </li>
             );

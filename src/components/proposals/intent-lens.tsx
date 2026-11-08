@@ -70,7 +70,7 @@ function AskAi({ ai }: { ai: LensAiState }) {
         <p className="flex items-start gap-2 text-xs leading-relaxed text-ink-2">
           <TreeStructureIcon size={14} weight="bold" className="mt-px shrink-0 text-accent" aria-hidden />
           <span>
-            AI linked these changes to the plan ({modelName(ai.suggestion.model)}), <RelativeTime iso={ai.suggestion.createdAt} />. Its notes are suggestions, not checks, and any flags still stand.
+            {modelName(ai.suggestion.model)} linked these changes to the plan <RelativeTime iso={ai.suggestion.createdAt} />. Its notes are suggestions, not checks, and any flags still stand.
           </span>
         </p>
       ) : null}

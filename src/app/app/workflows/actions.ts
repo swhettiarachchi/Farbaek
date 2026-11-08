@@ -28,7 +28,7 @@ async function writer(): Promise<{ ctx: AppContext & { current: NonNullable<AppC
   if (!ctx.writes.enabled) return { error: ctx.writes.reason };
   if (!ctx.current) return { error: "Create or join a workspace first." };
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
-  if (!user || !admin) return { error: "The server isn't configured for writes." };
+  if (!user || !admin) return { error: "Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com." };
   const base = createSupabaseWriteDeps(user, admin, ctx.user.id);
   const rpc = async (name: string, args: Record<string, unknown>) => {
     const { data, error } = await admin.rpc(name, args);

@@ -17,7 +17,7 @@
       "sha256": "fe04241d5d7b6e05d71f945f840f0d80381898051e2e602daed19a3fde04d597",
       "createdAt": "2026-10-29T10:17:08.571Z",
       "expiresAt": "2026-11-01T10:17:08.571Z",
-      "model": "sample (no model call)",
+      "model": "Sample model",
       "byAgent": false,
       "summary": "addToCart accepts fractional quantities today. Reject anything that isn't a whole number and cover it with a test.",
       "steps": [

@@ -1,4 +1,4 @@
-import { CheckCircleIcon, QuestionIcon, ShieldCheckIcon, WarningIcon } from "@phosphor-icons/react/ssr";
+import { QuestionIcon, ShieldCheckIcon, WarningIcon } from "@phosphor-icons/react/ssr";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LocalTime } from "@/components/ui/local-time";
 import { contractHash } from "@/core/realityloop/contract";
@@ -16,14 +16,23 @@ function Clause({ label, children }: { label: string; children: React.ReactNode 
   );
 }
 
+/** Mono only for something that reads as a path or a command; a word like "products" is a word (ADR 0180). */
+const looksLikeCode = (s: string) => /[/.\\:_]/.test(s) && !/\s[a-z]+\s/.test(s);
+
 const Mono = ({ items }: { items: string[] }) =>
   items.length ? (
     <span className="flex flex-wrap gap-1.5">
-      {items.map((i) => (
-        <code key={i} className="rounded-full border border-line bg-surface-raised px-2.5 py-0.5 text-[0.78125rem]">
-          {i}
-        </code>
-      ))}
+      {items.map((i) =>
+        looksLikeCode(i) ? (
+          <code key={i} className="rounded-full border border-line bg-surface-raised px-2.5 py-0.5 text-[0.78125rem]">
+            {i}
+          </code>
+        ) : (
+          <span key={i} className="rounded-full border border-line bg-surface-raised px-2.5 py-0.5 text-[0.8125rem]">
+            {i}
+          </span>
+        ),
+      )}
     </span>
   ) : (
     <span className="text-ink-3">None</span>
@@ -89,13 +98,10 @@ export async function ContractView({ record }: { record: ContractRecord }) {
           <List items={c.protectedInvariants.map((i) => i.statement)} />
         </Clause>
         <Clause label="Done when">
-          <ul className="grid gap-1.5">
+          <ul className="grid list-disc gap-1.5 pl-5 marker:text-ink-3">
             {c.acceptanceCriteria.map((a) => (
-              <li key={a.id} className="flex gap-2">
-                <CheckCircleIcon size={17} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
-                <span>
-                  {a.statement} <span className="text-[0.8125rem] text-ink-3">({VERIFICATION_WORDS[a.verification] ?? a.verification})</span>
-                </span>
+              <li key={a.id}>
+                {a.statement} <span className="text-[0.8125rem] text-ink-3">({VERIFICATION_WORDS[a.verification] ?? a.verification})</span>
               </li>
             ))}
           </ul>

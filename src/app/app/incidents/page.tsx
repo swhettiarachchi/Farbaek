@@ -12,6 +12,7 @@ import { SOURCE_WORDS } from "@/core/trust/incidents";
 import { loadAppContext } from "@/server/workspace/context";
 import { INCIDENT_TOOLS_NOT_IN_PLAN, RESUME_MANAGERS_ONLY } from "@/server/workspace/incidents";
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES } from "@/server/workspace/types";
+import { StatusBadge } from "@/components/ui/status-badge";
 
 export const metadata: Metadata = { title: "Problems and pause" };
 
@@ -45,14 +46,14 @@ export default async function IncidentsPage() {
 
       <section aria-labelledby="incidents-title" className="grid gap-4">
         <h2 id="incidents-title" className="text-lg font-medium">
-          Incidents
+          Problems
         </h2>
         {incidents === null ? (
           <p role="alert" className="text-sm text-failed">
-            Incidents couldn&apos;t be read just now. Reload the page to try again.
+            Problems couldn&apos;t be read just now. Reload the page to try again.
           </p>
         ) : incidents.length === 0 ? (
-          <EmptyState icon={SirenIcon} title="No incidents">
+          <EmptyState icon={SirenIcon} title="No problems">
             One opens here on its own when a change that applied on its own fails its checks, when something you watch goes down, or when agents are paused.
           </EmptyState>
         ) : (
@@ -63,7 +64,7 @@ export default async function IncidentsPage() {
                   <div className="grid min-w-0 flex-1 basis-full gap-1 sm:basis-auto">
                     <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.9375rem] font-medium">
                       <span className="text-ink-3 tabular">#{i.number}</span> <span className="min-w-0">{i.title}</span>
-                      {demo ? <span className="rounded-full border border-dashed border-line-strong/60 px-2 text-xs font-normal text-ink-2">Sample</span> : null}
+                      {demo ? <StatusBadge status="simulated" label="Sample" /> : null}
                     </p>
                     <p className="text-xs text-ink-3">
                       {SOURCE_WORDS[i.source]}, opened <RelativeTime iso={i.openedAt} />
@@ -82,7 +83,7 @@ export default async function IncidentsPage() {
       </section>
 
       <Card>
-        <h2 className="text-lg font-medium">Open an incident</h2>
+        <h2 className="text-lg font-medium">Report a problem</h2>
         <p className="mt-1 text-sm leading-relaxed text-ink-2">For something Farbaek didn&apos;t notice on its own: a customer report, a wrong price, a change that looked fine and wasn&apos;t.</p>
         <div className="mt-4">
           <NewIncident projects={projects.filter((p) => !p.archivedAt).map((p) => ({ id: p.id, name: p.name }))} disabledReason={toolsReason} />

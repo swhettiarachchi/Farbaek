@@ -41,7 +41,6 @@ import { VERDICT_WORDS } from "@/core/launch/health";
 import { KIND_LABELS, type PlanCommand, type ServiceKind } from "@/core/launch/planner";
 import { PRICING_PAGES } from "@/core/launch/costs";
 import { EVIDENCE_WORDS } from "@/core/publish/evidence";
-import { shortHash } from "@/core/trust/canonical-json";
 import { formatBytes } from "@/core/workspace/files";
 import { loadLaunchPage } from "@/server/launch/plan-data";
 import { createSupabaseServerClient } from "@/server/supabase/server";
@@ -157,7 +156,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
             {live.evidence === "verified" && live.evidenceProofPack ? (
               <>
                 {" "}
-                It went live with passed checks, ProofPack <span className="font-mono text-[0.8125rem]" title={`sha256:${live.evidenceProofPack}`}>{shortHash(live.evidenceProofPack)}</span>.
+                It went live with passed checks, and <span title={`ProofPack sha256:${live.evidenceProofPack}`}>its ProofPack says so</span>.
               </>
             ) : live.evidence ? (
               <> It went live without passed checks. The reason given: {live.overrideReason}</>
@@ -470,13 +469,10 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
                         </span>
                       ) : null}
                     </span>
-                    <span className="text-xs text-ink-3">
+                    <span className="text-xs text-ink-3" title={`sha256:${d.digest}`}>
                       Published <RelativeTime iso={d.createdAt} />. {d.fileCount} files, {formatBytes(d.totalBytes)}
-                      {d.securityScore !== null ? `, security score ${d.securityScore}` : ""}.
+                      {d.securityScore !== null ? `, with a security score of ${d.securityScore} out of 100` : ""}.
                     </span>
-                    <code className="font-mono text-xs text-ink-3" title={d.digest}>
-                      sha256 {d.digest.slice(0, 16)}…
-                    </code>
                   </span>
                   <span className="text-xs text-ink-2">
                     {c ? (

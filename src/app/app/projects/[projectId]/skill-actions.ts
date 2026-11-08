@@ -44,7 +44,7 @@ async function writer(projectId: string) {
   if (!ctx.writes.enabled) return { error: ctx.writes.reason };
   if (!ctx.current) return { error: "Create or join a workspace first." };
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
-  if (!user || !admin) return { error: "The server isn't configured for writes." };
+  if (!user || !admin) return { error: "Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com." };
   // Read through Row Level Security: the project must be in this workspace.
   const project = await ctx.reader.getProject(ctx.current.id, projectId);
   if (!project) return { error: "That project doesn't exist in this workspace." };
@@ -95,23 +95,26 @@ export async function pinSkillAction(_previous: SkillState, form: FormData): Pro
   return { status: "done", message: "Approved. The next build in this project uses this version." };
 }
 
-/** Removes a project skill's SKILL.md (its history stays in the file's revisions). */
-export async function removeSkillAction(form: FormData): Promise<void> {
+/** Removes a project skill's SKILL.md (its history stays in the file's revisions). Says why when it can't. */
+export async function removeSkillAction(_previous: SkillState, form: FormData): Promise<SkillState> {
   const parsed = z.object({ projectId: z.uuid(), path: z.string().max(300), revision: z.coerce.number().int().positive() }).safeParse({ projectId: form.get("projectId"), path: form.get("path"), revision: form.get("revision") });
-  if (!parsed.success || !isProjectSkillPath(parsed.data.path)) return;
+  if (!parsed.success || !isProjectSkillPath(parsed.data.path)) return { status: "error", message: "Reload the page and try again." };
   const w = await writer(parsed.data.projectId);
-  if ("error" in w) return;
+  if ("error" in w) return { status: "error", message: w.error! };
+  if (!mayChange(w)) return { status: "error", message: VIEWER };
   const removed = await deleteProjectFile(w.deps, { orgId: w.orgId, userId: w.ctx.user.id, projectId: parsed.data.projectId, path: parsed.data.path, expectedRevision: parsed.data.revision });
+  if (!removed.ok) return { status: "error", message: removed.message };
   // A removed skill keeps no approval, so a file added later at the same path is reviewed afresh.
-  if (removed.ok) await unpinProjectSkill(w.deps, { orgId: w.orgId, userId: w.ctx.user.id, projectId: parsed.data.projectId, path: parsed.data.path });
+  await unpinProjectSkill(w.deps, { orgId: w.orgId, userId: w.ctx.user.id, projectId: parsed.data.projectId, path: parsed.data.path });
   // A licence Farbaek put beside it goes too. One in .claude/skills came with the project and may cover other files there.
-  if (removed.ok && parsed.data.path.startsWith(".farbaek/skills/")) {
+  if (parsed.data.path.startsWith(".farbaek/skills/")) {
     const licence = `${parsed.data.path.replace(/\/SKILL\.md$/i, "")}/LICENSE.txt`;
     const kept = await w.ctx.reader.getFile(w.orgId, parsed.data.projectId, licence).catch(() => null);
     if (kept) await deleteProjectFile(w.deps, { orgId: w.orgId, userId: w.ctx.user.id, projectId: parsed.data.projectId, path: licence, expectedRevision: kept.revision });
   }
   revalidatePath(`/app/projects/${parsed.data.projectId}`);
   revalidatePath("/app/skills");
+  return { status: "done", message: "Skill removed. Builds in this project no longer follow it." };
 }
 
 /**
@@ -192,7 +195,15 @@ export async function importSkillAction(_previous: SkillState, form: FormData): 
     licenceSaved = r.ok;
   }
   const saved = await saveProjectFile(w.deps, { orgId: w.orgId, userId: w.ctx.user.id, projectId: parsed.data.projectId, path, content: text, expectedRevision: 0 });
-  if (!saved.ok) return { status: "error", message: saved.message };
+  if (!saved.ok) {
+    // The licence went in first; without its skill it would sit in the project as a stray file.
+    if (licenceSaved && licence) {
+      const at = `${skillFolder(skill.id)}/LICENSE.txt`;
+      const stray = await w.ctx.reader.getFile(w.orgId, parsed.data.projectId, at).catch(() => null);
+      if (stray) await deleteProjectFile(w.deps, { orgId: w.orgId, userId: w.ctx.user.id, projectId: parsed.data.projectId, path: at, expectedRevision: stray.revision });
+    }
+    return { status: "error", message: `${saved.message} Nothing was added.` };
+  }
   revalidatePath(`/app/projects/${parsed.data.projectId}`);
   revalidatePath("/app/skills");
   const long = text.length > SKILL_LIMITS.bodyChars ? ` It's longer than a build reads, so builds use its first ${SKILL_LIMITS.bodyChars.toLocaleString("en-US")} characters.` : "";

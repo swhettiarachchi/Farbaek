@@ -1,38 +1,42 @@
 "use client";
 
-import { ArrowCounterClockwiseIcon, WarningCircleIcon } from "@phosphor-icons/react";
-import { useActionState } from "react";
-import { setLiveAction, type PublishState } from "@/app/app/projects/[projectId]/publish-actions";
-import { buttonClasses } from "@/components/ui/button";
+import { ArrowCounterClockwiseIcon } from "@phosphor-icons/react";
+import { setLiveAction } from "@/app/app/projects/[projectId]/publish-actions";
+import { ConfirmAction } from "@/components/ui/confirm-action";
 
-const IDLE: PublishState = { status: "idle" };
-
-/** Make an earlier version live again, or take the site offline (no deployment id). Says when it couldn't. */
-export function SetLiveForm({ projectId, deploymentId, className }: { projectId: string; deploymentId: string | null; className?: string }) {
-  const [state, action, pending] = useActionState(setLiveAction, IDLE);
+/**
+ * Make an earlier version live again, or take the site offline (no deployment id).
+ * Both change what visitors see at once, so each asks first and says how it went.
+ */
+export function SetLiveForm({ projectId, deploymentId, version, className }: { projectId: string; deploymentId: string | null; version?: number; className?: string }) {
   const offline = deploymentId === null;
-  return (
-    <form action={action} className={className}>
-      <input type="hidden" name="projectId" value={projectId} />
-      <input type="hidden" name="deploymentId" value={deploymentId ?? ""} />
-      {offline ? (
-        <button type="submit" disabled={pending} className="min-h-11 text-sm text-failed underline-offset-4 hover:underline disabled:opacity-60">
-          {pending ? "Taking it offline…" : "Take the site offline"}
-        </button>
-      ) : (
-        <button type="submit" disabled={pending} className={buttonClasses("secondary", "sm")}>
-          <ArrowCounterClockwiseIcon size={14} aria-hidden /> {pending ? "Making it live…" : "Make live"}
-        </button>
-      )}
-      {state.status === "error" ? (
-        <p role="alert" className="mt-1 flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {state.message}
-        </p>
-      ) : state.status === "done" ? (
-        <p role="status" className="mt-1 text-sm text-verified">
-          {state.message}
-        </p>
-      ) : null}
-    </form>
+  return offline ? (
+    <ConfirmAction
+      action={setLiveAction}
+      fields={{ projectId, deploymentId: "" }}
+      className={className}
+      triggerClassName="min-h-11 text-sm text-failed underline-offset-4 hover:underline disabled:opacity-60"
+      trigger="Take the site offline"
+      question="Take the site offline? Visitors see nothing at its address until a version is made live again. Every version stays here, so it can come back at any time."
+      confirmLabel="Take it offline"
+      pendingLabel="Taking it offline…"
+      keepLabel="Keep it live"
+    />
+  ) : (
+    <ConfirmAction
+      action={setLiveAction}
+      fields={{ projectId, deploymentId }}
+      className={className}
+      trigger={
+        <>
+          <ArrowCounterClockwiseIcon size={14} aria-hidden /> Make live
+        </>
+      }
+      question={`Make ${version ? `version ${version}` : "this earlier version"} live instead of the current one? Visitors see it within a few seconds, and the current version stays in the history.`}
+      confirmLabel="Make it live"
+      pendingLabel="Making it live…"
+      keepLabel="Leave it"
+      danger={false}
+    />
   );
 }

@@ -43,7 +43,7 @@ export async function importGitHubAction(_previous: GitHubImportState, form: For
   if (!ctx.writes.enabled) return fail(ctx.writes.reason);
   if (!ctx.current || !ctx.role) return fail("Create or join a workspace first.");
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
-  if (!user || !admin) return fail("The server isn't configured for writes.");
+  if (!user || !admin) return fail("Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com.");
 
   const limit = await admin.rpc("app_rate_limit", { p_key: `github-import:${ctx.user.id}`, p_window_seconds: 3600, p_limit: PER_HOUR });
   if (limit.error) return fail("Importing isn't available right now. Try again in a few minutes.");
@@ -66,7 +66,8 @@ export async function importGitHubAction(_previous: GitHubImportState, form: For
   const { projectId, commit, imported, skipped, ignored, via } = result.value;
   log("info", "github.imported", { org: orgId, project: projectId, commit: commit ?? "unknown", files: "files" in imported ? imported.files : 0, skipped, ignored, via: via.kind });
 
-  let linked = false;
+  // The person asked for a link: "1" when it's there, "failed" when it couldn't be made, so the page never implies either.
+  let linked: "1" | "failed" | null = null;
   if (via.kind === "token") {
     const repo = via.repository;
     const recorded = await admin.rpc("app_record_github_import", { p_org: orgId, p_actor: ctx.user.id, p_project: projectId, p_repository: `${repo.owner}/${repo.repo}`, p_commit: commit });
@@ -74,9 +75,10 @@ export async function importGitHubAction(_previous: GitHubImportState, form: For
     if (recorded.error) log("error", "github.import_unrecorded", { org: orgId, project: projectId, reason: recorded.error.message.slice(0, 120) });
     if (form.get("link") === "on" && repo.canPush && !repo.archived && BRANCH.test(repo.defaultBranch)) {
       const link = await admin.rpc("app_link_github_repo", { p_org: orgId, p_actor: ctx.user.id, p_project: projectId, p_owner: repo.owner, p_repo: repo.repo, p_repo_id: repo.id, p_default_branch: repo.defaultBranch });
-      linked = !link.error;
+      if (link.error) log("warn", "github.link_failed", { org: orgId, project: projectId, reason: link.error.message.slice(0, 120) });
+      linked = link.error ? "failed" : "1";
     }
   }
   revalidatePath("/app", "layout");
-  redirect(`/app/projects/${projectId}${"error" in imported ? "?import=failed" : `?import=github${linked ? "&linked=1" : ""}`}`);
+  redirect(`/app/projects/${projectId}${"error" in imported ? "?import=failed" : `?import=github${linked ? `&linked=${linked}` : ""}`}`);
 }

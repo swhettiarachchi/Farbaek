@@ -1,4 +1,4 @@
-import { FolderSimpleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, FolderSimpleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -7,6 +7,7 @@ import { GitHubImportForm, type PrivateImport } from "@/components/files/github-
 import { ProjectCard } from "@/components/app/project-card";
 import { Card, EmptyState, PageHeader } from "@/components/app/primitives";
 import { buttonClasses } from "@/components/ui/button";
+import { Disclosure } from "@/components/ui/disclosure";
 import { RelativeTime } from "@/components/ui/local-time";
 import { checkQuota } from "@/core/billing/entitlements";
 import { TERMINAL_STATES } from "@/core/realityloop/task-machine";
@@ -41,7 +42,7 @@ export default async function ProjectsPage() {
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
   const ws = ctx.current;
-  const [projects, tasks] = await Promise.all([ctx.reader.listProjects(ws.id), ctx.reader.listTasks(ws.id)]);
+  const [projects, tasks, archived] = await Promise.all([ctx.reader.listProjects(ws.id), ctx.reader.listTasks(ws.id), ctx.reader.listArchivedProjects(ws.id).catch(() => [])]);
 
   const privateImport = await privateImportFor(ctx);
 
@@ -74,8 +75,16 @@ export default async function ProjectsPage() {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">
         {projects.length === 0 ? (
-          <EmptyState icon={FolderSimpleIcon} title="No projects yet">
-            Create a project for the site or app you want Farbaek to work on, then import its files from a folder on your computer, or import a GitHub repository.
+          <EmptyState
+            icon={FolderSimpleIcon}
+            title="No projects yet"
+            action={
+              <Link href="/app/new" className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-accent hover:underline">
+                Describe what you want to build <ArrowRightIcon size={16} weight="bold" aria-hidden />
+              </Link>
+            }
+          >
+            Describe a site or app and Farbaek makes the project and a plan for it. Or create an empty project here and bring in files from your computer or a GitHub repository.
           </EmptyState>
         ) : (
           <ul className="grid gap-4 sm:grid-cols-2">
@@ -116,6 +125,27 @@ export default async function ProjectsPage() {
           </Card>
         </div>
       </div>
+
+      {archived.length > 0 ? (
+        // An archived project leaves the list but stays readable, so this is where it can be found again.
+        <Disclosure summary={archived.length === 1 ? "1 archived project" : `${archived.length} archived projects`} hint="Read-only, and not counted toward your plan. Open one to see its files, tasks and proof.">
+          <ul className="divide-y divide-line overflow-hidden rounded-md border border-line bg-surface shadow-e1">
+            {archived.map((p) => (
+              <li key={p.id}>
+                <Link href={`/app/projects/${p.id}`} className="flex min-h-14 flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 hover:bg-canvas-2 sm:px-5">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[0.9375rem] font-medium">{p.name}</span>
+                    <span className="block text-xs text-ink-3">
+                      Archived {p.archivedAt ? <RelativeTime iso={p.archivedAt} /> : null}
+                    </span>
+                  </span>
+                  <ArrowRightIcon size={16} className="shrink-0 text-ink-3" aria-hidden />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Disclosure>
+      ) : null}
     </div>
   );
 }

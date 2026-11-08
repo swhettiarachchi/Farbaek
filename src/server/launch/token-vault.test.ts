@@ -18,7 +18,9 @@ describe("the provider token vault", () => {
     const sealed = sealToken("t", KEY, BIND);
     expect(openToken(sealed, KEY, { ...BIND, orgId: "org-2" })).toBeNull();
     expect(openToken(sealed, KEY, { ...BIND, provider: "netlify" })).toBeNull();
-    const flipped = sealed.slice(0, -2) + (sealed.endsWith("A") ? "B" : "A") + sealed.slice(-1);
+    // A character in the middle of the sealed bytes: every bit of it is data, unlike the last one, whose low bits can be padding.
+    const at = 12;
+    const flipped = sealed.slice(0, at) + (sealed[at] === "A" ? "B" : "A") + sealed.slice(at + 1);
     expect(openToken(flipped, KEY, BIND)).toBeNull();
     const other = vaultKey({ PROVIDER_TOKEN_KEY: Buffer.alloc(32, 9).toString("base64") })!;
     expect(openToken(sealed, other, BIND)).toBeNull();

@@ -1,19 +1,20 @@
-import { CheckCircleIcon, CircleDashedIcon, GitMergeIcon, GitPullRequestIcon, MinusCircleIcon, ProhibitIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, CircleNotchIcon, GitMergeIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import { RelativeTime } from "@/components/ui/local-time";
 import type { CheckResult, PullState } from "@/core/github/pull-request";
 import type { PullRequestView } from "@/server/github/store";
 
-const STATE: Record<PullState, { word: string; Icon: typeof CheckCircleIcon; chip: string }> = {
-  open: { word: "Open", Icon: GitPullRequestIcon, chip: "border-info/40 text-info" },
+// A state is its words in a colour and border (ADR 0180); a mark only once it ended.
+const STATE: Record<PullState, { word: string; Icon: typeof CheckCircleIcon | null; chip: string }> = {
+  open: { word: "Open", Icon: null, chip: "border-info/40 text-info" },
   merged: { word: "Merged", Icon: GitMergeIcon, chip: "border-verified/45 bg-verified/[0.08] text-verified" },
-  closed: { word: "Closed without merging", Icon: ProhibitIcon, chip: "border-dashed border-line-strong text-ink-2" },
+  closed: { word: "Closed without merging", Icon: null, chip: "border-dashed border-line-strong text-ink-2" },
 };
 
-const RESULT: Record<CheckResult, { word: string; Icon: typeof CheckCircleIcon; className: string }> = {
+const RESULT: Record<CheckResult, { word: string; Icon: typeof CheckCircleIcon | null; className: string; live?: boolean }> = {
   passed: { word: "Passed", Icon: CheckCircleIcon, className: "text-verified" },
   failed: { word: "Failed", Icon: XCircleIcon, className: "text-failed" },
-  pending: { word: "Running", Icon: CircleDashedIcon, className: "text-approval" },
-  skipped: { word: "Skipped", Icon: MinusCircleIcon, className: "text-ink-3" },
+  pending: { word: "Running", Icon: CircleNotchIcon, className: "text-approval", live: true },
+  skipped: { word: "Skipped", Icon: null, className: "text-ink-3" },
 };
 
 /**
@@ -31,7 +32,7 @@ export function PullOnGitHub({ pull }: { pull: PullRequestView }) {
         <span className="text-sm font-medium">On GitHub</span>
         {state ? (
           <span className={`inline-flex min-h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium ${state.chip}`}>
-            <state.Icon size={14} weight="bold" aria-hidden />
+            {state.Icon ? <state.Icon size={14} weight="bold" aria-hidden /> : null}
             {state.word}
           </span>
         ) : null}
@@ -63,7 +64,7 @@ export function PullOnGitHub({ pull }: { pull: PullRequestView }) {
               return (
                 <li key={`${r.name}-${i}`} className="flex flex-wrap items-center gap-2 text-sm">
                   <span className={`inline-flex items-center gap-1 ${look.className}`}>
-                    <look.Icon size={14} weight="bold" aria-hidden /> {look.word}
+                    {look.Icon ? <look.Icon size={14} weight="bold" className={look.live ? "motion-safe:animate-spin" : undefined} aria-hidden /> : null} {look.word}
                   </span>
                   <span className="min-w-0 break-words text-ink-2">{r.name}</span>
                 </li>

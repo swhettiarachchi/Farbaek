@@ -98,7 +98,7 @@ export default async function WorkflowPage({ params }: { params: Promise<{ id: s
                   <p className="text-sm text-ink-2">
                     {s.contract ? (
                       s.contract.status === "approved" ? (
-                        <>Contract approved, version {s.contract.version}.</>
+                        <>Plan approved, version {s.contract.version}.</>
                       ) : (
                         <>
                           Plan drafted, waiting for approval.{" "}
@@ -147,7 +147,14 @@ export default async function WorkflowPage({ params }: { params: Promise<{ id: s
         canCancel={!["finished", "cancelled"].includes(w.status)}
         disabledReason={disabledReason}
       />
-      {w.approvedSha256 ? <p className="font-mono text-[0.75rem] text-ink-3">Approval bound to sha256 {w.approvedSha256}</p> : null}
+      {w.approvedSha256 ? (
+        <details className="text-xs text-ink-3">
+          <summary className="inline-flex min-h-11 cursor-pointer list-none items-center hover:text-ink [&::-webkit-details-marker]:hidden">Technical details</summary>
+          <p className="break-all">
+            The approval is bound to exactly what was approved: <span className="font-mono">sha256:{w.approvedSha256}</span>
+          </p>
+        </details>
+      ) : null}
     </div>
   );
 }

@@ -124,6 +124,8 @@ export function ThemePanel({
               );
             })}
         </ul>
+        {/* A phone has no hover for a tooltip, so the reason a look is off is written out. */}
+        {!kitPro && Object.values(LOOK_SWATCHES).some((s) => s.pro) ? <p className="mt-2 text-xs text-ink-3">Looks marked Pro are part of the paid plans.</p> : null}
       </div>
 
       <fieldset className="grid gap-3 border-t border-line pt-4">

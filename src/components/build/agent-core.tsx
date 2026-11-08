@@ -15,7 +15,7 @@ import { useReducedMotion } from "motion/react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { canRun3D, whenIdle } from "@/components/three/capability";
-import { CORE_PHASE_LABELS, type CorePhase } from "@/core/agent/run-phase";
+import { CORE_PHASE_LABELS, type Activity, type CorePhase } from "@/core/agent/run-phase";
 
 const AgentCoreScene = dynamic(() => import("@/components/three/agent-core-scene"), { ssr: false });
 
@@ -62,7 +62,7 @@ function StaticCore({ phase }: { phase: CorePhase }) {
  * phase in words beside it. The static core renders first; the 3D scene
  * loads once the browser is idle on a capable device and cross-fades in.
  */
-export function AgentCore({ phase, activity = null, children }: { phase: CorePhase; activity?: string | null; children?: React.ReactNode }) {
+export function AgentCore({ phase, activity = null, children }: { phase: CorePhase; activity?: Activity | string | null; children?: React.ReactNode }) {
   const reduce = useReducedMotion();
   const box = useRef<HTMLDivElement>(null);
   const [want3D, setWant3D] = useState(false);
@@ -122,7 +122,15 @@ export function AgentCore({ phase, activity = null, children }: { phase: CorePha
             {style.icon ? <style.icon size={22} weight="bold" className={`shrink-0 ${style.tone} ${style.spin ? "motion-safe:animate-spin" : ""}`} aria-hidden /> : null}
             {CORE_PHASE_LABELS[phase]}
           </p>
-          {activity ? <p className="mt-1.5 truncate font-mono text-[0.8125rem] text-ink-2">{activity}</p> : null}
+          {/* The step in words (ADR 0180); only a path or a command is mono. A finished run's outcome is a sentence. */}
+          {typeof activity === "string" ? (
+            <p className="mt-1.5 line-clamp-2 text-[0.8125rem] text-ink-2">{activity}</p>
+          ) : activity ? (
+            <p className="mt-1.5 truncate text-[0.8125rem] text-ink-2">
+              {activity.words}
+              {activity.detail ? <> {activity.detail.mono ? <span className="font-mono">{activity.detail.text}</span> : activity.detail.text}</> : null}
+            </p>
+          ) : null}
           {children ? <div className="mt-3">{children}</div> : null}
         </div>
       </div>

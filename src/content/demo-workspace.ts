@@ -152,7 +152,7 @@ export const DEMO_CODE_CONTRACT = {
 /** The demo's pending proposal, and a sample AI mapping of its hunks (ADR 0044). Sample data, not a real model call. */
 export const DEMO_PROPOSAL_ID = "00000000-0000-4000-8000-0000000c0001";
 export const DEMO_LENS_SUGGESTION = {
-  model: "sample (no model call)",
+  model: "Sample model",
   mappings: [
     { hunk: "f0h0", clause: "ac-1", reason: "The guard now throws for 1.5 and any other number that isn't whole, with a message saying so." },
     { hunk: "f1h0", clause: "ac-1", reason: "The new test adds 1.5 of a mug and expects the whole-number error." },

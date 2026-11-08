@@ -36,7 +36,7 @@ describe("FailureFuturesCard (ADR 0135)", () => {
   it("shows each scenario as hypothetical with the line that suggested it, and the cost as an estimate", () => {
     const html = render([]);
     expect(html).toContain("The same webhook arrives twice");
-    expect(html).toContain("Hypothetical");
+    expect(html).toContain("Not tried yet");
     expect(html).toContain("src/app/api/webhooks/route.ts:1");
     expect(html).toContain("Try this failure");
     expect(html).toContain("Estimate");

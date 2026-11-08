@@ -10,7 +10,6 @@ import {
   GearSixIcon,
   ListChecksIcon,
   LockSimpleIcon,
-  PauseCircleIcon,
   PencilSimpleLineIcon,
   ProhibitIcon,
   ShieldCheckIcon,
@@ -25,6 +24,8 @@ import { AGENT_MODE_LABELS, type AgentMode } from "@/core/agent/modes";
 import { COMMAND_RISK_LABELS, type CommandRisk } from "@/core/agent/commands";
 import type { RunState } from "@/core/agent/operations";
 import { EFFORTS, EFFORT_LABELS, type Effort } from "@/core/agent/routing";
+import { TOOL_VERB, toolTarget } from "@/core/agent/run-phase";
+import { modelName } from "@/core/billing/rate-card";
 import { approvalWindow } from "@/core/trust/approval-wallet";
 import { shortHash } from "@/core/trust/canonical-json";
 import { relativeLabel, useNow } from "@/components/ui/use-now";
@@ -42,8 +43,8 @@ const STATE: Record<RunState, { label: string; icon: Icon | null; tone: string }
   running: { label: "Working", icon: CircleNotchIcon, tone: "info" },
   completed: { label: "Finished", icon: CheckCircleIcon, tone: "verified" },
   failed: { label: "Stopped", icon: XCircleIcon, tone: "failed" },
-  cancelled: { label: "Cancelled", icon: ProhibitIcon, tone: "neutral" },
-  interrupted: { label: "Interrupted", icon: PauseCircleIcon, tone: "approval" },
+  cancelled: { label: "Cancelled", icon: null, tone: "neutral" },
+  interrupted: { label: "Interrupted", icon: null, tone: "approval" },
 };
 
 const time = (iso: string) => new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
@@ -64,19 +65,20 @@ function reviewBadge(review: ProposalReview, now: number): { tone: string; icon:
     const pack = review.proofPack?.status;
     if (pack === "verified") return { tone: "verified", icon: ShieldCheckIcon, label: "Verified" };
     if (pack === "failed") return { tone: "failed", icon: XCircleIcon, label: "Checks failed" };
-    return { tone: "verified", icon: CheckCircleIcon, label: "Applied, not verified" };
+    // Applied but not verified is a "not yet": its colour and dashed border say so, never a check.
+    return { tone: "neutral", icon: null, label: "Applied, not verified" };
   }
-  if (review.status === "discarded") return { tone: "neutral", icon: TrashIcon, label: "Discarded in Farbaek" };
+  if (review.status === "discarded") return { tone: "neutral", icon: null, label: "Discarded in Farbaek" };
   if (review.status === "blocked") return { tone: "failed", icon: XCircleIcon, label: "Blocked by Farbaek" };
   return approvalWindow(review.checkedAt, review.expiresAt, new Date(now)).state === "expired"
-    ? { tone: "neutral", icon: ProhibitIcon, label: "Expired" }
+    ? { tone: "neutral", icon: null, label: "Expired" }
     : { tone: "approval", icon: null, label: "Waiting for review" };
 }
 
 function StateBadge({ run }: { run: Pick<RunDetail, "state" | "discarded" | "proposal"> }) {
   // This app has no server render, so the fallback time is never drawn.
   const now = useNow(0);
-  if (run.discarded) return <Badge tone="neutral" icon={TrashIcon}>Discarded</Badge>;
+  if (run.discarded) return <Badge tone="neutral">Discarded</Badge>;
   if (run.proposal?.review) {
     const b = reviewBadge(run.proposal.review, now);
     return (
@@ -85,7 +87,8 @@ function StateBadge({ run }: { run: Pick<RunDetail, "state" | "discarded" | "pro
       </Badge>
     );
   }
-  if (run.proposal) return <Badge tone={run.proposal.status === "pending" ? "verified" : "failed"} icon={run.proposal.status === "pending" ? CheckCircleIcon : XCircleIcon}>{run.proposal.status === "pending" ? "Submitted" : "Blocked by Farbaek"}</Badge>;
+  // Submitted is waiting for a person in Farbaek: the approval colour, no mark (ADR 0180).
+  if (run.proposal) return <Badge tone={run.proposal.status === "pending" ? "approval" : "failed"} icon={run.proposal.status === "pending" ? null : XCircleIcon}>{run.proposal.status === "pending" ? "Submitted" : "Blocked by Farbaek"}</Badge>;
   const s = STATE[run.state];
   return (
     <Badge tone={s.tone} icon={s.icon} spin={run.state === "running"}>
@@ -402,7 +405,7 @@ function TaskPanel({ taskId, profile, localModel, onRunStarted }: { taskId: stri
       {task ? (
         <>
           <div>
-            <p className="eyebrow">{"// "}{task.projectName}</p>
+            <p className="muted small">{task.projectName}</p>
             <h2>{task.title}</h2>
           </div>
           {task.contract ? (
@@ -524,7 +527,7 @@ function RunsView({ runs, selected, onSelect }: { runs: RunSummary[]; selected: 
                   <StateBadge run={r} />
                 </span>
                 <span className="muted small">
-                  {AGENT_MODE_LABELS[r.mode].title} · {EFFORT_LABELS[r.effort ?? "balanced"].title} · {time(r.startedAt)}
+                  {AGENT_MODE_LABELS[r.mode].title}, {EFFORT_LABELS[r.effort ?? "balanced"].title.toLowerCase()} effort. Started {time(r.startedAt)}
                 </span>
               </button>
             </li>
@@ -605,6 +608,21 @@ function RunPanel({ runId }: { runId: string }) {
   const [run, setRun] = useState<RunDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Discarding forgets the run's work on this computer, so it asks first, like Unpair does.
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+
+  /** Runs a control and says why when it refuses, instead of leaving the page unchanged. */
+  async function tryTo(what: () => Promise<void>, failed: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      await what();
+    } catch (e) {
+      setError(e instanceof Error && e.message ? e.message : failed);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     let live = true;
@@ -645,13 +663,15 @@ function RunPanel({ runId }: { runId: string }) {
     <div className="card stack-sm run">
       <div className="row">
         <div>
-          <p className="eyebrow">{"// "}{run.projectName}</p>
+          <p className="muted small">{run.projectName}</p>
           <h2>{run.taskTitle}</h2>
         </div>
         <StateBadge run={run} />
       </div>
-      <p className="muted small mono">
-        {AGENT_MODE_LABELS[run.mode].title} · {run.model === "auto" ? "Choosing a model" : run.model} · {tokens(total)} tokens ({tokens(run.usage.inputTokens)} in, {tokens(run.usage.outputTokens)} out)
+      {/* One sentence, with the model by its product name (ADR 0180). */}
+      <p className="muted small">
+        {AGENT_MODE_LABELS[run.mode].title}. {run.model === "auto" ? "Farbaek chooses the model for each step." : `Runs on ${modelName(run.model)}.`}
+        {total > 0 ? ` It has used about ${tokens(total)} tokens so far.` : ""}
       </p>
       {run.usagePercent !== null && run.usagePercent !== undefined ? (
         <p className={`small ${run.usagePercent >= 80 ? "text-approval" : "muted"}`}>Your workspace has used {run.usagePercent}% of its AI usage.</p>
@@ -667,7 +687,7 @@ function RunPanel({ runId }: { runId: string }) {
 
       {working ? (
         <div>
-          <button className="btn btn-secondary btn-sm" type="button" onClick={() => void api.cancelRun(run.id)}>
+          <button className="btn btn-secondary btn-sm" type="button" disabled={busy} onClick={() => void tryTo(() => api.cancelRun(run.id), "The run couldn't be cancelled. Try again.")}>
             <ProhibitIcon size={16} aria-hidden /> Cancel run
           </button>
         </div>
@@ -769,11 +789,24 @@ function RunPanel({ runId }: { runId: string }) {
               {busy ? "Submitting…" : "Submit to Farbaek for review"}
             </button>
           ) : null}
-          {!working ? (
-            <button className="btn btn-secondary btn-sm" type="button" onClick={() => void api.discardRun(run.id)}>
+          {!working && !confirmDiscard ? (
+            <button className="btn btn-secondary btn-sm" type="button" disabled={busy} onClick={() => setConfirmDiscard(true)}>
               <TrashIcon size={16} aria-hidden /> Discard run
             </button>
           ) : null}
+        </div>
+      ) : null}
+      {confirmDiscard && !run.discarded ? (
+        <div className="stack-sm">
+          <p className="small">Discard this run? Its working copy on this computer is removed. Anything already sent to Farbaek stays there.</p>
+          <div className="row-start">
+            <button className="btn btn-danger btn-sm" type="button" disabled={busy} onClick={() => void tryTo(() => api.discardRun(run.id), "The run couldn't be discarded. Try again.").then(() => setConfirmDiscard(false))}>
+              Discard it
+            </button>
+            <button className="btn btn-secondary btn-sm" type="button" disabled={busy} onClick={() => setConfirmDiscard(false)}>
+              Keep it
+            </button>
+          </div>
         </div>
       ) : null}
 
@@ -785,9 +818,15 @@ function RunPanel({ runId }: { runId: string }) {
               {e.kind === "model" ? (
                 <p className="model-text">{e.text}</p>
               ) : e.kind === "tool" ? (
-                <p>
-                  <span className={`dot dot-${e.status}`} aria-hidden /> <span className="mono small">{e.tool}</span> <span className="mono small muted">{e.target}</span>{" "}
-                  <span className="small">{e.status === "done" ? "" : `· ${e.status}: ${e.detail.slice(0, 200)}`}</span>
+                // The step in words (ADR 0180): a verb, the path in mono, and a mark only when it didn't go through.
+                <p className="small">
+                  {e.status === "done" ? null : <WarningCircleIcon size={14} weight="bold" className="text-approval" aria-hidden />}{" "}
+                  {TOOL_VERB[e.tool] ?? e.tool.replace(/_/g, " ")}
+                  {(() => {
+                    const t = toolTarget(e.tool, e.target);
+                    return t ? <> {t.mono ? <span className="mono">{t.text}</span> : t.text}</> : null;
+                  })()}
+                  {e.status === "done" ? "" : `. ${e.status === "denied" ? "Not allowed" : e.status === "declined" ? "Declined" : "Failed"}: ${e.detail.slice(0, 200)}`}
                 </p>
               ) : e.kind === "approval" ? (
                 <p className="small">
@@ -807,15 +846,24 @@ function RunPanel({ runId }: { runId: string }) {
 function ApprovalCard({ run }: { run: RunDetail }) {
   const req = run.pendingApproval!;
   const [busy, setBusy] = useState(false);
-  const answer = (approved: boolean) => {
+  const [error, setError] = useState<string | null>(null);
+  // A failed answer says why and frees the buttons, so the agent is never left waiting behind two dead controls.
+  const answer = async (approved: boolean) => {
     setBusy(true);
-    void api.answerApproval({ runId: run.id, requestId: req.id, approved, bindingHash: req.bindingHash });
+    setError(null);
+    try {
+      await api.answerApproval({ runId: run.id, requestId: req.id, approved, bindingHash: req.bindingHash });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "The answer didn't reach the agent. Try again.");
+      setBusy(false);
+    }
   };
   return (
     <div className="approval" role="region" aria-label="Approval needed">
       <p className="row-start">
         <TerminalWindowIcon size={18} weight="bold" aria-hidden /> <strong>The agent wants to run a command</strong>
       </p>
+      {error ? <Alert>{error}</Alert> : null}
       <pre className="command">{req.display}</pre>
       <dl className="contract">
         <dt>Risk</dt>
@@ -827,13 +875,13 @@ function ApprovalCard({ run }: { run: RunDetail }) {
         <dt>Where</dt>
         <dd>{req.where === "local" ? "On this computer, not isolated" : "In a Farbaek test space"}</dd>
         <dt>Approval covers</dt>
-        <dd className="mono small">This exact command only</dd>
+        <dd className="small">This exact command only</dd>
       </dl>
       <div className="row-start">
-        <button className="btn btn-primary btn-sm" type="button" disabled={busy} onClick={() => answer(true)}>
-          Run it
+        <button className="btn btn-primary btn-sm" type="button" disabled={busy} onClick={() => void answer(true)}>
+          {busy ? "Sending…" : "Run it"}
         </button>
-        <button className="btn btn-secondary btn-sm" type="button" disabled={busy} onClick={() => answer(false)}>
+        <button className="btn btn-secondary btn-sm" type="button" disabled={busy} onClick={() => void answer(false)}>
           Decline
         </button>
       </div>

@@ -100,9 +100,7 @@ export default async function PoliciesPage({ searchParams }: { searchParams: Pro
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-medium">Workspace rules</h2>
           {active && active.rules.length > 0 ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 px-2.5 py-1 text-xs text-accent">
-              <ShieldWarningIcon size={14} weight="bold" aria-hidden /> Version {active.version} active
-            </span>
+            <span className="inline-flex items-center rounded-full border border-accent/40 px-2.5 py-1 text-xs font-medium text-accent">Active</span>
           ) : (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs text-ink-2">No rules active</span>
           )}

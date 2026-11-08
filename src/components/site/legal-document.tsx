@@ -63,7 +63,9 @@ export function LegalDocument({
               {sections.map((s, i) => (
                 <li key={s.id} id={s.id} className="scroll-mt-24">
                   <h2 className="flex items-baseline gap-3 text-[1.35rem] font-medium leading-snug tracking-[-0.02em]">
-                    <span className="tabular text-[0.9375rem] font-normal text-ink-3">{i + 1}</span>
+                    <span aria-hidden className="tabular text-[0.9375rem] font-normal text-ink-3">
+                      {i + 1}
+                    </span>
                     {s.title}
                   </h2>
                   <div className="mt-3 grid gap-3 text-[0.9375rem] leading-relaxed text-ink-2">{s.body}</div>

@@ -13,7 +13,11 @@ import type { TaskState } from "@/core/realityloop/task-machine";
 import { TASK_STATE_LABELS, lifecycleProgress, stateTone } from "@/core/realityloop/progress";
 import { EFFORT_LABELS } from "@/core/agent/routing";
 import { RUN_STATUS_LABELS, isLive, type RunStatus } from "@/core/agent/cloud-run";
+import { TOOL_VERB, toolTarget } from "@/core/agent/run-phase";
 import { getPlan } from "@/core/billing/catalog";
+import { modelName } from "@/core/billing/rate-card";
+import { may } from "@/core/workspace/permissions";
+import { waitingChanges } from "@/server/workspace/waiting-changes";
 import { approvalWindow, walletRisk } from "@/core/trust/approval-wallet";
 import type { RunEventView, RunView } from "@/server/cloud-agent/store";
 import type { AppContext } from "@/server/workspace/context";
@@ -58,7 +62,8 @@ export function runItem(r: RunView) {
     live: isLive(r.status),
     effort: r.effort,
     effortLabel: EFFORT_LABELS[r.effort].title,
-    model: r.model,
+    // The model by its product name (ADR 0180); "auto" is no model yet.
+    model: r.model && r.model !== "auto" ? modelName(r.model) : null,
     steps: r.steps,
     outcome: r.outcome,
     proposalId: r.proposalId,
@@ -90,6 +95,8 @@ export function meView(ctx: AppContext, phone: { push: { available: boolean; on:
       id: w.id,
       name: w.name,
       plan: getPlan(w.plan.planId).name,
+      /** "trial" while the plan is the trial's, so the app can say so, as the web does. */
+      planSource: w.plan.source,
       paused: w.suspension?.notice ?? null,
       agentsPaused: w.agentsPaused !== null,
     })),
@@ -104,17 +111,17 @@ export function meView(ctx: AppContext, phone: { push: { available: boolean; on:
 }
 
 /** The first screen: what waits for the person, what's running, and what happened lately. */
-export async function homeView(reader: WorkspaceReader, orgId: string, runs: RunReader, now: Date) {
+export async function homeView(ctx: AppContext, orgId: string, runs: RunReader, now: Date) {
+  const reader = ctx.reader;
   const [tasks, projects, recentRuns] = await Promise.all([reader.listTasks(orgId, { limit: 50 }), reader.listProjects(orgId), runs.list({ limit: 10 })]);
-  // Counted as Approvals lists them, so Home and the tab's badge never promise a change that isn't there (ADR 0174).
-  const latest = await Promise.all(
-    tasks
-      .filter((t) => t.state === "APPROVAL_PENDING")
-      .slice(0, MAX_APPROVALS)
-      .map((t) => reader.getLatestProposal(orgId, t.id).catch(() => null)),
+  // Counted as the web's Home counts them (ADR 0174): only changes this person can decide, so the tab's badge never promises what the list won't offer.
+  const waiting = await waitingChanges(
+    reader,
+    { orgId, tasks, archivedProjects: new Set(projects.filter((p) => p.archivedAt).map((p) => p.id)), role: ctx.role, permissions: ctx.permissions, tour: ctx.mode === "demo" },
+    now,
   );
   return {
-    waiting: latest.filter((p) => p?.status === "pending" && approvalWindow(p.createdAt, p.expiresAt, now).state !== "expired").length,
+    waiting: waiting.mine.length,
     live: recentRuns.filter((r) => isLive(r.status)).map(runItem),
     recent: tasks.slice(0, 10).map(taskItem),
     projects: projects.filter((p) => !p.archivedAt).length,
@@ -125,10 +132,18 @@ export async function homeView(reader: WorkspaceReader, orgId: string, runs: Run
 export async function approvalsView(ctx: AppContext, orgId: string, execution: { mode: string; reason?: string }, now: Date) {
   const waiting = (await ctx.reader.listTasks(orgId)).filter((t) => t.state === "APPROVAL_PENDING");
   const canApproveEscalated = ctx.role !== null && MANAGER_ROLES.includes(ctx.role);
+  // The same rule as the web's Home and badge (ADR 0174): a viewer, or a member whose approving was turned off, decides nothing.
+  const tour = ctx.mode === "demo";
+  const canApproveAny = tour || (ctx.role !== null && CONTRIBUTOR_ROLES.includes(ctx.role) && may(ctx.role, ctx.permissions, "approve"));
+  // A task that waits with no open change on record is listed too, as the web lists it, so the two never disagree.
+  const withoutChange: Task[] = [];
   const cards = await Promise.all(
     waiting.slice(0, MAX_APPROVALS).map(async (t) => {
       const [proposal, contract] = await Promise.all([ctx.reader.getLatestProposal(orgId, t.id), ctx.reader.getContract(orgId, t.id)]);
-      if (!proposal || proposal.status !== "pending") return null;
+      if (!proposal || proposal.status !== "pending") {
+        withoutChange.push(t);
+        return null;
+      }
       const bases = await editBases(ctx.reader, orgId, t.projectId, proposal.changes);
       const lens = contract ? lensSummary(proposal.changes.map((c) => lensForChange(contract.body, c, bases[c.path] ?? ""))) : null;
       const escalated = proposal.policy?.outcome === "ESCALATE";
@@ -144,14 +159,14 @@ export async function approvalsView(ctx: AppContext, orgId: string, execution: {
         facts: walletRisk({ policyOutcome: proposal.policy?.outcome ?? null, lens, changes: proposal.changes }),
         checks: contract?.body.requiredChecks ?? [],
         checksNote: execution.mode === "review_only" ? (execution.reason ?? null) : null,
-        canApprove: !escalated || canApproveEscalated,
+        canApprove: canApproveAny && (!escalated || tour || canApproveEscalated),
       };
     }),
   );
   const items = approvalsOrder(cards.filter((c) => c !== null), now);
   const closed = (c: { createdAt: string; expiresAt: string }) => approvalWindow(c.createdAt, c.expiresAt, now).state === "expired";
-  // `decidable` is what the tab's badge counts: a change that ran out of time is listed, but it isn't anyone's turn.
-  return { items, more: Math.max(0, waiting.length - MAX_APPROVALS), decidable: items.filter((c) => !closed(c)).length };
+  // `decidable` is what the tab's badge counts: only what this person can still decide. A change that ran out of time, or one for an owner, is listed but isn't their turn.
+  return { items, withoutChange: withoutChange.map(taskItem), more: Math.max(0, waiting.length - MAX_APPROVALS), decidable: items.filter((c) => !closed(c) && c.canApprove).length };
 }
 
 async function editBases(reader: WorkspaceReader, orgId: string, projectId: string, changes: readonly { path: string; kind: "create" | "edit"; baseRevision: number }[]) {
@@ -226,7 +241,7 @@ export async function approvalView(ctx: AppContext, orgId: string, taskId: strin
       sha256: proposal.sha256,
       createdAt: proposal.createdAt,
       expiresAt: proposal.expiresAt,
-      model: proposal.model,
+      model: proposal.model ? modelName(proposal.model) : null,
       byAgent: proposal.agentId !== null,
       summary: proposal.plan.summary,
       steps: proposal.plan.steps,
@@ -243,12 +258,13 @@ export async function approvalView(ctx: AppContext, orgId: string, taskId: strin
   };
 }
 
+// The web's Tasks page groups by the state's tone; the phone's filters are the same groups, so a task is in the same place on both.
 const FILTERS = {
   all: () => true,
-  waiting: (t: Task) => t.state === "APPROVAL_PENDING" || t.state === "REVIEW_REQUIRED" || t.state === "REQUIRES_HUMAN_INTERVENTION" || t.state === "CONTRACT_DRAFTED",
-  active: (t: Task) => ["EXECUTION_AUTHORIZED", "EXECUTING", "VERIFYING", "CONTRACT_APPROVED", "PLAN_PROPOSED", "POLICY_EVALUATED"].includes(t.state),
-  done: (t: Task) => t.state === "VERIFIED" || t.state === "PARTIALLY_VERIFIED" || t.state === "RECOVERED",
-  stopped: (t: Task) => ["FAILED", "BLOCKED", "REJECTED", "EXPIRED", "CANCELLED", "INTERRUPTED"].includes(t.state),
+  waiting: (t: Task) => stateTone(t.state) === "approval",
+  active: (t: Task) => stateTone(t.state) === "info",
+  done: (t: Task) => stateTone(t.state) === "verified",
+  stopped: (t: Task) => ["failed", "unverified"].includes(stateTone(t.state)),
 } as const;
 export type TaskFilter = keyof typeof FILTERS;
 export const isTaskFilter = (v: unknown): v is TaskFilter => typeof v === "string" && Object.hasOwn(FILTERS, v);
@@ -384,8 +400,13 @@ export function runStep(e: RunEventView) {
   switch (e.kind) {
     case "model":
       return { id: e.id, kind: e.kind, title: "Thinking", detail: clip(p.text, 600), at: e.at };
-    case "tool":
-      return { id: e.id, kind: e.kind, title: [p.tool, p.target].filter((x) => typeof x === "string" && x).join(" "), detail: clip(p.detail, 400), status: typeof p.status === "string" ? p.status : null, at: e.at };
+    case "tool": {
+      // The web's words for the step (ADR 0180): "Wrote src/index.html", never the tool's id.
+      const tool = typeof p.tool === "string" ? p.tool : "";
+      const target = tool ? toolTarget(tool, typeof p.target === "string" ? p.target : "") : null;
+      const title = [tool ? (TOOL_VERB[tool] ?? tool.replace(/_/g, " ")) : "", target?.text ?? ""].filter(Boolean).join(" ");
+      return { id: e.id, kind: e.kind, title, detail: clip(p.detail, 400), status: typeof p.status === "string" ? p.status : null, at: e.at };
+    }
     case "command":
       return { id: e.id, kind: e.kind, title: clip(p.command, 200), detail: clip(p.output, 800), exitCode: typeof p.exitCode === "number" ? p.exitCode : null, at: e.at };
     case "approval":

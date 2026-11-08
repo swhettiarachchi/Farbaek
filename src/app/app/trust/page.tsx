@@ -1,4 +1,4 @@
-import { CircleDashedIcon, DesktopIcon, FlowArrowIcon, FolderSimpleIcon, MagnifyingGlassIcon, PlugsConnectedIcon, ScrollIcon, UserIcon, WarningIcon, WrenchIcon } from "@phosphor-icons/react/ssr";
+import { DesktopIcon, FlowArrowIcon, FolderSimpleIcon, MagnifyingGlassIcon, PlugsConnectedIcon, ScrollIcon, UserIcon, WarningIcon, WrenchIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -9,6 +9,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { neighbours, projectId, rulesOn, whoCanChange, type Answer, type TrustNode, type TrustNodeKind } from "@/core/trust/trust-graph";
 import { loadTrustGraph } from "@/server/trust/trust-graph";
 import { loadAppContext } from "@/server/workspace/context";
+import { StatusBadge } from "@/components/ui/status-badge";
 
 export const metadata: Metadata = { title: "Who can do what" };
 
@@ -30,11 +31,7 @@ function NodeName({ node }: { node: TrustNode }) {
     <Link href={`?node=${encodeURIComponent(node.id)}#focus`} className="inline-flex min-h-11 min-w-0 items-center gap-2 font-medium text-ink hover:text-accent">
       <k.icon size={18} className="shrink-0 text-ink-3" aria-hidden />
       <span className="min-w-0 break-words">{node.label}</span>
-      {node.inactive ? (
-        <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-line-strong/60 px-2 py-0.5 text-xs font-normal text-ink-3">
-          <CircleDashedIcon size={12} aria-hidden /> inactive
-        </span>
-      ) : null}
+      {node.inactive ? <StatusBadge status="unverified" label="Inactive" /> : null}
     </Link>
   );
 }

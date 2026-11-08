@@ -1,9 +1,9 @@
-import { ArrowsLeftRightIcon, CaretRightIcon, DeviceMobileIcon, RocketLaunchIcon, SquaresFourIcon, SteeringWheelIcon } from "@phosphor-icons/react/ssr";
+import { ArrowsLeftRightIcon, DeviceMobileIcon, GlobeIcon, SquaresFourIcon, SteeringWheelIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
+import Link from "next/link";
 import { DiffView } from "@/components/code/diff-view";
 import { Container } from "@/components/ui/container";
 import { SAMPLE_CHANGED_FILE, SAMPLE_DIFF } from "@/content/samples";
-import { POLICY_OUTCOMES } from "@/core/billing/usage";
 import { SectionHeading } from "./section-heading";
 
 function Cell({
@@ -18,7 +18,7 @@ function Cell({
   body: string;
   icon?: Icon;
   className?: string;
-  /** Built and tested, not yet proven on real accounts and devices: says so in words and icon, never by colour alone. */
+  /** Built and tested, not yet proven on real accounts and devices: said in a sentence, never as a stamp (ADR 0180). */
   beta?: boolean;
   children?: React.ReactNode;
 }) {
@@ -31,31 +31,20 @@ function Cell({
           <CellIcon size={20} aria-hidden />
         </span>
       ) : null}
-      <h3 className={`flex flex-wrap items-center gap-2 text-[1.0625rem] font-medium tracking-[-0.01em] ${CellIcon ? "mt-4" : ""}`}>
-        {title}
-        {beta ? (
-          <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-line-strong/50 px-2 py-0.5 text-xs font-normal text-ink-3">
-            Beta
-          </span>
-        ) : null}
-      </h3>
+      <h3 className={`text-[1.0625rem] font-medium tracking-[-0.01em] ${CellIcon ? "mt-4" : ""}`}>{title}</h3>
       <p className="mt-1.5 text-[0.9375rem] leading-relaxed text-ink-2">{body}</p>
+      {beta ? (
+        <p className="mt-3 text-sm text-ink-3">
+          Built and tested, being proven on real accounts and devices.{" "}
+          <Link href="#status" className="font-medium text-ink-2 underline-offset-4 hover:underline">
+            What works today
+          </Link>
+        </p>
+      ) : null}
       {children}
     </li>
   );
 }
-
-const LIFECYCLE = ["Received", "Plan approved", "Building", "Checking", "Verified"] as const;
-
-/** The policy's six outcomes, in words. */
-const OUTCOME_WORDS: Record<(typeof POLICY_OUTCOMES)[number], string> = {
-  ALLOW: "Allow",
-  ALLOW_WITHIN_LIMITS: "Allow within limits",
-  REQUIRE_APPROVAL: "Require approval",
-  SIMULATE_FIRST: "Simulate first",
-  ESCALATE: "Escalate",
-  BLOCK: "Block",
-};
 
 export function ModulesBento() {
   return (
@@ -83,32 +72,23 @@ export function ModulesBento() {
             className="bg-canvas-2 md:col-span-2"
           >
             <div aria-hidden className="dot-grid pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_bottom,transparent,black)]" />
-            <ul className="relative mt-5 flex flex-wrap gap-2" aria-label="Policy outcomes">
-              {POLICY_OUTCOMES.map((outcome) => (
-                <li key={outcome} className="rounded-full border border-line bg-surface px-3 py-1 text-[0.8125rem] text-ink-2 shadow-e1">
-                  {OUTCOME_WORDS[outcome]}
-                </li>
-              ))}
-            </ul>
+            <p className="relative mt-4 text-sm leading-relaxed text-ink-2">
+              Each change is allowed, allowed within limits, held for your approval, tried first in a test space, sent to an owner, or blocked.
+            </p>
           </Cell>
 
           <Cell
             title="Agent"
-            body="Farbaek's own runtime. The model proposes; Farbaek validates and authorizes every tool call."
+            body="Farbaek's own runtime. The model suggests; Farbaek checks every action against your plan before it runs."
             icon={SteeringWheelIcon}
-            className="border-accent/20 bg-[linear-gradient(150deg,rgb(36_80_240/0.09),rgb(10_110_133/0.06)_60%,transparent)]"
+            className="border-accent/20 bg-[linear-gradient(150deg,color-mix(in_oklab,var(--color-accent)_9%,transparent),transparent_60%)]"
           />
 
-          <Cell title="Plans" body="A plan you approve for every task, what the agent needs to know first, and how it turned out." className="bg-surface">
-            <ol className="mt-4 flex flex-wrap items-center gap-x-1 gap-y-1 text-[0.8125rem] text-ink-3" aria-label="A task's progress">
-              {LIFECYCLE.map((step, i) => (
-                <li key={step} className="flex items-center gap-1">
-                  {i > 0 ? <CaretRightIcon size={12} className="text-line-strong" aria-hidden /> : null}
-                  {step}
-                </li>
-              ))}
-            </ol>
-          </Cell>
+          <Cell
+            title="Plans"
+            body="A plan you approve for every task, what the agent needs to know first, and how it turned out: received, plan approved, building, checking, verified."
+            className="bg-surface"
+          />
 
           <Cell title="Core" body="Sign-in, workspaces, projects, tasks and what each plan includes." icon={SquaresFourIcon} className="bg-surface" />
           <Cell
@@ -121,7 +101,7 @@ export function ModulesBento() {
           <Cell
             title="Launch"
             body="Launch to your own Vercel or Netlify account, with what goes named first, your typed confirmation, and live checks after."
-            icon={RocketLaunchIcon}
+            icon={GlobeIcon}
             className="bg-surface"
             beta
           />

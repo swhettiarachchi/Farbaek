@@ -292,7 +292,7 @@ export function ProposalReview({
         <div className="grid gap-1.5 rounded-sm border border-dashed border-simulated/45 bg-simulated/[0.03] p-4 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="flex items-center gap-2 font-medium">
-              Practice: level 2 {proposal.policy.shadow.outcome === "ALLOW_WITHIN_LIMITS" ? "would have applied this on its own" : "would have waited for a person"}
+              Practice: this change {proposal.policy.shadow.outcome === "ALLOW_WITHIN_LIMITS" ? "would have applied on its own" : "would have waited for a person"}
             </p>
             <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-simulated/40 px-2.5 text-xs font-medium text-simulated">
               Sample

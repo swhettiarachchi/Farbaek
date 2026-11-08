@@ -1,6 +1,6 @@
 "use client";
 
-import { MoonIcon, RocketLaunchIcon, SunIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { MoonIcon, HammerIcon, SunIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useActionState, useId, useState } from "react";
 import { approveAndBuildAction, type ApproveBuildState } from "@/app/app/new/actions";
@@ -180,7 +180,7 @@ export function ApproveBuild({
       ) : null}
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending || Boolean(disabledReason)} className={buttonClasses("primary")}>
-          <RocketLaunchIcon size={18} weight="bold" aria-hidden />
+          <HammerIcon size={18} weight="bold" aria-hidden />
           {pending ? "Approving and starting…" : "Approve and build"}
         </button>
         <Link href={`/app/tasks/${taskId}`} className={buttonClasses("secondary")}>

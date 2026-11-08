@@ -37,7 +37,7 @@ export async function rescueImportAction(input: { name: string; files: { path: s
   if (!ctx.writes.enabled) return { status: "error", message: ctx.writes.reason };
   if (!ctx.current || !ctx.role) return { status: "error", message: "Create or join a workspace first." };
   const [user, admin] = [await createSupabaseServerClient(), createSupabaseAdminClient()];
-  if (!user || !admin) return { status: "error", message: "The server isn't configured for writes." };
+  if (!user || !admin) return { status: "error", message: "Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com." };
 
   const person = { orgId: ctx.current.id, userId: ctx.user.id, role: ctx.role, permissions: ctx.permissions };
   const wiring = await securityCheckDeps(person);

@@ -2,6 +2,7 @@ import { ArrowRightIcon, CheckCircleIcon, FileTextIcon, HammerIcon, SignatureIco
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { LiveRefresh } from "@/components/app/live-refresh";
 import { EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { AgentCore } from "@/components/build/agent-core";
 import { PromptComposer } from "@/components/build/prompt-composer";
@@ -61,6 +62,8 @@ export default async function BuildPage() {
 
   return (
     <div className="grid gap-8">
+      {/* The list promises live steps, so it keeps up while a run is going or waiting. */}
+      <LiveRefresh active={going > 0 || Boolean(waitingRun)} />
       <PageHeader
         title="Build"
         description="Say what you want and approve the plan, and the agent builds it. You don't need your own AI account: each run uses your workspace's AI usage, and every change waits for your review."
@@ -118,12 +121,12 @@ export default async function BuildPage() {
             icon={HammerIcon}
             title="Nothing is ready to build yet"
             action={
-              <Link href="/app/projects" className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-accent hover:underline">
-                Open projects <ArrowRightIcon size={16} weight="bold" aria-hidden />
+              <Link href="/app/new" className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-accent hover:underline">
+                Describe what you want to build <ArrowRightIcon size={16} weight="bold" aria-hidden />
               </Link>
             }
           >
-            Create a task in a project, draft its plan with AI and approve it. It shows up here, ready for the agent.
+            Describe one thing you want, in the box above or on a project. AI drafts the plan, you approve it, and the task shows up here, ready for the agent.
           </EmptyState>
         ) : (
           <ul className="grid gap-4 lg:grid-cols-2">
@@ -133,7 +136,7 @@ export default async function BuildPage() {
                   <Link href={`/app/tasks/${t.id}`} className="-my-3 inline-flex min-h-11 items-center text-[0.9375rem] font-medium hover:underline">
                     {t.title}
                   </Link>
-                  <p className="mt-1 text-sm text-ink-3">Plan approved. Waiting for a change.</p>
+                  <p className="mt-1 text-sm text-ink-3">Plan approved. Press Build with the agent to start.</p>
                 </div>
                 <StartRun taskId={t.id} disabledReason={busy.has(t.id) ? "The agent is already working on this task." : (startReason ?? withheldFor(ctx.role, ctx.permissions, "run_agents"))} />
               </li>
