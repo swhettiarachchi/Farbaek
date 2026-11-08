@@ -114,27 +114,19 @@ export default function SecurityTestsPage() {
             Farbaek&apos;s agents read code they didn&apos;t write and run commands, so its boundaries are attacked on purpose: {totals.scenarios} scenarios, mapped to the OWASP
             risk lists for agentic and LLM applications. Each one assumes the model has already been fooled, and checks that the boundary holds anyway.
           </p>
-          <dl className="mt-8 flex flex-wrap gap-x-10 gap-y-4 text-[0.8125rem] text-ink-3">
-            <div>
-              <dt>Last run</dt>
-              <dd className="mt-1 text-[0.9375rem] font-medium text-ink">{dateLabel(run.ranAt)}</dd>
-            </div>
-            <div>
-              <dt>Result</dt>
-              <dd className={`mt-1 flex items-center gap-1.5 text-[0.9375rem] font-medium ${totals.failed ? "text-failed" : "text-verified"}`}>
-                {totals.failed ? <XCircleIcon size={16} weight="bold" aria-hidden /> : <CheckCircleIcon size={16} weight="bold" aria-hidden />}
-                {totals.passed} of {totals.scenarios} scenarios passed
-              </dd>
-            </div>
-            <div>
-              <dt>Tests</dt>
-              <dd className="mt-1 text-[0.9375rem] font-medium text-ink tabular">{totals.tests}</dd>
-            </div>
-            <div>
-              <dt>Commit</dt>
-              <dd className="mt-1 font-mono text-sm text-ink">{run.commit.slice(0, 7)}</dd>
-            </div>
-          </dl>
+          {/* One sentence, not a strip of tiles (ADR 0180). The engineering facts sit behind a fold for anyone checking the run. */}
+          <p className={`mt-8 flex items-center gap-2 text-[1.0625rem] font-medium ${totals.failed ? "text-failed" : "text-ink"}`}>
+            {totals.failed ? <XCircleIcon size={20} weight="bold" className="shrink-0 text-failed" aria-hidden /> : <CheckCircleIcon size={20} weight="bold" className="shrink-0 text-verified" aria-hidden />}
+            <span>
+              Last run on {dateLabel(run.ranAt)}: {totals.passed} of {totals.scenarios} scenarios passed.
+            </span>
+          </p>
+          <details className="mt-3 text-sm text-ink-3">
+            <summary className="inline-flex min-h-11 cursor-pointer list-none items-center hover:text-ink [&::-webkit-details-marker]:hidden">Technical details</summary>
+            <p className="mt-1">
+              {totals.tests} tests across the scenarios, recorded at commit <span className="font-mono">{run.commit.slice(0, 7)}</span>.
+            </p>
+          </details>
         </Container>
       </section>
 

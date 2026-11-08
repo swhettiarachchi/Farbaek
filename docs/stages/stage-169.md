@@ -76,6 +76,14 @@ Random looking finds random things, so the audit had five parts, each with its o
 - The teammate avatar was a middot. The empty states on Projects and Build lead to "Describe what you want to build". The manual "New task" form folds under "Add a task without a plan".
 - A flaky test flipped the last base64 character of a sealed token, whose low bits are padding; it flips one in the middle.
 
+## The public pages: excess, and anything private
+
+A separate pass over everything a visitor can reach, asking two questions: does this page say more than it needs to, and does anything on it belong inside Farbaek?
+
+- **Nothing private is served.** The crawl rules (`src/core/seo/crawl.ts`) keep `/app`, `/office`, `/api`, `/auth`, sign-in links, invitations and the preview routes out of search, and the sitemap lists only the eight public pages. The `public/` folder holds brand files, films, the Studio kit, sample media and two sign-in email templates: nothing internal. Production's public pages were read back and searched for infrastructure words (the hosting, the database, the sandbox runtime, environment variables, stage or ADR numbers): none. The vendors named are the ones a visitor needs to know: Dodo Payments bills, Anthropic and Google supply the models, Vercel and Netlify are launch targets.
+- **Excess trimmed.** The security page opened with four stat tiles (last run, result, tests, commit); it's one sentence now, with the test count and commit behind Technical details. The sign-in page's fallback named a vendor and a file; it says sign-in isn't connected and where to write. The "What works today" section said the Mac and Linux agents were still to come, though both have been downloadable since stage 166.
+- **Kept on purpose.** The security page's "Not tested" paragraphs list what each risk's scenarios don't cover. That's the point of a page called "in the open", and it names no system or setting. The legal pages are long because they're legal; each has a short version at the top.
+
 ## Checked
 
 - `pnpm typecheck`, `pnpm lint`, the full suite, and the desktop renderer's build after each group.
