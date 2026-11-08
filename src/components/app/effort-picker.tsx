@@ -1,7 +1,7 @@
 "use client";
 
 import { useId } from "react";
-import { EFFORTS, EFFORT_LABELS, type Effort } from "@/core/agent/routing";
+import { EFFORTS, EFFORT_LABELS, type Effort } from "@/core/agent/effort";
 
 /**
  * Fast, Balanced or Deep (ADR 0021). A segmented control of real radio

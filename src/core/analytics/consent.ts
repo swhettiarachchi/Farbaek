@@ -8,7 +8,7 @@
  * Space, analytics never loads, so the stores' privacy answers stay true.
  */
 
-import { PRIVATE_PATHS } from "@/core/seo/crawl";
+import { NOT_PUBLIC_PATHS } from "@/core/seo/crawl";
 
 /** Where the browser keeps the choice: this device only. */
 export const CONSENT_KEY = "farbaek-analytics";
@@ -59,7 +59,7 @@ export function isAnalyticsCookie(name: string): boolean {
  */
 export function isPrivatePath(pathname: string | null): boolean {
   if (!pathname) return true;
-  return PRIVATE_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  return NOT_PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
 /** Whether the banner should ask: analytics is set up here, and there's no choice in force. */

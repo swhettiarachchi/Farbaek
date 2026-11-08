@@ -11,18 +11,23 @@
 /** The public pages, in the order a visitor meets them. */
 export const PUBLIC_PAGES = ["/", "/pricing", "/security", "/verify", "/proofpack/v1", "/privacy", "/terms", "/acceptable-use"] as const;
 
-/** Paths crawlers are asked to leave alone on the app's host. */
-export const PRIVATE_PATHS = [
-  "/app",
+/**
+ * Paths crawlers are asked to leave alone on the app's host. Only the ordinary
+ * ones: robots.txt is public, so it never maps staff or internal routes, which
+ * keep themselves out of search with noindex instead (stage 171).
+ */
+export const PRIVATE_PATHS = ["/app", "/api", "/auth", "/invite", "/delete-account", "/account-deleted", "/offline"] as const;
+
+/**
+ * Every path that's never a public page: the ones above, plus the staff and
+ * internal routes robots.txt doesn't name. Analytics never counts a visit to
+ * any of them (src/core/analytics/consent.ts).
+ */
+export const NOT_PUBLIC_PATHS = [
+  ...PRIVATE_PATHS,
   "/admin",
-  "/api",
-  "/auth",
   "/office",
   "/sign-in/password",
-  "/invite",
-  "/delete-account",
-  "/account-deleted",
-  "/offline",
   "/sandbox-preview",
   "/site-serve",
   "/film-stage",

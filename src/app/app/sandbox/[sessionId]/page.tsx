@@ -13,6 +13,7 @@ import { sandboxForPage } from "@/server/sandbox/page-context";
 import { meteredFrom } from "@/server/sandbox/types";
 import { loadAppContext } from "@/server/workspace/context";
 import type { Execution, SandboxSession } from "@/sdk/sandbox-client";
+import { forPeople } from "@/core/text/operator-detail";
 
 export const metadata: Metadata = { title: "Test space session" };
 export const dynamic = "force-dynamic";
@@ -61,7 +62,7 @@ export default async function SandboxSessionPage({ params }: { params: Promise<{
   const failure = session.failureCategory ? (FAILURE_LABELS[session.failureCategory as FailureCategory] ?? FAILURE_LABELS.provider_unavailable) : null;
   const notice: WorkspaceProps["notice"] =
     session.state === "failed"
-      ? { tone: "failed", title: failure?.title ?? "The session failed", body: `${session.failureMessage ? `${session.failureMessage} ` : ""}${failure?.action ?? ""}` }
+      ? { tone: "failed", title: failure?.title ?? "The session failed", body: `${session.failureMessage ? `${forPeople(session.failureMessage)} ` : ""}${failure?.action ?? ""}` }
       : session.state === "requested" || session.state === "provisioning"
         ? { tone: "info", title: "Starting the test space", body: "Farbaek is starting a private, throwaway computer and copying in the project files. This page updates on its own." }
         : session.state === "paused"

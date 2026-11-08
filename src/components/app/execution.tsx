@@ -5,7 +5,7 @@ import type { ExecutionMode } from "@/core/execution/sandbox";
 export function ExecutionModeBadge({ mode }: { mode: ExecutionMode }) {
   return mode.mode === "sandboxed" ? (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-verified/30 bg-verified/[0.05] px-3 py-1 text-sm font-medium text-verified">
-      <CheckCircleIcon size={16} weight="fill" aria-hidden /> Test space · {mode.provider}
+      <CheckCircleIcon size={16} weight="fill" aria-hidden /> Test space
     </span>
   ) : (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-line-strong/40 bg-surface-raised px-3 py-1 text-sm font-medium text-ink-2">

@@ -40,8 +40,7 @@ import { PublishPanel } from "@/components/publish/publish-panel";
 import { ScoreRing } from "@/components/security/score-ring";
 import { TEMPLATES } from "@/content/starters/templates";
 import { FARBAEK_SKILLS } from "@/content/skills";
-import { TRIAL, getPlan } from "@/core/billing/catalog";
-import { modelName } from "@/core/billing/rate-card";
+import { modelName } from "@/core/billing/model-names";
 import { CHECK_LABELS } from "@/core/security/report";
 import { scoreOf } from "@/core/security/findings";
 import type { RunEventView } from "@/server/cloud-agent/store";
@@ -64,6 +63,9 @@ export const SAMPLE = {
   planHash: "3f9a2c71e8b04d5a9c6e1f20b7d3a8e5c4f1092b6d7e3a80c5f1b2d4e6a8c0f2",
 };
 
+/** The trial's plan, by name. */
+export const FILM_TRIAL_PLAN = "Pro";
+
 const template = TEMPLATES.find((t) => t.id === "local-business")!;
 export const SITE_FILES: Record<string, string> = Object.fromEntries(template.files.map((f) => [f.path, f.content]));
 
@@ -77,7 +79,8 @@ const NAV_HREF: Record<NavKey, string> = { home: "/app", build: "/app/build", pr
 
 /** The signed-in app's sidebar, as on a laptop. */
 export function AppShell({ active, core = "idle", children }: { active: NavKey; core?: CoreMarkState; children: ReactNode }) {
-  const trial = `${getPlan(TRIAL.basePlan).name} trial`;
+  // The film runs in the browser, so it names the trial plan rather than importing the catalog (catalog.test.ts keeps them in step).
+  const trial = `${FILM_TRIAL_PLAN} trial`;
   return (
     <div className="grid h-full grid-cols-[228px_minmax(0,1fr)]">
       <aside className="flex h-full flex-col gap-4 border-r border-line bg-canvas-2 px-4 py-5">

@@ -1,5 +1,5 @@
 import { CircleNotchIcon, SirenIcon } from "@phosphor-icons/react/ssr";
-import { modelName } from "@/core/billing/rate-card";
+import { modelName } from "@/core/billing/model-names";
 import Link from "next/link";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { RelativeTime } from "@/components/ui/local-time";

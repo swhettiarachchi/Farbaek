@@ -16,6 +16,10 @@ import { canonicalHash } from "../trust/canonical-json";
 import { fromBase64, verifyEnvelope, type PublicSigningKey } from "../trust/dsse";
 import { IN_TOTO_STATEMENT_TYPE, LEGACY_PROOFPACK_PREDICATE_TYPE, PROOFPACK_PREDICATE_TYPE } from "./proofpack";
 import { RECOVERY_PREDICATE_TYPE } from "./recovery-receipt";
+import { forPeople } from "@/core/text/operator-detail";
+
+/** A record's line as /verify shows it: one naming Farbaek's own setup is left out (stage 171). */
+const publicLine = (line: string) => forPeople(line, "A line about Farbaek's own setup is left out here.");
 
 /** Kept as literals so this module doesn't pull in the sandbox and security code. */
 const CHECK_RECEIPT_PREDICATE_TYPE = "https://farbaek.dev/sandbox-receipt/v1";
@@ -201,7 +205,7 @@ function summarize(kind: EvidenceKind, predicate: unknown): { summary: EvidenceS
           { label: "Plan", value: `Version ${d.contract.version}, sha256:${d.contract.sha256.slice(0, 12)}…`, mono: true },
           { label: "Rules", value: d.policy ? d.policy.outcome : "Not recorded" },
           { label: "Approved", value: d.approval.approvedAt, time: true },
-          { label: "Where checks ran", value: d.execution.mode === "sandboxed" ? `In a test space (${d.execution.provider})` : `Not run. ${d.execution.reason}` },
+          { label: "Where checks ran", value: d.execution.mode === "sandboxed" ? "In an isolated test space" : `Not run. ${d.execution.reason}` },
           ...(d.proposal.model ? [{ label: "Model", value: d.proposal.model, mono: true }] : []),
           ...(d.egress
             ? [
@@ -213,7 +217,7 @@ function summarize(kind: EvidenceKind, predicate: unknown): { summary: EvidenceS
         files: d.changes.map((c) => ({ path: c.path, sha256: c.sha256, note: c.kind === "create" ? "created" : "edited" })),
         checks: d.checks.map(toCheck),
         links,
-        limits: d.limits,
+        limits: d.limits.map(publicLine),
       },
     };
   }
@@ -234,7 +238,7 @@ function summarize(kind: EvidenceKind, predicate: unknown): { summary: EvidenceS
         files: d.operations.flatMap((o) => (o.toSha256 ? [{ path: o.path, sha256: o.toSha256, note: `restored to revision ${o.toRevision}` }] : [])),
         checks: [],
         links: d.proofPack ? [{ label: "The ProofPack of the change it undid", digest: d.proofPack }] : [],
-        limits: d.limits,
+        limits: d.limits.map(publicLine),
       },
     };
   }
@@ -254,7 +258,7 @@ function summarize(kind: EvidenceKind, predicate: unknown): { summary: EvidenceS
         files: (d.appliedChange?.files ?? []).map((f) => ({ path: f.path, sha256: f.expected, note: f.actual === f.expected ? "matched in the test space" : "didn't match in the test space" })),
         checks: d.checks.map(toCheck),
         links: d.verdict.proofPackDigest ? [{ label: "The ProofPack it produced", digest: d.verdict.proofPackDigest }] : [],
-        limits: d.limits,
+        limits: d.limits.map(publicLine),
       },
     };
   }

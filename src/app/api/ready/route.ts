@@ -10,15 +10,16 @@ export const dynamic = "force-dynamic";
  * the deploy uses to see the app answer, this also asks the database, checks
  * the server's free disk space and the background jobs (ADR 0071), so a
  * monitor goes red when Postgres is down, about to run out of room, or a job
- * has stopped or keeps failing. It says what failed, never why in detail:
- * no hosts, keys, sizes or errors.
+ * has stopped or keeps failing. The public sees only whether Farbaek is ready
+ * (stage 171): which part failed, and which job is late, is on Office Space's
+ * Health page. An answer is reused for 15 seconds, so asking costs nothing.
  */
-export async function GET() {
-  const headers = { "cache-control": "no-store" };
+let last: { at: number; ok: boolean } | null = null;
+
+async function ready(): Promise<boolean> {
   const disk = await readDisk();
   const admin = createSupabaseAdminClient();
-  if (!admin) return Response.json({ ok: false, database: "not configured", disk }, { status: 503, headers });
-  const started = Date.now();
+  if (!admin) return false;
   const timeout = new Promise<{ error: true }>((resolve) => setTimeout(() => resolve({ error: true }), 5_000));
   const query = admin
     .from("organizations")
@@ -26,12 +27,15 @@ export async function GET() {
     .limit(1)
     .then(({ error }) => ({ error: Boolean(error) }));
   const { error } = await Promise.race([query, timeout]);
-  const ms = Date.now() - started;
-  if (error) return Response.json({ ok: false, database: "unreachable", disk }, { status: 503, headers });
+  if (error) return false;
   // Jobs that never reported don't count: a fresh server isn't failing.
   const statuses = await readJobStatuses(admin, new Date());
   const late = statuses ? jobsNeedingALook(statuses) : [];
-  const jobs = statuses === null ? "unknown" : late.length > 0 ? "late" : "ok";
-  const ok = disk !== "low" && late.length === 0;
-  return Response.json({ ok, database: "ok", disk, jobs, ...(late.length > 0 ? { late } : {}), ms }, { status: ok ? 200 : 503, headers });
+  return disk !== "low" && late.length === 0;
+}
+
+export async function GET() {
+  const now = Date.now();
+  if (!last || now - last.at > 15_000) last = { at: now, ok: await ready() };
+  return Response.json({ ok: last.ok }, { status: last.ok ? 200 : 503, headers: { "cache-control": "no-store" } });
 }

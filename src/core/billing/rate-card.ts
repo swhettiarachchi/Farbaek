@@ -10,18 +10,11 @@
  * the share of their allowance used (ADR 0019).
  */
 
-export const USD_PER_UNIT = 0.0001;
+import { MODEL_NAMES, type ModelId } from "./model-names";
 
-export type ModelId =
-  | "claude-haiku-5-5"
-  | "claude-sonnet-5-5"
-  | "claude-opus-5-5"
-  | "claude-fable-5-1"
-  | "gemini-3.5-flash-lite"
-  | "gemini-3.8-flash"
-  | "gemini-4-argon"
-  | "gemini-3.1-flash-lite-image"
-  | "gpt-6.1-terra";
+export { modelName, type ModelId } from "./model-names";
+
+export const USD_PER_UNIT = 0.0001;
 
 export interface ModelRate {
   label: string;
@@ -37,18 +30,18 @@ export interface ModelRate {
 }
 
 export const RATE_CARD: Record<ModelId, ModelRate> = {
-  "claude-haiku-5-5": { label: "Claude Haiku 5.5", provider: "anthropic", input: 0.1, output: 0.5, cacheWrite: 0.125, cacheRead: 0.01, longPrompt: { aboveTokens: 100_000, multiplier: 5 } },
-  "claude-sonnet-5-5": { label: "Claude Sonnet 5.5", provider: "anthropic", input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.1 },
-  "claude-opus-5-5": { label: "Claude Opus 5.5", provider: "anthropic", input: 4, output: 20, cacheWrite: 5, cacheRead: 0.2 },
-  "claude-fable-5-1": { label: "Claude Fable 5.1", provider: "anthropic", input: 10, output: 50, cacheWrite: 12.5, cacheRead: 0.25 },
-  "gemini-3.5-flash-lite": { label: "Gemini 3.5 Flash-Lite", provider: "gemini", input: 0.3, output: 2.5, cacheWrite: 0.3, cacheRead: 0.03 },
-  "gemini-3.8-flash": { label: "Gemini 3.8 Flash", provider: "gemini", input: 1.5, output: 7.5, cacheWrite: 1.5, cacheRead: 0.15 },
-  "gemini-4-argon": { label: "Gemini 4 Argon", provider: "gemini", input: 4, output: 20, cacheWrite: 4, cacheRead: 0.2 },
+  "claude-haiku-5-5": { label: MODEL_NAMES["claude-haiku-5-5"], provider: "anthropic", input: 0.1, output: 0.5, cacheWrite: 0.125, cacheRead: 0.01, longPrompt: { aboveTokens: 100_000, multiplier: 5 } },
+  "claude-sonnet-5-5": { label: MODEL_NAMES["claude-sonnet-5-5"], provider: "anthropic", input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.1 },
+  "claude-opus-5-5": { label: MODEL_NAMES["claude-opus-5-5"], provider: "anthropic", input: 4, output: 20, cacheWrite: 5, cacheRead: 0.2 },
+  "claude-fable-5-1": { label: MODEL_NAMES["claude-fable-5-1"], provider: "anthropic", input: 10, output: 50, cacheWrite: 12.5, cacheRead: 0.25 },
+  "gemini-3.5-flash-lite": { label: MODEL_NAMES["gemini-3.5-flash-lite"], provider: "gemini", input: 0.3, output: 2.5, cacheWrite: 0.3, cacheRead: 0.03 },
+  "gemini-3.8-flash": { label: MODEL_NAMES["gemini-3.8-flash"], provider: "gemini", input: 1.5, output: 7.5, cacheWrite: 1.5, cacheRead: 0.15 },
+  "gemini-4-argon": { label: MODEL_NAMES["gemini-4-argon"], provider: "gemini", input: 4, output: 20, cacheWrite: 4, cacheRead: 0.2 },
   // Image generation (ADR 0109): output is image tokens, $30 per million, so a 1K image (1,120 tokens) is $0.0336. Google's pricing page, 2026-10-28.
-  "gemini-3.1-flash-lite-image": { label: "Gemini 3.1 Flash Lite Image", provider: "gemini", input: 0.25, output: 30, cacheWrite: 0.25, cacheRead: 0.025 },
+  "gemini-3.1-flash-lite-image": { label: MODEL_NAMES["gemini-3.1-flash-lite-image"], provider: "gemini", input: 0.25, output: 30, cacheWrite: 0.25, cacheRead: 0.025 },
   // The second checker (ADR 0121). OpenAI's pricing page, 2026-10-30: $1 input, $0.05 cached input, $5 output; caching is automatic with no
   // write charge. Above 272K prompt tokens input doubles and output is 1.5x; metering the whole call at 2x there never under-meters.
-  "gpt-6.1-terra": { label: "GPT-6.1 Terra", provider: "openai", input: 1, output: 5, cacheWrite: 1, cacheRead: 0.05, longPrompt: { aboveTokens: 272_000, multiplier: 2 } },
+  "gpt-6.1-terra": { label: MODEL_NAMES["gpt-6.1-terra"], provider: "openai", input: 1, output: 5, cacheWrite: 1, cacheRead: 0.05, longPrompt: { aboveTokens: 272_000, multiplier: 2 } },
 };
 
 export interface TokenUsage {
@@ -119,7 +112,3 @@ export function sampleSessionUnits(model: ModelId): number {
   );
 }
 
-/** A model as people see it: its product name ("Claude Haiku 5.5"), never its id in monospace (ADR 0180). */
-export function modelName(model: string): string {
-  return (RATE_CARD as Record<string, ModelRate>)[model]?.label ?? model;
-}

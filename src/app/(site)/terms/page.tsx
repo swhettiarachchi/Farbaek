@@ -54,7 +54,7 @@ const SECTIONS: LegalSection[] = [
             <>A paid plan starts only when you choose one and agree to its price; the terms for paid plans are below.</>,
           ]}
         />
-        <p>Plans have limits on AI use, sandbox time and more. When a limit is reached, the work it covers pauses until the limit resets or the plan changes. To keep Farbaek running for everyone, we may also pause AI work across the platform for the rest of a day.</p>
+        <p>Plans have limits on AI use, sandbox time and more. When a limit is reached, the work it covers pauses until the limit resets or the plan changes. To keep Farbaek running for everyone, we may also pause AI work across the platform for a while.</p>
       </>
     ),
   },

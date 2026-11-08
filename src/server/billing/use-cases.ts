@@ -37,12 +37,12 @@ export type BillingResult<T> = { ok: true; value: T } | { ok: false; code: Billi
 
 export const PROVIDER_MESSAGES: Record<ProviderErrorCode, string> = {
   NOT_CONNECTED: "Payments aren't connected on this server.",
-  UNAUTHORIZED: "Dodo Payments refused Farbaek's key. Nothing was charged. Farbaek has been told.",
+  UNAUTHORIZED: "Checkout isn't working right now. Nothing was charged, and Farbaek has been told.",
   NOT_FOUND: "Dodo Payments doesn't know that subscription. Nothing was charged.",
   REJECTED: "Dodo Payments turned the request down. Nothing was charged.",
   CONFLICT: "A payment for a plan change is already in progress. Wait for it to finish, then try again.",
   UNAVAILABLE: "Dodo Payments didn't answer. Nothing was charged. Try again in a minute.",
-  BAD_RESPONSE: "Dodo Payments sent an answer Farbaek couldn't read. Nothing was charged. Try again in a minute.",
+  BAD_RESPONSE: "Checkout didn't finish. Nothing was charged. Try again in a minute.",
 };
 
 export const BILLING_MESSAGES: Record<Exclude<BillingErrorCode, "PROVIDER">, string> = {
@@ -55,7 +55,7 @@ export const BILLING_MESSAGES: Record<Exclude<BillingErrorCode, "PROVIDER">, str
   NOT_SUBSCRIBED: "This workspace has no paid plan to change.",
   NO_EMAIL: "Your account has no email address for receipts. Add one, then try again.",
   NO_PRODUCT: "This plan isn't set up for checkout yet. Nothing was charged.",
-  PRICE_MISMATCH: "This plan's price at Dodo Payments doesn't match Farbaek's price list, so checkout is paused. Nothing was charged.",
+  PRICE_MISMATCH: "Checkout for this plan is paused for a moment while we fix it. Nothing was charged.",
   SAME_PLAN: "That's already your plan.",
   YEARLY_SWITCH: `Dodo Payments couldn't move this yearly plan to a monthly one, and nothing was charged. Write to ${LEGAL.support} and we'll switch it for you.`,
   MANAGED_BY_APPLE: "This workspace's plan is billed through the App Store, so it's changed or cancelled on the iPhone: Settings, your name, Subscriptions. Nothing was charged here.",

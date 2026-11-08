@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { cleanPrompt, isSharedBuild, promptFromShare, estimateRunShare, isDesignPass, projectNameFromPrompt, shareOfPeriod, starterForPrompt, taskTitleFromPrompt, templateForPrompt } from "./prompt-start";
+import { cleanPrompt, isSharedBuild, promptFromShare, isDesignPass, projectNameFromPrompt, starterForPrompt, taskTitleFromPrompt, templateForPrompt } from "./prompt-start";
+import { estimateRunShare, shareOfPeriod } from "./run-estimate";
 import { UPGRADE_DESIGN } from "../media/studio-kit";
 
 describe("cleanPrompt", () => {

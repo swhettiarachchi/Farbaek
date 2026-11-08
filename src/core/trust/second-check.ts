@@ -13,25 +13,9 @@ import type { ProposedChange, Violation } from "@/core/realityloop/change-propos
 import type { IntentContract } from "@/core/realityloop/contract";
 import { diffLines } from "@/core/realityloop/line-diff";
 
-export const SECOND_CHECK_VERDICTS = ["consistent", "concerns", "unclear"] as const;
-export type SecondCheckVerdict = (typeof SECOND_CHECK_VERDICTS)[number];
+import { FINDING_SEVERITIES, FINDING_TOPICS, SECOND_CHECK_VERDICTS } from "./second-check-labels";
 
-export const VERDICT_LABELS: Record<SecondCheckVerdict, { title: string; detail: string }> = {
-  consistent: { title: "No concerns", detail: "The second model found the change consistent with the plan." },
-  concerns: { title: "Concerns", detail: "The second model found something to look at before approving." },
-  unclear: { title: "Couldn't tell", detail: "The second model couldn't judge the change from what it was given." },
-};
-
-export const FINDING_TOPICS = ["intent", "scope", "invariant", "risk", "tests"] as const;
-export const FINDING_SEVERITIES = ["note", "concern", "serious"] as const;
-
-export const TOPIC_LABELS: Record<(typeof FINDING_TOPICS)[number], string> = {
-  intent: "Outcome",
-  scope: "Scope",
-  invariant: "Must stay true",
-  risk: "Risk",
-  tests: "Checks",
-};
+export { FINDING_SEVERITIES, FINDING_TOPICS, SECOND_CHECK_VERDICTS, TOPIC_LABELS, VERDICT_LABELS, type SecondCheckVerdict } from "./second-check-labels";
 
 export const SecondCheckOutputSchema = z.object({
   verdict: z.enum(SECOND_CHECK_VERDICTS),

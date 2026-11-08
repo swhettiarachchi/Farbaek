@@ -10,6 +10,8 @@ import { httpStatusFor, type SandboxResult } from "./service";
 import type { ExecutionRecord, ReceiptRecord, SessionRecord } from "./types";
 import { sandboxRequest, type SandboxRequest } from "./wiring";
 import { readTextCapped } from "@/server/http/body";
+import { forPeople } from "@/core/text/operator-detail";
+import { TEST_SPACE } from "@/core/execution/sandbox";
 
 export const API_VERSION = "2026-10-17";
 
@@ -77,7 +79,7 @@ export function sessionDto(s: SessionRecord) {
     network: s.network,
     resources: { requested: { vcpu: s.requestedVcpu, memoryMiB: s.requestedMemoryMiB }, reported: s.vcpu === null ? null : { vcpu: s.vcpu, memoryMiB: s.memoryMiB } },
     isolation: s.isolation,
-    provider: s.provider,
+    provider: TEST_SPACE,
     projectId: s.projectId,
     taskId: s.taskId,
     createdBy: s.createdBy,
@@ -86,7 +88,7 @@ export function sessionDto(s: SessionRecord) {
     lastActivityAt: s.lastActivityAt,
     endedAt: s.endedAt,
     endReason: s.endReason,
-    failure: s.failureCategory ? { category: s.failureCategory, message: s.failureMessage } : null,
+    failure: s.failureCategory ? { category: s.failureCategory, message: s.failureMessage ? forPeople(s.failureMessage) : s.failureMessage } : null,
     cleanup: { status: s.cleanupStatus, attempts: s.cleanupAttempts },
     snapshot: s.snapshotSha256 ? { sha256: s.snapshotSha256, files: s.snapshotFiles } : null,
     metrics: s.metrics,

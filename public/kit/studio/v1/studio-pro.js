@@ -1,5 +1,5 @@
 /**
- * Farbaek Studio kit Pro v1 (ADR 0157), for builds on paid plans. Import it
+ * Farbaek Studio kit Pro v1, for builds on paid plans. Import it
  * after studio.js: <script type="module" src=".../kit/studio/v1/studio-pro.js"></script>.
  *
  * - .fs-chapters: the sticky stage shows the media of the chapter in view.

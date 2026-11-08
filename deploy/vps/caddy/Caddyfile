@@ -11,7 +11,38 @@
 	}
 }
 
+# What a response says about how Farbaek is built stays on the server
+# (stage 171): no server or proxy names, no Next.js internals, no route the
+# app rewrote to. Every site block imports this.
+(quiet) {
+	header {
+		-Server
+		-Via
+		-X-Powered-By
+		-X-Middleware-Rewrite
+		-X-Nextjs-Cache
+		-X-Nextjs-Prerender
+		-X-Nextjs-Stale-Time
+		-X-Envoy-Upstream-Service-Time
+		defer
+	}
+}
+
 www.farbaek.com, officespace.farbaek.com {
+	import quiet
+
+	# Only this server calls these: the sign-in service fetches its email
+	# templates, and the timers and Caddy's own certificate check call the
+	# internal routes (scripts/vps, on 127.0.0.1 or app:3000). From outside
+	# they don't exist, so nothing about staff sign-in or Farbaek's jobs shows.
+	@serverOnly {
+		path /auth-email/* /api/internal/* /api/sites/tls-allowed
+		not remote_ip private_ranges 2.25.88.188
+	}
+	handle @serverOnly {
+		respond "Not found" 404
+	}
+
 	# Desktop agent installers (ADR 0077), copied into /opt/farbaek/downloads on
 	# the server. Names carry the version, so a file never changes once
 	# published and can be cached for a year. The folder isn't listed.
@@ -41,6 +72,7 @@ www.farbaek.com, officespace.farbaek.com {
 # the page they name. Serves once farbaek.com's A record points here
 # (docs/deploy/vps.md); until then Caddy just can't get its certificate yet.
 farbaek.com {
+	import quiet
 	redir https://www.farbaek.com{uri} permanent
 }
 
@@ -55,6 +87,7 @@ farbaek.com {
 # in X-Farbaek-Client-Ip, which only Caddy sets, so the app's own calls for
 # everyone never share one person's limit.
 api.farbaek.com {
+	import quiet
 	@signIn {
 		not remote_ip private_ranges 2.25.88.188
 		path /auth/v1/authorize /auth/v1/callback
@@ -101,6 +134,7 @@ import extra/*.caddy
 # says yes; the app then serves only a live site there, and 404 otherwise.
 # Previews (p-<id>.farbaek.si) aren't allowed here: they need the wildcard.
 https:// {
+	import quiet
 	tls {
 		on_demand
 	}

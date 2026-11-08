@@ -19,7 +19,7 @@ import { FileLensRows, IntentLensSummary } from "./intent-lens";
 import { approvalWindow } from "@/core/trust/approval-wallet";
 import { WhenNear } from "@/components/ui/when-near";
 import { shortHash } from "@/core/trust/canonical-json";
-import { modelName } from "@/core/billing/rate-card";
+import { modelName } from "@/core/billing/model-names";
 import { OUTCOME_LABELS } from "@/core/trust/policy";
 import type { PolicyOutcome } from "@/core/billing/usage";
 import type { ProposalRecord } from "@/server/workspace/types";

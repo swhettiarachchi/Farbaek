@@ -11,7 +11,7 @@ export const LEGAL = {
   operator: "Farbaek",
   country: "Sri Lanka",
   /** Where the app, database, sign-in and backups run. */
-  hosting: "a server rented from Hostinger in Boston, United States",
+  hosting: "servers in the United States",
   contact: CONTACT.hello,
   support: CONTACT.support,
   /** Nightly database backups are overwritten after this many days (scripts/vps/db-backup.sh). */
@@ -34,7 +34,12 @@ export const LEGAL_DOCS = [
 /** The version of the Terms' Paid plans section people agree to at checkout (ADR 0104). Change it with the section. */
 export const PAID_TERMS_VERSION = "2026-10-29";
 
-/** Everyone who handles personal data for Farbaek, and why (keep in step with the services actually used). */
+/**
+ * Everyone who handles personal data for Farbaek, and why (keep in step with the services actually used).
+ * The AI providers and Google Analytics are named, because people need to know where their work and their
+ * visits go. The services that run Farbaek itself are listed by what they do and where (GDPR Art. 13 allows
+ * categories): which company provides each is told to anyone who asks (stage 171).
+ */
 export const SUBPROCESSORS = [
   { name: "Anthropic", purpose: "AI models (Claude) that draft plans and code changes from what you write and the files you choose", data: "Prompts, chosen file contents, AI output", where: "United States" },
   { name: "Google", purpose: "AI models (Gemini): image generation, and drafting when the server uses them instead of Claude, on a paid account only", data: "Prompts, chosen file contents, image descriptions, AI output and generated images", where: "United States" },
@@ -50,19 +55,12 @@ export const SUBPROCESSORS = [
     data: "Pages viewed, how you arrived, your browser and device, a rough location from your IP address, which Google doesn't keep, and a random ID in a cookie",
     where: "United States",
   },
-  { name: "Vercel", purpose: "Isolated sandboxes that run your project's checks and builds", data: "Project files, commands and their output", where: "United States" },
-  { name: "Hostinger", purpose: "The server for the app, database, sign-in and backups, and DNS for farbaek.si", data: "Everything Farbaek stores", where: "United States" },
-  {
-    name: "Cloudflare",
-    purpose: "Turnstile, the check at sign-in that tells people from bots, and R2, which keeps a copy of each nightly backup away from our server, each once it's switched on",
-    data: "For sign-in, your IP address and signals from your browser; for backups, everything Farbaek stores, deleted after the same 14 days",
-    where: "Its worldwide network; a United States company",
-  },
-  { name: "Spaceship (Spacemail)", purpose: "Sending sign-in links and the emails you choose to get, and DNS for farbaek.com", data: "Your email address and the email's content", where: "A United States company; we're confirming where its mail servers are" },
-  {
-    name: "Dodo Payments",
-    purpose: "Merchant of record for paid plans: checkout, tax, receipts and invoices, and the portal for your payment method",
-    data: "Your email address, the plan you choose, your billing country and payment details, which you enter on Dodo Payments' own page and never reach Farbaek",
-    where: "We're confirming where it processes data",
-  },
+  { name: "Hosting provider", purpose: "The servers that run Farbaek: the app, its database, sign-in and nightly backups", data: "Everything Farbaek stores", where: "United States" },
+  { name: "Off-site backup storage", purpose: "A second copy of each nightly backup, kept apart from our servers and deleted after the same 14 days", data: "Everything Farbaek stores", where: "United States" },
+  { name: "Test space provider", purpose: "Isolated, temporary computers that run your project's checks, builds and previews", data: "Project files, commands and their output", where: "United States" },
+  { name: "Email delivery provider", purpose: "Sending sign-in links and the emails you choose to get", data: "Your email address and the email's content", where: "A United States company" },
+  { name: "Bot check at sign-in", purpose: "Telling people from automated sign-ins", data: "Your IP address and signals from your browser", where: "A United States company's worldwide network" },
 ] as const;
+
+/** Who sells paid plans on the web. A merchant of record is the seller, and its own controller, so it's named, apart from the table above. */
+export const MERCHANT_OF_RECORD = "Dodo Payments";

@@ -235,7 +235,7 @@ export function deploymentConnections(env: Record<string, string | undefined> = 
   const previews = previewSetupProblem((name) => env[name] ?? null);
   return [
     { name: "Database writes", on: hasServerWriteKey(), detail: hasServerWriteKey() ? "Server key set" : "SUPABASE_SECRET_KEY isn't set" },
-    { name: "AI", on: ai.provider !== null, detail: ai.provider ? ai.label : ai.reason },
+    { name: "AI", on: ai.provider !== null, detail: ai.provider ? ai.label : (ai.detail ?? ai.reason) },
     { name: "Sandbox", on: sandbox.mode.mode === "sandboxed", detail: sandbox.mode.mode === "sandboxed" ? "Code runs in isolated sandboxes" : (sandbox.detail ?? sandbox.mode.reason) },
     { name: "Previews", on: previews === null, detail: previews ?? "Preview host and secret set" },
     { name: "Payments", ...billingStatus(env) },

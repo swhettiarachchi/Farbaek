@@ -6,7 +6,7 @@
  * contract, the wallet on each model step, and the sandbox guard on each
  * command.
  */
-import { kitTierFor } from "@/core/media/studio-kit";
+import { kitTierFor } from "@/core/media/kit-tier";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";

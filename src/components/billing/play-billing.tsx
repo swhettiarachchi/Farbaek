@@ -17,7 +17,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { claimGooglePlayPurchaseAction, type PlayActionResult } from "@/app/app/billing/actions";
 import { useInAndroidApp } from "@/components/billing/web-purchase-only";
 import { buttonClasses } from "@/components/ui/button";
-import { formatUsd } from "@/core/billing/catalog";
+import { formatUsd } from "@/core/billing/money";
 import { GOOGLE_PLAY_BILLING_METHOD, GOOGLE_PLAY_PRODUCTS, googlePlayManageUrl } from "@/core/billing/google-play";
 
 interface ItemDetails {

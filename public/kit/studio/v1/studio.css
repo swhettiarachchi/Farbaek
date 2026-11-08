@@ -1,11 +1,11 @@
 /*
- * Farbaek Studio kit v1 (ADR 0157): premium sections, looks and motion for
+ * Farbaek Studio kit v1: premium sections, looks and motion for
  * sites Farbaek builds. Link it, pick a look on <html data-fs-look="…">, tune
  * the brand tokens on :root, and compose pages from fs-* sections. Everything
  * sits in one cascade layer, so a site's own CSS always wins without !important.
  *
  * v1 is frozen once published: fixes that change how a site looks go to v2.
- * No CSS filters anywhere (they paint a black square on iOS 26, ADR 0055);
+ * No CSS filters anywhere (they paint a black square on iOS 26);
  * every animation is inside prefers-reduced-motion: no-preference.
  */
 @layer farbaek-studio {

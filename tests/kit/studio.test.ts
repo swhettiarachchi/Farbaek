@@ -9,7 +9,8 @@ import * as pro from "../../public/kit/studio/v1/studio-pro.js";
 import { agentSystemPrompt } from "@/agent-runtime/loop";
 import { getPlan } from "@/core/billing/catalog";
 import { resolveEffectivePlan } from "@/core/billing/trial";
-import { CORE_NAMES, DARK_LOOKS, kitForPrompt, kitTierFor, LIGHT_LOOKS, LOOKS, PRO_LOOKS, PRO_NAMES, STUDIO_KIT_CSS, STUDIO_KIT_JS, STUDIO_KIT_PRO_CSS, STUDIO_KIT_PRO_JS, themeForPrompt, themeFromPrompt } from "@/core/media/studio-kit";
+import { kitTierFor } from "@/core/media/kit-tier";
+import { CORE_NAMES, DARK_LOOKS, kitForPrompt, LIGHT_LOOKS, LOOKS, PRO_LOOKS, PRO_NAMES, STUDIO_KIT_CSS, STUDIO_KIT_JS, STUDIO_KIT_PRO_CSS, STUDIO_KIT_PRO_JS, themeForPrompt, themeFromPrompt } from "@/core/media/studio-kit";
 
 const dir = path.join(process.cwd(), "public/kit/studio/v1");
 const read = (f: string) => readFileSync(path.join(dir, f), "utf8");

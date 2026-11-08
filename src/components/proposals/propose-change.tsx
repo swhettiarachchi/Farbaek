@@ -8,7 +8,7 @@ import { proposeChangeAction } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
 import { EffortPicker } from "@/components/app/effort-picker";
 import { AiUsageNote } from "@/components/app/usage-meters";
-import type { Effort } from "@/core/agent/routing";
+import type { Effort } from "@/core/agent/effort";
 import { formatBytes } from "@/core/workspace/files";
 import type { AiAvailability } from "@/server/workspace/ai-usage";
 

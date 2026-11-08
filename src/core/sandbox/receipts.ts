@@ -112,7 +112,7 @@ export function buildSandboxReceipt(input: ReceiptInput): SandboxReceiptStatemen
   const taskEvent = !byHand && !withheld && input.session.taskId && matched ? verificationEvent(results, input.proofPackDigest !== null) : null;
   const limits = [
     "This record proves which commands ran against which files, with their real exit codes. It doesn't prove the code is secure or correct beyond those checks.",
-    `Isolation as reported by ${input.runtime.provider}: ${input.runtime.isolation}.`,
+    `Isolation as the test space reported it: ${input.runtime.isolation}.`,
   ];
   if (byHand) limits.push("A person could change this test space before its checks ran, so this doesn't verify the change. It shows what the checks did here.");
   if (withheld) limits.push("A project file changed after this change was applied, so passing checks can't prove it. This shows what they did.");

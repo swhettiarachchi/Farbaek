@@ -15,7 +15,7 @@ import { EFFORT_LABELS } from "@/core/agent/routing";
 import { RUN_STATUS_LABELS, isLive, type RunStatus } from "@/core/agent/cloud-run";
 import { TOOL_VERB, toolTarget } from "@/core/agent/run-phase";
 import { getPlan } from "@/core/billing/catalog";
-import { modelName } from "@/core/billing/rate-card";
+import { modelName } from "@/core/billing/model-names";
 import { may } from "@/core/workspace/permissions";
 import { waitingChanges } from "@/server/workspace/waiting-changes";
 import { aiMeter, loadWallet } from "@/server/workspace/usage-summary";

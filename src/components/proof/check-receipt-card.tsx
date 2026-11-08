@@ -6,6 +6,7 @@ import { LocalTime } from "@/components/ui/local-time";
 import type { SandboxReceiptStatement } from "@/core/sandbox/receipts";
 import { canonicalHash } from "@/core/trust/canonical-json";
 import type { CheckReceiptRecord } from "@/server/workspace/types";
+import { forPeople } from "@/core/text/operator-detail";
 
 // Status is its words in a colour and border (ADR 0180); a mark only for how it ended.
 const STATUS = {
@@ -22,7 +23,6 @@ const CHECK = {
 } as const;
 
 /** The runtime's product name for a sentence; the id is for the server's settings. */
-const PROVIDER_WORDS: Record<string, string> = { e2b: "E2B", E2B: "E2B", vercel: "Vercel Sandbox" };
 
 /**
  * One run of a task's contract checks in a sandbox: what each check did
@@ -38,7 +38,6 @@ export async function CheckReceiptCard({ receipt }: { receipt: CheckReceiptRecor
   const status = STATUS[receipt.status];
   // Checks ran, but somewhere that can't count as proof (ADR 0175): saying they didn't run would be untrue.
   const label = receipt.status === "unverified" && checks.length > 0 ? "Doesn't verify the task" : status.label;
-  const provider = predicate?.runtime?.provider ? (PROVIDER_WORDS[predicate.runtime.provider] ?? predicate.runtime.provider) : null;
 
   return (
     <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
@@ -54,7 +53,7 @@ export async function CheckReceiptCard({ receipt }: { receipt: CheckReceiptRecor
         </p>
         <p className="text-xs text-ink-3">
           Ran <LocalTime iso={receipt.createdAt} />
-          {provider ? ` on ${provider}, in a private throwaway computer` : ""}.
+          {predicate?.runtime?.provider ? ", in a private throwaway computer" : ""}.
         </p>
         {checks.length ? (
           <ul className="grid gap-1 text-sm">
@@ -76,7 +75,7 @@ export async function CheckReceiptCard({ receipt }: { receipt: CheckReceiptRecor
         {limits.length ? (
           <ul className="grid list-disc gap-1 pl-5 text-xs text-ink-2">
             {limits.map((l, i) => (
-              <li key={i}>{l}</li>
+              <li key={i}>{forPeople(l, "A line about Farbaek's own setup is left out here.")}</li>
             ))}
           </ul>
         ) : null}

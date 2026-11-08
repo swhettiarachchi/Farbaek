@@ -4,12 +4,12 @@ import { CheckIcon, PenNibIcon, WarningCircleIcon } from "@phosphor-icons/react"
 import { useActionState, useId, useRef, useState, useTransition } from "react";
 import { approveContractAction, draftContractWithAiAction, saveContractAction, type AiDraftState, type FormState } from "@/app/app/actions";
 import { EffortPicker } from "@/components/app/effort-picker";
-import type { Effort } from "@/core/agent/routing";
+import type { Effort } from "@/core/agent/effort";
 import { buttonClasses } from "@/components/ui/button";
 import { AiUsageNote } from "@/components/app/usage-meters";
 import type { ContractFormValues } from "@/core/realityloop/contract-form";
 import type { AiAvailability } from "@/server/workspace/ai-drafting";
-import { modelName } from "@/core/billing/rate-card";
+import { modelName } from "@/core/billing/model-names";
 
 const IDLE: FormState = { status: "idle" };
 

@@ -17,7 +17,7 @@ describe("executionMode", () => {
   });
 
   it("runs only with verified microVM isolation and restricted egress", () => {
-    expect(executionMode(mockProvider())).toEqual({ mode: "sandboxed", provider: "MockSandbox" });
+    expect(executionMode(mockProvider())).toEqual({ mode: "sandboxed", provider: "a Farbaek test space" });
     expect(executionMode(mockProvider({ networkEgress: "allowlist" }))).toMatchObject({ mode: "sandboxed" });
     expect(executionMode(mockProvider({ isolation: "container" }))).toMatchObject({ mode: "review_only", reason: expect.stringContaining("keep projects safely apart") });
     expect(executionMode(mockProvider({ isolation: "process" }))).toMatchObject({ mode: "review_only" });

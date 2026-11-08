@@ -217,7 +217,7 @@ export function abortCloudRuns(scope: { orgId: string } | "all"): number {
   let stopped = 0;
   for (const live of registry.values()) {
     if (scope !== "all" && live.orgId !== scope.orgId) continue;
-    live.record?.({ kind: "note", text: "Farbaek stopped this run from Office Space." });
+    live.record?.({ kind: "note", text: "Farbaek paused AI work for a while, so this run stopped. Your work so far is kept." });
     live.controller.abort();
     for (const p of live.approvals.values()) p.resolve({ approved: false });
     live.approvals.clear();

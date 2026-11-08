@@ -166,4 +166,9 @@ describe("plan catalog", () => {
     expect(formatUsd(999)).toBe("$9.99");
     expect(formatUsd(5_000)).toBe("$50");
   });
+
+  it("matches the trial plan the concept film names without importing the catalog", () => {
+    // src/components/films/stage/app-ui.tsx runs in the browser, so it says "Pro trial" itself.
+    expect(getPlan(TRIAL.basePlan).name).toBe("Pro");
+  });
 });
