@@ -37,6 +37,7 @@ const GROUPS: Group[] = [
       "Publishing static sites to their own address",
       "14-day trial and plan limits that fail closed",
       `Paid plans from ${FROM} a month, through Dodo Payments`,
+      "Farbaek Agent for Windows, Mac and Linux",
     ],
   },
   {
@@ -60,8 +61,7 @@ const GROUPS: Group[] = [
     iconClass: "",
     items: [
       "The Android app on Google Play",
-      "Farbaek for iPhone on the App Store, approving changes with Face ID (Farbaek installs from Safari today)",
-      "Farbaek Agent for Mac and Linux",
+      "Farbaek for iPhone on the App Store, approving changes with Face ID or Touch ID (Farbaek installs from Safari today)",
       "Launches from a repository (Render, Railway, Fly.io)",
     ],
   },
