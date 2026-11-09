@@ -1,9 +1,9 @@
-import { DesktopIcon, FlowArrowIcon, FolderSimpleIcon, MagnifyingGlassIcon, PlugsConnectedIcon, ScrollIcon, UserIcon, WarningIcon, WrenchIcon } from "@phosphor-icons/react/ssr";
+import { CursorClickIcon, DesktopIcon, FlowArrowIcon, GraphIcon, MagnifyingGlassIcon, PlugsConnectedIcon, ScalesIcon, SquaresFourIcon, UserIcon, UsersThreeIcon, WarningIcon, WrenchIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Card, Notice, PageHeader } from "@/components/app/primitives";
+import { Card, CardTitle, Notice, PageHeader } from "@/components/app/primitives";
 import { TrustMap } from "@/components/trust/trust-map";
 import { buttonClasses } from "@/components/ui/button";
 import { neighbours, projectId, rulesOn, whoCanChange, type Answer, type TrustNode, type TrustNodeKind } from "@/core/trust/trust-graph";
@@ -17,10 +17,10 @@ const KIND: Record<TrustNodeKind, { word: string; icon: Icon }> = {
   person: { word: "Person", icon: UserIcon },
   agent: { word: "Agent", icon: DesktopIcon },
   workflow: { word: "Workflow", icon: FlowArrowIcon },
-  project: { word: "Project", icon: FolderSimpleIcon },
+  project: { word: "Project", icon: SquaresFourIcon },
   integration: { word: "Connected service", icon: PlugsConnectedIcon },
   tool: { word: "Tool", icon: WrenchIcon },
-  rule: { word: "Workspace rule", icon: ScrollIcon },
+  rule: { word: "Workspace rule", icon: ScalesIcon },
 };
 
 const field = "min-h-11 w-full rounded-sm border border-line bg-surface px-3 text-base sm:text-sm";
@@ -29,9 +29,9 @@ function NodeName({ node }: { node: TrustNode }) {
   const k = KIND[node.kind];
   return (
     <Link href={`?node=${encodeURIComponent(node.id)}#focus`} className="inline-flex min-h-11 min-w-0 items-center gap-2 font-medium text-ink hover:text-accent">
-      <k.icon size={18} className="shrink-0 text-ink-3" aria-hidden />
+      <k.icon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
       <span className="min-w-0 break-words">{node.label}</span>
-      {node.inactive ? <StatusBadge status="unverified" label="Inactive" /> : null}
+      {node.inactive ? <StatusBadge status="off" label="Inactive" /> : null}
     </Link>
   );
 }
@@ -45,8 +45,9 @@ function AnswerList({ answers, empty }: { answers: Answer[]; empty: string }) {
           <NodeName node={a.node} />
           <p className="flex flex-wrap items-center gap-x-1 text-sm text-ink-2">
             {a.via.map((e, j) => (
-              <span key={j} className={e.limited ? "inline-flex items-center gap-1 text-approval" : ""}>
-                {e.limited ? <WarningIcon size={14} aria-hidden /> : null}
+              // Limited access is a look first, not a turn to act: burnt orange (ADR 0183).
+              <span key={j} className={e.limited ? "inline-flex items-center gap-1 text-caution" : ""}>
+                {e.limited ? <WarningIcon size={14} weight="bold" aria-hidden /> : null}
                 {j > 0 ? "then " : ""}
                 {e.label}
                 {j < a.via.length - 1 ? "," : ""}
@@ -87,7 +88,7 @@ export default async function TrustPage({ searchParams }: { searchParams: Promis
       {unread.length ? <Notice tone="warning">Couldn&apos;t read {unread.join(", ")} just now, so the graph leaves them out. Reload to try again.</Notice> : null}
 
       <Card>
-        <h2 className="text-lg font-medium">Who and what can change a project?</h2>
+        <CardTitle icon={UsersThreeIcon}>Who and what can change a project?</CardTitle>
         <form className="mt-3 flex flex-wrap items-end gap-3" method="get">
           <label className="grid min-w-0 flex-1 gap-1.5 text-sm font-medium">
             Project
@@ -117,9 +118,9 @@ export default async function TrustPage({ searchParams }: { searchParams: Promis
 
       <section aria-labelledby="map-title" className="grid gap-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="map-title" className="text-lg font-medium">
+          <CardTitle id="map-title" icon={GraphIcon}>
             Map
-          </h2>
+          </CardTitle>
           <p className="text-sm text-ink-3">
             Select anything on the map to see what it reaches.{limited ? " A dashed line means that access is limited." : ""}
           </p>
@@ -129,9 +130,9 @@ export default async function TrustPage({ searchParams }: { searchParams: Promis
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <h2 id="focus" className="scroll-mt-24 text-lg font-medium">
+          <CardTitle id="focus" icon={focus ? KIND[focus.kind].icon : CursorClickIcon} className="scroll-mt-24">
             {focus ? focus.label : "Select something"}
-          </h2>
+          </CardTitle>
           {focus ? (
             <div className="mt-3 grid gap-4">
               <p className="text-sm text-ink-2">
@@ -152,14 +153,14 @@ export default async function TrustPage({ searchParams }: { searchParams: Promis
         </Card>
 
         <Card>
-          <h2 className="text-lg font-medium">Search</h2>
+          <CardTitle icon={MagnifyingGlassIcon}>Search</CardTitle>
           <form className="mt-3 flex flex-wrap items-end gap-3" method="get">
             <label className="grid min-w-0 flex-1 gap-1.5 text-sm font-medium">
               Name or detail
               <input name="q" defaultValue={q} maxLength={80} placeholder="An email, agent, tool, project or rule" className={field} />
             </label>
             <button type="submit" className={buttonClasses("secondary", "sm")}>
-              <MagnifyingGlassIcon size={16} aria-hidden /> Search
+              <MagnifyingGlassIcon size={16} weight="bold" aria-hidden /> Search
             </button>
           </form>
           {q ? (

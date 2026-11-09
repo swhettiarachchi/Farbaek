@@ -1,42 +1,42 @@
-import { ArrowRightIcon, CheckCircleIcon, CircleNotchIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, TerminalWindowIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
-import { StatusBadge, type Status } from "@/components/ui/status-badge";
+import { StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { compareArena, type ArenaChange, type ArenaCheckState, type ArenaVerdict } from "@/core/realityloop/arena";
 import type { ArenaRecord } from "@/server/arena/store";
 import { TryChange } from "./try-change";
 
-// Status is a word (ADR 0180): a mark only for passed and failed; a check that didn't run says so in words.
-const STATE: Record<ArenaCheckState, { word: string; Icon: typeof CheckCircleIcon | null; className: string }> = {
-  passed: { word: "Passed", Icon: CheckCircleIcon, className: "text-verified" },
-  failed: { word: "Failed", Icon: XCircleIcon, className: "text-failed" },
-  not_run: { word: "Didn't run", Icon: null, className: "text-unverified" },
+// Each check's state is a status kind with its icon (ADR 0183), its word in the kind's colour.
+const STATE: Record<ArenaCheckState, { word: string; status: Status; className: string }> = {
+  passed: { word: "Passed", status: "verified", className: "text-verified" },
+  failed: { word: "Failed", status: "failed", className: "text-failed" },
+  not_run: { word: "Didn't run", status: "unverified", className: "text-unverified" },
 };
 
-// What the change did to a check. A row that didn't change stays a quiet word, so the badges mark only what moved.
-const CHANGE: Record<ArenaChange, { word: string; status: Status | null }> = {
+// What the change did to a check: anything still passing is verified, anything still failing needs a look.
+const CHANGE: Record<ArenaChange, { word: string; status: Status }> = {
   breaks: { word: "Breaks", status: "failed" },
   fixes: { word: "Fixes", status: "verified" },
-  still_passes: { word: "Still passes", status: null },
-  still_fails: { word: "Still fails", status: "approval" },
+  still_passes: { word: "Still passes", status: "verified" },
+  still_fails: { word: "Still fails", status: "attention" },
   not_run: { word: "No result", status: "unverified" },
 };
 
-const VERDICT: Record<ArenaVerdict, { text: string; Icon: typeof CheckCircleIcon | null; className: string }> = {
-  breaks_checks: { text: "This change breaks a check that passes now.", Icon: XCircleIcon, className: "text-failed" },
-  incomplete: { text: "Some checks didn't run, so this trial can't say how the change does.", Icon: null, className: "text-unverified" },
-  fixes_checks: { text: "This change fixes every check that fails now.", Icon: CheckCircleIcon, className: "text-verified" },
-  keeps_passing: { text: "Every check still passes with this change.", Icon: CheckCircleIcon, className: "text-verified" },
-  still_failing: { text: "Some checks fail both now and with this change.", Icon: WarningCircleIcon, className: "text-approval" },
+const VERDICT: Record<ArenaVerdict, { text: string; status: Status; className: string }> = {
+  breaks_checks: { text: "This change breaks a check that passes now.", status: "failed", className: "text-failed" },
+  incomplete: { text: "Some checks didn't run, so this trial can't say how the change does.", status: "unverified", className: "text-unverified" },
+  fixes_checks: { text: "This change fixes every check that fails now.", status: "verified", className: "text-verified" },
+  keeps_passing: { text: "Every check still passes with this change.", status: "verified", className: "text-verified" },
+  still_failing: { text: "Some checks fail both now and with this change.", status: "attention", className: "text-caution" },
 };
 
 const seconds = (ms: number | null) => (ms === null ? null : ms < 1000 ? "under 1 s" : `${Math.round(ms / 1000)} s`);
 
 function State({ state, ms }: { state: ArenaCheckState; ms: number | null }) {
-  const { word, Icon, className } = STATE[state];
+  const { word, status, className } = STATE[state];
   return (
     <span className={`inline-flex items-center gap-1.5 ${className}`}>
-      {Icon ? <Icon size={16} weight="bold" aria-hidden /> : null}
+      <StatusGlyph status={status} />
       <span className="font-medium">{word}</span>
       {state !== "not_run" && seconds(ms) ? <span className="text-xs text-ink-3">{seconds(ms)}</span> : null}
     </span>
@@ -45,7 +45,7 @@ function State({ state, ms }: { state: ArenaCheckState; ms: number | null }) {
 
 function ChangeWord({ change }: { change: ArenaChange }) {
   const { word, status } = CHANGE[change];
-  return status ? <StatusBadge status={status} label={word} /> : <span className="text-xs font-medium text-ink-3">{word}</span>;
+  return <StatusBadge status={status} label={word} />;
 }
 
 /**
@@ -58,13 +58,12 @@ export function ArenaPanel({ proposalId, taskId, checks, run, disabledReason }: 
   const running = run?.status === "running";
   const compared = run && run.baseline ? compareArena(run.baseline, run.candidate ?? []) : null;
   const verdict = run?.status === "done" && compared ? VERDICT[compared.verdict] : null;
-  const VerdictIcon = verdict?.Icon ?? null;
 
   return (
     <section aria-labelledby="arena-heading" className="grid gap-4 rounded-md border border-line bg-canvas-2/60 p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 id="arena-heading" className="text-base font-medium">
-          Try it before you approve
+        <h3 id="arena-heading" className="flex items-center gap-2 text-base font-medium">
+          <TerminalWindowIcon size={20} className="shrink-0 text-ink-3" aria-hidden /> Try it before you approve
         </h3>
         <span className="text-xs text-ink-3">Nothing is applied</span>
       </div>
@@ -75,7 +74,7 @@ export function ArenaPanel({ proposalId, taskId, checks, run, disabledReason }: 
 
       {running ? (
         <p role="status" className="flex items-center gap-2 text-sm">
-          <CircleNotchIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-accent motion-safe:animate-spin" aria-hidden />
+          <StatusGlyph status="working" />
           Trying it on a copy, started <RelativeTime iso={run.startedAt} />. This page updates by itself.
         </p>
       ) : null}
@@ -83,13 +82,13 @@ export function ArenaPanel({ proposalId, taskId, checks, run, disabledReason }: 
 
       {verdict ? (
         <p className={`flex items-start gap-2 text-[0.9375rem] font-medium ${verdict.className}`}>
-          {VerdictIcon ? <VerdictIcon size={20} weight="bold" className="mt-px shrink-0" aria-hidden /> : null}
+          <StatusGlyph status={verdict.status} size={20} className="mt-px" />
           <span>{verdict.text}</span>
         </p>
       ) : null}
       {run?.status === "failed" ? (
         <p className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={18} className="mt-px shrink-0" aria-hidden />
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
           <span>{run.failure}</span>
         </p>
       ) : null}
@@ -105,7 +104,7 @@ export function ArenaPanel({ proposalId, taskId, checks, run, disabledReason }: 
                 <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                   <span className="sr-only">Now:</span>
                   <State state={row.before} ms={run!.baseline?.[i]?.durationMs ?? null} />
-                  <ArrowRightIcon size={14} className="text-ink-3" aria-label="with this change" />
+                  <ArrowRightIcon size={14} weight="bold" className="text-ink-3" aria-label="with this change" />
                   {run!.candidate ? <State state={row.after} ms={run!.candidate[i]?.durationMs ?? null} /> : <State state="not_run" ms={null} />}
                   {run?.status === "done" ? <ChangeWord change={row.change} /> : null}
                 </span>

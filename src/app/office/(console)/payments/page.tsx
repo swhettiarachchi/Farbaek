@@ -1,10 +1,11 @@
-import { CheckCircleIcon, CircleDashedIcon, ClockIcon, InfoIcon, ProhibitIcon, SkullIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { BellIcon, ClockCounterClockwiseIcon, CreditCardIcon, PlugsConnectedIcon, TagIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Card, Notice, PageHeader } from "@/components/app/primitives";
+import { Card, CardTitle, Notice, PageHeader } from "@/components/app/primitives";
 import { AdminTable, Cell, Chip } from "@/components/admin/table";
 import { OfficeActionForm } from "@/components/office/action-form";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
+import { StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { BILLABLE_PLANS, PLAN_CATALOG_VERSION, chargeLine, formatUsd, getPlan } from "@/core/billing/catalog";
 import { isPaidPlanId } from "@/core/billing/provider-state";
 import { TOPUP_PACKS_CENTS } from "@/core/billing/topups";
@@ -36,13 +37,14 @@ const EVENTS = [
   "payment.failed",
 ];
 
-const STATUS: Record<WebhookEventRow["status"], { label: string; tone: "neutral" | "verified" | "approval" | "failed"; icon: typeof CheckCircleIcon }> = {
-  received: { label: "Waiting", tone: "neutral", icon: ClockIcon },
-  processing: { label: "Processing", tone: "neutral", icon: CircleDashedIcon },
-  processed: { label: "Applied", tone: "verified", icon: CheckCircleIcon },
-  ignored: { label: "Ignored", tone: "neutral", icon: ProhibitIcon },
-  failed: { label: "Failed, retrying", tone: "approval", icon: WarningCircleIcon },
-  dead: { label: "Gave up", tone: "failed", icon: SkullIcon },
+// Each webhook state is its kind (ADR 0183): received waits, processing works, a retry needs a look, giving up failed.
+const STATUS: Record<WebhookEventRow["status"], { label: string; kind: Status }> = {
+  received: { label: "Waiting", kind: "pending" },
+  processing: { label: "Processing", kind: "working" },
+  processed: { label: "Applied", kind: "verified" },
+  ignored: { label: "Ignored", kind: "off" },
+  failed: { label: "Failed, retrying", kind: "attention" },
+  dead: { label: "Gave up", kind: "failed" },
 };
 
 type Check = { kind: "match" } | { kind: "differs"; text: string } | { kind: "unknown"; text: string };
@@ -108,15 +110,10 @@ export default async function OfficePayments() {
 
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <Card>
-          <h2 className="text-lg font-medium">Connection</h2>
+          <CardTitle icon={PlugsConnectedIcon}>Connection</CardTitle>
           <p className="mt-3 flex items-start gap-2 text-sm text-ink">
-            {status.on && requested === "live" ? (
-              <CheckCircleIcon size={18} weight="fill" className="mt-px shrink-0 text-verified" aria-hidden />
-            ) : status.on ? (
-              <InfoIcon size={18} weight="bold" className="mt-px shrink-0 text-approval" aria-hidden />
-            ) : (
-              <CircleDashedIcon size={18} weight="bold" className="mt-px shrink-0 text-ink-3" aria-hidden />
-            )}
+            {/* Live is verified, test mode is information, not connected is off (ADR 0183). */}
+            <StatusGlyph status={status.on && requested === "live" ? "verified" : status.on ? "info" : "off"} className="mt-0.5" />
             <span>
               <span className="font-medium">{status.on ? (requested === "live" ? "Live mode." : "Test mode.") : requested === "live" ? "Not live yet." : "Not connected."}</span> {status.detail}.
             </span>
@@ -135,7 +132,7 @@ export default async function OfficePayments() {
         </Card>
 
         <Card>
-          <h2 className="text-lg font-medium">Events to send</h2>
+          <CardTitle icon={BellIcon}>Events to send</CardTitle>
           <p className="mt-1 text-sm text-ink-2">Subscribe the endpoint to these. Farbaek reads the subscription again from Dodo for each one, so order and repeats don&apos;t matter.</p>
           <ul className="mt-4 flex flex-wrap gap-1.5">
             {EVENTS.map((e) => (
@@ -148,11 +145,11 @@ export default async function OfficePayments() {
       </div>
 
       <Card>
-        <h2 className="text-lg font-medium">Go live</h2>
+        <CardTitle icon={CreditCardIcon}>Go live</CardTitle>
         {liveSince ? (
           <>
             <p className="mt-3 flex items-start gap-2 text-sm text-ink">
-              <CheckCircleIcon size={18} weight="fill" className="mt-px shrink-0 text-verified" aria-hidden />
+              <StatusGlyph status="verified" className="mt-0.5" />
               <span>
                 <span className="font-medium">Live payments since <LocalTime iso={liveSince} />.</span> Checkout is open to every workspace, and real money is charged.
               </span>
@@ -182,13 +179,7 @@ export default async function OfficePayments() {
                 { done: null, text: `The Terms' Paid plans section, version ${PAID_TERMS_VERSION}`, how: "Read it at www.farbaek.com/terms#paid-plans" },
               ].map((item) => (
                 <li key={item.text} className="flex items-start gap-2">
-                  {item.done === true ? (
-                    <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
-                  ) : item.done === false ? (
-                    <CircleDashedIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
-                  ) : (
-                    <WarningCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-approval" aria-hidden />
-                  )}
+                  <StatusGlyph status={item.done === true ? "verified" : item.done === false ? "unverified" : "attention"} className="mt-0.5" />
                   <span>
                     <span className="text-ink">{item.text}</span>
                     <span className="block text-xs text-ink-3">{item.done === true ? "Done" : item.done === false ? item.how : `Check by hand: ${item.how}`}</span>
@@ -220,9 +211,9 @@ export default async function OfficePayments() {
       <section aria-labelledby="products-heading" className="grid gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 id="products-heading" className="text-lg font-medium">
+            <CardTitle id="products-heading" icon={TagIcon}>
               Products
-            </h2>
+            </CardTitle>
             <p className="mt-1 text-sm text-ink-2">
               One product per paid plan (Lite and Maker yearly, plus their monthly versions), for price list <span className="font-mono text-[0.8125rem]">{PLAN_CATALOG_VERSION}</span>. Checkout pauses for a plan whose price at Dodo differs.
             </p>
@@ -241,21 +232,13 @@ export default async function OfficePayments() {
                 </Cell>
                 <Cell>
                   {!row ? (
-                    <Chip>
-                      <CircleDashedIcon size={14} className="mr-1" aria-hidden /> Missing
-                    </Chip>
+                    <Chip kind="unverified">Missing</Chip>
                   ) : check?.kind === "match" ? (
-                    <Chip tone="verified">
-                      <CheckCircleIcon size={14} weight="fill" className="mr-1" aria-hidden /> Matches
-                    </Chip>
+                    <Chip kind="verified">Matches</Chip>
                   ) : check?.kind === "differs" ? (
-                    <Chip tone="failed">
-                      <XCircleIcon size={14} weight="fill" className="mr-1" aria-hidden /> {check.text}
-                    </Chip>
+                    <Chip kind="failed">{check.text}</Chip>
                   ) : (
-                    <Chip>
-                      <CircleDashedIcon size={14} className="mr-1" aria-hidden /> {check?.text ?? "Couldn't check"}
-                    </Chip>
+                    <Chip kind="unverified">{check?.text ?? "Couldn't check"}</Chip>
                   )}
                 </Cell>
               </tr>
@@ -273,21 +256,13 @@ export default async function OfficePayments() {
                 </Cell>
                 <Cell>
                   {!row ? (
-                    <Chip>
-                      <CircleDashedIcon size={14} className="mr-1" aria-hidden /> Missing
-                    </Chip>
+                    <Chip kind="unverified">Missing</Chip>
                   ) : check?.kind === "match" ? (
-                    <Chip tone="verified">
-                      <CheckCircleIcon size={14} weight="fill" className="mr-1" aria-hidden /> Matches
-                    </Chip>
+                    <Chip kind="verified">Matches</Chip>
                   ) : check?.kind === "differs" ? (
-                    <Chip tone="failed">
-                      <XCircleIcon size={14} weight="fill" className="mr-1" aria-hidden /> {check.text}
-                    </Chip>
+                    <Chip kind="failed">{check.text}</Chip>
                   ) : (
-                    <Chip>
-                      <CircleDashedIcon size={14} className="mr-1" aria-hidden /> {check?.text ?? "Couldn't check"}
-                    </Chip>
+                    <Chip kind="unverified">{check?.text ?? "Couldn't check"}</Chip>
                   )}
                 </Cell>
               </tr>
@@ -311,18 +286,17 @@ export default async function OfficePayments() {
 
       <section aria-labelledby="events-heading" className="grid gap-4">
         <div>
-          <h2 id="events-heading" className="text-lg font-medium">
+          <CardTitle id="events-heading" icon={ClockCounterClockwiseIcon}>
             Webhook events
-          </h2>
+          </CardTitle>
           <p className="mt-1 text-sm text-ink-2">The latest 50. Failed events retry after 1, 5 and 30 minutes, then 2, 5 and 10 hours, and stop after 8 attempts.</p>
         </div>
         {page && page.events.length === 0 ? (
-          <p className="rounded-md border border-dashed border-line px-4 py-6 text-center text-sm text-ink-3">No webhooks yet. They appear here as soon as Dodo sends one.</p>
+          <p className="rounded-md border border-line px-4 py-6 text-center text-sm text-ink-3">No webhooks yet. They appear here as soon as Dodo sends one.</p>
         ) : (
           <AdminTable caption="Webhook events" columns={["Received", "Event", "Status", "Workspace", "Webhook id", ""]}>
             {(page?.events ?? []).map((e) => {
               const s = STATUS[e.status];
-              const StatusIcon = s.icon;
               return (
                 <tr key={e.id} className="border-b border-line last:border-0">
                   <Cell>
@@ -336,9 +310,7 @@ export default async function OfficePayments() {
                     {e.mode === "test" ? <span className="ml-1.5 font-sans text-xs text-ink-3">test</span> : null}
                   </Cell>
                   <Cell>
-                    <Chip tone={s.tone}>
-                      <StatusIcon size={14} weight="bold" className="mr-1" aria-hidden /> {s.label}
-                    </Chip>
+                    <Chip kind={s.kind}>{s.label}</Chip>
                     {e.attempts > 1 ? <span className="mt-1 block text-xs text-ink-3">{e.attempts} attempts</span> : null}
                     {e.lastError ? <span className="mt-1 block max-w-64 text-xs text-ink-2">{e.lastError}</span> : null}
                   </Cell>

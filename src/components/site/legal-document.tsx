@@ -52,7 +52,7 @@ export function LegalDocument({
               <details className="group mt-4 rounded-md border border-line bg-surface">
                 <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-5 text-[0.9375rem] font-medium [&::-webkit-details-marker]:hidden">
                   On this page
-                  <CaretDownIcon size={16} className="shrink-0 text-ink-3 group-open:rotate-180 motion-safe:transition-transform motion-safe:duration-200" aria-hidden />
+                  <CaretDownIcon size={16} weight="bold" className="shrink-0 text-ink-3 group-open:rotate-180 motion-safe:transition-transform motion-safe:duration-200" aria-hidden />
                 </summary>
                 <div className="border-t border-line px-5 pb-4 pt-3">
                   <Contents title={title} path={path} sections={sections} />

@@ -41,7 +41,7 @@ export default async function BuildRunPage({ params }: Params) {
   return (
     <div className="grid gap-6">
       <Link href="/app/build" className="inline-flex min-h-11 w-fit items-center gap-2 text-sm text-ink-2 hover:text-ink">
-        <ArrowLeftIcon size={16} aria-hidden /> Build
+        <ArrowLeftIcon size={16} weight="bold" aria-hidden /> Build
       </Link>
       <PageHeader
         title={run.taskTitle}

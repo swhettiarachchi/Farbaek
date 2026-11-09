@@ -1,8 +1,8 @@
-import { InfoIcon, WarningIcon } from "@phosphor-icons/react/ssr";
+import { InfoIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { TASK_STATE_LABELS, stateTone } from "@/core/realityloop/progress";
+import { TASK_STATE_LABELS, stateKind } from "@/core/realityloop/progress";
 import type { TaskState } from "@/core/realityloop/task-machine";
 
 export function PageHeader({ title, description, actions }: { title: string; description?: ReactNode; actions?: ReactNode }) {
@@ -18,7 +18,20 @@ export function PageHeader({ title, description, actions }: { title: string; des
 }
 
 export function TaskStateBadge({ state }: { state: TaskState }) {
-  return <StatusBadge status={stateTone(state)} label={TASK_STATE_LABELS[state]} />;
+  return <StatusBadge status={stateKind(state)} label={TASK_STATE_LABELS[state]} />;
+}
+
+/**
+ * A section's title with its icon (ADR 0183): 20px, outlined, in the quiet ink, so every section on a page is
+ * marked the same way and the words stay first. The icon names what the section is about.
+ */
+export function CardTitle({ icon: TitleIcon, children, id, className = "" }: { icon: Icon; children: ReactNode; id?: string; className?: string }) {
+  return (
+    <h2 id={id} className={`flex items-center gap-2.5 text-lg font-medium ${className}`}>
+      <TitleIcon size={20} className="shrink-0 text-ink-3" aria-hidden />
+      <span className="min-w-0">{children}</span>
+    </h2>
+  );
 }
 
 export function Card({ children, className = "", id }: { children: ReactNode; className?: string; id?: string }) {
@@ -31,8 +44,8 @@ export function Card({ children, className = "", id }: { children: ReactNode; cl
 
 export function EmptyState({ icon: EmptyIcon, title, children, action }: { icon: Icon; title: string; children: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center rounded-md border border-dashed border-line-strong/40 bg-surface px-6 py-12 text-center">
-      <span className="flex size-12 items-center justify-center rounded-full bg-accent/[0.08] text-accent">
+    <div className="flex flex-col items-center rounded-md border border-line bg-surface px-6 py-12 text-center">
+      <span className="flex size-12 items-center justify-center rounded-full bg-surface text-ink-2 shadow-e1 ring-1 ring-line">
         <EmptyIcon size={24} aria-hidden />
       </span>
       <h2 className="mt-4 text-lg font-medium">{title}</h2>
@@ -42,15 +55,12 @@ export function EmptyState({ icon: EmptyIcon, title, children, action }: { icon:
   );
 }
 
+/** A note on a neutral surface; the icon's colour says what kind (ADR 0183): steel for information, burnt orange for a warning. */
 export function Notice({ tone = "info", children }: { tone?: "info" | "warning"; children: ReactNode }) {
-  const NoticeIcon = tone === "info" ? InfoIcon : WarningIcon;
+  const NoticeIcon = tone === "info" ? InfoIcon : WarningCircleIcon;
   return (
-    <p
-      className={`flex items-start gap-2.5 rounded-sm border px-4 py-3 text-sm text-ink ${
-        tone === "info" ? "border-info/25 bg-info/[0.05]" : "border-approval/30 bg-approval/[0.06]"
-      }`}
-    >
-      <NoticeIcon size={18} weight="bold" className={`mt-px shrink-0 ${tone === "info" ? "text-info" : "text-approval"}`} aria-hidden />
+    <p className="flex items-start gap-2.5 rounded-sm border border-line bg-surface-raised/70 px-4 py-3 text-sm text-ink">
+      <NoticeIcon size={16} weight="fill" className={`mt-0.5 shrink-0 ${tone === "info" ? "text-info" : "text-caution"}`} aria-hidden />
       <span>{children}</span>
     </p>
   );
@@ -93,7 +103,7 @@ export function UsageMeter({
 }) {
   const pct = limit && limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
   const level = limit === null ? "ok" : used >= limit ? "reached" : used >= limit * 0.8 ? "warning" : "ok";
-  const bar = level === "reached" ? "bg-failed" : level === "warning" ? "bg-approval" : "bg-accent";
+  const bar = level === "reached" ? "bg-failed" : level === "warning" ? "bg-caution" : "bg-accent";
   return (
     <div>
       <div className="flex items-baseline justify-between gap-3">
@@ -112,7 +122,7 @@ export function UsageMeter({
       >
         <div className={`h-full rounded-full ${bar}`} style={{ width: `${Math.max(pct, used > 0 ? 2 : 0)}%` }} />
       </div>
-      <p className={`mt-1.5 text-xs ${level === "ok" ? "text-ink-3" : level === "warning" ? "text-approval" : "text-failed"}`}>
+      <p className={`mt-1.5 text-xs ${level === "ok" ? "text-ink-3" : level === "warning" ? "text-caution" : "text-failed"}`}>
         {level === "reached" ? reached : level === "warning" ? `Over 80% used. ${detail ?? ""}` : detail}
       </p>
     </div>

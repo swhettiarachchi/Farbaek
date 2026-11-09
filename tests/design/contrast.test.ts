@@ -25,9 +25,9 @@ function contrast(a: string, b: string): number {
 }
 
 const BACKGROUNDS = ["canvas", "canvas-2", "surface", "surface-raised", "surface-sunken"];
-const TEXT = ["ink", "ink-2", "ink-3", "accent", "accent-2", "verified", "approval", "failed", "info", "unverified", "simulated"];
+const TEXT = ["ink", "ink-2", "ink-3", "accent", "accent-strong", "accent-2", "verified", "approval", "caution", "failed", "info", "unverified", "simulated"];
 const GRAPHICS = ["accent", "line-strong", "seal"];
-const MEDIA_TEXT = ["media-ink", "media-ink-2", "media-ink-3", "media-accent", "media-cyan", "media-green", "media-amber", "media-red"];
+const MEDIA_TEXT = ["media-ink", "media-ink-2", "media-ink-3", "media-accent", "media-cyan", "media-green", "media-caution", "media-red"];
 
 describe("White Signal tokens", () => {
   it("is a single light theme with no gold accent", () => {
@@ -57,5 +57,31 @@ describe("White Signal tokens", () => {
   it("keeps primary and accent buttons readable", () => {
     expect(contrast(t["on-primary"]!, t.primary!)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(t["on-accent"]!, t.accent!)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("has no gold, amber or purple colour anywhere in the palette (ADR 0183)", () => {
+    const hueSat = (hex: string) => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255) as [number, number, number];
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const l = (max + min) / 2;
+      const d = max - min;
+      if (d === 0) return { hue: 0, sat: 0 };
+      const sat = d / (1 - Math.abs(2 * l - 1));
+      const hue = max === r ? 60 * (((g - b) / d) % 6) : max === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4);
+      return { hue: (hue + 360) % 360, sat };
+    };
+    for (const [name, hex] of Object.entries(t)) {
+      const { hue, sat } = hueSat(hex);
+      if (sat < 0.3) continue;
+      expect(hue >= 30 && hue <= 70, `${name} ${hex} reads as gold or amber`).toBe(false);
+      expect(hue >= 255 && hue <= 320, `${name} ${hex} reads as purple`).toBe(false);
+    }
+  });
+
+  it("gives the person's turn the brand's blue, and keeps caution for warnings", () => {
+    expect(t.approval).toBe(t.accent);
+    expect(t.caution).not.toBe(t.approval);
+    expect(t.caution).not.toBe(t.failed);
   });
 });

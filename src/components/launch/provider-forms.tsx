@@ -1,6 +1,6 @@
 "use client";
 
-import { CloudArrowUpIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, CloudArrowUpIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useId, useState } from "react";
 import { connectProviderAction, launchProviderAction, type LaunchState } from "@/app/app/projects/[projectId]/launch/launch-actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -14,13 +14,13 @@ function Result({ state }: { state: LaunchState }) {
   if (state.status === "error")
     return (
       <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-        <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {state.message}
+        <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden /> {state.message}
       </p>
     );
   if (state.status === "done")
     return (
-      <p role="status" className="text-sm text-verified">
-        {state.message}
+      <p role="status" className="flex items-start gap-2 text-sm text-verified">
+        <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden /> {state.message}
       </p>
     );
   return null;
@@ -120,7 +120,7 @@ export function LaunchToProvider({
       </label>
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={locked} className={buttonClasses("primary")}>
-          <CloudArrowUpIcon size={18} weight="bold" aria-hidden />
+          <CloudArrowUpIcon size={16} weight="bold" aria-hidden />
           {pending ? "Authorizing…" : state.status === "done" ? "Launch started" : `Launch to ${copy.name}`}
         </button>
         {disabledReason ? <span className="text-sm text-ink-3">{disabledReason}</span> : null}

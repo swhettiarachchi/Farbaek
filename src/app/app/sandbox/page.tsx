@@ -1,13 +1,14 @@
-import { CaretLeftIcon, CaretRightIcon, MagnifyingGlassIcon, PlusIcon, TerminalWindowIcon, WarningIcon } from "@phosphor-icons/react/ssr";
+import { CaretLeftIcon, CaretRightIcon, ClockCounterClockwiseIcon, GaugeIcon, MagnifyingGlassIcon, PlusIcon, TerminalWindowIcon, WarningIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LiveRefresh } from "@/components/app/live-refresh";
-import { Card, EmptyState, Notice, PageHeader, UsageMeter } from "@/components/app/primitives";
+import { Card, CardTitle, EmptyState, Notice, PageHeader, UsageMeter } from "@/components/app/primitives";
 import { ExecutionStateBadge, SessionStateBadge } from "@/components/sandbox/badges";
 import { ConnectRuntimeSteps, RuntimeStatus } from "@/components/sandbox/runtime-status";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/local-time";
+import { StatusGlyph } from "@/components/ui/status-badge";
 import { FAILURE_LABELS, type FailureCategory } from "@/core/sandbox/failures";
 import type { SessionState } from "@/core/sandbox/lifecycle";
 import { NETWORK_PROFILE_LABELS } from "@/core/sandbox/network";
@@ -98,7 +99,7 @@ export default async function SandboxPage({ searchParams }: { searchParams: Prom
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:items-start">
         <RuntimeStatus overview={overview} health={health} />
         <Card>
-          <h2 className="text-lg font-medium">Usage this {overview.limits.periodKind === "trial" ? "trial" : "period"}</h2>
+          <CardTitle icon={GaugeIcon}>Usage this {overview.limits.periodKind === "trial" ? "trial" : "period"}</CardTitle>
           <div className="mt-4 grid gap-5">
             <UsageMeter label="Sessions now" used={overview.activeSessions} limit={limits.maxConcurrentSessions} reached="At the limit. Stop a session to start another." />
             <UsageMeter
@@ -138,14 +139,14 @@ export default async function SandboxPage({ searchParams }: { searchParams: Prom
 
       <section aria-labelledby="sessions-heading" className="grid gap-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <h2 id="sessions-heading" className="text-xl font-medium tracking-[-0.02em]">
+          <CardTitle id="sessions-heading" icon={TerminalWindowIcon}>
             Sessions
-          </h2>
+          </CardTitle>
           <form method="get" action="/app/sandbox" className="grid grid-cols-2 gap-2 sm:flex sm:items-end" role="search">
             <label className="col-span-2 grid gap-1 text-xs text-ink-2 sm:col-span-1">
               Search
               <span className="relative">
-                <MagnifyingGlassIcon size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" aria-hidden />
+                <MagnifyingGlassIcon size={16} weight="bold" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" aria-hidden />
                 <input
                   name="q"
                   defaultValue={q}
@@ -198,9 +199,14 @@ export default async function SandboxPage({ searchParams }: { searchParams: Prom
                 : "Sessions appear here once a runtime is connected and verified. Nothing has run in this workspace."}
             </EmptyState>
           ) : (
-            <p className="rounded-md border border-dashed border-line-strong/40 bg-surface px-5 py-8 text-center text-sm text-ink-2">
-              No sessions match. <Link href="/app/sandbox" className="font-medium text-accent hover:underline">Clear the filters</Link>
-            </p>
+            <div className="flex flex-col items-center rounded-md border border-line bg-surface px-5 py-8 text-center">
+              <span className="flex size-12 items-center justify-center rounded-full bg-surface text-ink-2 shadow-e1 ring-1 ring-line">
+                <MagnifyingGlassIcon size={24} aria-hidden />
+              </span>
+              <p className="mt-3 text-sm text-ink-2">
+                No sessions match. <Link href="/app/sandbox" className="font-medium text-accent hover:underline">Clear the filters</Link>
+              </p>
+            </div>
           )
         ) : (
           <>
@@ -267,7 +273,7 @@ export default async function SandboxPage({ searchParams }: { searchParams: Prom
               <nav aria-label="Session pages" className="flex items-center justify-between gap-3 text-sm">
                 {page > 1 ? (
                   <Link href={href({ page: page - 1 })} className={buttonClasses("secondary", "sm")}>
-                    <CaretLeftIcon size={16} aria-hidden /> Previous
+                    <CaretLeftIcon size={16} weight="bold" aria-hidden /> Previous
                   </Link>
                 ) : (
                   <span />
@@ -277,7 +283,7 @@ export default async function SandboxPage({ searchParams }: { searchParams: Prom
                 </span>
                 {page < pages ? (
                   <Link href={href({ page: page + 1 })} className={buttonClasses("secondary", "sm")}>
-                    Next <CaretRightIcon size={16} aria-hidden />
+                    Next <CaretRightIcon size={16} weight="bold" aria-hidden />
                   </Link>
                 ) : (
                   <span />
@@ -292,7 +298,7 @@ export default async function SandboxPage({ searchParams }: { searchParams: Prom
         <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
           {recent.length > 0 ? (
             <Card>
-              <h2 className="text-lg font-medium">Recent commands</h2>
+              <CardTitle icon={ClockCounterClockwiseIcon}>Recent commands</CardTitle>
               <ul className="mt-4 grid gap-2">
                 {recent.map((e) => (
                   <li key={e.id} className="flex items-center gap-3 rounded-sm border border-line px-3 py-2">
@@ -309,14 +315,14 @@ export default async function SandboxPage({ searchParams }: { searchParams: Prom
           ) : null}
           {failed.rows.length > 0 ? (
             <Card>
-              <h2 className="text-lg font-medium">Failed sessions</h2>
+              <CardTitle icon={WarningIcon}>Failed sessions</CardTitle>
               <ul className="mt-4 grid gap-3">
                 {failed.rows.map((s) => {
                   const label = FAILURE_LABELS[(s.failureCategory ?? "provider_unavailable") as FailureCategory] ?? FAILURE_LABELS.provider_unavailable;
                   return (
-                    <li key={s.id} className="rounded-sm border border-failed/25 bg-failed/[0.04] px-4 py-3">
+                    <li key={s.id} className="rounded-sm border border-line px-4 py-3">
                       <p className="flex items-center gap-2 text-sm font-medium text-failed">
-                        <WarningIcon size={16} weight="bold" aria-hidden /> {label.title}
+                        <StatusGlyph status="failed" size={16} /> {label.title}
                       </p>
                       <p className="mt-1 text-sm text-ink">
                         <Link href={`/app/sandbox/${s.id}`} className="font-medium hover:text-accent">

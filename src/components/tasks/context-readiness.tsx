@@ -1,22 +1,25 @@
-import { DownloadSimpleIcon } from "@phosphor-icons/react/ssr";
-import { Card } from "@/components/app/primitives";
-import { StatusBadge, type Status } from "@/components/ui/status-badge";
+import { DownloadSimpleIcon, FolderOpenIcon } from "@phosphor-icons/react/ssr";
+import { Card, CardTitle } from "@/components/app/primitives";
+import { STATUS_KINDS, StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { FACT_LABELS, READINESS_LABELS, type ContextPassport, type FactStatus, type Readiness } from "@/core/realityloop/context-passport";
 
-/** Each status is its word in its colour (ADR 0180); the word is always there, so colour is never alone. */
-const FACT_TONE: Record<FactStatus, string> = {
-  verified_current: "text-verified",
-  possibly_stale: "text-approval",
-  conflicting: "text-failed",
-  inferred: "text-unverified",
-  missing: "text-failed",
-  unavailable: "text-ink-3",
+/** Each fact's status is a kind (ADR 0183): its icon, its word and its colour together, so colour is never alone. */
+const FACT_KIND: Record<FactStatus, Status> = {
+  verified_current: "verified",
+  possibly_stale: "attention",
+  conflicting: "failed",
+  inferred: "unverified",
+  missing: "failed",
+  unavailable: "off",
 };
 
-// Drawn by StatusBadge, the one way to show a status: a mark only when it's ready or not.
+/** The kind's text colour, so the word under a fact matches its icon. */
+const kindText = (status: Status) => STATUS_KINDS[status].className.split(" ").find((c) => c.startsWith("text-")) ?? "text-ink-3";
+
+// Ready with warnings needs a look before the agent starts; it isn't a decision.
 const READINESS_TONE: Record<Readiness, Status> = {
   ready: "verified",
-  ready_with_warnings: "approval",
+  ready_with_warnings: "attention",
   not_ready: "failed",
 };
 
@@ -39,7 +42,7 @@ export function ContextReadinessCard({ passport, taskId }: { passport: ContextPa
     <Card id="readiness" className="scroll-mt-24">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-medium">What Farbaek knows</h2>
+          <CardTitle icon={FolderOpenIcon}>What Farbaek knows</CardTitle>
           <p className="mt-1 max-w-[62ch] text-sm text-ink-2">
             What Farbaek knows about this task before the agent starts, from the project&apos;s own files, the plan and the last checks. The agent and the plan drafter see these facts too.
           </p>
@@ -57,17 +60,20 @@ export function ContextReadinessCard({ passport, taskId }: { passport: ContextPa
         {shown.map((f) => {
           const refs = f.sources.filter((src) => src.kind === "file").slice(0, 2);
           return (
-            <li key={f.id} className="grid gap-1 py-3">
-              <p className="text-sm text-ink">{f.statement}</p>
-              <p className="flex flex-wrap items-center gap-x-2 text-[0.75rem] text-ink-3">
-                <span className={`font-medium ${FACT_TONE[f.status]}`}>{FACT_LABELS[f.status]}</span>
-                {refs.map((r) => (
-                  <span key={r.ref} className="truncate font-mono">
-                    {r.ref}
-                    {r.revision ? ` r${r.revision}` : ""}
-                  </span>
-                ))}
-              </p>
+            <li key={f.id} className="flex gap-3 py-3">
+              <StatusGlyph status={FACT_KIND[f.status]} className="mt-0.5" />
+              <div className="grid min-w-0 gap-1">
+                <p className="text-sm text-ink">{f.statement}</p>
+                <p className="flex flex-wrap items-center gap-x-2 text-[0.75rem] text-ink-3">
+                  <span className={`font-medium ${kindText(FACT_KIND[f.status])}`}>{FACT_LABELS[f.status]}</span>
+                  {refs.map((r) => (
+                    <span key={r.ref} className="truncate font-mono">
+                      {r.ref}
+                      {r.revision ? ` r${r.revision}` : ""}
+                    </span>
+                  ))}
+                </p>
+              </div>
             </li>
           );
         })}
@@ -88,7 +94,7 @@ export function ContextReadinessCard({ passport, taskId }: { passport: ContextPa
       ) : null}
 
       <a href={`/app/tasks/${taskId}/passport`} className="mt-5 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-accent hover:underline" download>
-        <DownloadSimpleIcon size={16} aria-hidden />
+        <DownloadSimpleIcon size={16} weight="bold" aria-hidden />
         Download these facts as a file
       </a>
     </Card>

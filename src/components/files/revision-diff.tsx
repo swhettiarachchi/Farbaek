@@ -80,13 +80,13 @@ export function RevisionDiff({
       )}
       {error ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
           {error}
         </p>
       ) : null}
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={restore} disabled={pending || same || Boolean(disabledReason)} className={buttonClasses("primary", "sm")}>
-          <ArrowCounterClockwiseIcon size={16} aria-hidden />
+          <ArrowCounterClockwiseIcon size={16} weight="bold" aria-hidden />
           {pending ? "Restoring…" : `Restore revision ${revision}`}
         </button>
         <p className="text-xs text-ink-3">

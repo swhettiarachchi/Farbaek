@@ -1,6 +1,6 @@
 "use client";
 
-import { InfoIcon, WarningIcon, XIcon } from "@phosphor-icons/react";
+import { InfoIcon, WarningCircleIcon, XIcon } from "@phosphor-icons/react";
 import { useState, useSyncExternalStore } from "react";
 import type { Announcement } from "@/server/platform/announcements";
 
@@ -38,10 +38,11 @@ export function AnnouncementBanner({ items }: { items: Announcement[] }) {
     <div role="region" aria-label="Messages from Farbaek">
       {visible.map((a) => {
         const incident = a.tone === "incident";
-        const Icon = incident ? WarningIcon : InfoIcon;
+        const Icon = incident ? WarningCircleIcon : InfoIcon;
+        // One neutral band; the icon's colour says which kind (ADR 0183): burnt orange for an incident, steel for a notice.
         return (
-          <div key={a.id} className={`flex items-start gap-3 border-b px-4 py-2.5 text-[0.84375rem] ${incident ? "border-approval/30 bg-approval/[0.07]" : "border-info/20 bg-info/[0.05]"}`}>
-            <Icon size={18} weight="bold" className={`mt-px shrink-0 ${incident ? "text-approval" : "text-info"}`} aria-hidden />
+          <div key={a.id} className="flex items-start gap-3 border-b border-line bg-surface-raised px-4 py-2.5 text-[0.8125rem]">
+            <Icon size={16} weight="fill" className={`mt-0.5 shrink-0 ${incident ? "text-caution" : "text-info"}`} aria-hidden />
             <p className="min-w-0 flex-1 text-ink">
               <span className="font-medium">{incident ? "Incident: " : "From Farbaek: "}</span>
               {a.message}

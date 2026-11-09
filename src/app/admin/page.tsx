@@ -1,6 +1,7 @@
-import { CheckCircleIcon, CircleDashedIcon } from "@phosphor-icons/react/ssr";
+import { PlugsConnectedIcon, SquaresFourIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
-import { Card, PageHeader, StatTile } from "@/components/app/primitives";
+import { Card, CardTitle, PageHeader, StatTile } from "@/components/app/primitives";
+import { StatusGlyph } from "@/components/ui/status-badge";
 import { adminMetadata, requireAdmin } from "@/server/admin/access";
 import { deploymentConnections, loadOverview } from "@/server/admin/data";
 import { usd } from "@/server/admin/summaries";
@@ -71,7 +72,7 @@ export default async function AdminOverview() {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <Card>
-          <h2 className="text-lg font-medium">Work in Farbaek</h2>
+          <CardTitle icon={SquaresFourIcon}>Work in Farbaek</CardTitle>
           <dl className="mt-4 grid gap-3 text-sm">
             <div className="flex items-baseline justify-between gap-3">
               <dt className="text-ink-2">Active projects</dt>
@@ -85,17 +86,14 @@ export default async function AdminOverview() {
         </Card>
 
         <Card>
-          <h2 className="text-lg font-medium">Connections</h2>
+          <CardTitle icon={PlugsConnectedIcon}>Connections</CardTitle>
           <p className="mt-1 text-sm text-ink-2">What this deployment can do. Names only: no key or secret is ever shown here.</p>
           <ul className="mt-4 grid gap-3">
             {connections.map((c) => (
               <li key={c.name} className="flex items-start gap-3 text-sm">
-                {c.on ? (
-                  <CheckCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-label="On" />
-                ) : (
-                  <CircleDashedIcon size={18} className="mt-0.5 shrink-0 text-ink-3" aria-label="Off" />
-                )}
+                <StatusGlyph status={c.on ? "verified" : "off"} className="mt-0.5" />
                 <span className="min-w-0">
+                  <span className="sr-only">{c.on ? "On: " : "Off: "}</span>
                   <span className="font-medium text-ink">{c.name}</span>
                   <span className="block text-ink-2">{c.detail}</span>
                 </span>

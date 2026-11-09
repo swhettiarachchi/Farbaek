@@ -63,7 +63,7 @@ export function IncidentTools({
             disabled={pending || Boolean(toolsReason) || note.trim().length === 0}
             className={buttonClasses("secondary", "sm")}
           >
-            <NotePencilIcon size={16} aria-hidden /> Add the note
+            <NotePencilIcon size={16} weight="bold" aria-hidden /> Add the note
           </button>
           {toolsReason ? <span className="text-xs text-ink-3">{toolsReason}</span> : null}
         </div>
@@ -94,7 +94,7 @@ export function IncidentTools({
           disabled={pending || Boolean(toolsReason)}
           className={buttonClasses("secondary", "sm")}
         >
-          <ShieldCheckIcon size={16} aria-hidden /> {status === "contained" ? "Mark as open again" : "Mark as contained"}
+          <ShieldCheckIcon size={16} weight="bold" aria-hidden /> {status === "contained" ? "Mark as open again" : "Mark as contained"}
         </button>
       </div>
 
@@ -119,7 +119,7 @@ export function IncidentTools({
             disabled={pending || Boolean(resolveReason) || outcome.trim().length < 10}
             className={buttonClasses("primary", "sm")}
           >
-            <CheckCircleIcon size={16} aria-hidden /> Resolve the problem
+            <CheckCircleIcon size={16} weight="bold" aria-hidden /> Resolve the problem
           </button>
           <span className="text-xs text-ink-3">{resolveReason ?? "Resolving is final. Report a new problem if something else goes wrong."}</span>
         </div>
@@ -127,11 +127,13 @@ export function IncidentTools({
 
       {state.status === "error" ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {state.message}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+          <span>{state.message}</span>
         </p>
       ) : state.status === "done" ? (
         <p role="status" className="flex items-start gap-2 text-sm text-verified">
-          <CheckCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {state.message}
+          <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+          <span>{state.message}</span>
         </p>
       ) : null}
     </div>

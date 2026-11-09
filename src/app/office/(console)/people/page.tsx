@@ -31,8 +31,8 @@ export default async function OfficePeople() {
               <Cell>
                 <span className="flex flex-wrap items-center gap-1.5">
                   <span className="break-all font-medium">{showEmail ? p.email : maskEmail(p.email)}</span>
-                  {staffEmails.has(p.email.toLowerCase()) ? <Chip tone="accent">Staff</Chip> : null}
-                  {!p.confirmed ? <Chip tone="approval">Not confirmed</Chip> : null}
+                  {staffEmails.has(p.email.toLowerCase()) ? <Chip>Staff</Chip> : null}
+                  {!p.confirmed ? <Chip kind="unverified">Not confirmed</Chip> : null}
                 </span>
               </Cell>
               <Cell muted>

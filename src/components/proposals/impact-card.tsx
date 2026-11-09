@@ -1,21 +1,23 @@
 "use client";
 
-import { GraphIcon, PathIcon, WarningCircleIcon, WarningIcon } from "@phosphor-icons/react";
+import { BrowserIcon, FileArrowUpIcon, GraphIcon, ListChecksIcon, PathIcon, WarningCircleIcon, WarningIcon } from "@phosphor-icons/react";
+import type { Icon } from "@phosphor-icons/react";
 import { useState, useTransition } from "react";
 import { analyzeImpactAction, type ImpactState } from "@/app/app/impact-actions";
 import { buttonClasses } from "@/components/ui/button";
 
 const plural = (n: number, one: string, many: string) => `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
 
-function Group({ title, items, tone = "plain" }: { title: string; items: { path: string; note?: string }[]; tone?: "plain" | "warning" }) {
+/** A group of files under an icon that names it; the one group that needs a look is in the caution colour. */
+function Group({ icon: GroupIcon, title, items, tone = "plain" }: { icon: Icon; title: string; items: { path: string; note?: string }[]; tone?: "plain" | "warning" }) {
   if (items.length === 0) return null;
   return (
     <div>
       <p className="flex items-center gap-2 text-sm font-medium">
-        {tone === "warning" ? <WarningIcon size={16} weight="bold" className="text-approval" aria-hidden /> : null}
+        <GroupIcon size={16} weight="bold" className={`shrink-0 ${tone === "warning" ? "text-caution" : "text-ink-3"}`} aria-hidden />
         {title}
       </p>
-      <ul className={`mt-1.5 grid gap-1 ${tone === "warning" ? "pl-6" : ""}`}>
+      <ul className="mt-1.5 grid gap-1 pl-6">
         {items.map((i) => (
           <li key={i.path} className="min-w-0 text-sm">
             <span className="break-all font-mono text-xs">{i.path}</span>
@@ -42,7 +44,7 @@ export function ImpactCard({ taskId, disabledReason }: { taskId: string; disable
     <section aria-labelledby="impact-title" className="grid gap-4 rounded-md border border-line bg-surface-raised/40 p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 id="impact-title" className="flex items-center gap-2 text-base font-medium">
-          <GraphIcon size={18} className="text-ink-3" aria-hidden /> What this change reaches
+          <GraphIcon size={20} className="shrink-0 text-ink-3" aria-hidden /> What this change reaches
         </h3>
       </div>
       {state?.status === "done" && state.sample ? (
@@ -52,7 +54,7 @@ export function ImpactCard({ taskId, disabledReason }: { taskId: string; disable
       {!r ? (
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" onClick={run} disabled={pending || Boolean(disabledReason)} className={buttonClasses("secondary", "sm")}>
-            <PathIcon size={16} aria-hidden /> {pending ? "Reading the project…" : "Show what this change reaches"}
+            <PathIcon size={16} weight="bold" aria-hidden /> {pending ? "Reading the project…" : "Show what this change reaches"}
           </button>
           <span className="text-xs text-ink-3">{disabledReason ?? "The files that use what it touches, the pages and tests they reach, and what no test reaches."}</span>
         </div>
@@ -66,11 +68,11 @@ export function ImpactCard({ taskId, disabledReason }: { taskId: string; disable
             {r.tests.length ? `${plural(r.tests.length, "test reaches", "tests reach")} it.` : "No test reaches it."}
           </p>
           <div className="grid gap-4 md:grid-cols-2">
-            <Group title="Used directly by" items={r.direct.map((d) => ({ path: d.path, note: `uses ${d.via}` }))} />
-            <Group title="Further away" items={r.further.map((d) => ({ path: d.path, note: `through ${d.via}` }))} />
-            <Group title="Pages it reaches" items={r.pages.map((path) => ({ path }))} />
-            <Group title="Tests that reach it" items={r.tests.map((path) => ({ path }))} />
-            <Group tone="warning" title="Not reached by any test" items={r.untested.map((path) => ({ path }))} />
+            <Group icon={FileArrowUpIcon} title="Used directly by" items={r.direct.map((d) => ({ path: d.path, note: `uses ${d.via}` }))} />
+            <Group icon={PathIcon} title="Further away" items={r.further.map((d) => ({ path: d.path, note: `through ${d.via}` }))} />
+            <Group icon={BrowserIcon} title="Pages it reaches" items={r.pages.map((path) => ({ path }))} />
+            <Group icon={ListChecksIcon} title="Tests that reach it" items={r.tests.map((path) => ({ path }))} />
+            <Group icon={WarningIcon} tone="warning" title="Not reached by any test" items={r.untested.map((path) => ({ path }))} />
           </div>
           <p className="text-xs leading-relaxed text-ink-3">
             Farbaek reads which files load which, from the code itself, up to three steps away. It read {plural(r.scanned, "file", "files")}.
@@ -85,7 +87,7 @@ export function ImpactCard({ taskId, disabledReason }: { taskId: string; disable
       )}
       {state?.status === "error" ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {state.message}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden /> {state.message}
         </p>
       ) : null}
     </section>

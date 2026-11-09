@@ -69,7 +69,7 @@ struct ProjectRow: View {
                 }
             }
             Spacer(minLength: 8)
-            if project.archived { StatusBadge(label: "Archived", tone: .neutral) }
+            if project.archived { StatusBadge(label: "Archived", tone: .off) }
             Image(systemName: "chevron.right").font(.footnote).foregroundStyle(Palette.ink3).accessibilityHidden(true)
         }
         .padding(.horizontal, 12)

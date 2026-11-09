@@ -1,6 +1,6 @@
 "use client";
 
-import { WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useState, type ReactNode } from "react";
 import { buttonClasses, type ButtonVariant } from "@/components/ui/button";
 
@@ -51,22 +51,24 @@ export function ConfirmAction({
           {trigger}
         </button>
         {state.status === "done" ? (
-          <p role="status" className="mt-1 text-sm text-verified">
-            {state.message}
+          <p role="status" className="mt-1 flex items-start gap-2 text-sm text-verified">
+            <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+            <span>{state.message}</span>
           </p>
         ) : null}
       </div>
     );
   }
   return (
-    <form action={act} className={`grid w-full gap-3 rounded-sm border p-4 ${danger ? "border-failed/30 bg-failed/[0.04]" : "border-line bg-surface-raised/50"}`}>
+    <form action={act} className={`grid w-full gap-3 rounded-sm border p-4 ${danger ? "border-failed/30 bg-surface-raised/50" : "border-line bg-surface-raised/50"}`}>
       {Object.entries(fields).map(([name, value]) => (
         <input key={name} type="hidden" name={name} value={value} />
       ))}
       <p className="text-sm leading-relaxed">{question}</p>
       {state.status === "error" ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {state.message}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+          <span>{state.message}</span>
         </p>
       ) : null}
       <div className="flex flex-wrap gap-3">

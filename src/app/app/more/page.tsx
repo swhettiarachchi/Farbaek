@@ -1,10 +1,11 @@
-import { CaretRightIcon, ShieldStarIcon, SignOutIcon } from "@phosphor-icons/react/ssr";
+import { CaretRightIcon, ClockIcon, GaugeIcon, LockSimpleIcon, ShieldStarIcon, SignOutIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MoreList } from "@/components/app/app-nav";
 import { ROADMAP } from "@/components/app/roadmap";
-import { PageHeader } from "@/components/app/primitives";
+import { CardTitle, PageHeader } from "@/components/app/primitives";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { WorkspaceSwitcher } from "@/components/app/workspace-switcher";
 import { UsageMeterList } from "@/components/app/usage-meters";
 import { isAdminEmail } from "@/server/admin/access";
@@ -29,9 +30,9 @@ export default async function MorePage() {
       <WorkspaceSwitcher workspaces={ctx.workspaces} current={ctx.current} canCreate={ctx.mode === "live"} />
 
       <section aria-labelledby="usage-heading" className="rounded-md border border-line bg-surface p-5 shadow-e1">
-        <h2 id="usage-heading" className="mb-4 text-base font-medium">
+        <CardTitle id="usage-heading" icon={GaugeIcon} className="mb-4">
           Usage
-        </h2>
+        </CardTitle>
         <UsageMeterList meters={meters} />
       </section>
 
@@ -41,22 +42,25 @@ export default async function MorePage() {
           <li>
             <Link href="/admin" className={`${row} hover:bg-canvas-2`}>
               <ShieldStarIcon size={20} className="text-ink-2" aria-hidden /> Admin console
-              <CaretRightIcon size={16} className="ml-auto text-ink-3" aria-hidden />
+              <CaretRightIcon size={16} weight="bold" className="ml-auto text-ink-3" aria-hidden />
             </Link>
           </li>
         ) : null}
       </MoreList>
 
       <section aria-labelledby="later-heading">
-        <h2 id="later-heading" className="px-1 text-sm font-medium text-ink-3">
+        <CardTitle id="later-heading" icon={ClockIcon} className="px-1">
           Coming later
-        </h2>
+        </CardTitle>
         <ul className="mt-2 divide-y divide-line overflow-hidden rounded-md border border-line bg-surface">
           {ROADMAP.map((r) => (
             <li key={r.label} className={`${row} text-ink-3`}>
-              {r.label}
+              <LockSimpleIcon size={20} className="shrink-0" aria-hidden />
+              <span className="min-w-0">{r.label}</span>
               <span className="sr-only">, not available yet</span>
-              <span className="ml-auto rounded-full border border-dashed border-line-strong/50 px-2 text-xs">{r.status}</span>
+              <span className="ml-auto">
+                <StatusBadge status={r.kind} label={r.status} />
+              </span>
             </li>
           ))}
         </ul>
@@ -65,7 +69,7 @@ export default async function MorePage() {
       {ctx.mode === "live" ? (
         <form action={signOut}>
           <button type="submit" className="flex h-12 w-full items-center justify-center gap-2 rounded-full border border-line bg-surface text-[0.9375rem] text-ink shadow-e1">
-            <SignOutIcon size={18} aria-hidden /> Sign out of {ctx.user.email}
+            <SignOutIcon size={20} aria-hidden /> Sign out of {ctx.user.email}
           </button>
         </form>
       ) : (

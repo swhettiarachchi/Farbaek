@@ -1,6 +1,6 @@
 "use client";
 
-import { TrashIcon } from "@phosphor-icons/react";
+import { TrashIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useState } from "react";
 import { deleteFileAction, type FormState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -16,7 +16,7 @@ export function DeleteFile({ projectId, path, revision, disabledReason }: { proj
   if (!confirming || disabledReason) {
     return (
       <button type="button" onClick={() => setConfirming(true)} disabled={Boolean(disabledReason)} className={buttonClasses("ghost", "sm")}>
-        <TrashIcon size={16} aria-hidden /> Delete
+        <TrashIcon size={16} weight="bold" aria-hidden /> Delete
       </button>
     );
   }
@@ -29,8 +29,9 @@ export function DeleteFile({ projectId, path, revision, disabledReason }: { proj
         Delete <span className="font-mono text-[0.8125rem] break-all">{path}</span>? It leaves the file tree. Its history is kept.
       </p>
       {state.status === "error" ? (
-        <p role="alert" className="text-sm text-failed">
-          {state.message}
+        <p role="alert" className="flex items-start gap-2 text-sm text-failed">
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+          <span>{state.message}</span>
         </p>
       ) : null}
       <div className="flex flex-wrap gap-3">

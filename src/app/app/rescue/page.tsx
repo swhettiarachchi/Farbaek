@@ -1,4 +1,4 @@
-import { BugBeetleIcon, LockKeyIcon, WrenchIcon } from "@phosphor-icons/react/ssr";
+import { LockKeyIcon, ShieldCheckIcon, WrenchIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/app/primitives";
@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "Check an app" };
 
 const STEPS = [
   { icon: LockKeyIcon, title: "Unpacked on your computer", body: "Passwords, keys and build folders are left out before anything is sent." },
-  { icon: BugBeetleIcon, title: "Checked and scored", body: "Farbaek's rules, your packages' known vulnerabilities and an AI review of the riskiest code." },
+  { icon: ShieldCheckIcon, title: "Checked and scored", body: "Farbaek's rules, your packages' known vulnerabilities and an AI review of the riskiest code." },
   { icon: WrenchIcon, title: "Fixed with the agent", body: "Each finding can become a task; you approve the plan before anything changes." },
 ];
 
@@ -41,7 +41,7 @@ export default async function RescuePage() {
         {STEPS.map((s) => (
           <li key={s.title} className="grid content-start gap-2 rounded-md border border-line bg-surface p-4 shadow-e1">
             <span className="flex items-center gap-2 text-sm font-medium">
-              <s.icon size={16} className="shrink-0 text-accent" aria-hidden /> {s.title}
+              <s.icon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> {s.title}
             </span>
             <span className="text-sm leading-relaxed text-ink-2">{s.body}</span>
           </li>

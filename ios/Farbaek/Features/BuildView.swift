@@ -80,7 +80,7 @@ struct BuildView: View {
                 }
                 .panel()
 
-                if let failure { Notice(text: failure, tone: .failed, symbol: "exclamationmark.triangle.fill") }
+                if let failure { Notice(text: failure, tone: .failed, symbol: "exclamationmark.circle.fill") }
                 if planBlocked { SeePlansLink() }
                 if let blocker = model.writeBlocker {
                     Notice(text: blocker, symbol: "lock")
@@ -211,13 +211,14 @@ struct PlanReviewView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     if model.isSample { SampleLabel() }
                     Text(detail.task.title).font(.title2.weight(.medium)).tracking(-0.4).foregroundStyle(Palette.ink)
-                    StatusBadge(label: detail.task.stateLabel, tone: Tone(detail.task.tone))
+                    StatusBadge(label: detail.task.stateLabel, tone: Tone(taskState: detail.task.state, tone: detail.task.tone))
                     if let plan = detail.plan {
                         planBody(plan)
                     } else {
                         Notice(text: "There's no plan yet. Open the task on the web to write one.", symbol: "doc.badge.ellipsis").card()
                     }
-                    if let note { Notice(text: note, tone: .approval, symbol: "info.circle.fill").card() }
+                    // Why the plan couldn't be drafted, or why the agent couldn't start: a warning to read, in burnt orange.
+                    if let note { Notice(text: note, tone: .attention, symbol: Tone.attention.symbol).card() }
                     if !model.isSample {
                         WebLink(path: "app/new/\(taskId)") {
                             Label("Edit the plan on the web", systemImage: "safari")
@@ -264,16 +265,23 @@ struct PlanReviewView: View {
         if !plan.criteria.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 SectionTitle("Done when")
-                // As on the web: each line and how it's checked, in words. Nothing is done yet, so no check marks.
+                // As on the web: each line and how it's checked, with the mark of who checks it: a person, or a check.
                 ForEach(plan.criteria, id: \.self) { criterion in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(criterion.statement)
-                            .font(.subheadline)
-                            .foregroundStyle(Palette.ink)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Text(Self.checkedWords(criterion.verification))
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Image(systemName: Self.checkedSymbol(criterion.verification))
                             .font(.footnote)
                             .foregroundStyle(Palette.ink3)
+                            .frame(width: 22)
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(criterion.statement)
+                                .font(.subheadline)
+                                .foregroundStyle(Palette.ink)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(Self.checkedWords(criterion.verification))
+                                .font(.footnote)
+                                .foregroundStyle(Palette.ink3)
+                        }
                     }
                     .accessibilityElement(children: .combine)
                 }
@@ -317,7 +325,7 @@ struct PlanReviewView: View {
 
     @ViewBuilder private func actions(_ detail: PlanDetail) -> some View {
         VStack(spacing: 10) {
-            if let failure { Notice(text: failure, tone: .failed, symbol: "exclamationmark.triangle.fill") }
+            if let failure { Notice(text: failure, tone: .failed, symbol: "exclamationmark.circle.fill") }
             if planBlocked { SeePlansLink() }
             if detail.canApprove {
                 Picker("Effort", selection: $effort) {
@@ -343,6 +351,11 @@ struct PlanReviewView: View {
         .padding(.top, 12)
         .padding(.bottom, 8)
         .background(.bar)
+    }
+
+    /// The mark beside a line of the plan: a person for a line a person checks, a check for every other.
+    static func checkedSymbol(_ verification: String) -> String {
+        verification == "manual" ? "person.fill.checkmark" : "checkmark.circle"
     }
 
     /// The web's words for how a line of the plan is checked.

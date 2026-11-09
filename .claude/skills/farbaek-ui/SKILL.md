@@ -109,7 +109,14 @@ Animate for live state, hierarchy, storytelling or feedback, and nothing else.
 
 ## Honest states
 
-Every state has words and an icon; colour is never the only signal.
+Every state has words and an icon; colour is never the only signal. States are `StatusBadge`'s thirteen kinds (ADR 0183): verified, done, approval, pending, working, attention, paused, failed, blocked, unverified, off, info and simulated. A task's kind is `stateKind()`. Blue (`approval`) is your turn, burnt orange (`caution`) a real warning, steel (`info`) information or work in progress, graphite a sample. No gold, amber or purple anywhere.
+
+**One icon set (ADR 0183).**
+- Phosphor on the web and desktop, SF Symbols on the iPhone.
+- Filled icons report a state, outlined icons name a thing or an action.
+- Sizes are 14, 16, 20, 24 and 32: `bold` at 14 and 16, regular from 20. Never duotone, light or thin.
+- Section headings in the app use `CardTitle` (20px outlined icon in `ink-3`, then the words). The same concept gets the same icon on every page, and a page's concept takes its navigation icon.
+- Error lines carry a filled WarningCircle in `failed`, success lines a filled CheckCircle in `verified`. External links use ArrowUpRight.
 
 Pick the icon for what the control does, not for "AI": hammer to build, pen nib to draft, tree to map, tray for an inbox, wrench to fix (ADR 0153). Sparkles, robots, wands and brains fail `tests/design/plain-icons.test.ts`.
 

@@ -40,7 +40,7 @@ export default async function NewWorkflowPage({ searchParams }: { searchParams: 
     <div className="grid gap-8">
       <div>
         <Link href="/app/workflows" className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
-          <ArrowLeftIcon size={14} aria-hidden /> Workflows
+          <ArrowLeftIcon size={14} weight="bold" aria-hidden /> Workflows
         </Link>
         <div className="mt-3">
           <PageHeader

@@ -114,19 +114,19 @@ export function RunningAppPicker({
           <input id={`${id}-port`} inputMode="numeric" value={port} onChange={(e) => setPort(e.target.value.replace(/\D/g, "").slice(0, 5))} className={`${field} font-mono`} />
         </label>
         <button type="button" onClick={open} disabled={pending || !sessionId} className={buttonClasses("secondary", "sm")}>
-          <PlayIcon size={16} aria-hidden /> {pending ? "Opening…" : preview ? "Open it again" : "Open the running app"}
+          <PlayIcon size={16} weight="bold" aria-hidden /> {pending ? "Opening…" : preview ? "Open it again" : "Open the running app"}
         </button>
       </div>
       {error ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {error}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden /> {error}
         </p>
       ) : null}
       {preview ? (
         <div className="grid gap-2">
           <div className="flex flex-wrap items-center gap-3">
             <button type="button" aria-pressed={picking} onClick={toggle} disabled={!ready} className={buttonClasses(picking ? "primary" : "secondary", "sm")}>
-              <CursorClickIcon size={16} aria-hidden /> {picking ? "Picking: click an element" : "Pick an element"}
+              <CursorClickIcon size={16} weight="bold" aria-hidden /> {picking ? "Picking: click an element" : "Pick an element"}
             </button>
             <span className="text-xs text-ink-3" role="status">
               {ready ? (picking ? "Clicks in the app pick instead of acting." : "Ready to pick.") : late ? "Farbaek's picker didn't start in this page." : "Waiting for the app…"}

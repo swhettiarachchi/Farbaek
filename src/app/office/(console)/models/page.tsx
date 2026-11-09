@@ -1,11 +1,12 @@
-import { CheckCircleIcon, ClockIcon, PulseIcon, QuestionIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, CpuIcon, ListChecksIcon, PulseIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
-import { Notice, PageHeader } from "@/components/app/primitives";
+import { CardTitle, Notice, PageHeader } from "@/components/app/primitives";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { AdminTable, Cell, Chip } from "@/components/admin/table";
 import { OfficeActionForm } from "@/components/office/action-form";
 import { officeInputClass, ReasonField, StepUpField } from "@/components/office/fields";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
+import { StatusGlyph } from "@/components/ui/status-badge";
 import { CANARY_SUITE } from "@/content/canary-suite";
 import { TIER_MODELS, TIERS, tierModels, type Tier } from "@/core/agent/routing";
 import { pricedModel, type CanarySide } from "@/core/ai/model-canary";
@@ -49,11 +50,11 @@ function SideRow({ label, s }: { label: string; s: CanarySide }) {
       <Cell>
         {s.ok ? (
           <span className="inline-flex items-center gap-1.5">
-            <CheckCircleIcon size={16} weight="fill" className="text-verified" aria-hidden /> Usable
+            <StatusGlyph status="verified" /> Usable
           </span>
         ) : (
           <span className="inline-flex items-start gap-1.5">
-            <XCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden /> {s.failure}
+            <StatusGlyph status="failed" className="mt-0.5" /> {s.failure}
           </span>
         )}
       </Cell>
@@ -71,20 +72,14 @@ function SideRow({ label, s }: { label: string; s: CanarySide }) {
 function RunStatus({ run }: { run: CanaryRun }) {
   if (run.status === "running")
     return (
-      <Chip tone="approval">
-        <ClockIcon size={14} weight="bold" className="mr-1" aria-hidden /> Running
-      </Chip>
+      <Chip kind="working">Running</Chip>
     );
   if (run.status === "failed")
     return (
-      <Chip tone="failed">
-        <XCircleIcon size={14} weight="bold" className="mr-1" aria-hidden /> Stopped
-      </Chip>
+      <Chip kind="failed">Stopped</Chip>
     );
   return (
-    <Chip tone="verified">
-      <CheckCircleIcon size={14} weight="bold" className="mr-1" aria-hidden /> Report ready
-    </Chip>
+    <Chip kind="verified">Report ready</Chip>
   );
 }
 
@@ -116,9 +111,9 @@ export default async function OfficeModels() {
       {!canCanary ? <Notice>Owners and admins run canaries, and only owners switch a tier. You can see where things stand.</Notice> : null}
 
       <section aria-labelledby="tiers-heading" className="grid gap-4">
-        <h2 id="tiers-heading" className="text-lg font-medium">
+        <CardTitle id="tiers-heading" icon={CpuIcon}>
           In use
-        </h2>
+        </CardTitle>
         <ul className="grid gap-4 lg:grid-cols-2">
           {TIERS.map((tier) => {
             const sw = switches.find((s) => s.tier === tier);
@@ -134,19 +129,13 @@ export default async function OfficeModels() {
                       <p className="mt-2 text-[0.9375rem] font-medium text-ink">{modelName(model)}</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {sw ? <Chip tone="accent">Switched</Chip> : <Chip>Default</Chip>}
+                      {sw ? <Chip kind="info">Switched</Chip> : <Chip>Default</Chip>}
                       {!check ? (
-                        <Chip>
-                          <QuestionIcon size={14} weight="bold" className="mr-1" aria-hidden /> Not checked yet
-                        </Chip>
+                        <Chip kind="unverified">Not checked yet</Chip>
                       ) : found ? (
-                        <Chip tone="verified">
-                          <CheckCircleIcon size={14} weight="bold" className="mr-1" aria-hidden /> Listed
-                        </Chip>
+                        <Chip kind="verified">Listed</Chip>
                       ) : (
-                        <Chip tone="failed">
-                          <WarningCircleIcon size={14} weight="bold" className="mr-1" aria-hidden /> Not listed
-                        </Chip>
+                        <Chip kind="failed">Not listed</Chip>
                       )}
                     </div>
                   </div>
@@ -201,9 +190,9 @@ export default async function OfficeModels() {
       </section>
 
       <section aria-labelledby="check-heading" className="grid gap-3">
-        <h2 id="check-heading" className="text-lg font-medium">
+        <CardTitle id="check-heading" icon={ListChecksIcon}>
           The daily check
-        </h2>
+        </CardTitle>
         {check ? (
           <div className="grid gap-3 rounded-md border border-line bg-surface p-5 shadow-e1">
             <p className="text-sm text-ink-2">
@@ -213,14 +202,14 @@ export default async function OfficeModels() {
               <ul className="grid gap-2">
                 {check.findings.map((f) => (
                   <li key={`${f.kind}-${f.tier}`} className="flex items-start gap-2 text-sm text-ink">
-                    <WarningCircleIcon size={18} weight="bold" className={`mt-0.5 shrink-0 ${f.kind === "missing" ? "text-failed" : "text-approval"}`} aria-hidden />
-                    {findingWords(f)}
+                    <WarningCircleIcon size={16} weight="fill" className={`mt-0.5 shrink-0 ${f.kind === "missing" ? "text-failed" : "text-caution"}`} aria-hidden />
+                    <span>{findingWords(f)}</span>
                   </li>
                 ))}
               </ul>
             ) : (
               <p className="flex items-center gap-2 text-sm text-ink">
-                <CheckCircleIcon size={18} weight="fill" className="text-verified" aria-hidden /> Every model in use is listed, and none has a newer one.
+                <CheckCircleIcon size={16} weight="fill" className="shrink-0 text-verified" aria-hidden /> Every model in use is listed, and none has a newer one.
               </p>
             )}
           </div>
@@ -230,9 +219,9 @@ export default async function OfficeModels() {
       </section>
 
       <section aria-labelledby="runs-heading" className="grid gap-4">
-        <h2 id="runs-heading" className="flex items-center gap-2 text-lg font-medium">
-          <PulseIcon size={20} className="text-ink-3" aria-hidden /> Canaries
-        </h2>
+        <CardTitle id="runs-heading" icon={PulseIcon}>
+          Canaries
+        </CardTitle>
         {runs.length === 0 ? <p className="text-sm text-ink-3">No canary has run yet.</p> : null}
         <ul className="grid gap-4">
           {runs.map((run) => {
@@ -264,7 +253,12 @@ export default async function OfficeModels() {
                   </div>
                   <RunStatus run={run} />
                 </div>
-                {run.failure ? <p className="text-sm text-failed">{run.failure}</p> : null}
+                {run.failure ? (
+                  <p className="flex items-start gap-2 text-sm text-failed">
+                    <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+                    <span>{run.failure}</span>
+                  </p>
+                ) : null}
                 {run.report ? (
                   <>
                     <ul className="grid gap-1.5">

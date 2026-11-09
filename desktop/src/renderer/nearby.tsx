@@ -5,37 +5,34 @@ import {
   ArrowsClockwiseIcon,
   BroadcastIcon,
   ClockCountdownIcon,
-  CheckCircleIcon,
   CircleNotchIcon,
   FolderOpenIcon,
   GlobeSimpleIcon,
   LinkSimpleIcon,
   MagnifyingGlassIcon,
-  WarningCircleIcon,
-  XCircleIcon,
 } from "@phosphor-icons/react";
-import type { Icon } from "@phosphor-icons/react";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { TransferState } from "@/core/mesh/protocol";
 import { formatBytes } from "@/core/workspace/files";
 import type { MeshSnapshot, MeshState, PreparedView, Result } from "../shared/api";
+import { Alert, StatusBadge, type Status } from "./status";
 
 const mesh = window.farbaek.mesh;
 
-// Status is a word (ADR 0180): a spinner while it works, an icon only for done and failed, none while it waits.
-const STATE: Record<TransferState, { label: string; icon: Icon | null; tone: string; spin?: boolean }> = {
-  packing: { label: "Packing", icon: CircleNotchIcon, tone: "info", spin: true },
-  connecting: { label: "Connecting", icon: CircleNotchIcon, tone: "info", spin: true },
-  waiting: { label: "Waiting for them", icon: null, tone: "approval" },
-  offered: { label: "Waiting for you", icon: null, tone: "approval" },
-  sending: { label: "Sending", icon: CircleNotchIcon, tone: "info", spin: true },
-  receiving: { label: "Receiving", icon: CircleNotchIcon, tone: "info", spin: true },
-  finishing: { label: "Checking", icon: CircleNotchIcon, tone: "info", spin: true },
-  done: { label: "Checked", icon: CheckCircleIcon, tone: "verified" },
-  declined: { label: "Declined", icon: null, tone: "neutral" },
-  cancelled: { label: "Cancelled", icon: null, tone: "neutral" },
-  interrupted: { label: "Interrupted", icon: null, tone: "approval" },
-  failed: { label: "Stopped", icon: XCircleIcon, tone: "failed" },
+// Every state has its kind (ADR 0183), as the web's Move projects page shows a transfer: its word, icon, colour and border.
+const STATE: Record<TransferState, { label: string; kind: Status }> = {
+  packing: { label: "Packing", kind: "working" },
+  connecting: { label: "Connecting", kind: "working" },
+  waiting: { label: "Waiting for them", kind: "pending" },
+  offered: { label: "Waiting for you", kind: "approval" },
+  sending: { label: "Sending", kind: "working" },
+  receiving: { label: "Receiving", kind: "working" },
+  finishing: { label: "Checking", kind: "working" },
+  done: { label: "Checked", kind: "verified" },
+  declined: { label: "Declined", kind: "off" },
+  cancelled: { label: "Cancelled", kind: "off" },
+  interrupted: { label: "Interrupted", kind: "paused" },
+  failed: { label: "Stopped", kind: "failed" },
 };
 
 const ACTIVE: ReadonlySet<TransferState> = new Set(["connecting", "waiting", "sending", "receiving", "finishing"]);
@@ -73,23 +70,6 @@ function timeLeft(until: string, now: number): string | null {
   if (s < 60) return "less than a minute";
   const m = Math.round(s / 60);
   return m === 1 ? "about 1 more minute" : `about ${m} more minutes`;
-}
-
-function Badge({ tone, icon: BadgeIcon = null, children, spin = false }: { tone: string; icon?: Icon | null; children: ReactNode; spin?: boolean }) {
-  return (
-    <span className={`badge badge-${tone}`}>
-      {BadgeIcon ? <BadgeIcon size={14} weight="bold" className={spin ? "spin" : ""} aria-hidden /> : null} {children}
-    </span>
-  );
-}
-
-function Alert({ children }: { children: ReactNode }) {
-  return (
-    <p role="alert" className="alert">
-      <WarningCircleIcon size={18} weight="bold" aria-hidden />
-      <span>{children}</span>
-    </p>
-  );
 }
 
 function Excluded({ items, count }: { items: { path: string; reason: string }[]; count: number }) {
@@ -179,7 +159,7 @@ function Nearby({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: stri
             <h2>
               {t.peer.name} wants to send {t.name}
             </h2>
-            <Badge tone="approval">Waiting for you</Badge>
+            <StatusBadge kind="approval">Waiting for you</StatusBadge>
           </div>
           <p className="muted">
             {t.files.toLocaleString("en-US")} {t.files === 1 ? "file" : "files"}, {formatBytes(t.bytes)}. It&apos;s saved into a new folder in the place you choose, and nothing
@@ -192,10 +172,10 @@ function Nearby({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: stri
           </p>
           <div className="row-start">
             <button className="btn btn-primary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("accept", () => mesh.accept(t.id))}>
-              <FolderOpenIcon size={16} aria-hidden /> Accept and choose folder
+              <FolderOpenIcon size={16} weight="bold" aria-hidden /> Accept and choose folder
             </button>
             <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("accept-update", () => mesh.acceptUpdate(t.id))}>
-              <ArrowsClockwiseIcon size={16} aria-hidden /> Update an earlier copy
+              <ArrowsClockwiseIcon size={16} weight="bold" aria-hidden /> Update an earlier copy
             </button>
             <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("decline", () => mesh.decline(t.id))}>
               Decline
@@ -216,11 +196,11 @@ function Nearby({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: stri
           </div>
           {s.visible ? (
             <span className="row-start">
-              <Badge tone={visibleLeft ? "verified" : "neutral"}>{visibleLeft ? "Visible" : "Closed"}</Badge>
+              <StatusBadge kind={visibleLeft ? "verified" : "off"}>{visibleLeft ? "Visible" : "Closed"}</StatusBadge>
               {visibleLeft ? <span className="small muted">for {visibleLeft}</span> : null}
             </span>
           ) : (
-            <Badge tone="neutral">Not visible</Badge>
+            <StatusBadge kind="off">Not visible</StatusBadge>
           )}
         </div>
         {s.visible ? (
@@ -246,7 +226,7 @@ function Nearby({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: stri
               {IS_MAC ? "macOS may ask to let Farbaek Agent find devices on your local network: choose Allow." : "Windows may ask to allow Farbaek Agent on private networks."}</p>
             <div className="row-start">
               <button className="btn btn-primary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("visible", () => mesh.setVisible(true))}>
-                <BroadcastIcon size={16} aria-hidden /> Be visible for 5 minutes
+                <BroadcastIcon size={16} weight="bold" aria-hidden /> Be visible for 5 minutes
               </button>
             </div>
           </>
@@ -281,17 +261,17 @@ function PairingCard({ pairing: p, now, act, busy }: { pairing: NonNullable<Mesh
       <div className="row">
         <h2>Pairing with {p.peer.name}</h2>
         {p.state === "paired" ? (
-          <Badge tone="verified" icon={CheckCircleIcon}>
-            Paired
-          </Badge>
+          <StatusBadge kind="verified">Paired</StatusBadge>
         ) : final ? (
-          <Badge tone="failed" icon={XCircleIcon}>
-            Not paired
-          </Badge>
+          <StatusBadge kind="failed">Not paired</StatusBadge>
         ) : codeLeft ? (
-          <Badge tone="approval">{p.state === "confirming" ? "Waiting for you" : "Waiting for them"}</Badge>
+          p.state === "confirming" ? (
+            <StatusBadge kind="approval">Waiting for you</StatusBadge>
+          ) : (
+            <StatusBadge kind="pending">Waiting for them</StatusBadge>
+          )
         ) : (
-          <Badge tone="neutral">Closed</Badge>
+          <StatusBadge kind="off">Closed</StatusBadge>
         )}
       </div>
       {!final ? (
@@ -341,7 +321,7 @@ function RelayCard({ snapshot: s, now, busy, act }: { snapshot: MeshSnapshot; no
     <div className="card stack-sm">
       <div className="row">
         <h2>Over the internet</h2>
-        {r.available && r.reachable ? <Badge tone="verified">Reachable</Badge> : <Badge tone="neutral">Not reachable</Badge>}
+        {r.available && r.reachable ? <StatusBadge kind="verified">Reachable</StatusBadge> : <StatusBadge kind="off">Not reachable</StatusBadge>}
       </div>
       <p className="muted">
         For your paired computers on other networks, while both apps are open. Farbaek helps the two find each other, then the files go directly between them when both networks
@@ -360,7 +340,7 @@ function RelayCard({ snapshot: s, now, busy, act }: { snapshot: MeshSnapshot; no
               </button>
             ) : (
               <button className="btn btn-primary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("reachable", () => mesh.setReachable(true))}>
-                <GlobeSimpleIcon size={16} aria-hidden /> Be reachable over the internet
+                <GlobeSimpleIcon size={16} weight="bold" aria-hidden /> Be reachable over the internet
               </button>
             )}
           </div>
@@ -380,7 +360,7 @@ function RelayCard({ snapshot: s, now, busy, act }: { snapshot: MeshSnapshot; no
             ) : (
               <div className="row-start">
                 <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("pair-remote", () => mesh.pairRemote(true))}>
-                  <LinkSimpleIcon size={16} aria-hidden /> Pair a phone or browser
+                  <LinkSimpleIcon size={16} weight="bold" aria-hidden /> Pair a phone or browser
                 </button>
               </div>
             )
@@ -406,7 +386,7 @@ function SendCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: st
           <p className="muted">Choose a folder. Its files are checked here first; credentials, keys, .env files and dependency folders stay on this computer.</p>
           <div className="row-start">
             <button className="btn btn-primary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("prepare", () => mesh.prepare())}>
-              {busy === "prepare" ? <CircleNotchIcon size={16} className="spin" aria-hidden /> : <FolderOpenIcon size={16} aria-hidden />}
+              {busy === "prepare" ? <CircleNotchIcon size={16} weight="bold" className="spin" aria-hidden /> : <FolderOpenIcon size={16} weight="bold" aria-hidden />}
               {busy === "prepare" ? "Checking files…" : "Choose a folder"}
             </button>
           </div>
@@ -442,7 +422,7 @@ function SendCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: st
               title={toPhone ? "Phones and browsers receive over the internet." : undefined}
               onClick={() => void act("send", () => mesh.send({ preparedId: prepared.id, fingerprint: chosen }))}
             >
-              <ArrowUpRightIcon size={16} aria-hidden /> Send
+              <ArrowUpRightIcon size={16} weight="bold" aria-hidden /> Send
             </button>
             <button
               className="btn btn-secondary btn-sm"
@@ -450,7 +430,7 @@ function SendCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: st
               disabled={busy !== null || !chosen || !s.relay.available}
               onClick={() => void act("send", () => mesh.sendOverInternet({ preparedId: prepared.id, fingerprint: chosen }))}
             >
-              <GlobeSimpleIcon size={16} aria-hidden /> Send over the internet
+              <GlobeSimpleIcon size={16} weight="bold" aria-hidden /> Send over the internet
             </button>
             <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("drop", () => mesh.dropPrepared(prepared.id))}>
               Choose another folder
@@ -472,7 +452,7 @@ function SendCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: st
 
 function TransferRow({ transfer: t, busy, act }: { transfer: MeshSnapshot["transfers"][number]; busy: string | null; act: Act }) {
   // A transfer waiting for its device (ADR 0138) isn't stuck: it says so.
-  const st = t.queuedUntil && t.state === "interrupted" ? { label: "Waiting for it", icon: null, tone: "approval", spin: false } : STATE[t.state];
+  const st: { label: string; kind: Status } = t.queuedUntil && t.state === "interrupted" ? { label: "Waiting for it", kind: "pending" } : STATE[t.state];
   const pct = t.bytes === 0 ? (t.state === "done" ? 100 : 0) : Math.min(100, Math.round((t.bytesDone / t.bytes) * 100));
   const DirIcon = t.direction === "out" ? ArrowUpRightIcon : ArrowDownLeftIcon;
   return (
@@ -484,9 +464,7 @@ function TransferRow({ transfer: t, busy, act }: { transfer: MeshSnapshot["trans
             {t.direction === "out" ? `${t.name} to ${t.peer.name}` : `${t.name} from ${t.peer.name}`}
           </span>
         </p>
-        <Badge tone={st.tone} icon={st.icon} spin={st.spin}>
-          {st.label}
-        </Badge>
+        <StatusBadge kind={st.kind}>{st.label}</StatusBadge>
       </div>
       {!FINAL.has(t.state) || t.state === "done" ? (
         <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label="Bytes transferred">
@@ -498,17 +476,17 @@ function TransferRow({ transfer: t, busy, act }: { transfer: MeshSnapshot["trans
       </p>
       {t.via !== "nearby" ? (
         <p className="small muted">
-          <GlobeSimpleIcon size={14} aria-hidden /> {t.via === "direct" ? "Directly over the internet, encrypted end to end" : "Through Farbaek, encrypted end to end"}
+          <GlobeSimpleIcon size={14} weight="bold" className="glyph" aria-hidden /> {t.via === "direct" ? "Directly over the internet, encrypted end to end" : "Through Farbaek, encrypted end to end"}
         </p>
       ) : null}
       {t.direction === "in" && t.reused.bytes > 0 ? (
         <p className="small muted">
-          <ArrowsClockwiseIcon size={14} aria-hidden /> {formatBytes(t.reused.bytes)} copied from the earlier copy on this computer instead of sent
+          <ArrowsClockwiseIcon size={14} weight="bold" className="glyph" aria-hidden /> {formatBytes(t.reused.bytes)} copied from the earlier copy on this computer instead of sent
         </p>
       ) : null}
       {t.queuedUntil ? (
         <p className="small muted">
-          <ClockCountdownIcon size={14} aria-hidden /> Waits until <time dateTime={t.queuedUntil}>{new Date(t.queuedUntil).toLocaleString()}</time>
+          <ClockCountdownIcon size={14} weight="bold" className="glyph" aria-hidden /> Waits until <time dateTime={t.queuedUntil}>{new Date(t.queuedUntil).toLocaleString()}</time>
         </p>
       ) : null}
       {t.message ? <p className="small">{t.message}</p> : null}
@@ -516,7 +494,7 @@ function TransferRow({ transfer: t, busy, act }: { transfer: MeshSnapshot["trans
         {t.direction === "out" && t.state === "interrupted" && t.queuedUntil ? (
           <>
             <button className="btn btn-primary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("retry", () => mesh.retryQueued())}>
-              <ArrowCounterClockwiseIcon size={16} aria-hidden /> Try now
+              <ArrowCounterClockwiseIcon size={16} weight="bold" aria-hidden /> Try now
             </button>
             <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("unqueue", () => mesh.unqueue(t.id))}>
               Stop waiting
@@ -525,22 +503,22 @@ function TransferRow({ transfer: t, busy, act }: { transfer: MeshSnapshot["trans
         ) : null}
         {t.direction === "out" && t.state === "interrupted" && !t.queuedUntil && !t.canUseRelay ? (
           <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("queue", () => mesh.queue(t.id))}>
-            <ClockCountdownIcon size={16} aria-hidden /> Send when it&apos;s back
+            <ClockCountdownIcon size={16} weight="bold" aria-hidden /> Send when it&apos;s back
           </button>
         ) : null}
         {t.direction === "in" && t.state === "done" ? (
           <button className="btn btn-secondary btn-sm" type="button" onClick={() => void act("open", () => mesh.openFolder(t.id))}>
-            <FolderOpenIcon size={16} aria-hidden /> Open folder
+            <FolderOpenIcon size={16} weight="bold" aria-hidden /> Open folder
           </button>
         ) : null}
         {t.direction === "out" && t.state === "interrupted" && t.canUseRelay ? (
           <button className="btn btn-primary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("relay", () => mesh.useRelay(t.id))}>
-            <GlobeSimpleIcon size={16} aria-hidden /> Send through Farbaek instead
+            <GlobeSimpleIcon size={16} weight="bold" aria-hidden /> Send through Farbaek instead
           </button>
         ) : null}
         {t.direction === "out" && t.state === "interrupted" && !t.queuedUntil ? (
           <button className={`btn ${t.canUseRelay ? "btn-secondary" : "btn-primary"} btn-sm`} type="button" disabled={busy !== null} onClick={() => void act("resume", () => mesh.resume(t.id))}>
-            <ArrowCounterClockwiseIcon size={16} aria-hidden /> {t.canUseRelay ? "Try directly again" : "Resume"}
+            <ArrowCounterClockwiseIcon size={16} weight="bold" aria-hidden /> {t.canUseRelay ? "Try directly again" : "Resume"}
           </button>
         ) : null}
         {ACTIVE.has(t.state) ? (
@@ -574,7 +552,7 @@ function ComputersCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; bus
       <div className="row">
         <h2>Computers</h2>
         <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("look", () => mesh.setLooking(!s.looking))}>
-          <MagnifyingGlassIcon size={16} aria-hidden /> {s.looking ? "Stop looking" : "Look for computers"}
+          <MagnifyingGlassIcon size={16} weight="bold" aria-hidden /> {s.looking ? "Stop looking" : "Look for computers"}
         </button>
       </div>
 
@@ -589,7 +567,7 @@ function ComputersCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; bus
                   {n.name} <span className="mono small muted">{grouped(n.fingerprint)}</span>
                 </span>
                 <button className="btn btn-primary btn-sm" type="button" disabled={busy !== null || Boolean(s.pairing && (s.pairing.state === "confirming" || s.pairing.state === "waiting"))} onClick={() => void act("pair", () => mesh.pair({ address: n.address, port: n.port }))}>
-                  <LinkSimpleIcon size={16} aria-hidden /> Pair
+                  <LinkSimpleIcon size={16} weight="bold" aria-hidden /> Pair
                 </button>
               </li>
             ))}

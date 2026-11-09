@@ -31,9 +31,9 @@ export default async function AdminWorkspaces() {
               </Cell>
               <Cell>
                 <span className="flex flex-wrap items-center gap-1.5">
-                  <Chip tone={w.trialDaysLeft !== null ? "accent" : "neutral"}>{w.plan}</Chip>
+                  <Chip>{w.plan}</Chip>
                   {w.trialDaysLeft !== null ? (
-                    <span className={`text-xs ${w.trialDaysLeft <= 3 ? "text-approval" : "text-ink-3"}`}>
+                    <span className={`text-xs ${w.trialDaysLeft <= 3 ? "text-caution" : "text-ink-3"}`}>
                       {w.trialDaysLeft} {w.trialDaysLeft === 1 ? "day" : "days"} left
                     </span>
                   ) : null}

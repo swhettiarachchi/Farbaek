@@ -11,12 +11,15 @@ import {
   ArrowCounterClockwiseIcon,
   CheckCircleIcon,
   CheckIcon,
+  CircleDashedIcon,
+  CircleNotchIcon,
   MinusIcon,
   TerminalWindowIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { ProofPackSeal } from "@/components/proof/proofpack-seal";
+import { StatusBadge, StatusGlyph } from "@/components/ui/status-badge";
 import { mix, progress, typed } from "../timeline";
 import { AppShell, LiveView, MobileShell, SAMPLE, type NavKey } from "./app-ui";
 import { AppWindow } from "./primitives";
@@ -69,7 +72,7 @@ function ReviewView({ t, from, rejectAt }: { t: number; from: number; rejectAt: 
           <p className="text-xs text-ink-3">{SAMPLE.project}</p>
           <h1 className="text-[1.5rem] font-medium tracking-[-0.03em] max-sm:text-[1.2rem]">Change to review</h1>
         </div>
-        <span className="inline-flex h-7 items-center rounded-full border border-approval/30 bg-approval/[0.06] px-3 text-xs font-medium text-approval">Waiting for your approval</span>
+        <StatusBadge status="approval" label="Waiting for your approval" />
       </div>
       <div data-lift="hunks" className="grid gap-4">
         {HUNKS.map((h, i) => {
@@ -124,7 +127,7 @@ function ApproveView({ t, appliedAt, editAt }: { t: number; appliedAt: number; e
       <div data-lift="approve" className="grid gap-4">
         <div className="flex flex-wrap items-center gap-3">
           <span data-film-click="apply" className={`inline-flex h-11 items-center gap-2 rounded-full px-5 text-sm font-medium ${applied ? "border border-verified/40 text-verified" : "bg-primary text-on-primary shadow-e1"}`}>
-            {applied ? <CheckCircleIcon size={16} weight="bold" aria-hidden /> : <CheckIcon size={16} weight="bold" aria-hidden />}
+            {applied ? <CheckCircleIcon size={16} weight="fill" aria-hidden /> : <CheckIcon size={16} weight="bold" aria-hidden />}
             {applied ? "Applied" : "Approve and apply 2 files"}
           </span>
         </div>
@@ -135,19 +138,19 @@ function ApproveView({ t, appliedAt, editAt }: { t: number; appliedAt: number; e
           </p>
           <p className="rounded-sm bg-surface-raised px-3 py-2 font-mono text-[12.5px] text-ink">
             {'<span id="status-text">Open every day, 6.30 am to '}
-            {edited ? <span className="rounded-[4px] bg-approval/20 px-0.5">{editText || "7 pm"}</span> : "7 pm"}
+            {edited ? <span className="rounded-[4px] bg-caution/15 px-0.5">{editText || "7 pm"}</span> : "7 pm"}
             {"</span>"}
           </p>
           {edited ? (
-            <p className="flex items-start gap-2 rounded-sm border border-approval/40 bg-approval/[0.06] px-3 py-2 text-sm" style={{ opacity: progress(t, editAt + 900, editAt + 1300) }}>
-              <WarningCircleIcon size={17} className="mt-px shrink-0 text-approval" aria-hidden />
+            <p className="flex items-start gap-2 rounded-sm border border-caution/35 bg-caution/[0.05] px-3 py-2 text-sm" style={{ opacity: progress(t, editAt + 900, editAt + 1300) }}>
+              <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
               <span>
                 Now <code className="font-mono text-[12.5px]">{short(DRIFTED)}</code>. It no longer matches what you approved, so it can&apos;t be applied without approving again.
               </span>
             </p>
           ) : (
             <p className="flex items-center gap-2 text-sm text-verified">
-              <CheckCircleIcon size={16} weight="bold" aria-hidden /> Matches what you saw
+              <CheckCircleIcon size={16} weight="fill" className="shrink-0" aria-hidden /> Matches what you saw
             </p>
           )}
         </div>
@@ -183,17 +186,22 @@ function ChecksView({ t, from }: { t: number; from: number }) {
             return (
               <li key={c.cmd} className="flex flex-wrap items-center justify-between gap-2">
                 <span className="flex min-w-0 items-center gap-2">
-                  <TerminalWindowIcon size={14} className="shrink-0 text-media-ink-3" aria-hidden />
+                  <TerminalWindowIcon size={14} weight="bold" className="shrink-0 text-media-ink-3" aria-hidden />
                   <span className="truncate">{c.cmd}</span>
                 </span>
+                {/* The product's kinds in the media panel's own colours: working, verified, and not run (ADR 0183). */}
                 {!done ? (
-                  <span className="text-media-ink-3">running…</span>
+                  <span className="inline-flex items-center gap-1 text-media-ink-3">
+                    <CircleNotchIcon size={14} weight="bold" className="shrink-0" style={{ transform: `rotate(${(local / 3) % 360}deg)` }} aria-hidden /> running…
+                  </span>
                 ) : c.result === "pass" ? (
                   <span className="inline-flex items-center gap-1 text-media-green">
-                    <CheckCircleIcon size={13} weight="bold" aria-hidden /> Passed · exit 0
+                    <CheckCircleIcon size={14} weight="fill" className="shrink-0" aria-hidden /> Passed · exit 0
                   </span>
                 ) : (
-                  <span className="text-media-ink-2">Didn&apos;t run: no test script</span>
+                  <span className="inline-flex items-center gap-1 text-media-ink-2">
+                    <CircleDashedIcon size={14} weight="bold" className="shrink-0" aria-hidden /> Didn&apos;t run: no test script
+                  </span>
                 )}
               </li>
             );
@@ -229,7 +237,7 @@ function ProofView({ t, from }: { t: number; from: number }) {
             <ul className="mt-2 grid gap-1.5 text-[13.5px] text-ink-2">
               {["Which exact files were checked", "Which commands ran, and their results", "Which plan and approval it ran under"].map((l) => (
                 <li key={l} className="flex gap-2">
-                  <CheckCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden /> {l}
+                  <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden /> {l}
                 </li>
               ))}
             </ul>
@@ -265,12 +273,15 @@ function UndoView({ t, from, undoAt }: { t: number; from: number; undoAt: number
           {["index.html", "styles.css"].map((f) => (
             <li key={f} className="flex items-center justify-between gap-3 rounded-sm border border-line bg-surface px-4 py-2.5 text-sm">
               <span className="font-mono text-[13px]">{f}</span>
-              <span className={done ? "text-verified" : "text-ink-3"}>{done ? "Back to revision 3" : "Revision 4, back to 3"}</span>
+              <span className={`inline-flex items-center gap-1.5 ${done ? "text-verified" : "text-ink-3"}`}>
+                {done ? <StatusGlyph status="verified" size={14} /> : null}
+                {done ? "Back to revision 3" : "Revision 4, back to 3"}
+              </span>
             </li>
           ))}
         </ul>
         <span data-film-click="undo" className={`inline-flex h-11 w-fit items-center gap-2 rounded-full px-5 text-sm font-medium ${done ? "border border-verified/40 text-verified" : "bg-primary text-on-primary shadow-e1"}`}>
-          {done ? <CheckCircleIcon size={16} weight="bold" aria-hidden /> : <ArrowCounterClockwiseIcon size={17} aria-hidden />}
+          {done ? <CheckCircleIcon size={16} weight="fill" aria-hidden /> : <ArrowCounterClockwiseIcon size={16} weight="bold" aria-hidden />}
           {done ? "Undone, and recorded" : "Undo 2 files"}
         </span>
       </div>

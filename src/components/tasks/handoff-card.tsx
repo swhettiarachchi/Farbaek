@@ -1,22 +1,31 @@
-import { CheckCircleIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { DesktopIcon } from "@phosphor-icons/react/ssr";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { RelativeTime } from "@/components/ui/local-time";
 import { ButtonLink } from "@/components/ui/button";
+import { StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { HANDOFF_STATUS_WORDS, handoffVerdict, type HandoffStatus } from "@/core/agent/handoff";
 import type { HandoffView } from "@/server/agent/handoffs";
 import { cancelHandoffAction } from "@/app/app/tasks/handoff-actions";
 import { ConfirmAction } from "@/components/ui/confirm-action";
 import { HandOff } from "./hand-off";
 
-// A state is its words in a colour and border (ADR 0180); a mark only for how it ended.
-const STATUS: Record<HandoffStatus, { Icon: typeof CheckCircleIcon | null; className: string }> = {
-  waiting: { Icon: null, className: "border-approval/40 text-approval" },
-  opened: { Icon: null, className: "border-info/40 text-info" },
-  done: { Icon: CheckCircleIcon, className: "border-line text-ink-2" },
-  failed: { Icon: WarningCircleIcon, className: "border-dashed border-failed/40 text-failed" },
-  cancelled: { Icon: null, className: "border-dashed border-line-strong text-ink-3" },
-  expired: { Icon: null, className: "border-dashed border-line-strong text-ink-3" },
+// Each state is a status kind with its icon (ADR 0183): waiting is your turn to start it on the computer.
+const STATUS: Record<HandoffStatus, Status> = {
+  waiting: "approval",
+  opened: "info",
+  done: "done",
+  failed: "failed",
+  cancelled: "off",
+  expired: "off",
 };
+
+/** One reported check as a kind, for the icon beside its words. */
+function checkKind(c: { exitCode: number | null; skipped?: string | null; timedOut?: boolean }): Status {
+  if (c.skipped) return "off";
+  if (c.timedOut) return "attention";
+  if (c.exitCode === 0) return "verified";
+  return c.exitCode === null ? "unverified" : "failed";
+}
 
 const seconds = (ms: number | null) => (ms === null ? null : ms < 1000 ? "under 1 s" : `${Math.round(ms / 1000)} s`);
 
@@ -31,8 +40,8 @@ export function HandoffCard({ taskId, computers, handoffs, disabledReason }: { t
   return (
     <section aria-labelledby="handoff-heading" className="grid gap-4 rounded-md border border-line bg-canvas-2/60 p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 id="handoff-heading" className="text-base font-medium">
-          Continue on your computer
+        <h3 id="handoff-heading" className="flex items-center gap-2 text-base font-medium">
+          <DesktopIcon size={20} className="shrink-0 text-ink-3" aria-hidden /> Continue on your computer
         </h3>
         <span className="text-xs text-ink-3">Runs only when you start it there</span>
       </div>
@@ -54,15 +63,12 @@ export function HandoffCard({ taskId, computers, handoffs, disabledReason }: { t
       {handoffs.length > 0 ? (
         <ul className="grid divide-y divide-line rounded-sm border border-line bg-surface">
           {handoffs.map((h) => {
-            const s = STATUS[h.status];
             const v = h.result ? handoffVerdict(h.result) : null;
             return (
               <li key={h.id} className="grid gap-2.5 px-3 py-3.5 sm:px-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-[0.9375rem] font-medium">{h.agentName}</p>
-                  <span className={`inline-flex h-6 items-center gap-1 rounded-full border px-2.5 text-xs font-medium ${s.className}`}>
-                    {s.Icon ? <s.Icon size={13} weight="bold" aria-hidden /> : null} {HANDOFF_STATUS_WORDS[h.status]}
-                  </span>
+                  <StatusBadge status={STATUS[h.status]} label={HANDOFF_STATUS_WORDS[h.status]} />
                 </div>
                 <p className="text-xs text-ink-3">
                   Sent <RelativeTime iso={h.createdAt} />
@@ -72,15 +78,16 @@ export function HandoffCard({ taskId, computers, handoffs, disabledReason }: { t
                 {h.result && v ? (
                   <div className="grid gap-2">
                     <p className={`flex items-center gap-2 text-sm font-medium ${v.verdict === "all_passed" ? "text-verified" : v.verdict === "some_failed" ? "text-failed" : "text-unverified"}`}>
-                      {v.verdict === "all_passed" ? <CheckCircleIcon size={18} weight="bold" aria-hidden /> : v.verdict === "some_failed" ? <XCircleIcon size={18} weight="bold" aria-hidden /> : null}
+                      <StatusGlyph status={v.verdict === "all_passed" ? "verified" : v.verdict === "some_failed" ? "failed" : "unverified"} />
                       {v.verdict === "none_ran" ? "No check ran on that computer." : `${v.passed} of ${h.result.length} ${h.result.length === 1 ? "check" : "checks"} passed on ${h.agentName}.`}
                     </p>
                     <ul className="grid gap-1.5">
                       {h.result.map((c, i) => (
                         <li key={`${c.command}-${i}`} className="grid gap-1">
-                          <p className="flex flex-wrap items-baseline gap-x-3 text-sm">
+                          <p className="flex flex-wrap items-center gap-x-3 text-sm">
+                            <StatusGlyph status={checkKind(c)} className="-mr-1.5" />
                             <span className="min-w-0 break-all font-mono text-[0.78125rem] text-ink">{c.command}</span>
-                            <span className={c.exitCode === 0 ? "text-verified" : c.exitCode === null ? "text-unverified" : "text-failed"}>
+                            <span className={c.exitCode === 0 ? "text-verified" : c.timedOut ? "text-caution" : c.exitCode === null ? "text-unverified" : "text-failed"}>
                               {c.skipped ? `Didn't run: ${c.skipped}` : c.timedOut ? "Ran out of time" : c.exitCode === 0 ? "Passed" : c.exitCode === null ? "Didn't finish" : `Didn't pass (exit ${c.exitCode})`}
                             </span>
                             {seconds(c.durationMs) ? <span className="text-xs text-ink-3">{seconds(c.durationMs)}</span> : null}

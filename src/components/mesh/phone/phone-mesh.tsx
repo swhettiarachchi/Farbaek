@@ -1,9 +1,9 @@
 "use client";
 
-import { ArrowUpRightIcon, CheckCircleIcon, CircleNotchIcon, DesktopIcon, GlobeSimpleIcon, LinkSimpleIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
-import type { Icon } from "@phosphor-icons/react";
+import { ArrowUpRightIcon, CheckCircleIcon, DesktopIcon, GlobeSimpleIcon, InfoIcon, LinkSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { buttonClasses } from "@/components/ui/button";
+import { StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-badge";
 import type { TransferState } from "@/core/mesh/protocol";
 import { WebDirectError, openDirectWeb } from "@/core/mesh/web/direct";
 import { packPicked, WebPackError } from "@/core/mesh/web/pack";
@@ -23,41 +23,37 @@ export interface WorkspaceComputer {
   reachableNow: boolean;
 }
 
-const STATE: Record<TransferState, { label: string; icon: Icon | null; tone: string; spin?: boolean }> = {
-  packing: { label: "Checking files", icon: CircleNotchIcon, tone: "text-ink-2", spin: true },
-  connecting: { label: "Connecting", icon: CircleNotchIcon, tone: "text-ink-2", spin: true },
-  waiting: { label: "Waiting for them", icon: null, tone: "text-approval" },
-  offered: { label: "Waiting for you", icon: null, tone: "text-approval" },
-  sending: { label: "Sending", icon: CircleNotchIcon, tone: "text-ink-2", spin: true },
-  receiving: { label: "Receiving", icon: CircleNotchIcon, tone: "text-ink-2", spin: true },
-  finishing: { label: "Checking", icon: CircleNotchIcon, tone: "text-ink-2", spin: true },
-  done: { label: "Delivered", icon: CheckCircleIcon, tone: "text-verified" },
-  declined: { label: "Declined", icon: null, tone: "text-ink-3" },
-  cancelled: { label: "Cancelled", icon: null, tone: "text-ink-3" },
-  interrupted: { label: "Stopped", icon: null, tone: "text-approval" },
-  failed: { label: "Stopped", icon: XCircleIcon, tone: "text-failed" },
+// Each transfer state is one of the shared kinds (ADR 0183): its words, icon, colour and border together.
+const STATE: Record<TransferState, { label: string; kind: Status }> = {
+  packing: { label: "Checking files", kind: "working" },
+  connecting: { label: "Connecting", kind: "working" },
+  waiting: { label: "Waiting for them", kind: "pending" },
+  offered: { label: "Waiting for you", kind: "approval" },
+  sending: { label: "Sending", kind: "working" },
+  receiving: { label: "Receiving", kind: "working" },
+  finishing: { label: "Checking", kind: "working" },
+  done: { label: "Delivered", kind: "verified" },
+  declined: { label: "Declined", kind: "off" },
+  cancelled: { label: "Cancelled", kind: "off" },
+  interrupted: { label: "Stopped", kind: "paused" },
+  failed: { label: "Stopped", kind: "failed" },
 };
 
 const grouped = (fp: string) => fp.match(/.{1,4}/g)?.join(" ") ?? fp;
 const defaultName = () => (/iPhone|iPad|Android/i.test(navigator.userAgent) ? "Phone" : "Browser");
 
-function Note({
-  tone = "text-ink-2",
-  icon: NoteIcon = WarningCircleIcon,
-  spin = false,
-  role,
-  children,
-}: {
-  tone?: string;
-  icon?: Icon;
-  /** A spinner for live work. */
-  spin?: boolean;
-  role?: "alert" | "status";
-  children: ReactNode;
-}) {
+/** A line with the icon of what it is: information, an error, or work going on. */
+function Note({ kind, role, children }: { kind: "info" | "error" | "working"; role?: "alert" | "status"; children: ReactNode }) {
   return (
-    <p role={role} className={`flex items-start gap-2 text-sm ${tone}`}>
-      <NoteIcon size={16} className={`mt-0.5 shrink-0 ${spin ? "motion-safe:animate-spin" : ""}`} aria-hidden /> <span>{children}</span>
+    <p role={role} className={`flex items-start gap-2 text-sm ${kind === "error" ? "text-failed" : kind === "working" ? "text-ink-3" : "text-ink-2"}`}>
+      {kind === "error" ? (
+        <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+      ) : kind === "working" ? (
+        <StatusGlyph status="working" size={16} className="mt-0.5" />
+      ) : (
+        <InfoIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-info" aria-hidden />
+      )}
+      <span>{children}</span>
     </p>
   );
 }
@@ -102,11 +98,16 @@ export function PhoneMesh({ computers, unavailable }: { computers: WorkspaceComp
     };
   }, [unavailable]);
 
-  if (unavailable) return <Note>{unavailable}</Note>;
-  if (problem && !device) return <Note role="alert">{problem}</Note>;
+  if (unavailable) return <Note kind="info">{unavailable}</Note>;
+  if (problem && !device)
+    return (
+      <Note kind="error" role="alert">
+        {problem}
+      </Note>
+    );
   if (!device)
     return (
-      <Note tone="text-ink-3" icon={CircleNotchIcon} spin role="status">
+      <Note kind="working" role="status">
         Getting this browser ready…
       </Note>
     );
@@ -189,7 +190,7 @@ export function PhoneMesh({ computers, unavailable }: { computers: WorkspaceComp
       </div>
 
       {pairing ? (
-        <div className="grid gap-3 rounded-md border border-accent/30 bg-accent/[0.04] p-4" aria-live="polite">
+        <div className="grid gap-3 rounded-md border border-approval/30 bg-approval/[0.04] p-4" aria-live="polite">
           <p className="text-sm font-medium text-ink">Pairing with {pairing.computer.name}</p>
           {pairing.active ? (
             <>
@@ -243,7 +244,7 @@ export function PhoneMesh({ computers, unavailable }: { computers: WorkspaceComp
                   </span>
                 ) : (
                   <button type="button" className={buttonClasses("secondary", "sm")} disabled={busy !== null || pairing?.active === true} onClick={() => void pair(c)}>
-                    <LinkSimpleIcon size={16} aria-hidden /> Pair
+                    <LinkSimpleIcon size={16} weight="bold" aria-hidden /> Pair
                   </button>
                 )}
               </li>
@@ -276,7 +277,7 @@ export function PhoneMesh({ computers, unavailable }: { computers: WorkspaceComp
             {files.length > 0 ? <p className="text-xs text-ink-3">{`${files.length} ${files.length === 1 ? "file" : "files"}, ${formatBytes(files.reduce((n, f) => n + f.size, 0))}. Files that hold keys or passwords stay on this device.`}</p> : null}
             <div className="flex flex-wrap gap-2">
               <button type="button" className={buttonClasses("primary", "sm")} disabled={busy !== null || files.length === 0 || !chosen || (transfer !== null && !["done", "failed", "declined", "cancelled", "interrupted"].includes(transfer.state))} onClick={() => void send()}>
-                <ArrowUpRightIcon size={16} aria-hidden /> {busy === "send" ? "Checking files…" : "Send over the internet"}
+                <ArrowUpRightIcon size={16} weight="bold" aria-hidden /> {busy === "send" ? "Checking files…" : "Send over the internet"}
               </button>
             </div>
             <p className="text-xs text-ink-3">The computer must be open and reachable. The files go directly when both networks allow it, encrypted end to end, and the computer checks every piece.</p>
@@ -288,22 +289,20 @@ export function PhoneMesh({ computers, unavailable }: { computers: WorkspaceComp
         <div className="grid gap-2 rounded-md border border-line p-4" aria-live="polite">
           <p className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <span className="text-ink">{`${transfer.name} to ${transfer.device.name}`}</span>
-            <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${st.tone}`}>
-              {st.icon ? <st.icon size={14} weight="bold" className={st.spin ? "motion-safe:animate-spin" : ""} aria-hidden /> : null} {st.label}
-            </span>
+            <StatusBadge status={st.kind} label={st.label} />
           </p>
           <div className="h-1.5 overflow-hidden rounded-full bg-surface-raised" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label="Bytes sent">
             <span className="block h-full bg-accent" style={{ width: `${pct}%` }} />
           </div>
           <p className="text-xs text-ink-3">{`${formatBytes(transfer.bytesDone)} of ${formatBytes(transfer.bytes)}, ${transfer.files} ${transfer.files === 1 ? "file" : "files"}`}</p>
           <p className="flex items-center gap-1.5 text-xs text-ink-3">
-            <GlobeSimpleIcon size={14} aria-hidden /> {transfer.via === "direct" ? "Directly over the internet, encrypted end to end" : "Through Farbaek, encrypted end to end"}
+            <GlobeSimpleIcon size={14} weight="bold" className="shrink-0" aria-hidden /> {transfer.via === "direct" ? "Directly over the internet, encrypted end to end" : "Through Farbaek, encrypted end to end"}
           </p>
           {transfer.message ? <p className="text-sm text-ink-2">{transfer.message}</p> : null}
           <div className="flex flex-wrap gap-2">
             {transfer.canUseRelay ? (
               <button type="button" className={buttonClasses("primary", "sm")} onClick={() => void outgoing?.useRelay()}>
-                <GlobeSimpleIcon size={16} aria-hidden /> Send through Farbaek instead
+                <GlobeSimpleIcon size={16} weight="bold" aria-hidden /> Send through Farbaek instead
               </button>
             ) : null}
             {transfer.state === "interrupted" ? (
@@ -321,7 +320,7 @@ export function PhoneMesh({ computers, unavailable }: { computers: WorkspaceComp
       ) : null}
 
       {problem ? (
-        <Note tone="text-failed" role="alert">
+        <Note kind="error" role="alert">
           {problem}
         </Note>
       ) : null}
@@ -336,7 +335,7 @@ export function PhoneMesh({ computers, unavailable }: { computers: WorkspaceComp
               <li key={c.fingerprint} className="flex flex-wrap items-center justify-between gap-2 py-2">
                 <div className="grid min-w-0">
                   <span className="flex min-w-0 items-center gap-2 text-sm text-ink">
-                    <DesktopIcon size={16} className="shrink-0 text-ink-3" aria-hidden /> <span className="min-w-0 break-words">{c.name}</span>
+                    <DesktopIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> <span className="min-w-0 break-words">{c.name}</span>
                   </span>
                   <details className="text-xs text-ink-3">
                     <summary className="flex min-h-11 cursor-pointer items-center">Technical details</summary>

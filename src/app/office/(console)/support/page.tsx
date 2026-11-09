@@ -1,4 +1,4 @@
-import { CaretRightIcon, ChatsCircleIcon, FlagIcon, LifebuoyIcon, UserCircleIcon } from "@phosphor-icons/react/ssr";
+import { CaretRightIcon, FlagIcon, LifebuoyIcon, UserCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Chip } from "@/components/admin/table";
@@ -67,12 +67,12 @@ export default async function OfficeSupport({ searchParams }: { searchParams: Pr
           aria-pressed={abuse}
           className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm transition-colors duration-150 ${abuse ? "border-failed/35 bg-failed/[0.06] font-medium text-failed" : "border-line bg-surface text-ink-2 hover:text-ink"}`}
         >
-          <FlagIcon size={15} weight={abuse ? "fill" : "regular"} aria-hidden /> {abuse ? "Abuse reports only" : "Only abuse reports"}
+          <FlagIcon size={16} weight="bold" aria-hidden /> {abuse ? "Abuse reports only" : "Only abuse reports"}
         </Link>
       </div>
 
       {rows.length === 0 ? (
-        <EmptyState icon={ChatsCircleIcon} title={abuse ? "No abuse reports here" : "All clear"}>
+        <EmptyState icon={LifebuoyIcon} title={abuse ? "No abuse reports here" : "All clear"}>
           {EMPTY[status]}
         </EmptyState>
       ) : (
@@ -83,16 +83,16 @@ export default async function OfficeSupport({ searchParams }: { searchParams: Pr
                 <span className="grid min-w-0 gap-1.5">
                   <span className="flex min-w-0 flex-wrap items-center gap-2">
                     <span className="truncate text-[0.9375rem] font-medium text-ink">{r.subject}</span>
-                    <Chip tone={r.topic === "abuse" ? "failed" : "neutral"}>
-                      {r.topic === "abuse" ? <FlagIcon size={12} weight="fill" className="mr-1" aria-hidden /> : null}
-                      {TOPIC_LABELS[r.topic]}
-                    </Chip>
-                    {r.priority ? (
-                      <Chip tone="accent">
-                        <LifebuoyIcon size={12} weight="fill" className="mr-1" aria-hidden />
-                        Priority
-                      </Chip>
-                    ) : null}
+                    {/* A topic is a tag; an abuse report keeps its flag, in the failed colour, so it can't be missed. */}
+                    {r.topic === "abuse" ? (
+                      <span className="inline-flex h-6 items-center gap-1.5 whitespace-nowrap rounded-full border border-failed/35 px-2.5 text-xs font-medium text-failed">
+                        <FlagIcon size={14} weight="bold" className="shrink-0" aria-hidden />
+                        {TOPIC_LABELS[r.topic]}
+                      </span>
+                    ) : (
+                      <Chip>{TOPIC_LABELS[r.topic]}</Chip>
+                    )}
+                    {r.priority ? <Chip>Priority</Chip> : null}
                   </span>
                   <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-3">
                     <span className="break-all">{r.email}</span>
@@ -108,10 +108,10 @@ export default async function OfficeSupport({ searchParams }: { searchParams: Pr
                     {status === "waiting_on_farbaek" ? "" : " ago"}
                   </span>
                   <span className="inline-flex items-center gap-1">
-                    <UserCircleIcon size={15} aria-hidden />
+                    <UserCircleIcon size={16} weight="bold" aria-hidden />
                     {r.assignee === null ? "Unassigned" : r.assignee === "you" ? "You" : r.assignee}
                   </span>
-                  <CaretRightIcon size={15} className="text-ink-3 transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden />
+                  <CaretRightIcon size={16} weight="bold" className="text-ink-3 transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden />
                 </span>
               </Link>
             </li>

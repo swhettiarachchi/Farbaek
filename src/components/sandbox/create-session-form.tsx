@@ -1,8 +1,9 @@
 "use client";
 
-import { CpuIcon, GlobeIcon, HardDrivesIcon, MemoryIcon, ShieldCheckIcon, TimerIcon } from "@phosphor-icons/react";
+import { CpuIcon, GlobeIcon, HardDrivesIcon, MemoryIcon, ShieldCheckIcon, TimerIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useMemo, useState } from "react";
 import { createSandboxSessionAction, type CreateSessionState } from "@/app/app/sandbox/actions";
+import { CardTitle } from "@/components/app/primitives";
 import { buttonClasses } from "@/components/ui/button";
 import { NETWORK_PROFILE_LABELS, NETWORK_PROFILES, REGISTRY_HOSTS, type NetworkProfile } from "@/core/sandbox/network";
 import { SANDBOX_SIZES, SANDBOX_TEMPLATES, SIZE_IDS, TEMPLATE_IDS, sizeOnRuntime, type SizeId, type TemplateId } from "@/core/sandbox/templates";
@@ -196,33 +197,34 @@ export function CreateSessionForm(props: CreateSessionFormProps) {
       </div>
 
       <aside className="grid gap-4 rounded-md border border-line bg-surface p-5 shadow-e1 lg:sticky lg:top-6">
-        <h2 className="text-lg font-medium">What you&apos;ll get</h2>
+        <CardTitle icon={HardDrivesIcon}>What you&apos;ll get</CardTitle>
         <ul className="grid gap-3 text-sm">
           <li className="flex gap-3">
-            <ShieldCheckIcon size={18} className="mt-0.5 shrink-0 text-accent" aria-hidden />
+            <ShieldCheckIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
             <span>Its own private computer, separate from Farbaek and from other sessions. No Farbaek keys or settings are inside.</span>
           </li>
           <li className="flex gap-3">
-            <CpuIcon size={18} className="mt-0.5 shrink-0 text-accent" aria-hidden />
+            <CpuIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
             <span>
-              {chosen.vcpu} vCPU <MemoryIcon size={14} className="mx-1 inline text-ink-3" aria-hidden /> {chosen.memoryGiB} GiB memory
-              <HardDrivesIcon size={14} className="mx-1 inline text-ink-3" aria-hidden /> {chosen.disk}. {chosen.note}
+              {chosen.vcpu} vCPU <MemoryIcon size={14} weight="bold" className="mx-1 inline text-ink-3" aria-hidden /> {chosen.memoryGiB} GiB memory
+              <HardDrivesIcon size={14} weight="bold" className="mx-1 inline text-ink-3" aria-hidden /> {chosen.disk}. {chosen.note}
             </span>
           </li>
           <li className="flex gap-3">
-            <GlobeIcon size={18} className="mt-0.5 shrink-0 text-accent" aria-hidden />
+            <GlobeIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
             <span>{network === "none" ? "No outbound network." : `Outbound only to ${REGISTRY_HOSTS.join(", ")}.`} Cloud metadata and private addresses are always blocked.</span>
           </li>
           <li className="flex gap-3">
-            <TimerIcon size={18} className="mt-0.5 shrink-0 text-accent" aria-hidden />
+            <TimerIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
             <span>
               Ends after {minutes} minutes, or {props.idleMinutes} minutes without activity. Each command can run up to {props.maxCommandMinutes} minutes.
             </span>
           </li>
         </ul>
         {state.status === "error" ? (
-          <p role="alert" className="rounded-sm border border-failed/30 bg-failed/[0.05] px-3 py-2 text-sm text-failed">
-            {state.message}
+          <p role="alert" className="flex items-start gap-2 rounded-sm border border-failed/30 bg-failed/[0.05] px-3 py-2 text-sm text-failed">
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+            <span>{state.message}</span>
           </p>
         ) : null}
         {props.disabledReason ? <p className="text-sm text-ink-2">{props.disabledReason}</p> : null}

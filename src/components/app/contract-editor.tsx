@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckIcon, PenNibIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, CheckIcon, PenNibIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useId, useRef, useState, useTransition } from "react";
 import { approveContractAction, draftContractWithAiAction, saveContractAction, type AiDraftState, type FormState } from "@/app/app/actions";
 import { EffortPicker } from "@/components/app/effort-picker";
@@ -75,8 +75,9 @@ export function ContractEditor({
 
   if (state.status === "done") {
     return (
-      <p role="status" className="rounded-sm border border-verified/30 bg-verified/[0.05] px-4 py-3 text-sm">
-        {state.message}
+      <p role="status" className="flex items-start gap-2 rounded-sm border border-verified/30 bg-verified/[0.05] px-4 py-3 text-sm">
+        <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+        <span>{state.message}</span>
       </p>
     );
   }
@@ -121,8 +122,9 @@ export function ContractEditor({
         })}
       </div>
       {state.status === "error" ? (
-        <p role="alert" className="text-sm text-failed">
-          {state.message}
+        <p role="alert" className="flex items-start gap-2 text-sm text-failed">
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+          <span>{state.message}</span>
         </p>
       ) : null}
       <div className="flex flex-wrap items-center gap-3">
@@ -169,7 +171,7 @@ function AiDraftPanel({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-sm font-medium">
-            <PenNibIcon size={16} weight="fill" className="text-accent" aria-hidden /> Draft with AI
+            <PenNibIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> Draft with AI
           </p>
           <p className="mt-1 text-xs leading-relaxed text-ink-3">
             Farbaek reads the task, the project and anything you&apos;ve typed below, then fills in the fields.{" "}
@@ -178,7 +180,7 @@ function AiDraftPanel({
         </div>
         <span className="shrink-0">
           <button type="button" onClick={onDraft} disabled={pending || disabled || Boolean(reason)} className={buttonClasses("secondary", "sm")}>
-            <PenNibIcon size={16} aria-hidden />
+            <PenNibIcon size={16} weight="bold" aria-hidden />
             {pending ? "Drafting…" : result?.status === "done" ? "Draft again" : "Draft with AI"}
           </button>
         </span>
@@ -187,14 +189,17 @@ function AiDraftPanel({
       <div aria-live="polite" className="empty:hidden">
         {pending ? <p className="text-xs text-ink-2">Drafting. This can take up to a minute.</p> : null}
         {!pending && result?.status === "done" ? (
-          <p role="status" className="text-sm text-ink-2">
-            Drafted by {modelName(result.model)}. Nothing is saved yet: check every field, fix what&apos;s wrong, then save.
-            {result.routeNote ? ` ${result.routeNote}` : null}
+          <p role="status" className="flex items-start gap-2 text-sm text-ink-2">
+            <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+            <span>
+              Drafted by {modelName(result.model)}. Nothing is saved yet: check every field, fix what&apos;s wrong, then save.
+              {result.routeNote ? ` ${result.routeNote}` : null}
+            </span>
           </p>
         ) : null}
         {!pending && result?.status === "error" ? (
           <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-            <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
             <span>{result.message}</span>
           </p>
         ) : null}
@@ -240,8 +245,9 @@ export function ApproveContractControl({
   const [state, action, pending] = useActionState(approveContractAction, IDLE);
   if (state.status === "done") {
     return (
-      <p role="status" className="text-sm text-verified">
-        {state.message}
+      <p role="status" className="flex items-start gap-2 text-sm text-verified">
+        <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+        <span>{state.message}</span>
       </p>
     );
   }
@@ -259,8 +265,9 @@ export function ApproveContractControl({
         <p className="break-all font-mono">sha256:{sha256}</p>
       </details>
       {state.status === "error" ? (
-        <p role="alert" className="text-sm text-failed">
-          {state.message}
+        <p role="alert" className="flex items-start gap-2 text-sm text-failed">
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+          <span>{state.message}</span>
         </p>
       ) : null}
       <div className="flex flex-wrap items-center gap-3">

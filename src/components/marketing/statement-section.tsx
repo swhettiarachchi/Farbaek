@@ -1,6 +1,6 @@
 "use client";
 
-import { BracketsCurlyIcon, ChatTextIcon, CheckCircleIcon, FileTextIcon, GlobeIcon, SealCheckIcon, TerminalWindowIcon } from "@phosphor-icons/react";
+import { BracketsCurlyIcon, ChatTextIcon, CheckSquareOffsetIcon, ClipboardTextIcon, CloudArrowUpIcon, ListChecksIcon, SealCheckIcon } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { motion, useReducedMotion, useScroll, useTransform, type MotionValue } from "motion/react";
 import { useRef } from "react";
@@ -9,12 +9,12 @@ import { Container } from "@/components/ui/container";
 // The stages a change goes through, in order, each named under its mark.
 const TOOLS: { icon: Icon; label: string }[] = [
   { icon: ChatTextIcon, label: "Your idea" },
-  { icon: FileTextIcon, label: "Plan" },
+  { icon: ClipboardTextIcon, label: "Plan" },
   { icon: BracketsCurlyIcon, label: "Code" },
-  { icon: TerminalWindowIcon, label: "Tests" },
-  { icon: CheckCircleIcon, label: "Approval" },
+  { icon: ListChecksIcon, label: "Tests" },
+  { icon: CheckSquareOffsetIcon, label: "Approval" },
   { icon: SealCheckIcon, label: "Proof" },
-  { icon: GlobeIcon, label: "Launch" },
+  { icon: CloudArrowUpIcon, label: "Launch" },
 ];
 
 const STATEMENT =
@@ -54,7 +54,7 @@ export function StatementSection() {
                 style={reduce ? { transform: `translateY(${-lift}px)` } : undefined}
               >
                 <span className="flex size-11 items-center justify-center rounded-full border border-line bg-surface text-ink-2 shadow-e1 sm:size-14">
-                  <ToolIcon size={22} aria-hidden />
+                  <ToolIcon size={20} aria-hidden />
                 </span>
                 <span className="text-xs text-ink-3">{label}</span>
               </motion.li>

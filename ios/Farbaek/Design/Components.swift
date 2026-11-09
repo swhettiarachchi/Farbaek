@@ -1,9 +1,11 @@
 import SwiftUI
+import UIKit
 
 // White Signal on iPhone (ADR 0008, ADR 0110): the web's colours (Tokens.swift),
 // its shapes (pill buttons, 12pt inputs, 20pt cards, 28pt panels) and its rule
 // that status never relies on colour alone. Text is Apple's system font; codes,
-// hashes and paths are its monospaced face.
+// hashes and paths are its monospaced face. Status (ADR 0183): blue is "your
+// turn", burnt orange a real warning, steel information and work in progress.
 
 enum Radius {
     static let input: CGFloat = 12
@@ -31,7 +33,8 @@ struct PanelModifier: ViewModifier {
             .padding(18)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-            .shadow(color: Palette.accent.opacity(0.10), radius: 16, x: 0, y: 10)
+            // Shadows are tinted with ink, never with the accent (ADR 0183).
+            .shadow(color: Palette.ink.opacity(0.08), radius: 16, x: 0, y: 10)
             .padding(8)
             .background(Palette.surfaceRaised.opacity(0.7), in: RoundedRectangle(cornerRadius: Radius.panel, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: Radius.panel, style: .continuous).stroke(Palette.line, lineWidth: 1))
@@ -47,36 +50,87 @@ extension View {
     }
 }
 
-/// A state's words, icon and colour together.
-enum Tone: String {
-    case verified, approval, failed, unverified, info, neutral
+/// Where something stands (ADR 0183): the web's thirteen kinds (src/components/ui/status-badge.tsx), each with
+/// its words, its SF Symbol twin of the web's icon, its colour and its border, so no state relies on one of them.
+/// Filled symbols report a state; the dashed circle means "not yet".
+enum Tone: String, CaseIterable {
+    case verified, done, approval, pending, working, attention, paused, failed, blocked, unverified, off, info, simulated
 
+    /// The API's tone strings ("verified", "approval", "failed", "unverified", "info", "neutral") and the kinds' own
+    /// names. "neutral" is a plain fact, so it reads as information, and so does a word this build doesn't know.
     init(_ raw: String) {
-        self = Tone(rawValue: raw) ?? .neutral
+        if raw == "neutral" {
+            self = .info
+        } else {
+            self = Tone(rawValue: raw) ?? .info
+        }
+    }
+
+    /// A task's kind from its state, the same as the web's stateKind() in src/core/realityloop/progress.ts. A state
+    /// this build doesn't know yet falls back to the tone the API sends with it.
+    init(taskState state: String, tone: String) {
+        switch state {
+        case "VERIFIED", "RECOVERED": self = .verified
+        case "CONTRACT_DRAFTED", "APPROVAL_PENDING", "REVIEW_REQUIRED", "REQUIRES_HUMAN_INTERVENTION": self = .approval
+        case "CONTRACT_APPROVED": self = .done
+        case "RECEIVED", "EXECUTION_AUTHORIZED": self = .pending
+        case "CONTEXT_ASSEMBLED", "PLAN_PROPOSED", "POLICY_EVALUATED", "EXECUTING", "VERIFYING", "RECOVERY_PENDING": self = .working
+        case "PARTIALLY_VERIFIED": self = .attention
+        case "INTERRUPTED": self = .paused
+        case "FAILED", "REJECTED": self = .failed
+        case "BLOCKED": self = .blocked
+        case "CANCELLED", "EXPIRED": self = .off
+        default: self = Tone(tone)
+        }
     }
 
     var color: Color {
         switch self {
         case .verified: return Palette.verified
+        case .done: return Palette.ink2
         case .approval: return Palette.approval
-        case .failed: return Palette.failed
+        case .pending, .working, .info: return Palette.info
+        case .attention, .paused: return Palette.caution
+        case .failed, .blocked: return Palette.failed
         case .unverified: return Palette.unverified
-        case .info: return Palette.info
-        case .neutral: return Palette.ink2
+        case .off: return Palette.ink3
+        case .simulated: return Palette.simulated
         }
     }
 
-    /// A mark only for done and failed (ADR 0180). Every other state is its words, in its colour and border.
-    var symbol: String? {
+    /// Every kind has its mark, the SF Symbol twin of the web's Phosphor icon.
+    var symbol: String {
         switch self {
-        case .verified: return "checkmark.seal.fill"
-        case .failed: return "xmark.octagon.fill"
-        case .approval, .unverified, .info, .neutral: return nil
+        case .verified, .done: return "checkmark.circle.fill"
+        case .approval: return Self.approvalSymbol
+        case .pending: return "clock.fill"
+        case .working: return "arrow.triangle.2.circlepath"
+        case .attention: return "exclamationmark.circle.fill"
+        case .paused: return "pause.circle.fill"
+        case .failed: return "xmark.circle.fill"
+        case .blocked: return "nosign"
+        case .unverified: return "circle.dashed"
+        case .off: return "minus.circle.fill"
+        case .info: return "info.circle.fill"
+        case .simulated: return "eye.fill"
         }
     }
 
-    /// "Not yet" states carry a dashed border, as on the web, so colour is never the only signal.
-    var dashed: Bool { self == .unverified }
+    /// The web's ClockUser, a person with a clock, where this iOS draws it; the plain clock where it doesn't.
+    private static let approvalSymbol: String = ["person.crop.circle.badge.clock.fill", "person.crop.circle.badge.clock"].first { UIImage(systemName: $0) != nil } ?? "clock.fill"
+
+    /// The border, as on the web: the kind's colour, or the quiet outline for done, off and sample.
+    var border: Color {
+        switch self {
+        case .done, .off, .simulated: return Palette.line2
+        case .pending, .working, .info: return color.opacity(0.3)
+        case .unverified: return color.opacity(0.5)
+        default: return color.opacity(0.35)
+        }
+    }
+
+    /// "Not yet" and "off" carry a dashed border, as on the web, so colour is never the only signal.
+    var dashed: Bool { self == .unverified || self == .off }
 }
 
 struct StatusBadge: View {
@@ -85,15 +139,16 @@ struct StatusBadge: View {
 
     var body: some View {
         HStack(spacing: 5) {
-            if let symbol = tone.symbol { Image(systemName: symbol).imageScale(.small) }
+            Image(systemName: tone.symbol).imageScale(.small)
             Text(label).lineLimit(1)
         }
         .font(.caption.weight(.medium))
         .foregroundStyle(tone.color)
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
-        .background(tone.color.opacity(0.08), in: Capsule())
-        .overlay(Capsule().stroke(tone.color.opacity(0.28), style: StrokeStyle(lineWidth: 1, dash: tone.dashed ? [3, 3] : [])))
+        // Only "your turn" is tinted, so the one state that asks something of the person stands out.
+        .background(tone == .approval ? Palette.approval.opacity(0.08) : Color.clear, in: Capsule())
+        .overlay(Capsule().stroke(tone.border, style: StrokeStyle(lineWidth: 1, dash: tone.dashed ? [3, 3] : [])))
         .accessibilityElement(children: .combine)
     }
 }
@@ -190,10 +245,10 @@ struct ClosesIn: View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
             let left = (FarbaekDate.parse(expiresAt) ?? context.date).timeIntervalSince(context.date)
             let closing = left > 0 && left < 12 * 3600
-            // A deadline is words in its colour, with no glyph (ADR 0180), as on the web's wallet card.
-            Text(Self.words(left))
+            // A deadline is words with the clock (ADR 0183), as on the web's wallet card; burnt orange once it's closing.
+            Label(Self.words(left), systemImage: "clock")
                 .font(.footnote)
-                .foregroundStyle(closing ? Palette.approval : Palette.ink2)
+                .foregroundStyle(closing ? Palette.caution : Palette.ink2)
         }
     }
 
@@ -239,14 +294,16 @@ struct HashText: View {
     }
 }
 
+/// The sample kind, graphite on the raised surface, as the web's "Sample" chip.
 struct SampleLabel: View {
     var body: some View {
-        Label("Sample data", systemImage: "eye")
+        Label("Sample data", systemImage: Tone.simulated.symbol)
             .font(.caption.weight(.medium))
-            .foregroundStyle(Palette.ink2)
+            .foregroundStyle(Tone.simulated.color)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
             .background(Palette.surfaceRaised, in: Capsule())
+            .overlay(Capsule().stroke(Tone.simulated.border, lineWidth: 1))
             .accessibilityLabel("You're looking at sample data")
     }
 }
@@ -267,10 +324,10 @@ struct SectionTitle: View {
     }
 }
 
-/// A reason something isn't possible, said plainly.
+/// A reason something isn't possible, said plainly. Without a tone it's a plain note in the quiet ink.
 struct Notice: View {
     let text: String
-    var tone: Tone = .neutral
+    var tone: Tone? = nil
     var symbol = "info.circle"
 
     var body: some View {
@@ -280,7 +337,7 @@ struct Notice: View {
             Image(systemName: symbol)
         }
         .font(.footnote)
-        .foregroundStyle(tone == .neutral ? Palette.ink2 : tone.color)
+        .foregroundStyle(tone?.color ?? Palette.ink2)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

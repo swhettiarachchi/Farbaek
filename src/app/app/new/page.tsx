@@ -1,7 +1,8 @@
-import { ArrowRightIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, LayoutIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CardTitle } from "@/components/app/primitives";
 import { PromptComposer } from "@/components/build/prompt-composer";
 import { SiteThumb } from "@/components/app/site-thumb";
 import { promptFromShare } from "@/core/agent/prompt-start";
@@ -63,7 +64,7 @@ export default async function NewBuildPage({ searchParams }: Props) {
           <li key={w.href} className="flex flex-wrap items-center gap-x-1.5">
             {w.lead}
             <Link href={w.href} className="inline-flex min-h-11 items-center gap-1 font-medium text-accent hover:underline">
-              {w.label} <ArrowRightIcon size={13} weight="bold" aria-hidden />
+              {w.label} <ArrowRightIcon size={14} weight="bold" aria-hidden />
             </Link>
           </li>
         ))}
@@ -71,11 +72,11 @@ export default async function NewBuildPage({ searchParams }: Props) {
       {!template ? (
         <section aria-labelledby="start-from" className="grid gap-4 border-t border-line pt-8">
           <div className="flex items-end justify-between gap-3">
-            <h2 id="start-from" className="text-lg font-medium tracking-[-0.01em]">
+            <CardTitle id="start-from" icon={LayoutIcon}>
               Or start from a template
-            </h2>
+            </CardTitle>
             <Link href="/app/templates" className="inline-flex min-h-11 items-center gap-1 text-sm text-accent hover:underline">
-              Preview them <ArrowRightIcon size={13} aria-hidden />
+              Preview them <ArrowRightIcon size={14} weight="bold" aria-hidden />
             </Link>
           </div>
           <ul className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">

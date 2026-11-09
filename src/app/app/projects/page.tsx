@@ -1,11 +1,11 @@
-import { ArrowRightIcon, FolderSimpleIcon } from "@phosphor-icons/react/ssr";
+import { ArchiveIcon, ArrowRightIcon, FolderSimplePlusIcon, GithubLogoIcon, SquaresFourIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CreateProjectForm } from "@/components/app/forms";
 import { GitHubImportForm, type PrivateImport } from "@/components/files/github-import";
 import { ProjectCard } from "@/components/app/project-card";
-import { Card, EmptyState, PageHeader } from "@/components/app/primitives";
+import { Card, CardTitle, EmptyState, PageHeader } from "@/components/app/primitives";
 import { buttonClasses } from "@/components/ui/button";
 import { Disclosure } from "@/components/ui/disclosure";
 import { RelativeTime } from "@/components/ui/local-time";
@@ -83,7 +83,7 @@ export default async function ProjectsPage() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">
         {projects.length === 0 ? (
           <EmptyState
-            icon={FolderSimpleIcon}
+            icon={SquaresFourIcon}
             title="No projects yet"
             action={
               <Link href="/app/new" className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-accent hover:underline">
@@ -117,14 +117,14 @@ export default async function ProjectsPage() {
 
         <div className="grid gap-6">
           <Card>
-            <h2 className="text-lg font-medium">New project</h2>
+            <CardTitle icon={FolderSimplePlusIcon}>New project</CardTitle>
             <p className="mt-1 text-sm text-ink-2">Name it after your product.</p>
             <div className="mt-5">
               <CreateProjectForm disabledReason={disabledReason} />
             </div>
           </Card>
           <Card>
-            <h2 className="text-lg font-medium">Import from GitHub</h2>
+            <CardTitle icon={GithubLogoIcon}>Import from GitHub</CardTitle>
             <p className="mt-1 text-sm text-ink-2">A new project with the repository&apos;s code, ready for a build or a security check.</p>
             <div className="mt-5">
               <GitHubImportForm disabledReason={ctx.mode === "demo" ? "The demo workspace is read-only." : disabledReason} privateImport={privateImport} />
@@ -135,7 +135,7 @@ export default async function ProjectsPage() {
 
       {archived.length > 0 ? (
         // An archived project leaves the list but stays readable, so this is where it can be found again.
-        <Disclosure summary="Archived projects" hint="Read-only, and not counted toward your plan. Open one to see its files, tasks and proof.">
+        <Disclosure summary="Archived projects" icon={<ArchiveIcon size={20} />} hint="Read-only, and not counted toward your plan. Open one to see its files, tasks and proof.">
           <ul className="divide-y divide-line overflow-hidden rounded-md border border-line bg-surface shadow-e1">
             {archived.map((p) => (
               <li key={p.id}>
@@ -146,7 +146,7 @@ export default async function ProjectsPage() {
                       Archived {p.archivedAt ? <RelativeTime iso={p.archivedAt} /> : null}
                     </span>
                   </span>
-                  <ArrowRightIcon size={16} className="shrink-0 text-ink-3" aria-hidden />
+                  <ArrowRightIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
                 </Link>
               </li>
             ))}

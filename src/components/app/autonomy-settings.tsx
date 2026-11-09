@@ -1,11 +1,13 @@
 "use client";
 
-import { ClockCounterClockwiseIcon, FlowArrowIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, ClockCounterClockwiseIcon, FlowArrowIcon, ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useActionState, useState, useTransition } from "react";
 import { setAutonomyAction, type AutonomyState } from "@/app/app/actions";
 import { replayAutonomyAction, type ReplayState } from "@/app/app/replay-actions";
+import { CardTitle } from "@/components/app/primitives";
 import { RehearsalRecord } from "@/components/app/rehearsal-record";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { buttonClasses } from "@/components/ui/button";
 import { LEVEL_3 } from "@/core/trust/autonomy-levels";
 import { RelativeTime } from "@/components/ui/local-time";
@@ -82,24 +84,22 @@ export function AutonomySettings({
   return (
     <form action={action} className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-medium">How much the agent can do on its own</h2>
-        {/* The state is its words alone, in its colour and border (ADR 0180). */}
+        <CardTitle icon={ShieldCheckIcon}>How much the agent can do on its own</CardTitle>
+        {/* The state is its kind: words, icon, colour and border together (ADR 0183). */}
         {suspended ? (
-          <span className="inline-flex items-center rounded-full border border-dashed border-approval/40 px-2.5 py-1 text-xs font-medium text-approval">Paused after a failure</span>
+          <StatusBadge status="paused" label="Paused after a failure" />
         ) : view.level === 2 || view.level === 3 ? (
-          <span className="inline-flex items-center rounded-full border border-accent/40 px-2.5 py-1 text-xs font-medium text-accent">
-            {view.level === 3 ? "Bigger changes on their own" : "Small changes on their own"}
-          </span>
+          <StatusBadge status="info" label={view.level === 3 ? "Bigger changes on their own" : "Small changes on their own"} />
         ) : view.shadowSince ? (
-          <span className="inline-flex items-center rounded-full border border-dashed border-simulated/50 px-2.5 py-1 text-xs font-medium text-simulated">Practice mode</span>
+          <StatusBadge status="simulated" label="Practice mode" />
         ) : (
-          <span className="inline-flex items-center rounded-full border border-line px-2.5 py-1 text-xs font-medium text-ink-2">Waits for a person</span>
+          <StatusBadge status="info" label="Waits for a person" />
         )}
       </div>
 
       {suspended ? (
-        <p role="status" className="flex items-start gap-2 rounded-sm border border-dashed border-approval/40 bg-approval/[0.05] px-4 py-3 text-sm">
-          <WarningCircleIcon size={18} className="mt-px shrink-0 text-approval" aria-hidden />
+        <p role="status" className="flex items-start gap-2.5 rounded-sm border border-line bg-surface-raised/70 px-4 py-3 text-sm">
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
           <span>
             {view.suspendedReason} Every change waits for a person until it&apos;s turned on again
             {view.suspendedAt ? (
@@ -119,7 +119,7 @@ export function AutonomySettings({
           <label
             key={o.value}
             className={`flex min-h-11 cursor-pointer items-start gap-3 rounded-sm border px-4 py-3 has-checked:bg-accent/[0.04] has-focus-visible:outline-2 has-focus-visible:outline-accent has-disabled:cursor-not-allowed ${
-              o.value === "shadow" ? "border-dashed border-line-strong/70 has-checked:border-simulated has-checked:bg-simulated/[0.04]" : "border-line has-checked:border-accent"
+              o.value === "shadow" ? "border-line-2 has-checked:border-simulated has-checked:bg-surface-raised/60" : "border-line has-checked:border-accent"
             }`}
           >
             <input
@@ -132,7 +132,7 @@ export function AutonomySettings({
               className="mt-1 size-4 accent-[var(--color-accent)]"
             />
             <span className="grid gap-0.5">
-              {/* Practice mode's title says what it is; its dashed border sets it apart from the levels that act. */}
+              {/* Practice mode's title says what it is; its quieter outline sets it apart from the levels that act. */}
               <span className="text-[0.9375rem] font-medium">{o.title}</span>
               <span className="text-sm text-ink-2">{o.body}</span>
               {o.unavailable ? <span className="text-xs text-ink-3">{o.unavailable}</span> : null}
@@ -141,7 +141,7 @@ export function AutonomySettings({
         ))}
         {/* Level 4 isn't a setting: each workflow is approved on its own (ADR 0092). */}
         <div className="flex items-start gap-3 rounded-sm border border-line px-4 py-3">
-          <FlowArrowIcon size={16} className="mt-1 shrink-0 text-ink-3" aria-hidden />
+          <FlowArrowIcon size={16} weight="bold" className="mt-1 shrink-0 text-ink-3" aria-hidden />
           <span className="grid gap-0.5">
             <span className="text-[0.9375rem] font-medium">Workflows</span>
             <span className="text-sm text-ink-2">The agent carries out an approved plan of several steps in order, stopping for a person at checkpoints and whenever a change needs review.</span>
@@ -206,7 +206,7 @@ export function AutonomySettings({
           {mode !== "3" ? (
             <div className="flex flex-wrap items-center gap-3 border-t border-line pt-3">
               <button type="button" onClick={runReplay} disabled={replaying || Boolean(replayReason)} className={buttonClasses("secondary", "sm")}>
-                <ClockCounterClockwiseIcon size={16} aria-hidden /> {replaying ? "Replaying…" : "Replay the last 30 days"}
+                <ClockCounterClockwiseIcon size={16} weight="bold" aria-hidden /> {replaying ? "Replaying…" : "Replay the last 30 days"}
               </button>
               <span className="text-xs text-ink-3">{replayReason ?? "See what these limits would have done with your past changes, before you choose."}</span>
             </div>
@@ -228,7 +228,8 @@ export function AutonomySettings({
           <RehearsalRecord summary={replay.summary} since={replay.since} replay={{ assumption: replay.assumption, leftOut: replay.leftOut }} />
         ) : (
           <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-            <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {replay.message}
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+            <span>{replay.message}</span>
           </p>
         )
       ) : null}
@@ -246,11 +247,13 @@ export function AutonomySettings({
       </div>
       {state.status === "error" ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {state.message}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+          <span>{state.message}</span>
         </p>
       ) : state.status === "done" ? (
-        <p role="status" className="text-sm text-verified">
-          {state.message}
+        <p role="status" className="flex items-start gap-2 text-sm text-verified">
+          <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+          <span>{state.message}</span>
         </p>
       ) : null}
     </form>

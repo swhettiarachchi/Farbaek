@@ -1,28 +1,27 @@
-import { ArrowSquareOutIcon, CheckCircleIcon, ShieldCheckIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { ShieldCheckIcon, TerminalWindowIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { ProofPackSeal } from "@/components/proof/proofpack-seal";
 import { SealReveal } from "@/components/proof/seal-reveal";
 import { LocalTime } from "@/components/ui/local-time";
+import { StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-badge";
 import type { SandboxReceiptStatement } from "@/core/sandbox/receipts";
 import { canonicalHash } from "@/core/trust/canonical-json";
 import type { CheckReceiptRecord } from "@/server/workspace/types";
 import { forPeople } from "@/core/text/operator-detail";
 
-// Status is its words in a colour and border (ADR 0180); a mark only for how it ended.
-const STATUS = {
-  verified: { label: "Every check passed", Icon: CheckCircleIcon, cls: "border-verified/30 bg-verified/[0.05] text-verified" },
-  partially_verified: { label: "Some checks passed", Icon: WarningCircleIcon, cls: "border-approval/30 bg-approval/[0.06] text-approval" },
-  failed: { label: "No check passed", Icon: XCircleIcon, cls: "border-failed/30 bg-failed/[0.05] text-failed" },
-  unverified: { label: "Checks didn't run", Icon: null, cls: "border-line-strong/40 bg-surface-raised text-ink-2" },
-} as const;
+// Each outcome is a status kind with its icon (ADR 0183): partial needs a look, checks that didn't run are not yet.
+const STATUS: Record<CheckReceiptRecord["status"], { label: string; status: Status }> = {
+  verified: { label: "Every check passed", status: "verified" },
+  partially_verified: { label: "Some checks passed", status: "attention" },
+  failed: { label: "No check passed", status: "failed" },
+  unverified: { label: "Checks didn't run", status: "unverified" },
+};
 
-const CHECK = {
-  passed: { Icon: CheckCircleIcon, cls: "text-verified", label: "passed" },
-  failed: { Icon: XCircleIcon, cls: "text-failed", label: "failed" },
-  not_run: { Icon: null, cls: "text-unverified", label: "not run" },
-} as const;
-
-/** The runtime's product name for a sentence; the id is for the server's settings. */
+const CHECK: Record<"passed" | "failed" | "not_run", { status: Status; cls: string; label: string }> = {
+  passed: { status: "verified", cls: "text-verified", label: "passed" },
+  failed: { status: "failed", cls: "text-failed", label: "failed" },
+  not_run: { status: "unverified", cls: "text-unverified", label: "not run" },
+};
 
 /**
  * One run of a task's contract checks in a sandbox: what each check did
@@ -43,12 +42,16 @@ export async function CheckReceiptCard({ receipt }: { receipt: CheckReceiptRecor
     <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
       <div className="grid min-w-0 gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium ${status.cls}`} title={`sha256:${receipt.digest}`}>
-            {status.Icon ? <status.Icon size={16} weight="bold" aria-hidden /> : null} {label}
+          <span className="inline-flex" title={`sha256:${receipt.digest}`}>
+            <StatusBadge status={status.status} label={label} />
           </span>
         </div>
         <p className={`flex items-center gap-2 text-sm ${intact ? "text-ink-2" : "text-failed"}`}>
-          {intact ? <ShieldCheckIcon size={16} className="shrink-0 text-verified" aria-hidden /> : <WarningCircleIcon size={16} className="shrink-0" aria-hidden />}
+          {intact ? (
+            <ShieldCheckIcon size={16} weight="fill" className="shrink-0 text-verified" aria-hidden />
+          ) : (
+            <WarningCircleIcon size={16} weight="fill" className="shrink-0 text-failed" aria-hidden />
+          )}
           {intact ? "Record intact: unchanged since it was made, checked just now." : "This record changed after it was made, so don't rely on it."}
         </p>
         <p className="text-xs text-ink-3">
@@ -61,7 +64,7 @@ export async function CheckReceiptCard({ receipt }: { receipt: CheckReceiptRecor
               const s = CHECK[c.status] ?? CHECK.not_run;
               return (
                 <li key={`${c.command}-${i}`} className="flex min-w-0 items-center gap-2">
-                  {s.Icon ? <s.Icon size={16} weight="bold" className={`shrink-0 ${s.cls}`} aria-hidden /> : null}
+                  <StatusGlyph status={s.status} />
                   <code className="min-w-0 truncate font-mono text-[0.8125rem]">{c.command}</code>
                   <span className={`shrink-0 text-xs ${s.cls}`}>
                     {s.label}
@@ -81,7 +84,7 @@ export async function CheckReceiptCard({ receipt }: { receipt: CheckReceiptRecor
         ) : null}
         <p>
           <Link href={`/app/sandbox/${receipt.sessionId}`} className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline">
-            <ArrowSquareOutIcon size={16} aria-hidden /> Open the session
+            <TerminalWindowIcon size={16} weight="bold" aria-hidden /> Open the session
           </Link>
         </p>
         <details className="text-xs text-ink-3">

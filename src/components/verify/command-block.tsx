@@ -21,7 +21,7 @@ export function CommandBlock({ label, command }: { label: string; command: strin
           className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-4 text-[0.8125rem] font-medium text-ink-2 hover:text-ink"
           aria-label={copied ? `Copied: ${label}` : `Copy: ${label}`}
         >
-          {copied ? <CheckCircleIcon size={16} weight="bold" className="text-verified" aria-hidden /> : <CopyIcon size={16} aria-hidden />}
+          {copied ? <CheckCircleIcon size={16} weight="fill" className="text-verified" aria-hidden /> : <CopyIcon size={16} weight="bold" aria-hidden />}
           {copied ? "Copied" : "Copy"}
         </button>
       </div>

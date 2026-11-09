@@ -1,6 +1,6 @@
 # ADR 0180: Human-made, not generated
 
-- Status: accepted (2026-11-07).
+- Status: accepted (2026-11-07). Its status decision ("an icon only for done and failed") is replaced by ADR 0183: every status is a kind with its own icon.
 - Extends ADR 0008 (White Signal), ADR 0049 (natural type), ADR 0153 (plain icons), ADR 0156 (premium by default) and ADR 0170 (plain words).
 
 ## Context

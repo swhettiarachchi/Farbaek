@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, HandPalmIcon, PlayIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, HandPalmIcon, PauseCircleIcon, PlayIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useId, useState, useTransition } from "react";
 import { pauseAgentsAction, resumeAgentsAction, type IncidentActionState } from "@/app/app/incidents/actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -33,7 +33,7 @@ export function PauseControl({
       {paused ? (
         <>
           <p className="flex items-start gap-2.5 text-[0.9375rem]">
-            <HandPalmIcon size={20} weight="bold" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+            <PauseCircleIcon size={20} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
             <span>
               <span className="font-medium">Agents are paused</span> since <RelativeTime iso={paused.at} />
               {paused.reason ? `: ${paused.reason}` : "."} No cloud runs start, desktop agents&apos; changes are refused, and nothing applies on its own. People can still review
@@ -50,7 +50,7 @@ export function PauseControl({
       ) : (
         <>
           <p className="flex items-start gap-2.5 text-[0.9375rem]">
-            <CheckCircleIcon size={20} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+            <CheckCircleIcon size={20} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
             <span>
               <span className="font-medium">Agents are running.</span> Pausing stops live cloud runs at once, and refuses desktop agents&apos; changes and anything that would
               apply on its own. It lasts until an owner or admin resumes them.
@@ -81,11 +81,13 @@ export function PauseControl({
       <p className="text-xs leading-relaxed text-ink-3">A pause stops what agents would do next. It can&apos;t undo changes already applied, or anything done outside Farbaek.</p>
       {state.status === "error" ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {state.message}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+          <span>{state.message}</span>
         </p>
       ) : state.status === "done" ? (
         <p role="status" className="flex items-start gap-2 text-sm text-verified">
-          <CheckCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {state.message}
+          <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+          <span>{state.message}</span>
         </p>
       ) : null}
     </div>

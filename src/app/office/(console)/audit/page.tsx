@@ -1,10 +1,11 @@
-import { CheckCircleIcon, ProhibitIcon, ScrollIcon, SealCheckIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { CircleDashedIcon, ScrollIcon, SealCheckIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { OfficeActionForm } from "@/components/office/action-form";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
+import { StatusGlyph } from "@/components/ui/status-badge";
 import { ROLE_LABELS, isStaffRole } from "@/core/office/permissions";
 import { requireStaff } from "@/server/office/access";
 import { loadAuditPage } from "@/server/office/staff-data";
@@ -43,18 +44,18 @@ function Result({ result }: { result: string }) {
   if (result === "success")
     return (
       <span className="inline-flex items-center gap-1 text-xs text-ink-2">
-        <CheckCircleIcon size={14} weight="fill" className="text-verified" aria-hidden /> Done
+        <StatusGlyph status="done" size={14} /> Done
       </span>
     );
   if (result === "denied")
     return (
       <span className="inline-flex items-center gap-1 text-xs text-ink-2">
-        <ProhibitIcon size={14} weight="bold" className="text-approval" aria-hidden /> Refused
+        <StatusGlyph status="blocked" size={14} /> Refused
       </span>
     );
   return (
     <span className="inline-flex items-center gap-1 text-xs text-ink-2">
-      <XCircleIcon size={14} weight="fill" className="text-failed" aria-hidden /> Error
+      <StatusGlyph status="failed" size={14} /> Error
     </span>
   );
 }
@@ -78,12 +79,15 @@ export default async function OfficeAudit({ searchParams }: { searchParams: Prom
         <div className="grid gap-4 rounded-md bg-surface p-5 shadow-e1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-6">
           <div className="flex items-start gap-3">
             {page.lastCheck?.ok === false ? (
-              <WarningCircleIcon size={24} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+              <WarningCircleIcon size={20} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+            ) : page.lastCheck ? (
+              <SealCheckIcon size={20} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
             ) : (
-              <SealCheckIcon size={24} weight={page.lastCheck ? "fill" : "regular"} className={`mt-0.5 shrink-0 ${page.lastCheck ? "text-verified" : "text-ink-3"}`} aria-hidden />
+              <CircleDashedIcon size={20} weight="bold" className="mt-0.5 shrink-0 text-unverified" aria-hidden />
             )}
             <div>
-              <h2 id="chain-title" className="font-medium">
+              {/* A callout with its title: the icon beside it is in its kind's colour (ADR 0183). */}
+              <h2 id="chain-title" className="text-lg font-medium">
                 {page.lastCheck === null ? "The chain hasn't been checked yet" : page.lastCheck.ok ? `Checked through event ${page.lastCheck.throughSeq}` : `Broken at event ${page.lastCheck.firstBadSeq}`}
               </h2>
               <p className="mt-1 text-sm text-ink-2">

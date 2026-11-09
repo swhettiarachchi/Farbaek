@@ -1,18 +1,26 @@
-import { CheckCircleIcon, DownloadSimpleIcon, ShieldCheckIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { DownloadSimpleIcon, ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import { ProofPackSeal } from "@/components/proof/proofpack-seal";
 import { SealReveal } from "@/components/proof/seal-reveal";
 import { LocalTime } from "@/components/ui/local-time";
-import { verifyProofPack, type ProofPackStatement } from "@/core/proof/proofpack";
+import { StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-badge";
+import { verifyProofPack, type ProofPackStatement, type ProofPackStatus } from "@/core/proof/proofpack";
 import type { ProofPackRecord } from "@/server/workspace/types";
 import { forPeople } from "@/core/text/operator-detail";
 
-// Status is its words in a colour and border (ADR 0180); a mark only for how it ended.
-const STATUS = {
-  verified: { label: "Verified", Icon: CheckCircleIcon, cls: "border-verified/30 bg-verified/[0.05] text-verified" },
-  partially_verified: { label: "Partially verified", Icon: WarningCircleIcon, cls: "border-approval/30 bg-approval/[0.06] text-approval" },
-  failed: { label: "Failed", Icon: XCircleIcon, cls: "border-failed/30 bg-failed/[0.05] text-failed" },
-  unverified: { label: "Unverified", Icon: null, cls: "border-line-strong/40 bg-surface-raised text-ink-2" },
-} as const;
+// Each outcome is a status kind with its icon (ADR 0183): partial needs a look, unverified is not yet.
+const STATUS: Record<ProofPackStatus, { label: string; status: Status }> = {
+  verified: { label: "Verified", status: "verified" },
+  partially_verified: { label: "Partially verified", status: "attention" },
+  failed: { label: "Failed", status: "failed" },
+  unverified: { label: "Unverified", status: "unverified" },
+};
+
+// One check's result as a kind, beside its word.
+const CHECK: Record<"passed" | "failed" | "not_run", { status: Status; label: string }> = {
+  passed: { status: "verified", label: "passed" },
+  failed: { status: "failed", label: "failed" },
+  not_run: { status: "unverified", label: "not run" },
+};
 
 /**
  * One ProofPack: its status and limits, an integrity check that recomputes the
@@ -31,12 +39,16 @@ export async function ProofPackCard({ pack }: { pack: ProofPackRecord }) {
     <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
       <div className="grid min-w-0 gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium ${status.cls}`} title={`sha256:${pack.digest}`}>
-            {status.Icon ? <status.Icon size={16} weight="bold" aria-hidden /> : null} {status.label}
+          <span className="inline-flex" title={`sha256:${pack.digest}`}>
+            <StatusBadge status={status.status} label={status.label} />
           </span>
         </div>
         <p className={`flex items-center gap-2 text-sm ${intact ? "text-ink-2" : "text-failed"}`}>
-          {intact ? <ShieldCheckIcon size={16} className="shrink-0 text-verified" aria-hidden /> : <WarningCircleIcon size={16} className="shrink-0" aria-hidden />}
+          {intact ? (
+            <ShieldCheckIcon size={16} weight="fill" className="shrink-0 text-verified" aria-hidden />
+          ) : (
+            <WarningCircleIcon size={16} weight="fill" className="shrink-0 text-failed" aria-hidden />
+          )}
           {intact ? "Record intact: unchanged since it was made, checked just now." : "This record changed after it was made, so don't rely on it."}
         </p>
         <p className="text-xs text-ink-3">
@@ -45,12 +57,16 @@ export async function ProofPackCard({ pack }: { pack: ProofPackRecord }) {
         </p>
         {checks.length ? (
           <ul className="grid gap-1 text-sm">
-            {checks.map((c) => (
-              <li key={c.command} className="flex items-center gap-2">
-                <code className="min-w-0 truncate font-mono text-[0.8125rem]">{c.command}</code>
-                <span className="shrink-0 text-xs text-ink-3">{c.status === "not_run" ? "not run" : c.status}</span>
-              </li>
-            ))}
+            {checks.map((c) => {
+              const s = CHECK[c.status] ?? CHECK.not_run;
+              return (
+                <li key={c.command} className="flex min-w-0 items-center gap-2">
+                  <StatusGlyph status={s.status} />
+                  <code className="min-w-0 truncate font-mono text-[0.8125rem]">{c.command}</code>
+                  <span className="shrink-0 text-xs text-ink-3">{s.label}</span>
+                </li>
+              );
+            })}
           </ul>
         ) : null}
         {limits.length ? (
@@ -62,7 +78,7 @@ export async function ProofPackCard({ pack }: { pack: ProofPackRecord }) {
         ) : null}
         <p>
           <a href={`/app/proofpacks/${pack.digest}`} className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline">
-            <DownloadSimpleIcon size={16} aria-hidden /> Download the signed record
+            <DownloadSimpleIcon size={16} weight="bold" aria-hidden /> Download the signed record
           </a>
           <span className="mt-1 block text-xs text-ink-3">
             Anyone you send it to can check it at{" "}

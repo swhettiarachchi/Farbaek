@@ -1,8 +1,8 @@
-import { ArrowLeftIcon, ArrowSquareOutIcon, GitBranchIcon, GitPullRequestIcon, GithubLogoIcon, InfoIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, ArrowUpRightIcon, GitBranchIcon, GitPullRequestIcon, GithubLogoIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Card, PageHeader } from "@/components/app/primitives";
+import { Card, CardTitle, Notice, PageHeader } from "@/components/app/primitives";
 import { PullStatusChip } from "@/components/github/pull-status";
 import { PullOnGitHub } from "@/components/github/pull-on-github";
 import { RepoLinkForm } from "@/components/github/repo-link";
@@ -53,7 +53,7 @@ export default async function ProjectGitHubPage({ params }: { params: Promise<{ 
     <div className="grid gap-8">
       <div>
         <Link href={`/app/projects/${project.id}`} className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
-          <ArrowLeftIcon size={14} aria-hidden /> {project.name}
+          <ArrowLeftIcon size={14} weight="bold" aria-hidden /> {project.name}
         </Link>
         <div className="mt-2">
           <PageHeader title="GitHub" description="The repository this project's changes go to as pull requests, each with a Farbaek ProofPack status that says whether its checks passed." />
@@ -61,23 +61,18 @@ export default async function ProjectGitHubPage({ params }: { params: Promise<{ 
       </div>
 
       {ctx.mode === "demo" ? (
-        <Card>
-          <p className="flex items-start gap-2 text-sm text-ink-2">
-            <InfoIcon size={18} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
-            The demo workspace isn&apos;t connected to GitHub. In your own workspace, connect a fine-grained token in Settings, then link a repository here.
-          </p>
-        </Card>
+        <Notice>The demo workspace isn&apos;t connected to GitHub. In your own workspace, connect a fine-grained token in Settings, then link a repository here.</Notice>
       ) : null}
       {unreadable ? (
-        <p role="alert" className="text-sm text-failed">
-          Part of this page couldn&apos;t be read. Reload to try again.
+        <p role="alert" className="flex items-start gap-2 text-sm text-failed">
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden /> Part of this page couldn&apos;t be read. Reload to try again.
         </p>
       ) : null}
 
       <section aria-labelledby="repo-title" className="rounded-lg border border-line bg-surface p-6 shadow-e2 sm:p-8">
-        <h2 id="repo-title" className="text-lg font-medium">
+        <CardTitle id="repo-title" icon={GithubLogoIcon}>
           Linked repository
-        </h2>
+        </CardTitle>
         <div className="mt-4 grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <div className="grid content-start gap-3">
             {link ? (
@@ -86,12 +81,12 @@ export default async function ProjectGitHubPage({ params }: { params: Promise<{ 
                   <GithubLogoIcon size={20} className="shrink-0" aria-hidden />
                   <a href={`https://github.com/${link.owner}/${link.repo}`} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 min-w-0 items-center gap-1 break-all font-mono text-accent hover:underline">
                     {linked}
-                    <ArrowSquareOutIcon size={14} className="shrink-0" aria-hidden />
+                    <ArrowUpRightIcon size={14} weight="bold" className="shrink-0" aria-hidden />
                     <span className="sr-only">(opens in a new tab)</span>
                   </a>
                 </p>
                 <p className="flex items-center gap-2 text-sm text-ink-2">
-                  <GitBranchIcon size={16} className="shrink-0 text-ink-3" aria-hidden />
+                  <GitBranchIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
                   Pull requests go to <span className="font-mono">{link.defaultBranch}</span>. Linked <LocalTime iso={link.linkedAt} />.
                 </p>
               </>
@@ -123,9 +118,9 @@ export default async function ProjectGitHubPage({ params }: { params: Promise<{ 
       </section>
 
       <section aria-labelledby="pulls-title" className="grid gap-4">
-        <h2 id="pulls-title" className="text-lg font-medium">
+        <CardTitle id="pulls-title" icon={GitPullRequestIcon}>
           Pull requests from Farbaek
-        </h2>
+        </CardTitle>
         {pulls.length ? (
           <ul className="grid gap-3">
             {pulls.map((p, i) => (
@@ -134,11 +129,11 @@ export default async function ProjectGitHubPage({ params }: { params: Promise<{ 
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="grid min-w-0 gap-1">
                       <a href={p.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 min-w-0 items-center gap-2 font-medium text-ink hover:text-accent">
-                        <GitPullRequestIcon size={18} className="shrink-0" aria-hidden />
+                        <GitPullRequestIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
                         <span className="break-all">
                           {p.repo} #{p.number}
                         </span>
-                        <ArrowSquareOutIcon size={14} className="shrink-0" aria-hidden />
+                        <ArrowUpRightIcon size={14} weight="bold" className="shrink-0" aria-hidden />
                         <span className="sr-only">(opens in a new tab)</span>
                       </a>
                       <p className="text-sm text-ink-2">

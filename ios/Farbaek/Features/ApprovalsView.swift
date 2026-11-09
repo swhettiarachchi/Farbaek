@@ -93,7 +93,8 @@ struct WalletCardView: View {
                 }
             }
             if !card.canApprove {
-                Notice(text: "A rule says an owner or admin has to approve this.", tone: .approval, symbol: "person.badge.shield.checkmark")
+                // It waits on someone else, so it's information in steel, not the blue of your turn.
+                Notice(text: "A rule says an owner or admin has to approve this.", tone: .info, symbol: "person.badge.shield.checkmark")
             }
         }
         .card()
@@ -107,25 +108,33 @@ struct FlowFacts: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             ForEach(facts, id: \.self) { fact in
-                // As on the web: a mark only on what needs a decision (escalated, flagged); every other fact is its words.
-                if let symbol = Self.symbol(fact.kind) {
-                    Label(fact.label, systemImage: symbol)
-                        .font(.footnote)
-                        .foregroundStyle(Tone(fact.tone).color)
-                } else {
-                    Text(fact.label)
-                        .font(.footnote)
-                        .foregroundStyle(Tone(fact.tone).color)
-                }
+                // Every fact has the mark that names it (ADR 0183), in its colour.
+                Label(fact.label, systemImage: Self.symbol(fact.kind))
+                    .font(.footnote)
+                    .foregroundStyle(Self.color(fact))
             }
         }
     }
 
-    static func symbol(_ kind: String) -> String? {
+    static func symbol(_ kind: String) -> String {
         switch kind {
         case "escalated": return "person.badge.shield.checkmark"
         case "flagged": return "flag.fill"
-        default: return nil
+        case "unexplained": return "exclamationmark.circle"
+        case "matched": return "checkmark.circle"
+        case "files": return "doc.on.doc"
+        default: return "info.circle"
+        }
+    }
+
+    /// A change no line of the plan explains is a warning to look at (burnt orange), not a turn to take; an
+    /// escalation waits on an owner or admin; a plain fact stays in the quiet ink.
+    static func color(_ fact: WalletFact) -> Color {
+        switch fact.kind {
+        case "unexplained": return Palette.caution
+        case "flagged": return Palette.failed
+        case "escalated": return Palette.approval
+        default: return fact.tone == "neutral" ? Palette.ink2 : Tone(fact.tone).color
         }
     }
 }
@@ -190,7 +199,7 @@ struct ApprovalDetailView: View {
                 .tracking(-0.4)
                 .foregroundStyle(Palette.ink)
             HStack(spacing: 8) {
-                StatusBadge(label: detail.task.stateLabel, tone: Tone(detail.task.tone))
+                StatusBadge(label: detail.task.stateLabel, tone: Tone(taskState: detail.task.state, tone: detail.task.tone))
                 ClosesIn(expiresAt: detail.proposal.expiresAt)
             }
             Text(detail.proposal.summary)
@@ -232,7 +241,7 @@ struct ApprovalDetailView: View {
                 }
             }
             ForEach(proposal.risks, id: \.self) { risk in
-                Label(risk, systemImage: "exclamationmark.triangle").font(.footnote).foregroundStyle(Palette.approval)
+                Label(risk, systemImage: "exclamationmark.triangle").font(.footnote).foregroundStyle(Palette.caution)
             }
             if !proposal.checks.isEmpty {
                 Text("Checks that run after you approve").font(.footnote.weight(.medium)).foregroundStyle(Palette.ink)
@@ -259,7 +268,7 @@ struct ApprovalDetailView: View {
 
     @ViewBuilder private func actions(_ detail: ApprovalDetail) -> some View {
         VStack(spacing: 10) {
-            if let failure { Notice(text: failure, tone: .failed, symbol: "exclamationmark.triangle.fill") }
+            if let failure { Notice(text: failure, tone: .failed, symbol: "exclamationmark.circle.fill") }
             if detail.canApprove {
                 Button {
                     Task { await approve(detail) }

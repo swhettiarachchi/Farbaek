@@ -61,11 +61,17 @@ export function JumpLink({ target, className, children }: { target: string; clas
 export function Disclosure({
   summary,
   hint,
+  icon,
   children,
   className = "",
   open = false,
 }: {
   summary: string;
+  /**
+   * The fold's icon, as a section title has (ADR 0183): a rendered 20px icon, since a server page can't pass a
+   * component to this client one. In a span, so only the caret turns when it opens.
+   */
+  icon?: ReactNode;
   hint?: string;
   children: ReactNode;
   className?: string;
@@ -100,6 +106,11 @@ export function Disclosure({
   return (
     <details ref={box} className={`[&[open]>summary>svg]:rotate-180 ${className}`}>
       <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 rounded-md border border-line bg-surface px-5 py-3 shadow-e1 transition-colors duration-150 hover:bg-canvas-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent [&::-webkit-details-marker]:hidden">
+        {icon ? (
+          <span aria-hidden className="flex shrink-0 text-ink-3">
+            {icon}
+          </span>
+        ) : null}
         <span className="grid min-w-0 gap-0.5">
           <span className="text-[0.9375rem] font-medium">{summary}</span>
           {hint ? <span className="text-[0.8125rem] leading-snug text-ink-3">{hint}</span> : null}

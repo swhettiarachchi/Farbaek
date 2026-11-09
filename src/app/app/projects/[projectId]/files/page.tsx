@@ -1,8 +1,8 @@
-import { ArrowLeftIcon, ArrowsClockwiseIcon, ClockCounterClockwiseIcon, FileDashedIcon, FilePlusIcon, FolderOpenIcon, ImageIcon, MagnifyingGlassIcon, PencilSimpleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, ArrowsClockwiseIcon, ClockCounterClockwiseIcon, FileDashedIcon, FileIcon, FilePlusIcon, FolderOpenIcon, ImageIcon, MagnifyingGlassIcon, PencilSimpleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Card, EmptyState, Notice } from "@/components/app/primitives";
+import { Card, CardTitle, EmptyState, Notice } from "@/components/app/primitives";
 import { AddImage } from "@/components/files/add-image";
 import { GenerateImage } from "@/components/files/generate-image";
 import { imageGeneration } from "@/server/ai/image-config";
@@ -86,7 +86,7 @@ export default async function FilesPage({
     <div className="grid gap-6">
       <div>
         <Link href={`/app/projects/${project.id}`} className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
-          <ArrowLeftIcon size={14} aria-hidden /> {project.name}
+          <ArrowLeftIcon size={14} weight="bold" aria-hidden /> {project.name}
         </Link>
         <div className="mt-3 flex flex-col gap-1">
           <h1 className="text-[1.75rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2.1rem]">Files</h1>
@@ -119,10 +119,10 @@ export default async function FilesPage({
           <aside className={`grid gap-4 lg:sticky lg:top-6 ${focused ? "order-2 lg:order-none" : ""}`} aria-label="Project files">
             <div className="grid grid-cols-2 gap-2">
               <Link href={`${base}?new=1`} className={buttonClasses("secondary", "sm", "w-full")}>
-                <FilePlusIcon size={16} aria-hidden /> New file
+                <FilePlusIcon size={16} weight="bold" aria-hidden /> New file
               </Link>
               <Link href={`${base}?image=1`} className={buttonClasses("secondary", "sm", "w-full")}>
-                <ImageIcon size={16} aria-hidden /> Add an image
+                <ImageIcon size={16} weight="bold" aria-hidden /> Add an image
               </Link>
             </div>
             <form action={base} className="flex gap-2" role="search">
@@ -140,7 +140,7 @@ export default async function FilesPage({
                 className="h-11 min-w-0 flex-1 rounded-sm border border-line-strong/60 bg-surface px-3.5 text-base shadow-e1 focus:border-accent"
               />
               <button type="submit" className="flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-surface shadow-e1 hover:bg-canvas-2" aria-label="Search">
-                <MagnifyingGlassIcon size={18} aria-hidden />
+                <MagnifyingGlassIcon size={16} weight="bold" aria-hidden />
               </button>
             </form>
             <div className="max-h-[60vh] overflow-auto rounded-md border border-line bg-surface p-2 lg:max-h-[calc(100vh-12rem)]">
@@ -158,9 +158,9 @@ export default async function FilesPage({
             {query ? (
               <Card>
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h2 className="text-lg font-medium">
+                  <CardTitle icon={MagnifyingGlassIcon}>
                     Results for <span className="font-mono text-base">&ldquo;{query}&rdquo;</span>
-                  </h2>
+                  </CardTitle>
                   <Link href={path ? fileHref(project.id, path) : base} className="text-sm text-accent hover:underline">
                     Clear search
                   </Link>
@@ -225,7 +225,7 @@ export default async function FilesPage({
 
             {addingImage && !creating ? (
               <Card>
-                <h2 className="text-lg font-medium">Add an image</h2>
+                <CardTitle icon={ImageIcon}>Add an image</CardTitle>
                 <p className="mt-1 text-sm text-ink-2">It becomes part of the project: the preview shows it, and publishing serves it with the site.</p>
                 <div className="mt-4">
                   <AddImage projectId={project.id} disabledReason={writeReason} />
@@ -242,9 +242,9 @@ export default async function FilesPage({
 
             {file && editing && !creating && isImage ? (
               <Card>
-                <h2 className="text-lg font-medium">
+                <CardTitle icon={ImageIcon}>
                   Replace <span className="font-mono text-[0.9375rem] break-all">{file.path}</span>
-                </h2>
+                </CardTitle>
                 <p className="mt-1 text-sm text-ink-2">The new image becomes the next revision. Pages that link to this path show it straight away.</p>
                 <div className="mt-4">
                   <AddImage projectId={project.id} replacePath={file.path} disabledReason={writeReason} />
@@ -260,9 +260,11 @@ export default async function FilesPage({
               <div className="grid min-w-0 gap-4">
                 <div className="min-w-0">
                   <Link href={file ? fileHref(project.id, path!) : base} className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
-                    <ArrowLeftIcon size={14} aria-hidden /> {file ? "Back to the file" : "All files"}
+                    <ArrowLeftIcon size={14} weight="bold" aria-hidden /> {file ? "Back to the file" : "All files"}
                   </Link>
-                  <h2 className="mt-2 text-lg font-medium">History</h2>
+                  <CardTitle icon={ClockCounterClockwiseIcon} className="mt-2">
+                    History
+                  </CardTitle>
                   <p className="mt-0.5 font-mono text-[0.8125rem] break-all text-ink-2">{path}</p>
                 </div>
                 {why ? <WhyCard graph={why} scanned={why.scanned} /> : null}
@@ -278,7 +280,7 @@ export default async function FilesPage({
                           <RelativeTime iso={r.createdAt} />
                           {r.sizeBytes !== null ? <>, {formatBytes(r.sizeBytes)}</> : null}
                         </span>
-                        {isCurrent ? <span className="shrink-0 rounded-full bg-accent/[0.08] px-2.5 py-0.5 text-xs font-medium text-accent">Current</span> : null}
+                        {isCurrent ? <span className="shrink-0 rounded-full border border-line-2 px-2.5 py-0.5 text-xs font-medium text-ink-2">Current</span> : null}
                       </>
                     );
                     const row = `flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm ${selected ? "bg-accent/[0.06]" : ""}`;
@@ -321,7 +323,9 @@ export default async function FilesPage({
                     <Link href={base} className="text-sm text-ink-2 hover:text-ink lg:hidden">
                       All files
                     </Link>
-                    <h2 className="font-mono text-[0.9375rem] font-medium break-all">{file.path}</h2>
+                    <CardTitle icon={isImage ? ImageIcon : FileIcon}>
+                      <span className="font-mono text-[0.9375rem] break-all">{file.path}</span>
+                    </CardTitle>
                     <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-ink-3">
                       <span>
                         {isImage ? "Image" : languageOf(file.path)}, {formatBytes(file.sizeBytes)}
@@ -336,15 +340,15 @@ export default async function FilesPage({
                     {/* Opens even when changes aren't allowed: the editor explains why it can't save. */}
                     {isImage ? (
                       <Link href={`${fileHref(project.id, file.path)}&edit=1`} className={buttonClasses("secondary", "sm")}>
-                        <ArrowsClockwiseIcon size={16} aria-hidden /> Replace image
+                        <ArrowsClockwiseIcon size={16} weight="bold" aria-hidden /> Replace image
                       </Link>
                     ) : (
                       <>
                         <Link href={`${fileHref(project.id, file.path)}&edit=1`} className={buttonClasses("secondary", "sm")}>
-                          <PencilSimpleIcon size={16} aria-hidden /> {writeReason ? "Try the editor" : "Edit"}
+                          <PencilSimpleIcon size={16} weight="bold" aria-hidden /> {writeReason ? "Try the editor" : "Edit"}
                         </Link>
                         <Link href={`${fileHref(project.id, file.path)}&history=1`} className={buttonClasses("ghost", "sm")}>
-                          <ClockCounterClockwiseIcon size={16} aria-hidden /> History
+                          <ClockCounterClockwiseIcon size={16} weight="bold" aria-hidden /> History
                         </Link>
                       </>
                     )}
@@ -365,7 +369,7 @@ export default async function FilesPage({
 
             {!file && !path && !query && !creating && !historyMode ? (
               <Card>
-                <h2 className="text-lg font-medium">Pick a file</h2>
+                <CardTitle icon={FolderOpenIcon}>Pick a file</CardTitle>
                 <p className="mt-1 text-sm text-ink-2">Open a file from the tree, or search across every file in the project.</p>
                 {writeReason ? <p className="mt-3 text-sm text-ink-3">{writeReason}</p> : null}
               </Card>

@@ -115,7 +115,7 @@ export function SectionsPanel({
       </div>
 
       {items.length === 0 ? (
-        <p className="rounded-sm border border-dashed border-line-strong/40 p-4 text-sm text-ink-3">This page has no sections to arrange. Add one from the gallery below.</p>
+        <p className="rounded-sm border border-line bg-surface p-4 text-sm text-ink-3">This page has no sections to arrange. Add one from the gallery below.</p>
       ) : (
         <ol className="grid gap-1" aria-label="Sections, in order">
           {items.map((item, i) => {
@@ -141,7 +141,7 @@ export function SectionsPanel({
                   onPointerCancel={() => setDrag(null)}
                   className={`${iconButton} cursor-grab touch-none active:cursor-grabbing`}
                 >
-                  <DotsSixVerticalIcon size={18} weight="bold" aria-hidden />
+                  <DotsSixVerticalIcon size={20} aria-hidden />
                 </button>
                 <button type="button" onClick={() => onSelect(item.n)} aria-current={selected === item.n ? "true" : undefined} className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left text-sm pointer-coarse:min-h-12">
                   <span className="line-clamp-2 min-w-0" title={item.label}>
@@ -152,13 +152,13 @@ export function SectionsPanel({
                 {selected === item.n ? (
                   <div className="flex flex-wrap gap-1 border-t border-line/70 px-1 py-1" role="group" aria-label={`Change ${item.label}`}>
                     <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className={actionButton}>
-                      <ArrowUpIcon size={15} aria-hidden /> Up
+                      <ArrowUpIcon size={16} weight="bold" aria-hidden /> Up
                     </button>
                     <button type="button" onClick={() => move(i, 1)} disabled={i === items.length - 1} className={actionButton}>
-                      <ArrowDownIcon size={15} aria-hidden /> Down
+                      <ArrowDownIcon size={16} weight="bold" aria-hidden /> Down
                     </button>
                     <button type="button" onClick={() => onEdit(item.n, { kind: "duplicate" })} className={actionButton}>
-                      <CopyIcon size={15} aria-hidden /> Duplicate
+                      <CopyIcon size={16} weight="bold" aria-hidden /> Duplicate
                     </button>
                     <button
                       type="button"
@@ -167,7 +167,7 @@ export function SectionsPanel({
                       title={items.length <= 1 ? "A page keeps at least one section." : undefined}
                       className={`${actionButton} hover:text-failed`}
                     >
-                      <TrashIcon size={15} aria-hidden /> Delete
+                      <TrashIcon size={16} weight="bold" aria-hidden /> Delete
                     </button>
                     {items.length <= 1 ? <p className="w-full px-2 pb-1 text-xs text-ink-3">A page keeps at least one section, so this one can&apos;t be deleted.</p> : null}
                   </div>
@@ -184,7 +184,7 @@ export function SectionsPanel({
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-medium">Add a section {selected !== null ? "after the chosen one" : "at the end"}</p>
             <button type="button" aria-label="Close the gallery" onClick={() => setAdding(false)} className={iconButton}>
-              <XIcon size={16} aria-hidden />
+              <XIcon size={16} weight="bold" aria-hidden />
             </button>
           </div>
           <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
@@ -204,11 +204,11 @@ export function SectionsPanel({
                     className="grid h-full w-full gap-1.5 rounded-sm border border-line bg-surface p-3 text-left transition-[border-color,transform] duration-150 hover:border-accent/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-line"
                   >
                     <span className="flex items-center gap-2 text-sm font-medium">
-                      <SnippetIcon size={18} className="shrink-0 text-accent" aria-hidden />
+                      <SnippetIcon size={20} className="shrink-0 text-ink-3" aria-hidden />
                       {s.label}
                       {s.pro ? (
                         <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-line px-2 py-0.5 text-xs font-normal text-ink-3">
-                          {locked ? <LockSimpleIcon size={11} aria-hidden /> : null}
+                          {locked ? <LockSimpleIcon size={14} weight="bold" aria-hidden /> : null}
                           Pro
                         </span>
                       ) : null}
@@ -223,7 +223,7 @@ export function SectionsPanel({
       ) : (
         <div className="grid justify-items-start gap-1.5">
           <button type="button" onClick={() => setAdding(true)} disabled={anchor === null} className={buttonClasses("secondary", "sm")}>
-            <PlusIcon size={16} aria-hidden /> Add a section
+            <PlusIcon size={16} weight="bold" aria-hidden /> Add a section
           </button>
           {anchor === null ? <p className="text-xs text-ink-3">There&apos;s nowhere on this page to add a section yet. Ask the agent to build out this page first.</p> : null}
         </div>

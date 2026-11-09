@@ -1,11 +1,12 @@
 "use client";
 
-import { ArrowSquareOutIcon, CheckCircleIcon, GithubLogoIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowUpRightIcon, CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState } from "react";
 import { removeGitHubTokenAction, setGitHubTokenAction, type GitHubTokenState } from "@/app/app/settings/github-actions";
 import { TOKEN_CREATION_URL } from "@/core/github/pull-request";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
+import { StatusGlyph } from "@/components/ui/status-badge";
 
 const IDLE: GitHubTokenState = { status: "idle" };
 
@@ -34,11 +35,8 @@ export function GitHubConnectionCard({
   return (
     <div className="grid gap-4">
       <p className="flex items-start gap-2 text-sm leading-relaxed">
-        {current ? (
-          <CheckCircleIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden />
-        ) : (
-          <GithubLogoIcon size={18} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
-        )}
+        {/* Connected is verified, not connected is off (ADR 0183). */}
+        <StatusGlyph status={current ? "verified" : "off"} className="mt-0.5" />
         <span>
           {current ? (
             <>
@@ -68,7 +66,7 @@ export function GitHubConnectionCard({
               Open{" "}
               <a href={TOKEN_CREATION_URL} target="_blank" rel="noopener noreferrer" className="font-medium text-accent hover:underline">
                 GitHub&apos;s token form
-                <ArrowSquareOutIcon size={14} className="ml-1 inline align-[-2px]" aria-hidden />
+                <ArrowUpRightIcon size={14} weight="bold" className="ml-1 inline align-[-2px]" aria-hidden />
                 <span className="sr-only">(opens in a new tab)</span>
               </a>
               , already filled in for Farbaek.
@@ -102,13 +100,15 @@ export function GitHubConnectionCard({
       <div aria-live="polite" className="empty:hidden">
         {message ? (
           <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-            <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
-            {message}
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+            <span>{message}</span>
           </p>
         ) : saveState.status === "saved" ? (
           <p role="status" className="flex items-start gap-2 text-sm text-ink-2">
-            <CheckCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden />
-            Connected as {saveState.login}, with the token ending <span className="font-mono">{saveState.hint}</span>.
+            <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+            <span>
+              Connected as {saveState.login}, with the token ending <span className="font-mono">{saveState.hint}</span>.
+            </span>
           </p>
         ) : null}
       </div>

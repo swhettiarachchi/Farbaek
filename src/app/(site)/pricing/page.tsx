@@ -1,4 +1,4 @@
-import { ArrowCounterClockwiseIcon, ArrowsClockwiseIcon, InfoIcon, ShieldCheckIcon, WalletIcon } from "@phosphor-icons/react/ssr";
+import { ArrowCounterClockwiseIcon, ArrowsClockwiseIcon, CoinsIcon, InfoIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { FaqList, type FaqItem } from "@/components/marketing/faq";
 import { ComparisonTable } from "@/components/pricing/comparison-table";
@@ -25,7 +25,7 @@ const trialBase = getPlan(TRIAL.basePlan).name;
 const PROMISES = [
   { icon: ArrowsClockwiseIcon, title: "Nothing expires at the end of the month", body: "Unused AI usage lasts one more month, and the oldest is spent first." },
   { icon: ArrowCounterClockwiseIcon, title: "Failed attempts are given back", body: "When an AI call fails, that usage returns to you. So does an agent's fix that still doesn't pass the checks, up to a monthly cap." },
-  { icon: WalletIcon, title: "No surprise bills", body: "Plans never run into overage. You see the share used and when it resets." },
+  { icon: CoinsIcon, title: "No surprise bills", body: "Plans never run into overage. You see the share used and when it resets." },
   { icon: ShieldCheckIcon, title: "Security checks from Plus", body: "Farbaek includes full security checks from Plus, and every plan can publish a site after Farbaek's rules check." },
 ] as const;
 
@@ -110,8 +110,8 @@ export default function PricingPage() {
 
           {/* How the website bills: inside Farbaek for Android the notice below speaks for Google Play instead (ADR 0154). */}
           <WebPurchaseOnly fallback={null}>
-            <p className="mt-6 flex items-start gap-2.5 rounded-sm border border-info/30 bg-info/[0.06] px-4 py-3 text-sm text-ink">
-              <InfoIcon size={18} weight="bold" className="mt-px shrink-0 text-info" aria-hidden />
+            <p className="mt-6 flex items-start gap-2.5 rounded-sm border border-line bg-surface-raised/70 px-4 py-3 text-sm text-ink">
+              <InfoIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-info" aria-hidden />
               Every plan is charged monthly. Lite and Maker can also be paid yearly, with more AI usage, and we email you before each yearly renewal. Cancel any time in
               Billing, and your plan runs to the end of the period you paid for.
             </p>
@@ -121,7 +121,7 @@ export default function PricingPage() {
             <ul aria-label="What Farbaek promises" className="grid gap-x-8 gap-y-6 rounded-md bg-surface p-6 shadow-e1 sm:grid-cols-2 lg:grid-cols-4">
               {PROMISES.map(({ icon: Icon, title, body }) => (
                 <li key={title} className="grid content-start gap-2">
-                  <span className="flex size-10 items-center justify-center rounded-full bg-accent/[0.08] text-accent">
+                  <span className="flex size-10 items-center justify-center rounded-full bg-surface text-ink-2 shadow-e1 ring-1 ring-line">
                     <Icon size={20} aria-hidden />
                   </span>
                   <p className="mt-1 font-medium leading-snug">{title}</p>

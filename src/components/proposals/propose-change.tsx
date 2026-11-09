@@ -83,7 +83,7 @@ export function ProposeChange({
         <p className="text-sm font-medium">Files the change needs</p>
         <label className="relative block">
           <span className="sr-only">Filter files</span>
-          <MagnifyingGlassIcon size={16} className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-ink-3" aria-hidden />
+          <MagnifyingGlassIcon size={16} weight="bold" className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-ink-3" aria-hidden />
           <input
             type="search"
             value={filter}
@@ -135,7 +135,7 @@ export function ProposeChange({
         {pending ? <p className="text-sm text-ink-2">The agent is reading the files and drafting targeted edits. This can take a minute or two.</p> : null}
         {error ? (
           <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-            <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
             {error}
           </p>
         ) : null}
@@ -150,7 +150,7 @@ export function ProposeChange({
           disabled={pending || selected.size === 0 || tooMany || tooBig || Boolean(ai.disabledReason)}
           className={buttonClasses("primary", "sm")}
         >
-          <GitDiffIcon size={16} aria-hidden /> {pending ? "Suggesting…" : "Suggest a change"}
+          <GitDiffIcon size={16} weight="bold" aria-hidden /> {pending ? "Suggesting…" : "Suggest a change"}
         </button>
         <p className="text-xs text-ink-3">
           {ai.disabledReason ?? (

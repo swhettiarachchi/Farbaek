@@ -1,9 +1,10 @@
 "use client";
 
-import { ArrowClockwiseIcon, CaretDownIcon, CaretRightIcon, FileIcon, FilePlusIcon, FloppyDiskIcon, FolderIcon } from "@phosphor-icons/react";
+import { ArrowClockwiseIcon, CaretDownIcon, CaretRightIcon, CheckCircleIcon, FileIcon, FilePlusIcon, FloppyDiskIcon, FolderIcon, FolderOpenIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { buttonClasses } from "@/components/ui/button";
+import { StatusGlyph } from "@/components/ui/status-badge";
 import { FarbaekApiError, type FarbaekSandboxClient, type FileEntry } from "@/sdk/sandbox-client";
 
 const Surface = dynamic(() => import("@/components/files/codemirror"), {
@@ -51,7 +52,14 @@ function Tree({
     };
   }, [client, sessionId, dir, version]);
 
-  if (error) return <p className="px-3 py-2 text-xs text-failed">{error}</p>;
+  if (error) {
+    return (
+      <p className="flex items-start gap-1.5 px-3 py-2 text-xs text-failed">
+        <WarningCircleIcon size={16} weight="fill" className="shrink-0 text-failed" aria-hidden />
+        <span>{error}</span>
+      </p>
+    );
+  }
   if (!entries) {
     return (
       <div className="grid gap-1.5 px-3 py-2" role="status" aria-label="Loading files">
@@ -76,8 +84,8 @@ function Tree({
                 onClick={() => setExpanded((s) => (s.has(e.path) ? new Set([...s].filter((p) => p !== e.path)) : new Set([...s, e.path])))}
                 className="flex min-h-11 w-full items-center gap-1.5 pr-3 text-left text-[0.8125rem] text-ink-2 hover:bg-surface-raised lg:pointer-fine:min-h-9"
               >
-                {isOpen ? <CaretDownIcon size={12} aria-hidden /> : <CaretRightIcon size={12} aria-hidden />}
-                <FolderIcon size={15} className="shrink-0 text-accent" aria-hidden />
+                {isOpen ? <CaretDownIcon size={14} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> : <CaretRightIcon size={14} weight="bold" className="shrink-0 text-ink-3" aria-hidden />}
+                <FolderIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
                 <span className="truncate" title={e.name}>
                   {e.name}
                 </span>
@@ -94,8 +102,8 @@ function Tree({
               onClick={() => onOpen(e.path)}
               className={`flex min-h-11 w-full items-center gap-1.5 pr-3 text-left text-[0.8125rem] lg:pointer-fine:min-h-9 ${open === e.path ? "bg-accent/[0.08] font-medium text-ink" : "text-ink-2 hover:bg-surface-raised"}`}
             >
-              <span className="w-3" aria-hidden />
-              <FileIcon size={15} className="shrink-0 text-ink-3" aria-hidden />
+              <span className="w-3.5 shrink-0" aria-hidden />
+              <FileIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
               <span className="truncate" title={e.name}>
                 {e.name}
               </span>
@@ -113,7 +121,7 @@ export function FilesPanel({ client, sessionId, canWrite, readReason }: { client
   const [open, setOpen] = useState<string | null>(null);
   const [saved, setSaved] = useState<string>("");
   const [draft, setDraft] = useState<string>("");
-  const [status, setStatus] = useState<{ tone: "info" | "error"; text: string } | null>(null);
+  const [status, setStatus] = useState<{ tone: "working" | "done" | "error"; text: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [newPath, setNewPath] = useState("");
   const [width, setWidth] = useState(240);
@@ -140,11 +148,11 @@ export function FilesPanel({ client, sessionId, canWrite, readReason }: { client
 
   const save = useCallback(async () => {
     if (!open || !canWrite) return;
-    setStatus({ tone: "info", text: "Saving…" });
+    setStatus({ tone: "working", text: "Saving…" });
     try {
       const r = await client.writeFile(sessionId, open, draft);
       setSaved(draft);
-      setStatus({ tone: "info", text: `Saved ${r.bytes.toLocaleString("en-US")} bytes to the test space.` });
+      setStatus({ tone: "done", text: `Saved ${r.bytes.toLocaleString("en-US")} bytes to the test space.` });
     } catch (e) {
       setStatus({ tone: "error", text: message(e, "Saving failed.") });
     }
@@ -175,7 +183,14 @@ export function FilesPanel({ client, sessionId, canWrite, readReason }: { client
   }
 
   if (readReason) {
-    return <p className="rounded-md border border-dashed border-line-strong/40 bg-surface px-5 py-8 text-center text-sm text-ink-2">{readReason}</p>;
+    return (
+      <div className="flex flex-col items-center rounded-md border border-line bg-surface px-5 py-8 text-center">
+        <span className="flex size-12 items-center justify-center rounded-full bg-surface text-ink-2 shadow-e1 ring-1 ring-line">
+          <FolderOpenIcon size={24} aria-hidden />
+        </span>
+        <p className="mx-auto mt-3 max-w-[52ch] text-sm text-ink-2">{readReason}</p>
+      </div>
+    );
   }
 
   return (
@@ -184,7 +199,7 @@ export function FilesPanel({ client, sessionId, canWrite, readReason }: { client
         <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-2">
           <span className="text-[0.8125rem] font-medium text-ink-3">Files</span>
           <button type="button" onClick={() => setVersion((v) => v + 1)} className="inline-flex size-11 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised" aria-label="Refresh files">
-            <ArrowClockwiseIcon size={16} aria-hidden />
+            <ArrowClockwiseIcon size={16} weight="bold" aria-hidden />
           </button>
         </div>
         <div className="max-h-72 min-h-0 flex-1 overflow-y-auto py-1 md:max-h-[28rem]">
@@ -209,7 +224,7 @@ export function FilesPanel({ client, sessionId, canWrite, readReason }: { client
               className="h-11 min-w-0 flex-1 rounded-sm border border-line bg-surface px-2.5 text-base sm:text-[0.8125rem]"
             />
             <button type="submit" className="inline-flex size-11 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised" aria-label="Create file">
-              <FilePlusIcon size={18} aria-hidden />
+              <FilePlusIcon size={20} aria-hidden />
             </button>
           </form>
         ) : null}
@@ -242,11 +257,11 @@ export function FilesPanel({ client, sessionId, canWrite, readReason }: { client
         <div className="flex min-h-12 flex-wrap items-center justify-between gap-2 border-b border-line px-3 py-1.5">
           <span className="min-w-0 truncate font-mono text-[0.8125rem] text-ink-2" title={open ?? undefined}>
             {open ?? "No file open"}
-            {dirty ? <span className="ml-2 font-sans text-xs text-approval">Unsaved</span> : null}
+            {dirty ? <span className="ml-2 font-sans text-xs text-caution">Unsaved</span> : null}
           </span>
           {open && canWrite ? (
             <button type="button" onClick={() => void save()} disabled={!dirty} className={buttonClasses("secondary", "sm")}>
-              <FloppyDiskIcon size={16} aria-hidden /> Save
+              <FloppyDiskIcon size={16} weight="bold" aria-hidden /> Save
             </button>
           ) : null}
         </div>
@@ -262,8 +277,15 @@ export function FilesPanel({ client, sessionId, canWrite, readReason }: { client
           )}
         </div>
         {status ? (
-          <p role={status.tone === "error" ? "alert" : "status"} className={`border-t border-line px-3 py-2 text-xs ${status.tone === "error" ? "text-failed" : "text-ink-2"}`}>
-            {status.text}
+          <p role={status.tone === "error" ? "alert" : "status"} className={`flex items-start gap-1.5 border-t border-line px-3 py-2 text-xs ${status.tone === "error" ? "text-failed" : "text-ink-2"}`}>
+            {status.tone === "error" ? (
+              <WarningCircleIcon size={16} weight="fill" className="shrink-0 text-failed" aria-hidden />
+            ) : status.tone === "done" ? (
+              <CheckCircleIcon size={16} weight="fill" className="shrink-0 text-verified" aria-hidden />
+            ) : (
+              <StatusGlyph status="working" size={16} />
+            )}
+            <span>{status.text}</span>
           </p>
         ) : null}
       </div>

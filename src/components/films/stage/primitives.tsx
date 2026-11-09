@@ -18,12 +18,12 @@ export function AppWindow({ width, height, address = "www.farbaek.com/app", chil
     <div className="relative overflow-hidden rounded-[22px] bg-canvas ring-1 ring-line" style={{ width, height }}>
       <div className="flex h-11 items-center gap-3 border-b border-line bg-surface px-4">
         <span className="flex items-center gap-1 text-ink-3">
-          <CaretLeftIcon size={15} weight="bold" aria-hidden />
-          <CaretRightIcon size={15} weight="bold" aria-hidden />
+          <CaretLeftIcon size={16} weight="bold" aria-hidden />
+          <CaretRightIcon size={16} weight="bold" aria-hidden />
           <ArrowClockwiseIcon size={14} weight="bold" className="ml-1" aria-hidden />
         </span>
         <span className="mx-auto flex h-7 w-[46%] items-center justify-center gap-1.5 rounded-full bg-surface-raised px-3 text-[12.5px] text-ink-2">
-          <LockSimpleIcon size={12} weight="bold" aria-hidden /> {address}
+          <LockSimpleIcon size={14} weight="bold" aria-hidden /> {address}
         </span>
         <span className="w-[54px]" />
       </div>
@@ -40,7 +40,7 @@ export function PhoneFrame({ width, height, children }: { width: number; height:
   return (
     <div
       className="relative rounded-[44px] bg-ink p-[9px] ring-1 ring-line-strong/40"
-      style={{ width, height, boxShadow: "0 44px 80px -30px color-mix(in oklab, var(--color-ink) 40%, transparent), 0 22px 50px -24px color-mix(in oklab, var(--color-accent) 34%, transparent)" }}
+      style={{ width, height, boxShadow: "0 44px 80px -30px color-mix(in oklab, var(--color-ink) 40%, transparent), 0 22px 50px -24px color-mix(in oklab, var(--color-ink) 16%, transparent)" }}
     >
       <div className="relative h-full overflow-hidden rounded-[36px] bg-canvas">
         <div aria-hidden className="absolute left-1/2 top-2 z-20 h-[22px] w-[86px] -translate-x-1/2 rounded-full bg-ink" />
@@ -92,10 +92,10 @@ export function SiteFrame({ files, scrollY = 0, height, className = "", phone }:
 /** A browser window around a live site, for the final reveal. */
 export function SiteWindow({ width, height, address, children }: { width: number; height: number; address: string; children: ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-[18px] bg-surface ring-1 ring-line" style={{ width, height, boxShadow: "0 50px 100px -34px color-mix(in oklab, var(--color-ink) 38%, transparent), 0 26px 56px -26px color-mix(in oklab, var(--color-accent) 30%, transparent)" }}>
+    <div className="overflow-hidden rounded-[18px] bg-surface ring-1 ring-line" style={{ width, height, boxShadow: "0 50px 100px -34px color-mix(in oklab, var(--color-ink) 38%, transparent), 0 26px 56px -26px color-mix(in oklab, var(--color-ink) 14%, transparent)" }}>
       <div className="flex h-10 items-center gap-2 border-b border-line bg-surface px-3">
         <span className="mx-auto flex h-6 items-center gap-1.5 rounded-full bg-surface-raised px-3 text-[12px] text-ink-2">
-          <LockSimpleIcon size={11} weight="bold" aria-hidden /> {address}
+          <LockSimpleIcon size={14} weight="bold" aria-hidden /> {address}
         </span>
       </div>
       <div style={{ height: height - 40 }}>{children}</div>

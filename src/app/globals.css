@@ -8,18 +8,22 @@
   --color-surface-raised: var(--surface-raised);
   --color-surface-sunken: var(--surface-sunken);
   --color-line: var(--line);
+  --color-line-2: var(--line-2);
   --color-line-strong: var(--line-strong);
   --color-ink: var(--ink);
   --color-ink-2: var(--ink-2);
   --color-ink-3: var(--ink-3);
   --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
   --color-accent-2: var(--accent-2);
   --color-on-accent: var(--on-accent);
   --color-seal: var(--seal);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
   --color-on-primary: var(--on-primary);
   --color-verified: var(--verified);
   --color-approval: var(--approval);
+  --color-caution: var(--caution);
   --color-failed: var(--failed);
   --color-info: var(--info);
   --color-unverified: var(--unverified);
@@ -31,7 +35,7 @@
   --color-media-accent: var(--media-accent);
   --color-media-cyan: var(--media-cyan);
   --color-media-green: var(--media-green);
-  --color-media-amber: var(--media-amber);
+  --color-media-caution: var(--media-caution);
   --color-media-red: var(--media-red);
 
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;

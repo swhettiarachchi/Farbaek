@@ -1,3 +1,5 @@
+import type { Status } from "@/components/ui/status-badge";
+
 /**
  * Product areas that are not built yet. Shown honestly, never as links.
  * Studio (files, editor, proposals, diffs), Trust (policy, approvals,
@@ -6,7 +8,8 @@
  * Launch Planner and Mesh Capsules exist; what's listed here is still missing.
  */
 // LaunchOS launches to Vercel and Netlify today (ADR 0078); other hosts are still to come. The phone apps are built and with Apple and Google's reviews.
-export const ROADMAP = [
-  { label: "More hosting providers", status: "Planned" },
-  { label: "Phone apps in the stores", status: "In review" },
-] as const;
+// Each says where it stands as a status kind (ADR 0183): planned is "not yet", in review waits on Apple and Google.
+export const ROADMAP: readonly { label: string; status: string; kind: Status }[] = [
+  { label: "More hosting providers", status: "Planned", kind: "unverified" },
+  { label: "Phone apps in the stores", status: "In review", kind: "pending" },
+];

@@ -16,12 +16,12 @@ export function EnrollPanel() {
     return (
       <form action={start} className="grid gap-3">
         <button type="submit" disabled={starting} className={buttonClasses("primary", "md", "w-full")}>
-          <QrCodeIcon size={18} weight="bold" aria-hidden />
+          <QrCodeIcon size={16} weight="bold" aria-hidden />
           {starting ? "Preparing…" : "Show my QR code"}
         </button>
         {current.status === "error" ? (
           <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-            <WarningCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0" aria-hidden /> {current.message}
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden /> <span>{current.message}</span>
           </p>
         ) : null}
       </form>
@@ -50,7 +50,7 @@ export function EnrollPanel() {
                 }}
                 className={buttonClasses("ghost", "sm", "shrink-0")}
               >
-                <CopyIcon size={16} aria-hidden /> {copied ? "Copied" : "Copy"}
+                <CopyIcon size={16} weight="bold" aria-hidden /> {copied ? "Copied" : "Copy"}
               </button>
             </span>
           </span>
@@ -71,7 +71,7 @@ export function EnrollPanel() {
       </button>
       {checked.message ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0" aria-hidden /> {checked.message}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden /> <span>{checked.message}</span>
         </p>
       ) : null}
       <p className="text-xs leading-relaxed text-ink-3">After this, add a second authenticator in My security, on another device, so a lost phone never locks you out.</p>

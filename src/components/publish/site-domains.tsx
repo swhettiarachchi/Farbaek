@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, CopyIcon, LinkSimpleIcon, PlusIcon, TrashIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowUpRightIcon, CheckCircleIcon, CopyIcon, PlusIcon, TrashIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useState } from "react";
 import { addDomainAction, checkDomainAction, removeDomainAction, type PublishState } from "@/app/app/projects/[projectId]/publish-actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -31,7 +31,7 @@ function Copy({ value, label }: { value: string; label: string }) {
       className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-surface-raised hover:text-ink"
       aria-label={copied ? `Copied ${label}` : `Copy ${label}`}
     >
-      {copied ? <CheckCircleIcon size={16} weight="bold" className="text-verified" aria-hidden /> : <CopyIcon size={16} aria-hidden />}
+      {copied ? <CheckCircleIcon size={16} weight="fill" className="text-verified" aria-hidden /> : <CopyIcon size={16} weight="bold" aria-hidden />}
     </button>
   );
 }
@@ -43,7 +43,8 @@ function DomainCard({ projectId, domain, disabledReason }: { projectId: string; 
     <li className="grid min-w-0 gap-3 rounded-sm border border-line px-4 py-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="min-w-0 break-all font-mono text-[0.875rem]">{domain.hostname}</span>
-        {verified ? <StatusBadge status="verified" /> : <StatusBadge status="approval" label="Waiting for DNS" />}
+        {/* Waiting on DNS is waiting on a system, not on a person here: pending, in steel. */}
+        {verified ? <StatusBadge status="verified" /> : <StatusBadge status="pending" label="Waiting for DNS" />}
         {disabledReason ? null : (
           <ConfirmAction
             action={removeDomainAction}
@@ -52,7 +53,7 @@ function DomainCard({ projectId, domain, disabledReason }: { projectId: string; 
             triggerClassName="inline-flex size-11 items-center justify-center rounded-full text-ink-3 hover:bg-surface-raised hover:text-failed"
             trigger={
               <>
-                <TrashIcon size={17} aria-hidden />
+                <TrashIcon size={16} weight="bold" aria-hidden />
                 <span className="sr-only">Remove {domain.hostname}</span>
               </>
             }
@@ -65,7 +66,7 @@ function DomainCard({ projectId, domain, disabledReason }: { projectId: string; 
 
       {verified ? (
         <a href={`https://${domain.hostname}`} target="_blank" rel="noopener noreferrer" className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-accent hover:underline">
-          <LinkSimpleIcon size={15} aria-hidden /> Visit https://{domain.hostname}
+          Visit https://{domain.hostname} <ArrowUpRightIcon size={14} weight="bold" aria-hidden />
         </a>
       ) : null}
 
@@ -109,8 +110,9 @@ function DomainCard({ projectId, domain, disabledReason }: { projectId: string; 
         {disabledReason ? <span className="text-sm text-ink-3">{disabledReason}</span> : null}
       </form>
       {state.status === "error" ? (
-        <p role="alert" className="flex items-start gap-2 text-sm text-ink-2">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0 text-approval" aria-hidden /> {state.message}
+        // Usually the records just haven't spread yet, which is normal for a while after adding a domain: a look, not a failure.
+        <p role="status" className="flex items-start gap-2 text-sm text-ink-2">
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden /> {state.message}
         </p>
       ) : state.status === "done" ? (
         <p role="status" className="flex items-start gap-2 text-sm text-verified">
@@ -160,17 +162,17 @@ export function SiteDomains({ projectId, domains, available, disabledReason }: {
             className="min-h-11 min-w-0 flex-1 basis-56 rounded-sm border border-line bg-surface px-3.5 font-mono text-base outline-none placeholder:text-ink-3 focus:border-accent/60 disabled:opacity-60 sm:text-[0.875rem]"
           />
           <button type="submit" disabled={pending || Boolean(addReason)} className={buttonClasses("primary", "sm")}>
-            <PlusIcon size={15} weight="bold" aria-hidden /> {pending ? "Adding…" : "Add domain"}
+            <PlusIcon size={16} weight="bold" aria-hidden /> {pending ? "Adding…" : "Add domain"}
           </button>
         </div>
         {addReason ? <p className="text-sm text-ink-3">{addReason}</p> : null}
         {state.status === "error" ? (
           <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-            <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {state.message}
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden /> {state.message}
           </p>
         ) : state.status === "done" ? (
-          <p role="status" className="text-sm text-verified">
-            {state.message}
+          <p role="status" className="flex items-start gap-2 text-sm text-verified">
+            <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden /> {state.message}
           </p>
         ) : null}
       </form>

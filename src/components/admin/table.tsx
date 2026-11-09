@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { STATUS_KINDS, type Status } from "@/components/ui/status-badge";
 
 /**
  * A dense table for the admin console. On narrow screens the table scrolls
@@ -28,14 +29,17 @@ export function Cell({ children, mono = false, muted = false }: { children: Reac
   return <td className={`px-4 py-3 align-top ${mono ? "font-mono text-[0.8125rem] tabular" : ""} ${muted ? "text-ink-3" : "text-ink"}`}>{children}</td>;
 }
 
-/** A small outlined chip. The text carries the meaning; colour only supports it. */
-export function Chip({ children, tone = "neutral" }: { children: ReactNode; tone?: "neutral" | "accent" | "approval" | "verified" | "failed" }) {
-  const tones = {
-    neutral: "border-line text-ink-2",
-    accent: "border-accent/40 text-accent",
-    approval: "border-approval/40 text-approval",
-    verified: "border-verified/40 text-verified",
-    failed: "border-failed/40 text-failed",
-  } as const;
-  return <span className={`inline-flex h-6 items-center whitespace-nowrap rounded-full border px-2.5 text-xs font-medium ${tones[tone]}`}>{children}</span>;
+/**
+ * A small chip (ADR 0183). With a `kind` it's a state: the kind's icon, colour and border with the words. Without
+ * one it's a tag (a role, a plan, a topic): a neutral pill with no icon.
+ */
+export function Chip({ children, kind }: { children: ReactNode; kind?: Status }) {
+  if (!kind) return <span className="inline-flex h-6 items-center whitespace-nowrap rounded-full border border-line-2 px-2.5 text-xs font-medium text-ink-2">{children}</span>;
+  const { icon: KindIcon, weight, className } = STATUS_KINDS[kind];
+  return (
+    <span className={`inline-flex h-6 w-fit items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-xs font-medium ${className}`}>
+      <KindIcon size={14} weight={weight} className={`shrink-0 ${kind === "working" ? "motion-safe:animate-spin" : ""}`} aria-hidden />
+      {children}
+    </span>
+  );
 }

@@ -3,7 +3,7 @@
 import {
   BuildingsIcon,
   ChartLineUpIcon,
-  ChatsCircleIcon,
+  ClockCounterClockwiseIcon,
   CpuIcon,
   CreditCardIcon,
   CircleNotchIcon,
@@ -12,8 +12,8 @@ import {
   HeartbeatIcon,
   IdentificationBadgeIcon,
   MagnifyingGlassIcon,
+  LifebuoyIcon,
   MegaphoneIcon,
-  PulseIcon,
   ScrollIcon,
   SlidersHorizontalIcon,
   UserIcon,
@@ -35,8 +35,8 @@ const PAGE_ICONS: Record<OfficeHref, Icon> = {
   "/": ChartLineUpIcon,
   "/workspaces": BuildingsIcon,
   "/people": UsersThreeIcon,
-  "/support": ChatsCircleIcon,
-  "/activity": PulseIcon,
+  "/support": LifebuoyIcon,
+  "/activity": ClockCounterClockwiseIcon,
   "/sites": GlobeIcon,
   "/health": HeartbeatIcon,
   "/controls": SlidersHorizontalIcon,
@@ -75,14 +75,14 @@ export function OfficeSearchTrigger() {
           onClick={open}
           className="flex h-11 w-72 items-center gap-2.5 rounded-full border border-line bg-surface px-4 text-sm text-ink-3 shadow-e1 transition-colors duration-150 hover:text-ink"
         >
-          <MagnifyingGlassIcon size={16} aria-hidden />
+          <MagnifyingGlassIcon size={16} weight="bold" aria-hidden />
           <span className="flex-1 truncate text-left">Search workspaces, people, sites</span>
           <kbd className="rounded-full border border-line px-1.5 font-mono text-xs">{shortcut}</kbd>
         </button>
       </span>
       <span className="md:hidden">
         <button type="button" onClick={open} aria-label="Search" className="flex size-11 items-center justify-center rounded-full border border-line bg-surface text-ink-2 shadow-e1">
-          <MagnifyingGlassIcon size={18} aria-hidden />
+          <MagnifyingGlassIcon size={20} aria-hidden />
         </button>
       </span>
     </>
@@ -193,7 +193,7 @@ export function OfficeSearch() {
       className="m-0 mx-auto mt-[10dvh] w-[min(640px,calc(100vw-2rem))] max-w-none overflow-hidden rounded-lg border border-line bg-surface p-0 text-ink shadow-e3 backdrop:bg-ink/25 backdrop:backdrop-blur-sm open:motion-safe:animate-[usage-in_160ms_cubic-bezier(0.16,1,0.3,1)_both]"
     >
       <div className="flex items-center gap-3 border-b border-line px-4">
-        <MagnifyingGlassIcon size={18} className="shrink-0 text-ink-3" aria-hidden />
+        <MagnifyingGlassIcon size={20} className="shrink-0 text-ink-3" aria-hidden />
         <input
           ref={input}
           value={query}
@@ -226,7 +226,7 @@ export function OfficeSearch() {
         <kbd className="hidden rounded-full border border-line px-1.5 font-mono text-xs text-ink-3 sm:inline">Esc</kbd>
       </div>
       <p aria-live="polite" className={status ? "flex items-center gap-2 border-b border-line px-4 py-2.5 text-xs text-ink-3" : "sr-only"}>
-        {remote.state === "searching" ? <CircleNotchIcon size={12} weight="bold" className="text-accent motion-safe:animate-spin" aria-hidden /> : null}
+        {remote.state === "searching" ? <CircleNotchIcon size={14} weight="bold" className="text-info motion-safe:animate-spin" aria-hidden /> : null}
         {status}
       </p>
       <ul id={listId} role="listbox" aria-label="Results" className="max-h-[min(60dvh,460px)] overflow-y-auto p-2">
@@ -243,7 +243,7 @@ export function OfficeSearch() {
                 onClick={() => go(r.href)}
                 className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-sm px-3 text-[0.90625rem] ${i === current ? "bg-surface-raised text-ink" : "text-ink-2"}`}
               >
-                <r.icon size={17} weight={i === current ? "bold" : "regular"} className="shrink-0" aria-hidden />
+                <r.icon size={16} weight="bold" className="shrink-0" aria-hidden />
                 <span className="min-w-0 flex-1 truncate">{r.label}</span>
                 {r.hint ? <span className="max-w-[45%] shrink-0 truncate text-xs text-ink-3">{r.hint}</span> : null}
               </div>

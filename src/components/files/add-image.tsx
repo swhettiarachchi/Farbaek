@@ -36,8 +36,8 @@ export function AddImage({ projectId, replacePath, disabledReason }: { projectId
           <img src={preview} alt="The chosen image" className="max-h-48 max-w-full rounded-sm object-contain shadow-e1" />
         ) : (
           <span className="grid justify-items-center gap-2 text-sm text-ink-2">
-            <span className="flex size-11 items-center justify-center rounded-full bg-accent/[0.08] text-accent">
-              <ImageIcon size={22} aria-hidden />
+            <span className="flex size-11 items-center justify-center rounded-full bg-surface text-ink-2 shadow-e1 ring-1 ring-line">
+              <ImageIcon size={24} aria-hidden />
             </span>
             <span className="font-medium text-ink">{replacePath ? "Choose the new image" : "Choose an image"}</span>
             <span className="text-xs text-ink-3">PNG, JPEG, GIF, WebP, AVIF or icon, up to 2 MB</span>
@@ -79,11 +79,11 @@ export function AddImage({ projectId, replacePath, disabledReason }: { projectId
 
       {state.status === "error" ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={18} weight="bold" className="mt-px shrink-0" aria-hidden /> {state.message}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden /> {state.message}
         </p>
       ) : state.status === "done" ? (
         <p role="status" className="flex items-start gap-2 text-sm text-verified">
-          <CheckCircleIcon size={18} weight="fill" className="mt-px shrink-0" aria-hidden /> {state.message}
+          <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden /> {state.message}
         </p>
       ) : null}
       {disabledReason ? <p className="text-xs text-ink-3">{disabledReason}</p> : null}

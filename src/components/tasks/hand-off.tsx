@@ -1,6 +1,6 @@
 "use client";
 
-import { DesktopTowerIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { DesktopIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState } from "react";
 import { requestHandoffAction, type HandoffState } from "@/app/app/tasks/handoff-actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -34,14 +34,14 @@ export function HandOff({ taskId, computers, disabledReason }: { taskId: string;
       ) : null}
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={off || state.status === "sent"} className={buttonClasses("secondary", "sm")}>
-          <DesktopTowerIcon size={16} weight="bold" aria-hidden />
+          <DesktopIcon size={16} weight="bold" aria-hidden />
           {pending ? "Sending…" : state.status === "sent" ? "Sent to your computer" : "Continue on my computer"}
         </button>
         {disabledReason ? <span className="text-sm text-ink-3">{disabledReason}</span> : null}
       </div>
       {state.status === "error" ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {state.message}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden /> {state.message}
         </p>
       ) : null}
     </form>

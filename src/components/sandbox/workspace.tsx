@@ -1,6 +1,6 @@
 "use client";
 
-import { PauseIcon, PlayIcon, StopIcon, WarningIcon } from "@phosphor-icons/react";
+import { InfoIcon, PauseIcon, PlayIcon, StopIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { buttonClasses } from "@/components/ui/button";
@@ -109,12 +109,12 @@ export function SandboxWorkspace(props: WorkspaceProps) {
           <div className="flex flex-wrap items-center gap-2">
             {props.capabilities.pauseResume && session.state === "ready" ? (
               <button type="button" onClick={() => void act("pause")} disabled={busy !== null} className={buttonClasses("secondary", "sm")}>
-                <PauseIcon size={16} aria-hidden /> {busy === "pause" ? "Pausing…" : "Pause"}
+                <PauseIcon size={16} weight="bold" aria-hidden /> {busy === "pause" ? "Pausing…" : "Pause"}
               </button>
             ) : null}
             {props.capabilities.pauseResume && session.state === "paused" ? (
               <button type="button" onClick={() => void act("resume")} disabled={busy !== null} className={buttonClasses("accent", "sm")}>
-                <PlayIcon size={16} aria-hidden /> {busy === "resume" ? "Resuming…" : "Resume"}
+                <PlayIcon size={16} weight="bold" aria-hidden /> {busy === "resume" ? "Resuming…" : "Resume"}
               </button>
             ) : null}
             {confirmStop ? (
@@ -129,7 +129,7 @@ export function SandboxWorkspace(props: WorkspaceProps) {
               </span>
             ) : (
               <button type="button" onClick={() => setConfirmStop(true)} disabled={busy !== null || session.state === "stopping"} className={buttonClasses("secondary", "sm")}>
-                <StopIcon size={16} aria-hidden /> Stop session
+                <StopIcon size={16} weight="bold" aria-hidden /> Stop session
               </button>
             )}
           </div>
@@ -137,17 +137,20 @@ export function SandboxWorkspace(props: WorkspaceProps) {
       </header>
 
       {error ? (
-        <p role="alert" className="rounded-sm border border-failed/30 bg-failed/[0.05] px-4 py-3 text-sm text-failed">
-          {error}
+        <p role="alert" className="flex items-start gap-2 rounded-sm border border-failed/30 bg-failed/[0.05] px-4 py-3 text-sm text-failed">
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+          <span>{error}</span>
         </p>
       ) : null}
       {props.notice ? (
         <div
           role="status"
-          className={`flex gap-3 rounded-md border px-4 py-3 ${props.notice.tone === "failed" ? "border-failed/30 bg-failed/[0.04]" : props.notice.tone === "warning" ? "border-approval/30 bg-approval/[0.06]" : "border-info/25 bg-info/[0.05]"}`}
+          className={`flex gap-3 rounded-md border px-4 py-3 ${props.notice.tone === "failed" ? "border-failed/30 bg-failed/[0.04]" : props.notice.tone === "warning" ? "border-caution/35 bg-caution/[0.05]" : "border-line bg-surface-raised/70"}`}
         >
-          {props.notice.tone === "info" ? null : (
-            <WarningIcon size={18} weight="bold" className={`mt-0.5 shrink-0 ${props.notice.tone === "failed" ? "text-failed" : "text-approval"}`} aria-hidden />
+          {props.notice.tone === "info" ? (
+            <InfoIcon size={20} weight="fill" className="mt-px shrink-0 text-info" aria-hidden />
+          ) : (
+            <WarningCircleIcon size={20} weight="fill" className={`mt-px shrink-0 ${props.notice.tone === "failed" ? "text-failed" : "text-caution"}`} aria-hidden />
           )}
           <div>
             <p className="text-sm font-medium">{props.notice.title}</p>

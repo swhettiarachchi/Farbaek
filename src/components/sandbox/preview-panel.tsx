@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowClockwiseIcon, ArrowSquareOutIcon, DeviceMobileIcon, DeviceTabletIcon, GlobeIcon, MonitorIcon, PlayIcon, ScrollIcon, StopIcon, XIcon } from "@phosphor-icons/react";
+import { ArrowClockwiseIcon, ArrowUpRightIcon, BrowserIcon, DeviceMobileIcon, DeviceTabletIcon, MonitorIcon, PlayIcon, ScrollIcon, StopIcon, WarningCircleIcon, XIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { buttonClasses } from "@/components/ui/button";
 import { APP_LOG_COMMAND, STOP_APP_COMMAND, startAppCommand } from "@/core/sandbox/app-process";
@@ -76,8 +76,10 @@ export function PreviewPanel({ client, sessionId, available, reason }: { client:
 
   if (!available) {
     return (
-      <div className="rounded-md border border-dashed border-line-strong/40 bg-surface px-5 py-8 text-center">
-        <GlobeIcon size={24} className="mx-auto text-ink-3" aria-hidden />
+      <div className="flex flex-col items-center rounded-md border border-line bg-surface px-5 py-8 text-center">
+        <span className="flex size-12 items-center justify-center rounded-full bg-surface text-ink-2 shadow-e1 ring-1 ring-line">
+          <BrowserIcon size={24} aria-hidden />
+        </span>
         <p className="mx-auto mt-3 max-w-[52ch] text-sm text-ink-2">{reason ?? "Previews aren't available for this session."}</p>
       </div>
     );
@@ -101,11 +103,11 @@ export function PreviewPanel({ client, sessionId, available, reason }: { client:
             <StopIcon size={16} weight="bold" aria-hidden /> {app.busy === "stop" ? "Stopping…" : "Stop app"}
           </button>
           <button type="button" disabled={app.busy !== null} onClick={() => void appAction("log")} className={buttonClasses("ghost", "sm")}>
-            <ScrollIcon size={16} aria-hidden /> {app.busy === "log" ? "Reading…" : "Show log"}
+            <ScrollIcon size={16} weight="bold" aria-hidden /> {app.busy === "log" ? "Reading…" : "Show log"}
           </button>
         </div>
         {app.output ? (
-          <pre role={app.failed ? "alert" : "status"} className={`max-h-60 overflow-auto rounded-sm bg-media p-3 font-mono text-xs leading-relaxed ${app.failed ? "text-media-amber" : "text-media-ink"}`}>
+          <pre role={app.failed ? "alert" : "status"} className={`max-h-60 overflow-auto rounded-sm bg-media p-3 font-mono text-xs leading-relaxed ${app.failed ? "text-media-red" : "text-media-ink"}`}>
             {app.output}
           </pre>
         ) : null}
@@ -132,15 +134,16 @@ export function PreviewPanel({ client, sessionId, available, reason }: { client:
           {loading === "frame" ? "Opening…" : preview ? "Open again" : "Open preview"}
         </button>
         <button type="button" onClick={() => void open("tab")} disabled={loading !== null || !port} className={buttonClasses("secondary", "sm")}>
-          <ArrowSquareOutIcon size={16} aria-hidden /> New tab
+          <ArrowUpRightIcon size={16} weight="bold" aria-hidden /> New tab
         </button>
       </form>
       <p id={`port-help-${sessionId}`} className="-mt-2 text-xs text-ink-3">
         Start your app above (it must listen on 0.0.0.0), then open its port. Links are private to you and expire with the session.
       </p>
       {error ? (
-        <p role="alert" className="text-sm text-failed">
-          {error}
+        <p role="alert" className="flex items-start gap-2 text-sm text-failed">
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+          <span>{error}</span>
         </p>
       ) : null}
 
@@ -163,7 +166,7 @@ export function PreviewPanel({ client, sessionId, available, reason }: { client:
                       className={`inline-flex size-11 items-center justify-center rounded-full ${width === k ? "bg-ink text-surface" : "text-ink-2 hover:bg-surface-raised"}`}
                       aria-label={W.label}
                     >
-                      <W.icon size={16} aria-hidden />
+                      <W.icon size={16} weight="bold" aria-hidden />
                     </button>
                   );
                 })}
@@ -178,10 +181,10 @@ export function PreviewPanel({ client, sessionId, available, reason }: { client:
                 className="inline-flex size-11 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised"
                 aria-label="Reload preview"
               >
-                <ArrowClockwiseIcon size={16} aria-hidden />
+                <ArrowClockwiseIcon size={16} weight="bold" aria-hidden />
               </button>
               <button type="button" onClick={() => void close()} className="inline-flex size-11 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised" aria-label="Close preview">
-                <XIcon size={16} aria-hidden />
+                <XIcon size={16} weight="bold" aria-hidden />
               </button>
             </div>
           </div>

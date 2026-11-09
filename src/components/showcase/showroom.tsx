@@ -12,6 +12,7 @@ import { AnimatePresence, motion, useInView, useMotionValue, useReducedMotion, u
 import { useRouter } from "next/navigation";
 import { Fragment, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { offerPrompt } from "@/components/build/prompt-composer";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { SHOWCASE } from "@/content/showcase";
 import { ConceptComposition, StageMotionContext } from "./mockups";
 
@@ -120,15 +121,13 @@ export function Showroom() {
 
       <div id="showcase-panel" role="tabpanel" aria-labelledby={`showcase-tab-${concept.id}`} className="grid min-w-0 gap-5">
         {/* The stage: a picture of the concept, with the one live control (Halo One's finishes) laid over it. */}
-        <div className="aurora">
         <div
           ref={stage}
           onPointerMove={onPointer}
           onPointerLeave={settle}
           data-paused={!visible || undefined}
-          className="relative aspect-[16/11] overflow-hidden rounded-lg border border-line bg-canvas-2/80 [container-type:inline-size] data-[paused]:[&_*]:[animation-play-state:paused]"
+          className="relative aspect-[16/11] overflow-hidden rounded-lg border border-line bg-canvas-2 [container-type:inline-size] data-[paused]:[&_*]:[animation-play-state:paused]"
         >
-          <div aria-hidden className="dot-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_at_50%_60%,black,transparent_75%)]" />
           <p className="sr-only">{concept.alt}</p>
           <StageMotionContext.Provider value={motionCtx}>
             <AnimatePresence mode="wait" initial={false}>
@@ -166,10 +165,9 @@ export function Showroom() {
             </div>
           ) : null}
 
-          <span className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-dashed border-line-strong/50 bg-surface/85 px-3 py-1 text-xs text-ink-2 backdrop-blur-sm">
-            Concept mockup
+          <span className="absolute right-3 top-3">
+            <StatusBadge status="simulated" label="Concept mockup" />
           </span>
-        </div>
         </div>
 
         {/* The concept: what it is, its design read and the sentence that starts a build like it. */}
@@ -196,7 +194,7 @@ export function Showroom() {
                   onClick={startLikeThis}
                   className="inline-flex h-11 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-on-primary transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.98]"
                 >
-                  <HammerIcon size={16} weight="fill" aria-hidden /> Start a build like this
+                  <HammerIcon size={16} weight="bold" aria-hidden /> Start a build like this
                 </button>
                 <p className="text-sm text-ink-3" aria-live="polite">
                   {handedOff === concept.id ? "It's in the build box at the top of the page. Change anything, then start." : "You approve the plan before anything is built."}

@@ -23,7 +23,7 @@ const read = (roots: string[], ext: RegExp) =>
     .flatMap((r) => files(r, ext))
     .map((full) => ({ rel: path.relative(process.cwd(), full).split(path.sep).join("/"), text: readFileSync(full, "utf8") }));
 
-const TROPE_ICONS = /\b(Sparkle|MagicWand|Robot|Brain|ShootingStar)Icon\b/;
+const TROPE_ICONS = /\b(Sparkle|MagicWand|Robot|Brain|ShootingStar|Rocket\w*|Skull)Icon\b/;
 const TROPE_SYMBOLS = /systemImage:\s*"(sparkles?|wand\.and\.(stars|rays)(\.inverse)?|brain(\.head\.profile)?)"|(\(\s*|return\s+)"(sparkles?|wand\.and\.stars|brain(\.head\.profile)?)"/;
 
 const hits = (sources: { rel: string; text: string }[], re: RegExp) =>

@@ -1,6 +1,6 @@
-import { ArrowSquareOutIcon } from "@phosphor-icons/react/ssr";
+import { ArrowUpRightIcon, GitPullRequestIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
-import { Card } from "@/components/app/primitives";
+import { Card, CardTitle } from "@/components/app/primitives";
 import { RelativeTime } from "@/components/ui/local-time";
 import type { PullRequestView } from "@/server/github/store";
 import { PullRequestControls } from "./pull-request-controls";
@@ -14,7 +14,7 @@ import { PullStatusChip } from "./pull-status";
 export function PullRequestCard({ projectId, proposalId, pull, repo, openReason }: { projectId: string; proposalId: string; pull: PullRequestView | null; repo: string | null; openReason: string | null }) {
   return (
     <Card>
-      <h2 className="text-lg font-medium">Pull request</h2>
+      <CardTitle icon={GitPullRequestIcon}>Pull request</CardTitle>
       {pull ? (
         <div className="mt-3 grid gap-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -22,7 +22,7 @@ export function PullRequestCard({ projectId, proposalId, pull, repo, openReason 
               <span className="break-all">
                 {pull.repo} #{pull.number}
               </span>
-              <ArrowSquareOutIcon size={14} className="shrink-0" aria-hidden />
+              <ArrowUpRightIcon size={14} weight="bold" className="shrink-0" aria-hidden />
               <span className="sr-only">(opens in a new tab)</span>
             </a>
             <PullStatusChip state={pull.status} />

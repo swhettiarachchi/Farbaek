@@ -1,7 +1,7 @@
-import { PlusCircleIcon } from "@phosphor-icons/react/ssr";
+import { CoinsIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { setTopupCapAction, startTopupAction } from "@/app/app/billing/actions";
-import { Card, Notice } from "@/components/app/primitives";
+import { Card, CardTitle, Notice } from "@/components/app/primitives";
 import { buttonClasses } from "@/components/ui/button";
 import { formatUsd } from "@/core/billing/catalog";
 import { TOPUP_MONTHS, TOPUP_PACKS_CENTS, topupConsentText, topupSharePercent, type TopupPack } from "@/core/billing/topups";
@@ -20,9 +20,7 @@ export function TopupCard({ planId, planName, topups, canManage, error }: { plan
   const room = topups.capCents === null ? 0 : Math.max(0, topups.capCents - used);
   return (
     <Card id="topups" className="scroll-mt-24">
-      <h2 className="flex items-center gap-2 text-lg font-medium">
-        <PlusCircleIcon size={20} className="text-ink-3" aria-hidden /> Top up AI usage
-      </h2>
+      <CardTitle icon={CoinsIcon}>Top up AI usage</CardTitle>
       <p className="mt-1 text-sm leading-relaxed text-ink-2">
         More AI usage at {planName}&apos;s own rate, lasting {TOPUP_MONTHS} months and used after your plan&apos;s own usage. Top-ups never go past the monthly limit below.
       </p>
@@ -92,9 +90,9 @@ export function TopupStep({ planId, pack, error }: { planId: PaidPlanId; pack: T
   return (
     <section id="billing-step" aria-labelledby="topup-step-title" className="scroll-mt-24 rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line motion-safe:animate-[usage-in_260ms_cubic-bezier(0.16,1,0.3,1)_both]">
       <div className="rounded-md border border-line bg-surface p-5 shadow-e1 sm:p-6">
-        <h2 id="topup-step-title" className="text-lg font-medium tracking-[-0.02em]">
+        <CardTitle id="topup-step-title" icon={CoinsIcon}>
           Buy {formatUsd(pack)} of AI usage
-        </h2>
+        </CardTitle>
         <p className="mt-2 text-sm leading-relaxed text-ink-2">
           Paid once, plus applicable tax. Pay in US dollars or your own currency: Dodo Payments shows the exact amount before you pay. Another currency adds its conversion fee of up to 4%. See the{" "}
           <Link href="/terms#paid-plans" className="text-accent underline-offset-4 hover:underline">

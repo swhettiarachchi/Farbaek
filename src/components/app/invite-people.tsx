@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckIcon, CopyIcon, LinkSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, CheckIcon, CopyIcon, LinkSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useId, useState } from "react";
 import { inviteMemberAction, type InviteState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -70,28 +70,31 @@ export function InvitePeople({ roles, seats, disabledReason }: { roles: InviteRo
         </p>
         {state.status === "error" ? (
           <p id={errorId} role="alert" className="flex items-start gap-2 text-sm text-failed">
-            <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
-            {state.message}
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+            <span>{state.message}</span>
           </p>
         ) : null}
         <div>
           <button type="submit" disabled={disabled || pending} className={buttonClasses("primary", "sm")}>
-            <LinkSimpleIcon size={16} aria-hidden /> {pending ? "Creating…" : "Create invite link"}
+            <LinkSimpleIcon size={16} weight="bold" aria-hidden /> {pending ? "Creating…" : "Create invite link"}
           </button>
         </div>
         {disabledReason ? <p className="text-sm text-ink-3">{disabledReason}</p> : null}
       </form>
 
       {state.status === "created" ? (
-        <div role="status" className="grid gap-3 rounded-md border border-accent/30 bg-accent/[0.04] p-4">
-          <p className="text-sm">
+        <div role="status" className="grid gap-3 rounded-md border border-line bg-surface-raised/70 p-4">
+          <p className="flex items-start gap-2 text-sm">
+            <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+            <span>
             Send this link to <span className="font-medium">{state.email}</span> yourself; Farbaek doesn&apos;t send email yet. It works once, only for that address, until{" "}
             <LocalTime iso={state.expiresAt} />. It isn&apos;t shown again.
+            </span>
           </p>
           <code className="block rounded-sm border border-line bg-surface px-3 py-2 font-mono text-[0.8125rem] break-all">{state.link}</code>
           <div>
             <button type="button" onClick={() => void copy(state.link)} className={buttonClasses("secondary", "sm")}>
-              {copied ? <CheckIcon size={16} aria-hidden /> : <CopyIcon size={16} aria-hidden />} {copied ? "Copied" : "Copy link"}
+              {copied ? <CheckIcon size={16} weight="bold" aria-hidden /> : <CopyIcon size={16} weight="bold" aria-hidden />} {copied ? "Copied" : "Copy link"}
             </button>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { CaretDownIcon, HandPalmIcon, PlusIcon, ShieldStarIcon, SignOutIcon } from "@phosphor-icons/react/ssr";
+import { CaretDownIcon, EyeIcon, PauseCircleIcon, PlusIcon, ShieldStarIcon, SignOutIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
@@ -31,7 +31,12 @@ import { TestModeBand } from "@/components/billing/test-mode-band";
 import { PlayPurchaseRecovery } from "@/components/billing/play-billing";
 import { googlePlayReady } from "@/server/billing/google/wiring";
 import { checkoutOpenFor, readBillingConfig } from "@/server/billing/config";
+import { buttonClasses } from "@/components/ui/button";
 import { signOut } from "./actions";
+
+/** The page-wide bands (demo, saving off, agents paused): one neutral style, the icon's colour says which kind (ADR 0183). */
+// The icon sits beside the first line, and the words wrap beside it, never under it.
+const BAND = "flex items-start justify-center gap-2 border-b border-line bg-surface-raised px-4 py-2.5 text-[0.8125rem] text-ink [&>svg]:mt-0.5";
 
 export const metadata: Metadata = {
   title: { default: "Workspace", template: "%s | Farbaek" },
@@ -45,7 +50,7 @@ function Brand() {
   return (
     <Link href="/app" className="flex min-h-11 min-w-[44px] items-center gap-2 rounded-full" aria-label="Farbaek, Home">
       <BrandLogo height={32} />
-      <span className="text-[1rem] font-semibold tracking-[-0.02em] max-[18em]:sr-only">Farbaek</span>
+      <span className="text-[1rem] font-medium tracking-[-0.02em] max-[18em]:sr-only">Farbaek</span>
     </Link>
   );
 }
@@ -124,11 +129,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
         </div>
         <PaletteTrigger />
         <WorkspaceSwitcher workspaces={ctx.workspaces} current={current} canCreate={ctx.mode === "live"} />
-        <Link
-          href="/app/new"
-          transitionTypes={PAGE_NAV}
-          className="flex h-11 items-center justify-center gap-2 rounded-full bg-primary text-sm font-medium text-on-primary shadow-e1 transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.98]"
-        >
+        <Link href="/app/new" transitionTypes={PAGE_NAV} className={buttonClasses("primary", "sm", "w-full")}>
           <PlusIcon size={16} weight="bold" aria-hidden /> New build
         </Link>
         {live ? <PresenceOrb key={`${presence.state}:${presence.count}`} orgId={current.id} initial={presence} /> : null}
@@ -137,7 +138,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           {/* A shortcut only: /admin checks the person again on the server (ADR 0026). */}
           {admin ? (
             <Link href="/admin" className="flex h-10 items-center gap-3 rounded-full px-3.5 text-[0.90625rem] text-ink-2 hover:bg-surface/70 hover:text-ink">
-              <ShieldStarIcon size={19} aria-hidden /> Admin console
+              <ShieldStarIcon size={20} aria-hidden /> Admin console
             </Link>
           ) : null}
           <UsagePanel planLabel={`${getPlan(current.plan.planId).name}${current.plan.source === "trial" ? " trial" : " plan"}${trialDays !== null ? `, ${trialDays} ${trialDays === 1 ? "day" : "days"} left` : ""}`} />
@@ -145,8 +146,8 @@ export default async function AppLayout({ children }: Readonly<{ children: React
             <span className="min-w-0 flex-1 truncate text-xs text-ink-3">{ctx.user.email}</span>
             {ctx.mode === "live" ? (
               <form action={signOut}>
-                <button type="submit" className="inline-flex size-8 items-center justify-center rounded-full text-ink-2 hover:bg-surface hover:text-ink" aria-label="Sign out">
-                  <SignOutIcon size={16} aria-hidden />
+                <button type="submit" className="inline-flex size-11 items-center justify-center rounded-full text-ink-2 hover:bg-surface hover:text-ink" aria-label="Sign out">
+                  <SignOutIcon size={16} weight="bold" aria-hidden />
                 </button>
               </form>
             ) : (
@@ -161,34 +162,41 @@ export default async function AppLayout({ children }: Readonly<{ children: React
       <div className="min-w-0">
         <AnnouncementBanner items={announcements} />
         {ctx.mode === "demo" ? (
-          <p className="border-b border-accent/20 bg-accent/[0.06] px-4 py-2.5 text-center text-[0.8125rem] text-ink">
-            <span className="font-medium">Demo workspace.</span> Sample data only. Nothing you do here is saved or sent anywhere.
+          <p className={BAND}>
+            <EyeIcon size={16} weight="fill" className="shrink-0 text-simulated" aria-hidden />
+            <span>
+              <span className="font-medium">Demo workspace.</span> Sample data only. Nothing you do here is saved or sent anywhere.
+            </span>
           </p>
         ) : !ctx.writes.enabled ? (
-          <p className="border-b border-approval/25 bg-approval/[0.06] px-4 py-2.5 text-center text-[0.8125rem] text-ink">
-            {ctx.writes.reason}
-            {/* A paused workspace can still write to support (migration v23), so the notice never ends in a dead end. */}
-            {current.suspension ? (
-              <>
-                {" "}
-                <Link href="/app/help/new?topic=account" className="font-medium text-accent underline-offset-4 hover:underline">
-                  Contact Farbaek support
-                </Link>
-              </>
-            ) : null}
+          <p className={BAND}>
+            <WarningCircleIcon size={16} weight="fill" className="shrink-0 text-caution" aria-hidden />
+            {/* The link sits inside the words, so on a phone it wraps with them instead of squeezing beside them. */}
+            <span>
+              {ctx.writes.reason}
+              {/* A paused workspace can still write to support (migration v23), so the notice never ends in a dead end. */}
+              {current.suspension ? (
+                <>
+                  {" "}
+                  <Link href="/app/help/new?topic=account" className="font-medium text-accent underline-offset-4 hover:underline">
+                    Contact Farbaek support
+                  </Link>
+                </>
+              ) : null}
+            </span>
           </p>
         ) : null}
         {current.agentsPaused ? (
           // The workspace's emergency pause (ADR 0083): said on every page until someone resumes agents.
-          <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-b border-failed/25 bg-failed/[0.05] px-4 py-2.5 text-center text-[0.8125rem] text-ink">
-            <HandPalmIcon size={16} weight="bold" className="shrink-0 text-failed" aria-hidden />
+          <p className={BAND}>
+            <PauseCircleIcon size={16} weight="fill" className="shrink-0 text-caution" aria-hidden />
             <span>
               <span className="font-medium">Agents are paused.</span> No agent runs or automatic changes until an owner or admin resumes them. Changes already applied stay as
-              they are.
+              they are.{" "}
+              <Link href="/app/incidents" className="font-medium text-accent underline-offset-4 hover:underline">
+                Problems and pause
+              </Link>
             </span>
-            <Link href="/app/incidents" className="font-medium text-accent underline-offset-4 hover:underline">
-              Problems and pause
-            </Link>
           </p>
         ) : null}
 
@@ -202,7 +210,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
             <Link href="/app/more" aria-label={`${current.name}, switch workspace and more`} className="flex min-h-11 min-w-0 max-w-[42vw] items-center rounded-full">
               <span className="inline-flex min-w-0 items-center gap-1 rounded-full border border-line bg-surface py-1.5 pl-3 pr-2 text-xs font-medium shadow-e1">
                 <span className="truncate">{current.name}</span>
-                <CaretDownIcon size={12} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
+                <CaretDownIcon size={14} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
               </span>
             </Link>
           </div>

@@ -99,7 +99,7 @@ struct WelcomeView: View {
                     .disabled(model.signingIn)
 
                     if let error = model.signInError {
-                        Notice(text: error, tone: .failed, symbol: "exclamationmark.triangle.fill")
+                        Notice(text: error, tone: .failed, symbol: "exclamationmark.circle.fill")
                     }
                     Text(model.appleOffered
                         ? "Continue with Apple makes your account from your Apple Account, and you can hide your email from Farbaek. \(model.googleOffered ? "Google and email sign-in open" : "Email sign-in opens") www.farbaek.com."

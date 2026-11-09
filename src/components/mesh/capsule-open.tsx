@@ -1,6 +1,6 @@
 "use client";
 
-import { CaretDownIcon, CheckCircleIcon, FileZipIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
+import { CaretDownIcon, FileZipIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { startTransition, useActionState, useId, useRef, useState, useTransition } from "react";
@@ -8,6 +8,7 @@ import { destinationFileAction, destinationHashesAction, importCapsuleAction, ty
 import { ProofPackSeal } from "@/components/proof/proofpack-seal";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
+import { StatusGlyph } from "@/components/ui/status-badge";
 import { CAPSULE_LIMITS } from "@/config/workspace";
 import { openCapsule, planImport, type CapsuleFile, type ImportChoice, type OpenedCapsule, type PlannedFile } from "@/core/mesh/capsule";
 import { SKIP_LABELS, formatBytes, type SkipReason } from "@/core/workspace/files";
@@ -175,14 +176,14 @@ export function CapsuleOpen({ destinations, disabledReason }: { destinations: De
 
       {error ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {error}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden /> {error}
         </p>
       ) : null}
 
       {opened && !opened.ok ? (
         <div role="alert" className="grid gap-3 rounded-sm border border-failed/30 bg-failed/[0.04] px-4 py-4">
           <p className="flex items-start gap-2 text-[0.9375rem] font-medium text-failed">
-            <XCircleIcon size={18} weight="bold" className="mt-0.5 shrink-0" aria-hidden />
+            <StatusGlyph status="failed" size={20} className="mt-px" />
             This Capsule didn&apos;t pass its checks, so it can&apos;t be opened.
           </p>
           <ul className="grid gap-1.5 pl-7 text-sm text-ink-2">
@@ -267,13 +268,14 @@ export function CapsuleOpen({ destinations, disabledReason }: { destinations: De
                 </label>
 
                 {planning ? (
-                  <p role="status" className="text-sm text-ink-3">
-                    Comparing with the project&apos;s files…
+                  <p role="status" className="flex items-start gap-2 text-sm text-ink-3">
+                    <StatusGlyph status="working" size={16} className="mt-0.5" />
+                    <span>Comparing with the project&apos;s files…</span>
                   </p>
                 ) : null}
                 {planError ? (
                   <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-                    <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {planError}
+                    <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden /> {planError}
                   </p>
                 ) : null}
 
@@ -335,7 +337,7 @@ export function CapsuleOpen({ destinations, disabledReason }: { destinations: De
           {result?.status === "done" ? (
             <div role="status" className="grid gap-2 rounded-sm border border-verified/30 bg-verified/[0.05] px-4 py-4">
               <p className="flex items-start gap-2 text-[0.9375rem]">
-                <CheckCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+                <StatusGlyph status="verified" size={20} className="mt-px" />
                 <span>
                   <span className="font-medium">Imported.</span> {plural(result.written, "file", "files")} written
                   {result.unchanged > 0 ? `, ${result.unchanged.toLocaleString("en-US")} already the same` : ""}
@@ -352,7 +354,7 @@ export function CapsuleOpen({ destinations, disabledReason }: { destinations: De
           {result?.status === "error" ? (
             <div role="alert" className="grid gap-2 rounded-sm border border-failed/30 bg-failed/[0.04] px-4 py-4 text-sm">
               <p className="flex items-start gap-2 text-failed">
-                <XCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0" aria-hidden /> {result.message}
+                <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden /> {result.message}
               </p>
               {result.problems?.length ? (
                 <ul className="grid gap-1 pl-6 text-ink-2">
@@ -381,7 +383,7 @@ function Report({ opened }: { opened: Extract<OpenedCapsule, { ok: true }> }) {
       <ProofPackSeal hash={digest} caption="Capsule verified" hashText={blake3Short(digest)} size={132} idSuffix="-open" className="size-[132px] justify-self-center sm:justify-self-start" />
       <div className="grid min-w-0 gap-3">
         <p className="flex items-start gap-2 text-[0.9375rem]">
-          <CheckCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+          <StatusGlyph status="verified" size={20} className="mt-px" />
           <span>
             <span className="font-medium">Every file matches its hash.</span> {plural(manifest.totals.files, "file", "files")}, {formatBytes(manifest.totals.bytes)}, all text. Nothing in a Capsule runs or installs.
           </span>
@@ -479,7 +481,7 @@ function DiffRow({
           </p>
           <button type="button" onClick={toggle} aria-expanded={open} className={buttonClasses("ghost", "sm", "shrink-0")}>
             {open ? "Hide" : "Compare"}
-            <CaretDownIcon size={14} aria-hidden className={`motion-safe:transition-transform motion-safe:duration-150 ${open ? "rotate-180" : ""}`} />
+            <CaretDownIcon size={14} weight="bold" aria-hidden className={`motion-safe:transition-transform motion-safe:duration-150 ${open ? "rotate-180" : ""}`} />
           </button>
         </div>
         <fieldset disabled={disabled} className="min-w-0 shrink-0">
@@ -503,8 +505,9 @@ function DiffRow({
               Loading your version…
             </p>
           ) : mine.status === "error" ? (
-            <p role="alert" className="text-sm text-failed">
-              {mine.message}
+            <p role="alert" className="flex items-start gap-2 text-sm text-failed">
+              <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+              <span>{mine.message}</span>
             </p>
           ) : mine.status === "missing" || !capsuleFile ? (
             <p className="text-sm text-ink-2">This file has changed since the comparison started. Choose the project again to refresh it.</p>

@@ -2,6 +2,8 @@
  * Farbaek Agent window. White Signal (ADR 0008): one light theme, colours
  * from the shared tokens only, signal blue as the one accent, Geist and Geist
  * Mono. Shape lock: buttons and chips are pills, inputs 12px, cards 20px.
+ * Status (ADR 0183): blue is "your turn" (approval), burnt orange is a real
+ * warning (caution), steel is information and work in progress. No amber.
  */
 @import "../../../src/styles/tokens.css";
 
@@ -63,10 +65,8 @@ pre {
 .break {
   word-break: break-all;
 }
-.eyebrow {
-  font-family: "Geist Mono", ui-monospace, monospace;
-  font-size: 12px;
-  color: var(--ink-3);
+.text-caution {
+  color: var(--caution);
 }
 
 /* Layout */
@@ -198,65 +198,99 @@ pre {
   padding: 22px;
   box-shadow: var(--elev-1);
 }
+/* Empty states: a neutral icon tile on a solid border (ADR 0183). */
 .empty {
   display: grid;
   justify-items: center;
   gap: 8px;
   padding: 40px 24px;
-  border: 1px dashed color-mix(in srgb, var(--line-strong) 40%, transparent);
+  border: 1px solid var(--line);
   border-radius: 20px;
   background: var(--surface);
   text-align: center;
 }
-.empty svg {
-  color: var(--accent);
+.empty-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-2);
+  box-shadow: var(--elev-1), 0 0 0 1px var(--line);
 }
 
-/* Buttons: pills */
+/* Buttons: pills, the web's sizes (48px, and 44px for small ones, 48px on touch) and its press */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 44px;
-  padding: 0 20px;
+  min-height: 48px;
+  padding: 0 24px;
   border: 1px solid transparent;
   border-radius: 999px;
   font: inherit;
   font-weight: 500;
   cursor: pointer;
-  transition: transform 120ms ease, background-color 120ms ease;
+  transition:
+    transform 160ms cubic-bezier(0.2, 0, 0, 1),
+    background-color 160ms cubic-bezier(0.2, 0, 0, 1),
+    border-color 160ms cubic-bezier(0.2, 0, 0, 1),
+    color 160ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 160ms cubic-bezier(0.2, 0, 0, 1);
 }
 .btn:active:not(:disabled) {
-  transform: translateY(1px);
+  transform: scale(0.98);
 }
 .btn:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 .btn-sm {
-  min-height: 36px;
-  padding: 0 14px;
+  min-height: 44px;
+  padding: 0 16px;
   font-size: 14px;
+}
+@media (pointer: coarse) {
+  .btn-sm {
+    min-height: 48px;
+  }
 }
 .btn-primary {
   background: var(--primary);
   color: var(--on-primary);
+  box-shadow: var(--elev-1);
 }
 .btn-primary:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--primary) 88%, var(--accent));
+  background: var(--primary-hover);
 }
 .btn-secondary {
   background: var(--surface);
   border-color: var(--line);
   color: var(--ink);
+  box-shadow: var(--elev-1);
 }
 .btn-secondary:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--line-strong) 50%, var(--line));
+  background: var(--canvas-2);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--ink-2);
+}
+.btn-ghost:hover:not(:disabled) {
   background: var(--surface-raised);
+  color: var(--ink);
 }
 .btn-danger {
   background: var(--failed);
   color: var(--on-accent);
+  box-shadow: var(--elev-1);
+}
+.btn-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--failed) 90%, var(--surface));
 }
 :focus-visible {
   outline: 2px solid var(--accent);
@@ -305,39 +339,100 @@ pre {
   letter-spacing: 0.12em;
 }
 
-/* Badges: icon, label and border pattern, never colour alone */
+/*
+ * Status (ADR 0183): every kind has its word, its icon, its colour and its border, the same thirteen as the web's
+ * StatusBadge. `.kind-*` alone colours a kind's icon in a step line or row; on a `.badge` it adds the border.
+ */
+.kind-verified {
+  color: var(--verified);
+}
+.kind-done {
+  color: var(--ink-2);
+}
+.kind-approval {
+  color: var(--approval);
+}
+.kind-pending,
+.kind-working,
+.kind-info {
+  color: var(--info);
+}
+.kind-attention,
+.kind-paused {
+  color: var(--caution);
+}
+.kind-failed,
+.kind-blocked {
+  color: var(--failed);
+}
+.kind-unverified {
+  color: var(--unverified);
+}
+.kind-off {
+  color: var(--ink-3);
+}
+.kind-simulated {
+  color: var(--simulated);
+}
+.glyph {
+  flex-shrink: 0;
+  vertical-align: -0.15em;
+}
+
 .badge {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 6px;
-  height: 26px;
+  height: 24px;
   padding: 0 10px;
-  border: 1px solid;
+  border: 1px solid var(--line-2);
   border-radius: 999px;
   font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
 }
-.badge-verified {
-  color: var(--verified);
-  border-color: color-mix(in srgb, var(--verified) 40%, transparent);
+.badge svg {
+  flex-shrink: 0;
 }
-.badge-failed {
-  color: var(--failed);
-  border-color: color-mix(in srgb, var(--failed) 40%, transparent);
+.badge.kind-verified {
+  border-color: color-mix(in srgb, var(--verified) 35%, transparent);
+  background: color-mix(in srgb, var(--verified) 5%, var(--surface));
 }
-.badge-approval {
-  color: var(--approval);
-  border-color: color-mix(in srgb, var(--approval) 40%, transparent);
+.badge.kind-done {
+  border-color: var(--line-2);
 }
-.badge-info {
-  color: var(--info);
-  border-color: color-mix(in srgb, var(--info) 40%, transparent);
+.badge.kind-approval {
+  border-color: color-mix(in srgb, var(--approval) 35%, transparent);
+  background: color-mix(in srgb, var(--approval) 6%, var(--surface));
 }
-.badge-neutral {
-  color: var(--unverified);
-  border-color: color-mix(in srgb, var(--unverified) 60%, transparent);
+.badge.kind-pending,
+.badge.kind-working,
+.badge.kind-info {
+  border-color: color-mix(in srgb, var(--info) 30%, transparent);
+}
+.badge.kind-attention,
+.badge.kind-paused {
+  border-color: color-mix(in srgb, var(--caution) 35%, transparent);
+}
+.badge.kind-failed {
+  border-color: color-mix(in srgb, var(--failed) 35%, transparent);
+  background: color-mix(in srgb, var(--failed) 5%, var(--surface));
+}
+.badge.kind-blocked {
+  border-color: color-mix(in srgb, var(--failed) 35%, transparent);
+}
+.badge.kind-unverified {
+  border-color: color-mix(in srgb, var(--unverified) 50%, transparent);
   border-style: dashed;
+}
+.badge.kind-off {
+  border-color: var(--line-2);
+  border-style: dashed;
+}
+.badge.kind-simulated {
+  border-color: var(--line-2);
+  background: var(--surface-raised);
 }
 .spin {
   animation: spin 1s linear infinite;
@@ -369,8 +464,30 @@ pre {
 }
 .alert svg {
   flex-shrink: 0;
-  margin-top: 1px;
+  margin-top: 3px;
   color: var(--failed);
+}
+/* A note on a neutral surface: the icon's colour says information (steel) or a warning (burnt orange). */
+.notice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-raised) 70%, transparent);
+  color: var(--ink);
+  font-size: 14px;
+}
+.notice svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.notice-info svg {
+  color: var(--info);
+}
+.notice-warning svg {
+  color: var(--caution);
 }
 
 /* Lists */
@@ -412,6 +529,14 @@ pre {
 .bullets {
   margin: 0;
   padding-left: 18px;
+}
+/* Each check's own icon says how it went, so no bullet beside it. */
+.checks {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 .files {
   list-style: none;
@@ -487,8 +612,8 @@ pre {
   color: var(--accent);
 }
 .mode.is-disabled {
-  border-style: dashed;
   background: var(--canvas);
+  color: var(--ink-2);
   cursor: not-allowed;
 }
 /* Effort: a segmented pill control of real radio buttons. */
@@ -537,33 +662,35 @@ pre {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-.text-approval {
-  color: var(--approval);
-}
 .mode:has(input:focus-visible) {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
+/* Commands run on this computer, not isolated: a real warning, so caution, not the blue of "your turn". */
 .tag-local {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   width: fit-content;
   padding: 4px 12px;
-  border: 1px solid color-mix(in srgb, var(--approval) 35%, transparent);
+  border: 1px solid color-mix(in srgb, var(--caution) 35%, transparent);
   border-radius: 999px;
-  color: var(--approval);
+  color: var(--caution);
   font-size: 13px;
 }
+.tag-local svg {
+  flex-shrink: 0;
+}
 
+/* The agent asks to run a command: a person decides, so the blue of "your turn". */
 .approval {
   display: grid;
   gap: 12px;
   padding: 16px;
-  border: 1px solid color-mix(in srgb, var(--approval) 40%, transparent);
+  border: 1px solid color-mix(in srgb, var(--approval) 35%, transparent);
   border-radius: 20px;
-  background: color-mix(in srgb, var(--approval) 5%, var(--surface));
+  background: color-mix(in srgb, var(--approval) 4%, var(--surface));
 }
 .approval > p svg {
   color: var(--approval);
@@ -600,22 +727,6 @@ pre {
 .model-text {
   white-space: pre-wrap;
   color: var(--ink);
-}
-.dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  margin-right: 2px;
-  vertical-align: middle;
-  background: var(--verified);
-}
-.dot-denied,
-.dot-failed {
-  background: var(--failed);
-}
-.dot-declined {
-  background: var(--approval);
 }
 
 /* Pairing */
@@ -685,6 +796,7 @@ pre {
   line-height: 1;
   padding: 18px 0 6px;
 }
+/* A folder offered to this computer waits for the person here: the blue of "your turn". */
 .offer {
   border-color: color-mix(in srgb, var(--approval) 45%, var(--line));
 }

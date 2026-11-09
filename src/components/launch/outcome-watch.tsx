@@ -1,37 +1,26 @@
-import { CheckCircleIcon, WarningIcon } from "@phosphor-icons/react/ssr";
+import { PulseIcon } from "@phosphor-icons/react/ssr";
+import { CardTitle } from "@/components/app/primitives";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
+import { StatusBadge } from "@/components/ui/status-badge";
 import type { WatchView } from "@/server/launch/watch-store";
 import { WatchToggle } from "./watch-toggle";
 
 const SLOTS = 24;
-// Failed checks are striped as well as red, so the strip never relies on colour alone.
-const FAILED_STRIPES = "repeating-linear-gradient(135deg, var(--color-failed) 0 3px, color-mix(in oklab, var(--color-failed) 45%, var(--color-surface)) 3px 6px)";
 
-// The state is a word or two in its colour and border (ADR 0180); the fact beside it is a line, not part of the chip.
+// The state is its kind's chip (ADR 0183); the fact beside it is a line, not part of the chip.
 function Badge({ watch }: { watch: WatchView | null }) {
-  if (!watch) return <span className="inline-flex h-7 items-center rounded-full border border-dashed border-line-strong px-3 text-xs font-medium text-ink-2">Off</span>;
+  if (!watch) return <StatusBadge status="off" label="Off" />;
   if (watch.state === "breached")
     return (
       <span className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-failed/40 px-3 text-xs font-medium text-failed">
-          <WarningIcon size={14} weight="bold" aria-hidden /> Needs a look
-        </span>
+        <StatusBadge status="failed" label="Down" />
         <span className="text-xs text-ink-3">
           Down since <RelativeTime iso={watch.breachedAt!} />
         </span>
       </span>
     );
-  if (watch.state === "ok")
-    return (
-      <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-verified/40 px-3 text-xs font-medium text-verified">
-        <CheckCircleIcon size={14} weight="fill" aria-hidden /> Answering
-      </span>
-    );
-  return (
-    <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-approval/40 px-3 text-xs font-medium text-approval">
-      Waiting for the first check
-    </span>
-  );
+  if (watch.state === "ok") return <StatusBadge status="verified" label="Answering" />;
+  return <StatusBadge status="pending" label="Waiting for the first check" />;
 }
 
 /**
@@ -48,9 +37,9 @@ export function OutcomeWatch({ projectId, watch, disabledReason }: { projectId: 
     <section aria-labelledby="watch-title" className="grid gap-4 rounded-lg border border-line bg-surface p-5 shadow-e1 sm:p-7">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 id="watch-title" className="text-lg font-medium">
+          <CardTitle id="watch-title" icon={PulseIcon}>
             Outcome watch
-          </h2>
+          </CardTitle>
           <p className="mt-1 max-w-[68ch] text-sm leading-relaxed text-ink-2">
             Farbaek checks what&apos;s live every hour. A Farbaek Site has to answer with exactly the version that should be live. A launch to Vercel or Netlify has to answer at its
             address. Two failed checks in a row mean it&apos;s down. Whoever turned the watch on hears by email and on their devices, and again when it&apos;s back.
@@ -62,16 +51,16 @@ export function OutcomeWatch({ projectId, watch, disabledReason }: { projectId: 
       {watch ? (
         <div className="grid gap-3">
           <div className="grid gap-1.5">
+            {/* A check that answered is a full bar and a failed one a short bar, so the strip never relies on colour alone. */}
             <div className="flex h-7 items-end gap-[3px]" aria-hidden>
               {Array.from({ length: empty }, (_, i) => (
-                <span key={`e${i}`} className="h-2 flex-1 rounded-[3px] border border-dashed border-line" />
+                <span key={`e${i}`} className="h-1.5 flex-1 rounded-[3px] bg-line" />
               ))}
               {checks.map((c, i) => (
                 <span
                   key={`${c.at}-${i}`}
                   title={`${new Date(c.at).toUTCString()}: ${c.ok ? "answering" : "failed"}${c.detail ? `. ${c.detail}` : ""}`}
-                  className={`flex-1 rounded-[3px] ${c.ok ? "h-7 bg-verified/70" : "h-4"}`}
-                  style={c.ok ? undefined : { backgroundImage: FAILED_STRIPES }}
+                  className={`flex-1 rounded-[3px] ${c.ok ? "h-7 bg-verified/70" : "h-3.5 bg-failed"}`}
                 />
               ))}
             </div>

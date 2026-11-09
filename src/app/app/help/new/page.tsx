@@ -28,7 +28,7 @@ export default async function NewHelpRequestPage({ searchParams }: { searchParam
   return (
     <div className="grid gap-6">
       <Link href="/app/help" className="inline-flex min-h-11 w-fit items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
-        <ArrowLeftIcon size={14} aria-hidden /> Help and support
+        <ArrowLeftIcon size={14} weight="bold" aria-hidden /> Help and support
       </Link>
       <PageHeader title={prefill ? "Report this result" : "Write to Farbaek"} description={`It's sent from ${ctx.mode === "live" ? ctx.user.email : "the demo"}, about the workspace ${ctx.current.name}. You'll find the answer under Help.`} />
       <Card className="max-w-[760px]">

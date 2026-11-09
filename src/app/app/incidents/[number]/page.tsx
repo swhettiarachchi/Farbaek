@@ -4,13 +4,16 @@ import {
   CheckCircleIcon,
   DesktopIcon,
   EyeIcon,
+  ClockCounterClockwiseIcon,
   HandPalmIcon,
   NotePencilIcon,
+  PauseCircleIcon,
   PlayIcon,
   ScalesIcon,
   ShieldCheckIcon,
   SirenIcon,
   WarningIcon,
+  WrenchIcon,
   XCircleIcon,
   ArrowCounterClockwiseIcon,
 } from "@phosphor-icons/react/ssr";
@@ -18,7 +21,7 @@ import type { Icon } from "@phosphor-icons/react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Card, PageHeader } from "@/components/app/primitives";
+import { Card, CardTitle, PageHeader } from "@/components/app/primitives";
 import { IncidentStatusBadge, SeverityBadge } from "@/components/incidents/badges";
 import { IncidentTools } from "@/components/incidents/incident-tools";
 import { PauseControl } from "@/components/incidents/pause-control";
@@ -37,13 +40,13 @@ export const metadata: Metadata = { title: "Problem" };
 const EVENT_ICON: Record<IncidentEventKind, { icon: Icon; className: string }> = {
   opened: { icon: SirenIcon, className: "text-failed" },
   note: { icon: NotePencilIcon, className: "text-ink-2" },
-  severity: { icon: WarningIcon, className: "text-approval" },
-  status: { icon: ShieldCheckIcon, className: "text-accent" },
+  severity: { icon: WarningIcon, className: "text-caution" },
+  status: { icon: ShieldCheckIcon, className: "text-info" },
   check_failed: { icon: XCircleIcon, className: "text-failed" },
   recovered: { icon: CheckCircleIcon, className: "text-verified" },
-  paused: { icon: HandPalmIcon, className: "text-failed" },
+  paused: { icon: PauseCircleIcon, className: "text-caution" },
   resumed: { icon: PlayIcon, className: "text-verified" },
-  prevention: { icon: ScalesIcon, className: "text-accent" },
+  prevention: { icon: ScalesIcon, className: "text-ink-2" },
   resolved: { icon: CheckCircleIcon, className: "text-verified" },
 };
 
@@ -77,7 +80,7 @@ export default async function IncidentPage({ params }: { params: Promise<{ numbe
     <div className="grid gap-8">
       <div className="grid gap-4">
         <Link href="/app/incidents" className="inline-flex min-h-11 items-center gap-1.5 self-start text-sm text-ink-2 hover:text-ink">
-          <ArrowLeftIcon size={14} aria-hidden /> All problems
+          <ArrowLeftIcon size={14} weight="bold" aria-hidden /> All problems
         </Link>
         <PageHeader
           title={`#${incident.number} ${incident.title}`}
@@ -106,7 +109,7 @@ export default async function IncidentPage({ params }: { params: Promise<{ numbe
       {incident.status === "resolved" ? (
         <Card>
           <p className="flex items-start gap-2.5 text-[0.9375rem] leading-relaxed">
-            <CheckCircleIcon size={20} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+            <CheckCircleIcon size={20} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
             <span>
               <span className="font-medium">Resolved {incident.resolvedAt ? <RelativeTime iso={incident.resolvedAt} /> : null}.</span> {incident.outcome}
             </span>
@@ -114,7 +117,7 @@ export default async function IncidentPage({ params }: { params: Promise<{ numbe
         </Card>
       ) : (
         <Card>
-          <h2 className="text-lg font-medium">Contain it</h2>
+          <CardTitle icon={HandPalmIcon}>Contain it</CardTitle>
           <div className="mt-4">
             <PauseControl
               paused={ws.agentsPaused}
@@ -126,22 +129,22 @@ export default async function IncidentPage({ params }: { params: Promise<{ numbe
             {taskId ? (
               <li>
                 <Link href={`/app/tasks/${taskId}`} className="flex min-h-11 items-center gap-2.5 text-sm hover:underline">
-                  <ArrowCounterClockwiseIcon size={16} className="shrink-0 text-ink-2" aria-hidden /> Undo the change, file by file, from its task
-                  <ArrowRightIcon size={14} className="ml-auto shrink-0 text-ink-3" aria-hidden />
+                  <ArrowCounterClockwiseIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> Undo the change, file by file, from its task
+                  <ArrowRightIcon size={14} weight="bold" className="ml-auto shrink-0 text-ink-3" aria-hidden />
                 </Link>
               </li>
             ) : null}
             <li>
               <Link href="/app/agents" className="flex min-h-11 items-center gap-2.5 text-sm hover:underline">
-                <DesktopIcon size={16} className="shrink-0 text-ink-2" aria-hidden /> Revoke a desktop agent you don&apos;t trust
-                <ArrowRightIcon size={14} className="ml-auto shrink-0 text-ink-3" aria-hidden />
+                <DesktopIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> Revoke a desktop agent you don&apos;t trust
+                <ArrowRightIcon size={14} weight="bold" className="ml-auto shrink-0 text-ink-3" aria-hidden />
               </Link>
             </li>
             {project ? (
               <li>
                 <Link href={`/app/projects/${project.id}/launch`} className="flex min-h-11 items-center gap-2.5 text-sm hover:underline">
-                  <EyeIcon size={16} className="shrink-0 text-ink-2" aria-hidden /> Watch what&apos;s live for {project.name} every hour
-                  <ArrowRightIcon size={14} className="ml-auto shrink-0 text-ink-3" aria-hidden />
+                  <EyeIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> Watch what&apos;s live for {project.name} every hour
+                  <ArrowRightIcon size={14} weight="bold" className="ml-auto shrink-0 text-ink-3" aria-hidden />
                 </Link>
               </li>
             ) : null}
@@ -160,7 +163,7 @@ export default async function IncidentPage({ params }: { params: Promise<{ numbe
       </Card>
 
       <Card>
-        <h2 className="text-lg font-medium">Timeline</h2>
+        <CardTitle icon={ClockCounterClockwiseIcon}>Timeline</CardTitle>
         <ol className="mt-4 grid gap-4">
           {events.map((e) => {
             const { icon: EventIcon, className } = EVENT_ICON[e.kind];
@@ -187,7 +190,7 @@ export default async function IncidentPage({ params }: { params: Promise<{ numbe
 
       {incident.status !== "resolved" ? (
         <Card>
-          <h2 className="text-lg font-medium">Work on it</h2>
+          <CardTitle icon={WrenchIcon}>Work on it</CardTitle>
           <div className="mt-4">
             <IncidentTools
               number={incident.number}

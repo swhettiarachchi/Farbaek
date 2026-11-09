@@ -1,10 +1,11 @@
 "use client";
 
-import { TreeStructureIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
+import { TreeStructureIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { suggestLensMappingAction } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { modelName } from "@/core/billing/model-names";
 import { RelativeTime } from "@/components/ui/local-time";
 import { hunkRange, type LensSummary } from "@/core/realityloop/intent-lens";
@@ -70,7 +71,7 @@ function AskAi({ ai }: { ai: LensAiState }) {
     <div className="mt-1 grid gap-2 border-t border-line pt-3">
       {ai.suggestion ? (
         <p className="flex items-start gap-2 text-xs leading-relaxed text-ink-2">
-          <TreeStructureIcon size={14} weight="bold" className="mt-px shrink-0 text-accent" aria-hidden />
+          <TreeStructureIcon size={14} weight="bold" className="mt-px shrink-0 text-ink-3" aria-hidden />
           <span>
             {capitalized(modelName(ai.suggestion.model))} linked these changes to the plan <RelativeTime iso={ai.suggestion.createdAt} />. Its notes are suggestions, not checks, and any flags still stand.
           </span>
@@ -79,14 +80,14 @@ function AskAi({ ai }: { ai: LensAiState }) {
       {ai.open ? (
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" onClick={ask} disabled={pending || Boolean(ai.disabledReason)} className={buttonClasses(ai.suggestion ? "ghost" : "secondary", "sm")}>
-            <TreeStructureIcon size={15} weight="bold" aria-hidden /> {pending ? "Asking…" : ai.suggestion ? "Ask again" : "Ask AI to link each change to the plan"}
+            <TreeStructureIcon size={16} weight="bold" aria-hidden /> {pending ? "Asking…" : ai.suggestion ? "Ask again" : "Ask AI to link each change to the plan"}
           </button>
           <span className="text-xs text-ink-3">{ai.disabledReason ?? "Uses a little of this period's AI usage; refunded if it fails."}</span>
         </div>
       ) : null}
       {error ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {error}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden /> {error}
         </p>
       ) : null}
     </div>
@@ -95,23 +96,6 @@ function AskAi({ ai }: { ai: LensAiState }) {
 
 /** Ends a line with a full stop when it has none, so two facts don't run together. */
 const sentence = (s: string) => (/[.!?]$/.test(s.trim()) ? s : `${s}.`);
-
-/** One or two words in the tone of what they say (ADR 0180). The facts behind them are lines, under the range. */
-function Chip({ tone, children }: { tone: "failed" | "verified" | "approval" | "ai"; children: React.ReactNode }) {
-  const cls = {
-    failed: "border-failed/40 text-failed",
-    // A match is a pointer by shared words, not a check: a green edge, in ink.
-    verified: "border-verified/40 text-ink-2",
-    approval: "border-approval/40 border-dashed text-approval",
-    ai: "border-accent/40 border-dashed text-ink-2",
-  }[tone];
-  return (
-    <span className={`inline-flex h-6 w-fit shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-xs font-medium ${cls}`}>
-      {tone === "failed" ? <XCircleIcon size={14} weight="bold" aria-hidden /> : null}
-      {children}
-    </span>
-  );
-}
 
 /** One file's hunks, each with what the contract says about it. */
 export function FileLensRows({ lens }: { lens: SuggestedFileLens }) {
@@ -125,10 +109,11 @@ export function FileLensRows({ lens }: { lens: SuggestedFileLens }) {
           <li key={i} className="grid gap-1.5 px-3 py-2.5">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
               <span className="tabular text-xs font-medium text-ink-3">{hunkRange(h.hunk)}</span>
-              {h.flags.length > 0 ? <Chip tone="failed">Breaks the plan</Chip> : null}
-              {h.match && h.flags.length === 0 ? <Chip tone="verified">Matches the plan</Chip> : null}
-              {h.unexplained ? <Chip tone="approval">Unexplained</Chip> : null}
-              {h.ai ? <Chip tone="ai">{"none" in h.ai ? "AI found no link" : "AI linked"}</Chip> : null}
+              {/* One or two words as a status kind (ADR 0183). A match is a pointer by shared words, not a check, so it's done, not verified. */}
+              {h.flags.length > 0 ? <StatusBadge status="failed" label="Breaks the plan" /> : null}
+              {h.match && h.flags.length === 0 ? <StatusBadge status="done" label="Matches the plan" /> : null}
+              {h.unexplained ? <StatusBadge status="attention" label="Unexplained" /> : null}
+              {h.ai ? <StatusBadge status="info" label={"none" in h.ai ? "AI found no link" : "AI linked"} /> : null}
             </div>
             {h.flags.map((f) => (
               <p key={f.detail} className="text-sm leading-relaxed text-ink-2">

@@ -29,20 +29,20 @@ function Verdict({ summary, since, replay }: { summary: RehearsalSummary; since:
   if (verdict === "would_have_paused")
     return (
       <p className="flex items-start gap-2 text-[0.9375rem]">
-        <WarningCircleIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+        <WarningCircleIcon size={16} weight="fill" className="mt-1 shrink-0 text-failed" aria-hidden />
         <span>This setting would have paused itself: a change it would have applied failed its checks.</span>
       </p>
     );
   if (verdict === "people_disagreed")
     return (
       <p className="flex items-start gap-2 text-[0.9375rem]">
-        <WarningCircleIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-approval" aria-hidden />
+        <WarningCircleIcon size={16} weight="fill" className="mt-1 shrink-0 text-caution" aria-hidden />
         <span>Someone discarded a change that would have applied on its own. Look at it before you turn this on.</span>
       </p>
     );
   return (
     <p className="flex items-start gap-2 text-[0.9375rem]">
-      <CheckCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+      <CheckCircleIcon size={16} weight="fill" className="mt-1 shrink-0 text-verified" aria-hidden />
       <span>
         Of the {plural(wouldApply, "change", "changes")} that would have applied on their own, none failed its checks and none was discarded.
       </span>
@@ -69,7 +69,7 @@ export function RehearsalRecord({ summary, since, replay }: { summary: Rehearsal
   ].filter((x) => x.n > 0);
 
   return (
-    <section aria-labelledby={replay ? "replay-heading" : "rehearsal-heading"} className="mt-6 grid gap-4 rounded-md border border-dashed border-simulated/40 bg-simulated/[0.03] p-4 sm:p-5">
+    <section aria-labelledby={replay ? "replay-heading" : "rehearsal-heading"} className="mt-6 grid gap-4 rounded-md border border-line bg-surface-raised p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 id={replay ? "replay-heading" : "rehearsal-heading"} className="text-base font-medium">
           {replay ? "Replay of the last 30 days" : "Practice record"}
@@ -116,7 +116,7 @@ export function RehearsalRecord({ summary, since, replay }: { summary: Rehearsal
 
           {summary.example ? (
             <Link href={`/app/tasks/${summary.example.taskId}`} className="inline-flex min-h-11 items-center gap-1.5 justify-self-start text-sm font-medium text-accent hover:underline">
-              {summary.example.kind === "failed" ? "See the change that failed" : "See the discarded change"} <ArrowRightIcon size={14} aria-hidden />
+              {summary.example.kind === "failed" ? "See the change that failed" : "See the discarded change"} <ArrowRightIcon size={14} weight="bold" aria-hidden />
             </Link>
           ) : null}
         </>

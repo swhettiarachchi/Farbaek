@@ -7,6 +7,7 @@ import { EmptyState, PageHeader } from "@/components/app/primitives";
 import { WalletCard, type WalletCardData } from "@/components/approvals/wallet-card";
 import { ButtonLink } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/local-time";
+import { StatusGlyph } from "@/components/ui/status-badge";
 import { lensForChange, lensSummary } from "@/core/realityloop/intent-lens";
 import { walletRisk } from "@/core/trust/approval-wallet";
 import { currentExecutionMode } from "@/server/execution/sandbox";
@@ -80,7 +81,9 @@ export default async function ApprovalsPage() {
           ))}
           {unread.map((t) => (
             <li key={t.id}>
-              <Link href={`/app/tasks/${t.id}`} className="group flex items-center gap-4 rounded-md border border-dashed border-line-strong/40 bg-surface px-4 py-3 hover:border-line-strong/60">
+              <Link href={`/app/tasks/${t.id}`} className="group flex items-center gap-3 rounded-md border border-line bg-surface px-4 py-3 hover:border-line-strong/60">
+                {/* Waiting with nothing to approve needs a look, not a decision (ADR 0183). */}
+                <StatusGlyph status="attention" className="mt-0.5 self-start" />
                 <span className="min-w-0 flex-1">
                   <span className="line-clamp-2 text-[0.9375rem] font-medium group-hover:text-accent">{t.title}</span>
                   <span className="mt-0.5 block text-xs text-ink-3">
@@ -88,7 +91,7 @@ export default async function ApprovalsPage() {
                     here. Open the task to see why.
                   </span>
                 </span>
-                <ArrowRightIcon size={14} className="shrink-0 text-ink-3" aria-hidden />
+                <ArrowRightIcon size={14} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
               </Link>
             </li>
           ))}

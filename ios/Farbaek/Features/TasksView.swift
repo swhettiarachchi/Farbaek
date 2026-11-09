@@ -97,24 +97,24 @@ struct NextStepCard: View {
         }
     }
 
-    private var symbol: String {
+    /// The step's kind (ADR 0183): your turn in blue, work going on in steel, done, a problem, or a plain fact.
+    private var kind: Tone {
         switch step.tone {
-        case "action": return "pencil.line"
-        case "working": return "hammer"
-        case "done": return "checkmark.seal.fill"
-        case "problem": return "exclamationmark.triangle.fill"
-        default: return "info.circle"
+        case "action": return .approval
+        case "working": return .working
+        case "done": return .verified
+        case "problem": return .failed
+        default: return .info
         }
     }
 
+    private var symbol: String {
+        // A problem is the web's warning mark, as every error line is.
+        step.tone == "problem" ? "exclamationmark.circle.fill" : kind.symbol
+    }
+
     private var color: Color {
-        switch step.tone {
-        case "action": return Palette.accent
-        case "working": return Palette.info
-        case "done": return Palette.verified
-        case "problem": return Palette.failed
-        default: return Palette.ink2
-        }
+        step.tone == "action" ? Palette.accent : kind == .info ? Palette.ink2 : kind.color
     }
 
     var body: some View {
@@ -188,7 +188,7 @@ struct TaskDetailView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Text(detail.task.title).font(.title2.weight(.medium)).tracking(-0.4).foregroundStyle(Palette.ink)
                         Text(detail.task.projectName).font(.subheadline).foregroundStyle(Palette.ink2)
-                        StatusBadge(label: detail.task.stateLabel, tone: Tone(detail.task.tone))
+                        StatusBadge(label: detail.task.stateLabel, tone: Tone(taskState: detail.task.state, tone: detail.task.tone))
                     }
 
                     if let step = detail.nextStep { NextStepCard(step: step, detail: detail) }
@@ -223,14 +223,10 @@ struct TaskDetailView: View {
             SectionTitle("Progress")
             ForEach(stages, id: \.self) { stage in
                 HStack(alignment: .top, spacing: 12) {
-                    // A mark only where a stage is done or failed (ADR 0180); the words carry the rest, in their colour.
-                    if let symbol = Tone(stage.status).symbol {
-                        Image(systemName: symbol)
-                            .foregroundStyle(Tone(stage.status).color)
-                            .frame(width: 22)
-                    } else {
-                        Color.clear.frame(width: 22, height: 1)
-                    }
+                    // Every stage has its kind's mark (ADR 0183): done, waiting for you, failed, or the dashed "not yet".
+                    Image(systemName: Tone(stage.status).symbol)
+                        .foregroundStyle(Tone(stage.status).color)
+                        .frame(width: 22)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(stage.label).font(.subheadline.weight(.medium)).foregroundStyle(Palette.ink)
                         if !stage.note.isEmpty { Text(stage.note).font(.footnote).foregroundStyle(Palette.ink2).fixedSize(horizontal: false, vertical: true) }
@@ -252,19 +248,19 @@ struct TaskDetailView: View {
                 } icon: {
                     if result == "running" {
                         ProgressView().controlSize(.small)
-                    } else if let symbol = Tone(Self.tone(result)).symbol {
-                        Image(systemName: symbol)
+                    } else {
+                        Image(systemName: Self.tone(result).symbol)
                     }
                 }
                 .font(.subheadline)
-                .foregroundStyle(result == "running" ? Palette.info : Tone(Self.tone(result)).color)
+                .foregroundStyle(result == "running" ? Palette.info : Self.tone(result).color)
             }
             ForEach(detail.proofs, id: \.self) { proof in
                 HStack(spacing: 10) {
-                    Image(systemName: "seal").foregroundStyle(Palette.seal)
+                    Image(systemName: "checkmark.seal").foregroundStyle(Palette.seal).accessibilityHidden(true)
                     Text("ProofPack").font(.subheadline).foregroundStyle(Palette.ink)
                     Spacer()
-                    StatusBadge(label: Self.proofWords(proof.status), tone: Tone(Self.tone(proof.status)))
+                    StatusBadge(label: Self.proofWords(proof.status), tone: Self.tone(proof.status))
                 }
             }
         }
@@ -294,12 +290,30 @@ struct TaskDetailView: View {
         .card()
     }
 
+    /// A history line's mark, as on the web: a stopped step (and a partly verified one) shows how it ended,
+    /// a proven one is verified, and every other step reached is done.
+    static func stepTone(_ to: String) -> Tone {
+        switch to {
+        case "FAILED", "BLOCKED", "REJECTED", "EXPIRED", "CANCELLED", "INTERRUPTED", "PARTIALLY_VERIFIED":
+            return Tone(taskState: to, tone: "info")
+        case "VERIFIED", "RECOVERED":
+            return .verified
+        default:
+            return .done
+        }
+    }
+
     private func history(_ items: [HistoryItem]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionTitle("History")
-            // A plain list: each line is its words and when (ADR 0180), with no drawn dot before it.
+            // Each line is the state it moved to, with that state's mark (ADR 0183), who moved it and when.
             ForEach(items.reversed()) { item in
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Image(systemName: Self.stepTone(item.to).symbol)
+                        .font(.footnote)
+                        .foregroundStyle(Self.stepTone(item.to).color)
+                        .frame(width: 18)
+                        .accessibilityHidden(true)
                     Text(item.toLabel).font(.subheadline).foregroundStyle(Palette.ink)
                     Text(Self.actorWords(item.actor)).font(.footnote).foregroundStyle(Palette.ink3)
                     Spacer()
@@ -310,12 +324,13 @@ struct TaskDetailView: View {
         .card()
     }
 
-    static func tone(_ status: String) -> String {
+    /// A ProofPack's or a check run's kind: verified, partly verified (look at it), failed, or not yet.
+    static func tone(_ status: String) -> Tone {
         switch status {
-        case "verified": return "verified"
-        case "partially_verified", "unverified": return "unverified"
-        case "failed": return "failed"
-        default: return "neutral"
+        case "verified": return .verified
+        case "partially_verified": return .attention
+        case "failed": return .failed
+        default: return .unverified
         }
     }
 

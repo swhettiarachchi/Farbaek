@@ -1,10 +1,11 @@
-import { ArrowLeftIcon, ArrowSquareOutIcon, CheckCircleIcon, GlobeIcon, InfoIcon, WarningIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, ArrowUpRightIcon, ClockCounterClockwiseIcon, CloudArrowUpIcon, CoinsIcon, GlobeIcon, KeyIcon, PlugsConnectedIcon, SealCheckIcon, TerminalWindowIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
-import { Card, PageHeader } from "@/components/app/primitives";
+import { Card, CardTitle, Notice, PageHeader } from "@/components/app/primitives";
 import { LiveCheck } from "@/components/launch/live-check";
+import { VERDICT_KIND } from "@/components/launch/verdict-kind";
 import { NETLIFY_BUILDS, vercelBuilds } from "@/components/launch/provider-copy";
 import { ProviderPanel } from "@/components/launch/provider-panel";
 import { OutcomeWatch } from "@/components/launch/outcome-watch";
@@ -21,7 +22,7 @@ import { vaultKey } from "@/server/launch/token-vault";
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES } from "@/server/workspace/types";
 import { buttonClasses } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/local-time";
-import { StatusBadge, type Status } from "@/components/ui/status-badge";
+import { StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { VERDICT_WORDS } from "@/core/launch/health";
 import { KIND_LABELS, type LaunchPlan, type PlanCommand, type ServiceKind } from "@/core/launch/planner";
 import { PRICING_PAGES } from "@/core/launch/costs";
@@ -45,13 +46,14 @@ const HOSTING_WORDS: Record<LaunchPlan["hosting"], string> = {
 /** "a", "a and b", "a, b and c". */
 const andList = (items: string[]) => (items.length < 2 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`);
 
-// Each step's state is a word in its colour and border (ADR 0180), with a mark only once it's done.
+// Each step's state is its kind (ADR 0183): its words, icon, colour and border. A missing step is "not yet", and one
+// this project doesn't need is off.
 type StepState = "done" | "attention" | "missing" | "na";
 const STEP_BADGE: Record<StepState, { status: Status; label: string }> = {
   done: { status: "verified", label: "Done" },
-  attention: { status: "approval", label: "Needs a look" },
+  attention: { status: "attention", label: "Needs a look" },
   missing: { status: "unverified", label: "Missing" },
-  na: { status: "unverified", label: "Not needed yet" },
+  na: { status: "off", label: "Not needed yet" },
 };
 
 function Command({ label, value }: { label: string; value: PlanCommand | null }) {
@@ -174,15 +176,15 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
     <div className="grid gap-8">
       <div>
         <Link href={`/app/projects/${project.id}`} className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
-          <ArrowLeftIcon size={14} aria-hidden /> {project.name}
+          <ArrowLeftIcon size={14} weight="bold" aria-hidden /> {project.name}
         </Link>
         <div className="mt-2">
           <PageHeader title="Launch" description="What this project is, what it needs to run, the proof behind it and where it can go. Read from its own files; nothing here changes the project." />
         </div>
       </div>
 
-      <section aria-labelledby="plan-title" className="relative overflow-hidden rounded-lg border border-line bg-surface p-6 shadow-e2 sm:p-8">
-        <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-[radial-gradient(circle,var(--color-accent)_0%,transparent_70%)] opacity-[0.07]" />
+      {/* The plan's headline is the page's lead statement, set large, so it stands as words alone like a page title. */}
+      <section aria-labelledby="plan-title" className="rounded-lg border border-line bg-surface p-6 shadow-e2 sm:p-8">
         <h2 id="plan-title" className="text-balance text-[1.7rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2.2rem]">
           {KIND_LABELS[plan.kind]}
           {sitesDestination.available ? <span className="text-ink-3">, ready for Farbaek Sites</span> : null}
@@ -195,12 +197,12 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
         <div className="mt-6 flex flex-wrap items-center gap-3">
           {live && publish?.address ? (
             <a href={publish.address} target="_blank" rel="noopener noreferrer" className={buttonClasses("primary", "md")}>
-              <GlobeIcon size={17} aria-hidden /> Open {site?.name}
-              <ArrowSquareOutIcon size={14} aria-hidden />
+              <GlobeIcon size={16} weight="bold" aria-hidden /> Open {site?.name}
+              <ArrowUpRightIcon size={14} weight="bold" aria-hidden />
             </a>
           ) : sitesDestination.available ? (
             <Link href={`/app/projects/${project.id}#publish`} className={buttonClasses("primary", "md")}>
-              <GlobeIcon size={17} aria-hidden /> Publish on Farbaek Sites
+              <GlobeIcon size={16} weight="bold" aria-hidden /> Publish on Farbaek Sites
             </Link>
           ) : null}
           <p className="text-sm text-ink-2">{sitesDestination.reason}</p>
@@ -210,9 +212,8 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
       {plan.notes.length > 0 ? (
         <ul className="grid gap-2">
           {plan.notes.map((n) => (
-            <li key={n} className="flex items-start gap-2.5 rounded-md border border-line bg-surface px-4 py-3 text-sm text-ink">
-              <InfoIcon size={17} className="mt-px shrink-0 text-accent" aria-hidden />
-              {n}
+            <li key={n}>
+              <Notice>{n}</Notice>
             </li>
           ))}
         </ul>
@@ -221,9 +222,9 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
         <section aria-labelledby="evidence-title" className="grid content-start gap-5">
           <div>
-            <h2 id="evidence-title" className="text-lg font-medium">
+            <CardTitle id="evidence-title" icon={SealCheckIcon}>
               The proof behind it
-            </h2>
+            </CardTitle>
             <p className="mt-1 text-sm text-ink-2">Each launch stands on these, in order. A step that isn&apos;t done says what&apos;s missing.</p>
           </div>
           <ol className="divide-y divide-line overflow-hidden rounded-md border border-line bg-surface shadow-e1">
@@ -262,7 +263,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
 
         <div className="grid content-start gap-6">
           <Card>
-            <h2 className="text-lg font-medium">How it runs</h2>
+            <CardTitle icon={TerminalWindowIcon}>How it runs</CardTitle>
             <dl className="mt-2 divide-y divide-line">
               <Command label="Build" value={plan.build} />
               {plan.output ? <Command label="Output" value={plan.output} /> : null}
@@ -279,8 +280,11 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
                   <dd>
                     <ul className="grid gap-1 text-sm text-ink">
                       {plan.services.map((s) => (
-                        <li key={s.kind}>
-                          {SERVICE_WORDS[s.kind]}, through <code className="break-all font-mono text-[0.8125rem] text-ink-2">{s.via}</code>
+                        <li key={s.kind} className="flex items-start gap-2">
+                          <PlugsConnectedIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
+                          <span className="min-w-0">
+                            {SERVICE_WORDS[s.kind]}, through <code className="break-all font-mono text-[0.8125rem] text-ink-2">{s.via}</code>
+                          </span>
                         </li>
                       ))}
                     </ul>
@@ -291,7 +295,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
           </Card>
 
           <Card>
-            <h2 className="text-lg font-medium">What will cost money</h2>
+            <CardTitle icon={CoinsIcon}>What will cost money</CardTitle>
             <p className="mt-1 text-sm leading-relaxed text-ink-2">
               Farbaek doesn&apos;t charge for launches. These bill your own accounts at the host and at each service. Farbaek can&apos;t see your plans or traffic there, so there are no prices here.
             </p>
@@ -313,7 +317,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
               {PRICING_PAGES.map((p, i) => (
                 <span key={p.name}>
                   <a href={p.url} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-1 underline decoration-line-strong underline-offset-4 hover:text-ink">
-                    {p.name} <ArrowSquareOutIcon size={13} aria-hidden />
+                    {p.name} <ArrowUpRightIcon size={14} weight="bold" aria-hidden />
                   </a>
                   {i < PRICING_PAGES.length - 1 ? "," : null}
                 </span>
@@ -322,7 +326,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
           </Card>
 
           <Card>
-            <h2 className="text-lg font-medium">Settings it needs</h2>
+            <CardTitle icon={KeyIcon}>Settings it needs</CardTitle>
             <p className="mt-1 text-sm text-ink-2">Names only. Their values belong in the host&apos;s settings; Farbaek never reads or stores them here.</p>
             {plan.envNames.length === 0 ? (
               <p className="mt-4 text-sm text-ink-3">None found in the files.</p>
@@ -332,7 +336,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
                   <li key={e.name} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
                     <code className="break-all font-mono text-[0.8125rem] text-ink">{e.name}</code>
                     <span className="flex flex-wrap items-center gap-2 text-xs text-ink-3">
-                      {e.public ? <StatusBadge status="approval" label="Visible in the browser" /> : null}
+                      {e.public ? <StatusBadge status="attention" label="Visible in the browser" /> : null}
                       {e.seenIn.includes("code") ? "Read in code" : "In the example file"}
                     </span>
                   </li>
@@ -345,16 +349,16 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
 
       <section aria-labelledby="where-title" className="grid gap-4">
         <div>
-          <h2 id="where-title" className="text-lg font-medium">
+          <CardTitle id="where-title" icon={CloudArrowUpIcon}>
             Where it can go
-          </h2>
+          </CardTitle>
           <p className="mt-1 text-sm text-ink-2">Farbaek Sites works today, and Vercel and Netlify connect below with your own accounts. The others aren&apos;t connected yet. Farbaek charges nothing here.</p>
         </div>
         <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <li className={`grid gap-2 rounded-md border p-5 ${sitesDestination.available ? "border-accent/30 bg-accent/[0.04] shadow-e1" : "border-line bg-surface"}`}>
             <span className="flex flex-wrap items-center justify-between gap-2">
               <span className="font-medium">{sitesDestination.name}</span>
-              {sitesDestination.available ? <StatusBadge status="verified" label="Available" /> : <StatusBadge status="unverified" label="Not for this project" />}
+              {sitesDestination.available ? <StatusBadge status="verified" label="Available" /> : <StatusBadge status="off" label="Not for this project" />}
             </span>
             <span className="text-sm text-ink-2">{sitesDestination.suits}</span>
           </li>
@@ -362,10 +366,10 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
             const connectable = isLaunchProvider(p.id);
             const connection = isLaunchProvider(p.id) ? (connections[p.id] ?? null) : null;
             return (
-              <li key={p.id} className={`grid content-start gap-2 rounded-md border bg-surface p-5 ${connection ? "border-verified/30 shadow-e1" : "border-dashed border-line-strong/50"}`}>
+              <li key={p.id} className={`grid content-start gap-2 rounded-md border bg-surface p-5 ${connection ? "border-verified/30 shadow-e1" : "border-line"}`}>
                 <span className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-medium text-ink">{p.name}</span>
-                  {connection ? <StatusBadge status="verified" label="Connected" /> : <StatusBadge status="unverified" label="Not connected" />}
+                  {connection ? <StatusBadge status="verified" label="Connected" /> : <StatusBadge status="off" label="Not connected" />}
                 </span>
                 <span className="text-sm text-ink-2">{p.suits}</span>
                 {connectable ? (
@@ -406,9 +410,9 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
 
       {publish && publish.deployments.length > 0 ? (
         <section aria-labelledby="timeline-title" className="grid gap-4">
-          <h2 id="timeline-title" className="text-lg font-medium">
+          <CardTitle id="timeline-title" icon={ClockCounterClockwiseIcon}>
             Every version
-          </h2>
+          </CardTitle>
           <ol className="divide-y divide-line overflow-hidden rounded-md border border-line bg-surface shadow-e1">
             {publish.deployments.map((d) => {
               const c = checks[d.id];
@@ -427,17 +431,16 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
                   </span>
                   <span className="text-xs text-ink-2">
                     {c ? (
-                      <span className={`inline-flex items-center gap-1.5 ${c.verdict === "previous" ? "text-approval" : ""}`}>
-                        {/* A mark only for how the check ended: answering with it, or failing. An earlier version still being served is its words in their colour. */}
-                        {c.verdict === "live" ? (
-                          <CheckCircleIcon size={14} weight="fill" className="shrink-0 text-verified" aria-hidden />
-                        ) : c.verdict === "previous" ? null : (
-                          <WarningIcon size={14} weight="fill" className="shrink-0 text-failed" aria-hidden />
-                        )}
+                      // How the check ended is its kind's icon and colour; the words stay in one colour whichever it is.
+                      <span className="inline-flex items-center gap-1.5">
+                        <StatusGlyph status={VERDICT_KIND[c.verdict]} size={14} />
                         {isLive || c.verdict !== "live" ? VERDICT_WORDS[c.verdict] : "Served exactly this version when checked"}, <RelativeTime iso={c.checkedAt} />
                       </span>
                     ) : (
-                      <span className="text-ink-3">Not checked</span>
+                      <span className="inline-flex items-center gap-1.5 text-ink-3">
+                        <StatusGlyph status="unverified" size={14} />
+                        Not checked
+                      </span>
                     )}
                   </span>
                 </li>

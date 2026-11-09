@@ -3,7 +3,7 @@
 import {
   BuildingsIcon,
   ChartLineUpIcon,
-  ChatsCircleIcon,
+  ClockCounterClockwiseIcon,
   CpuIcon,
   CreditCardIcon,
   DotsThreeOutlineIcon,
@@ -11,8 +11,8 @@ import {
   GlobeIcon,
   HeartbeatIcon,
   IdentificationBadgeIcon,
+  LifebuoyIcon,
   MegaphoneIcon,
-  PulseIcon,
   ScrollIcon,
   SlidersHorizontalIcon,
   UsersThreeIcon,
@@ -32,8 +32,8 @@ const ICONS: Record<OfficeHref | "/more", Icon> = {
   "/": ChartLineUpIcon,
   "/workspaces": BuildingsIcon,
   "/people": UsersThreeIcon,
-  "/support": ChatsCircleIcon,
-  "/activity": PulseIcon,
+  "/support": LifebuoyIcon,
+  "/activity": ClockCounterClockwiseIcon,
   "/sites": GlobeIcon,
   "/health": HeartbeatIcon,
   "/controls": SlidersHorizontalIcon,
@@ -83,7 +83,7 @@ export function OfficeNav({ layout, badges = {} }: { layout: "column" | "bar"; b
                   />
                   {item.short}
                   {item.href !== "/more" && (badges[item.href] ?? 0) > 0 ? (
-                    <span className="absolute right-[calc(50%-18px)] top-2 min-w-4 rounded-full bg-approval px-1 text-center text-[0.6875rem] font-semibold leading-4 text-surface tabular">
+                    <span className="absolute right-[calc(50%-18px)] top-2 min-w-4 rounded-full bg-approval px-1 text-center text-[0.6875rem] font-semibold leading-4 text-on-accent tabular">
                       {badges[item.href]}
                       <span className="sr-only"> waiting</span>
                     </span>
@@ -116,14 +116,14 @@ export function OfficeNav({ layout, badges = {} }: { layout: "column" | "bar"; b
                 >
                   <NavIcon
                     href={item.href}
-                    size={18}
+                    size={20}
                     weight={active ? "fill" : "regular"}
                     className={active ? "text-accent" : ""}
                     aria-hidden
                   />
                   {item.label}
                   {(badges[item.href] ?? 0) > 0 ? (
-                    <span className="ml-auto min-w-5 rounded-full bg-approval px-1.5 text-center text-[0.6875rem] font-semibold leading-5 text-surface tabular">
+                    <span className="ml-auto min-w-5 rounded-full bg-approval px-1.5 text-center text-[0.6875rem] font-semibold leading-5 text-on-accent tabular">
                       {badges[item.href]}
                       <span className="sr-only"> waiting</span>
                     </span>

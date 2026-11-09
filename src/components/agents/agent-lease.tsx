@@ -1,19 +1,21 @@
 "use client";
 
-import { ArrowClockwiseIcon, CheckCircleIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
+import { ArrowClockwiseIcon, CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useId, useState } from "react";
 import { renewAgentLeaseAction, setAgentLeaseAction, type AgentLeaseState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
+import { StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { AGENT_CAPABILITIES, CAPABILITY_LABELS, LEASE_DAY_CHOICES, LEASE_LIMITS, leaseSummary, type AgentLease, type LeaseState } from "@/core/agent/lease";
 
 const IDLE: AgentLeaseState = { status: "idle" };
 
-// Access is its words (ADR 0180): a mark while it's on and once it's ended, none while it's running out.
-const STATE_LOOK: Record<LeaseState, { icon: typeof CheckCircleIcon | null; className: string }> = {
-  active: { icon: CheckCircleIcon, className: "text-verified" },
-  ending_soon: { icon: null, className: "text-approval" },
-  ended: { icon: XCircleIcon, className: "text-failed" },
+// Access is its kind (ADR 0183): on is verified, running out needs a look, ended is off.
+const STATE_KIND: Record<LeaseState, Status> = {
+  active: "verified",
+  ending_soon: "attention",
+  // Ended on its date, as an approval expires: off, not a failure (ADR 0183).
+  ended: "off",
 };
 
 /**
@@ -49,15 +51,13 @@ export function AgentLeasePanel({
   const id = useId();
   const panelId = `${id}-lease`;
   const blocked = Boolean(disabledReason) || renewing || saving;
-  const look = STATE_LOOK[state];
-  const LookIcon = look.icon;
   const result = saveState.status !== "idle" ? saveState : renewState;
 
   return (
     <div className="grid gap-3 basis-full">
       <div className="grid gap-1 rounded-sm border border-line bg-surface-sunken/50 px-3.5 py-3">
         <p className="flex items-start gap-2 text-sm">
-          {LookIcon ? <LookIcon size={16} weight="bold" className={`mt-0.5 shrink-0 ${look.className}`} aria-hidden /> : null}
+          <StatusGlyph status={STATE_KIND[state]} className="mt-0.5" />
           <span>
             {state === "ended" ? (
               <>
@@ -71,7 +71,7 @@ export function AgentLeasePanel({
             )}
           </span>
         </p>
-        <p className={`text-xs leading-relaxed text-ink-2 ${LookIcon ? "pl-6" : ""}`}>{leaseSummary(lease)}</p>
+        <p className="pl-6 text-xs leading-relaxed text-ink-2">{leaseSummary(lease)}</p>
       </div>
 
       {canEdit ? (
@@ -79,7 +79,7 @@ export function AgentLeasePanel({
           <form action={renew}>
             <input type="hidden" name="agentId" value={agentId} />
             <button type="submit" disabled={blocked} className={buttonClasses(state === "active" ? "ghost" : "secondary", "sm")}>
-              <ArrowClockwiseIcon size={16} aria-hidden /> {renewing ? "Renewing…" : "Renew for 90 days"}
+              <ArrowClockwiseIcon size={16} weight="bold" aria-hidden /> {renewing ? "Renewing…" : "Renew for 90 days"}
             </button>
           </form>
           <button type="button" aria-expanded={open} aria-controls={panelId} disabled={Boolean(disabledReason)} onClick={() => setOpen((o) => !o)} className={buttonClasses("ghost", "sm")}>
@@ -91,12 +91,12 @@ export function AgentLeasePanel({
 
       {result.status === "error" ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
-          {result.message}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+          <span>{result.message}</span>
         </p>
       ) : result.status === "saved" ? (
         <p role="status" className="flex items-start gap-2 text-sm text-ink-2">
-          <CheckCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+          <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
           <span>
             Access saved. It ends on <LocalTime iso={result.expiresAt} />.
           </span>

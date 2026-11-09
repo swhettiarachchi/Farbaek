@@ -1,11 +1,11 @@
 "use client";
 
-import { ArrowRightIcon, ShieldWarningIcon, XCircleIcon } from "@phosphor-icons/react";
+import { ArrowCounterClockwiseIcon, ArrowRightIcon, DesktopIcon, FilesIcon, ListChecksIcon, ShieldWarningIcon } from "@phosphor-icons/react";
 import Link from "next/link";
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
-import { StatusBadge, type Status } from "@/components/ui/status-badge";
+import { StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { relativeLabel, useNow } from "@/components/ui/use-now";
 import { approvalWindow, type WalletFact, type WindowState } from "@/core/trust/approval-wallet";
 
@@ -27,22 +27,27 @@ export interface WalletCardData {
   canApprove: boolean;
 }
 
-// Status is a word in its colour and border (ADR 0180), drawn by StatusBadge: waiting states carry no glyph.
+// Each window state is a status kind (ADR 0183): open is your turn, closing needs a look, expired is off.
 const STATE: Record<WindowState, { label: string; status: Status; bar: string }> = {
   open: { label: "Waiting for approval", status: "approval", bar: "bg-accent" },
-  closing: { label: "Closing soon", status: "approval", bar: "bg-approval" },
-  expired: { label: "Expired", status: "unverified", bar: "bg-ink-3" },
+  closing: { label: "Closing soon", status: "attention", bar: "bg-caution" },
+  expired: { label: "Expired", status: "off", bar: "bg-ink-3" },
 };
 
-// Facts are lines, not chips (ADR 0180): an icon only where one says "look here".
-const FACT_ICON: Partial<Record<WalletFact["kind"], typeof XCircleIcon>> = {
-  escalated: ShieldWarningIcon,
-  flagged: XCircleIcon,
+// Facts are lines, each with the icon that says what it is (ADR 0183): a warning in the caution colour, a match done.
+const FACT_ICON: Record<WalletFact["kind"], ReactNode> = {
+  // An owner or admin has to decide: the person's-turn blue, as on Rules (ADR 0183).
+  escalated: <ShieldWarningIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-approval" aria-hidden />,
+  flagged: <StatusGlyph status="failed" className="mt-0.5" />,
+  unexplained: <StatusGlyph status="attention" className="mt-0.5" />,
+  matched: <StatusGlyph status="done" className="mt-0.5" />,
+  files: <FilesIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />,
 };
 
+// The facts' "approval" tone is a warning (look first), so it reads in the caution colour, not "your turn" blue.
 const FACT_CLS: Record<WalletFact["tone"], string> = {
   failed: "text-failed",
-  approval: "text-approval",
+  approval: "text-caution",
   neutral: "text-ink-2",
 };
 
@@ -62,54 +67,61 @@ export function WalletCard({ card, serverNow }: { card: WalletCardData; serverNo
   return (
     <article aria-labelledby={`wallet-${card.taskId}`} className="grid overflow-hidden rounded-md border border-line bg-surface shadow-e1 md:grid-cols-[minmax(0,1fr)_17rem]">
       <div className="grid min-w-0 content-start gap-4 p-4 sm:p-5">
-        <StatusBadge status={state.status} label={state.label} />
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge status={state.status} label={state.label} />
+          {card.byAgent ? (
+            <span className="inline-flex h-6 items-center gap-1.5 whitespace-nowrap rounded-full border border-line-2 px-2.5 text-xs text-ink-2">
+              <DesktopIcon size={14} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> Farbaek Agent
+            </span>
+          ) : null}
+        </div>
 
         <div className="min-w-0">
           <h2 id={`wallet-${card.taskId}`} className="text-[1.0625rem] leading-snug font-medium tracking-[-0.02em] break-words">
             {card.title}
           </h2>
-          <p className="mt-0.5 text-xs text-ink-3">
-            {card.projectName}
-            {card.byAgent ? ". Sent from the Farbaek Agent app." : null}
-          </p>
+          <p className="mt-0.5 text-xs text-ink-3">{card.projectName}</p>
         </div>
 
         {card.facts.length ? (
           <ul className="grid gap-1 text-sm" aria-label="What the checks found">
-            {card.facts.map((f) => {
-              const FactIcon = FACT_ICON[f.kind];
-              return (
-                <li key={f.kind} className={`flex items-start gap-2 ${FACT_CLS[f.tone]}`}>
-                  {FactIcon ? <FactIcon size={16} weight="bold" className="mt-0.5 shrink-0" aria-hidden /> : null}
-                  <span>{f.label}</span>
-                </li>
-              );
-            })}
+            {card.facts.map((f) => (
+              <li key={f.kind} className={`flex items-start gap-2 ${f.kind === "escalated" ? "text-approval" : FACT_CLS[f.tone]}`}>
+                {FACT_ICON[f.kind]}
+                <span>{f.label}</span>
+              </li>
+            ))}
           </ul>
         ) : null}
 
         {/* What happens after approval; an expired proposal won't get there. */}
         {expired ? null : (
           <div className="grid gap-1.5 text-sm text-ink-2">
-            <p>Undo it afterwards, file by file. Undo never overwrites a newer change.</p>
-            <p>
-              {card.checks.length === 0 ? (
-                "The plan lists no checks, so nothing will confirm it."
-              ) : card.checksReason ? (
-                <>Its checks can&apos;t run yet: {card.checksReason}</>
-              ) : (
-                <>
-                  Then{" "}
-                  {/* Real spaces and commas between the commands, so copied text and screen readers get words, not "testruns". */}
-                  {card.checks.map((c, i) => (
-                    <Fragment key={i}>
-                      {i === 0 ? null : i === card.checks.length - 1 ? " and " : ", "}
-                      <code className="break-all font-mono text-[0.8125rem] text-ink">{c}</code>
-                    </Fragment>
-                  ))}{" "}
-                  {card.checks.length === 1 ? "runs" : "run"} in a test space.
-                </>
-              )}
+            <p className="flex items-start gap-2">
+              <ArrowCounterClockwiseIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
+              <span>Undo it afterwards, file by file. Undo never overwrites a newer change.</span>
+            </p>
+            <p className="flex items-start gap-2">
+              <ListChecksIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
+              <span>
+                {card.checks.length === 0 ? (
+                  "The plan lists no checks, so nothing will confirm it."
+                ) : card.checksReason ? (
+                  <>Its checks can&apos;t run yet: {card.checksReason}</>
+                ) : (
+                  <>
+                    Then{" "}
+                    {/* Real spaces and commas between the commands, so copied text and screen readers get words, not "testruns". */}
+                    {card.checks.map((c, i) => (
+                      <Fragment key={i}>
+                        {i === 0 ? null : i === card.checks.length - 1 ? " and " : ", "}
+                        <code className="break-all font-mono text-[0.8125rem] text-ink">{c}</code>
+                      </Fragment>
+                    ))}{" "}
+                    {card.checks.length === 1 ? "runs" : "run"} in a test space.
+                  </>
+                )}
+              </span>
             </p>
           </div>
         )}

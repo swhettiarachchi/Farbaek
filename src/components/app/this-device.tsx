@@ -1,9 +1,11 @@
 "use client";
 
-import { BellRingingIcon, BellSlashIcon, CheckCircleIcon, DeviceMobileIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { BellIcon, BellRingingIcon, BellSlashIcon, CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { removePushAction, savePushAction, testPushAction, type PushState } from "@/app/app/push-actions";
+import { CardTitle } from "@/components/app/primitives";
 import { buttonClasses } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { RelativeTime } from "@/components/ui/local-time";
 
 type Support = "unsupported" | "install_first" | "ready";
@@ -100,9 +102,7 @@ export function ThisDevice({ vapidKey, devices, disabledReason }: { vapidKey: st
   return (
     <div className="grid gap-5">
       <div>
-        <h2 className="flex items-center gap-2 text-lg font-medium">
-          <DeviceMobileIcon size={20} className="text-ink-3" aria-hidden /> This device
-        </h2>
+        <CardTitle icon={BellIcon}>This device</CardTitle>
         <p className="mt-1 max-w-[62ch] text-sm leading-relaxed text-ink-2">
           Get a notification here when a build you started finishes, or a change&apos;s checks end. Each device you turn it on for gets them, and you can turn any of them off.
         </p>
@@ -118,19 +118,17 @@ export function ThisDevice({ vapidKey, devices, disabledReason }: { vapidKey: st
         <div className="flex flex-wrap items-center gap-3">
           {on ? (
             <>
-              <span className="inline-flex h-8 items-center gap-1.5 rounded-full border border-verified/40 px-3 text-sm font-medium text-verified">
-                <CheckCircleIcon size={16} weight="fill" aria-hidden /> On here
-              </span>
+              <StatusBadge status="verified" label="On here" />
               <button type="button" onClick={test} disabled={pending || Boolean(reason)} className={buttonClasses("secondary", "sm")}>
-                <BellRingingIcon size={16} aria-hidden /> Send a test
+                <BellRingingIcon size={16} weight="bold" aria-hidden /> Send a test
               </button>
               <button type="button" onClick={() => turnOff(endpoint!)} disabled={pending} className={buttonClasses("ghost", "sm")}>
-                <BellSlashIcon size={16} aria-hidden /> Turn off here
+                <BellSlashIcon size={16} weight="bold" aria-hidden /> Turn off here
               </button>
             </>
           ) : (
             <button type="button" onClick={turnOn} disabled={pending || Boolean(reason) || permission === "denied"} className={buttonClasses("primary", "sm")}>
-              <BellRingingIcon size={16} aria-hidden /> {pending ? "Turning on…" : "Turn on notifications here"}
+              <BellRingingIcon size={16} weight="bold" aria-hidden /> {pending ? "Turning on…" : "Turn on notifications here"}
             </button>
           )}
           {reason ? <span className="text-sm text-ink-3">{reason}</span> : permission === "denied" && !on ? <span className="text-sm text-ink-3">Blocked in this browser&apos;s site settings.</span> : null}
@@ -139,7 +137,12 @@ export function ThisDevice({ vapidKey, devices, disabledReason }: { vapidKey: st
 
       {result ? (
         <p role={result.ok ? "status" : "alert"} className={`flex items-start gap-2 text-sm ${result.ok ? "text-verified" : "text-failed"}`}>
-          {result.ok ? null : <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden />} {result.message}
+          {result.ok ? (
+            <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+          ) : (
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+          )}
+          <span>{result.message}</span>
         </p>
       ) : null}
 

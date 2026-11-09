@@ -1,5 +1,6 @@
 "use client";
 
+import { WarningCircleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useActionState, useId } from "react";
 import { TurnstileCheck } from "@/components/auth/turnstile-check";
@@ -51,7 +52,8 @@ export function PasswordSignInForm({ next = "/app", captchaSiteKey = null }: { n
           className="h-11 rounded-sm border border-line-strong bg-canvas px-3 text-base"
         />
         {message ? (
-          <p id={errorId} role="alert" className="text-sm text-failed">
+          <p id={errorId} role="alert" className="flex items-start gap-1.5 text-sm text-failed">
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
             {message}
           </p>
         ) : null}

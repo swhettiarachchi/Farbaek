@@ -1,4 +1,4 @@
-import { ArrowRightIcon, DownloadSimpleIcon, SealCheckIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, DownloadSimpleIcon, KeyIcon, SealCheckIcon, SealWarningIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Container } from "@/components/ui/container";
@@ -92,9 +92,9 @@ const STEPS: { title: string; label: string; command: string; after: string }[] 
 
 const PROVES = [
   { icon: SealCheckIcon, title: "Nothing changed", body: "A matching digest shows the record is exactly as it was made." },
-  { icon: SealCheckIcon, title: "Farbaek recorded it", body: "A valid signature shows Farbaek's server recorded it. ProofPacks recorded before signing started have none." },
+  { icon: KeyIcon, title: "Farbaek recorded it", body: "A valid signature shows Farbaek's server recorded it. ProofPacks recorded before signing started have none." },
   {
-    icon: WarningCircleIcon,
+    icon: SealWarningIcon,
     title: "Not that the software is right",
     body: "A ProofPack says which checks ran and what they returned. It doesn't show that other claims inside are true, or that the software has no other faults.",
   },
@@ -113,10 +113,10 @@ export default function ProofPackFormatPage() {
           <p className="mt-6 inline-flex max-w-full rounded-full border border-line bg-surface px-4 py-2 font-mono text-[0.8125rem] break-all text-ink">{PROOFPACK_PREDICATE_TYPE}</p>
           <div className="mt-6 flex flex-wrap gap-x-6 gap-y-1">
             <Link href="/verify" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-accent hover:underline">
-              Check one on the verify page <ArrowRightIcon size={14} aria-hidden />
+              Check one on the verify page <ArrowRightIcon size={14} weight="bold" aria-hidden />
             </Link>
             <a href="/verify/sample.json" download className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-accent hover:underline">
-              <DownloadSimpleIcon size={16} aria-hidden /> Download the sample ProofPack
+              <DownloadSimpleIcon size={16} weight="bold" aria-hidden /> Download the sample ProofPack
             </a>
           </div>
         </Container>
@@ -189,7 +189,7 @@ export default function ProofPackFormatPage() {
           <ul className="mt-8 grid gap-8 sm:grid-cols-3">
             {PROVES.map((p) => (
               <li key={p.title} className="grid content-start gap-3">
-                <p.icon size={24} className="text-accent" aria-hidden />
+                <p.icon size={24} className="text-ink-2" aria-hidden />
                 <h3 className="text-[1.0625rem] font-medium">{p.title}</h3>
                 <p className="text-[0.9375rem] leading-relaxed text-ink-2">{p.body}</p>
               </li>

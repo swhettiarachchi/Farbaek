@@ -16,7 +16,7 @@ export function SignInSteps({ current }: { current: 0 | 1 | 2 }) {
                 done ? "bg-verified text-on-accent" : here ? "bg-primary text-on-primary" : "border border-line text-ink-3"
               }`}
             >
-              {done ? <CheckIcon size={12} weight="bold" aria-label="Done" /> : i + 1}
+              {done ? <CheckIcon size={14} weight="bold" aria-label="Done" /> : i + 1}
             </span>
             <span className={here ? "font-medium text-ink" : "text-ink-3"}>{step}</span>
             {i < STEPS.length - 1 ? <span aria-hidden className="h-px w-4 bg-line sm:w-6" /> : null}

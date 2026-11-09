@@ -20,7 +20,7 @@ export function AndroidPlansNotice({
 }) {
   return (
     <div className="flex gap-4 rounded-md border border-line bg-surface p-5 shadow-e1">
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent/[0.08] text-accent">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-raised text-ink-2 ring-1 ring-line">
         <DeviceMobileIcon size={20} aria-hidden />
       </span>
       <div className="min-w-0">
@@ -50,7 +50,7 @@ export function AndroidPlans({ plans, current, currentLabel, notice = <AndroidPl
                 <p className="mt-1 text-sm text-ink-2">{sessionsLine(p)}</p>
                 <p className="mt-0.5 text-sm text-ink-3 tabular">{planLimitsLine(p)}</p>
               </div>
-              {p.id === current ? <span className="shrink-0 rounded-full bg-accent/[0.08] px-2.5 py-0.5 text-xs font-medium text-accent">{currentLabel}</span> : null}
+              {p.id === current ? <span className="shrink-0 rounded-full border border-line-2 px-2.5 py-0.5 text-xs font-medium text-ink-2">{currentLabel}</span> : null}
             </li>
           ))}
         </ul>

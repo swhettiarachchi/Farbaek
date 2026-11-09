@@ -44,7 +44,7 @@ export function BillingSubmit({
         >
           {busy ? pending : label}
           <span className="flex size-8 items-center justify-center rounded-full bg-on-primary/15 transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:-translate-y-px group-hover:translate-x-0.5">
-            <ArrowUpRightIcon size={15} weight="bold" aria-hidden />
+            <ArrowUpRightIcon size={16} weight="bold" aria-hidden />
           </span>
         </button>
         {reason}

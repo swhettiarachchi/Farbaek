@@ -29,7 +29,7 @@ export default async function OfficeConsoleLayout({ children }: Readonly<{ child
         <div className="grid gap-1 px-1.5">
           <Link href="/" className="flex min-h-11 w-fit items-center gap-2 rounded-full" aria-label="Office Space, overview">
             <BrandLogo height={30} />
-            <span className="text-[1rem] font-semibold tracking-[-0.02em]">Farbaek</span>
+            <span className="text-[1rem] font-medium tracking-[-0.02em]">Farbaek</span>
           </Link>
           <p className="text-[0.8125rem] text-ink-3">Office Space</p>
         </div>
@@ -43,7 +43,7 @@ export default async function OfficeConsoleLayout({ children }: Readonly<{ child
           </div>
           <form action={signOutOfficeAction}>
             <button type="submit" className="inline-flex min-h-11 w-full items-center gap-2 rounded-full px-2 text-sm text-ink-2 hover:text-ink">
-              <SignOutIcon size={16} aria-hidden /> Sign out
+              <SignOutIcon size={16} weight="bold" aria-hidden /> Sign out
             </button>
           </form>
         </div>

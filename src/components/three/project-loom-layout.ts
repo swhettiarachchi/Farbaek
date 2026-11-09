@@ -9,11 +9,15 @@
  */
 import { STAGES, STAGE_TITLES, type Lane, type StageState } from "@/core/insights/project-graph";
 
+/**
+ * Each state in its kind's colour (ADR 0183): reached is verified, waiting is pending (steel: it covers system work),
+ * stopped is off, failed is failed, and not yet a light grey. No amber.
+ */
 export const LOOM_STATE_COLORS: Record<StageState, string> = {
-  reached: "#2450f0",
-  waiting: "#9a4d00",
-  stopped: "#5f636b",
-  failed: "#b42318",
+  reached: "#0b6e4f",
+  waiting: "#3d5572",
+  stopped: "#636975",
+  failed: "#b3243b",
   not_yet: "#c9cdd4",
 };
 

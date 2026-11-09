@@ -1,5 +1,6 @@
 import { CheckIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
+import { StatusGlyph } from "@/components/ui/status-badge";
 import { FEATURE_LABELS, FEATURE_STATUS, SELF_SERVE_PLANS, chargeCents, formatUsd, getPlan, planSessionsGuide, priceWords, yearlyVersionOf, type FeatureKey, type Plan } from "@/core/billing/catalog";
 import { buttonClasses } from "@/components/ui/button";
 import { WebPurchaseOnly } from "@/components/billing/web-purchase-only";
@@ -30,8 +31,8 @@ function Feature({ feature }: { feature: FeatureKey }) {
   const coming = FEATURE_STATUS[feature] === "coming";
   return (
     <li className="flex gap-2">
-      {/* A mark for what's included; a feature still to come says so in words, with the space kept so the lines align. */}
-      {coming ? <span className="size-4 shrink-0" aria-hidden /> : <CheckIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden />}
+      {/* A check for what's included; a feature still to come carries the waiting mark and says so in words. */}
+      {coming ? <StatusGlyph status="pending" className="mt-0.5" /> : <CheckIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden />}
       <span>
         {FEATURE_LABELS[feature]}
         {coming ? <span className="ml-1.5 whitespace-nowrap rounded-full border border-dashed border-line-strong px-2 py-px text-xs text-ink-3">Coming soon</span> : null}
@@ -68,17 +69,17 @@ export function PricingPlans() {
           <li
             key={plan.id}
             className={`relative flex w-[82%] shrink-0 snap-start rounded-lg p-2 ring-1 sm:w-[46%] lg:w-auto ${
-              featured ? "aurora bg-accent/[0.06] ring-accent/30" : "bg-surface-raised/60 ring-line"
+              featured ? "bg-surface-raised/60 ring-ink/15" : "bg-surface-raised/60 ring-line"
             }`}
           >
             <div
               className={`flex w-full flex-col rounded-md bg-surface p-6 transition-[transform,box-shadow] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 ${
-                featured ? "shadow-e3 ring-1 ring-accent" : "shadow-e1 hover:shadow-e2"
+                featured ? "shadow-e2 ring-1 ring-ink" : "shadow-e1 hover:shadow-e2"
               }`}
             >
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-lg font-medium">{plan.name}</h3>
-              {featured ? <span className="rounded-full bg-accent px-2.5 py-0.5 text-xs font-medium text-on-accent">Recommended</span> : null}
+              {featured ? <span className="rounded-full bg-primary px-2.5 py-0.5 text-xs font-medium text-on-primary">Recommended</span> : null}
             </div>
             <p className="mt-1 min-h-[2.5rem] text-sm text-ink-2">{plan.summary}</p>
 

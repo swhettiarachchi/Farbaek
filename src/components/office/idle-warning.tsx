@@ -30,9 +30,9 @@ export function IdleWarning({ lastSeenAt, idleMinutes, warnSeconds, stayActive }
 
   if (left > warnSeconds) return null;
   return (
-    <div role="alertdialog" aria-labelledby="idle-title" aria-describedby="idle-body" className="fixed inset-x-4 bottom-24 z-50 mx-auto max-w-md rounded-md border border-approval/40 bg-surface p-5 shadow-e3 lg:bottom-6">
+    <div role="alertdialog" aria-labelledby="idle-title" aria-describedby="idle-body" className="fixed inset-x-4 bottom-24 z-50 mx-auto max-w-md rounded-md border border-caution/35 bg-surface p-5 shadow-e3 lg:bottom-6">
       <p id="idle-title" className="flex items-center gap-2 font-medium">
-        <ClockCountdownIcon size={18} weight="bold" className="text-approval" aria-hidden /> Still there?
+        <ClockCountdownIcon size={20} className="shrink-0 text-caution" aria-hidden /> Still there?
       </p>
       <p id="idle-body" className="mt-1.5 text-sm text-ink-2">
         You&apos;ll be signed out in <span className="font-mono tabular">{left}</span> seconds to keep the office safe.

@@ -1,15 +1,15 @@
 import {
-  ChartPieSliceIcon,
   ClockCounterClockwiseIcon,
+  CreditCardIcon,
   DesktopIcon,
   DownloadSimpleIcon,
-  FolderSimpleIcon,
   GitDiffIcon,
   GlobeIcon,
   InfoIcon,
   LifebuoyIcon,
   ShieldCheckIcon,
-  UsersIcon,
+  SquaresFourIcon,
+  UsersThreeIcon,
 } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import type { Metadata } from "next";
@@ -27,13 +27,13 @@ export const metadata: Metadata = { title: "History" };
 const PAGE = 50;
 
 const ICONS: Record<ActivityCategory, Icon> = {
-  people: UsersIcon,
-  projects: FolderSimpleIcon,
+  people: UsersThreeIcon,
+  projects: SquaresFourIcon,
   changes: GitDiffIcon,
   agents: DesktopIcon,
   sites: GlobeIcon,
   trust: ShieldCheckIcon,
-  billing: ChartPieSliceIcon,
+  billing: CreditCardIcon,
   farbaek: LifebuoyIcon,
 };
 
@@ -69,7 +69,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
         description="Everything that has happened in this workspace: what, who and when. Every member can read it."
         actions={
           <a href={`/app/activity/export${category ? `?category=${category}` : ""}`} download className={buttonClasses("secondary", "sm")}>
-            <DownloadSimpleIcon size={16} aria-hidden /> Download CSV
+            <DownloadSimpleIcon size={16} weight="bold" aria-hidden /> Download CSV
           </a>
         }
       />
@@ -106,7 +106,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
             return (
               <li key={r.id} className="flex gap-3 px-4 py-3.5 sm:px-5">
                 <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-raised text-ink-2">
-                  <RowIcon size={18} aria-hidden />
+                  <RowIcon size={16} weight="bold" aria-hidden />
                 </span>
                 <div className="grid min-w-0 flex-1 gap-1">
                   <p className="text-[0.9375rem] leading-snug">

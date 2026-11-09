@@ -1,4 +1,6 @@
+import { QrCodeIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
+import { CardTitle } from "@/components/app/primitives";
 import { redirect } from "next/navigation";
 import { firstFactorAt } from "@/core/office/session-policy";
 import { getStaff, officeClients } from "@/server/office/access";
@@ -23,7 +25,7 @@ export default async function OfficeEnroll() {
     <div className="grid gap-6">
       <SignInSteps current={1} />
       <div>
-        <h2 className="text-2xl font-medium tracking-[-0.02em]">Set up your authenticator</h2>
+        <CardTitle icon={QrCodeIcon}>Set up your authenticator</CardTitle>
         <p className="mt-1.5 text-sm text-ink-2">
           Office Space asks for a code from an authenticator app every time you sign in. Use one you trust, such as 1Password, Google Authenticator, Microsoft Authenticator or Authy.
         </p>

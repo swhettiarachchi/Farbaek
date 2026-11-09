@@ -31,13 +31,14 @@ describe("OutcomeWatch", () => {
     expect(html).toContain("Answering");
     expect(html).toContain("2 of the last 3 checks answered");
     expect(html).toContain("Stop watching");
-    // The failed check is striped, not only red.
-    expect(html).toContain("repeating-linear-gradient");
+    // The failed check is a short bar, not only red, and there's no hazard stripe (ADR 0183).
+    expect(html).toContain("h-3.5 bg-failed");
+    expect(html).not.toContain("repeating-linear-gradient");
   });
 
-  it("says since when it has needed a look", () => {
+  it("says it is down, and since when", () => {
     const html = render({ ...base, state: "breached", breachedAt: "2026-10-25T09:00:00.000Z" });
-    expect(html).toContain("Needs a look");
+    expect(html).toContain(">Down<");
     expect(html).toContain("Down since");
   });
 

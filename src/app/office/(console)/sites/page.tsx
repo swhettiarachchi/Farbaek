@@ -1,10 +1,11 @@
-import { ArrowSquareOutIcon, CheckCircleIcon, CircleIcon, GlobeIcon, ProhibitIcon } from "@phosphor-icons/react/ssr";
+import { ArrowUpRightIcon, GlobeIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { OfficeActionForm } from "@/components/office/action-form";
 import { officeInputClass, ReasonField } from "@/components/office/fields";
 import { RelativeTime } from "@/components/ui/local-time";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { requireStaff } from "@/server/office/access";
 import { listAllSites } from "@/server/office/controls-data";
 import { siteDomain } from "@/server/publish/config";
@@ -12,22 +13,10 @@ import { blockSiteAction, unblockSiteAction } from "./actions";
 
 export const metadata: Metadata = { title: "Sites" };
 
+/** A site's state as its kind (ADR 0183): taken offline is blocked, live is verified, offline is off. */
 function State({ live, blocked }: { live: boolean; blocked: boolean }) {
-  if (blocked)
-    return (
-      <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-failed/35 px-2.5 text-xs font-medium text-failed">
-        <ProhibitIcon size={13} weight="bold" aria-hidden /> Taken offline by Farbaek
-      </span>
-    );
-  return live ? (
-    <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-verified/35 px-2.5 text-xs font-medium text-verified">
-      <CheckCircleIcon size={13} weight="bold" aria-hidden /> Live
-    </span>
-  ) : (
-    <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-dashed border-line-strong/50 px-2.5 text-xs text-ink-2">
-      <CircleIcon size={11} aria-hidden /> Offline
-    </span>
-  );
+  if (blocked) return <StatusBadge status="blocked" label="Taken offline by Farbaek" />;
+  return live ? <StatusBadge status="verified" label="Live" /> : <StatusBadge status="off" label="Offline" />;
 }
 
 export default async function OfficeSites() {
@@ -57,7 +46,7 @@ export default async function OfficeSites() {
                   <div className="min-w-0 flex-1">
                     {domain && s.live ? (
                       <a href={`https://${address}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 break-all font-mono text-[0.9375rem] text-accent hover:underline">
-                        {address} <ArrowSquareOutIcon size={13} aria-hidden />
+                        {address} <ArrowUpRightIcon size={14} weight="bold" className="shrink-0" aria-hidden />
                       </a>
                     ) : (
                       <p className="break-all font-mono text-[0.9375rem] text-ink">{address}</p>

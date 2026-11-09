@@ -1,4 +1,19 @@
-import { ArrowLeftIcon, CheckIcon, HammerIcon, TerminalWindowIcon } from "@phosphor-icons/react/ssr";
+import {
+  ArrowCounterClockwiseIcon,
+  ArrowLeftIcon,
+  BookOpenTextIcon,
+  ClipboardTextIcon,
+  ClockCounterClockwiseIcon,
+  GitDiffIcon,
+  HammerIcon,
+  ListChecksIcon,
+  ListNumbersIcon,
+  MagnifyingGlassIcon,
+  NotebookIcon,
+  SealCheckIcon,
+  StopCircleIcon,
+  TerminalWindowIcon,
+} from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { verifiedSeal } from "@/core/proof/verified-digest";
@@ -34,7 +49,8 @@ import { checkFeature } from "@/core/billing/entitlements";
 import { RECOVERABLE_STATES } from "@/core/realityloop/recovery";
 import { checksToRun, fallbackChecksWords } from "@/core/realityloop/app-check";
 import { RECOVERY_NOT_IN_PLAN, previewRecovery } from "@/server/workspace/recovery";
-import { Card, Notice, TaskStateBadge } from "@/components/app/primitives";
+import { Card, CardTitle, Notice, TaskStateBadge } from "@/components/app/primitives";
+import { StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { listRuns } from "@/server/cloud-agent/store";
 import { isLive } from "@/core/agent/cloud-run";
@@ -45,7 +61,7 @@ import { verificationState } from "@/core/realityloop/verification";
 import { ProofThread } from "@/components/proof/proof-thread";
 import { LocalTime } from "@/components/ui/local-time";
 import { EMPTY_CONTRACT_FORM, formFromContract } from "@/core/realityloop/contract-form";
-import { TASK_STATE_LABELS, lifecycleProgress } from "@/core/realityloop/progress";
+import { TASK_STATE_LABELS, lifecycleProgress, stateKind } from "@/core/realityloop/progress";
 import { TERMINAL_STATES, type TaskState } from "@/core/realityloop/task-machine";
 import { loadAppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES, MANAGER_ROLES } from "@/server/workspace/types";
@@ -80,16 +96,26 @@ export const metadata: Metadata = { title: "Task" };
 const ACTOR: Record<"user" | "agent" | "system", string> = { user: "By a person", agent: "By the agent", system: "By Farbaek" };
 const CAN_START_CONTRACT: ReadonlySet<TaskState> = new Set(["RECEIVED", "CONTEXT_ASSEMBLED"]);
 const CAN_REVISE: ReadonlySet<TaskState> = new Set(["CONTRACT_DRAFTED", "CONTRACT_APPROVED", "BLOCKED"]);
-// A step into one of these stopped the task's work, so the history gives it no check.
+// A step into one of these stopped the task's work, so the history marks it with how it stopped.
 const STOPPED_STATES: ReadonlySet<TaskState> = new Set(["FAILED", "BLOCKED", "REJECTED", "EXPIRED", "CANCELLED", "INTERRUPTED"]);
 
-/** One line of the history: a check where a step happened, and the line between steps. No drawn dots (ADR 0180). */
-function HistoryStep({ done, last, children }: { done: boolean; last: boolean; children: ReactNode }) {
+/**
+ * The mark for a step into a state (ADR 0183): a stopped step shows how it stopped (failed, blocked, off, paused),
+ * a reached one is done, or verified where the task was proven. Every step has one, never a blank.
+ */
+function stepKind(to: TaskState): Status {
+  // Partly verified is a result that needs a look, as the task's own chip says, not a plain step done.
+  if (STOPPED_STATES.has(to) || to === "PARTIALLY_VERIFIED") return stateKind(to);
+  return to === "VERIFIED" || to === "RECOVERED" ? "verified" : "done";
+}
+
+/** One line of the history: the step's status icon, and the line between steps. No drawn dots. */
+function HistoryStep({ status, last, children }: { status: Status; last: boolean; children: ReactNode }) {
   return (
-    <li className="grid grid-cols-[0.875rem_1fr] gap-x-3">
+    <li className="grid grid-cols-[1rem_1fr] gap-x-3">
       <span aria-hidden className="flex flex-col items-center">
-        {done ? <CheckIcon size={14} weight="bold" className="mt-1 shrink-0 text-ink-3" /> : null}
-        {last ? null : <span className={`w-0 flex-1 border-l border-line ${done ? "mt-1" : ""}`} />}
+        <StatusGlyph status={status} className="mt-0.5" />
+        {last ? null : <span className="mt-1 w-0 flex-1 border-l border-line" />}
       </span>
       <div className={last ? "" : "pb-5"}>{children}</div>
     </li>
@@ -350,7 +376,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
 
   const planSection = (
       <Card id="contract" className="scroll-mt-24">
-        <h2 className="text-lg font-medium">The plan</h2>
+        <CardTitle icon={ClipboardTextIcon}>The plan</CardTitle>
         <p className="mt-1 text-sm text-ink-2">
           What the agent will do, what it can change, and how you&apos;ll know it worked. Approving covers this exact version.
         </p>
@@ -389,7 +415,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
   );
   const changeSection = canPropose || showProposal ? (
         <Card id="change" className="scroll-mt-24">
-          <h2 className="text-lg font-medium">Change</h2>
+          <CardTitle icon={GitDiffIcon}>Change</CardTitle>
           <p className="mt-1 text-sm text-ink-2">
             Exactly what the agent wants to change, file by file.
           </p>
@@ -419,7 +445,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
             {canPropose ? (
               <div className={`grid gap-3 rounded-md border border-accent/30 bg-accent/[0.04] p-5 ${showProposal ? "mt-2" : ""}`}>
                 <h3 className="flex items-center gap-2 text-base font-medium">
-                  <HammerIcon size={18} weight="bold" className="text-accent" aria-hidden /> Let the agent build it
+                  <HammerIcon size={20} className="shrink-0 text-accent" aria-hidden /> Let the agent build it
                 </h3>
                 <p className="text-sm leading-relaxed text-ink-2">
                   The agent works through the plan on its own copy of your project, runs the checks, then shows you every change to review.
@@ -427,7 +453,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
                 <StartRun taskId={task.id} disabledReason={(liveRun ? "The agent is already working on this task." : null) ?? writeReason ?? modeBlocks ?? withheldFor(ctx.role, ctx.permissions, "run_agents")} />
               </div>
             ) : null}
-            <Disclosure summary={showProposal ? "More ways to check this change" : "More ways to do this"} hint={showProposal ? "A second opinion, what it reaches, how far it can be undone and more" : "On your own computer, or one change at a time"}>
+            <Disclosure summary={showProposal ? "More ways to check this change" : "More ways to do this"} icon={<ListChecksIcon size={20} />} hint={showProposal ? "A second opinion, what it reaches, how far it can be undone and more" : "On your own computer, or one change at a time"}>
             {showProposal ? (
               <SecondCheckCard
                 proposalId={proposal!.id}
@@ -455,7 +481,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
   const checksSection = showVerification ? (
         <Card id="checks" className="scroll-mt-24">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-medium">Checks</h2>
+            <CardTitle icon={ListChecksIcon}>Checks</CardTitle>
             <ExecutionModeBadge mode={execution} />
           </div>
           <p className="mt-1 text-sm text-ink-2">
@@ -497,7 +523,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
                     <p className="text-sm text-ink-3">
                       Want to try something by hand?{" "}
                       <Link href={`/app/sandbox/new?project=${task.projectId}&task=${task.id}`} className="inline-flex min-h-11 items-center gap-1 font-medium text-accent hover:underline sm:min-h-0">
-                        <TerminalWindowIcon size={15} aria-hidden /> Open a test space
+                        <TerminalWindowIcon size={16} weight="bold" aria-hidden /> Open a test space
                       </Link>
                       . Checks you run there show what happened, but they don&apos;t mark this task verified.
                     </p>
@@ -521,7 +547,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
       ) : null;
   const undoSection = recovery || recoveries.length ? (
         <Card id="undo" className="scroll-mt-24">
-          <h2 className="text-lg font-medium">Undo</h2>
+          <CardTitle icon={ArrowCounterClockwiseIcon}>Undo</CardTitle>
           <p className="mt-1 text-sm text-ink-2">
             Undo this change, file by file. Each file goes back to how it was. A file that changed since is left alone, so newer work is never overwritten.
           </p>
@@ -557,7 +583,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
     <div className="grid gap-6">
       <div>
         <Link href={`/app/projects/${task.projectId}`} className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
-          <ArrowLeftIcon size={14} aria-hidden /> {task.projectName ?? "Project"}
+          <ArrowLeftIcon size={14} weight="bold" aria-hidden /> {task.projectName ?? "Project"}
         </Link>
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <h1 className="max-w-[40ch] text-balance text-[1.6rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2rem]">{task.title}</h1>
@@ -590,7 +616,8 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
 
       {noteKind ? (
         <Card>
-          <h2 className="text-lg font-medium">{noteKind === "explanation" ? "Explanations" : "Audit reports"}</h2>
+          {/* The same icons as the Learn and Audit modes that write these notes. */}
+          <CardTitle icon={noteKind === "explanation" ? BookOpenTextIcon : MagnifyingGlassIcon}>{noteKind === "explanation" ? "Explanations" : "Audit reports"}</CardTitle>
           <p className="mt-1 mb-4 text-sm text-ink-2">
             {noteKind === "explanation" ? "What this part of the project does, and the decisions and trade-offs behind it." : "What's there, what looks risky, and what a careful reviewer would want to know."}
           </p>
@@ -605,20 +632,20 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
       {changeFirst && task.state !== "BLOCKED" ? changeSection : null}
 
       <div id="details" className="scroll-mt-24">
-        <Disclosure summary="Full details" hint="How this task works, its proof, its history and more">
+        <Disclosure summary="Full details" icon={<NotebookIcon size={20} />} hint="How this task works, its proof, its history and more">
           <p className="text-sm text-ink-3">
             Created <LocalTime iso={task.createdAt} />.
           </p>
 
           <Card>
-            <h2 className="text-lg font-medium">How the agent works on this</h2>
+            <CardTitle icon={HammerIcon}>How the agent works on this</CardTitle>
             <div className="mt-3">
               <TaskModeControl taskId={task.id} mode={mode} disabledReason={modeReason} />
             </div>
           </Card>
 
           <Card>
-            <h2 className="text-lg font-medium">Progress</h2>
+            <CardTitle icon={ListNumbersIcon}>Progress</CardTitle>
             <p className="mt-1 text-sm text-ink-2">Each step fills in only once it&apos;s really done.</p>
             <div className="mt-6">
               <ProofThread
@@ -652,7 +679,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
 
           {proofPacks.length || checkRuns.length ? (
             <Card>
-              <h2 className="text-lg font-medium">Proof</h2>
+              <CardTitle icon={SealCheckIcon}>Proof</CardTitle>
               <p className="mt-1 text-sm text-ink-2">
                 A ProofPack is the signed record of what you approved and what was applied, and what that does and doesn&apos;t prove. Each run of the checks leaves a receipt with its
                 real results.
@@ -689,16 +716,16 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
           </Card>
 
             <Card>
-              <h2 className="text-lg font-medium">History</h2>
+              <CardTitle icon={ClockCounterClockwiseIcon}>History</CardTitle>
               <ol className="mt-4 grid gap-0">
-                <HistoryStep done last={history.length === 0}>
+                <HistoryStep status="done" last={history.length === 0}>
                   <p className="text-[0.9375rem]">Task received</p>
                   <p className="text-xs text-ink-3">
                     <LocalTime iso={task.createdAt} />
                   </p>
                 </HistoryStep>
                 {history.map((h, i) => (
-                  <HistoryStep key={h.eventId} done={!STOPPED_STATES.has(h.to)} last={i === history.length - 1}>
+                  <HistoryStep key={h.eventId} status={stepKind(h.to)} last={i === history.length - 1}>
                     <p className="text-[0.9375rem]">
                       {TASK_STATE_LABELS[h.from]} <span className="text-ink-3">to</span> {TASK_STATE_LABELS[h.to]}
                     </p>
@@ -713,7 +740,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
 
               {!finished ? (
                 <Card>
-                  <h2 className="text-lg font-medium">Stop this task</h2>
+                  <CardTitle icon={StopCircleIcon}>Stop this task</CardTitle>
                   <p className="mt-1 text-sm text-ink-2">Cancelling stops future steps. Anything already done elsewhere isn&apos;t undone by this.</p>
                   <div className="mt-4">
                     <CancelTaskControl taskId={task.id} version={task.version} disabledReason={cancelReason} />

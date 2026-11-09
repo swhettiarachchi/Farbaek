@@ -1,8 +1,8 @@
-import { ReceiptIcon } from "@phosphor-icons/react/ssr";
+import { BuildingsIcon, CreditCardIcon, GaugeIcon, ReceiptIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Card, Notice, PageHeader, UsageMeter } from "@/components/app/primitives";
+import { Card, CardTitle, Notice, PageHeader, UsageMeter } from "@/components/app/primitives";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { LocalTime } from "@/components/ui/local-time";
 import { buttonClasses } from "@/components/ui/button";
@@ -152,8 +152,8 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] lg:items-start">
         <Card>
-          <p className="text-sm text-ink-2">Current plan</p>
-          <p className="mt-1 text-2xl font-medium tracking-[-0.02em]">
+          <CardTitle icon={CreditCardIcon}>Current plan</CardTitle>
+          <p className="mt-2 text-2xl font-medium tracking-[-0.02em]">
             {plan.name}
             {ws.plan.source === "trial" ? " trial" : ""}
           </p>
@@ -191,7 +191,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                 </p>
               ) : null}
               <div className="mt-5 flex items-center gap-2 border-t border-line pt-4 text-sm text-ink-3">
-                <ReceiptIcon size={18} aria-hidden />{" "}
+                <ReceiptIcon size={16} weight="bold" className="shrink-0" aria-hidden />{" "}
                 <WebPurchaseOnly fallback="No invoices.">{billing.open ? "No invoices yet. They appear in Dodo Payments' portal after a checkout." : "No invoices. Payments aren't connected."}</WebPurchaseOnly>
               </div>
             </>
@@ -199,7 +199,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         </Card>
 
         <Card>
-          <h2 className="text-lg font-medium">Usage</h2>
+          <CardTitle icon={GaugeIcon}>Usage</CardTitle>
           <p className="mt-1 text-sm text-ink-2">How much of each limit this workspace has used, and when it resets.</p>
           <div className="mt-6">
             <UsageMeterList meters={meters} detailed />
@@ -210,7 +210,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <WalletCard wallet={usage.wallet} paid={ws.plan.source === "paid"} />
         <Card>
-          <h2 className="text-lg font-medium">Workspace</h2>
+          <CardTitle icon={BuildingsIcon}>Workspace</CardTitle>
           <div className="mt-5 grid gap-6 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
             <UsageMeter label="Projects" used={usage.projects.length} limit={limits.workspaces} detail="Active projects in this workspace." reached="Project limit reached. Archive a project or choose a bigger plan to add another." />
             <UsageMeter label="Seats" used={usage.members} limit={limits.seats} detail="People in this workspace." reached="Seat limit reached. Adding people needs a bigger plan." />
@@ -228,9 +228,9 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       ) : null}
 
       <section aria-labelledby="plans-heading" className="grid gap-4">
-        <h2 id="plans-heading" className="text-lg font-medium">
+        <CardTitle id="plans-heading" icon={CreditCardIcon}>
           Plans
-        </h2>
+        </CardTitle>
         {/* Inside the Android app: Google Play's plan picker when it sells plans (ADR 0154); otherwise one notice and what each plan includes, with no prices or buy buttons (ADR 0150). */}
         <WebPurchaseOnly
           fallback={
@@ -280,7 +280,8 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
               <li key={p.id} className={`flex flex-col rounded-md border bg-surface p-5 shadow-e1 ${isCurrent ? "border-accent/50" : "border-line"}`}>
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-medium">{p.name}</p>
-                  {isCurrent ? <span className="rounded-full bg-accent/[0.08] px-2.5 py-0.5 text-xs font-medium text-accent">{onYearly ? "Current, yearly" : "Current"}</span> : null}
+                  {/* A tag, not a state: a neutral pill with no icon (ADR 0183). */}
+                  {isCurrent ? <span className="rounded-full border border-line-2 px-2.5 py-0.5 text-xs font-medium text-ink-2">{onYearly ? "Current, yearly" : "Current"}</span> : null}
                 </div>
                 <p className="mt-2 text-2xl font-medium tracking-[-0.02em] tabular">
                   {priceWords(p).price}

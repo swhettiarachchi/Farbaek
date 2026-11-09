@@ -29,8 +29,8 @@ function TreeItem({ projectId, node, current, expandAll }: { projectId: string; 
       <li>
         <details open={open} className="group">
           <summary className="flex min-h-11 lg:pointer-fine:min-h-9 cursor-pointer list-none items-center gap-1.5 rounded-sm px-2 text-ink-2 hover:bg-surface-raised hover:text-ink [&::-webkit-details-marker]:hidden">
-            <CaretRightIcon size={12} weight="bold" className="shrink-0 text-ink-3 transition-transform group-open:rotate-90 motion-reduce:transition-none" aria-hidden />
-            <FolderIcon size={16} className="shrink-0 text-ink-3" aria-hidden />
+            <CaretRightIcon size={14} weight="bold" className="shrink-0 text-ink-3 transition-transform group-open:rotate-90 motion-reduce:transition-none" aria-hidden />
+            <FolderIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
             <span className="truncate">{node.name}</span>
           </summary>
           <div className="ml-3 border-l border-line pl-1.5">
@@ -46,9 +46,9 @@ function TreeItem({ projectId, node, current, expandAll }: { projectId: string; 
       <Link
         href={fileHref(projectId, node.path)}
         aria-current={active ? "page" : undefined}
-        className={`flex min-h-11 lg:pointer-fine:min-h-9 items-center gap-1.5 rounded-sm px-2 pl-[26px] ${active ? "bg-accent/[0.08] font-medium text-accent" : "text-ink hover:bg-surface-raised"}`}
+        className={`flex min-h-11 lg:pointer-fine:min-h-9 items-center gap-1.5 rounded-sm px-2 pl-[28px] ${active ? "bg-accent/[0.08] font-medium text-accent" : "text-ink hover:bg-surface-raised"}`}
       >
-        <FileIcon size={16} className={`shrink-0 ${active ? "text-accent" : "text-ink-3"}`} aria-hidden />
+        <FileIcon size={16} weight="bold" className={`shrink-0 ${active ? "text-accent" : "text-ink-3"}`} aria-hidden />
         <span className="truncate">{node.name}</span>
       </Link>
     </li>

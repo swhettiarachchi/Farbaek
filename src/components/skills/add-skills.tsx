@@ -1,6 +1,6 @@
 "use client";
 
-import { DownloadSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, DownloadSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useId, useState } from "react";
 import { importSkillAction, type SkillState } from "@/app/app/projects/[projectId]/skill-actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -47,16 +47,16 @@ function ImportSkillForm({ projectId, disabledReason }: { projectId: string; dis
       </p>
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending || Boolean(disabledReason)} className={buttonClasses("primary", "sm")}>
-          <DownloadSimpleIcon size={15} weight="bold" aria-hidden /> {pending ? "Bringing it in…" : "Bring it in"}
+          <DownloadSimpleIcon size={16} weight="bold" aria-hidden /> {pending ? "Bringing it in…" : "Bring it in"}
         </button>
       </div>
       {state.status === "error" ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {state.message}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden /> {state.message}
         </p>
       ) : state.status === "done" ? (
-        <p role="status" className="text-sm text-verified">
-          {state.message}
+        <p role="status" className="flex items-start gap-2 text-sm text-verified">
+          <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden /> {state.message}
         </p>
       ) : null}
     </form>

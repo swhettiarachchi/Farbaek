@@ -9,7 +9,7 @@ export function DemoSection() {
         <SectionHeading id="demo-title" title="Approvals bind to the exact change.">
           Approve the change, then edit it. The approval stops matching, because it was tied to a hash of exactly what you saw.
         </SectionHeading>
-        <div className="aurora mt-14 rounded-[28px] border border-line bg-canvas-2/80 p-3 backdrop-blur-sm sm:p-5 lg:p-6">
+        <div className="mt-14 rounded-[28px] border border-line bg-canvas-2 p-3 sm:p-5 lg:p-6">
           <ApprovalDemo />
         </div>
         <p className="mt-6 max-w-[62ch] text-sm text-ink-3">

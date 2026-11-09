@@ -1,4 +1,5 @@
-import { WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { DevicesIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { CardTitle } from "@/components/app/primitives";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { deviceLabel } from "@/core/office/devices";
@@ -45,7 +46,7 @@ export default async function OfficeDevice() {
     <div className="grid gap-6">
       <SignInSteps current={2} />
       <div>
-        <h2 className="text-2xl font-medium tracking-[-0.02em]">{trusted ? "This device is approved" : "Approve this device"}</h2>
+        <CardTitle icon={DevicesIcon}>{trusted ? "This device is approved" : "Approve this device"}</CardTitle>
         <p className="mt-1.5 text-sm leading-relaxed text-ink-2">
           {trusted
             ? "You can open the office on it now."
@@ -70,9 +71,9 @@ export default async function OfficeDevice() {
       ) : !trusted && !hash ? (
         <p className="text-sm leading-relaxed text-ink-2">Select Continue to check this device. If it&apos;s your first, it&apos;s trusted straight away; otherwise you&apos;ll get its code.</p>
       ) : !trusted ? (
-        <p role="alert" className="flex items-start gap-2 rounded-sm border border-failed/30 bg-failed/[0.05] p-3 text-sm text-failed">
-          <WarningCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0" aria-hidden />
-          This device couldn&apos;t be checked. Select Continue to try again, or sign in again on it.
+        <p role="alert" className="flex items-start gap-2 rounded-sm border border-line bg-surface-raised/70 p-3 text-sm text-failed">
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+          <span>This device couldn&apos;t be checked. Select Continue to try again, or sign in again on it.</span>
         </p>
       ) : null}
 

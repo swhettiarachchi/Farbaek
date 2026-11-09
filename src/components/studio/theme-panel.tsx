@@ -1,6 +1,6 @@
 "use client";
 
-import { LockSimpleIcon, MoonIcon, SunIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { InfoIcon, LockSimpleIcon, MoonIcon, SunIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useId, useMemo, useState } from "react";
 import { buttonClasses } from "@/components/ui/button";
@@ -45,8 +45,10 @@ export function ThemePanel({
 
   if (!onKit) {
     return (
-      <div className="grid gap-3 rounded-sm border border-dashed border-line-strong/40 p-4 text-sm text-ink-2">
-        <p className="font-medium text-ink">Theme controls need the Studio kit</p>
+      <div className="grid gap-3 rounded-sm border border-line bg-surface p-4 text-sm text-ink-2">
+        <p className="flex items-center gap-2 font-medium text-ink">
+          <InfoIcon size={20} weight="fill" className="shrink-0 text-info" aria-hidden /> Theme controls need the Studio kit
+        </p>
         <p>This site was built before the Farbaek Studio kit, so its colours and fonts are its own CSS. Upgrade its design once, and you can change the look, colours, fonts and corners here.</p>
         <div>
           <Link href={upgradeHref} className={buttonClasses("secondary", "sm")}>
@@ -85,7 +87,7 @@ export function ThemePanel({
                 onClick={() => setMode(m)}
                 className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm transition-colors duration-150 ${mode === m ? "bg-primary font-medium text-on-primary" : "text-ink-2 hover:text-ink"}`}
               >
-                <Icon size={15} aria-hidden /> {label}
+                <Icon size={16} weight="bold" aria-hidden /> {label}
               </button>
             ))}
           </div>
@@ -115,7 +117,7 @@ export function ThemePanel({
                       {s.label}
                       {s.pro ? (
                         <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-line px-1.5 text-xs text-ink-3">
-                          {locked ? <LockSimpleIcon size={10} aria-hidden /> : null}Pro
+                          {locked ? <LockSimpleIcon size={14} weight="bold" aria-hidden /> : null}Pro
                         </span>
                       ) : null}
                     </span>
@@ -146,8 +148,8 @@ export function ThemePanel({
           ))}
         </div>
         {textContrast < 4.5 || accentContrast < 3 ? (
-          <p className="flex items-start gap-2 text-xs leading-relaxed text-approval">
-            <WarningCircleIcon size={14} className="mt-px shrink-0" aria-hidden />
+          <p className="flex items-start gap-2 text-xs leading-relaxed text-ink-2">
+            <WarningCircleIcon size={14} weight="fill" className="mt-px shrink-0 text-caution" aria-hidden />
             <span>
               {textContrast < 4.5 ? `Text on this background is hard to read (contrast ${textContrast.toFixed(1)}:1, aim for 4.5). ` : ""}
               {accentContrast < 3 ? `The accent barely stands out from the background (${accentContrast.toFixed(1)}:1, aim for 3).` : ""}

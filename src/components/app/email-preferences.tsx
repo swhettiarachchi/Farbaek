@@ -1,5 +1,6 @@
 "use client";
 
+import { CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState } from "react";
 import { setEmailPreferencesAction, type FormState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -35,13 +36,15 @@ export function EmailPreferencesForm({ preferences, disabledReason }: { preferen
           {pending ? "Saving…" : "Save email choices"}
         </button>
         {state.status === "done" ? (
-          <p role="status" className="text-sm text-verified">
-            {state.message}
+          <p role="status" className="flex items-start gap-2 text-sm text-verified">
+            <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+            <span>{state.message}</span>
           </p>
         ) : null}
         {state.status === "error" ? (
-          <p role="alert" className="text-sm text-failed">
-            {state.message}
+          <p role="alert" className="flex items-start gap-2 text-sm text-failed">
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+            <span>{state.message}</span>
           </p>
         ) : null}
         {disabledReason ? <p className="text-sm text-ink-3">{disabledReason}</p> : null}

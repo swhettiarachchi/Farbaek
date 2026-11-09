@@ -1,21 +1,16 @@
-import { CheckCircleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { StatusBadge, type Status } from "@/components/ui/status-badge";
 import type { CommitStatusState } from "@/server/github/store";
 
-// Words in a colour and border pattern (ADR 0180); a mark only for passed and failed.
-const LOOK: Record<CommitStatusState | "none", { word: string; Icon: typeof CheckCircleIcon | null; chip: string }> = {
-  success: { word: "ProofPack verified", Icon: CheckCircleIcon, chip: "border-verified/45 bg-verified/[0.08] text-verified" },
-  failure: { word: "Not passing", Icon: XCircleIcon, chip: "border-failed/45 bg-failed/[0.08] text-failed" },
-  pending: { word: "Not verified yet", Icon: null, chip: "border-dashed border-line-strong/60 bg-surface text-ink-2" },
-  none: { word: "No status posted", Icon: null, chip: "border-line bg-surface-raised text-ink-3" },
+// Each posted status is its kind (ADR 0183): its words, icon, colour and border, never colour alone.
+const LOOK: Record<CommitStatusState | "none", { word: string; kind: Status }> = {
+  success: { word: "ProofPack verified", kind: "verified" },
+  failure: { word: "Not passing", kind: "failed" },
+  pending: { word: "Not verified yet", kind: "unverified" },
+  none: { word: "No status posted", kind: "off" },
 };
 
-/** The "Farbaek ProofPack" status Farbaek last posted on GitHub: words and border, never colour alone. */
+/** The "Farbaek ProofPack" status Farbaek last posted on GitHub. */
 export function PullStatusChip({ state }: { state: CommitStatusState | null }) {
   const look = LOOK[state ?? "none"];
-  return (
-    <span className={`inline-flex min-h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium ${look.chip}`}>
-      {look.Icon ? <look.Icon size={14} weight="bold" aria-hidden /> : null}
-      {look.word}
-    </span>
-  );
+  return <StatusBadge status={look.kind} label={look.word} />;
 }

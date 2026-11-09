@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { ReplyForm } from "@/components/app/support-forms";
 import { SupportConversation, SupportStatusChip } from "@/components/app/support-thread";
 import { LocalTime } from "@/components/ui/local-time";
+import { StatusGlyph } from "@/components/ui/status-badge";
 import { TOPIC_LABELS } from "@/core/support/support";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
@@ -35,7 +36,7 @@ export default async function HelpRequestPage({ params }: { params: Promise<{ id
   return (
     <div className="grid gap-6">
       <Link href="/app/help" className="inline-flex min-h-11 w-fit items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
-        <ArrowLeftIcon size={14} aria-hidden /> Help and support
+        <ArrowLeftIcon size={14} weight="bold" aria-hidden /> Help and support
       </Link>
 
       <header className="grid gap-3">
@@ -54,8 +55,8 @@ export default async function HelpRequestPage({ params }: { params: Promise<{ id
 
         {closed ? (
           <p className="flex items-center gap-2 rounded-md border border-line bg-surface-raised/60 px-4 py-3 text-sm text-ink-2">
-            <CheckCircleIcon size={17} weight="fill" className="shrink-0 text-ink-3" aria-hidden />
-            This request is closed. Writing again opens it.
+            <StatusGlyph status="done" />
+            <span>This request is closed. Writing again opens it.</span>
           </p>
         ) : null}
 
@@ -71,7 +72,7 @@ export default async function HelpRequestPage({ params }: { params: Promise<{ id
             className="justify-self-start"
             trigger={
               <>
-                <CheckCircleIcon size={16} aria-hidden /> Close request, it&apos;s sorted
+                <CheckCircleIcon size={16} weight="bold" aria-hidden /> Close request, it&apos;s sorted
               </>
             }
             triggerVariant="ghost"

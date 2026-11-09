@@ -95,9 +95,7 @@ export function FeatureFilms({ features }: { features: Feature[] }) {
               <ul className="mt-5 grid gap-3 text-[0.9375rem] leading-relaxed text-ink-2 sm:text-base">
                 {f.points.map((p) => (
                   <li key={p} className="flex gap-3">
-                    <span aria-hidden className="mt-[3px] inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
-                      <CheckIcon size={12} weight="bold" />
-                    </span>
+                    <CheckIcon size={16} weight="bold" className="mt-1 shrink-0 text-verified" aria-hidden />
                     {p}
                   </li>
                 ))}
@@ -113,8 +111,7 @@ export function FeatureFilms({ features }: { features: Feature[] }) {
 
       <div className="hidden lg:block">
         <div className="sticky top-[max(6rem,calc(50vh-19rem))]">
-          <div className="aurora">
-            <Bezel>
+          <Bezel>
               <div className="relative aspect-[4/3]">
                 {features.map((f, i) => (
                   <div
@@ -128,8 +125,7 @@ export function FeatureFilms({ features }: { features: Feature[] }) {
                   </div>
                 ))}
               </div>
-            </Bezel>
-          </div>
+          </Bezel>
           <div className="mt-5 flex justify-center gap-2" role="group" aria-label="Features">
             {features.map((f, i) => (
               <button

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpIcon, CircleNotchIcon, InfoIcon, PaintBrushIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowUpIcon, CircleNotchIcon, InfoIcon, PaletteIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { startFromPromptAction, type PromptStartState } from "@/app/app/new/actions";
@@ -211,14 +211,14 @@ export function PromptComposer({
 
       {nudge && tooShort ? (
         <p role="status" className="flex items-start gap-2 text-sm text-ink-2">
-          <InfoIcon size={16} className="mt-0.5 shrink-0 text-accent" aria-hidden />
+          <InfoIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-info" aria-hidden />
           {value.trim() ? "Add a few more words, so the plan has something to go on." : "Describe what you want first, in a sentence or two."}
         </p>
       ) : null}
 
       {state.status === "error" ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-          <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> {state.message}
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden /> {state.message}
         </p>
       ) : null}
 
@@ -234,7 +234,7 @@ export function PromptComposer({
             }}
             className={buttonClasses("secondary", "sm")}
           >
-            <PaintBrushIcon size={16} aria-hidden /> {suggestion.label}
+            <PaletteIcon size={16} weight="bold" aria-hidden /> {suggestion.label}
           </button>
         </div>
       ) : null}
@@ -273,7 +273,7 @@ function PlanningStages({ stages }: { stages: readonly string[] }) {
   }, [stages.length]);
   return (
     <>
-      <CircleNotchIcon size={14} weight="bold" className="shrink-0 text-accent motion-safe:animate-spin" aria-hidden />
+      <CircleNotchIcon size={14} weight="bold" className="shrink-0 text-info motion-safe:animate-spin" aria-hidden />
       <span className="truncate">{stages[stage]}…</span>
     </>
   );

@@ -1,16 +1,17 @@
+import { ArrowCounterClockwiseIcon, CoinsIcon } from "@phosphor-icons/react/ssr";
+import { CardTitle } from "@/components/app/primitives";
 import { StatusBadge, type Status } from "@/components/ui/status-badge";
 import { modelName } from "@/core/billing/rate-card";
 import { shareLabel, type TaskCost } from "@/core/insights/cost-brain";
 import { AREA_LABELS, REVERSIBILITY_LABELS, type FileReversibility, type Reversibility } from "@/core/insights/reversibility";
 
-// Status is a word in its colour and border (ADR 0180): the badge carries an icon only at the two ends.
+// Each class is a status kind with its icon (ADR 0183). A forward fix or a backup needs a look first: advice, not a failure.
 const TONE: Record<Reversibility, Status> = {
   rollback_supported: "verified",
   compensating_action: "info",
   unknown: "unverified",
-  forward_fix: "approval",
-  // Advice, not a failure: no cross on it.
-  requires_backup: "approval",
+  forward_fix: "attention",
+  requires_backup: "attention",
 };
 
 const ClassChip = ({ value }: { value: Reversibility }) => <StatusBadge status={TONE[value]} label={REVERSIBILITY_LABELS[value]} />;
@@ -28,8 +29,8 @@ export function ReversibilityCard({ overall, files }: { overall: Reversibility; 
   return (
     <section aria-labelledby="radar-title" className="grid gap-4 rounded-md border border-line bg-surface-raised/40 p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 id="radar-title" className="text-base font-medium">
-          How far this can be undone
+        <h3 id="radar-title" className="flex items-center gap-2 text-base font-medium">
+          <ArrowCounterClockwiseIcon size={20} className="shrink-0 text-ink-3" aria-hidden /> How far this can be undone
         </h3>
         <ClassChip value={overall} />
       </div>
@@ -61,9 +62,9 @@ export function CostCard({ cost, period }: { cost: TaskCost; period: "trial" | "
   return (
     <section aria-labelledby="cost-title" className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="cost-title" className="text-lg font-medium">
+        <CardTitle id="cost-title" icon={CoinsIcon}>
           What this task has used
-        </h2>
+        </CardTitle>
         {cost.operations.length > 0 ? (
           <span className="text-sm text-ink-2">
             <span className="font-medium text-ink">{shareLabel(cost.percent)}</span> {cost.percent === null ? "" : of}

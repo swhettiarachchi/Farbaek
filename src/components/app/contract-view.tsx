@@ -1,4 +1,4 @@
-import { ShieldCheckIcon, WarningIcon } from "@phosphor-icons/react/ssr";
+import { CheckSquareOffsetIcon, QuestionIcon, ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LocalTime } from "@/components/ui/local-time";
 import { contractHash } from "@/core/realityloop/contract";
@@ -72,10 +72,10 @@ export async function ContractView({ record }: { record: ContractRecord }) {
         ) : record.status === "draft" ? (
           <StatusBadge status="approval" label="Draft, not approved" />
         ) : (
-          <StatusBadge status="unverified" label="Replaced by a newer version" />
+          <StatusBadge status="off" label="Replaced by a newer version" />
         )}
         <span className={`inline-flex items-center gap-1 text-xs ${intact ? "text-verified" : "text-failed"}`}>
-          {intact ? <ShieldCheckIcon size={14} weight="bold" aria-hidden /> : <WarningIcon size={14} weight="bold" aria-hidden />}
+          {intact ? <ShieldCheckIcon size={14} weight="fill" className="shrink-0" aria-hidden /> : <WarningCircleIcon size={14} weight="fill" className="shrink-0" aria-hidden />}
           {intact ? <span title={`sha256:${record.sha256}`}>Unchanged since it was written</span> : "This doesn't match what was saved. Don't approve it."}
         </span>
       </div>
@@ -106,10 +106,13 @@ export async function ContractView({ record }: { record: ContractRecord }) {
           <List items={c.protectedInvariants.map((i) => i.statement)} />
         </Clause>
         <Clause label="Done when">
-          <ul className="grid list-disc gap-1.5 pl-5 marker:text-ink-3">
+          <ul className="grid gap-1.5">
             {c.acceptanceCriteria.map((a) => (
-              <li key={a.id}>
-                {a.statement} <span className="text-[0.8125rem] text-ink-3">({VERIFICATION_WORDS[a.verification] ?? a.verification})</span>
+              <li key={a.id} className="flex gap-2">
+                <CheckSquareOffsetIcon size={16} weight="bold" className="mt-1 shrink-0 text-ink-3" aria-hidden />
+                <span>
+                  {a.statement} <span className="text-[0.8125rem] text-ink-3">({VERIFICATION_WORDS[a.verification] ?? a.verification})</span>
+                </span>
               </li>
             ))}
           </ul>
@@ -133,10 +136,16 @@ export async function ContractView({ record }: { record: ContractRecord }) {
           </Clause>
         ) : null}
         {c.openQuestions.length ? (
+          // Open questions need a person to answer them, so each carries the "your turn" blue (ADR 0183).
           <Clause label="Open questions">
-            <span className="text-approval">
-              <List items={c.openQuestions} />
-            </span>
+            <ul className="grid gap-1.5">
+              {c.openQuestions.map((q) => (
+                <li key={q} className="flex gap-2">
+                  <QuestionIcon size={16} weight="bold" className="mt-1 shrink-0 text-approval" aria-hidden />
+                  <span>{q}</span>
+                </li>
+              ))}
+            </ul>
           </Clause>
         ) : null}
         <Clause label="If you need to undo it">{c.recovery}</Clause>

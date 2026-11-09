@@ -21,7 +21,7 @@ export function WorkspaceSwitcher({ workspaces, current, canCreate }: { workspac
           <span className="block truncate text-sm font-medium">{current.name}</span>
           <span className="block truncate text-xs text-ink-3">{planLabel(current)}</span>
         </span>
-        <CaretUpDownIcon size={16} className="shrink-0 text-ink-3" aria-hidden />
+        <CaretUpDownIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
         <span className="sr-only">Switch workspace</span>
       </summary>
       <div className="absolute inset-x-0 top-[calc(100%+6px)] z-30 rounded-sm border border-line bg-surface p-1.5 shadow-e3">
@@ -32,7 +32,7 @@ export function WorkspaceSwitcher({ workspaces, current, canCreate }: { workspac
                 <input type="hidden" name="orgId" value={ws.id} />
                 <button type="submit" className="flex min-h-11 w-full items-center gap-2 rounded-[8px] px-2.5 py-2 text-left text-sm hover:bg-surface-raised">
                   <span className="min-w-0 flex-1 truncate">{ws.name}</span>
-                  {ws.id === current.id ? <CheckIcon size={15} weight="bold" className="text-accent" aria-label="Current" /> : null}
+                  {ws.id === current.id ? <CheckIcon size={16} weight="bold" className="text-accent" aria-label="Current" /> : null}
                 </button>
               </form>
             </li>
@@ -40,7 +40,7 @@ export function WorkspaceSwitcher({ workspaces, current, canCreate }: { workspac
         </ul>
         {canCreate ? (
           <Link href="/app/workspaces/new" className="mt-1 flex min-h-11 items-center gap-2 rounded-[8px] border-t border-line px-2.5 py-2 text-sm text-ink-2 hover:bg-surface-raised">
-            <PlusIcon size={15} aria-hidden /> New workspace
+            <PlusIcon size={16} weight="bold" aria-hidden /> New workspace
           </Link>
         ) : null}
       </div>

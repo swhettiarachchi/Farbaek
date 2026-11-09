@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Offline" };
 export default function OfflinePage() {
   return (
     <div className="mx-auto grid min-h-[70dvh] max-w-xl content-center gap-5 px-4 py-16 text-center">
-      <WifiSlashIcon size={40} className="mx-auto text-ink-3" aria-hidden />
+      <WifiSlashIcon size={32} className="mx-auto text-ink-3" aria-hidden />
       <h1 className="text-3xl font-medium tracking-[-0.03em]">You&apos;re offline</h1>
       <p className="text-base leading-relaxed text-ink-2">
         Farbaek needs the internet to open your workspace. Your projects, plans and proof are safe on Farbaek&apos;s server, and nothing you approved is lost.

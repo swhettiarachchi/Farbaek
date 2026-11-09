@@ -195,7 +195,7 @@ export async function claim(token: string): Promise<PlayActionResult> {
 export function ManageInGooglePlay({ productId }: { productId: string | null }) {
   return (
     <a href={googlePlayManageUrl(productId)} target="_blank" rel="noopener noreferrer" className={buttonClasses("secondary", "sm")}>
-      <GooglePlayLogoIcon size={16} aria-hidden /> Manage in Google Play
+      <GooglePlayLogoIcon size={16} weight="bold" aria-hidden /> Manage in Google Play
     </a>
   );
 }

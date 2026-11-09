@@ -7,7 +7,7 @@ description: "Farbaek's permanent standard that nothing it shows, and nothing it
 
 People can tell when an interface was generated. Not from one thing, but from a texture: a glyph on every chip, a monospace word where a name belongs, a coloured dot before each line, a counter that reads 0:00, a strip of tiny pills carrying numbers nobody asked for. Each is small. Together they say nobody decided anything.
 
-Products made by large teams have the opposite texture. Status is a word. Numbers appear only when they mean something, in a sentence, with a label. Icons are few and each names an action. Small text is calm Geist in sentence case. This skill holds that standard for Farbaek's own screens and for every site and app Farbaek builds, so nobody can tell Farbaek was used.
+Products made by large teams have the opposite texture. Status is a word with its own icon, colour and border, the same everywhere. Numbers appear only when they mean something, in a sentence, with a label. Icons come from one set, at a few sizes, and each names a thing or an action. Small text is calm Geist in sentence case. This skill holds that standard for Farbaek's own screens and for every site and app Farbaek builds, so nobody can tell Farbaek was used.
 
 Read `CLAUDE.md` first, then `farbaek-ui` for the system. This skill is the layer on top: the tells, and what replaces them.
 
@@ -15,10 +15,10 @@ Read `CLAUDE.md` first, then `farbaek-ui` for the system. This skill is the laye
 
 | Tell | Why it reads as generated | Show instead |
 | --- | --- | --- |
-| A glyph on every status chip (hourglass, flask, fingerprint) | A real product reserves icons for the few states people scan for | Status is a word in its colour and border. An icon only for done (check) and failed (warning or prohibit). Waiting states carry no icon |
+| A stock glyph on a status chip (hourglass, flask, fingerprint), or some chips with icons and others blank | Generated UI picks a picture per state, or leaves the work half done | Every status is one of `StatusBadge`'s thirteen kinds (ADR 0183): its words, a precise filled icon (check, clock, person clock, warning circle, pause, cross, prohibit, dashed circle, minus), its colour and its border. Never a blank where an icon belongs |
 | An hourglass for waiting, a flask for a test, a fingerprint for approval | Stock metaphors chosen by the glyph library, not the product | Say who it waits for ("Waiting for you", "Waiting for DNS"). Trials and practice say "Sample" in words. Approve buttons use a check, the action itself |
 | Monospace for words (a model id, a tool name, a state) | Mono says "machine", and a person doesn't copy a model's name | Mono only for data people copy or compare: hashes, paths, commands, addresses, keys. Models get their product name (`modelName()`), tools their verb, states their word |
-| A coloured dot before a line | A dot is decoration dressed as status | Words, a spinner for live work, a check or warning for a result. One exception: an unread marker, as in every mail app |
+| A coloured dot before a line | A dot is decoration dressed as status | The kind's icon (`StatusGlyph`) beside the words. One exception: an unread marker, as in every mail app |
 | A counter with nothing to count (0:00 before a film starts, "Steps 1") | Numbers that only exist to look like a dashboard | Numbers only when real and useful, in a sentence with a label, in tabular Geist. A film shows its length until it plays |
 | A strip of pills under a heading (Steps, model, usage, cap) | A metadata bar, not a thought | One or two plain sentences: "Step 7 of a Balanced run on Claude Haiku 5.5. Used 2% of this month's AI usage, with a cap of 8%." |
 | A sentence squeezed into a chip with an icon ("1 change no line of the plan explains") | Chips are for one or two words | Facts are lines in a list, written as a person would say them |
@@ -30,7 +30,8 @@ Read `CLAUDE.md` first, then `farbaek-ui` for the system. This skill is the laye
 
 ## Where the rules live in code
 
-- **`StatusBadge`** (`src/components/ui/status-badge.tsx`) and `RunStatusBadge`: the one way to draw a status. Add a state there, with no icon unless it's done or failed.
+- **`StatusBadge`** (`src/components/ui/status-badge.tsx`): the one way to draw a status, as one of thirteen kinds; `StatusGlyph` draws a kind's icon alone in rows and step lists. Map a new state to a kind; never draw a pill by hand. Blue (`approval`) is your turn, burnt orange (`caution`) a real warning, steel (`info`) information or work in progress. No gold, amber or purple.
+- **`CardTitle`** (`src/components/app/primitives.tsx`): every section heading in the app, with a 20px outlined icon in the quiet ink. The same concept gets the same icon on every page.
 - **`modelName(id)`** (`src/core/billing/rate-card.ts`): the only way a model is shown.
 - **Facts and counts** are sentences in `text-sm text-ink-2`, numbers in `tabular font-medium text-ink`.
 - **Lists** use real bullets (`list-disc`) or none, never a drawn dot.

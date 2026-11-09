@@ -42,7 +42,7 @@ export default async function ConnectPhonePage({ searchParams }: { searchParams:
   if (!CHALLENGE_PATTERN.test(challenge) || !STATE_PATTERN.test(state) || !isPhonePlatform(platform)) {
     return (
       <Frame>
-        <LinkBreakIcon size={28} className="text-failed" aria-hidden />
+        <LinkBreakIcon size={32} className="text-failed" aria-hidden />
         <h1 className="mt-4 text-xl font-medium tracking-[-0.02em]">This page opens from the Farbaek app</h1>
         <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink-2">The link is missing what the app sends. Open Farbaek on your phone and tap Sign in again.</p>
       </Frame>
@@ -69,7 +69,7 @@ export default async function ConnectPhonePage({ searchParams }: { searchParams:
 
   return (
     <Frame>
-      <DeviceMobileIcon size={28} className="text-accent" aria-hidden />
+      <DeviceMobileIcon size={32} className="text-ink-2" aria-hidden />
       <h1 className="mt-4 text-[1.6rem] font-medium leading-tight tracking-[-0.03em]">Connect {name} to Farbaek</h1>
       <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink-2">
         Signed in as <span className="font-medium text-ink">{email}</span>. The app signs in as you, with its own session.
@@ -79,7 +79,7 @@ export default async function ConnectPhonePage({ searchParams }: { searchParams:
       <ul className="mt-2 grid gap-2">
         {CAN.map((line) => (
           <li key={line} className="flex gap-2.5 text-[0.9375rem] leading-snug text-ink-2">
-            <CheckCircleIcon size={18} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+            <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
             {line}
           </li>
         ))}
@@ -88,7 +88,7 @@ export default async function ConnectPhonePage({ searchParams }: { searchParams:
       <ul className="mt-2 grid gap-2">
         {CANNOT.map((line) => (
           <li key={line} className="flex gap-2.5 text-[0.9375rem] leading-snug text-ink-2">
-            <ProhibitIcon size={18} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
+            <ProhibitIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
             {line}
           </li>
         ))}

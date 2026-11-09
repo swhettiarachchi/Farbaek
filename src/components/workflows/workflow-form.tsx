@@ -1,6 +1,6 @@
 "use client";
 
-import { MinusCircleIcon, PlusIcon } from "@phosphor-icons/react";
+import { MinusCircleIcon, PlusIcon, UsersThreeIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useState } from "react";
 import { createWorkflowAction, type WorkflowState } from "@/app/app/workflows/actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -76,15 +76,20 @@ export function WorkflowForm({
         <legend className="text-sm font-medium">Steps, in the order they run</legend>
         <ol className="grid gap-3">
           {steps.map((s, i) => (
-            <li key={s.key} className={`grid gap-3 rounded-md border bg-surface p-4 ${i > 0 && s.together ? "border-accent/45 shadow-[inset_3px_0_0_var(--color-accent)]" : "border-line"}`}>
+            <li key={s.key} className={`grid gap-3 rounded-md border bg-surface p-4 ${i > 0 && s.together ? "border-line-2" : "border-line"}`}>
               <div className="flex items-center justify-between gap-3">
                 <span className="flex flex-wrap items-center gap-x-2 text-xs font-medium text-ink-3">
                   Step {i + 1}
-                  {i > 0 && s.together ? <span className="font-normal text-accent">Runs with step {i}</span> : null}
+                  {i > 0 && s.together ? (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-line-2 px-2 py-0.5 font-normal text-ink-2">
+                      <UsersThreeIcon size={14} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
+                      Runs with step {i}
+                    </span>
+                  ) : null}
                 </span>
                 {steps.length > 2 ? (
                   <button type="button" onClick={() => setSteps((all) => all.filter((x) => x.key !== s.key))} className={buttonClasses("ghost", "sm")}>
-                    <MinusCircleIcon size={16} aria-hidden /> Remove step {i + 1}
+                    <MinusCircleIcon size={16} weight="bold" aria-hidden /> Remove step {i + 1}
                   </button>
                 ) : null}
               </div>
@@ -131,7 +136,7 @@ export function WorkflowForm({
             }}
             className={buttonClasses("secondary", "sm", "justify-self-start")}
           >
-            <PlusIcon size={16} aria-hidden /> Add a step
+            <PlusIcon size={16} weight="bold" aria-hidden /> Add a step
           </button>
         ) : (
           <p className="text-xs text-ink-3">A workflow has at most {MAX_STEPS} steps.</p>
@@ -157,8 +162,9 @@ export function WorkflowForm({
         </button>
         {disabledReason ? <p className="text-sm text-ink-3">{disabledReason}</p> : null}
         {state.status === "error" ? (
-          <p role="alert" className="text-sm text-failed">
-            {state.message}
+          <p role="alert" className="flex items-start gap-2 text-sm text-failed">
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+            <span>{state.message}</span>
           </p>
         ) : null}
       </div>

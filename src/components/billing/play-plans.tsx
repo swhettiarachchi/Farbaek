@@ -17,6 +17,7 @@ import { useState, type ReactNode } from "react";
 import { openGooglePlayIntentAction } from "@/app/app/billing/actions";
 import { CurrencyToggle, ManageInGooglePlay, claim, localCurrency, playPrices, usePlay, usePriceCurrency, type PurchaseDetails } from "@/components/billing/play-billing";
 import { buttonClasses } from "@/components/ui/button";
+import { StatusGlyph } from "@/components/ui/status-badge";
 import { GOOGLE_PLAY_BILLING_METHOD, GOOGLE_PLAY_PRODUCTS } from "@/core/billing/google-play";
 
 /** A plan Google Play sells, as Billing describes it. */
@@ -121,7 +122,7 @@ function Picker({ options, current, googleBilled, cancelling, canManage, unavail
                 key={o.planId}
                 style={{ animationDelay: `${i * 40}ms` }}
                 className={`flex min-h-16 items-center gap-3.5 rounded-md border px-4 py-3.5 transition-[border-color,background-color,box-shadow] duration-200 ease-standard motion-safe:animate-[usage-in_260ms_cubic-bezier(0.16,1,0.3,1)_both] has-focus-visible:outline-2 has-focus-visible:outline-accent ${
-                  locked(o) ? "cursor-default border-dashed border-line-strong/50 bg-canvas-2" : selected ? "cursor-pointer border-accent bg-accent/[0.04] shadow-[0_0_0_1px_var(--color-accent)]" : "cursor-pointer border-line bg-surface hover:border-line-strong/60"
+                  locked(o) ? "cursor-default border-line bg-canvas-2" : selected ? "cursor-pointer border-accent bg-accent/[0.04] ring-1 ring-accent" : "cursor-pointer border-line bg-surface hover:border-line-strong/60"
                 }`}
               >
                 <input
@@ -136,7 +137,7 @@ function Picker({ options, current, googleBilled, cancelling, canManage, unavail
                   }}
                   className="sr-only"
                 />
-                <span aria-hidden className={`flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-200 ${selected ? "border-accent" : locked(o) ? "border-dashed border-line-strong/60" : "border-line-strong/60"}`}>
+                <span aria-hidden className={`flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-200 ${selected ? "border-accent" : locked(o) ? "border-line-2" : "border-line-strong/60"}`}>
                   <span className={`size-2.5 rounded-full bg-accent transition-transform duration-200 ease-standard ${selected ? "scale-100" : "scale-0"}`} />
                 </span>
                 <span className="min-w-0 flex-1">
@@ -144,9 +145,10 @@ function Picker({ options, current, googleBilled, cancelling, canManage, unavail
                     <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                       <span className="font-medium">{o.name}</span>
                       {isCurrent ? (
-                        <span className="rounded-full bg-accent/[0.08] px-2.5 py-0.5 text-xs font-medium text-accent">{current?.trial ? "Trial" : "Current"}</span>
+                        // Tags, not states: neutral pills with no icon (ADR 0183).
+                        <span className="rounded-full border border-line-2 px-2.5 py-0.5 text-xs font-medium text-ink-2">{current?.trial ? "Trial" : "Current"}</span>
                       ) : o.recommended ? (
-                        <span className="rounded-full bg-accent px-2.5 py-0.5 text-xs font-medium text-on-accent">Recommended</span>
+                        <span className="rounded-full border border-line-2 bg-surface-raised px-2.5 py-0.5 text-xs font-medium text-ink">Recommended</span>
                       ) : null}
                     </span>
                     <span className="shrink-0 whitespace-nowrap text-right tabular">
@@ -167,7 +169,8 @@ function Picker({ options, current, googleBilled, cancelling, canManage, unavail
       <div className="grid gap-3 px-3 pb-3 pt-4 sm:px-4" aria-live="polite">
         {status.kind === "done" ? (
           <p role="status" className="flex items-start gap-2 text-sm leading-relaxed text-ink">
-            <CheckCircleIcon size={20} weight="fill" className="mt-px shrink-0 text-verified" aria-hidden /> {status.text}
+            <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
+            <span>{status.text}</span>
           </p>
         ) : !canManage ? (
           <Reason>Owners and admins choose plans.</Reason>
@@ -197,7 +200,7 @@ function Picker({ options, current, googleBilled, cancelling, canManage, unavail
                 : "It's charged to your Google account, then again every month until you cancel. Cancel in Google Play at least a day before it renews."}
             </p>
             <button type="button" onClick={buy} disabled={busy} className={buttonClasses("primary", "md", "w-full")}>
-              <GooglePlayLogoIcon size={18} weight="fill" aria-hidden /> {busy ? status.label : mode === "change" ? `Switch to ${chosen.name}` : `Subscribe to ${chosen.name}`}
+              <GooglePlayLogoIcon size={16} weight="bold" aria-hidden /> {busy ? status.label : mode === "change" ? `Switch to ${chosen.name}` : `Subscribe to ${chosen.name}`}
             </button>
             <p className="text-xs leading-relaxed text-ink-3">
               By subscribing you accept the{" "}
@@ -214,7 +217,8 @@ function Picker({ options, current, googleBilled, cancelling, canManage, unavail
         )}
         {status.kind === "error" ? (
           <p role="alert" className="flex items-start gap-2 text-sm leading-relaxed text-failed">
-            <WarningCircleIcon size={18} className="mt-px shrink-0" aria-hidden /> {status.text}
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+            <span>{status.text}</span>
           </p>
         ) : null}
       </div>
@@ -232,8 +236,9 @@ function PickerLoading({ rows }: { rows: number }) {
   return (
     <div aria-busy="true" className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
       <div className="rounded-md bg-surface p-4 shadow-e1 sm:p-5">
-        <p role="status" className="text-sm text-ink-3">
-          Getting Google Play&apos;s prices…
+        <p role="status" className="flex items-center gap-2 text-sm text-ink-3">
+          <StatusGlyph status="working" />
+          <span>Getting Google Play&apos;s prices…</span>
         </p>
         <div className="mt-4 grid gap-2" aria-hidden>
           {Array.from({ length: rows }, (_, i) => (
@@ -259,8 +264,8 @@ export function PlayPricingNotice({ children }: { children: ReactNode }) {
   return (
     <div className="grid gap-4 rounded-md border border-line bg-surface p-5 shadow-e1">
       <div className="flex gap-4">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent/[0.08] text-accent">
-          <GooglePlayLogoIcon size={20} weight="fill" aria-hidden />
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-raised text-ink-2 ring-1 ring-line">
+          <GooglePlayLogoIcon size={20} aria-hidden />
         </span>
         <div className="min-w-0">
           <p className="font-medium">Plans are billed through Google Play</p>

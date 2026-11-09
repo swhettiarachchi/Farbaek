@@ -48,12 +48,12 @@ export function SiteHeader() {
           <span className="contents max-[19.9em]:hidden">
           <Link
             href="/sign-in?next=/app/new"
-            className="group inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-full bg-primary pl-4 pr-4 text-sm font-medium text-on-primary shadow-e1 transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-primary/90 active:scale-[0.98] min-[400px]:pr-1.5"
+            className="group inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-full bg-primary pl-4 pr-4 text-sm font-medium text-on-primary shadow-e1 transition-[transform,background-color] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:bg-primary-hover active:scale-[0.98] min-[400px]:pr-1.5"
           >
             Start building
             {/* On narrow phones, and with Android's larger text, the arrow gives its room to the words. */}
             <span className="hidden size-8 items-center justify-center rounded-full bg-on-primary/15 transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:-translate-y-px group-hover:translate-x-0.5 min-[400px]:flex">
-              <ArrowUpRightIcon size={15} weight="bold" aria-hidden />
+              <ArrowUpRightIcon size={16} weight="bold" aria-hidden />
             </span>
           </Link>
           </span>

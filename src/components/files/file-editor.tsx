@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftIcon, CheckCircleIcon, GitDiffIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, CheckCircleIcon, FileCodeIcon, GitDiffIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -111,7 +111,7 @@ export function FileEditor({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <Link href={cancelHref} className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
-            <ArrowLeftIcon size={14} aria-hidden /> {isNew ? "All files" : "Back to the file"}
+            <ArrowLeftIcon size={14} weight="bold" aria-hidden /> {isNew ? "All files" : "Back to the file"}
           </Link>
           {isNew ? (
             <div className="mt-2 grid gap-1.5">
@@ -130,12 +130,16 @@ export function FileEditor({
                 aria-describedby="new-file-path-hint"
                 className="h-11 w-full max-w-md rounded-sm border border-line-strong/60 bg-surface px-3.5 font-mono text-base shadow-e1 focus:border-accent sm:text-sm"
               />
-              <p id="new-file-path-hint" className={`text-xs ${pathError ? "text-failed" : "text-ink-3"}`}>
-                {pathError ?? "Its path in the project, like src/app.ts."}
+              <p id="new-file-path-hint" className={`flex items-start gap-1.5 text-xs ${pathError ? "text-failed" : "text-ink-3"}`}>
+                {pathError ? <WarningCircleIcon size={16} weight="fill" className="shrink-0 text-failed" aria-hidden /> : null}
+                <span>{pathError ?? "Its path in the project, like src/app.ts."}</span>
               </p>
             </div>
           ) : (
-            <h2 className="mt-2 font-mono text-[0.9375rem] font-medium break-all">{initialPath}</h2>
+            <h2 className="mt-2 flex items-center gap-2.5 text-[0.9375rem] font-medium">
+              <FileCodeIcon size={20} className="shrink-0 text-ink-3" aria-hidden />
+              <span className="min-w-0 break-all font-mono">{initialPath}</span>
+            </h2>
           )}
         </div>
         <p className="shrink-0 text-xs text-ink-3" aria-live="polite">
@@ -150,7 +154,7 @@ export function FileEditor({
         <div className="grid gap-3">
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
             <span className="inline-flex items-center gap-1.5 font-medium">
-              <GitDiffIcon size={18} className="text-accent" aria-hidden /> Review the change
+              <GitDiffIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> Review the change
             </span>
             {stats ? (
               <span className="tabular text-xs text-ink-2">
@@ -166,13 +170,13 @@ export function FileEditor({
       <div aria-live="polite" className="empty:hidden">
         {error ? (
           <p role="alert" className="flex items-start gap-2 text-sm text-failed">
-            <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden />
+            <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
             {error}
           </p>
         ) : null}
         {saved !== null ? (
           <p role="status" className="flex items-center gap-2 text-sm text-verified">
-            <CheckCircleIcon size={16} weight="fill" aria-hidden /> Saved as revision {saved}.
+            <CheckCircleIcon size={16} weight="fill" className="shrink-0 text-verified" aria-hidden /> Saved as revision {saved}.
           </p>
         ) : null}
         {unchanged ? <p className="text-sm text-ink-2">Every change was left out, so there&apos;s nothing to save.</p> : null}
@@ -181,7 +185,7 @@ export function FileEditor({
       <div className="flex flex-wrap items-center gap-3">
         {mode === "edit" ? (
           <button type="button" onClick={startReview} disabled={!dirty && !isNew} className={buttonClasses("primary", "sm")}>
-            <GitDiffIcon size={16} aria-hidden /> Review changes
+            <GitDiffIcon size={16} weight="bold" aria-hidden /> Review changes
           </button>
         ) : (
           <>

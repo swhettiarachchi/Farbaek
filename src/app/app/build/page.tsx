@@ -1,9 +1,9 @@
-import { ArrowRightIcon, CheckCircleIcon, FileTextIcon, HammerIcon, SignatureIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, ClipboardTextIcon, ClockCounterClockwiseIcon, FileTextIcon, GitDiffIcon, HammerIcon, ListNumbersIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LiveRefresh } from "@/components/app/live-refresh";
-import { EmptyState, Notice, PageHeader } from "@/components/app/primitives";
+import { CardTitle, EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { AgentCore } from "@/components/build/agent-core";
 import { PromptComposer } from "@/components/build/prompt-composer";
 import { RunStatusBadge } from "@/components/build/run-status";
@@ -26,9 +26,9 @@ export const metadata: Metadata = { title: "Build" };
 // A real sequence: each step needs the one before it.
 const FLOW = [
   { icon: FileTextIcon, title: "Describe", text: "Write the outcome you want as a task in a project." },
-  { icon: SignatureIcon, title: "Agree", text: "AI drafts a plan. You read it and approve it." },
+  { icon: ClipboardTextIcon, title: "Agree", text: "AI drafts a plan. You read it and approve it." },
   { icon: HammerIcon, title: "Build", text: "The agent works in the cloud, runs the checks and asks before anything risky." },
-  { icon: CheckCircleIcon, title: "Review", text: "You check every change and apply it. You also get a ProofPack, the record of what was checked." },
+  { icon: GitDiffIcon, title: "Review", text: "You check every change and apply it. You also get a ProofPack, the record of what was checked." },
 ];
 
 export default async function BuildPage() {
@@ -66,7 +66,7 @@ export default async function BuildPage() {
       {FLOW.map((s) => (
         <li key={s.title} className="bg-surface p-5">
           <p className="flex items-center gap-2 text-sm font-medium">
-            <s.icon size={16} weight="bold" className="shrink-0 text-accent" aria-hidden /> {s.title}
+            <s.icon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> {s.title}
           </p>
           <p className="mt-2 text-sm leading-relaxed text-ink-2">{s.text}</p>
         </li>
@@ -113,12 +113,14 @@ export default async function BuildPage() {
       ) : null}
 
       {/* Someone new reads how it goes; once a workspace has run anything, the steps fold away. */}
-      {runs.length === 0 ? flow : <Disclosure summary="How a build works">{flow}</Disclosure>}
+      {runs.length === 0 ? flow : <Disclosure summary="How a build works" icon={<ListNumbersIcon size={20} />}>
+          {flow}
+        </Disclosure>}
 
       <section aria-labelledby="ready-heading" className="grid gap-4">
-        <h2 id="ready-heading" className="text-lg font-medium">
+        <CardTitle id="ready-heading" icon={HammerIcon}>
           Ready to build
-        </h2>
+        </CardTitle>
         {ready.length === 0 ? (
           <EmptyState
             icon={HammerIcon}
@@ -149,9 +151,9 @@ export default async function BuildPage() {
       </section>
 
       <section aria-labelledby="runs-heading" className="grid gap-4">
-        <h2 id="runs-heading" className="text-lg font-medium">
+        <CardTitle id="runs-heading" icon={ClockCounterClockwiseIcon}>
           Runs
-        </h2>
+        </CardTitle>
         {runs.length === 0 ? (
           <p className="text-sm text-ink-3">No runs yet. Start one from a task that&apos;s ready.</p>
         ) : (

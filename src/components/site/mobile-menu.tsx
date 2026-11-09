@@ -132,7 +132,7 @@ export function MobileMenu() {
                       >
                         {link.label}
                         <span className="flex size-10 items-center justify-center rounded-full bg-surface-raised text-ink-2 transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:-translate-y-px group-hover:translate-x-0.5">
-                          <ArrowUpRightIcon size={17} aria-hidden />
+                          <ArrowUpRightIcon size={16} weight="bold" aria-hidden />
                         </span>
                       </Link>
                     </li>
