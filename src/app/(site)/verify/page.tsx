@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Container } from "@/components/ui/container";
 import { EvidenceCheck } from "@/components/verify/evidence-check";
+import { PUBLIC_TITLE } from "@/components/ui/titles";
 
 export const metadata: Metadata = {
   title: "Check a proof",
@@ -32,8 +33,8 @@ export default function VerifyPage() {
     <>
       <section className="pt-14 pb-10 sm:pt-20 lg:pt-24">
         <Container>
-          <h1 className="max-w-[16ch] text-balance text-[2.5rem] font-medium leading-[1.05] tracking-[-0.04em] sm:text-[3.5rem]">Check the proof yourself.</h1>
-          <p className="mt-5 max-w-[56ch] text-[1.0625rem] leading-relaxed text-ink-2">
+          <h1 className={`max-w-[16ch] ${PUBLIC_TITLE}`}>Check the proof yourself.</h1>
+          <p className="mt-5 max-w-[56ch] text-title-4 leading-relaxed text-ink-2">
             Someone sent you a ProofPack, a receipt or a Capsule from Farbaek? Drop it here to see whether it&apos;s exactly what was recorded, and what it says was approved,
             changed and checked.
           </p>
@@ -58,8 +59,8 @@ export default function VerifyPage() {
             {MEANING.map((m) => (
               <li key={m.title} className="grid content-start gap-3">
                 <m.icon size={24} className="text-ink-2" aria-hidden />
-                <h3 className="text-[1.0625rem] font-medium">{m.title}</h3>
-                <p className="text-[0.9375rem] leading-relaxed text-ink-2">{m.body}</p>
+                <h3 className="text-title-4 font-medium">{m.title}</h3>
+                <p className="text-body leading-relaxed text-ink-2">{m.body}</p>
               </li>
             ))}
           </ul>

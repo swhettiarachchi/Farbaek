@@ -87,11 +87,11 @@ export function AgentInbox({ lanes, proposals }: { lanes: Record<InboxLane, RunV
                       <Link href={`/app/build/${r.id}`} className="group flex gap-3 rounded-sm border border-transparent p-2 transition-colors duration-150 hover:border-line hover:bg-canvas-2/70">
                         <CoreMark state={markState(lane, r)} />
                         <span className="min-w-0 flex-1">
-                          <span className="line-clamp-2 text-[0.875rem] font-medium group-hover:text-accent">{r.taskTitle}</span>
+                          <span className="line-clamp-2 text-sm font-medium group-hover:text-accent">{r.taskTitle}</span>
                           <span className="mt-0.5 block truncate text-xs text-ink-3" title={r.projectName}>
                             {r.projectName} · <RelativeTime iso={r.endedAt ?? r.startedAt} />
                           </span>
-                          <span className="mt-1.5 line-clamp-2 block text-[0.8125rem] leading-snug text-ink-2">{summary(lane, r, proposal)}</span>
+                          <span className="mt-1.5 line-clamp-2 block text-label leading-snug text-ink-2">{summary(lane, r, proposal)}</span>
                           <span className={`mt-2 inline-flex items-center gap-1 text-xs font-medium ${lane === "needs_you" ? "text-approval" : "text-accent"}`}>
                             {style.action} <ArrowRightIcon size={14} weight="bold" aria-hidden />
                           </span>

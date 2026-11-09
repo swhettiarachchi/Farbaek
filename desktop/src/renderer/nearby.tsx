@@ -3,19 +3,24 @@ import {
   ArrowDownLeftIcon,
   ArrowUpRightIcon,
   ArrowsClockwiseIcon,
+  ArrowsDownUpIcon,
   BroadcastIcon,
   ClockCountdownIcon,
   CircleNotchIcon,
+  DesktopIcon,
   FolderOpenIcon,
   GlobeSimpleIcon,
   LinkSimpleIcon,
   MagnifyingGlassIcon,
+  PaperPlaneTiltIcon,
+  ShareNetworkIcon,
+  TrayArrowDownIcon,
 } from "@phosphor-icons/react";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { TransferState } from "@/core/mesh/protocol";
 import { formatBytes } from "@/core/workspace/files";
 import type { MeshSnapshot, MeshState, PreparedView, Result } from "../shared/api";
-import { Alert, StatusBadge, type Status } from "./status";
+import { Alert, SectionTitle, StatusBadge, type Status } from "./status";
 
 const mesh = window.farbaek.mesh;
 
@@ -156,9 +161,9 @@ function Nearby({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: stri
       {incoming.map((t) => (
         <div key={t.id} className="card stack-sm offer" aria-live="polite">
           <div className="row">
-            <h2>
+            <SectionTitle icon={TrayArrowDownIcon}>
               {t.peer.name} wants to send {t.name}
-            </h2>
+            </SectionTitle>
             <StatusBadge kind="approval">Waiting for you</StatusBadge>
           </div>
           <p className="muted">
@@ -189,7 +194,7 @@ function Nearby({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: stri
       <div className="card stack-sm">
         <div className="row">
           <div>
-            <h2>This computer</h2>
+            <SectionTitle icon={DesktopIcon}>This computer</SectionTitle>
             <p className="small muted">
               {s.self.name} · <span className="mono">{grouped(s.self.fingerprint)}</span>
             </p>
@@ -239,7 +244,7 @@ function Nearby({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: stri
 
       {others.length > 0 ? (
         <div className="card stack-sm">
-          <h2>Transfers</h2>
+          <SectionTitle icon={ArrowsDownUpIcon}>Transfers</SectionTitle>
           <ul className="transfers">
             {others.map((t) => (
               <TransferRow key={t.id} transfer={t} busy={busy} act={act} />
@@ -259,7 +264,7 @@ function PairingCard({ pairing: p, now, act, busy }: { pairing: NonNullable<Mesh
   return (
     <div className="card stack-sm pairing" aria-live="polite">
       <div className="row">
-        <h2>Pairing with {p.peer.name}</h2>
+        <SectionTitle icon={LinkSimpleIcon}>Pairing with {p.peer.name}</SectionTitle>
         {p.state === "paired" ? (
           <StatusBadge kind="verified">Paired</StatusBadge>
         ) : final ? (
@@ -320,7 +325,7 @@ function RelayCard({ snapshot: s, now, busy, act }: { snapshot: MeshSnapshot; no
   return (
     <div className="card stack-sm">
       <div className="row">
-        <h2>Over the internet</h2>
+        <SectionTitle icon={GlobeSimpleIcon}>Over the internet</SectionTitle>
         {r.available && r.reachable ? <StatusBadge kind="verified">Reachable</StatusBadge> : <StatusBadge kind="off">Not reachable</StatusBadge>}
       </div>
       <p className="muted">
@@ -380,7 +385,7 @@ function SendCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: st
 
   return (
     <div className="card stack-sm">
-      <h2>Send a folder</h2>
+      <SectionTitle icon={PaperPlaneTiltIcon}>Send a folder</SectionTitle>
       {!prepared ? (
         <>
           <p className="muted">Choose a folder. Its files are checked here first; credentials, keys, .env files and dependency folders stay on this computer.</p>
@@ -550,7 +555,7 @@ function ComputersCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; bus
   return (
     <div className="card stack-sm">
       <div className="row">
-        <h2>Computers</h2>
+        <SectionTitle icon={ShareNetworkIcon}>Computers</SectionTitle>
         <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("look", () => mesh.setLooking(!s.looking))}>
           <MagnifyingGlassIcon size={16} weight="bold" aria-hidden /> {s.looking ? "Stop looking" : "Look for computers"}
         </button>
@@ -595,7 +600,9 @@ function ComputersCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; bus
         <p className="small muted">Use this when the network hides computers from each other. The other computer shows its address while it&apos;s visible.</p>
       </details>
 
-      <h3>Paired</h3>
+      <SectionTitle as="h3" icon={LinkSimpleIcon}>
+        Paired
+      </SectionTitle>
       {s.devices.length === 0 ? (
         <p className="muted">No paired computers yet.</p>
       ) : (

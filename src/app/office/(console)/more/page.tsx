@@ -64,7 +64,7 @@ export default async function OfficeMore() {
             <li key={p.href}>
               <Link
                 href={p.href}
-                className="flex min-h-14 items-center gap-3 px-4 text-[0.9375rem] text-ink hover:bg-surface-raised"
+                className="flex min-h-14 items-center gap-3 px-4 text-body text-ink hover:bg-surface-raised"
               >
                 <PageIcon size={20} className="text-ink-2" aria-hidden />
                 <span className="flex-1">{p.label}</span>

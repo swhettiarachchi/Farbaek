@@ -13,6 +13,7 @@ import { loadAppContext } from "@/server/workspace/context";
 import { loadMyRequest, markSupportSeen } from "@/server/workspace/support";
 import { ConfirmAction } from "@/components/ui/confirm-action";
 import { closeSupportAction } from "../actions";
+import { PAGE_TITLE } from "@/components/ui/titles";
 
 export const metadata: Metadata = { title: "Support request" };
 
@@ -46,7 +47,7 @@ export default async function HelpRequestPage({ params }: { params: Promise<{ id
             {TOPIC_LABELS[request.topic]} · opened <LocalTime iso={request.createdAt} />
           </span>
         </div>
-        <h1 className="text-balance text-[1.6rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2rem]">{request.subject}</h1>
+        <h1 className={PAGE_TITLE}>{request.subject}</h1>
         {request.status === "waiting_on_farbaek" ? <p className="text-sm text-ink-2">Farbaek&apos;s team has it. The reply will appear here.</p> : null}
       </header>
 

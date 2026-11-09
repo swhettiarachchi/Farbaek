@@ -18,7 +18,7 @@ export function PricingTeaser() {
         <dl className="mt-12 grid gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-2 lg:grid-cols-5">
           {SELF_SERVE_PLANS.map((plan) => (
             <div key={plan.id} className="bg-surface p-5 sm:p-6">
-              <dt className="flex items-center justify-between gap-2 text-[0.9375rem] font-medium">
+              <dt className="flex items-center justify-between gap-2 text-body font-medium">
                 {plan.name}
                 {plan.recommendedFor ? <span className="rounded-full bg-primary px-2.5 py-0.5 text-xs font-medium text-on-primary">Recommended</span> : null}
               </dt>
@@ -37,7 +37,7 @@ export function PricingTeaser() {
           ))}
         </dl>
 
-        <Link href="/pricing" className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-sm text-[0.9375rem] font-medium text-accent hover:underline">
+        <Link href="/pricing" className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-sm text-body font-medium text-accent hover:underline">
           Compare plans <ArrowRightIcon size={16} weight="bold" aria-hidden />
         </Link>
       </Container>

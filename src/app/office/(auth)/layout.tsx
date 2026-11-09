@@ -2,6 +2,7 @@ import { LockKeyIcon, ScrollIcon, TimerIcon } from "@phosphor-icons/react/ssr";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { deploymentName, EnvPill } from "@/components/office/badges";
 import { OFFICE_POLICY } from "@/config/office";
+import { PUBLIC_TITLE } from "@/components/ui/titles";
 
 /**
  * The way into Office Space: who it's for and what protects it on one side,
@@ -18,8 +19,8 @@ export default function OfficeAuthLayout({ children }: Readonly<{ children: Reac
         </div>
         <div className="grid gap-4">
           <p className="text-sm font-medium text-ink-2">Office Space</p>
-          <h1 className="max-w-[14ch] text-balance text-[clamp(2.2rem,5vw,3.6rem)] font-medium leading-[1.02] tracking-[-0.04em]">Farbaek, from the inside.</h1>
-          <p className="max-w-[46ch] text-[0.9375rem] leading-relaxed text-ink-2">The private office for Farbaek&apos;s staff: the whole platform in one place, for the people who run it.</p>
+          <h1 className={`max-w-[14ch] ${PUBLIC_TITLE}`}>Farbaek, from the inside.</h1>
+          <p className="max-w-[46ch] text-body leading-relaxed text-ink-2">The private office for Farbaek&apos;s staff: the whole platform in one place, for the people who run it.</p>
         </div>
         <ul className="hidden max-w-lg gap-4 sm:grid">
           <li className="flex gap-3 text-sm">

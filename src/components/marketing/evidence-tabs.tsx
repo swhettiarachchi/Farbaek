@@ -41,7 +41,7 @@ export function EvidenceTabs({ tabs }: { tabs: EvidenceTab[] }) {
             tabIndex={active === i ? 0 : -1}
             onClick={() => setActive(i)}
             onKeyDown={onKeyDown}
-            className={`relative h-11 shrink-0 whitespace-nowrap px-3 font-mono text-[0.8125rem] transition-colors duration-[140ms] sm:px-4 ${
+            className={`relative h-11 shrink-0 whitespace-nowrap px-3 font-mono text-label transition-colors duration-[140ms] sm:px-4 ${
               active === i ? "text-media-ink" : "text-media-ink-3 hover:text-media-ink-2"
             }`}
           >

@@ -112,8 +112,8 @@ export function Disclosure({
           </span>
         ) : null}
         <span className="grid min-w-0 gap-0.5">
-          <span className="text-[0.9375rem] font-medium">{summary}</span>
-          {hint ? <span className="text-[0.8125rem] leading-snug text-ink-3">{hint}</span> : null}
+          <span className="text-body font-medium">{summary}</span>
+          {hint ? <span className="text-label leading-snug text-ink-3">{hint}</span> : null}
         </span>
         <CaretDownIcon size={16} weight="bold" aria-hidden className="ml-auto shrink-0 text-ink-3 motion-safe:transition-transform motion-safe:duration-200" />
       </summary>

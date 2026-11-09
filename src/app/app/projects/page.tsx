@@ -141,7 +141,7 @@ export default async function ProjectsPage() {
               <li key={p.id}>
                 <Link href={`/app/projects/${p.id}`} className="flex min-h-14 flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 hover:bg-canvas-2 sm:px-5">
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[0.9375rem] font-medium">{p.name}</span>
+                    <span className="block truncate text-body font-medium">{p.name}</span>
                     <span className="block text-xs text-ink-3">
                       Archived {p.archivedAt ? <RelativeTime iso={p.archivedAt} /> : null}
                     </span>

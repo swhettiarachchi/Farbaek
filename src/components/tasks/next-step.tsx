@@ -45,13 +45,13 @@ export function NextStepCard({ step, projectId, runId = null, seal = null }: { s
           </SealReveal>
         ) : null}
         <div className="min-w-0">
-          <p className={`flex items-center gap-1.5 text-[0.8125rem] font-medium ${tone.className}`}>
+          <p className={`flex items-center gap-1.5 text-label font-medium ${tone.className}`}>
             <tone.icon size={16} weight={tone.weight} aria-hidden className={`shrink-0 ${step.tone === "working" ? "motion-safe:animate-spin" : ""}`} /> {tone.word}
           </p>
-          <h2 id="next-step" className="mt-2 text-balance text-[1.25rem] font-medium leading-snug tracking-[-0.02em]">
+          <h2 id="next-step" className="mt-2 text-balance text-xl font-medium leading-snug tracking-[-0.02em]">
             {step.title}
           </h2>
-          <p className="mt-1.5 max-w-[60ch] text-[0.9375rem] leading-relaxed text-ink-2">{step.body}</p>
+          <p className="mt-1.5 max-w-[60ch] text-body leading-relaxed text-ink-2">{step.body}</p>
         </div>
         {step.action?.target === "project" || (step.action?.target === "run" && runId) ? (
           <Link href={step.action.target === "run" ? `/app/build/${runId}` : `/app/projects/${projectId}`} className={button}>

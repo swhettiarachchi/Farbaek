@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { publishAction, type PublishState } from "@/app/app/projects/[projectId]/publish-actions";
 import { PublishedMoment } from "@/components/publish/published-moment";
 import { buttonClasses } from "@/components/ui/button";
+import { LABEL_CLASSES, textareaClasses } from "@/components/ui/field";
 import { OVERRIDE_REASON_MAX, overrideReasonProblem } from "@/core/publish/evidence";
 import { SITE_NAME_MAX, SITE_NAME_MESSAGES, siteNameProblem } from "@/core/publish/site";
 
@@ -41,9 +42,9 @@ export function PublishForm({
     <form action={action} className="grid gap-3">
       <input type="hidden" name="projectId" value={projectId} />
       <label className="grid gap-1.5">
-        <span className="text-sm font-medium">Address</span>
-        <span className="flex min-w-0 items-center rounded-sm border border-line bg-surface focus-within:border-accent/60">
-          <span className="pl-3.5 font-mono text-[0.8125rem] text-ink-3">https://</span>
+        <span className={LABEL_CLASSES}>Address</span>
+        <span className="flex min-h-12 min-w-0 items-center rounded-sm border border-line-strong bg-surface transition-[border-color,box-shadow] duration-150 focus-within:border-accent focus-within:ring-[3px] focus-within:ring-accent/25 has-[[aria-invalid=true]]:border-failed has-[:disabled]:bg-surface-raised">
+          <span className="pl-3.5 font-mono text-label text-ink-3">https://</span>
           <input
             name="name"
             value={name}
@@ -54,9 +55,9 @@ export function PublishForm({
             disabled={Boolean(disabledReason) || pending}
             aria-invalid={problem ? true : undefined}
             aria-describedby="site-name-help"
-            className="h-11 min-w-0 flex-1 bg-transparent px-1 font-mono text-base text-ink outline-none"
+            className="h-11 min-w-0 flex-1 bg-transparent px-1 font-mono text-base text-ink outline-hidden"
           />
-          <span className="truncate pr-3.5 font-mono text-[0.8125rem] text-ink-3">.{domain}</span>
+          <span className="truncate pr-3.5 font-mono text-label text-ink-3">.{domain}</span>
         </span>
         <span id="site-name-help" className={`text-xs ${problem && name ? "text-failed" : "text-ink-3"}`}>
           {problem && name ? SITE_NAME_MESSAGES[problem] : "Lowercase letters, numbers and hyphens. You can change it when you publish again."}
@@ -64,7 +65,7 @@ export function PublishForm({
       </label>
       {override ? (
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium">Why publish before the checks have passed?</span>
+          <span className={LABEL_CLASSES}>Why publish before the checks have passed?</span>
           <textarea
             name="overrideReason"
             value={reason}
@@ -75,7 +76,7 @@ export function PublishForm({
             disabled={Boolean(disabledReason) || pending}
             aria-describedby="override-reason-help"
             placeholder="For example: a copy change I checked in the preview."
-            className="field-sizing-content min-h-20 w-full rounded-sm border border-line-strong/60 bg-surface px-3.5 py-2.5 text-base leading-relaxed text-ink outline-none placeholder:text-ink-3 focus:border-accent/60"
+            className={textareaClasses("field-sizing-content")}
           />
           <span id="override-reason-help" className="text-xs text-ink-3">
             Saved with this version and in the audit log, for anyone in the workspace to see.

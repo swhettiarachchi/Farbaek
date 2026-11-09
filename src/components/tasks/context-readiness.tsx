@@ -64,7 +64,7 @@ export function ContextReadinessCard({ passport, taskId }: { passport: ContextPa
               <StatusGlyph status={FACT_KIND[f.status]} className="mt-0.5" />
               <div className="grid min-w-0 gap-1">
                 <p className="text-sm text-ink">{f.statement}</p>
-                <p className="flex flex-wrap items-center gap-x-2 text-[0.75rem] text-ink-3">
+                <p className="flex flex-wrap items-center gap-x-2 text-xs text-ink-3">
                   <span className={`font-medium ${kindText(FACT_KIND[f.status])}`}>{FACT_LABELS[f.status]}</span>
                   {refs.map((r) => (
                     <span key={r.ref} className="truncate font-mono">
@@ -78,7 +78,7 @@ export function ContextReadinessCard({ passport, taskId }: { passport: ContextPa
           );
         })}
       </ul>
-      {passport.facts.length > SHOWN ? <p className="mt-2 text-[0.8125rem] text-ink-3">{passport.facts.length - SHOWN} more in the download.</p> : null}
+      {passport.facts.length > SHOWN ? <p className="mt-2 text-label text-ink-3">{passport.facts.length - SHOWN} more in the download.</p> : null}
 
       {passport.nextSteps.length ? (
         <div className="mt-5 rounded-sm border border-line bg-canvas-2 p-4">

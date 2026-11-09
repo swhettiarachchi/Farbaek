@@ -145,7 +145,7 @@ export function SidebarNav({ approvals, helpUnread = 0 }: { approvals: number; h
           href={item.href}
           transitionTypes={PAGE_NAV}
           aria-current={active ? "page" : undefined}
-          className={`flex h-10 items-center gap-3 rounded-full px-3.5 text-[0.90625rem] transition-colors duration-150 ${
+          className={`flex h-10 items-center gap-3 rounded-full px-3.5 text-sm transition-colors duration-150 ${
             active ? "bg-surface font-medium text-ink shadow-e1" : "text-ink-2 hover:bg-surface/70 hover:text-ink"
           }`}
         >
@@ -176,7 +176,7 @@ export function SidebarNav({ approvals, helpUnread = 0 }: { approvals: number; h
             setClosedHere(open);
             writeToolsOpen(!open);
           }}
-          className="flex h-10 w-full items-center gap-3 rounded-full px-3.5 text-[0.90625rem] text-ink-2 transition-colors duration-150 hover:bg-surface/70 hover:text-ink"
+          className="flex h-10 w-full items-center gap-3 rounded-full px-3.5 text-sm text-ink-2 transition-colors duration-150 hover:bg-surface/70 hover:text-ink"
         >
           <ToolboxIcon size={20} aria-hidden />
           More tools
@@ -203,8 +203,8 @@ export function MoreList({ helpUnread = 0, children }: { helpUnread?: number; ch
           <Link href={item.href} transitionTypes={PAGE_NAV} className="flex min-h-16 items-center gap-3 px-4 py-3 hover:bg-canvas-2">
             <item.icon size={20} className="shrink-0 text-ink-2" aria-hidden />
             <span className="grid min-w-0 gap-0.5">
-              <span className="text-[0.9375rem]">{item.label}</span>
-              <span className="text-[0.8125rem] leading-snug text-ink-3">{item.about}</span>
+              <span className="text-body">{item.label}</span>
+              <span className="text-label leading-snug text-ink-3">{item.about}</span>
             </span>
             {item.href === "/app/help" && helpUnread > 0 ? (
               <span className="ml-auto shrink-0 rounded-full bg-accent px-2 text-xs font-semibold leading-5 text-on-accent tabular">

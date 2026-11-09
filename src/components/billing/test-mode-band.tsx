@@ -9,7 +9,7 @@ import Link from "next/link";
  */
 export function TestModeBand() {
   return (
-    <p className="flex items-start justify-center gap-2 border-b border-line bg-surface-raised px-4 py-1 text-[0.8125rem] text-ink">
+    <p className="flex items-start justify-center gap-2 border-b border-line bg-surface-raised px-4 py-1 text-label text-ink">
       <WarningCircleIcon size={16} weight="fill" className="mt-[0.875rem] shrink-0 text-caution" aria-hidden />
       <span className="py-2.5">
         <span className="font-medium">Payments test mode.</span> Checkout takes Dodo Payments&apos; test cards only, and nothing is charged.{" "}

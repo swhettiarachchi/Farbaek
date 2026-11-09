@@ -7,7 +7,8 @@ import { Card, CardTitle, Notice } from "@/components/app/primitives";
 import { RunStatusBadge } from "@/components/build/run-status";
 import { RUN_STATUSES, type RunStatus } from "@/core/agent/cloud-run";
 import { OfficeActionForm } from "@/components/office/action-form";
-import { officeInputClass, ReasonField, StepUpField } from "@/components/office/fields";
+import { ReasonField, StepUpField } from "@/components/office/fields";
+import { inputClasses, LABEL_CLASSES, textareaClasses } from "@/components/ui/field";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
 import { USD_PER_UNIT } from "@/core/billing/rate-card";
 import { TRIAL_MAX_DAYS } from "@/core/billing/trial";
@@ -17,6 +18,7 @@ import { requireStaff } from "@/server/office/access";
 import { loadWorkspace360 } from "@/server/office/controls-data";
 import { siteDomain } from "@/server/publish/config";
 import { addUsageAction, extendTrialAction, restoreWorkspaceAction, suspendWorkspaceAction } from "./actions";
+import { PAGE_TITLE } from "@/components/ui/titles";
 
 export const metadata: Metadata = { title: "Workspace" };
 
@@ -46,7 +48,7 @@ export default async function OfficeWorkspace({ params }: { params: Promise<{ id
         </Link>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-balance text-[1.75rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2.1rem]">{ws.name}</h1>
+            <h1 className={PAGE_TITLE}>{ws.name}</h1>
             <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink-2">
               <Chip>{ws.plan}</Chip>
               {ws.trialDaysLeft !== null ? <span>{ws.trialDaysLeft} trial days left</span> : null}
@@ -179,8 +181,8 @@ export default async function OfficeWorkspace({ params }: { params: Promise<{ id
                 <OfficeActionForm action={extendTrialAction} submit="Extend the trial" tone="secondary" className="grid gap-3">
                   <input type="hidden" name="orgId" value={ws.id} />
                   <label htmlFor="trial-days" className="grid gap-1.5 text-sm">
-                    <span className="font-medium text-ink">Add</span>
-                    <select id="trial-days" name="days" defaultValue={String(Math.min(7, trialCap))} className={officeInputClass}>
+                    <span className={LABEL_CLASSES}>Add</span>
+                    <select id="trial-days" name="days" defaultValue={String(Math.min(7, trialCap))} className={inputClasses()}>
                       {dayChoices.map((d) => (
                         <option key={d} value={d}>
                           {d} {d === 1 ? "day" : "days"}
@@ -211,12 +213,12 @@ export default async function OfficeWorkspace({ params }: { params: Promise<{ id
                   <input type="hidden" name="orgId" value={ws.id} />
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label htmlFor="usage-dollars" className="grid gap-1.5 text-sm">
-                      <span className="font-medium text-ink">Amount, US dollars of list cost</span>
-                      <input id="usage-dollars" name="dollars" inputMode="decimal" required placeholder="5" className={officeInputClass} />
+                      <span className={LABEL_CLASSES}>Amount, US dollars of list cost</span>
+                      <input id="usage-dollars" name="dollars" inputMode="decimal" required placeholder="5" className={inputClasses()} />
                     </label>
                     <label htmlFor="usage-days" className="grid gap-1.5 text-sm">
-                      <span className="font-medium text-ink">Lasts</span>
-                      <select id="usage-days" name="days" defaultValue="30" className={officeInputClass}>
+                      <span className={LABEL_CLASSES}>Lasts</span>
+                      <select id="usage-days" name="days" defaultValue="30" className={inputClasses()}>
                         {[7, 14, 30, 60, 90].map((d) => (
                           <option key={d} value={d}>
                             {d} days
@@ -254,15 +256,15 @@ export default async function OfficeWorkspace({ params }: { params: Promise<{ id
                   <OfficeActionForm action={suspendWorkspaceAction} submit={`Suspend ${ws.name}`} tone="danger" className="grid gap-3">
                     <input type="hidden" name="orgId" value={ws.id} />
                     <label htmlFor="suspend-notice" className="grid gap-1.5 text-sm">
-                      <span className="font-medium text-ink">Notice members will see</span>
-                      <textarea id="suspend-notice" name="notice" required minLength={10} maxLength={500} rows={2} className={`${officeInputClass} h-auto min-h-20 py-3`} placeholder="What's paused, why, and how to reach Farbaek" />
+                      <span className={LABEL_CLASSES}>Notice members will see</span>
+                      <textarea id="suspend-notice" name="notice" required minLength={10} maxLength={500} rows={2} className={textareaClasses()} placeholder="What's paused, why, and how to reach Farbaek" />
                     </label>
                     <ReasonField id="suspend-reason" label="Internal reason, for the audit log" />
                     <label htmlFor="suspend-confirm" className="grid gap-1.5 text-sm">
-                      <span className="font-medium text-ink">
+                      <span className={LABEL_CLASSES}>
                         Type <span className="font-mono">{ws.name}</span> to confirm
                       </span>
-                      <input id="suspend-confirm" name="confirmName" required autoComplete="off" className={officeInputClass} />
+                      <input id="suspend-confirm" name="confirmName" required autoComplete="off" className={inputClasses()} />
                     </label>
                   </OfficeActionForm>
                 </>

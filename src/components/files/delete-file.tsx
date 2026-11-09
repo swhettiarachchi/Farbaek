@@ -26,7 +26,7 @@ export function DeleteFile({ projectId, path, revision, disabledReason }: { proj
       <input type="hidden" name="path" value={path} />
       <input type="hidden" name="expectedRevision" value={revision} />
       <p className="text-sm">
-        Delete <span className="font-mono text-[0.8125rem] break-all">{path}</span>? It leaves the file tree. Its history is kept.
+        Delete <span className="font-mono text-label break-all">{path}</span>? It leaves the file tree. Its history is kept.
       </p>
       {state.status === "error" ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-failed">

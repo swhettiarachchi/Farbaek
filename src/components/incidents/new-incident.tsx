@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import { openIncidentAction } from "@/app/app/incidents/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES, textareaClasses } from "@/components/ui/field";
 import { SEVERITIES, SEVERITY_WORDS } from "@/core/trust/incidents";
 
 /** Opening an incident by hand (ADR 0083), an incident response tool. */
@@ -30,7 +31,7 @@ export function NewIncident({ projects, disabledReason }: { projects: { id: stri
     <div className="grid gap-4">
       <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
         <div className="grid gap-1.5">
-          <label htmlFor={`${id}-title`} className="text-sm font-medium">
+          <label htmlFor={`${id}-title`} className={LABEL_CLASSES}>
             What went wrong
           </label>
           <input
@@ -40,11 +41,11 @@ export function NewIncident({ projects, disabledReason }: { projects: { id: stri
             onChange={(e) => setTitle(e.target.value)}
             disabled={locked}
             placeholder="For example: prices on the shop are wrong"
-            className="min-h-11 rounded-sm border border-line bg-surface px-3 text-base sm:text-sm"
+            className={inputClasses()}
           />
         </div>
         <div className="grid gap-1.5">
-          <label htmlFor={`${id}-severity`} className="text-sm font-medium">
+          <label htmlFor={`${id}-severity`} className={LABEL_CLASSES}>
             Severity
           </label>
           <select
@@ -52,7 +53,7 @@ export function NewIncident({ projects, disabledReason }: { projects: { id: stri
             value={severity}
             onChange={(e) => setSeverity(e.target.value)}
             disabled={locked}
-            className="min-h-11 rounded-sm border border-line bg-surface px-3 text-base sm:text-sm"
+            className={inputClasses()}
           >
             {SEVERITIES.map((s) => (
               <option key={s} value={s}>
@@ -63,7 +64,7 @@ export function NewIncident({ projects, disabledReason }: { projects: { id: stri
         </div>
       </div>
       <div className="grid gap-1.5">
-        <label htmlFor={`${id}-project`} className="text-sm font-medium">
+        <label htmlFor={`${id}-project`} className={LABEL_CLASSES}>
           Project <span className="font-normal text-ink-3">(optional)</span>
         </label>
         <select
@@ -71,7 +72,7 @@ export function NewIncident({ projects, disabledReason }: { projects: { id: stri
           value={projectId}
           onChange={(e) => setProjectId(e.target.value)}
           disabled={locked}
-          className="min-h-11 rounded-sm border border-line bg-surface px-3 text-base sm:text-sm"
+          className={inputClasses()}
         >
           <option value="">The whole workspace</option>
           {projects.map((p) => (
@@ -82,7 +83,7 @@ export function NewIncident({ projects, disabledReason }: { projects: { id: stri
         </select>
       </div>
       <div className="grid gap-1.5">
-        <label htmlFor={`${id}-text`} className="text-sm font-medium">
+        <label htmlFor={`${id}-text`} className={LABEL_CLASSES}>
           What you know so far <span className="font-normal text-ink-3">(optional)</span>
         </label>
         <textarea
@@ -92,7 +93,7 @@ export function NewIncident({ projects, disabledReason }: { projects: { id: stri
           maxLength={2000}
           onChange={(e) => setText(e.target.value)}
           disabled={locked}
-          className="rounded-sm border border-line bg-surface px-3 py-2 text-base sm:text-sm"
+          className={textareaClasses()}
         />
       </div>
       <div className="flex flex-wrap items-center gap-3">

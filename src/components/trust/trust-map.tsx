@@ -39,7 +39,7 @@ export function TrustMap({ graph, focus }: { graph: TrustGraph; focus: string | 
     <div className="overflow-x-auto rounded-md border border-line bg-surface">
       <svg viewBox={`0 0 ${W} ${height}`} className="min-w-[1080px] lg:min-w-0" role="img" aria-label="Map of who and what can act on each project">
         {columns.map((c, col) => (
-          <text key={c.title} x={x(col)} y={22} className="fill-[var(--color-ink-3)] text-[0.8125rem] font-medium">
+          <text key={c.title} x={x(col)} y={22} className="fill-[var(--color-ink-3)] text-label font-medium">
             {c.title}
           </text>
         ))}
@@ -74,7 +74,7 @@ export function TrustMap({ graph, focus }: { graph: TrustGraph; focus: string | 
             <Link key={n.id} href={`?node=${encodeURIComponent(n.id)}#focus`} aria-label={`${n.label}: ${n.detail}`}>
               <g opacity={dim ? 0.45 : 1}>
                 <rect x={p.x} y={p.y} width={COL_W} height={44} rx={22} className={n.id === focus ? "fill-[var(--color-accent)]" : "fill-[var(--color-surface-raised)] stroke-[var(--color-line)]"} />
-                <text x={p.x + 14} y={p.y + 26.5} className={`text-[0.8125rem] ${n.id === focus ? "fill-[var(--color-on-accent)]" : "fill-[var(--color-ink)]"}`}>
+                <text x={p.x + 14} y={p.y + 26.5} className={`text-label ${n.id === focus ? "fill-[var(--color-on-accent)]" : "fill-[var(--color-ink)]"}`}>
                   {n.label.length > 20 ? `${n.label.slice(0, 19)}…` : n.label}
                 </text>
               </g>

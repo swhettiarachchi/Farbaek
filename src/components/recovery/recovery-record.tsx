@@ -42,7 +42,7 @@ export async function RecoveryRecordCard({ record }: { record: RecoveryRecord })
             <li key={o.path} className="flex min-w-0 items-start gap-2">
               <StatusGlyph status="verified" className="mt-0.5" />
               <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
-                <span className="min-w-0 font-mono text-[0.8125rem] break-all">{o.path}</span>
+                <span className="min-w-0 font-mono text-label break-all">{o.path}</span>
                 <span className="text-xs text-ink-3">{o.action === "restore" ? `restored revision ${o.toRevision}` : "removed"}</span>
               </span>
             </li>
@@ -52,7 +52,7 @@ export async function RecoveryRecordCard({ record }: { record: RecoveryRecord })
               {/* Not chosen is off; a file that moved on since needs a look. */}
               <StatusGlyph status={l.reason === "not_selected" ? "off" : "attention"} className="mt-0.5" />
               <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
-                <span className="min-w-0 font-mono text-[0.8125rem] break-all">{l.path}</span>
+                <span className="min-w-0 font-mono text-label break-all">{l.path}</span>
                 <span className="text-xs text-ink-3">{l.reason === "not_selected" ? "not chosen" : "left as it is: it changed after the apply"}</span>
               </span>
             </li>

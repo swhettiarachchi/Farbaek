@@ -1,4 +1,5 @@
 import { InfoIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import type { Icon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { STATUS_KINDS, type Status } from "@/components/ui/status-badge";
 
@@ -23,6 +24,20 @@ export function StatusBadge({ kind, children }: { kind: Status; children: ReactN
 export function StatusGlyph({ kind, size = 16 }: { kind: Status; size?: 14 | 16 | 20 | 24 }) {
   const { icon: KindIcon, weight } = STATUS_KINDS[kind];
   return <KindIcon size={size} weight={weight} className={`glyph kind-${kind}${kind === "working" ? " spin" : ""}`} aria-hidden />;
+}
+
+/**
+ * A section's title with its icon, as the web's CardTitle (ADR 0183): a 20px outlined icon in the quiet ink, then
+ * the words. The icon names what the section is about, the same icon the web gives that concept. `as="h3"` titles a
+ * part of a card the same way.
+ */
+export function SectionTitle({ icon: TitleIcon, as: Tag = "h2", id, children }: { icon: Icon; as?: "h2" | "h3"; id?: string; children: ReactNode }) {
+  return (
+    <Tag id={id} className="section-title">
+      <TitleIcon size={20} aria-hidden />
+      <span>{children}</span>
+    </Tag>
+  );
 }
 
 /** Something went wrong: what happened and what to do, with the failed colour's warning mark. */

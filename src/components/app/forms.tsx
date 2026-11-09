@@ -11,6 +11,7 @@ import {
   type FormState,
 } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES, textareaClasses } from "@/components/ui/field";
 import { STARTERS } from "@/content/starters";
 
 const IDLE: FormState = { status: "idle" };
@@ -40,17 +41,16 @@ function Field({
   const errorId = `${id}-error`;
   const hintId = `${id}-hint`;
   const described = [error ? errorId : null, hint ? hintId : null].filter(Boolean).join(" ") || undefined;
-  const cls = "w-full rounded-sm border border-line-strong/60 bg-surface px-3.5 text-base shadow-e1 transition-colors focus:border-accent disabled:bg-surface-raised";
   return (
     <div className="grid gap-2">
-      <label htmlFor={id} className="text-sm font-medium">
+      <label htmlFor={id} className={LABEL_CLASSES}>
         {label}
         {!required ? <span className="font-normal text-ink-3"> (optional)</span> : null}
       </label>
       {multiline ? (
-        <textarea id={id} name={name} rows={3} maxLength={maxLength} defaultValue={defaultValue} disabled={disabled} aria-invalid={error ? true : undefined} aria-describedby={described} className={`${cls} py-2.5`} />
+        <textarea id={id} name={name} rows={3} maxLength={maxLength} defaultValue={defaultValue} disabled={disabled} aria-invalid={error ? true : undefined} aria-describedby={described} className={textareaClasses()} />
       ) : (
-        <input id={id} name={name} required={required} maxLength={maxLength} defaultValue={defaultValue} disabled={disabled} aria-invalid={error ? true : undefined} aria-describedby={described} className={`${cls} h-11`} />
+        <input id={id} name={name} required={required} maxLength={maxLength} defaultValue={defaultValue} disabled={disabled} aria-invalid={error ? true : undefined} aria-describedby={described} className={inputClasses()} />
       )}
       {hint ? (
         <p id={hintId} className="text-xs text-ink-3">
@@ -102,7 +102,7 @@ export function CreateProjectForm({ disabledReason }: { disabledReason: string |
             >
               <input type="radio" name="starter" value={s.id} defaultChecked={(values?.starter ?? "blank") === s.id} className="mt-1 size-4 accent-[var(--color-accent)]" />
               <span className="grid gap-0.5">
-                <span className="text-[0.9375rem] font-medium">{s.name}</span>
+                <span className="text-body font-medium">{s.name}</span>
                 <span className="text-sm text-ink-2">{s.summary}</span>
               </span>
             </label>

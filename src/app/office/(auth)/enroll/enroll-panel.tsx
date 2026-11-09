@@ -2,8 +2,8 @@
 
 import { ArrowRightIcon, CopyIcon, QrCodeIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useState } from "react";
-import { officeInputClass } from "@/components/office/fields";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses } from "@/components/ui/field";
 import { beginEnrollAction, finishEnrollAction, type EnrollState, type FactorState } from "../actions";
 
 /** Shows Supabase's QR code and secret for a new authenticator, then checks its first code. */
@@ -62,7 +62,7 @@ export function EnrollPanel() {
           <label htmlFor="office-enroll-code" className="sr-only">
             6-digit code from the authenticator app
           </label>
-          <input id="office-enroll-code" name="code" required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" maxLength={7} className={`${officeInputClass} font-mono text-lg tracking-[0.4em]`} />
+          <input id="office-enroll-code" name="code" required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" maxLength={7} className={inputClasses("font-mono text-lg tracking-[0.4em]")} />
         </li>
       </ol>
       <button type="submit" disabled={confirming} className={buttonClasses("primary", "md", "w-full")}>

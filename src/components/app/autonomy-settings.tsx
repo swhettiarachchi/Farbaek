@@ -9,6 +9,7 @@ import { CardTitle } from "@/components/app/primitives";
 import { RehearsalRecord } from "@/components/app/rehearsal-record";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses } from "@/components/ui/field";
 import { LEVEL_3 } from "@/core/trust/autonomy-levels";
 import { RelativeTime } from "@/components/ui/local-time";
 import type { AutonomyView } from "@/server/workspace/autonomy";
@@ -133,7 +134,7 @@ export function AutonomySettings({
             />
             <span className="grid gap-0.5">
               {/* Practice mode's title says what it is; its quieter outline sets it apart from the levels that act. */}
-              <span className="text-[0.9375rem] font-medium">{o.title}</span>
+              <span className="text-body font-medium">{o.title}</span>
               <span className="text-sm text-ink-2">{o.body}</span>
               {o.unavailable ? <span className="text-xs text-ink-3">{o.unavailable}</span> : null}
             </span>
@@ -143,7 +144,7 @@ export function AutonomySettings({
         <div className="flex items-start gap-3 rounded-sm border border-line px-4 py-3">
           <FlowArrowIcon size={16} weight="bold" className="mt-1 shrink-0 text-ink-3" aria-hidden />
           <span className="grid gap-0.5">
-            <span className="text-[0.9375rem] font-medium">Workflows</span>
+            <span className="text-body font-medium">Workflows</span>
             <span className="text-sm text-ink-2">The agent carries out an approved plan of several steps in order, stopping for a person at checkpoints and whenever a change needs review.</span>
             <Link href="/app/workflows" className="inline-flex min-h-11 items-center text-sm font-medium text-accent hover:underline">
               Open Workflows
@@ -170,7 +171,7 @@ export function AutonomySettings({
           <div className="flex flex-wrap items-center gap-4">
             <label className="flex items-center gap-2 text-sm">
               Up to
-              <select name="maxFiles" value={maxFiles} onChange={(e) => setMaxFiles(Number(e.target.value))} disabled={locked} className="min-h-11 rounded-sm border border-line bg-surface px-3 text-base sm:text-sm">
+              <select name="maxFiles" value={maxFiles} onChange={(e) => setMaxFiles(Number(e.target.value))} disabled={locked} className={inputClasses("w-max")}>
                 {Array.from({ length: mostFiles }, (_, i) => i + 1).map((n) => (
                   <option key={n} value={n}>
                     {n}
@@ -186,7 +187,7 @@ export function AutonomySettings({
             {mode === "3" ? (
               <label className="flex items-center gap-2 text-sm">
                 Up to
-                <select name="dailyLimit" value={dailyLimit} onChange={(e) => setDailyLimit(Number(e.target.value))} disabled={locked} className="min-h-11 rounded-sm border border-line bg-surface px-3 text-base sm:text-sm">
+                <select name="dailyLimit" value={dailyLimit} onChange={(e) => setDailyLimit(Number(e.target.value))} disabled={locked} className={inputClasses("w-max")}>
                   {LEVEL_3.dailyLimits.map((n) => (
                     <option key={n} value={n}>
                       {n}

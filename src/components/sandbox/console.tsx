@@ -118,12 +118,12 @@ export function SandboxConsole({
   return (
     <section aria-label="Console" className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg bg-media text-media-ink">
       <div className="flex items-center justify-between gap-3 border-b border-media-ink/10 px-4 py-2.5">
-        <span className="flex items-center gap-2 text-[0.8125rem] font-medium text-media-ink-2">
+        <span className="flex items-center gap-2 text-label font-medium text-media-ink-2">
           <TerminalWindowIcon size={16} weight="bold" aria-hidden /> Console
         </span>
         <span className="text-xs text-media-ink-3">Commands run in /home/user/project, one at a time.</span>
       </div>
-      <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-4 py-3 font-mono text-[0.8125rem] leading-relaxed" aria-live="polite">
+      <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-4 py-3 font-mono text-label leading-relaxed" aria-live="polite">
         {runs.length === 0 && !live ? <p className="text-media-ink-3">No commands yet. Try node --version or ls.</p> : null}
         {runs.map((r) => {
           const o = outcome(r);

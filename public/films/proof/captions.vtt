@@ -10,7 +10,7 @@ Approval binds to a hash of exactly what you saw. Change one character and it st
 
 3
 00:00:14.000 --> 00:00:22.500
-Checks run in a test space against the applied files. Exit codes decide, and a check that didn't run says so.
+Checks run in a test space against the applied files. The real results decide, and a check that didn't run says so.
 
 4
 00:00:22.500 --> 00:00:29.000

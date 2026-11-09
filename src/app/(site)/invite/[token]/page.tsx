@@ -10,6 +10,7 @@ import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { previewInvitation } from "@/server/workspace/invitations";
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
+import { FOCUSED_TITLE } from "@/components/ui/titles";
 
 export const metadata: Metadata = { title: "Invitation", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -24,8 +25,8 @@ function Frame({ title, children }: { title: string; children: React.ReactNode }
   return (
     <Container className="flex min-h-[70dvh] items-start justify-center py-16 sm:items-center">
       <div className="w-full max-w-[460px]">
-        <h1 className="text-3xl font-medium tracking-[-0.02em] text-balance">{title}</h1>
-        <div className="mt-6 grid gap-5 text-[0.9375rem] leading-relaxed text-ink-2">{children}</div>
+        <h1 className={FOCUSED_TITLE}>{title}</h1>
+        <div className="mt-6 grid gap-5 text-body leading-relaxed text-ink-2">{children}</div>
       </div>
     </Container>
   );

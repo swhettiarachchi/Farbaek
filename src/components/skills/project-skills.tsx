@@ -47,7 +47,7 @@ export function ProjectSkills({ projectId, skills, disabledReason }: { projectId
         plan allows. If one changes or arrives from outside, it waits for your review first. Skills use the open SKILL.md format.
       </p>
       {held ? (
-        <p className="flex items-start gap-2.5 rounded-sm border border-approval/35 bg-approval/[0.05] px-4 py-3 text-sm">
+        <p className="flex items-start gap-2.5 rounded-sm border border-line bg-surface-raised/70 px-4 py-3 text-sm">
           <StatusGlyph status="approval" className="mt-0.5" />
           <span>
             {held === 1 ? "1 skill is" : `${held} skills are`} waiting for your review. Builds leave {held === 1 ? "it" : "them"} out until someone approves the exact version.
@@ -61,7 +61,7 @@ export function ProjectSkills({ projectId, skills, disabledReason }: { projectId
                 <div className="flex flex-wrap items-start gap-3">
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-2">
-                      <span className="text-[0.9375rem] font-medium">{s.name}</span>
+                      <span className="text-body font-medium">{s.name}</span>
                       <StatusBadge status={STATUS[s.status]} label={SKILL_PIN_LABELS[s.status]} />
                     </span>
                     {s.description ? <span className="mt-0.5 block text-sm text-ink-2">{s.description}</span> : null}

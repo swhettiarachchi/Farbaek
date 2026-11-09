@@ -90,6 +90,7 @@ import { NO_TEST_RUNNER } from "@/server/mutation/runner";
 import { readLatestMutationRun } from "@/server/mutation/store";
 import { HandoffCard } from "@/components/tasks/handoff-card";
 import { readHandoffs } from "@/server/agent/handoffs";
+import { PAGE_TITLE } from "@/components/ui/titles";
 
 export const metadata: Metadata = { title: "Task" };
 
@@ -586,7 +587,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
           <ArrowLeftIcon size={14} weight="bold" aria-hidden /> {task.projectName ?? "Project"}
         </Link>
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <h1 className="max-w-[40ch] text-balance text-[1.6rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2rem]">{task.title}</h1>
+          <h1 className={`max-w-[40ch] ${PAGE_TITLE}`}>{task.title}</h1>
           <TaskStateBadge state={task.state} />
         </div>
         {fixSource ? (
@@ -719,14 +720,14 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
               <CardTitle icon={ClockCounterClockwiseIcon}>History</CardTitle>
               <ol className="mt-4 grid gap-0">
                 <HistoryStep status="done" last={history.length === 0}>
-                  <p className="text-[0.9375rem]">Task received</p>
+                  <p className="text-body">Task received</p>
                   <p className="text-xs text-ink-3">
                     <LocalTime iso={task.createdAt} />
                   </p>
                 </HistoryStep>
                 {history.map((h, i) => (
                   <HistoryStep key={h.eventId} status={stepKind(h.to)} last={i === history.length - 1}>
-                    <p className="text-[0.9375rem]">
+                    <p className="text-body">
                       {TASK_STATE_LABELS[h.from]} <span className="text-ink-3">to</span> {TASK_STATE_LABELS[h.to]}
                     </p>
                     <p className="text-xs text-ink-3" title={`Event: ${h.eventType}`}>

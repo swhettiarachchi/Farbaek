@@ -4,7 +4,8 @@ import { CardTitle, Notice, PageHeader } from "@/components/app/primitives";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { AdminTable, Cell, Chip } from "@/components/admin/table";
 import { OfficeActionForm } from "@/components/office/action-form";
-import { officeInputClass, ReasonField, StepUpField } from "@/components/office/fields";
+import { ReasonField, StepUpField } from "@/components/office/fields";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
 import { StatusGlyph } from "@/components/ui/status-badge";
 import { CANARY_SUITE } from "@/content/canary-suite";
@@ -124,9 +125,9 @@ export default async function OfficeModels() {
                 <div className="grid gap-4 rounded-md bg-surface p-5 shadow-e1">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <h3 className="text-[1.0625rem] font-medium tracking-[-0.01em]">{TIER_WORDS[tier].label}</h3>
+                      <h3 className="text-title-4 font-medium tracking-[-0.01em]">{TIER_WORDS[tier].label}</h3>
                       <p className="mt-1 text-sm text-ink-2">{TIER_WORDS[tier].use}</p>
-                      <p className="mt-2 text-[0.9375rem] font-medium text-ink">{modelName(model)}</p>
+                      <p className="mt-2 text-body font-medium text-ink">{modelName(model)}</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {sw ? <Chip kind="info">Switched</Chip> : <Chip>Default</Chip>}
@@ -141,7 +142,7 @@ export default async function OfficeModels() {
                   </div>
                   {sw ? (
                     <p className="rounded-sm bg-surface-raised px-3 py-2 text-sm text-ink-2">
-                      Switched from <span className="font-mono text-[0.8125rem]">{TIER_MODELS.anthropic[tier]}</span> <RelativeTime iso={sw.setAt} />: {sw.reason}
+                      Switched from <span className="font-mono text-label">{TIER_MODELS.anthropic[tier]}</span> <RelativeTime iso={sw.setAt} />: {sw.reason}
                     </p>
                   ) : null}
 
@@ -151,8 +152,8 @@ export default async function OfficeModels() {
                       <OfficeActionForm action={startCanaryAction} submit="Run the canary" tone="secondary" className="mt-2 grid gap-3">
                         <input type="hidden" name="tier" value={tier} />
                         <label htmlFor={`candidate-${tier}`} className="grid gap-1.5">
-                          <span className="font-medium text-ink">Candidate</span>
-                          <select id={`candidate-${tier}`} name="candidate" required className={officeInputClass} disabled={running}>
+                          <span className={LABEL_CLASSES}>Candidate</span>
+                          <select id={`candidate-${tier}`} name="candidate" required className={inputClasses()} disabled={running}>
                             {candidates
                               .filter((c) => c !== model)
                               .map((c) => (
@@ -244,8 +245,8 @@ export default async function OfficeModels() {
               <li key={run.id} className="grid gap-4 rounded-md border border-line bg-surface p-5 shadow-e1">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[0.9375rem] font-medium">
-                      {TIER_WORDS[tier]?.label ?? run.tier}: <span className="font-mono text-[0.8125rem]">{run.current}</span> against <span className="font-mono text-[0.8125rem]">{run.candidate}</span>
+                    <p className="text-body font-medium">
+                      {TIER_WORDS[tier]?.label ?? run.tier}: <span className="font-mono text-label">{run.current}</span> against <span className="font-mono text-label">{run.candidate}</span>
                     </p>
                     <p className="mt-1 text-xs text-ink-3">
                       Started <RelativeTime iso={run.startedAt} />. At most {usd(run.estimateUnits)} at list price. {run.reason}
@@ -280,7 +281,7 @@ export default async function OfficeModels() {
                             </AdminTable>
                           </div>
                         ))}
-                        {run.reportSha256 ? <p className="font-mono text-[0.75rem] text-ink-3">Report sha256 {run.reportSha256}</p> : null}
+                        {run.reportSha256 ? <p className="font-mono text-xs text-ink-3">Report sha256 {run.reportSha256}</p> : null}
                       </div>
                     </details>
                     {switchReason ? (

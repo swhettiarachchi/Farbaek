@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { Card, CardTitle, Notice, PageHeader } from "@/components/app/primitives";
 import { TrustMap } from "@/components/trust/trust-map";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { neighbours, projectId, rulesOn, whoCanChange, type Answer, type TrustNode, type TrustNodeKind } from "@/core/trust/trust-graph";
 import { loadTrustGraph } from "@/server/trust/trust-graph";
 import { loadAppContext } from "@/server/workspace/context";
@@ -22,8 +23,6 @@ const KIND: Record<TrustNodeKind, { word: string; icon: Icon }> = {
   tool: { word: "Tool", icon: WrenchIcon },
   rule: { word: "Workspace rule", icon: ScalesIcon },
 };
-
-const field = "min-h-11 w-full rounded-sm border border-line bg-surface px-3 text-base sm:text-sm";
 
 function NodeName({ node }: { node: TrustNode }) {
   const k = KIND[node.kind];
@@ -90,9 +89,9 @@ export default async function TrustPage({ searchParams }: { searchParams: Promis
       <Card>
         <CardTitle icon={UsersThreeIcon}>Who and what can change a project?</CardTitle>
         <form className="mt-3 flex flex-wrap items-end gap-3" method="get">
-          <label className="grid min-w-0 flex-1 gap-1.5 text-sm font-medium">
-            Project
-            <select name="project" defaultValue={asked ?? ""} className={field}>
+          <label className="grid min-w-0 flex-1 gap-1.5">
+            <span className={LABEL_CLASSES}>Project</span>
+            <select name="project" defaultValue={asked ?? ""} className={inputClasses()}>
               {projects.map((p) => (
                 <option key={p.id} value={p.id.replace(/^project:/, "")}>
                   {p.label}
@@ -100,7 +99,7 @@ export default async function TrustPage({ searchParams }: { searchParams: Promis
               ))}
             </select>
           </label>
-          <button type="submit" className={buttonClasses("secondary", "sm")}>
+          <button type="submit" className={buttonClasses("secondary", "md")}>
             Ask
           </button>
         </form>
@@ -155,11 +154,11 @@ export default async function TrustPage({ searchParams }: { searchParams: Promis
         <Card>
           <CardTitle icon={MagnifyingGlassIcon}>Search</CardTitle>
           <form className="mt-3 flex flex-wrap items-end gap-3" method="get">
-            <label className="grid min-w-0 flex-1 gap-1.5 text-sm font-medium">
-              Name or detail
-              <input name="q" defaultValue={q} maxLength={80} placeholder="An email, agent, tool, project or rule" className={field} />
+            <label className="grid min-w-0 flex-1 gap-1.5">
+              <span className={LABEL_CLASSES}>Name or detail</span>
+              <input name="q" defaultValue={q} maxLength={80} placeholder="An email, agent, tool, project or rule" className={inputClasses()} />
             </label>
-            <button type="submit" className={buttonClasses("secondary", "sm")}>
+            <button type="submit" className={buttonClasses("secondary", "md")}>
               <MagnifyingGlassIcon size={16} weight="bold" aria-hidden /> Search
             </button>
           </form>

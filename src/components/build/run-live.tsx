@@ -94,7 +94,7 @@ export function EventRow({ e, latest }: { e: RunEventView; latest: boolean }) {
   let tone = "text-ink-2";
   if (e.kind === "model") {
     icon = ChatTextIcon;
-    body = <p className="whitespace-pre-wrap text-[0.9375rem] leading-relaxed text-ink">{str(p.text)}</p>;
+    body = <p className="whitespace-pre-wrap text-body leading-relaxed text-ink">{str(p.text)}</p>;
   } else if (e.kind === "tool") {
     const tool = str(p.tool);
     icon = TOOL_ICON[tool] ?? InfoIcon;
@@ -109,7 +109,7 @@ export function EventRow({ e, latest }: { e: RunEventView; latest: boolean }) {
             {TOOL_VERB[tool] ?? tool}
             {tool === "finish" && target ? ":" : ""}
           </span>
-          {target ? <span className={`break-all text-ink ${target.mono ? "font-mono text-[0.8125rem]" : ""}`}>{target.text}</span> : null}
+          {target ? <span className={`break-all text-ink ${target.mono ? "font-mono text-label" : ""}`}>{target.text}</span> : null}
           {status !== "done" ? <StepResult kind={kind}>{TOOL_WORDS[status] ?? "Declined"}</StepResult> : null}
         </p>
         {status !== "done" && str(p.detail) ? <p className="mt-1 text-xs text-ink-3">{str(p.detail)}</p> : null}
@@ -122,7 +122,7 @@ export function EventRow({ e, latest }: { e: RunEventView; latest: boolean }) {
     body = (
       <details className="group min-w-0">
         <summary className="flex cursor-pointer list-none flex-wrap items-baseline gap-x-2 text-sm pointer-coarse:min-h-11 pointer-coarse:items-center">
-          <span className="break-all font-mono text-[0.8125rem] text-ink">{str(p.command)}</span>
+          <span className="break-all font-mono text-label text-ink">{str(p.command)}</span>
           <StepResult kind={code === 0 ? "verified" : code === null ? "attention" : "failed"}>{code === 0 ? "Passed" : code === null ? "Didn't finish" : `Failed (exit ${code})`}</StepResult>
           <span className="text-xs text-ink-3 group-open:hidden">Show output</span>
         </summary>
@@ -134,15 +134,15 @@ export function EventRow({ e, latest }: { e: RunEventView; latest: boolean }) {
     tone = "text-approval";
     body = (
       <p className="text-sm">
-        Asked to run <span className="break-all font-mono text-[0.8125rem] text-ink">{str(p.display)}</span>
+        Asked to run <span className="break-all font-mono text-label text-ink">{str(p.display)}</span>
       </p>
     );
   } else if (e.kind === "note" && p.from === "person") {
     icon = UserIcon;
     tone = "text-accent";
     body = (
-      <p className="w-fit max-w-full rounded-md rounded-tl-xs bg-accent/[0.07] px-3.5 py-2 text-[0.9375rem] leading-relaxed text-ink">
-        <span className="mr-2 text-[0.8125rem] font-medium text-accent">You</span>
+      <p className="w-fit max-w-full rounded-md rounded-tl-xs bg-accent/[0.07] px-3.5 py-2 text-body leading-relaxed text-ink">
+        <span className="mr-2 text-label font-medium text-accent">You</span>
         {str(p.text)}
       </p>
     );
@@ -181,7 +181,7 @@ function ApprovalCard({ run, request, onAnswered }: { run: RunView; request: Run
       <h2 id="approval-heading" className="flex items-center gap-2.5 text-base font-medium text-ink">
         <TerminalWindowIcon size={20} className="shrink-0 text-approval" aria-hidden /> The agent wants to run a command
       </h2>
-      <pre className="overflow-x-auto rounded-sm bg-media p-3 font-mono text-[0.8125rem] text-media-ink">{str(p.display)}</pre>
+      <pre className="overflow-x-auto rounded-sm bg-media p-3 font-mono text-label text-media-ink">{str(p.display)}</pre>
       <dl className="grid gap-1 text-sm">
         <div className="flex gap-2">
           <dt className="text-ink-3">Why it asks</dt>
@@ -234,7 +234,7 @@ function MessageBar({ runId }: { runId: string }) {
       }}
       className="grid gap-2"
     >
-      <div className="flex items-center gap-2 rounded-full border border-line bg-surface p-1.5 pl-5 shadow-e1 focus-within:border-accent/60">
+      <div className="flex items-center gap-2 rounded-full border border-line-strong bg-surface p-1.5 pl-5 shadow-e1 focus-within:border-accent">
         <label htmlFor="run-message" className="sr-only">
           Message the agent
         </label>
@@ -585,7 +585,7 @@ export function RunLive({
                   return (
                     <li key={f.path} className="flex items-center gap-2.5 text-sm">
                       <FileIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
-                      <span className="min-w-0 flex-1 truncate font-mono text-[0.8125rem]" title={f.path}>
+                      <span className="min-w-0 flex-1 truncate font-mono text-label" title={f.path}>
                         {f.path}
                       </span>
                       <span className="shrink-0 text-xs text-ink-3">

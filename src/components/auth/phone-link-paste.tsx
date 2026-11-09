@@ -3,6 +3,7 @@
 import { ArrowRightIcon, ClipboardTextIcon } from "@phosphor-icons/react";
 import { useId, useState } from "react";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 
 /**
  * Signing in the Farbaek app (ADR 0110) happens in a browser sheet that
@@ -40,7 +41,7 @@ export function PhoneLinkPaste({ next, siteOrigin, authOrigin }: { next: string;
         <ArrowRightIcon size={16} weight="bold" aria-hidden />
       </a>
       <form action={follow} className="grid gap-2" noValidate>
-        <label htmlFor={inputId} className="text-sm font-medium">
+        <label htmlFor={inputId} className={LABEL_CLASSES}>
           Opened it in another browser? Paste the link here
         </label>
         <div className="flex gap-2">
@@ -55,7 +56,7 @@ export function PhoneLinkPaste({ next, siteOrigin, authOrigin }: { next: string;
             placeholder="https://"
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? errorId : undefined}
-            className="min-h-11 min-w-0 flex-1 rounded-sm border border-line-strong bg-surface px-3 text-base text-ink placeholder:text-ink-3 focus-visible:outline-2 focus-visible:outline-accent"
+            className={inputClasses("min-w-0 flex-1")}
           />
           <button type="submit" className={buttonClasses("secondary", "md")}>
             <ClipboardTextIcon size={16} aria-hidden />

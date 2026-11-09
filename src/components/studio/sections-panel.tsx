@@ -110,7 +110,7 @@ export function SectionsPanel({
   return (
     <div className="grid gap-4">
       <div className="grid gap-1">
-        <p className="text-[0.9375rem] font-medium">Sections on this page</p>
+        <p className="text-body font-medium">Sections on this page</p>
         <p className="text-xs leading-relaxed text-ink-3">Drag a section by its handle, here or in the preview, to change the order. Alt+click in the preview picks a whole section.</p>
       </div>
 

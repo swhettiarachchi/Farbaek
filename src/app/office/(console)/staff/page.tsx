@@ -4,7 +4,8 @@ import { Chip } from "@/components/admin/table";
 import { CardTitle, EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { OfficeActionForm } from "@/components/office/action-form";
 import { RoleBadge } from "@/components/office/badges";
-import { officeInputClass, ReasonField, StepUpField } from "@/components/office/fields";
+import { ReasonField, StepUpField } from "@/components/office/fields";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
 import { OFFICE_POLICY } from "@/config/office";
 import { ROLE_LABELS, ROLE_SUMMARIES, STAFF_ROLES, type StaffRole } from "@/core/office/permissions";
@@ -17,8 +18,8 @@ export const metadata: Metadata = { title: "Staff" };
 function RoleSelect({ id, defaultValue }: { id: string; defaultValue?: StaffRole }) {
   return (
     <label htmlFor={id} className="grid gap-1.5 text-sm">
-      <span className="font-medium text-ink">Role</span>
-      <select id={id} name="role" defaultValue={defaultValue ?? "support"} className={officeInputClass}>
+      <span className={LABEL_CLASSES}>Role</span>
+      <select id={id} name="role" defaultValue={defaultValue ?? "support"} className={inputClasses()}>
         {STAFF_ROLES.map((r) => (
           <option key={r} value={r}>
             {ROLE_LABELS[r]}
@@ -148,13 +149,13 @@ export default async function OfficeStaff() {
             </div>
             <OfficeActionForm action={inviteStaffAction} submit="Send the invite" className="grid gap-4 lg:grid-cols-2">
               <label htmlFor="invite-email" className="grid gap-1.5 text-sm">
-                <span className="font-medium text-ink">Their work email</span>
-                <input id="invite-email" name="email" type="email" required className={officeInputClass} />
+                <span className={LABEL_CLASSES}>Their work email</span>
+                <input id="invite-email" name="email" type="email" required className={inputClasses()} />
               </label>
               <RoleSelect id="invite-role" />
               <label htmlFor="invite-days" className="grid gap-1.5 text-sm">
-                <span className="font-medium text-ink">Invite lasts</span>
-                <select id="invite-days" name="days" defaultValue="3" className={officeInputClass}>
+                <span className={LABEL_CLASSES}>Invite lasts</span>
+                <select id="invite-days" name="days" defaultValue="3" className={inputClasses()}>
                   {Array.from({ length: OFFICE_POLICY.inviteMaxDays }, (_, i) => i + 1).map((d) => (
                     <option key={d} value={d}>
                       {d} {d === 1 ? "day" : "days"}

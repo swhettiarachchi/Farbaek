@@ -11,6 +11,7 @@ import { SandboxConsole } from "./console";
 import { FilesPanel } from "./files-panel";
 import { PreviewPanel } from "./preview-panel";
 import { ChecksPanel, DetailsPanel, HistoryPanel, type ReceiptSummary, type TaskSummary } from "./side-panels";
+import { PAGE_TITLE } from "@/components/ui/titles";
 
 export interface WorkspaceProps {
   orgId: string;
@@ -85,12 +86,12 @@ export function SandboxWorkspace(props: WorkspaceProps) {
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="min-w-0 truncate text-[1.75rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2.1rem]" title={session.name}>
+            <h1 className={`min-w-0 truncate text-nowrap ${PAGE_TITLE}`} title={session.name}>
               {session.name}
             </h1>
             <SessionStateBadge state={session.state} />
           </div>
-          <p className="mt-2 text-[0.9375rem] text-ink-2">
+          <p className="mt-2 text-body text-ink-2">
             {props.labels.template}, {props.labels.size}. {props.labels.network}.{" "}
             {ended ? (
               session.endedAt ? (
@@ -137,7 +138,7 @@ export function SandboxWorkspace(props: WorkspaceProps) {
       </header>
 
       {error ? (
-        <p role="alert" className="flex items-start gap-2 rounded-sm border border-failed/30 bg-failed/[0.05] px-4 py-3 text-sm text-failed">
+        <p role="alert" className="flex items-start gap-2.5 rounded-sm border border-line bg-surface-raised/70 px-4 py-3 text-sm text-failed">
           <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
           <span>{error}</span>
         </p>
@@ -145,12 +146,12 @@ export function SandboxWorkspace(props: WorkspaceProps) {
       {props.notice ? (
         <div
           role="status"
-          className={`flex gap-3 rounded-md border px-4 py-3 ${props.notice.tone === "failed" ? "border-failed/30 bg-failed/[0.04]" : props.notice.tone === "warning" ? "border-caution/35 bg-caution/[0.05]" : "border-line bg-surface-raised/70"}`}
+          className="flex items-start gap-2.5 rounded-sm border border-line bg-surface-raised/70 px-4 py-3"
         >
           {props.notice.tone === "info" ? (
-            <InfoIcon size={20} weight="fill" className="mt-px shrink-0 text-info" aria-hidden />
+            <InfoIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-info" aria-hidden />
           ) : (
-            <WarningCircleIcon size={20} weight="fill" className={`mt-px shrink-0 ${props.notice.tone === "failed" ? "text-failed" : "text-caution"}`} aria-hidden />
+            <WarningCircleIcon size={16} weight="fill" className={`mt-0.5 shrink-0 ${props.notice.tone === "failed" ? "text-failed" : "text-caution"}`} aria-hidden />
           )}
           <div>
             <p className="text-sm font-medium">{props.notice.title}</p>

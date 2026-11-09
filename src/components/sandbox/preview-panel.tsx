@@ -3,6 +3,7 @@
 import { ArrowClockwiseIcon, ArrowUpRightIcon, BrowserIcon, DeviceMobileIcon, DeviceTabletIcon, MonitorIcon, PlayIcon, ScrollIcon, StopIcon, WarningCircleIcon, XIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { APP_LOG_COMMAND, STOP_APP_COMMAND, startAppCommand } from "@/core/sandbox/app-process";
 import { FarbaekApiError, type FarbaekSandboxClient } from "@/sdk/sandbox-client";
 
@@ -91,9 +92,9 @@ export function PreviewPanel({ client, sessionId, available, reason }: { client:
         <h3 id={`app-${sessionId}`} className="text-sm font-medium">
           Your app
         </h3>
-        <label className="grid gap-1 text-xs text-ink-3">
+        <label className={`grid gap-1 ${LABEL_CLASSES}`}>
           Start command
-          <input value={command} onChange={(e) => setCommand(e.target.value)} spellCheck={false} className="h-11 rounded-sm border border-line bg-surface px-3 font-mono text-base text-ink sm:text-sm" />
+          <input value={command} onChange={(e) => setCommand(e.target.value)} spellCheck={false} className={inputClasses("font-mono")} />
         </label>
         <div className="flex flex-wrap gap-2">
           <button type="button" disabled={app.busy !== null || !command.trim()} onClick={() => void appAction("start")} className={buttonClasses("primary", "sm")}>
@@ -120,13 +121,13 @@ export function PreviewPanel({ client, sessionId, available, reason }: { client:
           void open("frame");
         }}
       >
-        <label className="grid gap-1 text-sm font-medium">
+        <label className={`grid gap-1 ${LABEL_CLASSES}`}>
           Port
           <input
             value={port}
             onChange={(e) => setPort(e.target.value.replace(/\D/g, "").slice(0, 5))}
             inputMode="numeric"
-            className="h-11 w-28 rounded-sm border border-line bg-surface px-3 text-base tabular"
+            className={inputClasses("max-w-28 tabular")}
             aria-describedby={`port-help-${sessionId}`}
           />
         </label>

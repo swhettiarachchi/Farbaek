@@ -130,7 +130,7 @@ struct TodayView: View {
 
     private func liveRuns(_ runs: [RunItem]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            SectionTitle("The agent at work")
+            SectionTitle("The agent at work", symbol: "hammer")
             ForEach(runs) { run in
                 NavigationLink(value: Destination.run(run.id)) {
                     HStack(spacing: 14) {
@@ -152,7 +152,7 @@ struct TodayView: View {
     private func recent(_ tasks: [TaskItem]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                SectionTitle("Recent")
+                SectionTitle("Recent", symbol: "list.bullet")
                 NavigationLink(value: Destination.tasks) {
                     Text("All tasks")
                         .font(.subheadline.weight(.medium))

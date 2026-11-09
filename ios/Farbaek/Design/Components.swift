@@ -308,19 +308,34 @@ struct SampleLabel: View {
     }
 }
 
+/// A section's title, as the web's CardTitle (ADR 0183): the SF Symbol twin of the web's icon for that concept,
+/// outlined, at body size in the quiet ink, then the words. The symbol only marks the section, so VoiceOver reads
+/// the heading as its words.
 struct SectionTitle: View {
     let text: String
+    let systemImage: String?
 
-    init(_ text: String) {
+    init(_ text: String, symbol: String? = nil) {
         self.text = text
+        self.systemImage = symbol
     }
 
     var body: some View {
-        Text(text)
-            .font(.headline.weight(.medium))
-            .foregroundStyle(Palette.ink)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityAddTraits(.isHeader)
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .font(.body)
+                    .foregroundStyle(Palette.ink3)
+                    .accessibilityHidden(true)
+            }
+            Text(text)
+                .font(.headline.weight(.medium))
+                .foregroundStyle(Palette.ink)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
     }
 }
 

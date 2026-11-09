@@ -68,7 +68,7 @@ export function ComparisonTable() {
         </p>
         {GROUPS.map((group) => (
           <details key={group.title} open className="group min-w-0 rounded-md border border-line bg-surface">
-            <summary className="flex min-h-13 cursor-pointer list-none items-center justify-between px-5 py-3 text-[1.0625rem] font-medium [&::-webkit-details-marker]:hidden">
+            <summary className="flex min-h-13 cursor-pointer list-none items-center justify-between px-5 py-3 text-title-4 font-medium [&::-webkit-details-marker]:hidden">
               {group.title}
               <span className="text-sm font-normal text-ink-3 group-open:hidden">Show</span>
               <span className="hidden text-sm font-normal text-ink-3 group-open:inline">Hide</span>

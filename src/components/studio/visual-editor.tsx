@@ -29,6 +29,7 @@ import { SectionsPanel } from "@/components/studio/sections-panel";
 import { PreviewFrame } from "@/components/preview/preview-frame";
 import { ThemePanel, type ThemePreview } from "@/components/studio/theme-panel";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES, textareaClasses } from "@/components/ui/field";
 import { SPACE_SIZES, TEXT_SIZES } from "@/core/studio/site-theme";
 import {
   DESIGN_ACTION_MESSAGE,
@@ -379,7 +380,7 @@ export function VisualEditor({
     return (
       <div className="grid gap-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="flex items-center gap-2 text-[0.9375rem] font-medium">
+          <p className="flex items-center gap-2 text-body font-medium">
             <GitDiffIcon size={20} className="shrink-0 text-ink-3" aria-hidden /> Review the change to {changedPaths.length === 1 ? "1 file" : `${changedPaths.length} files`}
           </p>
           <button type="button" onClick={() => setMode("design")} className={buttonClasses("ghost", "sm")}>
@@ -418,7 +419,7 @@ export function VisualEditor({
                   setSelected(null);
                   setMessage(null);
                 }}
-                className="min-h-11 rounded-full border border-line bg-surface px-3 text-base text-ink sm:text-sm"
+                className={inputClasses()}
               >
                 {pages.map((p) => (
                   <option key={p} value={p}>
@@ -698,7 +699,6 @@ const px = (v: string | undefined) => {
   return Number.isFinite(n) ? String(Math.round(n)) : "";
 };
 
-const fieldClass = "min-h-11 w-full rounded-sm border border-line bg-surface px-3 text-base focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
 function Inspector({
   html,
@@ -771,7 +771,7 @@ function Inspector({
   return (
     <div className="grid gap-4">
       <div>
-        <p className="flex flex-wrap items-center gap-2 text-[0.9375rem] font-medium">
+        <p className="flex flex-wrap items-center gap-2 text-body font-medium">
           {scene !== null ? "3D scene" : tagLabel(el.tag)}
           {attrValue(el, "data-farbaek-media") ? <span className="font-mono text-xs font-normal text-ink-3">{attrValue(el, "data-farbaek-media")}</span> : null}
           {!isMedia && hasAttr(el, "data-farbaek-placeholder") ? <PlaceholderChip /> : null}
@@ -802,10 +802,10 @@ function Inspector({
 
       {text !== null ? (
         <div className="grid gap-1.5">
-          <label htmlFor={`${id}-text`} className="text-sm font-medium">
+          <label htmlFor={`${id}-text`} className={LABEL_CLASSES}>
             Text
           </label>
-          <textarea id={`${id}-text`} value={textDraft} onChange={(e) => setText(e.target.value)} rows={3} className={`${fieldClass} py-2`} />
+          <textarea id={`${id}-text`} value={textDraft} onChange={(e) => setText(e.target.value)} rows={3} className={textareaClasses()} />
           <div>
             <button type="button" onClick={() => onApply({ kind: "text", text: textDraft })} disabled={textDraft === text} className={buttonClasses("secondary", "sm")}>
               Apply text
@@ -814,10 +814,10 @@ function Inspector({
         </div>
       ) : label !== null ? (
         <div className="grid gap-1.5">
-          <label htmlFor={`${id}-label`} className="text-sm font-medium">
+          <label htmlFor={`${id}-label`} className={LABEL_CLASSES}>
             Label
           </label>
-          <input id={`${id}-label`} value={labelDraft} onChange={(e) => setLabel(e.target.value)} className={fieldClass} />
+          <input id={`${id}-label`} value={labelDraft} onChange={(e) => setLabel(e.target.value)} className={inputClasses()} />
           <div>
             <button type="button" onClick={() => onApply({ kind: "label", text: labelDraft })} disabled={labelDraft.trim() === label} className={buttonClasses("secondary", "sm")}>
               Apply label
@@ -830,10 +830,10 @@ function Inspector({
 
       {el.tag === "a" ? (
         <div className="grid gap-1.5">
-          <label htmlFor={`${id}-href`} className="text-sm font-medium">
+          <label htmlFor={`${id}-href`} className={LABEL_CLASSES}>
             Goes to
           </label>
-          <input id={`${id}-href`} value={href} onChange={(e) => setHref(e.target.value)} inputMode="url" autoComplete="off" spellCheck={false} className={`${fieldClass} font-mono`} />
+          <input id={`${id}-href`} value={href} onChange={(e) => setHref(e.target.value)} inputMode="url" autoComplete="off" spellCheck={false} className={inputClasses("font-mono")} />
           <p className="text-xs text-ink-3">A page in this site, an anchor such as #contact, or an https, mailto or tel address.</p>
           <div>
             <button type="button" onClick={() => onApply({ kind: "link", href })} disabled={href === (attrValue(el, "href") ?? "")} className={buttonClasses("secondary", "sm")}>
@@ -845,10 +845,10 @@ function Inspector({
 
       {el.tag === "img" ? (
         <div className="grid gap-1.5">
-          <label htmlFor={`${id}-alt`} className="text-sm font-medium">
+          <label htmlFor={`${id}-alt`} className={LABEL_CLASSES}>
             Description for screen readers
           </label>
-          <input id={`${id}-alt`} value={alt} onChange={(e) => setAlt(e.target.value)} className={fieldClass} />
+          <input id={`${id}-alt`} value={alt} onChange={(e) => setAlt(e.target.value)} className={inputClasses()} />
           <div>
             <button type="button" onClick={() => onApply({ kind: "image", alt })} disabled={alt === (attrValue(el, "alt") ?? "")} className={buttonClasses("secondary", "sm")}>
               Apply description
@@ -861,7 +861,7 @@ function Inspector({
         <legend className="sr-only">Style</legend>
         <p className="text-sm font-medium">Style</p>
         <div className="grid gap-1.5">
-          <span className="text-xs text-ink-2" id={`${id}-screen`}>
+          <span className={LABEL_CLASSES} id={`${id}-screen`}>
             Applies to
           </span>
           <div className="inline-flex w-full rounded-full border border-line bg-surface p-1 sm:w-auto" role="radiogroup" aria-labelledby={`${id}-screen`}>
@@ -886,10 +886,10 @@ function Inspector({
           <ColorField id={`${id}-bg`} label="Background" value={value("background-color")} onChange={(v) => set("background-color", v)} />
           <NumberField id={`${id}-size`} label="Exact text size (px)" value={/^\d+$/.test(value("font-size")) ? value("font-size") : ""} min={8} max={160} onChange={(v) => set("font-size", v)} />
           <div className="grid gap-1.5">
-            <label htmlFor={`${id}-weight`} className="text-xs text-ink-2">
+            <label htmlFor={`${id}-weight`} className={LABEL_CLASSES}>
               Weight
             </label>
-            <select id={`${id}-weight`} value={value("font-weight")} onChange={(e) => set("font-weight", e.target.value)} className={fieldClass}>
+            <select id={`${id}-weight`} value={value("font-weight")} onChange={(e) => set("font-weight", e.target.value)} className={inputClasses()}>
               {WEIGHTS.map(([w, label]) => (
                 <option key={w} value={w}>
                   {label}
@@ -901,7 +901,7 @@ function Inspector({
           <NumberField id={`${id}-radius`} label="Corners (px)" value={value("border-radius")} min={0} max={200} onChange={(v) => set("border-radius", v)} />
         </div>
         <div className="grid gap-1.5">
-          <span className="text-xs text-ink-2" id={`${id}-sizes`}>
+          <span className={LABEL_CLASSES} id={`${id}-sizes`}>
             Text size that scales with the screen
           </span>
           <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-labelledby={`${id}-sizes`}>
@@ -920,7 +920,7 @@ function Inspector({
           </div>
         </div>
         <div className="grid gap-1.5">
-          <span className="text-xs text-ink-2" id={`${id}-align`}>
+          <span className={LABEL_CLASSES} id={`${id}-align`}>
             Alignment
           </span>
           <div className="inline-flex w-full rounded-full border border-line bg-surface p-1 sm:w-auto" role="radiogroup" aria-labelledby={`${id}-align`}>
@@ -939,7 +939,7 @@ function Inspector({
           </div>
         </div>
         <div className="grid gap-2">
-          <span className="text-xs text-ink-2" id={`${id}-space`}>
+          <span className={LABEL_CLASSES} id={`${id}-space`}>
             Space above and below the content, scaling with the screen
           </span>
           <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-labelledby={`${id}-space`}>
@@ -990,7 +990,7 @@ function Inspector({
 function ColorField({ id, label, value, onChange }: { id: string; label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div className="grid gap-1.5">
-      <label htmlFor={id} className="text-xs text-ink-2">
+      <label htmlFor={id} className={LABEL_CLASSES}>
         {label}
       </label>
       {/* The whole 44px row opens the colour picker, not only the swatch. */}
@@ -1005,10 +1005,10 @@ function ColorField({ id, label, value, onChange }: { id: string; label: string;
 function NumberField({ id, label, value, min, max, onChange }: { id: string; label: string; value: string; min: number; max: number; onChange: (v: string) => void }) {
   return (
     <div className="grid gap-1.5">
-      <label htmlFor={id} className="text-xs text-ink-2">
+      <label htmlFor={id} className={LABEL_CLASSES}>
         {label}
       </label>
-      <input id={id} type="number" inputMode="numeric" min={min} max={max} step={1} value={value} onChange={(e) => onChange(e.target.value)} className={`${fieldClass} tabular`} />
+      <input id={id} type="number" inputMode="numeric" min={min} max={max} step={1} value={value} onChange={(e) => onChange(e.target.value)} className={inputClasses("tabular")} />
     </div>
   );
 }

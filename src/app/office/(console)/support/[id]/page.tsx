@@ -14,6 +14,7 @@ import { requireStaff } from "@/server/office/access";
 import { loadWorkspaceBrief } from "@/server/office/controls-data";
 import { loadSupportThread } from "@/server/office/support-data";
 import { staffSupportReplyAction, staffSupportUpdateAction } from "./actions";
+import { PAGE_TITLE } from "@/components/ui/titles";
 
 export const metadata: Metadata = { title: "Support request" };
 
@@ -51,7 +52,7 @@ export default async function OfficeSupportThread({ params }: { params: Promise<
             Opened <LocalTime iso={thread.createdAt} />
           </span>
         </div>
-        <h1 className="text-balance text-[1.6rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2rem]">{thread.subject}</h1>
+        <h1 className={PAGE_TITLE}>{thread.subject}</h1>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
@@ -63,7 +64,7 @@ export default async function OfficeSupportThread({ params }: { params: Promise<
                   <p className="text-xs text-ink-3">
                     <span className="font-medium text-ink-2">{thread.email}</span> · <LocalTime iso={m.createdAt} />
                   </p>
-                  <div className="whitespace-pre-wrap break-words rounded-md border border-line bg-surface px-4 py-3 text-[0.9375rem] leading-relaxed shadow-e1">{m.body}</div>
+                  <div className="whitespace-pre-wrap break-words rounded-md border border-line bg-surface px-4 py-3 text-body leading-relaxed shadow-e1">{m.body}</div>
                 </li>
               ) : m.internal ? (
                 <li key={m.id} className="grid gap-1.5">
@@ -75,7 +76,7 @@ export default async function OfficeSupportThread({ params }: { params: Promise<
                     <span aria-hidden>·</span>
                     <LocalTime iso={m.createdAt} />
                   </p>
-                  <div className="whitespace-pre-wrap break-words rounded-md border border-line-2 bg-surface-raised px-4 py-3 text-[0.9375rem] leading-relaxed text-ink">
+                  <div className="whitespace-pre-wrap break-words rounded-md border border-line-2 bg-surface-raised px-4 py-3 text-body leading-relaxed text-ink">
                     {m.body}
                   </div>
                 </li>
@@ -89,7 +90,7 @@ export default async function OfficeSupportThread({ params }: { params: Promise<
                     <span aria-hidden>·</span>
                     <LocalTime iso={m.createdAt} />
                   </p>
-                  <div className="whitespace-pre-wrap break-words rounded-md border border-accent/15 bg-accent/[0.05] px-4 py-3 text-[0.9375rem] leading-relaxed">{m.body}</div>
+                  <div className="whitespace-pre-wrap break-words rounded-md border border-accent/15 bg-accent/[0.05] px-4 py-3 text-body leading-relaxed">{m.body}</div>
                 </li>
               ),
             )}
@@ -107,7 +108,7 @@ export default async function OfficeSupportThread({ params }: { params: Promise<
         <aside className="grid gap-4">
           <Card>
             <CardTitle icon={UserCircleIcon}>From</CardTitle>
-            <p className="mt-1 break-all text-[0.9375rem] font-medium">{thread.email}</p>
+            <p className="mt-1 break-all text-body font-medium">{thread.email}</p>
             {workspace ? (
               <div className="mt-4 grid gap-2 border-t border-line pt-4 text-sm">
                 <Link href={`/workspaces/${workspace.id}`} className="inline-flex min-h-11 items-center gap-2 font-medium text-accent hover:underline">

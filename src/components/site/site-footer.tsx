@@ -13,7 +13,7 @@ export function SiteFooter() {
         <div className="flex items-start gap-4">
           <BrandLogo height={56} />
           <div>
-            <p className="text-[1.0625rem] font-semibold tracking-[-0.02em]">Farbaek</p>
+            <p className="text-title-4 font-semibold tracking-[-0.02em]">Farbaek</p>
             <p className="mt-1 max-w-[38ch] text-sm text-ink-2">From idea to verified software, with control at every step.</p>
             <p className="mt-4 text-sm text-ink-3">Start free, no card.</p>
           </div>

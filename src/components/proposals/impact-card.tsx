@@ -60,7 +60,7 @@ export function ImpactCard({ taskId, disabledReason }: { taskId: string; disable
         </div>
       ) : (
         <>
-          <p className="text-[0.9375rem] leading-relaxed">
+          <p className="text-body leading-relaxed">
             {r.direct.length + r.further.length === 0
               ? "Nothing else in the project uses what this change touches."
               : `${plural(r.direct.length, "file uses", "files use")} what this change touches${r.further.length ? `, and ${plural(r.further.length, "more file reaches", "more files reach")} it through them` : ""}.`}{" "}

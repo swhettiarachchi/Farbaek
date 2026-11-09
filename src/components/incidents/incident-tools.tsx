@@ -4,6 +4,7 @@ import { CheckCircleIcon, NotePencilIcon, ShieldCheckIcon, WarningCircleIcon } f
 import { useId, useState, useTransition } from "react";
 import { addIncidentNoteAction, changeIncidentAction, resolveIncidentAction, type IncidentActionState } from "@/app/app/incidents/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES, textareaClasses } from "@/components/ui/field";
 import { SEVERITIES, SEVERITY_WORDS, type IncidentStatus, type Severity } from "@/core/trust/incidents";
 
 /**
@@ -43,7 +44,7 @@ export function IncidentTools({
   return (
     <div className="grid gap-6">
       <div className="grid gap-1.5">
-        <label htmlFor={noteId} className="text-sm font-medium">
+        <label htmlFor={noteId} className={LABEL_CLASSES}>
           Add a note
         </label>
         <textarea
@@ -54,7 +55,7 @@ export function IncidentTools({
           onChange={(e) => setNote(e.target.value)}
           disabled={Boolean(toolsReason)}
           placeholder="What you found, what you tried, who you told."
-          className="rounded-sm border border-line bg-surface px-3 py-2 text-base sm:text-sm"
+          className={textareaClasses()}
         />
         <div className="flex flex-wrap items-center gap-3">
           <button
@@ -71,7 +72,7 @@ export function IncidentTools({
 
       <div className="flex flex-wrap items-end gap-4">
         <div className="grid gap-1.5">
-          <label htmlFor={severityId} className="text-sm font-medium">
+          <label htmlFor={severityId} className={LABEL_CLASSES}>
             Severity
           </label>
           <select
@@ -79,7 +80,7 @@ export function IncidentTools({
             value={severity}
             onChange={(e) => run(() => changeIncidentAction({ number, severity: e.target.value }))}
             disabled={pending || Boolean(toolsReason)}
-            className="min-h-11 rounded-sm border border-line bg-surface px-3 text-base sm:text-sm"
+            className={inputClasses()}
           >
             {SEVERITIES.map((s) => (
               <option key={s} value={s}>
@@ -99,7 +100,7 @@ export function IncidentTools({
       </div>
 
       <div className="grid gap-1.5 border-t border-line pt-5">
-        <label htmlFor={outcomeId} className="text-sm font-medium">
+        <label htmlFor={outcomeId} className={LABEL_CLASSES}>
           Resolve: what happened, and what was done
         </label>
         <textarea
@@ -110,7 +111,7 @@ export function IncidentTools({
           onChange={(e) => setOutcome(e.target.value)}
           disabled={Boolean(resolveReason)}
           placeholder="For example: the cart rounded prices wrongly after an automatic change. Undone, and a rule now holds src/lib/ for a person."
-          className="rounded-sm border border-line bg-surface px-3 py-2 text-base sm:text-sm"
+          className={textareaClasses()}
         />
         <div className="flex flex-wrap items-center gap-3">
           <button

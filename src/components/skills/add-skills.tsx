@@ -4,6 +4,7 @@ import { CheckCircleIcon, DownloadSimpleIcon, WarningCircleIcon } from "@phospho
 import { useActionState, useId, useState } from "react";
 import { importSkillAction, type SkillState } from "@/app/app/projects/[projectId]/skill-actions";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { AddSkillForm } from "./add-skill-form";
 import { LibraryRow, type LibraryCardSkill } from "./skill-library";
 
@@ -27,7 +28,7 @@ function ImportSkillForm({ projectId, disabledReason }: { projectId: string; dis
     <form action={action} className="grid gap-3">
       <input type="hidden" name="projectId" value={projectId} />
       <label htmlFor={inputId} className="grid gap-1.5">
-        <span className="text-[0.8125rem] font-medium text-ink-3">Link to a skill on GitHub</span>
+        <span className={LABEL_CLASSES}>Link to a skill on GitHub</span>
         <input
           id={inputId}
           name="link"
@@ -39,7 +40,7 @@ function ImportSkillForm({ projectId, disabledReason }: { projectId: string; dis
           placeholder="https://github.com/anthropics/skills/tree/main/skills/frontend-design"
           aria-describedby={helpId}
           disabled={Boolean(disabledReason) || pending}
-          className="h-11 min-w-0 rounded-sm border border-line bg-surface px-3.5 text-base text-ink outline-none placeholder:text-ink-3 focus:border-accent/60"
+          className={inputClasses("min-w-0")}
         />
       </label>
       <p id={helpId} className="text-xs leading-relaxed text-ink-3">
@@ -91,7 +92,7 @@ export function AddSkills({
   return (
     <div className="grid gap-4">
       <div className="grid gap-1">
-        <h3 className="text-[0.9375rem] font-medium">Add a skill</h3>
+        <h3 className="text-body font-medium">Add a skill</h3>
         <p className="text-sm text-ink-3">
           A project can keep up to {max} skills, and this one has {used}.
         </p>

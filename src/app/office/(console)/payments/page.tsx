@@ -121,11 +121,11 @@ export default async function OfficePayments() {
           <dl className="mt-5 grid gap-3 text-sm">
             <div>
               <dt className="text-xs text-ink-3">Webhook endpoint (add it in Dodo&apos;s dashboard, Developer, Webhooks)</dt>
-              <dd className="mt-1 break-all font-mono text-[0.8125rem]">https://www.farbaek.com/api/webhooks/dodo</dd>
+              <dd className="mt-1 break-all font-mono text-label">https://www.farbaek.com/api/webhooks/dodo</dd>
             </div>
             <div>
               <dt className="text-xs text-ink-3">Settings on the server (names only)</dt>
-              <dd className="mt-1 break-all font-mono text-[0.8125rem]">BILLING_MODE, DODO_PAYMENTS_API_KEY, DODO_PAYMENTS_WEBHOOK_KEY, BILLING_TEST_WORKSPACES</dd>
+              <dd className="mt-1 break-all font-mono text-label">BILLING_MODE, DODO_PAYMENTS_API_KEY, DODO_PAYMENTS_WEBHOOK_KEY, BILLING_TEST_WORKSPACES</dd>
             </div>
           </dl>
           <p className="mt-4 text-xs leading-relaxed text-ink-3">The owner sets them with scripts/vps/set-dodo.ps1. Values are never shown here.</p>
@@ -206,7 +206,7 @@ export default async function OfficePayments() {
         )}
       </Card>
 
-      {!page ? <Notice tone="warning">The payment tables couldn&apos;t be read. Migration v62 may not be applied on this database yet.</Notice> : null}
+      {!page ? <Notice tone="error">The payment tables couldn&apos;t be read. Migration v62 may not be applied on this database yet.</Notice> : null}
 
       <section aria-labelledby="products-heading" className="grid gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
@@ -215,7 +215,7 @@ export default async function OfficePayments() {
               Products
             </CardTitle>
             <p className="mt-1 text-sm text-ink-2">
-              One product per paid plan (Lite and Maker yearly, plus their monthly versions), for price list <span className="font-mono text-[0.8125rem]">{PLAN_CATALOG_VERSION}</span>. Checkout pauses for a plan whose price at Dodo differs.
+              One product per paid plan (Lite and Maker yearly, plus their monthly versions), for price list <span className="font-mono text-label">{PLAN_CATALOG_VERSION}</span>. Checkout pauses for a plan whose price at Dodo differs.
             </p>
           </div>
         </div>

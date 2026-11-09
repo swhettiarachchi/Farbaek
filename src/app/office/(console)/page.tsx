@@ -200,7 +200,7 @@ export default async function OfficeOverview({ searchParams }: { searchParams: P
             <p className="text-xs text-ink-3">These appear once an owner turns live payments on in Payments. Test-mode payments are never counted.</p>
           </>
         ) : !revenue ? (
-          <Notice tone="warning">The billing records couldn&apos;t be read just now, so no figure is shown. Reload to try again.</Notice>
+          <Notice tone="error">The billing records couldn&apos;t be read just now, so no figure is shown. Reload to try again.</Notice>
         ) : (
           <>
             <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

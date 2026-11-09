@@ -85,7 +85,7 @@ export default async function ApprovalsPage() {
                 {/* Waiting with nothing to approve needs a look, not a decision (ADR 0183). */}
                 <StatusGlyph status="attention" className="mt-0.5 self-start" />
                 <span className="min-w-0 flex-1">
-                  <span className="line-clamp-2 text-[0.9375rem] font-medium group-hover:text-accent">{t.title}</span>
+                  <span className="line-clamp-2 text-body font-medium group-hover:text-accent">{t.title}</span>
                   <span className="mt-0.5 block text-xs text-ink-3">
                     In {t.projectName ?? "its project"}, it started waiting <RelativeTime iso={t.updatedAt} />. There&apos;s no open change on record, so there&apos;s nothing to approve
                     here. Open the task to see why.

@@ -5,6 +5,7 @@ import { useActionState, useMemo, useState } from "react";
 import { createSandboxSessionAction, type CreateSessionState } from "@/app/app/sandbox/actions";
 import { CardTitle } from "@/components/app/primitives";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { NETWORK_PROFILE_LABELS, NETWORK_PROFILES, REGISTRY_HOSTS, type NetworkProfile } from "@/core/sandbox/network";
 import { SANDBOX_SIZES, SANDBOX_TEMPLATES, SIZE_IDS, TEMPLATE_IDS, sizeOnRuntime, type SizeId, type TemplateId } from "@/core/sandbox/templates";
 
@@ -26,8 +27,6 @@ export interface CreateSessionFormProps {
   disabledReason: string | null;
 }
 
-const field = "h-12 w-full rounded-sm border border-line bg-surface px-3 text-base text-ink focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20";
-
 function Choice({ name, value, checked, disabled, onChange, title, detail, note }: { name: string; value: string; checked: boolean; disabled?: boolean; onChange: () => void; title: string; detail: string; note?: string }) {
   return (
     <label
@@ -37,7 +36,7 @@ function Choice({ name, value, checked, disabled, onChange, title, detail, note 
     >
       <input type="radio" name={name} value={value} checked={checked} disabled={disabled} onChange={onChange} className="sr-only" />
       <span className="flex items-center justify-between gap-3">
-        <span className="text-[0.9375rem] font-medium">{title}</span>
+        <span className="text-body font-medium">{title}</span>
         <span aria-hidden className={`size-4 shrink-0 rounded-full border-2 ${checked ? "border-accent bg-accent shadow-[inset_0_0_0_2px_var(--surface)]" : "border-line-strong/60"}`} />
       </span>
       <span className="mt-1 text-sm text-ink-2">{detail}</span>
@@ -82,10 +81,10 @@ export function CreateSessionForm(props: CreateSessionFormProps) {
         </fieldset>
 
         <div className="grid gap-2">
-          <label htmlFor="name" className="text-sm font-medium">
+          <label htmlFor="name" className={LABEL_CLASSES}>
             Session name
           </label>
-          <input id="name" name="name" required maxLength={80} defaultValue={initialProject ? `${initialProject.name} run` : ""} placeholder="For example: checkout tests" className={field} />
+          <input id="name" name="name" required maxLength={80} defaultValue={initialProject ? `${initialProject.name} run` : ""} placeholder="For example: checkout tests" className={inputClasses()} />
         </div>
 
         <fieldset className="grid gap-3">
@@ -130,10 +129,10 @@ export function CreateSessionForm(props: CreateSessionFormProps) {
         </fieldset>
 
         <div className="grid gap-2">
-          <label htmlFor="minutes" className="text-sm font-medium">
+          <label htmlFor="minutes" className={LABEL_CLASSES}>
             Time limit
           </label>
-          <select id="minutes" name="minutes" value={minutes} onChange={(e) => setMinutes(Number(e.target.value))} className={field}>
+          <select id="minutes" name="minutes" value={minutes} onChange={(e) => setMinutes(Number(e.target.value))} className={inputClasses()}>
             {durations.map((m) => (
               <option key={m} value={m}>
                 {m < 60 ? `${m} minutes` : `${m / 60} ${m === 60 ? "hour" : "hours"}`}
@@ -146,7 +145,7 @@ export function CreateSessionForm(props: CreateSessionFormProps) {
         <fieldset className="grid gap-4">
           <legend className="text-base font-medium">Project files</legend>
           <div className="grid gap-2">
-            <label htmlFor="projectId" className="text-sm font-medium">
+            <label htmlFor="projectId" className={LABEL_CLASSES}>
               Copy files from
             </label>
             <select
@@ -158,7 +157,7 @@ export function CreateSessionForm(props: CreateSessionFormProps) {
                 const suggested = props.projects.find((p) => p.id === e.target.value)?.suggested;
                 if (suggested) setTemplate(suggested);
               }}
-              className={field}
+              className={inputClasses()}
             >
               <option value="">No project, start empty</option>
               {props.projects.map((p) => (
@@ -171,17 +170,17 @@ export function CreateSessionForm(props: CreateSessionFormProps) {
           {projectId ? (
             <>
               <div className="grid gap-2">
-                <label htmlFor="include" className="text-sm font-medium">
+                <label htmlFor="include" className={LABEL_CLASSES}>
                   Only these folders <span className="font-normal text-ink-3">(optional)</span>
                 </label>
-                <input id="include" name="include" placeholder="src, tests" className={field} />
+                <input id="include" name="include" placeholder="src, tests" className={inputClasses()} />
                 <p className="text-xs text-ink-3">Comma-separated. Leave empty to copy the whole project (up to 3,000 files or 25 MB).</p>
               </div>
               <div className="grid gap-2">
-                <label htmlFor="taskId" className="text-sm font-medium">
+                <label htmlFor="taskId" className={LABEL_CLASSES}>
                   Link a task <span className="font-normal text-ink-3">(optional)</span>
                 </label>
-                <select id="taskId" name="taskId" defaultValue={tasks.some((t) => t.id === props.defaultTaskId) ? (props.defaultTaskId ?? "") : ""} className={field}>
+                <select id="taskId" name="taskId" defaultValue={tasks.some((t) => t.id === props.defaultTaskId) ? (props.defaultTaskId ?? "") : ""} className={inputClasses()}>
                   <option value="">No task</option>
                   {tasks.map((t) => (
                     <option key={t.id} value={t.id}>

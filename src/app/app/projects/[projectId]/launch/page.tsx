@@ -63,7 +63,7 @@ function Command({ label, value }: { label: string; value: PlanCommand | null })
       <dd className="flex min-w-0 flex-wrap items-center gap-2">
         {value ? (
           <>
-            <code className="break-all rounded-sm bg-surface-raised px-2 py-1 font-mono text-[0.8125rem] text-ink">{value.command}</code>
+            <code className="break-all rounded-sm bg-surface-raised px-2 py-1 font-mono text-label text-ink">{value.command}</code>
             <span className={`text-xs ${value.source === "found" ? "text-ink-2" : "text-ink-3"}`}>{value.source === "found" ? "From the project" : "Usual default, assumed"}</span>
           </>
         ) : (
@@ -271,7 +271,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
               {plan.nodeVersion ? (
                 <div className="grid gap-1.5 py-3 sm:grid-cols-[120px_minmax(0,1fr)] sm:items-center sm:gap-4">
                   <dt className="text-sm text-ink-3">Node.js</dt>
-                  <dd className="font-mono text-[0.8125rem] text-ink">{plan.nodeVersion}</dd>
+                  <dd className="font-mono text-label text-ink">{plan.nodeVersion}</dd>
                 </div>
               ) : null}
               {plan.services.length > 0 ? (
@@ -283,7 +283,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
                         <li key={s.kind} className="flex items-start gap-2">
                           <PlugsConnectedIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
                           <span className="min-w-0">
-                            {SERVICE_WORDS[s.kind]}, through <code className="break-all font-mono text-[0.8125rem] text-ink-2">{s.via}</code>
+                            {SERVICE_WORDS[s.kind]}, through <code className="break-all font-mono text-label text-ink-2">{s.via}</code>
                           </span>
                         </li>
                       ))}
@@ -305,9 +305,9 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
               <ul className="mt-4 divide-y divide-line">
                 {costs.map((c) => (
                   <li key={c.id} className="grid gap-1 py-3">
-                    <p className="text-[0.9375rem] font-medium text-ink">{c.title}</p>
+                    <p className="text-body font-medium text-ink">{c.title}</p>
                     <p className="text-sm leading-relaxed text-ink-2">{c.detail}</p>
-                    {c.evidence ? <p className="break-all font-mono text-[0.78125rem] text-ink-3">{c.evidence}</p> : null}
+                    {c.evidence ? <p className="break-all font-mono text-xs text-ink-3">{c.evidence}</p> : null}
                   </li>
                 ))}
               </ul>
@@ -334,7 +334,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
               <ul className="mt-4 divide-y divide-line">
                 {plan.envNames.map((e) => (
                   <li key={e.name} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
-                    <code className="break-all font-mono text-[0.8125rem] text-ink">{e.name}</code>
+                    <code className="break-all font-mono text-label text-ink">{e.name}</code>
                     <span className="flex flex-wrap items-center gap-2 text-xs text-ink-3">
                       {e.public ? <StatusBadge status="attention" label="Visible in the browser" /> : null}
                       {e.seenIn.includes("code") ? "Read in code" : "In the example file"}

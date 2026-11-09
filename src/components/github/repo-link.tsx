@@ -4,10 +4,9 @@ import { CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState } from "react";
 import { linkRepoAction, unlinkRepoAction, type RepoLinkState } from "@/app/app/projects/[projectId]/github/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 
 const IDLE: RepoLinkState = { status: "idle" };
-
-const field = "min-h-11 w-full rounded-sm border border-line bg-surface px-3 text-base focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
 /**
  * Linking a project to a repository (ADR 0126): owners and admins type
@@ -22,7 +21,7 @@ export function RepoLinkForm({ projectId, linked, suggestion, disabledReason }: 
   return (
     <div className="grid gap-3">
       <form action={link} className="grid gap-3 rounded-md border border-line bg-surface-sunken/60 p-4">
-        <label className="grid gap-1.5 text-sm font-medium">
+        <label className={`grid gap-1.5 ${LABEL_CLASSES}`}>
           {linked ? "Link a different repository" : "Repository"}
           <input
             name="repo"
@@ -34,7 +33,7 @@ export function RepoLinkForm({ projectId, linked, suggestion, disabledReason }: 
             placeholder="owner/name"
             defaultValue={linked ? "" : (suggestion ?? "")}
             disabled={busy}
-            className={`${field} font-mono`}
+            className={inputClasses("font-mono")}
           />
           <span className="text-xs font-normal text-ink-3">The workspace&apos;s token must have been given this repository on GitHub.</span>
         </label>

@@ -19,7 +19,7 @@ export function SiteHeader() {
           <span className="flex h-11 shrink-0 items-center">
             <BrandLogo height={34} preload />
           </span>
-          <span className="flex h-11 items-center whitespace-nowrap text-[1.0625rem] font-semibold tracking-[-0.02em]">Farbaek</span>
+          <span className="flex h-11 items-center whitespace-nowrap text-title-4 font-semibold tracking-[-0.02em]">Farbaek</span>
         </Link>
 
         <nav aria-label="Main" className="hidden lg:block">

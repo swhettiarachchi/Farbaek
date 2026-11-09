@@ -4,13 +4,14 @@ import type { ReactNode } from "react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { TASK_STATE_LABELS, stateKind } from "@/core/realityloop/progress";
 import type { TaskState } from "@/core/realityloop/task-machine";
+import { PAGE_TITLE } from "@/components/ui/titles";
 
 export function PageHeader({ title, description, actions }: { title: string; description?: ReactNode; actions?: ReactNode }) {
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
       <div className="min-w-0">
-        <h1 className="text-balance text-[1.75rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2.1rem]">{title}</h1>
-        {description ? <p className="mt-2 max-w-[62ch] text-[0.9375rem] leading-relaxed text-ink-2">{description}</p> : null}
+        <h1 className={PAGE_TITLE}>{title}</h1>
+        {description ? <p className="mt-2 max-w-[62ch] text-body leading-relaxed text-ink-2">{description}</p> : null}
       </div>
       {actions ? <div className="flex min-w-0 flex-wrap gap-2 lg:justify-end">{actions}</div> : null}
     </div>
@@ -49,18 +50,23 @@ export function EmptyState({ icon: EmptyIcon, title, children, action }: { icon:
         <EmptyIcon size={24} aria-hidden />
       </span>
       <h2 className="mt-4 text-lg font-medium">{title}</h2>
-      <p className="mt-1.5 max-w-[46ch] text-[0.9375rem] leading-relaxed text-ink-2">{children}</p>
+      <p className="mt-1.5 max-w-[46ch] text-body leading-relaxed text-ink-2">{children}</p>
       {action ? <div className="mt-6">{action}</div> : null}
     </div>
   );
 }
 
-/** A note on a neutral surface; the icon's colour says what kind (ADR 0183): steel for information, burnt orange for a warning. */
-export function Notice({ tone = "info", children }: { tone?: "info" | "warning"; children: ReactNode }) {
+const NOTICE_ICON_COLOUR = { info: "text-info", warning: "text-caution", error: "text-failed" } as const;
+
+/**
+ * A note on a neutral surface; the icon's colour says what kind (ADR 0183): steel for information, burnt orange
+ * for a warning, the failed colour for an error (something couldn't be read or done).
+ */
+export function Notice({ tone = "info", children }: { tone?: "info" | "warning" | "error"; children: ReactNode }) {
   const NoticeIcon = tone === "info" ? InfoIcon : WarningCircleIcon;
   return (
     <p className="flex items-start gap-2.5 rounded-sm border border-line bg-surface-raised/70 px-4 py-3 text-sm text-ink">
-      <NoticeIcon size={16} weight="fill" className={`mt-0.5 shrink-0 ${tone === "info" ? "text-info" : "text-caution"}`} aria-hidden />
+      <NoticeIcon size={16} weight="fill" className={`mt-0.5 shrink-0 ${NOTICE_ICON_COLOUR[tone]}`} aria-hidden />
       <span>{children}</span>
     </p>
   );

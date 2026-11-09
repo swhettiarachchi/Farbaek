@@ -4,6 +4,7 @@ import { GithubLogoIcon, LockSimpleIcon, WarningCircleIcon } from "@phosphor-ico
 import { useActionState, useId } from "react";
 import { importGitHubAction, type GitHubImportState } from "@/app/app/projects/github-actions";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 
 const IDLE: GitHubImportState = { status: "idle" };
 
@@ -22,7 +23,7 @@ export function GitHubImportForm({ disabledReason, privateImport }: { disabledRe
   const disabled = Boolean(disabledReason) || pending;
   return (
     <form action={action} className="grid gap-3">
-      <label htmlFor={id} className="text-sm font-medium">
+      <label htmlFor={id} className={LABEL_CLASSES}>
         Repository
       </label>
       <div className="relative">
@@ -40,7 +41,7 @@ export function GitHubImportForm({ disabledReason, privateImport }: { disabledRe
           disabled={disabled}
           aria-invalid={error ? true : undefined}
           aria-describedby={`${id}-hint ${id}-private${error ? ` ${id}-error` : ""}`}
-          className="h-11 w-full rounded-sm border border-line-strong/60 bg-surface pl-10 pr-3.5 font-mono text-base shadow-e1 transition-colors placeholder:text-ink-3 focus:border-accent disabled:bg-surface-raised"
+          className={inputClasses("pl-10 font-mono")}
         />
       </div>
       <p id={`${id}-hint`} className="text-xs leading-relaxed text-ink-3">

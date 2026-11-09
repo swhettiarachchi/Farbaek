@@ -72,9 +72,9 @@ export const FILMS = {
     chapters: [
       { id: "review", label: "Review", start: 0, caption: "Review a change file by file. Keep what you want, reject the rest." },
       { id: "approve", label: "Approve", start: 6_500, caption: "Approval binds to a hash of exactly what you saw. Change one character and it stops matching.", tryIt: { href: "#demo", label: "Try it yourself" } },
-      { id: "checks", label: "Checks", start: 14_000, caption: "Checks run in a test space against the applied files. Exit codes decide, and a check that didn't run says so." },
+      { id: "checks", label: "Checks", start: 14_000, caption: "Checks run in a test space against the applied files. The real results decide, and a check that didn't run says so." },
       { id: "proof", label: "ProofPack", start: 22_500, caption: "A ProofPack records what ran, against which files, and what it doesn't prove.", tryIt: { href: "#evidence", label: "Read a ProofPack" } },
-      { id: "gate", label: "Launch gate", start: 29_000, caption: "Publishing needs a clean check of these exact files, then the live check confirms them." },
+      { id: "gate", label: "Before publishing", start: 29_000, caption: "Publishing needs a clean check of these exact files, then the live check confirms them." },
       { id: "undo", label: "Undo", start: 35_500, caption: "An applied change can be undone, and the undo is recorded too." },
     ],
   },

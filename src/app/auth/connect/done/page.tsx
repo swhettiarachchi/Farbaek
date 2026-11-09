@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { buttonClasses } from "@/components/ui/button";
 import { CODE_PATTERN, STATE_PATTERN, callbackUrl } from "@/server/phone/tokens";
+import { FOCUSED_TITLE } from "@/components/ui/titles";
 
 export const metadata: Metadata = { title: "Back to the Farbaek app", robots: { index: false, follow: false }, referrer: "no-referrer" };
 
@@ -29,13 +30,13 @@ export default async function ConnectDonePage({ searchParams }: { searchParams: 
       {target ? <meta httpEquiv="refresh" content={`0;url=${target}`} /> : null}
       <div className="flex items-center gap-2">
         <BrandLogo height={40} preload />
-        <span className="text-[1.125rem] font-semibold tracking-[-0.02em]">Farbaek</span>
+        <span className="text-lg font-semibold tracking-[-0.02em]">Farbaek</span>
       </div>
       <div className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
         <div className="rounded-md bg-surface p-6 shadow-e1" role="status">
           {code ? <CheckCircleIcon size={32} weight="fill" className="text-verified" aria-hidden /> : <WarningCircleIcon size={32} weight="fill" className="text-failed" aria-hidden />}
-          <h1 className="mt-4 text-xl font-medium tracking-[-0.02em]">{code ? "Connected. Back to the app" : "The phone wasn't connected"}</h1>
-          <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink-2">
+          <h1 className={`mt-4 ${FOCUSED_TITLE}`}>{code ? "Connected. Back to the app" : "The phone wasn't connected"}</h1>
+          <p className="mt-2 text-body leading-relaxed text-ink-2">
             {code ? "The Farbaek app finishes signing in on its own. If it didn't open, tap the button." : error ? ERRORS[error] : "This page opens from the Farbaek app. Open it on your phone and tap Sign in."}
           </p>
           {target ? (

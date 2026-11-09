@@ -7,6 +7,7 @@ import { startTransition, useActionState, useId, useRef, useState, useTransition
 import { destinationFileAction, destinationHashesAction, importCapsuleAction, type CapsuleImportState, type FileResult } from "@/app/app/mesh/actions";
 import { ProofPackSeal } from "@/components/proof/proofpack-seal";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { LocalTime } from "@/components/ui/local-time";
 import { StatusGlyph } from "@/components/ui/status-badge";
 import { CAPSULE_LIMITS } from "@/config/workspace";
@@ -169,7 +170,7 @@ export function CapsuleOpen({ destinations, disabledReason }: { destinations: De
         className={`flex min-h-36 cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-line-strong/50 bg-surface px-6 py-8 text-center transition-colors duration-150 hover:border-accent/60 has-focus-visible:outline-2 has-focus-visible:outline-accent ${reading || importing ? "pointer-events-none opacity-60" : ""}`}
       >
         <FileZipIcon size={32} className="text-accent" aria-hidden />
-        <span className="text-[0.9375rem] font-medium">{reading ? "Checking every file…" : opened ? "Choose a different Capsule" : "Choose a Capsule"}</span>
+        <span className="text-body font-medium">{reading ? "Checking every file…" : opened ? "Choose a different Capsule" : "Choose a Capsule"}</span>
         <span className="text-sm text-ink-3">A .capsule.zip from Farbaek, up to {formatBytes(CAPSULE_LIMITS.maxTotalBytes).replace(" ", "\u00a0")}. It&apos;s checked here before anything is sent.</span>
         <input type="file" accept=".zip,application/zip" className="sr-only" disabled={reading || importing} onChange={(e) => void onFile(e.target.files?.[0])} />
       </label>
@@ -182,7 +183,7 @@ export function CapsuleOpen({ destinations, disabledReason }: { destinations: De
 
       {opened && !opened.ok ? (
         <div role="alert" className="grid gap-3 rounded-sm border border-failed/30 bg-failed/[0.04] px-4 py-4">
-          <p className="flex items-start gap-2 text-[0.9375rem] font-medium text-failed">
+          <p className="flex items-start gap-2 text-body font-medium text-failed">
             <StatusGlyph status="failed" size={20} className="mt-px" />
             This Capsule didn&apos;t pass its checks, so it can&apos;t be opened.
           </p>
@@ -234,14 +235,14 @@ export function CapsuleOpen({ destinations, disabledReason }: { destinations: De
 
             {mode === "new" ? (
               <label className="grid gap-1.5">
-                <span className="text-sm font-medium">Project name</span>
+                <span className={LABEL_CLASSES}>Project name</span>
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   maxLength={80}
                   required
                   disabled={importing}
-                  className="h-11 w-full min-w-0 rounded-sm border border-line bg-surface px-3.5 text-base text-ink outline-none focus:border-accent/60"
+                  className={inputClasses("min-w-0")}
                 />
                 <span className="text-xs text-ink-3">Every file in the Capsule goes into a new project in this workspace.</span>
               </label>
@@ -250,13 +251,13 @@ export function CapsuleOpen({ destinations, disabledReason }: { destinations: De
             ) : (
               <div className="grid gap-4">
                 <label className="grid gap-1.5" htmlFor={`${id}-target`}>
-                  <span className="text-sm font-medium">Project</span>
+                  <span className={LABEL_CLASSES}>Project</span>
                   <select
                     id={`${id}-target`}
                     value={target}
                     onChange={(e) => chooseTarget(e.target.value)}
                     disabled={importing}
-                    className="h-11 w-full min-w-0 rounded-sm border border-line bg-surface px-3 text-base text-ink outline-none focus:border-accent/60"
+                    className={inputClasses("min-w-0")}
                   >
                     <option value="">Choose a project</option>
                     {destinations.map((d) => (
@@ -336,7 +337,7 @@ export function CapsuleOpen({ destinations, disabledReason }: { destinations: De
 
           {result?.status === "done" ? (
             <div role="status" className="grid gap-2 rounded-sm border border-verified/30 bg-verified/[0.05] px-4 py-4">
-              <p className="flex items-start gap-2 text-[0.9375rem]">
+              <p className="flex items-start gap-2 text-body">
                 <StatusGlyph status="verified" size={20} className="mt-px" />
                 <span>
                   <span className="font-medium">Imported.</span> {plural(result.written, "file", "files")} written
@@ -382,7 +383,7 @@ function Report({ opened }: { opened: Extract<OpenedCapsule, { ok: true }> }) {
     <div className="grid gap-5 sm:grid-cols-[132px_minmax(0,1fr)] sm:items-start">
       <ProofPackSeal hash={digest} caption="Capsule verified" hashText={blake3Short(digest)} size={132} idSuffix="-open" className="size-[132px] justify-self-center sm:justify-self-start" />
       <div className="grid min-w-0 gap-3">
-        <p className="flex items-start gap-2 text-[0.9375rem]">
+        <p className="flex items-start gap-2 text-body">
           <StatusGlyph status="verified" size={20} className="mt-px" />
           <span>
             <span className="font-medium">Every file matches its hash.</span> {plural(manifest.totals.files, "file", "files")}, {formatBytes(manifest.totals.bytes)}, all text. Nothing in a Capsule runs or installs.

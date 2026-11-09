@@ -89,7 +89,7 @@ export function ChecksPanel({
             {task.checks.length ? (
               <ul className="mt-3 grid gap-1.5">
                 {task.checks.map((c) => (
-                  <li key={c} className="break-all rounded-sm border border-line px-3 py-2 font-mono text-[0.8125rem]">
+                  <li key={c} className="break-all rounded-sm border border-line px-3 py-2 font-mono text-label">
                     {c}
                   </li>
                 ))}
@@ -163,7 +163,7 @@ export function ChecksPanel({
                 <li key={e.id} className="rounded-sm border border-line px-3 py-2">
                   <p className="flex items-center gap-2 text-sm">
                     <StatusGlyph status={kind} size={16} />
-                    <code className="min-w-0 flex-1 truncate font-mono text-[0.8125rem]" title={e.command}>
+                    <code className="min-w-0 flex-1 truncate font-mono text-label" title={e.command}>
                       {e.command}
                     </code>
                     <span className={`shrink-0 text-xs font-medium ${kindText(kind)}`}>{e.exitCode !== null ? `Failed (exit ${e.exitCode})` : EXECUTION_STATE_LABELS[e.state]}</span>

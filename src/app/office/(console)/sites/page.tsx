@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { OfficeActionForm } from "@/components/office/action-form";
-import { officeInputClass, ReasonField } from "@/components/office/fields";
+import { ReasonField } from "@/components/office/fields";
+import { LABEL_CLASSES, textareaClasses } from "@/components/ui/field";
 import { RelativeTime } from "@/components/ui/local-time";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { requireStaff } from "@/server/office/access";
@@ -45,11 +46,11 @@ export default async function OfficeSites() {
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4 sm:p-5">
                   <div className="min-w-0 flex-1">
                     {domain && s.live ? (
-                      <a href={`https://${address}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 break-all font-mono text-[0.9375rem] text-accent hover:underline">
+                      <a href={`https://${address}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 break-all font-mono text-body text-accent hover:underline">
                         {address} <ArrowUpRightIcon size={14} weight="bold" className="shrink-0" aria-hidden />
                       </a>
                     ) : (
-                      <p className="break-all font-mono text-[0.9375rem] text-ink">{address}</p>
+                      <p className="break-all font-mono text-body text-ink">{address}</p>
                     )}
                     <p className="mt-1 text-xs text-ink-3">
                       <Link href={`/workspaces/${s.orgId}`} className="hover:text-ink hover:underline">
@@ -76,8 +77,8 @@ export default async function OfficeSites() {
                         <OfficeActionForm action={blockSiteAction} submit={`Take ${s.name} offline`} tone="danger" className="grid max-w-xl gap-3">
                           <input type="hidden" name="siteId" value={s.id} />
                           <label htmlFor={`notice-${s.id}`} className="grid gap-1.5 text-sm">
-                            <span className="font-medium text-ink">Notice the owner will see</span>
-                            <textarea id={`notice-${s.id}`} name="notice" required minLength={10} maxLength={500} rows={2} className={`${officeInputClass} h-auto min-h-20 py-3`} placeholder="What was found and how to appeal" />
+                            <span className={LABEL_CLASSES}>Notice the owner will see</span>
+                            <textarea id={`notice-${s.id}`} name="notice" required minLength={10} maxLength={500} rows={2} className={textareaClasses()} placeholder="What was found and how to appeal" />
                           </label>
                           <ReasonField id={`block-${s.id}`} label="Internal reason, for the audit log" />
                         </OfficeActionForm>

@@ -63,7 +63,7 @@ export default async function IncidentsPage() {
               <li key={i.id}>
                 <Link href={`/app/incidents/${i.number}`} className="flex min-h-16 flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 transition-colors duration-150 hover:bg-canvas-2 sm:flex-nowrap sm:px-5">
                   <div className="grid min-w-0 flex-1 basis-full gap-1 sm:basis-auto">
-                    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.9375rem] font-medium">
+                    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body font-medium">
                       <span className="text-ink-3 tabular">#{i.number}</span> <span className="min-w-0">{i.title}</span>
                       {demo ? <StatusBadge status="simulated" label="Sample" /> : null}
                     </p>

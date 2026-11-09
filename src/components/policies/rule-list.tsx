@@ -15,7 +15,7 @@ export function RuleList({ rules }: { rules: readonly WorkspaceRule[] }) {
         const { icon: EffectIcon, className } = ICON[r.effect];
         return (
           <li key={r.id} className="grid gap-1.5 rounded-sm border border-line bg-surface-raised/50 px-4 py-3">
-            <p className="flex items-start gap-2.5 text-[0.9375rem] leading-relaxed">
+            <p className="flex items-start gap-2.5 text-body leading-relaxed">
               <EffectIcon size={16} weight="bold" className={`mt-1 shrink-0 ${className}`} aria-hidden />
               <span>
                 <span className="sr-only">{EFFECTS[r.effect].label}: </span>

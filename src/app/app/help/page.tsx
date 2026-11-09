@@ -81,7 +81,7 @@ export default async function HelpPage() {
                     <span className="grid min-w-0 flex-1 gap-2">
                       <span className="flex min-w-0 items-start gap-2">
                         {r.unread ? <span className="mt-[7px] size-2 shrink-0 rounded-full bg-accent" aria-hidden /> : null}
-                        <span className={`line-clamp-2 text-[0.9375rem] leading-snug text-ink ${r.unread ? "font-semibold" : "font-medium"}`}>{r.subject}</span>
+                        <span className={`line-clamp-2 text-body leading-snug text-ink ${r.unread ? "font-semibold" : "font-medium"}`}>{r.subject}</span>
                         {r.unread ? <span className="sr-only">, new reply</span> : null}
                       </span>
                       <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-xs text-ink-3">

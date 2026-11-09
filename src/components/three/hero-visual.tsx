@@ -132,7 +132,7 @@ export function HeroVisual() {
             setChosenHold(!held);
             writeHold(!held);
           }}
-          className="absolute bottom-0 right-0 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-surface/80 px-3.5 text-[0.8125rem] text-ink-2 ring-1 ring-line backdrop-blur-xl transition-colors duration-150 hover:text-ink"
+          className="absolute bottom-0 right-0 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-surface/80 px-3.5 text-label text-ink-2 ring-1 ring-line backdrop-blur-xl transition-colors duration-150 hover:text-ink"
         >
           {held ? <PlayIcon size={14} weight="fill" aria-hidden /> : <PauseIcon size={14} weight="fill" aria-hidden />}
           {held ? "Play motion" : "Pause motion"}

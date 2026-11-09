@@ -5,12 +5,11 @@ import { useActionState } from "react";
 import { removeGitHubTokenAction, setGitHubTokenAction, type GitHubTokenState } from "@/app/app/settings/github-actions";
 import { TOKEN_CREATION_URL } from "@/core/github/pull-request";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { LocalTime } from "@/components/ui/local-time";
 import { StatusGlyph } from "@/components/ui/status-badge";
 
 const IDLE: GitHubTokenState = { status: "idle" };
-
-const field = "min-h-11 w-full rounded-sm border border-line bg-surface px-3 text-base focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
 /**
  * The workspace's GitHub connection in Settings (ADR 0126). Everyone sees
@@ -74,9 +73,9 @@ export function GitHubConnectionCard({
             <li>Under Repository access, choose only the repositories Farbaek should change.</li>
             <li>Generate the token and paste it here.</li>
           </ol>
-          <label className="grid gap-1.5 text-sm font-medium">
-            Fine-grained token
-            <input name="token" type="password" autoComplete="off" spellCheck={false} required minLength={40} maxLength={300} placeholder="github_pat_…" disabled={busy} className={`${field} font-mono`} />
+          <label className="grid gap-1.5">
+            <span className={LABEL_CLASSES}>Fine-grained token</span>
+            <input name="token" type="password" autoComplete="off" spellCheck={false} required minLength={40} maxLength={300} placeholder="github_pat_…" disabled={busy} className={inputClasses("font-mono")} />
           </label>
           <div className="flex flex-wrap items-center gap-3">
             <button type="submit" disabled={busy} className={buttonClasses("secondary", "sm")}>

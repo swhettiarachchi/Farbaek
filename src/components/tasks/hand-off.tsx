@@ -4,6 +4,7 @@ import { DesktopIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState } from "react";
 import { requestHandoffAction, type HandoffState } from "@/app/app/tasks/handoff-actions";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 
 const IDLE: HandoffState = { status: "idle" };
 
@@ -16,9 +17,9 @@ export function HandOff({ taskId, computers, disabledReason }: { taskId: string;
       <input type="hidden" name="taskId" value={taskId} />
       {computers.length > 0 ? (
         <div className="grid gap-3 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]">
-          <label className="grid gap-1.5 text-sm font-medium">
+          <label className={`grid gap-1.5 ${LABEL_CLASSES}`}>
             Computer
-            <select name="agentId" required disabled={off} className="min-h-11 rounded-sm border border-line-strong bg-surface px-3 text-base text-ink">
+            <select name="agentId" required disabled={off} className={inputClasses()}>
               {computers.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -26,9 +27,9 @@ export function HandOff({ taskId, computers, disabledReason }: { taskId: string;
               ))}
             </select>
           </label>
-          <label className="grid gap-1.5 text-sm font-medium">
+          <label className={`grid gap-1.5 ${LABEL_CLASSES}`}>
             Note for yourself (optional)
-            <input name="note" maxLength={500} disabled={off} placeholder="Check the checkout flow on the real database" className="min-h-11 rounded-sm border border-line-strong bg-surface px-3 text-base text-ink placeholder:text-ink-3" />
+            <input name="note" maxLength={500} disabled={off} placeholder="Check the checkout flow on the real database" className={inputClasses()} />
           </label>
         </div>
       ) : null}

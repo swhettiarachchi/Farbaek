@@ -10,6 +10,7 @@
 import { CubeIcon, ImagesIcon, LinkSimpleIcon, SwapIcon, UploadSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useId, useState } from "react";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { COLOURWAYS, MEDIA_LIBRARY, SCENE_DESCRIPTIONS, SCENE_NAMES, mediaUrl, type LibraryItem } from "@/core/media/library";
 import { PHOTO_SUBJECTS, photoFacts, photoUrl, subjectForText, type PhotoSubject } from "@/core/media/photos";
@@ -18,8 +19,6 @@ import { IMAGE_ACCEPT } from "@/core/workspace/images";
 type Source = "photos" | "library" | "yours" | "link";
 
 const SHAPES = { wide: { library: "still-16x9.webp", w: 1600, h: 900 }, tall: { library: "still-4x5.webp", w: 1080, h: 1350 } } as const;
-
-const fieldClass = "min-h-11 w-full rounded-sm border border-line bg-surface px-3 text-base focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
 /** The "Placeholder" mark: a stand-in to look at before the site goes out, so it needs a look (ADR 0183). */
 export function PlaceholderChip() {
@@ -139,10 +138,10 @@ export function MediaReplace({
         <div className="grid gap-2">
           <div className="flex flex-wrap items-end gap-2">
             <div className="grid min-w-0 flex-1 gap-1.5">
-              <label htmlFor={`${id}-subject`} className="text-xs text-ink-2">
+              <label htmlFor={`${id}-subject`} className={LABEL_CLASSES}>
                 Subject
               </label>
-              <select id={`${id}-subject`} value={subject} onChange={(e) => setSubject(e.target.value as PhotoSubject)} className={fieldClass}>
+              <select id={`${id}-subject`} value={subject} onChange={(e) => setSubject(e.target.value as PhotoSubject)} className={inputClasses()}>
                 {(Object.entries(PHOTO_SUBJECTS) as [PhotoSubject, (typeof PHOTO_SUBJECTS)[PhotoSubject]][]).map(([key, s]) => (
                   <option key={key} value={key}>
                     {s.words.charAt(0).toUpperCase() + s.words.slice(1)}
@@ -264,7 +263,7 @@ export function MediaReplace({
 
       {source === "link" ? (
         <div className="grid gap-1.5">
-          <label htmlFor={`${id}-link`} className="text-sm font-medium">
+          <label htmlFor={`${id}-link`} className={LABEL_CLASSES}>
             {kind === "image" ? "Image address" : "Video address"}
           </label>
           <input
@@ -275,7 +274,7 @@ export function MediaReplace({
             autoComplete="off"
             spellCheck={false}
             placeholder="https://"
-            className={`${fieldClass} font-mono`}
+            className={inputClasses("font-mono")}
           />
           <p className="text-xs text-ink-3">{kind === "image" ? "An https address of an image." : "An https address of an mp4 or webm file, such as one you host yourself."}</p>
           <div>

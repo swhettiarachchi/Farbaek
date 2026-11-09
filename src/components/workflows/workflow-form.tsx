@@ -4,12 +4,12 @@ import { MinusCircleIcon, PlusIcon, UsersThreeIcon, WarningCircleIcon } from "@p
 import { useActionState, useState } from "react";
 import { createWorkflowAction, type WorkflowState } from "@/app/app/workflows/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES, textareaClasses } from "@/components/ui/field";
 
 const IDLE: WorkflowState = { status: "idle" };
 const MAX_STEPS = 8;
 /** Agent teams (ADR 0128): at most this many steps run at the same time. */
 const MAX_TEAM = 3;
-const input = "h-11 w-full rounded-sm border border-line-strong/60 bg-surface px-3 text-base sm:text-sm";
 
 interface Step {
   key: number;
@@ -57,12 +57,12 @@ export function WorkflowForm({
       <input type="hidden" name="steps" value={JSON.stringify(steps.map(({ title, notes, checkpoint, together }, i) => ({ title, notes, checkpoint, together: i > 0 && together })))} />
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium">Title</span>
-          <input name="title" required minLength={3} maxLength={120} placeholder="Harden the cart and checkout" className={input} disabled={blocked} />
+          <span className={LABEL_CLASSES}>Title</span>
+          <input name="title" required minLength={3} maxLength={120} placeholder="Harden the cart and checkout" className={inputClasses()} disabled={blocked} />
         </label>
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium">Project</span>
-          <select name="projectId" required defaultValue={defaultProject ?? projects[0]?.id} className={input} disabled={blocked}>
+          <span className={LABEL_CLASSES}>Project</span>
+          <select name="projectId" required defaultValue={defaultProject ?? projects[0]?.id} className={inputClasses()} disabled={blocked}>
             {projects.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -95,11 +95,11 @@ export function WorkflowForm({
               </div>
               <label className="grid gap-1.5">
                 <span className="sr-only">Step {i + 1} title</span>
-                <input value={s.title} onChange={(e) => update(s.key, { title: e.target.value })} required minLength={3} maxLength={200} placeholder="What this step changes" className={input} />
+                <input value={s.title} onChange={(e) => update(s.key, { title: e.target.value })} required minLength={3} maxLength={200} placeholder="What this step changes" className={inputClasses()} />
               </label>
               <label className="grid gap-1.5">
-                <span className="text-xs text-ink-3">Notes for the plan (optional)</span>
-                <textarea value={s.notes} onChange={(e) => update(s.key, { notes: e.target.value })} maxLength={2000} rows={2} className={`${input} h-auto min-h-16 py-2`} />
+                <span className={LABEL_CLASSES}>Notes for the plan (optional)</span>
+                <textarea value={s.notes} onChange={(e) => update(s.key, { notes: e.target.value })} maxLength={2000} rows={2} className={textareaClasses()} />
               </label>
               <label className="flex min-h-11 cursor-pointer items-center gap-3">
                 <input type="checkbox" checked={s.checkpoint} onChange={(e) => update(s.key, { checkpoint: e.target.checked })} className="size-4 accent-[var(--color-accent)]" />
@@ -149,7 +149,7 @@ export function WorkflowForm({
           <label key={c.choice} className="flex min-h-11 cursor-pointer items-start gap-3 py-1">
             <input type="radio" name="cap" value={c.choice} defaultChecked={i === 0} className="mt-1 size-4 accent-[var(--color-accent)]" />
             <span className="grid gap-0.5">
-              <span className="text-[0.9375rem] font-medium">{c.title}</span>
+              <span className="text-body font-medium">{c.title}</span>
               <span className="text-sm text-ink-2">{c.detail}</span>
             </span>
           </label>

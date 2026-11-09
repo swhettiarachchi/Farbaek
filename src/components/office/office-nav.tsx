@@ -108,7 +108,7 @@ export function OfficeNav({ layout, badges = {} }: { layout: "column" | "bar"; b
                   href={item.href}
                   transitionTypes={PAGE_NAV}
                   aria-current={active ? "page" : undefined}
-                  className={`flex h-11 items-center gap-3 rounded-full px-3.5 text-[0.90625rem] transition-colors duration-150 ${
+                  className={`flex h-11 items-center gap-3 rounded-full px-3.5 text-sm transition-colors duration-150 ${
                     active
                       ? "bg-surface font-medium text-ink shadow-e1"
                       : "text-ink-3 hover:bg-surface/70 hover:text-ink"

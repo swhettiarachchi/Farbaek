@@ -108,7 +108,7 @@ export default async function IncidentPage({ params }: { params: Promise<{ numbe
 
       {incident.status === "resolved" ? (
         <Card>
-          <p className="flex items-start gap-2.5 text-[0.9375rem] leading-relaxed">
+          <p className="flex items-start gap-2.5 text-body leading-relaxed">
             <CheckCircleIcon size={20} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
             <span>
               <span className="font-medium">Resolved {incident.resolvedAt ? <RelativeTime iso={incident.resolvedAt} /> : null}.</span> {incident.outcome}

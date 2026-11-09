@@ -11,6 +11,7 @@ import { DeleteFile } from "@/components/files/delete-file";
 import { FileEditor } from "@/components/files/file-editor";
 import { RevisionDiff } from "@/components/files/revision-diff";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses } from "@/components/ui/field";
 import { FileTree, fileHref } from "@/components/files/file-tree";
 import { ImportFiles } from "@/components/files/import-files";
 import { RelativeTime } from "@/components/ui/local-time";
@@ -20,6 +21,7 @@ import { loadWhyGraph } from "@/server/insights/why-graph";
 import { WhyCard } from "@/components/files/why-card";
 import { imageMime } from "@/core/workspace/images";
 import type { FileRevision, SearchHit } from "@/server/workspace/types";
+import { PAGE_TITLE } from "@/components/ui/titles";
 
 export const metadata: Metadata = { title: "Files" };
 
@@ -89,8 +91,8 @@ export default async function FilesPage({
           <ArrowLeftIcon size={14} weight="bold" aria-hidden /> {project.name}
         </Link>
         <div className="mt-3 flex flex-col gap-1">
-          <h1 className="text-[1.75rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2.1rem]">Files</h1>
-          <p className="text-[0.9375rem] text-ink-2">
+          <h1 className={PAGE_TITLE}>Files</h1>
+          <p className="text-body text-ink-2">
             {files.length === 0 ? (
               "No files yet."
             ) : (
@@ -137,9 +139,9 @@ export default async function FilesPage({
                 defaultValue={query}
                 maxLength={200}
                 placeholder="Search in files"
-                className="h-11 min-w-0 flex-1 rounded-sm border border-line-strong/60 bg-surface px-3.5 text-base shadow-e1 focus:border-accent"
+                className={inputClasses("min-w-0 flex-1")}
               />
-              <button type="submit" className="flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-surface shadow-e1 hover:bg-canvas-2" aria-label="Search">
+              <button type="submit" className="flex size-12 shrink-0 items-center justify-center rounded-full border border-line-2 bg-surface shadow-e1 hover:bg-canvas-2" aria-label="Search">
                 <MagnifyingGlassIcon size={16} weight="bold" aria-hidden />
               </button>
             </form>
@@ -167,11 +169,11 @@ export default async function FilesPage({
                 </div>
                 {nameMatches.length > 0 ? (
                   <div className="mt-4">
-                    <p className="text-[0.8125rem] font-medium text-ink-3">Matching file names</p>
+                    <p className="text-label font-medium text-ink-3">Matching file names</p>
                     <ul className="mt-2 grid gap-1">
                       {nameMatches.map((f) => (
                         <li key={f.path}>
-                          <Link href={fileHref(project.id, f.path)} className="font-mono text-[0.8125rem] break-all text-accent hover:underline">
+                          <Link href={fileHref(project.id, f.path)} className="font-mono text-label break-all text-accent hover:underline">
                             {f.path}
                           </Link>
                         </li>
@@ -184,13 +186,13 @@ export default async function FilesPage({
                   <div className="mt-5 grid gap-5">
                     {[...grouped].map(([p, lines]) => (
                       <div key={p} className="min-w-0">
-                        <Link href={fileHref(project.id, p)} className="font-mono text-[0.8125rem] font-medium break-all hover:text-accent">
+                        <Link href={fileHref(project.id, p)} className="font-mono text-label font-medium break-all hover:text-accent">
                           {p}
                         </Link>
                         <ul className="mt-1.5 overflow-hidden rounded-sm border border-line">
                           {lines.map((h) => (
                             <li key={h.line} className="border-b border-line last:border-b-0">
-                              <Link href={fileHref(project.id, p, h.line)} className="flex gap-3 px-3 py-1.5 font-mono text-[0.8125rem] hover:bg-surface-raised">
+                              <Link href={fileHref(project.id, p, h.line)} className="flex gap-3 px-3 py-1.5 font-mono text-label hover:bg-surface-raised">
                                 <span className="w-10 shrink-0 text-right text-ink-3 tabular">{h.line}</span>
                                 <span className="min-w-0 truncate whitespace-pre">
                                   {highlight(h.text.trimEnd(), query).map((part, i) =>
@@ -217,7 +219,7 @@ export default async function FilesPage({
 
             {path && !file && !(historyMode && revisions.length > 0) ? (
               <EmptyState icon={FileDashedIcon} title="File not found" action={<Link href={base} className="text-sm text-accent hover:underline">Back to all files</Link>}>
-                There&apos;s no current file at <span className="font-mono text-[0.8125rem] break-all">{path}</span>. It may have been deleted or renamed.
+                There&apos;s no current file at <span className="font-mono text-label break-all">{path}</span>. It may have been deleted or renamed.
               </EmptyState>
             ) : null}
 
@@ -231,7 +233,7 @@ export default async function FilesPage({
                   <AddImage projectId={project.id} disabledReason={writeReason} />
                 </div>
                 <div className="mt-6 border-t border-line pt-5">
-                  <h3 className="text-[0.9375rem] font-medium">Or generate one</h3>
+                  <h3 className="text-body font-medium">Or generate one</h3>
                   <p className="mt-1 text-sm text-ink-2">Describe it, and Farbaek makes it straight into the project.</p>
                   <div className="mt-4">
                     <GenerateImage projectId={project.id} disabledReason={writeReason ?? imageGeneration().reason} />
@@ -243,7 +245,7 @@ export default async function FilesPage({
             {file && editing && !creating && isImage ? (
               <Card>
                 <CardTitle icon={ImageIcon}>
-                  Replace <span className="font-mono text-[0.9375rem] break-all">{file.path}</span>
+                  Replace <span className="font-mono text-body break-all">{file.path}</span>
                 </CardTitle>
                 <p className="mt-1 text-sm text-ink-2">The new image becomes the next revision. Pages that link to this path show it straight away.</p>
                 <div className="mt-4">
@@ -265,7 +267,7 @@ export default async function FilesPage({
                   <CardTitle icon={ClockCounterClockwiseIcon} className="mt-2">
                     History
                   </CardTitle>
-                  <p className="mt-0.5 font-mono text-[0.8125rem] break-all text-ink-2">{path}</p>
+                  <p className="mt-0.5 font-mono text-label break-all text-ink-2">{path}</p>
                 </div>
                 {why ? <WhyCard graph={why} scanned={why.scanned} /> : null}
                 <ol className="overflow-hidden rounded-md border border-line bg-surface">
@@ -324,7 +326,7 @@ export default async function FilesPage({
                       All files
                     </Link>
                     <CardTitle icon={isImage ? ImageIcon : FileIcon}>
-                      <span className="font-mono text-[0.9375rem] break-all">{file.path}</span>
+                      <span className="font-mono text-body break-all">{file.path}</span>
                     </CardTitle>
                     <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-ink-3">
                       <span>

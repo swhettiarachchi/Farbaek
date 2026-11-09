@@ -151,7 +151,7 @@ struct ProjectDetailView: View {
 
     private func tasks(_ tasks: [TaskItem]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            SectionTitle("Tasks")
+            SectionTitle("Tasks", symbol: "list.bullet")
             if tasks.isEmpty {
                 Notice(text: "No tasks in this project yet.").card()
             } else {

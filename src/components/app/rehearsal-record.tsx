@@ -10,7 +10,7 @@ function Verdict({ summary, since, replay }: { summary: RehearsalSummary; since:
   const { verdict, total, wouldApply } = summary;
   if (verdict === "nothing_yet")
     return (
-      <p className="text-[0.9375rem]">
+      <p className="text-body">
         {replay ? (
           <>No changes since <LocalTime iso={since} /> to replay.</>
         ) : (
@@ -22,26 +22,26 @@ function Verdict({ summary, since, replay }: { summary: RehearsalSummary; since:
     );
   if (verdict === "none_would_apply")
     return (
-      <p className="text-[0.9375rem]">
+      <p className="text-body">
         None of the {plural(total, "change", "changes")} would have applied on its own. So far, this setting would have changed nothing.
       </p>
     );
   if (verdict === "would_have_paused")
     return (
-      <p className="flex items-start gap-2 text-[0.9375rem]">
+      <p className="flex items-start gap-2 text-body">
         <WarningCircleIcon size={16} weight="fill" className="mt-1 shrink-0 text-failed" aria-hidden />
         <span>This setting would have paused itself: a change it would have applied failed its checks.</span>
       </p>
     );
   if (verdict === "people_disagreed")
     return (
-      <p className="flex items-start gap-2 text-[0.9375rem]">
+      <p className="flex items-start gap-2 text-body">
         <WarningCircleIcon size={16} weight="fill" className="mt-1 shrink-0 text-caution" aria-hidden />
         <span>Someone discarded a change that would have applied on its own. Look at it before you turn this on.</span>
       </p>
     );
   return (
-    <p className="flex items-start gap-2 text-[0.9375rem]">
+    <p className="flex items-start gap-2 text-body">
       <CheckCircleIcon size={16} weight="fill" className="mt-1 shrink-0 text-verified" aria-hidden />
       <span>
         Of the {plural(wouldApply, "change", "changes")} that would have applied on their own, none failed its checks and none was discarded.

@@ -44,8 +44,8 @@ export function FirstRunTour() {
                 ) : null}
                 <span className="relative flex size-11 items-center justify-center rounded-full border border-line bg-surface text-accent shadow-e1">{s.node}</span>
                 <div className="pt-1">
-                  <h3 className="text-[1rem] font-medium tracking-[-0.01em]">{s.title}</h3>
-                  <p className="mt-1 text-[0.90625rem] leading-relaxed text-ink-2">{s.body}</p>
+                  <h3 className="text-base font-medium tracking-[-0.01em]">{s.title}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-ink-2">{s.body}</p>
                 </div>
               </li>
             ))}
@@ -57,7 +57,7 @@ export function FirstRunTour() {
         <CardTitle id="first-run-ideas" icon={LayoutIcon}>
           Start from something like these
         </CardTitle>
-        <p className="mt-2 max-w-[56ch] text-[0.9375rem] leading-relaxed text-ink-2">
+        <p className="mt-2 max-w-[56ch] text-body leading-relaxed text-ink-2">
           Concept mockups of the kind of thing you can ask for. Pick one, and its sentence goes into the build box for you to change.
         </p>
         <div className="mt-6">
@@ -83,8 +83,8 @@ export function FirstRunTour() {
                 </span>
                 <CapabilityStatusPill status={c.status} />
               </div>
-              <h3 className="mt-4 text-[1rem] font-medium tracking-[-0.01em]">{c.title}</h3>
-              <p className="mt-1 text-[0.90625rem] leading-relaxed text-ink-2">{c.body}</p>
+              <h3 className="mt-4 text-base font-medium tracking-[-0.01em]">{c.title}</h3>
+              <p className="mt-1 text-sm leading-relaxed text-ink-2">{c.body}</p>
               {c.waiting ? <p className="mt-2 text-xs text-ink-3">{c.waiting}</p> : null}
             </li>
           ))}

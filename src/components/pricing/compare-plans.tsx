@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { CompareCellView, type CompareGroup } from "./compare-cell";
 
 interface PlanOption {
@@ -9,8 +10,6 @@ interface PlanOption {
   /** "$11.88 a year", "$9.99 a month" or "Nothing". */
   charge: string;
 }
-
-const select = "min-h-11 w-full rounded-sm border border-line-strong bg-canvas px-3 text-base text-ink";
 
 /**
  * The plan comparison on a phone: ten columns don't fit, so people pick two
@@ -32,23 +31,23 @@ export function ComparePlans({ plans, groups, initial }: { plans: PlanOption[]; 
     <div className="grid gap-4">
       <div className="grid grid-cols-2 gap-3 rounded-md border border-line bg-surface p-4">
         {([0, 1] as const).map((side) => (
-          <label key={side} className="grid min-w-0 gap-1.5 text-sm text-ink-2">
+          <label key={side} className={`grid min-w-0 gap-1.5 ${LABEL_CLASSES}`}>
             {side === 0 ? "Compare" : "With"}
-            <select className={select} value={pair[side]} onChange={(e) => choose(side, e.target.value)}>
+            <select className={inputClasses()} value={pair[side]} onChange={(e) => choose(side, e.target.value)}>
               {plans.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>
               ))}
             </select>
-            <span data-web-purchase className="text-xs text-ink-3 tabular">{named[side]!.charge}</span>
+            <span data-web-purchase className="text-xs font-normal text-ink-3 tabular">{named[side]!.charge}</span>
           </label>
         ))}
       </div>
 
       {groups.map((group) => (
         <details key={group.title} open className="group min-w-0 rounded-md border border-line bg-surface">
-          <summary className="flex min-h-13 cursor-pointer list-none items-center justify-between px-4 py-3 text-[1.0625rem] font-medium [&::-webkit-details-marker]:hidden">
+          <summary className="flex min-h-13 cursor-pointer list-none items-center justify-between px-4 py-3 text-title-4 font-medium [&::-webkit-details-marker]:hidden">
             {group.title}
             <span className="text-sm font-normal text-ink-3 group-open:hidden">Show</span>
             <span className="hidden text-sm font-normal text-ink-3 group-open:inline">Hide</span>

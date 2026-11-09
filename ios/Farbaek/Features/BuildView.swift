@@ -264,7 +264,7 @@ struct PlanReviewView: View {
 
         if !plan.criteria.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                SectionTitle("Done when")
+                SectionTitle("Done when", symbol: "doc.plaintext")
                 // As on the web: each line and how it's checked, with the mark of who checks it: a person, or a check.
                 ForEach(plan.criteria, id: \.self) { criterion in
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
@@ -290,7 +290,7 @@ struct PlanReviewView: View {
         }
 
         VStack(alignment: .leading, spacing: 8) {
-            SectionTitle("Files it may touch")
+            SectionTitle("Files it may touch", symbol: "folder")
             ForEach(plan.files, id: \.self) { path in
                 Text(path).font(.caption.monospaced()).foregroundStyle(Palette.ink2)
             }
@@ -311,7 +311,7 @@ struct PlanReviewView: View {
 
         if !plan.questions.isEmpty || !plan.assumptions.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                SectionTitle("Open questions and assumptions")
+                SectionTitle("Open questions and assumptions", symbol: "questionmark.circle")
                 ForEach(plan.questions, id: \.self) { q in
                     Label(q, systemImage: "questionmark.circle").font(.footnote).foregroundStyle(Palette.approval)
                 }

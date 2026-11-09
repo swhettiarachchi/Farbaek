@@ -4,6 +4,7 @@ import { ArrowClockwiseIcon, CheckCircleIcon, WarningCircleIcon } from "@phospho
 import { useActionState, useId, useState } from "react";
 import { renewAgentLeaseAction, setAgentLeaseAction, type AgentLeaseState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { LocalTime } from "@/components/ui/local-time";
 import { StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { AGENT_CAPABILITIES, CAPABILITY_LABELS, LEASE_DAY_CHOICES, LEASE_LIMITS, leaseSummary, type AgentLease, type LeaseState } from "@/core/agent/lease";
@@ -124,18 +125,18 @@ export function AgentLeasePanel({
             <legend className="mb-1 text-sm font-medium">Projects</legend>
             <label className="flex min-h-11 cursor-pointer items-center gap-3">
               <input type="radio" name="scope" value="all" checked={scope === "all"} onChange={() => setScope("all")} className="size-4 shrink-0 accent-[var(--color-accent)]" />
-              <span className="text-[0.9375rem]">Every project, including new ones</span>
+              <span className="text-body">Every project, including new ones</span>
             </label>
             <label className="flex min-h-11 cursor-pointer items-center gap-3">
               <input type="radio" name="scope" value="some" checked={scope === "some"} onChange={() => setScope("some")} disabled={projects.length === 0} className="size-4 shrink-0 accent-[var(--color-accent)]" />
-              <span className="text-[0.9375rem]">Only the projects I choose</span>
+              <span className="text-body">Only the projects I choose</span>
             </label>
             {scope === "some" ? (
               <div className="ml-7 grid gap-0.5 border-l border-line pl-4">
                 {projects.map((p) => (
                   <label key={p.id} className="flex min-h-11 cursor-pointer items-center gap-3">
                     <input type="checkbox" name="project" value={p.id} defaultChecked={lease.projects?.includes(p.id) ?? false} className="size-4 shrink-0 accent-[var(--color-accent)]" />
-                    <span className="min-w-0 truncate text-[0.9375rem]">{p.name}</span>
+                    <span className="min-w-0 truncate text-body">{p.name}</span>
                   </label>
                 ))}
               </div>
@@ -148,7 +149,7 @@ export function AgentLeasePanel({
               <label key={c} className="flex min-h-11 cursor-pointer items-start gap-3 py-1.5">
                 <input type="checkbox" name="capability" value={c} defaultChecked={lease.capabilities.includes(c)} className="mt-1 size-4 shrink-0 accent-[var(--color-accent)]" />
                 <span className="grid gap-0.5">
-                  <span className="text-[0.9375rem] font-medium">{CAPABILITY_LABELS[c].title}</span>
+                  <span className="text-body font-medium">{CAPABILITY_LABELS[c].title}</span>
                   <span className="text-sm text-ink-2">{CAPABILITY_LABELS[c].detail}</span>
                 </span>
               </label>
@@ -156,7 +157,7 @@ export function AgentLeasePanel({
           </fieldset>
 
           <div className="grid gap-1.5">
-            <label htmlFor={`${id}-rate`} className="text-sm font-medium">
+            <label htmlFor={`${id}-rate`} className={LABEL_CLASSES}>
               Requests an hour, at most
             </label>
             <input
@@ -170,7 +171,7 @@ export function AgentLeasePanel({
               defaultValue={lease.actionsPerHour}
               disabled={blocked}
               aria-describedby={`${id}-rate-help`}
-              className="min-h-11 w-full max-w-48 rounded-sm border border-line bg-surface px-3 text-base tabular focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className={inputClasses("max-w-48 tabular")}
             />
             <p id={`${id}-rate-help`} className="text-xs text-ink-3">
               {LEASE_LIMITS.minActionsPerHour} to {LEASE_LIMITS.maxActionsPerHour.toLocaleString("en-US")}. Each model step is one request, plus a few to read the task and send the change. Sending files between your devices isn&apos;t counted.

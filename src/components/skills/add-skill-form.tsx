@@ -4,6 +4,7 @@ import { CheckCircleIcon, PlusIcon, UploadSimpleIcon, WarningCircleIcon } from "
 import { useActionState, useState } from "react";
 import { addSkillAction, type SkillState } from "@/app/app/projects/[projectId]/skill-actions";
 import { buttonClasses } from "@/components/ui/button";
+import { LABEL_CLASSES, textareaClasses } from "@/components/ui/field";
 
 const IDLE: SkillState = { status: "idle" };
 
@@ -24,7 +25,7 @@ export function AddSkillForm({ projectId, disabledReason, quietReason = false }:
     <form action={action} className="grid gap-3">
       <input type="hidden" name="projectId" value={projectId} />
       <label className="grid gap-1.5">
-        <span className="text-sm font-medium">SKILL.md</span>
+        <span className={LABEL_CLASSES}>SKILL.md</span>
         <textarea
           name="content"
           value={content}
@@ -32,7 +33,7 @@ export function AddSkillForm({ projectId, disabledReason, quietReason = false }:
           rows={8}
           placeholder={EXAMPLE}
           disabled={Boolean(disabledReason) || pending}
-          className="rounded-sm border border-line bg-surface px-3.5 py-3 font-mono text-[0.8125rem] leading-relaxed text-ink outline-none placeholder:text-ink-3 focus:border-accent/60"
+          className={textareaClasses("font-mono")}
         />
       </label>
       <div className="flex flex-wrap items-center gap-3">

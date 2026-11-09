@@ -59,7 +59,7 @@ export function GraphAnalyticsView({ a }: { a: GraphAnalytics }) {
   return (
     <div className="grid gap-4">
       {/* The totals as a person would say them (ADR 0180): numbers in sentences, each with what it counts. */}
-      <p className="max-w-3xl text-[0.9375rem] leading-relaxed text-ink-2">
+      <p className="max-w-3xl text-body leading-relaxed text-ink-2">
         {a.askToVerified.count && a.askToVerified.ms !== null ? (
           <>
             A task here usually takes <Num>{spoken(a.askToVerified.ms)}</Num> from the ask to passed checks, the median over <Num>{a.askToVerified.count}</Num>{" "}
@@ -132,7 +132,7 @@ export function GraphAnalyticsView({ a }: { a: GraphAnalytics }) {
                 <li key={f.path} className="flex min-w-0 gap-2.5">
                   <FileCodeIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
                   <span className="grid min-w-0 gap-0.5">
-                    <span className="truncate font-mono text-[0.8125rem] text-ink" title={f.path}>
+                    <span className="truncate font-mono text-label text-ink" title={f.path}>
                       {f.path}
                     </span>
                     <span className="text-xs text-ink-3">
