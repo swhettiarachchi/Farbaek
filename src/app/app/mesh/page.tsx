@@ -94,6 +94,7 @@ export default async function MeshPage() {
         </div>
         <p className="mt-2 mb-5 max-w-[68ch] text-sm leading-relaxed text-ink-2">
           Pair this device once with one of your computers, then send it photos and files from here. They go directly between the two when the networks allow it, encrypted end to end, and the computer checks every piece.
+          Pairing starts on the computer, in Nearby, the desktop app&apos;s page for sending files between your devices.
         </p>
         <PhoneMesh
           computers={relayAgents.map((a) => ({ id: a.id, name: a.name, fingerprint: a.meshFingerprint!, reachableNow: hub?.isReachable(a.id) ?? false }))}
@@ -107,20 +108,21 @@ export default async function MeshPage() {
             <h2 className="flex items-center gap-2 text-lg font-medium">
               <DevicesIcon size={20} className="text-ink-3" aria-hidden /> Your devices
             </h2>
-            <span className="text-sm text-ink-3">In the Farbaek Agent</span>
+            <span className="text-sm text-ink-3">In the desktop app</span>
           </div>
           <p className="mt-3 text-sm leading-relaxed text-ink-2">
-            The Farbaek Agent sends a folder straight to your other computer on the same network. Pair the two once with a six-digit code; every piece is then encrypted and checked against its hash as it arrives, and nothing passes through Farbaek. So far it has been checked between two agents on one computer.
+            Nearby, in the desktop app, sends a folder straight to your other computer on the same network. Pair the two once with a six-digit code. After that, every piece is encrypted
+            and checked as it arrives, and nothing passes through Farbaek. So far it has been tested with two copies of the app on one computer.
           </p>
           <div className="mt-4 grid gap-3 rounded-sm border border-line bg-surface-raised/50 p-4">
             <p className="flex items-center gap-2 text-sm font-medium text-ink">
               <GlobeSimpleIcon size={16} className="text-accent" aria-hidden /> Between your computers, anywhere
             </p>
             <p className="text-sm leading-relaxed text-ink-2">
-              Paired computers on different networks can send over the internet too, while both apps are open. Farbaek helps the two find each other, then the files go directly between them when both networks allow it. When a direct link is blocked, the person sending can choose Farbaek&apos;s relay instead, which passes the bytes along without being able to read them and keeps nothing. Everything is encrypted end to end. Each agent turns it on in Nearby.
+              Paired computers on different networks can send over the internet too, while both apps are open. Farbaek helps the two find each other, then the files go directly between them when both networks allow it. When a direct link is blocked, the person sending can choose Farbaek&apos;s relay instead. The relay passes the files along without being able to read them, and keeps nothing. Everything is encrypted end to end. Each computer turns it on in Nearby.
             </p>
             {relayAgents.length === 0 ? (
-              <p className="text-sm text-ink-3">{ctx.mode === "demo" ? "The demo workspace has no agents." : "No agent in this workspace has it turned on."}</p>
+              <p className="text-sm text-ink-3">{ctx.mode === "demo" ? "The demo workspace has no computers." : "No computer in this workspace has it turned on."}</p>
             ) : (
               <ul className="divide-y divide-line">
                 {relayAgents.map((a) => {
@@ -144,7 +146,7 @@ export default async function MeshPage() {
             ) : null}
           </div>
           <Link href="/app/agents" className="mt-4 inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-accent hover:underline">
-            About the Farbaek Agent <ArrowRightIcon size={14} aria-hidden />
+            About the desktop app <ArrowRightIcon size={14} aria-hidden />
           </Link>
         </Card>
 

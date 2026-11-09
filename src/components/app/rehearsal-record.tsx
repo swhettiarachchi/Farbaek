@@ -1,4 +1,4 @@
-import { ArrowRightIcon, CheckCircleIcon, InfoIcon, PauseCircleIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { LocalTime } from "@/components/ui/local-time";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -10,28 +10,26 @@ function Verdict({ summary, since, replay }: { summary: RehearsalSummary; since:
   const { verdict, total, wouldApply } = summary;
   if (verdict === "nothing_yet")
     return (
-      <p className="flex items-start gap-2 text-[0.9375rem]">
-        <InfoIcon size={18} className="mt-0.5 shrink-0 text-simulated" aria-hidden />
+      <p className="text-[0.9375rem]">
         {replay ? (
-          <span>No changes since <LocalTime iso={since} /> to replay.</span>
+          <>No changes since <LocalTime iso={since} /> to replay.</>
         ) : (
-          <span>
+          <>
             No changes yet since practice began <LocalTime iso={since} />. Each new change notes whether it would have applied on its own.
-          </span>
+          </>
         )}
       </p>
     );
   if (verdict === "none_would_apply")
     return (
-      <p className="flex items-start gap-2 text-[0.9375rem]">
-        <InfoIcon size={18} className="mt-0.5 shrink-0 text-simulated" aria-hidden />
-        <span>None of the {plural(total, "change", "changes")} would have applied on its own. So far, this setting would have changed nothing.</span>
+      <p className="text-[0.9375rem]">
+        None of the {plural(total, "change", "changes")} would have applied on its own. So far, this setting would have changed nothing.
       </p>
     );
   if (verdict === "would_have_paused")
     return (
       <p className="flex items-start gap-2 text-[0.9375rem]">
-        <PauseCircleIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+        <WarningCircleIcon size={18} weight="bold" className="mt-0.5 shrink-0 text-failed" aria-hidden />
         <span>This setting would have paused itself: a change it would have applied failed its checks.</span>
       </p>
     );
@@ -76,7 +74,8 @@ export function RehearsalRecord({ summary, since, replay }: { summary: Rehearsal
         <h3 id={replay ? "replay-heading" : "rehearsal-heading"} className="text-base font-medium">
           {replay ? "Replay of the last 30 days" : "Practice record"}
         </h3>
-        <StatusBadge status="simulated" label={replay ? "Predicted" : "Practice"} />
+        {/* A practice or replayed result says it's a sample (ADR 0180). */}
+        <StatusBadge status="simulated" label="Sample" />
       </div>
 
       <Verdict summary={summary} since={since} replay={Boolean(replay)} />

@@ -22,13 +22,13 @@ export function SiteFooter() {
           <p className="font-medium text-ink">Contact</p>
           <p>
             <span className="block text-ink-3">General</span>
-            <a href={`mailto:${CONTACT.hello}`} className="text-ink-2 hover:text-ink">
+            <a href={`mailto:${CONTACT.hello}`} className="inline-flex min-h-11 items-center text-ink-2 hover:text-ink">
               {CONTACT.hello}
             </a>
           </p>
           <p>
             <span className="block text-ink-3">Help</span>
-            <a href={`mailto:${CONTACT.support}`} className="text-ink-2 hover:text-ink">
+            <a href={`mailto:${CONTACT.support}`} className="inline-flex min-h-11 items-center text-ink-2 hover:text-ink">
               {CONTACT.support}
             </a>
           </p>

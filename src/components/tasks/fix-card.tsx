@@ -1,4 +1,3 @@
-import { WrenchIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { startFixAction } from "@/app/app/tasks/[taskId]/fix-actions";
 import { Card, Notice, TaskStateBadge } from "@/components/app/primitives";
@@ -20,11 +19,9 @@ export function freeRetryWords(included: boolean): string {
 export function FixCard({ taskId, fix, open, retryIncluded, disabledReason, error }: { taskId: string; fix: TaskFix | null; open: boolean; retryIncluded: boolean; disabledReason: string | null; error: string | null }) {
   return (
     <Card id="fix" className="scroll-mt-24">
-      <h2 className="flex items-center gap-2 text-lg font-medium">
-        <WrenchIcon size={20} className="text-ink-3" aria-hidden /> Ask the agent to fix it
-      </h2>
+      <h2 className="text-lg font-medium">Ask the agent to fix it</h2>
       <p className="mt-1 text-sm leading-relaxed text-ink-2">
-        Farbaek opens a new task with this task&apos;s approved intent and a note naming the checks that failed. You review its plan, then start the agent. {freeRetryWords(retryIncluded)}
+        Farbaek opens a new task with this task&apos;s approved plan and a note naming the checks that failed. You review its plan, then start the agent. {freeRetryWords(retryIncluded)}
       </p>
       {error ? (
         <div className="mt-4">

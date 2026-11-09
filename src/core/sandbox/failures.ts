@@ -26,14 +26,14 @@ export const FAILURE_LABELS: Record<FailureCategory, { title: string; action: st
   timeout: { title: "The time limit was reached", action: "Run a shorter step, or raise the limit within your plan." },
   resource_limit: { title: "A resource limit was reached", action: "The process was stopped for memory, disk or process limits. Use a larger size or a lighter command." },
   cancelled: { title: "Cancelled", action: "Nothing else to do. Run it again if you still need it." },
-  provider_unavailable: { title: "The sandbox runtime didn't respond", action: "This is on the runtime's side. Try again shortly; nothing ran twice." },
-  provider_rejected: { title: "The sandbox runtime refused the request", action: "Check the runtime's key, template and account limits in Settings." },
-  sandbox_gone: { title: "The sandbox no longer exists", action: "It reached the runtime's own time limit or was removed. Start a new session." },
+  provider_unavailable: { title: "The test space service didn't respond", action: "This is on the service's side, and nothing ran twice. Try again in a few minutes." },
+  provider_rejected: { title: "The test space service turned this away", action: "Write to support@farbaek.com if it keeps happening." },
+  sandbox_gone: { title: "This test space no longer exists", action: "It reached its time limit or was removed. Start a new session." },
   not_authorized: { title: "Not allowed", action: "Your role or the session's owner doesn't allow this." },
   quota_exceeded: { title: "Plan limit reached", action: "Stop a running session or wait for the next usage period." },
   invalid_request: { title: "The request wasn't valid", action: "Check the values and try again." },
   control_plane_interrupted: { title: "Farbaek lost track of this run", action: "The server restarted while it ran. The result is unknown, so run it again." },
-  cleanup_failed: { title: "Cleanup didn't finish", action: "Farbaek keeps retrying. The runtime's own time limit still ends the sandbox." },
+  cleanup_failed: { title: "Cleanup didn't finish", action: "Farbaek keeps retrying, and the test space's own time limit ends it anyway." },
 };
 
 /**

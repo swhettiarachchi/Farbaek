@@ -1,17 +1,17 @@
 import { waitingChanges } from "@/server/workspace/waiting-changes";
-import { ArrowRightIcon, ListChecksIcon, SquaresFourIcon, TrayIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, ListChecksIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Card, EmptyState, Notice, PageHeader, StatTile, TaskStateBadge } from "@/components/app/primitives";
+import { Card, EmptyState, Notice, PageHeader, TaskStateBadge } from "@/components/app/primitives";
 import { NeedsYouCard } from "@/components/app/needs-you-card";
 import { ProjectCard } from "@/components/app/project-card";
 import { UsageMeterList } from "@/components/app/usage-meters";
 import { PromptComposer } from "@/components/build/prompt-composer";
 import { ButtonLink } from "@/components/ui/button";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
-import { TRIAL, getPlan } from "@/core/billing/catalog";
+import { getPlan } from "@/core/billing/catalog";
 import { needsYou } from "@/core/realityloop/needs-you";
 import { TERMINAL_STATES } from "@/core/realityloop/task-machine";
 import { firstSteps } from "@/core/workspace/first-steps";
@@ -77,9 +77,10 @@ export default async function MissionControl() {
     .filter((p) => !p.archivedAt)
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
     .slice(0, 4);
-  const unfinished = tasks.filter((t) => !TERMINAL_STATES.has(t.state));
-  // Nothing in an archived project can change, so it never asks for anyone's turn.
+  // Nothing in an archived project can change, so it never asks for anyone's turn, and its tasks aren't open work.
   const archived = new Set(projects.filter((p) => p.archivedAt).map((p) => p.id));
+  const activeProjects = projects.length - archived.size;
+  const unfinished = tasks.filter((t) => !TERMINAL_STATES.has(t.state) && !archived.has(t.projectId));
   // The demo is a tour of what people see, as on a task's page. A read-only workspace has its own notice, and nobody can act.
   const tour = ctx.mode === "demo";
   const manager = ctx.role !== null && MANAGER_ROLES.includes(ctx.role);
@@ -88,12 +89,14 @@ export default async function MissionControl() {
   const questions = lanes.needs_you.filter((r) => !archived.has(r.projectId) && (tour || manager || r.startedBy === ctx.user.id));
   const needs = tour || ctx.writes.enabled ? needsYou({ ...sorted, questions }) : null;
   const limits = ws.plan.limits;
-  const trialActive = ws.trial?.phase.phase === "active";
+  // Only while the workspace is still on its trial: a paid plan bought during it doesn't move to Free.
+  const trialDays = ws.plan.source === "trial" && ws.trial?.phase.phase === "active" ? ws.trial.phase.daysRemaining : null;
 
+  const checksMode = currentExecutionMode();
   const steps = firstSteps(
     { projects: projects.filter((p) => !p.archivedAt), tasks, ...stepRecords },
     {
-      checks: currentExecutionMode().mode === "sandboxed" ? null : "Checks can't run on this server yet, so changes stay unverified.",
+      checks: checksMode.mode === "sandboxed" ? null : checksMode.reason,
       publishing: siteDomain() ? null : "Publishing isn't set up on this server yet.",
     },
   );
@@ -108,10 +111,20 @@ export default async function MissionControl() {
       <PageHeader
         title="Home"
         description={
-          <>
-            {ws.name} is on the <span className="font-medium text-ink">{getPlan(ws.plan.planId).name}</span>
-            {ws.plan.source === "trial" ? " trial" : " plan"}.
-          </>
+          trialDays !== null && ws.trial ? (
+            <>
+              {ws.name} is on the <span className="font-medium text-ink">{getPlan(ws.plan.planId).name}</span> trial, with {trialDays} {trialDays === 1 ? "day" : "days"} left. It ends on{" "}
+              <LocalTime iso={ws.trial.endsAt} date />. Then the workspace moves to Free, and nothing is charged.{" "}
+              <Link href="/app/billing" className="font-medium text-accent hover:underline">
+                See usage
+              </Link>
+            </>
+          ) : (
+            <>
+              {ws.name} is on the <span className="font-medium text-ink">{getPlan(ws.plan.planId).name}</span>
+              {ws.plan.source === "trial" ? " trial" : " plan"}.
+            </>
+          )
         }
       />
 
@@ -125,19 +138,13 @@ export default async function MissionControl() {
 
       {showSteps ? <FirstStepsPanel data={steps} composer={composerInSteps ? composer : undefined} /> : null}
 
-      {trialActive && ws.trial ? (
-        <Notice>
-          {ws.trial.phase.phase === "active" ? `${ws.trial.phase.daysRemaining} ${ws.trial.phase.daysRemaining === 1 ? "day" : "days"}` : "No time"} left in your {getPlan(TRIAL.basePlan).name} trial. It ends on{" "}
-          <LocalTime iso={ws.trial.endsAt} date />, then this workspace moves to Free and nothing is charged. <Link href="/app/billing" className="font-medium text-accent hover:underline">See usage</Link>
-        </Notice>
-      ) : null}
       {ws.billingUnknown ? <Notice tone="warning">We couldn&apos;t read this workspace&apos;s plan, so some things are paused for safety. Please contact support.</Notice> : null}
 
       {recent.length > 0 ? (
         <section aria-labelledby="recent-heading" className="grid gap-4">
           <div className="flex items-center justify-between gap-3">
-            <h2 id="recent-heading" className="flex items-center gap-2 text-lg font-medium">
-              <SquaresFourIcon size={20} weight="bold" className="text-accent" aria-hidden /> Recent work
+            <h2 id="recent-heading" className="text-lg font-medium">
+              Recent work
             </h2>
             <Link href="/app/projects" className="inline-flex min-h-11 items-center gap-1 text-sm text-accent hover:underline">
               All projects <ArrowRightIcon size={14} aria-hidden />
@@ -156,8 +163,8 @@ export default async function MissionControl() {
 
       <section aria-labelledby="inbox-heading" className="grid gap-4">
         <div className="flex items-center justify-between gap-3">
-          <h2 id="inbox-heading" className="flex items-center gap-2 text-lg font-medium">
-            <TrayIcon size={20} weight="bold" className="text-accent" aria-hidden /> What the agent is doing
+          <h2 id="inbox-heading" className="text-lg font-medium">
+            What the agent is doing
           </h2>
           <Link href="/app/build" className="inline-flex min-h-11 items-center gap-1 text-sm text-accent hover:underline">
             Build <ArrowRightIcon size={14} aria-hidden />
@@ -169,24 +176,14 @@ export default async function MissionControl() {
           <Notice tone="warning">The agent runs couldn&apos;t be read right now. Reload the page to try again.</Notice>
         ) : runs.length === 0 ? (
           <p className="text-sm leading-relaxed text-ink-2">
-            No runs yet. Describe a build above: Farbaek drafts a plan, and once you approve it the agent works in the cloud on Farbaek&apos;s AI, with no API key.
+            No runs yet. Describe a build above, and Farbaek drafts a plan. Once you approve it, the agent works in the cloud on Farbaek&apos;s AI, so you don&apos;t need your own
+            AI account.
           </p>
         ) : (
           <AgentInbox lanes={lanes} proposals={inbox.proposals} />
         )}
         <LiveRefresh active={live} />
       </section>
-
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
-        <StatTile
-          label="Projects"
-          value={`${projects.length}`}
-          detail={limits.workspaces === null ? "Active projects." : `Active. Your plan allows ${number.format(limits.workspaces)}.`}
-          href="/app/projects"
-        />
-        <StatTile label="Open tasks" value={number.format(unfinished.length)} detail="Work that isn't finished yet." href="/app/tasks" />
-        <StatTile label="Waiting for you" value={number.format(sorted.mine.length)} detail="Changes that need your yes or no." href="/app/approvals" />
-      </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <Card>
@@ -196,6 +193,8 @@ export default async function MissionControl() {
               All tasks <ArrowRightIcon size={14} aria-hidden />
             </Link>
           </div>
+          {/* The counts as a sentence, not tiles (ADR 0180): each number is real, and says what it counts. */}
+          <WorkCounts projects={activeProjects} allowed={limits.workspaces} unfinished={unfinished.length} waiting={sorted.mine.length} />
           {tasks.length === 0 ? (
             <div className="mt-5">
               <EmptyState
@@ -274,5 +273,38 @@ export default async function MissionControl() {
 
       {stepsHidden && !steps.complete ? <FirstStepsHidden data={steps} /> : null}
     </div>
+  );
+}
+
+/** Home's counts in one or two sentences, with the number in each as its link. */
+function WorkCounts({ projects, allowed, unfinished, waiting }: { projects: number; allowed: number | null; unfinished: number; waiting: number }) {
+  if (projects === 0) return null;
+  const n = (value: number) => <span className="font-medium tabular-nums text-ink">{number.format(value)}</span>;
+  return (
+    <p className="mt-1 text-sm leading-relaxed text-ink-2">
+      You have{" "}
+      <Link href="/app/projects" className="hover:underline">
+        {n(projects)} active {projects === 1 ? "project" : "projects"}
+      </Link>
+      {allowed === null ? "." : <>, and your plan allows {n(allowed)}.</>}
+      {/* A change waiting for approval belongs to a task that isn't finished, so it's only said beside one. */}
+      {unfinished > 0 ? (
+        <>
+          {" "}
+          Across them, {n(unfinished)} {unfinished === 1 ? "task isn't" : "tasks aren't"} finished yet
+          {waiting > 0 ? (
+            <>
+              , and{" "}
+              <Link href="/app/approvals" className="hover:underline">
+                {n(waiting)} {waiting === 1 ? "change waits" : "changes wait"}
+              </Link>{" "}
+              for your yes or no.
+            </>
+          ) : (
+            "."
+          )}
+        </>
+      ) : null}
+    </p>
   );
 }

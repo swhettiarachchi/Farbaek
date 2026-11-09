@@ -92,13 +92,14 @@ export function HeroVisual() {
         className="pointer-events-none absolute inset-[-12%]"
         style={{
           background:
-            "radial-gradient(42% 38% at 50% 42%, rgb(36 80 240 / 0.10) 0%, rgb(10 110 133 / 0.05) 45%, transparent 72%)",
+            // Signal blue, with the aurora's cyan at its edge (ADR 0008).
+            "radial-gradient(42% 38% at 50% 42%, color-mix(in oklab, var(--color-accent) 10%, transparent) 0%, color-mix(in oklab, var(--color-accent-2) 5%, transparent) 45%, transparent 72%)",
         }}
       />
       <div
         aria-hidden
         className="hero-shadow pointer-events-none absolute bottom-[6%] left-1/2 h-[6%] w-[46%] -translate-x-1/2 rounded-[50%]"
-        style={{ background: "radial-gradient(50% 50% at 50% 50%, rgb(18 19 23 / 0.16), transparent 70%)" }}
+        style={{ background: "radial-gradient(50% 50% at 50% 50%, color-mix(in oklab, var(--color-ink) 16%, transparent), transparent 70%)" }}
       />
 
       {/* The Loom's far side, the knight, then its near side over him. Drawn once mounted; still under reduced motion. */}

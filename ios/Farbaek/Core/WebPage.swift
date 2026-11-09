@@ -55,7 +55,15 @@ struct WebLink<Label: View>: View {
                 opening = false
             }
         } label: {
-            label()
+            // The one-time sign-in link takes a moment to make: a spinner says it's on its way.
+            HStack(spacing: 8) {
+                label()
+                if opening {
+                    ProgressView()
+                        .controlSize(.small)
+                        .accessibilityLabel("Opening")
+                }
+            }
         }
         .sheet(item: $page) { SafariView(url: $0.url).ignoresSafeArea() }
     }

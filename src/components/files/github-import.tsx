@@ -50,7 +50,7 @@ export function GitHubImportForm({ disabledReason, privateImport }: { disabledRe
         <LockSimpleIcon size={14} className="mt-0.5 shrink-0" aria-hidden />
         {privateImport.ready ? (
           <span>
-            Private repositories are read with the workspace&apos;s GitHub connection ({privateImport.login}), when the token can read them. Each one is recorded in Activity.
+            Private repositories are read with the workspace&apos;s GitHub connection ({privateImport.login}), when that connection can read them. Each one is recorded in History.
           </span>
         ) : (
           <span>{privateImport.reason}</span>

@@ -76,7 +76,7 @@ export type ExecutionState = (typeof EXECUTION_STATES)[number];
 
 export const EXECUTION_STATE_LABELS: Record<ExecutionState, string> = {
   running: "Running",
-  succeeded: "Exited 0",
+  succeeded: "Succeeded",
   failed: "Failed",
   timed_out: "Timed out",
   cancelled: "Cancelled",

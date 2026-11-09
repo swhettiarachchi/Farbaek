@@ -1,4 +1,4 @@
-import { ChatCircleDotsIcon, CheckCircleIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon } from "@phosphor-icons/react/ssr";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { LocalTime } from "@/components/ui/local-time";
 import { CUSTOMER_STATUS_WORDS, type SupportStatus } from "@/core/support/support";
@@ -6,11 +6,11 @@ import type { SupportMessageView } from "@/server/workspace/support";
 
 const STATUS_LOOK: Record<SupportStatus, { icon: typeof CheckCircleIcon | null; className: string }> = {
   waiting_on_farbaek: { icon: null, className: "bg-surface-raised text-ink-2" },
-  waiting_on_you: { icon: ChatCircleDotsIcon, className: "bg-accent/[0.08] text-accent" },
+  waiting_on_you: { icon: null, className: "bg-accent/[0.08] text-accent" },
   closed: { icon: CheckCircleIcon, className: "bg-surface-raised text-ink-3" },
 };
 
-/** A request's state in words with its own icon, never colour alone. */
+/** A request's state in words (ADR 0180), never colour alone; a mark only once it's closed. */
 export function SupportStatusChip({ status }: { status: SupportStatus }) {
   const look = STATUS_LOOK[status];
   return (

@@ -18,7 +18,7 @@ const render = (rows: RehearsalRow[]) => renderToStaticMarkup(createElement(Rehe
 
 describe("RehearsalRecord", () => {
   it("marks every decision as simulated", () => {
-    expect(render([])).toContain(">Practice<");
+    expect(render([])).toContain(">Sample<");
     expect(render([])).toContain("these are simulated decisions");
     expect(render([])).toContain("No changes yet");
   });
@@ -36,7 +36,7 @@ describe("RehearsalRecord", () => {
       createElement(RehearsalRecord, { summary: summarizeRehearsal([row({})]), since: SINCE, replay: { assumption: "It assumes a test space was connected when each change was made, as one is now.", leftOut: 2 } }),
     );
     expect(html).toContain("Replay of the last 30 days");
-    expect(html).toContain(">Predicted<");
+    expect(html).toContain(">Sample<");
     expect(html).toContain("assumes a test space was connected");
     expect(html).toContain("2 changes from the desktop agent are left out");
     expect(html).not.toContain("Rehearsing since");

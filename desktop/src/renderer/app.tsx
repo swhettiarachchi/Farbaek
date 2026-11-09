@@ -97,6 +97,13 @@ function StateBadge({ run }: { run: Pick<RunDetail, "state" | "discarded" | "pro
   );
 }
 
+/** A plan's operations in words, as the web's plan shows them; one Farbaek doesn't name stays as it was written. */
+const OPERATION_WORDS: Record<string, string> = { "files.create": "Add new files", "files.edit": "Edit files", "files.delete": "Delete files" };
+const sayOperation = (op: string) => OPERATION_WORDS[op] ?? op;
+
+/** Mono only for something that reads as a path; a word like "products" is a word (ADR 0180). */
+const looksLikePath = (s: string) => /[/.\\:_]/.test(s) && !/\s[a-z]+\s/.test(s);
+
 /** A lease within 14 days of its end (ADR 0117), the same warning the Agents page shows. */
 function leaseEndsSoon(expiresAt: string): boolean {
   const left = Date.parse(expiresAt) - Date.now();
@@ -413,9 +420,18 @@ function TaskPanel({ taskId, profile, localModel, onRunStarted }: { taskId: stri
               <dt>Outcome</dt>
               <dd>{task.contract.outcome}</dd>
               <dt>In scope</dt>
-              <dd className="mono small">{task.contract.resources.join(", ") || "Not limited by path"}</dd>
+              <dd className="small">
+                {task.contract.resources.length
+                  ? task.contract.resources.map((r, i) => (
+                      <span key={r}>
+                        {i > 0 ? ", " : null}
+                        {looksLikePath(r) ? <span className="mono">{r}</span> : r}
+                      </span>
+                    ))
+                  : "Not limited by path"}
+              </dd>
               <dt>Allowed</dt>
-              <dd className="mono small">{task.contract.allowed.join(", ")}</dd>
+              <dd className="small">{task.contract.allowed.map(sayOperation).join(", ")}</dd>
               {task.contract.acceptance.length ? (
                 <>
                   <dt>Done when</dt>
@@ -459,7 +475,7 @@ function TaskPanel({ taskId, profile, localModel, onRunStarted }: { taskId: stri
                 </label>
               ))}
             </div>
-            <p className="muted small">{EFFORT_LABELS[effort].detail} Farbaek picks the model, and the run uses your workspace&apos;s AI usage. No API key needed.</p>
+            <p className="muted small">{EFFORT_LABELS[effort].detail} Farbaek picks the model, and the run uses your workspace&apos;s AI usage. You don&apos;t need an AI account of your own.</p>
           </fieldset>
           {localModel ? (
             <fieldset className="effort">

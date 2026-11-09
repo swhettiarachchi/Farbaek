@@ -1,4 +1,8 @@
-/** Shown while a page in the app loads: the shape of a page, not a spinner. */
+/**
+ * Shown while a page in the app loads: the shape every page shares (a title, a
+ * line of description and cards below), not a spinner and not one page's layout,
+ * so nothing jumps into a different shape when the page arrives.
+ */
 export default function Loading() {
   const block = "rounded-sm bg-surface-sunken motion-safe:animate-pulse";
   return (
@@ -7,25 +11,13 @@ export default function Loading() {
         <div className={`${block} h-9 w-56 max-w-full`} />
         <div className={`${block} h-4 w-[34rem] max-w-full`} />
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="grid gap-3 rounded-md border border-line bg-surface p-5 shadow-e1">
-            <div className={`${block} h-3 w-20`} />
-            <div className={`${block} h-7 w-12`} />
-            <div className={`${block} h-3 w-full`} />
-          </div>
-        ))}
-      </div>
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-        {[0, 1].map((i) => (
-          <div key={i} className="grid gap-4 rounded-md border border-line bg-surface p-5 shadow-e1">
-            <div className={`${block} h-5 w-40`} />
-            {[0, 1, 2].map((j) => (
-              <div key={j} className={`${block} h-10 w-full`} />
-            ))}
-          </div>
-        ))}
-      </div>
+      {[0, 1].map((i) => (
+        <div key={i} className="grid gap-4 rounded-md border border-line bg-surface p-5 shadow-e1 sm:p-6">
+          <div className={`${block} h-5 w-40 max-w-full`} />
+          <div className={`${block} h-4 w-full`} />
+          <div className={`${block} h-4 w-2/3`} />
+        </div>
+      ))}
       <span className="sr-only">Loading…</span>
     </div>
   );

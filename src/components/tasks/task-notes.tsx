@@ -57,12 +57,8 @@ export function TaskNotesCard({ taskId, kind, notes, disabledReason }: { taskId:
         <ol className="grid gap-4">
           {notes.map((n) => (
             <li key={n.id} className="grid gap-3 rounded-md border border-line bg-surface-sunken/50 p-4">
-              <p className="flex flex-wrap items-center gap-2 text-xs text-ink-3">
-                <span className="inline-flex items-center gap-1 rounded-full border border-line bg-surface px-2.5 py-0.5 font-medium text-ink-2">
-                  <PenNibIcon size={12} aria-hidden /> AI-written {n.kind === "explanation" ? "explanation" : "audit report"}
-                </span>
-                <span>{modelName(n.model)}</span>
-                <RelativeTime iso={n.createdAt} />
+              <p className="text-xs text-ink-3">
+                Written by {modelName(n.model)}, <RelativeTime iso={n.createdAt} />.
               </p>
               {n.summary ? <p className="text-[0.9375rem] leading-relaxed text-ink">{n.summary}</p> : null}
               {n.points.length ? (

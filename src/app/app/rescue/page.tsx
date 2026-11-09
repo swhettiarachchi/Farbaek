@@ -38,11 +38,10 @@ export default async function RescuePage() {
         description="Made it with another AI builder or by hand? Bring it here: Farbaek looks for what could go wrong before your users find it, then helps you fix it."
       />
       <ol className="grid gap-3 sm:grid-cols-3">
-        {STEPS.map((s, i) => (
+        {STEPS.map((s) => (
           <li key={s.title} className="grid content-start gap-2 rounded-md border border-line bg-surface p-4 shadow-e1">
             <span className="flex items-center gap-2 text-sm font-medium">
-              <span className="grid size-7 place-items-center rounded-full bg-accent/[0.08] text-[0.8125rem] font-semibold text-accent tabular">{i + 1}</span>
-              <s.icon size={16} className="text-accent" aria-hidden /> {s.title}
+              <s.icon size={16} className="shrink-0 text-accent" aria-hidden /> {s.title}
             </span>
             <span className="text-sm leading-relaxed text-ink-2">{s.body}</span>
           </li>
@@ -51,7 +50,7 @@ export default async function RescuePage() {
       <RescueImport disabledReason={reason} />
       {scope?.kind === "rules" ? (
         <p className="text-sm text-ink-3">
-          On your plan, the check runs Farbaek&apos;s rules over every file and looks your packages up in OSV.dev. Package audits, code scanning and the AI review come with Plus.
+          On your plan, the check runs Farbaek&apos;s rules over every file and looks your packages up in known-vulnerability databases. Package audits, code scanning and the AI review come with Plus.
         </p>
       ) : !scope ? (
         <p className="text-sm text-ink-3">{PLAN_UNCONFIRMED_MESSAGE} You can still import the app, and run the check from its Security page later.</p>

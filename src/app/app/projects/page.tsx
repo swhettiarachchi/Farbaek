@@ -38,6 +38,13 @@ function projectCountWords(count: number, limit: number | null): string {
   return `${lead} You're using ${count} of the ${limit} your plan includes.`;
 }
 
+/** A project's tasks in a sentence, with no count when there's nothing to count. */
+function taskWords({ open, total }: { open: number; total: number }): string {
+  if (total === 0) return "No tasks yet.";
+  if (open === 0) return `${total} ${total === 1 ? "task" : "tasks"}, none open.`;
+  return `${open} of ${total} ${total === 1 ? "task" : "tasks"} open.`;
+}
+
 export default async function ProjectsPage() {
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
@@ -98,7 +105,7 @@ export default async function ProjectsPage() {
                     description={p.description}
                     meta={
                       <>
-                        {c.open} open of {c.total} {c.total === 1 ? "task" : "tasks"} · created <RelativeTime iso={p.createdAt} />
+                        {taskWords(c)} Created <RelativeTime iso={p.createdAt} />.
                       </>
                     }
                   />
@@ -111,7 +118,7 @@ export default async function ProjectsPage() {
         <div className="grid gap-6">
           <Card>
             <h2 className="text-lg font-medium">New project</h2>
-            <p className="mt-1 text-sm text-ink-2">Name it after the product or repository.</p>
+            <p className="mt-1 text-sm text-ink-2">Name it after your product.</p>
             <div className="mt-5">
               <CreateProjectForm disabledReason={disabledReason} />
             </div>
@@ -128,7 +135,7 @@ export default async function ProjectsPage() {
 
       {archived.length > 0 ? (
         // An archived project leaves the list but stays readable, so this is where it can be found again.
-        <Disclosure summary={archived.length === 1 ? "1 archived project" : `${archived.length} archived projects`} hint="Read-only, and not counted toward your plan. Open one to see its files, tasks and proof.">
+        <Disclosure summary="Archived projects" hint="Read-only, and not counted toward your plan. Open one to see its files, tasks and proof.">
           <ul className="divide-y divide-line overflow-hidden rounded-md border border-line bg-surface shadow-e1">
             {archived.map((p) => (
               <li key={p.id}>

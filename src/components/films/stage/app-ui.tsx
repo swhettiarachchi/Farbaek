@@ -12,7 +12,6 @@ import {
   ArrowUpIcon,
   CaretDownIcon,
   CheckCircleIcon,
-  CircleDashedIcon,
   CircleNotchIcon,
   CubeIcon,
   FilePlusIcon,
@@ -20,7 +19,6 @@ import {
   GlobeIcon,
   HammerIcon,
   HouseSimpleIcon,
-  InfoIcon,
   LockSimpleIcon,
   MagnifyingGlassIcon,
   DotsThreeOutlineIcon,
@@ -28,9 +26,6 @@ import {
   FolderSimpleIcon,
   PlusIcon,
   ShieldCheckIcon,
-  WarningIcon,
-  WarningOctagonIcon,
-  XCircleIcon,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
@@ -46,8 +41,9 @@ import { ScoreRing } from "@/components/security/score-ring";
 import { TEMPLATES } from "@/content/starters/templates";
 import { FARBAEK_SKILLS } from "@/content/skills";
 import { TRIAL, getPlan } from "@/core/billing/catalog";
+import { modelName } from "@/core/billing/rate-card";
 import { CHECK_LABELS } from "@/core/security/report";
-import { SEVERITY_LABELS, scoreOf, type Severity } from "@/core/security/findings";
+import { scoreOf } from "@/core/security/findings";
 import type { RunEventView } from "@/server/cloud-agent/store";
 import type { PublishPanelData } from "@/server/publish/panel";
 import { mix, progress, typed } from "../timeline";
@@ -71,7 +67,6 @@ export const SAMPLE = {
 const template = TEMPLATES.find((t) => t.id === "local-business")!;
 export const SITE_FILES: Record<string, string> = Object.fromEntries(template.files.map((f) => [f.path, f.content]));
 
-const short = (hex: string) => `sha256:${hex.slice(0, 8)}…${hex.slice(-4)}`;
 /** "Just now" for the product's own relative times, however long a recording takes. */
 const recently = () => new Date(Date.now() - 4000).toISOString();
 
@@ -226,18 +221,13 @@ export function PlanView({ t, from, approvedAt, compact = false }: { t: number; 
   return (
     <div className="grid gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3" style={{ opacity: s(0) }}>
-        <p className="flex flex-wrap items-baseline gap-x-2 text-[13px] text-ink-3">
-          <span className="font-medium">Your plan, version 1</span>
-          <span className="font-mono text-xs">{short(SAMPLE.planHash)}</span>
-        </p>
+        <p className="text-[13px] font-medium text-ink-3">Your plan, version 1</p>
         {approved ? (
           <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-verified/40 px-3 text-xs font-medium text-verified">
             <CheckCircleIcon size={14} weight="bold" aria-hidden /> Approved
           </span>
         ) : (
-          <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-approval/40 px-3 text-xs font-medium text-approval">
-            <ShieldCheckIcon size={14} weight="bold" aria-hidden /> Waiting for your approval
-          </span>
+          <span className="inline-flex h-7 items-center rounded-full border border-approval/40 px-3 text-xs font-medium text-approval">Waiting for your approval</span>
         )}
       </div>
       <div className="grid gap-1.5" style={{ opacity: s(0) }}>
@@ -370,7 +360,7 @@ export function RunView({ t, from, layout = "wide" }: { t: number; from: number;
           <p className="text-xs text-ink-3">{done ? "Finished" : "Working"}</p>
           <p className="truncate text-[17px] font-medium tracking-[-0.01em]">{phase}</p>
           <p className="mt-0.5 text-xs text-ink-3">
-            Step {Math.max(1, shown.length)}, balanced effort. <span className="font-mono">claude-opus-5-5</span>
+            {done ? `${shown.length} steps in a` : `Step ${Math.max(1, shown.length)} of a`} balanced run on {modelName("claude-opus-5-5")}.
           </p>
         </div>
       </div>
@@ -426,14 +416,6 @@ export function RunView({ t, from, layout = "wide" }: { t: number; from: number;
 
 // ------------------------------------------------------------------ check
 
-const SEVERITY_STYLE: Record<Severity, { icon: Icon; className: string }> = {
-  critical: { icon: XCircleIcon, className: "text-failed border-failed/50" },
-  high: { icon: WarningOctagonIcon, className: "text-failed border-failed/30" },
-  medium: { icon: WarningIcon, className: "text-approval border-approval/40" },
-  low: { icon: InfoIcon, className: "text-info border-info/40" },
-  info: { icon: CircleDashedIcon, className: "text-ink-3 border-line-strong/50 border-dashed" },
-};
-
 /** The security page's score card: the real ScoreRing filling as the check finishes. */
 export function CheckView({ t, from }: { t: number; from: number }) {
   const local = t - from;
@@ -463,37 +445,26 @@ export function CheckView({ t, from }: { t: number; from: number }) {
             <ScoreRing score={shownScore} grade={grade} />
           </div>
           <div className="grid gap-4">
-            <ul className="flex flex-wrap gap-2">
-              {(["critical", "high", "medium", "low"] as const).map((s) => {
-                const st = SEVERITY_STYLE[s];
-                return (
-                  <li key={s} className="flex items-center gap-2 text-sm">
-                    <span className={`inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium ${st.className}`}>
-                      <st.icon size={14} weight="bold" aria-hidden /> {SEVERITY_LABELS[s]}
-                    </span>
-                    <span className="tabular text-ink-2">0</span>
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="grid gap-1">
+              <p className="text-sm font-medium">Security check</p>
+              <p className="text-sm text-ink-2">It found nothing critical, high, medium or low.</p>
+            </div>
             <ul className="grid gap-1.5 text-sm">
               {[
                 { name: "rules" as const, ran: true, note: "0 found" },
-                { name: "dependencies" as const, ran: false, note: "Skipped: This project has no npm packages." },
+                { name: "dependencies" as const, ran: false, note: "skipped. This project has no npm packages." },
                 { name: "ai_review" as const, ran: true, note: "0 found" },
               ].map((c, i) => (
                 <li key={c.name} className="flex items-start gap-2" style={{ opacity: progress(local, 2600 + i * 250, 3100 + i * 250) }}>
-                  {c.ran ? <CheckCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden /> : <CircleDashedIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />}
+                  {c.ran ? <CheckCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden /> : <span className="size-4 shrink-0" aria-hidden />}
                   <span>
                     <span className="text-ink">{CHECK_LABELS[c.name]}</span>
-                    <span className="text-ink-3"> · {c.note}</span>
+                    <span className="text-ink-3">: {c.note}</span>
                   </span>
                 </li>
               ))}
             </ul>
-            <p className="text-xs text-ink-3">
-              Checked just now, 5 files. Report <span className="font-mono">{short(SAMPLE.digest)}</span>
-            </p>
+            <p className="text-xs text-ink-3">Checked just now, 5 files.</p>
           </div>
         </section>
       )}
@@ -565,7 +536,7 @@ type StepState = "done" | "now" | "todo";
 const CHAIN: { title: string; icon: Icon; text: string }[] = [
   { title: "Security check of these files", icon: ShieldCheckIcon, text: "The last check of exactly these files found nothing critical." },
   { title: "Proof for the latest change", icon: SealCheckIcon, text: "The change's checks ran against exactly what was applied." },
-  { title: "The version that's live", icon: CubeIcon, text: "Version 1 is live: 5 files, recorded with a SHA-256 digest of exactly those revisions." },
+  { title: "The version that's live", icon: CubeIcon, text: "Version 1 is live with 5 files, recorded exactly as they went out." },
 ];
 
 /** The Launch page's evidence chain, ticking in, then the real LiveCheck with its result. */

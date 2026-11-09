@@ -103,7 +103,7 @@ const SECTIONS: LegalSection[] = [
           requires it or to protect people from harm, and we ask it not to store the answers.
         </p>
         <p>
-          If an owner or admin gives your workspace its own Anthropic key, those requests go to Anthropic, or to the company gateway they set, under that account&apos;s own terms. Farbaek
+          If an owner or admin gives your workspace its own Anthropic key, those requests go to Anthropic, or through their company&apos;s own server, under that account&apos;s own terms. Farbaek
           keeps the key encrypted and never shows it again.
         </p>
         <p>Farbaek labels AI-drafted work, records which model drafted each change, and asks you to review it before it&apos;s applied. AI output can be wrong; see our Terms.</p>

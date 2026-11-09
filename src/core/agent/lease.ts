@@ -29,7 +29,7 @@ export const CAPABILITY_LABELS: Record<AgentCapability, { title: string; detail:
   read: { title: "Read tasks and files", detail: "See the tasks ready for work, their approved plans and the project's files." },
   propose: { title: "Suggest changes", detail: "Send a change for a person to review. A suggested change never applies itself." },
   model: { title: "Use Farbaek's AI", detail: "Model steps through Farbaek, counted against this workspace's AI usage." },
-  mesh: { title: "Mesh transfers", detail: "Send files between your own devices through Farbaek's relay." },
+  mesh: { title: "Send files between devices", detail: "Send projects and files between your own computers, phones and browsers through Farbaek." },
 };
 
 export const LEASE_HELP = "An owner, an admin or the person who paired it can change its access on the Desktop app page.";
@@ -45,7 +45,7 @@ const CAPABILITY_WORDS: Record<AgentCapability, string> = {
   read: "reading tasks and files",
   propose: "suggesting changes",
   model: "using Farbaek's AI",
-  mesh: "Mesh transfers",
+  mesh: "sending files between your devices",
 };
 
 /** Why the lease refuses a request, or null when it allows it. The server answers 403 with this. */
@@ -71,7 +71,7 @@ const CAPABILITY_PHRASES: Record<AgentCapability, string> = {
   read: "read tasks and files",
   propose: "suggest changes",
   model: "use Farbaek's AI",
-  mesh: "send Mesh transfers",
+  mesh: "send files between your devices",
 };
 
 export type LeaseState = "active" | "ending_soon" | "ended";

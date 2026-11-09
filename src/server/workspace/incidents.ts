@@ -18,7 +18,7 @@ import { EVENT_KINDS, INCIDENT_SOURCES, INCIDENT_STATUSES, SEVERITIES, type Inci
 import { MANAGER_ROLES } from "./types";
 import { codeFromDatabaseError, fail, requireContributor, type RpcResult, type WriteDeps, type WriteResult } from "./use-cases";
 
-export const INCIDENT_TOOLS_NOT_IN_PLAN = "Incident response tools are included in Max 2x and up: opening incidents by hand, notes, severity and escalation.";
+export const INCIDENT_TOOLS_NOT_IN_PLAN = "Reporting and working on problems is included in Max 2x and up: reporting problems by hand, notes, severity and escalation.";
 export const RESUME_MANAGERS_ONLY = "Only an owner or admin can resume agents.";
 export const PAUSE_LIMITS = "A pause stops what agents would do next. It can't undo changes already applied, or anything done outside Farbaek.";
 
@@ -173,7 +173,7 @@ export async function openIncidentByHand(
   if (!tools.ok) return tools;
   const title = clean(input.title, 120);
   const severity = SEVERITIES.find((s) => s === input.severity);
-  if (!title || title.length < 3 || !severity) return fail("INVALID_INCIDENT", "Give the incident a title and a severity.");
+  if (!title || title.length < 3 || !severity) return fail("INVALID_INCIDENT", "Give the problem a title and a severity.");
   const r = await deps.openIncident({ orgId: input.orgId, actor: input.userId, title, severity, projectId: input.projectId, text: clean(input.text, 2000) });
   return r.ok ? { ok: true, value: { number: r.value } } : fail(codeFromDatabaseError(r.error));
 }
@@ -219,7 +219,7 @@ export async function recordPrevention(deps: WriteDeps & Pick<IncidentDeps, "add
       actor: input.userId,
       number: input.number,
       kind: "prevention",
-      text: `Workspace rules version ${input.rulesVersion} activated from this incident's replay, after testing against past changes.`,
+      text: `Workspace rules version ${input.rulesVersion} activated from this problem's replay, after testing against past changes.`,
       ref: { rulesVersion: input.rulesVersion },
     }),
   );

@@ -262,9 +262,7 @@ export default async function FilesPage({
                   <Link href={file ? fileHref(project.id, path!) : base} className="inline-flex min-h-11 items-center gap-1.5 text-sm text-ink-2 hover:text-ink">
                     <ArrowLeftIcon size={14} aria-hidden /> {file ? "Back to the file" : "All files"}
                   </Link>
-                  <h2 className="mt-2 flex items-center gap-2 text-lg font-medium">
-                    <ClockCounterClockwiseIcon size={20} className="text-ink-3" aria-hidden /> History
-                  </h2>
+                  <h2 className="mt-2 text-lg font-medium">History</h2>
                   <p className="mt-0.5 font-mono text-[0.8125rem] break-all text-ink-2">{path}</p>
                 </div>
                 {why ? <WhyCard graph={why} scanned={why.scanned} /> : null}

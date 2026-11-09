@@ -5,6 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EmptyState, PageHeader } from "@/components/app/primitives";
 import { WalletCard, type WalletCardData } from "@/components/approvals/wallet-card";
+import { ButtonLink } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/local-time";
 import { lensForChange, lensSummary } from "@/core/realityloop/intent-lens";
 import { walletRisk } from "@/core/trust/approval-wallet";
@@ -67,7 +68,7 @@ export default async function ApprovalsPage() {
         description="Changes waiting for your yes or no. Open one to see exactly what changes, then approve it or discard it. Each one stays open for 72 hours."
       />
       {cards.length === 0 && unread.length === 0 ? (
-        <EmptyState icon={CheckSquareOffsetIcon} title="Nothing waiting for you">
+        <EmptyState icon={CheckSquareOffsetIcon} title="Nothing waiting for you" action={<ButtonLink href="/app/new" size="sm">Describe what you want to build</ButtonLink>}>
           When the agent finishes a change, it waits here for you. Nothing goes into your project until you approve it.
         </EmptyState>
       ) : (
@@ -83,7 +84,8 @@ export default async function ApprovalsPage() {
                 <span className="min-w-0 flex-1">
                   <span className="line-clamp-2 text-[0.9375rem] font-medium group-hover:text-accent">{t.title}</span>
                   <span className="mt-0.5 block text-xs text-ink-3">
-                    In {t.projectName ?? "its project"}, waiting since <RelativeTime iso={t.updatedAt} />. There&apos;s no open change on record, so nothing to approve here. Open the task to see why.
+                    In {t.projectName ?? "its project"}, it started waiting <RelativeTime iso={t.updatedAt} />. There&apos;s no open change on record, so there&apos;s nothing to approve
+                    here. Open the task to see why.
                   </span>
                 </span>
                 <ArrowRightIcon size={14} className="shrink-0 text-ink-3" aria-hidden />

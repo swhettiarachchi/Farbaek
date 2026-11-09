@@ -28,7 +28,7 @@ const SECTIONS: LegalSection[] = [
           ]}
         />
         <p>
-          If a workspace has a paid plan, or you&apos;re the last owner of a workspace other people use, Settings says what to do first: cancel the plan, or make someone else an owner.
+          Some workspaces need a step first, and Settings says which. If a workspace has a paid plan, cancel it. If other people use a workspace you alone own, make one of them an owner.
         </p>
         <p>
           Can&apos;t sign in? Write to <DocLink href={`mailto:${LEGAL.support}`}>{LEGAL.support}</DocLink> from the account&apos;s email address and ask us to delete it. We
@@ -57,7 +57,7 @@ const SECTIONS: LegalSection[] = [
     body: (
       <Bullets
         items={[
-          <>In workspaces other people own, what you did there stays, such as tasks, approvals and history, tied to an ID that no longer points to you.</>,
+          <>In workspaces other people own, what you did there stays, such as tasks, approvals and history. It&apos;s tied to an ID that no longer points to you.</>,
           <>Tax and payment records for paid plans, for as long as the law requires. Dodo Payments keeps the payment details; Farbaek never sees your card.</>,
           <>A one-way fingerprint of your email address, so the same address can&apos;t start a second free trial. It can&apos;t be turned back into the address.</>,
           <>Server and sign-in logs, which keep at most {LEGAL.logLimit} per service and overwrite the oldest lines first.</>,

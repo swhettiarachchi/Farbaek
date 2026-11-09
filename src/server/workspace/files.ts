@@ -75,7 +75,7 @@ export async function saveProjectFile(
   if (!screened.ok) {
     if (screened.reason === "too_large") return fail("FILE_TOO_LARGE");
     if (screened.reason === "secret_content") return fail("SECRET_IN_CONTENT");
-    if (screened.reason === "secret_file") return fail("INVALID_PATH", "Credentials files such as .env or private keys can't be stored in a project. Keep secrets in environment variables.");
+    if (screened.reason === "secret_file") return fail("INVALID_PATH", "Files that hold keys and passwords, such as .env or a private key, can't be stored in a project. Keep keys and passwords in your host's settings, not in the code.");
     if (screened.reason === "binary") return fail("INVALID_PATH", "Only text files can be saved.");
     return fail("INVALID_PATH", "Files can't be saved inside dependency or build folders.");
   }

@@ -10,7 +10,8 @@ import { z } from "zod";
 import { walletView } from "@/core/billing/wallet";
 import { resolveAiProvider } from "@/server/ai/config";
 import { deploymentInfo } from "@/server/deployment";
-import { sandboxExecutionMode } from "@/server/sandbox/registry";
+import { previewSetupProblem } from "@/server/sandbox/config";
+import { sandboxExecutionStatus } from "@/server/sandbox/registry";
 import { hasServerWriteKey } from "@/server/supabase/admin";
 import { ORGANIZATION_SELECT, summarizeOrganizations, workspaceGrant, type WorkspaceSummary } from "@/server/workspace/organizations";
 import { GRANT_COLUMNS, UsageGrantRowSchema, grantFromRow } from "@/server/workspace/usage-store";
@@ -229,16 +230,14 @@ export interface Connection {
 /** What this deployment has connected. Names and states only, never a value. */
 export function deploymentConnections(env: Record<string, string | undefined> = process.env): Connection[] {
   const ai = resolveAiProvider();
-  const sandbox = sandboxExecutionMode();
+  const sandbox = sandboxExecutionStatus();
+  // The same rules the server applies, so a short secret or a URL where a host belongs shows here, not only as "off" to customers.
+  const previews = previewSetupProblem((name) => env[name] ?? null);
   return [
     { name: "Database writes", on: hasServerWriteKey(), detail: hasServerWriteKey() ? "Server key set" : "SUPABASE_SECRET_KEY isn't set" },
     { name: "AI", on: ai.provider !== null, detail: ai.provider ? ai.label : ai.reason },
-    { name: "Sandbox", on: sandbox.mode === "sandboxed", detail: sandbox.mode === "sandboxed" ? "Code runs in isolated sandboxes" : sandbox.reason },
-    {
-      name: "Previews",
-      on: Boolean(env.SANDBOX_PREVIEW_DOMAIN && env.SANDBOX_PREVIEW_SECRET),
-      detail: env.SANDBOX_PREVIEW_DOMAIN && env.SANDBOX_PREVIEW_SECRET ? "Preview host and secret set" : "Needs SANDBOX_PREVIEW_DOMAIN and SANDBOX_PREVIEW_SECRET",
-    },
+    { name: "Sandbox", on: sandbox.mode.mode === "sandboxed", detail: sandbox.mode.mode === "sandboxed" ? "Code runs in isolated sandboxes" : (sandbox.detail ?? sandbox.mode.reason) },
+    { name: "Previews", on: previews === null, detail: previews ?? "Preview host and secret set" },
     { name: "Payments", ...billingStatus(env) },
     { name: "Email", ...emailStatus(env) },
   ];

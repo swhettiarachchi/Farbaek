@@ -71,7 +71,7 @@ export default async function IntegrationsPage() {
               )}
             </>
           ) : (
-            `Connect it from a project's Launch page, with a token you create in ${PROVIDER_NAMES[p]}. Farbaek stores it sealed and never shows it again.`
+            `Connect it from a project's Launch page, with a token you create in ${PROVIDER_NAMES[p]}. Farbaek keeps it encrypted and never shows it again.`
           ),
         action: { href: "/app/projects", label: c ? "Launch a project" : "Choose a project" },
       };
@@ -124,12 +124,14 @@ export default async function IntegrationsPage() {
       id: "ai",
       icon: DraftIcon,
       name: "AI models",
-      does: v.modelKey ? "Plans, drafting and agent runs use this workspace's own Anthropic key." : "Plans, drafting and agent runs use Farbaek's AI. No API key needed.",
-      status: v.modelKey ? { tone: "verified", label: "Your key" } : { tone: "verified", label: "Included" },
+      does: v.modelKey
+        ? "Plans, drafting and agent runs use this workspace's own Anthropic account."
+        : "Plans, drafting and agent runs use Farbaek's AI. You don't need an AI account of your own.",
+      status: v.modelKey ? { tone: "verified", label: "Your account" } : { tone: "verified", label: "Included" },
       detail: v.modelKey
-        ? `The key ends ${v.modelKey.hint}${v.modelKey.gateway ? `, through ${v.modelKey.gateway}` : ""}. Calls on it don't count against this workspace's AI usage.`
-        : "Each step counts against this workspace's AI usage, at the model's real token cost. Owners and admins can use their own Anthropic key instead.",
-      action: { href: "/app/settings#ai-key", label: v.modelKey ? "AI key settings" : "Use your own key" },
+        ? `Its key ends ${v.modelKey.hint}${v.modelKey.gateway ? `, through ${v.modelKey.gateway}` : ""}. AI work on this account doesn't count against this workspace's AI usage.`
+        : "Each step counts against this workspace's AI usage, at what the model really costs. Owners and admins can use the workspace's own Anthropic account instead.",
+      action: { href: "/app/settings#ai-key", label: v.modelKey ? "Your AI account" : "Use your own AI account" },
     },
   ];
 

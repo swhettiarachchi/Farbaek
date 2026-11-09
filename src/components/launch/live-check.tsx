@@ -1,17 +1,20 @@
 "use client";
 
-import { ArrowClockwiseIcon, CheckCircleIcon, CircleNotchIcon, ClockCounterClockwiseIcon, WarningIcon, WifiSlashIcon } from "@phosphor-icons/react";
+import { ArrowClockwiseIcon, CheckCircleIcon, CircleNotchIcon, WarningIcon } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { checkLiveSiteAction, type LiveCheckState } from "@/app/app/projects/[projectId]/launch/actions";
+import { buttonClasses } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/local-time";
 import { VERDICT_WORDS, type HealthVerdict } from "@/core/launch/health";
 
-const LOOK: Record<HealthVerdict, { icon: Icon; tone: string }> = {
+// A mark only for how the check ended (ADR 0180): answering with this version, or failing. An earlier version
+// still being served is its words in their colour.
+const LOOK: Record<HealthVerdict, { icon: Icon | null; tone: string }> = {
   live: { icon: CheckCircleIcon, tone: "text-verified" },
-  previous: { icon: ClockCounterClockwiseIcon, tone: "text-approval" },
+  previous: { icon: null, tone: "text-approval" },
   down: { icon: WarningIcon, tone: "text-failed" },
-  unreachable: { icon: WifiSlashIcon, tone: "text-failed" },
+  unreachable: { icon: WarningIcon, tone: "text-failed" },
 };
 
 export interface LastCheck {
@@ -47,6 +50,7 @@ export function LiveCheck({ projectId, last, autoRun }: { projectId: string; las
 
   const shown: LastCheck | null = state.status === "done" ? { verdict: state.result.verdict, detail: state.result.detail, checkedAt: state.checkedAt } : last;
   const look = shown ? LOOK[shown.verdict] : null;
+  const LookIcon = look?.icon ?? null;
 
   return (
     <div className="grid gap-3">
@@ -61,9 +65,9 @@ export function LiveCheck({ projectId, last, autoRun }: { projectId: string; las
           </>
         ) : shown && look ? (
           <>
-            <look.icon size={20} weight="fill" className={`mt-px shrink-0 ${look.tone}`} aria-hidden />
+            {LookIcon ? <LookIcon size={20} weight="fill" className={`mt-px shrink-0 ${look.tone}`} aria-hidden /> : null}
             <span className="text-sm">
-              <span className="font-medium text-ink">{VERDICT_WORDS[shown.verdict]}</span>
+              <span className={`font-medium ${LookIcon ? "text-ink" : look.tone}`}>{VERDICT_WORDS[shown.verdict]}</span>
               <span className="block text-ink-2">
                 {shown.detail} Checked <RelativeTime iso={shown.checkedAt} />.
               </span>
@@ -83,7 +87,7 @@ export function LiveCheck({ projectId, last, autoRun }: { projectId: string; las
         type="button"
         onClick={run}
         disabled={pending}
-        className="inline-flex min-h-11 w-fit items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-medium text-ink shadow-e1 transition-colors duration-150 hover:bg-canvas-2 disabled:opacity-60"
+        className={buttonClasses("secondary", "sm", "w-fit")}
       >
         <ArrowClockwiseIcon size={16} className={pending ? "motion-safe:animate-spin" : ""} aria-hidden />
         {pending ? "Checking…" : "Check again"}

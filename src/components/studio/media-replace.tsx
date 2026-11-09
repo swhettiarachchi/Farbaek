@@ -118,8 +118,8 @@ export function MediaReplace({
         {placeholder ? <PlaceholderChip /> : null}
       </div>
       {current ? (
-        <p className="truncate font-mono text-xs text-ink-3" title={current}>
-          Now: {current}
+        <p className="truncate text-xs text-ink-3" title={current}>
+          Now: <span className="font-mono">{current}</span>
         </p>
       ) : null}
 
@@ -253,7 +253,9 @@ export function MediaReplace({
                       <ImagesIcon size={20} className="text-ink-3" aria-hidden />
                     </span>
                   )}
-                  <span className="truncate font-mono text-xs text-ink-2">{path}</span>
+                  <span className="truncate font-mono text-xs text-ink-2" title={path}>
+                    {path}
+                  </span>
                 </button>
               </li>
             ))}

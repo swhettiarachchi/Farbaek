@@ -21,6 +21,8 @@ struct TasksView: View {
     @Environment(AppModel.self) private var model
     @State private var filter: TaskFilter = .all
     @State private var load: Load<[TaskItem]> = .loading
+    /// The filter the list on screen was read for.
+    @State private var shown: TaskFilter?
 
     var body: some View {
         ScrollView {
@@ -62,11 +64,18 @@ struct TasksView: View {
     }
 
     private func read() async {
+        // The filter this read is for. An answer that comes back after the person picked another one is dropped.
+        let asked = filter
         do {
-            let list: Listing<TaskItem> = try await model.api.get("tasks", query: [URLQueryItem(name: "filter", value: filter.rawValue)])
+            let list: Listing<TaskItem> = try await model.api.get("tasks", query: [URLQueryItem(name: "filter", value: asked.rawValue)])
+            guard asked == filter else { return }
             withAnimation(.easeOut(duration: 0.2)) { load = .loaded(list.items) }
+            shown = asked
         } catch {
-            load = .failed(error.localizedDescription)
+            // A read cut short by a newer one changes nothing: the newer read fills the screen.
+            guard asked == filter, !Task.isCancelled else { return }
+            // A refresh that fails keeps the list already shown, as every other screen does. Another filter's list is never kept.
+            if load.value == nil || shown != asked { load = .failed(error.localizedDescription) }
         }
     }
 }
@@ -270,7 +279,7 @@ struct TaskDetailView: View {
                     HStack(spacing: 12) {
                         AgentOrb(live: run.live, size: 30)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("\(run.steps) steps, \(run.effortLabel)").font(.subheadline).foregroundStyle(Palette.ink)
+                            Text(RunView.summary(run)).font(.subheadline).foregroundStyle(Palette.ink)
                             Ago(iso: run.startedAt).font(.footnote).foregroundStyle(Palette.ink3)
                         }
                         Spacer()
@@ -288,9 +297,9 @@ struct TaskDetailView: View {
     private func history(_ items: [HistoryItem]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionTitle("History")
+            // A plain list: each line is its words and when (ADR 0180), with no drawn dot before it.
             ForEach(items.reversed()) { item in
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Circle().fill(Palette.lineStrong).frame(width: 6, height: 6)
                     Text(item.toLabel).font(.subheadline).foregroundStyle(Palette.ink)
                     Text(Self.actorWords(item.actor)).font(.footnote).foregroundStyle(Palette.ink3)
                     Spacer()

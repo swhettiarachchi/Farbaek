@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, CircleNotchIcon, DownloadSimpleIcon, GlobeSimpleIcon, PauseCircleIcon, ProhibitIcon, ShareNetworkIcon, TrashIcon, TrayArrowDownIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, CircleNotchIcon, DownloadSimpleIcon, GlobeSimpleIcon, ShareNetworkIcon, TrashIcon, TrayArrowDownIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { useEffect, useId, useState, useSyncExternalStore } from "react";
 import { buttonClasses } from "@/components/ui/button";
@@ -22,14 +22,14 @@ const STATE: Record<TransferState, { label: string; icon: Icon | null; tone: str
   receiving: { label: "Receiving", icon: CircleNotchIcon, tone: "text-ink-2", spin: true },
   finishing: { label: "Checking", icon: CircleNotchIcon, tone: "text-ink-2", spin: true },
   done: { label: "Received and checked", icon: CheckCircleIcon, tone: "text-verified" },
-  declined: { label: "Declined", icon: ProhibitIcon, tone: "text-ink-3" },
-  cancelled: { label: "Cancelled", icon: ProhibitIcon, tone: "text-ink-3" },
-  interrupted: { label: "Stopped", icon: PauseCircleIcon, tone: "text-approval" },
+  declined: { label: "Declined", icon: null, tone: "text-ink-3" },
+  cancelled: { label: "Cancelled", icon: null, tone: "text-ink-3" },
+  interrupted: { label: "Stopped", icon: null, tone: "text-approval" },
   failed: { label: "Stopped", icon: XCircleIcon, tone: "text-failed" },
 };
 
 const REASONS: Record<string, string> = {
-  secret_file: "Credentials files",
+  secret_file: "Files with keys or passwords",
   secret_content: "Looks like it contains a secret",
   ignored_folder: "Dependency or build folders",
   invalid_path: "Names a computer can't hold safely",
@@ -144,10 +144,7 @@ export function ReceiveFiles({ device, stun, pairedCount }: { device: BrowserDev
           <span id={`${ids}-switch`} className="text-sm text-ink">
             Be reachable while this page is open
           </span>
-          <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${on ? "text-verified" : "text-ink-3"}`}>
-            {on ? <CheckCircleIcon size={14} weight="fill" aria-hidden /> : <PauseCircleIcon size={14} aria-hidden />}
-            {on ? "Reachable: your paired computers can send here" : "Off: computers can't send here"}
-          </span>
+          <span className={`text-xs font-medium ${on ? "text-verified" : "text-ink-3"}`}>{on ? "Reachable: your paired computers can send here" : "Off: computers can't send here"}</span>
         </span>
         <button
           type="button"
@@ -156,7 +153,7 @@ export function ReceiveFiles({ device, stun, pairedCount }: { device: BrowserDev
           aria-labelledby={`${ids}-switch`}
           disabled={switching || (!on && pairedCount === 0)}
           onClick={() => void toggle()}
-          className="relative inline-flex h-11 w-[4.25rem] shrink-0 items-center rounded-full p-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60"
+          className="relative inline-flex h-11 w-[4.25rem] shrink-0 items-center rounded-full p-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-60"
         >
           <span className={`flex h-8 w-full items-center rounded-full border transition-colors duration-200 ${on ? "border-accent bg-accent" : "border-line-strong bg-surface-sunken"}`}>
             <span className={`size-6 rounded-full bg-surface shadow-e1 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${on ? "translate-x-[1.85rem]" : "translate-x-1"}`} />
@@ -168,12 +165,12 @@ export function ReceiveFiles({ device, stun, pairedCount }: { device: BrowserDev
         It stops when you close this page, or when the phone locks or sleeps. Only computers you paired with here can send, and you choose whether to accept. Turn it on, then choose Send over the internet in the Farbaek Agent.
       </p>
       {listener?.problem ? (
-        <p className="flex items-start gap-2 text-sm text-approval">
+        <p role="alert" className="flex items-start gap-2 text-sm text-approval">
           <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> <span>{listener.problem}</span>
         </p>
       ) : null}
       {problem ? (
-        <p className="flex items-start gap-2 text-sm text-failed">
+        <p role="alert" className="flex items-start gap-2 text-sm text-failed">
           <WarningCircleIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> <span>{problem}</span>
         </p>
       ) : null}
@@ -218,10 +215,15 @@ function IncomingCard({ incoming, onDismiss }: { incoming: WebIncoming; onDismis
           {st.icon ? <st.icon size={14} weight="bold" className={st.spin ? "motion-safe:animate-spin" : ""} aria-hidden /> : null} {st.label}
         </span>
       </p>
-      <p className="text-xs text-ink-3">
-        {`${v.files.toLocaleString("en-US")} ${v.files === 1 ? "file" : "files"}, ${formatBytes(v.bytes)}`}
-        {v.peer.fingerprint ? <span className="font-mono">{` · ${grouped(v.peer.fingerprint)}`}</span> : null}
-      </p>
+      <p className="text-xs text-ink-3">{`${v.files.toLocaleString("en-US")} ${v.files === 1 ? "file" : "files"}, ${formatBytes(v.bytes)}`}</p>
+      {v.peer.fingerprint ? (
+        <details className="text-xs text-ink-3">
+          <summary className="flex min-h-11 cursor-pointer items-center">Technical details</summary>
+          <p>
+            Their key fingerprint: <span className="break-all font-mono">{grouped(v.peer.fingerprint)}</span>
+          </p>
+        </details>
+      ) : null}
       {v.excludedCount > 0 ? (
         <details className="text-xs text-ink-3">
           <summary className="flex min-h-11 cursor-pointer items-center">{`${v.excludedCount.toLocaleString("en-US")} ${v.excludedCount === 1 ? "item stays" : "items stay"} on ${v.peer.name}`}</summary>

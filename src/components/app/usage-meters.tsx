@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRightIcon, ArrowsClockwiseIcon, ChartBarIcon, WarningCircleIcon, WarningIcon } from "@phosphor-icons/react";
+import { ArrowUpRightIcon, ChartBarIcon, WarningCircleIcon, WarningIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { loadUsageAction } from "@/app/app/actions";
@@ -63,11 +63,8 @@ function Row({ meter, detailed }: { meter: UsageMeter; detailed: boolean }) {
         <ResetText resetsAt={meter.resetsAt} period={meter.period} />
       </p>
       {meter.rollover ? (
-        <p className="mt-1 flex items-center gap-1.5 text-xs text-ink-2">
-          <ArrowsClockwiseIcon size={13} weight="bold" className="shrink-0 text-accent" aria-hidden />
-          <span>
-            +{meter.rollover.percentOfMonth}% carried over, used first · expires <DayText at={meter.rollover.expiresAt} />
-          </span>
+        <p className="mt-1 text-xs text-ink-2">
+          <span className="tabular">{meter.rollover.percentOfMonth}%</span> of a month&apos;s usage carried over, and it&apos;s used first. It expires <DayText at={meter.rollover.expiresAt} />.
         </p>
       ) : null}
       {detailed && meter.state !== "ok" ? <p className={`mt-1 text-xs ${meter.state === "reached" ? "text-failed" : "text-approval"}`}>{meter.atLimit}</p> : null}
@@ -185,7 +182,7 @@ export function UsagePanel({ planLabel }: { planLabel: string }) {
           ) : data.status === "error" ? (
             <div className="grid gap-3">
               <p className="text-sm text-ink-2">Usage couldn&apos;t be loaded.</p>
-              <button type="button" onClick={() => void load()} className="w-fit rounded-full border border-line px-3 py-1.5 text-xs font-medium text-ink hover:bg-surface-raised">
+              <button type="button" onClick={() => void load()} className="inline-flex min-h-11 w-fit items-center rounded-full border border-line px-4 text-sm font-medium text-ink hover:bg-surface-raised">
                 Try again
               </button>
             </div>

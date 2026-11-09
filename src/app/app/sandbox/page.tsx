@@ -30,6 +30,8 @@ const SORTS = { newest: "Newest first", oldest: "Oldest first", name: "Name", ex
 const PAGE_SIZE = 12;
 
 const number = new Intl.NumberFormat("en-US");
+/** "60 minutes", "1 idle minute". */
+const plural = (n: number, noun: string) => `${number.format(n)} ${noun}${n === 1 ? "" : "s"}`;
 
 export default async function SandboxPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const ctx = await loadAppContext();
@@ -102,28 +104,32 @@ export default async function SandboxPage({ searchParams }: { searchParams: Prom
               label="Test space minutes"
               used={overview.minutesUsed}
               limit={limits.minutesPerPeriod}
-              detail="Wall-clock running time of every session, the way runtimes bill it."
+              detail="Every minute a session is running counts, whether or not a command is."
               reached="Used up for this period. New sessions start next period."
             />
           </div>
-          <dl className="mt-5 grid grid-cols-3 gap-3 border-t border-line pt-4 text-sm">
-            <div>
-              <dt className="text-xs text-ink-3">vCPU time</dt>
-              <dd className="mt-0.5 font-medium tabular">{formatDuration(overview.usage.vcpuSeconds)}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-ink-3">Memory</dt>
-              <dd className="mt-0.5 font-medium tabular">{number.format(Math.round(overview.usage.gibSeconds / 60))} GiB-min</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-ink-3">Commands ran</dt>
-              <dd className="mt-0.5 font-medium tabular">{formatDuration(overview.usage.activeExecutionSeconds)}</dd>
-            </div>
-          </dl>
-          <p className="mt-3 text-xs leading-relaxed text-ink-3">
-            Farbaek&apos;s own measurement, not a provider invoice. Plan limits: {limits.maxSessionMinutes} min per session, stops after {limits.idleMinutes} idle min, commands up to{" "}
-            {Math.round(limits.maxCommandSeconds / 60)} min.
+          <p className="mt-5 border-t border-line pt-4 text-sm leading-relaxed text-ink-2">
+            A session runs for up to {plural(limits.maxSessionMinutes, "minute")} and stops after {plural(limits.idleMinutes, "idle minute")}. One command can run for up to{" "}
+            {plural(Math.round(limits.maxCommandSeconds / 60), "minute")}.
           </p>
+          <details className="mt-1 text-xs text-ink-3">
+            <summary className="inline-flex min-h-11 cursor-pointer list-none items-center hover:text-ink [&::-webkit-details-marker]:hidden">Technical details</summary>
+            <dl className="grid gap-1">
+              <div>
+                <dt className="inline">vCPU time: </dt>
+                <dd className="inline tabular">{formatDuration(overview.usage.vcpuSeconds)}</dd>
+              </div>
+              <div>
+                <dt className="inline">Memory: </dt>
+                <dd className="inline tabular">{number.format(Math.round(overview.usage.gibSeconds / 60))} GiB-min</dd>
+              </div>
+              <div>
+                <dt className="inline">Time running commands: </dt>
+                <dd className="inline tabular">{formatDuration(overview.usage.activeExecutionSeconds)}</dd>
+              </div>
+            </dl>
+            <p className="mt-2 leading-relaxed">Farbaek&apos;s own measurement, not a provider invoice.</p>
+          </details>
         </Card>
       </div>
 
@@ -132,7 +138,7 @@ export default async function SandboxPage({ searchParams }: { searchParams: Prom
       <section aria-labelledby="sessions-heading" className="grid gap-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <h2 id="sessions-heading" className="text-xl font-medium tracking-[-0.02em]">
-            Sessions <span className="text-base font-normal text-ink-3 tabular">({number.format(list.total)})</span>
+            Sessions
           </h2>
           <form method="get" action="/app/sandbox" className="grid grid-cols-2 gap-2 sm:flex sm:items-end" role="search">
             <label className="col-span-2 grid gap-1 text-xs text-ink-2 sm:col-span-1">

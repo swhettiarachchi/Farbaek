@@ -94,7 +94,7 @@ describe("saveProjectFile", () => {
     const { deps, calls } = fakeDeps();
     const save = (path: string, content: string) => saveProjectFile(deps, { ...base, path, content, expectedRevision: 0 });
     expect(await save("src/a.ts", fake("-----BEGIN ", "PRIVATE KEY-----"))).toMatchObject({ code: "SECRET_IN_CONTENT" });
-    expect(await save(".env.local", "A=1")).toMatchObject({ code: "INVALID_PATH", message: expect.stringContaining("Credentials files") });
+    expect(await save(".env.local", "A=1")).toMatchObject({ code: "INVALID_PATH", message: expect.stringContaining("keys and passwords") });
     expect(await save("../a.ts", "x")).toMatchObject({ code: "INVALID_PATH" });
     expect(await save("big.txt", "x".repeat(WORKSPACE_LIMITS.maxFileBytes + 1))).toMatchObject({ code: "FILE_TOO_LARGE" });
     expect(calls).toEqual([]);

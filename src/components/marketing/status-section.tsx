@@ -1,7 +1,7 @@
 import { CheckCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { Container } from "@/components/ui/container";
-import { PLANS, formatUsd } from "@/core/billing/catalog";
+import { PLANS, TRIAL, formatUsd } from "@/core/billing/catalog";
 import { SectionHeading } from "./section-heading";
 
 interface Group {
@@ -18,7 +18,7 @@ const FROM = formatUsd(Math.min(...PLANS.flatMap((p) => (p.pricing.kind === "pai
 
 // Keep in step with docs/stages/. Only list something under "Built and working"
 // when it is implemented, covered by tests in this repository and has been
-// used end to end on a real setup. "Beta" is built and tested here, waiting
+// used end to end on a real setup. "Being proven" is built and tested here, waiting
 // for its first use on real accounts and devices.
 const GROUPS: Group[] = [
   {
@@ -29,13 +29,13 @@ const GROUPS: Group[] = [
     items: [
       "Sign-in by email link, and workspaces kept strictly apart",
       "One sentence to a plan: Farbaek drafts it, and you read and approve it",
-      "The cloud agent builds under that plan, and you can message it mid-run",
+      "The cloud agent builds under that plan, and you can message it while it works",
       "Projects with versioned files, import, search and the Studio editor",
       "Previews of static sites",
-      "Security checks, site checks in an isolated test space with real exit codes, and undo",
+      "Security checks, site checks in an isolated test space with real results, and undo",
       "Signed ProofPacks anyone can check, in the browser or with OpenSSL",
       "Publishing static sites to their own address",
-      "14-day trial and plan limits that fail closed",
+      `${TRIAL.lengthDays}-day trial, and plan limits enforced on Farbaek's side`,
       `Paid plans from ${FROM} a month, through Dodo Payments`,
       "Farbaek Agent for Windows, Mac and Linux",
     ],
@@ -72,7 +72,7 @@ export function StatusSection() {
     <section id="status" aria-labelledby="status-title" className="py-20 lg:py-28">
       <Container>
         <SectionHeading id="status-title" title="What works today, and what doesn't yet.">
-          New workspaces start a 14-day trial with no card, one per email address. After it, stay on Free or choose a plan from {FROM} a month.
+          New workspaces start a {TRIAL.lengthDays}-day trial with no card, one per email address. After it, stay on Free or choose a plan from {FROM} a month.
         </SectionHeading>
 
         <div className="mt-12 grid gap-10 lg:grid-cols-[1.25fr_1fr_1fr] lg:gap-0 lg:divide-x lg:divide-line">

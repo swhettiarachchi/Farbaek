@@ -8,9 +8,9 @@ import { FarbaekApiError, type Execution, type FarbaekSandboxClient } from "@/sd
 function outcome(e: Execution): { text: string; className: string } {
   switch (e.state) {
     case "succeeded":
-      return { text: "exit 0", className: "text-media-green" };
+      return { text: "done, exit 0", className: "text-media-green" };
     case "failed":
-      return { text: `exit ${e.exitCode}`, className: "text-media-red" };
+      return { text: `failed, exit ${e.exitCode}`, className: "text-media-red" };
     case "timed_out":
       return { text: "timed out, no exit code", className: "text-media-amber" };
     case "cancelled":
@@ -117,7 +117,7 @@ export function SandboxConsole({
 
   return (
     <section aria-label="Console" className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg bg-media text-media-ink">
-      <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-2.5">
+      <div className="flex items-center justify-between gap-3 border-b border-media-ink/10 px-4 py-2.5">
         <span className="flex items-center gap-2 text-[0.8125rem] font-medium text-media-ink-2">
           <TerminalWindowIcon size={16} aria-hidden /> Console
         </span>
@@ -171,11 +171,11 @@ export function SandboxConsole({
         ) : null}
       </div>
       {error ? (
-        <p role="alert" className="border-t border-white/10 px-4 py-2 text-sm text-media-red">
+        <p role="alert" className="border-t border-media-ink/10 px-4 py-2 text-sm text-media-red">
           {error}
         </p>
       ) : null}
-      <div className="flex items-center gap-2 border-t border-white/10 px-3 py-2">
+      <div className="flex items-center gap-2 border-t border-media-ink/10 px-3 py-2">
         <span aria-hidden className="font-mono text-media-accent">
           $
         </span>
@@ -198,7 +198,7 @@ export function SandboxConsole({
             type="button"
             onClick={cancel}
             disabled={!canCancel || !live.executionId}
-            className="inline-flex h-11 items-center gap-1.5 rounded-full border border-white/20 px-4 text-sm text-media-ink hover:bg-white/10 disabled:opacity-50"
+            className="inline-flex h-11 items-center gap-1.5 rounded-full border border-media-ink/20 px-4 text-sm text-media-ink hover:bg-media-ink/10 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <ProhibitIcon size={16} aria-hidden /> Cancel
           </button>
@@ -207,7 +207,7 @@ export function SandboxConsole({
             type="button"
             onClick={() => void run()}
             disabled={!canRun || !command.trim()}
-            className="inline-flex h-11 items-center rounded-full bg-media-accent px-4 text-sm font-medium text-media hover:bg-media-accent/90 disabled:opacity-40"
+            className="inline-flex h-11 items-center rounded-full bg-media-accent px-4 text-sm font-medium text-media hover:bg-media-accent/90 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Run
           </button>

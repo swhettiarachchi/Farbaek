@@ -97,7 +97,7 @@ export function NewIncident({ projects, disabledReason }: { projects: { id: stri
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={submit} disabled={pending || locked || title.trim().length < 3} className={buttonClasses("secondary", "sm")}>
-          <PlusIcon size={16} aria-hidden /> {pending ? "Opening…" : "Open an incident"}
+          <PlusIcon size={16} aria-hidden /> {pending ? "Reporting…" : "Report the problem"}
         </button>
         {disabledReason ? <span className="text-xs text-ink-3">{disabledReason}</span> : null}
       </div>

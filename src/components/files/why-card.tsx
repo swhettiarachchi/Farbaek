@@ -1,10 +1,7 @@
-import { BookOpenTextIcon, FileArrowUpIcon, GitDiffIcon, QuestionIcon, TerminalWindowIcon, TreeStructureIcon } from "@phosphor-icons/react/ssr";
-import type { Icon } from "@phosphor-icons/react";
+import { TreeStructureIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { LocalTime } from "@/components/ui/local-time";
-import type { WhyFact, WhyGraph } from "@/core/insights/why-graph";
-
-const ICONS: Record<WhyFact["kind"], Icon> = { origin: FileArrowUpIcon, change: GitDiffIcon, doc: BookOpenTextIcon, test: TerminalWindowIcon };
+import type { WhyGraph } from "@/core/insights/why-graph";
 
 /**
  * Why this file is like this (ADR 0123): facts from the workspace's records,
@@ -23,20 +20,20 @@ export function WhyCard({ graph, scanned }: { graph: WhyGraph; scanned: boolean 
       ) : (
         <ol className="grid gap-2">
           {graph.facts.map((f, i) => {
-            const FactIcon = ICONS[f.kind];
             const inferred = "inferred" in f && f.inferred;
             return (
               <li key={i} className={`grid gap-1 rounded-sm border px-3 py-2.5 ${inferred ? "border-dashed border-line-strong/60" : "border-line"}`}>
-                <p className="flex items-start gap-2 text-sm leading-relaxed">
-                  <FactIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
-                  <span>
-                    {f.text}
-                    {inferred ? <span className="ml-1.5 rounded-full border border-dashed border-line-strong/60 px-2 py-0.5 text-xs text-ink-2">inferred</span> : null}
-                  </span>
+                <p className="text-sm leading-relaxed">
+                  {f.text}
+                  {inferred ? (
+                    <span className="ml-1.5 inline-flex h-6 items-center rounded-full border border-dashed border-line-strong/60 px-2.5 align-middle text-xs font-medium text-ink-2">
+                      Inferred
+                    </span>
+                  ) : null}
                 </p>
-                {f.kind === "change" && f.detail ? <p className="pl-6 text-sm leading-relaxed text-ink-2">{f.detail}</p> : null}
-                {f.kind === "doc" ? <p className="pl-6 font-mono text-xs leading-relaxed break-words text-ink-2">{f.quote}</p> : null}
-                <p className="flex flex-wrap items-center gap-x-2 pl-6 text-xs text-ink-3">
+                {f.kind === "change" && f.detail ? <p className="text-sm leading-relaxed text-ink-2">{f.detail}</p> : null}
+                {f.kind === "doc" ? <blockquote className="border-l-2 border-line pl-3 text-sm leading-relaxed break-words text-ink-2">{f.quote}</blockquote> : null}
+                <p className="flex flex-wrap items-center gap-x-2 text-xs text-ink-3">
                   Source:{" "}
                   {f.source.href ? (
                     <Link href={f.source.href} className="inline-flex min-h-11 items-center break-all underline decoration-line-strong/50 underline-offset-4 hover:text-ink">
@@ -58,8 +55,7 @@ export function WhyCard({ graph, scanned }: { graph: WhyGraph; scanned: boolean 
         </ol>
       )}
       {graph.unexplainedEdits > 0 ? (
-        <p className="flex items-start gap-2 text-sm leading-relaxed text-ink-2">
-          <QuestionIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
+        <p className="text-sm leading-relaxed text-ink-2">
           {graph.unexplainedEdits === 1 ? "1 saved edit has" : `${graph.unexplainedEdits} saved edits have`} no recorded reason: made in the editor rather than through a task.
         </p>
       ) : null}

@@ -1,9 +1,10 @@
-import { ArrowLeftIcon, CheckCircleIcon, FilePlusIcon, LockSimpleIcon, PencilSimpleLineIcon, QuestionIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, PencilSimpleLineIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ReportResult } from "@/components/tasks/report-result";
 import { notFound } from "next/navigation";
 import { CancelTaskControl } from "@/components/app/forms";
+import { sayOperation } from "@/components/app/contract-view";
 import { ApproveBuild } from "@/components/build/approve-build";
 import { FARBAEK_SKILLS, defaultSkills } from "@/content/skills";
 import { splitByPins } from "@/core/agent/skill-pins";
@@ -22,23 +23,14 @@ import { withheldFor } from "@/core/workspace/permissions";
 
 export const metadata: Metadata = { title: "Your plan" };
 
-const OPERATION_WORDS: Record<string, string> = {
-  "files.create": "Add new files",
-  "files.edit": "Edit files",
-  "files.delete": "Delete files",
-};
-const say = (op: string) => OPERATION_WORDS[op] ?? op;
-
 // Sections assemble once, in reading order (motion-safe only).
 const rise = "motion-safe:animate-[usage-in_420ms_cubic-bezier(0.16,1,0.3,1)_both]";
 
-function Section({ title, icon, delay, children }: { title: string; icon: React.ReactNode; delay: number; children: React.ReactNode }) {
+/** Headings stand alone, with no glyph beside each one (ADR 0180). */
+function Section({ title, delay, children }: { title: string; delay: number; children: React.ReactNode }) {
   return (
     <section className={`grid content-start gap-3 rounded-md border border-line bg-canvas-2/60 p-5 ${rise}`} style={{ animationDelay: `${delay}ms` }}>
-      <h2 className="flex items-center gap-2 text-sm font-medium text-ink">
-        {icon}
-        {title}
-      </h2>
+      <h2 className="text-sm font-medium text-ink">{title}</h2>
       {children}
     </section>
   );
@@ -51,7 +43,7 @@ const Chips = ({ items, empty }: { items: string[]; empty: string }) =>
   items.length ? (
     <ul className="flex flex-wrap gap-1.5">
       {items.map((i) => (
-        <li key={i} className={`rounded-full border border-line bg-surface px-2.5 py-0.5 text-ink-2 ${looksLikeCode(i) ? "font-mono text-[0.78125rem]" : "text-[0.8125rem]"}`}>
+        <li key={i} className={`rounded-full border border-line bg-surface px-2.5 py-0.5 text-ink-2 ${looksLikeCode(i) ? "max-w-full break-all font-mono text-[0.78125rem]" : "text-[0.8125rem]"}`}>
           {i}
         </li>
       ))}
@@ -102,7 +94,7 @@ export default async function PlanCardPage({ params }: Params) {
 
   const c = contract?.body;
   // What the plan keeps as it is: forbidden operations, protected fields and invariants.
-  const kept = c ? [...c.forbiddenOperations.map(say), ...c.protectedFields, ...c.protectedInvariants.map((i) => i.statement)] : [];
+  const kept = c ? [...c.forbiddenOperations.map(sayOperation), ...c.protectedFields, ...c.protectedInvariants.map((i) => i.statement)] : [];
   // The premium core (motion, 3D, brand identity) for anything people will see, plus what fits this plan (ADR 0156).
   const suggested = defaultSkills(`${task.title} ${c?.outcome ?? ""} ${project?.description ?? ""}`).map((s) => s.id);
   return (
@@ -125,8 +117,7 @@ export default async function PlanCardPage({ params }: Params) {
         </section>
       ) : (
         <section aria-labelledby="plan-title" className="grid gap-6 rounded-lg border border-line bg-surface p-6 shadow-e2 sm:p-8">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-[0.8125rem] font-medium text-ink-3">Your plan</p>
+          <div className="flex">
             {task.state === "CANCELLED" ? (
               <StatusBadge status="unverified" label="Cancelled" />
             ) : contract.status === "approved" ? (
@@ -145,11 +136,11 @@ export default async function PlanCardPage({ params }: Params) {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <Section title="What will change" icon={<FilePlusIcon size={16} weight="bold" className="text-accent" aria-hidden />} delay={80}>
-              <p className="text-sm text-ink-2">{c.allowedOperations.length ? c.allowedOperations.map(say).join(", ") : "Nothing yet: the plan allows no changes."}</p>
+            <Section title="What will change" delay={80}>
+              <p className="text-sm text-ink-2">{c.allowedOperations.length ? c.allowedOperations.map(sayOperation).join(", ") : "Nothing yet: the plan allows no changes."}</p>
               <Chips items={c.scope.resources} empty="Anywhere in the project." />
             </Section>
-            <Section title="How it will be checked" icon={<CheckCircleIcon size={16} weight="bold" className="text-verified" aria-hidden />} delay={160}>
+            <Section title="How it will be checked" delay={160}>
               <ul className="grid list-disc gap-1.5 pl-5 text-sm text-ink marker:text-ink-3">
                 {c.acceptanceCriteria.map((a) => (
                   <li key={a.id}>{a.statement}</li>
@@ -157,7 +148,7 @@ export default async function PlanCardPage({ params }: Params) {
               </ul>
               {c.requiredChecks.length ? <Chips items={c.requiredChecks} empty="" /> : null}
             </Section>
-            <Section title="What stays untouched" icon={<LockSimpleIcon size={16} weight="bold" className="text-ink-2" aria-hidden />} delay={240}>
+            <Section title="What stays untouched" delay={240}>
               {kept.length ? (
                 <ul className="grid gap-1 text-sm text-ink-2">
                   {kept.map((k) => (
@@ -168,7 +159,7 @@ export default async function PlanCardPage({ params }: Params) {
                 <p className="text-sm text-ink-2">Nothing is marked as protected.</p>
               )}
             </Section>
-            <Section title="If something goes wrong" icon={<ShieldCheckIcon size={16} weight="bold" className="text-ink-2" aria-hidden />} delay={320}>
+            <Section title="If something goes wrong" delay={320}>
               <p className="text-sm text-ink-2">{c.recovery}</p>
               {c.assumptions.length ? <p className="text-[0.8125rem] text-ink-3">Assumes: {c.assumptions.join("; ")}</p> : null}
             </Section>
@@ -176,9 +167,7 @@ export default async function PlanCardPage({ params }: Params) {
 
           {c.openQuestions.length ? (
             <div className={`grid gap-2 rounded-md border border-approval/40 bg-approval/[0.06] p-5 ${rise}`} style={{ animationDelay: "400ms" }}>
-              <p className="flex items-center gap-2 text-sm font-medium text-approval">
-                <QuestionIcon size={16} weight="bold" aria-hidden /> Questions to settle
-              </p>
+              <p className="text-sm font-medium text-approval">Questions to settle</p>
               <ul className="grid gap-1 text-sm text-ink">
                 {c.openQuestions.map((q) => (
                   <li key={q}>{q}</li>

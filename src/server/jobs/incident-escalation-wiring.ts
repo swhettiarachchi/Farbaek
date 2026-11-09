@@ -63,13 +63,13 @@ export function incidentEscalationDeps(): EscalationDeps | null {
     },
 
     async tell(userId, incident) {
-      const subject = `${SEVERITY_WORDS[incident.severity]} incident #${incident.number}: ${incident.title}`;
-      const lines = [`An incident in your workspace is ${incident.severity === "critical" ? "critical" : "high severity"} and still open: ${incident.title}.`, "Its page has the timeline, what to contain and what would have prevented it."];
+      const subject = `${SEVERITY_WORDS[incident.severity]} problem #${incident.number}: ${incident.title}`;
+      const lines = [`A problem in your workspace is ${incident.severity === "critical" ? "critical" : "high severity"} and still open: ${incident.title}.`, "Its page has the timeline, what to contain and what would have prevented it."];
       const path = `/app/incidents/${incident.number}`;
       if (email) {
         const to = await confirmedEmail(admin, userId);
         if (to && isPlainAddress(to)) {
-          await sendEmail(email, renderEmail(email, to, { subject, lines }, { label: "Open the incident", path }, "You're getting this because you're an owner or admin of this workspace on Farbaek."));
+          await sendEmail(email, renderEmail(email, to, { subject, lines }, { label: "Open the problem", path }, "You're getting this because you're an owner or admin of this workspace on Farbaek."));
         }
       }
       if (push) await pushToPerson(push, userId, { title: subject, body: lines[0]!.slice(0, 160), url: path, tag: `incident:${incident.id}` }).catch(() => 0);

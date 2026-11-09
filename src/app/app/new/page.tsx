@@ -38,8 +38,7 @@ export default async function NewBuildPage({ searchParams }: Props) {
         <div className="grid items-center gap-4 rounded-md border border-line bg-surface p-3 shadow-e1 sm:grid-cols-[200px_minmax(0,1fr)]">
           <SiteThumb src={`/app/templates/${template.id}/thumbnail`} name={template.name} />
           <div className="grid gap-1 px-1">
-            <p className="text-[0.8125rem] font-medium text-ink-3">Template</p>
-            <p className="text-[1.0625rem] font-medium">{template.name}</p>
+            <p className="text-[1.0625rem] font-medium">{template.name} template</p>
             <p className="text-sm text-ink-2">{template.summary} Its content is sample text the agent replaces.</p>
             <Link href="/app/templates" className="mt-1 inline-flex min-h-11 w-fit items-center text-sm font-medium text-accent hover:underline">
               Choose another template

@@ -11,11 +11,9 @@ import {
   ArrowCounterClockwiseIcon,
   CheckCircleIcon,
   CheckIcon,
-  CircleDashedIcon,
   MinusIcon,
   TerminalWindowIcon,
   WarningCircleIcon,
-  XCircleIcon,
 } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { ProofPackSeal } from "@/components/proof/proofpack-seal";
@@ -36,9 +34,9 @@ const DRIFTED = "e40b7a19c63f2d58a1e09b7c4d2f6a83b5e17c9d0a4f28b63e1c5d7a9b02f4e
 const short = (hex: string) => `sha256:${hex.slice(0, 8)}…${hex.slice(-4)}`;
 
 const HEADS: Head[] = [
-  { from: -150, to: 2600, text: "Review every change.", accent: "change", sub: "File by file. Keep what you want, reject the rest." },
+  { from: -150, to: 2600, text: "Review every change.", accent: "change", sub: "File by file. Keep what you want, leave out the rest." },
   { from: 6500, to: 9000, text: "Approve exactly what you saw.", accent: "exactly", sub: "The approval binds to a hash. Change one character and it stops matching." },
-  { from: 14_000, to: 16_500, text: "Checks that really ran.", accent: "ran", sub: "In a test space, against the applied files. Exit codes decide." },
+  { from: 14_000, to: 16_500, text: "Checks that really ran.", accent: "ran", sub: "In a test space, against the applied files. The real results decide." },
   { from: 22_500, to: 25_000, text: "Sealed as a ProofPack.", accent: "ProofPack", sub: "What ran, on which files, and what it doesn't prove." },
   { from: 29_000, to: 31_400, text: "A gate before launch.", accent: "gate", sub: "Publishing needs a clean check of these exact files." },
   { from: 35_500, to: 37_700, text: "Every change can be undone.", accent: "undone", sub: "And the undo is recorded too." },
@@ -93,10 +91,10 @@ function ReviewView({ t, from, rejectAt }: { t: number; from: number; rejectAt: 
                 ))}
                 <div className="flex items-center justify-end gap-2 border-t border-line px-3 py-1.5 text-xs">
                   <span className={`inline-flex h-7 items-center gap-1 rounded-full border px-2.5 ${off ? "border-line text-ink-3" : "border-verified/40 text-verified"}`}>
-                    <CheckCircleIcon size={13} weight="bold" aria-hidden /> Accept
+                    Keep
                   </span>
                   <span data-film-click={i === 1 ? "reject" : undefined} className={`inline-flex h-7 items-center gap-1 rounded-full border px-2.5 ${off ? "border-failed/40 bg-failed/[0.06] text-failed" : "border-line text-ink-2"}`}>
-                    <XCircleIcon size={13} weight="bold" aria-hidden /> {off ? "Rejected" : "Reject"}
+                    {off ? "Left out" : "Leave out"}
                   </span>
                 </div>
               </div>
@@ -121,7 +119,7 @@ function ApproveView({ t, appliedAt, editAt }: { t: number; appliedAt: number; e
         <h1 className="text-[1.5rem] font-medium tracking-[-0.03em] max-sm:text-[1.2rem]">Approve exactly this</h1>
       </div>
       <p className="text-sm">
-        You are approving <span className="font-medium">2 of 2 files</span> exactly as shown above, after your accept and reject decisions.
+        You are approving <span className="font-medium">2 of 2 files</span> exactly as shown above, with what you kept and left out.
       </p>
       <div data-lift="approve" className="grid gap-4">
         <div className="flex flex-wrap items-center gap-3">
@@ -195,9 +193,7 @@ function ChecksView({ t, from }: { t: number; from: number }) {
                     <CheckCircleIcon size={13} weight="bold" aria-hidden /> Passed · exit 0
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 text-media-ink-2">
-                    <CircleDashedIcon size={13} aria-hidden /> Didn&apos;t run: no test script
-                  </span>
+                  <span className="text-media-ink-2">Didn&apos;t run: no test script</span>
                 )}
               </li>
             );
@@ -225,13 +221,13 @@ function ProofView({ t, from }: { t: number; from: number }) {
         <div>
           <p className="text-xs text-ink-3">{SAMPLE.project}</p>
           <h1 className="text-[1.5rem] font-medium tracking-[-0.03em] max-sm:text-[1.2rem]">ProofPack recorded</h1>
-          <p className="mt-1 font-mono text-xs text-ink-3">{short(SAMPLE.digest)} · in-toto attestation</p>
+          <p className="mt-1 text-xs text-ink-3">Kept as a signed record.</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div style={{ opacity: progress(local, 1600, 2200) }}>
             <p className="text-sm font-medium">What it proves</p>
             <ul className="mt-2 grid gap-1.5 text-[13.5px] text-ink-2">
-              {["Which exact files were checked", "Which commands ran, and their exit codes", "Which plan and approval it ran under"].map((l) => (
+              {["Which exact files were checked", "Which commands ran, and their results", "Which plan and approval it ran under"].map((l) => (
                 <li key={l} className="flex gap-2">
                   <CheckCircleIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden /> {l}
                 </li>
@@ -313,7 +309,7 @@ export function ProofFilm({ t, format }: { t: number; format: "landscape" | "por
         frame={(scenes) => <MobileShell active={NAV[sceneAt(t)]}>{scenes}</MobileShell>}
         heads={HEADS}
         lifts={LIFTS}
-        label={<FilmLabel place="center" />}
+        label={null}
       />
     );
   }

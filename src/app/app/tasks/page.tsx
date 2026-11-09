@@ -26,8 +26,8 @@ export default async function TasksPage() {
     <div className="grid gap-8">
       <PageHeader title="Tasks" description="Every task in this workspace, grouped by what it needs." />
       {tasks.length === 0 ? (
-        <EmptyState icon={ListChecksIcon} title="No tasks yet" action={<ButtonLink href="/app/projects" size="sm">Go to projects</ButtonLink>}>
-          Tasks are created inside a project.
+        <EmptyState icon={ListChecksIcon} title="No tasks yet" action={<ButtonLink href="/app/new" size="sm">Describe what you want to build</ButtonLink>}>
+          Describe a site or app, and Farbaek sets up the project and a plan for its first task.
         </EmptyState>
       ) : (
         GROUPS.map((g) => {
@@ -36,7 +36,7 @@ export default async function TasksPage() {
           return (
             <section key={g.key} aria-labelledby={`group-${g.key}`} className="grid gap-3">
               <h2 id={`group-${g.key}`} className="text-base font-medium">
-                {g.title} <span className="text-ink-3 tabular">{items.length}</span>
+                {g.title}
               </h2>
               <TaskList tasks={items} />
             </section>

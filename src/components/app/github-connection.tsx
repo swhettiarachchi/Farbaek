@@ -42,7 +42,7 @@ export function GitHubConnectionCard({
         <span>
           {current ? (
             <>
-              Connected as <span className="font-mono">{current.login}</span>, with the token ending <span className="font-mono">{current.tokenHint}</span>
+              Connected as <span className="font-medium">{current.login}</span>, with the token ending <span className="font-mono">{current.tokenHint}</span>
               {current.expiresAt ? (
                 <>
                   , which expires <LocalTime iso={current.expiresAt} />

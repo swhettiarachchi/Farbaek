@@ -11,9 +11,7 @@ import {
   GlobeSimpleIcon,
   LinkSimpleIcon,
   MagnifyingGlassIcon,
-  PauseCircleIcon,
-  ProhibitIcon,
-  ShieldCheckIcon,
+  WarningCircleIcon,
   XCircleIcon,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
@@ -24,6 +22,7 @@ import type { MeshSnapshot, MeshState, PreparedView, Result } from "../shared/ap
 
 const mesh = window.farbaek.mesh;
 
+// Status is a word (ADR 0180): a spinner while it works, an icon only for done and failed, none while it waits.
 const STATE: Record<TransferState, { label: string; icon: Icon | null; tone: string; spin?: boolean }> = {
   packing: { label: "Packing", icon: CircleNotchIcon, tone: "info", spin: true },
   connecting: { label: "Connecting", icon: CircleNotchIcon, tone: "info", spin: true },
@@ -33,9 +32,9 @@ const STATE: Record<TransferState, { label: string; icon: Icon | null; tone: str
   receiving: { label: "Receiving", icon: CircleNotchIcon, tone: "info", spin: true },
   finishing: { label: "Checking", icon: CircleNotchIcon, tone: "info", spin: true },
   done: { label: "Checked", icon: CheckCircleIcon, tone: "verified" },
-  declined: { label: "Declined", icon: ProhibitIcon, tone: "neutral" },
-  cancelled: { label: "Cancelled", icon: ProhibitIcon, tone: "neutral" },
-  interrupted: { label: "Interrupted", icon: PauseCircleIcon, tone: "approval" },
+  declined: { label: "Declined", icon: null, tone: "neutral" },
+  cancelled: { label: "Cancelled", icon: null, tone: "neutral" },
+  interrupted: { label: "Interrupted", icon: null, tone: "approval" },
   failed: { label: "Stopped", icon: XCircleIcon, tone: "failed" },
 };
 
@@ -43,7 +42,7 @@ const ACTIVE: ReadonlySet<TransferState> = new Set(["connecting", "waiting", "se
 const FINAL: ReadonlySet<TransferState> = new Set(["done", "declined", "cancelled", "failed"]);
 
 const REASONS: Record<string, string> = {
-  secret_file: "Credentials files",
+  secret_file: "Files with keys or passwords",
   secret_content: "Looks like it contains a secret",
   ignored_folder: "Dependency or build folders",
   invalid_path: "Names this computer can't hold safely",
@@ -67,9 +66,13 @@ function useNow(active: boolean): number {
   return now;
 }
 
-function left(until: string, now: number): string {
-  const s = Math.max(0, Math.round((Date.parse(until) - now) / 1000));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+/** The time left before `until`, as words for a sentence ("about 4 more minutes"), or null once it has run out. */
+function timeLeft(until: string, now: number): string | null {
+  const s = Math.round((Date.parse(until) - now) / 1000);
+  if (!(s > 0)) return null;
+  if (s < 60) return "less than a minute";
+  const m = Math.round(s / 60);
+  return m === 1 ? "about 1 more minute" : `about ${m} more minutes`;
 }
 
 function Badge({ tone, icon: BadgeIcon = null, children, spin = false }: { tone: string; icon?: Icon | null; children: ReactNode; spin?: boolean }) {
@@ -83,7 +86,7 @@ function Badge({ tone, icon: BadgeIcon = null, children, spin = false }: { tone:
 function Alert({ children }: { children: ReactNode }) {
   return (
     <p role="alert" className="alert">
-      <XCircleIcon size={18} weight="bold" aria-hidden />
+      <WarningCircleIcon size={18} weight="bold" aria-hidden />
       <span>{children}</span>
     </p>
   );
@@ -164,6 +167,7 @@ type Act = <T>(label: string, run: () => Promise<Result<T>>) => Promise<T | unde
 
 function Nearby({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: string | null; act: Act }) {
   const now = useNow(Boolean(s.visible || s.pairing || (s.relay.available && s.relay.pairingUntil)));
+  const visibleLeft = s.visible ? timeLeft(s.visible.until, now) : null;
   const incoming = s.transfers.filter((t) => t.direction === "in" && t.state === "offered");
   const others = s.transfers.filter((t) => !(t.direction === "in" && t.state === "offered"));
 
@@ -211,13 +215,12 @@ function Nearby({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: stri
             </p>
           </div>
           {s.visible ? (
-            <Badge tone="verified" icon={BroadcastIcon}>
-              Visible · {left(s.visible.until, now)} left
-            </Badge>
+            <span className="row-start">
+              <Badge tone={visibleLeft ? "verified" : "neutral"}>{visibleLeft ? "Visible" : "Closed"}</Badge>
+              {visibleLeft ? <span className="small muted">for {visibleLeft}</span> : null}
+            </span>
           ) : (
-            <Badge tone="neutral" icon={ShieldCheckIcon}>
-              Not visible
-            </Badge>
+            <Badge tone="neutral">Not visible</Badge>
           )}
         </div>
         {s.visible ? (
@@ -272,6 +275,7 @@ function Nearby({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: stri
 
 function PairingCard({ pairing: p, now, act, busy }: { pairing: NonNullable<MeshSnapshot["pairing"]>; now: number; act: Act; busy: string | null }) {
   const final = p.state !== "confirming" && p.state !== "waiting";
+  const codeLeft = timeLeft(p.expiresAt, now);
   return (
     <div className="card stack-sm pairing" aria-live="polite">
       <div className="row">
@@ -284,10 +288,10 @@ function PairingCard({ pairing: p, now, act, busy }: { pairing: NonNullable<Mesh
           <Badge tone="failed" icon={XCircleIcon}>
             Not paired
           </Badge>
+        ) : codeLeft ? (
+          <Badge tone="approval">{p.state === "confirming" ? "Waiting for you" : "Waiting for them"}</Badge>
         ) : (
-          <Badge tone="approval" icon={ClockCountdownIcon}>
-            {left(p.expiresAt, now)} left
-          </Badge>
+          <Badge tone="neutral">Closed</Badge>
         )}
       </div>
       {!final ? (
@@ -296,6 +300,7 @@ function PairingCard({ pairing: p, now, act, busy }: { pairing: NonNullable<Mesh
           <p className="pair-code mono" aria-label={`Code ${p.code.split("").join(" ")}`}>
             {p.code.slice(0, 3)} {p.code.slice(3)}
           </p>
+          {codeLeft ? <p className="small muted">The code works for {codeLeft}.</p> : null}
           <p className="small muted">
             Their key: <span className="mono">{grouped(p.peer.fingerprint)}</span>
           </p>
@@ -331,19 +336,12 @@ function PairingCard({ pairing: p, now, act, busy }: { pairing: NonNullable<Mesh
  */
 function RelayCard({ snapshot: s, now, busy, act }: { snapshot: MeshSnapshot; now: number; busy: string | null; act: Act }) {
   const r = s.relay;
+  const pairingLeft = r.available && r.pairingUntil ? timeLeft(r.pairingUntil, now) : null;
   return (
     <div className="card stack-sm">
       <div className="row">
         <h2>Over the internet</h2>
-        {r.available && r.reachable ? (
-          <Badge tone="verified" icon={GlobeSimpleIcon}>
-            Reachable
-          </Badge>
-        ) : (
-          <Badge tone="neutral" icon={ShieldCheckIcon}>
-            Not reachable
-          </Badge>
-        )}
+        {r.available && r.reachable ? <Badge tone="verified">Reachable</Badge> : <Badge tone="neutral">Not reachable</Badge>}
       </div>
       <p className="muted">
         For your paired computers on other networks, while both apps are open. Farbaek helps the two find each other, then the files go directly between them when both networks
@@ -368,10 +366,10 @@ function RelayCard({ snapshot: s, now, busy, act }: { snapshot: MeshSnapshot; no
           </div>
           <p className="small muted">It stays on while this app is open. Each folder still needs you to accept it.</p>
           {r.reachable ? (
-            r.pairingUntil && Date.parse(r.pairingUntil) > now ? (
+            pairingLeft ? (
               <div className="stack-sm">
                 <p className="small">
-                  Open for a phone or browser for {left(r.pairingUntil, now)}. On it, open Farbaek&apos;s Move projects page, sign in, and choose this computer. The same code shows on both screens when it calls.
+                  Open for a phone or browser for {pairingLeft}. On it, open Farbaek&apos;s Move projects page, sign in, and choose this computer. The same code shows on both screens when it calls.
                 </p>
                 <div className="row-start">
                   <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("pair-remote", () => mesh.pairRemote(false))}>
@@ -474,7 +472,7 @@ function SendCard({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: st
 
 function TransferRow({ transfer: t, busy, act }: { transfer: MeshSnapshot["transfers"][number]; busy: string | null; act: Act }) {
   // A transfer waiting for its device (ADR 0138) isn't stuck: it says so.
-  const st = t.queuedUntil && t.state === "interrupted" ? { label: "Waiting for it", icon: ClockCountdownIcon, tone: "approval", spin: false } : STATE[t.state];
+  const st = t.queuedUntil && t.state === "interrupted" ? { label: "Waiting for it", icon: null, tone: "approval", spin: false } : STATE[t.state];
   const pct = t.bytes === 0 ? (t.state === "done" ? 100 : 0) : Math.min(100, Math.round((t.bytesDone / t.bytes) * 100));
   const DirIcon = t.direction === "out" ? ArrowUpRightIcon : ArrowDownLeftIcon;
   return (
@@ -496,7 +494,7 @@ function TransferRow({ transfer: t, busy, act }: { transfer: MeshSnapshot["trans
         </div>
       ) : null}
       <p className="small muted">
-        {formatBytes(t.bytesDone)} of {formatBytes(t.bytes)} · {t.files.toLocaleString("en-US")} {t.files === 1 ? "file" : "files"}
+        {t.files.toLocaleString("en-US")} {t.files === 1 ? "file" : "files"}: {formatBytes(t.bytesDone)} of {formatBytes(t.bytes)} {t.direction === "out" ? "sent" : "received"}.
       </p>
       {t.via !== "nearby" ? (
         <p className="small muted">

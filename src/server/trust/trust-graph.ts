@@ -55,7 +55,7 @@ export async function loadTrustGraph(ctx: AppContext, orgId: string): Promise<{ 
     if (gh.success) services.push({ id: "integration:github", label: "GitHub", detail: `Connected as ${gh.data.login}`, setBy: gh.data.set_by });
     for (const l of z.array(z.object({ project_id: z.string(), owner: z.string(), repo: z.string() })).catch([]).parse(links)) repoLinks.push({ projectId: l.project_id, repo: `${l.owner}/${l.repo}` });
     const key = z.object({ key_hint: z.string(), base_url: z.string().nullable(), set_by: z.string().nullable() }).safeParse(modelKey);
-    if (key.success) services.push({ id: "integration:model-key", label: "Your own AI key", detail: `Anthropic key ending ${key.data.key_hint}${key.data.base_url ? ", through a gateway" : ""}`, setBy: key.data.set_by });
+    if (key.success) services.push({ id: "integration:model-key", label: "Your own AI account", detail: `Anthropic key ending ${key.data.key_hint}${key.data.base_url ? ", through your company's server" : ""}`, setBy: key.data.set_by });
     for (const [provider, c] of Object.entries(connections)) {
       if (c) services.push({ id: `integration:${provider}`, label: PROVIDER_NAMES[provider as keyof typeof PROVIDER_NAMES] ?? provider, detail: `Connected to ${c.accountName}`, setBy: null });
     }

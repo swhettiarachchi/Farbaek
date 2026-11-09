@@ -92,7 +92,8 @@ export function proofPackStatus(checks: readonly CheckResult[]): ProofPackStatus
 
 function limitsFor(input: ProofPackInput, status: ProofPackStatus): string[] {
   const limits = ["This record proves the integrity and origin of what it contains. It does not prove that external claims in it are true."];
-  if (input.execution.mode === "review_only") limits.push(`Checks did not run: ${input.execution.reason}`);
+  // Two sentences, so any reason reads right after it, including one that starts with its own capital.
+  if (input.execution.mode === "review_only") limits.push(`Checks did not run. ${input.execution.reason}`);
   const notRun = input.checks.filter((c) => c.exitCode === null).map((c) => c.command);
   if (notRun.length && input.execution.mode === "sandboxed") limits.push(`Not run: ${notRun.join(", ")}.`);
   if (input.checks.length === 0) limits.push("The plan listed no required checks, so nothing verified the change.");

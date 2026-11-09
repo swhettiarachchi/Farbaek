@@ -1,4 +1,4 @@
-import { ArrowSquareOutIcon, CheckCircleIcon, CircleDashedIcon, InfoIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowSquareOutIcon, CheckCircleIcon, InfoIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
 import { LiveRefresh } from "@/components/app/live-refresh";
 import { RelativeTime } from "@/components/ui/local-time";
 import type { LaunchProvider } from "@/core/launch/providers";
@@ -73,13 +73,15 @@ export function ProviderPanel(props: {
           <p className="mt-1 max-w-[68ch] text-sm leading-relaxed text-ink-2">{copy.intro}</p>
         </div>
         {connection ? (
-          <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-verified/40 px-3 text-xs font-medium text-verified">
-            <CheckCircleIcon size={14} weight="fill" aria-hidden /> Connected as {connection.accountName}
+          // A long account name is cut short here; the whole name is in the title and in the Account row below.
+          <span
+            title={`Connected as ${connection.accountName}`}
+            className="inline-flex h-7 min-w-0 max-w-full items-center gap-1.5 rounded-full border border-verified/40 px-3 text-xs font-medium text-verified"
+          >
+            <CheckCircleIcon size={14} weight="fill" className="shrink-0" aria-hidden /> <span className="truncate">Connected as {connection.accountName}</span>
           </span>
         ) : (
-          <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-dashed border-line-strong px-3 text-xs text-ink-2">
-            <CircleDashedIcon size={14} aria-hidden /> Not connected
-          </span>
+          <span className="inline-flex h-7 items-center rounded-full border border-dashed border-line-strong px-3 text-xs text-ink-2">Not connected</span>
         )}
       </div>
 
@@ -93,7 +95,7 @@ export function ProviderPanel(props: {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <dl className="grid content-start divide-y divide-line rounded-md border border-line">
             {[
-              { k: "Files", v: `${props.files.count.toLocaleString("en-US")} files, ${formatBytes(props.files.bytes)}, recorded with their digest`, mono: false, title: `sha256:${props.files.digest}` },
+              { k: "Files", v: `${props.files.count.toLocaleString("en-US")} ${props.files.count === 1 ? "file" : "files"}, ${formatBytes(props.files.bytes)}, recorded exactly as they go`, mono: false, title: `sha256:${props.files.digest}` },
               { k: "Proof", v: EVIDENCE_WORDS[props.evidence].title, mono: false, title: EVIDENCE_WORDS[props.evidence].detail },
               { k: "Account", v: `${connection.accountName}${connection.teamId ? `, team ${connection.teamId}` : ""}`, mono: false, title: undefined },
               { k: "Goes to", v: `The live site (what ${copy.name} calls production)`, mono: false, title: undefined },
@@ -130,7 +132,7 @@ export function ProviderPanel(props: {
                     </span>
                   </p>
                   <p className="text-xs leading-relaxed text-ink-3" title={`Files sha256:${o.filesDigest}`}>
-                    {o.fileCount.toLocaleString("en-US")} files. {o.evidence === "verified" ? "Checks passed." : `Without passed checks. The reason given: ${o.overrideReason}`}
+                    {o.fileCount.toLocaleString("en-US")} {o.fileCount === 1 ? "file" : "files"}. {o.evidence === "verified" ? "Checks passed." : `Without passed checks. The reason given: ${o.overrideReason}`}
                   </p>
                   {o.failure ? <p className="text-sm text-failed">{o.failure}</p> : null}
                   {o.status === "ready" && said ? <p className="text-sm text-ink-2">{said}</p> : null}

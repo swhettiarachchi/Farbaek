@@ -52,7 +52,7 @@ import { passportBrief } from "@/core/realityloop/context-passport";
 import { loadPassport } from "@/server/workspace/context-readiness";
 import { revokeAppleSignIn } from "@/server/auth/apple-wiring";
 
-export type FormState = { status: "idle" } | { status: "error"; message: string; values?: Record<string, string> } | { status: "done"; message: string };
+export type FormState = { status: "idle" } | { status: "error"; message: string; values?: Record<string, string> } | { status: "done"; message: string; path?: string };
 
 /** Said to a person on a server that can't write. The reason is in the server's log, never on the screen. */
 const NOT_SET_UP = "Farbaek's server isn't set up to save changes yet. Write to support@farbaek.com.";
@@ -265,18 +265,34 @@ export async function draftContractWithAiAction(form: FormData): Promise<AiDraft
 
 export type ImportState = { status: "error"; message: string } | { status: "done"; summary: ImportSummary };
 
+/** The longest file path an import takes, in characters. */
+const MAX_IMPORT_PATH = 1000;
+
 const ImportInput = z.object({
   projectId: z.uuid(),
   files: z
-    .array(z.object({ path: z.string().max(1000), content: z.string() }))
+    .array(z.object({ path: z.string().max(MAX_IMPORT_PATH), content: z.string() }))
     .min(1)
     .max(WORKSPACE_LIMITS.maxProjectFiles),
 });
 
+/** Which limit an import went past, in words, so the person knows what to change. */
+function importProblem(issues: readonly { code: string; path: readonly PropertyKey[] }[]): string {
+  const broke = (code: string, at: (path: readonly PropertyKey[]) => boolean) => issues.some((i) => i.code === code && at(i.path));
+  if (broke("too_big", (p) => p.length === 1 && p[0] === "files")) {
+    return `A project can hold up to ${WORKSPACE_LIMITS.maxProjectFiles.toLocaleString("en-US")} files. Choose fewer and try again.`;
+  }
+  if (broke("too_big", (p) => p[0] === "files" && p[p.length - 1] === "path")) {
+    return `A file path is longer than ${MAX_IMPORT_PATH.toLocaleString("en-US")} characters. Rename it and try again.`;
+  }
+  if (broke("too_small", (p) => p.length === 1 && p[0] === "files")) return "Choose at least one file to add.";
+  return "The selected files couldn't be read. Reload the page and try again.";
+}
+
 /** Imports text files into a project. The browser's preview is advisory; the server screens again. */
 export async function importFilesAction(input: { projectId: string; files: { path: string; content: string }[] }): Promise<ImportState> {
   const parsed = ImportInput.safeParse(input);
-  if (!parsed.success) return { status: "error", message: "The selected files couldn't be read. Try again with fewer files." };
+  if (!parsed.success) return { status: "error", message: importProblem(parsed.error.issues) };
 
   const ctx = await requireContext();
   const w = await writeDeps(ctx);
@@ -391,7 +407,7 @@ export async function generateImageAction(_previous: FormState, form: FormData):
   const result = await generateProjectImage(w.deps, imageGeneration().generator, { orgId: w.orgId, userId: ctx.user.id, projectId: project.id, prompt, aspectRatio, name, existingPaths });
   if (!result.ok) return { status: "error", message: result.message, values };
   revalidatePath(`/app/projects/${project.id}`, "layout");
-  return { status: "done", message: result.value.path };
+  return { status: "done", message: `Saved as ${result.value.path}.`, path: result.value.path };
 }
 
 /** Restores an earlier revision by saving its content as the next revision. History is never rewritten. */

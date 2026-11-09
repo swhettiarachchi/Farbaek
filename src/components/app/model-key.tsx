@@ -63,9 +63,12 @@ export function ModelKeyCard({
         </span>
       </p>
       <ul className="grid gap-1 text-sm leading-relaxed text-ink-2">
-        <li>With your own key, drafting plans, suggesting changes, drafting rules, linking changes to the plan, security reviews, failure trials, notes and agent runs use it, and don&apos;t count against your plan&apos;s AI usage.</li>
+        <li>
+          Your own key covers drafting plans and rules, suggesting changes, linking changes to the plan, security reviews, failure trials, notes and agent runs. None of these count
+          against your plan&apos;s AI usage.
+        </li>
         <li>The second check and image generation still use Farbaek&apos;s AI.</li>
-        <li>Your code goes to Anthropic, or your gateway, under your own account&apos;s terms.</li>
+        <li>Your code goes to Anthropic, or through your company&apos;s own server, under your own account&apos;s terms.</li>
       </ul>
 
       {canManage ? (
@@ -75,9 +78,9 @@ export function ModelKeyCard({
             <input name="key" type="password" autoComplete="off" spellCheck={false} required minLength={20} maxLength={300} disabled={busy} className={`${field} font-mono`} />
           </label>
           <label className="grid gap-1.5 text-sm font-medium">
-            Company gateway (optional)
+            Your company&apos;s server for Anthropic (optional)
             <input name="gateway" type="url" inputMode="url" autoComplete="off" spellCheck={false} placeholder="https://ai-gateway.example.com" disabled={busy} className={`${field} font-mono`} />
-            <span className="text-xs font-normal text-ink-3">An Anthropic-compatible address on https. Leave it empty to call Anthropic directly.</span>
+            <span className="text-xs font-normal text-ink-3">An Anthropic-compatible web address on https. Leave it empty to call Anthropic directly.</span>
           </label>
           <div className="flex flex-wrap items-center gap-3">
             <button type="submit" disabled={busy} className={buttonClasses("secondary", "sm")}>

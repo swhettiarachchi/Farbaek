@@ -27,7 +27,7 @@ export default async function IncidentsPage() {
   const manager = ctx.role !== null && MANAGER_ROLES.includes(ctx.role);
   const tools = checkFeature(ws.plan, "incident_response");
   const readOnly = demo ? "The demo workspace is read-only." : null;
-  const toolsReason = readOnly ?? (contributor ? null : "Viewers can read incidents, but not open them.") ?? (tools.allowed ? null : tools.code === "FEATURE_NOT_IN_PLAN" ? INCIDENT_TOOLS_NOT_IN_PLAN : tools.message);
+  const toolsReason = readOnly ?? (contributor ? null : "Viewers can read problems, but not report them.") ?? (tools.allowed ? null : tools.code === "FEATURE_NOT_IN_PLAN" ? INCIDENT_TOOLS_NOT_IN_PLAN : tools.message);
 
   return (
     <div className="grid gap-8">
@@ -54,7 +54,7 @@ export default async function IncidentsPage() {
           </p>
         ) : incidents.length === 0 ? (
           <EmptyState icon={SirenIcon} title="No problems">
-            One opens here on its own when a change that applied on its own fails its checks, when something you watch goes down, or when agents are paused.
+            A problem opens here by itself when agents are paused or something you watch goes down. One also opens when a change that applied on its own fails its checks.
           </EmptyState>
         ) : (
           <ul className="divide-y divide-line overflow-hidden rounded-md border border-line bg-surface shadow-e1">

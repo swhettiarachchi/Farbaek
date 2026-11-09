@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckIcon, InfoIcon, PenNibIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckIcon, PenNibIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useId, useRef, useState, useTransition } from "react";
 import { approveContractAction, draftContractWithAiAction, saveContractAction, type AiDraftState, type FormState } from "@/app/app/actions";
 import { EffortPicker } from "@/components/app/effort-picker";
@@ -187,12 +187,9 @@ function AiDraftPanel({
       <div aria-live="polite" className="empty:hidden">
         {pending ? <p className="text-xs text-ink-2">Drafting. This can take up to a minute.</p> : null}
         {!pending && result?.status === "done" ? (
-          <p role="status" className="flex items-start gap-2 text-sm text-ink-2">
-            <InfoIcon size={16} className="mt-0.5 shrink-0 text-info" aria-hidden />
-            <span>
-              Drafted by {modelName(result.model)}. Nothing is saved yet: check every field, fix what&apos;s wrong, then save.
-              {result.routeNote ? ` ${result.routeNote}` : null}
-            </span>
+          <p role="status" className="text-sm text-ink-2">
+            Drafted by {modelName(result.model)}. Nothing is saved yet: check every field, fix what&apos;s wrong, then save.
+            {result.routeNote ? ` ${result.routeNote}` : null}
           </p>
         ) : null}
         {!pending && result?.status === "error" ? (

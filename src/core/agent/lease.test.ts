@@ -18,7 +18,7 @@ describe("a lease's state", () => {
   });
 
   it("says what it allows in one sentence", () => {
-    expect(leaseSummary(lease())).toBe("May read tasks and files, suggest changes, use Farbaek's AI and send Mesh transfers, on every project, up to 600 requests an hour.");
+    expect(leaseSummary(lease())).toBe("May read tasks and files, suggest changes, use Farbaek's AI and send files between your devices, on every project, up to 600 requests an hour.");
     expect(leaseSummary(lease({ projects: [P1], capabilities: ["propose", "read"], actionsPerHour: 1200 }))).toBe("May read tasks and files and suggest changes, on 1 project, up to 1,200 requests an hour.");
   });
 });

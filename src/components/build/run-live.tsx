@@ -99,9 +99,9 @@ export function EventRow({ e, latest }: { e: RunEventView; latest: boolean }) {
     tone = code === 0 ? "text-verified" : "text-failed";
     body = (
       <details className="group min-w-0">
-        <summary className="flex cursor-pointer list-none flex-wrap items-baseline gap-x-2 text-sm">
+        <summary className="flex cursor-pointer list-none flex-wrap items-baseline gap-x-2 text-sm pointer-coarse:min-h-11 pointer-coarse:items-center">
           <span className="break-all font-mono text-[0.8125rem] text-ink">{str(p.command)}</span>
-          <span className={`text-xs font-medium ${tone}`}>{code === 0 ? "Passed" : code === null ? "Didn't finish" : `Exit ${code}`}</span>
+          <span className={`text-xs font-medium ${tone}`}>{code === 0 ? "Passed" : code === null ? "Didn't finish" : `Failed (exit ${code})`}</span>
           <span className="text-xs text-ink-3 group-open:hidden">Show output</span>
         </summary>
         <pre className="mt-2 max-h-72 overflow-auto rounded-sm bg-media p-3 font-mono text-xs leading-relaxed text-media-ink">{str(p.output) || "No output."}</pre>
@@ -228,7 +228,7 @@ function MessageBar({ runId }: { runId: string }) {
         <button
           type="submit"
           disabled={pending || !text.trim()}
-          className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.97] disabled:opacity-40"
+          className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Send to the agent"
         >
           <PaperPlaneRightIcon size={18} weight="fill" aria-hidden />
@@ -530,9 +530,15 @@ export function RunLive({
 
         <div id="pane-files" className={`${panes.paneClass("files")} lg:col-start-1 lg:row-start-3`}>
           <section aria-labelledby="files-heading" className="rounded-md border border-line bg-surface p-5 shadow-e1">
-            <h2 id="files-heading" className="flex items-baseline justify-between gap-3 text-base font-medium">
-              Files <span className="text-[0.8125rem] font-normal text-ink-3">{files.read} read</span>
+            <h2 id="files-heading" className="text-base font-medium">
+              Files
             </h2>
+            {files.read > 0 ? (
+              <p className="mt-1 text-sm text-ink-2">
+                The agent {live ? "has read" : "read"} <span className="tabular font-medium text-ink">{files.read}</span> {files.read === 1 ? "file" : "files"}
+                {live ? " so far" : ""}.
+              </p>
+            ) : null}
             {files.changed.length === 0 ? (
               <p className="mt-3 text-sm text-ink-3">{live ? "No files changed yet." : "This run changed no files."}</p>
             ) : (

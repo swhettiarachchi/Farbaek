@@ -1,25 +1,27 @@
 "use client";
 
-import { CheckCircleIcon, CircleDashedIcon, EyesIcon, InfoIcon, WarningCircleIcon, WarningIcon, XCircleIcon } from "@phosphor-icons/react";
+import { EyesIcon, WarningCircleIcon, WarningIcon, XCircleIcon } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { useState, useTransition } from "react";
 import { secondCheckAction } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
+import { StatusBadge, type Status } from "@/components/ui/status-badge";
 import { modelName } from "@/core/billing/rate-card";
 import { TOPIC_LABELS, VERDICT_LABELS, type SecondCheckResult, type SecondCheckVerdict } from "@/core/trust/second-check";
 
-const VERDICT_LOOK: Record<SecondCheckVerdict, { icon: Icon; className: string }> = {
-  consistent: { icon: CheckCircleIcon, className: "text-verified border-verified/40" },
-  concerns: { icon: WarningIcon, className: "text-approval border-approval/40" },
-  unclear: { icon: CircleDashedIcon, className: "text-unverified border-unverified/60 border-dashed" },
+// Status is a word (ADR 0180): only a clear result carries an icon.
+const VERDICT_STATUS: Record<SecondCheckVerdict, Status> = {
+  consistent: "verified",
+  concerns: "approval",
+  unclear: "unverified",
 };
 
-const SEVERITY_LOOK = {
+const SEVERITY_LOOK: Record<"serious" | "concern" | "note", { icon: Icon | null; label: string; className: string }> = {
   serious: { icon: XCircleIcon, label: "Serious", className: "text-failed" },
-  concern: { icon: WarningIcon, label: "Concern", className: "text-approval" },
-  note: { icon: InfoIcon, label: "Note", className: "text-ink-3" },
-} as const;
+  concern: { icon: null, label: "Concern", className: "text-approval" },
+  note: { icon: null, label: "Note", className: "text-ink-3" },
+};
 
 type Stored = SecondCheckResult & { createdAt: string };
 
@@ -57,7 +59,6 @@ export function SecondCheckCard({
   }
 
   if (!check && !pending) return null;
-  const look = check ? VERDICT_LOOK[check.verdict] : null;
 
   return (
     <section aria-labelledby="second-check-title" className="grid gap-4 rounded-md border border-line bg-surface-raised/40 p-4 sm:p-5">
@@ -65,15 +66,11 @@ export function SecondCheckCard({
         <h3 id="second-check-title" className="flex items-center gap-2 text-base font-medium">
           <EyesIcon size={18} className="text-ink-3" aria-hidden /> Second check
         </h3>
-        {check && look ? (
-          <span className={`inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium ${look.className}`}>
-            <look.icon size={14} weight="bold" aria-hidden /> {VERDICT_LABELS[check.verdict].title}
-          </span>
-        ) : null}
+        {check ? <StatusBadge status={VERDICT_STATUS[check.verdict]} label={VERDICT_LABELS[check.verdict].title} /> : null}
       </div>
       <p className="text-sm leading-relaxed text-ink-2">
-        A second AI model reads this change against its plan. It&apos;s advice: agreement between two models isn&apos;t proof, and the rules, the exact checks and real tests still
-        decide what this change needs.
+        A second AI model reads this change against its plan. It&apos;s advice, and two models agreeing isn&apos;t proof. The rules, the exact checks and real tests still decide
+        what this change needs.
       </p>
 
       {!check && recommended ? (
@@ -90,11 +87,12 @@ export function SecondCheckCard({
             <ul className="grid gap-2">
               {check.findings.map((f, i) => {
                 const s = SEVERITY_LOOK[f.severity];
+                const SeverityIcon = s.icon;
                 return (
                   <li key={i} className="grid gap-1 rounded-sm border border-line bg-surface px-3 py-2.5">
                     <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                       <span className={`inline-flex items-center gap-1 font-medium ${s.className}`}>
-                        <s.icon size={14} weight="bold" aria-hidden /> {s.label}
+                        {SeverityIcon ? <SeverityIcon size={14} weight="bold" aria-hidden /> : null} {s.label}
                       </span>
                       <span className="text-ink-3">{TOPIC_LABELS[f.topic]}</span>
                       {f.path ? <span className="break-all font-mono text-ink-2">{f.path}</span> : null}

@@ -104,7 +104,7 @@ export function ThemePanel({
                     onClick={() => onApply({ kind: "theme", look })}
                     aria-pressed={on}
                     title={locked ? "Studio kit Pro is part of the paid plans." : undefined}
-                    className={`grid w-full gap-2 rounded-sm border p-2 text-left transition-[border-color,transform] duration-150 active:scale-[0.98] disabled:cursor-default ${on ? "border-accent ring-1 ring-accent" : "border-line hover:border-accent/60"} ${locked ? "opacity-60" : ""}`}
+                    className={`grid w-full gap-2 rounded-sm border p-2 text-left transition-[border-color,transform] duration-150 active:scale-[0.98] ${on ? "border-accent ring-1 ring-accent disabled:cursor-default" : locked ? "border-line opacity-60 disabled:cursor-not-allowed" : "border-line hover:border-accent/60"}`}
                   >
                     {/* The look itself, in its own colours: the person's site, not Farbaek's interface. */}
                     <span className="flex h-14 items-end justify-between rounded-[10px] p-2" style={{ background: s.paper, color: s.ink }}>
@@ -137,10 +137,11 @@ export function ThemePanel({
               <label htmlFor={`${id}-${t}`} className="text-xs text-ink-2">
                 {THEME_TOKENS[t]}
               </label>
-              <span className="flex min-h-11 items-center gap-2 rounded-sm border border-line bg-surface px-2">
+              {/* The whole 44px row opens the colour picker, not only the swatch. */}
+              <label htmlFor={`${id}-${t}`} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-sm border border-line bg-surface px-2">
                 <input id={`${id}-${t}`} type="color" value={value(t)} onChange={(e) => setColor(t, e.target.value)} className="size-8 shrink-0 cursor-pointer rounded-sm border-0 bg-transparent p-0" />
-                <span className="font-mono text-xs text-ink-2">{value(t)}</span>
-              </span>
+                <span aria-hidden className="font-mono text-xs text-ink-2">{value(t)}</span>
+              </label>
             </div>
           ))}
         </div>

@@ -189,22 +189,28 @@ struct ClosesIn: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
             let left = (FarbaekDate.parse(expiresAt) ?? context.date).timeIntervalSince(context.date)
-            let closing = left < 12 * 3600
-            Label(Self.words(left), systemImage: "clock")
+            let closing = left > 0 && left < 12 * 3600
+            // A deadline is words in its colour, with no glyph (ADR 0180), as on the web's wallet card.
+            Text(Self.words(left))
                 .font(.footnote)
                 .foregroundStyle(closing ? Palette.approval : Palette.ink2)
         }
     }
 
+    /// The web's words, in full: "Closes in 2 days", "Closes in 5 hours", "Closes in 12 minutes", then "Expired".
+    /// Rounded down, as on the web, so time left is never overstated.
     static func words(_ seconds: TimeInterval) -> String {
-        if seconds <= 0 { return "Closed" }
+        if seconds <= 0 { return "Expired" }
+        let days = Int(seconds / 86_400)
+        if days >= 2 { return "Closes in \(days) days" }
+        if days == 1 { return "Closes tomorrow" }
         let hours = Int(seconds / 3600)
-        if hours >= 1 { return "Closes in \(hours) h" }
-        return "Closes in \(max(1, Int(seconds / 60))) min"
+        if hours >= 1 { return hours == 1 ? "Closes in 1 hour" : "Closes in \(hours) hours" }
+        let minutes = max(1, Int(seconds / 60))
+        return minutes == 1 ? "Closes in 1 minute" : "Closes in \(minutes) minutes"
     }
 }
 
-/// The first twelve characters of a hash, in the monospaced face.
 /// The exact version someone is approving, for whoever wants it. Folded away, as on the web (ADR 0170).
 struct TechnicalDetails<Content: View>: View {
     @ViewBuilder let content: () -> Content
@@ -221,6 +227,7 @@ struct TechnicalDetails<Content: View>: View {
     }
 }
 
+/// The first twelve characters of a hash, in the monospaced face. Only ever inside Technical details.
 struct HashText: View {
     let sha: String
 

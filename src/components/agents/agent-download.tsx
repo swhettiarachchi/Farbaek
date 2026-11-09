@@ -71,12 +71,12 @@ export function AgentDownload() {
           <CheckTheFile how="In PowerShell, in your Downloads folder, run this. What it prints must match the line under it; capital letters don't matter." command={`Get-FileHash ${d.file}`} fingerprint={d.sha256} />
           <ol className="grid gap-3 lg:grid-cols-2">
             <li className="grid min-w-0 content-start gap-2 rounded-md border border-line p-4">
-              <Step n={1}>Open it, then choose More info</Step>
+              <Step>Open it, then choose More info</Step>
               <p className="text-xs leading-relaxed text-ink-3">It&apos;s the underlined link under the warning.</p>
               <ScreenSketch highlight="more" />
             </li>
             <li className="grid min-w-0 content-start gap-2 rounded-md border border-line p-4">
-              <Step n={2}>Choose Run anyway</Step>
+              <Step>Then choose Run anyway</Step>
               <p className="text-xs leading-relaxed text-ink-3">It appears beside Don&apos;t run, under the file&apos;s name and &quot;Unknown publisher&quot;. Then install as usual.</p>
               <ScreenSketch highlight="run" />
             </li>
@@ -169,15 +169,9 @@ function CheckTheFile({ how, command, fingerprint }: { how: string; command: str
   );
 }
 
-function Step({ n, children }: { n: number; children: ReactNode }) {
-  return (
-    <p className="flex items-center gap-2.5 text-sm font-medium text-ink">
-      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xs font-medium text-accent" aria-hidden>
-        {n}
-      </span>
-      {children}
-    </p>
-  );
+/** A step's instruction in words; the list keeps the order, so there's no number badge. */
+function Step({ children }: { children: ReactNode }) {
+  return <p className="text-sm font-medium text-ink">{children}</p>;
 }
 
 /** A sketch of the SmartScreen screen, not a copy of it: where to click, marked with the accent. Words for it are in the step. */
@@ -192,7 +186,7 @@ function ScreenSketch({ highlight }: { highlight: "more" | "run" }) {
           <span className={`px-0.5 text-accent underline ${mark}`}>More info</span>
         </span>
       ) : (
-        <span className="grid gap-0.5 font-mono text-[0.75rem] text-ink-3">
+        <span className="grid gap-0.5 text-ink-3">
           <span>App: Farbaek-Agent-Setup….exe</span>
           <span>Publisher: Unknown publisher</span>
         </span>

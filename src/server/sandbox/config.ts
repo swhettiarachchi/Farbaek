@@ -94,9 +94,28 @@ export function readSandboxConfig(): SandboxServerConfig {
   };
 }
 
-/** Why previews are off, or null when they're configured. */
+/** What a person reads whenever previews are off here, whatever the server-side cause. */
+export const PREVIEWS_UNAVAILABLE = "Previews aren't available on this server yet.";
+
+/**
+ * Why previews are off, as people read it, or null when they're configured.
+ * Which setting is the cause is for staff: previewSetupProblem, below.
+ */
 export function previewUnavailableReason(config: SandboxServerConfig): string | null {
-  if (!config.preview.domain) return "Previews need SANDBOX_PREVIEW_DOMAIN, a separate host for running apps, which isn't set on this server.";
-  if (!config.preview.secret) return "Previews need SANDBOX_PREVIEW_SECRET (32 characters or more), which isn't set on this server.";
+  return config.preview.domain && config.preview.secret ? null : PREVIEWS_UNAVAILABLE;
+}
+
+/**
+ * For staff only (Office Space's connections): which preview setting is
+ * missing or refused, by the same rules readSandboxConfig applies, or null
+ * when previews are configured. Never shown to customers.
+ */
+export function previewSetupProblem(read: (name: string) => string | null = env): string | null {
+  const domain = read("SANDBOX_PREVIEW_DOMAIN")?.trim().toLowerCase() || null;
+  const secret = read("SANDBOX_PREVIEW_SECRET")?.trim() || null;
+  if (!domain) return "SANDBOX_PREVIEW_DOMAIN isn't set";
+  if (!/^[a-z0-9.-]+(:\d{2,5})?$/.test(domain)) return "SANDBOX_PREVIEW_DOMAIN isn't a plain host name";
+  if (!secret) return "SANDBOX_PREVIEW_SECRET isn't set";
+  if (secret.length < 32) return "SANDBOX_PREVIEW_SECRET is shorter than 32 characters";
   return null;
 }

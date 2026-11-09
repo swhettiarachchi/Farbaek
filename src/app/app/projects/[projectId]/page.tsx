@@ -1,4 +1,4 @@
-import { ArchiveIcon, ArrowLeftIcon, ArrowRightIcon, DownloadSimpleIcon, EyeIcon, FolderOpenIcon, GithubLogoIcon, GraphIcon, ListChecksIcon, PaintBrushIcon, RocketLaunchIcon, ShieldCheckIcon } from "@phosphor-icons/react/ssr";
+import { ArchiveIcon, ArrowLeftIcon, ArrowRightIcon, CloudArrowUpIcon, DownloadSimpleIcon, GithubLogoIcon, GraphIcon, ListChecksIcon, PaintBrushIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -102,14 +102,9 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
             description={project.description ?? undefined}
             actions={
               <div className="flex flex-wrap gap-2">
-                <Link href={`/app/projects/${project.id}/graph`} className={buttonClasses("secondary", "sm")}>
-                  <GraphIcon size={16} aria-hidden /> Project map
-                </Link>
+                {/* Two at most here, so a phone shows the page's job first; the project map and GitHub sit lower down. */}
                 <Link href={`/app/projects/${project.id}/launch`} className={buttonClasses("secondary", "sm")}>
-                  <RocketLaunchIcon size={16} aria-hidden /> Launch plan
-                </Link>
-                <Link href={`/app/projects/${project.id}/github`} className={buttonClasses("secondary", "sm")}>
-                  <GithubLogoIcon size={16} aria-hidden /> GitHub
+                  <CloudArrowUpIcon size={16} aria-hidden /> Launch plan
                 </Link>
                 {/* Apps with a build step get the component editor (ADR 0129); static sites open it from the live preview below. */}
                 {!isStatic && files.some((f) => /.(tsx|jsx)$/.test(f.path)) ? (
@@ -178,8 +173,8 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
       {contents ? (
         <section aria-labelledby="preview-heading" className="grid gap-3 rounded-md border border-line bg-surface p-4 shadow-e1 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 id="preview-heading" className="flex items-center gap-2 text-lg font-medium">
-              <EyeIcon size={20} weight="bold" className="text-accent" aria-hidden /> Live preview
+            <h2 id="preview-heading" className="text-lg font-medium">
+              Live preview
             </h2>
             <ButtonLink href={`/app/projects/${project.id}/design`} variant="secondary" size="sm">
               <PaintBrushIcon size={16} aria-hidden /> Visual editor
@@ -204,7 +199,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">
         <section aria-labelledby="tasks-heading" className="grid gap-4">
           <h2 id="tasks-heading" className="text-lg font-medium">
-            Tasks <span className="text-ink-3 tabular">{tasks.length}</span>
+            Tasks
           </h2>
           {tasks.length === 0 ? (
             <EmptyState icon={ListChecksIcon} title="No tasks in this project">
@@ -218,9 +213,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
         <div className="grid gap-6">
         <Card>
           <div className="flex items-start justify-between gap-3">
-            <h2 className="flex items-center gap-2 text-lg font-medium">
-              <FolderOpenIcon size={20} className="text-ink-3" aria-hidden /> Files
-            </h2>
+            <h2 className="text-lg font-medium">Files</h2>
             {files.length > 0 ? (
               <Link href={`/app/projects/${project.id}/files`} className="inline-flex min-h-11 items-center gap-1 text-sm text-accent hover:underline">
                 Open <ArrowRightIcon size={14} aria-hidden />
@@ -230,7 +223,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
           {files.length > 0 ? (
             <>
               <p className="mt-2 text-sm text-ink-2">
-                <span className="tabular">{files.length.toLocaleString("en-US")}</span> {files.length === 1 ? "file" : "files"} · <span className="tabular">{formatBytes(filesBytes + imageBytes)}</span>
+                <span className="tabular">{files.length.toLocaleString("en-US")}</span> {files.length === 1 ? "file" : "files"}, <span className="tabular">{formatBytes(filesBytes + imageBytes)}</span>.
               </p>
               <div className="mt-4 flex flex-wrap items-start gap-3">
                 <PreviewButton projectId={project.id} disabledReason={previewReason} variant="primary" />
@@ -249,7 +242,9 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
                 .
               </p>
               {!previewReason && !files.some((f) => f.path === "index.html") ? (
-                <p className="mt-3 text-xs text-ink-3">Previews serve the project&apos;s files as they are, starting at index.html. Apps that need building preview from a test space.</p>
+                <p className="mt-3 text-xs text-ink-3">
+                  Previews serve the files as they are, starting from the site&apos;s main page, and this project doesn&apos;t have one yet. Apps that need building preview from a test space.
+                </p>
               ) : null}
             </>
           ) : (
@@ -265,15 +260,26 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
         </Card>
         <Card>
           <div className="flex items-start justify-between gap-3">
-            <h2 className="flex items-center gap-2 text-lg font-medium">
-              <ShieldCheckIcon size={20} className="text-ink-3" aria-hidden /> Security
-            </h2>
+            <h2 className="text-lg font-medium">Security</h2>
             <Link href={`/app/projects/${project.id}/security`} className="inline-flex min-h-11 items-center gap-1 text-sm text-accent hover:underline">
               Open <ArrowRightIcon size={14} aria-hidden />
             </Link>
           </div>
           <p className="mt-2 text-sm text-ink-2">Check the code for leaked secrets, unsafe patterns, vulnerable packages and risky logic, then fix findings with the agent.</p>
         </Card>
+        <nav aria-labelledby="more-heading" className="grid gap-1">
+          <p id="more-heading" className="text-xs font-medium text-ink-3">
+            More for this project
+          </p>
+          <div className="flex flex-wrap gap-x-6">
+            <Link href={`/app/projects/${project.id}/graph`} className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-ink-2 hover:text-ink">
+              <GraphIcon size={16} aria-hidden /> Project map
+            </Link>
+            <Link href={`/app/projects/${project.id}/github`} className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-ink-2 hover:text-ink">
+              <GithubLogoIcon size={16} aria-hidden /> GitHub
+            </Link>
+          </div>
+        </nav>
         {/* Describing a change above drafts the plan; this is for work someone will plan later, so it stays folded. */}
         <Disclosure summary="Add a task without a plan" hint="For work you'll plan later. Describing a change above drafts the plan for you.">
           <Card>

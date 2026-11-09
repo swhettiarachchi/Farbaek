@@ -1,4 +1,4 @@
-import { HandPalmIcon, PlusIcon, ShieldStarIcon, SignOutIcon } from "@phosphor-icons/react/ssr";
+import { CaretDownIcon, HandPalmIcon, PlusIcon, ShieldStarIcon, SignOutIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
@@ -201,8 +201,11 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           <div className="flex min-w-0 items-center gap-1">
             {live ? <PresenceOrb key={`${presence.state}:${presence.count}`} orgId={current.id} initial={presence} compact /> : null}
             {/* The pill stays small; the link around it is a full 44px target. */}
-            <Link href="/app/more" className="flex min-h-11 min-w-0 max-w-[42vw] items-center rounded-full">
-              <span className="truncate rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium shadow-e1">{current.name}</span>
+            <Link href="/app/more" aria-label={`${current.name}, switch workspace and more`} className="flex min-h-11 min-w-0 max-w-[42vw] items-center rounded-full">
+              <span className="inline-flex min-w-0 items-center gap-1 rounded-full border border-line bg-surface py-1.5 pl-3 pr-2 text-xs font-medium shadow-e1">
+                <span className="truncate">{current.name}</span>
+                <CaretDownIcon size={12} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
+              </span>
             </Link>
           </div>
         </header>

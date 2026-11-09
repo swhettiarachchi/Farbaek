@@ -29,7 +29,7 @@ export default async function SkillsPage() {
         description="Skills teach the agent how to design and build. Farbaek's own come with every plan. Add any of these to a project, and every build there follows it."
         actions={
           <Link href="/app/projects" className={buttonClasses("secondary", "sm")}>
-            Your projects&apos; skills <ArrowRightIcon size={15} weight="bold" aria-hidden />
+            Choose a project <ArrowRightIcon size={15} weight="bold" aria-hidden />
           </Link>
         }
       />

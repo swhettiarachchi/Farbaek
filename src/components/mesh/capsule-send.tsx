@@ -91,11 +91,11 @@ export function CapsuleSend({ projects }: { projects: SendableProject[] }) {
             </p>
 
             {preview.excludedCount > 0 ? (
-              <details className="rounded-sm border border-line bg-surface-raised/50 px-4 py-3 text-sm">
-                <summary className="cursor-pointer font-medium">
+              <details className="rounded-sm border border-line bg-surface-raised/50 px-4 py-1 text-sm">
+                <summary className="flex min-h-11 cursor-pointer items-center font-medium">
                   {preview.excludedCount.toLocaleString("en-US")} {preview.excludedCount === 1 ? "file stays" : "files stay"} behind
                 </summary>
-                <ul className="mt-3 grid gap-3">
+                <ul className="mb-3 mt-1 grid gap-3">
                   {[...byReason].map(([reason, paths]) => (
                     <li key={reason}>
                       <p className="text-ink-2">
@@ -103,7 +103,7 @@ export function CapsuleSend({ projects }: { projects: SendableProject[] }) {
                       </p>
                       <ul className="mt-1 grid gap-0.5 font-mono text-xs text-ink-3">
                         {paths.slice(0, 8).map((p) => (
-                          <li key={p} className="truncate">
+                          <li key={p} className="truncate" title={p}>
                             {p}
                           </li>
                         ))}

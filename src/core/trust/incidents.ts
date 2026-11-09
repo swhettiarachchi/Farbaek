@@ -78,8 +78,8 @@ export function suggestPreventionRules(changes: readonly IncidentChange[], incid
   const paths = patternsFor([...new Set(changes.flatMap((c) => c.files.map((f) => f.path)))]);
   if (paths.length === 0) return [];
   return [
-    { effect: "person_approval", paths, reason: `From incident #${incidentNumber}: a person reviews these files before they change.` },
-    { effect: "owner_approval", paths, reason: `From incident #${incidentNumber}: an owner or admin approves changes to these files.` },
+    { effect: "person_approval", paths, reason: `From problem #${incidentNumber}: a person reviews these files before they change.` },
+    { effect: "owner_approval", paths, reason: `From problem #${incidentNumber}: an owner or admin approves changes to these files.` },
   ];
 }
 
@@ -114,6 +114,6 @@ export function replayIncident(changes: readonly IncidentChange[], suggestions: 
 /** How the linked changes were found, said plainly. */
 export function linkWords(exact: boolean, hours: number): string {
   return exact
-    ? "The change this incident is about."
-    : `Changes applied in the ${hours} hours before the incident opened. Farbaek can't tell which, if any, caused it.`;
+    ? "The change this problem is about."
+    : `Changes applied in the ${hours} hours before the problem was reported. Farbaek can't tell which, if any, caused it.`;
 }

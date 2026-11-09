@@ -104,9 +104,11 @@ struct RunView: View {
 
     private func questionCard(_ q: RunQuestion) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("The agent is waiting for you", systemImage: "hand.raised.fill")
+            // A waiting state is its words in its colour, with no glyph (ADR 0180); the card's border carries it too.
+            Text("The agent is waiting for you")
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(Palette.approval)
+                .accessibilityAddTraits(.isHeader)
             Text(q.display).font(.callout.monospaced()).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
             if !q.reason.isEmpty { Text(q.reason).font(.footnote).foregroundStyle(Palette.ink2) }
             if !q.why.isEmpty { Text(q.why).font(.footnote).foregroundStyle(Palette.ink3) }
@@ -289,12 +291,13 @@ struct StepRow: View {
                     .lineLimit(3)
                 if !step.detail.isEmpty {
                     Text(step.detail)
-                        .font(step.kind == "command" ? Font.caption2.monospaced() : Font.footnote)
+                        .font(step.kind == "command" ? Font.caption.monospaced() : Font.footnote)
                         .foregroundStyle(Palette.ink2)
                         .lineLimit(5)
                 }
                 if let code = step.exitCode {
-                    Text(code == 0 ? "Exit 0, passed" : "Exit \(code), failed")
+                    // The web's words: the exit code only where it explains a failure.
+                    Text(code == 0 ? "Passed" : "Failed (exit \(code))")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(code == 0 ? Palette.verified : Palette.failed)
                 }

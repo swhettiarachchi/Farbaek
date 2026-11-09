@@ -45,7 +45,7 @@ import {
   type RuntimeSandboxSpec,
   type SandboxRuntime,
 } from "@/core/sandbox/runtime";
-import { redact } from "@/server/observability/log";
+import { log, redact } from "@/server/observability/log";
 import type { SandboxServerConfig } from "./config";
 
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -60,10 +60,14 @@ export function toRuntimeError(err: unknown, context: string): RuntimeError {
   if (err instanceof RuntimeError) return err;
   const message = err instanceof Error ? scrub(err.message) : "Unknown error";
   const at = (category: FailureCategory, text: string, retryable = false) => new RuntimeError(category, `${context}: ${text}`, retryable);
-  if (err instanceof AuthenticationError) return at("provider_rejected", "the runtime refused the API key. Check E2B_API_KEY.");
+  if (err instanceof AuthenticationError) {
+    // The setting to fix is for whoever runs the server; people read a sentence (ADR 0180).
+    log("warn", "sandbox.provider_rejected", { provider: "e2b", hint: "Check E2B_API_KEY." });
+    return at("provider_rejected", "the test space service turned this server away, so nothing can run there right now. Try again later.");
+  }
   if (err instanceof RateLimitError) return at("provider_rejected", "the runtime's rate limit was reached. Try again shortly.", true);
-  if (err instanceof NotEnoughSpaceError) return at("resource_limit", "the sandbox ran out of disk space.");
-  if (err instanceof NotFoundError) return at("sandbox_gone", "the runtime no longer has this sandbox.");
+  if (err instanceof NotEnoughSpaceError) return at("resource_limit", "the test space ran out of disk space.");
+  if (err instanceof NotFoundError) return at("sandbox_gone", "this test space no longer exists.");
   if (err instanceof InvalidArgumentError) return at("provider_rejected", message);
   if (err instanceof ServiceBusyError) return at("provider_unavailable", "the runtime is busy. Try again shortly.", true);
   if (err instanceof TimeoutError) return at("provider_unavailable", "the runtime didn't answer in time.", true);
@@ -103,7 +107,7 @@ export function createE2bRuntime(config: SandboxServerConfig): SandboxRuntime {
     try {
       return await Sandbox.connect(sandboxId, conn);
     } catch (err) {
-      throw toRuntimeError(err, "Connecting to the sandbox");
+      throw toRuntimeError(err, "Connecting to the test space");
     }
   }
 
@@ -138,9 +142,10 @@ export function createE2bRuntime(config: SandboxServerConfig): SandboxRuntime {
         });
       } catch (err) {
         if (err instanceof NotFoundError) {
-          throw new RuntimeError("provider_rejected", `The runtime image "${spec.image}" isn't built on this runtime. Build it with pnpm sandbox:templates.`);
+          log("warn", "sandbox.image_missing", { provider: "e2b", image: spec.image, hint: "Build it with pnpm sandbox:templates." });
+          throw new RuntimeError("provider_rejected", "This kind of project can't start in the test space yet.");
         }
-        throw toRuntimeError(err, "Starting the sandbox");
+        throw toRuntimeError(err, "Starting the test space");
       }
       try {
         const info = await sandbox.getInfo();
@@ -156,7 +161,7 @@ export function createE2bRuntime(config: SandboxServerConfig): SandboxRuntime {
         return { existed: await Sandbox.kill(sandboxId, conn) };
       } catch (err) {
         if (err instanceof NotFoundError) return { existed: false };
-        throw toRuntimeError(err, "Stopping the sandbox");
+        throw toRuntimeError(err, "Stopping the test space");
       }
     },
 
@@ -166,7 +171,7 @@ export function createE2bRuntime(config: SandboxServerConfig): SandboxRuntime {
         return info.state === "running" || info.state === "paused";
       } catch (err) {
         if (err instanceof NotFoundError) return false;
-        throw toRuntimeError(err, "Checking the sandbox");
+        throw toRuntimeError(err, "Checking the test space");
       }
     },
 
@@ -174,7 +179,7 @@ export function createE2bRuntime(config: SandboxServerConfig): SandboxRuntime {
       try {
         await Sandbox.pause(sandboxId, conn);
       } catch (err) {
-        throw toRuntimeError(err, "Pausing the sandbox");
+        throw toRuntimeError(err, "Pausing the test space");
       }
     },
 
@@ -182,7 +187,7 @@ export function createE2bRuntime(config: SandboxServerConfig): SandboxRuntime {
       try {
         await Sandbox.connect(sandboxId, { ...conn, timeoutMs: ttlSeconds * 1000 });
       } catch (err) {
-        throw toRuntimeError(err, "Resuming the sandbox");
+        throw toRuntimeError(err, "Resuming the test space");
       }
     },
 

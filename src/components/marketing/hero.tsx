@@ -12,16 +12,9 @@ export function Hero() {
       <div aria-hidden className="dot-grid pointer-events-none absolute inset-0" />
       <Container className="relative grid items-center gap-8 pb-16 pt-10 sm:pt-14 lg:min-h-[calc(100dvh-4rem)] lg:grid-cols-12 lg:gap-6 lg:py-12">
         <Reveal className="relative z-10 lg:col-span-7">
-          <Link
-            href="#status"
-            className="relative inline-flex items-center gap-2 rounded-full border border-line bg-surface py-1.5 pl-3 pr-2.5 text-[0.8125rem] text-ink-2 shadow-e1 transition-colors before:absolute before:inset-x-0 before:-inset-y-1.5 hover:text-ink"
-          >
-            Now open. See what works today
-            <ArrowRightIcon size={13} weight="bold" aria-hidden />
-          </Link>
           <h1
             id="hero-title"
-            className="mt-7 max-w-[12ch] text-balance text-[2.9rem] font-medium leading-[1.02] tracking-[-0.045em] sm:text-[4.2rem] lg:text-[5.2rem]"
+            className="max-w-[12ch] text-balance text-[2.9rem] font-medium leading-[1.02] tracking-[-0.045em] sm:text-[4.2rem] lg:text-[5.2rem]"
           >
             <span className="sr-only">From idea to verified software, websites and apps.</span>
             <span aria-hidden>From idea to verified </span>
@@ -41,6 +34,9 @@ export function Hero() {
               See pricing <ArrowRightIcon size={14} weight="bold" aria-hidden />
             </Link>
           </p>
+          <Link href="#status" className="inline-flex min-h-11 items-center text-sm text-ink-3 underline-offset-4 hover:text-ink-2 hover:underline">
+            See what works today
+          </Link>
         </Reveal>
 
         <Reveal className="lg:col-span-5" delay={0.1}>

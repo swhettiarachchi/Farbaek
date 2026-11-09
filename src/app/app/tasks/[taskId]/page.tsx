@@ -1,5 +1,6 @@
-import { ArrowCounterClockwiseIcon, ArrowLeftIcon, ClockCounterClockwiseIcon, GitPullRequestIcon, HammerIcon, TerminalWindowIcon } from "@phosphor-icons/react/ssr";
+import { ArrowLeftIcon, CheckIcon, HammerIcon, TerminalWindowIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { verifiedSeal } from "@/core/proof/verified-digest";
 import { ReportResult } from "@/components/tasks/report-result";
 import { NextStepCard } from "@/components/tasks/next-step";
@@ -79,6 +80,21 @@ export const metadata: Metadata = { title: "Task" };
 const ACTOR: Record<"user" | "agent" | "system", string> = { user: "By a person", agent: "By the agent", system: "By Farbaek" };
 const CAN_START_CONTRACT: ReadonlySet<TaskState> = new Set(["RECEIVED", "CONTEXT_ASSEMBLED"]);
 const CAN_REVISE: ReadonlySet<TaskState> = new Set(["CONTRACT_DRAFTED", "CONTRACT_APPROVED", "BLOCKED"]);
+// A step into one of these stopped the task's work, so the history gives it no check.
+const STOPPED_STATES: ReadonlySet<TaskState> = new Set(["FAILED", "BLOCKED", "REJECTED", "EXPIRED", "CANCELLED", "INTERRUPTED"]);
+
+/** One line of the history: a check where a step happened, and the line between steps. No drawn dots (ADR 0180). */
+function HistoryStep({ done, last, children }: { done: boolean; last: boolean; children: ReactNode }) {
+  return (
+    <li className="grid grid-cols-[0.875rem_1fr] gap-x-3">
+      <span aria-hidden className="flex flex-col items-center">
+        {done ? <CheckIcon size={14} weight="bold" className="mt-1 shrink-0 text-ink-3" /> : null}
+        {last ? null : <span className={`w-0 flex-1 border-l border-line ${done ? "mt-1" : ""}`} />}
+      </span>
+      <div className={last ? "" : "pb-5"}>{children}</div>
+    </li>
+  );
+}
 
 export default async function TaskPage({ params, searchParams }: { params: Promise<{ taskId: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { taskId } = await params;
@@ -373,9 +389,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
   );
   const changeSection = canPropose || showProposal ? (
         <Card id="change" className="scroll-mt-24">
-          <h2 className="flex items-center gap-2 text-lg font-medium">
-            <GitPullRequestIcon size={20} className="text-ink-3" aria-hidden /> Change
-          </h2>
+          <h2 className="text-lg font-medium">Change</h2>
           <p className="mt-1 text-sm text-ink-2">
             Exactly what the agent wants to change, file by file.
           </p>
@@ -446,7 +460,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
           </div>
           <p className="mt-1 text-sm text-ink-2">
             {execution.mode === "review_only"
-              ? `${execution.reason} This stays not verified until its checks run and pass.`
+              ? `${execution.reason} It's marked verified only after its checks run and pass.`
               : "These run in a safe test space, against exactly the files that were applied."}
           </p>
           <div className="mt-4">
@@ -460,8 +474,8 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
                 <>
                   {siteCheck ? (
                     <p className="max-w-[65ch] text-sm text-ink-2">
-                      The plan lists no checks, so Farbaek checks the site itself: that every link, script, style and image leads somewhere, each page has a title and works on a
-                      phone, and images have descriptions. It&apos;s marked verified only if nothing is wrong. It uses test space time from your plan.
+                      The plan lists no checks, so Farbaek checks the site itself. Every link, script, style and image has to lead somewhere. Each page needs a title and has to
+                      work on a phone, and images need descriptions. It&apos;s marked verified only if nothing is wrong. It uses test space time from your plan.
                     </p>
                   ) : fallback ? (
                     <p className="max-w-[65ch] text-sm text-ink-2">
@@ -498,8 +512,8 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
                 The plan lists no checks, so nothing can confirm this change, and it stays not verified. The change itself is applied: its files are in the project.
               </p>
               <p className="max-w-[65ch]">
-                To have changes like this verified, describe how to check them when you start the next build (for example &quot;run the tests&quot;), and they go into its
-                plan. Or undo this change below.
+                To have changes like this verified, say how to check them when you start the next build, for example &quot;run the tests&quot;. That goes into its plan. Or
+                undo this change below.
               </p>
             </div>
           ) : null}
@@ -507,9 +521,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
       ) : null;
   const undoSection = recovery || recoveries.length ? (
         <Card id="undo" className="scroll-mt-24">
-          <h2 className="flex items-center gap-2 text-lg font-medium">
-            <ArrowCounterClockwiseIcon size={20} className="text-ink-3" aria-hidden /> Undo
-          </h2>
+          <h2 className="text-lg font-medium">Undo</h2>
           <p className="mt-1 text-sm text-ink-2">
             Undo this change, file by file. Each file goes back to how it was. A file that changed since is left alone, so newer work is never overwritten.
           </p>
@@ -595,7 +607,7 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
       <div id="details" className="scroll-mt-24">
         <Disclosure summary="Full details" hint="How this task works, its proof, its history and more">
           <p className="text-sm text-ink-3">
-            Created <LocalTime iso={task.createdAt} />. Version <span className="tabular">{task.version}</span>
+            Created <LocalTime iso={task.createdAt} />.
           </p>
 
           <Card>
@@ -677,27 +689,23 @@ export default async function TaskPage({ params, searchParams }: { params: Promi
           </Card>
 
             <Card>
-              <h2 className="flex items-center gap-2 text-lg font-medium">
-                <ClockCounterClockwiseIcon size={20} className="text-ink-3" aria-hidden /> History
-              </h2>
+              <h2 className="text-lg font-medium">History</h2>
               <ol className="mt-4 grid gap-0">
-                <li className="relative border-l border-line pb-5 pl-5">
-                  <span aria-hidden className="absolute -left-[5px] top-1.5 size-2.5 rounded-full bg-line-strong" />
+                <HistoryStep done last={history.length === 0}>
                   <p className="text-[0.9375rem]">Task received</p>
                   <p className="text-xs text-ink-3">
                     <LocalTime iso={task.createdAt} />
                   </p>
-                </li>
+                </HistoryStep>
                 {history.map((h, i) => (
-                  <li key={h.eventId} className={`relative pl-5 ${i < history.length - 1 ? "border-l border-line pb-5" : "border-l border-transparent"}`}>
-                    <span aria-hidden className="absolute -left-[5px] top-1.5 size-2.5 rounded-full bg-accent" />
+                  <HistoryStep key={h.eventId} done={!STOPPED_STATES.has(h.to)} last={i === history.length - 1}>
                     <p className="text-[0.9375rem]">
                       {TASK_STATE_LABELS[h.from]} <span className="text-ink-3">to</span> {TASK_STATE_LABELS[h.to]}
                     </p>
                     <p className="text-xs text-ink-3" title={`Event: ${h.eventType}`}>
                       {ACTOR[h.actorKind]}, <LocalTime iso={h.at} />
                     </p>
-                  </li>
+                  </HistoryStep>
                 ))}
               </ol>
               {history.length === 0 ? <p className="mt-2 text-sm text-ink-3">No changes yet.</p> : null}

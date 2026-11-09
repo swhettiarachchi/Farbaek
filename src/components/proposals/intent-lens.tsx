@@ -1,6 +1,6 @@
 "use client";
 
-import { CrosshairIcon, QuestionIcon, TreeStructureIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
+import { TreeStructureIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { suggestLensMappingAction } from "@/app/app/actions";
@@ -31,19 +31,18 @@ const FIRST = 6;
  */
 export function IntentLensSummary({ summary, ai = null }: { summary: LensSummary; ai?: LensAiState | null }) {
   if (summary.hunks === 0) return null;
-  const parts = [
-    summary.matched ? `${summary.matched} ${summary.matched === 1 ? "shares" : "share"} words with the plan` : null,
-    summary.unexplained ? `${summary.unexplained} that no line of the plan explains` : null,
-    summary.flagged ? `${summary.flagged} flagged by the plan` : null,
+  const total = summary.hunks;
+  // "Both changes", "the change", "2 of the 5 changes": a count is said as part of a sentence (ADR 0180).
+  const which = (k: number) => (k === total ? (total === 1 ? "the change" : total === 2 ? "both changes" : `all ${total} changes`) : `${k} of the ${total} changes`);
+  const lead = (k: number) => which(k).charAt(0).toUpperCase() + which(k).slice(1);
+  const sentences = [
+    summary.flagged ? `The plan flags ${which(summary.flagged)}.` : null,
+    summary.unexplained ? `No line of the plan explains ${which(summary.unexplained)}.` : null,
+    summary.matched ? `${lead(summary.matched)} ${summary.matched === 1 ? "shares" : "share"} words with the plan.` : null,
   ].filter(Boolean);
   return (
     <div className="grid gap-1.5 rounded-sm border border-line bg-surface-raised/50 px-4 py-3">
-      <p className="text-sm">
-        <span className="font-medium">
-          {summary.hunks} {summary.hunks === 1 ? "change" : "changes"}
-        </span>
-        {parts.length ? `: ${parts.join(", ")}.` : "."}
-      </p>
+      <p className="text-sm">{sentences.length ? sentences.join(" ") : "Read the change to judge how it fits the plan."}</p>
       <p className="text-xs leading-relaxed text-ink-3">
         A flag means it breaks the plan, and that part is exact. A match only means it shares words with a line of the plan, so read the change to judge it.
       </p>
@@ -91,18 +90,22 @@ function AskAi({ ai }: { ai: LensAiState }) {
   );
 }
 
-function Chip({ tone, icon: ChipIcon, children, title }: { tone: "failed" | "verified" | "approval" | "ai"; icon: typeof XCircleIcon; children: React.ReactNode; title?: string }) {
+/** Ends a line with a full stop when it has none, so two facts don't run together. */
+const sentence = (s: string) => (/[.!?]$/.test(s.trim()) ? s : `${s}.`);
+
+/** One or two words in the tone of what they say (ADR 0180). The facts behind them are lines, under the range. */
+function Chip({ tone, children }: { tone: "failed" | "verified" | "approval" | "ai"; children: React.ReactNode }) {
   const cls = {
-    failed: "border-failed/35 text-failed",
-    verified: "border-verified/35 text-ink-2",
+    failed: "border-failed/40 text-failed",
+    // A match is a pointer by shared words, not a check: a green edge, in ink.
+    verified: "border-verified/40 text-ink-2",
     approval: "border-approval/40 border-dashed text-approval",
     ai: "border-accent/40 border-dashed text-ink-2",
   }[tone];
   return (
-    <span title={title} className={`inline-flex min-h-7 max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${cls}`}>
-      <ChipIcon size={13} weight="bold" className={`shrink-0 ${tone === "verified" ? "text-verified" : tone === "ai" ? "text-accent" : ""}`} aria-hidden />
-      {/* Phones have no hover to read a cut-off clause, so it wraps there; wider screens keep one line. */}
-      <span className="min-w-0 leading-snug sm:truncate">{children}</span>
+    <span className={`inline-flex h-6 w-fit shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-xs font-medium ${cls}`}>
+      {tone === "failed" ? <XCircleIcon size={14} weight="bold" aria-hidden /> : null}
+      {children}
     </span>
   );
 }
@@ -116,35 +119,42 @@ export function FileLensRows({ lens }: { lens: SuggestedFileLens }) {
     <div className="grid gap-1">
       <ul className="grid divide-y divide-line rounded-sm border border-line" aria-label={`How the changes to ${lens.path} read against the plan`}>
         {shown.map((h, i) => (
-          <li key={i} className="flex flex-col gap-1.5 px-3 py-2 sm:flex-row sm:items-center sm:gap-3">
-            <span className="shrink-0 font-mono text-xs text-ink-3 sm:w-36">{hunkRange(h.hunk)}</span>
-            <span className="flex min-w-0 flex-wrap gap-1.5">
-              {h.flags.map((f) => (
-                <Chip key={f.detail} tone="failed" icon={XCircleIcon}>
-                  {f.detail}
-                </Chip>
-              ))}
-              {h.match ? (
-                <Chip tone="verified" icon={CrosshairIcon} title={`${h.match.statement} Shared words: ${h.match.shared.join(", ")}.`}>
-                  <span className="font-medium">{h.match.id === "outcome" ? "The goal" : "Done when"}:</span> {h.match.statement}
-                </Chip>
-              ) : null}
-              {h.unexplained ? (
-                <Chip tone="approval" icon={QuestionIcon}>
-                  No line of the plan explains this change
-                </Chip>
-              ) : null}
-              {h.ai ? (
-                <Chip tone="ai" icon={TreeStructureIcon} title={"none" in h.ai ? `AI: no line of the plan fits. ${h.ai.reason}` : `AI: ${h.ai.statement} ${h.ai.reason}`}>
-                  <span className="font-medium">AI{"none" in h.ai ? ": no line of the plan fits." : ":"}</span> {h.ai.reason}
-                </Chip>
-              ) : null}
-            </span>
+          <li key={i} className="grid gap-1.5 px-3 py-2.5">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              <span className="tabular text-xs font-medium text-ink-3">{hunkRange(h.hunk)}</span>
+              {h.flags.length > 0 ? <Chip tone="failed">Breaks the plan</Chip> : null}
+              {h.match && h.flags.length === 0 ? <Chip tone="verified">Matches the plan</Chip> : null}
+              {h.unexplained ? <Chip tone="approval">Unexplained</Chip> : null}
+              {h.ai ? <Chip tone="ai">{"none" in h.ai ? "AI found no link" : "AI linked"}</Chip> : null}
+            </div>
+            {h.flags.map((f) => (
+              <p key={f.detail} className="text-sm leading-relaxed text-ink-2">
+                {sentence(f.detail)}
+              </p>
+            ))}
+            {h.match ? (
+              <p className="text-sm leading-relaxed text-ink-2" title={`Shared words: ${h.match.shared.join(", ")}.`}>
+                <span className="font-medium text-ink">{h.match.id === "outcome" ? "The goal" : "Done when"}:</span> {h.match.statement}
+              </p>
+            ) : null}
+            {h.unexplained ? <p className="text-sm leading-relaxed text-ink-2">No line of the plan explains this change.</p> : null}
+            {h.ai ? (
+              <p className="text-sm leading-relaxed text-ink-2">
+                {"none" in h.ai ? (
+                  <span className="font-medium text-ink">AI found no line of the plan that fits.</span>
+                ) : (
+                  <>
+                    <span className="font-medium text-ink">AI linked it to:</span> {sentence(h.ai.statement)}
+                  </>
+                )}{" "}
+                {h.ai.reason}
+              </p>
+            ) : null}
           </li>
         ))}
       </ul>
       {lens.hunks.length > FIRST && !all ? (
-        <button type="button" onClick={() => setAll(true)} className="min-h-11 justify-self-start rounded-full px-3 text-sm font-medium text-accent hover:bg-accent/[0.06]">
+        <button type="button" onClick={() => setAll(true)} className={buttonClasses("ghost", "sm", "justify-self-start")}>
           Show all {lens.hunks.length} changes in this file
         </button>
       ) : null}

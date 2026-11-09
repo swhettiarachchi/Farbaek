@@ -8,6 +8,7 @@ import { AgentCore } from "@/components/build/agent-core";
 import { PromptComposer } from "@/components/build/prompt-composer";
 import { RunStatusBadge } from "@/components/build/run-status";
 import { StartRun } from "@/components/build/start-run";
+import { Disclosure } from "@/components/ui/disclosure";
 import { LocalTime } from "@/components/ui/local-time";
 import { isLive } from "@/core/agent/cloud-run";
 import { EFFORT_LABELS } from "@/core/agent/routing";
@@ -60,6 +61,19 @@ export default async function BuildPage() {
   const going = runs.filter((r) => isLive(r.status)).length;
   const waitingRun = runs.find((r) => r.status === "waiting");
 
+  const flow = (
+    <ol className="grid gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-2 lg:grid-cols-4" aria-label="How a build works">
+      {FLOW.map((s) => (
+        <li key={s.title} className="bg-surface p-5">
+          <p className="flex items-center gap-2 text-sm font-medium">
+            <s.icon size={16} weight="bold" className="shrink-0 text-accent" aria-hidden /> {s.title}
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-ink-2">{s.text}</p>
+        </li>
+      ))}
+    </ol>
+  );
+
   return (
     <div className="grid gap-8">
       {/* The list promises live steps, so it keeps up while a run is going or waiting. */}
@@ -94,23 +108,12 @@ export default async function BuildPage() {
 
       {sandbox.mode !== "sandboxed" ? (
         <Notice>
-          No test space is ready, so runs prepare the change without running tests or builds. {sandbox.reason}
+          Runs prepare the change without running tests or builds. {sandbox.reason}
         </Notice>
       ) : null}
 
-      <ol className="grid gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-2 lg:grid-cols-4" aria-label="How a build works">
-        {FLOW.map((s, i) => (
-          <li key={s.title} className="bg-surface p-5">
-            <p className="flex items-center gap-2 text-sm font-medium">
-              <span className="inline-flex size-7 items-center justify-center rounded-full bg-accent/[0.08] text-accent">
-                <s.icon size={15} weight="bold" aria-hidden />
-              </span>
-              <span className="text-ink-3 tabular">{i + 1}.</span> {s.title}
-            </p>
-            <p className="mt-2 text-sm leading-relaxed text-ink-2">{s.text}</p>
-          </li>
-        ))}
-      </ol>
+      {/* Someone new reads how it goes; once a workspace has run anything, the steps fold away. */}
+      {runs.length === 0 ? flow : <Disclosure summary="How a build works">{flow}</Disclosure>}
 
       <section aria-labelledby="ready-heading" className="grid gap-4">
         <h2 id="ready-heading" className="text-lg font-medium">
@@ -147,7 +150,7 @@ export default async function BuildPage() {
 
       <section aria-labelledby="runs-heading" className="grid gap-4">
         <h2 id="runs-heading" className="text-lg font-medium">
-          Runs <span className="text-ink-3 tabular">{runs.length}</span>
+          Runs
         </h2>
         {runs.length === 0 ? (
           <p className="text-sm text-ink-3">No runs yet. Start one from a task that&apos;s ready.</p>

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRightIcon, CheckCircleIcon, CircleNotchIcon, DeviceMobileIcon, GlobeSimpleIcon, LinkSimpleIcon, PauseCircleIcon, ProhibitIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
+import { ArrowUpRightIcon, CheckCircleIcon, CircleNotchIcon, DesktopIcon, GlobeSimpleIcon, LinkSimpleIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { buttonClasses } from "@/components/ui/button";
@@ -32,19 +32,32 @@ const STATE: Record<TransferState, { label: string; icon: Icon | null; tone: str
   receiving: { label: "Receiving", icon: CircleNotchIcon, tone: "text-ink-2", spin: true },
   finishing: { label: "Checking", icon: CircleNotchIcon, tone: "text-ink-2", spin: true },
   done: { label: "Delivered", icon: CheckCircleIcon, tone: "text-verified" },
-  declined: { label: "Declined", icon: ProhibitIcon, tone: "text-ink-3" },
-  cancelled: { label: "Cancelled", icon: ProhibitIcon, tone: "text-ink-3" },
-  interrupted: { label: "Stopped", icon: PauseCircleIcon, tone: "text-approval" },
+  declined: { label: "Declined", icon: null, tone: "text-ink-3" },
+  cancelled: { label: "Cancelled", icon: null, tone: "text-ink-3" },
+  interrupted: { label: "Stopped", icon: null, tone: "text-approval" },
   failed: { label: "Stopped", icon: XCircleIcon, tone: "text-failed" },
 };
 
 const grouped = (fp: string) => fp.match(/.{1,4}/g)?.join(" ") ?? fp;
 const defaultName = () => (/iPhone|iPad|Android/i.test(navigator.userAgent) ? "Phone" : "Browser");
 
-function Note({ tone = "text-ink-2", icon: NoteIcon = WarningCircleIcon, children }: { tone?: string; icon?: Icon; children: ReactNode }) {
+function Note({
+  tone = "text-ink-2",
+  icon: NoteIcon = WarningCircleIcon,
+  spin = false,
+  role,
+  children,
+}: {
+  tone?: string;
+  icon?: Icon;
+  /** A spinner for live work. */
+  spin?: boolean;
+  role?: "alert" | "status";
+  children: ReactNode;
+}) {
   return (
-    <p className={`flex items-start gap-2 text-sm ${tone}`}>
-      <NoteIcon size={16} className="mt-0.5 shrink-0" aria-hidden /> <span>{children}</span>
+    <p role={role} className={`flex items-start gap-2 text-sm ${tone}`}>
+      <NoteIcon size={16} className={`mt-0.5 shrink-0 ${spin ? "motion-safe:animate-spin" : ""}`} aria-hidden /> <span>{children}</span>
     </p>
   );
 }
@@ -90,8 +103,13 @@ export function PhoneMesh({ computers, unavailable }: { computers: WorkspaceComp
   }, [unavailable]);
 
   if (unavailable) return <Note>{unavailable}</Note>;
-  if (problem && !device) return <Note>{problem}</Note>;
-  if (!device) return <Note tone="text-ink-3" icon={CircleNotchIcon}>Getting this browser ready…</Note>;
+  if (problem && !device) return <Note role="alert">{problem}</Note>;
+  if (!device)
+    return (
+      <Note tone="text-ink-3" icon={CircleNotchIcon} spin role="status">
+        Getting this browser ready…
+      </Note>
+    );
 
   const relay = new WebRelay({ base: `${location.origin}/api/v1/mesh/relay`, headers: { "x-farbaek-device": device.id } });
   const stun = [`stun:${location.hostname}:3478`];
@@ -162,7 +180,12 @@ export function PhoneMesh({ computers, unavailable }: { computers: WorkspaceComp
             className="h-11 min-w-0 flex-1 rounded-sm border border-line-strong/60 bg-surface px-3.5 text-base"
           />
         </div>
-        <p className="font-mono text-xs text-ink-3">{grouped(device.fingerprint)}</p>
+        <details className="text-xs text-ink-3">
+          <summary className="flex min-h-11 cursor-pointer items-center">Technical details</summary>
+          <p>
+            This device&apos;s key fingerprint: <span className="break-all font-mono">{grouped(device.fingerprint)}</span>
+          </p>
+        </details>
       </div>
 
       {pairing ? (
@@ -205,10 +228,15 @@ export function PhoneMesh({ computers, unavailable }: { computers: WorkspaceComp
           <ul className="grid gap-2">
             {reachable.map((c) => (
               <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-line px-3 py-2">
-                <span className="min-w-0">
-                  <span className="block text-sm text-ink">{c.name}</span>
-                  <span className="block font-mono text-xs text-ink-3">{grouped(c.fingerprint)}</span>
-                </span>
+                <div className="grid min-w-0">
+                  <span className="break-words text-sm text-ink">{c.name}</span>
+                  <details className="text-xs text-ink-3">
+                    <summary className="flex min-h-11 cursor-pointer items-center">Technical details</summary>
+                    <p>
+                      Key fingerprint: <span className="break-all font-mono">{grouped(c.fingerprint)}</span>
+                    </p>
+                  </details>
+                </div>
                 {paired.some((p) => p.fingerprint === c.fingerprint) ? (
                   <span className="inline-flex items-center gap-1 text-xs font-medium text-verified">
                     <CheckCircleIcon size={14} weight="fill" aria-hidden /> Paired
@@ -245,7 +273,7 @@ export function PhoneMesh({ computers, unavailable }: { computers: WorkspaceComp
               <span className="text-ink-2">Files</span>
               <input id={`${ids}-files`} type="file" multiple onChange={(e) => setFiles(Array.from(e.target.files ?? []))} className="text-base file:mr-3 file:min-h-11 file:rounded-full file:border file:border-line file:bg-surface-raised file:px-4 file:text-sm" />
             </label>
-            {files.length > 0 ? <p className="text-xs text-ink-3">{`${files.length} ${files.length === 1 ? "file" : "files"}, ${formatBytes(files.reduce((n, f) => n + f.size, 0))}. Credentials files and secret-looking text stay on this device.`}</p> : null}
+            {files.length > 0 ? <p className="text-xs text-ink-3">{`${files.length} ${files.length === 1 ? "file" : "files"}, ${formatBytes(files.reduce((n, f) => n + f.size, 0))}. Files that hold keys or passwords stay on this device.`}</p> : null}
             <div className="flex flex-wrap gap-2">
               <button type="button" className={buttonClasses("primary", "sm")} disabled={busy !== null || files.length === 0 || !chosen || (transfer !== null && !["done", "failed", "declined", "cancelled", "interrupted"].includes(transfer.state))} onClick={() => void send()}>
                 <ArrowUpRightIcon size={16} aria-hidden /> {busy === "send" ? "Checking files…" : "Send over the internet"}
@@ -292,7 +320,11 @@ export function PhoneMesh({ computers, unavailable }: { computers: WorkspaceComp
         </div>
       ) : null}
 
-      {problem ? <Note tone="text-failed">{problem}</Note> : null}
+      {problem ? (
+        <Note tone="text-failed" role="alert">
+          {problem}
+        </Note>
+      ) : null}
 
       <ReceiveFiles device={device} stun={stun} pairedCount={paired.length} />
 
@@ -302,9 +334,17 @@ export function PhoneMesh({ computers, unavailable }: { computers: WorkspaceComp
           <ul className="divide-y divide-line">
             {paired.map((c) => (
               <li key={c.fingerprint} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                <span className="flex min-w-0 items-center gap-2 text-sm text-ink">
-                  <DeviceMobileIcon size={16} className="text-ink-3" aria-hidden /> {c.name} <span className="font-mono text-xs text-ink-3">{grouped(c.fingerprint)}</span>
-                </span>
+                <div className="grid min-w-0">
+                  <span className="flex min-w-0 items-center gap-2 text-sm text-ink">
+                    <DesktopIcon size={16} className="shrink-0 text-ink-3" aria-hidden /> <span className="min-w-0 break-words">{c.name}</span>
+                  </span>
+                  <details className="text-xs text-ink-3">
+                    <summary className="flex min-h-11 cursor-pointer items-center">Technical details</summary>
+                    <p>
+                      Key fingerprint: <span className="break-all font-mono">{grouped(c.fingerprint)}</span>
+                    </p>
+                  </details>
+                </div>
                 <button type="button" className={buttonClasses("ghost", "sm")} onClick={() => void forgetComputer(c.fingerprint).then(listComputers).then(setPaired)}>
                   Forget
                 </button>

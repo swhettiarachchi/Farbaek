@@ -30,7 +30,7 @@ describe("the Launch Planner", () => {
     const withScripts = plan({ "package.json": pkg({ scripts: { build: "next build", start: "next start" }, dependencies: { next: "16.4.0" } }), "next.config.ts": "export default {}" });
     expect(withScripts).toMatchObject({ kind: "nextjs", hosting: "server", build: { command: "npm run build", source: "found" }, start: { command: "npm run start", source: "found" } });
     const bare = plan({ "package.json": pkg({ dependencies: { next: "16.4.0" } }) });
-    expect(bare).toMatchObject({ kind: "nextjs", evidence: ["next in package.json"], build: { command: "next build", source: "assumed" } });
+    expect(bare).toMatchObject({ kind: "nextjs", evidence: ["Next.js in package.json"], build: { command: "next build", source: "assumed" } });
     expect(bare.destinations[0]!.available).toBe(false);
   });
 
@@ -38,13 +38,13 @@ describe("the Launch Planner", () => {
     expect(plan({ "package.json": pkg({ scripts: { build: "vite build" }, devDependencies: { vite: "7.0.0" } }), "vite.config.ts": "" })).toMatchObject({ kind: "vite", hosting: "static", output: { command: "dist", source: "assumed" } });
     const astro = plan({ "package.json": pkg({ dependencies: { astro: "5.0.0" } }) });
     expect(astro).toMatchObject({ kind: "astro", build: { command: "astro build", source: "assumed" } });
-    expect(astro.notes.join(" ")).toMatch(/build step first/);
-    expect(astro.destinations[0]!.reason).toMatch(/build step/);
+    expect(astro.destinations[0]!.reason).toMatch(/build step first/);
+    expect(astro.notes.join(" ")).not.toMatch(/build step/);
   });
 
   it("reads a Node server and a Python app, and an unknown project honestly", () => {
     const node = plan({ "package.json": pkg({ main: "server.js", dependencies: { express: "5.0.0" } }) });
-    expect(node).toMatchObject({ kind: "node_server", evidence: ["express in package.json"], start: { command: "node server.js", source: "assumed" } });
+    expect(node).toMatchObject({ kind: "node_server", evidence: ["Express in package.json"], start: { command: "node server.js", source: "assumed" } });
     expect(node.notes.join(" ")).toMatch(/doesn't say which Node.js version/);
     const py = plan({ "requirements.txt": "fastapi==0.115\nuvicorn\npsycopg[binary]\n", Procfile: "web: uvicorn api:app --port $PORT\n" });
     expect(py).toMatchObject({ kind: "python", hosting: "server", start: { command: "uvicorn api:app --port $PORT", source: "found" } });

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowSquareOutIcon, CheckCircleIcon, FileZipIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
+import { CaretDownIcon, CheckCircleIcon, FileZipIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { startTransition, useActionState, useId, useRef, useState, useTransition } from "react";
@@ -393,11 +393,13 @@ function Report({ opened }: { opened: Extract<OpenedCapsule, { ok: true }> }) {
           <dd>
             <LocalTime iso={manifest.createdAt} />
           </dd>
-          <dt className="text-ink-3">Digest</dt>
-          <dd className="min-w-0 truncate font-mono text-xs leading-5" title={`blake3:${digest}`}>
-            {blake3Short(digest)}
-          </dd>
         </dl>
+        <details className="text-sm">
+          <summary className="flex min-h-11 cursor-pointer items-center text-ink-2">Technical details</summary>
+          <p className="text-xs text-ink-3">
+            The Capsule&apos;s BLAKE3 digest: <span className="break-all font-mono">blake3:{digest}</span>
+          </p>
+        </details>
         {manifest.note ? (
           <p className="rounded-sm border border-line bg-surface-raised/50 px-3.5 py-2.5 text-sm text-ink-2">
             <span className="block text-xs text-ink-3">Note from whoever packed it</span>
@@ -405,9 +407,9 @@ function Report({ opened }: { opened: Extract<OpenedCapsule, { ok: true }> }) {
           </p>
         ) : null}
         {manifest.excluded.length > 0 ? (
-          <details className="rounded-sm border border-line bg-surface-raised/50 px-4 py-3 text-sm">
-            <summary className="cursor-pointer font-medium">{plural(manifest.excluded.length, "file was", "files were")} left out when it was packed</summary>
-            <ul className="mt-3 grid gap-3">
+          <details className="rounded-sm border border-line bg-surface-raised/50 px-4 py-1 text-sm">
+            <summary className="flex min-h-11 cursor-pointer items-center font-medium">{plural(manifest.excluded.length, "file was", "files were")} left out when it was packed</summary>
+            <ul className="mb-2 mt-1 grid gap-3">
               {[...byReason].map(([reason, paths]) => (
                 <li key={reason}>
                   <p className="text-ink-2">
@@ -415,7 +417,7 @@ function Report({ opened }: { opened: Extract<OpenedCapsule, { ok: true }> }) {
                   </p>
                   <ul className="mt-1 grid gap-0.5 font-mono text-xs text-ink-3">
                     {paths.slice(0, 8).map((p) => (
-                      <li key={p} className="truncate">
+                      <li key={p} className="truncate" title={p}>
                         {p}
                       </li>
                     ))}
@@ -475,9 +477,9 @@ function DiffRow({
           <p className="min-w-0 truncate font-mono text-xs" title={path}>
             {path}
           </p>
-          <button type="button" onClick={toggle} aria-expanded={open} className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full px-3 text-xs font-medium text-accent hover:bg-accent/[0.06]">
-            <ArrowSquareOutIcon size={14} aria-hidden />
+          <button type="button" onClick={toggle} aria-expanded={open} className={buttonClasses("ghost", "sm", "shrink-0")}>
             {open ? "Hide" : "Compare"}
+            <CaretDownIcon size={14} aria-hidden className={`motion-safe:transition-transform motion-safe:duration-150 ${open ? "rotate-180" : ""}`} />
           </button>
         </div>
         <fieldset disabled={disabled} className="min-w-0 shrink-0">

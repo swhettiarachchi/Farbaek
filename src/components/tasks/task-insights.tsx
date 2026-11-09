@@ -1,26 +1,19 @@
-import { ArrowCounterClockwiseIcon, CheckCircleIcon, CircleDashedIcon, CoinsIcon, InfoIcon, WarningIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
-import type { Icon } from "@phosphor-icons/react";
+import { StatusBadge, type Status } from "@/components/ui/status-badge";
 import { modelName } from "@/core/billing/rate-card";
 import { shareLabel, type TaskCost } from "@/core/insights/cost-brain";
 import { AREA_LABELS, REVERSIBILITY_LABELS, type FileReversibility, type Reversibility } from "@/core/insights/reversibility";
 
-// Colour is never the only signal: each class has an icon, a label and a border pattern.
-const LOOK: Record<Reversibility, { icon: Icon; className: string }> = {
-  rollback_supported: { icon: CheckCircleIcon, className: "text-verified border-verified/40" },
-  compensating_action: { icon: InfoIcon, className: "text-info border-info/40" },
-  unknown: { icon: CircleDashedIcon, className: "text-unverified border-unverified/60 border-dashed" },
-  forward_fix: { icon: WarningIcon, className: "text-approval border-approval/40" },
-  requires_backup: { icon: XCircleIcon, className: "text-failed border-failed/40" },
+// Status is a word in its colour and border (ADR 0180): the badge carries an icon only at the two ends.
+const TONE: Record<Reversibility, Status> = {
+  rollback_supported: "verified",
+  compensating_action: "info",
+  unknown: "unverified",
+  forward_fix: "approval",
+  // Advice, not a failure: no cross on it.
+  requires_backup: "approval",
 };
 
-function ClassChip({ value }: { value: Reversibility }) {
-  const look = LOOK[value];
-  return (
-    <span className={`inline-flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-xs font-medium ${look.className}`}>
-      <look.icon size={14} weight="bold" aria-hidden /> {REVERSIBILITY_LABELS[value]}
-    </span>
-  );
-}
+const ClassChip = ({ value }: { value: Reversibility }) => <StatusBadge status={TONE[value]} label={REVERSIBILITY_LABELS[value]} />;
 
 const OVERALL: Record<Reversibility, string> = {
   rollback_supported: "Every file in this change can be undone in Farbaek.",
@@ -35,8 +28,8 @@ export function ReversibilityCard({ overall, files }: { overall: Reversibility; 
   return (
     <section aria-labelledby="radar-title" className="grid gap-4 rounded-md border border-line bg-surface-raised/40 p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 id="radar-title" className="flex items-center gap-2 text-base font-medium">
-          <ArrowCounterClockwiseIcon size={18} className="text-ink-3" aria-hidden /> How far this can be undone
+        <h3 id="radar-title" className="text-base font-medium">
+          How far this can be undone
         </h3>
         <ClassChip value={overall} />
       </div>
@@ -68,13 +61,13 @@ export function CostCard({ cost, period }: { cost: TaskCost; period: "trial" | "
   return (
     <section aria-labelledby="cost-title" className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="cost-title" className="flex items-center gap-2 text-lg font-medium">
-          <CoinsIcon size={20} className="text-ink-3" aria-hidden /> What this task has used
+        <h2 id="cost-title" className="text-lg font-medium">
+          What this task has used
         </h2>
         {cost.operations.length > 0 ? (
           <span className="text-sm text-ink-2">
             <span className="font-medium text-ink">{shareLabel(cost.percent)}</span> {cost.percent === null ? "" : of}
-            {cost.estimated ? <span className="ml-1.5 rounded-full border border-dashed border-line-strong/60 px-2 py-0.5 text-xs">includes an estimate</span> : null}
+            {cost.estimated ? " (includes an estimate)" : null}
           </span>
         ) : null}
       </div>

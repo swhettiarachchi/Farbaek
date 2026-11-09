@@ -1,4 +1,5 @@
-import { ArrowUpRightIcon, CheckCircleIcon, ArrowsClockwiseIcon, CircleDashedIcon, MinusCircleIcon, ShieldWarningIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowUpRightIcon, CheckCircleIcon, ArrowsClockwiseIcon, MinusCircleIcon, ShieldWarningIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
+import type { Icon } from "@phosphor-icons/react";
 import type { Metadata } from "next";
 import { Container } from "@/components/ui/container";
 import RUN from "@/content/security-eval-run.json";
@@ -34,9 +35,10 @@ function dateLabel(iso: string): string {
   return new Intl.DateTimeFormat("en-GB", { dateStyle: "long", timeZone: "UTC" }).format(new Date(iso));
 }
 
-function tileState(c: RiskCoverage) {
-  if (c.state === "not_applicable") return { label: "Not applicable", Icon: MinusCircleIcon, tone: "text-ink-3", frame: "border border-transparent bg-surface-sunken" };
-  if (c.state === "not_tested") return { label: "Not tested", Icon: CircleDashedIcon, tone: "text-ink-3", frame: "border border-dashed border-line-strong" };
+/** A risk's state in words and its frame: a check when tested and passing, a cross when failing, and words alone otherwise (ADR 0180). */
+function tileState(c: RiskCoverage): { label: string; Icon: Icon | null; tone: string; frame: string } {
+  if (c.state === "not_applicable") return { label: "Not applicable", Icon: null, tone: "text-ink-3", frame: "border border-transparent bg-surface-sunken" };
+  if (c.state === "not_tested") return { label: "Not tested", Icon: null, tone: "text-ink-3", frame: "border border-dashed border-line-strong" };
   const failing = c.scenarios.filter((s) => s.result?.status === "failed").length;
   if (failing > 0) return { label: `${failing} failing`, Icon: XCircleIcon, tone: "text-failed", frame: "border border-failed/40 bg-surface shadow-e1" };
   const n = c.scenarios.length;
@@ -54,7 +56,7 @@ function RiskTile({ risk }: { risk: OwaspRisk }) {
         <span className="text-[0.8125rem] font-medium text-ink-3 tabular">{risk.id}</span>
         <span className="text-[0.9375rem] font-medium leading-snug tracking-[-0.01em] text-ink">{risk.title}</span>
         <span className={`flex items-center gap-1.5 text-xs font-medium ${s.tone}`}>
-          <s.Icon size={15} weight="bold" aria-hidden /> {s.label}
+          {s.Icon ? <s.Icon size={15} weight="bold" aria-hidden /> : null} {s.label}
         </span>
       </a>
     </li>
@@ -67,12 +69,12 @@ function RiskDetail({ risk }: { risk: OwaspRisk }) {
   return (
     <article id={risk.id} className="scroll-mt-24 rounded-md border border-line bg-surface p-5 sm:p-6">
       <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-        <h3 className="text-[1.0625rem] font-medium tracking-[-0.01em]">
+        <h4 className="text-[1.0625rem] font-medium tracking-[-0.01em]">
           <span className="mr-2 text-ink-3 tabular">{risk.id}</span>
           {risk.title}
-        </h3>
+        </h4>
         <span className={`flex items-center gap-1.5 text-xs font-medium ${s.tone}`}>
-          <s.Icon size={15} weight="bold" aria-hidden /> {s.label}
+          {s.Icon ? <s.Icon size={15} weight="bold" aria-hidden /> : null} {s.label}
         </span>
       </header>
       {c.state === "tested" ? (
@@ -111,8 +113,8 @@ export default function SecurityTestsPage() {
         <Container>
           <h1 className="max-w-[18ch] text-balance text-[2.5rem] font-medium leading-[1.05] tracking-[-0.04em] sm:text-[3.5rem]">Tested against agent risks, in the open.</h1>
           <p className="mt-5 max-w-[60ch] text-[1.0625rem] leading-relaxed text-ink-2">
-            Farbaek&apos;s agents read code they didn&apos;t write and run commands, so its boundaries are attacked on purpose: {totals.scenarios} scenarios, mapped to the OWASP
-            risk lists for agentic and LLM applications. Each one assumes the model has already been fooled, and checks that the boundary holds anyway.
+            Farbaek&apos;s agents read code they didn&apos;t write and run commands, so its boundaries are attacked on purpose. The {totals.scenarios} scenarios here are mapped to
+            the OWASP risk lists for agentic and LLM applications. Each one assumes the model has already been fooled, and checks that the boundary holds anyway.
           </p>
           {/* One sentence, not a strip of tiles (ADR 0180). The engineering facts sit behind a fold for anyone checking the run. */}
           <p className={`mt-8 flex items-center gap-2 text-[1.0625rem] font-medium ${totals.failed ? "text-failed" : "text-ink"}`}>
@@ -195,8 +197,8 @@ export default function SecurityTestsPage() {
             ))}
           </ul>
           <p className="mt-10 max-w-[70ch] text-sm leading-relaxed text-ink-3">
-            The risk titles are OWASP&apos;s, from the {RISK_LISTS["agentic-2026"].title} (published {dateLabel(RISK_LISTS["agentic-2026"].published)}) and the{" "}
-            {RISK_LISTS["llm-2025"].title}. The results above come from the suite&apos;s latest recorded run; found something it misses? Write to us from the address below.
+            The risk titles are OWASP&apos;s. They come from the {RISK_LISTS["agentic-2026"].title} (published {dateLabel(RISK_LISTS["agentic-2026"].published)}) and the{" "}
+            {RISK_LISTS["llm-2025"].title}. The results above come from the suite&apos;s latest recorded run. Found something it misses? Write to us from the address below.
           </p>
         </Container>
       </section>

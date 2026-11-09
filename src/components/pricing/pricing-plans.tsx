@@ -1,4 +1,4 @@
-import { CheckIcon, ClockCounterClockwiseIcon } from "@phosphor-icons/react/ssr";
+import { CheckIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { FEATURE_LABELS, FEATURE_STATUS, SELF_SERVE_PLANS, chargeCents, formatUsd, getPlan, planSessionsGuide, priceWords, yearlyVersionOf, type FeatureKey, type Plan } from "@/core/billing/catalog";
 import { buttonClasses } from "@/components/ui/button";
@@ -16,7 +16,8 @@ function newFeatures(plan: Plan, index: number): FeatureKey[] {
 export function sessionsLine(plan: Plan): string {
   const n = planSessionsGuide(plan);
   if (n === null) return "Custom AI usage";
-  return n < 2 ? "A taste of the agent each month" : `About ${number.format(n)} agent sessions a month`;
+  if (n < 1) return "Enough to try the agent";
+  return n === 1 ? "About 1 agent session a month" : `About ${number.format(n)} agent sessions a month`;
 }
 
 /** How much more AI usage the yearly version has than the monthly plan, as a whole percent. */
@@ -29,10 +30,11 @@ function Feature({ feature }: { feature: FeatureKey }) {
   const coming = FEATURE_STATUS[feature] === "coming";
   return (
     <li className="flex gap-2">
-      {coming ? <ClockCounterClockwiseIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden /> : <CheckIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden />}
+      {/* A mark for what's included; a feature still to come says so in words, with the space kept so the lines align. */}
+      {coming ? <span className="size-4 shrink-0" aria-hidden /> : <CheckIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-verified" aria-hidden />}
       <span>
         {FEATURE_LABELS[feature]}
-        {coming ? <span className="ml-1.5 whitespace-nowrap rounded-full border border-line px-2 py-px text-xs text-ink-3">Coming soon</span> : null}
+        {coming ? <span className="ml-1.5 whitespace-nowrap rounded-full border border-dashed border-line-strong px-2 py-px text-xs text-ink-3">Coming soon</span> : null}
       </span>
     </li>
   );

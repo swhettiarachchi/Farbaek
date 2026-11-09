@@ -37,8 +37,8 @@ export function HandoffCard({ taskId, computers, handoffs, disabledReason }: { t
         <span className="text-xs text-ink-3">Runs only when you start it there</span>
       </div>
       <p className="max-w-[68ch] text-sm leading-relaxed text-ink-2">
-        Send this task to the Farbaek Agent app on one of your computers. It shows the plan, the change waiting for review and the checks to run; when you start it there,
-        it runs the checks on a copy of the project with the change written in, and the results come back here.
+        Send this task to the Farbaek Agent app on one of your computers. It shows the plan, the change waiting for review and the checks to run. When you start it there,
+        it runs the checks on a copy of the project with the change written in. The results come back here.
       </p>
       {computers.length === 0 ? (
         <div className="grid justify-items-start gap-2">
@@ -79,9 +79,9 @@ export function HandoffCard({ taskId, computers, handoffs, disabledReason }: { t
                       {h.result.map((c, i) => (
                         <li key={`${c.command}-${i}`} className="grid gap-1">
                           <p className="flex flex-wrap items-baseline gap-x-3 text-sm">
-                            <span className="font-mono text-[0.78125rem] text-ink">{c.command}</span>
+                            <span className="min-w-0 break-all font-mono text-[0.78125rem] text-ink">{c.command}</span>
                             <span className={c.exitCode === 0 ? "text-verified" : c.exitCode === null ? "text-unverified" : "text-failed"}>
-                              {c.skipped ? `Didn't run: ${c.skipped}` : c.timedOut ? "Ran out of time" : c.exitCode === 0 ? "Passed" : `Failed, exit ${c.exitCode}`}
+                              {c.skipped ? `Didn't run: ${c.skipped}` : c.timedOut ? "Ran out of time" : c.exitCode === 0 ? "Passed" : c.exitCode === null ? "Didn't finish" : `Didn't pass (exit ${c.exitCode})`}
                             </span>
                             {seconds(c.durationMs) ? <span className="text-xs text-ink-3">{seconds(c.durationMs)}</span> : null}
                           </p>

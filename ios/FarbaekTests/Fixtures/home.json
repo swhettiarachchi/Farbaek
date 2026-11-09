@@ -103,6 +103,11 @@
         "updatedAt": "2026-10-28T04:00:00.000Z"
       }
     ],
-    "projects": 3
+    "projects": 3,
+    "usage": {
+      "percent": 0,
+      "period": "trial",
+      "endsAt": "2026-11-07T12:00:00.000Z"
+    }
   }
 }

@@ -130,9 +130,7 @@ export default async function SettingsPage() {
       </Card>
 
       <Card>
-        <h2 className="text-lg font-medium">
-          People <span className="text-ink-3 tabular">{members.length}</span>
-        </h2>
+        <h2 className="text-lg font-medium">People</h2>
         <p className="mt-1 max-w-[65ch] text-sm text-ink-2">
           Owners and admins can do everything. Members approve changes, publish and start agent runs unless an owner or admin turns one off. Viewers read everything and change nothing.
         </p>
@@ -296,9 +294,9 @@ export default async function SettingsPage() {
       <section id="ai-key" aria-labelledby="ai-key-title" className="scroll-mt-24">
         <Card>
           <h2 id="ai-key-title" className="text-lg font-medium">
-            Your own AI key
+            Your own AI account
           </h2>
-          <p className="mt-1 mb-4 text-sm text-ink-2">Use this workspace&apos;s own Anthropic account, directly or through your company&apos;s gateway, instead of Farbaek&apos;s.</p>
+          <p className="mt-1 mb-4 text-sm text-ink-2">Use this workspace&apos;s own Anthropic account instead of Farbaek&apos;s, directly or through your company&apos;s own server.</p>
           <ModelKeyCard current={modelKey} canManage={canManage} disabledReason={modelKeyReason} />
         </Card>
       </section>
@@ -319,8 +317,8 @@ export default async function SettingsPage() {
             Your data
           </h2>
           <p className="mt-1 max-w-[62ch] text-sm leading-relaxed text-ink-2">
-            Download what Farbaek holds about you, as one JSON file: your account, email choices, workspaces and roles, support requests, the actions you took, your AI use, and the
-            projects, tasks and sites you created. A project&apos;s files are in Export everything, on its page.
+            Download what Farbaek holds about you, as a file. It has your account, email choices, workspaces and roles, and support requests. It also has the actions you took,
+            your AI use, and the projects, tasks and sites you created. A project&apos;s files are in Export everything, on its page.
           </p>
           <div className="mt-5 grid justify-items-start gap-2">
             {ctx.mode === "live" ? (

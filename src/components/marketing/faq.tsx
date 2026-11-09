@@ -1,5 +1,6 @@
 import { CaretDownIcon } from "@phosphor-icons/react/ssr";
 import { Container } from "@/components/ui/container";
+import { TRIAL, getPlan } from "@/core/billing/catalog";
 import { SectionHeading } from "./section-heading";
 
 export interface FaqItem {
@@ -32,7 +33,7 @@ export function FaqList({ items }: { items: FaqItem[] }) {
 const HOME_FAQ: FaqItem[] = [
   {
     q: "Can I sign up today?",
-    a: "Yes. Sign in with your email and your workspace starts a 14-day Pro trial, with no card. When the trial ends you move to Free, and nothing is charged unless you choose a paid plan.",
+    a: `Yes. Sign in with your email and your workspace starts a ${TRIAL.lengthDays}-day ${getPlan(TRIAL.basePlan).name} trial, with no card. When the trial ends you move to Free, and nothing is charged unless you choose a paid plan.`,
   },
   {
     q: "Does Farbaek run my code safely?",

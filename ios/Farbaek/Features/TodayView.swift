@@ -74,6 +74,14 @@ struct TodayView: View {
                 Text(workspace.planSentence)
                     .font(.subheadline)
                     .foregroundStyle(Palette.ink2)
+                // The web Home's AI usage meter, as one sentence, so a used-up allowance is never first seen as a refusal.
+                // Nothing used yet is nothing to say (ADR 0180): the line appears from 1%.
+                if !needsWorkspace, let usage = load.value?.usage, let percent = usage.percent, percent >= 1 {
+                    Text(Self.usageSentence(percent: percent, period: usage.period, endsAt: usage.endsAt))
+                        .font(.subheadline)
+                        .foregroundStyle(percent >= 100 ? Palette.failed : percent >= 80 ? Palette.approval : Palette.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 if let paused = workspace.paused {
                     Notice(text: "Farbaek has paused this workspace: \(paused)", tone: .failed, symbol: "pause.circle.fill")
                 } else if workspace.agentsPaused {
@@ -98,11 +106,12 @@ struct TodayView: View {
                         .foregroundStyle(Palette.ink2)
                 }
             } else {
-                Text("Your turn")
+                // Nothing is anyone's turn, so the heading says so rather than "Your turn".
+                Text("Nothing waits for you")
                     .font(.headline.weight(.medium))
                     .foregroundStyle(Palette.ink)
             }
-            Text(home.waiting > 0 ? "Each one can be approved for 72 hours, only as the exact content you review." : "Nothing waits for you. New changes appear here when the agent suggests one.")
+            Text(home.waiting > 0 ? "Each one can be approved for 72 hours, only as the exact content you review." : "New changes appear here when the agent suggests one.")
                 .font(.subheadline)
                 .foregroundStyle(Palette.ink2)
                 .fixedSize(horizontal: false, vertical: true)
@@ -127,7 +136,7 @@ struct TodayView: View {
                         AgentOrb(live: true, size: 40)
                         VStack(alignment: .leading, spacing: 3) {
                             Text(run.taskTitle).font(.body.weight(.medium)).foregroundStyle(Palette.ink).lineLimit(2)
-                            Text("\(run.projectName), \(run.steps) steps").font(.footnote).foregroundStyle(Palette.ink2)
+                            Text("\(run.projectName), \(run.steps == 1 ? "1 step" : "\(run.steps) steps") so far").font(.footnote).foregroundStyle(Palette.ink2)
                         }
                         Spacer(minLength: 8)
                         StatusBadge(label: run.statusLabel, tone: run.status == "waiting" ? .approval : .info)
@@ -170,6 +179,18 @@ struct TodayView: View {
         }
     }
 
+    /// "Used 2% of this month's AI usage." Near the end, when it resets too, as the web says it.
+    static func usageSentence(percent: Double, period: String, endsAt: String?) -> String {
+        let whose = period == "trial" ? "the trial's" : "this month's"
+        let used = Int(percent.rounded())
+        var sentence = used >= 100 ? "You've used all of \(whose) AI usage." : "Used \(used)% of \(whose) AI usage."
+        if used >= 80, let endsAt, let end = FarbaekDate.parse(endsAt) {
+            let day = end.formatted(.dateTime.month(.abbreviated).day())
+            sentence += period == "trial" ? " It ends with the trial on \(day)." : " It resets on \(day)."
+        }
+        return sentence
+    }
+
     private func read() async {
         // The account may not have loaded (offline at launch). Home is where people pull to refresh, so it loads it here too.
         if model.me == nil, model.phase == .signedIn { await model.loadMe(as: .signedIn) }
@@ -201,7 +222,7 @@ struct TaskRow: View {
             }
             Spacer(minLength: 8)
             StatusBadge(label: task.stateLabel, tone: Tone(task.tone))
-            Image(systemName: "chevron.right").font(.footnote).foregroundStyle(Palette.ink3)
+            Image(systemName: "chevron.right").font(.footnote).foregroundStyle(Palette.ink3).accessibilityHidden(true)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 12)

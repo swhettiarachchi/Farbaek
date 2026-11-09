@@ -4,13 +4,13 @@ import { JsonView } from "@/components/code/json-view";
 import { ProofPackSeal } from "@/components/proof/proofpack-seal";
 import { Container } from "@/components/ui/container";
 import { SAMPLE_CONTRACT, buildSampleProofPack } from "@/content/samples";
-import { canonicalHash, shortHash } from "@/core/trust/canonical-json";
+import { canonicalHash } from "@/core/trust/canonical-json";
 import { EvidenceTabs } from "./evidence-tabs";
 import { SectionHeading } from "./section-heading";
 
 const PROVES = [
   "Which exact files and commit were checked",
-  "Which commands ran, and their exit codes",
+  "Which commands ran, and their results",
   "Which plan and approval it ran under",
 ];
 
@@ -37,8 +37,8 @@ export async function EvidenceSection() {
 
           <div className="flex flex-col items-center gap-4 lg:items-start">
             <ProofPackSeal hash={digest} caption="Sample ProofPack" className="w-56 max-w-full sm:w-64" />
-            <p className="max-w-[30ch] text-center text-sm text-ink-3 lg:text-left">
-              Sample written to show the format. This seal and {shortHash(digest)} are computed from this sample&apos;s JSON.
+            <p className="max-w-[30ch] text-center text-sm text-ink-3 lg:text-left" title={`sha256:${digest}`}>
+              Sample written to show the format. This seal is drawn from the sample&apos;s own JSON.
             </p>
             <Link href="/verify" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-accent hover:underline">
               Check a ProofPack yourself <ArrowRightIcon size={14} aria-hidden />

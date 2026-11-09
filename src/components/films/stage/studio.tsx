@@ -448,10 +448,14 @@ export function looped(base: (t: number) => ReactNode, loopMs: number): (scene: 
   };
 }
 
-/** "Sample project, recorded from Farbaek's interface." on every frame. */
-export function FilmLabel({ place }: { place: "left" | "right" | "center" }) {
-  const at = place === "left" ? "left-[2.6%]" : place === "right" ? "right-[2.6%]" : "left-1/2 -translate-x-1/2";
-  return <p className={`absolute bottom-[2.2%] ${at} z-50 whitespace-nowrap rounded-full bg-surface/85 px-2.5 py-1 text-ink-3 ring-1 ring-line ${place === "center" ? "text-[8px]" : "text-[10px]"}`}>{FILM_LABEL}</p>;
+/**
+ * "Sample project, recorded from Farbaek's interface." on every frame of the
+ * wide formats. The portrait frame is too narrow to carry it at a readable
+ * size, so it goes without: the player's caption under every film says it.
+ */
+export function FilmLabel({ place }: { place: "left" | "right" }) {
+  const at = place === "left" ? "left-[2.6%]" : "right-[2.6%]";
+  return <p className={`absolute bottom-[2.2%] ${at} z-50 whitespace-nowrap rounded-full bg-surface/85 px-2.5 py-1 text-[10px] text-ink-3 ring-1 ring-line`}>{FILM_LABEL}</p>;
 }
 
 // ------------------------------------------------------------------ the three formats

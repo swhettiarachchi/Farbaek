@@ -179,7 +179,7 @@ function PortraitBuild({ t }: { t: number }) {
           </div>
         ) : null
       }
-      label={<FilmLabel place="center" />}
+      label={null}
     />
   );
 }

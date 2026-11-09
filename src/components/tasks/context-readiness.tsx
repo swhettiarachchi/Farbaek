@@ -1,6 +1,6 @@
-import { CheckCircleIcon, DownloadSimpleIcon, XCircleIcon } from "@phosphor-icons/react/ssr";
-import type { Icon } from "@phosphor-icons/react";
+import { DownloadSimpleIcon } from "@phosphor-icons/react/ssr";
 import { Card } from "@/components/app/primitives";
+import { StatusBadge, type Status } from "@/components/ui/status-badge";
 import { FACT_LABELS, READINESS_LABELS, type ContextPassport, type FactStatus, type Readiness } from "@/core/realityloop/context-passport";
 
 /** Each status is its word in its colour (ADR 0180); the word is always there, so colour is never alone. */
@@ -13,10 +13,11 @@ const FACT_TONE: Record<FactStatus, string> = {
   unavailable: "text-ink-3",
 };
 
-const READINESS_LOOK: Record<Readiness, { icon: Icon | null; tone: string; ring: string }> = {
-  ready: { icon: CheckCircleIcon, tone: "text-verified", ring: "border-verified/30 bg-verified/5" },
-  ready_with_warnings: { icon: null, tone: "text-approval", ring: "border-approval/30 bg-approval/5" },
-  not_ready: { icon: XCircleIcon, tone: "text-failed", ring: "border-failed/30 bg-failed/5" },
+// Drawn by StatusBadge, the one way to show a status: a mark only when it's ready or not.
+const READINESS_TONE: Record<Readiness, Status> = {
+  ready: "verified",
+  ready_with_warnings: "approval",
+  not_ready: "failed",
 };
 
 const SHOWN = 12;
@@ -28,7 +29,6 @@ const list = (items: string[]) => (items.length <= 1 ? items.join("") : `${items
  * agent starts, where each fact comes from, and what isn't confirmed.
  */
 export function ContextReadinessCard({ passport, taskId }: { passport: ContextPassport; taskId: string }) {
-  const look = READINESS_LOOK[passport.readiness];
   const counts = new Map<FactStatus, number>();
   for (const f of passport.facts) counts.set(f.status, (counts.get(f.status) ?? 0) + 1);
   const shown = passport.facts.slice(0, SHOWN);
@@ -44,10 +44,7 @@ export function ContextReadinessCard({ passport, taskId }: { passport: ContextPa
             What Farbaek knows about this task before the agent starts, from the project&apos;s own files, the plan and the last checks. The agent and the plan drafter see these facts too.
           </p>
         </div>
-        <span className={`inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium ${look.ring} ${look.tone}`}>
-          {look.icon ? <look.icon size={16} weight="bold" aria-hidden /> : null}
-          {READINESS_LABELS[passport.readiness]}
-        </span>
+        <StatusBadge status={READINESS_TONE[passport.readiness]} label={READINESS_LABELS[passport.readiness]} />
       </div>
 
       {total > 0 ? (

@@ -38,9 +38,17 @@ final class FarbaekTests: XCTestCase {
     }
 
     func testSaysHowLongAnApprovalStaysOpen() {
-        XCTAssertEqual(ClosesIn.words(72 * 3600), "Closes in 72 h")
-        XCTAssertEqual(ClosesIn.words(30 * 60), "Closes in 30 min")
-        XCTAssertEqual(ClosesIn.words(-5), "Closed")
+        XCTAssertEqual(ClosesIn.words(72 * 3600), "Closes in 3 days")
+        XCTAssertEqual(ClosesIn.words(30 * 3600), "Closes tomorrow")
+        XCTAssertEqual(ClosesIn.words(5 * 3600), "Closes in 5 hours")
+        XCTAssertEqual(ClosesIn.words(3600), "Closes in 1 hour")
+        XCTAssertEqual(ClosesIn.words(30 * 60), "Closes in 30 minutes")
+        XCTAssertEqual(ClosesIn.words(-5), "Expired")
+    }
+
+    func testSaysHowMuchAIUsageIsUsed() {
+        XCTAssertEqual(TodayView.usageSentence(percent: 2, period: "month", endsAt: nil), "Used 2% of this month's AI usage.")
+        XCTAssertEqual(TodayView.usageSentence(percent: 100, period: "trial", endsAt: nil), "You've used all of the trial's AI usage.")
     }
 
     func testDecodesTheSampleAccount() throws {
@@ -55,6 +63,7 @@ final class FarbaekTests: XCTestCase {
         let home = try fixture("home", as: Home.self)
         XCTAssertGreaterThan(home.waiting, 0)
         XCTAssertFalse(home.recent.isEmpty)
+        XCTAssertEqual(home.usage?.period, "trial")
         XCTAssertFalse(try fixture("tasks", as: Listing<TaskItem>.self).items.isEmpty)
         XCTAssertFalse(try fixture("projects", as: Listing<ProjectItem>.self).items.isEmpty)
     }

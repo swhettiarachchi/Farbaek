@@ -42,8 +42,8 @@ import {
   type RuntimeSandboxSpec,
   type SandboxRuntime,
 } from "@/core/sandbox/runtime";
-import { redact } from "@/server/observability/log";
-import type { SandboxServerConfig } from "./config";
+import { log, redact } from "@/server/observability/log";
+import { PREVIEWS_UNAVAILABLE, type SandboxServerConfig } from "./config";
 
 /** Farbaek's scratch folder inside the sandbox, for process-group ids. */
 const WORK_DIR = "/tmp/farbaek";
@@ -53,8 +53,8 @@ const WRITE_BATCH = 100;
 const VERCEL_LIST_PAGE = 50;
 
 export const VERCEL_UNAVAILABLE = {
-  previews:
-    "Previews on Vercel Sandbox need SANDBOX_PREVIEW_SECRET, which keeps them private through Farbaek's signed relay. It isn't set on this server.",
+  // Previews here need SANDBOX_PREVIEW_SECRET, which keeps them private through Farbaek's signed relay. People read the sentence; staff see the setting in the console.
+  previews: PREVIEWS_UNAVAILABLE,
   pauseResume: "Sessions on Vercel Sandbox can't be paused yet. Stop the session and start a new one when you need it.",
   metrics: "Vercel Sandbox doesn't report live CPU and memory samples.",
 } as const;
@@ -136,15 +136,22 @@ function statusOf(err: unknown): number | null {
 export function toRuntimeError(err: unknown, context: string): RuntimeError {
   if (err instanceof RuntimeError) return err;
   const at = (category: FailureCategory, text: string, retryable = false) => new RuntimeError(category, `${context}: ${text}`, retryable);
-  if (err instanceof StreamError) return at("sandbox_gone", "the sandbox stopped while Farbaek was reading from it.");
+  if (err instanceof StreamError) return at("sandbox_gone", "the test space stopped while Farbaek was reading from it.");
   const status = statusOf(err);
   const message = err instanceof Error ? scrub(err.message) : "Unknown error";
-  if (status === 401 || status === 403) return at("provider_rejected", "Vercel refused the credentials. Check SANDBOX_VERCEL_TOKEN, and that it can reach the team and project.");
-  if (status === 402) return at("quota_exceeded", "the Vercel account's sandbox allowance is used up. On Hobby, new sandboxes are paused until the next cycle.");
-  if (status === 404 || status === 410) return at("sandbox_gone", "Vercel no longer has this sandbox.");
-  if (status === 429) return at("provider_rejected", "Vercel's rate or concurrency limit was reached. Try again shortly.", true);
+  if (status === 401 || status === 403) {
+    // The setting to fix is for whoever runs the server; people read a sentence (ADR 0180).
+    log("warn", "sandbox.provider_rejected", { provider: "vercel", status, hint: "Check SANDBOX_VERCEL_TOKEN, and that it can reach the team and project." });
+    return at("provider_rejected", "the test space service turned this server away, so nothing can run there right now. Try again later.");
+  }
+  if (status === 402) {
+    log("warn", "sandbox.provider_quota", { provider: "vercel", status, hint: "The Vercel account's sandbox allowance is used up. On Hobby, new sandboxes are paused until the next cycle." });
+    return at("quota_exceeded", "the test space service has no room for new sessions right now. Try again later.");
+  }
+  if (status === 404 || status === 410) return at("sandbox_gone", "this test space no longer exists.");
+  if (status === 429) return at("provider_rejected", "the test space service is busy. Try again in a minute.", true);
   if (status !== null && status >= 400 && status < 500) return at("provider_rejected", message);
-  if (err instanceof Error && err.name === "AbortError") return at("provider_unavailable", "Vercel didn't answer in time.", true);
+  if (err instanceof Error && err.name === "AbortError") return at("provider_unavailable", "the test space service didn't answer in time.", true);
   return at("provider_unavailable", message, true);
 }
 
@@ -200,7 +207,7 @@ export function createVercelRuntime(config: SandboxServerConfig): SandboxRuntime
         env: {},
       });
       for (let i = 0; i < 20 && !(await relayListening(sandbox)); i += 1) await sleep(250);
-      if (!(await relayListening(sandbox))) throw new RuntimeError("provider_rejected", "The preview relay didn't start in the sandbox.");
+      if (!(await relayListening(sandbox))) throw new RuntimeError("provider_rejected", "The preview didn't start in the test space.");
     }
     await sandbox.update({ ports: [RELAY_PORT] });
   }
@@ -210,7 +217,7 @@ export function createVercelRuntime(config: SandboxServerConfig): SandboxRuntime
     try {
       return await Sandbox.get({ name: sandboxId, ...creds });
     } catch (err) {
-      throw toRuntimeError(err, "Connecting to the sandbox");
+      throw toRuntimeError(err, "Connecting to the test space");
     }
   }
 
@@ -263,17 +270,17 @@ export function createVercelRuntime(config: SandboxServerConfig): SandboxRuntime
           ...(config.vercel.region ? { region: config.vercel.region as SandboxRegion } : {}),
         });
       } catch (err) {
-        throw toRuntimeError(err, "Starting the sandbox");
+        throw toRuntimeError(err, "Starting the test space");
       }
       try {
         // The project folder lives where every runtime puts it, owned by the sandbox's default user.
         const user = await sandbox.getDefaultUser();
         const made = await sandbox.runCommand({ cmd: "mkdir", args: ["-p", SANDBOX_WORKSPACE_ROOT, WORK_DIR], sudo: true });
         const owned = await sandbox.runCommand({ cmd: "chown", args: ["-R", `${user.username}:${user.group}`, "/home/user", WORK_DIR], sudo: true });
-        if (made.exitCode !== 0 || owned.exitCode !== 0) throw new RuntimeError("provider_rejected", "Starting the sandbox: the project folder couldn't be prepared.");
+        if (made.exitCode !== 0 || owned.exitCode !== 0) throw new RuntimeError("provider_rejected", "Starting the test space: the project folder couldn't be prepared.");
       } catch (err) {
         await sandbox.delete().catch(() => undefined);
-        throw toRuntimeError(err, "Preparing the sandbox");
+        throw toRuntimeError(err, "Preparing the test space");
       }
       const vcpu = sandbox.vcpus ?? null;
       return { sandboxId: name, vcpu, memoryMiB: sandbox.memory ?? (vcpu ? vcpu * 2048 : null) };
@@ -291,7 +298,7 @@ export function createVercelRuntime(config: SandboxServerConfig): SandboxRuntime
         await sandbox.delete();
         return { existed: true };
       } catch (err) {
-        const e = toRuntimeError(err, "Stopping the sandbox");
+        const e = toRuntimeError(err, "Stopping the test space");
         if (e.category === "sandbox_gone") return { existed: false };
         throw e;
       }
@@ -391,7 +398,7 @@ export function createVercelRuntime(config: SandboxServerConfig): SandboxRuntime
       } catch (err) {
         throw toRuntimeError(err, "Reading the file");
       }
-      if (buf === null) throw new RuntimeError("invalid_request", "That file doesn't exist in the sandbox.");
+      if (buf === null) throw new RuntimeError("invalid_request", "That file doesn't exist in the test space.");
       if (buf.length > MAX_SANDBOX_FILE_BYTES) throw new RuntimeError("resource_limit", "The file is larger than 512 KB, so it isn't shown here.");
       return buf.toString("utf8");
     },

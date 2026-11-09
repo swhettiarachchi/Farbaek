@@ -32,7 +32,7 @@ import { CONTRIBUTOR_ROLES, MANAGER_ROLES } from "@/server/workspace/types";
 import { RULES_NOT_IN_PLAN } from "@/server/workspace/workspace-rules";
 import { StatusBadge } from "@/components/ui/status-badge";
 
-export const metadata: Metadata = { title: "Incident" };
+export const metadata: Metadata = { title: "Problem" };
 
 const EVENT_ICON: Record<IncidentEventKind, { icon: Icon; className: string }> = {
   opened: { icon: SirenIcon, className: "text-failed" },
@@ -77,7 +77,7 @@ export default async function IncidentPage({ params }: { params: Promise<{ numbe
     <div className="grid gap-8">
       <div className="grid gap-4">
         <Link href="/app/incidents" className="inline-flex min-h-11 items-center gap-1.5 self-start text-sm text-ink-2 hover:text-ink">
-          <ArrowLeftIcon size={14} aria-hidden /> All incidents
+          <ArrowLeftIcon size={14} aria-hidden /> All problems
         </Link>
         <PageHeader
           title={`#${incident.number} ${incident.title}`}
@@ -193,8 +193,8 @@ export default async function IncidentPage({ params }: { params: Promise<{ numbe
               number={incident.number}
               severity={incident.severity}
               status={incident.status}
-              toolsReason={readOnly ?? (contributor ? null : "Viewers can read incidents, but not change them.") ?? (tools.allowed ? null : tools.code === "FEATURE_NOT_IN_PLAN" ? INCIDENT_TOOLS_NOT_IN_PLAN : tools.message)}
-              resolveReason={readOnly ?? (contributor ? null : "Viewers can read incidents, but not resolve them.")}
+              toolsReason={readOnly ?? (contributor ? null : "Viewers can read problems, but not change them.") ?? (tools.allowed ? null : tools.code === "FEATURE_NOT_IN_PLAN" ? INCIDENT_TOOLS_NOT_IN_PLAN : tools.message)}
+              resolveReason={readOnly ?? (contributor ? null : "Viewers can read problems, but not resolve them.")}
             />
           </div>
         </Card>

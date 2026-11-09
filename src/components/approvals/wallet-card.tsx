@@ -1,18 +1,11 @@
 "use client";
 
-import {
-  ArrowCounterClockwiseIcon,
-  ArrowRightIcon,
-  ClockCountdownIcon,
-  DesktopIcon,
-  ProhibitIcon,
-  ShieldWarningIcon,
-  TerminalWindowIcon,
-  XCircleIcon,
-} from "@phosphor-icons/react";
+import { ArrowRightIcon, ShieldWarningIcon, XCircleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
+import { Fragment } from "react";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
+import { StatusBadge, type Status } from "@/components/ui/status-badge";
 import { relativeLabel, useNow } from "@/components/ui/use-now";
 import { approvalWindow, type WalletFact, type WindowState } from "@/core/trust/approval-wallet";
 
@@ -34,11 +27,11 @@ export interface WalletCardData {
   canApprove: boolean;
 }
 
-// Status is a word (ADR 0180): the open window carries no glyph, closing soon a countdown, expired a prohibit sign.
-const STATE: Record<WindowState, { label: string; Icon: typeof ProhibitIcon | null; cls: string; bar: string }> = {
-  open: { label: "Waiting for approval", Icon: null, cls: "border-approval/30 bg-approval/[0.06] text-approval", bar: "bg-accent" },
-  closing: { label: "Closing soon", Icon: ClockCountdownIcon, cls: "border-approval/50 bg-approval/[0.1] text-approval", bar: "bg-approval" },
-  expired: { label: "Expired", Icon: ProhibitIcon, cls: "border-line bg-surface-raised text-ink-2", bar: "bg-ink-3" },
+// Status is a word in its colour and border (ADR 0180), drawn by StatusBadge: waiting states carry no glyph.
+const STATE: Record<WindowState, { label: string; status: Status; bar: string }> = {
+  open: { label: "Waiting for approval", status: "approval", bar: "bg-accent" },
+  closing: { label: "Closing soon", status: "approval", bar: "bg-approval" },
+  expired: { label: "Expired", status: "unverified", bar: "bg-ink-3" },
 };
 
 // Facts are lines, not chips (ADR 0180): an icon only where one says "look here".
@@ -69,22 +62,16 @@ export function WalletCard({ card, serverNow }: { card: WalletCardData; serverNo
   return (
     <article aria-labelledby={`wallet-${card.taskId}`} className="grid overflow-hidden rounded-md border border-line bg-surface shadow-e1 md:grid-cols-[minmax(0,1fr)_17rem]">
       <div className="grid min-w-0 content-start gap-4 p-4 sm:p-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${state.cls}`}>
-            {state.Icon ? <state.Icon size={14} weight="bold" aria-hidden /> : null} {state.label}
-          </span>
-          {card.byAgent ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs text-ink-2">
-              <DesktopIcon size={14} aria-hidden /> Farbaek Agent
-            </span>
-          ) : null}
-        </div>
+        <StatusBadge status={state.status} label={state.label} />
 
         <div className="min-w-0">
           <h2 id={`wallet-${card.taskId}`} className="text-[1.0625rem] leading-snug font-medium tracking-[-0.02em] break-words">
             {card.title}
           </h2>
-          <p className="mt-0.5 text-xs text-ink-3">{card.projectName}</p>
+          <p className="mt-0.5 text-xs text-ink-3">
+            {card.projectName}
+            {card.byAgent ? ". Sent from the Farbaek Agent app." : null}
+          </p>
         </div>
 
         {card.facts.length ? (
@@ -104,29 +91,25 @@ export function WalletCard({ card, serverNow }: { card: WalletCardData; serverNo
         {/* What happens after approval; an expired proposal won't get there. */}
         {expired ? null : (
           <div className="grid gap-1.5 text-sm text-ink-2">
-            <p className="flex items-start gap-2">
-              <ArrowCounterClockwiseIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
-              <span>Undo it afterwards, file by file. Undo never overwrites a newer change.</span>
-            </p>
-            <p className="flex items-start gap-2">
-              <TerminalWindowIcon size={16} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
-              <span>
-                {card.checks.length === 0 ? (
-                  "The plan lists no checks, so nothing will confirm it."
-                ) : card.checksReason ? (
-                  <>Its checks can&apos;t run yet: {card.checksReason}</>
-                ) : (
-                  <>
-                    Then{" "}
-                    {card.checks.map((c, i) => (
-                      <code key={i} className="mr-1 font-mono text-[0.8125rem] text-ink">
-                        {c}
-                      </code>
-                    ))}
-                    {card.checks.length === 1 ? "runs" : "run"} in a test space.
-                  </>
-                )}
-              </span>
+            <p>Undo it afterwards, file by file. Undo never overwrites a newer change.</p>
+            <p>
+              {card.checks.length === 0 ? (
+                "The plan lists no checks, so nothing will confirm it."
+              ) : card.checksReason ? (
+                <>Its checks can&apos;t run yet: {card.checksReason}</>
+              ) : (
+                <>
+                  Then{" "}
+                  {/* Real spaces and commas between the commands, so copied text and screen readers get words, not "testruns". */}
+                  {card.checks.map((c, i) => (
+                    <Fragment key={i}>
+                      {i === 0 ? null : i === card.checks.length - 1 ? " and " : ", "}
+                      <code className="break-all font-mono text-[0.8125rem] text-ink">{c}</code>
+                    </Fragment>
+                  ))}{" "}
+                  {card.checks.length === 1 ? "runs" : "run"} in a test space.
+                </>
+              )}
             </p>
           </div>
         )}

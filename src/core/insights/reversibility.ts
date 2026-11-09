@@ -12,13 +12,13 @@ import { diffLines } from "@/core/realityloop/line-diff";
 export const REVERSIBILITY = ["rollback_supported", "compensating_action", "unknown", "forward_fix", "requires_backup"] as const;
 export type Reversibility = (typeof REVERSIBILITY)[number];
 
-/** The spec's five classes, in order from easiest to hardest to undo. */
+/** The spec's five classes, in order from easiest to hardest to undo, in short words from the person's side. */
 export const REVERSIBILITY_LABELS: Record<Reversibility, string> = {
-  rollback_supported: "Rollback supported",
-  compensating_action: "Compensating action available",
-  unknown: "Reversibility unknown",
-  forward_fix: "Forward fix required",
-  requires_backup: "Requires a backup",
+  rollback_supported: "Can be undone",
+  compensating_action: "Undo needs an extra step",
+  unknown: "Not known",
+  forward_fix: "Only a new change undoes it",
+  requires_backup: "Back up first",
 };
 
 export type ChangeArea = "migration" | "dependencies" | "ci_infra" | "public_api" | "integration" | "files";

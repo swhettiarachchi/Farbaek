@@ -1,6 +1,5 @@
 "use client";
 
-import { CheckCircleIcon, LockSimpleIcon } from "@phosphor-icons/react";
 import { useActionState, useState } from "react";
 import { setMemberPermissionsAction, type FormState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
@@ -38,15 +37,12 @@ export function MemberPermissions({
 
   const blocked = Boolean(disabledReason) || saving;
   const panelId = `permissions-${userId}`;
-  const Icon = summary ? LockSimpleIcon : CheckCircleIcon;
 
   return (
     <div className="grid gap-3 sm:col-span-2">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <p className="flex items-center gap-1.5 text-xs text-ink-2">
-          <Icon aria-hidden weight="bold" className={`size-3.5 shrink-0 ${summary ? "text-approval" : "text-verified"}`} />
-          {summary ? `${isSelf ? "For you here: " : ""}${summary}` : "Every permission is on."}
-        </p>
+        {/* A plain line (ADR 0180): what's off is said in words, with no mark before it. */}
+        <p className="text-xs text-ink-2">{summary ? `${isSelf ? "For you here: " : ""}${summary}` : "Every permission is on."}</p>
         {canManage ? (
           <button type="button" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((o) => !o)} className={buttonClasses("ghost", "sm")}>
             {open ? "Close permissions" : "Permissions"}

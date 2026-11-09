@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, CheckIcon, ClockCountdownIcon, DesktopIcon, ProhibitIcon, ScalesIcon, ShieldWarningIcon, WarningCircleIcon, XCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, CheckIcon, ClockCountdownIcon, ProhibitIcon, ScalesIcon, ShieldWarningIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -9,6 +9,7 @@ import { applyProposalAction, discardProposalAction } from "@/app/app/actions";
 import { Notice } from "@/components/app/primitives";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
+import { StatusBadge, type Status } from "@/components/ui/status-badge";
 import { relativeLabel, useNow } from "@/components/ui/use-now";
 import { DROP_LABELS } from "@/core/realityloop/change-proposal";
 import type { IntentContract } from "@/core/realityloop/contract";
@@ -35,16 +36,16 @@ const Surface = dynamic(() => import("@/components/files/codemirror"), { ssr: fa
 const fileHref = (projectId: string, path: string) => `/app/projects/${projectId}/files?path=${encodeURIComponent(path)}`;
 const short = (hex: string) => `sha256:${hex.slice(0, 6)}…${hex.slice(-4)}`;
 
-// Status is a word (ADR 0180): a waiting state carries no glyph, and an icon says only how it ended.
-const STATUS: Record<"pending" | "blocked" | "applied" | "discarded" | "expired" | "outOfDate", { label: string; Icon: typeof CheckCircleIcon | null; cls: string }> = {
-  pending: { label: "Waiting for your approval", Icon: null, cls: "border-approval/30 bg-approval/[0.06] text-approval" },
-  blocked: { label: "Outside the plan", Icon: ProhibitIcon, cls: "border-failed/30 bg-failed/[0.05] text-failed" },
-  applied: { label: "Applied", Icon: CheckCircleIcon, cls: "border-verified/30 bg-verified/[0.05] text-verified" },
-  discarded: { label: "Discarded", Icon: XCircleIcon, cls: "border-line bg-surface-raised text-ink-2" },
+// Status is a word (ADR 0180), drawn by StatusBadge: a waiting state carries no glyph, and an icon says only how it ended.
+const STATUS: Record<"pending" | "blocked" | "applied" | "discarded" | "expired" | "outOfDate", { label: string; status: Status }> = {
+  pending: { label: "Waiting for your approval", status: "approval" },
+  blocked: { label: "Outside the plan", status: "failed" },
+  applied: { label: "Applied", status: "verified" },
+  discarded: { label: "Discarded", status: "unverified" },
   // Past its approval window (ADR 0042): it can only be discarded.
-  expired: { label: "Expired", Icon: ProhibitIcon, cls: "border-line bg-surface-raised text-ink-2" },
+  expired: { label: "Expired", status: "unverified" },
   // A file it was made from has changed since (ADR 0178): it can only be discarded.
-  outOfDate: { label: "Out of date", Icon: ProhibitIcon, cls: "border-line bg-surface-raised text-ink-2" },
+  outOfDate: { label: "Out of date", status: "unverified" },
 } as const;
 
 /**
@@ -161,14 +162,8 @@ export function ProposalReview({
   return (
     <div className={`flex flex-col gap-6 ${open ? "[&_:is(a,button,summary)]:scroll-mb-40" : ""}`}>
       <div className="flex flex-wrap items-center gap-3">
-        <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium ${status.cls}`}>
-          {status.Icon ? <status.Icon size={16} weight="bold" aria-hidden /> : null} {status.label}
-        </span>
-        {proposal.agentId ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-sm text-ink-2">
-            <DesktopIcon size={16} aria-hidden /> Suggested by Farbaek Agent{agentName ? ` (${agentName})` : ""}
-          </span>
-        ) : null}
+        <StatusBadge status={status.status} label={status.label} />
+        {proposal.agentId ? <span className="text-sm text-ink-2">Suggested by Farbaek Agent{agentName ? ` (${agentName})` : ""}</span> : null}
         {/* ADR 0134: written by a model on the agent's own computer, not Farbaek's AI. */}
         {proposal.model?.startsWith("local:") ? <span className="text-xs text-ink-3">A model on the agent&apos;s computer</span> : null}
         <details className="text-xs text-ink-3">
@@ -294,9 +289,7 @@ export function ProposalReview({
             <p className="flex items-center gap-2 font-medium">
               Practice: this change {proposal.policy.shadow.outcome === "ALLOW_WITHIN_LIMITS" ? "would have applied on its own" : "would have waited for a person"}
             </p>
-            <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-simulated/40 px-2.5 text-xs font-medium text-simulated">
-              Sample
-            </span>
+            <StatusBadge status="simulated" />
           </div>
           <p className="text-ink-2">{proposal.policy.shadow.detail} Nothing applied on its own: this workspace is in practice mode, so the change waits for your review as usual.</p>
         </div>
@@ -305,7 +298,7 @@ export function ProposalReview({
       {proposal.dropped.length ? (
         <details className="rounded-sm border border-line px-4 py-3 text-sm">
           <summary className="cursor-pointer font-medium">
-            {proposal.dropped.length} proposed {proposal.dropped.length === 1 ? "change was" : "changes were"} left out
+            {proposal.dropped.length} suggested {proposal.dropped.length === 1 ? "change was" : "changes were"} left out
           </summary>
           <ul className="mt-2 grid gap-1">
             {proposal.dropped.map((d, i) => (
@@ -408,7 +401,7 @@ export function ProposalReview({
               <span className="font-medium">
                 {kept.length} of {proposal.changes.length} {proposal.changes.length === 1 ? "file" : "files"}
               </span>{" "}
-              exactly as shown above, after your accept and reject decisions.
+              exactly as shown above, with what you kept and left out.
               {executionReason || !checksOnApply ? null : " Once it's applied, its checks start on their own."}
             </p>
           ) : null}

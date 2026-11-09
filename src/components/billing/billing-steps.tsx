@@ -1,4 +1,4 @@
-import { CalendarXIcon, CheckCircleIcon, CreditCardIcon, PauseCircleIcon, WarningIcon } from "@phosphor-icons/react/ssr";
+import { CheckCircleIcon, CreditCardIcon, WarningIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { NotInAndroidApp, WebPurchaseOnly } from "./web-purchase-only";
@@ -167,24 +167,25 @@ export function CancelStep({ subscription, error }: { subscription: NonNullable<
   );
 }
 
-const STATE_LINES = {
+// A state is its word in its colour (ADR 0180); a mark only for the good state and the payment states (due, paused).
+const STATE_LINES: Record<string, { icon: typeof CheckCircleIcon | null; tone: string; label: string }> = {
   active: { icon: CheckCircleIcon, tone: "text-verified", label: "Active" },
   past_due: { icon: WarningIcon, tone: "text-approval", label: "Payment due" },
-  cancellation_scheduled: { icon: CalendarXIcon, tone: "text-ink-2", label: "Cancelled" },
-  suspended: { icon: PauseCircleIcon, tone: "text-failed", label: "Paused" },
-} as const;
+  cancellation_scheduled: { icon: null, tone: "text-ink-2", label: "Cancelled" },
+  suspended: { icon: WarningIcon, tone: "text-failed", label: "Paused" },
+};
 
-/** The subscription inside the Current plan card: its state in words with an icon, its date, and what an owner or admin can do. */
+/** The subscription inside the Current plan card: its state in words, its date, and what an owner or admin can do. */
 export function SubscriptionSummary({ subscription, canManage }: { subscription: NonNullable<BillingView["subscription"]>; canManage: boolean }) {
-  const line = STATE_LINES[subscription.state as keyof typeof STATE_LINES] ?? STATE_LINES.active;
+  const line = STATE_LINES[subscription.state] ?? STATE_LINES.active!;
   const StateIcon = line.icon;
   const date = subscription.paidThrough ? <LocalTime iso={subscription.paidThrough} /> : null;
   return (
     <div className="mt-4 grid gap-4">
       <p className="flex items-start gap-2 text-sm text-ink">
-        <StateIcon size={18} weight="bold" className={`mt-px shrink-0 ${line.tone}`} aria-hidden />
+        {StateIcon ? <StateIcon size={18} weight="bold" className={`mt-px shrink-0 ${line.tone}`} aria-hidden /> : null}
         <span>
-          <span className="font-medium">{line.label}.</span>{" "}
+          <span className={`font-medium ${StateIcon ? "" : line.tone}`}>{line.label}.</span>{" "}
           {subscription.state === "active" ? <>Renews {date ?? "each month"}.</> : null}
           {subscription.state === "cancellation_scheduled" ? <>Runs until {date ?? "the end of the period"}, then this workspace moves to Free.</> : null}
           {subscription.state === "past_due" ? <>The last payment didn&apos;t go through. Paid features keep working while you update your payment method.</> : null}
@@ -218,7 +219,7 @@ export function SubscriptionSummary({ subscription, canManage }: { subscription:
             </WebPurchaseOnly>
           ) : null}
           {subscription.state === "cancellation_scheduled" ? (
-            <WebPurchaseOnly fallback={<NotInAndroidApp>Can&apos;t be renewed in the Android app</NotInAndroidApp>}>
+            <WebPurchaseOnly fallback={<NotInAndroidApp>This can&apos;t be renewed in the Android app.</NotInAndroidApp>}>
               <form action={resumePlanAction}>
                 <BillingSubmit label={`Keep ${subscription.planName}`} pending="Keeping…" />
               </form>

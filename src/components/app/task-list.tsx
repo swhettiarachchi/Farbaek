@@ -12,7 +12,8 @@ export function TaskList({ tasks, showProject = true }: { tasks: Task[]; showPro
             <span className="min-w-0 flex-1">
               <span className="block text-[0.9375rem] font-medium group-hover:text-accent">{t.title}</span>
               <span className="mt-0.5 block text-xs text-ink-3">
-                {showProject && t.projectName ? `${t.projectName} · ` : ""}updated <RelativeTime iso={t.updatedAt} />
+                {showProject && t.projectName ? `${t.projectName}, updated ` : "Updated "}
+                <RelativeTime iso={t.updatedAt} />
               </span>
             </span>
             <TaskStateBadge state={t.state} />

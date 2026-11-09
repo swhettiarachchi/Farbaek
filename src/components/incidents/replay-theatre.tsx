@@ -1,7 +1,6 @@
 import { ArrowRightIcon, CheckCircleIcon, MinusCircleIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { LocalTime } from "@/components/ui/local-time";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { linkWords, type PreventionRule, type ReplayStep } from "@/core/trust/incidents";
 import { TEST_OUTCOME_WORDS, type TestOutcome } from "@/core/trust/rules-test";
 import { EFFECTS, explainRule } from "@/core/trust/workspace-rules";
@@ -30,17 +29,17 @@ export function ReplayTheatre({
 }) {
   return (
     <section aria-labelledby="replay-title" className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="grid gap-1">
         <h2 id="replay-title" className="text-lg font-medium">
           Replay
         </h2>
-        <StatusBadge status="simulated" label="Replayed with suggested rules" />
+        <p className="text-sm text-ink-3">What happened to each change, and what the suggested rules would have done instead. Nothing here changes anything.</p>
       </div>
 
       {steps.length === 0 ? (
         <p className="text-sm leading-relaxed text-ink-2">
-          No changes are linked to this incident, so there&apos;s nothing to replay. Incidents about a change, or about a project with changes applied in the day before, show
-          them here.
+          No changes are linked to this problem, so there&apos;s nothing to replay. A problem about a change, or about a project with changes applied the day before, shows them
+          here.
         </p>
       ) : (
         <>
@@ -92,7 +91,7 @@ export function ReplayTheatre({
               )}
             </div>
           ))}
-          <p className="text-xs leading-relaxed text-ink-3">The rule builder tests a rule against the last 90 days of changes before you can activate it. Nothing changes here.</p>
+          <p className="text-xs leading-relaxed text-ink-3">The rule builder tests a rule against the last 90 days of changes before you can activate it.</p>
         </div>
       ) : null}
     </section>

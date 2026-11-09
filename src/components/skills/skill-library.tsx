@@ -26,16 +26,12 @@ function Byline({ skill }: { skill: LibraryCardSkill }) {
   );
 }
 
+/** What a skill is best for, as a sentence: "Best for websites and apps." */
 function Uses({ skill }: { skill: LibraryCardSkill }) {
-  return (
-    <ul className="flex flex-wrap gap-1.5" aria-label="Best for">
-      {skill.uses.map((u) => (
-        <li key={u} className="rounded-full border border-line px-2.5 py-0.5 text-xs text-ink-2">
-          {SKILL_USE_LABELS[u]}
-        </li>
-      ))}
-    </ul>
-  );
+  const words = skill.uses.map((u) => SKILL_USE_LABELS[u].toLowerCase());
+  if (words.length === 0) return null;
+  const list = words.length === 1 ? words[0] : `${words.slice(0, -1).join(", ")} and ${words.at(-1)}`;
+  return <p className="text-sm text-ink-2">Best for {list}.</p>;
 }
 
 /** A skill's markdown as reading text: headings, bullets and paragraphs. Only text is rendered, never HTML. */

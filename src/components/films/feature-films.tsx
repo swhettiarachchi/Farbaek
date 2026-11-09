@@ -15,6 +15,7 @@ import { LG_QUERY, useMediaQuery } from "./use-playback";
 
 export interface Feature {
   id: FilmId;
+  /** A word or two, for the switcher beside the pinned clip. */
   label: string;
   title: string;
   points: string[];
@@ -84,9 +85,8 @@ export function FeatureFilms({ features }: { features: Feature[] }) {
                   <FilmClip id={f.id} poster={f.poster} enabled={lg === false} />
                 </Bezel>
               </div>
-              <p className="text-[0.8125rem] font-medium text-accent">{f.label}</p>
               <h3
-                className={`mt-3 text-balance text-[1.75rem] font-medium leading-[1.12] tracking-[-0.03em] transition-colors duration-300 sm:text-[2rem] ${
+                className={`text-balance text-[1.75rem] font-medium leading-[1.12] tracking-[-0.03em] transition-colors duration-300 sm:text-[2rem] ${
                   current ? "text-ink" : "text-ink lg:text-ink-3"
                 }`}
               >

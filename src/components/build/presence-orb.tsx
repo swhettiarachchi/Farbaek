@@ -71,7 +71,7 @@ export function PresenceOrb({ orgId, initial, compact = false }: { orgId: string
       }`}
     >
       <CoreMark state={presence.state} size="sm" />
-      <span className="min-w-0 flex-1 truncate" role="status" aria-live="polite">
+      <span className="min-w-0 flex-1 truncate" role="status" aria-live="polite" title={label}>
         {label}
       </span>
     </Link>

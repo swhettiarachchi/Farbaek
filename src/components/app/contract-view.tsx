@@ -1,4 +1,4 @@
-import { QuestionIcon, ShieldCheckIcon, WarningIcon } from "@phosphor-icons/react/ssr";
+import { ShieldCheckIcon, WarningIcon } from "@phosphor-icons/react/ssr";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { LocalTime } from "@/components/ui/local-time";
 import { contractHash } from "@/core/realityloop/contract";
@@ -6,6 +6,14 @@ import type { ContractRecord } from "@/server/workspace/types";
 
 /** How each acceptance criterion is checked, in words. */
 const VERIFICATION_WORDS: Record<string, string> = { test: "by a test", assertion: "by an assertion", read_back: "by reading it back", manual: "by a person" };
+
+const OPERATION_WORDS: Record<string, string> = {
+  "files.create": "Add new files",
+  "files.edit": "Edit files",
+  "files.delete": "Delete files",
+};
+/** A plan's operation in words; one Farbaek doesn't name stays as it was written. */
+export const sayOperation = (op: string) => OPERATION_WORDS[op] ?? op;
 
 function Clause({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -24,7 +32,7 @@ const Mono = ({ items }: { items: string[] }) =>
     <span className="flex flex-wrap gap-1.5">
       {items.map((i) =>
         looksLikeCode(i) ? (
-          <code key={i} className="rounded-full border border-line bg-surface-raised px-2.5 py-0.5 text-[0.78125rem]">
+          <code key={i} className="max-w-full break-all rounded-full border border-line bg-surface-raised px-2.5 py-0.5 text-[0.78125rem]">
             {i}
           </code>
         ) : (
@@ -86,10 +94,10 @@ export async function ContractView({ record }: { record: ContractRecord }) {
           <Mono items={c.scope.resources} />
         </Clause>
         <Clause label="Allowed">
-          <Mono items={c.allowedOperations} />
+          <Mono items={c.allowedOperations.map(sayOperation)} />
         </Clause>
         <Clause label="Not allowed">
-          <Mono items={c.forbiddenOperations} />
+          <Mono items={c.forbiddenOperations.map(sayOperation)} />
         </Clause>
         <Clause label="Protected fields">
           <Mono items={c.protectedFields} />
@@ -126,8 +134,7 @@ export async function ContractView({ record }: { record: ContractRecord }) {
         ) : null}
         {c.openQuestions.length ? (
           <Clause label="Open questions">
-            <span className="flex items-start gap-2 text-approval">
-              <QuestionIcon size={17} className="mt-0.5 shrink-0" aria-hidden />
+            <span className="text-approval">
               <List items={c.openQuestions} />
             </span>
           </Clause>

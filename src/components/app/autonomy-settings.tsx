@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircleIcon, ClockCounterClockwiseIcon, FlowArrowIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ClockCounterClockwiseIcon, FlowArrowIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useActionState, useState, useTransition } from "react";
 import { setAutonomyAction, type AutonomyState } from "@/app/app/actions";
@@ -132,14 +132,8 @@ export function AutonomySettings({
               className="mt-1 size-4 accent-[var(--color-accent)]"
             />
             <span className="grid gap-0.5">
-              <span className="flex flex-wrap items-center gap-2 text-[0.9375rem] font-medium">
-                {o.title}
-                {o.value === "shadow" ? (
-                  <span className="inline-flex h-5 items-center gap-1 rounded-full border border-simulated/40 px-2 text-xs font-medium text-simulated">
-                    Sample
-                  </span>
-                ) : null}
-              </span>
+              {/* Practice mode's title says what it is; its dashed border sets it apart from the levels that act. */}
+              <span className="text-[0.9375rem] font-medium">{o.title}</span>
               <span className="text-sm text-ink-2">{o.body}</span>
               {o.unavailable ? <span className="text-xs text-ink-3">{o.unavailable}</span> : null}
             </span>
@@ -161,7 +155,7 @@ export function AutonomySettings({
       {mode !== "0" ? (
         <div className="grid gap-3 rounded-sm bg-surface-raised/60 px-4 py-3">
           <p className="text-sm font-medium">{mode === "shadow" ? "Try out these limits. A change would apply on its own only when all of these hold:" : "A change applies on its own only when all of these hold:"}</p>
-          <ul className="grid gap-1.5 text-sm text-ink-2">
+          <ul className="grid list-disc gap-1.5 pl-5 text-sm text-ink-2 marker:text-ink-3">
             {[
               "It's inside the approved plan, and touches no dependencies, CI, migrations, infrastructure or security code.",
               `It changes at most ${maxFiles} ${maxFiles === 1 ? "file" : "files"}${allowCreates ? "" : ", and creates none"}.`,
@@ -170,9 +164,7 @@ export function AutonomySettings({
               "No workspace rule says a person reviews its files.",
               ...(mode === "3" ? [`No more than ${dailyLimit} changes have applied on their own in the last 24 hours.`] : []),
             ].map((t) => (
-              <li key={t} className="flex items-start gap-2">
-                <CheckCircleIcon size={16} className="mt-0.5 shrink-0 text-verified" aria-hidden /> {t}
-              </li>
+              <li key={t}>{t}</li>
             ))}
           </ul>
           <div className="flex flex-wrap items-center gap-4">
@@ -223,7 +215,7 @@ export function AutonomySettings({
             {mode === "shadow"
               ? "Nothing applies on its own in practice mode. Each change shows what would have happened, marked as simulated, and the record below sets that against what really happened."
               : mode === "3"
-                ? `Each change applied this way is recorded as approved by these settings, and can be undone file by file. Its checks run straight away in a test space. If any fail, this pauses itself, and has to be earned again: ${LEVEL_3.minVerified} changes applied on their own passing their checks in ${LEVEL_3.days} days, with none failing.`
+                ? `Each change applied this way is recorded as approved by these settings, and can be undone file by file. Its checks run straight away in a test space. If any fail, this pauses itself and has to be earned again. That takes ${LEVEL_3.minVerified} changes applied on their own that pass their checks in ${LEVEL_3.days} days, with none failing.`
                 : "Each change applied this way is recorded as approved by these settings, in its ProofPack and history, and can be undone file by file. Its checks run straight away in a test space. If any of them fail, this pauses itself for the whole workspace."}
           </p>
         </div>
