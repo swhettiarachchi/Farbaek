@@ -18,14 +18,9 @@ import { getPlan } from "../billing/catalog";
 import type { ModelId } from "../billing/rate-card";
 import type { EffectivePlan } from "../billing/trial";
 
-export const EFFORTS = ["fast", "balanced", "deep"] as const;
-export type Effort = (typeof EFFORTS)[number];
+import type { Effort } from "./effort";
 
-export const EFFORT_LABELS: Record<Effort, { title: string; detail: string }> = {
-  fast: { title: "Fast", detail: "The quickest models. Stretches your usage furthest." },
-  balanced: { title: "Balanced", detail: "Farbaek picks the model for each step. Recommended." },
-  deep: { title: "Deep", detail: "The strongest model your plan includes, for hard problems. Uses your usage faster." },
-};
+export { EFFORTS, EFFORT_LABELS, type Effort } from "./effort";
 
 /** What a step does, which decides how much model it needs. */
 export type StepKind = "read" | "plan" | "write" | "review";

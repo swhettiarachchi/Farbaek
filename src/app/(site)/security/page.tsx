@@ -123,12 +123,6 @@ export default function SecurityTestsPage() {
               Last run on {dateLabel(run.ranAt)}: {totals.passed} of {totals.scenarios} scenarios passed.
             </span>
           </p>
-          <details className="mt-3 text-sm text-ink-3">
-            <summary className="inline-flex min-h-11 cursor-pointer list-none items-center hover:text-ink [&::-webkit-details-marker]:hidden">Technical details</summary>
-            <p className="mt-1">
-              {totals.tests} tests across the scenarios, recorded at commit <span className="font-mono">{run.commit.slice(0, 7)}</span>.
-            </p>
-          </details>
         </Container>
       </section>
 

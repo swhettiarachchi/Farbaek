@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { writeTaskNoteAction } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
 import { RelativeTime } from "@/components/ui/local-time";
-import { modelName } from "@/core/billing/rate-card";
+import { modelName } from "@/core/billing/model-names";
 import type { TaskNoteView } from "@/core/realityloop/modes";
 
 /**

@@ -54,11 +54,9 @@ function NotConfigured() {
   return (
     <main id="main" className="mx-auto flex min-h-[100dvh] max-w-xl flex-col justify-center px-6 py-16">
       <Brand />
-      <h1 className="mt-10 text-3xl font-medium tracking-[-0.03em]">The app isn&apos;t connected here</h1>
-      <p className="mt-3 text-[0.9375rem] leading-relaxed text-ink-2">
-        Add <code>NEXT_PUBLIC_SUPABASE_URL</code> and <code>NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY</code> to <code>.env.local</code> and restart the
-        server. To look around without an account, set <code>FARBAEK_DEMO_APP=1</code> on a machine without Supabase keys.
-      </p>
+      <h1 className="mt-10 text-3xl font-medium tracking-[-0.03em]">The app isn&apos;t available here</h1>
+      {/* How to connect it is in the setup guide (docs/deploy), never on a page anyone can open (stage 171). */}
+      <p className="mt-3 text-[0.9375rem] leading-relaxed text-ink-2">This server isn&apos;t set up to run the app yet. Try www.farbaek.com, or write to support@farbaek.com.</p>
     </main>
   );
 }

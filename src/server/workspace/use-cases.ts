@@ -173,7 +173,7 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   DUPLICATE_NAME: "A project with this name already exists in this workspace.",
   NOT_FOUND: "That item doesn't exist or isn't in this workspace.",
   QUOTA_EXCEEDED: "You've reached this plan's project limit.",
-  PLATFORM_DAILY_LIMIT: "Farbaek has reached its AI limit for today, so AI work is paused until midnight UTC. Your workspace's own usage isn't affected.",
+  PLATFORM_DAILY_LIMIT: "Farbaek's AI is paused for a while. Try again later. Your workspace's own usage isn't affected.",
   FEATURE_NOT_IN_PLAN: "This feature isn't included in your current plan.",
   TRIAL_CAP_REACHED: "You've reached a trial limit. Choose a plan to keep going, or continue on Free.",
   BILLING_SUSPENDED: "Paid features are paused until billing is resolved.",

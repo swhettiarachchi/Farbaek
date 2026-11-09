@@ -13,6 +13,7 @@
  */
 import { resolveEffectivePlan, type BillingSnapshot } from "@/core/billing/trial";
 import { usagePeriod } from "@/core/billing/usage";
+import { TEST_SPACE } from "@/core/execution/sandbox";
 import { BoundedOutput, checkCommand, stripAnsi } from "@/core/sandbox/commands";
 import { classifyExit, FAILURE_LABELS, type FailureCategory } from "@/core/sandbox/failures";
 import { blockReason, evaluateSandboxAction, type SandboxAction } from "@/core/sandbox/guard";
@@ -798,7 +799,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
     const statement = buildSandboxReceipt({
       session: { id: session.id, organizationId: session.orgId, projectId: session.projectId, taskId: session.taskId },
       runtime: {
-        provider: runtime?.capabilities.provider ?? session.provider,
+        provider: TEST_SPACE,
         isolation: session.isolation,
         template: session.template,
         image: session.image,
@@ -827,7 +828,7 @@ export function createSandboxService(deps: SandboxServiceDeps) {
         appliedDigest: appliedPack.digest,
         receiptDigest: digest,
         checks: results.map(toCheckResult),
-        provider: runtime?.capabilities.provider ?? session.provider,
+        provider: TEST_SPACE,
         egress: mergeEgress(checkEgress),
         createdAt: deps.now().toISOString(),
         previous: await deps.tasks.latestProjectProofPackDigest(actor.orgId, session.projectId),

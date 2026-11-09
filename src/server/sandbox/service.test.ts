@@ -482,7 +482,8 @@ describe("Guard verification receipts", () => {
     expect(pack.statement.predicate.verification).toEqual({ receipt: receipt.digest, appliedProofPack: "a".repeat(64), filesMatched: true });
     expect(pack.statement.predicate.previous).toBe("e".repeat(64));
     expect(pack.statement.predicate.checks.map((c) => c.status)).toEqual(["passed", "failed"]);
-    expect(pack.statement.predicate.execution).toEqual({ mode: "sandboxed", provider: runtime.capabilities.provider });
+    // Signed records name the product, never which company runs the test space (stage 171).
+    expect(pack.statement.predicate.execution).toEqual({ mode: "sandboxed", provider: "a Farbaek test space" });
   });
 
   it("never verifies a change from files edited in the sandbox", async () => {

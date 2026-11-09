@@ -52,7 +52,10 @@ export function platformDailyAiUnits(read: (name: string) => string | null = env
   return Math.floor(safe / USD_PER_UNIT);
 }
 
-export type AiProviderResolution = { provider: AiProviderId; label: string } | { provider: null; reason: string };
+export type AiProviderResolution = { provider: AiProviderId; label: string } | { provider: null; reason: string; detail?: string };
+
+/** What people read when AI isn't set up here. Which setting is at fault is `detail`, for staff and the logs (stage 171). */
+export const AI_NOT_AVAILABLE = "AI isn't available on this server right now. Try again later, or write to support@farbaek.com.";
 
 export function resolveAiProvider(): AiProviderResolution {
   // Paused by Farbaek's owners from Office Space (ADR 0032): every AI path shows this reason.
@@ -61,10 +64,10 @@ export function resolveAiProvider(): AiProviderResolution {
   const pref = (env("AI_PROVIDER") ?? "").toLowerCase();
   const pick = (p: AiProviderId): AiProviderResolution => ({ provider: p, label: AI_PROVIDER_LABELS[p] });
 
-  if (pref === "anthropic") return hasAnthropicKey() ? pick("anthropic") : { provider: null, reason: "AI_PROVIDER is anthropic, but ANTHROPIC_API_KEY isn't set on this server." };
-  if (pref === "gemini") return hasGeminiKey() ? pick("gemini") : { provider: null, reason: "AI_PROVIDER is gemini, but GEMINI_API_KEY isn't set on this server." };
-  if (pref) return { provider: null, reason: `AI_PROVIDER is set to "${pref.slice(0, 20)}". Use anthropic or gemini.` };
+  if (pref === "anthropic") return hasAnthropicKey() ? pick("anthropic") : { provider: null, reason: AI_NOT_AVAILABLE, detail: "AI_PROVIDER is anthropic, but ANTHROPIC_API_KEY isn't set on this server." };
+  if (pref === "gemini") return hasGeminiKey() ? pick("gemini") : { provider: null, reason: AI_NOT_AVAILABLE, detail: "AI_PROVIDER is gemini, but GEMINI_API_KEY isn't set on this server." };
+  if (pref) return { provider: null, reason: AI_NOT_AVAILABLE, detail: `AI_PROVIDER is set to "${pref.slice(0, 20)}". Use anthropic or gemini.` };
   if (hasAnthropicKey()) return pick("anthropic");
   if (hasGeminiKey()) return pick("gemini");
-  return { provider: null, reason: "AI isn't connected on this server yet." };
+  return { provider: null, reason: AI_NOT_AVAILABLE, detail: "No AI provider key is set on this server." };
 }

@@ -1,4 +1,5 @@
 import { json, withSandbox } from "@/server/sandbox/http";
+import { TEST_SPACE } from "@/core/execution/sandbox";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,8 @@ export function GET(request: Request) {
     return json({
       data: {
         execution: overview.execution,
-        provider: overview.provider,
+        // Which company runs the test spaces is for staff (stage 171).
+        provider: overview.provider ? TEST_SPACE : null,
         runtime: health === null ? { reachable: false, reason: overview.connectedReason } : health.ok ? { reachable: true, latencyMs: health.latencyMs } : { reachable: false, reason: health.reason, category: health.category },
         capabilities: overview.capabilities,
         previews: overview.previewReason === null ? { available: true } : { available: false, reason: overview.previewReason },

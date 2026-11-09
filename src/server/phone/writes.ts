@@ -8,7 +8,7 @@
  * phone shows the whole change and has no editor, and the hash it showed
  * must still be the proposal's.
  */
-import { kitTierFor } from "@/core/media/studio-kit";
+import { kitTierFor } from "@/core/media/kit-tier";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { resolveAiProvider } from "@/server/ai/config";
 import { createContractDrafter } from "@/server/ai/providers";

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { suggestLensMappingAction } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
-import { modelName } from "@/core/billing/rate-card";
+import { modelName } from "@/core/billing/model-names";
 import { RelativeTime } from "@/components/ui/local-time";
 import { hunkRange, type LensSummary } from "@/core/realityloop/intent-lens";
 import type { SuggestedFileLens } from "@/core/realityloop/lens-suggestion";
@@ -23,6 +23,9 @@ export interface LensAiState {
 
 /** Rows shown before "Show all". */
 const FIRST = 6;
+
+/** A name at the start of a sentence: "an AI model" becomes "An AI model". */
+const capitalized = (words: string) => words.charAt(0).toUpperCase() + words.slice(1);
 
 /**
  * The Intent Diff Lens summary (ADR 0041): how the proposal's changes read
@@ -69,7 +72,7 @@ function AskAi({ ai }: { ai: LensAiState }) {
         <p className="flex items-start gap-2 text-xs leading-relaxed text-ink-2">
           <TreeStructureIcon size={14} weight="bold" className="mt-px shrink-0 text-accent" aria-hidden />
           <span>
-            {modelName(ai.suggestion.model)} linked these changes to the plan <RelativeTime iso={ai.suggestion.createdAt} />. Its notes are suggestions, not checks, and any flags still stand.
+            {capitalized(modelName(ai.suggestion.model))} linked these changes to the plan <RelativeTime iso={ai.suggestion.createdAt} />. Its notes are suggestions, not checks, and any flags still stand.
           </span>
         </p>
       ) : null}

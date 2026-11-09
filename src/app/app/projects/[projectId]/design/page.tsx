@@ -6,7 +6,7 @@ import { EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { ComponentEditor } from "@/components/studio/component-editor";
 import { VisualEditor } from "@/components/studio/visual-editor";
 import { studioEditorKey } from "@/core/studio/editor-key";
-import { kitTierFor } from "@/core/media/studio-kit";
+import { kitTierFor } from "@/core/media/kit-tier";
 import { componentFiles, isTailwindProject } from "@/core/studio/jsx-edit";
 import { ButtonLink } from "@/components/ui/button";
 import { runProfile } from "@/content/starters";

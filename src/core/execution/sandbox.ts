@@ -39,6 +39,13 @@ export interface SandboxProvider {
 
 export type ExecutionMode = { mode: "sandboxed"; provider: string } | { mode: "review_only"; reason: string };
 
+/**
+ * How a test space is named to people and in signed records (stage 171): what
+ * the product is, never which company's computers it runs on. Staff see the
+ * provider in Office Space.
+ */
+export const TEST_SPACE = "a Farbaek test space";
+
 /** Decides whether project code may run. Anything short of verified microVM-class isolation with restricted egress is Review Only. */
 export function executionMode(provider: SandboxProvider | null, notConnectedReason = "No isolated test space is connected."): ExecutionMode {
   if (!provider) return { mode: "review_only", reason: notConnectedReason };
@@ -46,7 +53,7 @@ export function executionMode(provider: SandboxProvider | null, notConnectedReas
   if (c.isolation !== "microvm") return { mode: "review_only", reason: `${c.provider} can't keep projects safely apart, so project code won't run there.` };
   if (!c.verified) return { mode: "review_only", reason: `${c.provider}'s isolation hasn't been verified for this deployment yet.` };
   if (c.networkEgress === "open") return { mode: "review_only", reason: `${c.provider} allows open network access. Restrict egress before running project code.` };
-  return { mode: "sandboxed", provider: c.provider };
+  return { mode: "sandboxed", provider: TEST_SPACE };
 }
 
 export function toCheckResults(results: readonly CommandResult[]): CheckResult[] {

@@ -12,7 +12,6 @@ const CAPABILITY_LABELS: [keyof SandboxOverview["capabilities"], string][] = [
 ];
 
 /** The runtime's product name, for a sentence; the id is for the server's own settings. */
-const PROVIDER_NAMES: Record<string, string> = { e2b: "E2B", vercel: "Vercel Sandbox" };
 
 const list = (items: string[]) => (items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`);
 
@@ -28,7 +27,6 @@ export function RuntimeStatus({ overview, health }: { overview: SandboxOverview;
           : { icon: WarningIcon, tone: "text-failed", text: health.reason };
   const can = CAPABILITY_LABELS.filter(([key]) => overview.capabilities[key]).map(([, label]) => label);
   const cannot = CAPABILITY_LABELS.filter(([key]) => !overview.capabilities[key]).map(([, label]) => label);
-  const provider = overview.provider ? (PROVIDER_NAMES[overview.provider] ?? overview.provider) : null;
 
   return (
     <section aria-labelledby="runtime-heading" className="rounded-md border border-line bg-surface p-5 shadow-e1 sm:p-6">
@@ -38,7 +36,7 @@ export function RuntimeStatus({ overview, health }: { overview: SandboxOverview;
         </h2>
         <ExecutionModeBadge mode={overview.execution} />
       </div>
-      {provider ? <p className="mt-1 text-sm text-ink-2">Code runs on {provider}, in a private throwaway computer, never on Farbaek&apos;s servers.</p> : null}
+      {overview.provider ? <p className="mt-1 text-sm text-ink-2">Code runs in a private throwaway computer, never on Farbaek&apos;s servers.</p> : null}
       <p className={`mt-4 flex items-start gap-2 text-sm ${live.tone}`}>
         <live.icon size={18} weight="bold" className="mt-px shrink-0" aria-hidden />
         <span>{live.text}</span>

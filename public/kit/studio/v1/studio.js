@@ -1,5 +1,5 @@
 /**
- * Farbaek Studio kit v1 (ADR 0157): the motion and behaviour behind studio.css.
+ * Farbaek Studio kit v1: the motion and behaviour behind studio.css.
  * Import it once as a module: <script type="module" src=".../kit/studio/v1/studio.js"></script>.
  *
  * - [data-fs-reveal] (up, scale, mask, words) rises in as it comes into view,

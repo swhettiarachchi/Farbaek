@@ -20,21 +20,11 @@ import { cache } from "react";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 
+import { isAdminEmail } from "./allowlist";
+
 type Env = Record<string, string | undefined>;
 
-/** The allowlist from FARBAEK_ADMIN_EMAILS: comma separated, case-insensitive. */
-export function adminEmails(env: Env = process.env): Set<string> {
-  return new Set(
-    (env.FARBAEK_ADMIN_EMAILS ?? "")
-      .split(",")
-      .map((e) => e.trim().toLowerCase())
-      .filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)),
-  );
-}
-
-export function isAdminEmail(email: string | null | undefined, env: Env = process.env): boolean {
-  return Boolean(email) && adminEmails(env).has(email!.trim().toLowerCase());
-}
+export { adminEmails, isAdminEmail } from "./allowlist";
 
 export interface AdminCheckInput {
   /** The session's claims, or null without a session. */

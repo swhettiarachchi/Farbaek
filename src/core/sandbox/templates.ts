@@ -72,7 +72,7 @@ export const SANDBOX_SIZES: Record<SizeId, SandboxSize> = {
 export function sizeOnRuntime(size: SandboxSize, runtime: "e2b" | "vercel"): { vcpu: number; memoryGiB: number; disk: string; note: string } {
   if (runtime === "vercel") {
     const vcpu = size.vcpu === 1 ? 1 : Math.max(2, Math.round(size.vcpu / 2) * 2);
-    return { vcpu, memoryGiB: vcpu * 2, disk: "64 GiB disk", note: "Vercel gives each vCPU 2 GiB of memory." };
+    return { vcpu, memoryGiB: vcpu * 2, disk: "64 GiB disk", note: "Each vCPU comes with 2 GiB of memory." };
   }
   return { vcpu: size.vcpu, memoryGiB: size.memoryMiB / 1024, disk: `about ${size.diskMiB / 1024} GiB free disk`, note: "CPU and memory are fixed by the runtime image; disk is best effort." };
 }

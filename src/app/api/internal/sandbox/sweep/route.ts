@@ -20,7 +20,7 @@ export const maxDuration = 300;
 export async function POST(request: Request) {
   const config = readSandboxConfig();
   const auth = checkSchedulerToken(request, config.cronSecret);
-  if (auth === "missing") return problem(503, "NOT_CONFIGURED", "SANDBOX_CRON_SECRET isn't set on this server.");
+  if (auth === "missing") return problem(503, "NOT_CONFIGURED", "Not configured.");
   if (auth === "denied") return problem(401, "UNAUTHENTICATED", "Not allowed.");
   const admin = createSupabaseAdminClient();
   if (!admin) return problem(503, "NOT_CONFIGURED", "The server key for writes isn't set.");

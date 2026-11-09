@@ -18,7 +18,6 @@ const RECEIPT_STATUS = {
 } as const;
 
 /** The runtime's words for a person: product names, and what "isolation" means. The ids are for the server's settings. */
-const PROVIDER_WORDS: Record<string, string> = { e2b: "E2B", E2B: "E2B", vercel: "Vercel Sandbox" };
 const ISOLATION_WORDS: Record<string, string> = { microvm: "its own private computer", container: "its own container", process: "its own process" };
 const SIZE_WORDS: Record<string, string> = { small: "small", medium: "medium", large: "large" };
 const CLEANUP_WORDS: Record<string, string> = { pending: "not yet", done: "done", failed: "failed", not_needed: "not needed" };
@@ -214,7 +213,7 @@ export function DetailsPanel({
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <dl>
-        {row("Runtime", `${PROVIDER_WORDS[session.provider] ?? session.provider}, ${ISOLATION_WORDS[session.isolation] ?? session.isolation}`)}
+        {row("Runtime", `Runs in ${ISOLATION_WORDS[session.isolation] ?? "isolation"}`)}
         {row("Environment", `${session.template === "node-ts" ? "Node.js and TypeScript" : "Python"}, ${SIZE_WORDS[session.size] ?? session.size}`)}
         {row("Requested", `${session.resources.requested.vcpu} vCPU, ${session.resources.requested.memoryMiB} MiB`)}
         {row("Reported", session.resources.reported ? `${session.resources.reported.vcpu} vCPU, ${session.resources.reported.memoryMiB ?? "?"} MiB` : "Not reported by the runtime")}

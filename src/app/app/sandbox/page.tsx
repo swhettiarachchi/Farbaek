@@ -15,6 +15,7 @@ import { SANDBOX_SIZES, SANDBOX_TEMPLATES } from "@/core/sandbox/templates";
 import { formatDuration } from "@/core/sandbox/usage";
 import { healthWithin, sandboxForPage } from "@/server/sandbox/page-context";
 import { loadAppContext } from "@/server/workspace/context";
+import { forPeople } from "@/core/text/operator-detail";
 
 export const metadata: Metadata = { title: "Test space" };
 export const dynamic = "force-dynamic";
@@ -128,7 +129,7 @@ export default async function SandboxPage({ searchParams }: { searchParams: Prom
                 <dd className="inline tabular">{formatDuration(overview.usage.activeExecutionSeconds)}</dd>
               </div>
             </dl>
-            <p className="mt-2 leading-relaxed">Farbaek&apos;s own measurement, not a provider invoice.</p>
+            <p className="mt-2 leading-relaxed">Farbaek&apos;s own measurement, not an invoice.</p>
           </details>
         </Card>
       </div>
@@ -321,7 +322,7 @@ export default async function SandboxPage({ searchParams }: { searchParams: Prom
                         <Link href={`/app/sandbox/${s.id}`} className="font-medium hover:text-accent">
                           {s.name}
                         </Link>
-                        {s.failureMessage ? `: ${s.failureMessage}` : ""}
+                        {s.failureMessage ? `: ${forPeople(s.failureMessage)}` : ""}
                       </p>
                       <p className="mt-1 text-xs text-ink-2">{label.action}</p>
                     </li>

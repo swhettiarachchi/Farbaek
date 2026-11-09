@@ -46,7 +46,7 @@ async function runJob<D>(name: string, deps: D | null, run: (deps: D) => Promise
 
 export async function handleHourlyJobs(request: Request): Promise<Response> {
   const auth = checkSchedulerToken(request, readSandboxConfig().cronSecret);
-  if (auth === "missing") return problem(503, "NOT_CONFIGURED", "SANDBOX_CRON_SECRET isn't set on this server.");
+  if (auth === "missing") return problem(503, "NOT_CONFIGURED", "Not configured.");
   if (auth === "denied") return problem(401, "UNAUTHENTICATED", "Not allowed.");
   const now = new Date();
   // Whether live payments are on (ADR 0104), read fresh: trial emails and payment webhooks depend on it.

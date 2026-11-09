@@ -1,5 +1,5 @@
 /**
- * Farbaek Scenes v1 (ADR 0156): premium 3D moments for the sites Farbaek
+ * Farbaek Scenes v1: premium 3D moments for the sites Farbaek
  * builds. A page marks a box and loads this module once:
  *
  *   <div class="hero-scene" data-farbaek-scene="aurora" data-farbaek-media="hero-scene">

@@ -3,7 +3,8 @@
  * this period's AI usage a run would take, for each effort. Kept out of the
  * page so the clock is read here, not during render.
  */
-import { estimateRunShare, isDesignPass, shareOfPeriod } from "@/core/agent/prompt-start";
+import { isDesignPass } from "@/core/agent/prompt-start";
+import { estimateRunShare, shareOfPeriod } from "@/core/agent/run-estimate";
 import { capShare, capUnitsFor, type CapChoice } from "@/core/agent/run-cap";
 import { EFFORTS, type Effort } from "@/core/agent/routing";
 import { routeModel } from "@/server/ai/routing";

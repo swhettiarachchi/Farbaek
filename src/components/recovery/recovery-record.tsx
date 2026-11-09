@@ -4,6 +4,7 @@ import { StatusBadge, type Status } from "@/components/ui/status-badge";
 import type { RecoveryReceipt } from "@/core/proof/recovery-receipt";
 import { canonicalHash } from "@/core/trust/canonical-json";
 import type { RecoveryRecord } from "@/server/workspace/types";
+import { forPeople } from "@/core/text/operator-detail";
 
 // Status is a word (ADR 0180): a finished undo carries the check, a partial one only its word.
 const STATUS: Record<RecoveryRecord["status"], { label: string; status: Status }> = {
@@ -50,7 +51,7 @@ export async function RecoveryRecordCard({ record }: { record: RecoveryRecord })
       {limits.length ? (
         <ul className="grid list-disc gap-1 pl-5 text-xs text-ink-2">
           {limits.map((l, i) => (
-            <li key={i}>{l}</li>
+            <li key={i}>{forPeople(l, "A line about Farbaek's own setup is left out here.")}</li>
           ))}
         </ul>
       ) : null}

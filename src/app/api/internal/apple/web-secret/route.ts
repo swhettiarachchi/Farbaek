@@ -14,10 +14,10 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(request: Request): Promise<Response> {
   const auth = checkSchedulerToken(request, readSandboxConfig().cronSecret);
-  if (auth === "missing") return problem(503, "NOT_CONFIGURED", "SANDBOX_CRON_SECRET isn't set on this server.");
+  if (auth === "missing") return problem(503, "NOT_CONFIGURED", "Not configured.");
   if (auth === "denied") return problem(401, "UNAUTHENTICATED", "Not allowed.");
   const key = appleSignInKey();
-  if (!key) return problem(503, "NO_KEY", "The Sign in with Apple key isn't set on this server.");
+  if (!key) return problem(503, "NO_KEY", "Not configured.");
   const { secret, expiresAt } = appleWebSecret(key, new Date());
   return new Response(`FARBAEK_APPLE_SECRET=${secret}\nFARBAEK_APPLE_SECRET_EXPIRES=${expiresAt}\n`, {
     headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" },

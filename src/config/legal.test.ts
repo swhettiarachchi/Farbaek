@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { LEGAL } from "./legal";
+import { LEGAL, SUBPROCESSORS } from "./legal";
 
 /** The policies state these facts; each must match the script that makes it true (ADR 0066). */
 describe("legal facts", () => {
@@ -31,5 +31,14 @@ describe("legal facts", () => {
 
   it("has Caddy keep no access log", () => {
     expect(read("deploy/vps/caddy/Caddyfile")).not.toMatch(/^\s*log\b/m);
+  });
+
+  it("lists the services that run Farbaek by what they do, not by company (stage 171)", () => {
+    const text = JSON.stringify(SUBPROCESSORS) + LEGAL.hosting;
+    for (const company of ["Hostinger", "Cloudflare", "Turnstile", "R2", "Spaceship", "Spacemail", "Vercel", "E2B", "Supabase", "Boston", "confirming"]) {
+      expect(text, company).not.toContain(company);
+    }
+    // People still learn where their work and their visits go.
+    for (const named of ["Anthropic", "Google", "OpenAI", "Google Analytics"]) expect(SUBPROCESSORS.some((p) => p.name === named), named).toBe(true);
   });
 });

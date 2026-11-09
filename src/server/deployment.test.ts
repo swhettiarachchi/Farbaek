@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deploymentInfo } from "./deployment";
+import { deploymentInfo, publicBuildId } from "./deployment";
 
 describe("deploymentInfo", () => {
   it("reads Farbaek's own deploy on the VPS", () => {
@@ -22,5 +22,14 @@ describe("deploymentInfo", () => {
 
   it("knows nothing locally", () => {
     expect(deploymentInfo({ NODE_ENV: "development" })).toEqual({ host: null, commit: null, environment: null, region: null });
+  });
+
+  it("shows the public an id of the build, never the commit", () => {
+    const commit = "0b87d6c17478a1b2c3d4e5f60718293a4b5c6d7e";
+    const id = publicBuildId(commit)!;
+    expect(id).toMatch(/^[0-9a-f]{12}$/);
+    expect(commit).not.toContain(id);
+    expect(publicBuildId(commit)).toBe(id);
+    expect(publicBuildId(null)).toBeNull();
   });
 });

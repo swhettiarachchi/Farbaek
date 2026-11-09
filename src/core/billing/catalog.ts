@@ -9,6 +9,7 @@
  * charge, Dodo's 40-cent fee alone would leave less than the 57% margin.
  */
 import { allowanceFor, lightAllowance, sessionsGuide, type Allowance } from "./allowance";
+import { formatUsd } from "./money";
 import { USD_PER_UNIT } from "./rate-card";
 
 export const PLAN_CATALOG_VERSION = "2026-10-18.1";
@@ -343,10 +344,4 @@ export const TRIAL = {
   reminderDays: [7, 12, 13] as const,
 };
 
-const usdWhole = new Intl.NumberFormat("en-US", { style: "currency", currency: BILLING_CURRENCY, maximumFractionDigits: 0 });
-const usdCents = new Intl.NumberFormat("en-US", { style: "currency", currency: BILLING_CURRENCY, minimumFractionDigits: 2 });
-
-/** "$19" for whole dollars, "$15.50" otherwise. */
-export function formatUsd(cents: number): string {
-  return cents % 100 === 0 ? usdWhole.format(cents / 100) : usdCents.format(cents / 100);
-}
+export { formatUsd };

@@ -4,6 +4,7 @@ import { SealReveal } from "@/components/proof/seal-reveal";
 import { LocalTime } from "@/components/ui/local-time";
 import { verifyProofPack, type ProofPackStatement } from "@/core/proof/proofpack";
 import type { ProofPackRecord } from "@/server/workspace/types";
+import { forPeople } from "@/core/text/operator-detail";
 
 // Status is its words in a colour and border (ADR 0180); a mark only for how it ended.
 const STATUS = {
@@ -55,7 +56,7 @@ export async function ProofPackCard({ pack }: { pack: ProofPackRecord }) {
         {limits.length ? (
           <ul className="grid list-disc gap-1 pl-5 text-xs text-ink-2">
             {limits.map((l, i) => (
-              <li key={i}>{l}</li>
+              <li key={i}>{forPeople(l, "A line about Farbaek's own setup is left out here.")}</li>
             ))}
           </ul>
         ) : null}

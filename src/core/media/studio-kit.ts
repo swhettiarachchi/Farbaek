@@ -5,8 +5,6 @@
  * kit Pro adds more for paid plans. The files are public like any stylesheet:
  * the plan decides what the agent is told to use, on the server.
  */
-import { checkFeature } from "../billing/entitlements";
-import type { EffectivePlan } from "../billing/trial";
 import { MEDIA_ORIGIN } from "./library";
 
 export const STUDIO_KIT_BASE = `${MEDIA_ORIGIN}/kit/studio/v1`;
@@ -76,11 +74,6 @@ export const UPGRADE_DESIGN = {
   label: "Upgrade its design",
   text: "Upgrade this site's design to the Farbaek Studio standard: rebuild its look on the Studio kit with a 3D hero moment, choreographed motion, and photos and video in slots I can replace. Keep all its words, pages, links and working features.",
 } as const;
-
-/** Paid plans (and the trial) build with Studio kit Pro; Free with the core kit. */
-export function kitTierFor(plan: EffectivePlan | null): KitTier {
-  return checkFeature(plan, "studio_kit_pro").allowed ? "pro" : "core";
-}
 
 const list = (looks: Record<string, string>) =>
   Object.entries(looks)

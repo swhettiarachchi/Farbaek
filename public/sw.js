@@ -1,4 +1,4 @@
-// Farbaek's service worker (ADR 0079): the offline page when there's no
+// Farbaek's service worker: the offline page when there's no
 // network, and notifications. It caches only that page and an icon, never a
 // page with anyone's data, and it opens only Farbaek's own addresses.
 const CACHE = "farbaek-offline-v1";

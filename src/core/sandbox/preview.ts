@@ -174,7 +174,13 @@ export const STRIPPED_RESPONSE_HEADERS: readonly string[] = [
   "content-security-policy",
   "content-security-policy-report-only",
   "alt-svc",
+  // Which company's computers run the test space stays on the server (stage 171).
+  "server",
+  "via",
 ];
+
+/** Header name prefixes the test space's provider adds, never passed on. */
+export const STRIPPED_RESPONSE_PREFIXES: readonly string[] = ["x-vercel-", "x-e2b-"];
 
 /** Request headers from the browser that are never forwarded into the sandbox. */
 export const STRIPPED_REQUEST_HEADERS: readonly string[] = [

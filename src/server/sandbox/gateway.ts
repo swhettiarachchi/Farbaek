@@ -28,6 +28,7 @@ import {
   signPreviewToken,
   STRIPPED_REQUEST_HEADERS,
   STRIPPED_RESPONSE_HEADERS,
+  STRIPPED_RESPONSE_PREFIXES,
   verifyPreviewToken,
 } from "@/core/sandbox/preview";
 import type { SandboxRuntime } from "@/core/sandbox/runtime";
@@ -252,7 +253,7 @@ export async function handlePreviewRequest(request: Request, deps: GatewayDeps):
   const out = new Headers();
   response.headers.forEach((value, key) => {
     const k = key.toLowerCase();
-    if (STRIPPED_RESPONSE_HEADERS.includes(k) || k === "set-cookie") return;
+    if (STRIPPED_RESPONSE_HEADERS.includes(k) || STRIPPED_RESPONSE_PREFIXES.some((p) => k.startsWith(p)) || k === "set-cookie") return;
     out.set(key, k === "location" ? rewriteLocation(value, upstream.origin) : value);
   });
   for (const c of response.headers.getSetCookie?.() ?? []) {

@@ -7,8 +7,9 @@ import { secondCheckAction } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
 import { StatusBadge, type Status } from "@/components/ui/status-badge";
-import { modelName } from "@/core/billing/rate-card";
-import { TOPIC_LABELS, VERDICT_LABELS, type SecondCheckResult, type SecondCheckVerdict } from "@/core/trust/second-check";
+import { modelName } from "@/core/billing/model-names";
+import type { SecondCheckResult } from "@/core/trust/second-check";
+import { TOPIC_LABELS, VERDICT_LABELS, type SecondCheckVerdict } from "@/core/trust/second-check-labels";
 
 // Status is a word (ADR 0180): only a clear result carries an icon.
 const VERDICT_STATUS: Record<SecondCheckVerdict, Status> = {

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Bullets, DocLink, LegalDocument, type LegalSection } from "@/components/site/legal-document";
-import { LEGAL, SUBPROCESSORS } from "@/config/legal";
+import { LEGAL, MERCHANT_OF_RECORD, SUBPROCESSORS } from "@/config/legal";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
@@ -90,16 +90,15 @@ const SECTIONS: LegalSection[] = [
     body: (
       <>
         <p>
-          When you ask Farbaek to draft a plan or a change, what you wrote and the files you chose go to one AI provider: Anthropic (Claude) or, when the server uses it, Google (Gemini). Only
-          what that request needs is sent.
+          When you ask Farbaek to draft a plan or a change, what you wrote and the files you chose go to one AI provider: Anthropic (Claude) or Google (Gemini). Only what that request needs is
+          sent.
         </p>
         <p>
           Anthropic&apos;s commercial terms don&apos;t let it train its models on what we send. It deletes API inputs and outputs within 30 days, except content its safety systems flag, which it can
           keep for up to two years. We use Gemini only on a paid account, whose terms don&apos;t let Google use the content to improve its products.
         </p>
         <p>
-          When someone in your workspace asks for a second check on a change, its contract, plan and file diffs go to a second model: OpenAI when the server has it, otherwise another Claude
-          model. OpenAI&apos;s API terms don&apos;t let it train its models on what we send. It keeps API inputs and outputs for up to 30 days to check for abuse, longer only when the law
+          When someone in your workspace asks for a second check on a change, its contract, plan and file diffs go to a second AI model, from OpenAI or Anthropic. OpenAI&apos;s API terms don&apos;t let it train its models on what we send. It keeps API inputs and outputs for up to 30 days to check for abuse, longer only when the law
           requires it or to protect people from harm, and we ask it not to store the answers.
         </p>
         <p>
@@ -159,16 +158,21 @@ const SECTIONS: LegalSection[] = [
             </tbody>
           </table>
         </div>
-        <p>We&apos;ll update this list before adding a service that handles personal data.</p>
+        <p>
+          We&apos;ll update this policy before we use a new kind of service that handles personal data. To know which company provides each service above, write to {LEGAL.support}.
+        </p>
+        <p>
+          Paid plans on the web are sold by {MERCHANT_OF_RECORD}, our merchant of record. It runs checkout, works out tax, keeps your payment details and issues receipts, as its own
+          controller under its own privacy policy, which its checkout page links to. Farbaek never sees your card.
+        </p>
         <p>
           If you connect your own hosting account, such as Vercel or Netlify, we send your project&apos;s files to that account only when you launch, and the provider handles them under
           your own agreement with it, not ours. We keep the token you gave us encrypted, never show it again, and delete it when you disconnect.
         </p>
         <p>
-          When someone runs a security check on a project, we send the names and versions of the packages its lockfiles list to OSV.dev, the open
-          vulnerability database run by Google, to look up known vulnerabilities. No code, file contents or account details go there. The same check runs Semgrep and
-          detect-secrets on the project&apos;s files inside a disposable sandbox. Both tools are downloaded there from PyPI, run with Semgrep&apos;s usage reporting off, and send
-          nothing about your project anywhere; only the rule, file and line of each finding come back.
+          When someone runs a security check on a project, we look up the names and versions of the packages its lockfiles list in a public vulnerability
+          database. No code, file contents or account details go there. The rest of the check runs inside the disposable test space and sends nothing about your project
+          anywhere. Only the rule, file and line of each finding come back.
         </p>
         <p>
           If an owner or admin connects GitHub with a token, we send the files of a change to the linked repository only when someone opens a pull request for it, with
@@ -215,7 +219,7 @@ const SECTIONS: LegalSection[] = [
           <>Your account and your work: until you delete them, or your account. Deleting is immediate in Farbaek itself.</>,
           <>Nightly backups: each is overwritten after {LEGAL.backupDays} days, so deleted data is gone from them within {LEGAL.backupDays} days. Until then it&apos;s kept out of use.</>,
           <>
-            Server and sign-in logs: each service keeps at most {LEGAL.logLimit}, and the oldest lines are overwritten first. While Farbaek is small, that can be several months.
+            Server and sign-in logs: kept until newer lines overwrite them, oldest first, which can take several months.
           </>,
           <>Trial fingerprints: kept, because they only exist to stop repeat trials and can&apos;t be turned back into an address.</>,
           <>Sign-in request counts: deleted within {LEGAL.rateLimitHours} hours.</>,
@@ -253,8 +257,8 @@ const SECTIONS: LegalSection[] = [
       <>
         <p>
           Farbaek needs the first items below to work. On our public pages, such as the home page and Pricing, we also ask whether Google Analytics may count your visit.
-          Nothing from Google loads unless you choose Accept, and you can change your mind under Cookie choices at the bottom of any page. Signed-in pages, Office Space and
-          the Android app never load it. We don&apos;t use advertising cookies, and Google&apos;s advertising features are off.
+          Nothing from Google loads unless you choose Accept, and you can change your mind under Cookie choices at the bottom of any page. Signed-in pages and the apps never
+          load it. We don&apos;t use advertising cookies, and Google&apos;s advertising features are off.
         </p>
         <Bullets
           items={[
@@ -266,12 +270,6 @@ const SECTIONS: LegalSection[] = [
             </>,
             <>
               <code className="font-mono text-[0.8125rem]">fb_steps</code>: remembers the workspaces where you hid the first steps.
-            </>,
-            <>
-              <code className="font-mono text-[0.8125rem]">__Host-fb-office</code>: Farbaek staff only, for our own console.
-            </>,
-            <>
-              <code className="font-mono text-[0.8125rem]">__Host-fb-device</code>: Farbaek staff only, so our console opens only on devices they&apos;ve approved.
             </>,
             <>
               <code className="font-mono text-[0.8125rem]">_ga</code> and <code className="font-mono text-[0.8125rem]">_ga_…</code>: only if you allowed analytics, Google Analytics&apos; random

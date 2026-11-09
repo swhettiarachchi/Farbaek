@@ -7,8 +7,8 @@ import { approveAndBuildAction, type ApproveBuildState } from "@/app/app/new/act
 import { EffortPicker } from "@/components/app/effort-picker";
 import { WebPurchaseOnly } from "@/components/billing/web-purchase-only";
 import { buttonClasses } from "@/components/ui/button";
-import { CAP_CHOICES, CAP_LABELS, type CapChoice } from "@/core/agent/run-cap";
-import type { Effort } from "@/core/agent/routing";
+import { CAP_CHOICES, CAP_LABELS, type CapChoice } from "@/core/agent/cap-choices";
+import type { Effort } from "@/core/agent/effort";
 import type { SiteTheme } from "@/core/media/studio-kit";
 import type { RunEstimates } from "@/server/workspace/plan-card-data";
 

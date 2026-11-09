@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { SITE_ROUTE } from "@/core/publish/site";
+import { isAdminEmail } from "@/server/admin/allowlist";
 import { decideRoute } from "@/server/http/hosts";
 import { APP_CSP_PATH, SIGN_IN_CSP_PATH, appCsp, appCspEnforced, appCspHeaders } from "@/server/http/app-headers";
 import { newNonce, officeCsp, officeResponseHeaders } from "@/server/http/office-headers";
@@ -116,8 +117,10 @@ async function appRequest(request: NextRequest) {
     return response;
   };
 
+  // The admin console isn't revealed to anyone off its list, not even as a page that loads its code (stage 171).
+  const adminPath = ADMIN_PATH.test(request.nextUrl.pathname);
   const config = readSupabaseConfig();
-  if (!config) return withCsp(NextResponse.next({ request }));
+  if (!config) return adminPath ? plain(404, "Not found") : withCsp(NextResponse.next({ request }));
 
   let response = NextResponse.next({ request });
   const supabase = createServerClient(config.url, config.publishableKey, {
@@ -136,9 +139,12 @@ async function appRequest(request: NextRequest) {
   });
 
   // Validates the JWT and refreshes it when needed.
-  await supabase.auth.getClaims();
+  const { data } = await supabase.auth.getClaims();
+  if (adminPath && !isAdminEmail(typeof data?.claims?.email === "string" ? data.claims.email : null)) return plain(404, "Not found");
   return withCsp(response);
 }
+
+const ADMIN_PATH = /^\/admin(?:\/|$)/;
 
 // Where the customer app's session cookie is refreshed; every other page passes straight through.
 const SESSION_PATH = /^\/(?:app|admin|auth|invite)(?:\/|$)|^\/sign-in(?:\/|$)/;

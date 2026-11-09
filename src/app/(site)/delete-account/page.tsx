@@ -60,7 +60,7 @@ const SECTIONS: LegalSection[] = [
           <>In workspaces other people own, what you did there stays, such as tasks, approvals and history. It&apos;s tied to an ID that no longer points to you.</>,
           <>Tax and payment records for paid plans, for as long as the law requires. Dodo Payments keeps the payment details; Farbaek never sees your card.</>,
           <>A one-way fingerprint of your email address, so the same address can&apos;t start a second free trial. It can&apos;t be turned back into the address.</>,
-          <>Server and sign-in logs, which keep at most {LEGAL.logLimit} per service and overwrite the oldest lines first.</>,
+          <>Server and sign-in logs, until newer lines overwrite them, oldest first.</>,
         ]}
       />
     ),

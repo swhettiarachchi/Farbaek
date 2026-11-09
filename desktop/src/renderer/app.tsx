@@ -25,7 +25,7 @@ import { COMMAND_RISK_LABELS, type CommandRisk } from "@/core/agent/commands";
 import type { RunState } from "@/core/agent/operations";
 import { EFFORTS, EFFORT_LABELS, type Effort } from "@/core/agent/routing";
 import { TOOL_VERB, toolTarget } from "@/core/agent/run-phase";
-import { modelName } from "@/core/billing/rate-card";
+import { modelName } from "@/core/billing/model-names";
 import { approvalWindow } from "@/core/trust/approval-wallet";
 import { shortHash } from "@/core/trust/canonical-json";
 import { relativeLabel, useNow } from "@/components/ui/use-now";

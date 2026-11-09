@@ -57,15 +57,15 @@ export function capabilityRows(): CapabilityRow[] {
     s === "site-domain"
       ? siteDomain()
         ? { status: "working" }
-        : { status: "turning-on", waiting: "Waiting for Farbaek's separate domain for people's sites to be connected." }
+        : { status: "turning-on", waiting: "Not available yet." }
       : s === "app-previews"
         ? previewUnavailableReason(readSandboxConfig())
-          ? { status: "turning-on", waiting: "Waiting for app previews to be connected on Farbaek's server." }
+          ? { status: "turning-on", waiting: "Not available yet." }
           : { status: "working" }
         : s === "image-generation"
           ? imageGeneration().generator
             ? { status: "working" }
-            : { status: "turning-on", waiting: "Waiting for Farbaek's image model to be connected." }
+            : { status: "turning-on", waiting: "Not available yet." }
           : { status: s };
   return CAPABILITIES.map((c) => ({ id: c.id, title: c.title, body: c.body, icon: ICONS[c.id] ?? SealCheckIcon, ...status(c.status) }));
 }

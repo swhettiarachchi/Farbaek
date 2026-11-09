@@ -5,7 +5,7 @@ import { useActionState, useState } from "react";
 import { startBuildRunAction, type BuildActionState } from "@/app/app/build/actions";
 import { EffortPicker } from "@/components/app/effort-picker";
 import { buttonClasses } from "@/components/ui/button";
-import type { Effort } from "@/core/agent/routing";
+import type { Effort } from "@/core/agent/effort";
 
 const IDLE: BuildActionState = { status: "idle" };
 

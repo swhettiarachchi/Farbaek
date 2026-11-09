@@ -3,7 +3,7 @@
  * checked once a key is configured, by drafting a contract in the app.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { resolveAiProvider, geminiModel, DEFAULT_GEMINI_MODEL } from "./config";
+import { AI_NOT_AVAILABLE, resolveAiProvider, geminiModel, DEFAULT_GEMINI_MODEL } from "./config";
 import { createGeminiChangeProposer, createGeminiContractDrafter, toGeminiSchema } from "./gemini";
 
 const draft = {
@@ -152,7 +152,8 @@ describe("provider selection", () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "");
     vi.stubEnv("GEMINI_API_KEY", "");
     vi.stubEnv("AI_PROVIDER", "");
-    expect(resolveAiProvider()).toEqual({ provider: null, reason: "AI isn't connected on this server yet." });
+    // People read one sentence; which setting is at fault is only the detail, for staff.
+    expect(resolveAiProvider()).toEqual({ provider: null, reason: AI_NOT_AVAILABLE, detail: "No AI provider key is set on this server." });
     vi.stubEnv("GEMINI_API_KEY", "AIza-x");
     expect(resolveAiProvider()).toEqual({ provider: "gemini", label: "Gemini" });
     vi.stubEnv("ANTHROPIC_API_KEY", "sk-ant-x");
@@ -160,9 +161,9 @@ describe("provider selection", () => {
     vi.stubEnv("AI_PROVIDER", "gemini");
     expect(resolveAiProvider()).toEqual({ provider: "gemini", label: "Gemini" });
     vi.stubEnv("GEMINI_API_KEY", "");
-    expect(resolveAiProvider()).toMatchObject({ provider: null, reason: expect.stringContaining("GEMINI_API_KEY") });
+    expect(resolveAiProvider()).toMatchObject({ provider: null, reason: AI_NOT_AVAILABLE, detail: expect.stringContaining("GEMINI_API_KEY") });
     vi.stubEnv("AI_PROVIDER", "openai");
-    expect(resolveAiProvider()).toMatchObject({ provider: null, reason: expect.stringContaining("anthropic or gemini") });
+    expect(resolveAiProvider()).toMatchObject({ provider: null, reason: AI_NOT_AVAILABLE, detail: expect.stringContaining("anthropic or gemini") });
   });
 
   it("uses a valid GEMINI_MODEL or the default", () => {

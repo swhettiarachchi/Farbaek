@@ -10,10 +10,8 @@ describe("robots rules", () => {
     const r = robotsRules("www.farbaek.com", "www.farbaek.com", SITE);
     expect(r.allow).toEqual(["/"]);
     expect(r.disallow).toContain("/app");
-    expect(r.disallow).toContain("/office");
-    expect(r.disallow).toContain("/sign-in/password");
-    // The preview frame (ADR 0169) is a shell with nothing to index.
-    expect(r.disallow).toContain("/preview-frame");
+    // robots.txt is public, so it never maps staff or internal routes; they keep out of search with noindex (stage 171).
+    for (const hidden of ["/office", "/admin", "/sign-in/password", "/preview-frame", "/film-stage", "/site-serve", "/sandbox-preview"]) expect(r.disallow).not.toContain(hidden);
     expect(r.sitemap).toBe("https://www.farbaek.com/sitemap.xml");
   });
 
