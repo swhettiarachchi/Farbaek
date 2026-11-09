@@ -4,6 +4,7 @@ import { Container } from "@/components/ui/container";
 import { STATUS_KINDS, StatusGlyph, type Status } from "@/components/ui/status-badge";
 import RUN from "@/content/security-eval-run.json";
 import { OWASP_RISKS, RISK_LISTS, coverageFor, runTotals, type EvalRun, type OwaspRisk, type RiskCoverage, type RiskList } from "@/core/security-eval/catalog";
+import { PUBLIC_TITLE } from "@/components/ui/titles";
 
 export const metadata: Metadata = {
   title: "Security tests",
@@ -64,8 +65,8 @@ function RiskTile({ risk }: { risk: OwaspRisk }) {
         href={`#${risk.id}`}
         className={`grid h-full min-h-[118px] content-between gap-3 rounded-md p-4 transition-colors duration-150 hover:border-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${s.frame}`}
       >
-        <span className="text-[0.8125rem] font-medium text-ink-3 tabular">{risk.id}</span>
-        <span className="text-[0.9375rem] font-medium leading-snug tracking-[-0.01em] text-ink">{risk.title}</span>
+        <span className="text-label font-medium text-ink-3 tabular">{risk.id}</span>
+        <span className="text-body font-medium leading-snug tracking-[-0.01em] text-ink">{risk.title}</span>
         <TileStatus label={s.label} kind={s.kind} />
       </a>
     </li>
@@ -78,7 +79,7 @@ function RiskDetail({ risk }: { risk: OwaspRisk }) {
   return (
     <article id={risk.id} className="scroll-mt-24 rounded-md border border-line bg-surface p-5 sm:p-6">
       <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-        <h4 className="text-[1.0625rem] font-medium tracking-[-0.01em]">
+        <h4 className="text-title-4 font-medium tracking-[-0.01em]">
           <span className="mr-2 text-ink-3 tabular">{risk.id}</span>
           {risk.title}
         </h4>
@@ -121,13 +122,13 @@ export default function SecurityTestsPage() {
     <>
       <section className="pt-14 pb-12 sm:pt-20 lg:pt-24">
         <Container>
-          <h1 className="max-w-[18ch] text-balance text-[2.5rem] font-medium leading-[1.05] tracking-[-0.04em] sm:text-[3.5rem]">Tested against agent risks, in the open.</h1>
-          <p className="mt-5 max-w-[60ch] text-[1.0625rem] leading-relaxed text-ink-2">
+          <h1 className={`max-w-[18ch] ${PUBLIC_TITLE}`}>Tested against agent risks, in the open.</h1>
+          <p className="mt-5 max-w-[60ch] text-title-4 leading-relaxed text-ink-2">
             Farbaek&apos;s agents read code they didn&apos;t write and run commands, so its boundaries are attacked on purpose. The {totals.scenarios} scenarios here are mapped to
             the OWASP risk lists for agentic and LLM applications. Each one assumes the model has already been fooled, and checks that the boundary holds anyway.
           </p>
           {/* One sentence, not a strip of tiles (ADR 0180). The engineering facts sit behind a fold for anyone checking the run. */}
-          <p className={`mt-8 flex items-center gap-2 text-[1.0625rem] font-medium ${totals.failed ? "text-failed" : "text-ink"}`}>
+          <p className={`mt-8 flex items-center gap-2 text-title-4 font-medium ${totals.failed ? "text-failed" : "text-ink"}`}>
             <StatusGlyph status={totals.failed ? "failed" : "verified"} size={20} />
             <span>
               Last run on {dateLabel(run.ranAt)}: {totals.passed} of {totals.scenarios} scenarios passed.
@@ -147,7 +148,7 @@ export default function SecurityTestsPage() {
             <Container>
               <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2 border-t border-line pt-8">
                 <div>
-                  <h2 id={`${list}-title`} className="text-[1.5rem] font-medium leading-tight tracking-[-0.03em]">
+                  <h2 id={`${list}-title`} className="text-2xl font-medium leading-tight tracking-[-0.03em]">
                     {meta.title}
                   </h2>
                   <p className="mt-1 text-sm text-ink-2">
@@ -195,8 +196,8 @@ export default function SecurityTestsPage() {
             {MEANING.map((m) => (
               <li key={m.title} className="grid content-start gap-3">
                 <m.icon size={24} className="text-ink-2" aria-hidden />
-                <h3 className="text-[1.0625rem] font-medium">{m.title}</h3>
-                <p className="text-[0.9375rem] leading-relaxed text-ink-2">{m.body}</p>
+                <h3 className="text-title-4 font-medium">{m.title}</h3>
+                <p className="text-body leading-relaxed text-ink-2">{m.body}</p>
               </li>
             ))}
           </ul>

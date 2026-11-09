@@ -6,6 +6,7 @@ import { useId, useState, type DragEvent } from "react";
 import { ProofPackSeal } from "@/components/proof/proofpack-seal";
 import { SealReveal } from "@/components/proof/seal-reveal";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES, textareaClasses } from "@/components/ui/field";
 import { LocalTime } from "@/components/ui/local-time";
 import { StatusBadge, StatusGlyph } from "@/components/ui/status-badge";
 import { CAPSULE_LIMITS } from "@/config/workspace";
@@ -147,7 +148,7 @@ export function EvidenceCheck() {
             className={`flex min-h-56 cursor-pointer flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed px-6 py-10 text-center transition-colors duration-150 has-focus-visible:outline-2 has-focus-visible:outline-accent ${dragging ? "border-accent bg-accent/[0.04]" : "border-line-strong/50 bg-surface hover:border-accent/60"} ${busy ? "pointer-events-none opacity-60" : ""}`}
           >
             <FileArrowUpIcon size={32} className="text-accent" aria-hidden />
-            <span className="text-[0.9375rem] font-medium">{busy ? "Checking…" : "Drop a proof file or a Capsule"}</span>
+            <span className="text-body font-medium">{busy ? "Checking…" : "Drop a proof file or a Capsule"}</span>
             <span className="max-w-[34ch] text-sm text-ink-3">Or choose one. A ProofPack or receipt (.json), or a .capsule.zip.</span>
             <input type="file" accept=".json,application/json,.zip,application/zip" className="sr-only" onChange={(e) => void checkFile(e.target.files?.[0])} />
           </label>
@@ -160,26 +161,26 @@ export function EvidenceCheck() {
             }}
           >
             <label className="grid gap-1.5">
-              <span className="text-sm font-medium">Statement JSON</span>
+              <span className={LABEL_CLASSES}>Statement JSON</span>
               <textarea
                 value={pasted}
                 onChange={(e) => setPasted(e.target.value)}
                 rows={9}
                 spellCheck={false}
                 required
-                className="min-h-44 w-full rounded-sm border border-line bg-surface px-3.5 py-3 font-mono text-base leading-relaxed text-ink outline-none focus:border-accent/60 sm:text-[0.8125rem]"
+                className={textareaClasses("font-mono")}
                 placeholder='{ "_type": "https://in-toto.io/Statement/v1", … }'
               />
             </label>
             <label className="grid gap-1.5">
-              <span className="text-sm font-medium">Digest you were given</span>
+              <span className={LABEL_CLASSES}>Digest you were given</span>
               <input
                 value={digest}
                 onChange={(e) => setDigest(e.target.value)}
                 spellCheck={false}
                 autoComplete="off"
                 placeholder="sha256:…"
-                className="h-11 w-full min-w-0 rounded-sm border border-line bg-surface px-3.5 font-mono text-base text-ink outline-none focus:border-accent/60 sm:text-sm"
+                className={inputClasses("min-w-0 font-mono")}
               />
               <span className="text-xs text-ink-3">Optional when the JSON already holds its digest.</span>
             </label>
@@ -198,11 +199,11 @@ export function EvidenceCheck() {
       <section aria-live="polite" aria-label="Result" className="min-w-0 rounded-md border border-line bg-surface p-5 shadow-e1 sm:p-7">
         {!result ? (
           <div className="grid gap-4">
-            <p className="text-[0.8125rem] font-medium text-ink-3">What can be checked</p>
+            <p className="text-label font-medium text-ink-3">What can be checked</p>
             <ul className="grid gap-3">
               {KINDS.map((k) => (
                 <li key={k.label} className="grid gap-0.5 border-t border-line pt-3 first:border-t-0 first:pt-0">
-                  <span className="text-[0.9375rem] font-medium">{k.label}</span>
+                  <span className="text-body font-medium">{k.label}</span>
                   <span className="text-sm text-ink-2">{k.body}</span>
                 </li>
               ))}
@@ -225,7 +226,7 @@ export function EvidenceCheck() {
 function Failure({ message }: { message: string }) {
   return (
     <div role="alert" className="grid gap-2">
-      <p className="flex items-start gap-2 text-[0.9375rem] font-medium text-failed">
+      <p className="flex items-start gap-2 text-body font-medium text-failed">
         <WarningCircleIcon size={20} weight="fill" className="mt-px shrink-0 text-failed" aria-hidden /> Not checked
       </p>
       <p className="text-sm leading-relaxed text-ink-2">{message}</p>
@@ -271,7 +272,7 @@ function SignatureLine({ signature: s }: { signature: EvidenceSignature }) {
       return line(
         <SealCheckIcon size={16} weight="fill" className="mt-1 shrink-0 text-verified" aria-hidden />,
         <>
-          Signed by Farbaek with key <span className="break-all font-mono text-[0.8125rem]">{s.keyid}</span>, which only Farbaek&apos;s server holds.
+          Signed by Farbaek with key <span className="break-all font-mono text-label">{s.keyid}</span>, which only Farbaek&apos;s server holds.
         </>,
         "text-ink",
       );
@@ -281,7 +282,7 @@ function SignatureLine({ signature: s }: { signature: EvidenceSignature }) {
       return line(
         <StatusGlyph status="attention" size={16} className="mt-1" />,
         <>
-          Signed with a key Farbaek doesn&apos;t publish (<span className="break-all font-mono text-[0.8125rem]">{s.keyid}</span>), so the signature can&apos;t be trusted.
+          Signed with a key Farbaek doesn&apos;t publish (<span className="break-all font-mono text-label">{s.keyid}</span>), so the signature can&apos;t be trusted.
         </>,
       );
     // Neither a pass nor a failure: "not yet", with its dashed circle (ADR 0183).
@@ -296,7 +297,7 @@ function DigestRow({ label, value, match }: { label: string; value: string; matc
   return (
     <div className="grid gap-1">
       <dt className="text-xs text-ink-3">{label}</dt>
-      <dd className={`break-all font-mono text-[0.8125rem] leading-relaxed ${match === false ? "text-failed" : "text-ink"}`}>sha256:{value}</dd>
+      <dd className={`break-all font-mono text-label leading-relaxed ${match === false ? "text-failed" : "text-ink"}`}>sha256:{value}</dd>
     </div>
   );
 }
@@ -346,18 +347,18 @@ function EvidenceResult({ inspection: r }: { inspection: Extract<Inspection, { o
         {r.summary.facts.map((f) => (
           <div key={f.label} className="contents">
             <dt className="text-ink-3">{f.label}</dt>
-            <dd className={`min-w-0 break-words ${f.mono ? "font-mono text-[0.8125rem]" : ""}`}>{f.time ? <When iso={f.value} /> : f.value}</dd>
+            <dd className={`min-w-0 break-words ${f.mono ? "font-mono text-label" : ""}`}>{f.time ? <When iso={f.value} /> : f.value}</dd>
           </div>
         ))}
       </dl>
 
       {r.summary.files.length > 0 ? (
         <div className="grid gap-2">
-          <h3 className="text-[0.9375rem] font-medium">Files</h3>
+          <h3 className="text-body font-medium">Files</h3>
           <ul className="divide-y divide-line rounded-sm border border-line">
             {r.summary.files.map((f) => (
               <li key={`${f.path}-${f.sha256}`} className="grid gap-0.5 px-3.5 py-2.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-4">
-                <span className="min-w-0 truncate font-mono text-[0.8125rem]" title={f.path}>
+                <span className="min-w-0 truncate font-mono text-label" title={f.path}>
                   {f.path}
                 </span>
                 <span className="text-xs text-ink-3" title={`sha256:${f.sha256}`}>
@@ -375,7 +376,7 @@ function EvidenceResult({ inspection: r }: { inspection: Extract<Inspection, { o
               <p className="flex items-start gap-2 text-sm">
                 <CheckCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
                 <span>
-                  <span className="font-medium">{match.name}</span> is exactly the content recorded for <span className="break-all font-mono text-[0.8125rem]">{match.hits.map((h) => h.path).join(", ")}</span>.
+                  <span className="font-medium">{match.name}</span> is exactly the content recorded for <span className="break-all font-mono text-label">{match.hits.map((h) => h.path).join(", ")}</span>.
                 </span>
               </p>
             ) : (
@@ -394,7 +395,7 @@ function EvidenceResult({ inspection: r }: { inspection: Extract<Inspection, { o
 
       {r.summary.checks.length > 0 ? (
         <div className="grid gap-2">
-          <h3 className="text-[0.9375rem] font-medium">Checks</h3>
+          <h3 className="text-body font-medium">Checks</h3>
           <ul className="grid gap-2">
             {r.summary.checks.map((c, i) => (
               <li key={`${c.name}-${i}`} className="flex items-start gap-2.5 text-sm">
@@ -425,7 +426,7 @@ function EvidenceResult({ inspection: r }: { inspection: Extract<Inspection, { o
 
       {r.summary.links.length > 0 ? (
         <div className="grid gap-2">
-          <h3 className="text-[0.9375rem] font-medium">Linked proof</h3>
+          <h3 className="text-body font-medium">Linked proof</h3>
           <ul className="grid gap-1.5 text-sm">
             {r.summary.links.map((l) => (
               <li key={l.digest} className="grid gap-0.5">

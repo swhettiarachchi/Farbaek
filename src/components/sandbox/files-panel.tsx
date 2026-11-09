@@ -4,6 +4,7 @@ import { ArrowClockwiseIcon, CaretDownIcon, CaretRightIcon, CheckCircleIcon, Fil
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses } from "@/components/ui/field";
 import { StatusGlyph } from "@/components/ui/status-badge";
 import { FarbaekApiError, type FarbaekSandboxClient, type FileEntry } from "@/sdk/sandbox-client";
 
@@ -82,7 +83,7 @@ function Tree({
                 type="button"
                 style={pad}
                 onClick={() => setExpanded((s) => (s.has(e.path) ? new Set([...s].filter((p) => p !== e.path)) : new Set([...s, e.path])))}
-                className="flex min-h-11 w-full items-center gap-1.5 pr-3 text-left text-[0.8125rem] text-ink-2 hover:bg-surface-raised lg:pointer-fine:min-h-9"
+                className="flex min-h-11 w-full items-center gap-1.5 pr-3 text-left text-label text-ink-2 hover:bg-surface-raised lg:pointer-fine:min-h-9"
               >
                 {isOpen ? <CaretDownIcon size={14} weight="bold" className="shrink-0 text-ink-3" aria-hidden /> : <CaretRightIcon size={14} weight="bold" className="shrink-0 text-ink-3" aria-hidden />}
                 <FolderIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
@@ -100,7 +101,7 @@ function Tree({
               type="button"
               style={pad}
               onClick={() => onOpen(e.path)}
-              className={`flex min-h-11 w-full items-center gap-1.5 pr-3 text-left text-[0.8125rem] lg:pointer-fine:min-h-9 ${open === e.path ? "bg-accent/[0.08] font-medium text-ink" : "text-ink-2 hover:bg-surface-raised"}`}
+              className={`flex min-h-11 w-full items-center gap-1.5 pr-3 text-left text-label lg:pointer-fine:min-h-9 ${open === e.path ? "bg-accent/[0.08] font-medium text-ink" : "text-ink-2 hover:bg-surface-raised"}`}
             >
               <span className="w-3.5 shrink-0" aria-hidden />
               <FileIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
@@ -197,7 +198,7 @@ export function FilesPanel({ client, sessionId, canWrite, readReason }: { client
     <div className="grid min-h-[22rem] overflow-hidden rounded-md border border-line bg-surface shadow-e1 md:grid-cols-[var(--tree)_6px_minmax(0,1fr)]" style={{ ["--tree" as string]: `${width}px` }}>
       <div className="flex min-h-0 flex-col border-b border-line md:border-b-0">
         <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-2">
-          <span className="text-[0.8125rem] font-medium text-ink-3">Files</span>
+          <span className="text-label font-medium text-ink-3">Files</span>
           <button type="button" onClick={() => setVersion((v) => v + 1)} className="inline-flex size-11 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised" aria-label="Refresh files">
             <ArrowClockwiseIcon size={16} weight="bold" aria-hidden />
           </button>
@@ -221,7 +222,7 @@ export function FilesPanel({ client, sessionId, canWrite, readReason }: { client
               value={newPath}
               onChange={(e) => setNewPath(e.target.value)}
               placeholder="src/new-file.ts"
-              className="h-11 min-w-0 flex-1 rounded-sm border border-line bg-surface px-2.5 text-base sm:text-[0.8125rem]"
+              className={inputClasses("min-w-0 flex-1 sm:text-sm")}
             />
             <button type="submit" className="inline-flex size-11 items-center justify-center rounded-full text-ink-2 hover:bg-surface-raised" aria-label="Create file">
               <FilePlusIcon size={20} aria-hidden />
@@ -255,7 +256,7 @@ export function FilesPanel({ client, sessionId, canWrite, readReason }: { client
       />
       <div className="flex min-h-0 min-w-0 flex-col">
         <div className="flex min-h-12 flex-wrap items-center justify-between gap-2 border-b border-line px-3 py-1.5">
-          <span className="min-w-0 truncate font-mono text-[0.8125rem] text-ink-2" title={open ?? undefined}>
+          <span className="min-w-0 truncate font-mono text-label text-ink-2" title={open ?? undefined}>
             {open ?? "No file open"}
             {dirty ? <span className="ml-2 font-sans text-xs text-caution">Unsaved</span> : null}
           </span>

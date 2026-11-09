@@ -2,8 +2,8 @@
 
 import { ArrowRightIcon, CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState } from "react";
-import { officeInputClass } from "@/components/office/fields";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { requestCodeAction, verifyCodeAction, type EmailState } from "../actions";
 
 const START: EmailState = { step: "email", email: "", message: null, error: false };
@@ -19,8 +19,8 @@ export function SignInForm({ sentMessage }: { sentMessage: string }) {
       {!onCode ? (
         <form action={send} className="grid gap-4">
           <label htmlFor="office-email" className="grid gap-1.5 text-sm">
-            <span className="font-medium text-ink">Work email</span>
-            <input id="office-email" name="email" type="email" required autoComplete="username" defaultValue={sent.email} className={officeInputClass} placeholder="you@farbaek.com" />
+            <span className={LABEL_CLASSES}>Work email</span>
+            <input id="office-email" name="email" type="email" required autoComplete="username" defaultValue={sent.email} className={inputClasses()} placeholder="you@farbaek.com" />
           </label>
           <button type="submit" disabled={sending} className={buttonClasses("primary", "md", "w-full")}>
             {sending ? "Sending…" : "Send me a code"}
@@ -37,8 +37,8 @@ export function SignInForm({ sentMessage }: { sentMessage: string }) {
           </p>
           <input type="hidden" name="email" value={sent.email} />
           <label htmlFor="office-code" className="grid gap-1.5 text-sm">
-            <span className="font-medium text-ink">6-digit code from the email</span>
-            <input id="office-code" name="code" required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" maxLength={7} autoFocus className={`${officeInputClass} font-mono text-lg tracking-[0.4em]`} />
+            <span className={LABEL_CLASSES}>6-digit code from the email</span>
+            <input id="office-code" name="code" required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" maxLength={7} autoFocus className={inputClasses("font-mono text-lg tracking-[0.4em]")} />
           </label>
           <button type="submit" disabled={checking} className={buttonClasses("primary", "md", "w-full")}>
             {checking ? "Checking…" : "Continue"}

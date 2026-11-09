@@ -23,6 +23,7 @@ import { loadAppContext } from "@/server/workspace/context";
 import { runEstimates, runKindFor } from "@/server/workspace/plan-card-data";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
 import { withheldFor } from "@/core/workspace/permissions";
+import { PAGE_TITLE } from "@/components/ui/titles";
 
 export const metadata: Metadata = { title: "Your plan" };
 
@@ -46,7 +47,7 @@ const Chips = ({ items, empty }: { items: string[]; empty: string }) =>
   items.length ? (
     <ul className="flex flex-wrap gap-1.5">
       {items.map((i) => (
-        <li key={i} className={`rounded-full border border-line bg-surface px-2.5 py-0.5 text-ink-2 ${looksLikeCode(i) ? "max-w-full break-all font-mono text-[0.78125rem]" : "text-[0.8125rem]"}`}>
+        <li key={i} className={`rounded-full border border-line bg-surface px-2.5 py-0.5 text-ink-2 leading-normal ${looksLikeCode(i) ? "max-w-full break-all font-mono text-xs" : "text-label"}`}>
           {i}
         </li>
       ))}
@@ -109,8 +110,8 @@ export default async function PlanCardPage({ params }: Params) {
 
       {!contract || !c ? (
         <section className="grid gap-4 rounded-lg border border-line bg-surface p-6 shadow-e2 sm:p-8">
-          <h1 className="text-2xl font-medium tracking-[-0.02em]">{task.title}</h1>
-          <p className="text-[0.9375rem] leading-relaxed text-ink-2">
+          <h1 className={PAGE_TITLE}>{task.title}</h1>
+          <p className="text-body leading-relaxed text-ink-2">
             Your project <span className="font-medium text-ink">{project?.name ?? ""}</span> is ready, but there&apos;s no plan yet. The AI couldn&apos;t draft one this time.
             Open the task to draft it again or write it yourself; nothing was charged for a draft that didn&apos;t finish.
           </p>
@@ -130,7 +131,7 @@ export default async function PlanCardPage({ params }: Params) {
             )}
           </div>
           <div className={`grid gap-2 ${rise}`}>
-            <h1 id="plan-title" className="text-balance text-[1.7rem] font-medium leading-tight tracking-[-0.03em] sm:text-[2.1rem]">
+            <h1 id="plan-title" className={PAGE_TITLE}>
               {c.outcome}
             </h1>
             <p className="text-sm text-ink-3">
@@ -164,7 +165,7 @@ export default async function PlanCardPage({ params }: Params) {
             </Section>
             <Section title="If something goes wrong" icon={ArrowCounterClockwiseIcon} delay={320}>
               <p className="text-sm text-ink-2">{c.recovery}</p>
-              {c.assumptions.length ? <p className="text-[0.8125rem] text-ink-3">Assumes: {c.assumptions.join("; ")}</p> : null}
+              {c.assumptions.length ? <p className="text-label text-ink-3">Assumes: {c.assumptions.join("; ")}</p> : null}
             </Section>
           </div>
 

@@ -29,9 +29,9 @@ export default async function OfficeConsoleLayout({ children }: Readonly<{ child
         <div className="grid gap-1 px-1.5">
           <Link href="/" className="flex min-h-11 w-fit items-center gap-2 rounded-full" aria-label="Office Space, overview">
             <BrandLogo height={30} />
-            <span className="text-[1rem] font-medium tracking-[-0.02em]">Farbaek</span>
+            <span className="text-base font-medium tracking-[-0.02em]">Farbaek</span>
           </Link>
-          <p className="text-[0.8125rem] text-ink-3">Office Space</p>
+          <p className="text-label text-ink-3">Office Space</p>
         </div>
         <OfficeNav layout="column" badges={badges} />
         <div className="mt-auto grid gap-3 border-t border-line pt-4">
@@ -53,7 +53,7 @@ export default async function OfficeConsoleLayout({ children }: Readonly<{ child
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-line bg-canvas/85 px-4 backdrop-blur-xl sm:px-6 lg:px-10">
           <Link href="/" className="flex min-h-11 items-center gap-2 lg:hidden" aria-label="Office Space, overview">
             <BrandLogo height={26} />
-            <span className="text-[0.8125rem] font-medium text-ink-2">Office</span>
+            <span className="text-label font-medium text-ink-2">Office</span>
           </Link>
           <p className="hidden text-sm text-ink-3 lg:block">Office Space</p>
           <div className="flex items-center gap-2">

@@ -6,6 +6,7 @@ import { approveContractAction, draftContractWithAiAction, saveContractAction, t
 import { EffortPicker } from "@/components/app/effort-picker";
 import type { Effort } from "@/core/agent/effort";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES, textareaClasses } from "@/components/ui/field";
 import { AiUsageNote } from "@/components/app/usage-meters";
 import type { ContractFormValues } from "@/core/realityloop/contract-form";
 import type { AiAvailability } from "@/server/workspace/ai-drafting";
@@ -91,16 +92,14 @@ export function ContractEditor({
       <div className="grid gap-5 md:grid-cols-2">
         {FIELDS.map((f) => {
           const id = `${base}-${f.name}`;
-          const cls =
-            "w-full rounded-sm border border-line-strong/60 bg-surface px-3.5 text-base shadow-e1 transition-colors focus:border-accent disabled:bg-surface-raised";
           return (
             <div key={f.name} className={`grid content-start gap-2 ${f.short ? "" : "md:col-span-2"}`}>
-              <label htmlFor={id} className="text-sm font-medium">
+              <label htmlFor={id} className={LABEL_CLASSES}>
                 {f.label}
                 {!f.required ? <span className="font-normal text-ink-3"> (optional)</span> : null}
               </label>
               {f.short ? (
-                <input id={id} name={f.name} defaultValue={values[f.name] ?? ""} disabled={Boolean(disabledReason)} aria-describedby={f.hint ? `${id}-hint` : undefined} className={`${cls} h-11`} />
+                <input id={id} name={f.name} defaultValue={values[f.name] ?? ""} disabled={Boolean(disabledReason)} aria-describedby={f.hint ? `${id}-hint` : undefined} className={inputClasses()} />
               ) : (
                 <textarea
                   id={id}
@@ -109,7 +108,7 @@ export function ContractEditor({
                   defaultValue={values[f.name] ?? ""}
                   disabled={Boolean(disabledReason)}
                   aria-describedby={f.hint ? `${id}-hint` : undefined}
-                  className={`${cls} py-2.5`}
+                  className={textareaClasses()}
                 />
               )}
               {f.hint ? (

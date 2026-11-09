@@ -41,6 +41,12 @@
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", monospace;
 
+  /* Named type steps (ADR 0184), between Tailwind's own: 13px labels and meta, 15px reading text, 17px item
+     titles. No line height of their own, so they keep the line height around them, as the sizes they replace did. */
+  --text-label: 0.8125rem;
+  --text-body: 0.9375rem;
+  --text-title-4: 1.0625rem;
+
   /* Shape lock (ADR 0008): buttons, chips and segmented controls are pills,
      inputs 12px, cards 20px, large panels and media frames 28px. */
   --radius-xs: 6px;

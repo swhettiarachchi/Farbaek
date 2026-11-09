@@ -4,6 +4,7 @@ import { CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState, useState } from "react";
 import { removeMemberAction, setMemberRoleAction, type FormState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses } from "@/components/ui/field";
 
 type Role = "owner" | "admin" | "member" | "viewer";
 
@@ -62,7 +63,7 @@ export function MemberControls({
               name="role"
               defaultValue={role}
               disabled={blocked || changing}
-              className="h-11 rounded-sm border border-line-strong/60 bg-surface px-3 text-base sm:text-sm"
+              className={inputClasses("w-max")}
             >
               {roles.map((r) => (
                 <option key={r} value={r}>

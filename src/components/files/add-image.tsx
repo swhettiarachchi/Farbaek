@@ -4,6 +4,7 @@ import { CheckCircleIcon, ImageIcon, WarningCircleIcon } from "@phosphor-icons/r
 import { useActionState, useEffect, useRef, useState } from "react";
 import { addImageAction, type FormState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { IMAGE_ACCEPT, imagePathFor } from "@/core/workspace/images";
 
 const IDLE: FormState = { status: "idle" };
@@ -59,7 +60,7 @@ export function AddImage({ projectId, replacePath, disabledReason }: { projectId
         <input type="hidden" name="path" value={replacePath} />
       ) : (
         <label className="grid gap-1.5 text-sm">
-          <span className="font-medium">Name in the project</span>
+          <span className={LABEL_CLASSES}>Name in the project</span>
           <input
             name="path"
             value={path}
@@ -71,7 +72,7 @@ export function AddImage({ projectId, replacePath, disabledReason }: { projectId
             maxLength={300}
             required
             disabled={Boolean(disabledReason) || pending}
-            className="h-11 rounded-sm border border-line-strong/60 bg-surface px-3.5 font-mono text-base shadow-e1 focus:border-accent sm:text-sm"
+            className={inputClasses("font-mono")}
           />
           <span className="text-xs text-ink-3">Use it in a page by its path.</span>
         </label>

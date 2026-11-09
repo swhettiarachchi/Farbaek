@@ -197,7 +197,7 @@ export default async function SecurityPage({ params, searchParams }: Params) {
                     <li key={f.id} className="grid gap-3 rounded-md border border-line bg-surface p-5 shadow-e1">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-[0.9375rem] font-medium">{f.title}</p>
+                          <p className="text-body font-medium">{f.title}</p>
                           {f.file ? (
                             <p className="mt-1 break-all font-mono text-xs text-ink-2">
                               {f.file}

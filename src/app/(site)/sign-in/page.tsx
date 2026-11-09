@@ -12,6 +12,7 @@ import { readSupabaseConfig, safeNextPath, siteUrl } from "@/server/supabase/con
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { KeptPrompt } from "./kept-prompt";
 import { SignInForm } from "./sign-in-form";
+import { FOCUSED_TITLE } from "@/components/ui/titles";
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -63,8 +64,8 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
   return (
     <Container className="grid min-h-[calc(100dvh-4rem)] items-center gap-12 py-12 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-16 lg:py-16">
       <div className="w-full max-w-[440px] justify-self-center lg:justify-self-start">
-        <h1 className="text-[2.4rem] font-medium leading-[1.05] tracking-[-0.035em]">Sign in to Farbaek</h1>
-        <p className="mt-3 text-[0.9375rem] leading-relaxed text-ink-2">
+        <h1 className={FOCUSED_TITLE}>Sign in to Farbaek</h1>
+        <p className="mt-3 text-body leading-relaxed text-ink-2">
           {intro(google, apple)} New workspaces start with a {TRIAL.lengthDays}-day {getPlan(TRIAL.basePlan).name} trial, with no card.
         </p>
         <div className="mt-8 rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
@@ -103,7 +104,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
       <section aria-labelledby="next-title" className="aurora hidden lg:block">
         <div className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
           <div className="rounded-md bg-surface p-8 shadow-e2">
-            <h2 id="next-title" className="text-[1.35rem] font-medium tracking-[-0.02em]">
+            <h2 id="next-title" className="text-xl font-medium tracking-[-0.02em]">
               What happens next
             </h2>
             <ol className="relative mt-7 grid gap-6">

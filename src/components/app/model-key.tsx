@@ -4,11 +4,10 @@ import { CheckCircleIcon, KeyIcon, WarningCircleIcon } from "@phosphor-icons/rea
 import { useActionState } from "react";
 import { removeModelKeyAction, setModelKeyAction, type ModelKeyState } from "@/app/app/settings/model-key-actions";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { LocalTime } from "@/components/ui/local-time";
 
 const IDLE: ModelKeyState = { status: "idle" };
-
-const field = "min-h-11 w-full rounded-sm border border-line bg-surface px-3 text-base focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
 /**
  * The workspace's own AI key in Settings (ADR 0125). Everyone sees whether
@@ -73,14 +72,14 @@ export function ModelKeyCard({
 
       {canManage ? (
         <form action={save} className="grid gap-3 rounded-md border border-line bg-surface-sunken/60 p-4">
-          <label className="grid gap-1.5 text-sm font-medium">
-            Anthropic API key
-            <input name="key" type="password" autoComplete="off" spellCheck={false} required minLength={20} maxLength={300} disabled={busy} className={`${field} font-mono`} />
+          <label className="grid gap-1.5">
+            <span className={LABEL_CLASSES}>Anthropic API key</span>
+            <input name="key" type="password" autoComplete="off" spellCheck={false} required minLength={20} maxLength={300} disabled={busy} className={inputClasses("font-mono")} />
           </label>
-          <label className="grid gap-1.5 text-sm font-medium">
-            Your company&apos;s server for Anthropic (optional)
-            <input name="gateway" type="url" inputMode="url" autoComplete="off" spellCheck={false} placeholder="https://ai-gateway.example.com" disabled={busy} className={`${field} font-mono`} />
-            <span className="text-xs font-normal text-ink-3">An Anthropic-compatible web address on https. Leave it empty to call Anthropic directly.</span>
+          <label className="grid gap-1.5">
+            <span className={LABEL_CLASSES}>Your company&apos;s server for Anthropic (optional)</span>
+            <input name="gateway" type="url" inputMode="url" autoComplete="off" spellCheck={false} placeholder="https://ai-gateway.example.com" disabled={busy} className={inputClasses("font-mono")} />
+            <span className="text-xs text-ink-3">An Anthropic-compatible web address on https. Leave it empty to call Anthropic directly.</span>
           </label>
           <div className="flex flex-wrap items-center gap-3">
             <button type="submit" disabled={busy} className={buttonClasses("secondary", "sm")}>

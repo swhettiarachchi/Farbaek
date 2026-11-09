@@ -86,7 +86,7 @@ export default async function SkillsPage() {
             <li key={s.id} className="flex min-w-0 items-start gap-2.5">
               <BookOpenTextIcon size={16} weight="bold" className="mt-1 shrink-0 text-ink-3" aria-hidden />
               <span className="min-w-0">
-                <span className="block text-[0.9375rem] font-medium">{s.label}</span>
+                <span className="block text-body font-medium">{s.label}</span>
                 <span className="block text-sm leading-relaxed text-ink-2">{s.description}</span>
               </span>
             </li>

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { saveFileAction } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
 import { SKIP_LABELS, containsSecret, formatBytes, screenPath } from "@/core/workspace/files";
 
@@ -115,7 +116,7 @@ export function FileEditor({
           </Link>
           {isNew ? (
             <div className="mt-2 grid gap-1.5">
-              <label htmlFor="new-file-path" className="text-sm font-medium">
+              <label htmlFor="new-file-path" className={LABEL_CLASSES}>
                 File path
               </label>
               <input
@@ -128,7 +129,7 @@ export function FileEditor({
                 autoCapitalize="off"
                 aria-invalid={pathError ? true : undefined}
                 aria-describedby="new-file-path-hint"
-                className="h-11 w-full max-w-md rounded-sm border border-line-strong/60 bg-surface px-3.5 font-mono text-base shadow-e1 focus:border-accent sm:text-sm"
+                className={inputClasses("max-w-md font-mono")}
               />
               <p id="new-file-path-hint" className={`flex items-start gap-1.5 text-xs ${pathError ? "text-failed" : "text-ink-3"}`}>
                 {pathError ? <WarningCircleIcon size={16} weight="fill" className="shrink-0 text-failed" aria-hidden /> : null}
@@ -136,7 +137,7 @@ export function FileEditor({
               </p>
             </div>
           ) : (
-            <h2 className="mt-2 flex items-center gap-2.5 text-[0.9375rem] font-medium">
+            <h2 className="mt-2 flex items-center gap-2.5 text-body font-medium">
               <FileCodeIcon size={20} className="shrink-0 text-ink-3" aria-hidden />
               <span className="min-w-0 break-all font-mono">{initialPath}</span>
             </h2>

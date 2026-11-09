@@ -6,6 +6,7 @@ import { useActionState, useId } from "react";
 import { PhoneLinkPaste } from "@/components/auth/phone-link-paste";
 import { TurnstileCheck } from "@/components/auth/turnstile-check";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import type { SignInState } from "@/server/auth/sign-in";
 import { requestSignInLink } from "./actions";
 
@@ -35,7 +36,7 @@ export function SignInForm({
       <div role="status" className="rounded-md border border-line bg-surface p-6">
         <EnvelopeSimpleIcon size={32} className="text-accent" aria-hidden />
         <h2 className="mt-4 text-xl font-medium">Check your inbox</h2>
-        <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink-2">
+        <p className="mt-2 text-body leading-relaxed text-ink-2">
           If <span className="font-medium text-ink">{state.email}</span> can receive mail, a sign-in link is on its way. The link works
           once and confirms your email address.
         </p>
@@ -75,7 +76,7 @@ export function SignInForm({
               </a>
             ) : null}
           </div>
-          <div className="flex items-center gap-3 text-[0.8125rem] text-ink-3" aria-hidden>
+          <div className="flex items-center gap-3 text-label text-ink-3" aria-hidden>
             <span className="h-px flex-1 bg-line" />
             or with email
             <span className="h-px flex-1 bg-line" />
@@ -83,7 +84,7 @@ export function SignInForm({
         </>
       ) : null}
       <div className="grid gap-2">
-        <label htmlFor={emailId} className="text-sm font-medium">
+        <label htmlFor={emailId} className={LABEL_CLASSES}>
           Email address
         </label>
         <input
@@ -96,7 +97,7 @@ export function SignInForm({
           defaultValue={state.status === "error" ? state.email : undefined}
           aria-invalid={message ? true : undefined}
           aria-describedby={message ? errorId : undefined}
-          className="h-11 rounded-sm border border-line-strong bg-canvas px-3 text-base"
+          className={inputClasses()}
         />
         {message ? (
           <p id={errorId} role="alert" className="flex items-start gap-1.5 text-sm text-failed">
@@ -111,7 +112,7 @@ export function SignInForm({
           {pending ? "Sending link…" : "Email me a sign-in link"}
         </button>
       </div>
-      <p className="text-[0.8125rem] leading-relaxed text-ink-3">
+      <p className="text-label leading-relaxed text-ink-3">
         By continuing, you accept the{" "}
         <Link href="/terms" className="text-ink-2 underline underline-offset-2 hover:text-ink">
           Terms of Service

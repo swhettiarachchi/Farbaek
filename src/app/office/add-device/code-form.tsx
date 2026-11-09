@@ -3,6 +3,7 @@
 import { ArrowRightIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState } from "react";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { redeemDeviceCodeAction, type CodeState } from "./actions";
 
 export function CodeForm() {
@@ -10,7 +11,7 @@ export function CodeForm() {
   return (
     <form action={action} className="grid gap-4">
       <label htmlFor="device-code" className="grid gap-1.5 text-sm">
-        <span className="font-medium text-ink">Device code</span>
+        <span className={LABEL_CLASSES}>Device code</span>
         <input
           id="device-code"
           name="code"
@@ -20,7 +21,7 @@ export function CodeForm() {
           spellCheck={false}
           maxLength={9}
           autoFocus
-          className="h-12 w-full rounded-sm border border-line bg-surface px-3.5 font-mono text-lg tracking-[0.3em] text-ink shadow-e1 outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/25"
+          className={inputClasses("font-mono text-lg tracking-[0.3em]")}
         />
       </label>
       <button type="submit" disabled={pending} className={buttonClasses("primary", "md", "w-full")}>

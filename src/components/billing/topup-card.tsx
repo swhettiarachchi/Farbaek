@@ -3,6 +3,7 @@ import Link from "next/link";
 import { setTopupCapAction, startTopupAction } from "@/app/app/billing/actions";
 import { Card, CardTitle, Notice } from "@/components/app/primitives";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { formatUsd } from "@/core/billing/catalog";
 import { TOPUP_MONTHS, TOPUP_PACKS_CENTS, topupConsentText, topupSharePercent, type TopupPack } from "@/core/billing/topups";
 import type { PaidPlanId } from "@/core/billing/provider";
@@ -40,8 +41,8 @@ export function TopupCard({ planId, planName, topups, canManage, error }: { plan
         </div>
         {canManage ? (
           <form action={setTopupCapAction} className="flex flex-wrap items-end gap-2">
-            <label className="grid gap-1 text-xs text-ink-2">
-              Limit in US dollars
+            <label className="grid gap-1.5">
+              <span className={LABEL_CLASSES}>Limit in US dollars</span>
               <input
                 name="dollars"
                 inputMode="numeric"
@@ -49,7 +50,7 @@ export function TopupCard({ planId, planName, topups, canManage, error }: { plan
                 maxLength={4}
                 defaultValue={topups.capCents === null ? "" : String(topups.capCents / 100)}
                 placeholder="50"
-                className="h-11 w-28 rounded-sm border border-line bg-surface px-3 text-base text-ink tabular"
+                className={inputClasses("max-w-28 tabular")}
               />
             </label>
             <BillingSubmit label="Save limit" pending="Saving…" tone="secondary" />

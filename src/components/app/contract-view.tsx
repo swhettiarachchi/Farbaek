@@ -19,7 +19,7 @@ function Clause({ label, children }: { label: string; children: React.ReactNode 
   return (
     <div className="grid gap-1 border-t border-line py-3 sm:grid-cols-[180px_1fr] sm:gap-4">
       <dt className="text-sm text-ink-3">{label}</dt>
-      <dd className="text-[0.9375rem] text-ink">{children}</dd>
+      <dd className="text-body text-ink">{children}</dd>
     </div>
   );
 }
@@ -32,11 +32,11 @@ const Mono = ({ items }: { items: string[] }) =>
     <span className="flex flex-wrap gap-1.5">
       {items.map((i) =>
         looksLikeCode(i) ? (
-          <code key={i} className="max-w-full break-all rounded-full border border-line bg-surface-raised px-2.5 py-0.5 text-[0.78125rem]">
+          <code key={i} className="max-w-full break-all rounded-full border border-line bg-surface-raised px-2.5 py-0.5 text-xs leading-normal">
             {i}
           </code>
         ) : (
-          <span key={i} className="rounded-full border border-line bg-surface-raised px-2.5 py-0.5 text-[0.8125rem]">
+          <span key={i} className="rounded-full border border-line bg-surface-raised px-2.5 py-0.5 text-label">
             {i}
           </span>
         ),
@@ -66,7 +66,7 @@ export async function ContractView({ record }: { record: ContractRecord }) {
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[0.8125rem] font-medium text-ink-3">Version {record.version}</span>
+        <span className="text-label font-medium text-ink-3">Version {record.version}</span>
         {record.status === "approved" ? (
           <StatusBadge status="verified" label="Approved" />
         ) : record.status === "draft" ? (
@@ -111,7 +111,7 @@ export async function ContractView({ record }: { record: ContractRecord }) {
               <li key={a.id} className="flex gap-2">
                 <CheckSquareOffsetIcon size={16} weight="bold" className="mt-1 shrink-0 text-ink-3" aria-hidden />
                 <span>
-                  {a.statement} <span className="text-[0.8125rem] text-ink-3">({VERIFICATION_WORDS[a.verification] ?? a.verification})</span>
+                  {a.statement} <span className="text-label text-ink-3">({VERIFICATION_WORDS[a.verification] ?? a.verification})</span>
                 </span>
               </li>
             ))}

@@ -25,7 +25,7 @@ export function EmailPreferencesForm({ preferences, disabledReason }: { preferen
           <label key={c.name} className={`flex min-h-11 items-start gap-3 py-1.5 ${disabled ? "" : "cursor-pointer"}`}>
             <input type="checkbox" name={c.name} defaultChecked={preferences[c.key]} className="mt-1 size-4 shrink-0 accent-[var(--color-accent)]" />
             <span className="grid gap-0.5">
-              <span className="text-[0.9375rem] font-medium">{c.title}</span>
+              <span className="text-body font-medium">{c.title}</span>
               <span className="text-sm text-ink-2">{c.detail}</span>
             </span>
           </label>

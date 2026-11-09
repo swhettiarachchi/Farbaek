@@ -15,13 +15,13 @@ export function NeedsYouCard({ step }: { step: NeedsYou }) {
     <section aria-labelledby="needs-you" className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
       <div className="grid gap-4 rounded-md bg-surface p-5 shadow-e1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-6">
         <div className="min-w-0">
-          <p className={`flex items-center gap-1.5 text-[0.8125rem] font-medium ${yours ? "text-accent" : "text-ink-2"}`}>
+          <p className={`flex items-center gap-1.5 text-label font-medium ${yours ? "text-accent" : "text-ink-2"}`}>
             <ToneIcon size={16} weight="fill" className="shrink-0" aria-hidden /> {yours ? "Your turn" : "For your information"}
           </p>
-          <h2 id="needs-you" className="mt-2 text-balance text-[1.25rem] font-medium leading-snug tracking-[-0.02em]">
+          <h2 id="needs-you" className="mt-2 text-balance text-xl font-medium leading-snug tracking-[-0.02em]">
             {step.title}
           </h2>
-          <p className="mt-1.5 line-clamp-3 max-w-[60ch] text-[0.9375rem] leading-relaxed text-ink-2">{step.body}</p>
+          <p className="mt-1.5 line-clamp-3 max-w-[60ch] text-body leading-relaxed text-ink-2">{step.body}</p>
         </div>
         {step.action ? (
           <Link href={step.action.href} className={`${buttonClasses("primary", "md", "w-full justify-center sm:w-auto")} whitespace-nowrap`}>

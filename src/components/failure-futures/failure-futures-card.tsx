@@ -56,11 +56,11 @@ function TrialDetail({ trial }: { trial: FailureTrialView }) {
         {trial.command ? (
           <dl className="grid gap-1 text-xs text-ink-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-x-3">
             <dt>Command</dt>
-            <dd className="min-w-0 break-all font-mono text-[0.78125rem] text-ink-2">{trial.command}</dd>
+            <dd className="min-w-0 break-all font-mono text-xs text-ink-2">{trial.command}</dd>
             {trial.exitCode !== null ? (
               <>
                 <dt>Exit code</dt>
-                <dd className="font-mono text-[0.78125rem] text-ink-2">
+                <dd className="font-mono text-xs text-ink-2">
                   {trial.exitCode}
                   {seconds(trial.durationMs) ? <span className="font-sans text-ink-3"> in {seconds(trial.durationMs)}</span> : null}
                 </dd>
@@ -77,15 +77,15 @@ function TrialDetail({ trial }: { trial: FailureTrialView }) {
         {trial.test ? (
           <div className="grid gap-1">
             <p className="text-xs text-ink-3">
-              The test, written by AI, at <span className="font-mono text-[0.78125rem]">{trial.testPath}</span>
+              The test, written by AI, at <span className="font-mono text-xs">{trial.testPath}</span>
             </p>
-            <pre className="max-h-72 overflow-auto rounded-sm border border-line bg-canvas-2 p-3 font-mono text-[0.78125rem] leading-relaxed text-ink">{trial.test}</pre>
+            <pre className="max-h-72 overflow-auto rounded-sm border border-line bg-canvas-2 p-3 font-mono text-xs leading-relaxed text-ink">{trial.test}</pre>
           </div>
         ) : null}
         {trial.output ? (
           <div className="grid gap-1">
             <p className="text-xs text-ink-3">The end of its output</p>
-            <pre className="max-h-56 overflow-auto rounded-sm border border-line bg-canvas-2 p-3 font-mono text-[0.78125rem] leading-relaxed text-ink-2">{trial.output}</pre>
+            <pre className="max-h-56 overflow-auto rounded-sm border border-line bg-canvas-2 p-3 font-mono text-xs leading-relaxed text-ink-2">{trial.output}</pre>
           </div>
         ) : null}
       </div>
@@ -148,7 +148,7 @@ export function FailureFuturesCard({
             return (
               <li key={f.kind} className="grid gap-2.5 px-3 py-3.5 sm:px-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <p className="min-w-0 text-[0.9375rem] font-medium leading-snug">{f.title}</p>
+                  <p className="min-w-0 text-body font-medium leading-snug">{f.title}</p>
                   <StatusBadge status={shown.status} label={shown.label} />
                 </div>
                 {f.incident ? <IncidentNote incident={f.incident} /> : null}
@@ -156,10 +156,10 @@ export function FailureFuturesCard({
                 <ul className="grid gap-1">
                   {f.evidence.map((e) => (
                     <li key={`${e.path}:${e.line}`} className="grid min-w-0 gap-0.5 text-xs text-ink-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-x-3">
-                      <span className="font-mono text-[0.78125rem] text-ink-2">
+                      <span className="font-mono text-xs text-ink-2">
                         {e.path}:{e.line}
                       </span>
-                      <span className="min-w-0 truncate font-mono text-[0.78125rem]" title={e.snippet}>
+                      <span className="min-w-0 truncate font-mono text-xs" title={e.snippet}>
                         {e.snippet}
                       </span>
                     </li>

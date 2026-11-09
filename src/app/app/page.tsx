@@ -212,7 +212,7 @@ export default async function MissionControl() {
                 <li key={t.id}>
                   <Link href={`/app/tasks/${t.id}`} className="group flex flex-col gap-2 py-3.5 sm:flex-row sm:items-center sm:gap-4">
                     <span className="min-w-0 flex-1">
-                      <span className="line-clamp-2 text-[0.9375rem] font-medium group-hover:text-accent">{t.title}</span>
+                      <span className="line-clamp-2 text-body font-medium group-hover:text-accent">{t.title}</span>
                       <span className="mt-0.5 block text-xs text-ink-3">
                         {t.projectName ?? "Project"} · updated <RelativeTime iso={t.updatedAt} />
                       </span>
@@ -258,7 +258,7 @@ export default async function MissionControl() {
                 <li key={p.digest}>
                   <Link href={`/app/tasks/${p.taskId}`} className="group flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:gap-4">
                     <span className="min-w-0 flex-1">
-                      <span className="line-clamp-2 text-[0.9375rem] font-medium group-hover:text-accent">{task?.title ?? "Task"}</span>
+                      <span className="line-clamp-2 text-body font-medium group-hover:text-accent">{task?.title ?? "Task"}</span>
                     </span>
                     <span className="flex items-center gap-2 text-xs text-ink-3">
                       <StatusBadge {...proofStatus(p.status)} />

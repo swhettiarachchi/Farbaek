@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useActionState, useId, useState } from "react";
 import { addLibrarySkillAction, type SkillState } from "@/app/app/projects/[projectId]/skill-actions";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { LICENCE_LABELS, SKILL_USE_LABELS, type LibrarySkillMeta } from "@/core/agent/skill-library";
 
 const IDLE: SkillState = { status: "idle" };
@@ -74,7 +75,7 @@ function ReadIt({ skill }: { skill: LibraryCardSkill }) {
         tabIndex={0}
         role="region"
         aria-label={`The ${skill.label} skill`}
-        className="mt-1 max-h-80 overflow-auto rounded-sm border border-line bg-surface-sunken p-4 text-[0.8125rem] leading-relaxed text-ink-2 focus-visible:outline-2 focus-visible:outline-accent"
+        className="mt-1 max-h-80 overflow-auto rounded-sm border border-line bg-surface-sunken p-4 text-label leading-relaxed text-ink-2 focus-visible:outline-2 focus-visible:outline-accent"
       >
         <SkillText text={skill.text} />
       </div>
@@ -110,7 +111,7 @@ export function LibraryCard({ skill, projects, disabledReason }: { skill: Librar
   return (
     <article className="grid h-full content-start gap-4 rounded-md border border-line bg-surface p-5 shadow-e1">
       <div className="grid gap-1.5">
-        <h3 className="text-[1.0625rem] font-medium tracking-[-0.01em]">{skill.label}</h3>
+        <h3 className="text-title-4 font-medium tracking-[-0.01em]">{skill.label}</h3>
         <p className="text-sm leading-relaxed text-ink-2">{skill.summary}</p>
       </div>
       <Uses skill={skill} />
@@ -129,14 +130,14 @@ export function LibraryCard({ skill, projects, disabledReason }: { skill: Librar
           <input type="hidden" name="skillId" value={skill.id} />
           {projects.length > 1 ? (
             <label htmlFor={selectId} className="grid gap-1.5">
-              <span className="text-[0.8125rem] font-medium text-ink-3">Add to</span>
+              <span className={LABEL_CLASSES}>Add to</span>
               <select
                 id={selectId}
                 name="projectId"
                 value={projectId}
                 onChange={(e) => setProjectId(e.target.value)}
                 disabled={Boolean(disabledReason) || pending}
-                className="h-11 min-w-0 rounded-sm border border-line bg-surface px-3 text-base text-ink outline-none focus:border-accent/60 sm:text-sm"
+                className={inputClasses("min-w-0")}
               >
                 {projects.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -168,7 +169,7 @@ export function LibraryRow({ skill, projectId, added, disabledReason }: { skill:
     <li className="grid min-w-0 gap-2 rounded-sm border border-line px-4 py-3">
       <div className="flex flex-wrap items-start gap-3">
         <span className="min-w-0 flex-1">
-          <span className="block text-[0.9375rem] font-medium">{skill.label}</span>
+          <span className="block text-body font-medium">{skill.label}</span>
           <span className="mt-0.5 block text-sm leading-relaxed text-ink-2">{skill.summary}</span>
         </span>
         {added ? (

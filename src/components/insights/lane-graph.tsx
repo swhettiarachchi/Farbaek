@@ -91,7 +91,7 @@ export function LaneGraph({ lanes }: { lanes: Lane[] }) {
               style={{ animationDelay: `${Math.min(i, 10) * 40}ms` }}
             >
               <div className="grid min-w-0 content-start gap-1.5">
-                <h3 className="text-[0.9375rem] font-medium leading-snug">
+                <h3 className="text-body font-medium leading-snug">
                   <Link href={`/app/tasks/${lane.taskId}`} className="-my-3 inline-block py-3 hover:text-accent hover:underline">
                     {lane.title}
                   </Link>

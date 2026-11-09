@@ -77,7 +77,7 @@ export function WalletCard({ card, serverNow }: { card: WalletCardData; serverNo
         </div>
 
         <div className="min-w-0">
-          <h2 id={`wallet-${card.taskId}`} className="text-[1.0625rem] leading-snug font-medium tracking-[-0.02em] break-words">
+          <h2 id={`wallet-${card.taskId}`} className="text-title-4 leading-snug font-medium tracking-[-0.02em] break-words">
             {card.title}
           </h2>
           <p className="mt-0.5 text-xs text-ink-3">{card.projectName}</p>
@@ -115,7 +115,7 @@ export function WalletCard({ card, serverNow }: { card: WalletCardData; serverNo
                     {card.checks.map((c, i) => (
                       <Fragment key={i}>
                         {i === 0 ? null : i === card.checks.length - 1 ? " and " : ", "}
-                        <code className="break-all font-mono text-[0.8125rem] text-ink">{c}</code>
+                        <code className="break-all font-mono text-label text-ink">{c}</code>
                       </Fragment>
                     ))}{" "}
                     {card.checks.length === 1 ? "runs" : "run"} in a test space.
@@ -130,7 +130,7 @@ export function WalletCard({ card, serverNow }: { card: WalletCardData; serverNo
       {/* The stub: what you hand in. Its dashed edge is the tear line of a ticket. */}
       <div className="grid content-between gap-5 border-t border-dashed border-line-strong/40 bg-surface-raised/50 p-4 sm:p-5 md:border-t-0 md:border-l">
         <div className="grid gap-2">
-          <p className="text-[0.8125rem] font-medium text-ink-3">Time to approve</p>
+          <p className="text-label font-medium text-ink-3">Time to approve</p>
           {expired ? (
             <p className="text-sm">
               Expired {left}. <span className="text-ink-2">It can only be discarded now.</span>

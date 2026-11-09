@@ -31,8 +31,8 @@ function Cell({
           <CellIcon size={20} aria-hidden />
         </span>
       ) : null}
-      <h3 className={`text-[1.0625rem] font-medium tracking-[-0.01em] ${CellIcon ? "mt-4" : ""}`}>{title}</h3>
-      <p className="mt-1.5 text-[0.9375rem] leading-relaxed text-ink-2">{body}</p>
+      <h3 className={`text-title-4 font-medium tracking-[-0.01em] ${CellIcon ? "mt-4" : ""}`}>{title}</h3>
+      <p className="mt-1.5 text-body leading-relaxed text-ink-2">{body}</p>
       {beta ? (
         <p className="mt-3 text-sm text-ink-3">
           Built and tested, being proven on real accounts and devices.{" "}

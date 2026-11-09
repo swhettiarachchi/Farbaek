@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CaretDownIcon } from "@phosphor-icons/react/ssr";
 import { Container } from "@/components/ui/container";
 import { LEGAL, LEGAL_DOCS } from "@/config/legal";
+import { PUBLIC_TITLE } from "@/components/ui/titles";
 
 export interface LegalSection {
   id: string;
@@ -36,7 +37,7 @@ export function LegalDocument({
       <Container>
         <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_260px] lg:gap-16">
           <article className="min-w-0 max-w-[72ch]">
-            <h1 className="text-balance text-[2.25rem] font-medium leading-[1.06] tracking-[-0.04em] sm:text-[3rem]">{title}</h1>
+            <h1 className={PUBLIC_TITLE}>{title}</h1>
             <p className="mt-4 text-sm text-ink-3">
               Last updated {updated}. Questions:{" "}
               <a href={`mailto:${LEGAL.contact}`} className="font-medium text-accent hover:underline">
@@ -45,12 +46,12 @@ export function LegalDocument({
               .
             </p>
             <div className="mt-8 rounded-md border border-line bg-surface p-5 sm:p-6">
-              <h2 className="text-[0.9375rem] font-medium">The short version</h2>
-              <div className="mt-3 text-[0.9375rem] leading-relaxed text-ink-2">{summary}</div>
+              <h2 className="text-body font-medium">The short version</h2>
+              <div className="mt-3 text-body leading-relaxed text-ink-2">{summary}</div>
             </div>
             <div className="lg:hidden">
               <details className="group mt-4 rounded-md border border-line bg-surface">
-                <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-5 text-[0.9375rem] font-medium [&::-webkit-details-marker]:hidden">
+                <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-5 text-body font-medium [&::-webkit-details-marker]:hidden">
                   On this page
                   <CaretDownIcon size={16} weight="bold" className="shrink-0 text-ink-3 group-open:rotate-180 motion-safe:transition-transform motion-safe:duration-200" aria-hidden />
                 </summary>
@@ -62,13 +63,13 @@ export function LegalDocument({
             <ol className="mt-12 grid gap-10">
               {sections.map((s, i) => (
                 <li key={s.id} id={s.id} className="scroll-mt-24">
-                  <h2 className="flex items-baseline gap-3 text-[1.35rem] font-medium leading-snug tracking-[-0.02em]">
-                    <span aria-hidden className="tabular text-[0.9375rem] font-normal text-ink-3">
+                  <h2 className="flex items-baseline gap-3 text-xl font-medium leading-snug tracking-[-0.02em]">
+                    <span aria-hidden className="tabular text-body font-normal text-ink-3">
                       {i + 1}
                     </span>
                     {s.title}
                   </h2>
-                  <div className="mt-3 grid gap-3 text-[0.9375rem] leading-relaxed text-ink-2">{s.body}</div>
+                  <div className="mt-3 grid gap-3 text-body leading-relaxed text-ink-2">{s.body}</div>
                 </li>
               ))}
             </ol>

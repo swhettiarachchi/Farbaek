@@ -177,5 +177,5 @@ export default function CodeMirrorSurface({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mounted once; see the comment above.
   }, []);
 
-  return <div ref={host} className="overflow-hidden rounded-md border border-line bg-surface text-base sm:text-[0.8125rem]" />;
+  return <div ref={host} className="overflow-hidden rounded-md border border-line bg-surface text-base sm:text-label" />;
 }

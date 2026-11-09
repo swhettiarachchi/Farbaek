@@ -4,13 +4,13 @@ import { CheckCircleIcon, LockSimpleIcon, PaperPlaneTiltIcon, WarningCircleIcon 
 import { useActionState, useId, useState } from "react";
 import type { SupportReplyState } from "@/app/office/(console)/support/[id]/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { textareaClasses } from "@/components/ui/field";
 import { SUPPORT_LIMITS } from "@/core/support/support";
-import { officeInputClass } from "./fields";
 
 /**
  * Staff writing on a request: a reply the person sees, or an internal note
  * only staff see. The switch is a labelled pair, and a note's box is
- * hatched so the two can't be mistaken for each other.
+ * shaded so the two can't be mistaken for each other.
  */
 export function SupportReplyForm({ threadId, action }: { threadId: string; action: (prev: SupportReplyState, form: FormData) => Promise<SupportReplyState> }) {
   const [state, run, pending] = useActionState(action, { ok: null, message: null });
@@ -46,7 +46,7 @@ export function SupportReplyForm({ threadId, action }: { threadId: string; actio
         required
         maxLength={SUPPORT_LIMITS.bodyMax}
         placeholder={internal ? "Only Farbaek staff see this note" : "They'll see this under Help, signed Farbaek support"}
-        className={`${officeInputClass} field-sizing-content h-auto min-h-28 max-h-[45dvh] py-3 leading-relaxed ${internal ? "bg-surface-raised" : ""}`}
+        className={textareaClasses(`field-sizing-content max-h-[45dvh] ${internal ? "bg-surface-raised" : ""}`)}
       />
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending} className={buttonClasses(internal ? "secondary" : "primary", "sm")}>

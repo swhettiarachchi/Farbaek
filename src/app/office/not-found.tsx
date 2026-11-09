@@ -1,6 +1,7 @@
 import { CompassIcon } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { buttonClasses } from "@/components/ui/button";
+import { FOCUSED_TITLE } from "@/components/ui/titles";
 
 export default function OfficeNotFound() {
   return (
@@ -9,8 +10,8 @@ export default function OfficeNotFound() {
         <span className="flex size-12 items-center justify-center rounded-full bg-surface text-ink-2 shadow-e1 ring-1 ring-line">
           <CompassIcon size={24} aria-hidden />
         </span>
-        <h1 className="text-2xl font-medium tracking-[-0.02em]">There&apos;s nothing at this address</h1>
-        <p className="text-[0.9375rem] text-ink-2">The page may have moved, or you may not have access to it.</p>
+        <h1 className={FOCUSED_TITLE}>There&apos;s nothing at this address</h1>
+        <p className="text-body text-ink-2">The page may have moved, or you may not have access to it.</p>
         <Link href="/" className={buttonClasses("secondary", "sm", "mt-2")}>
           Go to the overview
         </Link>

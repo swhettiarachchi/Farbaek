@@ -1,7 +1,8 @@
 import { DesktopIcon, DeviceMobileIcon, DevicesIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import { Card, CardTitle } from "@/components/app/primitives";
 import { OfficeActionForm } from "@/components/office/action-form";
-import { StepUpField, officeInputClass } from "@/components/office/fields";
+import { StepUpField } from "@/components/office/fields";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { LocalTime } from "@/components/ui/local-time";
 import { StatusBadge, StatusGlyph } from "@/components/ui/status-badge";
 import type { StaffDevice } from "@/server/office/staff-store";
@@ -46,8 +47,8 @@ export function DevicesCard({ devices, currentHash }: { devices: StaffDevice[] |
                   <OfficeActionForm action={approveDeviceAction} submit={`Approve ${d.label}`} className="grid gap-3">
                     <input type="hidden" name="deviceId" value={d.id} />
                     <label htmlFor={`device-code-${d.id}`} className="grid gap-1.5 text-sm">
-                      <span className="font-medium text-ink">Code the new device shows</span>
-                      <input id={`device-code-${d.id}`} name="code" required inputMode="numeric" autoComplete="off" pattern="[0-9 ]{6,7}" maxLength={7} className={`${officeInputClass} font-mono tracking-[0.3em]`} />
+                      <span className={LABEL_CLASSES}>Code the new device shows</span>
+                      <input id={`device-code-${d.id}`} name="code" required inputMode="numeric" autoComplete="off" pattern="[0-9 ]{6,7}" maxLength={7} className={inputClasses("font-mono tracking-[0.3em]")} />
                     </label>
                     <StepUpField id={`device-totp-${d.id}`} />
                   </OfficeActionForm>

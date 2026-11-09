@@ -71,7 +71,7 @@ export function ThemePanel({
     <div className="grid gap-5">
       <div className="grid gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[0.9375rem] font-medium">Look</p>
+          <p className="text-body font-medium">Look</p>
           <div className="inline-flex rounded-full border border-line bg-surface p-1" role="radiogroup" aria-label="Light or dark looks">
             {(
               [
@@ -132,7 +132,7 @@ export function ThemePanel({
 
       <fieldset className="grid gap-3 border-t border-line pt-4">
         <legend className="sr-only">Colours</legend>
-        <p className="text-[0.9375rem] font-medium">Colours</p>
+        <p className="text-body font-medium">Colours</p>
         <div className="grid grid-cols-2 gap-3">
           {EDITABLE.map((t) => (
             <div key={t} className="grid gap-1.5">
@@ -186,7 +186,7 @@ export function ThemePanel({
       </fieldset>
 
       <div className="grid gap-2 border-t border-line pt-4">
-        <p className="text-[0.9375rem] font-medium">Fonts</p>
+        <p className="text-body font-medium">Fonts</p>
         <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
           {(Object.entries(FONT_PAIRS) as [FontPairId, (typeof FONT_PAIRS)[FontPairId]][]).map(([pair, f]) => (
             <li key={pair}>
@@ -209,7 +209,7 @@ export function ThemePanel({
       </div>
 
       <div className="grid gap-2 border-t border-line pt-4">
-        <p className="text-[0.9375rem] font-medium" id={`${id}-corners`}>
+        <p className="text-body font-medium" id={`${id}-corners`}>
           Corners
         </p>
         <div className="flex flex-wrap gap-2" role="radiogroup" aria-labelledby={`${id}-corners`}>

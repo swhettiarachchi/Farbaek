@@ -23,6 +23,9 @@ function Started({ v, viewerId, children }: { v: VerificationRecord; viewerId: s
   );
 }
 
+// Each state sits on the neutral notice surface; its icon's colour says what kind it is (ADR 0183).
+const NOTICE = "flex items-start gap-2.5 rounded-sm border border-line bg-surface-raised/70 px-4 py-3";
+
 // A finished run the task can't count yet, as a kind: anything short of verified needs its own mark.
 const RESULT_KIND: Record<VerificationResult, Status> = {
   verified: "verified",
@@ -40,8 +43,8 @@ export function VerificationStatus({ verification: v, viewerId, now }: { verific
 
   if (state === "running") {
     return (
-      <div role="status" className="flex items-start gap-3 rounded-md border border-info/30 bg-info/[0.04] px-4 py-3.5">
-        <StatusGlyph status="working" size={20} className="mt-0.5" />
+      <div role="status" className={NOTICE}>
+        <StatusGlyph status="working" size={16} className="mt-0.5" />
         <div className="grid gap-1 text-sm">
           <p className="font-medium text-ink">Checking now</p>
           <p className="text-ink-2">
@@ -55,8 +58,8 @@ export function VerificationStatus({ verification: v, viewerId, now }: { verific
 
   if (state === "failed" || state === "stale") {
     return (
-      <div className="flex items-start gap-3 rounded-md border border-caution/35 bg-caution/[0.05] px-4 py-3.5">
-        <WarningCircleIcon size={20} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
+      <div className={NOTICE}>
+        <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
         <div className="grid gap-1 text-sm">
           <p className="font-medium text-ink">The last check run couldn&apos;t finish</p>
           <p className="text-ink-2">{state === "stale" ? "It stopped without finishing, so nothing was recorded." : v.failure}</p>
@@ -70,8 +73,8 @@ export function VerificationStatus({ verification: v, viewerId, now }: { verific
   const result: VerificationResult = v.result ?? "unverified";
   const words = VERIFICATION_RESULT_WORDS[result];
   return (
-    <div className="flex items-start gap-3 rounded-md border border-line bg-surface-sunken px-4 py-3.5">
-      <StatusGlyph status={RESULT_KIND[result]} size={20} className="mt-0.5" />
+    <div className={NOTICE}>
+      <StatusGlyph status={RESULT_KIND[result]} size={16} className="mt-0.5" />
       <div className="grid gap-1 text-sm">
         <p className="font-medium text-ink">Last check run: {words.title.toLowerCase()}</p>
         <p className="text-ink-2">{words.detail}</p>

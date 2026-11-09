@@ -45,7 +45,7 @@ export function ScopeDriftCard({ approvedAt, changes, findings }: { approvedAt: 
                       <details className="group">
                         <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 px-3 py-2 text-sm hover:bg-surface-raised [&::-webkit-details-marker]:hidden">
                           <FolderOpenIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
-                          <span className="min-w-0 flex-1 truncate font-mono text-[0.8125rem]">{f.folder}</span>
+                          <span className="min-w-0 flex-1 truncate font-mono text-label">{f.folder}</span>
                           <span className="shrink-0 text-xs text-ink-3 tabular">
                             {f.findings.length} {f.findings.length === 1 ? "file" : "files"}
                           </span>
@@ -53,7 +53,7 @@ export function ScopeDriftCard({ approvedAt, changes, findings }: { approvedAt: 
                         <ul className="grid gap-2 border-t border-line bg-surface-raised/40 px-3 py-3">
                           {f.findings.slice(0, 100).map((d, i) => (
                             <li key={`${d.path}-${d.at}-${i}`} className="grid gap-0.5 text-sm">
-                              <span className="font-mono text-[0.8125rem] break-all">{d.path}</span>
+                              <span className="font-mono text-label break-all">{d.path}</span>
                               <span className="text-xs text-ink-2">
                                 <code className="font-mono">{d.operation}</code>: {d.reasons.map((r) => DRIFT_LABELS[r]).join(", ")} · <LocalTime iso={d.at} />
                               </span>

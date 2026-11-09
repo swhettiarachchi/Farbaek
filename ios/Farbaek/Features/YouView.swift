@@ -48,14 +48,17 @@ struct YouView: View {
                     Button("Sign in or make an account") { Task { await model.signOut() } }
                 }
             } else if let me = model.me {
-                Section("Account") {
+                Section {
                     LabeledContent("Signed in as") { Text(me.user.email).foregroundStyle(Palette.ink2).lineLimit(1) }
                     if let role = me.role { LabeledContent("Role") { Text(role.capitalized).foregroundStyle(Palette.ink2) } }
+                } header: {
+                    // Each section's title carries its concept's symbol (ADR 0183), the twin of the web's icon.
+                    Label("Account", systemImage: "person.crop.circle")
                 }
             }
 
             if let me = model.me, !me.workspaces.isEmpty {
-                Section("Workspace") {
+                Section {
                     ForEach(me.workspaces) { workspace in
                         Button {
                             model.selectWorkspace(workspace.id)
@@ -73,6 +76,8 @@ struct YouView: View {
                             .frame(minHeight: 44)
                         }
                     }
+                } header: {
+                    Label("Workspace", systemImage: "building.2")
                 }
             }
 
@@ -101,7 +106,7 @@ struct YouView: View {
                         }
                     }
                 } header: {
-                    Text("Plan")
+                    Label("Plan", systemImage: "creditcard")
                 } footer: {
                     if model.canBuyOnWeb {
                         Text("Opens Billing on www.farbaek.com in Safari, where plans are bought and managed.")
@@ -115,7 +120,7 @@ struct YouView: View {
                 Section {
                     Toggle("Allow AI to work on my builds", isOn: $aiAllowed)
                 } header: {
-                    Text("AI")
+                    Label("AI", systemImage: "hand.raised")
                 } footer: {
                     Text("What you write and your project's files go to Anthropic (Claude) or Google (Gemini) to plan and build. Turned off, nothing more is sent from this iPhone. A run that's already going keeps working until it ends or you stop it.")
                 }
@@ -137,18 +142,20 @@ struct YouView: View {
                     }
                 }
             } header: {
-                Text("More tools")
+                Label("More tools", systemImage: "ellipsis.circle")
             } footer: {
                 Text("These open right here, already signed in.")
             }
 
-            Section("Farbaek") {
+            Section {
                 WebLink(path: "app") { Label("Open Farbaek on the web", systemImage: "safari") }
                 Link(destination: AppConfig.privacyURL) { Label("Privacy", systemImage: "hand.raised") }
                 Link(destination: AppConfig.termsURL) { Label("Terms", systemImage: "doc.plaintext") }
                 if let mail = URL(string: "mailto:\(AppConfig.supportEmail)") {
                     Link(destination: mail) { Label("Write to support", systemImage: "envelope") }
                 }
+            } header: {
+                Label("Farbaek", systemImage: "lifepreserver")
             }
 
             if !model.isSample {
@@ -228,7 +235,7 @@ struct YouView: View {
                 Notice(text: note, tone: .failed, symbol: "exclamationmark.circle.fill")
             }
         } header: {
-            Text("Notifications")
+            Label("Notifications", systemImage: "bell")
         } footer: {
             Text("When a build finishes or its checks end. The same moments as Farbaek's emails.")
         }

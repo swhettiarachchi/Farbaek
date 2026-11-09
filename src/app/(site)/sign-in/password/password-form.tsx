@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useActionState, useId } from "react";
 import { TurnstileCheck } from "@/components/auth/turnstile-check";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import type { PasswordSignInState } from "@/server/auth/password-sign-in";
 import { signInWithPasswordAction } from "../actions";
 
@@ -20,7 +21,7 @@ export function PasswordSignInForm({ next = "/app", captchaSiteKey = null }: { n
     <form action={action} className="grid gap-5" noValidate>
       <input type="hidden" name="next" value={next} />
       <div className="grid gap-2">
-        <label htmlFor={emailId} className="text-sm font-medium">
+        <label htmlFor={emailId} className={LABEL_CLASSES}>
           Email address
         </label>
         <input
@@ -33,11 +34,11 @@ export function PasswordSignInForm({ next = "/app", captchaSiteKey = null }: { n
           defaultValue={state.status === "error" ? state.email : undefined}
           aria-invalid={message ? true : undefined}
           aria-describedby={message ? errorId : undefined}
-          className="h-11 rounded-sm border border-line-strong bg-canvas px-3 text-base"
+          className={inputClasses()}
         />
       </div>
       <div className="grid gap-2">
-        <label htmlFor={passwordId} className="text-sm font-medium">
+        <label htmlFor={passwordId} className={LABEL_CLASSES}>
           Password
         </label>
         <input
@@ -49,7 +50,7 @@ export function PasswordSignInForm({ next = "/app", captchaSiteKey = null }: { n
           maxLength={128}
           aria-invalid={message ? true : undefined}
           aria-describedby={message ? errorId : undefined}
-          className="h-11 rounded-sm border border-line-strong bg-canvas px-3 text-base"
+          className={inputClasses()}
         />
         {message ? (
           <p id={errorId} role="alert" className="flex items-start gap-1.5 text-sm text-failed">
@@ -64,7 +65,7 @@ export function PasswordSignInForm({ next = "/app", captchaSiteKey = null }: { n
           {pending ? "Signing in…" : "Sign in"}
         </button>
       </div>
-      <p className="text-[0.8125rem] leading-relaxed text-ink-3">
+      <p className="text-label leading-relaxed text-ink-3">
         By continuing, you accept the{" "}
         <Link href="/terms" className="text-ink-2 underline underline-offset-2 hover:text-ink">
           Terms of Service

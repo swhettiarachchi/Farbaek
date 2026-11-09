@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site/site-header";
 import { Container } from "@/components/ui/container";
+import { PUBLIC_TITLE } from "@/components/ui/titles";
 
 export const metadata: Metadata = { title: "Page not found" };
 
@@ -23,7 +24,7 @@ export default function NotFound() {
       <main id="main" className="overflow-x-clip">
         <Container className="grid min-h-[calc(100dvh-4rem)] items-center gap-12 py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
           <div>
-            <h1 className="max-w-[14ch] text-[2.6rem] font-medium leading-[1.02] tracking-[-0.04em] sm:text-[3.6rem]">We can&apos;t find that page.</h1>
+            <h1 className={`max-w-[14ch] ${PUBLIC_TITLE}`}>We can&apos;t find that page.</h1>
             <p className="mt-4 max-w-[46ch] text-lg leading-relaxed text-ink-2">The link may be old, or the page may not exist yet. Here are three ways back in.</p>
             <ul className="mt-8 grid max-w-[30rem] gap-2">
               {WAYS_IN.map((w) => (

@@ -3,6 +3,7 @@
 import { EyesIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useState, useTransition } from "react";
 import { secondCheckAction } from "@/app/app/actions";
+import { Notice } from "@/components/app/primitives";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
 import { STATUS_KINDS, StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-badge";
@@ -78,10 +79,7 @@ export function SecondCheckCard({
       </p>
 
       {!check && recommended ? (
-        <p className="flex items-start gap-2 rounded-sm border border-caution/35 bg-caution/[0.05] px-3 py-2 text-sm">
-          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
-          Recommended for this change: a rule sent it to an owner or admin.
-        </p>
+        <Notice tone="warning">Recommended for this change: a rule sent it to an owner or admin.</Notice>
       ) : null}
 
       {check ? (

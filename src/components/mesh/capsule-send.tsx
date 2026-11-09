@@ -4,6 +4,7 @@ import { CheckCircleIcon, DownloadSimpleIcon, WarningCircleIcon } from "@phospho
 import { useId, useRef, useState, useTransition } from "react";
 import { previewCapsuleAction, type CapsulePreview } from "@/app/app/mesh/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { SKIP_LABELS, formatBytes, type SkipReason } from "@/core/workspace/files";
 
 export interface SendableProject {
@@ -47,12 +48,12 @@ export function CapsuleSend({ projects }: { projects: SendableProject[] }) {
   return (
     <div className="grid gap-4">
       <label className="grid gap-1.5" htmlFor={`${id}-project`}>
-        <span className="text-sm font-medium">Project</span>
+        <span className={LABEL_CLASSES}>Project</span>
         <select
           id={`${id}-project`}
           value={projectId}
           onChange={(e) => choose(e.target.value)}
-          className="h-11 w-full min-w-0 rounded-sm border border-line bg-surface px-3 text-base text-ink outline-none focus:border-accent/60"
+          className={inputClasses("min-w-0")}
         >
           <option value="">Choose a project</option>
           {projects.map((p) => (
@@ -80,7 +81,7 @@ export function CapsuleSend({ projects }: { projects: SendableProject[] }) {
 
         {preview?.status === "ok" ? (
           <div className="grid gap-4 motion-safe:animate-[usage-in_220ms_cubic-bezier(0.16,1,0.3,1)_both]">
-            <p className="flex items-start gap-2 text-[0.9375rem]">
+            <p className="flex items-start gap-2 text-body">
               <CheckCircleIcon size={16} weight="fill" className="mt-1 shrink-0 text-verified" aria-hidden />
               <span>
                 <span className="font-medium">

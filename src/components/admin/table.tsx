@@ -26,7 +26,7 @@ export function AdminTable({ caption, columns, children }: { caption: string; co
 }
 
 export function Cell({ children, mono = false, muted = false }: { children: ReactNode; mono?: boolean; muted?: boolean }) {
-  return <td className={`px-4 py-3 align-top ${mono ? "font-mono text-[0.8125rem] tabular" : ""} ${muted ? "text-ink-3" : "text-ink"}`}>{children}</td>;
+  return <td className={`px-4 py-3 align-top ${mono ? "font-mono text-label tabular" : ""} ${muted ? "text-ink-3" : "text-ink"}`}>{children}</td>;
 }
 
 /**

@@ -42,7 +42,7 @@ export default async function TemplatePage({ params }: Params) {
       <p className="flex items-start gap-2 text-sm text-ink-2">
         <FilesIcon size={16} weight="bold" className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
         <span>
-          Files: <span className="font-mono text-[0.8125rem]">{t.files.map((f) => f.path).join(", ")}</span>
+          Files: <span className="font-mono text-label">{t.files.map((f) => f.path).join(", ")}</span>
         </span>
       </p>
     </div>

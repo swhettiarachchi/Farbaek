@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import { CardTitle, Notice, PageHeader } from "@/components/app/primitives";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { OfficeActionForm } from "@/components/office/action-form";
-import { officeInputClass, ReasonField, StepUpField } from "@/components/office/fields";
+import { ReasonField, StepUpField } from "@/components/office/fields";
+import { LABEL_CLASSES, textareaClasses } from "@/components/ui/field";
 import { RelativeTime } from "@/components/ui/local-time";
 import { FLAG_DETAILS } from "@/core/office/flags";
 import { requireStaff } from "@/server/office/access";
@@ -60,8 +61,8 @@ export default async function OfficeControls() {
                       <input type="hidden" name="paused" value={f.paused ? "false" : "true"} />
                       {!f.paused ? (
                         <label htmlFor={`message-${f.key}`} className="grid gap-1.5">
-                          <span className="font-medium text-ink">Message customers will see</span>
-                          <textarea id={`message-${f.key}`} name="message" required minLength={10} maxLength={280} rows={2} defaultValue={d.fallback} className={`${officeInputClass} h-auto min-h-20 py-3`} />
+                          <span className={LABEL_CLASSES}>Message customers will see</span>
+                          <textarea id={`message-${f.key}`} name="message" required minLength={10} maxLength={280} rows={2} defaultValue={d.fallback} className={textareaClasses()} />
                         </label>
                       ) : null}
                       <ReasonField id={`reason-${f.key}`} />

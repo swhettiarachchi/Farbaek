@@ -32,7 +32,7 @@ export function SupportConversation({ messages }: { messages: readonly SupportMe
               <span aria-hidden>·</span>
               <LocalTime iso={m.createdAt} />
             </p>
-            <div className="whitespace-pre-wrap break-words rounded-md rounded-tl-sm border border-line bg-surface px-4 py-3 text-[0.9375rem] leading-relaxed text-ink shadow-e1">{m.body}</div>
+            <div className="whitespace-pre-wrap break-words rounded-md rounded-tl-sm border border-line bg-surface px-4 py-3 text-body leading-relaxed text-ink shadow-e1">{m.body}</div>
           </li>
         ) : (
           <li key={m.id} className="grid max-w-[min(100%,620px)] gap-2 justify-self-end">
@@ -41,7 +41,7 @@ export function SupportConversation({ messages }: { messages: readonly SupportMe
               <span aria-hidden>·</span>
               <LocalTime iso={m.createdAt} />
             </p>
-            <div className="whitespace-pre-wrap break-words rounded-md rounded-tr-sm border border-accent/15 bg-accent/[0.05] px-4 py-3 text-[0.9375rem] leading-relaxed text-ink">{m.body}</div>
+            <div className="whitespace-pre-wrap break-words rounded-md rounded-tr-sm border border-accent/15 bg-accent/[0.05] px-4 py-3 text-body leading-relaxed text-ink">{m.body}</div>
           </li>
         ),
       )}

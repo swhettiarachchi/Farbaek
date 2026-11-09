@@ -263,16 +263,16 @@ const SECTIONS: LegalSection[] = [
         <Bullets
           items={[
             <>
-              <code className="font-mono text-[0.8125rem]">sb-…-auth-token</code>: keeps you signed in, until you sign out or the session ends.
+              <code className="font-mono text-label">sb-…-auth-token</code>: keeps you signed in, until you sign out or the session ends.
             </>,
             <>
-              <code className="font-mono text-[0.8125rem]">fb_ws</code>: remembers which workspace you had open.
+              <code className="font-mono text-label">fb_ws</code>: remembers which workspace you had open.
             </>,
             <>
-              <code className="font-mono text-[0.8125rem]">fb_steps</code>: remembers the workspaces where you hid the first steps.
+              <code className="font-mono text-label">fb_steps</code>: remembers the workspaces where you hid the first steps.
             </>,
             <>
-              <code className="font-mono text-[0.8125rem]">_ga</code> and <code className="font-mono text-[0.8125rem]">_ga_…</code>: only if you allowed analytics, Google Analytics&apos; random
+              <code className="font-mono text-label">_ga</code> and <code className="font-mono text-label">_ga_…</code>: only if you allowed analytics, Google Analytics&apos; random
               ID for your browser, for up to 2 years. Choosing Decline deletes them.
             </>,
             <>

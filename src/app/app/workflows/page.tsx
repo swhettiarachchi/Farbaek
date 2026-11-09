@@ -59,7 +59,7 @@ export default async function WorkflowsPage() {
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[1.0625rem] font-medium tracking-[-0.01em]">{w.title}</p>
+                      <p className="text-title-4 font-medium tracking-[-0.01em]">{w.title}</p>
                       <p className="mt-1 text-xs text-ink-3">
                         {names.get(w.projectId) ?? "A project"}. {verified} of {w.steps.length} steps verified. Created <RelativeTime iso={w.createdAt} />.
                       </p>

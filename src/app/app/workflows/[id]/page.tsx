@@ -86,7 +86,7 @@ export default async function WorkflowPage({ params }: { params: Promise<{ id: s
               <li key={s.position} value={s.position} className="py-4 last:pb-0">
                 <div className="grid min-w-0 gap-1.5">
                   <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-                    <Link href={`/app/tasks/${s.taskId}`} className="-my-3 inline-block py-3 text-[0.9375rem] font-medium hover:text-accent hover:underline">
+                    <Link href={`/app/tasks/${s.taskId}`} className="-my-3 inline-block py-3 text-body font-medium hover:text-accent hover:underline">
                       {s.title}
                     </Link>
                     <StepStatusBadge status={s.status} />

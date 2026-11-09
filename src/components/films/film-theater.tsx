@@ -331,7 +331,7 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
                       className="group absolute inset-0 flex items-center justify-center"
                       aria-label={`Play the film, ${clock(duration)}`}
                     >
-                      <span className="inline-flex min-h-14 items-center gap-3 rounded-full bg-surface py-2 pl-2 pr-5 text-[0.9375rem] font-medium text-ink shadow-e3 ring-1 ring-line transition-transform duration-200 group-hover:scale-[1.03] group-active:scale-[0.98]">
+                      <span className="inline-flex min-h-14 items-center gap-3 rounded-full bg-surface py-2 pl-2 pr-5 text-body font-medium text-ink shadow-e3 ring-1 ring-line transition-transform duration-200 group-hover:scale-[1.03] group-active:scale-[0.98]">
                         <span className="inline-flex size-10 items-center justify-center rounded-full bg-primary text-on-primary">
                           <PlayIcon size={16} weight="fill" aria-hidden />
                         </span>
@@ -386,15 +386,15 @@ export function FilmTheater({ id, poster, rail = "right" }: { id: FilmId; poster
                 {/* Captions and controls. The films are silent, so the captions say what happens. */}
                 <div className="border-t border-line px-3 pb-2 pt-3 sm:px-4">
                   {looping ? (
-                    <p id={captionId} className="flex min-h-[2.75rem] flex-wrap items-center gap-x-3 text-[0.9375rem] leading-snug text-ink-2">
+                    <p id={captionId} className="flex min-h-[2.75rem] flex-wrap items-center gap-x-3 text-body leading-snug text-ink-2">
                       Playing as a silent loop.
                       <button type="button" onClick={play} className="inline-flex min-h-11 items-center gap-1.5 rounded-full font-medium text-accent">
                         <ClosedCaptioningIcon size={16} weight="bold" aria-hidden /> Play with captions
                       </button>
                     </p>
                   ) : captions ? (
-                    <p id={captionId} className="min-h-[2.75rem] text-[0.9375rem] leading-snug text-ink" aria-hidden>
-                      <span className="mr-2 text-[0.8125rem] font-medium text-accent">{caption.label}</span>
+                    <p id={captionId} className="min-h-[2.75rem] text-body leading-snug text-ink" aria-hidden>
+                      <span className="mr-2 text-label font-medium text-accent">{caption.label}</span>
                       {caption.caption}
                     </p>
                   ) : (

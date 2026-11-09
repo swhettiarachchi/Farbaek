@@ -41,12 +41,12 @@ function MutantLine({ m }: { m: Mutant }) {
   return (
     <div className="grid min-w-0 gap-1">
       <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
-        <span className="font-mono text-[0.78125rem] text-ink-2">
+        <span className="font-mono text-xs text-ink-2">
           {m.path}:{m.line}
         </span>
         <span className="text-ink-3">{MUTATION_OPERATOR_WORDS[m.operator]}</span>
       </p>
-      <div className="grid min-w-0 gap-0.5 rounded-sm border border-line bg-canvas-2 px-2.5 py-1.5 font-mono text-[0.78125rem] leading-relaxed">
+      <div className="grid min-w-0 gap-0.5 rounded-sm border border-line bg-canvas-2 px-2.5 py-1.5 font-mono text-xs leading-relaxed">
         {row("Before", "−", e.before, m.before, "text-ink-3")}
         {row("With the mistake", "+", e.after, m.after, "text-ink")}
       </div>
@@ -95,7 +95,7 @@ export function MutationCard({ proposalId, taskId, planned, run, disabledReason 
 
       {done && summary ? (
         <div className="grid gap-3">
-          <p className="text-[0.9375rem] font-medium">
+          <p className="text-body font-medium">
             {summary.judged > 0 ? `The tests caught ${summary.caught} of ${summary.judged} mistakes.` : "No mistake could be judged."}
             {summary.survived > 0 ? ` ${summary.survived} survived: no test noticed ${summary.survived === 1 ? "it" : "them"}.` : ""}
           </p>
@@ -109,7 +109,7 @@ export function MutationCard({ proposalId, taskId, planned, run, disabledReason 
                   {r.note ? <p className="text-xs text-ink-3">{r.note}</p> : null}
                   {m.failingTest ? (
                     <p className="text-xs text-ink-3">
-                      Caught by <span className="font-mono text-[0.78125rem] text-ink-2">{m.failingTest}</span>
+                      Caught by <span className="font-mono text-xs text-ink-2">{m.failingTest}</span>
                     </p>
                   ) : null}
                 </li>
@@ -120,7 +120,7 @@ export function MutationCard({ proposalId, taskId, planned, run, disabledReason 
             Measured in the test space: the tests ran for {duration(done.computeMs) ?? "an unknown time"} in all, and {duration(done.baselineMs) ?? "an unknown time"} without mistakes. This covers these
             mistakes only, and it isn&apos;t a measure of overall test quality.
           </p>
-          {done.command ? <p className="break-all font-mono text-[0.78125rem] text-ink-3">{done.command}</p> : null}
+          {done.command ? <p className="break-all font-mono text-xs text-ink-3">{done.command}</p> : null}
         </div>
       ) : !running ? (
         planned.length > 0 ? (

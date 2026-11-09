@@ -4,6 +4,7 @@ import { CheckCircleIcon, HandPalmIcon, PauseCircleIcon, PlayIcon, WarningCircle
 import { useId, useState, useTransition } from "react";
 import { pauseAgentsAction, resumeAgentsAction, type IncidentActionState } from "@/app/app/incidents/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { RelativeTime } from "@/components/ui/local-time";
 
 /**
@@ -32,7 +33,7 @@ export function PauseControl({
     <div className="grid gap-4">
       {paused ? (
         <>
-          <p className="flex items-start gap-2.5 text-[0.9375rem]">
+          <p className="flex items-start gap-2.5 text-body">
             <PauseCircleIcon size={20} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
             <span>
               <span className="font-medium">Agents are paused</span> since <RelativeTime iso={paused.at} />
@@ -49,7 +50,7 @@ export function PauseControl({
         </>
       ) : (
         <>
-          <p className="flex items-start gap-2.5 text-[0.9375rem]">
+          <p className="flex items-start gap-2.5 text-body">
             <CheckCircleIcon size={20} weight="fill" className="mt-0.5 shrink-0 text-verified" aria-hidden />
             <span>
               <span className="font-medium">Agents are running.</span> Pausing stops live cloud runs at once, and refuses desktop agents&apos; changes and anything that would
@@ -57,7 +58,7 @@ export function PauseControl({
             </span>
           </p>
           <div className="grid gap-1.5">
-            <label htmlFor={id} className="text-sm font-medium">
+            <label htmlFor={id} className={LABEL_CLASSES}>
               Why, if you know <span className="font-normal text-ink-3">(optional)</span>
             </label>
             <input
@@ -67,7 +68,7 @@ export function PauseControl({
               onChange={(e) => setReason(e.target.value)}
               disabled={Boolean(pauseReason)}
               placeholder="For example: the agent is changing files it shouldn't."
-              className="min-h-11 rounded-sm border border-line bg-surface px-3 text-base sm:text-sm"
+              className={inputClasses()}
             />
           </div>
           <div className="flex flex-wrap items-center gap-3">

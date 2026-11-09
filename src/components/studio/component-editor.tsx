@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useId, useMemo, useState, useTransition } from "react";
 import { saveFileAction } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { CLASS_GROUPS, classGroup, parseClasses, scanJsx, setJsxClasses, setJsxText, withClassGroup, type ClassGroup, type JsxElement } from "@/core/studio/jsx-edit";
 import { matchPicked, type PickCandidate, type Picked } from "@/core/studio/pick-match";
 import { RunningAppPicker } from "./running-app-picker";
@@ -20,7 +21,6 @@ const Surface = dynamic(() => import("@/components/files/codemirror"), {
   ),
 });
 
-const field = "min-h-11 w-full rounded-sm border border-line bg-surface px-3 text-base focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 type Message = { tone: "ok" | "error"; text: string };
 
 /**
@@ -126,7 +126,7 @@ export function ComponentEditor({
     return (
       <div className="grid gap-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="flex items-center gap-2 text-[0.9375rem] font-medium">
+          <p className="flex items-center gap-2 text-body font-medium">
             <GitDiffIcon size={20} className="shrink-0 text-ink-3" aria-hidden /> Review the change to {changedPaths.length === 1 ? "1 file" : `${changedPaths.length} files`}
           </p>
           <button type="button" onClick={() => setMode("edit")} className={buttonClasses("ghost", "sm")}>
@@ -155,7 +155,7 @@ export function ComponentEditor({
     <div className="grid gap-5">
       {pick ? (
         <details className="group rounded-md border border-line bg-surface p-4" open={pick.sessions.length > 0}>
-          <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-[0.9375rem] font-medium">
+          <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-body font-medium">
             <CursorClickIcon size={20} className="shrink-0 text-ink-3" aria-hidden /> Pick in the running app
           </summary>
           <div className="mt-3 grid gap-3">
@@ -190,7 +190,7 @@ export function ComponentEditor({
       ) : null}
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)] lg:items-start">
         <div className="grid min-w-0 gap-3">
-          <label className="grid gap-1.5 text-sm font-medium">
+          <label className={`grid gap-1.5 ${LABEL_CLASSES}`}>
             Component
             <select
               value={path}
@@ -199,7 +199,7 @@ export function ComponentEditor({
                 setSelected(null);
                 setMessage(null);
               }}
-              className={`${field} font-mono sm:text-sm`}
+              className={inputClasses("font-mono")}
             >
               {paths.map((p) => (
                 <option key={p} value={p}>
@@ -317,13 +317,13 @@ function Inspector({ el, source, tailwind, onApply, onError }: { el: JsxElement;
   return (
     <div className="grid gap-4 rounded-md border border-line bg-surface p-4 shadow-e1">
       <p className="flex items-baseline justify-between gap-3 text-sm">
-        <span className="font-mono text-[0.8125rem] text-ink">&lt;{el.tag}&gt;</span>
+        <span className="font-mono text-label text-ink">&lt;{el.tag}&gt;</span>
         <span className="text-xs text-ink-3">line {el.line}</span>
       </p>
       {el.text ? (
-        <label className="grid gap-1.5 text-sm font-medium" htmlFor={`${id}-text`}>
+        <label className={`grid gap-1.5 ${LABEL_CLASSES}`} htmlFor={`${id}-text`}>
           Words
-          <input id={`${id}-text`} value={text} onChange={(e) => setText(e.target.value)} maxLength={500} className={field} />
+          <input id={`${id}-text`} value={text} onChange={(e) => setText(e.target.value)} maxLength={500} className={inputClasses()} />
         </label>
       ) : (
         <p className="text-sm text-ink-3">{el.builtin ? "This element's words are mixed with code or other elements; change them in the code editor." : "A component: its words come from inside it, or from the code here."}</p>
@@ -333,9 +333,9 @@ function Inspector({ el, source, tailwind, onApply, onError }: { el: JsxElement;
           {tailwind && list.ok ? (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-2">
               {(Object.keys(CLASS_GROUPS) as ClassGroup[]).map((g) => (
-                <label key={g} className="grid gap-1.5 text-sm font-medium">
+                <label key={g} className={`grid gap-1.5 ${LABEL_CLASSES}`}>
                   {CLASS_GROUPS[g].label}
-                  <select value={classGroup(list.classes, g) ?? ""} onChange={(e) => setGroup(g, e.target.value)} className={`${field} sm:text-sm`}>
+                  <select value={classGroup(list.classes, g) ?? ""} onChange={(e) => setGroup(g, e.target.value)} className={inputClasses("sm:text-sm")}>
                     <option value="">Not set</option>
                     {CLASS_GROUPS[g].values.map((v) => (
                       <option key={v} value={v}>
@@ -347,9 +347,9 @@ function Inspector({ el, source, tailwind, onApply, onError }: { el: JsxElement;
               ))}
             </div>
           ) : null}
-          <label className="grid gap-1.5 text-sm font-medium" htmlFor={`${id}-classes`}>
+          <label className={`grid gap-1.5 ${LABEL_CLASSES}`} htmlFor={`${id}-classes`}>
             Classes
-            <input id={`${id}-classes`} value={classes} onChange={(e) => setClasses(e.target.value)} spellCheck={false} autoCapitalize="none" className={`${field} font-mono`} />
+            <input id={`${id}-classes`} value={classes} onChange={(e) => setClasses(e.target.value)} spellCheck={false} autoCapitalize="none" className={inputClasses("font-mono")} />
             <span className="text-xs font-normal text-ink-3">{tailwind ? "Tailwind classes. Colours and anything else go here." : "The element's class names."}</span>
           </label>
         </>

@@ -2,7 +2,8 @@ import { InfoIcon, MegaphoneIcon, PencilSimpleLineIcon, WarningCircleIcon } from
 import type { Metadata } from "next";
 import { CardTitle, EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { OfficeActionForm } from "@/components/office/action-form";
-import { officeInputClass, ReasonField } from "@/components/office/fields";
+import { ReasonField } from "@/components/office/fields";
+import { inputClasses, LABEL_CLASSES, textareaClasses } from "@/components/ui/field";
 import { RelativeTime } from "@/components/ui/local-time";
 import { requireStaff } from "@/server/office/access";
 import { isLiveAnnouncement, listAnnouncements } from "@/server/office/controls-data";
@@ -30,11 +31,11 @@ export default async function OfficeAnnouncements() {
             </CardTitle>
             <OfficeActionForm action={publishAnnouncementAction} submit="Post it" className="grid gap-4">
               <label htmlFor="announce-message" className="grid gap-1.5 text-sm">
-                <span className="font-medium text-ink">Message</span>
-                <textarea id="announce-message" name="message" required minLength={10} maxLength={280} rows={2} className={`${officeInputClass} h-auto min-h-20 py-3`} placeholder="Plain words: what's happening and what people should do" />
+                <span className={LABEL_CLASSES}>Message</span>
+                <textarea id="announce-message" name="message" required minLength={10} maxLength={280} rows={2} className={textareaClasses()} placeholder="Plain words: what's happening and what people should do" />
               </label>
               <fieldset className="grid gap-2 text-sm">
-                <legend className="mb-1 font-medium text-ink">Kind</legend>
+                <legend className={`mb-1 ${LABEL_CLASSES}`}>Kind</legend>
                 <label className="flex min-h-11 items-center gap-2">
                   <input type="radio" name="tone" value="info" defaultChecked className="size-4 accent-[var(--color-accent)]" /> Notice, can be closed
                 </label>
@@ -43,8 +44,8 @@ export default async function OfficeAnnouncements() {
                 </label>
               </fieldset>
               <label htmlFor="announce-hours" className="grid gap-1.5 text-sm sm:max-w-xs">
-                <span className="font-medium text-ink">Ends by itself after</span>
-                <select id="announce-hours" name="hours" defaultValue="0" className={officeInputClass}>
+                <span className={LABEL_CLASSES}>Ends by itself after</span>
+                <select id="announce-hours" name="hours" defaultValue="0" className={inputClasses()}>
                   <option value="0">Only when ended here</option>
                   <option value="2">2 hours</option>
                   <option value="24">1 day</option>

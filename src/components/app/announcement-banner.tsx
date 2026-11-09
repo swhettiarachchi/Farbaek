@@ -41,7 +41,7 @@ export function AnnouncementBanner({ items }: { items: Announcement[] }) {
         const Icon = incident ? WarningCircleIcon : InfoIcon;
         // One neutral band; the icon's colour says which kind (ADR 0183): burnt orange for an incident, steel for a notice.
         return (
-          <div key={a.id} className="flex items-start gap-3 border-b border-line bg-surface-raised px-4 py-2.5 text-[0.8125rem]">
+          <div key={a.id} className="flex items-start gap-3 border-b border-line bg-surface-raised px-4 py-2.5 text-label">
             <Icon size={16} weight="fill" className={`mt-0.5 shrink-0 ${incident ? "text-caution" : "text-info"}`} aria-hidden />
             <p className="min-w-0 flex-1 text-ink">
               <span className="font-medium">{incident ? "Incident: " : "From Farbaek: "}</span>

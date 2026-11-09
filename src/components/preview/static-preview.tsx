@@ -3,6 +3,7 @@
 import { DesktopIcon, DeviceMobileIcon, DeviceTabletIcon } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { inputClasses } from "@/components/ui/field";
 import { PREVIEW_NAV_MESSAGE, buildStaticSrcdoc, resolveSitePath, sitePages } from "@/core/workspace/static-preview";
 import { PreviewFrame } from "./preview-frame";
 
@@ -95,13 +96,13 @@ export function StaticPreview({
             ))}
           </div>
         ) : (
-          <span className="text-[0.8125rem] font-medium text-ink-3">{version.label}</span>
+          <span className="text-label font-medium text-ink-3">{version.label}</span>
         )}
         <div className="flex items-center gap-2">
           {pages.length > 1 ? (
             <label className="flex items-center gap-2 text-sm text-ink-2">
               <span className="sr-only">Page</span>
-              <select value={page} onChange={(e) => setPage(e.target.value)} className="h-11 rounded-full border border-line bg-surface px-3 text-base text-ink sm:text-sm">
+              <select value={page} onChange={(e) => setPage(e.target.value)} className={inputClasses("min-w-0")}>
                 {pages.map((p) => (
                   <option key={p} value={p}>
                     {p}

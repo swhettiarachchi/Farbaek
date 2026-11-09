@@ -4,6 +4,7 @@ import { CheckCircleIcon, CheckIcon, CopyIcon, LinkSimpleIcon, WarningCircleIcon
 import { useActionState, useId, useState } from "react";
 import { inviteMemberAction, type InviteState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { LocalTime } from "@/components/ui/local-time";
 import { INVITE_ROLE_LABELS, type InviteRole } from "@/core/workspace/invitations";
 
@@ -36,7 +37,7 @@ export function InvitePeople({ roles, seats, disabledReason }: { roles: InviteRo
       <form action={action} className="grid gap-4" onSubmit={() => setCopied(false)}>
         <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
           <div className="grid gap-2">
-            <label htmlFor={emailId} className="text-sm font-medium">
+            <label htmlFor={emailId} className={LABEL_CLASSES}>
               Email address
             </label>
             <input
@@ -49,14 +50,14 @@ export function InvitePeople({ roles, seats, disabledReason }: { roles: InviteRo
               disabled={disabled}
               aria-invalid={state.status === "error" ? true : undefined}
               aria-describedby={state.status === "error" ? errorId : undefined}
-              className="h-11 rounded-sm border border-line-strong bg-canvas px-3 text-base disabled:opacity-60"
+              className={inputClasses()}
             />
           </div>
           <div className="grid gap-2">
-            <label htmlFor={roleId} className="text-sm font-medium">
+            <label htmlFor={roleId} className={LABEL_CLASSES}>
               Role
             </label>
-            <select id={roleId} name="role" defaultValue={roles.includes("member") ? "member" : roles[0]} disabled={disabled} className="h-11 rounded-sm border border-line-strong bg-canvas px-3 text-base disabled:opacity-60">
+            <select id={roleId} name="role" defaultValue={roles.includes("member") ? "member" : roles[0]} disabled={disabled} className={inputClasses()}>
               {roles.map((r) => (
                 <option key={r} value={r}>
                   {INVITE_ROLE_LABELS[r].title}
@@ -91,7 +92,7 @@ export function InvitePeople({ roles, seats, disabledReason }: { roles: InviteRo
             <LocalTime iso={state.expiresAt} />. It isn&apos;t shown again.
             </span>
           </p>
-          <code className="block rounded-sm border border-line bg-surface px-3 py-2 font-mono text-[0.8125rem] break-all">{state.link}</code>
+          <code className="block rounded-sm border border-line bg-surface px-3 py-2 font-mono text-label break-all">{state.link}</code>
           <div>
             <button type="button" onClick={() => void copy(state.link)} className={buttonClasses("secondary", "sm")}>
               {copied ? <CheckIcon size={16} weight="bold" aria-hidden /> : <CopyIcon size={16} weight="bold" aria-hidden />} {copied ? "Copied" : "Copy link"}

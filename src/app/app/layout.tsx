@@ -33,10 +33,11 @@ import { googlePlayReady } from "@/server/billing/google/wiring";
 import { checkoutOpenFor, readBillingConfig } from "@/server/billing/config";
 import { buttonClasses } from "@/components/ui/button";
 import { signOut } from "./actions";
+import { DISPLAY_TITLE, FOCUSED_TITLE } from "@/components/ui/titles";
 
 /** The page-wide bands (demo, saving off, agents paused): one neutral style, the icon's colour says which kind (ADR 0183). */
 // The icon sits beside the first line, and the words wrap beside it, never under it.
-const BAND = "flex items-start justify-center gap-2 border-b border-line bg-surface-raised px-4 py-2.5 text-[0.8125rem] text-ink [&>svg]:mt-0.5";
+const BAND = "flex items-start justify-center gap-2 border-b border-line bg-surface-raised px-4 py-2.5 text-label text-ink [&>svg]:mt-0.5";
 
 export const metadata: Metadata = {
   title: { default: "Workspace", template: "%s | Farbaek" },
@@ -50,7 +51,7 @@ function Brand() {
   return (
     <Link href="/app" className="flex min-h-11 min-w-[44px] items-center gap-2 rounded-full" aria-label="Farbaek, Home">
       <BrandLogo height={32} />
-      <span className="text-[1rem] font-medium tracking-[-0.02em] max-[18em]:sr-only">Farbaek</span>
+      <span className="text-base font-medium tracking-[-0.02em] max-[18em]:sr-only">Farbaek</span>
     </Link>
   );
 }
@@ -59,9 +60,9 @@ function NotConfigured() {
   return (
     <main id="main" className="mx-auto flex min-h-[100dvh] max-w-xl flex-col justify-center px-6 py-16">
       <Brand />
-      <h1 className="mt-10 text-3xl font-medium tracking-[-0.03em]">The app isn&apos;t available here</h1>
+      <h1 className={`mt-10 ${FOCUSED_TITLE}`}>The app isn&apos;t available here</h1>
       {/* How to connect it is in the setup guide (docs/deploy), never on a page anyone can open (stage 171). */}
-      <p className="mt-3 text-[0.9375rem] leading-relaxed text-ink-2">This server isn&apos;t set up to run the app yet. Try www.farbaek.com, or write to support@farbaek.com.</p>
+      <p className="mt-3 text-body leading-relaxed text-ink-2">This server isn&apos;t set up to run the app yet. Try www.farbaek.com, or write to support@farbaek.com.</p>
     </main>
   );
 }
@@ -75,8 +76,8 @@ export default async function AppLayout({ children }: Readonly<{ children: React
       // Below desktop widths the build box's glow would reach past the screen's edge: clipped, as on the app's other pages.
       <main id="main" data-signed-in className="mx-auto w-full max-w-3xl px-4 pb-16 pt-10 max-lg:overflow-x-clip sm:px-6 sm:pt-16">
         <Brand />
-        <h1 className="mt-10 text-balance text-[2.1rem] font-medium leading-[1.05] tracking-[-0.035em] sm:text-5xl">What do you want to build?</h1>
-        <p className="mt-3 max-w-[56ch] text-[0.9375rem] leading-relaxed text-ink-2">Describe it, and Farbaek drafts a plan for you to approve, then builds it.</p>
+        <h1 className={`mt-10 ${DISPLAY_TITLE}`}>What do you want to build?</h1>
+        <p className="mt-3 max-w-[56ch] text-body leading-relaxed text-ink-2">Describe it, and Farbaek drafts a plan for you to approve, then builds it.</p>
         <p className="mt-2 max-w-[60ch] text-sm leading-relaxed text-ink-3">
           A new workspace gets the {TRIAL.lengthDays}-day {getPlan(TRIAL.basePlan).name} trial, once per email address. No card is needed, and it moves to Free when the
           trial ends.
@@ -137,7 +138,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
         <div className="mt-auto grid gap-3 border-t border-line pt-4">
           {/* A shortcut only: /admin checks the person again on the server (ADR 0026). */}
           {admin ? (
-            <Link href="/admin" className="flex h-10 items-center gap-3 rounded-full px-3.5 text-[0.90625rem] text-ink-2 hover:bg-surface/70 hover:text-ink">
+            <Link href="/admin" className="flex h-10 items-center gap-3 rounded-full px-3.5 text-sm text-ink-2 hover:bg-surface/70 hover:text-ink">
               <ShieldStarIcon size={20} aria-hidden /> Admin console
             </Link>
           ) : null}

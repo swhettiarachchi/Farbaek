@@ -4,15 +4,26 @@ import {
   ArrowUpRightIcon,
   BroadcastIcon,
   ClockCounterClockwiseIcon,
+  DeviceMobileIcon,
   EyeIcon,
+  FileMinusIcon,
+  FlagCheckeredIcon,
+  FolderOpenIcon,
   GearSixIcon,
+  HammerIcon,
+  KeyIcon,
+  LinkBreakIcon,
+  ListBulletsIcon,
   ListChecksIcon,
+  ListNumbersIcon,
   LockSimpleIcon,
   PencilSimpleLineIcon,
+  PlugsConnectedIcon,
   ProhibitIcon,
   ShieldCheckIcon,
   TerminalWindowIcon,
   TrashIcon,
+  WarningIcon,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
@@ -27,7 +38,7 @@ import { shortHash } from "@/core/trust/canonical-json";
 import { relativeLabel, useNow } from "@/components/ui/use-now";
 import type { AgentHandoff, AppState, HandoffRun, McpCheck, McpServerSetting, Profile, ProposalReview, RunDetail, RunSummary, TaskSummary, TaskView } from "../shared/api";
 import { NearbyView } from "./nearby";
-import { Alert, Notice, StatusBadge, StatusGlyph, type Status } from "./status";
+import { Alert, Notice, SectionTitle, StatusBadge, StatusGlyph, type Status } from "./status";
 
 const api = window.farbaek;
 type View = "tasks" | "runs" | "nearby" | "settings";
@@ -206,7 +217,7 @@ function HandoffsPanel() {
 
   return (
     <div className="card stack-sm">
-      <h2>From your phone or browser</h2>
+      <SectionTitle icon={DeviceMobileIcon}>From your phone or browser</SectionTitle>
       <p className="muted small">
         Tasks you sent to this computer. Each runs the listed checks on a copy of the project with the change waiting for review written in, on this computer and not
         isolated, only when you start it here. The results go back to Farbaek, labelled as reported by this computer.
@@ -322,7 +333,7 @@ function TasksView({ state, onRunStarted }: { state: AppState; onRunStarted: (ru
       {tasks?.length === 0 ? (
         <div className="empty">
           <span className="empty-icon">
-            <ListChecksIcon size={24} aria-hidden />
+            <ListBulletsIcon size={24} aria-hidden />
           </span>
           <h2>No tasks are waiting for a change</h2>
           <p className="muted">In Farbaek, approve a task&apos;s plan. It then shows here for the agent to work on.</p>
@@ -392,7 +403,7 @@ function TaskPanel({ taskId, profile, localModel, onRunStarted }: { taskId: stri
         <>
           <div>
             <p className="muted small">{task.projectName}</p>
-            <h2>{task.title}</h2>
+            <SectionTitle icon={ListBulletsIcon}>{task.title}</SectionTitle>
           </div>
           {task.contract ? (
             <dl className="contract">
@@ -661,7 +672,7 @@ function RunPanel({ runId }: { runId: string }) {
       <div className="row">
         <div>
           <p className="muted small">{run.projectName}</p>
-          <h2>{run.taskTitle}</h2>
+          <SectionTitle icon={HammerIcon}>{run.taskTitle}</SectionTitle>
         </div>
         <StateBadge run={run} />
       </div>
@@ -692,11 +703,15 @@ function RunPanel({ runId }: { runId: string }) {
 
       {run.finish ? (
         <div className="stack-sm">
-          <h3>Summary</h3>
+          <SectionTitle as="h3" icon={FlagCheckeredIcon}>
+            Summary
+          </SectionTitle>
           <p>{run.finish.summary}</p>
           {run.finish.risks.length ? (
             <>
-              <h3>Risks the agent flagged</h3>
+              <SectionTitle as="h3" icon={WarningIcon}>
+                Risks the agent flagged
+              </SectionTitle>
               <ul className="bullets">
                 {run.finish.risks.map((r) => (
                   <li key={r}>{r}</li>
@@ -706,7 +721,9 @@ function RunPanel({ runId }: { runId: string }) {
           ) : null}
           {run.finish.checks.length ? (
             <>
-              <h3>Checks to run</h3>
+              <SectionTitle as="h3" icon={ListChecksIcon}>
+                Checks to run
+              </SectionTitle>
               <ul className="bullets mono small">
                 {run.finish.checks.map((c) => (
                   <li key={c}>{c}</li>
@@ -719,7 +736,9 @@ function RunPanel({ runId }: { runId: string }) {
 
       {run.changes.length ? (
         <div className="stack-sm">
-          <h3>Files changed</h3>
+          <SectionTitle as="h3" icon={FolderOpenIcon}>
+            Files changed
+          </SectionTitle>
           <ul className="files">
             {run.changes.map((c) => (
               <li key={c.path}>
@@ -734,7 +753,9 @@ function RunPanel({ runId }: { runId: string }) {
       ) : null}
       {run.notProposed.length ? (
         <div className="stack-sm">
-          <h3>Left out</h3>
+          <SectionTitle as="h3" icon={FileMinusIcon}>
+            Left out
+          </SectionTitle>
           <ul className="files">
             {run.notProposed.map((n) => (
               <li key={n.path}>
@@ -808,7 +829,9 @@ function RunPanel({ runId }: { runId: string }) {
       ) : null}
 
       <div className="stack-sm">
-        <h3>Steps</h3>
+        <SectionTitle as="h3" icon={ListNumbersIcon}>
+          Steps
+        </SectionTitle>
         <ol className="timeline">
           {run.events.map((e, i) => (
             <li key={i} className={`event event-${e.kind}`}>
@@ -917,7 +940,7 @@ function SettingsView({ state, onState }: { state: AppState; onState: (s: AppSta
       <LocalModelCard state={state} onState={onState} />
       <McpServersCard state={state} onState={onState} />
       <div className="card stack-sm">
-        <h2>Unpair this computer</h2>
+        <SectionTitle icon={LinkBreakIcon}>Unpair this computer</SectionTitle>
         <p className="muted">Revokes this computer&apos;s agent token in Farbaek and forgets it here. Past runs stay on this computer until you discard them.</p>
         {error ? <Alert>{error}</Alert> : null}
         <div className="row-start">
@@ -969,7 +992,7 @@ function LocalModelCard({ state, onState }: { state: AppState; onState: (s: AppS
   }
   return (
     <div className="card stack-sm">
-      <h2>A model on this computer</h2>
+      <SectionTitle icon={KeyIcon}>A model on this computer</SectionTitle>
       <p className="muted">
         Run the agent on a model you host here, with Ollama, LM Studio or llama.cpp&apos;s server. Only an address on this computer is accepted, so your code stays here. Nothing is counted against your workspace&apos;s usage.
       </p>
@@ -1057,7 +1080,7 @@ function McpServersCard({ state, onState }: { state: AppState; onState: (s: AppS
 
   return (
     <div className="card stack-sm">
-      <h2>Tools from MCP servers</h2>
+      <SectionTitle icon={PlugsConnectedIcon}>Tools from MCP servers</SectionTitle>
       <p className="muted">
         Add an MCP server to offer its tools to the agent in Controlled Development runs. It runs on this computer, outside the project&apos;s copy and the plan&apos;s checks, so every call waits for your approval. Review Only never offers them.
       </p>
@@ -1138,7 +1161,8 @@ function McpServersCard({ state, onState }: { state: AppState; onState: (s: AppS
 /* ------------------------------------------------------------------ shell */
 
 const NAV: { id: View; label: string; icon: Icon }[] = [
-  { id: "tasks", label: "Tasks", icon: ListChecksIcon },
+  // The web's icons for the same concepts (ADR 0183): tasks are a list, as in Farbaek's own navigation.
+  { id: "tasks", label: "Tasks", icon: ListBulletsIcon },
   { id: "runs", label: "Runs", icon: ClockCounterClockwiseIcon },
   { id: "nearby", label: "Nearby", icon: BroadcastIcon },
   { id: "settings", label: "Settings", icon: GearSixIcon },

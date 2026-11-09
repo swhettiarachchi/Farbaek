@@ -4,9 +4,9 @@ import { CursorClickIcon, PlayIcon, WarningCircleIcon } from "@phosphor-icons/re
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { openPickPreviewAction } from "@/app/app/projects/preview-actions";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { readPicked, type Picked } from "@/core/studio/pick-match";
 
-const field = "min-h-11 w-full rounded-sm border border-line bg-surface px-3 text-base focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 /** How long a page has to start Farbaek's picker before the editor says it didn't. */
 const READY_MS = 15_000;
 
@@ -92,16 +92,16 @@ export function RunningAppPicker({
   if (sessions.length === 0) {
     return (
       <p className="text-sm leading-relaxed text-ink-2">
-        No test space is running this project. Start one from the Test space page with the project&apos;s files, run the app (for example <span className="font-mono text-[0.8125rem]">npm run dev</span>), then come back to pick elements in it.
+        No test space is running this project. Start one from the Test space page with the project&apos;s files, run the app (for example <span className="font-mono text-label">npm run dev</span>), then come back to pick elements in it.
       </p>
     );
   }
   return (
     <div className="grid gap-3">
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem_auto] sm:items-end">
-        <label className="grid gap-1.5 text-sm font-medium" htmlFor={`${id}-session`}>
+        <label className={`grid gap-1.5 ${LABEL_CLASSES}`} htmlFor={`${id}-session`}>
           Session
-          <select id={`${id}-session`} value={sessionId} onChange={(e) => setSessionId(e.target.value)} className={field}>
+          <select id={`${id}-session`} value={sessionId} onChange={(e) => setSessionId(e.target.value)} className={inputClasses()}>
             {sessions.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
@@ -109,9 +109,9 @@ export function RunningAppPicker({
             ))}
           </select>
         </label>
-        <label className="grid gap-1.5 text-sm font-medium" htmlFor={`${id}-port`}>
+        <label className={`grid gap-1.5 ${LABEL_CLASSES}`} htmlFor={`${id}-port`}>
           Port
-          <input id={`${id}-port`} inputMode="numeric" value={port} onChange={(e) => setPort(e.target.value.replace(/\D/g, "").slice(0, 5))} className={`${field} font-mono`} />
+          <input id={`${id}-port`} inputMode="numeric" value={port} onChange={(e) => setPort(e.target.value.replace(/\D/g, "").slice(0, 5))} className={inputClasses("font-mono")} />
         </label>
         <button type="button" onClick={open} disabled={pending || !sessionId} className={buttonClasses("secondary", "sm")}>
           <PlayIcon size={16} weight="bold" aria-hidden /> {pending ? "Opening…" : preview ? "Open it again" : "Open the running app"}

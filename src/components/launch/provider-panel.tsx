@@ -104,7 +104,7 @@ export function ProviderPanel(props: {
             ].map((row) => (
               <div key={row.k} className="grid gap-1 px-4 py-3 sm:grid-cols-[150px_minmax(0,1fr)] sm:gap-4">
                 <dt className="text-sm text-ink-3">{row.k}</dt>
-                <dd className={`min-w-0 break-words text-sm text-ink ${row.mono ? "font-mono text-[0.8125rem]" : ""}`} title={row.title}>
+                <dd className={`min-w-0 break-words text-sm text-ink ${row.mono ? "font-mono text-label" : ""}`} title={row.title}>
                   {row.kind ? (
                     <span className="flex items-start gap-1.5">
                       <StatusGlyph status={row.kind} className="mt-0.5" />
@@ -132,7 +132,7 @@ export function ProviderPanel(props: {
                 <li key={o.id} className="grid gap-2 rounded-md border border-line p-4">
                   <p className="flex flex-wrap items-center gap-2 text-sm">
                     <StatusBadge status={s.kind} label={s.word ?? copy.working} />
-                    <span className="font-mono text-[0.8125rem]">{o.targetName}</span>
+                    <span className="font-mono text-label">{o.targetName}</span>
                     <span className="text-ink-3">
                       <RelativeTime iso={o.authorizedAt} />
                     </span>

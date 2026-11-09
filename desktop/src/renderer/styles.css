@@ -47,6 +47,19 @@ h2 {
 h3 {
   font-size: 0.95rem;
 }
+/* Section titles carry their icon (ADR 0183), as the web's CardTitle: 20px, outlined, in the quiet ink, then the words. */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section-title svg {
+  flex-shrink: 0;
+  color: var(--ink-3);
+}
+.section-title span {
+  min-width: 0;
+}
 p {
   margin: 0;
 }

@@ -62,7 +62,7 @@ export default async function MeshPage() {
       <ol className="grid gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-3">
         {ROUTE.map((step, i) => (
           <li key={step.label} className="grid content-start gap-1.5 bg-surface px-5 py-4">
-            <span className="flex items-center gap-2 text-[0.8125rem] font-medium text-accent">
+            <span className="flex items-center gap-2 text-label font-medium text-accent">
               {step.label}
               {i < ROUTE.length - 1 ? <ArrowRightIcon size={14} weight="bold" className="hidden text-ink-3 sm:inline" aria-hidden /> : null}
             </span>

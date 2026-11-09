@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import { generateImageAction, type FormState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES, textareaClasses } from "@/components/ui/field";
 
 const IDLE: FormState = { status: "idle" };
 
@@ -32,7 +33,7 @@ export function GenerateImage({ projectId, disabledReason }: { projectId: string
     <form action={action} className="grid gap-4">
       <input type="hidden" name="projectId" value={projectId} />
       <label className="grid gap-1.5 text-sm">
-        <span className="font-medium">Describe the image</span>
+        <span className={LABEL_CLASSES}>Describe the image</span>
         <textarea
           name="prompt"
           required
@@ -42,7 +43,7 @@ export function GenerateImage({ projectId, disabledReason }: { projectId: string
           defaultValue={prev?.prompt ?? ""}
           disabled={off}
           placeholder="A warm bakery storefront at dawn, soft light, fresh bread in the window"
-          className="min-h-24 rounded-sm border border-line-strong/60 bg-surface px-3.5 py-2.5 text-base shadow-e1 focus:border-accent"
+          className={textareaClasses()}
         />
       </label>
 
@@ -67,14 +68,14 @@ export function GenerateImage({ projectId, disabledReason }: { projectId: string
       </fieldset>
 
       <label className="grid gap-1.5 text-sm">
-        <span className="font-medium">Name in the project</span>
+        <span className={LABEL_CLASSES}>Name in the project</span>
         <input
           name="name"
           required
           maxLength={300}
           defaultValue={prev?.name ?? "assets/hero"}
           disabled={off}
-          className="h-11 rounded-sm border border-line-strong/60 bg-surface px-3.5 font-mono text-base shadow-e1 focus:border-accent sm:text-sm"
+          className={inputClasses("font-mono")}
         />
         <span className="text-xs text-ink-3">The extension follows the image Google sends. A name that&apos;s taken gets a number.</span>
       </label>
@@ -89,7 +90,7 @@ export function GenerateImage({ projectId, disabledReason }: { projectId: string
           {state.path ? (
             <>
               <span>
-                Saved as <span className="font-mono text-[0.8125rem]">{state.path}</span>.
+                Saved as <span className="font-mono text-label">{state.path}</span>.
               </span>
               <Link href={`/app/projects/${projectId}/files?path=${encodeURIComponent(state.path)}`} className="inline-flex min-h-11 items-center gap-1 font-medium text-accent hover:underline">
                 Open it <ArrowRightIcon size={14} weight="bold" aria-hidden />

@@ -92,7 +92,7 @@ struct RunView: View {
     /// A run that ended without a summary says how it ended, and leads to the task.
     private func outcomeCard(_ run: RunItem) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            SectionTitle("How it ended")
+            SectionTitle("How it ended", symbol: "flag")
             Text(run.outcome ?? run.statusLabel).font(.body).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
             NavigationLink(value: Destination.task(run.taskId)) {
                 Text("Open the task")
@@ -147,7 +147,7 @@ struct RunView: View {
 
     private func finishCard(_ finish: RunFinish, run: RunItem) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            SectionTitle("What the agent did")
+            SectionTitle("What the agent did", symbol: "hammer")
             Text(finish.summary).font(.body).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
             ForEach(finish.risks, id: \.self) { risk in
                 Label(risk, systemImage: "exclamationmark.triangle").font(.footnote).foregroundStyle(Palette.caution)

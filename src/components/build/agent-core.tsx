@@ -117,9 +117,9 @@ export function AgentCore({ phase, activity = null, kind, children }: { phase: C
           </p>
           {/* The step in words (ADR 0180); only a path or a command is mono. A finished run's outcome is a sentence. */}
           {typeof activity === "string" ? (
-            <p className="mt-1.5 line-clamp-2 text-[0.8125rem] text-ink-2">{activity}</p>
+            <p className="mt-1.5 line-clamp-2 text-label text-ink-2">{activity}</p>
           ) : activity ? (
-            <p className="mt-1.5 truncate text-[0.8125rem] text-ink-2" title={activity.detail ? `${activity.words} ${activity.detail.text}` : activity.words}>
+            <p className="mt-1.5 truncate text-label text-ink-2" title={activity.detail ? `${activity.words} ${activity.detail.text}` : activity.words}>
               {activity.words}
               {activity.detail ? <> {activity.detail.mono ? <span className="font-mono">{activity.detail.text}</span> : activity.detail.text}</> : null}
             </p>

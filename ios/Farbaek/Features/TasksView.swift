@@ -220,7 +220,7 @@ struct TaskDetailView: View {
 
     private func lifecycle(_ stages: [LifecycleStage]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            SectionTitle("Progress")
+            SectionTitle("Progress", symbol: "list.number")
             ForEach(stages, id: \.self) { stage in
                 HStack(alignment: .top, spacing: 12) {
                     // Every stage has its kind's mark (ADR 0183): done, waiting for you, failed, or the dashed "not yet".
@@ -240,7 +240,7 @@ struct TaskDetailView: View {
 
     private func evidence(_ detail: TaskDetail) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            SectionTitle("Proof")
+            SectionTitle("Proof", symbol: "checkmark.seal")
             if let v = detail.verification {
                 let result = v.result ?? (v.status == "running" ? "running" : v.status)
                 Label {
@@ -269,7 +269,7 @@ struct TaskDetailView: View {
 
     private func runs(_ runs: [RunItem]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            SectionTitle("Runs")
+            SectionTitle("Runs", symbol: "hammer")
             ForEach(runs) { run in
                 NavigationLink(value: Destination.run(run.id)) {
                     HStack(spacing: 12) {
@@ -305,7 +305,7 @@ struct TaskDetailView: View {
 
     private func history(_ items: [HistoryItem]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            SectionTitle("History")
+            SectionTitle("History", symbol: "clock.arrow.circlepath")
             // Each line is the state it moved to, with that state's mark (ADR 0183), who moved it and when.
             ForEach(items.reversed()) { item in
                 HStack(alignment: .firstTextBaseline, spacing: 10) {

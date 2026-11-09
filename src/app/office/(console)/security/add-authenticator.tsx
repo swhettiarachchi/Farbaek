@@ -3,7 +3,7 @@
 import { PlusIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState } from "react";
 import { OfficeActionForm } from "@/components/office/action-form";
-import { officeInputClass } from "@/components/office/fields";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { buttonClasses } from "@/components/ui/button";
 import { addAuthenticatorAction, confirmAuthenticatorAction, type AddState } from "./actions";
 
@@ -34,8 +34,8 @@ export function AddAuthenticator() {
         </p>
         <input type="hidden" name="factorId" value={state.factorId} />
         <label htmlFor="add-code" className="grid gap-1.5">
-          <span className="font-medium text-ink">Code from the new app</span>
-          <input id="add-code" name="code" required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" maxLength={7} className={`${officeInputClass} font-mono tracking-[0.3em]`} />
+          <span className={LABEL_CLASSES}>Code from the new app</span>
+          <input id="add-code" name="code" required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" maxLength={7} className={inputClasses("font-mono tracking-[0.3em]")} />
         </label>
       </div>
     </OfficeActionForm>

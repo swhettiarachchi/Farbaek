@@ -3,6 +3,7 @@
 import { ArrowUpRightIcon, CheckCircleIcon, DesktopIcon, GlobeSimpleIcon, InfoIcon, LinkSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-badge";
 import type { TransferState } from "@/core/mesh/protocol";
 import { WebDirectError, openDirectWeb } from "@/core/mesh/web/direct";
@@ -169,7 +170,7 @@ export function PhoneMesh({ computers, unavailable }: { computers: WorkspaceComp
   return (
     <div className="grid gap-5">
       <div className="grid gap-1">
-        <label htmlFor={`${ids}-name`} className="text-sm font-medium text-ink">
+        <label htmlFor={`${ids}-name`} className={LABEL_CLASSES}>
           This device&apos;s name
         </label>
         <div className="flex flex-wrap items-center gap-2">
@@ -178,7 +179,7 @@ export function PhoneMesh({ computers, unavailable }: { computers: WorkspaceComp
             defaultValue={device.name}
             maxLength={60}
             onBlur={(e) => void renameDevice(device, e.target.value).then(setDevice)}
-            className="h-11 min-w-0 flex-1 rounded-sm border border-line-strong/60 bg-surface px-3.5 text-base"
+            className={inputClasses("min-w-0 flex-1")}
           />
         </div>
         <details className="text-xs text-ink-3">
@@ -261,8 +262,8 @@ export function PhoneMesh({ computers, unavailable }: { computers: WorkspaceComp
         ) : (
           <>
             <label htmlFor={`${ids}-to`} className="grid gap-1 text-sm">
-              <span className="text-ink-2">To</span>
-              <select id={`${ids}-to`} value={chosen?.fingerprint ?? ""} onChange={(e) => setTarget(e.target.value)} className="h-11 rounded-sm border border-line-strong/60 bg-surface px-3 text-base">
+              <span className={LABEL_CLASSES}>To</span>
+              <select id={`${ids}-to`} value={chosen?.fingerprint ?? ""} onChange={(e) => setTarget(e.target.value)} className={inputClasses()}>
                 {paired.map((c) => (
                   <option key={c.fingerprint} value={c.fingerprint}>
                     {c.name}
@@ -271,7 +272,7 @@ export function PhoneMesh({ computers, unavailable }: { computers: WorkspaceComp
               </select>
             </label>
             <label htmlFor={`${ids}-files`} className="grid gap-1 text-sm">
-              <span className="text-ink-2">Files</span>
+              <span className={LABEL_CLASSES}>Files</span>
               <input id={`${ids}-files`} type="file" multiple onChange={(e) => setFiles(Array.from(e.target.files ?? []))} className="text-base file:mr-3 file:min-h-11 file:rounded-full file:border file:border-line file:bg-surface-raised file:px-4 file:text-sm" />
             </label>
             {files.length > 0 ? <p className="text-xs text-ink-3">{`${files.length} ${files.length === 1 ? "file" : "files"}, ${formatBytes(files.reduce((n, f) => n + f.size, 0))}. Files that hold keys or passwords stay on this device.`}</p> : null}

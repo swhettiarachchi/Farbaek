@@ -27,12 +27,12 @@ export function PublishedMoment({ projectId, address, message }: { projectId: st
       <SiteThumb src={`/app/projects/${projectId}/thumbnail`} name="Your site" className="ring-1 ring-line/80" />
       <div className="grid min-w-0 gap-3">
         <div>
-          <p className="flex items-center gap-2 text-[1.25rem] font-medium leading-snug tracking-[-0.02em]">
+          <p className="flex items-center gap-2 text-xl font-medium leading-snug tracking-[-0.02em]">
             <CheckCircleIcon size={24} weight="fill" className="moment-pop shrink-0 text-verified" aria-hidden /> Your site is live
           </p>
           <p className="mt-1 text-sm leading-relaxed text-ink-2">{message}</p>
         </div>
-        <p className="break-all font-mono text-[0.8125rem] text-ink-2">{address.replace(/^https?:\/\//, "")}</p>
+        <p className="break-all font-mono text-label text-ink-2">{address.replace(/^https?:\/\//, "")}</p>
         <div className="flex flex-wrap gap-2">
           <a href={address} target="_blank" rel="noopener noreferrer" className={buttonClasses("primary", "sm")}>
             Open your site <ArrowUpRightIcon size={16} weight="bold" aria-hidden />

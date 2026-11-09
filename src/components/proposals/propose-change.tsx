@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { proposeChangeAction } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES, textareaClasses } from "@/components/ui/field";
 import { EffortPicker } from "@/components/app/effort-picker";
 import { AiUsageNote } from "@/components/app/usage-meters";
 import type { Effort } from "@/core/agent/effort";
@@ -89,7 +90,7 @@ export function ProposeChange({
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             placeholder="Filter by path"
-            className="h-11 w-full rounded-sm border border-line-strong/60 bg-surface pr-3.5 pl-10 text-base shadow-e1 focus:border-accent sm:text-sm"
+            className={inputClasses("pl-10")}
           />
         </label>
         <ul className="max-h-72 overflow-auto rounded-sm border border-line bg-surface" aria-label="Project files">
@@ -97,7 +98,7 @@ export function ProposeChange({
             <li key={f.path} className="border-b border-line last:border-b-0">
               <label className="flex min-h-11 cursor-pointer items-center gap-3 px-3 py-2 hover:bg-surface-raised">
                 <input type="checkbox" checked={selected.has(f.path)} onChange={() => toggle(f.path)} className="size-4 shrink-0 accent-[var(--accent)]" />
-                <span className="min-w-0 flex-1 truncate font-mono text-[0.8125rem]">{f.path}</span>
+                <span className="min-w-0 flex-1 truncate font-mono text-label">{f.path}</span>
                 <span className="shrink-0 text-xs text-ink-3 tabular">{formatBytes(f.sizeBytes)}</span>
               </label>
             </li>
@@ -118,7 +119,7 @@ export function ProposeChange({
       </div>
 
       <div className="grid gap-2">
-        <label htmlFor="proposal-notes" className="text-sm font-medium">
+        <label htmlFor="proposal-notes" className={LABEL_CLASSES}>
           Notes for the agent <span className="font-normal text-ink-3">(optional)</span>
         </label>
         <textarea
@@ -127,7 +128,7 @@ export function ProposeChange({
           onChange={(e) => setNotes(e.target.value)}
           maxLength={4000}
           rows={3}
-          className="w-full rounded-sm border border-line-strong/60 bg-surface px-3.5 py-2.5 text-base shadow-e1 focus:border-accent"
+          className={textareaClasses()}
         />
       </div>
 

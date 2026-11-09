@@ -81,7 +81,7 @@ export default function PricingPage() {
       <section aria-labelledby="pricing-title" className="pb-16 pt-14 lg:pb-24 lg:pt-20">
         <Container>
           <div className="max-w-[46rem]">
-            <h1 id="pricing-title" className="text-4xl font-medium leading-[1.08] tracking-[-0.03em] max-[18em]:text-[1.5rem] sm:text-5xl">
+            <h1 id="pricing-title" className="text-4xl font-medium leading-[1.08] tracking-[-0.03em] max-[18em]:text-2xl sm:text-5xl">
               Build, preview and ship. One subscription.
             </h1>
             <p className="mt-5 max-w-[58ch] text-lg leading-relaxed text-ink-2">

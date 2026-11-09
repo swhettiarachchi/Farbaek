@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { addDomainAction, checkDomainAction, removeDomainAction, type PublishState } from "@/app/app/projects/[projectId]/publish-actions";
 import { buttonClasses } from "@/components/ui/button";
 import { ConfirmAction } from "@/components/ui/confirm-action";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DOMAINS_PER_SITE, type DnsRecord } from "@/core/publish/domains";
 
@@ -42,7 +43,7 @@ function DomainCard({ projectId, domain, disabledReason }: { projectId: string; 
   return (
     <li className="grid min-w-0 gap-3 rounded-sm border border-line px-4 py-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="min-w-0 break-all font-mono text-[0.875rem]">{domain.hostname}</span>
+        <span className="min-w-0 break-all font-mono text-sm">{domain.hostname}</span>
         {/* Waiting on DNS is waiting on a system, not on a person here: pending, in steel. */}
         {verified ? <StatusBadge status="verified" /> : <StatusBadge status="pending" label="Waiting for DNS" />}
         {disabledReason ? null : (
@@ -84,14 +85,14 @@ function DomainCard({ projectId, domain, disabledReason }: { projectId: string; 
                 <span className="flex min-w-0 items-center gap-1">
                   <span className="min-w-0 flex-1">
                     <span className="block text-xs text-ink-3">Name</span>
-                    <span className="block break-all font-mono text-[0.8125rem]">{r.name}</span>
+                    <span className="block break-all font-mono text-label">{r.name}</span>
                   </span>
                   <Copy value={r.name} label={`the ${r.type} record's name`} />
                 </span>
                 <span className="flex min-w-0 items-center gap-1">
                   <span className="min-w-0 flex-1">
                     <span className="block text-xs text-ink-3">Value</span>
-                    <span className="block break-all font-mono text-[0.8125rem]">{r.value}</span>
+                    <span className="block break-all font-mono text-label">{r.value}</span>
                   </span>
                   <Copy value={r.value} label={`the ${r.type} record's value`} />
                 </span>
@@ -134,7 +135,7 @@ export function SiteDomains({ projectId, domains, available, disabledReason }: {
   return (
     <div className="grid gap-3 border-t border-line pt-4">
       <div className="grid gap-1">
-        <h3 className="text-[0.9375rem] font-medium">Your own domain</h3>
+        <h3 className="text-body font-medium">Your own domain</h3>
         <p className="text-sm leading-relaxed text-ink-2">Serve this site at a domain you own, such as www.yourshop.com. Farbaek checks your DNS records, then makes its certificate on the first visit.</p>
       </div>
       {domains.length ? (
@@ -146,7 +147,7 @@ export function SiteDomains({ projectId, domains, available, disabledReason }: {
       ) : null}
       <form action={action} className="grid gap-2">
         <input type="hidden" name="projectId" value={projectId} />
-        <label htmlFor="site-domain" className="text-sm font-medium">
+        <label htmlFor="site-domain" className={LABEL_CLASSES}>
           Domain
         </label>
         <div className="flex flex-wrap gap-2">
@@ -159,7 +160,7 @@ export function SiteDomains({ projectId, domains, available, disabledReason }: {
             spellCheck={false}
             placeholder="www.yourshop.com"
             disabled={pending || Boolean(addReason)}
-            className="min-h-11 min-w-0 flex-1 basis-56 rounded-sm border border-line bg-surface px-3.5 font-mono text-base outline-none placeholder:text-ink-3 focus:border-accent/60 disabled:opacity-60 sm:text-[0.875rem]"
+            className={inputClasses("min-w-0 flex-1 basis-56 font-mono")}
           />
           <button type="submit" disabled={pending || Boolean(addReason)} className={buttonClasses("primary", "sm")}>
             <PlusIcon size={16} weight="bold" aria-hidden /> {pending ? "Adding…" : "Add domain"}

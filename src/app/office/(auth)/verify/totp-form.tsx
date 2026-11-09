@@ -2,8 +2,8 @@
 
 import { ArrowRightIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useActionState } from "react";
-import { officeInputClass } from "@/components/office/fields";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
 import { verifyTotpAction, type FactorState } from "../actions";
 
 export function TotpForm() {
@@ -11,8 +11,8 @@ export function TotpForm() {
   return (
     <form action={action} className="grid gap-4">
       <label htmlFor="office-totp" className="grid gap-1.5 text-sm">
-        <span className="font-medium text-ink">6-digit code</span>
-        <input id="office-totp" name="code" required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" maxLength={7} autoFocus className={`${officeInputClass} font-mono text-lg tracking-[0.4em]`} />
+        <span className={LABEL_CLASSES}>6-digit code</span>
+        <input id="office-totp" name="code" required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" maxLength={7} autoFocus className={inputClasses("font-mono text-lg tracking-[0.4em]")} />
       </label>
       <button type="submit" disabled={pending} className={buttonClasses("primary", "md", "w-full")}>
         {pending ? "Checking…" : "Enter the office"}

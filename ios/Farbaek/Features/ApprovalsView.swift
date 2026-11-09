@@ -231,7 +231,7 @@ struct ApprovalDetailView: View {
 
     private func checksAndPolicy(_ proposal: ProposalDetail) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionTitle("Before you approve")
+            SectionTitle("Before you approve", symbol: "checklist")
             if let policy = proposal.policy {
                 Label("Rules: \(Self.policyWords(policy.outcome))", systemImage: policy.outcome == "ESCALATE" ? "person.badge.shield.checkmark" : "shield.lefthalf.filled")
                     .font(.subheadline.weight(.medium))
@@ -256,7 +256,7 @@ struct ApprovalDetailView: View {
 
     private func files(_ proposal: ProposalDetail) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionTitle(proposal.files.count == 1 ? "1 file" : "\(proposal.files.count) files")
+            SectionTitle(proposal.files.count == 1 ? "1 file" : "\(proposal.files.count) files", symbol: "folder")
             ForEach(proposal.files) { file in
                 FileDiffCard(file: file)
             }

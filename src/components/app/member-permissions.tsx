@@ -67,7 +67,7 @@ export function MemberPermissions({
                   <input type="checkbox" name={p} defaultChecked={on} disabled={locked} className="mt-1 size-4 shrink-0 accent-[var(--color-accent)]" />
                   {locked ? <input type="hidden" name={p} value="on" /> : null}
                   <span className="grid gap-0.5">
-                    <span className="text-[0.9375rem] font-medium">{PERMISSION_LABELS[p].title}</span>
+                    <span className="text-body font-medium">{PERMISSION_LABELS[p].title}</span>
                     <span className="text-sm text-ink-2">{PERMISSION_LABELS[p].detail}</span>
                   </span>
                 </label>

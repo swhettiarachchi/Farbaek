@@ -21,6 +21,7 @@ import Link from "next/link";
 import { useId, useMemo, useState, useTransition } from "react";
 import { activateRulesAction, draftRulesAction, testRulesAction } from "@/app/app/policies/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES, textareaClasses } from "@/components/ui/field";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { canonicalize } from "@/core/trust/canonical-json";
@@ -216,7 +217,7 @@ export function RuleBuilder({
       </div>
 
       <div className="grid gap-2 rounded-sm bg-surface-raised/60 p-4">
-        <label htmlFor={requestId} className="text-sm font-medium">
+        <label htmlFor={requestId} className={LABEL_CLASSES}>
           Describe a rule
         </label>
         <textarea
@@ -226,7 +227,7 @@ export function RuleBuilder({
           maxLength={MAX_REQUEST}
           onChange={(e) => setRequest(e.target.value)}
           placeholder="For example: billing code needs an owner to approve, and nobody changes the migrations folder."
-          className="min-h-11 rounded-sm border border-line bg-surface px-3 py-2 text-base sm:text-sm"
+          className={textareaClasses()}
         />
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" onClick={draft} disabled={drafting || Boolean(draftReason) || request.trim().length < 5} className={buttonClasses("secondary", "sm")}>
@@ -377,7 +378,7 @@ function RuleCard({
       </fieldset>
 
       <div className="grid gap-1.5">
-        <label htmlFor={`${id}-paths`} className="text-sm font-medium">
+        <label htmlFor={`${id}-paths`} className={LABEL_CLASSES}>
           Files
         </label>
         <textarea
@@ -391,7 +392,7 @@ function RuleCard({
           aria-invalid={pathErrors.length > 0}
           aria-describedby={`${id}-paths-hint`}
           placeholder={"src/billing/\n*.sql"}
-          className="rounded-sm border border-line bg-surface px-3 py-2 font-mono text-base sm:text-sm"
+          className={textareaClasses("font-mono")}
         />
         <p id={`${id}-paths-hint`} className="text-xs leading-relaxed text-ink-3">
           One pattern per line, from the project&apos;s root. <span className="font-mono">src/billing/</span> is everything in that folder, <span className="font-mono">*.sql</span> is those
@@ -401,7 +402,7 @@ function RuleCard({
       </div>
 
       <div className="grid gap-1.5">
-        <label htmlFor={`${id}-reason`} className="text-sm font-medium">
+        <label htmlFor={`${id}-reason`} className={LABEL_CLASSES}>
           Why
         </label>
         <input
@@ -411,7 +412,7 @@ function RuleCard({
           onChange={(e) => onChange({ reason: e.target.value })}
           aria-invalid={reasonErrors.length > 0}
           placeholder="Billing changes need an owner's eye."
-          className="min-h-11 rounded-sm border border-line bg-surface px-3 text-base sm:text-sm"
+          className={inputClasses()}
         />
         <FieldErrors errors={reasonErrors} />
       </div>
@@ -527,10 +528,10 @@ function TestResult({ summary, stale }: { summary: RulesTestSummary; stale: bool
       ) : null}
 
       {summary.changes === 0 ? (
-        <p className="text-[0.9375rem]">There were no changes in the last {summary.days} days to test against. The rules still apply to every new change.</p>
+        <p className="text-body">There were no changes in the last {summary.days} days to test against. The rules still apply to every new change.</p>
       ) : (
         <>
-          <p className="text-[0.9375rem]">
+          <p className="text-body">
             {differ === 0
               ? `None of the ${plural(summary.changes, "change", "changes")} would have been decided differently.`
               : `Of ${plural(summary.changes, "change", "changes")}, ${summary.stricter.toLocaleString("en-US")} would have needed more and ${summary.looser.toLocaleString("en-US")} less than under today's rules.`}

@@ -4,6 +4,7 @@ import { ArrowCounterClockwiseIcon, CheckCircleIcon, WarningCircleIcon } from "@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useId, useMemo, useState } from "react";
 import { buttonClasses } from "@/components/ui/button";
+import { inputClasses, LABEL_CLASSES, textareaClasses } from "@/components/ui/field";
 import { StatusBadge, StatusGlyph } from "@/components/ui/status-badge";
 import { SAMPLE_CONTRACT, SAMPLE_DESCRIPTION, SAMPLE_VERSIONS } from "@/content/samples";
 import { checkActionAgainstContract } from "@/core/realityloop/contract";
@@ -90,14 +91,14 @@ export function ApprovalDemo() {
     <div className="grid gap-5 lg:grid-cols-[1fr_1.05fr] lg:gap-6">
       {/* Proposed action */}
       <section aria-labelledby="demo-action" className="rounded-md border border-line bg-surface p-5 shadow-e2 sm:p-6">
-        <h3 id="demo-action" className="text-[1.0625rem] font-medium">
+        <h3 id="demo-action" className="text-title-4 font-medium">
           What the agent wants to do
         </h3>
         <p className="mt-1 text-sm text-ink-2">An agent wants to run this against the sample storefront. Edit it.</p>
 
         <div className="mt-5 grid gap-5">
           <div className="grid gap-2">
-            <label htmlFor={ids.count} className="text-sm font-medium">
+            <label htmlFor={ids.count} className={LABEL_CLASSES}>
               Products to update
             </label>
             <input
@@ -108,13 +109,13 @@ export function ApprovalDemo() {
               max={500}
               value={count}
               onChange={(e) => setCount(Math.max(1, Math.min(500, Math.trunc(Number(e.target.value) || 1))))}
-              className="h-11 w-32 max-w-full rounded-sm border border-line-strong bg-canvas px-3 text-base tabular"
+              className={inputClasses("max-w-32 tabular")}
             />
             <p className="text-xs text-ink-3">The plan allows at most {SAMPLE_CONTRACT.limits.maxRecords}.</p>
           </div>
 
           <div className="grid gap-2">
-            <label htmlFor={ids.description} className="text-sm font-medium">
+            <label htmlFor={ids.description} className={LABEL_CLASSES}>
               New description
             </label>
             <textarea
@@ -123,7 +124,7 @@ export function ApprovalDemo() {
               maxLength={160}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="rounded-sm border border-line-strong bg-canvas px-3 py-2.5 text-base leading-snug"
+              className={textareaClasses()}
             />
           </div>
 
@@ -143,8 +144,8 @@ export function ApprovalDemo() {
         </div>
 
         <div className="mt-6">
-          <p className="text-[0.8125rem] font-medium text-ink-3">Exactly what you&apos;re approving, as Farbaek hashes it</p>
-          <pre className="mt-2 max-h-40 overflow-auto rounded-sm bg-surface-raised px-3 py-2.5 font-mono text-[0.75rem] leading-[1.6] text-ink-2 whitespace-pre-wrap break-all">
+          <p className="text-label font-medium text-ink-3">Exactly what you&apos;re approving, as Farbaek hashes it</p>
+          <pre className="mt-2 max-h-40 overflow-auto rounded-sm bg-surface-raised px-3 py-2.5 font-mono text-xs leading-[1.6] text-ink-2 whitespace-pre-wrap break-all">
             <code>{canonical}</code>
           </pre>
         </div>
@@ -153,7 +154,7 @@ export function ApprovalDemo() {
       {/* Approval */}
       <section aria-labelledby="demo-approval" className="flex flex-col rounded-md border border-line bg-surface p-5 shadow-e2 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-[0.8125rem] text-ink-3">
+          <p className="text-label text-ink-3">
             Plan version {SAMPLE_VERSIONS.contractVersion}, rules version {SAMPLE_VERSIONS.policyVersion}
           </p>
           {blocked ? <StatusBadge status="blocked" label="Blocked" /> : <StatusBadge status="approval" label="Needs your approval" />}
@@ -165,7 +166,7 @@ export function ApprovalDemo() {
 
         <dl className="mt-4 grid gap-1 text-sm">
           <dt className="text-ink-3">The hash your approval is tied to</dt>
-          <dd className="font-mono text-[0.8125rem] break-all text-ink" aria-live="polite">
+          <dd className="font-mono text-label break-all text-ink" aria-live="polite">
             {hash.status === "ready" ? hash.hash : hash.status === "pending" ? "computing…" : "unavailable"}
           </dd>
         </dl>
