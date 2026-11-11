@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { startFromPromptAction, type PromptStartState } from "@/app/app/new/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { LABEL_CLASSES, inputClasses } from "@/components/ui/field";
+import type { BuildTargets } from "@/core/workspace/build-target";
 import { PROMPT_MAX, PROMPT_MIN, isSharedBuild, promptFromShare } from "@/core/agent/prompt-start";
 
 /** Where a prompt waits through sign-up. Only in this browser, never in a URL. */
@@ -74,6 +76,7 @@ export function PromptComposer({
   projectId,
   template,
   suggestion,
+  targets,
 }: {
   mode: "app" | "public";
   autoResume?: boolean;
@@ -85,8 +88,17 @@ export function PromptComposer({
   template?: { id: string; name: string; example: string };
   /** A one-click follow-up the page offers, such as upgrading an older site's design: a note and a button that fills the box. */
   suggestion?: { note: string; label: string; text: string };
+  /**
+   * For a new build: the projects it could go into instead, and why a new project can't be made now (stage 176).
+   * With a full plan the box starts on the most recent project, so writing a build never ends in a refusal.
+   */
+  targets?: BuildTargets;
 }) {
+  const offered = !projectId && mode === "app" && targets && targets.projects.length > 0 ? targets : null;
+  const [chosen, setChosen] = useState(offered?.newProject ? offered.projects[0]!.id : "");
   const followUp = Boolean(projectId);
+  // Into a project the person picked in the box: worded and staged as a follow-up, while kept and shared prompts still show.
+  const intoProject = followUp || Boolean(offered && chosen);
   const router = useRouter();
   const [state, action, pending] = useActionState(startFromPromptAction, IDLE);
   // A prompt kept from before sign-in shows until the person types; the server render has none.
@@ -121,10 +133,11 @@ export function PromptComposer({
 
   // After sign-in, send the kept prompt once without asking again.
   useEffect(() => {
-    if (!autoResume || readShared() !== null || followUp || mode !== "app" || resumed.current || !readStored()) return;
+    // Never into a project on its own: with the plan full, the person sees the kept prompt and where it would go, and sends it.
+    if (!autoResume || readShared() !== null || intoProject || mode !== "app" || resumed.current || !readStored()) return;
     resumed.current = true;
     queueMicrotask(() => form.current?.requestSubmit());
-  }, [autoResume, followUp, mode]);
+  }, [autoResume, intoProject, mode]);
 
   const tooShort = value.trim().length < PROMPT_MIN;
   const disabled = pending || Boolean(disabledReason);
@@ -148,13 +161,33 @@ export function PromptComposer({
       }}
       className="grid gap-3"
     >
+      {offered ? (
+        <div className="grid gap-1.5">
+          <div className="grid gap-1.5 sm:flex sm:items-center sm:gap-3">
+            <label htmlFor="build-target" className={LABEL_CLASSES}>
+              Build in
+            </label>
+            <select id="build-target" name="projectId" value={chosen} onChange={(e) => setChosen(e.target.value)} disabled={disabled} className={inputClasses("sm:w-auto sm:min-w-72")}>
+              <option value="" disabled={Boolean(offered.newProject)}>
+                A new project
+              </option>
+              {offered.projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {offered.newProject ? <p className="text-sm leading-relaxed text-ink-2">{offered.newProject}</p> : null}
+        </div>
+      ) : null}
       <div
         className={`group relative rounded-lg border bg-surface shadow-e2 transition-[border-color,box-shadow] duration-200 focus-within:border-accent/60 focus-within:shadow-e3 ${
           state.status === "error" ? "border-failed/50" : "border-line"
         }`}
       >
         {projectId ? <input type="hidden" name="projectId" value={projectId} /> : null}
-        {template && !projectId ? <input type="hidden" name="starter" value={template.id} /> : null}
+        {template && !intoProject ? <input type="hidden" name="starter" value={template.id} /> : null}
         <label htmlFor={followUp ? "prompt-next" : "prompt"} className="sr-only">
           {followUp ? "Describe the next change" : "Describe what you want to build"}
         </label>
@@ -175,7 +208,7 @@ export function PromptComposer({
           rows={size === "large" ? 4 : 2}
           disabled={disabled}
           placeholder={
-            followUp
+            intoProject
               ? "Describe the next change. For example: add a testimonials section under the menu."
               : template
                 ? `Say what it is for. For example: ${template.example}`
@@ -188,7 +221,7 @@ export function PromptComposer({
           {/* Notes wrap to a second line rather than cut off on narrow phones and with larger system text. */}
           <p className="flex min-w-0 items-center gap-1.5 pl-2 text-xs leading-snug text-ink-3" aria-live="polite">
             {pending ? (
-              <PlanningStages stages={projectId ? FOLLOW_UP_STAGES : STAGES} />
+              <PlanningStages stages={intoProject ? FOLLOW_UP_STAGES : STAGES} />
             ) : disabledReason ? (
               <span className="line-clamp-2" title={disabledReason}>
                 {disabledReason}
@@ -239,7 +272,7 @@ export function PromptComposer({
         </div>
       ) : null}
 
-      {size === "large" && !followUp ? (
+      {size === "large" && !intoProject ? (
         <ul className="flex flex-wrap gap-2" aria-label="Examples">
           {(template ? [template.example] : EXAMPLES).map((ex) => (
             <li key={ex}>

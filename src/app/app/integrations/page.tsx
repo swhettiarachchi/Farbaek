@@ -80,21 +80,21 @@ export default async function IntegrationsPage() {
       id: "github",
       icon: GithubLogoIcon,
       name: "GitHub",
-      does: "Imports a public repository as a new project, and opens a pull request for each applied change, with a Farbaek ProofPack status check.",
+      does: "Imports a repository as a new project, private ones too, and opens a pull request for each applied change, with a Farbaek ProofPack status check.",
       status: v.github === null ? { tone: "unverified", label: unreadStatus } : v.github.login ? { tone: "verified", label: "Connected" } : { tone: "info", label: "Import only" },
       detail:
         v.github === null
           ? unread
           : v.github.login
             ? `Connected as ${v.github.login}. ${v.github.linked === 1 ? "1 project is" : `${v.github.linked} projects are`} linked to a repository.`
-            : "Connect a fine-grained token in Settings to open pull requests. Importing public repositories needs nothing.",
+            : "Connect a fine-grained token in Settings to import private repositories and open pull requests. Importing public repositories needs nothing.",
       action: v.github?.login ? { href: "/app/projects", label: "Choose a project" } : { href: "/app/settings#github", label: "Connect GitHub" },
     },
     {
       id: "agents",
       icon: DesktopIcon,
       name: "Farbaek Agent",
-      does: "The desktop app that works on approved tasks on your computer, only for as long as you allow.",
+      does: "The desktop app that works on approved tasks on your computer, only for as long as you allow. It can also run on a model you host there, with Ollama, LM Studio or llama.cpp.",
       status: v.agents.paired > 0 ? { tone: "verified", label: "Paired" } : { tone: "off", label: "None paired" },
       detail: v.agents.paired > 0 ? `${v.agents.paired === 1 ? "1 computer is" : `${v.agents.paired} computers are`} paired with this workspace.` : "Pair a computer with a one-time code.",
       action: { href: "/app/agents", label: "Open Desktop app" },
@@ -166,8 +166,6 @@ export default async function IntegrationsPage() {
           Not available yet
         </CardTitle>
         <ul className="grid gap-1.5 text-sm leading-relaxed text-ink-2">
-          <li>Importing private GitHub repositories.</li>
-          <li>Local models running on your own computer.</li>
           <li>Streaming the activity log to your own systems.</li>
         </ul>
       </section>

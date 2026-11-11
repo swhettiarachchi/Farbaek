@@ -18,7 +18,7 @@ import { notFound } from "next/navigation";
 import { EmptyState, PageHeader } from "@/components/app/primitives";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
-import { ACTIVITY_CATEGORIES, type ActivityCategory } from "@/core/workspace/activity";
+import { ACTIVITY_CATEGORIES, historyCutoff, type ActivityCategory } from "@/core/workspace/activity";
 import { loadActivity } from "@/server/workspace/activity";
 import { loadAppContext } from "@/server/workspace/context";
 
@@ -50,8 +50,11 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
   if (!ctx?.current) notFound();
   const category = isCategory(query.category) ? query.category : null;
   const before = typeof query.before === "string" && /^\d{1,18}$/.test(query.before) ? Number(query.before) : null;
+  // The plan's history (stage 176): what the pricing page calls "Activity history".
+  const days = ctx.current.plan.limits.historyDays;
+  const since = historyCutoff(days, new Date());
   // One more than a page, to know whether there are older ones.
-  const rows = await loadActivity(ctx, ctx.current.id, { category, before, limit: PAGE + 1 });
+  const rows = await loadActivity(ctx, ctx.current.id, { category, before, limit: PAGE + 1, since });
   const shown = rows.slice(0, PAGE);
   const older = rows.length > PAGE ? shown.at(-1)!.id : null;
   const link = (c: ActivityCategory | null, b: number | null = null) => {
@@ -66,7 +69,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
     <div className="grid gap-6">
       <PageHeader
         title="History"
-        description="Everything that has happened in this workspace: what, who and when. Every member can read it."
+        description={`Everything that has happened in this workspace: what, who and when. Every member can read it.${days !== null ? ` This plan shows the last ${days} days; a plan with a longer history shows more.` : ""}`}
         actions={
           <a href={`/app/activity/export${category ? `?category=${category}` : ""}`} download className={buttonClasses("secondary", "sm")}>
             <DownloadSimpleIcon size={16} weight="bold" aria-hidden /> Download CSV
@@ -91,9 +94,11 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
       </nav>
 
       {shown.length === 0 ? (
-        <EmptyState icon={ClockCounterClockwiseIcon} title={before ? "Nothing older" : "Nothing recorded yet"}>
+        <EmptyState icon={ClockCounterClockwiseIcon} title={before ? "Nothing older" : since ? `Nothing in the last ${days} days` : "Nothing recorded yet"}>
           {before
-            ? "That's the start of this workspace's activity."
+            ? since
+              ? `That's the start of the ${days} days this plan shows.`
+              : "That's the start of this workspace's activity."
             : category
               ? "Nothing in this category yet. Choose another one, or Everything."
               : "Creating projects, changing files, approving changes and pairing agents all show here."}
