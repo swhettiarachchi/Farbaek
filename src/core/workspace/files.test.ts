@@ -66,6 +66,8 @@ describe("screening an import", () => {
       fake("TOKEN=glp", "at-", "a".repeat(20)),
       fake("//registry.npmjs.org/:_authToken=np", "m_", "a".repeat(36)),
       fake("FARBAEK=f", "a_", "a".repeat(40)),
+      // A developer API key (ADR 0187), as a CI file might carry it.
+      fake("FARBAEK_API_KEY=fb", "k_", "a".repeat(43)),
     ];
     for (const content of samples) expect(screen("src/config.ts", content)).toEqual({ ok: false, reason: "secret_content" });
   });

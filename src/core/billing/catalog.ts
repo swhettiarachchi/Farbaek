@@ -86,8 +86,8 @@ export const FEATURE_STATUS: Record<FeatureKey, "live" | "coming"> = {
   community_support: "live",
   usage_rollover: "live",
   free_retries: "live",
-  // The API answers, but only to a sign-in session that lasts an hour, and the website gives no key and no docs (stage 176).
-  developer_api: "coming",
+  // Keys in Settings, with every call documented beside them (stage 177, ADR 0187).
+  developer_api: "live",
   usage_alerts: "live",
   live_previews: "live",
   site_publishing: "live",

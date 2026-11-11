@@ -58,6 +58,8 @@ const SECRET_PATTERNS: readonly RegExp[] = [
   /\bglpat-[A-Za-z0-9_-]{20,}/,
   /\bnpm_[A-Za-z0-9]{36}\b/,
   /\bfa_[A-Za-z0-9_-]{32,}/,
+  // A Farbaek developer API key (ADR 0187).
+  /\bfbk_[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])/,
   /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
   /\bAKIA[0-9A-Z]{16}\b/,
   /\bsk-ant-[A-Za-z0-9_-]{20,}/,

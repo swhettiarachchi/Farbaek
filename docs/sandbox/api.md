@@ -4,7 +4,8 @@ Base path `/api/v1`. JSON in and out; every response has `x-farbaek-api-version`
 
 ## Authentication
 
-- **Bearer token** (API clients, the SDK): `Authorization: Bearer <Supabase access token>` of a signed-in person. The API can do exactly what that person can do.
+- **API key** (scripts, CI, the SDK; ADR 0187): `Authorization: Bearer fbk_…`, made by an owner or admin in Settings, Developer API. A key acts as the person who made it, in its own workspace only, while they're still an owner or admin there. It works for 30, 90 or 365 days and can be revoked at any time. A revoked or expired key gets 401 `INVALID_KEY`; another workspace in `X-Farbaek-Workspace` gets 403 `WRONG_WORKSPACE`.
+- **Bearer token**: `Authorization: Bearer <Supabase access token>` of a signed-in person. It lasts about an hour. The API can do exactly what that person can do.
 - **Session cookie** (Farbaek's own pages): changes must come from the app's own origin (checked with the `Origin` header).
 - Workspace: `X-Farbaek-Workspace: <organization id>`; defaults to the person's first workspace. Not a member: 404.
 - There are no administrative endpoints in the public API. The sweeper (`/api/internal/sandbox/sweep`) takes a separate server secret and isn't part of the SDK.

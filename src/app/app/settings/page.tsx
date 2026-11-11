@@ -1,4 +1,4 @@
-import { BuildingsIcon, DownloadSimpleIcon, EnvelopeSimpleIcon, GithubLogoIcon, KeyIcon, LifebuoyIcon, TerminalWindowIcon, TrashIcon, UsersThreeIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { BookOpenTextIcon, BracketsCurlyIcon, BuildingsIcon, DownloadSimpleIcon, EnvelopeSimpleIcon, GithubLogoIcon, KeyIcon, LifebuoyIcon, TerminalWindowIcon, TrashIcon, UsersThreeIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AutonomySettings } from "@/components/app/autonomy-settings";
@@ -11,6 +11,12 @@ import { DeleteAccount } from "@/components/app/delete-account";
 import { EmailPreferencesForm } from "@/components/app/email-preferences";
 import { GitHubConnectionCard } from "@/components/app/github-connection";
 import { ModelKeyCard } from "@/components/app/model-key";
+import { ApiKeysPanel } from "@/components/app/api-keys";
+import { ApiReference } from "@/components/app/api-reference";
+import { Disclosure } from "@/components/ui/disclosure";
+import { API_NOT_IN_PLAN } from "@/core/workspace/api-keys";
+import { readApiKeys } from "@/server/api-keys/read";
+import { siteUrl } from "@/server/supabase/config";
 import { readModelKey } from "@/server/ai/workspace-ai";
 import { readGitHubConnection } from "@/server/github/store";
 import { ThisDevice } from "@/components/app/this-device";
@@ -68,6 +74,10 @@ export default async function SettingsPage() {
   // The workspace's GitHub connection (ADR 0126): who connected it, never the token.
   const github = pushClient ? await readGitHubConnection(pushClient, ws.id).catch(() => null) : null;
   const modelKeyReason = ctx.mode === "demo" ? "The demo workspace is read-only." : ctx.writes.enabled ? null : ctx.writes.reason;
+  // Developer API keys (ADR 0187): owners and admins see them, never a key's hash. Making one needs the plan; revoking never does.
+  const apiKeys = canManage && pushClient ? ((await readApiKeys(pushClient, ws.id)) ?? []) : [];
+  const apiFeature = checkFeature(ws.plan, "developer_api");
+  const apiCreateReason = modelKeyReason ?? (apiFeature.allowed ? null : apiFeature.code === "FEATURE_NOT_IN_PLAN" ? `${API_NOT_IN_PLAN} Choose one in Billing to make a key.` : apiFeature.message);
   // Level 3 (ADR 0086): the plan first, then the record it's earned from, read as the person. A running level 3 can always change its limits.
   const levelThreeFeature = checkFeature(ws.plan, "advanced_autonomy");
   const levelThreeOn = autonomy.level === 3 && autonomy.suspendedAt === null;
@@ -311,6 +321,25 @@ export default async function SettingsPage() {
           </CardTitle>
           <p className="mt-1 mb-4 text-sm text-ink-2">Open a pull request on GitHub for each change you apply, with its ProofPack result as a status check.</p>
           <GitHubConnectionCard current={github} canManage={canManage} disabledReason={modelKeyReason} />
+        </Card>
+      </section>
+
+      <section id="api" aria-labelledby="api-title" className="scroll-mt-24">
+        <Card>
+          <CardTitle id="api-title" icon={BracketsCurlyIcon}>
+            Developer API
+          </CardTitle>
+          <p className="mt-1 mb-4 text-sm text-ink-2">
+            Start test spaces and run commands in them from your own scripts and CI. A key acts as the owner or admin who made it, in this workspace, and stops working if they leave or lose that role.
+          </p>
+          {canManage ? (
+            <ApiKeysPanel keys={apiKeys} me={ctx.user.id} now={new Date().toISOString()} createReason={apiCreateReason} canRevoke={ctx.mode === "live"} />
+          ) : (
+            <p className="text-sm text-ink-3">Owners and admins make and revoke this workspace&apos;s API keys.</p>
+          )}
+          <Disclosure summary="How to call the API" icon={<BookOpenTextIcon size={20} weight="bold" aria-hidden />} className="mt-5">
+            <ApiReference origin={siteUrl()} />
+          </Disclosure>
         </Card>
       </section>
 
