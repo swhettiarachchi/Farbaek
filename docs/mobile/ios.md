@@ -104,7 +104,7 @@ Buying in the app is one tap with Face ID, in every country. Do these in order; 
 
    | Reference name | Product ID | US price |
    | --- | --- | --- |
-   | Lite | `com.farbaek.app.lite.monthly` | $0.99 |
+   | Lite | `com.farbaek.app.lite.monthly` | $0.99, to become $1.00 once App Store Connect allows the change (ADR 0185) |
    | Maker | `com.farbaek.app.maker.monthly` | $1.99 |
    | Starter | `com.farbaek.app.starter.monthly` | $10.49 |
    | Plus | `com.farbaek.app.plus.monthly` | $20.99 |

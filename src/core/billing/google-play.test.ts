@@ -34,7 +34,11 @@ describe("plans bought through Google Play (ADR 0154)", () => {
   });
 
   it("sells the same plans at the same US prices as the App Store, with ids Play accepts", () => {
-    expect(GOOGLE_PLAY_PRODUCTS.map((p) => [p.planId, p.usdCents])).toEqual(APPLE_PRODUCTS.map((p) => [p.planId, p.usdCents]));
+    // Lite is $1 on Google Play and the web (ADR 0185). The App Store's Lite is still $0.99 until App Store Connect
+    // lets its price change: when apple.ts says 100 too, this exception goes.
+    const apple = APPLE_PRODUCTS.map((p) => [p.planId, p.planId === "lite_monthly" && p.usdCents === 99 ? 100 : p.usdCents]);
+    expect(GOOGLE_PLAY_PRODUCTS.map((p) => [p.planId, p.usdCents])).toEqual(apple);
+    expect(googlePlayProduct("farbaek_lite_monthly")!.usdCents).toBe(100);
     for (const p of GOOGLE_PLAY_PRODUCTS) expect(p.productId).toMatch(/^[a-z0-9][a-z0-9_.]{0,99}$/);
     expect(googlePlayProductForPlan("plus")!.productId).toBe("farbaek_plus_monthly");
     expect(googlePlayProduct("com.farbaek.app.pro.monthly")).toBeNull();

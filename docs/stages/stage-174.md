@@ -61,3 +61,8 @@
 - No real purchase was made. The first real Lite checkout after Create products is the live check.
 - Billing's plan cards show list prices. A subscriber still on $0.99 sees "$1 a month" on their current card, while Dodo's receipts show what they pay.
 - Office Space's revenue counts such a subscriber a cent a month high.
+
+## Later the same day: the stores
+
+- **Google Play:** Lite's US price is $1.00 (Play Console, the `monthly` base plan's United States row). Other countries keep their local prices. Nobody subscribes to it yet, so nobody's price changed. `google-play.ts` says 100.
+- **App Store:** still $0.99. App Store Connect offers no way to change a subscription's price before its first review: the price section's menu only offers discounts. Once the five subscriptions have their review screenshot, try again there; failing that, schedule the change once Apple approves them. Then set `apple.ts` to 100 and remove the Lite exception in `google-play.test.ts`.

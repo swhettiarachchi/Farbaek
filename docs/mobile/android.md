@@ -99,7 +99,7 @@ Inside the app, plans are bought through Google Play, the way Farbaek for iPhone
 
    | Product id | Name | US price |
    | --- | --- | --- |
-   | `farbaek_lite_monthly` | Farbaek Lite | $0.99 |
+   | `farbaek_lite_monthly` | Farbaek Lite | $1.00 (from $0.99 on 2026-11-11, ADR 0185) |
    | `farbaek_maker_monthly` | Farbaek Maker | $1.99 |
    | `farbaek_starter_monthly` | Farbaek Starter | $10.49 |
    | `farbaek_plus_monthly` | Farbaek Plus | $20.99 |
