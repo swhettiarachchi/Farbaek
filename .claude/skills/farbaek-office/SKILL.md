@@ -27,7 +27,7 @@ Office Space is where Farbaek's own staff run the platform. It holds the server 
 
 ## Honesty
 
-- **Billing:** stays `not_connected`. Revenue tiles say "Billing not connected", never $0.
+- **Billing:** live payments are on since 2026-10-29. Revenue figures come from live records only (ADR 0106), never test mode. While live payments are off, or a record can't be read, a figure says so ("Live payments are off"), never $0.
 - **AI usage:** staff add it as an `adjustment` grant, labelled "Added by Farbaek". Never call it a payment or a credit (`tests/design/no-credit-wording.test.ts` scans the UI).
 - **Cost figures:** say whether they're estimates.
 - **Emails:** viewers see them masked (`maskEmail`). Secret values are never shown, only their names.
