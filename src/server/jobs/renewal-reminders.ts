@@ -29,6 +29,8 @@ export interface RenewalReminderDeps {
   finish(orgId: string, renewsAt: Date, status: "accepted" | "failed" | "no_recipient", recipients: number, detail: string | null): Promise<void>;
   /** The confirmed addresses of the workspace's owners and admins. */
   recipients(orgId: string): Promise<string[]>;
+  /** What the workspace's subscription to this plan renews at, in cents, from the product it's on; null when that can't be read (ADR 0185). */
+  amountCents(orgId: string, planId: PaidPlanId): Promise<number | null>;
   send?: typeof sendSmtp;
 }
 
@@ -48,6 +50,9 @@ export async function runRenewalReminders(deps: RenewalReminderDeps, now: Date):
     run.workspaces += 1;
     let claimed = false;
     try {
+      // A subscriber keeps the price they joined at, so the list price could be wrong: read what this one renews at.
+      // Read before claiming, so a slow answer can't strand a claimed reminder that's never sent.
+      const amount = await deps.amountCents(c.orgId, c.planId).catch(() => null);
       if (!(await deps.claim(c.orgId, c.renewsAt))) continue;
       claimed = true;
       const to = (await deps.recipients(c.orgId)).filter(isPlainAddress);
@@ -56,7 +61,7 @@ export async function runRenewalReminders(deps: RenewalReminderDeps, now: Date):
         run.noRecipient += 1;
         continue;
       }
-      const content = renewalReminderEmail(c.planId, c.renewsAt, c.orgName);
+      const content = renewalReminderEmail(c.planId, c.renewsAt, c.orgName, amount);
       const refused: string[] = [];
       let accepted = 0;
       for (const address of to) {

@@ -77,7 +77,7 @@ export function allowanceFor(priceUsd: number, sandboxHours: number): Allowance 
  *
  * Billed yearly (`months` 12), the 40-cent fee is paid once a year, leaving
  * room for more AI usage. Billed monthly, the fee is paid every month: Maker
- * still keeps 57%, but a 99-cent charge can't, so monthly Lite adds no AI
+ * still keeps 57%, but a one-dollar charge can't, so monthly Lite adds no AI
  * usage at all (the owner accepted its lower margin, 2026-10-29).
  */
 export function lightAllowance(chargeUsd: number, months: 1 | 12, base: { aiUnits: number; sandboxHours: number }, extraSandboxHours: number, retries: boolean): Allowance {

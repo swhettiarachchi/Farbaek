@@ -6,6 +6,7 @@
 import { z } from "zod";
 import { YEARLY_PLAN_IDS } from "@/core/billing/catalog";
 import { isPaidPlanId } from "@/core/billing/provider-state";
+import { subscriptionAmountCents } from "@/server/billing/wiring";
 import { readEmailConfig } from "@/server/email/config";
 import { confirmedEmail } from "@/server/email/wiring";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
@@ -36,6 +37,7 @@ export function renewalReminderDeps(): RenewalReminderDeps | null {
       const rows = z.array(Candidate).parse(await rpc("app_billing_renewal_candidates", { p_now: now.toISOString(), p_plans: YEARLY_PLAN_IDS }));
       return rows.flatMap((r) => (isPaidPlanId(r.plan_id) ? [{ orgId: r.org_id, orgName: r.org_name, planId: r.plan_id, renewsAt: new Date(r.renews_at) }] : []));
     },
+    amountCents: (orgId, planId) => subscriptionAmountCents(orgId, planId),
     claim: async (orgId, renewsAt) => (await rpc("app_billing_claim_renewal_reminder", { p_org: orgId, p_period_end: renewsAt.toISOString() })) === true,
     finish: async (orgId, renewsAt, status, recipients, detail) => {
       await rpc("app_billing_finish_renewal_reminder", { p_org: orgId, p_period_end: renewsAt.toISOString(), p_status: status, p_recipients: recipients, p_detail: detail });

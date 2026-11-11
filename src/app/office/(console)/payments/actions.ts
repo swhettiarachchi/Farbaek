@@ -2,7 +2,8 @@
 
 import { refresh } from "next/cache";
 import type { OfficeFormState } from "@/components/office/action-form";
-import { BILLABLE_PLANS, PLAN_CATALOG_VERSION, chargeCents, formatUsd } from "@/core/billing/catalog";
+import { BILLABLE_PLANS, chargeCents, formatUsd } from "@/core/billing/catalog";
+import { PRICE_LIST_VERSION, currentPack, currentProduct } from "@/core/billing/products";
 import { TOPUP_PACKS_CENTS } from "@/core/billing/topups";
 import { isPaidPlanId } from "@/core/billing/provider-state";
 import { readProviderConfig } from "@/server/billing/config";
@@ -21,9 +22,9 @@ import { OFFICE_MESSAGES } from "@/server/office/staff-store";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Creates the products checkout charges for (ADR 0100): one monthly product
- * at Dodo Payments for each paid plan in the current price list that doesn't
- * have one, in the server's mode (test only, for now). Owners only.
+ * Creates the products checkout charges for (ADR 0100, ADR 0185): one product
+ * at Dodo Payments for each paid plan with none at its current price, and
+ * for each top-up pack with none, in the server's mode. Owners only.
  */
 export async function createProductsAction(): Promise<OfficeFormState> {
   const gate = await staffAction("billing.products");
@@ -33,11 +34,15 @@ export async function createProductsAction(): Promise<OfficeFormState> {
   if (!config) return { ok: false, message: "This server has no Dodo keys, so no product can be created. Nothing changed." };
   const page = await readPaymentsPage(gate.ctx.admin);
   if (!page) return { ok: false, message: OFFICE_MESSAGES.UNKNOWN };
-  const have = new Set(page.products.filter((p) => p.mode === config.mode && p.catalogVersion === PLAN_CATALOG_VERSION).map((p) => p.planId));
-  const missing = BILLABLE_PLANS.filter((p) => p.pricing.kind === "paid" && isPaidPlanId(p.id) && !have.has(p.id));
-  const havePacks = new Set(page.topups.filter((t) => t.mode === config.mode && t.catalogVersion === PLAN_CATALOG_VERSION).map((t) => t.packCents));
-  const missingPacks = TOPUP_PACKS_CENTS.filter((c) => !havePacks.has(c));
-  if (missing.length === 0 && missingPacks.length === 0) return { ok: true, message: "Every paid plan and top-up pack already has a product for the current price list." };
+  // Only plans with no product at their current price (ADR 0185): a price change makes new products for the plans it changed.
+  const products = page.products.filter((p) => p.mode === config.mode);
+  const missing = BILLABLE_PLANS.filter((p) => p.pricing.kind === "paid" && isPaidPlanId(p.id) && !currentProduct(products, p.id));
+  const packs = page.topups.filter((t) => t.mode === config.mode);
+  const missingPacks = TOPUP_PACKS_CENTS.filter((c) => !currentPack(packs, c));
+  if (missing.length === 0 && missingPacks.length === 0) return { ok: true, message: "Every paid plan and top-up pack already has a product at its current price." };
+  // A product is recorded once per plan and price list, so a new price needs a new price list before anything is made at Dodo.
+  const clash = missing.filter((p) => products.some((r) => r.planId === p.id && r.catalogVersion === PRICE_LIST_VERSION));
+  if (clash.length > 0) return { ok: false, message: `${clash.map((p) => p.name).join(", ")} already has a product in price list ${PRICE_LIST_VERSION} at another price. A price change needs a new PRICE_LIST_VERSION in products.ts. Nothing changed.` };
 
   const dodo = createDodoClient({ apiKey: config.apiKey, baseUrl: config.baseUrl, mode: config.mode });
   const meta = await requestMeta();
@@ -52,7 +57,7 @@ export async function createProductsAction(): Promise<OfficeFormState> {
     }
     const recorded = await gate.ctx.store.recordBillingProduct(
       { userId: gate.ctx.user.id, sessionId: gate.ctx.sessionId },
-      { mode: config.mode, planId: plan.id, interval: plan.pricing.interval, productId: created.value.productId, amountCents: chargeCents(plan), currency: "USD", catalogVersion: PLAN_CATALOG_VERSION },
+      { mode: config.mode, planId: plan.id, interval: plan.pricing.interval, productId: created.value.productId, amountCents: chargeCents(plan), currency: "USD", catalogVersion: PRICE_LIST_VERSION },
       meta,
     );
     if (!recorded.ok) {
@@ -68,7 +73,7 @@ export async function createProductsAction(): Promise<OfficeFormState> {
       refresh();
       return { ok: false, message: `${made.length ? `Created ${made.join(", ")}. ` : ""}Dodo Payments refused the ${formatUsd(cents)} top-up (${created.code}). Try again; products that exist are skipped.` };
     }
-    const recorded = await gate.ctx.store.recordTopupProduct({ userId: gate.ctx.user.id, sessionId: gate.ctx.sessionId }, { mode: config.mode, packCents: cents, productId: created.value.productId, catalogVersion: PLAN_CATALOG_VERSION }, meta);
+    const recorded = await gate.ctx.store.recordTopupProduct({ userId: gate.ctx.user.id, sessionId: gate.ctx.sessionId }, { mode: config.mode, packCents: cents, productId: created.value.productId, catalogVersion: PRICE_LIST_VERSION }, meta);
     if (!recorded.ok) {
       refresh();
       return { ok: false, message: `The ${formatUsd(cents)} top-up was created at Dodo Payments (${created.value.productId}) but couldn't be recorded: ${OFFICE_MESSAGES[recorded.code]} Archive it in Dodo's dashboard before trying again.` };

@@ -1,6 +1,6 @@
 # ADR 0105: Lite and Maker, billed yearly
 
-- Status: accepted (2026-10-29).
+- Status: accepted (2026-10-29). Lite's price amended by ADR 0185: $1 a month, or $12 a year, from 2026-11-11.
 - Builds on ADR 0100 (payments), ADR 0102 (top-ups), ADR 0103 (the 57% margin) and ADR 0104 (going live).
 
 ## Context

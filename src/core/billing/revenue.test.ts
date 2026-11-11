@@ -10,7 +10,7 @@ describe("revenue from Farbaek's own records (ADR 0106)", () => {
       accounts: [
         acct("a", "starter"),
         acct("b", "starter", { state: "past_due" }),
-        acct("c", "lite"), // yearly: $11.88 / 12 = 99 cents
+        acct("c", "lite"), // yearly: $12 / 12 = 100 cents
         acct("d", "maker_monthly", { state: "cancellation_scheduled", cancelAtPeriodEnd: true }),
         acct("e", "pro", { mode: "test" }), // a test card never counts
         acct("f", "max", { state: "free" }),
@@ -23,9 +23,9 @@ describe("revenue from Farbaek's own records (ADR 0106)", () => {
       now: NOW,
     });
     expect(r.payingWorkspaces).toBe(4);
-    expect(r.mrrCents).toBe(999 + 999 + 99 + 199);
+    expect(r.mrrCents).toBe(999 + 999 + 100 + 199);
     expect(r.byPlan.map((p) => [p.planId, p.workspaces, p.monthlyCents])).toEqual([
-      ["lite", 1, 99],
+      ["lite", 1, 100],
       ["maker_monthly", 1, 199],
       ["starter", 2, 1998],
     ]);
