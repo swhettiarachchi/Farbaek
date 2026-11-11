@@ -25,7 +25,7 @@ export const CATEGORY_PREFIXES: Record<ActivityCategory, string[]> = {
   changes: ["task.", "contract.", "proposal.", "workflow.", "change.", "verification.", "proofpack.", "arena.", "watch."],
   agents: ["agent.", "agents.", "mesh."],
   sites: ["site.", "launch.", "provider."],
-  trust: ["policy.", "autonomy.", "security."],
+  trust: ["policy.", "autonomy.", "security.", "api_key."],
   billing: ["billing.", "usage.", "trial."],
   farbaek: ["farbaek."],
 };
@@ -62,6 +62,8 @@ const VERBS: Record<string, string> = {
   "workspace.model_key_removed": "removed the workspace's own AI key",
   "workspace.github_connected": "connected GitHub",
   "workspace.github_disconnected": "disconnected GitHub",
+  "api_key.created": "made a developer API key",
+  "api_key.revoked": "revoked a developer API key",
   "project.created": "created a project",
   "project.archived": "archived a project",
   "project.files_imported": "imported files into a project",

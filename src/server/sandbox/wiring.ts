@@ -9,6 +9,9 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
+import { looksLikeApiKey } from "@/core/workspace/api-keys";
+import { accessTokenForKey, identifyKey } from "@/server/api-keys/keys";
+import { bearerClient, createSupabaseSessionAuth } from "@/server/phone/wiring";
 import { readSupabaseConfig } from "@/server/supabase/config";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { WORKSPACE_COOKIE } from "@/server/workspace/context";
@@ -155,8 +158,32 @@ export async function sandboxRequest(request: Request): Promise<SandboxRequestRe
   const bearer = header?.match(/^Bearer\s+([A-Za-z0-9._-]{20,4096})$/)?.[1] ?? null;
   let user: SupabaseClient | null;
   let userId: string | null = null;
+  // A developer API key works in its own workspace only (ADR 0187).
+  let keyOrg: string | null = null;
 
-  if (bearer) {
+  if (bearer && looksLikeApiKey(bearer)) {
+    const admin = createSupabaseAdminClient();
+    if (!admin) return { ok: false, status: 503, code: "NOT_CONFIGURED", message: "API keys can't be checked on this server right now." };
+    let identity: Awaited<ReturnType<typeof identifyKey>>;
+    try {
+      identity = await identifyKey(admin, bearer);
+    } catch {
+      // The database didn't answer: say so, so nobody replaces a key that still works.
+      return { ok: false, status: 503, code: "UNAVAILABLE", message: "API keys can't be checked right now. Try again in a moment; the key itself is fine." };
+    }
+    if (!identity) {
+      return { ok: false, status: 401, code: "INVALID_KEY", message: "This API key doesn't work. It may have been revoked or have expired, or the person who made it is no longer an owner or admin of its workspace." };
+    }
+    if (identity.suspended) return { ok: false, status: 403, code: "SUSPENDED", message: "This workspace is suspended, so its API keys don't work. Contact Farbaek support." };
+    const asked = request.headers.get("x-farbaek-workspace");
+    if (asked && asked !== identity.orgId) return { ok: false, status: 403, code: "WRONG_WORKSPACE", message: "This key works only in the workspace it was made in." };
+    // A session for the key's maker, kept on this server, so Row Level Security applies to every call as it does for them.
+    const access = await accessTokenForKey(identity, createSupabaseSessionAuth(admin, config), undefined, (token) => admin.auth.admin.signOut(token, "local"));
+    if (!access) return { ok: false, status: 503, code: "UNAVAILABLE", message: "The API couldn't start a session for this key. Try again in a moment." };
+    user = bearerClient(config, access);
+    userId = identity.userId;
+    keyOrg = identity.orgId;
+  } else if (bearer) {
     user = createClient(config.url, config.publishableKey, {
       global: { headers: { Authorization: `Bearer ${bearer}` } },
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
@@ -178,7 +205,7 @@ export async function sandboxRequest(request: Request): Promise<SandboxRequestRe
 
   const { data: memberships } = await user.from("organization_members").select("org_id, role").eq("user_id", userId);
   const rows = z.array(z.object({ org_id: z.string(), role: z.enum(ORG_ROLES) })).catch([]).parse(memberships ?? []);
-  const wanted = request.headers.get("x-farbaek-workspace") ?? (bearer ? null : (await cookies()).get(WORKSPACE_COOKIE)?.value ?? null);
+  const wanted = keyOrg ?? request.headers.get("x-farbaek-workspace") ?? (bearer ? null : (await cookies()).get(WORKSPACE_COOKIE)?.value ?? null);
   const chosen = wanted ? rows.find((r) => r.org_id === wanted) : rows[0];
   if (!chosen) {
     return wanted

@@ -63,3 +63,11 @@ describe("a plan's activity history (stage 176)", () => {
     expect(withinHistory(events, null)).toEqual(events);
   });
 });
+
+describe("developer API keys in History (ADR 0187)", () => {
+  it("files key events under trust, in plain words", () => {
+    expect(categoryOf("api_key.created")).toBe("trust");
+    expect(describeActivity(event({ action: "api_key.created", target: null }), "You").text).toBe("You made a developer API key.");
+    expect(describeActivity(event({ action: "api_key.revoked", target: null }), "An admin").text).toBe("An admin revoked a developer API key.");
+  });
+});
