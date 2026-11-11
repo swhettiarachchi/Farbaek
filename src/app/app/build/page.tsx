@@ -6,6 +6,7 @@ import { LiveRefresh } from "@/components/app/live-refresh";
 import { CardTitle, EmptyState, Notice, PageHeader } from "@/components/app/primitives";
 import { AgentCore } from "@/components/build/agent-core";
 import { PromptComposer } from "@/components/build/prompt-composer";
+import { buildTargets } from "@/core/workspace/build-target";
 import { RunStatusBadge } from "@/components/build/run-status";
 import { StartRun } from "@/components/build/start-run";
 import { Disclosure } from "@/components/ui/disclosure";
@@ -49,11 +50,12 @@ export default async function BuildPage() {
           : ai.reason
         : null;
 
-  const [tasks, runs] = await Promise.all([
+  const [tasks, runs, projects] = await Promise.all([
     ctx.reader.listTasks(ws.id),
     ctx.mode === "live"
       ? createSupabaseServerClient().then((c) => (c ? listRuns(c, ws.id) : ([] as RunView[]))).catch(() => [] as RunView[])
       : Promise.resolve([] as RunView[]),
+    ctx.reader.listProjects(ws.id).catch(() => []),
   ]);
   const busy = new Set(runs.filter((r) => ["starting", "working", "waiting"].includes(r.status)).map((r) => r.taskId));
   const ready = tasks.filter((t) => t.state === "CONTRACT_APPROVED");
@@ -84,7 +86,7 @@ export default async function BuildPage() {
       />
 
       <section aria-label="Start a build" className="aurora">
-        <PromptComposer mode="app" size="compact" disabledReason={startReason} />
+        <PromptComposer mode="app" size="compact" disabledReason={startReason} targets={buildTargets(projects, ws.plan.limits.workspaces)} />
       </section>
 
       <AgentCore phase={phase}>

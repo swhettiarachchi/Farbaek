@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CardTitle } from "@/components/app/primitives";
 import { PromptComposer } from "@/components/build/prompt-composer";
+import { buildTargets } from "@/core/workspace/build-target";
 import { SiteThumb } from "@/components/app/site-thumb";
 import { promptFromShare } from "@/core/agent/prompt-start";
 import { TEMPLATE_STARTERS, getStarter } from "@/content/starters";
@@ -24,8 +25,18 @@ export default async function NewBuildPage({ searchParams }: Props) {
   const chosen = getStarter(templateId);
   const template = chosen?.kind === "template" ? chosen : null;
   const canBuild = ctx.role !== null && CONTRIBUTOR_ROLES.includes(ctx.role);
+  // A template starts a new project, so a full plan says so before anything is written. Otherwise the box offers the projects there are (stage 176).
+  const targets = buildTargets(await ctx.reader.listProjects(ctx.current.id).catch(() => []), ctx.current.plan.limits.workspaces);
   const reason =
-    ctx.mode === "demo" ? "The demo workspace is read-only." : !ctx.writes.enabled ? ctx.writes.reason : !canBuild ? "Your role can view work but not start builds." : null;
+    ctx.mode === "demo"
+      ? "The demo workspace is read-only."
+      : !ctx.writes.enabled
+        ? ctx.writes.reason
+        : !canBuild
+          ? "Your role can view work but not start builds."
+          : template && targets.newProject
+            ? targets.newProject
+            : null;
 
   return (
     <div className="mx-auto grid w-full max-w-3xl gap-10 pt-2 sm:pt-8">
@@ -53,6 +64,7 @@ export default async function NewBuildPage({ searchParams }: Props) {
           mode="app"
           autoResume={resume === "1" && !template}
           disabledReason={reason}
+          targets={template ? undefined : targets}
           template={template ? { id: template.id, name: template.name, example: template.examplePrompt ?? template.summary } : undefined}
         />
       </div>

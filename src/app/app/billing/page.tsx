@@ -46,14 +46,14 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
     loadIntegrations(ctx, ws.id),
   ]);
   const activeAgents = agents.filter((a) => !a.revokedAt).length;
-  // The same records the Connections page reads: GitHub and each hosting account. Never a made-up zero.
-  const connections = (integrations.github?.login ? 1 : 0) + Object.keys(integrations.connections ?? {}).length;
+  // What the limit counts, as the server does: the hosting accounts launches use. GitHub doesn't count. Never a made-up zero.
+  const connections = Object.keys(integrations.connections ?? {}).length;
   const connectionsDetail =
-    integrations.connections === null && integrations.github === null
+    integrations.connections === null
       ? "What's connected is listed on the Connections page."
       : connections === 0
-        ? "None connected yet. GitHub and hosting accounts connect on the Connections page."
-        : "GitHub and hosting accounts connected to this workspace. Manage them on the Connections page.";
+        ? "No hosting account connected yet. Vercel and Netlify connect from a project's Launch page. GitHub doesn't count toward this."
+        : "Hosting accounts connected for launches. GitHub doesn't count toward this. Manage them on the Connections page.";
   const plan = getPlan(ws.plan.planId);
   const limits = ws.plan.limits;
   const canManage = Boolean(ctx.role && MANAGER_ROLES.includes(ctx.role)) && ctx.writes.enabled;

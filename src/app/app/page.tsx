@@ -10,6 +10,7 @@ import { NeedsYouCard } from "@/components/app/needs-you-card";
 import { ProjectCard } from "@/components/app/project-card";
 import { UsageMeterList } from "@/components/app/usage-meters";
 import { PromptComposer } from "@/components/build/prompt-composer";
+import { buildTargets } from "@/core/workspace/build-target";
 import { ButtonLink } from "@/components/ui/button";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
 import { getPlan } from "@/core/billing/catalog";
@@ -105,7 +106,15 @@ export default async function MissionControl() {
   const showSteps = !steps.complete && !stepsHidden;
   // Until something is described, the build box sits inside the first step.
   const composerInSteps = showSteps && steps.steps[0]!.state === "next";
-  const composer = <PromptComposer mode="app" size="compact" disabledReason={ctx.mode === "demo" ? "The demo workspace is read-only." : ctx.writes.enabled ? null : ctx.writes.reason} />;
+  // Once there are projects, the box offers them too; with the plan full it starts on the latest (stage 176).
+  const composer = (
+    <PromptComposer
+      mode="app"
+      size="compact"
+      disabledReason={ctx.mode === "demo" ? "The demo workspace is read-only." : ctx.writes.enabled ? null : ctx.writes.reason}
+      targets={buildTargets(projects, limits.workspaces)}
+    />
+  );
 
   return (
     <div className="grid gap-8">

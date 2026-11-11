@@ -1,4 +1,4 @@
-import { describeActivity, type ActivityCategory, type ActivityEvent } from "@/core/workspace/activity";
+import { describeActivity, withinHistory, type ActivityCategory, type ActivityEvent } from "@/core/workspace/activity";
 import type { AppContext } from "./context";
 import type { OrgRole } from "./types";
 
@@ -20,14 +20,16 @@ const ROLE_WORDS: Record<OrgRole, string> = { owner: "An owner", admin: "An admi
 export async function loadActivity(
   ctx: AppContext,
   orgId: string,
-  options: { category: ActivityCategory | null; before: number | null; limit: number },
+  options: { category: ActivityCategory | null; before: number | null; limit: number; since?: Date | null },
 ): Promise<ActivityRow[]> {
-  const [events, members, invitations] = await Promise.all([
-    ctx.reader.listActivity(orgId, options),
+  const [all, members, invitations] = await Promise.all([
+    ctx.reader.listActivity(orgId, { category: options.category, before: options.before, limit: options.limit }),
     ctx.reader.listMembers(orgId).catch(() => []),
     // Only owners and admins can read invitations; everyone else sees roles.
     ctx.reader.listInvitations(orgId).catch(() => []),
   ]);
+  // The plan's history (stage 176): events are newest first, so the window ends the list and its paging.
+  const events = withinHistory(all, options.since ?? null);
   const emailOf = new Map(invitations.flatMap((i) => (i.acceptedBy ? [[i.acceptedBy, i.email] as const] : [])));
   const roleOf = new Map(members.map((m) => [m.userId, m.role] as const));
   const actorName = (id: string | null) => {

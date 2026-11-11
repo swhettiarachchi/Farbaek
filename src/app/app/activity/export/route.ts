@@ -1,4 +1,4 @@
-import { ACTIVITY_CATEGORIES, activityCsv, type ActivityCategory } from "@/core/workspace/activity";
+import { ACTIVITY_CATEGORIES, activityCsv, historyCutoff, type ActivityCategory } from "@/core/workspace/activity";
 import { loadActivity } from "@/server/workspace/activity";
 import { loadAppContext } from "@/server/workspace/context";
 
@@ -20,7 +20,8 @@ export async function GET(request: Request) {
   if (!ctx.current) return text(404, "Open a workspace first.");
   const raw = new URL(request.url).searchParams.get("category");
   const category = ACTIVITY_CATEGORIES.some((c) => c.id === raw) ? (raw as ActivityCategory) : null;
-  const rows = await loadActivity(ctx, ctx.current.id, { category, before: null, limit: MAX_ROWS });
+  // The same history the page shows: the plan's days (stage 176).
+  const rows = await loadActivity(ctx, ctx.current.id, { category, before: null, limit: MAX_ROWS, since: historyCutoff(ctx.current.plan.limits.historyDays, new Date()) });
   const day = new Date().toISOString().slice(0, 10);
   return new Response(activityCsv(rows), {
     headers: {

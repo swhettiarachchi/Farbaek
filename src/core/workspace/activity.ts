@@ -201,3 +201,19 @@ export function activityCsv(rows: { occurredAt: string; actor: string; action: s
   const head = ["occurred_at", "actor", "action", "target", "description", "details"].map(csvCell).join(",");
   return [head, ...rows.map((r) => [r.occurredAt, r.actor, r.action, r.target ?? "", r.text, JSON.stringify(r.metadata)].map(csvCell).join(","))].join("\r\n") + "\r\n";
 }
+
+/**
+ * The oldest moment a plan's history shows (stage 176): "Activity history" on the pricing page. Null keeps every
+ * event. Events before it stay stored; a plan with a longer history shows them again.
+ */
+export function historyCutoff(historyDays: number | null, now: Date): Date | null {
+  if (historyDays === null || !Number.isFinite(historyDays) || historyDays <= 0) return null;
+  return new Date(now.getTime() - historyDays * 86_400_000);
+}
+
+/** Only the events on or after the cutoff. */
+export function withinHistory<T extends Pick<ActivityEvent, "occurredAt">>(events: readonly T[], cutoff: Date | null): T[] {
+  if (!cutoff) return [...events];
+  const from = cutoff.getTime();
+  return events.filter((e) => Date.parse(e.occurredAt) >= from);
+}

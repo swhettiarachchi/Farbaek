@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ACTIVITY_CATEGORIES, CATEGORY_PREFIXES, activityCsv, activityHref, categoryOf, csvCell, describeActivity, type ActivityEvent } from "./activity";
+import { ACTIVITY_CATEGORIES, CATEGORY_PREFIXES, activityCsv, activityHref, categoryOf, csvCell, describeActivity, historyCutoff, withinHistory, type ActivityEvent } from "./activity";
 
 const TASK = "22222222-2222-4222-8222-222222222222";
 const event = (over: Partial<ActivityEvent>): ActivityEvent => ({ id: 1, action: "task.created", target: TASK, metadata: {}, actorId: "u1", occurredAt: "2026-10-30T10:00:00Z", ...over });
@@ -47,5 +47,19 @@ describe("the CSV download", () => {
   it("writes a header and one quoted row per event", () => {
     const csv = activityCsv([{ occurredAt: "2026-10-30T10:00:00Z", actor: "You", action: "agent.paired", target: null, text: "You paired an agent: =cmd.", metadata: { name: "=cmd" } }]);
     expect(csv).toBe('"occurred_at","actor","action","target","description","details"\r\n"2026-10-30T10:00:00Z","You","agent.paired","","You paired an agent: =cmd.","{""name"":""=cmd""}"\r\n');
+  });
+});
+
+describe("a plan's activity history (stage 176)", () => {
+  const now = new Date("2026-11-11T12:00:00Z");
+  const at = (iso: string) => ({ occurredAt: iso });
+
+  it("shows the plan's days of history, and everything on a plan without a limit", () => {
+    expect(historyCutoff(7, now)?.toISOString()).toBe("2026-11-04T12:00:00.000Z");
+    expect(historyCutoff(null, now)).toBeNull();
+    expect(historyCutoff(0, now)).toBeNull();
+    const events = [at("2026-11-10T00:00:00Z"), at("2026-11-04T12:00:00Z"), at("2026-11-01T00:00:00Z")];
+    expect(withinHistory(events, historyCutoff(7, now))).toEqual(events.slice(0, 2));
+    expect(withinHistory(events, null)).toEqual(events);
   });
 });
