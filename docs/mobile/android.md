@@ -71,9 +71,9 @@ The texts, graphics and answers are in `docs/mobile/play-listing.md`. Plans are 
 
 Inside the app, plans are bought through Google Play, the way Farbaek for iPhone buys through the App Store. The website shows Google Play's prices and opens Google Play's purchase sheet. The server checks every purchase with Google before the plan changes.
 
-**Where it stands (2026-11-03):**
+**Where it stands (2026-11-11, ADR 0186):**
 - **Built:** stage 134, app version 1.1.0 (versionCode 3).
-- **Off on the server** until step 8.
+- **Selling opens by itself once step 4 saves the key:** the server's switch is on unless `GOOGLE_PLAY_BILLING=off`. Step 8 is no longer needed.
 - **Steps 1 to 3 and 5 are done.** The service account is `farbaek-play-billing@farbaek-play.iam.gserviceaccount.com` in the Google Cloud project `farbaek-play`, and Play Console shows it Active. On 2026-11-03, step 4's test passed Google's sign-in, but Google Play didn't let the account read purchases yet, so nothing was saved; run step 4 again once Google's access starts working.
 
 1. **Payments profile.** Play Console → **Settings → Payments profile**. Create it (merchant, bank account and tax details). Only you can: it's your money. Sri Lanka supports merchant registration.
@@ -111,7 +111,7 @@ Inside the app, plans are bought through Google Play, the way Farbaek for iPhone
    - Upload the bundle from the "Android app" workflow run (versionCode 3) to **Closed testing - Alpha**.
    - Answer **Financial features** (none of the listed ones: it sells subscriptions to its own service).
    - Check that **Data safety** still lists Purchase history.
-8. **Turn it on:** run the script again with `-TurnOn`. After the restart, Billing in the app shows the plan picker with Google Play's prices.
+8. **On by itself (ADR 0186):** once step 4 saves the key, Billing in the app shows the plan picker with Google Play's prices after the restart. `-TurnOn` only starts it again after `-Off`. Before that, send 1.1.0 to the closed test, or testers on 1.0.1 see "Update the app in the Play Store".
 9. **Test end to end** with a license tester, on the closed test:
    1. Buy Lite.
    2. Billing shows "Billed through Google Play".

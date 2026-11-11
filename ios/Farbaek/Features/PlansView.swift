@@ -30,8 +30,12 @@ struct PlansView: View {
                     if loading {
                         ProgressView().tint(Palette.accent).frame(maxWidth: .infinity, minHeight: 200)
                     } else if products.isEmpty {
-                        Notice(text: "The App Store didn't send the plans. Check your connection and try again in a moment.", tone: .attention, symbol: "exclamationmark.icloud")
-                            .card()
+                        VStack(alignment: .leading, spacing: 12) {
+                            Notice(text: "The App Store didn't send the plans. Check your connection and try again.", tone: .attention, symbol: "exclamationmark.icloud")
+                            Button("Try again") { Task { await load() } }
+                                .buttonStyle(PillButtonStyle(kind: .secondary, compact: true))
+                        }
+                        .card()
                     }
                     ForEach(products, id: \.id) { product in
                         planCard(product)
@@ -66,8 +70,9 @@ struct PlansView: View {
                     }
                     .font(.footnote.weight(.medium))
 
-                    if model.canBuyOnWeb {
-                        Link(destination: WebPurchase.billingURL) {
+                    // The US App Store only (guideline 3.1.1(a)): the same plans on the website, signed in, in Safari.
+                    if model.canBuyOnWeb, !billedByApple {
+                        WebPurchaseButton {
                             Label("Or pay on www.farbaek.com", systemImage: "arrow.up.right.square")
                                 .frame(minHeight: 44)
                                 .contentShape(Rectangle())

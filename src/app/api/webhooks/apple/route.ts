@@ -6,7 +6,7 @@
  */
 import { IOS_APP } from "@/config/ios-app";
 import { receiveAppleNotification } from "@/server/billing/apple/service";
-import { appleDeps, appleIapOn } from "@/server/billing/apple/wiring";
+import { appleDeps } from "@/server/billing/apple/wiring";
 import { log } from "@/server/observability/log";
 import { readTextCapped } from "@/server/http/body";
 
@@ -15,7 +15,8 @@ export const dynamic = "force-dynamic";
 const plain = (status: number) => new Response(null, { status, headers: { "cache-control": "no-store" } });
 
 export async function POST(request: Request): Promise<Response> {
-  if (!appleIapOn()) return plain(503);
+  // Received even with APPLE_IAP=off (ADR 0186): the switch stops new purchases, not the renewals, refunds and ends of
+  // subscriptions people already have.
   const deps = appleDeps();
   if (!deps) return plain(503);
   const text = await readTextCapped(request, 200_000);

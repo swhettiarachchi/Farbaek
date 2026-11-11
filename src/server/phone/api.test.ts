@@ -114,6 +114,50 @@ describe("a page the app has no screen for (ADR 0177)", () => {
   });
 });
 
+describe("buying a plan from the iPhone (ADR 0186)", () => {
+  const UA_40 = "Farbaek/40 CFNetwork/1568.100.1 Darwin/24.0.0";
+
+  it("tells the server which build is asking, so only builds that sell plans offer them", async () => {
+    const { deps: d } = deps();
+    const builds: (number | null)[] = [];
+    const seen: PhoneApiDeps = { ...d, billing: async (_org, build) => (builds.push(build), { managedBy: null, live: false, applePurchases: true }) };
+    await call(seen, "GET", "me", { headers: { "user-agent": UA_40 } });
+    await call(seen, "GET", "me", { headers: { "user-agent": "Farbaek/22 CFNetwork/1568.100.1 Darwin/24.0.0" } });
+    await call(seen, "GET", "me", { headers: { "user-agent": "Mozilla/5.0" } });
+    await call(seen, "GET", "me", { headers: { "user-agent": "Farbaek/41 CFNetwork/1568.100.1 Darwin/24.0.0", "x-farbaek-app": "1.1.1+44" } });
+    expect(builds).toEqual([40, 22, null, 44]);
+  });
+
+  it("opens Billing on the web signed in, on this workspace, at the plan's checkout, without the app's no-purchase mark", async () => {
+    const { deps: d } = deps();
+    const url = new URL((await data(await call(d, "POST", "billing-link", { body: { plan: "starter" } }))).url as string);
+    expect(url.pathname).toBe("/auth/open");
+    expect(url.searchParams.get("next")).toBe("/app/billing?choose=starter#billing-step");
+    expect(url.searchParams.get("client")).toBe("web");
+    expect(url.searchParams.get("ws")).toMatch(/^[0-9a-f-]{36}$/);
+    expect(url.searchParams.get("token_hash")).toBe("abc123def456abc123def456");
+  });
+
+  it("opens Billing itself for a workspace already paying another way, and leaves a plan bought from Apple to the App Store", async () => {
+    const { deps: d } = deps();
+    // Paying on the web, or through Google Play (reported as "web"): Billing says how that plan changes.
+    const web: PhoneApiDeps = { ...d, billing: async () => ({ managedBy: "web", live: true, applePurchases: true }) };
+    const url = new URL((await data(await call(web, "POST", "billing-link", { body: { plan: "pro" } }))).url as string);
+    expect(url.searchParams.get("next")).toBe("/app/billing");
+    const apple: PhoneApiDeps = { ...d, billing: async () => ({ managedBy: "apple", live: true, applePurchases: true }) };
+    expect((await call(apple, "POST", "billing-link", { body: { plan: "pro" } })).status).toBe(409);
+  });
+
+  it("opens the plan list for a plan it doesn't sell, and never for someone who isn't signed in", async () => {
+    const { deps: d } = deps();
+    for (const plan of ["enterprise", "free", "nonsense"]) {
+      const url = new URL((await data(await call(d, "POST", "billing-link", { body: { plan } }))).url as string);
+      expect(url.searchParams.get("next"), plan).toBe("/app/billing");
+    }
+    expect((await call(d, "POST", "billing-link", { body: { plan: "starter" }, token: false })).status).toBe(401);
+  });
+});
+
 describe("the iPhone app's next step, projects and reports (ADR 0173)", () => {
   const stepOf = async (d: PhoneApiDeps, id: string) => (await data(await call(d, "GET", `tasks/${id}`))).nextStep as { tone: string; title: string; body: string; action: { label: string; target: string } | null };
 

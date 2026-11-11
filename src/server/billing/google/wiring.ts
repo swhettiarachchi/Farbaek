@@ -1,9 +1,9 @@
 /**
- * Google Play purchases on this server (ADR 0154): off until
- * GOOGLE_PLAY_BILLING=on, which the owner sets once the payments profile,
- * the five subscriptions and the service account are in place
- * (docs/mobile/android.md). Until then the Android app sells nothing, as
- * ADR 0150 has it, and the actions say plans can't be bought there yet.
+ * Google Play purchases on this server (ADR 0154, ADR 0186). The payments
+ * profile and the five subscriptions are in place, so selling opens by
+ * itself once the service account's key is saved (scripts/vps/set-google-play.ps1),
+ * unless GOOGLE_PLAY_BILLING=off. Until then the Android app sells nothing,
+ * as ADR 0150 has it, and the actions say plans can't be bought there yet.
  */
 import { z } from "zod";
 import { ANDROID_APP_PACKAGE } from "@/core/billing/store-client";
@@ -14,7 +14,7 @@ import { subscriptionRef } from "./service";
 import { googleAccessTokens, googleServiceAccount } from "./token";
 
 export function googlePlayOn(env: Record<string, string | undefined> = process.env): boolean {
-  return env.GOOGLE_PLAY_BILLING?.trim() === "on";
+  return env.GOOGLE_PLAY_BILLING?.trim() !== "off";
 }
 
 /** On, with a usable service account: what the Billing page asks before offering Google Play. */
