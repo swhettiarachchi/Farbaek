@@ -57,11 +57,15 @@ if ($code -eq 3) { Write-Host "The server got a different file than the one test
 if ($code -ne 0) { Write-Host "The database refused it, so the whole transaction was undone. Nothing changed. Send Claude the lines above." -ForegroundColor Red; exit 1 }
 
 Write-Host "3 of 3: recording it and reading back" -ForegroundColor Cyan
+# Production's database (self-hosted) has no migration ledger, so it's recorded only where one exists.
 $record = @'
-docker exec -i supabase-db psql -U postgres -d postgres -At <<'SQL'
-insert into supabase_migrations.schema_migrations (version, name) values ('__VERSION__', '__LABEL__') on conflict do nothing;
+docker exec -i supabase-db psql -U postgres -d postgres -Atq <<'SQL'
+do $$ begin
+  if to_regclass('supabase_migrations.schema_migrations') is not null then
+    insert into supabase_migrations.schema_migrations (version, name) values ('__VERSION__', '__LABEL__') on conflict do nothing;
+  end if;
+end $$;
 notify pgrst, 'reload schema';
-select 'recorded', version, name from supabase_migrations.schema_migrations where version = '__VERSION__';
 __CHECK__
 SQL
 '@
