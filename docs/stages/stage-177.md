@@ -44,6 +44,8 @@ Auto mode refused my read-only query to production's database, so the owner appl
 
 The commands go to the server on standard input, because Windows PowerShell mangles quotes on a command line.
 
+**Applied on 2026-11-11.** The owner ran it. The file's hash matched on both ends, the migration ran in one transaction, and the read-back said `check|api_keys|1`: the table and the trigger are there. Production's database has no `supabase_migrations` ledger, so recording it there failed harmlessly, after the migration had committed. The script now records only where a ledger exists.
+
 ## The independent security review
 
 It found nothing critical or high. It found five real issues and one gap in the docs, all fixed:
