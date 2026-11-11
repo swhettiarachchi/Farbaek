@@ -66,3 +66,20 @@ export function earlyMarkScript(): string {
   const mark = JSON.stringify(ANDROID_APP_MARK);
   return `(function(){try{var s=null;try{s=sessionStorage.getItem(${JSON.stringify(STORE_CLIENT_KEY)})}catch(e){}var r=document.referrer,c=new URLSearchParams(location.search).get("client");if(s===${client}||r===${app}||r.indexOf(${app}+"/")===0||c===${client})document.documentElement.setAttribute(${mark},${client});else if(s===${ios}||c===${ios})document.documentElement.setAttribute(${mark},${ios})}catch(e){}})();`;
 }
+
+/**
+ * The first iPhone build that sells plans: 1.1.0 (40), sent to Apple with the five subscriptions (ADR 0186). 1.0.0 (22)
+ * went to Apple without them, so it never offers them, even once they're approved.
+ */
+export const APPLE_PURCHASES_FROM_BUILD = 40;
+
+/**
+ * The iPhone app's build number. Builds after 40 say it in X-Farbaek-App ("1.1.0+41"); 40 and older only in the
+ * User-Agent iOS gives them ("Farbaek/40 CFNetwork/1568.100.1 Darwin/24.0.0").
+ */
+export function iosAppBuild(userAgent: string | null | undefined, appHeader?: string | null): number | null {
+  const own = /^\d{1,3}(?:\.\d{1,3}){1,2}\+(\d{1,7})$/.exec((appHeader ?? "").trim());
+  if (own) return Number(own[1]);
+  const m = /^Farbaek\/(\d{1,7})(?:\.[\d.]*)?\s+CFNetwork\//.exec(userAgent ?? "");
+  return m ? Number(m[1]) : null;
+}

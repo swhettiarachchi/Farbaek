@@ -427,8 +427,8 @@ struct SeePlansLink: View {
             }
             .buttonStyle(PillButtonStyle(kind: .secondary))
             .sheet(isPresented: $showPlans) { PlansView().environment(model) }
-        } else if model.canBuyOnWeb {
-            Link(destination: WebPurchase.billingURL) {
+        } else if model.canBuyOnWeb, model.me?.billing?.managedBy != "apple" {
+            WebPurchaseButton {
                 Label("See plans on www.farbaek.com", systemImage: "arrow.up.right.square")
             }
             .buttonStyle(PillButtonStyle(kind: .secondary))

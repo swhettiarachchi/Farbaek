@@ -10,8 +10,9 @@
 #
 #   powershell -ExecutionPolicy Bypass -File "C:\Users\INTEL\Documents\FarBaek\scripts\vps\set-google-play.ps1"
 #
-# Add -TurnOn once the five subscriptions are active in Play Console, to start selling in the app.
-# -Off stops selling (the key stays saved); purchases already made keep being checked.
+# Once the key is saved, the Android app sells plans (ADR 0186): the five subscriptions are active.
+# -Off stops selling (the key stays saved); purchases already made keep being checked. -TurnOn
+# starts it again after -Off.
 param(
   [string]$File = "",
   [switch]$TurnOn,
@@ -38,6 +39,9 @@ if ($Off) {
 
 if (-not $File) { $File = (Read-Host -Prompt "The service account's JSON key file (drag it into this window, then Enter)").Trim('"', ' ') }
 if (-not (Test-Path -LiteralPath $File -PathType Leaf)) { Write-Host "There's no file at that path. Nothing changed." -ForegroundColor Red; exit 1 }
+# Selling opens as soon as the key is saved (ADR 0186), so testers still on 1.0.1 would be told to update to nothing.
+Write-Host "Selling in the Android app starts as soon as the key is saved. Version 1.1.0 must be in the closed test first, or testers on 1.0.1 see 'Update the app in the Play Store' with nothing to update to." -ForegroundColor Yellow
+if ((Read-Host -Prompt "Is 1.1.0 released to Closed testing? Type yes to go on").Trim() -ne "yes") { Write-Host "Nothing changed. Release 1.1.0 to Closed testing in Play Console, then run this again."; exit 0 }
 
 # Checked here without showing anything from it. The checks also keep quotes out of the script below.
 $bytes = [IO.File]::ReadAllBytes($File)
@@ -116,10 +120,10 @@ if ($TurnOn) {
   ssh @ssh "printf 'GOOGLE_PLAY_BILLING=on\n' | farbaek-set-env >/dev/null"
   if ($LASTEXITCODE -ne 0) { Write-Host "The key is saved, but selling wasn't turned on. Run this again with -TurnOn." -ForegroundColor Yellow; exit 1 }
 }
-Restart-Farbaek "with the key$(if ($TurnOn) { ', selling in the Android app' })"
+Restart-Farbaek "with the key and selling in the Android app"
 
 Write-Host ""
 Write-Host "Done. Farbaek checks Google Play purchases with $account." -ForegroundColor Green
-if (-not $TurnOn) { Write-Host "Selling in the Android app is still off. Run this again with -TurnOn once the five subscriptions are active." }
+Write-Host "The Android app sells plans from version 1.1.0. If you turned selling off with -Off before, run this again with -TurnOn."
 Write-Host "Delete the downloaded key file now: it's saved on the server, and you can make a new key at any time."
 Write-Host "Then tell Claude, and it will check the setup."

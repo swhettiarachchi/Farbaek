@@ -27,7 +27,7 @@ import type { PhoneSession, SessionAuth } from "./auth";
 import { createSupabasePhoneStore } from "./store";
 import { NO_RUNS, type RunReader } from "./views";
 import { createPhoneWrites } from "./writes";
-import { appleDeps, appleIapOn } from "@/server/billing/apple/wiring";
+import { appleDeps, appleIapOn, buildSellsPlans } from "@/server/billing/apple/wiring";
 import { appleSignInOn } from "@/server/auth/apple";
 import { oauthAvailable } from "@/server/auth/oauth-wiring";
 import { keepAppleSignIn } from "@/server/auth/apple-wiring";
@@ -162,11 +162,15 @@ export function phoneApiDeps(): PhoneApiDeps {
     pushAvailable: () => apnsConfig() !== null,
     appleSignIn: () => appleSignInOn(),
     googleSignIn: () => oauthAvailable("google"),
-    async billing(orgId) {
-      const account = await appleDeps()?.account(orgId);
+    async billing(orgId, build) {
+      const deps = appleDeps();
+      const account = await deps?.account(orgId);
       const live = Boolean(account?.subscriptionId) && ["active", "past_due", "cancellation_scheduled", "suspended"].includes(account?.state ?? "");
+      // Plans from the build Apple reviewed them with (ADR 0186). If a build can't be read, only a workspace that may test-buy
+      // sees them, so App Review always finds them and nobody else meets a plans screen the App Store can't fill.
+      const applePurchases = buildSellsPlans(build) || (appleIapOn() && build === null && deps !== null && (await deps.testPurchaseOpen(orgId)));
       // Google Play is reported as "web" until the iPhone app knows "google" (ADR 0154): build 22 offers App Store purchases for anything but "web".
-      return { managedBy: live ? (account?.provider === "apple" ? "apple" : "web") : null, live, applePurchases: appleIapOn() };
+      return { managedBy: live ? (account?.provider === "apple" ? "apple" : "web") : null, live, applePurchases };
     },
     clientKey,
     now: () => new Date(),

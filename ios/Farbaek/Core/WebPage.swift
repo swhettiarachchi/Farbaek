@@ -24,6 +24,52 @@ extension AppModel {
     }
 }
 
+private struct BillingLinkReply: Decodable {
+    let url: URL
+}
+
+extension AppModel {
+    /// Billing on www.farbaek.com, signed in, on this workspace, at a plan's checkout when one is named (ADR 0186).
+    /// Only where Apple allows a link to it: the United States App Store (WebPurchase.allowed).
+    func webBillingURL(plan: String?) async -> URL {
+        var body: [String: Any] = [:]
+        if let plan { body["plan"] = plan }
+        if let reply: BillingLinkReply = try? await api.send("POST", "billing-link", body: body) {
+            return reply.url
+        }
+        // Still Billing on the web: the person signs in there.
+        return WebPurchase.billingURL
+    }
+}
+
+/// Opens Billing on www.farbaek.com in Safari, signed in, at the plan's checkout: a tick and a card, then back here.
+struct WebPurchaseButton<Label: View>: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.openURL) private var openURL
+    var plan: String? = nil
+    @ViewBuilder let label: () -> Label
+    @State private var opening = false
+
+    var body: some View {
+        Button {
+            guard !opening else { return }
+            opening = true
+            Task {
+                let url = await model.webBillingURL(plan: plan)
+                opening = false
+                openURL(url)
+            }
+        } label: {
+            // The one-time sign-in link takes a moment to make: a spinner says it's on its way.
+            HStack(spacing: 8) {
+                label()
+                if opening { ProgressView().controlSize(.small) }
+            }
+        }
+        .disabled(opening)
+    }
+}
+
 /// The system's in-app browser: it keeps its own sign-in, and the person can see what they're looking at.
 struct SafariView: UIViewControllerRepresentable {
     let url: URL

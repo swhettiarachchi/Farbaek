@@ -94,7 +94,9 @@ The app is in `ios/` and its decision is ADR 0110. GitHub's Mac builds and tests
 
 Buying in the app is one tap with Face ID, in every country. Do these in order; until the last one, the app doesn't offer plans.
 
-**Where it stands (2026-10-29):** steps 1, 3 and 4 are done. The Paid Apps Agreement, bank account and tax forms are Active. Claude made the group and the five plans in App Store Connect, with prices, all 175 countries, names, descriptions, and App Store only (no multiseat, so every purchase goes through the app and names its workspace). Claude also set both notification URLs. Step 2 was submitted by the owner on 2026-10-29; Apple confirms by email. Still to do: each plan's review screenshot (after the first build), then step 5 and step 6.
+**Where it stands (2026-11-11, ADR 0186):** 1.0.0 is live on the App Store. Version 1.1.0 is a draft in App Store Connect with build 40, its What's New and review notes that say where the plans are. The server offers plans to build 40 and later by itself (`APPLE_IAP` is on unless set to `off`), and the reviewers' account's free test purchase applies to its own workspace, so step 5 is done in code. Still to do: a review screenshot for each subscription (one screenshot of the Plans screen from build 40 serves all five), then step 6.
+
+**Before that (2026-10-29):** steps 1, 3 and 4 are done. The Paid Apps Agreement, bank account and tax forms are Active. Claude made the group and the five plans in App Store Connect, with prices, all 175 countries, names, descriptions, and App Store only (no multiseat, so every purchase goes through the app and names its workspace). Claude also set both notification URLs. Step 2 was submitted by the owner on 2026-10-29; Apple confirms by email. Still to do: each plan's review screenshot (after the first build), then step 5 and step 6.
 
 1. **Paid Apps Agreement** (done, Active from 2026-10-29). In App Store Connect, go to **Business**, then **Paid Apps Agreement**. Add your bank account, the tax forms (W-8BEN, as a non-US individual) and contacts, then accept it.
 2. **Small Business Program.** Go to developer.apple.com/app-store/small-business-program and choose **Enroll**. It's free, and Apple keeps 15% instead of 30%. The iPhone prices are set for 15%.
@@ -115,14 +117,10 @@ Buying in the app is one tap with Face ID, in every country. Do these in order; 
 
    Order them in the group from Pro (level 1) down to Lite.
 4. **Notifications from Apple** (done by Claude, 2026-10-29; Apple now always uses Version 2). In **App Information**, under **App Store Server Notifications**, set both URLs to `https://www.farbaek.com/api/webhooks/apple` with **Version 2**.
-5. **Name the workspace for test purchases (ADR 0175).** A purchase in Apple's sandbox, which is what TestFlight and App Review use, is free, so it only counts for workspaces in `BILLING_TEST_WORKSPACES`. Add the review account's workspace id there, or Apple's reviewers will buy a plan and see nothing change.
-   **Turn it on.** Ask Claude, or run:
+5. **Test purchases (ADR 0175, ADR 0186).** A purchase in Apple's sandbox, which is what TestFlight and App Review use, is free, so it only counts for workspaces in `BILLING_TEST_WORKSPACES` and for a workspace the reviewers' account (hello@farbaek.com) owns or runs. Add your own workspace id to `BILLING_TEST_WORKSPACES` if you want to test-buy from TestFlight.
+   **On by itself (ADR 0186).** Plans show only on build 40 and later, which Apple reviews with them, so nobody on 1.0.0 meets an empty plans screen. `APPLE_IAP=off` turns them off.
 
-   ```bash
-   ssh -i "$HOME\.ssh\farbaek_vps" farbaek@2.25.88.188 "echo APPLE_IAP=on | farbaek-set-env && farbaek-deploy --again"
-   ```
-
-6. Submit the five subscriptions with the next app version.
+6. On each subscription's page, upload the review screenshot and press **Add for Review**. Then submit version 1.1.0: the five subscriptions go to Apple with it.
 
 ## 9. Sign in with Apple (ADR 0113, 5 minutes)
 

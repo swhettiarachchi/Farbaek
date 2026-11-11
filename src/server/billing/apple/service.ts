@@ -35,9 +35,9 @@ export interface AppleDeps {
   account(orgId: string): Promise<AppleAccount | null>;
   /**
    * Whether a purchase from Apple's sandbox may change this workspace's plan. They're free, and anyone on TestFlight can make
-   * one, so only the workspaces named for testing count, such as the one App Review signs in to (ADR 0175).
+   * one, so only the workspaces named for testing count (ADR 0175), and those the reviewers' account runs (ADR 0186).
    */
-  testPurchaseOpen(orgId: string): boolean;
+  testPurchaseOpen(orgId: string): boolean | Promise<boolean>;
   /** The workspace an Apple subscription already belongs to. */
   orgForSubscription(originalTransactionId: string): Promise<string | null>;
   apply(input: { orgId: string; originalTransactionId: string; mode: AppleMode; sub: AppleSubscription; signedAt: Date; source: string }): Promise<ApplyOutcome>;
@@ -88,7 +88,7 @@ export async function claimAppleTransaction(deps: AppleDeps, input: { orgId: str
   const checked = checkTransaction(t);
   if (!checked.ok) return checked;
   if (String(t.appAccountToken ?? "").toLowerCase() !== input.orgId.toLowerCase()) return refuse(403, "WRONG_WORKSPACE", APPLE_MESSAGES.workspace);
-  if (checked.value.mode === "test" && !deps.testPurchaseOpen(input.orgId)) return refuse(403, "TEST_PURCHASE", APPLE_MESSAGES.test);
+  if (checked.value.mode === "test" && !(await deps.testPurchaseOpen(input.orgId))) return refuse(403, "TEST_PURCHASE", APPLE_MESSAGES.test);
 
   const original = String(t.originalTransactionId);
   const owner = await deps.orgForSubscription(original);
@@ -161,7 +161,7 @@ export async function receiveAppleNotification(deps: AppleDeps, body: unknown, a
     const owner = await deps.orgForSubscription(original);
     const orgId = owner ?? (UUID.test(token) ? token : null);
     if (!orgId) return ignore("No workspace for this subscription: it wasn't bought in Farbaek for iPhone.");
-    if (checked.value.mode === "test" && !deps.testPurchaseOpen(orgId)) return ignore("A test purchase, for a workspace that isn't named for testing.", orgId);
+    if (checked.value.mode === "test" && !(await deps.testPurchaseOpen(orgId))) return ignore("A test purchase, for a workspace that isn't named for testing.", orgId);
     const account = await deps.account(orgId);
     if (!account) return ignore("The workspace no longer exists.");
     if (account.provider && account.provider !== "apple" && account.subscriptionId && LIVE.has(account.state)) return ignore(account.provider === "google" ? "The workspace is billed through Google Play." : "The workspace is billed on the web.", orgId);

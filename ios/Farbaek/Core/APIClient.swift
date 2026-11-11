@@ -96,6 +96,8 @@ final class APIClient {
         var request = URLRequest(url: components.url!)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        // "1.1.0+41": which build is asking, so the server offers only what this build can do (ADR 0186).
+        request.setValue(AppConfig.appVersion, forHTTPHeaderField: "X-Farbaek-App")
         if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
         if let workspaceId, !sample { request.setValue(workspaceId, forHTTPHeaderField: "X-Farbaek-Workspace") }
         if let body {

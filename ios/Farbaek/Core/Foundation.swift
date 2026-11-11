@@ -118,10 +118,10 @@ enum FarbaekDate {
     }
 }
 
-/// Buying a plan happens on www.farbaek.com (ADR 0110). Apple lets an app
-/// link to buying on the web only in the United States App Store (guideline
-/// 3.1.1(a), since May 2025). Everywhere else the app shows the plan with no
-/// way to buy, as a free companion app must (guideline 3.1.3(f)).
+/// Plans are bought in the app with In-App Purchase (ADR 0112), and in the
+/// United States App Store on www.farbaek.com too: Apple lets an app link to
+/// buying on the web only there (guideline 3.1.1(a), since May 2025). The link
+/// opens Billing signed in, on this workspace (ADR 0186).
 enum WebPurchase {
     static let billingURL = URL(string: "https://www.farbaek.com/app/billing")!
 

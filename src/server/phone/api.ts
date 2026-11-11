@@ -14,7 +14,8 @@
  * Reads go through the WorkspaceReader as the person, so Row Level Security
  * decides what's visible; writes go through the same use cases as the web.
  */
-import { IOS_APP_CLIENT } from "@/core/billing/store-client";
+import { IOS_APP_CLIENT, iosAppBuild } from "@/core/billing/store-client";
+import { isPaidPlanId } from "@/core/billing/provider-state";
 import { z } from "zod";
 import { CAP_CHOICES, type CapChoice } from "@/core/agent/run-cap";
 import { EFFORTS, type Effort } from "@/core/agent/routing";
@@ -26,6 +27,7 @@ import { authenticate, connectFromBrowser, exchangeCode, refreshPhone, signInWit
 import { PUSH_TOKEN_PATTERN } from "./tokens";
 import { approvalView, approvalsView, homeView, isTaskFilter, meView, planView, projectView, projectsView, runDetail, taskView, tasksView, type BillingFacts, type RunReader } from "./views";
 import { readTextCapped } from "@/server/http/body";
+import { log } from "@/server/observability/log";
 import { reportPrefill } from "@/core/support/support";
 
 export type PhoneOutcome<T> = { ok: true; value: T } | { ok: false; status: number; code: string; message: string };
@@ -70,8 +72,8 @@ export interface PhoneApiDeps {
   appleSignIn(): boolean;
   /** Whether the website's sign-in, which the app opens, offers Google now (ADR 0115). */
   googleSignIn(): Promise<boolean>;
-  /** Who bills a workspace, and whether App Store purchases are open on this server (ADR 0112). */
-  billing(orgId: string): Promise<BillingFacts>;
+  /** Who bills a workspace, and whether this build of the app may offer App Store plans (ADR 0112, ADR 0186). */
+  billing(orgId: string, build: number | null): Promise<BillingFacts>;
   clientKey(request: Request): string;
   now(): Date;
 }
@@ -129,6 +131,17 @@ async function body(request: Request): Promise<Record<string, unknown> | null> {
 
 const badBody = () => problem(400, "INVALID_REQUEST", "That request isn't valid. Update the app and try again.");
 
+/**
+ * Which build of the iPhone app is asking (ADR 0186). An iPhone whose build can't be read is logged, so a User-Agent
+ * that stopped matching shows in the logs instead of quietly hiding the plans from everyone.
+ */
+function buildOf(s: Scope): number | null {
+  const ua = s.request.headers.get("user-agent");
+  const build = iosAppBuild(ua, s.request.headers.get("x-farbaek-app"));
+  if (build === null && ua?.includes("CFNetwork/")) log("warn", "phone.build_unknown", { userAgent: ua.slice(0, 80) });
+  return build;
+}
+
 /** The person behind a write, or why they can't write here. */
 function person(s: Scope): PhonePerson | Response {
   if (!s.caller) return problem(403, "SAMPLE_READ_ONLY", SAMPLE_READ_ONLY);
@@ -150,7 +163,7 @@ const ROUTES: Route[] = [
       ok(
         meView(s.ctx, {
           push: { available: s.caller !== null && s.deps.pushAvailable(), on: s.caller?.push ?? false },
-          billing: s.caller && s.ctx.current ? await s.deps.billing(s.ctx.current.id) : null,
+          billing: s.caller && s.ctx.current ? await s.deps.billing(s.ctx.current.id, buildOf(s)) : null,
         }),
       ),
   },
@@ -196,6 +209,31 @@ const ROUTES: Route[] = [
       if (!s.caller || !auth || !(await auth.store.rateLimit(`phone-web-link:${s.caller.userId}`, 60, 30))) return ok({ url: plain });
       const token = await auth.auth.signInToken(s.caller.userId).catch(() => null);
       return ok({ url: token ? `${s.deps.siteOrigin}/auth/open?${new URLSearchParams({ token_hash: token, next: page })}` : plain });
+    },
+  },
+  {
+    // Paying on the website from the iPhone, where Apple allows a link to it: the United States App Store (ADR 0186).
+    // The app opens this in Safari, signed in, on this workspace, at the chosen plan's checkout: a tick and a card.
+    method: "POST",
+    path: "billing-link",
+    run: async (s) => {
+      const parsed = z.object({ plan: z.string().max(40).optional() }).safeParse(await body(s.request));
+      if (!parsed.success) return badBody();
+      const org = orgOf(s);
+      if (typeof org !== "string") return org;
+      if (!s.ctx.role || !MANAGER_ROLES.includes(s.ctx.role)) return problem(403, "FORBIDDEN", "Owners and admins choose plans.");
+      // A self-serve paid plan, or the plan list. Enterprise is a contract, so it isn't one.
+      const plan = parsed.data.plan && isPaidPlanId(parsed.data.plan) ? parsed.data.plan : null;
+      // Paying through Apple: plans change in the App Store. Already paying another way (the web, or Google Play, which this
+      // reports as "web"): Billing itself, which says how that plan changes. Otherwise straight to the plan's checkout.
+      const facts = await s.deps.billing(org, buildOf(s));
+      if (facts.managedBy === "apple") return problem(409, "BILLED_BY_APPLE", "This workspace's plan is billed through the App Store, so it's changed there.");
+      const page = plan && !facts.live ? `/app/billing?choose=${plan}#billing-step` : "/app/billing";
+      const plain = `${s.deps.siteOrigin}${page}`;
+      const auth = s.deps.auth;
+      if (!s.caller || !auth || !(await auth.store.rateLimit(`phone-billing-link:${s.caller.userId}`, 60, 10))) return ok({ url: plain });
+      const token = await auth.auth.signInToken(s.caller.userId).catch(() => null);
+      return ok({ url: token ? `${s.deps.siteOrigin}/auth/open?${new URLSearchParams({ token_hash: token, next: page, client: "web", ws: org })}` : plain });
     },
   },
   {

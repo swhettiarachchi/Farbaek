@@ -101,7 +101,7 @@ struct YouView: View {
                         Text("Billed on www.farbaek.com, so it's changed there.").font(.footnote).foregroundStyle(Palette.ink2)
                     }
                     if model.canBuyOnWeb, model.me?.billing?.managedBy != "apple" {
-                        Link(destination: WebPurchase.billingURL) {
+                        WebPurchaseButton {
                             Label("Upgrade or manage your plan", systemImage: "arrow.up.right.square")
                         }
                     }
@@ -109,7 +109,7 @@ struct YouView: View {
                     Label("Plan", systemImage: "creditcard")
                 } footer: {
                     if model.canBuyOnWeb {
-                        Text("Opens Billing on www.farbaek.com in Safari, where plans are bought and managed.")
+                        Text("Opens Billing on www.farbaek.com in Safari, already signed in, where plans are bought and managed.")
                     }
                 }
             }
