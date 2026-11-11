@@ -119,9 +119,17 @@ export default async function OfficeOverview({ searchParams }: { searchParams: P
                 </div>
                 <div>
                   <dt className="text-ink-3">Became paid</dt>
-                  <dd className="flex items-center gap-1 pt-1 text-xs text-ink-3">
-                    <StatusGlyph status="off" size={14} /> Billing not connected
-                  </dd>
+                  {liveSince && revenue ? (
+                    // Live records only (ADR 0106): the same count as the Trial to paid tile below.
+                    <dd>
+                      <span className="text-lg tabular">{number.format(revenue.trials.converted)}</span>
+                      <span className="block text-xs text-ink-3">Of trials ended in the last 90 days</span>
+                    </dd>
+                  ) : (
+                    <dd className="flex items-center gap-1 pt-1 text-xs text-ink-3">
+                      <StatusGlyph status="off" size={14} /> {liveSince ? "Couldn't be read" : "Live payments are off"}
+                    </dd>
+                  )}
                 </div>
               </dl>
             </div>
