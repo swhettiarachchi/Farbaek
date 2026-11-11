@@ -26,6 +26,8 @@ function fakeDb(candidates: RenewalCandidate[], over: Partial<RenewalReminderDep
       rows.set(key(org, at), { status, recipients, detail });
     },
     recipients: async (org) => (org === "org-1" ? ["ada@example.com", "grace@example.com"] : []),
+    // A Lite yearly subscriber who joined at $11.88 keeps that price after Lite went to $12 (ADR 0185).
+    amountCents: async () => 1188,
     send: vi.fn(async (_c: SmtpConfig, envelope: { from: string; to: string }, data: string) => {
       sends.push({ to: envelope.to, data });
     }),
@@ -39,7 +41,7 @@ const plain = (data: string) => Buffer.from(data.split('Content-Type: text/plain
 
 describe("the yearly renewal reminder (ADR 0105)", () => {
   it("says the date, the yearly amount and how to stop it, with no em dashes", () => {
-    const e = renewalReminderEmail("maker", RENEWS, "Alice Studio");
+    const e = renewalReminderEmail("maker", RENEWS, "Alice Studio", 2388);
     expect(e.subject).toBe("Your Farbaek Maker yearly plan renews soon");
     expect(e.lines[0]).toBe("Alice Studio's Maker yearly plan renews on Fri 29 Oct 2027, 08:51 UTC for $23.88 USD plus any applicable tax, for another year.");
     expect(e.lines[1]).toContain("cancel in Billing before then");
@@ -73,5 +75,21 @@ describe("the yearly renewal reminder (ADR 0105)", () => {
     expect([...flaky.rows.values()][0]).toMatchObject({ status: "failed" });
     fail = false;
     expect(await runRenewalReminders(flaky.deps, NOW)).toMatchObject({ accepted: 1 });
+  });
+
+  it("states what the subscription renews at, not today's list price, and no number when that can't be read (ADR 0185)", async () => {
+    // Lite is $12 a year now; this subscriber pays the $11.88 they joined at, and the notice says so.
+    const asked = vi.fn(async () => 1188);
+    const kept = fakeDb([lite], { amountCents: asked });
+    await runRenewalReminders(kept.deps, NOW);
+    expect(plain(kept.sends[0]!.data)).toContain("for $11.88 USD");
+    expect(plain(kept.sends[0]!.data)).not.toContain("$12 USD");
+    // Asked for this plan, so a subscription already moved to another plan gives no amount rather than the wrong one.
+    expect(asked).toHaveBeenCalledWith("org-1", "lite");
+
+    const unknown = fakeDb([lite], { amountCents: async () => { throw new Error("Dodo is unreachable"); } });
+    expect(await runRenewalReminders(unknown.deps, NOW)).toMatchObject({ accepted: 1 });
+    expect(plain(unknown.sends[0]!.data)).toContain("Alice Studio's Lite yearly plan renews on Fri 29 Oct 2027, 08:51 UTC at the price you pay now, plus any applicable tax, for another year.");
+    expect(renewalReminderEmail("lite", RENEWS, "Alice Studio", null).lines[0]).not.toMatch(/\$/);
   });
 });

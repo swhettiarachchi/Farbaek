@@ -6,7 +6,8 @@ import { AdminTable, Cell, Chip } from "@/components/admin/table";
 import { OfficeActionForm } from "@/components/office/action-form";
 import { LocalTime, RelativeTime } from "@/components/ui/local-time";
 import { StatusGlyph, type Status } from "@/components/ui/status-badge";
-import { BILLABLE_PLANS, PLAN_CATALOG_VERSION, chargeLine, formatUsd, getPlan } from "@/core/billing/catalog";
+import { BILLABLE_PLANS, chargeLine, formatUsd, getPlan } from "@/core/billing/catalog";
+import { PRICE_LIST_VERSION, currentPack, currentProduct } from "@/core/billing/products";
 import { isPaidPlanId } from "@/core/billing/provider-state";
 import { TOPUP_PACKS_CENTS } from "@/core/billing/topups";
 import { billingStatus, readProviderConfig, requestedBillingMode } from "@/server/billing/config";
@@ -64,7 +65,9 @@ export default async function OfficePayments() {
   const mode = config?.mode ?? null;
 
   const paidPlans = BILLABLE_PLANS.filter((p) => p.pricing.kind === "paid" && isPaidPlanId(p.id));
-  const current = (page?.products ?? []).filter((p) => p.mode === (mode ?? "test") && p.catalogVersion === PLAN_CATALOG_VERSION);
+  // The product checkout uses for each plan: the newest at its current price (ADR 0185).
+  const inMode = (page?.products ?? []).filter((p) => p.mode === (mode ?? "test"));
+  const current = paidPlans.flatMap((p) => (isPaidPlanId(p.id) ? (currentProduct(inMode, p.id) ?? []) : []));
 
   // Reconciliation: each product's price as Dodo has it, against the catalog. Read live, only when connected.
   const dodo = config ? createDodoClient({ apiKey: config.apiKey, baseUrl: config.baseUrl, mode: config.mode }) : null;
@@ -85,7 +88,8 @@ export default async function OfficePayments() {
   );
   const missing = paidPlans.filter((p) => !current.some((c) => c.planId === p.id));
   // Top-up packs (ADR 0102): one-time products, checked the same way.
-  const packs = (page?.topups ?? []).filter((t) => t.mode === (mode ?? "test") && t.catalogVersion === PLAN_CATALOG_VERSION);
+  const packsInMode = (page?.topups ?? []).filter((t) => t.mode === (mode ?? "test"));
+  const packs = TOPUP_PACKS_CENTS.flatMap((c) => currentPack(packsInMode, c) ?? []);
   const missingPacks = TOPUP_PACKS_CENTS.filter((c) => !packs.some((t) => t.packCents === c));
   const packChecks = new Map<string, Check>(
     await Promise.all(
@@ -171,7 +175,9 @@ export default async function OfficePayments() {
               {[
                 { done: requested === "live" && config?.mode === "live", text: "Live Dodo keys on the server", how: "Run scripts/vps/set-dodo.ps1 -Live" },
                 {
-                  done: (page?.products ?? []).filter((p) => p.mode === "live" && p.catalogVersion === PLAN_CATALOG_VERSION).length >= paidPlans.length && (page?.topups ?? []).filter((t) => t.mode === "live").length >= TOPUP_PACKS_CENTS.length,
+                  done:
+                    paidPlans.every((p) => isPaidPlanId(p.id) && currentProduct((page?.products ?? []).filter((r) => r.mode === "live"), p.id)) &&
+                    TOPUP_PACKS_CENTS.every((c) => currentPack((page?.topups ?? []).filter((t) => t.mode === "live"), c)),
                   text: "Live products for every plan and top-up",
                   how: "Create them below, once the live keys are set",
                 },
@@ -215,7 +221,7 @@ export default async function OfficePayments() {
               Products
             </CardTitle>
             <p className="mt-1 text-sm text-ink-2">
-              One product per paid plan (Lite and Maker yearly, plus their monthly versions), for price list <span className="font-mono text-label">{PLAN_CATALOG_VERSION}</span>. Checkout pauses for a plan whose price at Dodo differs.
+              One product per paid plan (Lite and Maker yearly, plus their monthly versions) at its current price. New ones are recorded for price list <span className="font-mono text-label">{PRICE_LIST_VERSION}</span>. Checkout pauses for a plan with no product at its price, or whose price at Dodo differs.
             </p>
           </div>
         </div>

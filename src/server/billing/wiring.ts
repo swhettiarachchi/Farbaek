@@ -4,7 +4,8 @@
  * or there's no server key, so every caller shows the honest reason instead.
  */
 import { z } from "zod";
-import { PLAN_CATALOG_VERSION, isYearly } from "@/core/billing/catalog";
+import { isYearly } from "@/core/billing/catalog";
+import { currentPack, currentProduct } from "@/core/billing/products";
 import type { NormalizedSubscription, PaidPlanId, ProviderEvent, ProviderMode } from "@/core/billing/provider";
 import { isPaidPlanId, type AppliedState } from "@/core/billing/provider-state";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
@@ -137,6 +138,27 @@ export function billingWebhookDeps(fetchImpl?: Fetch): WebhookDeps | null {
   };
 }
 
+/**
+ * What a workspace's Dodo subscription renews at, in cents: the amount of the product it's on. A subscriber keeps the
+ * price they joined at when a plan's price changes (ADR 0185), so this, not the list price, is what they'll be charged.
+ * Null when payments aren't connected, the plan isn't billed by Dodo, the subscription can't be read, or its product
+ * is for another plan than `planId` (a plan change Farbaek hasn't heard about yet), so a notice never pairs one plan's
+ * name with another's price.
+ */
+export async function subscriptionAmountCents(orgId: string, planId: PaidPlanId, fetchImpl?: Fetch): Promise<number | null> {
+  const deps = billingDeps(fetchImpl);
+  const admin = createSupabaseAdminClient();
+  if (!deps || !admin) return null;
+  const account = await deps.account(orgId);
+  if (!account?.subscriptionId || (account.provider ?? "dodo") !== "dodo") return null;
+  const sub = await deps.provider.getSubscription(account.subscriptionId);
+  if (!sub.ok) return null;
+  const { data, error } = await admin.from("billing_products").select("plan_id, amount_cents").eq("provider", deps.config.provider).eq("mode", deps.config.mode).eq("product_id", sub.value.productId).maybeSingle();
+  if (error) throw new Error(`billing_products: ${error.message}`);
+  const row = data as { plan_id?: unknown; amount_cents?: unknown } | null;
+  return row?.plan_id === planId && typeof row.amount_cents === "number" ? row.amount_cents : null;
+}
+
 export function billingDeps(fetchImpl?: Fetch): BillingDeps | null {
   const config = readBillingConfig();
   const admin = createSupabaseAdminClient();
@@ -164,18 +186,21 @@ export function billingDeps(fetchImpl?: Fetch): BillingDeps | null {
       };
     },
     async productFor(planId) {
+      // Every product ever recorded for the plan; the newest at its current price is the one (ADR 0185).
       const { data, error } = await admin
         .from("billing_products")
-        .select("product_id, amount_cents")
+        .select("product_id, amount_cents, created_at")
         .eq("provider", config.provider)
         .eq("mode", config.mode)
         .eq("plan_id", planId)
-        .eq("interval", isYearly(planId) ? "year" : "month")
-        .eq("catalog_version", PLAN_CATALOG_VERSION)
-        .maybeSingle();
+        .eq("interval", isYearly(planId) ? "year" : "month");
       if (error) throw new Error(`billing_products: ${error.message}`);
-      const row = data as { product_id?: unknown; amount_cents?: unknown } | null;
-      return row && typeof row.product_id === "string" && typeof row.amount_cents === "number" ? { productId: row.product_id, amountCents: row.amount_cents } : null;
+      const rows = z.array(z.object({ product_id: z.string(), amount_cents: z.number().int(), created_at: z.string() })).parse(data ?? []);
+      const row = currentProduct(
+        rows.map((r) => ({ planId, productId: r.product_id, amountCents: r.amount_cents, createdAt: r.created_at })),
+        planId,
+      );
+      return row ? { productId: row.productId, amountCents: row.amountCents } : null;
     },
     planForProduct,
     async recordCheckout(input) {
@@ -214,15 +239,13 @@ export function topupDeps(fetchImpl?: Fetch): TopupDeps | null {
     async topupProduct(pack) {
       const { data, error } = await admin
         .from("billing_topup_products")
-        .select("product_id")
+        .select("product_id, created_at")
         .eq("provider", config.provider)
         .eq("mode", config.mode)
-        .eq("pack_cents", pack)
-        .eq("catalog_version", PLAN_CATALOG_VERSION)
-        .maybeSingle();
+        .eq("pack_cents", pack);
       if (error) throw new Error(`billing_topup_products: ${error.message}`);
-      const id = (data as { product_id?: unknown } | null)?.product_id;
-      return typeof id === "string" ? id : null;
+      const rows = z.array(z.object({ product_id: z.string(), created_at: z.string() })).parse(data ?? []);
+      return currentPack(rows.map((r) => ({ packCents: pack, productId: r.product_id, createdAt: r.created_at })), pack)?.productId ?? null;
     },
     async setCap(input) {
       const { error } = await admin.rpc("app_billing_set_topup_cap", { p_org: input.orgId, p_actor: input.actorId, p_cents: input.cents });

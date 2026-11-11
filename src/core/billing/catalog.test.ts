@@ -8,13 +8,13 @@ import { USD_PER_UNIT, costUsd, sampleSessionUnits } from "./rate-card";
 describe("plan catalog", () => {
   it("has the owner's prices, with Lite and Maker monthly first and also yearly", () => {
     const prices = Object.fromEntries(PLANS.map((p) => [p.id, p.pricing.kind === "paid" ? p.pricing.monthlyCents : p.pricing.kind]));
-    expect(prices).toEqual({ free: "free", lite: 99, lite_monthly: 99, maker: 199, maker_monthly: 199, starter: 999, plus: 1_999, pro: 5_000, studio: 7_999, max: 10_000, max_2x: 20_000, max_3x: 30_000, enterprise: "contract" });
+    expect(prices).toEqual({ free: "free", lite: 100, lite_monthly: 100, maker: 199, maker_monthly: 199, starter: 999, plus: 1_999, pro: 5_000, studio: 7_999, max: 10_000, max_2x: 20_000, max_3x: 30_000, enterprise: "contract" });
     expect(YEARLY_PLAN_IDS).toEqual(["lite", "maker"]);
     expect(PLANS.filter((p) => p.pricing.kind === "paid" && !isYearly(p.id)).every((p) => p.pricing.kind === "paid" && p.pricing.interval === "month")).toBe(true);
-    expect([chargeCents(getPlan("lite")), chargeCents(getPlan("maker")), chargeCents(getPlan("starter")), chargeCents(getPlan("free"))]).toEqual([1188, 2388, 999, 0]);
-    expect(priceWords(getPlan("lite"))).toEqual({ price: "$0.99", per: "a month", billed: "Billed $11.88 a year" });
-    expect(priceWords(getPlan("lite_monthly"))).toEqual({ price: "$0.99", per: "a month", billed: null });
-    expect([chargeCents(getPlan("lite_monthly")), chargeLine(getPlan("maker_monthly"))]).toEqual([99, "$1.99 a month"]);
+    expect([chargeCents(getPlan("lite")), chargeCents(getPlan("maker")), chargeCents(getPlan("starter")), chargeCents(getPlan("free"))]).toEqual([1200, 2388, 999, 0]);
+    expect(priceWords(getPlan("lite"))).toEqual({ price: "$1", per: "a month", billed: "Billed $12 a year" });
+    expect(priceWords(getPlan("lite_monthly"))).toEqual({ price: "$1", per: "a month", billed: null });
+    expect([chargeCents(getPlan("lite_monthly")), chargeLine(getPlan("maker_monthly"))]).toEqual([100, "$1.99 a month"]);
     expect([yearlyVersionOf("lite_monthly"), yearlyVersionOf("maker_monthly"), yearlyVersionOf("starter")]).toEqual(["lite", "maker", null]);
     expect([getPlan("lite_monthly").name, getPlan("lite").name]).toEqual(["Lite", "Lite yearly"]);
     // The cards show Lite and Maker once; Office Space makes a product for every way to pay.
@@ -36,15 +36,15 @@ describe("plan catalog", () => {
       expect(margin, id).toBeGreaterThanOrEqual(0.57 - 1e-6);
       expect(margin, id).toBeLessThan(0.575);
     }
-    // At a monthly charge the fee alone would break the rule: 99 cents can't keep 57%.
-    expect(0.99 - (0.99 * ECONOMICS.paymentPercent + ECONOMICS.paymentFixedUsd)).toBeLessThan(0.99 * 0.57);
+    // At a monthly charge the fee alone would break the rule: a dollar can't keep 57%.
+    expect(1 - (1 * ECONOMICS.paymentPercent + ECONOMICS.paymentFixedUsd)).toBeLessThan(1 * 0.57);
     expect(getPlan("lite").limits.aiUnitsPerMonth! / free.aiUnitsPerMonth!).toBeCloseTo(1.5, 1);
     expect(getPlan("maker").limits.aiUnitsPerMonth! / free.aiUnitsPerMonth!).toBeCloseTo(1.84, 1);
     expect([getPlan("lite").limits.sandboxHours, getPlan("maker").limits.sandboxHours]).toEqual([1, 2]);
     expect([getPlan("lite").limits.retryUnitsPerMonth, getPlan("maker").limits.retryUnitsPerMonth! > 0]).toEqual([0, true]);
   });
 
-  it("lets Lite and Maker be paid monthly: Maker keeps 57%, Lite adds no AI usage because 99 cents can't (the owner's call, 2026-10-29)", () => {
+  it("lets Lite and Maker be paid monthly: Maker keeps 57%, Lite adds no AI usage because a dollar can't (the owner's call, 2026-10-29)", () => {
     const free = getPlan("free").limits;
     const monthlyMargin = (id: "lite_monthly" | "maker_monthly") => {
       const plan = getPlan(id);
@@ -54,9 +54,9 @@ describe("plan catalog", () => {
       return (price - fee - cost) / price;
     };
     expect(monthlyMargin("maker_monthly")).toBeGreaterThanOrEqual(0.57 - 1e-6);
-    // Lite monthly is Free's AI usage plus what costs nothing: the most a 99-cent charge can keep at the worst-case fee.
+    // Lite monthly is Free's AI usage plus what costs nothing: the most a one-dollar charge can keep at the worst-case fee.
     expect(getPlan("lite_monthly").limits.aiUnitsPerMonth).toBe(free.aiUnitsPerMonth);
-    expect(monthlyMargin("lite_monthly")).toBeCloseTo(0.455, 2);
+    expect(monthlyMargin("lite_monthly")).toBeCloseTo(0.46, 2);
     // Paid monthly, everything but AI usage is the same as paid yearly.
     for (const [m, y] of [["lite_monthly", "lite"], ["maker_monthly", "maker"]] as const) {
       const { aiUnitsPerMonth: am, retryUnitsPerMonth: rm, ...restM } = getPlan(m).limits;

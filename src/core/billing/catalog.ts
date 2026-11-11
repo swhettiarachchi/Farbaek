@@ -1,17 +1,19 @@
 /**
  * The versioned plan catalog: the one source of truth for the pricing page,
  * Billing, entitlement checks and (later) checkout. Prices are the owner's
- * (2026-10-18). Every AI and sandbox allowance comes from allowance.ts, so a
- * plan keeps a 57% net margin after payment fees even when fully used (ADR 0103).
+ * (2026-10-18, with Lite at $1 from 2026-11-11, ADR 0185). Every AI and
+ * sandbox allowance comes from allowance.ts, so a plan keeps a 57% net margin
+ * after payment fees even when fully used (ADR 0103).
  *
  * Prices are integer cents a month. The monthly plans are billed monthly.
- * Lite and Maker (ADR 0105) are billed once a year: on a 99-cent monthly
- * charge, Dodo's 40-cent fee alone would leave less than the 57% margin.
+ * Lite and Maker (ADR 0105) can also be billed once a year: on a one-dollar
+ * monthly charge, Dodo's 40-cent fee alone would leave less than the 57% margin.
  */
 import { allowanceFor, lightAllowance, sessionsGuide, type Allowance } from "./allowance";
 import { formatUsd } from "./money";
 import { USD_PER_UNIT } from "./rate-card";
 
+/** The catalog a workspace's billing account is stamped with when it's created, in SQL. Dodo products have their own price list, PRICE_LIST_VERSION in products.ts (ADR 0185). */
 export const PLAN_CATALOG_VERSION = "2026-10-18.1";
 export const BILLING_CURRENCY = "USD";
 
@@ -222,7 +224,7 @@ export const PLANS: readonly Plan[] = [
     },
     features: FREE_FEATURES,
   },
-  ...light("lite", "Lite", "A low-cost way to get to know Farbaek.", 99, { workspaces: 2, seats: 1, agents: 1, evaluationsPerMonth: 2_000, historyDays: 30, integrations: 1 }, LITE_FEATURES),
+  ...light("lite", "Lite", "A low-cost way to get to know Farbaek.", 100, { workspaces: 2, seats: 1, agents: 1, evaluationsPerMonth: 2_000, historyDays: 30, integrations: 1 }, LITE_FEATURES),
   ...light("maker", "Maker", "More room to build, with an extra test space hour.", 199, { workspaces: 3, seats: 1, agents: 1, evaluationsPerMonth: 3_000, historyDays: 30, integrations: 1 }, MAKER_FEATURES),
   paid("starter", "Starter", "For a first site or side project.", 999, 5, { workspaces: 3, seats: 1, agents: 1, evaluationsPerMonth: 5_000, historyDays: 30, integrations: 1 }, STARTER_FEATURES),
   paid("plus", "Plus", "For building and shipping on your own.", 1_999, 10, { workspaces: 10, seats: 1, agents: 2, evaluationsPerMonth: 10_000, historyDays: 30, integrations: 2 }, PLUS_FEATURES),
@@ -310,13 +312,13 @@ export function chargeCents(plan: Plan): number {
   return plan.pricing.interval === "year" ? plan.pricing.monthlyCents * 12 : plan.pricing.monthlyCents;
 }
 
-/** "$0.99 a month", with "billed $11.88 a year" for a yearly plan: the words every price sentence uses. */
+/** "$1.99 a month", with "billed $23.88 a year" for a yearly plan: the words every price sentence uses. */
 export function priceWords(plan: Plan): { price: string; per: string; billed: string | null } {
   if (plan.pricing.kind !== "paid") return { price: plan.pricing.kind === "free" ? "$0" : "Custom", per: plan.pricing.kind === "free" ? "forever" : "", billed: null };
   return { price: formatUsd(plan.pricing.monthlyCents), per: "a month", billed: plan.pricing.interval === "year" ? `Billed ${formatUsd(chargeCents(plan))} a year` : null };
 }
 
-/** The price as one sentence part: "$9.99 a month" or "$11.88 a year". */
+/** The price as one sentence part: "$9.99 a month" or "$12 a year". */
 export function chargeLine(plan: Plan): string {
   if (plan.pricing.kind !== "paid") return "";
   return plan.pricing.interval === "year" ? `${formatUsd(chargeCents(plan))} a year` : `${formatUsd(plan.pricing.monthlyCents)} a month`;

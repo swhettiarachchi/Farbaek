@@ -29,9 +29,9 @@ USD per million tokens, list prices retrieved 2026-10-18 (sources in `reports/AI
 | Plan | Price | AI units a month | Retry reserve | Sandbox hours | About this many Sonnet sessions |
 | --- | --- | --- | --- | --- | --- |
 | Free | $0 | 5,000 (about $0.50) | none | 1 | 1 |
-| Lite yearly | $0.99 ($11.88 a year, ADR 0105) | 7,532 | none | 1 | 2 |
+| Lite yearly | $1 ($12 a year, ADR 0105, ADR 0185) | 7,566 | none | 1 | 2 |
 | Maker yearly | $1.99 ($23.88 a year, ADR 0105) | 9,220 | 222 | 2 | 2 |
-| Lite (monthly, on the cards) | $0.99 a month (about 45.5% margin, accepted by the owner) | 5,000 (Free's) | none | 1 | 1 |
+| Lite (monthly, on the cards) | $1 a month (about 46% margin, accepted by the owner) | 5,000 (Free's) | none | 1 | 1 |
 | Maker (monthly, on the cards) | $1.99 a month | 5,737 | 38 | 2 | 1 |
 | Starter | $9.99 | 16,070 | 845 | 5 | 4 |
 | Plus | $19.99 | 41,292 | 2,173 | 10 | 11 |
