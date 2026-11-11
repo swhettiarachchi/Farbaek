@@ -36,7 +36,7 @@ export interface GooglePlayProduct {
 }
 
 export const GOOGLE_PLAY_PRODUCTS: readonly GooglePlayProduct[] = [
-  { productId: "farbaek_lite_monthly", planId: "lite_monthly", usdCents: 99 },
+  { productId: "farbaek_lite_monthly", planId: "lite_monthly", usdCents: 100 },
   { productId: "farbaek_maker_monthly", planId: "maker_monthly", usdCents: 199 },
   { productId: "farbaek_starter_monthly", planId: "starter", usdCents: 1049 },
   { productId: "farbaek_plus_monthly", planId: "plus", usdCents: 2099 },
