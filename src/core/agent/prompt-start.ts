@@ -79,7 +79,11 @@ const APP_WORDS =
 // Words that mean an API on its own, with no screens (ADR 0140): checked before the app words.
 const API_WORDS = /\b(rest ?api|json api|api (service|server|only)|backend api|endpoints?|web ?service|microservice)\b/i;
 
-export type PromptStarter = "static-website" | "nextjs-app" | "rest-api";
+// Words that mean people have their own accounts (stage 180): the App with sign-in starter, unless a framework is named.
+const ACCOUNT_WORDS = /\b(log ?in|sign ?in|sign ?up|accounts?|members?(?:hip)?(?: area| only| portal)?|password|users? (?:can|who|will|sign|log|have|see|get))\b/i;
+const FRAMEWORK_WORDS = /\b(next\.?js|react|vue|svelte|angular)\b/i;
+
+export type PromptStarter = "static-website" | "nextjs-app" | "rest-api" | "members-app";
 
 /**
  * The premium design direction a new website starts from (ADR 0158), by the kind of business, or null when none
@@ -111,6 +115,7 @@ export function templateForPrompt(prompt: string): string | null {
 /** The starter that fits: a REST API for an API on its own, a Next.js app for app-like behaviour, otherwise a static website that previews instantly. */
 export function starterForPrompt(prompt: string): PromptStarter {
   if (API_WORDS.test(prompt)) return "rest-api";
+  if (ACCOUNT_WORDS.test(prompt) && !FRAMEWORK_WORDS.test(prompt)) return "members-app";
   return APP_WORDS.test(prompt) ? "nextjs-app" : "static-website";
 }
 

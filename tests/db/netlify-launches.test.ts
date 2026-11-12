@@ -44,9 +44,9 @@ describe("Netlify launches", () => {
     await update(id, "building", null, "https://app.netlify.com/sites/storefront/deploys/dep_1");
     await update(id, "ready", "https://storefront.netlify.app");
     expect((await admin<{ provider: string; status: string; url: string }>("select provider, status, url from public.launch_orders where id = $1", [id]))[0]).toEqual({ provider: "netlify", status: "ready", url: "https://storefront.netlify.app" });
-    await expect(connect("render")).rejects.toThrow(/provider_connections_provider_check/);
+    await expect(connect("heroku")).rejects.toThrow(/provider_connections_provider_check/);
     const next = await authorize("netlify");
-    await expect(admin("update public.launch_orders set provider = 'render' where id = $1", [next])).rejects.toThrow(/launch_orders_provider_check/);
+    await expect(admin("update public.launch_orders set provider = 'heroku' where id = $1", [next])).rejects.toThrow(/launch_orders_provider_check/);
     await finishRunning();
   });
 
