@@ -139,7 +139,7 @@ async function pairPhone({ computer, web, key, me, trusted }: { computer: MeshNo
   const channel = await initiateWeb(web.open(session), key, { v: 1, name: "Suvin's phone", purpose: "pair" }, 10_000);
   const pairing = await WebPairing.start(channel, () => undefined, async (c) => void trusted.push(c));
   await until(() => computer.snapshot().pairing?.state === "confirming");
-  await computer.confirmPairing(true);
+  await computer.confirmPairing(computer.snapshot().pairing!.id, true);
   await pairing.confirm(true);
   await until(() => pairing.state === "paired");
 }

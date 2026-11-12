@@ -123,8 +123,9 @@ export class DesktopMesh {
     handle("mesh:visible", z.boolean(), (on) => this.attempt((n) => n.setVisible(on)));
     handle("mesh:look", z.boolean(), (on) => this.attempt((n) => n.setLooking(on)));
     handle("mesh:pair", Address, (at) => this.attempt((n) => n.pair(at.address, at.port)));
-    handle("mesh:confirm", z.boolean(), (ok) => this.attempt((n) => n.confirmPairing(ok)));
-    handle("mesh:dismiss-pairing", z.undefined(), () => this.attempt((n) => n.dismissPairing()));
+    // Both carry the pairing the person looked at, so a click can't land on a pairing that replaced it (ADR 0194).
+    handle("mesh:confirm", z.object({ id: Id, ok: z.boolean() }), (input) => this.attempt((n) => n.confirmPairing(input.id, input.ok)));
+    handle("mesh:dismiss-pairing", Id, (id) => this.attempt((n) => n.dismissPairing(id)));
     handle("mesh:forget", Fingerprint, (fp) => this.attempt((n) => n.forget(fp)));
 
     handle("mesh:prepare", z.undefined(), () =>

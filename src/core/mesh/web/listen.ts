@@ -158,7 +158,8 @@ export class WebMeshListener {
     }
     try {
       const manifest = await readOfferWeb(channel, first);
-      this.options.onIncoming(new WebIncoming(channel, first.session, manifest, via, this.options.onUpdate));
+      // The name this browser saved when it paired, not the one the computer gives itself on this call.
+      this.options.onIncoming(new WebIncoming(channel, first.session, manifest, via, this.options.onUpdate, known.name));
     } catch (error) {
       const message = error instanceof WebOfferError ? [error.message, ...error.problems.slice(0, 3)].join(" ").slice(0, 300) : "The offer couldn't be read.";
       await channel.send({ t: "error", code: "bad_offer", message }).catch(() => undefined);

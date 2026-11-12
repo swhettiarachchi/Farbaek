@@ -88,8 +88,10 @@ export class WebIncoming {
     readonly manifest: CapsuleManifest,
     readonly via: "relay" | "direct",
     private readonly onUpdate: () => void,
+    /** The name saved at pairing; a paired computer can't pose as another by naming itself on a later call. */
+    trustedName?: string,
   ) {
-    this.peerName = channel.peer.hello.name;
+    this.peerName = trustedName ?? channel.peer.hello.name;
     void webFingerprint(channel.peer.publicKey).then((fp) => {
       this.peerFingerprint = fp;
       this.onUpdate();

@@ -18,6 +18,7 @@
  * cryptographic construction.
  */
 import { createCipheriv, createDecipheriv, createHash, createHmac, createPrivateKey, createPublicKey, diffieHellman, generateKeyPairSync, timingSafeEqual } from "node:crypto";
+import { PAIR_CODE_LABEL, PAIR_COMMIT_LABEL, PAIR_NONCE_BYTES } from "@/core/mesh/pairing";
 
 export const PROTOCOL_NAME = "Noise_XX_25519_AESGCM_SHA256";
 /** The largest Noise message, handshake or transport. */
@@ -303,14 +304,33 @@ export class XXHandshake {
   }
 }
 
+function pairingInput(value: Uint8Array, what: string): Buffer {
+  if (value.length !== PAIR_NONCE_BYTES) throw new NoiseError(`${what} is 32 bytes.`);
+  return Buffer.from(value);
+}
+
 /**
- * The six-digit code both people compare when pairing, from the handshake
- * hash. Equal codes mean both computers finished the same handshake, so no
- * one relayed it in the middle.
+ * Pairing, version 2 (ADR 0194, ../../core/mesh/pairing.ts): the caller's
+ * commitment to its random value, SHA-256("farbaek-pair-commit/2" || nC), as
+ * lowercase hex.
  */
-export function pairingCode(handshakeHash: Buffer): string {
-  const [key] = hkdf(handshakeHash, Buffer.from("farbaek-mesh/1 code", "utf8"), 2);
-  return String(key!.readUInt32BE(0) % 1_000_000).padStart(6, "0");
+export function pairingCommit(callerNonce: Uint8Array): string {
+  return hash(Buffer.concat([Buffer.from(PAIR_COMMIT_LABEL, "ascii"), pairingInput(callerNonce, "The caller's value")])).toString("hex");
+}
+
+/**
+ * The six-digit code both people compare when pairing (ADR 0194): the first
+ * four bytes of HMAC-SHA256(key = handshake hash, "farbaek-pair-code/2" || nC
+ * || nA), big-endian, mod 1,000,000. Equal codes mean both devices finished
+ * the same handshake and exchanged the same two values. Since the caller
+ * committed before it saw the answerer's value, neither side chooses the
+ * code: a device in the middle matches two screens with probability one in
+ * a million per try, and what limits its tries is node.ts (ADR 0194).
+ */
+export function pairingCode(handshakeHash: Uint8Array, callerNonce: Uint8Array, answererNonce: Uint8Array): string {
+  if (handshakeHash.length !== HASHLEN) throw new NoiseError("A handshake hash is 32 bytes.");
+  const mac = hmac(Buffer.from(handshakeHash), Buffer.concat([Buffer.from(PAIR_CODE_LABEL, "ascii"), pairingInput(callerNonce, "The caller's value"), pairingInput(answererNonce, "The answerer's value")]));
+  return String(mac.readUInt32BE(0) % 1_000_000).padStart(6, "0");
 }
 
 /** A short, stable name for a device's public key. */

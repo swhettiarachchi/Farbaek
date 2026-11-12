@@ -6,20 +6,26 @@
  *
  * Nothing listens until the person asks to be visible, and that lapses
  * after five minutes. Pairing needs both people to confirm the same
- * six-digit code within two minutes. Transfers need a paired device on both
- * ends, and every incoming one waits for the person to accept it.
+ * six-digit code within two minutes; the code comes from the handshake and
+ * a commit, then reveal, of a random value from each side (ADR 0194). Each
+ * pairing stays on screen until the person dismisses it, and a computer
+ * stops answering pairing calls after callers quit before revealing, so a
+ * device in the middle gets only a handful of one-in-a-million tries per
+ * visible window, each needing the person. Transfers need a paired device
+ * on both ends, and every incoming one waits for the person to accept it.
  */
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { createServer, connect as tcpConnect, type Server, type Socket } from "node:net";
 import path from "node:path";
 import type { Duplex } from "node:stream";
 import { z } from "zod";
-import { FINAL_STATES, PAIRING_WINDOW_MS, VISIBLE_FOR_MS, type MeshMessage } from "@/core/mesh/protocol";
+import { MAX_UNREVEALED_RUNS, PAIRING_REFUSED_THERE, PAIRING_STEPS_FAILED, PAIRING_STEPS_RELAY_MS, PAIR_NONCE_BYTES, PairingError, canPairWith, pairingRefused, runPairingSteps, type PairingCrypto } from "@/core/mesh/pairing";
+import { FINAL_STATES, HANDSHAKE_TIMEOUT_MS, PAIRING_WINDOW_MS, VISIBLE_FOR_MS, type MeshMessage } from "@/core/mesh/protocol";
 import { initiate, respond, type SecureChannel } from "./channel";
 import { Discovery, localAddresses, type NearbyDevice } from "./discovery";
 import { TrustStore, loadDeviceKey, type KeyVault, type TrustedDevice } from "./identity";
-import { fingerprint, pairingCode, type KeyPair } from "./noise";
+import { fingerprint, pairingCode, pairingCommit, type KeyPair } from "./noise";
 import { packFolder, type PackedFolder } from "./pack";
 import { IncomingTransfer, OfferError, readOffer, type IncomingView } from "./receive";
 import { DirectError } from "./direct-signal";
@@ -41,7 +47,8 @@ export interface PairingView {
   id: string;
   role: "caller" | "answerer";
   peer: { name: string; fingerprint: string };
-  code: string;
+  /** Always set while confirming or waiting; null when the pairing failed before a code existed (ADR 0194). */
+  code: string | null;
   state: "confirming" | "waiting" | "paired" | "declined" | "expired" | "failed";
   expiresAt: string;
   message: string | null;
@@ -131,15 +138,35 @@ const RELAY_HANDSHAKE_MS = 30_000;
 const DIRECT_HANDSHAKE_MS = 15_000;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** The agent's hashing for the pairing steps (ADR 0194). */
+const PAIRING_CRYPTO: PairingCrypto = { random: () => randomBytes(PAIR_NONCE_BYTES), commit: pairingCommit, code: pairingCode };
+
+/** What a caller is told while a pairing is on screen here, or pairing is paused. */
+const BUSY_PAIRING = "This device can't pair right now. Dismiss any pairing on its screen, or turn its visibility off and on, then try again.";
+/** Added to the second abandoned run's failure, when pairing calls stop (ADR 0194). The Android port shows the same words. */
+const PAIRING_PAUSED = " Pairing is paused on this device: turn visibility off and on to pair again.";
+
+/**
+ * One pairing, as caller or answerer. It first checks the other device
+ * follows pairing version 2 (ADR 0194) and runs the commit, nonce and reveal
+ * steps; only then is there a code. Then both people confirm. Once it ends,
+ * it stays on screen until the person dismisses it.
+ */
 class PairingSession {
   readonly id = randomUUID();
-  readonly code: string;
+  /** Made only once the other side's reveal has been checked; null if it never got that far. */
+  code: string | null = null;
   readonly expiresAt = Date.now() + PAIRING_WINDOW_MS;
-  state: PairingView["state"] = "confirming";
+  /** "checking": the steps are running and nothing is shown yet. */
+  state: PairingView["state"] | "checking" = "checking";
   message: string | null = null;
   private mine: boolean | null = null;
   private theirs: boolean | null = null;
   private readonly timer: NodeJS.Timeout;
+  /** Settles once the code is on screen, or the pairing ended before there was one. */
+  readonly ready: Promise<void>;
+  /** The steps ended after this answerer sent its nonce, with no valid reveal: the caller could have seen the code and quit. */
+  unrevealed = false;
 
   constructor(
     readonly role: PairingView["role"],
@@ -148,22 +175,56 @@ class PairingSession {
     private readonly onUpdate: () => void,
     private readonly via: "nearby" | "farbaek" = "nearby",
   ) {
-    this.code = pairingCode(channel.handshakeHash);
     this.timer = setTimeout(() => this.end("expired", "The code wasn't confirmed within two minutes. Start again."), PAIRING_WINDOW_MS);
-    void this.listen();
+    this.ready = this.begin();
   }
 
   get active(): boolean {
-    return this.state === "confirming" || this.state === "waiting";
+    return this.state === "checking" || this.state === "confirming" || this.state === "waiting";
   }
 
-  view(): PairingView {
+  private get peerName(): string {
+    return this.channel.peer.hello.name;
+  }
+
+  private busyWords(): string {
+    return `${this.peerName} can't pair right now. On it, dismiss any pairing on screen, or turn visibility off and on, then try again.`;
+  }
+
+  private async begin(): Promise<void> {
+    // Through the relay each message is a round trip through the server.
+    const stepsMs = this.via === "farbaek" ? PAIRING_STEPS_RELAY_MS : HANDSHAKE_TIMEOUT_MS;
+    if (!canPairWith(this.channel.peer.hello)) {
+      // An older version: no steps, no code and no fallback. It's told why, in words it shows.
+      await this.channel.send({ t: "error", code: "protocol", message: PAIRING_REFUSED_THERE }).catch(() => undefined);
+      return this.end("failed", pairingRefused(this.peerName));
+    }
+    let code: string;
+    try {
+      code = await runPairingSteps(this.role, this.channel, this.channel.handshakeHash, PAIRING_CRYPTO, stepsMs);
+    } catch (error) {
+      this.unrevealed = this.role === "answerer" && error instanceof PairingError && error.afterNonce;
+      const words = !(error instanceof PairingError) ? PAIRING_STEPS_FAILED : error.peerCode === "busy" ? this.busyWords() : error.message;
+      return this.end("failed", words);
+    }
+    // Cancelled while the steps ran.
+    if (this.state !== "checking") return;
+    this.code = code;
+    this.state = "confirming";
+    this.onUpdate();
+    void this.listen();
+  }
+
+  /** What the window shows; nothing while the steps run. */
+  view(): PairingView | null {
+    const state = this.state;
+    if (state === "checking") return null;
     return {
       id: this.id,
       role: this.role,
-      peer: { name: this.channel.peer.hello.name, fingerprint: fingerprint(this.channel.peer.publicKey) },
+      peer: { name: this.peerName, fingerprint: fingerprint(this.channel.peer.publicKey) },
       code: this.code,
-      state: this.state,
+      state,
       expiresAt: new Date(this.expiresAt).toISOString(),
       message: this.message,
     };
@@ -176,9 +237,10 @@ class PairingSession {
         this.theirs = message.ok;
         await this.settle();
       } else if (message.t === "error") {
-        this.end("failed", message.code === "busy" ? `${this.channel.peer.hello.name} is pairing with another computer. Try again in a moment.` : message.message);
+        this.end("failed", message.code === "busy" ? this.busyWords() : message.message);
       } else {
-        this.end("failed", "The other computer answered out of order.");
+        // A repeated or extra pairing step, or anything else out of order.
+        this.end("failed", PAIRING_STEPS_FAILED);
       }
     } catch {
       if (this.active) this.end("failed", "The connection closed before both codes were confirmed.");
@@ -186,7 +248,7 @@ class PairingSession {
   }
 
   async confirm(ok: boolean): Promise<void> {
-    if (!this.active || this.mine !== null) return;
+    if (this.state !== "confirming" || this.mine !== null) return;
     this.mine = ok;
     await this.channel.send({ t: "pair-confirm", ok }).catch(() => undefined);
     await this.settle();
@@ -195,14 +257,14 @@ class PairingSession {
   private async settle(): Promise<void> {
     if (!this.active) return;
     if (this.mine === false) return this.end("declined", "You said the codes don't match, so the computers weren't paired.");
-    if (this.theirs === false) return this.end("declined", `${this.channel.peer.hello.name} said the codes don't match, so the computers weren't paired.`);
+    if (this.theirs === false) return this.end("declined", `${this.peerName} said the codes don't match, so the computers weren't paired.`);
     if (this.mine && this.theirs) {
-      await this.trust.add(this.channel.peer.publicKey, this.channel.peer.hello.name, this.via);
-      return this.end("paired", `Paired with ${this.channel.peer.hello.name}.`);
+      await this.trust.add(this.channel.peer.publicKey, this.peerName, this.via);
+      return this.end("paired", `Paired with ${this.peerName}.`);
     }
     if (this.mine) {
       this.state = "waiting";
-      this.message = `Waiting for ${this.channel.peer.hello.name} to confirm the same code.`;
+      this.message = `Waiting for ${this.peerName} to confirm the same code.`;
       this.onUpdate();
     }
   }
@@ -246,7 +308,14 @@ export class MeshNode {
   private visibleTimer: NodeJS.Timeout | null = null;
   private lookingTimer: NodeJS.Timeout | null = null;
   private looking = false;
+  /** The pairing on screen, from its first code (or failure) until the person dismisses it. */
   private pairing: PairingSession | null = null;
+  /**
+   * Nearby pairing runs, this visible window, that ended after this computer
+   * sent its nonce without a valid reveal (ADR 0194). At MAX_UNREVEALED_RUNS
+   * it stops answering pairing calls until the person turns visibility off and on.
+   */
+  private unrevealedRuns = 0;
   private readonly prepared = new Map<string, PackedFolder>();
   private readonly incoming = new Map<string, IncomingTransfer>();
   private readonly outgoing = new Map<string, OutgoingTransfer>();
@@ -330,6 +399,8 @@ export class MeshNode {
     this.visibleTimer = null;
     if (!on) {
       this.visibleUntil = null;
+      // Turning visibility off, then on, is what lets pairing calls in again.
+      this.unrevealedRuns = 0;
       this.server?.close();
       this.server = null;
       this.serverPort = 0;
@@ -378,12 +449,7 @@ export class MeshNode {
       group: settings.group,
       port: settings.port,
       self: () => ({ name: this.name(), fingerprint: this.fingerprint, port: this.visibleUntil ? this.serverPort : 0 }),
-      onChange: () => {
-        for (const d of this.discovery?.devices() ?? []) this.addresses.set(d.fingerprint, { address: d.address, port: d.port });
-        // A device a queued transfer waits for may just have come back (ADR 0138).
-        if (this.queued.size > 0) void this.retryQueued();
-        this.update();
-      },
+      onChange: () => this.nearbyChanged(),
     });
     try {
       await this.discovery.start();
@@ -391,6 +457,20 @@ export class MeshNode {
       this.discovery = null;
       throw new MeshError("This computer couldn't look for others on the network. Connect by address instead.");
     }
+  }
+
+  /**
+   * Discovery saw a change. Addresses are remembered only for paired
+   * devices: announcements aren't authenticated, so anyone on the network
+   * could otherwise fill this map with made-up fingerprints.
+   */
+  private nearbyChanged(): void {
+    for (const d of this.discovery?.devices() ?? []) {
+      if (this.trust.byFingerprint(d.fingerprint)) this.addresses.set(d.fingerprint, { address: d.address, port: d.port });
+    }
+    // A device a queued transfer waits for may just have come back (ADR 0138).
+    if (this.queued.size > 0) void this.retryQueued();
+    this.update();
   }
 
   private stopDiscovery(): void {
@@ -416,17 +496,30 @@ export class MeshNode {
   }
 
   private async answerPairing(channel: SecureChannel, via: "nearby" | "farbaek"): Promise<void> {
-    if (this.pairing?.active) {
-      await channel.send({ t: "error", code: "busy", message: "This computer is already pairing." }).catch(() => undefined);
-      channel.close();
-      return;
-    }
-    this.pairing = new PairingSession("answerer", channel, this.trust, this.update, via);
+    // A pairing on screen, finished or not, is never replaced by a call: the person dismisses it first.
+    if (this.pairing) return this.refusePairing(channel, "busy", BUSY_PAIRING);
+    // Paused: every nearby pairing call is busy until visibility is turned off.
+    if (via === "nearby" && this.unrevealedRuns >= MAX_UNREVEALED_RUNS) return this.refusePairing(channel, "busy", BUSY_PAIRING);
+    const session = new PairingSession("answerer", channel, this.trust, this.update, via);
+    this.pairing = session;
     this.update();
+    await session.ready;
+    // A caller that quit after our nonce may have been trying codes until one suited it.
+    if (session.unrevealed && via === "nearby") {
+      this.unrevealedRuns += 1;
+      if (this.unrevealedRuns === MAX_UNREVEALED_RUNS && session.message) session.message += PAIRING_PAUSED;
+      this.update();
+    }
+  }
+
+  private async refusePairing(channel: SecureChannel, code: "busy", message: string): Promise<void> {
+    await channel.send({ t: "error", code, message }).catch(() => undefined);
+    channel.close();
   }
 
   private async answerTransfer(channel: SecureChannel, via: Via): Promise<void> {
-    if (!this.trust.find(channel.peer.publicKey)) {
+    const trusted = this.trust.find(channel.peer.publicKey);
+    if (!trusted) {
       await channel.send({ t: "error", code: "not_paired", message: "These computers aren't paired. Pair them first." }).catch(() => undefined);
       channel.close();
       return;
@@ -463,7 +556,8 @@ export class MeshNode {
     }
     try {
       const manifest = await readOffer(channel, first);
-      const transfer = new IncomingTransfer(channel, first.session, first.digest, manifest, this.update);
+      // Named as it was when paired: the name in this connection's hello is only what the sender says now.
+      const transfer = new IncomingTransfer(channel, trusted.name, first.session, first.digest, manifest, this.update);
       if (via !== "nearby") this.via.set(transfer.id, via);
       this.incoming.set(transfer.id, transfer);
       this.update();
@@ -481,7 +575,11 @@ export class MeshNode {
     return initiate(socket, this.key, { v: 1, name: this.name(), purpose });
   }
 
-  /** Starts pairing with the device at this address. Both people then compare the code. */
+  /**
+   * Starts pairing with the device at this address. Resolves once this
+   * computer has the code, or the pairing ended before there was one (it then
+   * shows why). Both people then compare the code.
+   */
   async pair(address: string, port: number): Promise<void> {
     if (this.pairing?.active) throw new MeshError("A pairing is already in progress. Finish or cancel it first.");
     let channel: SecureChannel;
@@ -491,15 +589,29 @@ export class MeshNode {
       throw new MeshError("That computer didn't answer. Check it's visible and on the same network.");
     }
     this.addresses.set(fingerprint(channel.peer.publicKey), { address, port });
-    this.pairing = new PairingSession("caller", channel, this.trust, this.update);
+    const session = new PairingSession("caller", channel, this.trust, this.update);
+    this.pairing = session;
+    await session.ready;
     this.update();
   }
 
-  async confirmPairing(ok: boolean): Promise<void> {
-    await this.pairing?.confirm(ok);
+  /**
+   * The person's answer to the code on screen. `id` is the pairing they
+   * looked at: an answer meant for one that has since been replaced never
+   * reaches another.
+   */
+  async confirmPairing(id: string, ok: boolean): Promise<void> {
+    if (!this.pairing || this.pairing.id !== id) throw new MeshError("That pairing has ended, so nothing was confirmed. Check the code on screen now.");
+    await this.pairing.confirm(ok);
   }
 
-  dismissPairing(): void {
+  /** Dismisses the pairing on screen, cancelling it if it's still under way. Only the one with this id. */
+  dismissPairing(id: string): void {
+    if (!this.pairing || this.pairing.id !== id) throw new MeshError("That pairing is no longer on screen.");
+    this.endPairing();
+  }
+
+  private endPairing(): void {
     if (this.pairing?.active) this.pairing.end("declined", "Pairing cancelled.");
     this.pairing = null;
     this.update();
@@ -507,6 +619,7 @@ export class MeshNode {
 
   async forget(fingerprintValue: string): Promise<void> {
     await this.trust.forget(fingerprintValue);
+    this.addresses.delete(fingerprintValue);
     this.update();
   }
 
@@ -636,11 +749,16 @@ export class MeshNode {
   /**
    * Lets a phone or browser pair with this computer through Farbaek for two
    * minutes (ADR 0096). Only while reachable over the internet. The same
-   * six-digit code must show on both screens and both people confirm, so
-   * Farbaek's server can't pair anyone in the middle.
+   * six-digit code must show on both screens and both people confirm. The
+   * code depends on a random value from each side, committed before the
+   * other's is known (ADR 0194), and each window answers one call, so
+   * Farbaek's server gets one one-in-a-million try per window the person opens.
    */
   openRelayPairing(): void {
     if (!this.reachable) throw new MeshError("Turn on Be reachable over the internet first.");
+    if (this.pairing?.active) throw new MeshError("A pairing is already in progress. Finish or cancel it first.");
+    // Opening a window is the person moving on from a finished pairing on screen.
+    if (this.pairing) this.endPairing();
     this.relayPairingUntil = Date.now() + PAIRING_WINDOW_MS;
     setTimeout(() => this.update(), PAIRING_WINDOW_MS + 50).unref?.();
     this.update();
@@ -652,7 +770,7 @@ export class MeshNode {
   }
 
   private async answerRelayPairing(link: RelayLink, session: string): Promise<void> {
-    if (Date.now() > this.relayPairingUntil || this.pairing?.active) {
+    if (Date.now() > this.relayPairingUntil || this.pairing) {
       await link.close(session, "cancelled").catch(() => undefined);
       return;
     }
@@ -930,7 +1048,7 @@ export class MeshNode {
     this.queueTimer = null;
     for (const t of this.incoming.values()) if (!FINAL_STATES.has(t.state) && t.state !== "offered" && t.state !== "interrupted") await t.cancel();
     for (const t of this.outgoing.values()) if (!FINAL_STATES.has(t.state) && t.state !== "interrupted") await t.cancel();
-    this.dismissPairing();
+    this.endPairing();
     await this.setLooking(false);
     await this.setVisible(false);
     if (this.reachable) await this.setReachable(false).catch(() => undefined);
