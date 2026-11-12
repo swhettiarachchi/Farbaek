@@ -24,6 +24,7 @@ import { applyProposal, discardProposal } from "@/server/workspace/proposals";
 import { startFromPrompt } from "@/server/workspace/start-from-prompt";
 import { mapCreateOrganizationError } from "@/server/workspace/organizations";
 import { createSupabaseWriteDeps } from "@/server/workspace/supabase-writer";
+import { saveProjectFile } from "@/server/workspace/files";
 import { approveContract, type WriteErrorCode, type WriteResult } from "@/server/workspace/use-cases";
 import { claimAppleTransaction } from "@/server/billing/apple/service";
 import { appleDeps, appleIapOn } from "@/server/billing/apple/wiring";
@@ -140,6 +141,16 @@ export function createPhoneWrites(options: { userClient: (accessToken: string) =
       const started = await startCloudRun(wiring.deps, { person, taskId: input.taskId, effort: input.effort, capUnits: runCapUnits(p.ctx.current, input.effort, input.cap, new Date(), kind), kitTier: kitTierFor(p.ctx.current.plan), designPass: kind.designPass });
       if (!started.ok) return { ok: true, value: { runId: null, startNote: `The plan is approved. The agent couldn't start: ${started.message}` } };
       return { ok: true, value: { runId: started.value.runId, startNote: null } };
+    },
+
+    async saveFile(p, input) {
+      const deps = writeDeps(p);
+      if (!deps) return notConfigured;
+      // As the web's editor: the project is read as the person first, so only a project in this workspace is written.
+      const project = await p.ctx.reader.getProject(p.orgId, input.projectId);
+      if (!project) return refuse(404, "NOT_FOUND", "That project doesn't exist or isn't in this workspace.");
+      const saved = await saveProjectFile(deps, { orgId: p.orgId, userId: p.caller.userId, projectId: project.id, path: input.path, content: input.content, expectedRevision: input.expectedRevision });
+      return saved.ok ? { ok: true, value: { revision: saved.value } } : fromWrite(saved);
     },
 
     answerRun(p, input) {

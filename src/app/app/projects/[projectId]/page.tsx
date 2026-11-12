@@ -42,6 +42,8 @@ import { Card, CardTitle, EmptyState, Notice, PageHeader } from "@/components/ap
 import { TaskList } from "@/components/app/task-list";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { formatBytes } from "@/core/workspace/files";
+import { copyVersion } from "@/core/workspace/device-copy";
+import { KeepOnDevice } from "@/components/device/keep-on-device";
 import { previewImages } from "@/server/workspace/preview-images";
 import { loadAppContext } from "@/server/workspace/context";
 import { withheldFor } from "@/core/workspace/permissions";
@@ -61,6 +63,8 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
   // Text and images are counted apart: a few photos shouldn't turn the instant preview off (ADR 0108).
   const filesBytes = files.filter((f) => f.encoding !== "base64").reduce((n, f) => n + f.sizeBytes, 0);
   const imageBytes = files.filter((f) => f.encoding === "base64").reduce((n, f) => n + f.sizeBytes, 0);
+  // Which revision of each file the project is at, so a copy kept on this device can tell it's out of date (ADR 0192).
+  const deviceVersion = await copyVersion(files);
   const previewReason = ctx.mode === "demo" ? "Previews need a real workspace." : previewUnavailableReason(readSandboxConfig());
   // Static sites preview instantly in a locked-down frame; apps with a server use the sandbox preview.
   const paths = files.map((f) => f.path);
@@ -261,6 +265,7 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
                   Previews serve the files as they are, starting from the site&apos;s main page, and this project doesn&apos;t have one yet. Apps that need building preview from a test space.
                 </p>
               ) : null}
+              <KeepOnDevice projectId={project.id} userId={ctx.user.id} version={deviceVersion} />
             </>
           ) : (
             <>
