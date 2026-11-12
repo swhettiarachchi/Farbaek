@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Where androidbrowserhelper saves the splash image for Chrome to read. -->
 <paths>
+    <!-- Where androidbrowserhelper saves the splash image for Chrome to read. -->
     <files-path name="twa_splash" path="twa_splash/" />
+    <!-- Folders received in Nearby (ADR 0193), in the app's private storage, shared with an app the person picks, one grant at a time. -->
+    <files-path name="nearby" path="Nearby/" />
 </paths>

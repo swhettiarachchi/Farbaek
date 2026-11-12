@@ -31,6 +31,8 @@ Mesh moved folders only between Farbaek Agents on computers. Phones were left ou
 
 **Why the server can't pair anyone in the middle.** It could relay two separate handshakes, but then the codes differ (SE-033). Outside a window, a pairing call isn't answered, and each window allows one pairing. This replaces ADR 0094's "the relay never pairs" with "the relay pairs only inside a window the person opened, and only after both confirm the same code".
 
+> **Correction (2026-11-12, ADR 0194).** The claim above, that the codes match only if no one sat in the middle, the server included, was false until ADR 0194. With the code taken from the handshake hash alone, the server could call the computer itself and try handshake payloads until its code matched the phone's. Since ADR 0194 the code also depends on a random value from each device, committed before the other's is known, so each try in the middle matches with probability one in a million, and a window answers one call, so the server gets one try per window the person opens. Older versions are refused, and the protection holds only when both devices are on the new version.
+
 **A browser's identity on the server.** Browser routes at `/api/v1/mesh/relay/*` use the person's session. `withRelayBrowser` checks:
 - the live app;
 - a workspace;

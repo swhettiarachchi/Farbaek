@@ -6,6 +6,7 @@ import { Card, CardTitle, PageHeader } from "@/components/app/primitives";
 import { CapsuleOpen } from "@/components/mesh/capsule-open";
 import { CapsuleSend } from "@/components/mesh/capsule-send";
 import { PhoneMesh } from "@/components/mesh/phone/phone-mesh";
+import { OpenNearby } from "@/components/mesh/open-nearby";
 import { RelativeTime } from "@/components/ui/local-time";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatBytes } from "@/core/workspace/files";
@@ -94,6 +95,7 @@ export default async function MeshPage() {
           Pair this device once with one of your computers, then send it photos and files from here. They go directly between the two when the networks allow it, encrypted end to end, and the computer checks every piece.
           Pairing starts on the computer, in Nearby, the desktop app&apos;s page for sending files between your devices.
         </p>
+        <OpenNearby />
         <PhoneMesh
           computers={relayAgents.map((a) => ({ id: a.id, name: a.name, fingerprint: a.meshFingerprint!, reachableNow: hub?.isReachable(a.id) ?? false }))}
           unavailable={ctx.mode === "demo" ? "The demo workspace has no computers to reach. Sign in to your own workspace." : null}

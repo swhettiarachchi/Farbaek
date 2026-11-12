@@ -6,18 +6,19 @@
 import { promises as fsp } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { duplexPair, type Duplex } from "node:stream";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
 import { commandEnv } from "@/agent-runtime/broker";
 import { initiate, respond } from "@/agent-runtime/mesh/channel";
-import { XXHandshake, fingerprint, generateKeyPair, pairingCode } from "@/agent-runtime/mesh/noise";
-import { MESH_PROLOGUE } from "@/core/mesh/protocol";
-import { WebXXHandshake, generateWebKeyPair, webFingerprint, webPairingCode } from "@/core/mesh/web/noise";
+import { fingerprint, generateKeyPair, pairingCode } from "@/agent-runtime/mesh/noise";
+import { generateWebKeyPair, webFingerprint } from "@/core/mesh/web/noise";
+import { WebPairing } from "@/core/mesh/web/pair";
 import { WebMeshListener, type TrustedComputer } from "@/core/mesh/web/listen";
 import { packPicked } from "@/core/mesh/web/pack";
 import type { WebIncoming } from "@/core/mesh/web/receive";
 import { WebRelay } from "@/core/mesh/web/relay-pipe";
 import { memorySink } from "@/core/mesh/web/sinks";
-import { initiateWeb } from "@/core/mesh/web/wire";
+import { initiateWeb, type BytePipe } from "@/core/mesh/web/wire";
 import { manifestDigest } from "@/core/mesh/capsule";
 import { MeshNode } from "@/agent-runtime/mesh/node";
 import { fakeDirect } from "@/agent-runtime/mesh/direct-fake";
@@ -48,6 +49,29 @@ const makeDataDir = async (prefix: string) => {
   return dir;
 };
 afterAll(() => Promise.all(dataDirs.splice(0).map((dir) => fsp.rm(dir, { recursive: true, force: true }))));
+
+/** A Node stream as a browser byte pipe, for a phone talking straight to someone in the middle. */
+function pipeOf(stream: Duplex): BytePipe {
+  const queue: Uint8Array[] = [];
+  const waiters: ((b: Uint8Array | null) => void)[] = [];
+  let ended = false;
+  stream.on("data", (b: Buffer) => {
+    const w = waiters.shift();
+    if (w) w(new Uint8Array(b));
+    else queue.push(new Uint8Array(b));
+  });
+  const end = () => {
+    ended = true;
+    for (const w of waiters.splice(0)) w(null);
+  };
+  stream.on("end", end);
+  stream.on("close", end);
+  return {
+    write: (bytes) => new Promise((resolve, reject) => stream.write(Buffer.from(bytes), (e) => (e ? reject(e) : resolve()))),
+    read: () => (queue.length > 0 ? Promise.resolve(queue.shift()!) : ended ? Promise.resolve(null) : new Promise((r) => waiters.push(r))),
+    close: () => void stream.end(),
+  };
+}
 
 let p: Project | null = null;
 afterEach(async () => {
@@ -257,22 +281,7 @@ describe("SE-032 A direct link set up by an untrusted server", () => {
 });
 
 describe("SE-033 A phone paired by someone in the middle", () => {
-  it("pairs only in the computer's window, shows different codes when relayed through someone, and stays in its workspace", async () => {
-    // Someone in the middle runs one handshake with the phone and another with the computer.
-    const phone = new WebXXHandshake({ initiator: true, prologue: MESH_PROLOGUE, staticKey: await generateWebKeyPair() });
-    const middleToPhone = new XXHandshake({ initiator: false, prologue: MESH_PROLOGUE, staticKey: generateKeyPair() });
-    middleToPhone.readMessage(Buffer.from(await phone.writeMessage()));
-    await phone.readMessage(middleToPhone.writeMessage());
-    middleToPhone.readMessage(Buffer.from(await phone.writeMessage()));
-    const middleToComputer = new XXHandshake({ initiator: true, prologue: MESH_PROLOGUE, staticKey: generateKeyPair() });
-    const computer = new XXHandshake({ initiator: false, prologue: MESH_PROLOGUE, staticKey: generateKeyPair() });
-    computer.readMessage(middleToComputer.writeMessage());
-    middleToComputer.readMessage(computer.writeMessage());
-    computer.readMessage(middleToComputer.writeMessage());
-    // The two people see different codes, so they don't confirm.
-    expect(await webPairingCode(phone.handshakeHash)).not.toBe(pairingCode(computer.handshakeHash));
-
-    // A computer with no pairing window open doesn't answer a pairing call.
+  it("pairs only in the computer's window, gives someone in the middle running the real steps one try per window, and stays in its workspace", async () => {
     const relay = fakeRelay();
     let value: string | null = null;
     const dataDir = await makeDataDir("farbaek-se033-");
@@ -280,16 +289,69 @@ describe("SE-033 A phone paired by someone in the middle", () => {
     await node.init();
     try {
       await node.setReachable(true);
+      // A computer with no pairing window open doesn't answer a pairing call.
       const phoneLink = relay.client("browser-phone");
-      const session = await phoneLink.call(node.fingerprint, "0123456789abcdef", "pair");
-      await expect(initiate(phoneLink.open(session), generateKeyPair(), { v: 1, name: "Phone", purpose: "pair" }, 3_000)).rejects.toThrow();
+      const closed = await phoneLink.call(node.fingerprint, "0123456789abcdef", "pair");
+      await expect(initiate(phoneLink.open(closed), generateKeyPair(), { v: 1, name: "Phone", purpose: "pair" }, 3_000)).rejects.toThrow();
       expect(node.snapshot().pairing).toBeNull();
+
+      // The person opens a window. Someone in the middle (the server, or anyone in its place) answers
+      // the phone itself and calls the computer, passing the phone's commit and the computer's nonce
+      // through (ADR 0194). Once the phone reveals, it knows both codes before revealing to the
+      // computer, so it quits whenever they differ and calls again, hoping for a better draw.
+      node.openRelayPairing();
+      const middle = relay.client("browser-middle");
+      const mallory = generateKeyPair();
+      const [phoneEnd, middleEnd] = duplexPair();
+      const fromPhone = respond(middleEnd, mallory, { v: 1, name: "Studio PC" });
+      const phoneChannel = await initiateWeb(pipeOf(phoneEnd), await generateWebKeyPair(), { v: 1, name: "Phone", purpose: "pair" }, 10_000);
+      const toPhone = await fromPhone;
+      const phonePairing = WebPairing.start(phoneChannel, () => undefined, async () => undefined).catch(() => null);
+
+      let nonces = 0;
+      let refused = 0;
+      let phoneCode: string | null = null;
+      let computerCode: string | null = null;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        let toComputer;
+        try {
+          toComputer = await initiate(middle.open(await middle.call(node.fingerprint, "0123456789abcdef", "pair")), mallory, { v: 1, name: "Phone", purpose: "pair" }, 3_000);
+        } catch {
+          refused += 1;
+          continue;
+        }
+        const commit = (await toPhone.receive(5_000)).message;
+        await toComputer.send(commit);
+        const nonce = (await toComputer.receive(5_000)).message;
+        if (nonce.t !== "pair-nonce") throw new Error(`Expected a nonce, got ${nonce.t}`);
+        nonces += 1;
+        await toPhone.send(nonce);
+        const reveal = (await toPhone.receive(5_000)).message;
+        if (reveal.t !== "pair-reveal") throw new Error(`Expected a reveal, got ${reveal.t}`);
+        const callerValue = Buffer.from(reveal.nonce, "hex");
+        const answererValue = Buffer.from(nonce.nonce, "hex");
+        phoneCode = pairingCode(toPhone.handshakeHash, callerValue, answererValue);
+        computerCode = pairingCode(toComputer.handshakeHash, callerValue, answererValue);
+        // The codes differ, one draw in a million aside, so it quits before revealing to the computer.
+        if (phoneCode !== computerCode) toComputer.close();
+      }
+      expect(phoneCode).not.toBeNull();
+      expect(phoneCode).not.toBe(computerCode);
+      // One try in this window, at one in a million; every later call went unanswered.
+      expect(nonces).toBe(1);
+      expect(refused).toBe(4);
+      await until(() => node.snapshot().pairing?.state === "failed");
+      expect(node.snapshot().pairing).toMatchObject({ code: null });
+      expect(node.snapshot().devices).toEqual([]);
+      toPhone.close();
+      await phonePairing;
+
       // A browser of another workspace can't call it at all.
       await expect(relay.client("browser-elsewhere", "org-2").call(node.fingerprint, "0123456789abcdef", "pair")).rejects.toThrow(/isn't reachable/);
     } finally {
       await node.close();
     }
-  }, 30_000);
+  }, 60_000);
 });
 
 async function until(check: () => boolean, ms = 15_000): Promise<void> {

@@ -9,6 +9,7 @@
  * This follows the specification step by step; nothing here is a new
  * cryptographic construction.
  */
+import { PAIR_CODE_LABEL, PAIR_COMMIT_LABEL, PAIR_NONCE_BYTES } from "../pairing";
 
 export const PROTOCOL_NAME = "Noise_XX_25519_AESGCM_SHA256";
 export const MAX_MESSAGE = 65_535;
@@ -296,10 +297,21 @@ export class WebXXHandshake {
   }
 }
 
-/** The six-digit code both people compare when pairing: the same as the agent's. */
-export async function webPairingCode(handshakeHash: Uint8Array): Promise<string> {
-  const [key] = await hkdf2(handshakeHash, new TextEncoder().encode("farbaek-mesh/1 code"));
-  return String(new DataView(key.buffer).getUint32(0) % 1_000_000).padStart(6, "0");
+function pairingInput(value: Uint8Array, what: string): Uint8Array {
+  if (value.length !== PAIR_NONCE_BYTES) throw new WebNoiseError(`${what} is 32 bytes.`);
+  return value;
+}
+
+/** Pairing, version 2 (ADR 0194): the caller's commitment to its random value, as lowercase hex. The same as the agent's. */
+export async function webPairingCommit(callerNonce: Uint8Array): Promise<string> {
+  return toHex(await sha256(concat(new TextEncoder().encode(PAIR_COMMIT_LABEL), pairingInput(callerNonce, "The caller's value"))));
+}
+
+/** The six-digit code both people compare when pairing (ADR 0194): the same as the agent's. */
+export async function webPairingCode(handshakeHash: Uint8Array, callerNonce: Uint8Array, answererNonce: Uint8Array): Promise<string> {
+  if (handshakeHash.length !== 32) throw new WebNoiseError("A handshake hash is 32 bytes.");
+  const mac = await hmac(handshakeHash, concat(new TextEncoder().encode(PAIR_CODE_LABEL), pairingInput(callerNonce, "The caller's value"), pairingInput(answererNonce, "The answerer's value")));
+  return String(new DataView(mac.buffer).getUint32(0) % 1_000_000).padStart(6, "0");
 }
 
 /** A short, stable name for a device's public key: the same as the agent's. */

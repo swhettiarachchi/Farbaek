@@ -1,5 +1,15 @@
+import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { MAX_MESSAGE, NoiseError, XXHandshake, fingerprint, generateKeyPair, keyPairFromPrivate, pairingCode, sameKey } from "./noise";
+import { MAX_MESSAGE, NoiseError, XXHandshake, fingerprint, generateKeyPair, keyPairFromPrivate, pairingCode, pairingCommit, sameKey } from "./noise";
+
+/**
+ * Pairing version 2's test vector (ADR 0194): h = 0x00..0x1f, nC = 0x20..0x3f,
+ * nA = 0x40..0x5f. The browser's test (src/core/mesh/web/noise.test.ts) and the Android port check the same values.
+ */
+const PAIRING_VECTOR = {
+  commit: "20be69037d35000e7c441c46ad27fa92aadba8af678f29907f6c2c433e6cc4b3",
+  code: "053107",
+} as const;
 
 // The published vector for this exact suite, from the cacophony test vectors
 // (https://github.com/haskell-cryptography/cacophony, public domain).
@@ -117,14 +127,14 @@ describe("Noise_XX_25519_AESGCM_SHA256", () => {
     expect(() => init.writeMessage(Buffer.alloc(MAX_MESSAGE))).toThrow(NoiseError);
   });
 
-  it("gives both honest sides the same pairing code, and a relay in the middle different ones", () => {
+  it("gives both honest sides the same handshake hash, and a relay in the middle two different ones", () => {
     const { a, b, init, resp } = pair();
-    expect(pairingCode(init.handshakeHash)).toMatch(/^\d{6}$/);
-    expect(pairingCode(init.handshakeHash)).toBe(pairingCode(resp.handshakeHash));
+    expect(init.handshakeHash.equals(resp.handshakeHash)).toBe(true);
     expect(sameKey(init.remoteStatic!, b.publicKey)).toBe(true);
     expect(sameKey(resp.remoteStatic!, a.publicKey)).toBe(true);
 
     // A relay runs its own handshake with each side: each side's hash differs.
+    // That alone doesn't keep the codes apart: see "pairing codes, version 2" below.
     const mallory = generateKeyPair();
     const prologue = Buffer.from("farbaek-mesh/1");
     const left = new XXHandshake({ initiator: true, prologue, staticKey: a });
@@ -137,7 +147,7 @@ describe("Noise_XX_25519_AESGCM_SHA256", () => {
     right.readMessage(relayOut.writeMessage());
     relayOut.readMessage(right.writeMessage());
     right.readMessage(relayOut.writeMessage());
-    expect(pairingCode(left.handshakeHash)).not.toBe(pairingCode(right.handshakeHash));
+    expect(left.handshakeHash.equals(right.handshakeHash)).toBe(false);
   });
 
   it("names keys by a stable fingerprint", () => {
@@ -145,5 +155,53 @@ describe("Noise_XX_25519_AESGCM_SHA256", () => {
     expect(fingerprint(k.publicKey)).toMatch(/^[0-9a-f]{16}$/);
     expect(fingerprint(k.publicKey)).toBe(fingerprint(Buffer.from(k.publicKey)));
     expect(sameKey(k.publicKey, generateKeyPair().publicKey)).toBe(false);
+  });
+});
+
+/** 32 bytes counting up from `from`, as the spec's test vector uses. */
+const counting = (from: number) => Buffer.from(Array.from({ length: 32 }, (_, i) => from + i));
+
+describe("pairing codes, version 2 (ADR 0194)", () => {
+  // The spec's vector; the Android port checks the same numbers.
+  const h = counting(0x00);
+  const nC = counting(0x20);
+  const nA = counting(0x40);
+
+  it("reproduces the test vector", () => {
+    expect(pairingCommit(nC)).toBe(PAIRING_VECTOR.commit);
+    expect(pairingCode(h, nC, nA)).toBe(PAIRING_VECTOR.code);
+  });
+
+  it("gives both honest sides of one handshake the same code from the same two values", () => {
+    const { init, resp } = pair();
+    const callerValue = randomBytes(32);
+    const answererValue = randomBytes(32);
+    expect(pairingCode(init.handshakeHash, callerValue, answererValue)).toMatch(/^\d{6}$/);
+    expect(pairingCode(init.handshakeHash, callerValue, answererValue)).toBe(pairingCode(resp.handshakeHash, callerValue, answererValue));
+  });
+
+  it("can't be steered by whoever chose the handshake hash and the caller's value: it changes with the answerer's", () => {
+    // The review's grinder chose message 3's payload, and so h, until the codes matched. Now the
+    // caller's value is committed before the answerer's arrives, and the code moves with the
+    // answerer's value: a grinder holding h and nC still faces a fresh one-in-a-million draw.
+    const codes = new Set(Array.from({ length: 256 }, () => pairingCode(h, nC, randomBytes(32))));
+    expect(codes.size).toBeGreaterThanOrEqual(250);
+    // Every input counts: one bit changed anywhere gives another code.
+    const flip = (b: Buffer, i: number) => {
+      const out = Buffer.from(b);
+      out[i]! ^= 1;
+      return out;
+    };
+    expect(pairingCode(flip(h, 31), nC, nA)).not.toBe(PAIRING_VECTOR.code);
+    expect(pairingCode(h, flip(nC, 0), nA)).not.toBe(PAIRING_VECTOR.code);
+    expect(pairingCode(h, nC, flip(nA, 31))).not.toBe(PAIRING_VECTOR.code);
+    // And the caller's commitment holds it to its value: another value doesn't match it.
+    expect(pairingCommit(flip(nC, 0))).not.toBe(PAIRING_VECTOR.commit);
+  });
+
+  it("refuses values that aren't 32 bytes", () => {
+    expect(() => pairingCommit(Buffer.alloc(31))).toThrow(NoiseError);
+    expect(() => pairingCode(h, nC, Buffer.alloc(33))).toThrow(NoiseError);
+    expect(() => pairingCode(Buffer.alloc(16), nC, nA)).toThrow(NoiseError);
   });
 });

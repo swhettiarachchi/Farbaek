@@ -70,6 +70,11 @@ jobs:
           printf '%s' "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/upload.p12"
           echo "FARBAEK_ANDROID_KEYSTORE=$RUNNER_TEMP/upload.p12" >> "$GITHUB_ENV"
 
+      # Mesh on Android (ADR 0193): the protocol's test vectors and the receive-side folder guard. The tests that run
+      # against the desktop's own Node Mesh skip themselves here (no node_modules); they run on the developer's PC.
+      - name: The Mesh core's tests
+        run: gradle -p android :mesh-core:test --no-daemon
+
       - name: Build the bundle
         env:
           FARBAEK_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}

@@ -19,3 +19,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "farbaek-android"
 include(":app")
+// The Mesh protocol in plain Java (ADR 0193), tested on a computer and used by the app.
+include(":mesh-core")

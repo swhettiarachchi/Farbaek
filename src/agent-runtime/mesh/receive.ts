@@ -143,12 +143,13 @@ export class IncomingTransfer {
   private folder: ProjectFolder | null = null;
   private readonly verified: number[];
   private readonly complete: boolean[];
-  private readonly peerName: string;
   private running: Promise<void> | null = null;
   readonly peerKey: Buffer;
 
   constructor(
     channel: SecureChannel,
+    /** The name saved when the sender was paired, never the one its hello gives on this connection. */
+    private readonly peerName: string,
     readonly id: string,
     readonly digest: string,
     readonly manifest: CapsuleManifest,
@@ -156,7 +157,6 @@ export class IncomingTransfer {
   ) {
     this.channel = channel;
     this.peerKey = Buffer.from(channel.peer.publicKey);
-    this.peerName = channel.peer.hello.name;
     this.verified = manifest.files.map(() => 0);
     this.complete = manifest.files.map(() => false);
     channel.onClose(() => {

@@ -42,11 +42,16 @@ export const DATA_PIECE_BYTES = 60 * 1024;
 const Hex64 = z.string().regex(/^[0-9a-f]{64}$/);
 const Name = z.string().trim().min(1).max(60);
 
-/** Carried inside the handshake, encrypted: who the device says it is and why it called. */
+/**
+ * Carried inside the handshake, encrypted: who the device says it is and why
+ * it called. `pairing`: the pairing steps it follows (ADR 0194), sent in every
+ * hello whatever the purpose; older versions send nothing and can't pair.
+ */
 export const HelloSchema = z.object({
   v: z.literal(1),
   name: Name,
   purpose: z.enum(["pair", "transfer"]).optional(),
+  pairing: z.number().int().min(0).optional(),
 });
 export type Hello = z.infer<typeof HelloSchema>;
 
@@ -59,6 +64,10 @@ export type MeshErrorCode = (typeof ERROR_CODES)[number];
  * encrypted message (the manifest, resume points).
  */
 export const MessageSchema = z.discriminatedUnion("t", [
+  // Pairing (ADR 0194): commit, nonce and reveal before any code is shown, then each person's confirmation.
+  z.object({ t: z.literal("pair-commit"), commit: Hex64 }),
+  z.object({ t: z.literal("pair-nonce"), nonce: Hex64 }),
+  z.object({ t: z.literal("pair-reveal"), nonce: Hex64 }),
   z.object({ t: z.literal("pair-confirm"), ok: z.boolean() }),
   z.object({ t: z.literal("offer"), session: z.uuid(), digest: Hex64, size: z.number().int().min(2).max(MAX_MANIFEST_BYTES) }),
   z.object({ t: z.literal("accept"), size: z.number().int().min(2).max(1024 * 1024) }),

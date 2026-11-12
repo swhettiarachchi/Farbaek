@@ -6,6 +6,7 @@
  * transport message. Anything malformed ends the channel.
  */
 import type { Duplex } from "node:stream";
+import { PAIRING_VERSION } from "@/core/mesh/pairing";
 import { HANDSHAKE_TIMEOUT_MS, HelloSchema, MESH_PROLOGUE, MessageSchema, type Hello, type MeshMessage } from "@/core/mesh/protocol";
 import { FramedSocket } from "./framing";
 import { MAX_MESSAGE, NoiseError, XXHandshake, type KeyPair, type Transport } from "./noise";
@@ -131,7 +132,8 @@ function readHello(payload: Buffer): Hello {
   return parsed.data;
 }
 
-const encodeHello = (hello: Hello) => Buffer.from(JSON.stringify(hello), "utf8");
+/** Every hello says which pairing steps this device follows (ADR 0194), whatever its purpose. */
+const encodeHello = (hello: Hello) => Buffer.from(JSON.stringify({ ...hello, pairing: PAIRING_VERSION } satisfies Hello), "utf8");
 
 /** Calls another device and runs the handshake as the initiator. Through the relay, the other side may take longer to answer. */
 export async function initiate(socket: Duplex, staticKey: KeyPair, hello: Hello, timeoutMs = HANDSHAKE_TIMEOUT_MS): Promise<SecureChannel> {
