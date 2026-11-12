@@ -8,7 +8,7 @@ import { StatusBadge, StatusGlyph, type Status } from "@/components/ui/status-ba
 import type { TransferState } from "@/core/mesh/protocol";
 import { WebDirectError, openDirectWeb } from "@/core/mesh/web/direct";
 import { packPicked, WebPackError } from "@/core/mesh/web/pack";
-import { WebPairing } from "@/core/mesh/web/pair";
+import { WebPairing, WebPairingError } from "@/core/mesh/web/pair";
 import { WebRelay, WebRelayError } from "@/core/mesh/web/relay-pipe";
 import { WebOutgoing, type WebOutgoingView } from "@/core/mesh/web/send";
 import { initiateWeb, type WebSecureChannel } from "@/core/mesh/web/wire";
@@ -131,7 +131,8 @@ export function PhoneMesh({ computers, unavailable }: { computers: WorkspaceComp
       });
       setPairing(p);
     } catch (error) {
-      setProblem(error instanceof WebRelayError ? error.message : `${computer.name} didn't answer. On it, open Nearby, choose Pair a phone or browser, then try again within two minutes.`);
+      // A computer too old to pair, busy, or one that didn't follow the pairing steps (ADR 0194) says which.
+      setProblem(error instanceof WebRelayError || error instanceof WebPairingError ? error.message : `${computer.name} didn't answer. On it, open Nearby, choose Pair a phone or browser, then try again within two minutes.`);
     } finally {
       setBusy(null);
     }

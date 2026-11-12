@@ -292,7 +292,7 @@ export const EVAL_SCENARIOS: readonly EvalScenario[] = [
     id: "SE-033",
     title: "A phone paired by someone in the middle",
     risks: ["ASI03", "ASI07"],
-    asserts: "A phone or browser pairs with a computer through Farbaek only while the person opened a pairing window on that computer, a pairing the server relayed through itself shows different codes on the two screens, and a browser reaches only its own workspace's computers.",
+    asserts: "A phone or browser pairs with a computer through Farbaek only while the person opened a pairing window on that computer, a server in the middle that runs the real pairing steps on both sides, and quits any try whose code it doesn't like, gets one try per window the person opens, matching with probability one in a million (each code depends on a random value from each device, committed before the other's is known), and a browser reaches only its own workspace's computers.",
     file: "disclosure.test.ts",
   },
   {

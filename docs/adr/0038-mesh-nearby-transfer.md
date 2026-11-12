@@ -39,6 +39,7 @@ The Farbaek Agent's main process is Electron 43, with Node 24 on BoringSSL. Chec
   - Both people must confirm the codes match within **two minutes**. Each confirmation travels encrypted.
   - Only when both are yes does each side store the other.
   - A relay in the middle would hold two different handshake hashes, so the codes differ. That is numeric comparison, as in Bluetooth.
+  - **Corrected by ADR 0194 (2026-11-12):** different hashes weren't enough. The caller writes the handshake's last message, so a device in the middle could try payloads until the codes matched. The code now also depends on a random value from each side, committed before the other's is known, and a computer limits how many tries a caller gets per visible window. Both devices must be on that version.
   - One pairing at a time.
 
 ### Discovery

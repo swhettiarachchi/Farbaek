@@ -40,6 +40,8 @@ export class OutgoingTransfer {
   private channel: SecureChannel | null = null;
   private stopped: MeshMessage | null = null;
   private watching: Promise<MeshMessage> | null = null;
+  /** Set by cancel(), whatever step the transfer was at; a cancelled transfer never moves on. */
+  private cancelled = false;
 
   constructor(
     readonly id: string,
@@ -71,6 +73,8 @@ export class OutgoingTransfer {
   }
 
   private set(state: TransferState, message: string | null = null): void {
+    // Steps still under way when the person cancelled don't bring the transfer back.
+    if (this.cancelled && state !== "cancelled") return;
     this.state = state;
     this.message = message;
     this.updatedAt = new Date();
@@ -79,6 +83,7 @@ export class OutgoingTransfer {
 
   /** Connects, offers and sends. Also used to resume: the receiver says where to carry on. */
   async start(): Promise<void> {
+    if (this.cancelled) return;
     this.stopped = null;
     this.watching = null;
     this.set("connecting");
@@ -87,6 +92,11 @@ export class OutgoingTransfer {
       channel = await this.connect();
     } catch (error) {
       this.set("interrupted", this.unreachable?.(error) ?? `Couldn't reach ${this.device.name}. Make sure it's visible on the same network, then resume.`);
+      return;
+    }
+    // Cancelled while connecting: nothing is offered.
+    if (this.cancelled) {
+      channel.close();
       return;
     }
     this.channel = channel;
@@ -104,6 +114,12 @@ export class OutgoingTransfer {
       if (message.t === "decline") {
         channel.close();
         this.set("declined", `${this.device.name} declined. Nothing was sent.`);
+        return;
+      }
+      if (message.t === "cancel") {
+        // Cancelled on the other computer while the offer waited: over, not resumable.
+        channel.close();
+        this.cancelledThere("Nothing was sent.");
         return;
       }
       if (message.t === "error") {
@@ -133,7 +149,7 @@ export class OutgoingTransfer {
       const final = await watching;
       channel.close();
       if (final.t === "verified") this.set("done", `Delivered. ${this.device.name} checked every file against its hash.`);
-      else if (final.t === "cancel") this.set("cancelled", `${this.device.name} cancelled the transfer.`);
+      else if (final.t === "cancel") this.cancelledThere();
       else if (final.t === "error") this.set("failed", `${this.device.name} stopped: ${final.message}`);
     } catch (error) {
       if (error instanceof SourceChanged) {
@@ -149,7 +165,7 @@ export class OutgoingTransfer {
       const last = await Promise.race([this.watching?.catch(() => null) ?? Promise.resolve(null), new Promise<null>((resolve) => setTimeout(() => resolve(null), 1_000))]);
       channel.close();
       if (last?.t === "error") this.set("failed", `${this.device.name} stopped: ${last.message}`);
-      else if (last?.t === "cancel") this.set("cancelled", `${this.device.name} cancelled the transfer.`);
+      else if (last?.t === "cancel") this.cancelledThere();
       else this.set("interrupted", `The connection to ${this.device.name} dropped. Resume to carry on from the last checked piece.`);
     }
   }
@@ -159,6 +175,8 @@ export class OutgoingTransfer {
     const { message } = await channel.receive();
     if (message.t === "verified" || message.t === "cancel" || message.t === "error") {
       if (message.t !== "verified") this.stopped = message;
+      // Cancelled at once: the connection the receiver closes next can't make it "interrupted".
+      if (message.t === "cancel") this.cancelledThere();
       return message;
     }
     channel.close();
@@ -210,8 +228,15 @@ export class OutgoingTransfer {
     this.onUpdate();
   }
 
+  /** The other side cancelled: as final as cancelling here, so nothing later, such as the dropped connection, brings the transfer back. */
+  private cancelledThere(more?: string): void {
+    this.cancelled = true;
+    this.set("cancelled", `${this.device.name} cancelled the transfer.${more ? ` ${more}` : ""}`);
+  }
+
   async cancel(): Promise<void> {
     if (this.state === "done" || this.state === "cancelled" || this.state === "failed" || this.state === "declined") return;
+    this.cancelled = true;
     this.set("cancelled", "Cancelled. The other computer removes what it received.");
     await this.channel?.send({ t: "cancel" }).catch(() => undefined);
     this.channel?.close();

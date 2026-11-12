@@ -189,7 +189,8 @@ function Nearby({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: stri
         </div>
       ))}
 
-      {s.pairing ? <PairingCard pairing={s.pairing} now={now} act={act} busy={busy} /> : null}
+      {/* Keyed by pairing: a new pairing gets a new card, never the last one's buttons. */}
+      {s.pairing ? <PairingCard key={s.pairing.id} pairing={s.pairing} now={now} act={act} busy={busy} /> : null}
 
       <div className="card stack-sm">
         <div className="row">
@@ -258,9 +259,17 @@ function Nearby({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: stri
   );
 }
 
+/** How long "Codes match" stays off after a code appears, so a click meant for something else can't confirm it (ADR 0194). */
+const READ_CODE_MS = 2_000;
+
 function PairingCard({ pairing: p, now, act, busy }: { pairing: NonNullable<MeshSnapshot["pairing"]>; now: number; act: Act; busy: string | null }) {
   const final = p.state !== "confirming" && p.state !== "waiting";
   const codeLeft = timeLeft(p.expiresAt, now);
+  const [codeRead, setCodeRead] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setCodeRead(true), READ_CODE_MS);
+    return () => clearTimeout(timer);
+  }, []);
   return (
     <div className="card stack-sm pairing" aria-live="polite">
       <div className="row">
@@ -279,7 +288,7 @@ function PairingCard({ pairing: p, now, act, busy }: { pairing: NonNullable<Mesh
           <StatusBadge kind="off">Closed</StatusBadge>
         )}
       </div>
-      {!final ? (
+      {!final && p.code !== null ? (
         <>
           <p className="muted">Check that {p.peer.name} shows exactly this code. If it does, confirm on both computers. If it doesn&apos;t, someone may be in between: don&apos;t pair.</p>
           <p className="pair-code mono" aria-label={`Code ${p.code.split("").join(" ")}`}>
@@ -295,16 +304,16 @@ function PairingCard({ pairing: p, now, act, busy }: { pairing: NonNullable<Mesh
       <div className="row-start">
         {p.state === "confirming" ? (
           <>
-            <button className="btn btn-primary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("confirm", () => mesh.confirm(true))}>
+            <button className="btn btn-primary btn-sm" type="button" disabled={busy !== null || !codeRead} onClick={() => void act("confirm", () => mesh.confirm(p.id, true))}>
               Codes match
             </button>
-            <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("confirm", () => mesh.confirm(false))}>
+            <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("confirm", () => mesh.confirm(p.id, false))}>
               They don&apos;t match
             </button>
           </>
         ) : null}
         {final || p.state === "waiting" ? (
-          <button className="btn btn-secondary btn-sm" type="button" onClick={() => void act("dismiss", () => mesh.dismissPairing())}>
+          <button className="btn btn-secondary btn-sm" type="button" onClick={() => void act("dismiss", () => mesh.dismissPairing(p.id))}>
             {final ? "Done" : "Cancel pairing"}
           </button>
         ) : null}

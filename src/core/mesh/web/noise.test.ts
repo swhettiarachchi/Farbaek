@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { XXHandshake, fingerprint, generateKeyPair, pairingCode } from "@/agent-runtime/mesh/noise";
-import { WebNoiseError, WebXXHandshake, fromHex, generateWebKeyPair, toHex, webFingerprint, webKeyPairFromPrivate, webPairingCode } from "./noise";
+import { XXHandshake, fingerprint, generateKeyPair, pairingCode, pairingCommit } from "@/agent-runtime/mesh/noise";
+import { WebNoiseError, WebXXHandshake, fromHex, generateWebKeyPair, toHex, webFingerprint, webKeyPairFromPrivate, webPairingCode, webPairingCommit } from "./noise";
+
+/** Pairing version 2's test vector (ADR 0194), the same numbers as the agent's noise.test.ts and the Android port. */
+const PAIRING_VECTOR = {
+  commit: "20be69037d35000e7c441c46ad27fa92aadba8af678f29907f6c2c433e6cc4b3",
+  code: "053107",
+} as const;
+const counting = (from: number) => Uint8Array.from({ length: 32 }, (_, i) => from + i);
 
 // The published vector for this suite, from cacophony (public domain), as the agent's own test uses.
 const VECTOR = {
@@ -60,7 +67,10 @@ describe("Noise on Web Crypto", () => {
     a.readMessage(await b.writeMessage());
     await b.readMessage(a.writeMessage(new TextEncoder().encode("hello")));
     a.readMessage(await b.writeMessage());
-    expect(await webPairingCode(b.handshakeHash)).toBe(pairingCode(a.handshakeHash));
+    const callerValue = globalThis.crypto.getRandomValues(new Uint8Array(32));
+    const answererValue = globalThis.crypto.getRandomValues(new Uint8Array(32));
+    expect(await webPairingCommit(callerValue)).toBe(pairingCommit(callerValue));
+    expect(await webPairingCode(b.handshakeHash, callerValue, answererValue)).toBe(pairingCode(a.handshakeHash, callerValue, answererValue));
     expect(await webFingerprint(browserKey.publicKey)).toBe(fingerprint(browserKey.publicKey));
     expect(toHex(b.remoteStatic!)).toBe(agentKey.publicKey.toString("hex"));
     const sealed = await b.result().send.encrypt(new TextEncoder().encode("to the agent"));
@@ -74,6 +84,15 @@ describe("Noise on Web Crypto", () => {
     await b2.readMessage(a2.writeMessage());
     const back = a2.result().send.encrypt(Buffer.from("to the browser"));
     expect(new TextDecoder().decode(await b2.result().receive.decrypt(back))).toBe("to the browser");
+  });
+
+  it("reproduces pairing version 2's test vector, as the agent does (ADR 0194)", async () => {
+    const [h, nC, nA] = [counting(0x00), counting(0x20), counting(0x40)];
+    expect(await webPairingCommit(nC)).toBe(PAIRING_VECTOR.commit);
+    expect(await webPairingCode(h, nC, nA)).toBe(PAIRING_VECTOR.code);
+    expect(pairingCode(h, nC, nA)).toBe(PAIRING_VECTOR.code);
+    await expect(webPairingCode(h, nC, new Uint8Array(31))).rejects.toThrow(WebNoiseError);
+    await expect(webPairingCommit(new Uint8Array(0))).rejects.toThrow(WebNoiseError);
   });
 
   it("refuses a changed message and an unusable key", async () => {

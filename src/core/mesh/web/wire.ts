@@ -5,6 +5,7 @@
  * the JSON header, then the body. It runs over any byte pipe: a relay
  * session or a WebRTC data channel.
  */
+import { PAIRING_VERSION } from "@/core/mesh/pairing";
 import { HANDSHAKE_TIMEOUT_MS, HelloSchema, MESH_PROLOGUE, MessageSchema, type Hello, type MeshMessage } from "@/core/mesh/protocol";
 import { MAX_MESSAGE, WebNoiseError, WebXXHandshake, concat, type WebKeyPair, type WebTransport } from "./noise";
 
@@ -76,7 +77,8 @@ const frame = (message: Uint8Array) => {
   return concat(new Uint8Array([message.length >> 8, message.length & 0xff]), message);
 };
 
-const encodeHello = (hello: Hello) => new TextEncoder().encode(JSON.stringify(hello));
+/** Every hello says which pairing steps this device follows (ADR 0194), whatever its purpose. */
+const encodeHello = (hello: Hello) => new TextEncoder().encode(JSON.stringify({ ...hello, pairing: PAIRING_VERSION } satisfies Hello));
 function readHello(payload: Uint8Array): Hello {
   try {
     const parsed = HelloSchema.safeParse(JSON.parse(new TextDecoder().decode(payload)));

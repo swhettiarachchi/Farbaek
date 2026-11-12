@@ -184,8 +184,9 @@ export interface FarbaekAgentBridge {
     setVisible(on: boolean): Promise<Result<void>>;
     setLooking(on: boolean): Promise<Result<void>>;
     pair(at: { address: string; port: number }): Promise<Result<void>>;
-    confirm(ok: boolean): Promise<Result<void>>;
-    dismissPairing(): Promise<Result<void>>;
+    /** The person's answer to the code of pairing `id`; refused if that pairing is no longer the one on screen. */
+    confirm(id: string, ok: boolean): Promise<Result<void>>;
+    dismissPairing(id: string): Promise<Result<void>>;
     forget(fingerprint: string): Promise<Result<void>>;
     /** Opens the folder dialog; null when the person cancels it. */
     prepare(): Promise<Result<PreparedView | null>>;

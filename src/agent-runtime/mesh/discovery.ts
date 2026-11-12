@@ -14,6 +14,24 @@ import { AnnouncementSchema, DISCOVERY, MESH_PROTOCOL, type Announcement } from 
 const ANNOUNCE_EVERY_MS = 2_000;
 const FORGET_AFTER_MS = 10_000;
 const MAX_DATAGRAM = 512;
+/**
+ * Announcements aren't authenticated, so anyone on the network can send them
+ * with made-up fingerprints. At most this many devices are listed; a new one
+ * then takes the place of the one heard from longest ago.
+ */
+export const MAX_FOUND = 64;
+/** Devices listed from one address at most: a few apps can share a computer, a flood can't. */
+export const MAX_PER_ADDRESS = 4;
+/**
+ * Valid announcements one address may make per window; the rest are
+ * ignored. A device sends one every two seconds per network, plus one for
+ * each "who".
+ */
+export const PER_ADDRESS_LIMIT = { count: 20, windowMs: 10_000 } as const;
+/** Answers to "who", from this device, at most one per this long, however many ask. */
+export const REPLY_EVERY_MS = 1_000;
+/** Addresses whose counts are kept at once; beyond that, new addresses wait for the next window. */
+const MAX_COUNTED_ADDRESSES = 256;
 
 export interface NearbyDevice {
   name: string;
@@ -43,6 +61,9 @@ export class Discovery {
   private socket: Socket | null = null;
   private timer: NodeJS.Timeout | null = null;
   private readonly found = new Map<string, NearbyDevice>();
+  /** Valid announcements per source address in the current window. */
+  private readonly heard = new Map<string, { count: number; since: number }>();
+  private lastReply = 0;
   private readonly group: string;
   private readonly port: number;
 
@@ -95,6 +116,7 @@ export class Discovery {
     this.socket?.close();
     this.socket = null;
     this.found.clear();
+    this.heard.clear();
     this.options.onChange();
   }
 
@@ -129,6 +151,22 @@ export class Discovery {
     }
   }
 
+  /** Whether this address may be heard now; counts it if so. */
+  private allow(address: string, now = Date.now()): boolean {
+    const entry = this.heard.get(address);
+    if (entry && now - entry.since < PER_ADDRESS_LIMIT.windowMs) {
+      if (entry.count >= PER_ADDRESS_LIMIT.count) return false;
+      entry.count += 1;
+      return true;
+    }
+    if (!entry && this.heard.size >= MAX_COUNTED_ADDRESSES) {
+      for (const [key, e] of this.heard) if (now - e.since >= PER_ADDRESS_LIMIT.windowMs) this.heard.delete(key);
+      if (this.heard.size >= MAX_COUNTED_ADDRESSES) return false;
+    }
+    this.heard.set(address, { count: 1, since: now });
+    return true;
+  }
+
   private onMessage(data: Buffer, address: string): void {
     if (data.length > MAX_DATAGRAM) return;
     let json: unknown;
@@ -141,18 +179,35 @@ export class Discovery {
     if (!parsed.success) return;
     const a = parsed.data;
     if (a.fingerprint === this.options.self().fingerprint) return;
+    // Only valid announcements count against their address.
+    if (!this.allow(address)) return;
+    const now = Date.now();
     if (a.kind === "who") {
+      if (now - this.lastReply < REPLY_EVERY_MS) return;
+      this.lastReply = now;
       this.send("here");
       return;
     }
     if (a.port === 0) return;
     const before = this.found.get(a.fingerprint);
+    if (!before || before.address !== address) {
+      let fromHere = 0;
+      for (const d of this.found.values()) if (d.address === address) fromHere += 1;
+      if (fromHere >= MAX_PER_ADDRESS) return;
+    }
+    if (!before && this.found.size >= MAX_FOUND) {
+      let oldest: NearbyDevice | null = null;
+      for (const d of this.found.values()) if (!oldest || d.seenAt < oldest.seenAt) oldest = d;
+      if (oldest) this.found.delete(oldest.fingerprint);
+    }
     this.found.set(a.fingerprint, { name: a.name, fingerprint: a.fingerprint, address, port: a.port, seenAt: Date.now() });
     if (!before || before.address !== address || before.port !== a.port || before.name !== a.name) this.options.onChange();
   }
 
   private expire(): void {
-    const cutoff = Date.now() - FORGET_AFTER_MS;
+    const now = Date.now();
+    for (const [key, e] of this.heard) if (now - e.since >= PER_ADDRESS_LIMIT.windowMs) this.heard.delete(key);
+    const cutoff = now - FORGET_AFTER_MS;
     let changed = false;
     for (const [key, device] of this.found) {
       if (device.seenAt < cutoff) {
