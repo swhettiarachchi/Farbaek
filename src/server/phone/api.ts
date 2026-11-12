@@ -20,12 +20,15 @@ import { z } from "zod";
 import { CAP_CHOICES, type CapChoice } from "@/core/agent/run-cap";
 import { EFFORTS, type Effort } from "@/core/agent/routing";
 import { CLOUD_RUN_MAX_MINUTES } from "@/core/agent/cloud-run";
+import { WORKSPACE_LIMITS } from "@/config/workspace";
+import { MAX_PATH_LENGTH, checkPath, formatBytes } from "@/core/workspace/files";
+import { isImagePath } from "@/core/workspace/images";
 import { json, problem } from "@/server/sandbox/http";
 import type { AppContext } from "@/server/workspace/context";
 import { MANAGER_ROLES } from "@/server/workspace/types";
 import { authenticate, connectFromBrowser, exchangeCode, refreshPhone, signInWithApple, type PhoneAuthDeps, type PhoneCaller } from "./auth";
 import { PUSH_TOKEN_PATTERN } from "./tokens";
-import { approvalView, approvalsView, homeView, isTaskFilter, meView, planView, projectView, projectsView, runDetail, taskView, tasksView, type BillingFacts, type RunReader } from "./views";
+import { approvalView, approvalsView, fileView, filesView, homeView, isTaskFilter, meView, planView, projectView, projectsView, runDetail, taskView, tasksView, type BillingFacts, type RunReader } from "./views";
 import { readTextCapped } from "@/server/http/body";
 import { log } from "@/server/observability/log";
 import { reportPrefill } from "@/core/support/support";
@@ -55,6 +58,8 @@ export interface PhoneWrites {
   report(caller: PhoneCaller, input: { orgId: string; subject: string; body: string }): Promise<PhoneOutcome<{ requestId: string }>>;
   /** A purchase the app made with Apple's In-App Purchase (ADR 0112): its signed transaction. */
   appleTransaction(p: PhonePerson, jws: string): Promise<PhoneOutcome<{ state: string; planId: string | null; paidThrough: string | null }>>;
+  /** A text file saved as the person, as the web's editor saves it: the revision they saw (0 for a new file) must still be current. */
+  saveFile(p: PhonePerson, input: { projectId: string; path: string; content: string; expectedRevision: number }): Promise<PhoneOutcome<{ revision: number }>>;
 }
 
 export interface PhoneApiDeps {
@@ -117,10 +122,21 @@ const notFound = (what: string) => problem(404, "NOT_FOUND", `That ${what} doesn
 const Uuid = z.uuid();
 const Sha = z.string().regex(/^[0-9a-f]{64}$/);
 
-async function body(request: Request): Promise<Record<string, unknown> | null> {
+/** Every route's body, except a saved file's. */
+const BODY_MAX = 64 * 1024;
+
+/**
+ * A saved file's body. A text file can be WORKSPACE_LIMITS.maxFileBytes, and JSON escaping grows it: at most six
+ * characters for one byte (\u001b), so this route alone reads up to about 3 MB, plus room for the path and revision.
+ * It's read only once the person is known to be able to write here.
+ */
+export const FILE_BODY_MAX = 6 * WORKSPACE_LIMITS.maxFileBytes + 16 * 1024;
+
+/** A JSON object, "too_large" past the cap, or null for anything else. */
+async function readBody(request: Request, maxBytes: number): Promise<Record<string, unknown> | "too_large" | null> {
   if (!(request.headers.get("content-type") ?? "").includes("application/json")) return null;
-  const text = await readTextCapped(request, 64 * 1024);
-  if (text === null) return null;
+  const text = await readTextCapped(request, maxBytes);
+  if (text === null) return "too_large";
   try {
     const value = JSON.parse(text) as unknown;
     return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
@@ -129,7 +145,20 @@ async function body(request: Request): Promise<Record<string, unknown> | null> {
   }
 }
 
+async function body(request: Request): Promise<Record<string, unknown> | null> {
+  const value = await readBody(request, BODY_MAX);
+  return value === "too_large" ? null : value;
+}
+
 const badBody = () => problem(400, "INVALID_REQUEST", "That request isn't valid. Update the app and try again.");
+
+/** A file path in a query: the reader acts as the person, so this only keeps out what no stored path can be. */
+const FilePath = z.string().min(1).max(MAX_PATH_LENGTH).regex(/^[^\u0000-\u001f\u007f]+$/);
+const SavedFile = z.object({ path: z.string().trim().min(1).max(MAX_PATH_LENGTH), content: z.string(), expectedRevision: z.number().int().nonnegative() });
+/** The use case's own words (FILE_TOO_LARGE), for a body too large to read. */
+const FILE_TOO_LARGE = `Files can be up to ${formatBytes(WORKSPACE_LIMITS.maxFileBytes)}.`;
+/** The web says to use its Add an image button, which the phone doesn't have. */
+const IMAGE_PATH_ON_PHONE = "That name ends like an image's, so it can only hold an image. Choose another name, or add images on the web.";
 
 /**
  * Which build of the iPhone app is asking (ADR 0186). An iPhone whose build can't be read is logged, so a User-Agent
@@ -391,6 +420,57 @@ const ROUTES: Route[] = [
       if (!Uuid.safeParse(s.params.projectId).success) return notFound("project");
       const view = await projectView(s.ctx.reader, org, s.params.projectId!, s.liveAddress);
       return view ? ok(view) : notFound("project");
+    },
+  },
+  {
+    // A project's current files, with no content, and whether the person can save one from the phone.
+    method: "GET",
+    path: "projects/:projectId/files",
+    run: async (s) => {
+      const org = orgOf(s);
+      if (typeof org !== "string") return org;
+      if (!Uuid.safeParse(s.params.projectId).success) return notFound("project");
+      const view = await filesView(s.ctx, org, s.params.projectId!);
+      return view ? ok(view) : notFound("project");
+    },
+  },
+  {
+    // One file, read as the person, so Row Level Security decides: a text file's content, or an image's base64 and type.
+    method: "GET",
+    path: "projects/:projectId/file",
+    run: async (s) => {
+      const org = orgOf(s);
+      if (typeof org !== "string") return org;
+      if (!Uuid.safeParse(s.params.projectId).success) return notFound("project");
+      const path = FilePath.safeParse(s.url.searchParams.get("path"));
+      if (!path.success) return badBody();
+      const file = await s.ctx.reader.getFile(org, s.params.projectId!, path.data);
+      return file ? ok(fileView(file)) : notFound("file");
+    },
+  },
+  {
+    // Saving a text file, as the web's editor does. A stale revision is refused with the file's current revision and
+    // hash, read as the person (null when it's gone), so the app can show what changed before the person tries again.
+    method: "PUT",
+    path: "projects/:projectId/file",
+    write: true,
+    run: async (s) => {
+      const p = person(s);
+      if (p instanceof Response) return p;
+      if (!Uuid.safeParse(s.params.projectId).success) return notFound("project");
+      const raw = await readBody(s.request, FILE_BODY_MAX);
+      if (raw === "too_large") return problem(413, "FILE_TOO_LARGE", FILE_TOO_LARGE);
+      const parsed = SavedFile.safeParse(raw);
+      if (!parsed.success) return badBody();
+      const { path, content, expectedRevision } = parsed.data;
+      if (isImagePath(path)) return problem(422, "IMAGE_PATH", IMAGE_PATH_ON_PHONE);
+      const projectId = s.params.projectId!;
+      const saved = await s.deps.writes.saveFile(p, { projectId, path, content, expectedRevision });
+      if (saved.ok || saved.code !== "FILE_CHANGED") return fromOutcome(saved);
+      // The use case saved under its checked path (a leading "./" dropped), so the current file is read there.
+      const checked = checkPath(path);
+      const current = await s.ctx.reader.getFile(p.orgId, projectId, checked.ok ? checked.path : path).catch(() => null);
+      return json({ error: { code: saved.code, message: saved.message, current: current ? { revision: current.revision, sha256: current.sha256 } : null } }, saved.status);
     },
   },
   {

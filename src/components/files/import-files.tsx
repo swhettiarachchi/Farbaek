@@ -6,54 +6,107 @@ import { importFilesAction, type ImportState } from "@/app/app/actions";
 import { buttonClasses } from "@/components/ui/button";
 import { WORKSPACE_LIMITS } from "@/config/workspace";
 import { SKIP_LABELS, formatBytes, screenFile, screenPath, stripRootFolder, type SkipReason } from "@/core/workspace/files";
+import { ZIP_SKIP_LABELS } from "@/core/workspace/rescue-zip";
+import { InflateUnavailableError, ZipError, readZip, type Inflate, type ZipResult, type ZipSkipReason } from "@/core/workspace/unzip";
 
-interface Prepared {
+type Skipped = { path: string; reason: SkipReason | ZipSkipReason };
+
+export interface Prepared {
   files: { path: string; content: string }[];
   bytes: number;
-  skipped: { path: string; reason: SkipReason }[];
+  skipped: Skipped[];
+  /** Picked zips that couldn't be opened, each with a plain reason. */
+  zipProblems: { name: string; message: string }[];
 }
+
+const label = (reason: Skipped["reason"]) => (reason in SKIP_LABELS ? SKIP_LABELS[reason as SkipReason] : ZIP_SKIP_LABELS[reason as ZipSkipReason]);
+
+/** Zips bigger than this are mostly dependencies or media; a project's source rarely is. The rescue import's cap too. */
+const MAX_ZIP_BYTES = 60 * 1024 * 1024;
+
+/**
+ * What one picked zip may unpack to: files as large as an import takes, and
+ * no more in all than a project can hold. Files in dependency folders are
+ * listed in a zip but never unpacked, so the entry cap is the rescue import's.
+ */
+const ZIP_LIMITS = { maxFileBytes: WORKSPACE_LIMITS.maxFileBytes, maxTotalBytes: WORKSPACE_LIMITS.maxProjectBytes, maxEntries: 50_000 } as const;
 
 const decoder = () => new TextDecoder("utf-8", { fatal: true });
 
-/** Reads and screens the selected files in the browser. The server screens them again. */
-async function prepare(list: FileList, fromFolder: boolean): Promise<Prepared> {
-  const out: Prepared = { files: [], bytes: 0, skipped: [] };
+const isZip = (file: File) => /\.zip$/i.test(file.name) || file.type === "application/zip" || file.type === "application/x-zip-compressed";
+
+function skip(out: Prepared, path: string, reason: Skipped["reason"]) {
+  // Dependency folders can hold tens of thousands of files: count them without listing each one.
+  if (reason !== "ignored_folder" || out.skipped.length < 5_000) out.skipped.push({ path, reason });
+}
+
+/** Screens one file, picked or unzipped, in exactly the same way. */
+async function addFile(out: Prepared, seen: Set<string>, raw: string, size: number, read: () => Promise<ArrayBuffer | Uint8Array>) {
+  const byPath = screenPath(raw);
+  if (!byPath.ok) return skip(out, raw, byPath.reason);
+  if (size > WORKSPACE_LIMITS.maxFileBytes) return skip(out, byPath.path, "too_large");
+  let content: string;
+  try {
+    content = decoder().decode(await read());
+  } catch {
+    return skip(out, byPath.path, "binary");
+  }
+  const screened = screenFile(byPath.path, content, size, WORKSPACE_LIMITS.maxFileBytes);
+  if (!screened.ok) return skip(out, byPath.path, screened.reason);
+  if (seen.has(screened.path)) return;
+  seen.add(screened.path);
+  out.files.push({ path: screened.path, content });
+  out.bytes += size;
+}
+
+/** Unpacks a picked zip here in the browser, then screens each file as if it had been picked. */
+async function addZip(out: Prepared, seen: Set<string>, file: File, inflate: Inflate | undefined) {
+  const problem = (message: string) => {
+    out.zipProblems.push({ name: file.name, message });
+  };
+  if (file.size > MAX_ZIP_BYTES) {
+    return problem(`It's ${formatBytes(file.size)}, and a zip can be up to ${formatBytes(MAX_ZIP_BYTES)}. Zip just the folder with your code, without dependency or build folders.`);
+  }
+  const refused: Skipped[] = [];
+  let zip: ZipResult;
+  try {
+    zip = await readZip(new Uint8Array(await file.arrayBuffer()), {
+      ...ZIP_LIMITS,
+      inflate,
+      unwrapFolder: true,
+      // Dependency folders, credential files and paths that aren't allowed are never unpacked.
+      wanted: (path) => {
+        const byPath = screenPath(path);
+        if (!byPath.ok) refused.push({ path, reason: byPath.reason });
+        return byPath.ok;
+      },
+    });
+  } catch (e) {
+    if (e instanceof InflateUnavailableError) return problem("This browser can't unpack zip files. Update it and try again.");
+    return problem(e instanceof ZipError ? e.message : "It couldn't be read. Make the zip again and try once more.");
+  }
+  for (const s of refused) skip(out, s.path, s.reason);
+  for (const s of zip.skipped) skip(out, s.path, s.reason);
+  for (const entry of zip.entries) await addFile(out, seen, entry.path, entry.bytes.length, async () => entry.bytes);
+}
+
+/**
+ * Reads and screens the selected files in the browser. A picked .zip is
+ * unpacked first. The server screens everything again. `inflate` is for tests.
+ */
+export async function prepare(list: ArrayLike<File>, fromFolder: boolean, inflate?: Inflate): Promise<Prepared> {
+  const out: Prepared = { files: [], bytes: 0, skipped: [], zipProblems: [] };
   const seen = new Set<string>();
   for (const file of Array.from(list)) {
-    const raw = fromFolder && file.webkitRelativePath ? stripRootFolder(file.webkitRelativePath) : file.name;
-    const byPath = screenPath(raw);
-    if (!byPath.ok) {
-      // Dependency folders can hold tens of thousands of files: count them without listing each one.
-      if (byPath.reason !== "ignored_folder" || out.skipped.length < 5_000) out.skipped.push({ path: raw, reason: byPath.reason });
-      continue;
-    }
-    if (file.size > WORKSPACE_LIMITS.maxFileBytes) {
-      out.skipped.push({ path: byPath.path, reason: "too_large" });
-      continue;
-    }
-    let content: string;
-    try {
-      content = decoder().decode(await file.arrayBuffer());
-    } catch {
-      out.skipped.push({ path: byPath.path, reason: "binary" });
-      continue;
-    }
-    const screened = screenFile(byPath.path, content, file.size, WORKSPACE_LIMITS.maxFileBytes);
-    if (!screened.ok) {
-      out.skipped.push({ path: byPath.path, reason: screened.reason });
-      continue;
-    }
-    if (seen.has(screened.path)) continue;
-    seen.add(screened.path);
-    out.files.push({ path: screened.path, content });
-    out.bytes += file.size;
+    if (!fromFolder && isZip(file)) await addZip(out, seen, file, inflate);
+    else await addFile(out, seen, fromFolder && file.webkitRelativePath ? stripRootFolder(file.webkitRelativePath) : file.name, file.size, () => file.arrayBuffer());
   }
   return out;
 }
 
-function SkippedList({ skipped }: { skipped: Prepared["skipped"] }) {
+function SkippedList({ skipped }: { skipped: Skipped[] }) {
   if (skipped.length === 0) return null;
-  const byReason = new Map<SkipReason, string[]>();
+  const byReason = new Map<Skipped["reason"], string[]>();
   for (const s of skipped) byReason.set(s.reason, [...(byReason.get(s.reason) ?? []), s.path]);
   return (
     <details className="rounded-sm border border-line bg-surface-raised/50 px-4 py-3 text-sm">
@@ -64,7 +117,7 @@ function SkippedList({ skipped }: { skipped: Prepared["skipped"] }) {
         {[...byReason].map(([reason, paths]) => (
           <li key={reason}>
             <p className="text-ink-2">
-              {SKIP_LABELS[reason]}:{" "}
+              {label(reason)}:{" "}
               <span className="tabular">
                 {paths.length.toLocaleString("en-US")} {paths.length === 1 ? "file" : "files"}
               </span>
@@ -128,7 +181,8 @@ export function ImportFiles({ projectId, disabledReason, compact = false }: { pr
     <div className="grid gap-4">
       {/* webkitdirectory isn't in React's types; it is supported by every current browser engine. */}
       <input ref={folderInput} type="file" multiple className="sr-only" tabIndex={-1} aria-hidden {...{ webkitdirectory: "" }} onChange={(e) => onPick(e.target.files, true)} />
-      <input ref={filesInput} type="file" multiple className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => onPick(e.target.files, false)} />
+      {/* Any file, zips included. Naming .zip here would make desktop pickers offer zips alone by default. */}
+      <input ref={filesInput} type="file" multiple accept="*/*" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => onPick(e.target.files, false)} />
 
       <div className={`flex flex-wrap items-center gap-3 ${compact ? "" : "justify-center"}`}>
         <button type="button" disabled={blocked} onClick={() => folderInput.current?.click()} className={buttonClasses(compact ? "secondary" : "primary", compact ? "sm" : "md")}>
@@ -139,8 +193,9 @@ export function ImportFiles({ projectId, disabledReason, compact = false }: { pr
         </button>
       </div>
       <p className={`text-xs leading-relaxed text-ink-3 ${compact ? "" : "text-center"}`}>
-        Text files only, up to {formatBytes(WORKSPACE_LIMITS.maxFileBytes)} each and {formatBytes(WORKSPACE_LIMITS.maxImportBytes)} per import. Dependency and build folders are
-        skipped, and so are files that hold or seem to hold keys and passwords. Files are read in your browser first so you can check the list before anything is uploaded.
+        Text files only, up to {formatBytes(WORKSPACE_LIMITS.maxFileBytes)} each and {formatBytes(WORKSPACE_LIMITS.maxImportBytes)} per import. A .zip of your project works too:
+        choose it with Choose files, which is also the way to bring a project in from a phone. Dependency and build folders are skipped, and so are files that hold or seem to hold
+        keys and passwords. Everything is read and unzipped in your browser first, so you can check the list before anything is uploaded.
       </p>
       {disabledReason ? <p className={`text-sm text-ink-2 ${compact ? "" : "text-center"}`}>{disabledReason}</p> : null}
 
@@ -152,6 +207,14 @@ export function ImportFiles({ projectId, disabledReason, compact = false }: { pr
               <span className="font-medium tabular">{prepared.files.length.toLocaleString("en-US")}</span> {prepared.files.length === 1 ? "file" : "files"} ready to import,{" "}
               {formatBytes(prepared.bytes)} in all.
             </p>
+            {prepared.zipProblems.map((p, i) => (
+              <p key={`${i}-${p.name}`} role="alert" className="flex items-start gap-2 text-sm text-failed">
+                <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />
+                <span className="min-w-0 break-words">
+                  <span className="font-mono">{p.name}</span> wasn&apos;t opened. {p.message}
+                </span>
+              </p>
+            ))}
             {tooBig ? (
               <p role="alert" className="flex items-start gap-2 text-sm text-failed">
                 <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-failed" aria-hidden />

@@ -14,11 +14,17 @@ export default function OfflinePage() {
       <WifiSlashIcon size={32} className="mx-auto text-ink-3" aria-hidden />
       <h1 className={FOCUSED_TITLE}>You&apos;re offline</h1>
       <p className="text-base leading-relaxed text-ink-2">
-        Farbaek needs the internet to open your workspace. Your projects, plans and proof are safe on Farbaek&apos;s server, and nothing you approved is lost.
+        Farbaek needs the internet to open your workspace. Your projects, plans and proof are safe on Farbaek&apos;s server, and nothing you approved is lost. Projects you kept on this device open without it.
       </p>
-      <a href="/app" className="mx-auto inline-flex h-11 items-center rounded-full bg-primary px-5 text-sm font-medium text-on-primary shadow-e1">
-        Try again
-      </a>
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        <a href="/app" className="inline-flex h-11 items-center rounded-full bg-primary px-5 text-sm font-medium text-on-primary shadow-e1">
+          Try again
+        </a>
+        {/* Projects kept in this browser open without a connection (ADR 0192). */}
+        <a href="/device" className="inline-flex h-11 items-center rounded-full border border-line bg-surface px-5 text-sm font-medium text-ink shadow-e1">
+          Open what&apos;s on this device
+        </a>
+      </div>
     </div>
   );
 }
