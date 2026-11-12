@@ -33,7 +33,7 @@ SVG stays a text file.
 
 ## Not yet
 
-- **Capsules and Mesh** carry text files only. Their format has a text manifest, and changing it is its own decision.
+- **Capsules and Mesh** carry text files only. Their format has a text manifest, and changing it is its own decision. (Since stage 179, ADR 0189, Capsules carry images too.)
 - **Sandboxes** (app previews and checks) get images as bytes since 2026-10-29 (stage 86). Before that, the sandbox snapshot read every current file without its encoding, so an image would have arrived as base64 text.
 - **Launches to Vercel and Netlify** send images as bytes since 2026-10-29 (stage 86). The Launch page's fingerprint and the authorized launch come from one list (`server/launch/files.ts`).
 - **Agents work on text.** The desktop agent's and the cloud agent's snapshots leave images out (stage 86), and the database refuses text on an image path.

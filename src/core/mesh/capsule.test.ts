@@ -150,3 +150,77 @@ describe("planImport and filesToWrite", () => {
     expect(capsuleCopyPath("Makefile", new Set())).toBe("Makefile.capsule");
   });
 });
+
+describe("images in Capsules (stage 179)", () => {
+  const PNG = new Uint8Array(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64"));
+  const IMAGE_LIMITS = { ...LIMITS, maxImageBytes: 2 * 1024 * 1024 };
+
+  it("packs an image as its bytes and opens it again, hashed and unchanged", async () => {
+    const built = pack([{ path: "index.html", content: "<img src=assets/dot.png>" }, { path: "assets/dot.png", content: PNG }]);
+    expect(built.excluded).toEqual([]);
+    expect(built.manifest.files.find((f) => f.path === "assets/dot.png")!.blake3).toBe(blake3Hex(PNG));
+    const opened = await openCapsule(encodeCapsule(built), IMAGE_LIMITS);
+    expect(opened.ok).toBe(true);
+    if (!opened.ok) return;
+    const image = opened.files.find((f) => f.path === "assets/dot.png")!;
+    expect(image.content).toBeInstanceOf(Uint8Array);
+    expect(Array.from(image.content as Uint8Array)).toEqual(Array.from(PNG));
+    expect(fileHash(PNG)).toBe(blake3Hex(PNG));
+  });
+
+  it("leaves out bytes that aren't the image their name says, and other binaries", () => {
+    const exe = new Uint8Array([0x4d, 0x5a, 0x90, 0x00, 0x03, 0x00, 0x00, 0x00]);
+    const built = pack([
+      { path: "assets/run.png", content: exe },
+      { path: "tool.exe", content: exe },
+      { path: "assets/dot.jpg", content: PNG },
+      { path: "assets/dot.png", content: PNG },
+    ]);
+    expect(built.manifest.files.map((f) => f.path)).toEqual(["assets/dot.png"]);
+    expect(built.excluded.map((e) => [e.path, e.reason])).toEqual([
+      ["assets/dot.jpg", "binary"],
+      ["assets/run.png", "binary"],
+      ["tool.exe", "binary"],
+    ]);
+  });
+
+  it("refuses a Capsule whose image was swapped for other bytes, even with matching hashes", async () => {
+    const exe = new Uint8Array([0x4d, 0x5a, 0x90, 0x00, 0x03, 0x00, 0x00, 0x00]);
+    // A hostile sender packs an exe under an image name and lists its true hashes.
+    const forged = buildCapsule({ ...FIXED, files: [{ path: "assets/dot.png", content: PNG }] });
+    const entry = forged.manifest.files[0]!;
+    const manifest = {
+      ...forged.manifest,
+      files: [{ ...entry, bytes: exe.length, blake3: blake3Hex(exe), chunks: [{ index: 0, bytes: exe.length, blake3: blake3Hex(exe) }] }],
+      totals: { files: 1, bytes: exe.length },
+    };
+    const opened = await openCapsule(encodeCapsule({ manifest, files: [{ path: "assets/dot.png", content: exe }] }), IMAGE_LIMITS);
+    expect(opened.ok).toBe(false);
+    if (!opened.ok) expect(opened.problems.join(" ")).toMatch(/assets\/dot\.png/);
+  });
+
+  it("refuses an image whose bytes changed after packing", async () => {
+    const built = pack([{ path: "assets/dot.png", content: PNG }]);
+    const altered = PNG.slice();
+    altered[altered.length - 5] ^= 0xff;
+    const opened = await openCapsule(encodeCapsule({ manifest: built.manifest, files: [{ path: "assets/dot.png", content: altered }] }), IMAGE_LIMITS);
+    expect(opened.ok).toBe(false);
+    if (!opened.ok) expect(opened.problems.join(" ")).toMatch(/changed after the Capsule was made/);
+  });
+
+  it("still opens a text-only Capsule made before images could travel", async () => {
+    const built = pack([{ path: "index.html", content: "<p>old</p>" }]);
+    const opened = await openCapsule(encodeCapsule(built), LIMITS);
+    expect(opened.ok).toBe(true);
+  });
+
+  it("compares and copies images like text: an unchanged image is left alone, and keep both makes a .capsule copy", () => {
+    const built = pack([{ path: "assets/dot.png", content: PNG }]);
+    expect(planImport(built.manifest, [{ path: "assets/dot.png", blake3: blake3Hex(PNG) }])[0]!.status).toBe("unchanged");
+    const plan = planImport(built.manifest, [{ path: "assets/dot.png", blake3: "0".repeat(64) }]);
+    expect(plan[0]!.status).toBe("differs");
+    const out = filesToWrite(built.files, plan, { "assets/dot.png": "keep_both" }, ["assets/dot.png"]);
+    expect(out.map((f) => f.path)).toEqual(["assets/dot.capsule.png"]);
+    expect(out[0]!.content).toBeInstanceOf(Uint8Array);
+  });
+});
