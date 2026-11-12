@@ -45,7 +45,7 @@ if ($sent -ne 0) { Write-Host "The file couldn't be sent. Check the connection. 
 Write-Host "2 of 3: checking it on the server and applying it in one transaction" -ForegroundColor Cyan
 $apply = @'
 f=__FILE__
-if [ "$(sha256sum "$f" | cut -c1-64)" != "__HASH__" ]; then echo HASH_MISMATCH; rm -f "$f"; exit 3; fi
+if [ "$(sha256sum "$f" | cut -c1-64)" != "__HASH__" ]; then echo HASH_MISMATCH; rm -f "$f"; exit 64; fi
 docker exec -i supabase-db psql -U postgres -d postgres --single-transaction -v ON_ERROR_STOP=1 -q < "$f"
 s=$?
 rm -f "$f"
@@ -53,8 +53,9 @@ exit $s
 '@
 (($apply.Replace("__FILE__", $remoteFile).Replace("__HASH__", $want)) -replace "`r", "") | ssh @ssh "farbaek@$Server" "tr -d '\r' | bash -s"
 $code = $LASTEXITCODE
-if ($code -eq 3) { Write-Host "The server got a different file than the one tested. Nothing changed." -ForegroundColor Red; exit 1 }
-if ($code -ne 0) { Write-Host "The database refused it, so the whole transaction was undone. Nothing changed. Send Claude the lines above." -ForegroundColor Red; exit 1 }
+# 64 is the hash check's own code. psql exits 3 when a statement fails, so 3 means the database refused the file.
+if ($code -eq 64) { Write-Host "The server got a different file than the one tested. Nothing changed." -ForegroundColor Red; exit 1 }
+if ($code -ne 0) { Write-Host "The database refused it (the ERROR line above says why), so the whole transaction was undone. Nothing changed. If it says something already exists, this migration is most likely applied already. Send Claude the lines above." -ForegroundColor Red; exit 1 }
 
 Write-Host "3 of 3: recording it and reading back" -ForegroundColor Cyan
 # Production's database (self-hosted) has no migration ledger, so it's recorded only where one exists.
