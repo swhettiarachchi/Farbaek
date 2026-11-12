@@ -13,6 +13,7 @@ import {
   PaletteIcon,
   PlusIcon,
   ShieldCheckIcon,
+  UsersThreeIcon,
 } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -281,6 +282,15 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
             </Link>
           </div>
           <p className="mt-2 text-sm text-ink-2">Check the code for leaked secrets, unsafe patterns, vulnerable packages and risky logic, then fix findings with the agent.</p>
+        </Card>
+        <Card>
+          <div className="flex items-start justify-between gap-3">
+            <CardTitle icon={UsersThreeIcon}>Share</CardTitle>
+            <Link href={`/app/projects/${project.id}/share`} className="inline-flex min-h-11 items-center gap-1 text-sm text-accent hover:underline">
+              Open <ArrowRightIcon size={14} weight="bold" aria-hidden />
+            </Link>
+          </div>
+          <p className="mt-2 text-sm text-ink-2">Invite someone to this project only, or make a read-only link. They never see the rest of your workspace.</p>
         </Card>
         <nav aria-labelledby="more-heading" className="grid gap-1">
           <p id="more-heading" className="text-xs font-medium text-ink-3">

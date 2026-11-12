@@ -17,8 +17,8 @@ describe("platform switches", () => {
     expect(platformPause("ai_runs")).toBeNull();
   });
 
-  it("are the five the database knows, each with plain copy", () => {
-    expect([...PLATFORM_FLAGS].sort()).toEqual(["ai_runs", "new_workspaces", "publishing", "sandboxes", "serve_published_sites"]);
+  it("are the six the database knows, each with plain copy", () => {
+    expect([...PLATFORM_FLAGS].sort()).toEqual(["ai_runs", "new_workspaces", "publishing", "sandboxes", "serve_published_sites", "share_links"]);
     for (const f of PLATFORM_FLAGS) {
       expect(FLAG_DETAILS[f].fallback.length).toBeGreaterThan(20);
       expect(FLAG_DETAILS[f].fallback).not.toMatch(/[—–]/);

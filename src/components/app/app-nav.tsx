@@ -23,6 +23,7 @@ import {
   SquaresFourIcon,
   TerminalWindowIcon,
   ToolboxIcon,
+  UsersThreeIcon,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import Link from "next/link";
@@ -70,6 +71,7 @@ const TOOLS: NavItem[] = [
 const ACCOUNT: NavItem[] = [
   { href: "/app/billing", label: "Billing and usage", short: "Billing", icon: CreditCardIcon, about: "Your plan, and how much you've used." },
   { href: "/app/settings", label: "Settings", short: "Settings", icon: GearSixIcon, about: "Your workspace, its people and your preferences." },
+  { href: "/shared", label: "Shared with you", short: "Shared", icon: UsersThreeIcon, about: "Projects other workspaces invited you to.", also: ["Guest", "Shared projects"] },
   { href: "/app/help", label: "Help and support", short: "Help", icon: LifebuoyIcon, about: "Ask a question or report a problem." },
 ];
 

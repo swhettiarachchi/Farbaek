@@ -358,3 +358,51 @@ describe("SE-030 A launch address outside the host's own domain", () => {
     expect(launchAddress("netlify", "https://ledger.netlify.app")).toBe("https://ledger.netlify.app");
   });
 });
+
+describe("SE-042 A guest reaching past their one project", () => {
+  it("reads and edits only that project, and never spends, approves, applies or checks", async () => {
+    const carol = "00000000-0000-4000-8000-0000000ca242";
+    await admin("insert into auth.users (id, email, email_confirmed_at) values ($1, 'carol.guest@example.test', now())", [carol]);
+    const backOffice = (await q<{ id: string }>("select public.app_create_project($1, $2, 'Back office', null, null) as id", [orgA, USERS.alice]))[0]!.id;
+    await q("select public.app_save_file($1, $2, 'secret-plan.md', 'not for guests', 0, $3, $4, $5)", [backOffice, USERS.alice, ...LIMITS]);
+    const token = "se-042-invite-token";
+    await q("select public.app_create_project_invitation($1, $2, 'carol.guest@example.test', 'edit', $3, now() + interval '7 days', 10)", [projectA, USERS.alice, sha(token)]);
+    await q("select public.app_accept_project_invitation($1, $2, 10)", [sha(token), carol]);
+
+    // Reads: that project only, and none of the workspace around it.
+    const projects = await asUser<{ id: string }>(carol, "select id from public.projects");
+    expect(projects.map((p) => p.id)).toEqual([projectA]);
+    for (const table of ["organizations", "organization_members", "audit_events", "ai_credit_ledger", "launch_orders", "agent_runs", "sandbox_sessions"]) {
+      expect(await asUser(carol, `select 1 from public.${table}`), table).toEqual([]);
+    }
+    expect(await asUser(carol, "select 1 from public.project_files where project_id = $1", [backOffice])).toEqual([]);
+
+    // Writes: files and tasks in that project; nothing else.
+    await q("select public.app_save_file($1, $2, 'notes/guest.md', 'hello', 0, $3, $4, $5)", [projectA, carol, ...LIMITS]);
+    await expect(q("select public.app_save_file($1, $2, 'secret-plan.md', 'changed', 1, $3, $4, $5)", [backOffice, carol, ...LIMITS])).rejects.toThrow(/FORBIDDEN/);
+    const t = await task(orgA, USERS.alice, projectA, "Guest refusals");
+    await expect(q("select public.app_approve_contract($1, $2, 1, $3, 2, '[]')", [t.task, carol, H("c")])).rejects.toThrow();
+    await expect(q("select public.app_start_task_verification($1, $2, $3, 'person')", [orgA, carol, t.task])).rejects.toThrow(/FORBIDDEN|NOT_FOUND/);
+    await expect(q("select public.app_reserve_usage($1, $2, 'se-042', 'contract_draft', $3, 10, '{}'::jsonb)", [orgA, carol, t.task])).rejects.toThrow();
+    await expect(q("select public.app_import_files($1, $2, '[{\"path\":\"x.md\",\"content\":\"x\"}]'::jsonb, $3, 4194304, $4, $5)", [projectA, carol, ...LIMITS])).rejects.toThrow(/FORBIDDEN/);
+    await expect(q("select public.app_archive_project($1, $2)", [projectA, carol])).rejects.toThrow(/FORBIDDEN/);
+  });
+});
+
+describe("SE-043 A read-only link turned off, or reaching history", () => {
+  it("stops at once when turned off, never serves history, and is never callable from a browser", async () => {
+    const token = "se-043-link-token";
+    await q("select public.app_save_file($1, $2, 'gone.md', 'deleted later', 0, $3, $4, $5)", [projectA, USERS.alice, ...LIMITS]);
+    await q("select public.app_delete_file($1, $2, 'gone.md', 1)", [projectA, USERS.alice]);
+    const link = (await q<{ id: string }>("select public.app_create_share_link($1, $2, $3, null, false) as id", [projectA, USERS.alice, sha(token)]))[0]!.id;
+    expect((await q<{ v: { state: string } }>("select public.app_project_for_share($1) as v", [sha(token)]))[0]!.v.state).toBe("live");
+    // A deleted file stays in history, and history isn't reachable through a link.
+    expect(await q("select 1 from public.app_share_file($1, 'gone.md')", [sha(token)])).toEqual([]);
+    for (const role of ["anon", "authenticated"] as const) {
+      await expect(as(db, role, role === "anon" ? null : USERS.alice, () => db.query("select public.app_share_file($1, 'notes/guest.md')", [sha(token)]))).rejects.toThrow(/permission denied/);
+    }
+    await q("select public.app_revoke_share_link($1, $2)", [link, USERS.alice]);
+    expect((await q<{ v: { state: string } }>("select public.app_project_for_share($1) as v", [sha(token)]))[0]!.v).toEqual({ state: "revoked" });
+    expect(await q("select 1 from public.app_share_file($1, 'notes/guest.md')", [sha(token)])).toEqual([]);
+  });
+});

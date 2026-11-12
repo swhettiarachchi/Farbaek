@@ -66,7 +66,7 @@ export function appCspEnforced(setting: string | undefined): boolean {
 }
 
 /** The app's pages, where the policy applies. */
-export const APP_CSP_PATH = /^\/(?:app|admin)(?:\/|$)/;
+export const APP_CSP_PATH = /^\/(?:app|admin|shared)(?:\/|$)/;
 
 /**
  * Pages where people sign in or consent, which render per request so they can carry a nonce too (ADR 0175). Report-only for now,

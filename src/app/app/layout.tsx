@@ -1,4 +1,5 @@
-import { CaretDownIcon, EyeIcon, PauseCircleIcon, PlusIcon, ShieldStarIcon, SignOutIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { ArrowRightIcon, CaretDownIcon, EyeIcon, PauseCircleIcon, PlusIcon, ShieldStarIcon, SignOutIcon, WarningCircleIcon } from "@phosphor-icons/react/ssr";
+import { loadSharedWithMe } from "@/server/workspace/guest-context";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
@@ -72,10 +73,26 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   if (!ctx) return <NotConfigured />;
 
   if (!ctx.current) {
+    // Someone invited to a project (ADR 0188) needs no workspace of their own: point them to it first.
+    const shared = ctx.mode === "live" ? ((await loadSharedWithMe().catch(() => null))?.projects.length ?? 0) : 0;
     return (
       // Below desktop widths the build box's glow would reach past the screen's edge: clipped, as on the app's other pages.
       <main id="main" data-signed-in className="mx-auto w-full max-w-3xl px-4 pb-16 pt-10 max-lg:overflow-x-clip sm:px-6 sm:pt-16">
         <Brand />
+        {shared > 0 ? (
+          <Link
+            href="/shared"
+            className="mt-8 flex min-h-11 items-center justify-between gap-3 rounded-md border border-line bg-surface p-4 text-sm shadow-e1 hover:border-line-strong"
+          >
+            <span>
+              <span className="font-medium">
+                {shared} {shared === 1 ? "project is" : "projects are"} shared with you.
+              </span>{" "}
+              <span className="text-ink-2">Open {shared === 1 ? "it" : "them"} without a workspace of your own.</span>
+            </span>
+            <ArrowRightIcon size={16} weight="bold" className="shrink-0 text-ink-3" aria-hidden />
+          </Link>
+        ) : null}
         <h1 className={`mt-10 ${DISPLAY_TITLE}`}>What do you want to build?</h1>
         <p className="mt-3 max-w-[56ch] text-body leading-relaxed text-ink-2">Describe it, and Farbaek drafts a plan for you to approve, then builds it.</p>
         <p className="mt-2 max-w-[60ch] text-sm leading-relaxed text-ink-3">

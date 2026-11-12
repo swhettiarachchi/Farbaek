@@ -61,6 +61,10 @@ export type WriteErrorCode =
   | "SEAT_LIMIT"
   | "INVITATION_CLOSED"
   | "WRONG_ACCOUNT"
+  | "ALREADY_GUEST"
+  | "GUEST_LIMIT"
+  | "LINK_LIMIT"
+  | "INVALID_LINK"
   | "INVALID_INVITATION"
   | "NOT_RECOVERABLE"
   | "RECOVERY_CHANGED"
@@ -211,6 +215,10 @@ export const MESSAGES: Record<WriteErrorCode, string> = {
   SEAT_LIMIT: "Every seat on this plan is taken, counting open invitations. Revoke an invitation or free a seat first.",
   INVITATION_CLOSED: "This invitation was already used, revoked or has expired. Ask for a new one.",
   WRONG_ACCOUNT: "This invitation is for a different email address. Sign in with the address it was sent to.",
+  ALREADY_GUEST: "That person already has access to this project.",
+  GUEST_LIMIT: "A project can be shared with 10 people who can view it. Remove someone first.",
+  LINK_LIMIT: "A project can have 5 links at once. Turn one off first.",
+  INVALID_LINK: "Choose how long the link lasts: 7 days, 30 days, or until you turn it off.",
   INVALID_INVITATION: "The invitation isn't valid. Try again.",
   NOT_RECOVERABLE: "This task can't be undone from its current state. Verified and finished tasks are closed records.",
   RECOVERY_CHANGED: "The files changed since you reviewed the undo. Reload and review it again. Nothing was changed.",
@@ -302,6 +310,10 @@ export function codeFromDatabaseError(message: string): WriteErrorCode {
     "SEAT_LIMIT",
     "INVITATION_CLOSED",
     "WRONG_ACCOUNT",
+    "ALREADY_GUEST",
+    "GUEST_LIMIT",
+    "LINK_LIMIT",
+    "INVALID_LINK",
     "INVALID_INVITATION",
     "NOT_RECOVERABLE",
     "INVALID_RECOVERY",
@@ -345,6 +357,18 @@ export async function requireContributor(deps: WriteDeps, orgId: string): Promis
   if (!role) return fail("NOT_FOUND");
   if (!CONTRIBUTOR_ROLES.includes(role)) return fail("FORBIDDEN");
   return { ok: true, value: role };
+}
+
+/**
+ * Who may change a project's files and write its tasks: a member who may
+ * contribute, or a guest who was given edit access to that project (ADR 0188).
+ * The guest's access comes from their own guest row, read before this; the
+ * database checks it again (private.require_project_editor).
+ */
+export async function requireEditor(deps: WriteDeps, input: { orgId: string; guest?: { access: "view" | "edit" } }): Promise<WriteResult<null>> {
+  if (input.guest) return input.guest.access === "edit" ? { ok: true, value: null } : fail("FORBIDDEN", "You can view this project, but not change it.");
+  const role = await requireContributor(deps, input.orgId);
+  return role.ok ? { ok: true, value: null } : role;
 }
 
 export async function createProject(
@@ -391,12 +415,12 @@ export async function archiveProject(deps: WriteDeps & ProjectAdminDeps, input: 
 
 export async function createTask(
   deps: WriteDeps,
-  input: { orgId: string; userId: string; projectId: string; title: string },
+  input: { orgId: string; userId: string; projectId: string; title: string; guest?: { access: "view" | "edit" } },
 ): Promise<WriteResult<string>> {
   const title = input.title.trim();
   if (title.length < 1 || title.length > 200) return fail("INVALID_TITLE");
 
-  const role = await requireContributor(deps, input.orgId);
+  const role = await requireEditor(deps, input);
   if (!role.ok) return role;
 
   const result = await deps.createTask({ orgId: input.orgId, actor: input.userId, projectId: input.projectId, title });

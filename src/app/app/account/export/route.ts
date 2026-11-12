@@ -29,9 +29,15 @@ export async function GET() {
     log("error", "account.export_failed", { error: error?.message ?? "no data" });
     return text(500, "Your data couldn't be gathered. Nothing was changed. Try again in a moment.");
   }
+  // Projects other workspaces shared with the person (ADR 0188).
+  const shared = await admin.rpc("app_account_shared_projects", { p_user: ctx.user.id });
+  if (shared.error) {
+    log("error", "account.export_failed", { error: shared.error.message });
+    return text(500, "Your data couldn't be gathered. Nothing was changed. Try again in a moment.");
+  }
   log("info", "account.exported", { user: ctx.user.id });
   const day = new Date().toISOString().slice(0, 10);
-  return new Response(`${JSON.stringify(data, null, 2)}\n`, {
+  return new Response(`${JSON.stringify({ ...(data as Record<string, unknown>), shared_projects: shared.data ?? [] }, null, 2)}\n`, {
     headers: {
       "content-type": "application/json; charset=utf-8",
       "content-disposition": `attachment; filename="farbaek-my-data-${day}.json"`,

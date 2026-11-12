@@ -351,6 +351,20 @@ export const EVAL_SCENARIOS: readonly EvalScenario[] = [
     asserts: "A signed subscription event whose buyer-set metadata names a workspace gives it nothing unless an owner or admin started that checkout there and it has no live subscription, and a subscription already on a workspace stays on it.",
     file: "privilege.test.ts",
   },
+  {
+    id: "SE-042",
+    title: "A guest reaching past their one project",
+    risks: ["ASI03"],
+    asserts: "Someone invited to one project reads that project and nothing else of its workspace, can change its files and add tasks only with edit access, and can never spend the workspace's AI, approve, apply, check, import or archive.",
+    file: "database.test.ts",
+  },
+  {
+    id: "SE-043",
+    title: "A read-only link turned off, or reaching history",
+    risks: ["ASI03", "LLM02"],
+    asserts: "A project link stops the moment it's turned off, reaches only current files (never a deleted file kept in history), and its functions can't be called from a browser at all.",
+    file: "database.test.ts",
+  },
 ];
 
 /** What isn't tested for each risk, and the reason when a risk doesn't apply. */

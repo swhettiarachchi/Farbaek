@@ -4,7 +4,7 @@
  * matching inserts while a switch is on; the app reads the same switches to
  * explain the pause before anyone hits that refusal.
  */
-export const PLATFORM_FLAGS = ["ai_runs", "sandboxes", "publishing", "serve_published_sites", "new_workspaces"] as const;
+export const PLATFORM_FLAGS = ["ai_runs", "sandboxes", "publishing", "serve_published_sites", "new_workspaces", "share_links"] as const;
 export type PlatformFlag = (typeof PLATFORM_FLAGS)[number];
 
 export const FLAG_DETAILS: Record<PlatformFlag, { label: string; pauses: string; fallback: string }> = {
@@ -32,6 +32,11 @@ export const FLAG_DETAILS: Record<PlatformFlag, { label: string; pauses: string;
     label: "New workspaces",
     pauses: "Creating workspaces, so no new sign-ups get a workspace or a trial.",
     fallback: "Farbaek has paused new workspaces for a short while. Try again soon.",
+  },
+  share_links: {
+    label: "Shared links",
+    pauses: "Every read-only project link shows a neutral \"paused\" page, and no new links are made. Guests invited to a project keep their access.",
+    fallback: "Farbaek has paused shared links for a short while. Try again soon.",
   },
 };
 
