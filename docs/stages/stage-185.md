@@ -20,7 +20,8 @@
   - Phone, Tablet (wide screens only) and Desktop as real device widths, the desktop layout scaled to fit with its scale shown;
   - a browser bar (back, the page as an address and page list, reload, full screen);
   - a full-screen dialog with its controls at the bottom;
-  - a skeleton until the site draws.
+  - a skeleton until the site draws;
+  - a device narrower than its stage (Phone or Tablet on a computer) sits on it like a device, 16 px from the top and bottom, with 28 px corners, a hairline ring and a soft shadow. On a phone, the Phone view stays edge to edge.
 - **`src/core/workspace/preview-geometry.ts`:** the sizes, with six tests.
 - **Docs:** ADR 0195.
 
@@ -34,8 +35,10 @@
 - **Audits** on three template previews and a project page:
   - `qa:responsive`, 44 page views from 320 to 1440 px: nothing scrolls sideways, is cut off, is too small to tap, or logs an error;
   - `qa:a11y`, 8 page views: no findings.
-- **Tests and checks:** `preview-geometry` (6 tests) and `tests/design` (194) pass. Typecheck and lint are clean.
-- **Not seen here:** the site drawn inside the new frame. The built-in browser doesn't run scripts in sandboxed frames, and the owner's Chrome window was minimised, so its renderer was frozen. How the site gets into the frame (`PreviewFrame`) is unchanged and was seen working in Chrome earlier today. Only the frame's size and controls are new.
+- **Tests and checks:** `preview-geometry` (6 tests) and `tests/design` (180) pass. Typecheck (in the build) and lint are clean.
+- **The device frame** (demo build, built-in browser): at 1280 px, Phone is a 390 px window 16 px from the stage's top and bottom, with 28 px corners and a hairline ring; at 375 px it stays edge to edge (341 px), with no corners and nothing scrolling sideways.
+- **The site drawn inside the new frame, in real Chrome** (the bakery template, on a computer): Desktop fills the stage with the site's desktop layout; Phone shows the site's phone layout, with its menu button, in a 390 px window; and Full screen shows the phone window above the glass bar, with Escape closing it. The built-in browser can't show this, because it doesn't run scripts in sandboxed frames.
+- **Not seen in real Chrome at 375 px:** Chrome is maximised, so its window can't be narrowed, and Farbaek's pages refuse to be framed. The 375 px layout was checked in the built-in browser (above). The site inside the frame at that width is the same document as the Phone view.
 
 ## Not done
 

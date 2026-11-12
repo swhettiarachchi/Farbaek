@@ -18,6 +18,7 @@ People build sites from their phones, and the owner asked for the preview to be 
   - **Tablet:** 820 px. Shown only where there's room to choose it.
   - **Desktop:** fills wide space; in narrower space, the real 1280 px desktop layout scaled to fit, with the scale shown ("Desktop at 29%").
   - **Default:** until the person picks one, a phone starts on Phone and a computer on Desktop. The sizes are computed in `src/core/workspace/preview-geometry.ts`, with tests.
+  - **A device narrower than its space** sits on the stage like a device: 16 px from the top and bottom, a large panel's 28 px corners (kept at 28 px when scaled), a hairline ring and a soft shadow. A window that fills its space has no frame: on a phone, the preview is the screen.
 - **A browser bar:** back through the pages visited, the page as an address (`/`, `/menu.html`) that opens the list of pages, reload, and full screen. Links inside the site still move between its pages.
 - **Full screen:** a native dialog that fills the screen with the site.
   - The controls sit in a glass bar at the bottom, where a thumb rests: close, back, pages, reload, device.

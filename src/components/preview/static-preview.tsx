@@ -15,6 +15,10 @@ const DEVICES: { id: Device; label: string; icon: Icon; wideOnly?: boolean }[] =
   { id: "desktop", label: "Desktop", icon: DesktopIcon },
 ];
 
+/** A device narrower than its stage sits this far from the stage's top and bottom, with a large panel's corners. */
+const DEVICE_INSET = 16;
+const DEVICE_RADIUS = 28;
+
 export interface PreviewVersion {
   id: string;
   label: string;
@@ -308,15 +312,24 @@ function Stage({
 
   const shown = width * scale;
   const left = Math.max(0, (space - shown) / 2);
-  // A phone preview on a phone is the screen itself, edge to edge; anything narrower than its space sits on the stage like a device.
+  // A phone preview on a phone is the screen itself, edge to edge; anything narrower than its space sits on the stage like a device:
+  // inset from the stage's edges, with a large panel's 28px corners. The radius is set before scaling, so it's divided by the scale.
   const framed = shown < space;
+  const inset = framed ? DEVICE_INSET : 0;
 
   return (
     <div ref={area} className={`relative ${fill ? "h-full" : (heightClass ?? "")}`}>
-      {width > 0 && height > 0 ? (
+      {width > 0 && height > 2 * inset ? (
         <div
-          className={`absolute top-0 origin-top-left overflow-hidden bg-white ${framed ? "shadow-e2" : ""} ${frameFocused ? "ring-2 ring-accent ring-inset" : ""}`}
-          style={{ left, width, height: height / scale, transform: scale === 1 ? undefined : `scale(${scale})` }}
+          className={`absolute origin-top-left overflow-hidden bg-white ${framed ? "shadow-e2" : ""} ${frameFocused ? "ring-2 ring-accent ring-inset" : framed ? "ring-1 ring-line" : ""}`}
+          style={{
+            top: inset,
+            left,
+            width,
+            height: (height - 2 * inset) / scale,
+            borderRadius: framed ? DEVICE_RADIUS / scale : undefined,
+            transform: scale === 1 ? undefined : `scale(${scale})`,
+          }}
         >
           {/* bg-white on purpose: it's the browser's own canvas a site draws on when it sets no background, not Farbaek's surface. */}
           <PreviewFrame frameRef={frame} html={doc} title={`Preview of ${page} (${label})`} className="block size-full bg-white" onLoad={() => setDrawn(current.current)} />
