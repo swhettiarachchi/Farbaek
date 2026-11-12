@@ -92,6 +92,24 @@ jobs:
           sleep 20
           adb exec-out screencap -p > out/launch-45s.png
           adb shell dumpsys activity activities | grep -E "ResumedActivity|topResumedActivity" | tee out/resumed.txt || true
+
+          # Nearby (ADR 0193): the link the Mesh page uses opens the native screen; turning on "Visible to your
+          # computers" starts the dataSync foreground service, the step Android 14 and 15's rules can stop.
+          adb shell pm grant com.farbaek.app android.permission.POST_NOTIFICATIONS || true
+          adb shell am start -W -a android.intent.action.VIEW -d "farbaek-mesh://nearby" com.farbaek.app | tee out/nearby-start.txt
+          sleep 8
+          adb shell uiautomator dump /sdcard/nearby.xml > /dev/null && adb pull /sdcard/nearby.xml out/nearby.xml > /dev/null || true
+          nearby_shown=$(grep -c 'text="Nearby"' out/nearby.xml 2>/dev/null || true)
+          bounds=$(grep -o 'content-desc="Visible to your computers"[^>]*bounds="[^"]*"' out/nearby.xml 2>/dev/null | grep -o 'bounds="[^"]*"' | head -n 1 || true)
+          if [ -n "$bounds" ]; then
+            read -r x1 y1 x2 y2 <<<"$(grep -o '[0-9]\+' <<<"$bounds" | tr '\n' ' ')"
+            adb shell input tap $(( (x1 + x2) / 2 )) $(( (y1 + y2) / 2 ))
+            sleep 6
+          fi
+          adb exec-out screencap -p > out/nearby.png
+          adb shell dumpsys activity services com.farbaek.app | grep -E "ServiceRecord|isForeground|foregroundServiceType" | tee out/nearby-service.txt || true
+          service_foreground=$(grep -c 'isForeground=true' out/nearby-service.txt || true)
+
           adb logcat -d > out/logcat.txt
           adb logcat -d -b crash > out/crash.txt || true
           grep -E "AndroidRuntime|FATAL|com.farbaek.app|androidbrowserhelper|TrustedWebActivity|TwaLauncher|cr_" out/logcat.txt | tail -n 300 > out/logcat-farbaek.txt || true
@@ -105,6 +123,8 @@ jobs:
             echo
             echo "Farbaek crashes: $(grep -c 'Process: com.farbaek.app' out/crash.txt || true). Other apps' crashes on the emulator: $(grep -v -c 'Process: com.farbaek.app' <(grep 'Process: ' out/crash.txt) || true)."
             echo
+            echo "Nearby: the screen showed its title $nearby_shown time(s); the Visible switch was ${bounds:+found and tapped}${bounds:-not found}; the transfer service in the foreground: $service_foreground."
+            echo
             # Farbaek's crash, on the run's page. Addresses are left out: a stack trace doesn't need them.
             echo '```'
             grep -B1 -A60 'Process: com.farbaek.app' out/crash.txt | grep -v -E 'https?://' | head -n 80 || true
@@ -112,6 +132,12 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           if grep -q 'Process: com.farbaek.app' out/crash.txt; then
             echo "::error::Farbaek stopped at launch. Its stack trace is in the run's summary."; exit 1
+          fi
+          if [ "${nearby_shown:-0}" = "0" ]; then
+            echo "::error::Nearby didn't open from its link. The screenshot is out/nearby.png in the run's artifact."; exit 1
+          fi
+          if [ -n "$bounds" ] && [ "${service_foreground:-0}" = "0" ]; then
+            echo "::error::Turning on Visible didn't start the Nearby service in the foreground."; exit 1
           fi
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

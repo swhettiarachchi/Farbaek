@@ -16,7 +16,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 | 2. Dev Studio vertical slice | Built and live, except visual editing |
 | 3. Trust and RealityLoop | Built; several parts not yet run against a live sandbox |
 | 4. Farbaek Agent (desktop) | Built (Electron, ADR); Windows Store and Linux builds wait on the owner and 1 November |
-| 5. Mesh | Built (Capsules, nearby, relay, direct, browser); phone-native transports not built |
+| 5. Mesh | Built (Capsules, nearby, relay, direct, browser, and natively on Android: stage 183); the iPhone's native transport follows in stage 184 |
 | 6. LaunchOS | Built (Vercel, Netlify); not yet run against a real customer account |
 | 7. Native mobile and connectivity | Partly built: an iPhone companion and an Android web app, not yet compiled |
 | 8. Advanced and enterprise ("only where justified") | Partly built |
@@ -100,6 +100,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
   - sending only changed files: built in stage 115 (ADR 0138), against an earlier copy the receiver chooses;
   - an offline receiver's queue: built in stage 115 (ADR 0138), on the sender, for up to a day, across restarts;
   - phone-native transports (Nearby Connections, MultipeerConnectivity, Wi-Fi Aware). The spec defers these until hardware testing.
+  - built for Android in stage 183 (ADR 0193): the desktop's own protocol over the local Wi-Fi in a native screen, rather than Nearby Connections, so a phone talks to the desktop app directly.
 
 ### 12. LaunchOS
 

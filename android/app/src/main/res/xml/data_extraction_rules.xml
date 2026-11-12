@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12 and up (ADR 0193). Cloud backup is off (android:allowBackup="false"), but moving to a new phone
+  copies app files anyway unless they're excluded here. Nearby's key is sealed by this phone's Keystore, which
+  never moves, so its sealed copy, the paired devices and received folders stay on this phone.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="mesh/" />
+        <exclude domain="file" path="Nearby/" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="mesh/" />
+        <exclude domain="file" path="Nearby/" />
+    </device-transfer>
+</data-extraction-rules>
