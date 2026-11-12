@@ -2,6 +2,19 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "fieldnote-starter",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "starters/members/src/server.js",
+        "--port",
+        "3010"
+      ],
+      "env": {
+        "DATA_DIR": "D:/FarbaekWork/tmp/fieldnote-data"
+      },
+      "port": 3010
+    },
+    {
       "name": "farbaek-prod",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": [

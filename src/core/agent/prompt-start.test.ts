@@ -75,7 +75,10 @@ describe("starterForPrompt", () => {
   it("picks a Next.js app for app-like requests and a static site otherwise", () => {
     expect(starterForPrompt("A landing page for my bakery")).toBe("static-website");
     expect(starterForPrompt("A portfolio with my photos")).toBe("static-website");
-    expect(starterForPrompt("A dashboard where users log in and see orders")).toBe("nextjs-app");
+    // People with their own accounts start from the App with sign-in (stage 180), unless a framework is named.
+    expect(starterForPrompt("A dashboard where users log in and see orders")).toBe("members-app");
+    expect(starterForPrompt("A members area where clients sign in and see their invoices")).toBe("members-app");
+    expect(starterForPrompt("A Next.js app where users sign up")).toBe("nextjs-app");
     expect(starterForPrompt("Build a booking system for my salon")).toBe("nextjs-app");
     expect(starterForPrompt("Make a todo app")).toBe("nextjs-app");
     expect(starterForPrompt("A REST API for my product catalogue")).toBe("rest-api");

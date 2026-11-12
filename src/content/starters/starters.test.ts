@@ -9,7 +9,7 @@ import { reviewSite } from "@/core/agent/site-review";
 import { PHOTO_SUBJECTS } from "@/core/media/photos";
 import { STUDIO_KIT_CSS, STUDIO_KIT_JS, STUDIO_KIT_PATTERN } from "@/core/media/studio-kit";
 import { screenFile } from "@/core/workspace/files";
-import { STARTERS, TEMPLATE_STARTERS, getStarter, runProfile } from "./index";
+import { APP_TEMPLATES, STARTERS, TEMPLATE_STARTERS, galleryFiles, galleryStarter, getStarter, runProfile } from "./index";
 import { NEXTJS_DEPENDENCIES } from "./nextjs-app";
 
 describe("starters", () => {
@@ -147,6 +147,44 @@ describe("starters", () => {
       expect(out).toMatch(/# fail 0|ℹ fail 0/);
     } finally {
       await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("give the App with sign-in no dependencies, its source's exact files, and tests of its own that pass (stage 180)", { timeout: 60_000 }, async () => {
+    const app = getStarter("members-app")!;
+    const pkg = JSON.parse(app.files.find((f) => f.path === "package.json")!.content) as Record<string, unknown>;
+    expect(pkg.dependencies).toBeUndefined();
+    expect(pkg.devDependencies).toBeUndefined();
+    expect(Object.keys(pkg.scripts as object)).toEqual(["dev", "start", "test"]);
+    expect(runProfile(app.files.map((f) => f.path))).toMatchObject({ kind: "node", port: 3000 });
+    // The module is generated from starters/members; editing those files without running the script fails here.
+    expect(() => execFileSync(process.execPath, ["scripts/starters/members.mjs", "--check"], { encoding: "utf8" })).not.toThrow();
+    const dir = await mkdtemp(path.join(os.tmpdir(), "farbaek-members-"));
+    try {
+      for (const f of app.files) {
+        await mkdir(path.dirname(path.join(dir, f.path)), { recursive: true });
+        await writeFile(path.join(dir, f.path), f.content);
+      }
+      // Its own suite: sign-up, form tokens, wrong passwords and limits, private notes, reset links and deleting.
+      const out = execFileSync(process.execPath, ["--test"], { cwd: dir, encoding: "utf8", timeout: 50_000 });
+      expect(out).toMatch(/# pass 7|ℹ pass 7/);
+      expect(out).toMatch(/# fail 0|ℹ fail 0/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("show the App with sign-in in the gallery from labelled pictures of its pages, fetching only fonts", () => {
+    const app = getStarter("members-app")!;
+    expect(APP_TEMPLATES.map((t) => t.id)).toEqual(["members-app"]);
+    expect(galleryStarter("members-app")).toBe(app);
+    expect(galleryStarter("rest-api")).toBeNull();
+    const files = galleryFiles(app);
+    expect(Object.keys(files).sort()).toEqual(["index.html", "notes.html", "styles.css"]);
+    expect(files["index.html"]).toContain("Sample");
+    expect(files["index.html"]).toContain('href="styles.css"');
+    for (const [, url] of files["index.html"]!.matchAll(/<(?:link|script|img)[^>]+(?:href|src)="((?:https?:)?\/\/[^"]+)"/gi)) {
+      expect(url).toMatch(/^https:\/\/fonts\.(?:googleapis|gstatic)\.com(?:\/|$)/);
     }
   });
 });
