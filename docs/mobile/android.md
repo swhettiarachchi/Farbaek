@@ -122,7 +122,11 @@ Inside the app, plans are bought through Google Play, the way Farbaek for iPhone
 
 ## 5. Nearby (ADR 0193), from 1.3.0 (versionCode 5)
 
-The app's first native screen: it sends files to a computer on the same Wi-Fi with no internet. Before releasing it:
+The app's first native screen: it sends files to a computer on the same Wi-Fi with no internet.
+
+It pairs only with pairing v2 (ADR 0194). The desktop app has that from 0.11.0, so publish desktop 0.11.0 first. Desktop 0.10.0 can't pair with this phone, and the phone asks for the update.
+
+Before releasing it:
 
 1. **The bundle:** upload the one from the "Android app" workflow run (versionCode 5) to **Closed testing - Alpha**. Check the run's **Android launch check** first. Its summary should show:
    - Nearby opening;
