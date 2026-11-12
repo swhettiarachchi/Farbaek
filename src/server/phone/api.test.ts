@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEMO_PROPOSAL_TASK_ID, DEMO_USER } from "@/content/demo-workspace";
 import { createDemoReader } from "@/server/workspace/demo-reader";
 import type { AppContext } from "@/server/workspace/context";
-import { handlePhoneApi, LONG_TOKEN_MS, type PhoneApiDeps, type PhoneWrites } from "./api";
+import { FILE_BODY_MAX, handlePhoneApi, LONG_TOKEN_MS, type PhoneApiDeps, type PhoneWrites } from "./api";
 import type { PhoneAuthDeps } from "./auth";
 import { challengeFor } from "./tokens";
 import { taskNextStep, type NextStepFacts } from "@/core/realityloop/next-step";
@@ -57,6 +57,13 @@ function deps(options: { expiresAt?: number; ctx?: Partial<AppContext>; revoked?
     createWorkspace: async () => (calls.push("createWorkspace"), { ok: true, value: { workspaceId: "w" } }),
     report: async (_c, i) => (calls.push(`report:${i.subject}|${i.body}`), { ok: true, value: { requestId: "r1" } }),
     appleTransaction: async () => (calls.push("apple"), { ok: true, value: { state: "active", planId: "starter", paidThrough: null } }),
+    // As the database does: the revision the person saw must still be the file's current one (0 when there's none).
+    saveFile: async (p, i) => {
+      calls.push(`saveFile:${i.path}@${i.expectedRevision}`);
+      const current = await p.ctx.reader.getFile(p.orgId, i.projectId, i.path.replace(/^\.\//, ""));
+      if ((current?.revision ?? 0) !== i.expectedRevision) return { ok: false, status: 409, code: "FILE_CHANGED", message: "Someone changed this file while you were looking at it." };
+      return { ok: true, value: { revision: i.expectedRevision + 1 } };
+    },
   };
   const d: PhoneApiDeps = {
     auth,
@@ -412,6 +419,120 @@ describe("the phone API (ADR 0110)", () => {
     const r = await call(deps().deps, "PUT", "push", { body: { token: "a".repeat(64), environment: "production" } });
     expect(r.status).toBe(503);
     expect(((await r.json()) as { error: { code: string } }).error.code).toBe("PUSH_UNAVAILABLE");
+  });
+});
+
+describe("a project's files on the phone (stage 182)", () => {
+  type FileItem = { path: string; revision: number; sizeBytes: number; sha256: string; updatedAt: string; kind: string };
+  type Problem = { error: { code: string; message: string; current?: { revision: number; sha256: string } | null } };
+  const IMAGE = { path: "public/logo.png", revision: 2, sizeBytes: 8, sha256: "d".repeat(64), updatedAt: NOW.toISOString(), encoding: "base64" as const };
+  // The demo's projects are text only, so this one has an image too, as a real project can (ADR 0108).
+  function withImage() {
+    const base = createDemoReader(NOW);
+    return {
+      ...base,
+      listFiles: async (org: string, id: string) => [...(await base.listFiles(org, id)), IMAGE],
+      getFile: async (org: string, id: string, path: string) => (path === IMAGE.path ? { ...IMAGE, content: "iVBORw0KGgo=" } : base.getFile(org, id, path)),
+    };
+  }
+  const fileAt = (path: string, project = PROJECT) => `projects/${project}/file?path=${encodeURIComponent(path)}`;
+  const listOf = async (d: PhoneApiDeps) => (await data(await call(d, "GET", `projects/${PROJECT}/files`))).files as FileItem[];
+
+  it("lists a project's current files, text and images, without their content", async () => {
+    const { deps: d } = deps({ ctx: { reader: withImage() } });
+    const r = await data(await call(d, "GET", `projects/${PROJECT}/files`));
+    expect(r).toMatchObject({ project: { id: PROJECT }, canSave: true, saveReason: null });
+    const files = r.files as (FileItem & { content?: string })[];
+    expect(files.find((f) => f.path === "README.md")).toMatchObject({ kind: "text", revision: expect.any(Number), sha256: expect.stringMatching(/^[0-9a-f]{64}$/) });
+    expect(files.find((f) => f.path === IMAGE.path)).toEqual({ path: IMAGE.path, revision: 2, sizeBytes: 8, sha256: IMAGE.sha256, updatedAt: IMAGE.updatedAt, kind: "image" });
+    expect(files.every((f) => f.content === undefined)).toBe(true);
+  });
+
+  it("reads a text file's content, and an image as base64 with its type", async () => {
+    const { deps: d } = deps({ ctx: { reader: withImage() } });
+    const readme = (await listOf(d)).find((f) => f.path === "README.md")!;
+    const text = await data(await call(d, "GET", fileAt("README.md")));
+    expect(text).toMatchObject({ ...readme, kind: "text", content: expect.stringContaining("#") });
+    expect(text.base64).toBeUndefined();
+    const image = await data(await call(d, "GET", fileAt(IMAGE.path)));
+    expect(image).toMatchObject({ path: IMAGE.path, kind: "image", base64: "iVBORw0KGgo=", contentType: "image/png" });
+    expect(image.content).toBeUndefined();
+  });
+
+  it("says a file or project isn't there, and refuses a path no file can have", async () => {
+    const { deps: d } = deps();
+    const missing = await call(d, "GET", fileAt("nowhere.md"));
+    expect(missing.status).toBe(404);
+    expect(((await missing.json()) as Problem).error).toEqual({ code: "NOT_FOUND", message: "That file doesn't exist or isn't in this workspace." });
+    for (const path of ["projects/not-a-uuid/files", fileAt("README.md", "not-a-uuid"), `projects/${NOWHERE}/files`]) {
+      const r = await call(d, "GET", path);
+      expect(r.status, path).toBe(404);
+      expect(((await r.json()) as Problem).error.message, path).toBe("That project doesn't exist or isn't in this workspace.");
+    }
+    expect((await call(d, "GET", fileAt("README.md", NOWHERE))).status).toBe(404);
+    for (const path of [`projects/${PROJECT}/file`, fileAt(""), fileAt("a\u0001b.md"), fileAt("a\u007f.md"), fileAt("x".repeat(301))]) {
+      expect((await call(d, "GET", path)).status, path).toBe(400);
+    }
+  });
+
+  it("saves a text file through the use case, and creates one from revision 0", async () => {
+    const { deps: d, calls } = deps();
+    const readme = (await listOf(d)).find((f) => f.path === "README.md")!;
+    const saved = await call(d, "PUT", `projects/${PROJECT}/file`, { body: { path: "README.md", content: "# Changed\n", expectedRevision: readme.revision } });
+    expect(saved.status).toBe(200);
+    expect(await data(saved)).toEqual({ revision: readme.revision + 1 });
+    const created = await call(d, "PUT", `projects/${PROJECT}/file`, { body: { path: " notes/todo.md ", content: "- one\n", expectedRevision: 0 } });
+    expect(await data(created)).toEqual({ revision: 1 });
+    expect(calls).toEqual([`saveFile:README.md@${readme.revision}`, "saveFile:notes/todo.md@0"]);
+  });
+
+  it("refuses a stale save with the file's current revision and hash, so the app can compare", async () => {
+    const { deps: d } = deps();
+    const readme = (await listOf(d)).find((f) => f.path === "README.md")!;
+    const stale = await call(d, "PUT", `projects/${PROJECT}/file`, { body: { path: "README.md", content: "# Mine\n", expectedRevision: readme.revision - 1 } });
+    expect(stale.status).toBe(409);
+    expect(((await stale.json()) as Problem).error).toMatchObject({ code: "FILE_CHANGED", current: { revision: readme.revision, sha256: readme.sha256 } });
+    // Saving over a file that was made meanwhile: its revision is there too.
+    const raced = await call(d, "PUT", `projects/${PROJECT}/file`, { body: { path: "./README.md", content: "# Mine\n", expectedRevision: 0 } });
+    expect(((await raced.json()) as Problem).error.current).toEqual({ revision: readme.revision, sha256: readme.sha256 });
+  });
+
+  it("refuses an image path in its own words, before any use case runs", async () => {
+    const { deps: d, calls } = deps();
+    for (const path of ["public/logo.png", "assets/Photo.JPG", "favicon.ico"]) {
+      const r = await call(d, "PUT", `projects/${PROJECT}/file`, { body: { path, content: "not an image", expectedRevision: 0 } });
+      expect(r.status, path).toBe(422);
+      expect(((await r.json()) as Problem).error, path).toEqual({ code: "IMAGE_PATH", message: "That name ends like an image's, so it can only hold an image. Choose another name, or add images on the web." });
+    }
+    expect(calls).toEqual([]);
+  });
+
+  it("answers the sample's reads and refuses its save, and a viewer's, saying why", async () => {
+    const { deps: d, calls } = deps();
+    const sample = await data(await call(d, "GET", `sample/projects/${PROJECT}/files`, { token: false }));
+    expect(sample).toMatchObject({ canSave: false, saveReason: "Sample." });
+    expect((await call(d, "GET", `sample/${fileAt("README.md")}`, { token: false })).status).toBe(200);
+    const write = await call(d, "PUT", `sample/projects/${PROJECT}/file`, { token: false, body: { path: "README.md", content: "x", expectedRevision: 1 } });
+    expect(write.status).toBe(403);
+    expect(((await write.json()) as Problem).error.code).toBe("SAMPLE_READ_ONLY");
+
+    const viewer = deps({ ctx: { role: "viewer", writes: { enabled: false, reason: "You have view-only access to this workspace." } } });
+    expect(await data(await call(viewer.deps, "GET", `projects/${PROJECT}/files`))).toMatchObject({ canSave: false, saveReason: "You have view-only access to this workspace." });
+    expect((await call(viewer.deps, "PUT", `projects/${PROJECT}/file`, { body: { path: "README.md", content: "x", expectedRevision: 1 } })).status).toBe(403);
+    expect([...calls, ...viewer.calls]).toEqual([]);
+  });
+
+  it("reads a whole text file's body, past the other routes' 64 KB, and refuses a larger one unread", async () => {
+    const { deps: d, calls } = deps();
+    const big = await call(d, "PUT", `projects/${PROJECT}/file`, { body: { path: "big.txt", content: "a".repeat(512 * 1024), expectedRevision: 0 } });
+    expect(big.status).toBe(200);
+    // Escaped, the same file can be up to six times longer, and that still fits.
+    expect(JSON.stringify({ path: "big.txt", content: "\u001b".repeat(512 * 1024), expectedRevision: 0 }).length).toBeLessThan(FILE_BODY_MAX);
+    const huge = await call(d, "PUT", `projects/${PROJECT}/file`, { body: { path: "huge.txt", content: "a".repeat(FILE_BODY_MAX), expectedRevision: 0 } });
+    expect(huge.status).toBe(413);
+    expect(((await huge.json()) as Problem).error).toEqual({ code: "FILE_TOO_LARGE", message: "Files can be up to 512 KB." });
+    expect(calls).toEqual(["saveFile:big.txt@0"]);
+    expect((await call(d, "PUT", `projects/${PROJECT}/file`, { body: { path: "x.md", content: "x" } })).status).toBe(400);
   });
 });
 

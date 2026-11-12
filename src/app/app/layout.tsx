@@ -34,6 +34,7 @@ import { googlePlayReady } from "@/server/billing/google/wiring";
 import { checkoutOpenFor, readBillingConfig } from "@/server/billing/config";
 import { buttonClasses } from "@/components/ui/button";
 import { signOut } from "./actions";
+import { DeviceOwner, SignOutForm } from "@/components/device/device-account";
 import { DISPLAY_TITLE, FOCUSED_TITLE } from "@/components/ui/titles";
 
 /** The page-wide bands (demo, saving off, agents paused): one neutral style, the icon's colour says which kind (ADR 0183). */
@@ -110,11 +111,11 @@ export default async function AppLayout({ children }: Readonly<{ children: React
             <CreateOrganizationForm />
           </div>
         </details>
-        <form action={signOut} className="mt-6">
+        <SignOutForm action={signOut} className="mt-6">
           <button type="submit" className="min-h-11 text-sm text-ink-2 underline-offset-4 hover:underline">
             Sign out of {ctx.user.email}
           </button>
-        </form>
+        </SignOutForm>
       </main>
     );
   }
@@ -140,6 +141,7 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   return (
     <div data-signed-in className="min-h-[100dvh] bg-canvas lg:grid lg:grid-cols-[272px_minmax(0,1fr)]">
       <AndroidEarlyMark nonce={nonce} />
+      <DeviceOwner userId={ctx.user.id} />
       {/* Children never shrink: on a short screen the sidebar scrolls instead of squeezing its controls. */}
       <aside className="sticky top-0 hidden h-[100dvh] flex-col gap-4 overflow-y-auto border-r border-line bg-canvas-2 px-4 py-5 [scrollbar-width:none] lg:flex [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
         <div className="px-1.5">
@@ -163,11 +165,11 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           <div className="flex items-center gap-2 px-2">
             <span className="min-w-0 flex-1 truncate text-xs text-ink-3">{ctx.user.email}</span>
             {ctx.mode === "live" ? (
-              <form action={signOut}>
+              <SignOutForm action={signOut}>
                 <button type="submit" className="inline-flex size-11 items-center justify-center rounded-full text-ink-2 hover:bg-surface hover:text-ink" aria-label="Sign out">
                   <SignOutIcon size={16} weight="bold" aria-hidden />
                 </button>
-              </form>
+              </SignOutForm>
             ) : (
               <Link href="/" className="text-xs text-ink-2 hover:text-ink">
                 Leave demo

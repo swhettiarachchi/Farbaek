@@ -22,7 +22,8 @@ import { aiMeter, loadWallet } from "@/server/workspace/usage-summary";
 import { approvalWindow, walletRisk } from "@/core/trust/approval-wallet";
 import type { RunEventView, RunView } from "@/server/cloud-agent/store";
 import type { AppContext } from "@/server/workspace/context";
-import { CONTRIBUTOR_ROLES, MANAGER_ROLES, type Project, type Task, type WorkspaceReader } from "@/server/workspace/types";
+import { CONTRIBUTOR_ROLES, MANAGER_ROLES, type Project, type ProjectFile, type ProjectFileContent, type Task, type WorkspaceReader } from "@/server/workspace/types";
+import { imageMime } from "@/core/workspace/images";
 
 /** The runs a view can read: the person's own, or none in the sample workspace. */
 export interface RunReader {
@@ -470,4 +471,24 @@ export async function projectView(reader: WorkspaceReader, orgId: string, projec
   if (!project) return null;
   const [tasks, address] = await Promise.all([reader.listTasks(orgId, { projectId, limit: 40 }), liveAddress ? liveAddress(projectId).catch(() => null) : Promise.resolve(null)]);
   return { project: projectItem(project), tasks: tasks.map(taskItem), address };
+}
+
+/** A file in a project: a text file, or an image (ADR 0108), whose size and hash are over its bytes. */
+function fileItem(f: ProjectFile) {
+  return { path: f.path, revision: f.revision, sizeBytes: f.sizeBytes, sha256: f.sha256, updatedAt: f.updatedAt, kind: f.encoding === "base64" ? ("image" as const) : ("text" as const) };
+}
+
+/** A project's current files, without their content, and whether the person can save one here, with the reason when not. */
+export async function filesView(ctx: AppContext, orgId: string, projectId: string) {
+  const project = await ctx.reader.getProject(orgId, projectId);
+  if (!project) return null;
+  const files = await ctx.reader.listFiles(orgId, projectId);
+  const blockers = [!ctx.writes.enabled ? ctx.writes.reason : null, project.archivedAt ? ARCHIVED_REASON : null].filter((r): r is string => r !== null);
+  return { project: projectItem(project), files: files.map(fileItem), canSave: blockers.length === 0, saveReason: blockers[0] ?? null };
+}
+
+/** One file: a text file's content, or an image's base64 and the content type to show it with. */
+export function fileView(f: ProjectFileContent) {
+  const item = fileItem(f);
+  return item.kind === "image" ? { ...item, base64: f.content, contentType: imageMime(f.path) ?? "application/octet-stream" } : { ...item, content: f.content };
 }

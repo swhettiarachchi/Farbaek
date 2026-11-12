@@ -14,6 +14,7 @@ import { loadUsageMeters } from "@/server/workspace/usage-summary";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 import { unreadSupportCount } from "@/server/workspace/support";
 import { signOut } from "../actions";
+import { SignOutForm } from "@/components/device/device-account";
 
 export const metadata: Metadata = { title: "More" };
 
@@ -67,11 +68,11 @@ export default async function MorePage() {
       </section>
 
       {ctx.mode === "live" ? (
-        <form action={signOut}>
+        <SignOutForm action={signOut}>
           <button type="submit" className="flex h-12 w-full items-center justify-center gap-2 rounded-full border border-line bg-surface text-body text-ink shadow-e1">
             <SignOutIcon size={20} aria-hidden /> Sign out of {ctx.user.email}
           </button>
-        </form>
+        </SignOutForm>
       ) : (
         <Link href="/" className="flex h-12 items-center justify-center rounded-full border border-line bg-surface text-body shadow-e1">
           Leave the demo

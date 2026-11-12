@@ -74,7 +74,7 @@ export default async function MeshPage() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start">
         <Card>
           <CardTitle icon={PackageIcon}>Send a Capsule</CardTitle>
-          <p className="mt-1 mb-5 text-sm leading-relaxed text-ink-2">Pack a project&apos;s current files into one download.</p>
+          <p className="mt-1 mb-5 text-sm leading-relaxed text-ink-2">Pack a project&apos;s current files, images included, into one download.</p>
           <CapsuleSend projects={projects.map((p) => ({ id: p.id, name: p.name, archived: p.archivedAt !== null }))} />
         </Card>
 

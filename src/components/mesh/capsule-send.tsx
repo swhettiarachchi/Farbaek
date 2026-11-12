@@ -116,7 +116,7 @@ export function CapsuleSend({ projects }: { projects: SendableProject[] }) {
                 </ul>
               </details>
             ) : (
-              <p className="text-sm text-ink-2">Nothing was left out: no credentials, dependency folders or binary files were found.</p>
+              <p className="text-sm text-ink-2">Nothing was left out: no credentials, dependency folders or files other than text and images were found.</p>
             )}
 
             <p className="text-xs leading-relaxed text-ink-3">

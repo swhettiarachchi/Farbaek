@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Container } from "@/components/ui/container";
 import { ButtonLink } from "@/components/ui/button";
 import { PUBLIC_TITLE } from "@/components/ui/titles";
+import { ForgetDeviceNow } from "@/components/device/device-account";
 
 export const metadata: Metadata = {
   title: "Account deleted",
@@ -13,6 +14,8 @@ export const metadata: Metadata = {
 export default function AccountDeletedPage() {
   return (
     <section className="pt-16 pb-24 sm:pt-24">
+      {/* Nothing the account kept for offline use stays in this browser (ADR 0192). */}
+      <ForgetDeviceNow />
       <Container>
         <div className="max-w-[56ch]">
           <CheckCircleIcon size={32} weight="fill" className="text-verified" aria-hidden />

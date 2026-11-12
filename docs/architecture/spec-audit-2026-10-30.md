@@ -111,6 +111,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 ### 13. Native apps
 
 - **Built:** Electron desktop agent (ADR); phone pairing and revocation; the iPhone companion (approvals with diffs and Face ID, builds, runs, tasks, push, Apple and Google sign-in, App Store plans); Android as a Trusted Web Activity.
+- **Built (stage 182, ADR 0192):** projects on the phone in the website and the Android app: a copy kept on the device, edited with no connection, saves sent later with a compare when Farbaek changed too, Share a copy and .zip import; the phone API's file routes for the iPhone.
 - **Partly built:** the spec asked for Expo apps with local projects, editing and Mesh on the phone; the iPhone app is a companion and Android is the website. The iPhone app compiled and passed its tests on 1 November, and build 17 is in App Store Connect (stage 129); the Android bundle waits for the owner's upload key. The Mac agent is notarized and published, and the Linux AppImage is published, unsigned as AppImages usually are.
 
 ### 14. AI provider and privacy
