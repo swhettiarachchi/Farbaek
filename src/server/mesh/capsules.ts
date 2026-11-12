@@ -10,7 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { CAPSULE_LIMITS, WORKSPACE_LIMITS } from "@/config/workspace";
 import { buildCapsule, encodeCapsule, fileHash, filesToWrite, manifestDigest, openCapsule, planImport, type CapsuleFile, type CapsuleLimits, type ImportChoice } from "@/core/mesh/capsule";
-import { importProjectFiles, type FileDeps } from "@/server/workspace/files";
+import { importProjectFiles, saveProjectImage, type FileDeps } from "@/server/workspace/files";
 import type { WorkspaceReader } from "@/server/workspace/types";
 import { createProject, type WriteDeps } from "@/server/workspace/use-cases";
 
@@ -30,7 +30,7 @@ export interface PackedCapsule {
 export async function packProject(reader: WorkspaceReader, orgId: string, projectId: string): Promise<PackedCapsule | null> {
   const project = await reader.getProject(orgId, projectId);
   if (!project) return null;
-  const files = await reader.getProjectContents(orgId, projectId);
+  const files = await projectFiles(reader, orgId, projectId);
   const built = buildCapsule({
     id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
@@ -50,9 +50,15 @@ export async function packProject(reader: WorkspaceReader, orgId: string, projec
   };
 }
 
-/** The BLAKE3 hash of each current file, for comparing with a Capsule. */
+/** A project's current files: text as text, and images (ADR 0108) as their bytes. */
+async function projectFiles(reader: WorkspaceReader, orgId: string, projectId: string): Promise<CapsuleFile[]> {
+  const [texts, images] = await Promise.all([reader.getProjectContents(orgId, projectId), reader.getProjectImages(orgId, projectId)]);
+  return [...texts, ...images.map((i) => ({ path: i.path, content: new Uint8Array(Buffer.from(i.base64, "base64")) }))];
+}
+
+/** The BLAKE3 hash of each current file, for comparing with a Capsule. An image's hash is over its bytes. */
 export async function projectHashes(reader: WorkspaceReader, orgId: string, projectId: string): Promise<{ path: string; blake3: string }[]> {
-  const files = await reader.getProjectContents(orgId, projectId);
+  const files = await projectFiles(reader, orgId, projectId);
   return files.map((f) => ({ path: f.path, blake3: fileHash(f.content) }));
 }
 
@@ -79,6 +85,8 @@ export async function importCapsule(
   let toWrite: CapsuleFile[];
   let unchanged = 0;
   let kept = 0;
+  // Each image is saved over the revision it replaces; a new path starts at 0.
+  let revisions = new Map<string, number>();
   if (input.destination.kind === "new") {
     const created = await createProject(deps, { orgId: input.orgId, userId: input.userId, name: input.destination.name, description: "Opened from a Workspace Capsule." });
     if (!created.ok) return { ok: false, message: created.message };
@@ -89,15 +97,18 @@ export async function importCapsule(
     if (!project) return { ok: false, message: "That project isn't in this workspace." };
     if (project.archivedAt) return { ok: false, message: "That project is archived. Restore it first, or open the Capsule as a new project." };
     projectId = project.id;
-    const current = await reader.getProjectContents(input.orgId, projectId);
+    const current = await projectFiles(reader, input.orgId, projectId);
     const plan = planImport(manifest, current.map((f) => ({ path: f.path, blake3: fileHash(f.content) })));
     toWrite = filesToWrite(files, plan, input.choices, current.map((f) => f.path));
+    revisions = new Map((await reader.listFiles(input.orgId, projectId)).map((f) => [f.path, f.revision]));
     unchanged = plan.filter((p) => p.status === "unchanged").length;
     kept = plan.filter((p) => p.status === "differs" && (input.choices[p.path] ?? p.choice) === "keep_mine").length;
   }
 
   let written = 0;
-  const batches = batch(toWrite, WORKSPACE_LIMITS.maxImportBytes);
+  const texts = toWrite.filter((f): f is { path: string; content: string } => typeof f.content === "string");
+  const images = toWrite.filter((f): f is { path: string; content: Uint8Array } => typeof f.content !== "string");
+  const batches = batch(texts, WORKSPACE_LIMITS.maxImportBytes);
   for (const files of batches) {
     const stored = await importProjectFiles(deps, { orgId: input.orgId, userId: input.userId, projectId, files });
     if (!stored.ok) {
@@ -106,6 +117,16 @@ export async function importCapsule(
         : { ok: false, message: `${written} files were written before this stopped: ${stored.message} Open the project to see where it got to.` };
     }
     written += stored.value.created + stored.value.updated;
+  }
+  // Images one at a time, each checked again by its bytes and saved through the same path as an upload.
+  for (const image of images) {
+    const saved = await saveProjectImage(deps, { orgId: input.orgId, userId: input.userId, projectId, path: image.path, bytes: image.content, expectedRevision: revisions.get(image.path) ?? 0 });
+    if (!saved.ok) {
+      return written === 0 && input.destination.kind === "existing"
+        ? { ok: false, message: `${image.path}: ${saved.message}` }
+        : { ok: false, message: `${written} files were written before this stopped at ${image.path}: ${saved.message} Open the project to see where it got to.` };
+    }
+    written += 1;
   }
   return {
     ok: true,
@@ -122,9 +143,9 @@ export async function importCapsule(
 }
 
 /** Groups files so each import stays under the byte limit. */
-function batch(files: readonly CapsuleFile[], maxBytes: number): CapsuleFile[][] {
-  const out: CapsuleFile[][] = [];
-  let current: CapsuleFile[] = [];
+function batch(files: readonly { path: string; content: string }[], maxBytes: number): { path: string; content: string }[][] {
+  const out: { path: string; content: string }[][] = [];
+  let current: { path: string; content: string }[] = [];
   let size = 0;
   for (const f of files) {
     const bytes = new TextEncoder().encode(f.content).length;

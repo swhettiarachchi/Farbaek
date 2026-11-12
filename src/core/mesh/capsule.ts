@@ -5,9 +5,11 @@
  * files under `files/`.
  *
  * Packing leaves out what must never travel: `.env` files, keys and
- * credentials, dependency and build folders, binary files, and content that
- * looks like a secret. Each one is listed with its reason. Detection is
- * pattern-based and not guaranteed, and the interface says so.
+ * credentials, dependency and build folders, binary files other than the
+ * project's images, and content that looks like a secret. Each one is listed
+ * with its reason. Detection is pattern-based and not guaranteed, and the
+ * interface says so. Images (ADR 0108) travel as their bytes, and only when
+ * their bytes are the kind their name says (stage 179).
  *
  * Opening treats the Capsule as untrusted. Nothing in it is executed. Paths
  * are checked (traversal, absolute paths, NFC duplicates, case collisions),
@@ -24,6 +26,7 @@ import { z } from "zod";
 import { canonicalize } from "@/core/trust/canonical-json";
 import { checkAgentPath } from "@/core/agent/paths";
 import { checkPath, screenFile, screenPath, type SkipReason } from "@/core/workspace/files";
+import { checkImage, isImagePath } from "@/core/workspace/images";
 import { readZip, ZipError } from "@/core/workspace/unzip";
 import { zipFiles } from "@/core/workspace/zip";
 
@@ -39,9 +42,9 @@ export function blake3Hex(bytes: Uint8Array): string {
   return bytesToHex(blake3(bytes));
 }
 
-/** BLAKE3 of a text file's UTF-8 bytes. */
-export function fileHash(content: string): string {
-  return blake3Hex(encoder.encode(content));
+/** BLAKE3 of a file: a text file's UTF-8 bytes, or an image's own bytes. */
+export function fileHash(content: string | Uint8Array): string {
+  return blake3Hex(typeof content === "string" ? encoder.encode(content) : content);
 }
 
 const Hex64 = z.string().regex(/^[0-9a-f]{64}$/);
@@ -73,12 +76,15 @@ export type CapsuleManifest = z.infer<typeof ManifestSchema>;
 export type CapsuleFileEntry = z.infer<typeof FileEntrySchema>;
 export interface CapsuleFile {
   path: string;
-  content: string;
+  /** Text, or an image's bytes. */
+  content: string | Uint8Array;
 }
 
 export interface CapsuleLimits {
-  /** Largest single file. */
+  /** Largest single text file. */
   maxFileBytes: number;
+  /** Largest single image, when it's above maxFileBytes. Images are checked by their bytes too. */
+  maxImageBytes?: number;
   /** Most files. */
   maxFiles: number;
   /** Most unpacked bytes across every file. */
@@ -121,6 +127,23 @@ export function buildCapsule(input: {
   const excluded: BuiltCapsule["excluded"] = [];
   let total = 0;
   for (const file of [...input.files].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))) {
+    if (typeof file.content !== "string") {
+      // An image travels as its bytes, only when they're the kind its name says.
+      const byPath = screenPath(file.path);
+      if (!byPath.ok) {
+        excluded.push({ path: file.path.slice(0, 300), reason: byPath.reason });
+        continue;
+      }
+      const image = checkImage(byPath.path, file.content);
+      if (!image.ok) {
+        excluded.push({ path: byPath.path, reason: image.reason === "too_large" ? "too_large" : "binary" });
+        continue;
+      }
+      files.push({ path: byPath.path, content: file.content });
+      entries.push(entryFor(byPath.path, file.content));
+      total += file.content.length;
+      continue;
+    }
     const bytes = encoder.encode(file.content);
     const screened = screenFile(file.path, file.content, bytes.length, input.maxFileBytes);
     if (!screened.ok) {
@@ -165,7 +188,7 @@ const decoder = new TextDecoder("utf-8", { fatal: true });
 export async function openCapsule(data: Uint8Array, limits: CapsuleLimits): Promise<OpenedCapsule> {
   let entries: { path: string; bytes: Uint8Array }[];
   try {
-    const zip = await readZip(data, { maxFileBytes: limits.maxFileBytes, maxEntries: limits.maxFiles + 1, maxTotalBytes: limits.maxTotalBytes + 1024 * 1024 });
+    const zip = await readZip(data, { maxFileBytes: largestFile(limits), maxEntries: limits.maxFiles + 1, maxTotalBytes: limits.maxTotalBytes + 1024 * 1024 });
     if (zip.skipped.length > 0) {
       return { ok: false, problems: zip.skipped.slice(0, 20).map((s) => `${s.path.slice(0, 120)}: ${skipWords(s.reason)}`) };
     }
@@ -215,6 +238,16 @@ export async function openCapsule(data: Uint8Array, limits: CapsuleLimits): Prom
       problems.push(`${entry.path} changed after the Capsule was made: its BLAKE3 hash doesn't match.`);
       continue;
     }
+    if (isImagePath(entry.path)) {
+      // An image is let in only when its bytes are the kind its name says, within the image size.
+      const image = checkImage(entry.path, bytes);
+      if (!image.ok) {
+        problems.push(`${entry.path}: ${image.detail}`);
+        continue;
+      }
+      files.push({ path: entry.path, content: bytes });
+      continue;
+    }
     let content: string;
     try {
       content = decoder.decode(bytes);
@@ -253,7 +286,8 @@ export function checkManifest(manifest: CapsuleManifest, limits: CapsuleLimits, 
   const byFolded = new Map<string, string>();
   for (const entry of manifest.files) {
     declared += entry.bytes;
-    if (entry.bytes > limits.maxFileBytes) problems.push(`${entry.path.slice(0, 120)} is larger than a Capsule file may be.`);
+    const cap = isImagePath(entry.path) ? largestFile(limits) : limits.maxFileBytes;
+    if (entry.bytes > cap) problems.push(`${entry.path.slice(0, 120)} is larger than a Capsule file may be.`);
     if (!chunksLaidOut(entry)) problems.push(`${entry.path.slice(0, 120)}: its chunk list doesn't match its size.`);
 
     if (entry.path.normalize("NFC") !== entry.path) problems.push(`${entry.path}: the name isn't in normalised (NFC) form.`);
@@ -272,6 +306,11 @@ export function checkManifest(manifest: CapsuleManifest, limits: CapsuleLimits, 
   if (declared !== manifest.totals.bytes) problems.push("The manifest's byte count doesn't match its files.");
   if (declared > limits.maxTotalBytes) problems.push("The files add up to more than a Capsule may hold.");
   return problems.slice(0, 50);
+}
+
+/** The largest file a Capsule may hold: an image may be larger than a text file. */
+function largestFile(limits: CapsuleLimits): number {
+  return Math.max(limits.maxFileBytes, limits.maxImageBytes ?? 0);
 }
 
 /** Chunks as packing makes them: numbered from 0, each CHUNK_BYTES but the last, adding up to the file. An empty file has one empty chunk. */
@@ -401,7 +440,7 @@ const REASON_WORDS: Record<SkipReason, string> = {
   ignored_folder: "dependency and build",
   secret_file: "credentials",
   secret_content: "it contains what looks like a secret",
-  binary: "it isn't a text file",
+  binary: "it isn't a text file or an image",
   too_large: "it's too large",
 };
 

@@ -4,7 +4,8 @@ import { CaretDownIcon, FileZipIcon, WarningCircleIcon } from "@phosphor-icons/r
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { startTransition, useActionState, useId, useRef, useState, useTransition } from "react";
-import { destinationFileAction, destinationHashesAction, importCapsuleAction, type CapsuleImportState, type FileResult } from "@/app/app/mesh/actions";
+import { destinationFileAction, destinationHashesAction, type CapsuleImportState, type FileResult } from "@/app/app/mesh/actions";
+import { imageMime, isImagePath } from "@/core/workspace/images";
 import { ProofPackSeal } from "@/components/proof/proofpack-seal";
 import { buttonClasses } from "@/components/ui/button";
 import { inputClasses, LABEL_CLASSES } from "@/components/ui/field";
@@ -62,7 +63,7 @@ export function CapsuleOpen({ destinations, disabledReason }: { destinations: De
   const [planning, startPlanning] = useTransition();
   const [choices, setChoices] = useState<Record<string, ImportChoice>>({});
   const [showAll, setShowAll] = useState(false);
-  const [state, dispatch, importing] = useActionState<CapsuleImportState, FormData>(importCapsuleAction, { status: "idle" });
+  const [state, dispatch, importing] = useActionState<CapsuleImportState, FormData>(importViaRoute, { status: "idle" });
   const [submitted, setSubmitted] = useState(false);
   // Only the latest destination may set the plan, however the replies arrive.
   const latestTarget = useRef("");
@@ -377,6 +378,7 @@ export function CapsuleOpen({ destinations, disabledReason }: { destinations: De
 /** The verification report for a Capsule that passed every check. */
 function Report({ opened }: { opened: Extract<OpenedCapsule, { ok: true }> }) {
   const { manifest, digest } = opened;
+  const images = manifest.files.filter((f) => isImagePath(f.path)).length;
   const byReason = new Map<string, string[]>();
   for (const e of manifest.excluded) byReason.set(e.reason, [...(byReason.get(e.reason) ?? []), e.path]);
   return (
@@ -386,7 +388,8 @@ function Report({ opened }: { opened: Extract<OpenedCapsule, { ok: true }> }) {
         <p className="flex items-start gap-2 text-body">
           <StatusGlyph status="verified" size={20} className="mt-px" />
           <span>
-            <span className="font-medium">Every file matches its hash.</span> {plural(manifest.totals.files, "file", "files")}, {formatBytes(manifest.totals.bytes)}, all text. Nothing in a Capsule runs or installs.
+            <span className="font-medium">Every file matches its hash.</span> {plural(manifest.totals.files, "file", "files")}, {formatBytes(manifest.totals.bytes)}
+            {images > 0 ? `, with ${plural(images, "image", "images")}, each the kind its name says` : ", all text"}. Nothing in a Capsule runs or installs.
           </span>
         </p>
         <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_minmax(0,1fr)]">
@@ -512,6 +515,8 @@ function DiffRow({
             </p>
           ) : mine.status === "missing" || !capsuleFile ? (
             <p className="text-sm text-ink-2">This file has changed since the comparison started. Choose the project again to refresh it.</p>
+          ) : typeof capsuleFile.content !== "string" ? (
+            <ImageCompare path={path} capsule={capsuleFile.content} mine={mine.encoding === "base64" ? mine.content : null} />
           ) : (
             <>
               <p className="text-xs text-ink-3">What taking the Capsule&apos;s version would change: lines it adds are marked as added, lines only in yours as removed.</p>
@@ -521,5 +526,47 @@ function DiffRow({
         </div>
       ) : null}
     </li>
+  );
+}
+
+/** Sends the Capsule to its own upload route (stage 179). The server opens and checks it again, whatever this page found. */
+async function importViaRoute(_previous: CapsuleImportState, form: FormData): Promise<CapsuleImportState> {
+  try {
+    const response = await fetch("/app/mesh/import", { method: "POST", body: form });
+    const body: unknown = await response.json().catch(() => null);
+    if (body && typeof body === "object" && "status" in body) return body as CapsuleImportState;
+    return { status: "error", message: "The Capsule couldn't be opened just now. Nothing was written. Try again." };
+  } catch {
+    return { status: "error", message: "The upload didn't reach Farbaek. Check your connection, then try again." };
+  }
+}
+
+/** An image's bytes as base64, in pieces small enough for the browser's own encoder. */
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(binary);
+}
+
+/** Two versions of an image side by side: yours and the Capsule's. */
+function ImageCompare({ path, capsule, mine }: { path: string; capsule: Uint8Array; mine: string | null }) {
+  const mime = imageMime(path) ?? "image/png";
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <figure className="grid gap-2 rounded-sm border border-line bg-surface p-3">
+        {mine ? (
+          // eslint-disable-next-line @next/next/no-img-element -- the project's own image, from its stored bytes
+          <img src={`data:${mime};base64,${mine}`} alt={`Your version of ${path}`} className="mx-auto max-h-64 w-auto max-w-full" />
+        ) : (
+          <p className="text-sm text-ink-3">Your version isn&apos;t an image.</p>
+        )}
+        <figcaption className="text-xs text-ink-3">Yours</figcaption>
+      </figure>
+      <figure className="grid gap-2 rounded-sm border border-line bg-surface p-3">
+        {/* eslint-disable-next-line @next/next/no-img-element -- the Capsule's image, checked by its bytes before it's shown */}
+        <img src={`data:${mime};base64,${bytesToBase64(capsule)}`} alt={`The Capsule's version of ${path}`} className="mx-auto max-h-64 w-auto max-w-full" />
+        <figcaption className="text-xs text-ink-3">The Capsule&apos;s</figcaption>
+      </figure>
+    </div>
   );
 }

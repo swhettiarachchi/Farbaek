@@ -17,11 +17,14 @@ export const WORKSPACE_LIMITS = {
 
 /**
  * What a Workspace Capsule may hold when it's opened (ADR 0037). The browser
- * preview and the server use the same numbers; the server action body limit
- * in next.config.ts sits just above maxTotalBytes.
+ * preview and the server use the same numbers. Capsules are uploaded to a
+ * route of their own (stage 179), and Next's proxy buffers request bodies up
+ * to 10 MB, so maxTotalBytes sits below that. Images (ADR 0108) are up to
+ * 2 MB each, as in a project; larger Capsules travel with nearby transfer.
  */
 export const CAPSULE_LIMITS = {
   maxFileBytes: WORKSPACE_LIMITS.maxFileBytes,
+  maxImageBytes: 2 * 1024 * 1024,
   maxFiles: WORKSPACE_LIMITS.maxProjectFiles,
-  maxTotalBytes: 5 * 1024 * 1024,
+  maxTotalBytes: 9 * 1024 * 1024,
 } as const;
