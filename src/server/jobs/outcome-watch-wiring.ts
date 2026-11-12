@@ -18,7 +18,7 @@ import { serverPushDeps } from "@/server/push/wiring";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import type { OutcomeWatchDeps } from "./outcome-watch";
 
-const NOTHING_LIVE = "Nothing is live to check yet. Publish it to Farbaek Sites, or launch it to Vercel or Netlify.";
+const NOTHING_LIVE = "Nothing is live to check yet. Publish it to Farbaek Sites, or launch it to a host from the Launch page.";
 
 export function outcomeWatchDeps(): OutcomeWatchDeps | null {
   const admin = createSupabaseAdminClient();

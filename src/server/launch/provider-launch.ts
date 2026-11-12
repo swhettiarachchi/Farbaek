@@ -67,13 +67,15 @@ export async function connectProvider(
   deps: LaunchDeps,
   person: LaunchPerson,
   provider: LaunchProvider,
-  input: { token: string; teamId: string | null; limit: number | null; badToken: string; badTeam: string },
+  input: { token: string; teamId: string | null; limit: number | null; badToken: string; badTeam: string; tokenPattern?: RegExp },
   whoami: (token: string, teamId: string | null) => Promise<{ ok: true; value: { id: string; name: string } } | { ok: false; message: string }>,
 ): Promise<WriteResult<{ accountName: string }>> {
   if (!MANAGER_ROLES.includes(person.role)) return fail("FORBIDDEN", "Only an owner or admin can connect a hosting account.");
   if (!deps.key) return fail("FORBIDDEN", NO_VAULT);
   const token = input.token.trim();
-  if (token.length < 20 || token.length > 400 || /\s/.test(token)) return fail("FORBIDDEN", input.badToken);
+  // Most tokens are one word of up to 400 characters; a provider whose tokens differ (Fly.io's "FlyV1 …") gives its own rule.
+  const shapeOk = input.tokenPattern ? input.tokenPattern.test(token) : token.length >= 20 && token.length <= 400 && !/\s/.test(token);
+  if (!shapeOk) return fail("FORBIDDEN", input.badToken);
   const teamId = input.teamId?.trim() || null;
   if (teamId && !/^[A-Za-z0-9_-]{1,100}$/.test(teamId)) return fail("FORBIDDEN", input.badTeam);
   const who = await whoami(token, teamId);

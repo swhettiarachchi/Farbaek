@@ -44,6 +44,7 @@ const GROUPS: Group[] = [
     items: [
       "Moving projects between your own devices, nearby or over the internet",
       "Launches to your own Vercel or Netlify account",
+      "Apps launched to your own Render, Railway or Fly.io account",
       "Farbaek installed on your phone, with notifications",
       "Previews of running apps in isolated test spaces",
       "Your own domain for a published site",
@@ -57,7 +58,6 @@ const GROUPS: Group[] = [
     items: [
       "The Android app on Google Play",
       "Farbaek for iPhone on the App Store, approving changes with Face ID or Touch ID (Farbaek installs from Safari today)",
-      "Launches from a repository (Render, Railway, Fly.io)",
     ],
   },
 ];
