@@ -1,6 +1,6 @@
 {
-  "ranAt": "2026-11-12T09:40:54.483Z",
-  "commit": "dca16c46507d",
+  "ranAt": "2026-11-12T10:07:05.059Z",
+  "commit": "b8c1c277b23a",
   "node": "v24.13.1",
   "suiteSha256": "6f884e1f2525e62d2a0203442a54e3bfd26020538408ea6a190cd77fe91b2706",
   "scenarios": {
