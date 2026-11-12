@@ -104,6 +104,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
 ### 12. LaunchOS
 
 - **Built:** the Launch Planner, Vercel and Netlify adapters, explicit deploy authorization, health checks, and custom domains for published sites.
+- **Built:** Render, Railway and Fly.io adapters for apps that run a server (stage 181, ADR 0191), from official API references only; not yet run against a real account.
 - **Built:** what will cost money at launch (stage 118, ADR 0141): the drivers in the project's own files, with evidence and each host's pricing page.
 - **Partly built:** no dollar estimates. Farbaek can't see a person's plan or traffic at a host, so it says so rather than guessing.
 

@@ -7,6 +7,9 @@ import { Card, CardTitle, Notice, PageHeader } from "@/components/app/primitives
 import { LiveCheck } from "@/components/launch/live-check";
 import { VERDICT_KIND } from "@/components/launch/verdict-kind";
 import { NETLIFY_BUILDS, vercelBuilds } from "@/components/launch/provider-copy";
+import { isServerProvider } from "@/core/launch/providers";
+import { serverCommands, serverFit, serverName } from "@/core/launch/servers";
+import { readRepoLink } from "@/server/github/store";
 import { ProviderPanel } from "@/components/launch/provider-panel";
 import { OutcomeWatch } from "@/components/launch/outcome-watch";
 import { readWatch, type WatchView } from "@/server/launch/watch-store";
@@ -85,7 +88,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
   const user = ctx.mode === "live" ? await createSupabaseServerClient() : null;
   const { plan, costs, publish, evidence: proof, checks } = await loadLaunchPage(ctx, user, project);
 
-  // LaunchOS with your own Vercel or Netlify account (ADR 0078, ADR 0093): exactly the files a launch would send, the connections, and the launches so far.
+  // LaunchOS with your own hosting account (ADR 0078, ADR 0093, ADR 0191): exactly the files a launch would send, the connections, and the launches so far.
   const orgId = ctx.current.id;
   // Exactly what a launch sends, images included (ADR 0108): the same list the authorized launch uses.
   const contents = await projectLaunchFiles(ctx.reader, orgId, project.id);
@@ -93,9 +96,15 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
   let connections: Partial<Record<Provider, ConnectionView>> = {};
   let orders: LaunchOrderView[] = [];
   let watch: WatchView | null = null;
+  // Render and Railway build from the project's linked GitHub repository (ADR 0191).
+  let linkedRepo = false;
   if (user) {
     watch = await readWatch(user, orgId, project.id).catch(() => null);
-    [connections, orders] = await Promise.all([readConnections(user, orgId).catch(() => ({})), listLaunchOrders(user, orgId, project.id).catch(() => [])]);
+    [connections, orders, linkedRepo] = await Promise.all([
+      readConnections(user, orgId).catch(() => ({})),
+      listLaunchOrders(user, orgId, project.id).catch(() => []),
+      readRepoLink(user, orgId, project.id).then((l) => l !== null).catch(() => false),
+    ]);
     const building = orders.find((o) => o.status === "building");
     const deps = building ? launchDeps(ctx) : null;
     if (building && deps) {
@@ -120,9 +129,17 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
   const sitesDestination = plan.destinations.find((d) => d.id === "farbaek_sites")!;
   const providers = plan.destinations.filter((d) => d.id !== "farbaek_sites");
   // Why each connected kind of host can't take this project, if it can't: the card and the panel say the same.
+  // A Node app goes to a host that runs servers (ADR 0191): its package.json says how it installs, builds and starts.
+  const pkgText = contents.find((f) => f.path === "package.json" && f.encoding !== "base64")?.content ?? null;
+  const serverProject = { pkgText, paths: contents.map((f) => f.path), totalBytes: deployFiles.bytes, linkedRepo };
+  const commands = serverCommands(plan, pkgText);
+  const runs = commands ? (commands.build ? `${commands.build}, then ${commands.start}` : commands.start) : "No start command found";
   const unfitFor: Record<LaunchProvider, string | null> = {
     vercel: vercelFit(plan),
     netlify: netlifyFit(plan) ?? netlifyPathProblem(contents.map((f) => f.path)),
+    render: serverFit("render", plan, serverProject),
+    railway: serverFit("railway", plan, serverProject),
+    flyio: serverFit("flyio", plan, serverProject),
   };
   const totalBytes = live?.totalBytes ?? null;
   const workedOutFrom = andList(plan.evidence);
@@ -352,7 +369,7 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
           <CardTitle id="where-title" icon={CloudArrowUpIcon}>
             Where it can go
           </CardTitle>
-          <p className="mt-1 text-sm text-ink-2">Farbaek Sites works today, and Vercel and Netlify connect below with your own accounts. The others aren&apos;t connected yet. Farbaek charges nothing here.</p>
+          <p className="mt-1 text-sm text-ink-2">Farbaek Sites works today. Vercel and Netlify serve sites, and Render, Railway and Fly.io run apps, each from your own account, connected below. Farbaek charges nothing here.</p>
         </div>
         <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <li className={`grid gap-2 rounded-md border p-5 ${sitesDestination.available ? "border-accent/30 bg-accent/[0.04] shadow-e1" : "border-line bg-surface"}`}>
@@ -391,13 +408,13 @@ export default async function LaunchPage({ params }: { params: Promise<{ project
           provider={provider}
           projectId={project.id}
           launchKey={crypto.randomUUID()}
-          target={provider === "netlify" ? netlifySiteName(project.name) : vercelProjectName(project.name)}
+          target={isServerProvider(provider) ? serverName(project.name) : provider === "netlify" ? netlifySiteName(project.name) : vercelProjectName(project.name)}
           connection={connections[provider] ?? null}
           orders={orders.filter((o) => o.provider === provider)}
           busy={busy}
           files={deployFiles}
           evidence={proof.status}
-          builds={provider === "netlify" ? NETLIFY_BUILDS : vercelBuilds(vercelSettings(plan))}
+          builds={isServerProvider(provider) ? runs : provider === "netlify" ? NETLIFY_BUILDS : vercelBuilds(vercelSettings(plan))}
           unfit={unfitFor[provider]}
           connectReason={connectReason}
           launchReason={launchReason ?? withheldFor(ctx.role, ctx.permissions, "publish")}

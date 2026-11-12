@@ -52,7 +52,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
     integrations.connections === null
       ? "What's connected is listed on the Connections page."
       : connections === 0
-        ? "No hosting account connected yet. Vercel and Netlify connect from a project's Launch page. GitHub doesn't count toward this."
+        ? "No hosting account connected yet. Vercel, Netlify, Render, Railway and Fly.io connect from a project's Launch page. GitHub doesn't count toward this."
         : "Hosting accounts connected for launches. GitHub doesn't count toward this. Manage them on the Connections page.";
   const plan = getPlan(ws.plan.planId);
   const limits = ws.plan.limits;
