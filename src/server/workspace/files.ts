@@ -7,7 +7,7 @@
 import { WORKSPACE_LIMITS } from "@/config/workspace";
 import { checkPath, screenFile, type SkipReason } from "@/core/workspace/files";
 import { IMAGE_LIMITS, checkImage, isImagePath } from "@/core/workspace/images";
-import { codeFromDatabaseError, fail, requireContributor, type RpcResult, type WriteDeps, type WriteResult } from "./use-cases";
+import { codeFromDatabaseError, fail, requireContributor, requireEditor, type RpcResult, type WriteDeps, type WriteResult } from "./use-cases";
 
 export interface ImportCounts {
   created: number;
@@ -64,9 +64,9 @@ export async function importProjectFiles(
 
 export async function saveProjectFile(
   deps: WriteDeps & FileDeps,
-  input: { orgId: string; userId: string; projectId: string; path: string; content: string; expectedRevision: number },
+  input: { orgId: string; userId: string; projectId: string; path: string; content: string; expectedRevision: number; guest?: { access: "view" | "edit" } },
 ): Promise<WriteResult<number>> {
-  const role = await requireContributor(deps, input.orgId);
+  const role = await requireEditor(deps, input);
   if (!role.ok) return role;
   const path = checkPath(input.path);
   if (!path.ok) return fail("INVALID_PATH", `That file path isn't allowed. ${path.reason}`);
@@ -91,9 +91,9 @@ export async function saveProjectFile(
  */
 export async function saveProjectImage(
   deps: WriteDeps & FileDeps,
-  input: { orgId: string; userId: string; projectId: string; path: string; bytes: Uint8Array; expectedRevision: number },
+  input: { orgId: string; userId: string; projectId: string; path: string; bytes: Uint8Array; expectedRevision: number; guest?: { access: "view" | "edit" } },
 ): Promise<WriteResult<number>> {
-  const role = await requireContributor(deps, input.orgId);
+  const role = await requireEditor(deps, input);
   if (!role.ok) return role;
   const path = checkPath(input.path);
   if (!path.ok) return fail("INVALID_PATH", `That file path isn't allowed. ${path.reason}`);
@@ -107,9 +107,9 @@ export async function saveProjectImage(
 
 export async function deleteProjectFile(
   deps: WriteDeps & FileDeps,
-  input: { orgId: string; userId: string; projectId: string; path: string; expectedRevision: number },
+  input: { orgId: string; userId: string; projectId: string; path: string; expectedRevision: number; guest?: { access: "view" | "edit" } },
 ): Promise<WriteResult<null>> {
-  const role = await requireContributor(deps, input.orgId);
+  const role = await requireEditor(deps, input);
   if (!role.ok) return role;
   const path = checkPath(input.path);
   if (!path.ok) return fail("NOT_FOUND");

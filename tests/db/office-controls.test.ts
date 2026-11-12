@@ -59,7 +59,7 @@ describe("who can call the controls", () => {
     await expect(as(db, "authenticated", USERS.alice, () => db.query("select public.app_staff_set_flag($1, $2, 'ai_runs', true, $3, $4, 'step_up', null, null)", [USERS.alice, ceoSession, NOTICE, REASON]))).rejects.toThrow(/permission denied/);
     await expect(as(db, "authenticated", USERS.alice, () => db.query("update public.platform_flags set paused = true"))).rejects.toThrow(/permission denied/);
     await expect(as(db, "authenticated", USERS.alice, () => db.query("select updated_by from public.platform_flags"))).rejects.toThrow(/permission denied/);
-    expect(await as(db, "authenticated", USERS.alice, async () => (await db.query("select key, paused from public.platform_flags order by key")).rows)).toHaveLength(5);
+    expect(await as(db, "authenticated", USERS.alice, async () => (await db.query("select key, paused from public.platform_flags order by key")).rows)).toHaveLength(6);
     await expect(q("update public.platform_flags set paused = true")).rejects.toThrow(/permission denied/);
     await expect(q("select public.app_staff_suspend_workspace($1, $2, $3, 'Alice Studio', $4, $5, null, null)", [USERS.bob, crypto.randomUUID(), org, NOTICE, REASON])).rejects.toThrow(/NOT_STAFF/);
   });
