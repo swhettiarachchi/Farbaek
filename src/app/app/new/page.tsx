@@ -7,7 +7,7 @@ import { PromptComposer } from "@/components/build/prompt-composer";
 import { buildTargets } from "@/core/workspace/build-target";
 import { SiteThumb } from "@/components/app/site-thumb";
 import { promptFromShare } from "@/core/agent/prompt-start";
-import { TEMPLATE_STARTERS, getStarter } from "@/content/starters";
+import { TEMPLATE_STARTERS, galleryStarter } from "@/content/starters";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
 import { loadAppContext } from "@/server/workspace/context";
 import { DISPLAY_TITLE } from "@/components/ui/titles";
@@ -22,8 +22,7 @@ export default async function NewBuildPage({ searchParams }: Props) {
   const { resume, template: templateId, title, text, url } = await searchParams;
   // Shared to Farbaek from another app (ADR 0171): the build box shows it as a draft, and this says where it came from.
   const shared = promptFromShare({ title, text, url });
-  const chosen = getStarter(templateId);
-  const template = chosen?.kind === "template" ? chosen : null;
+  const template = galleryStarter(templateId);
   const canBuild = ctx.role !== null && CONTRIBUTOR_ROLES.includes(ctx.role);
   // A template starts a new project, so a full plan says so before anything is written. Otherwise the box offers the projects there are (stage 176).
   const targets = buildTargets(await ctx.reader.listProjects(ctx.current.id).catch(() => []), ctx.current.plan.limits.workspaces);

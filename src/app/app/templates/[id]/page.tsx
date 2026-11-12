@@ -5,22 +5,23 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/app/primitives";
 import { StaticPreview } from "@/components/preview/static-preview";
 import { buttonClasses } from "@/components/ui/button";
-import { getStarter } from "@/content/starters";
+import { galleryFiles, galleryStarter } from "@/content/starters";
 import { loadAppContext } from "@/server/workspace/context";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const t = getStarter((await params).id);
-  return { title: t?.kind === "template" ? `${t.name} template` : "Template" };
+  const t = galleryStarter((await params).id);
+  return { title: t ? `${t.name} template` : "Template" };
 }
 
 export default async function TemplatePage({ params }: Params) {
   const ctx = await loadAppContext();
   if (!ctx?.current) notFound();
-  const t = getStarter((await params).id);
-  if (!t || t.kind !== "template") notFound();
-  const files = Object.fromEntries(t.files.map((f) => [f.path, f.content]));
+  const t = galleryStarter((await params).id);
+  if (!t) notFound();
+  // An app that runs a server shows snapshots of its pages; it runs for real in a test space once it's a project (stage 180).
+  const files = galleryFiles(t);
 
   return (
     <div className="grid gap-6">
@@ -29,7 +30,7 @@ export default async function TemplatePage({ params }: Params) {
       </Link>
       <PageHeader
         title={`${t.name} template`}
-        description={`${t.summary} Everything in it is sample content.`}
+        description={`${t.summary} Everything in it is sample content.${t.gallery ? " This preview is a picture of its pages; start it in a test space to sign up and use it." : ""}`}
         actions={
           <Link href={`/app/new?template=${t.id}`} className={buttonClasses("primary", "sm")}>
             Use this template <ArrowRightIcon size={16} weight="bold" aria-hidden />

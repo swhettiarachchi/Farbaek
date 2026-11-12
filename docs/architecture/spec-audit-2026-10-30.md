@@ -43,7 +43,7 @@ Every part named in `docs/FARBAEK_MASTER_SPEC.md` (sections 5 to 15, 25 and the 
   - GitHub pull requests for applied changes, with a Farbaek ProofPack status (stage 103, ADR 0126);
   - nine static-site templates (three added in stage 101: online store, booking, dashboard).
 - **Partly built:**
-  - Templates: e-commerce, booking and an admin dashboard (stage 101, ADR 0124); a CRM template and a REST API service starter in plain Node.js (stage 117, ADR 0140). Still nothing for a SaaS app with sign-in: published sites are static, and the Next.js starter is where one is built.
+  - Templates: e-commerce, booking and an admin dashboard (stage 101, ADR 0124); a CRM template and a REST API service starter in plain Node.js (stage 117, ADR 0140). An app with sign-in since stage 180 (ADR 0190): Fieldnote, a starter with accounts, sessions, reset links and private data in plain Node.js, tested; it runs in a test space and on a server host, not as a published static site.
   - Git: a pull request per applied change, on its own branch, through the workspace's fine-grained token (stage 103). What happens after a pull request opens is read back hourly and on request (stage 120, ADR 0143). Private repositories are imported with the workspace's token by owners and admins (stage 121, ADR 0144). A change that builds on an unmerged Farbaek pull request is stacked on its branch (stage 124, ADR 0147).
 - **Partly built:** the visual builder (visual edit to diff): static sites in stage 95 (ADR 0118), and apps with a build step by component in stage 106 (ADR 0129: words and Tailwind classes in JSX). Picking an element in the running app: built in stage 127 (ADR 0149), matched to the JSX by its words and classes, not source maps.
 

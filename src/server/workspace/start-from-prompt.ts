@@ -89,7 +89,9 @@ export async function startFromPrompt(
           ? // A template's files are sample content for a different product: its features aren't part of this brief.
             `${prompt}\n\nThe project starts from the ${starter.name} template. Its files are sample content for a different product, with a DESIGN.md: keep the structure and quality that fit, and replace the content, the signature element and anything specific to the sample with what this brief needs. If it's built on the Farbaek Studio kit, keep the kit, the look's level of finish and its 3D and motion, and swap each photo for the closest one of the same kind for this business; never leave a photo whose subject doesn't fit.`
           : `${prompt}\n\nThe project starts from the ${starter.name} starter: ${starter.summary}${
-              starter.files.some((f) => f.path === "DESIGN.md")
+              starter.id === "members-app"
+                ? " It's a working app with accounts, with tests of its own (npm test). Keep its security exactly as it is: scrypt password hashes, hashed session and reset tokens, the form tokens on every form, the sign-in limits and the escaping of everything shown. Rename Fieldnote, rewrite DESIGN.md for this brand first, replace the private notes with what this brief needs while keeping each person's data to themselves, and add a test for each new route."
+                : starter.files.some((f) => f.path === "DESIGN.md")
                 ? starter.id === "static-website"
                   ? " It's built on the Farbaek Studio kit with a 3D hero, motion and stand-in media: keep the kit and the premium section quality, and make everything else this brand's own. Its DESIGN.md is a blank design plan to write for this brief first (pick the kit look closest to the brand), text in [square brackets] is placeholder copy to replace, and photos and video marked as placeholders are chosen to fit the brand."
                   : " Its DESIGN.md is a blank design plan to write for this brief first, its look is a neutral stand-in, and text in [square brackets] is placeholder copy to replace."
