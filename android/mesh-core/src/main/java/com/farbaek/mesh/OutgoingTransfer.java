@@ -142,6 +142,12 @@ public final class OutgoingTransfer {
                 set(TransferState.DECLINED, device.name + " declined. Nothing was sent.");
                 return;
             }
+            if ("cancel".equals(answer.t)) {
+                // Cancelled there while it was still asking: ended, not interrupted, so it can't be resumed.
+                ch.close();
+                set(TransferState.CANCELLED, device.name + " cancelled the transfer. Nothing was sent.");
+                return;
+            }
             if ("error".equals(answer.t)) {
                 ch.close();
                 set(TransferState.FAILED, device.name + ": " + answer.message);
@@ -231,6 +237,8 @@ public final class OutgoingTransfer {
         MeshMessage m = ch.receive(0).message;
         if ("verified".equals(m.t) || "cancel".equals(m.t) || "error".equals(m.t)) {
             if (!"verified".equals(m.t)) stopped = m;
+            // Cancelled there: ended at once, so the sending thread's dropped connection can't make it interrupted, or resumable.
+            if ("cancel".equals(m.t)) set(TransferState.CANCELLED, device.name + " cancelled the transfer.");
             return m;
         }
         ch.close();

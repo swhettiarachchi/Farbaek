@@ -259,6 +259,38 @@ public class TransferSafetyTest {
         assertEquals("Cancelled. Everything received was removed.", after.message);
         assertEquals("nothing made again", 0, Fixtures.listCount(parent));
         assertEquals(0, b.receivingFolders().size());
+        // The sender heard the cancel and ended there: its broken connection didn't make it interrupted.
+        TransferView sent = a.snapshot().transfer(out);
+        assertEquals(sent.message, TransferState.CANCELLED, sent.state);
+        assertEquals("Receiver cancelled the transfer.", sent.message);
+        assertResumeRefused(a, out);
+    }
+
+    private static void assertResumeRefused(MeshNode a, String out) {
+        try {
+            a.resume(out);
+            fail("A transfer the receiver cancelled was resumed");
+        } catch (MeshNode.MeshException expected) {
+            // Ended for good.
+        }
+    }
+
+    @Test
+    public void aCancelBeforeAcceptingEndsTheSendersTransferToo() throws Exception {
+        final MeshNode a = node("Sender", null);
+        final MeshNode b = node("Receiver", null);
+        pairJava(a, b);
+        File src = tmp.newFolder("src");
+        Fixtures.write(new File(src, "README.md"), "# Harbour Lane\n");
+        final String out = a.send(a.prepare(src).id, b.fingerprint(), new InetSocketAddress("127.0.0.1", b.port()));
+        final String in = offered(b, 0);
+        waitFor("the sender waiting", 10_000, () -> a.snapshot().transfer(out).state == TransferState.WAITING);
+        b.cancel(in);
+        waitFor("the sender to hear it", 10_000, () -> a.snapshot().transfer(out).state.isFinal());
+        TransferView sent = a.snapshot().transfer(out);
+        assertEquals(sent.message, TransferState.CANCELLED, sent.state);
+        assertEquals("Receiver cancelled the transfer. Nothing was sent.", sent.message);
+        assertResumeRefused(a, out);
     }
 
     @Test

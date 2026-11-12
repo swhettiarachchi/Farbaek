@@ -74,7 +74,12 @@ const commands = {
   pair: ({ address, port }) => node.pair(address, port),
   // Pairing v2 may confirm by the pairing's id, so a late tap can't confirm another pairing.
   confirm: ({ ok }) => (node.confirmPairing.length >= 2 ? node.confirmPairing(node.snapshot().pairing?.id, ok) : node.confirmPairing(ok)),
-  dismissPairing: () => node.dismissPairing(),
+  // Dismissing may also go by id; with nothing on screen there's nothing to dismiss.
+  dismissPairing: () => {
+    if (node.dismissPairing.length === 0) return node.dismissPairing();
+    const id = node.snapshot().pairing?.id;
+    return id ? node.dismissPairing(id) : undefined;
+  },
   snapshot: () => node.snapshot(),
   prepare: ({ root: folder }) => node.prepare(folder),
   // A manifest whose first file claims another path, digest recomputed, as the "escape the folder" test does.

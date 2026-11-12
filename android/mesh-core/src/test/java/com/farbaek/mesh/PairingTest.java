@@ -389,6 +389,103 @@ public class PairingTest {
         phone.dismissPairing();
     }
 
+    /**
+     * A device in the middle relays the phone's commitment to the desk and the
+     * desk's nonce back, so once the phone reveals it knows both codes before
+     * the desk shows any. When they differ it quits without revealing to the
+     * desk and tries again, hoping no one notices. The desk shows each such
+     * run, and after two it answers no pairing call until the person turns
+     * visibility off and on. A caller that quits before the nonce doesn't count.
+     */
+    @Test
+    public void aDeviceInTheMiddleThatQuitsBeforeTheRevealGetsTwoTriesThenNone() throws Exception {
+        MeshNode phone = node("Phone");
+        MeshNode desk = visible("Desk");
+        KeyPair mallory = Noise.generateKeyPair();
+        AutoCloseableSocket s = listen();
+
+        // Quitting before any nonce costs nothing: there was nothing to learn yet.
+        call(desk, Noise.generateKeyPair(), V2_CALLER).close();
+        failedView(desk);
+        desk.dismissPairing();
+
+        for (int round = 1; round <= MeshNode.MAX_ABANDONED_PAIRINGS; round++) {
+            CompletableFuture<SecureChannel> phoneLeg = answerNext(s, mallory, new MeshProtocol.Hello("Desk", null));
+            CompletableFuture<Void> phonePairing = pairLater(phone, s.server.getLocalPort());
+            SecureChannel left = phoneLeg.get(10, TimeUnit.SECONDS);
+            MeshMessage commit = next(left);
+            SecureChannel right = call(desk, Noise.generateKeyPair(), new MeshProtocol.Hello("Phone", "pair"));
+            right.send(MeshMessage.pairCommit(commit.commit));
+            MeshMessage nonce = next(right);
+            assertEquals("pair-nonce", nonce.t);
+            left.send(MeshMessage.pairNonce(nonce.nonce));
+            MeshMessage reveal = next(left);
+            phonePairing.get(10, TimeUnit.SECONDS);
+            String phoneCode = Noise.pairingCode(left.handshakeHash(), hex(reveal.nonce), hex(nonce.nonce));
+            String deskCode = Noise.pairingCode(right.handshakeHash(), hex(reveal.nonce), hex(nonce.nonce));
+            assertEquals(phoneCode, phone.snapshot().pairing.code);
+            assertNotEquals("relaying the values doesn't make the codes match", phoneCode, deskCode);
+            assertNull("the desk shows nothing before the reveal", desk.snapshot().pairing);
+            // They differ, so it quits before revealing to the desk.
+            right.close();
+            left.close();
+            MeshNode.PairingView p = failedView(desk);
+            if (round < MeshNode.MAX_ABANDONED_PAIRINGS) assertEquals(PairingSteps.STEPS, p.message);
+            else assertEquals(PairingSteps.STEPS + MeshNode.PAIRING_PAUSED, p.message);
+            // The people close what they see, as they would.
+            desk.dismissPairing();
+            phone.dismissPairing();
+        }
+
+        // A third try, from anyone, is turned away without a nonce.
+        SecureChannel third = call(desk, Noise.generateKeyPair(), new MeshProtocol.Hello("Phone", "pair"));
+        assertEquals("busy", next(third).code);
+        try {
+            phone.pair("127.0.0.1", desk.port());
+            fail("Paired while pairing was paused");
+        } catch (MeshNode.MeshException e) {
+            assertEquals("Desk is pairing with another computer. Try again in a moment.", e.getMessage());
+        }
+        assertNull(desk.snapshot().pairing);
+
+        // Until the person turns visibility off and on.
+        desk.setVisible(false);
+        desk.setVisible(true);
+        phone.pair("127.0.0.1", desk.port());
+        waitFor("the desk's code", 10_000, () -> desk.snapshot().pairing != null && desk.snapshot().pairing.code != null);
+        assertEquals(phone.snapshot().pairing.code, desk.snapshot().pairing.code);
+    }
+
+    /** Silence until the handshake timeout has its own words, on either side; on the answerer, after its nonce, it counts as quitting. */
+    @Test
+    public void aSlowOtherDeviceIsToldApartFromOneThatBreaksTheSteps() throws Exception {
+        MeshNode desk = visible("Desk");
+        MeshNode phone = node("Phone");
+        AutoCloseableSocket s = listen();
+        // The phone calls a device that never sends its nonce...
+        CompletableFuture<SecureChannel> silent = answerNext(s, Noise.generateKeyPair(), new MeshProtocol.Hello("Slow desk", null));
+        CompletableFuture<Void> phonePairing = pairLater(phone, s.server.getLocalPort());
+        // ...while a caller to the desk takes the desk's nonce and never reveals.
+        SecureChannel ch = call(desk, Noise.generateKeyPair(), V2_CALLER);
+        ch.send(MeshMessage.pairCommit(hex(Noise.pairingCommit(Noise.pairingNonce()))));
+        assertEquals("pair-nonce", next(ch).t);
+        assertEquals("pair-commit", next(silent.get(10, TimeUnit.SECONDS)).t);
+        try {
+            phonePairing.get(15, TimeUnit.SECONDS);
+            fail("Paired with a device that never answered");
+        } catch (java.util.concurrent.ExecutionException e) {
+            assertEquals(MeshNode.TOO_SLOW, e.getCause().getMessage());
+        }
+        waitFor("the desk to give up", 15_000, () -> desk.snapshot().pairing != null);
+        assertEquals("failed", desk.snapshot().pairing.state);
+        assertEquals(MeshNode.TOO_SLOW, desk.snapshot().pairing.message);
+        // One quit after the nonce so far: a second caller still gets a nonce.
+        desk.dismissPairing();
+        SecureChannel again = call(desk, Noise.generateKeyPair(), V2_CALLER);
+        again.send(MeshMessage.pairCommit(hex(Noise.pairingCommit(Noise.pairingNonce()))));
+        assertEquals("pair-nonce", next(again).t);
+    }
+
     // Mesh's own threads
 
     @Test

@@ -163,10 +163,27 @@ public final class MeshNode implements Closeable {
 
     /** Why a pairing stopped before any code was shown, in words for the screen. */
     private static final class NoCode extends Exception {
-        NoCode(String message) {
+        /** The answerer had already sent its nonce: the other side quit, or broke the steps, before a valid reveal. */
+        final boolean afterNonce;
+
+        NoCode(String message, boolean afterNonce) {
             super(message);
+            this.afterNonce = afterNonce;
         }
     }
+
+    /**
+     * Runs that ended after this device sent its nonce but before a valid
+     * reveal, since it last became visible. A device in the middle can relay
+     * the caller's commit, see both codes once the nonce is back, and quit
+     * before revealing whenever they differ, hoping to try again unseen. After
+     * this many, pairing calls are turned away until the person turns
+     * visibility off and on.
+     */
+    static final int MAX_ABANDONED_PAIRINGS = 2;
+
+    static final String TOO_SLOW = "The other device took too long to answer. Try again.";
+    static final String PAIRING_PAUSED = " Pairing is paused on this device: turn visibility off and on to pair again.";
 
     /** What this screen says when the other device is too old to pair with. */
     static String updateToPair(String peerName) {
@@ -196,6 +213,8 @@ public final class MeshNode implements Closeable {
     private volatile PairingSession pairing;
     /** A pairing is being set up (handshake, then the three v2 messages): nothing else may start one. Guarded by this. */
     private boolean pairingStarting;
+    /** Answered pairings abandoned after this device's nonce went out, since visibility was last turned off. Guarded by this. */
+    private int abandonedPairings;
     private final Map<String, Packer.PackedFolder> prepared = new ConcurrentHashMap<>();
     private final Map<String, IncomingTransfer> incoming = new ConcurrentHashMap<>();
     private final Map<String, OutgoingTransfer> outgoing = new ConcurrentHashMap<>();
@@ -360,6 +379,8 @@ public final class MeshNode implements Closeable {
                 visibleUntil = 0;
                 if (server != null) server.close();
                 server = null;
+                // Turning visibility off and on is how the person lets pairing calls in again.
+                abandonedPairings = 0;
                 if (!looking) stopDiscovery();
             } else {
                 if (server == null) {
@@ -547,8 +568,9 @@ public final class MeshNode implements Closeable {
             return;
         }
         synchronized (this) {
-            // A pairing on screen, even a finished one, stays until the person dismisses it.
-            if (pairingStarting || pairing != null) {
+            // A pairing on screen, even a finished one, stays until the person dismisses it; and after
+            // too many quit before the reveal, none is answered until visibility is turned off and on.
+            if (pairingStarting || pairing != null || abandonedPairings >= MAX_ABANDONED_PAIRINGS) {
                 sendQuietly(channel, MeshMessage.error("busy", "This computer is already pairing."));
                 channel.close();
                 return;
@@ -560,8 +582,15 @@ public final class MeshNode implements Closeable {
             try {
                 code = exchangeCode(channel, false);
             } catch (NoCode e) {
+                String words = e.getMessage();
+                if (e.afterNonce) {
+                    synchronized (this) {
+                        abandonedPairings += 1;
+                        if (abandonedPairings >= MAX_ABANDONED_PAIRINGS) words += PAIRING_PAUSED;
+                    }
+                }
                 // Shown, as the desktop agent shows it: someone may be trying codes from the middle.
-                PairingSession failed = new PairingSession("answerer", peer, peerFingerprint, e.getMessage());
+                PairingSession failed = new PairingSession("answerer", peer, peerFingerprint, words);
                 synchronized (this) {
                     pairing = failed;
                     pairingStarting = false;
@@ -586,13 +615,16 @@ public final class MeshNode implements Closeable {
      * Pairing v2's three messages, on a channel whose handshake has just
      * finished: commit, nonce, reveal (PairingSteps), all within the
      * handshake timeout. Returns the six digits; anything else closes the
-     * channel and throws, with the other device's own words when it sent an
-     * error (busy, for one), and otherwise that it didn't follow the steps.
+     * channel and throws: with the other device's own words when it sent an
+     * error (busy, for one), that it took too long, or that it didn't follow
+     * the steps.
      */
     private String exchangeCode(SecureChannel channel, boolean caller) throws NoCode {
         String peer = channel.peer.hello.name;
         PairingSteps steps = caller ? PairingSteps.caller(channel.handshakeHash()) : PairingSteps.answerer(channel.handshakeHash());
         long deadline = System.currentTimeMillis() + MeshProtocol.HANDSHAKE_TIMEOUT_MS;
+        // Set as soon as the answerer's nonce is on its way: from then, quitting before a valid reveal counts.
+        boolean nonceOut = false;
         try {
             if (caller) {
                 try {
@@ -603,25 +635,33 @@ public final class MeshNode implements Closeable {
             }
             while (!steps.done()) {
                 long remaining = deadline - System.currentTimeMillis();
-                if (remaining <= 0) throw new PairingSteps.Failed();
+                if (remaining <= 0) {
+                    channel.close();
+                    throw new NoCode(TOO_SLOW, nonceOut);
+                }
                 MeshMessage m = channel.receive(remaining).message;
                 if ("error".equals(m.t)) {
                     channel.close();
-                    throw new NoCode("busy".equals(m.code) ? busyPairing(peer) : m.message);
+                    throw new NoCode("busy".equals(m.code) ? busyPairing(peer) : m.message, nonceOut);
                 }
                 MeshMessage reply = steps.receive(m);
-                if (reply != null) channel.send(reply);
+                if (reply != null) {
+                    if (!caller) nonceOut = true;
+                    channel.send(reply);
+                }
             }
             return steps.code();
         } catch (PairingSteps.Failed e) {
-            // Out of order, repeated, extra, a reveal that doesn't match, or too slow: the other side hears why.
+            // Out of order, repeated, extra, or a reveal that doesn't match: the other side hears why.
             sendQuietly(channel, MeshMessage.error("protocol", PairingSteps.STEPS));
             channel.close();
-            throw new NoCode(PairingSteps.STEPS);
+            throw new NoCode(PairingSteps.STEPS, nonceOut);
         } catch (IOException e) {
-            // Not a well-formed message (hex of the wrong length or case, a message this version doesn't know), a changed one, silence, or a closed connection.
             channel.close();
-            throw new NoCode(PairingSteps.STEPS);
+            // Silence until the deadline has its own words; otherwise it's a message that isn't well formed
+            // (hex of the wrong length or case, one this version doesn't know), a changed one, or a closed connection.
+            boolean late = e instanceof FramedSocket.FrameException && System.currentTimeMillis() >= deadline;
+            throw new NoCode(late ? TOO_SLOW : PairingSteps.STEPS, nonceOut);
         }
     }
 

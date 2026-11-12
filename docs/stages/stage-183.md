@@ -19,7 +19,7 @@
 ## What changed
 
 - **`android/mesh-core`:** the `farbaek-mesh/1` protocol in plain Java, ported from the desktop agent's TypeScript with the same names. That covers Noise XX, framing, offers and accepts, BLAKE3 chunks, resume, updating an earlier copy, the canonical-JSON manifest digest, the pairing code, discovery and the receive-side folder guard. 26 classes; BouncyCastle for every primitive.
-- **Its tests (85 after the review's fixes):**
+- **Its tests (89 after the reviews' fixes):**
   - the Noise cacophony vectors and BLAKE3 known answers;
   - canonical JSON and pairing codes matching Node's;
   - the folder guard against about 40 hostile paths;
@@ -59,8 +59,13 @@
     10. a sender's own name shown instead of the paired one;
     11. paired devices lost if a save was cut short.
   - **Left as it is:** the "who" query still carries the phone's name and key fingerprint, because the desktop's parser needs them. That's noted in ADR 0193.
+- **A second review of pairing v2** found four more things, all fixed here:
+  1. **Retries from the middle:** a device in the middle could quit before revealing, whenever the codes wouldn't match, and try again unseen. After two such runs, this phone answers no pairing call until visibility is turned off and on, and its screen says so.
+  2. **Discovery:** only announcements that parse count against an address; one address lists at most four devices; and a full list makes room by dropping the device heard from longest ago, rather than locking newcomers out.
+  3. **A slow device** gets its own words: "The other device took too long to answer. Try again."
+  4. **A cancel from the other side** ends the transfer as cancelled, even while it is still asking, so it can't be resumed.
 
-- **The Mesh core:** 85 tests, 0 skipped, 0 failed, run here with JDK 21 and Gradle 9.8.1, including pairing v2 against the desktop's v2 TypeScript (`FARBAEK_MESH_SOURCE` set to the pairing branch's worktree). Before that TypeScript merges, the tests against Node fail on purpose: a desktop that can't pair should show up as a failure.
+- **The Mesh core:** 89 tests, 0 skipped, 0 failed, run here with JDK 21 and Gradle 9.8.1, including pairing v2 against the desktop's v2 TypeScript (`FARBAEK_MESH_SOURCE` set to the pairing branch's worktree). Before that TypeScript merges, the tests against Node fail on purpose: a desktop that can't pair should show up as a failure.
 - **The app:** `:app:assembleDebug` builds (a 9.5 MB debug APK; BouncyCastle is 3.3 MB of it compressed). Android lint: 0 errors. Its warnings are the old target API note, the hub's singleton holding the application context, and the platform Switch.
 - **Web:** typecheck and lint are clean. The intent link and build-number tests pass.
 - **The Open Nearby button**, checked on a production demo build at 375 px:

@@ -38,26 +38,52 @@ public class DiscoveryTest {
     }
 
     @Test
-    public void listsAtMost64Devices() {
+    public void listsAtMost64DevicesAndMakesRoomForANewcomer() {
         long now = System.currentTimeMillis();
-        for (int i = 0; i < 100; i++) d.onMessage(announce("here", "Device " + i, fp(i), 40_000), "10.0.0." + i, now);
+        for (int i = 0; i < 100; i++) d.onMessage(announce("here", "Device " + i, fp(i), 40_000), "10.0.0." + i, now + i);
         assertEquals(Discovery.MAX_FOUND, d.size());
         List<String> listed = fingerprints(d.devices());
-        assertTrue(listed.contains(fp(0)));
-        assertFalse("past the cap, newcomers wait for room", listed.contains(fp(99)));
-        // A device already listed still updates.
-        d.onMessage(announce("here", "Device 0", fp(0), 40_001), "10.0.0.0", now);
-        for (Discovery.NearbyDevice n : d.devices()) if (n.fingerprint.equals(fp(0))) assertEquals(40_001, n.port);
+        // The devices heard from longest ago made room: a flood can't lock a real device out.
+        assertFalse(listed.contains(fp(0)));
+        assertFalse(listed.contains(fp(35)));
+        assertTrue(listed.contains(fp(36)));
+        assertTrue(listed.contains(fp(99)));
+        // A device already listed updates without pushing anyone out.
+        d.onMessage(announce("here", "Device 50", fp(50), 40_001), "10.0.0.50", now + 200);
+        assertEquals(Discovery.MAX_FOUND, d.size());
+        for (Discovery.NearbyDevice n : d.devices()) if (n.fingerprint.equals(fp(50))) assertEquals(40_001, n.port);
+        assertTrue(fingerprints(d.devices()).contains(fp(36)));
     }
 
     @Test
-    public void readsOnlySoManyPacketsFromOneAddress() {
+    public void listsAtMostFourDevicesFromOneAddress() {
         long now = System.currentTimeMillis();
-        for (int i = 0; i < 20; i++) d.onMessage(announce("here", "Flood " + i, fp(i), 40_000), "10.0.1.1", now);
-        assertEquals(Discovery.PACKETS_PER_WINDOW, d.size());
-        // The next window reads some more; others were never at risk.
-        for (int i = 20; i < 40; i++) d.onMessage(announce("here", "Flood " + i, fp(i), 40_000), "10.0.1.1", now + Discovery.SOURCE_WINDOW_MS);
-        assertEquals(2 * Discovery.PACKETS_PER_WINDOW, d.size());
+        for (int i = 0; i < 6; i++) d.onMessage(announce("here", "Same host " + i, fp(i), 40_000 + i), "10.0.1.1", now);
+        assertEquals(Discovery.MAX_PER_ADDRESS, d.size());
+        // Those four still update, and a device moving to that address doesn't get past the cap either.
+        d.onMessage(announce("here", "Same host 0", fp(0), 41_000), "10.0.1.1", now);
+        d.onMessage(announce("here", "Elsewhere", fp(100), 40_000), "10.0.1.2", now);
+        d.onMessage(announce("here", "Elsewhere", fp(100), 40_000), "10.0.1.1", now + 1);
+        List<Discovery.NearbyDevice> list = d.devices();
+        assertEquals(Discovery.MAX_PER_ADDRESS + 1, list.size());
+        for (Discovery.NearbyDevice n : list) {
+            if (n.fingerprint.equals(fp(0))) assertEquals(41_000, n.port);
+            if (n.fingerprint.equals(fp(100))) assertEquals("10.0.1.2", n.address);
+        }
+    }
+
+    @Test
+    public void readsOnlySoManyAnnouncementsFromOneAddressAndNoiseDoesntCount() {
+        long now = System.currentTimeMillis();
+        // Garbage first: it isn't an announcement, so it uses up nothing.
+        for (int i = 0; i < 100; i++) d.onMessage(i % 2 == 0 ? "not json" : "{\"p\":\"farbaek-mesh/1\",\"kind\":\"here\"}", "10.0.1.1", now);
+        // One device changing its port on every packet: only the first few in the window are read.
+        for (int i = 0; i < 20; i++) d.onMessage(announce("here", "Chatty", fp(1), 40_000 + i), "10.0.1.1", now);
+        assertEquals(1, d.size());
+        assertEquals(40_000 + Discovery.PACKETS_PER_WINDOW - 1, d.devices().get(0).port);
+        // The next window reads again; other addresses were never at risk.
+        d.onMessage(announce("here", "Chatty", fp(1), 45_000), "10.0.1.1", now + Discovery.SOURCE_WINDOW_MS);
+        assertEquals(45_000, d.devices().get(0).port);
         d.onMessage(announce("here", "Honest", fp(1000), 40_000), "10.0.1.2", now);
         assertTrue(fingerprints(d.devices()).contains(fp(1000)));
     }

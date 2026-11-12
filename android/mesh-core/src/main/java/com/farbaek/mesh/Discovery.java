@@ -41,13 +41,16 @@ public final class Discovery {
     static final long ANNOUNCE_EVERY_MS = 2_000;
     static final long FORGET_AFTER_MS = 10_000;
     static final int MAX_DATAGRAM = 512;
-    /** The most devices listed at once; announcements from more are ignored until some expire. */
+    /** The most devices listed at once; past it, the one heard from longest ago makes room for a newcomer. */
     static final int MAX_FOUND = 64;
+    /** The most devices listed from one address (a computer running a few copies is fine; a flood isn't). */
+    static final int MAX_PER_ADDRESS = 4;
     /**
-     * Per source address: at most this many packets are read in each window
-     * (an honest device sends one every two seconds, plus a reply to a "who"),
-     * and a "who" from it is answered at most once a second. The table of
-     * sources is bounded too; packets from more addresses are dropped.
+     * Per source address: at most this many valid announcements are read in
+     * each window (an honest device sends one every two seconds, plus a reply
+     * to a "who"), and a "who" from it is answered at most once a second. The
+     * table of sources is bounded too; announcements from more addresses are
+     * dropped.
      */
     static final long SOURCE_WINDOW_MS = 2_000;
     static final int PACKETS_PER_WINDOW = 8;
@@ -312,7 +315,6 @@ public final class Discovery {
     }
 
     void onMessage(String text, String address, long now) {
-        if (!admit(address, now)) return;
         MeshProtocol.Announcement a;
         try {
             a = MeshProtocol.Announcement.parse(Json.parse(text));
@@ -321,6 +323,8 @@ public final class Discovery {
         }
         if (a == null) return;
         if (a.fingerprint.equals(self.current().fingerprint)) return;
+        // Only announcements count against an address's share: noise it sends can't use up anyone's.
+        if (!admit(address, now)) return;
         if ("who".equals(a.kind)) {
             if (replyTo(address, now)) {
                 synchronized (this) {
@@ -335,13 +339,37 @@ public final class Discovery {
         synchronized (this) {
             if (socket == null && !testing) return;
             NearbyDevice before = found.get(a.fingerprint);
-            if (before == null && found.size() >= MAX_FOUND) return;
+            // One address speaks for at most a few devices, so it can't fill the list with made-up fingerprints.
+            if ((before == null || !before.address.equals(address)) && listedFrom(address) >= MAX_PER_ADDRESS) return;
+            boolean evicted = false;
+            if (before == null && found.size() >= MAX_FOUND) {
+                // Full: the device heard from longest ago makes room, so newcomers are never locked out.
+                String oldest = null;
+                long oldestAt = Long.MAX_VALUE;
+                for (NearbyDevice d : found.values()) {
+                    if (d.seenAt < oldestAt) {
+                        oldestAt = d.seenAt;
+                        oldest = d.fingerprint;
+                    }
+                }
+                found.remove(oldest);
+                evicted = true;
+            }
             found.put(a.fingerprint, new NearbyDevice(a.name, a.fingerprint, address, a.port, now));
-            boolean listed = before == null || !before.name.equals(a.name);
+            boolean listed = before == null || evicted || !before.name.equals(a.name);
             if (listed) order = null;
             changed = listed || !before.address.equals(address) || before.port != a.port;
         }
         if (changed) onChange.run();
+    }
+
+    /** How many listed devices were last heard from this address. Call while holding this. */
+    private int listedFrom(String address) {
+        int n = 0;
+        for (NearbyDevice d : found.values()) {
+            if (d.address.equals(address)) n++;
+        }
+        return n;
     }
 
     void expire() {

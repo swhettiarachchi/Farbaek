@@ -23,7 +23,8 @@ On a phone, Mesh only worked through the browser, over the internet: through Far
   - UDP multicast discovery.
 - **Every primitive comes from BouncyCastle 1.86's lightweight API:** X25519, AES-GCM, SHA-256, HMAC and BLAKE3. Android before API 33 has no X25519 of its own, and none has BLAKE3.
 - **Pairing is v2 (ADR 0194):** commit, then reveal, then a code no device in the middle can steer. A peer without v2 is refused. The review before this stage found that v1's code could be matched by a device in the middle, in the desktop and the browser too; ADR 0194 fixes all three.
-- **It's proved on the developer's PC, against the desktop's real Node Mesh, in both directions.** 85 JUnit tests:
+- **A device in the middle gets two tries:** after two pairings that end after this phone's nonce but before a valid reveal, it answers no pairing call until the person turns visibility off and on.
+- **It's proved on the developer's PC, against the desktop's real Node Mesh, in both directions.** 89 JUnit tests:
   - the cacophony Noise vectors and BLAKE3 known answers;
   - canonical JSON and pairing codes matching Node's;
   - about 40 hostile paths refused before anything is written;
