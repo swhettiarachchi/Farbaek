@@ -202,7 +202,8 @@ describe("images in Capsules (stage 179)", () => {
   it("refuses an image whose bytes changed after packing", async () => {
     const built = pack([{ path: "assets/dot.png", content: PNG }]);
     const altered = PNG.slice();
-    altered[altered.length - 5] ^= 0xff;
+    const at = altered.length - 5;
+    altered[at] = altered[at]! ^ 0xff;
     const opened = await openCapsule(encodeCapsule({ manifest: built.manifest, files: [{ path: "assets/dot.png", content: altered }] }), IMAGE_LIMITS);
     expect(opened.ok).toBe(false);
     if (!opened.ok) expect(opened.problems.join(" ")).toMatch(/changed after the Capsule was made/);

@@ -10,7 +10,8 @@ import { importCapsule, packProject, projectHashes } from "./capsules";
 
 const PNG = new Uint8Array(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64"));
 const OTHER_PNG = PNG.slice();
-OTHER_PNG[OTHER_PNG.length - 5] ^= 0x01;
+const AT = OTHER_PNG.length - 5;
+OTHER_PNG[AT] = OTHER_PNG[AT]! ^ 0x01;
 
 const ORG = "org-1";
 const PROJECT = "project-1";
