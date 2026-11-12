@@ -5,6 +5,7 @@
  */
 import { isStaticSite } from "@/core/workspace/static-site";
 import { NEXTJS_APP_FILES } from "./nextjs-app";
+import { MEMBERS_APP_FILES, MEMBERS_APP_PREVIEW } from "./members-app";
 import { REST_API_FILES } from "./rest-api";
 import { STATIC_WEBSITE_FILES } from "./static-website";
 import { TEMPLATES } from "./templates";
@@ -41,11 +42,36 @@ export const STARTERS: readonly Starter[] = [
     staticPreview: false,
     kind: "starter",
   },
+  {
+    id: "members-app",
+    name: "App with sign-in",
+    summary: "Accounts, sign-in, password reset and a private space for each person, in plain Node.js with no dependencies. Runs in a test space.",
+    files: MEMBERS_APP_FILES,
+    run: { install: null, dev: "npm run dev -- --hostname 0.0.0.0 --port 3000", port: 3000 },
+    staticPreview: false,
+    kind: "starter",
+    examplePrompt: "A members area where my clients sign in and see their own project updates",
+    gallery: { preview: MEMBERS_APP_PREVIEW },
+  },
   ...TEMPLATES,
 ];
 
 /** The templates in the gallery, in the order they are shown. */
 export const TEMPLATE_STARTERS: readonly Starter[] = STARTERS.filter((s) => s.kind === "template");
+
+/** Starters that run a server and are shown in the gallery from snapshots of their pages (stage 180). */
+export const APP_TEMPLATES: readonly Starter[] = STARTERS.filter((s) => s.gallery);
+
+/** A starter the gallery can show: a template, or an app with snapshots. */
+export function galleryStarter(id: unknown): Starter | null {
+  const s = getStarter(id);
+  return s && (s.kind === "template" || s.gallery) ? s : null;
+}
+
+/** The files the gallery shows for a starter: its snapshots when it runs a server. */
+export function galleryFiles(s: Starter): Record<string, string> {
+  return Object.fromEntries((s.gallery?.preview ?? s.files).map((f) => [f.path, f.content]));
+}
 
 export function getStarter(id: unknown): Starter | null {
   return STARTERS.find((s) => s.id === id) ?? null;

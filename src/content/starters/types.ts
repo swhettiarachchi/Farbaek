@@ -3,7 +3,7 @@ export interface StarterFile {
   content: string;
 }
 
-export type StarterId = "blank" | "static-website" | "nextjs-app" | "rest-api" | TemplateId;
+export type StarterId = "blank" | "static-website" | "nextjs-app" | "rest-api" | "members-app" | TemplateId;
 
 /** Templates: finished-looking sites with sample content, shown in the gallery. */
 export type TemplateId = "landing-page" | "saas-site" | "portfolio" | "local-business" | "luxury" | "event-page" | "blog" | "online-store" | "booking" | "dashboard" | "crm";
@@ -25,4 +25,10 @@ export interface Starter {
   kind: "starter" | "template";
   /** For templates: an example of what to ask for, prefilled in the prompt box. */
   examplePrompt?: string;
+  /**
+   * For a starter that runs a server but belongs in the template gallery too
+   * (stage 180): static snapshots of its pages with sample content, which the
+   * gallery shows instead of running it.
+   */
+  gallery?: { preview: StarterFile[] };
 }

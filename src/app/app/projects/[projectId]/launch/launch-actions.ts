@@ -5,10 +5,15 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getPlan } from "@/core/billing/catalog";
 import { PLAN_LIMITS, filesToRead, planLaunch } from "@/core/launch/planner";
-import { LAUNCH_PROVIDERS, PROVIDER_NAMES } from "@/core/launch/providers";
+import { LAUNCH_PROVIDERS, PROVIDER_NAMES, isServerProvider } from "@/core/launch/providers";
+import { serverCommands } from "@/core/launch/servers";
+import { readRepoLink } from "@/server/github/store";
+import { projectLaunchFiles } from "@/server/launch/files";
+import { authorizeServerLaunch, connectServerProvider } from "@/server/launch/server-launch";
+import { createSupabaseServerClient } from "@/server/supabase/server";
 import { vercelSettings } from "@/core/launch/vercel";
 import { authorizeNetlifyLaunch, connectNetlify } from "@/server/launch/netlify-launch";
-import { authorizeVercelLaunch, connectVercel, disconnectProvider } from "@/server/launch/provider-launch";
+import { authorizeVercelLaunch, connectVercel, disconnectProvider, launchBytes } from "@/server/launch/provider-launch";
 import { launchDeps } from "@/server/launch/provider-wiring";
 import { loadAppContext } from "@/server/workspace/context";
 
@@ -36,7 +41,11 @@ export async function connectProviderAction(_previous: LaunchState, form: FormDa
   if ("error" in c) return { status: "error", message: c.error ?? "" };
   const limit = getPlan(c.ctx.current!.plan.planId).limits.integrations;
   const input = { token: String(form.get("token") ?? ""), teamId: String(form.get("teamId") ?? "") || null, limit };
-  const r = provider.data === "netlify" ? await connectNetlify(c.deps, c.person, input) : await connectVercel(c.deps, c.person, input);
+  const r = isServerProvider(provider.data)
+    ? await connectServerProvider(c.deps, c.person, provider.data, input)
+    : provider.data === "netlify"
+      ? await connectNetlify(c.deps, c.person, input)
+      : await connectVercel(c.deps, c.person, input);
   if (!r.ok) return { status: "error", message: r.message };
   if (projectId.success) revalidatePath(`/app/projects/${projectId.data}/launch`);
   return { status: "done", message: `Connected to ${PROVIDER_NAMES[provider.data]} as ${r.value.accountName}.` };
@@ -77,8 +86,22 @@ export async function launchProviderAction(_previous: LaunchState, form: FormDat
   const plan = planLaunch({ paths: contents.map((f) => f.path), texts: Object.fromEntries(contents.filter((f) => wanted.has(f.path)).map((f) => [f.path, f.content.slice(0, PLAN_LIMITS.bytesPerFile)])) });
 
   const input = { projectId, key: parsed.data.key, target: parsed.data.target.trim(), confirm: parsed.data.confirm, overrideReason: parsed.data.reason?.trim() || null, plan };
-  const r = provider === "netlify" ? await authorizeNetlifyLaunch(c.deps, c.person, input) : await authorizeVercelLaunch(c.deps, c.person, { ...input, settings: vercelSettings(plan) });
+  let r;
+  if (isServerProvider(provider)) {
+    // A server host runs the app from its package.json (ADR 0191); Render and Railway build from the linked repository.
+    const files = await projectLaunchFiles(c.ctx.reader, c.person.orgId, projectId);
+    const pkgText = files.find((f) => f.path === "package.json" && f.encoding !== "base64")?.content ?? null;
+    const user = await createSupabaseServerClient();
+    const linkedRepo = user ? (await readRepoLink(user, c.person.orgId, projectId).catch(() => null)) !== null : false;
+    r = await authorizeServerLaunch(c.deps, c.person, provider, {
+      ...input,
+      commands: serverCommands(plan, pkgText),
+      project: { pkgText, paths: files.map((f) => f.path), totalBytes: files.reduce((n, f) => n + launchBytes(f).length, 0), linkedRepo },
+    });
+  } else {
+    r = provider === "netlify" ? await authorizeNetlifyLaunch(c.deps, c.person, input) : await authorizeVercelLaunch(c.deps, c.person, { ...input, settings: vercelSettings(plan) });
+  }
   if (!r.ok) return { status: "error", message: r.message };
   revalidatePath(`/app/projects/${projectId}/launch`);
-  return { status: "done", message: provider === "netlify" ? "Launch started. Netlify is publishing it now; this page follows along." : "Launch started. Vercel is building it now; this page follows along." };
+  return { status: "done", message: `Launch started. ${PROVIDER_NAMES[provider]} is ${provider === "netlify" ? "publishing" : provider === "flyio" ? "starting" : "building"} it now; this page follows along.` };
 }

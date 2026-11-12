@@ -153,9 +153,14 @@ describe("startFromPrompt", () => {
     const villa = fakeDeps();
     await startFromPrompt(villa.deps, source(capturing), input("A website for our villa in Ella"));
     expect(villa.log[1]).toBe(`import:${getStarter("luxury")!.files.length}`);
+    // An app with accounts starts from the App with sign-in, and the plan is told to keep its security (stage 180).
     const app = fakeDeps();
     await startFromPrompt(app.deps, source(capturing), input("A booking dashboard for my café with a login"));
-    expect(app.log[1]).toBe(`import:${getStarter("nextjs-app")!.files.length}`);
+    expect(app.log[1]).toBe(`import:${getStarter("members-app")!.files.length}`);
+    expect(briefs.at(-1)?.projectDescription).toContain("Keep its security exactly as it is");
+    const react = fakeDeps();
+    await startFromPrompt(react.deps, source(capturing), input("A Next.js booking dashboard for my café"));
+    expect(react.log[1]).toBe(`import:${getStarter("nextjs-app")!.files.length}`);
   });
 
   it("stops when the project can't be created, for example at the plan's project limit", async () => {
