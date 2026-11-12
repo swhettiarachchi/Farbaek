@@ -4,4 +4,19 @@
     <color name="canvas">#FBFBFC</color>
     <!-- The app icon artwork's own background, behind the adaptive icon. -->
     <color name="icon_paper">#FEFEFE</color>
+
+    <!-- The Nearby screen (ADR 0193) uses the web app's own tokens, so it reads as the same product. -->
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_raised">#F2F4F7</color>
+    <color name="line">#E4E7EC</color>
+    <color name="ink">#121317</color>
+    <color name="ink_2">#474C56</color>
+    <color name="ink_3">#636975</color>
+    <color name="accent">#2450F0</color>
+    <color name="primary">#121317</color>
+    <color name="on_primary">#FBFBFC</color>
+    <color name="verified">#0B6E4F</color>
+    <color name="caution">#B04508</color>
+    <color name="failed">#B3243B</color>
+    <color name="info">#3D5572</color>
 </resources>

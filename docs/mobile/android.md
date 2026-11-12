@@ -120,6 +120,30 @@ Inside the app, plans are bought through Google Play, the way Farbaek for iPhone
 
 `-Off` stops selling. Purchases already made keep being checked every hour.
 
+## 5. Nearby (ADR 0193), from 1.3.0 (versionCode 5)
+
+The app's first native screen: it sends files to a computer on the same Wi-Fi with no internet.
+
+It pairs only with pairing v2 (ADR 0194). The desktop app has that from 0.11.0, so publish desktop 0.11.0 first. Desktop 0.10.0 can't pair with this phone, and the phone asks for the update.
+
+Before releasing it:
+
+1. **The bundle:** upload the one from the "Android app" workflow run (versionCode 5) to **Closed testing - Alpha**. Check the run's **Android launch check** first. Its summary should show:
+   - Nearby opening;
+   - the service in the foreground;
+   - no crash.
+2. **Foreground service declaration.** Play Console → **App content → Foreground service permissions**:
+   - **Type:** Data sync.
+   - **What it does:** "Moves files the person chose between this phone and their own paired computer on the same Wi-Fi, with progress in a notification, so a transfer finishes with the screen off."
+   - **Video:** Play asks for a short screen recording of a transfer, made on your phone.
+3. **Data safety:** nothing new is collected. The files go from the phone to the person's own computer, and nothing about them reaches Farbaek.
+4. **The first real check,** with your phone and your computer on the same Wi-Fi:
+   1. In the desktop app, open Nearby and choose **Be visible**.
+   2. In the Android app, open Mesh, then **Open Nearby**.
+   3. Pair, checking the six digits match on both screens.
+   4. Send a photo.
+   5. Then turn off mobile data and the router's internet (Wi-Fi still on), and send another. It should arrive just the same.
+
 ## Updating the app
 
 Most changes need no app update: the app is the website. Only change `android/` for the app shell, and raise `versionCode` in `android/version.properties` for each upload.

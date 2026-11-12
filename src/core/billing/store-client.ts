@@ -83,3 +83,19 @@ export function iosAppBuild(userAgent: string | null | undefined, appHeader?: st
   const m = /^Farbaek\/(\d{1,7})(?:\.[\d.]*)?\s+CFNetwork\//.exec(userAgent ?? "");
   return m ? Number(m[1]) : null;
 }
+
+/**
+ * Builds of Farbaek for Android from 5 say which build they are in the launch address
+ * (android_build, from versionCode in android/app/build.gradle.kts), so the site offers
+ * only what that build has. Older builds say nothing, and read as null.
+ */
+export const ANDROID_BUILD_PARAM = "android_build";
+export const ANDROID_BUILD_KEY = "farbaek-android-build";
+
+export function androidAppBuild(stored: string | null, search: string): number | null {
+  const fromAddress = new URLSearchParams(search).get(ANDROID_BUILD_PARAM);
+  for (const raw of [fromAddress, stored]) {
+    if (raw && /^\d{1,7}$/.test(raw)) return Number(raw);
+  }
+  return null;
+}

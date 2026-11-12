@@ -20,6 +20,19 @@ android {
         targetSdk = 36
         versionCode = versions.getProperty("versionCode").toInt()
         versionName = versions.getProperty("versionName")
+        // client=android-app tells the site it's inside the app, which sells nothing there (ADR 0150), and
+        // android_build says which build, so the site offers only what this build has (ADR 0193).
+        resValue("string", "launch_url", "https://www.farbaek.com/app?client=android-app&android_build=" + versions.getProperty("versionCode"))
+    }
+
+    buildFeatures {
+        resValues = true
+    }
+
+    compileOptions {
+        // mesh-core is Java 17 bytecode; D8 turns it into what minSdk 24 runs.
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     signingConfigs {
@@ -44,6 +57,8 @@ android {
 }
 
 dependencies {
+    // Mesh on the phone (ADR 0193): the farbaek-mesh/1 protocol, in plain Java.
+    implementation(project(":mesh-core"))
     implementation("com.google.androidbrowserhelper:androidbrowserhelper:2.7.4")
     // Google Play billing for the website inside the app (ADR 0154). Exact version, released 2026-07-30.
     implementation("com.google.androidbrowserhelper:billing:1.2.0")

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
-import { ANDROID_APP_CLIENT, IOS_APP_CLIENT, STORE_CLIENT_KEY, inAndroidApp, inStoreApp, isAndroidAppLaunch, isIosAppLaunch } from "@/core/billing/store-client";
+import { ANDROID_APP_CLIENT, ANDROID_BUILD_KEY, IOS_APP_CLIENT, STORE_CLIENT_KEY, androidAppBuild, inAndroidApp, inStoreApp, isAndroidAppLaunch, isIosAppLaunch } from "@/core/billing/store-client";
 
 function readStored(): string | null {
   try {
@@ -26,6 +26,20 @@ export function useInStoreApp(): boolean {
   return useSyncExternalStore(subscribe, storeSnapshot, () => false);
 }
 
+function readBuild(): string | null {
+  try {
+    return window.sessionStorage.getItem(ANDROID_BUILD_KEY);
+  } catch {
+    return null;
+  }
+}
+const buildSnapshot = () => (inAndroidApp(readStored(), document.referrer, window.location.search) ? androidAppBuild(readBuild(), window.location.search) : null);
+
+/** Which build of Farbaek for Android this tab is in; null in a browser, or in a build too old to say (ADR 0193). */
+export function useAndroidAppBuild(): number | null {
+  return useSyncExternalStore(subscribe, buildSnapshot, () => null);
+}
+
 /**
  * In the root layout: when Farbaek for Android opens a page, the tab remembers
  * it, so later pages (whose referrer is Farbaek itself) still know.
@@ -36,6 +50,9 @@ export function AndroidAppMarker() {
     if (!client) return;
     try {
       window.sessionStorage.setItem(STORE_CLIENT_KEY, client);
+      // Which Android build, so later pages offer only what it has (ADR 0193).
+      const build = androidAppBuild(null, window.location.search);
+      if (client === ANDROID_APP_CLIENT && build !== null) window.sessionStorage.setItem(ANDROID_BUILD_KEY, String(build));
     } catch {
       // Storage is off: each page still knows from its own referrer or address.
     }

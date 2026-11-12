@@ -9,8 +9,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Farbaek's web notifications, delegated to the app on Android 13 and up. -->
+    <!-- Farbaek's web notifications, delegated to the app on Android 13 and up. Nearby's transfer notification too. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Nearby (ADR 0193): finding computers on the same Wi-Fi, and keeping a transfer going with the screen off. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <queries>
         <intent>
@@ -20,6 +26,7 @@
 
     <application
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:manageSpaceActivity="com.google.androidbrowserhelper.trusted.ManageDataLauncherActivity"
@@ -35,7 +42,7 @@
             android:exported="true"
             android:label="@string/app_name">
 
-            <!-- launch_url carries client=android-app (strings.xml). -->
+            <!-- launch_url carries client=android-app and the build number (app/build.gradle.kts). -->
             <meta-data
                 android:name="android.support.customtabs.trusted.DEFAULT_URL"
                 android:value="@string/launch_url" />
@@ -148,5 +155,30 @@
                 <action android:name="org.chromium.intent.action.IS_READY_TO_PAY" />
             </intent-filter>
         </service>
+
+        <!--
+          Nearby (ADR 0193): sending files to a computer on the same Wi-Fi with no internet, through
+          farbaek-mesh/1. The Mesh page opens it with an intent link that names this package. The
+          screen takes no action from the link: nothing is sent or received until the person chooses.
+        -->
+        <activity
+            android:name=".mesh.MeshActivity"
+            android:exported="true"
+            android:label="@string/nearby_title"
+            android:launchMode="singleTop"
+            android:theme="@style/Theme.Farbaek.Nearby">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="farbaek-mesh" android:host="nearby" />
+            </intent-filter>
+        </activity>
+
+        <!-- Keeps a transfer going with the screen off, with its own notification. Android 15 limits data syncs to six hours a day. -->
+        <service
+            android:name=".mesh.MeshService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
     </application>
 </manifest>
