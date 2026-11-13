@@ -120,7 +120,7 @@ Inside the app, plans are bought through Google Play, the way Farbaek for iPhone
 
 `-Off` stops selling. Purchases already made keep being checked every hour.
 
-## 5. Nearby (ADR 0193), from 1.3.0 (versionCode 5)
+## 5. Nearby (ADR 0193), from 1.3.1 (versionCode 6)
 
 The app's first native screen: it sends files to a computer on the same Wi-Fi with no internet.
 
@@ -128,7 +128,7 @@ It pairs only with pairing v2 (ADR 0194). The desktop app has that from 0.11.0, 
 
 Before releasing it:
 
-1. **The bundle:** upload the one from the "Android app" workflow run (versionCode 5) to **Closed testing - Alpha**. Check the run's **Android launch check** first. Its summary should show:
+1. **The bundle:** upload the one from the "Android app" workflow run (versionCode 6) to **Closed testing - Alpha**. Never versionCode 5 (1.3.0): it was built but not uploaded, and its Nearby could stay on "Starting Nearby…" on a quiet Wi-Fi. Check the run's **Android launch check** first. Its summary should show:
    - Nearby opening;
    - the service in the foreground;
    - no crash.

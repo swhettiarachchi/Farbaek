@@ -74,10 +74,23 @@
   - **Size:** 48 px tall, with nothing scrolling sideways.
 - **Workflows:** both parse, and the launch check's shell passes `bash -n`.
 
+## After merging: what the emulator check found (2026-11-13, `fix/android-launch-runner`)
+
+The launch check had failed on every run since run 12, before this stage, with "The emulator didn't start". Reading its summary step by step found one fault in the check and two real faults in Nearby:
+
+1. **The check:** the emulator did start, but adb saw it as "device unauthorized". A Google Play image accepts only an adb key it was given at boot, and adb made its key afterwards. adb now starts first, and the emulator skips the prompt. The job is pinned to Ubuntu 24.04, and a failure puts what adb sees and the emulator's log in the run's summary.
+2. **"Farbaek isn't responding" (run 19):** the screen and the notification took the node's snapshot on the main thread, while the node held its lock opening sockets. Snapshots are now taken on the hub's own view thread and handed over whole; the main thread never waits for the node. Run 20 had no such report.
+3. **Nearby stayed on "Starting Nearby…" (runs 20 and 21):** its own log showed it had started in 150 ms. On Android, `DatagramSocket.receive()` holds the socket's lock while it waits for a packet, and discovery's send locked the same socket, so on a quiet Wi-Fi the first "who" waited for ever, holding the node's lock. Java 21's `receive()` doesn't, which is why the tests against Node never showed it. Sends now keep their own lock. A new test holds the socket's lock as Android does and checks an announcement still goes out: 3,003 ms before the fix, at once after.
+
+Also: a start slower than 15 s now says so on screen, and starting logs each step's time (`FarbaekNearby`, no paths or contents).
+
+**Verified:** the Mesh core's 90 tests pass (against the desktop's real Node Mesh too). Launch check run 22 passed: the app opened with no crash; the link opened Nearby, which started in 277 ms; the Visible switch appeared after 3 s, and tapping it started the transfer service in the foreground; no "isn't responding" report.
+
+**Version:** 1.3.1, versionCode 6. versionCode 5 was built when this stage merged but never uploaded, and has the third fault, so it must never be.
+
 ## Not done
 
 - **A real phone and computer:** the owner's phone and desktop on the same Wi-Fi are the first real check (`docs/mobile/android.md`, section 5, step 4).
-- **The emulator check runs on GitHub** after this is pushed, using the shared Actions minutes.
 - **Not ported:** the relay, direct links over the internet, and the offline queue. The browser page already covers those over the internet.
 - **Saving received files** into a folder the person picks (the Storage Access Framework) isn't built; they're shared out from the app instead.
 - **R8 shrinking** of the release build.

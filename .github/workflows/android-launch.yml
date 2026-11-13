@@ -148,7 +148,7 @@ jobs:
             echo
             echo "Farbaek crashes: $(grep -c 'Process: com.farbaek.app' out/crash.txt || true). Other apps' crashes on the emulator: $(grep -v -c 'Process: com.farbaek.app' <(grep 'Process: ' out/crash.txt) || true)."
             echo
-            echo "Nearby: the screen showed its title $nearby_shown time(s); the Visible switch was ${bounds:+found and tapped}${bounds:-not found} after ${nearby_seconds} s; the transfer service in the foreground: $service_foreground."
+            echo "Nearby: the screen showed its title $nearby_shown time(s); the Visible switch was $( [ -n "$bounds" ] && echo "found and tapped" || echo "not found" ) after ${nearby_seconds} s; the transfer service in the foreground: $service_foreground."
             echo
             echo "Nearby's screen said: ${screen_words:-nothing uiautomator could read}."
             echo
