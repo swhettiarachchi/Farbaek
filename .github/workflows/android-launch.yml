@@ -17,8 +17,7 @@ permissions:
 
 jobs:
   launch:
-    # Pinned: run 11 passed and run 12, on the same app, failed with "The emulator didn't start" on ubuntu-latest,
-    # which GitHub has been moving to a newer image. 24.04 keeps the image the check passed on.
+    # A fixed image, so ubuntu-latest moving to a newer one can't change the emulator's setup between runs.
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -68,15 +67,20 @@ jobs:
           echo no | "$sdk/avdmanager" create avd -n launch -k "$image" -d pixel_6
           "$ANDROID_HOME/emulator/emulator" -list-avds | grep -qx launch || { echo "::error::avdmanager didn't make the AVD."; ls -la "$ANDROID_AVD_HOME"; exit 1; }
           ls -l /dev/kvm || echo "::warning::No /dev/kvm on this runner: the emulator can't use hardware acceleration."
-          nohup "$ANDROID_HOME/emulator/emulator" -avd launch -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -accel on > "$RUNNER_TEMP/emulator.log" 2>&1 &
-          # The job log is hard to read from a browser, so a failure also puts the emulator's log in the run's summary.
+          # A Google Play image only lets in an adb key it was given at boot. Run 17 showed the emulator up but "device
+          # unauthorized": adb made its key only after the emulator had started. So the key is made first, and the
+          # emulator is also told to skip the authorization prompt.
+          adb start-server
+          ls ~/.android/adbkey.pub >/dev/null || { echo "::error::adb didn't make its key."; exit 1; }
+          nohup "$ANDROID_HOME/emulator/emulator" -avd launch -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -accel on -skip-adb-auth > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          # The job log is hard to read from a browser, so a failure also puts what adb sees and the emulator's log in the run's summary.
           emulator_failed() {
             echo "::error::$1 The emulator's log is in the run's summary."
-            { echo "### $1"; echo; echo "Runner: $(lsb_release -ds 2>/dev/null). KVM: $(ls -l /dev/kvm 2>&1)."; echo; echo '```'; tail -n 60 "$RUNNER_TEMP/emulator.log"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            { echo "### $1"; echo; echo "Runner: $(lsb_release -ds 2>/dev/null). KVM: $(ls -l /dev/kvm 2>&1)."; echo; echo '```'; adb devices -l 2>&1; echo; tail -n 60 "$RUNNER_TEMP/emulator.log"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           }
           # Give up after 6 minutes rather than waiting for the job's limit, and say why.
-          timeout 360 adb wait-for-device || emulator_failed "The emulator didn't start."
+          timeout 360 adb wait-for-device || emulator_failed "adb couldn't reach the emulator within 6 minutes."
           for i in $(seq 1 90); do
             [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && break
             sleep 5
