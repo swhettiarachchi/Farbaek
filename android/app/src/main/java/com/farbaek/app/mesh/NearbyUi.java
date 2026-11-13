@@ -124,7 +124,7 @@ final class NearbyUi {
         t.setTextColor(color(colorRes));
         t.setTypeface(medium ? sansMedium : sans);
         t.setIncludeFontPadding(false);
-        t.setLineSpacing(0, sp >= 24 ? 1.08f : sp >= 17 ? 1.25f : 1.4f);
+        t.setLineSpacing(0, sp >= 24 ? 1.08f : sp >= 17 ? 1.25f : 1.32f);
         if (sp >= 24) t.setLetterSpacing(-0.03f);
         else if (sp >= 17) t.setLetterSpacing(-0.01f);
         return t;
@@ -149,6 +149,59 @@ final class NearbyUi {
     /** Geist Mono, for an input where people type an address. */
     Typeface monoTypeface() {
         return mono;
+    }
+
+    /** A device's key: the word in Geist, the key itself in Geist Mono, as people compare it. */
+    LinearLayout key(String grouped) {
+        LinearLayout row = row();
+        row.addView(caption("Key"));
+        TextView value = mono(grouped, 13, R.color.ink_3);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.leftMargin = px(6);
+        row.addView(value, lp);
+        row.setContentDescription("Key " + grouped);
+        row.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
+        return row;
+    }
+
+    /**
+     * The on/off switch, drawn as Android's own current one: a 52 by 32dp track, filled with the accent when on, and
+     * outlined in the quiet ink when off, with a thumb that grows when it's on. Visible against a white card either way.
+     */
+    void styleSwitch(android.widget.Switch s) {
+        int[] on = {android.R.attr.state_checked};
+        int[] any = {};
+        android.graphics.drawable.StateListDrawable track = new android.graphics.drawable.StateListDrawable();
+        GradientDrawable trackOn = rounded(R.color.accent, 999, 0, 0);
+        trackOn.setSize(px(52), px(32));
+        GradientDrawable trackOff = rounded(R.color.surface_raised, 999, R.color.ink_3, 2);
+        trackOff.setSize(px(52), px(32));
+        track.addState(on, trackOn);
+        track.addState(any, trackOff);
+        android.graphics.drawable.StateListDrawable thumb = new android.graphics.drawable.StateListDrawable();
+        thumb.addState(on, new android.graphics.drawable.InsetDrawable(oval(R.color.surface, 24), px(1), px(4), px(1), px(4)));
+        thumb.addState(any, new android.graphics.drawable.InsetDrawable(oval(R.color.ink_3, 16), px(5), px(8), px(5), px(8)));
+        s.setTrackDrawable(track);
+        s.setThumbDrawable(thumb);
+        s.setShowText(false);
+    }
+
+    private GradientDrawable oval(int fillRes, int sizeDp) {
+        GradientDrawable g = new GradientDrawable();
+        g.setShape(GradientDrawable.OVAL);
+        g.setColor(color(fillRes));
+        g.setSize(px(sizeDp), px(sizeDp));
+        return g;
+    }
+
+    /** One quiet action on its own, at the start of the line, its words in line with the text above it. */
+    LinearLayout inline(View button) {
+        LinearLayout l = row();
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.leftMargin = -px(12);
+        l.addView(button, lp);
+        top(l, 10);
+        return l;
     }
 
     /** A section heading, as the web app's CardTitle: a 20dp outlined icon in the quiet ink, then the words. */
@@ -246,7 +299,11 @@ final class NearbyUi {
             i.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
                 @Override
                 public void onViewAttachedToWindow(View v) {
-                    if (motion()) spin.start();
+                    if (!motion()) return;
+                    // Every spinner on the screen turns in step with the clock, so a badge drawn afresh carries on
+                    // where the last one was rather than starting again from the top.
+                    spin.start();
+                    spin.setCurrentPlayTime(android.os.SystemClock.uptimeMillis() % 900);
                 }
 
                 @Override
@@ -277,7 +334,7 @@ final class NearbyUi {
     LinearLayout button(String label, int iconRes, int style) {
         LinearLayout b = row();
         b.setGravity(Gravity.CENTER);
-        b.setMinimumHeight(px(style == QUIET ? 44 : 52));
+        b.setMinimumHeight(px(style == QUIET ? 48 : 52));
         b.setPadding(px(style == QUIET ? 12 : 22), px(10), px(style == QUIET ? 12 : 22), px(10));
         int fg = style == PRIMARY ? R.color.on_primary : style == QUIET ? R.color.ink_2 : R.color.ink;
         GradientDrawable shape = style == PRIMARY ? rounded(R.color.primary, 999, 0, 0)
@@ -366,6 +423,11 @@ final class NearbyUi {
         String safe = digits != null && digits.length() == 6 ? digits : "------";
         for (int g = 0; g < 2; g++) {
             TextView t = mono(safe.substring(g * 3, g * 3 + 3), 34, R.color.ink);
+            // The digits grow with the phone's text size up to 130%, then stop: two tiles of three must stay on one
+            // line each, side by side, to be compared at a glance.
+            float scale = Math.min(1.3f, c.getResources().getConfiguration().fontScale);
+            t.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 34 * scale);
+            t.setSingleLine(true);
             t.setTypeface(monoMedium);
             t.setLetterSpacing(0.14f);
             t.setGravity(Gravity.CENTER);

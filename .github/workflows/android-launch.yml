@@ -19,7 +19,8 @@ jobs:
   launch:
     # A fixed image, so ubuntu-latest moving to a newer one can't change the emulator's setup between runs.
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    # Up to 3 minutes waiting for Nearby, and about 5 more for its sample screens.
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -215,7 +216,10 @@ jobs:
           adb logcat -c
           adb shell wm size | tee out/screens/size.txt
           shoot() {
-            adb shell am start -W -S -n com.farbaek.app/.mesh.MeshActivity --es sample "$1" > /dev/null
+            started=$(adb shell am start -W -S -n com.farbaek.app/.mesh.MeshActivity --es sample "$1" 2>&1)
+            if grep -qiE "error|exception" <<<"$started"; then
+              echo "::error::Nearby's sample \"$1\" didn't open: $(tr '\n' ' ' <<<"$started")"; exit 1
+            fi
             sleep 4
             adb exec-out screencap -p > "out/screens/$2.png"
             adb shell input swipe 540 1700 540 500 400
@@ -226,6 +230,9 @@ jobs:
           # The largest text most people use: words wrap, nothing is cut off.
           adb shell settings put system font_scale 1.3
           for s in confirming transfers; do shoot "$s" "$s-text-130"; done
+          # The largest Android offers: the six digits stop growing at 130%, so both tiles still fit side by side.
+          adb shell settings put system font_scale 2.0
+          shoot confirming confirming-text-200
           adb shell settings put system font_scale 1.0
           adb logcat -d -b crash > out/screens/crash.txt || true
           echo "Nearby's sample screens: $(ls out/screens/*.png | wc -l) screenshots, in the run's artifact under screens/." >> "$GITHUB_STEP_SUMMARY"

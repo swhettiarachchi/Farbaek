@@ -110,6 +110,16 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
     /** Pairings and transfers whose success was already marked with the check and a tap. */
     private final Set<String> celebrated = new HashSet<>();
     private boolean firstRender = true;
+    /**
+     * What the screen last drew, as text. A transfer reports progress five times a second; when only progress
+     * changed, the bars move in place, and the cards (with their buttons, spinners and TalkBack's focus) stay put.
+     */
+    private String drawn;
+    /** Each moving transfer's bar and amount, by transfer, for those in-place updates. */
+    private final java.util.Map<String, android.widget.ProgressBar> bars = new java.util.HashMap<>();
+    private final java.util.Map<String, TextView> amounts = new java.util.HashMap<>();
+    /** Received folders' sizes, by path and time, so a folder is walked once, not on every drawing. */
+    private final java.util.Map<String, long[]> sizes = new java.util.HashMap<>();
 
     @Override
     protected void onCreate(Bundle state) {
@@ -129,7 +139,7 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         // insets below keep every word and button clear of them and of the keyboard.
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         getWindow().setStatusBarColor(Color.TRANSPARENT);
-        getWindow().setNavigationBarColor(Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(Build.VERSION.SDK_INT >= 26 ? Color.TRANSPARENT : Color.argb(128, 27, 27, 27));
 
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(ui.color(R.color.canvas));
@@ -152,7 +162,8 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         scroll.setFillViewport(true);
         scroll.setClipToPadding(false);
         scroll.addView(page);
-        root.addView(scroll, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        final FrameLayout.LayoutParams scrollAt = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        root.addView(scroll, scrollAt);
 
         final LinearLayout bar = topBar();
         root.addView(bar, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP));
@@ -169,6 +180,7 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         toast.setElevation(ui.px(6));
         toast.setVisibility(View.GONE);
         toast.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        toast.setOnClickListener(v -> say(null));
         FrameLayout.LayoutParams toastAt = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM);
         root.addView(toast, toastAt);
 
@@ -176,8 +188,13 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
             int keyboard = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom;
             int bottom = Math.max(bars.bottom, keyboard);
-            bar.setPadding(bars.left + ui.px(4), bars.top, bars.right + ui.px(16), 0);
-            page.setPadding(bars.left + ui.px(20), bars.top + ui.px(TOP_BAR_DP + 8), bars.right + ui.px(20), bottom + ui.px(40));
+            bar.setPadding(bars.left, bars.top, bars.right, 0);
+            // With the keyboard up, the scroll area stops above it (so ScrollView keeps the focused field in view);
+            // without it, the page runs under the navigation bar and its last line stops clear of it.
+            scrollAt.bottomMargin = keyboard > bars.bottom ? keyboard : 0;
+            scroll.setLayoutParams(scrollAt);
+            int pageBottom = keyboard > bars.bottom ? ui.px(24) : bars.bottom + ui.px(40);
+            page.setPadding(bars.left + ui.px(20), bars.top + ui.px(TOP_BAR_DP + 8), bars.right + ui.px(20), pageBottom);
             toastAt.setMargins(bars.left + ui.px(16), 0, bars.right + ui.px(16), bottom + ui.px(16));
             toast.setLayoutParams(toastAt);
             return WindowInsetsCompat.CONSUMED;
@@ -194,6 +211,7 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         bar.setBackgroundColor(ui.color(R.color.canvas));
         bar.setMinimumHeight(ui.px(TOP_BAR_DP));
         LinearLayout inner = ui.row();
+        inner.setPadding(ui.px(4), 0, ui.px(16), 0);
         ImageView back = ui.icon(R.drawable.ph_arrow_left_regular, 24, R.color.ink);
         back.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
         back.setPadding(ui.px(12), ui.px(12), ui.px(12), ui.px(12));
@@ -248,6 +266,10 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
             hub.forget(this);
         }
         dynamic.removeCallbacks(whileStarting);
+        dynamic.removeAllViews();
+        bars.clear();
+        amounts.clear();
+        drawn = null;
         super.onStop();
     }
 
@@ -277,9 +299,19 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
     private final Runnable whileStarting = this::render;
 
     private void render() {
-        dynamic.removeAllViews();
         dynamic.removeCallbacks(whileStarting);
         MeshNode.Snapshot s = sample != null ? NearbySamples.snapshot(sample) : hub.ready() ? hub.snapshot() : null;
+        String reset = s != null && hub != null ? hub.resetNotice() : null;
+        List<Received> received = s == null ? null : sample != null ? NearbySamples.received(sample) : receivedFolders(s);
+        String now = s == null ? null : signature(s, reset, received);
+        if (now != null && now.equals(drawn)) {
+            moveBars(s);
+            return;
+        }
+        drawn = now;
+        dynamic.removeAllViews();
+        bars.clear();
+        amounts.clear();
         if (s == null) {
             String problem = hub != null ? hub.startProblem() : "There's no sample called " + sample + ".";
             LinearLayout c = ui.card();
@@ -301,7 +333,6 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
             dynamic.addView(c);
             return;
         }
-        String reset = hub != null ? hub.resetNotice() : null;
         if (reset != null) {
             LinearLayout c = ui.card();
             c.addView(ui.badge(NearbyUi.Kind.INFO, "Nearby was reset"));
@@ -322,9 +353,43 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         View nearby = nearbyCard(s, computers.isEmpty());
         if (nearby != null) show(nearby, "nearby");
         show(phoneCard(s), null);
-        View received = receivedCard(s);
-        if (received != null) show(received, "received");
+        View receivedCard = receivedCard(received);
+        if (receivedCard != null) show(receivedCard, "received");
         firstRender = false;
+    }
+
+    /** Everything the cards show, except how far each transfer has got. */
+    private static String signature(MeshNode.Snapshot s, String reset, List<Received> received) {
+        StringBuilder b = new StringBuilder();
+        b.append(s.name).append('|').append(s.fingerprint).append('|').append(s.visibleUntil).append('|').append(s.visibleUntil > System.currentTimeMillis()).append('|').append(reset);
+        for (TrustStore.TrustedDevice d : s.devices) b.append("|d:").append(d.fingerprint).append(',').append(d.name).append(',').append(d.via);
+        for (Discovery.NearbyDevice n : s.nearby) b.append("|n:").append(n.fingerprint).append(',').append(n.name).append(',').append(n.address).append(':').append(n.port);
+        MeshNode.PairingView p = s.pairing;
+        if (p != null) b.append("|p:").append(p.id).append(',').append(p.state).append(',').append(p.code).append(',').append(p.peerName).append(',').append(p.peerFingerprint).append(',').append(p.message);
+        for (TransferView t : s.transfers) {
+            b.append("|t:").append(t.id).append(',').append(t.direction).append(',').append(t.state).append(',').append(t.peerName).append(',').append(t.name).append(',').append(t.files).append(',').append(t.bytes)
+                    .append(',').append(t.excludedCount).append(',').append(t.reusedFiles).append(',').append(t.destination).append(',').append(t.message).append(',').append(moving(t));
+        }
+        for (Received r : received) b.append("|r:").append(r.name).append(',').append(r.files).append(',').append(r.bytes).append(',').append(r.when);
+        return b.toString();
+    }
+
+    /** Only progress changed: each bar slides to its new place, and its amount follows. */
+    private void moveBars(MeshNode.Snapshot s) {
+        for (TransferView t : s.transfers) {
+            android.widget.ProgressBar bar = bars.get(t.id);
+            TextView amount = amounts.get(t.id);
+            if (bar == null || amount == null) continue;
+            int value = (int) Math.min(1000, t.bytesDone * 1000 / Math.max(1, t.bytes));
+            bar.setProgress(value, NearbyUi.motion());
+            String words = bytes(t.bytesDone) + " of " + bytes(t.bytes);
+            bar.setContentDescription(words);
+            amount.setText(words);
+        }
+    }
+
+    private static boolean moving(TransferView t) {
+        return t.bytes > 0 && (t.state == TransferState.SENDING || t.state == TransferState.RECEIVING || t.state == TransferState.FINISHING);
     }
 
     /** Adds a card; one that wasn't there before rises in, except on the screen's first drawing. */
@@ -393,7 +458,9 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         lp.leftMargin = ui.px(12);
         lp.topMargin = ui.px(2);
         row.addView(t, lp);
+        t.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         row.setContentDescription("Step " + n + ". " + words);
+        row.setFocusable(true);
         NearbyUi.top(row, 14);
         return row;
     }
@@ -413,7 +480,7 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
             LinearLayout item = ui.column();
             NearbyUi.top(item, 16);
             item.addView(ui.text(n.name, 16, true, R.color.ink));
-            TextView key = ui.mono("Key " + groups(n.fingerprint), 13, R.color.ink_3);
+            View key = ui.key(groups(n.fingerprint));
             NearbyUi.top(key, 4);
             item.addView(key);
             LinearLayout pair = ui.button("Pair with " + n.name, R.drawable.ph_link_simple_bold, noneYet ? NearbyUi.PRIMARY : NearbyUi.SECONDARY);
@@ -464,7 +531,7 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
                 c.addView(how);
                 LinearLayout cancel = ui.button("Cancel pairing", 0, NearbyUi.QUIET);
                 cancel.setOnClickListener(v -> act(() -> hub.node().dismissPairing(p.id)));
-                c.addView(ui.stack(cancel));
+                c.addView(ui.inline(cancel));
                 return c;
             }
             default: {
@@ -473,24 +540,19 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
                 if (paired) {
                     ImageView check = ui.icon(R.drawable.ph_check_circle_fill, 44, R.color.verified);
                     c.addView(check, new LinearLayout.LayoutParams(ui.px(44), ui.px(44)));
-                    if (celebrated.add("pairing:" + p.id)) {
+                    if (celebrated.add("pairing:" + p.id) && !firstRender) {
                         NearbyUi.pop(check);
                         tap();
                     }
                     TextView h = ui.text("Paired with " + peer, 18, true, R.color.ink);
                     NearbyUi.top(h, 14);
                     c.addView(h);
-                    TextView how = ui.body("Send it a photo to try it. " + peer + " asks to accept it, then shows Open folder. While this phone is visible, " + peer + " can send to it too.");
+                    TextView how = ui.body("To try it, tap Send photos and files below and pick a photo. The computer asks to accept it, then shows Open folder.");
                     NearbyUi.top(how, 8);
                     c.addView(how);
-                    LinearLayout send = ui.button("Send photos and files", R.drawable.ph_paper_plane_tilt_bold, NearbyUi.PRIMARY);
-                    send.setOnClickListener(v -> {
-                        act(() -> hub.node().dismissPairing(p.id));
-                        if (p.peerFingerprint != null) pickFiles(p.peerFingerprint);
-                    });
-                    LinearLayout done = ui.button("Done", 0, NearbyUi.QUIET);
+                    LinearLayout done = ui.button("Done", 0, NearbyUi.SECONDARY);
                     done.setOnClickListener(v -> act(() -> hub.node().dismissPairing(p.id)));
-                    c.addView(p.peerFingerprint != null ? ui.stack(send, done) : ui.stack(done));
+                    c.addView(ui.stack(done));
                 } else {
                     c.addView(ui.badge(NearbyUi.Kind.OFF, "Not paired"));
                     TextView why = ui.body(p.message != null ? p.message : "Nothing was paired. Try again when both screens are open.");
@@ -530,12 +592,14 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
             TextView whoText = ui.caption(who);
             NearbyUi.top(whoText, 4);
             item.addView(whoText);
-            boolean moving = t.bytes > 0 && (t.state == TransferState.SENDING || t.state == TransferState.RECEIVING || t.state == TransferState.FINISHING);
-            if (moving) {
-                item.addView(ui.progress(t.bytesDone, t.bytes, bytes(t.bytesDone) + " of " + bytes(t.bytes)));
+            if (moving(t)) {
+                android.widget.ProgressBar bar = ui.progress(t.bytesDone, t.bytes, bytes(t.bytesDone) + " of " + bytes(t.bytes));
+                item.addView(bar);
                 TextView amount = ui.caption(bytes(t.bytesDone) + " of " + bytes(t.bytes));
                 NearbyUi.top(amount, 6);
                 item.addView(amount);
+                bars.put(t.id, bar);
+                amounts.put(t.id, amount);
             }
             String next = next(t);
             if (next != null) {
@@ -552,7 +616,7 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
                 item.addView(ui.pair(action("Accept", R.drawable.ph_check_bold, NearbyUi.PRIMARY, () -> hub.node().accept(t.id, hub.inbox(), null)),
                         action("Decline", R.drawable.ph_x_bold, NearbyUi.SECONDARY, () -> hub.node().decline(t.id))));
             } else if (!t.state.isFinal() && t.state != TransferState.INTERRUPTED) {
-                item.addView(ui.stack(action("Cancel", 0, NearbyUi.QUIET, () -> hub.node().cancel(t.id))));
+                item.addView(ui.inline(action("Cancel", 0, NearbyUi.QUIET, () -> hub.node().cancel(t.id))));
             } else if (!in && t.state == TransferState.INTERRUPTED) {
                 item.addView(ui.stack(action("Resume", R.drawable.ph_arrow_counter_clockwise_bold, NearbyUi.PRIMARY, () -> hub.node().resume(t.id)),
                         action("Dismiss", 0, NearbyUi.QUIET, () -> hub.node().dismiss(t.id))));
@@ -561,7 +625,7 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
                 share.setOnClickListener(v -> share(new File(t.destination), t.name));
                 item.addView(ui.pair(share, action("Dismiss", 0, NearbyUi.QUIET, () -> hub.node().dismiss(t.id))));
             } else {
-                item.addView(ui.stack(action(in && t.state == TransferState.INTERRUPTED ? "Give up" : "Dismiss", 0, NearbyUi.QUIET, () -> hub.node().dismiss(t.id))));
+                item.addView(ui.inline(action(in && t.state == TransferState.INTERRUPTED ? "Give up" : "Dismiss", 0, NearbyUi.QUIET, () -> hub.node().dismiss(t.id))));
             }
             c.addView(item);
         }
@@ -591,9 +655,7 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         final Switch visible = new Switch(this);
         visible.setChecked(on);
         visible.setContentDescription("Visible to your computers");
-        int[][] states = {{android.R.attr.state_checked}, {}};
-        visible.setThumbTintList(new ColorStateList(states, new int[] {ui.color(R.color.accent), ui.color(R.color.surface)}));
-        visible.setTrackTintList(new ColorStateList(states, new int[] {ui.over(R.color.accent, 0.45f), ui.color(R.color.line_2)}));
+        ui.styleSwitch(visible);
         visible.setOnCheckedChangeListener((button, checked) -> beVisible(checked));
         visible.setMinimumHeight(ui.px(48));
         LinearLayout.LayoutParams sl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -604,15 +666,14 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         TextView name = ui.text("This phone is " + s.name, 15, false, R.color.ink_2);
         NearbyUi.top(name, 14);
         c.addView(name);
-        TextView key = ui.mono("Key " + groups(s.fingerprint), 13, R.color.ink_3);
+        View key = ui.key(groups(s.fingerprint));
         NearbyUi.top(key, 4);
         c.addView(key);
         return c;
     }
 
     /** Every folder received here, still on this phone after the transfer is gone from the list or the app was closed. */
-    private View receivedCard(MeshNode.Snapshot s) {
-        List<Received> shownFolders = sample != null ? NearbySamples.received(sample) : receivedFolders(s);
+    private View receivedCard(List<Received> shownFolders) {
         if (shownFolders.isEmpty()) return null;
         LinearLayout c = ui.card();
         c.addView(ui.title(R.drawable.ph_tray_arrow_down_regular, "Received"));
@@ -643,16 +704,29 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         Set<String> live = new HashSet<>();
         for (TransferView t : s.transfers) if (t.destination != null && !t.state.isFinal()) live.add(new File(t.destination).getName());
         File[] folders = hub.inbox().listFiles();
-        List<Received> found = new ArrayList<>();
+        List<File> kept = new ArrayList<>();
         if (folders != null) {
-            for (File f : folders) {
-                if (!f.isDirectory() || f.getName().startsWith(".farbaek-") || live.contains(f.getName())) continue;
-                long[] size = new long[2];
-                measure(f, size, 0);
-                found.add(new Received(f.getName(), size[0], size[1], f.lastModified(), f));
-            }
+            for (File f : folders) if (f.isDirectory() && !f.getName().startsWith(".farbaek-") && !live.contains(f.getName())) kept.add(f);
         }
-        java.util.Collections.sort(found, (a, b) -> Long.compare(b.when, a.when));
+        final java.util.Map<File, Long> times = new java.util.HashMap<>();
+        for (File f : kept) times.put(f, f.lastModified());
+        java.util.Collections.sort(kept, (a, b) -> Long.compare(times.get(b), times.get(a)));
+        List<Received> found = new ArrayList<>();
+        for (int i = 0; i < kept.size(); i++) {
+            File f = kept.get(i);
+            long when = times.get(f);
+            long[] size = new long[] {-1, -1};
+            if (i < 30) {
+                String key = f.getPath() + "@" + when;
+                size = sizes.get(key);
+                if (size == null) {
+                    size = new long[2];
+                    measure(f, size, 0);
+                    sizes.put(key, size);
+                }
+            }
+            found.add(new Received(f.getName(), size[0], size[1], when, f));
+        }
         return found;
     }
 
@@ -703,7 +777,6 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         address.setOnFocusChangeListener((v, focused) -> v.setBackground(ui.rounded(R.color.surface, 12, focused ? R.color.accent : R.color.line_2, focused ? 1.5f : 1)));
         address.setPadding(ui.px(14), ui.px(12), ui.px(14), ui.px(12));
         address.setMinHeight(ui.px(52));
-        address.setContentDescription("Address and port");
         NearbyUi.top(address, 12);
         body.addView(address);
         LinearLayout pair = ui.button("Pair", R.drawable.ph_link_simple_bold, NearbyUi.SECONDARY);
@@ -779,7 +852,7 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
             say("A sample screen: nothing is paired.");
             return;
         }
-        say("Calling " + host + "…");
+        say("Calling " + host + "…", true);
         hub.run(() -> {
             try {
                 hub.node().pair(host, port);
@@ -833,7 +906,7 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         else if (data.getData() != null) picked.add(data.getData());
         if (picked.isEmpty()) return;
         final String to = sendTo;
-        say("Getting " + picked.size() + (picked.size() == 1 ? " file" : " files") + " ready to send…");
+        say("Getting " + picked.size() + (picked.size() == 1 ? " file" : " files") + " ready to send…", true);
         hub.run(() -> {
             try {
                 File folder = copyPicked(picked);
@@ -975,10 +1048,20 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
 
     /** Shows a message at the bottom of the screen, above the bars and the keyboard, from any thread; null clears it. */
     private void say(final String message) {
+        say(message, false);
+    }
+
+    /**
+     * A message at the bottom of the screen. One that says work is under way ({@code stays}) stays until the work says
+     * how it went, which can take half a minute for a pairing or longer to ready a large pick; any other goes after
+     * long enough to read it. A tap puts either away.
+     */
+    private void say(final String message, final boolean stays) {
         Runnable show = () -> {
             toast.removeCallbacks(hideToast);
+            toast.animate().cancel();
             if (message == null || message.isEmpty()) {
-                hideToast.run();
+                if (toast.getVisibility() == View.VISIBLE) hideToast.run();
                 return;
             }
             toast.setText(message);
@@ -988,7 +1071,7 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
                 toast.setTranslationY(ui.px(8));
             }
             toast.animate().alpha(1f).translationY(0f).setDuration(200).start();
-            toast.postDelayed(hideToast, Math.max(4_000, Math.min(10_000, message.length() * 70L)));
+            if (!stays) toast.postDelayed(hideToast, Math.max(6_000, Math.min(12_000, message.length() * 80L)));
         };
         if (hub != null) hub.post(show);
         else toast.post(show);
@@ -1033,7 +1116,7 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         switch (t.state) {
             case WAITING: return in ? null : "Accept it on " + t.peerName + ", in Nearby.";
             case OFFERED: return "Accept to save it on this phone. Nothing in it runs.";
-            case DONE: return in ? "Every file matched what was sent." : t.peerName + " checked every file when it arrived. Open folder on " + t.peerName + " shows it.";
+            case DONE: return in ? "Every file matched what was sent." : "Every file was checked when it arrived. On the computer, Open folder shows it.";
             case INTERRUPTED: return in ? "The computer can resume it." : "You can resume it from where it stopped.";
             default: return null;
         }
