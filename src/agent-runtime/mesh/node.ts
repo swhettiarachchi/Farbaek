@@ -1026,6 +1026,16 @@ export class MeshNode {
     void transfer.start();
   }
 
+  /**
+   * The files of a transfer that has arrived, as paths inside its folder, for saying what came (stage 188). Only for
+   * an incoming transfer that finished and was checked; null otherwise.
+   */
+  receivedFiles(id: string): { path: string; bytes: number }[] | null {
+    const transfer = this.incoming.get(id);
+    if (!transfer || transfer.state !== "done") return null;
+    return transfer.manifest.files.map((f) => ({ path: f.path, bytes: f.bytes }));
+  }
+
   /** Removes a finished transfer from the list, or gives up on an interrupted incoming one. */
   async dismiss(id: string): Promise<void> {
     const incoming = this.incoming.get(id);

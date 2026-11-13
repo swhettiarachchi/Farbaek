@@ -17,7 +17,40 @@ export type { AgentHandoff, HandoffRun };
 export type { Effort, MeshSnapshot, PreparedView };
 
 /** Nearby transfer, or why it can't run on this computer. */
-export type MeshState = { available: true; snapshot: MeshSnapshot } | { available: false; reason: string };
+export type MeshState = { available: true; snapshot: MeshSnapshot; arrivals: ArrivalsView } | { available: false; reason: string };
+
+/** Where received files go now, and what arrived recently (stage 188). */
+export interface ArrivalsView {
+  /** Where one click saves, in words: "Downloads", or the folder the person chose last. */
+  saveTo: { label: string; chosen: boolean };
+  received: ReceivedView[];
+}
+
+/** One arrival in Recently received. The folder is shown, never sent back: actions name the id. */
+export interface ReceivedView {
+  id: string;
+  name: string;
+  from: string;
+  at: string;
+  files: number;
+  bytes: number;
+  /** "1 photo", "6 files". */
+  summary: string;
+  /** "Downloads › From Redmi A5 13 Nov 18.43". */
+  place: string;
+  /** The full path, for hovering and copying. */
+  folder: string;
+  /** Whether the folder is still there. */
+  exists: boolean;
+  /** What Open opens: the one file (a kind that opens in a viewer), the folder, or nothing when it's gone. */
+  opens: "file" | "folder" | null;
+}
+
+/** What arrived, for the arrival card: the files (first 50) and up to 4 photo thumbnails as data URLs. */
+export interface ArrivalDetail {
+  files: { name: string; bytes: number; kind: "photo" | "video" | "audio" | "document" | "other"; opens: boolean }[];
+  thumbnails: string[];
+}
 export type Result<T> = { ok: true; value: T } | { ok: false; message: string };
 
 export interface AppState {
@@ -200,8 +233,12 @@ export interface FarbaekAgentBridge {
     useRelay(id: string): Promise<Result<void>>;
     /** Opens (or closes) a two-minute window for a phone or browser to pair through Farbaek (ADR 0096). */
     pairRemote(open: boolean): Promise<Result<void>>;
-    /** Opens the folder dialog for where to save it; false when the person cancels it. */
-    accept(id: string): Promise<Result<boolean>>;
+    /**
+     * Saves an offer: "default" into the save folder with one click (Downloads until the person chooses another; only
+     * while this window is in front), or "choose" to pick a folder now, which becomes the save folder. False when the
+     * person cancels the dialog.
+     */
+    accept(id: string, where: "default" | "choose"): Promise<Result<boolean>>;
     /**
      * Opens the folder dialog for an earlier copy of what's arriving (ADR 0138): files it already
      * has aren't sent again, and the new copy is saved beside it. False when the person cancels it.
@@ -216,8 +253,17 @@ export interface FarbaekAgentBridge {
     retryQueued(): Promise<Result<void>>;
     dismiss(id: string): Promise<Result<void>>;
     openFolder(id: string): Promise<Result<void>>;
+    /** Shows an arrival in the file manager, by its transfer's id. */
+    showInFolder(id: string): Promise<Result<void>>;
+    /** Opens an arrival: its one file when that opens in a viewer, otherwise its folder. Nothing received is run. */
+    openReceived(id: string): Promise<Result<void>>;
+    arrival(id: string): Promise<Result<ArrivalDetail>>;
+    forgetReceived(id: string): Promise<Result<void>>;
     onUpdate(listener: (snapshot: MeshSnapshot) => void): () => void;
+    onArrivals(listener: (arrivals: ArrivalsView) => void): () => void;
   };
+  /** A notification was clicked: the window should show Nearby. */
+  onShowNearby(listener: () => void): () => void;
 }
 
 declare global {

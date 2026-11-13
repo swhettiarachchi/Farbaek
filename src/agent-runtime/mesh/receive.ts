@@ -126,10 +126,14 @@ async function matchingChunks(source: ProjectFolder, entry: CapsuleManifest["fil
 function folderName(raw: string): string {
   const cleaned = raw
     .normalize("NFC")
+    // Invisible formatting characters (a right-to-left override) can disguise a name (ADR 0196).
+    .replace(/\p{Cf}/gu, "")
     .replace(/[\\/:*?"<>|\u0000-\u001f]/g, "-")
     .replace(/[. ]+$/, "")
     .trim()
-    .slice(0, 80);
+    .slice(0, 80)
+    // A folder named like a package or a shell location (X.app, X.pkg, X.{CLSID}) would open as one, not as a folder.
+    .replace(/\.(app|pkg|mpkg|bundle|\{[0-9a-f-]+\})$/i, "-$1");
   return cleaned && checkAgentPath(cleaned).ok ? cleaned : "Farbaek transfer";
 }
 
@@ -144,6 +148,7 @@ export class IncomingTransfer {
   private readonly verified: number[];
   private readonly complete: boolean[];
   private running: Promise<void> | null = null;
+  private accepting = false;
   readonly peerKey: Buffer;
 
   constructor(
@@ -201,11 +206,19 @@ export class IncomingTransfer {
    * instead of sent; the earlier copy is only read.
    */
   async accept(parent: string, earlier?: string): Promise<void> {
-    if (this.state !== "offered" || !this.channel) throw new OfferError("This transfer can't be accepted now.");
+    // One accept per offer: a second click while the first is still checking the folder is refused, not run twice.
+    if (this.state !== "offered" || !this.channel || this.accepting) throw new OfferError("This transfer can't be accepted now.");
+    this.accepting = true;
     const stat = await fs.stat(parent).catch(() => null);
-    if (!path.isAbsolute(parent) || !stat?.isDirectory()) throw new OfferError("Choose a folder that exists.");
+    if (!path.isAbsolute(parent) || !stat?.isDirectory()) {
+      this.accepting = false;
+      throw new OfferError("Choose a folder that exists.");
+    }
     const earlierStat = earlier ? await fs.stat(earlier).catch(() => null) : null;
-    if (earlier && (!path.isAbsolute(earlier) || !earlierStat?.isDirectory())) throw new OfferError("Choose an earlier copy that exists.");
+    if (earlier && (!path.isAbsolute(earlier) || !earlierStat?.isDirectory())) {
+      this.accepting = false;
+      throw new OfferError("Choose an earlier copy that exists.");
+    }
     const space = await fs.statfs(parent).catch(() => null);
     if (space && Number(space.bavail) * Number(space.bsize) < this.manifest.totals.bytes + SPACE_MARGIN) {
       await this.channel.send({ t: "error", code: "no_space", message: "The receiving computer doesn't have enough free space." }).catch(() => undefined);

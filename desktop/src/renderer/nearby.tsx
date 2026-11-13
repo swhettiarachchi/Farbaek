@@ -1,13 +1,17 @@
 import {
   ArrowCounterClockwiseIcon,
   ArrowDownLeftIcon,
+  ArrowSquareOutIcon,
   ArrowUpRightIcon,
   ArrowsClockwiseIcon,
   ArrowsDownUpIcon,
   BroadcastIcon,
+  CheckCircleIcon,
   ClockCountdownIcon,
+  ClockCounterClockwiseIcon,
   CircleNotchIcon,
   DesktopIcon,
+  DownloadSimpleIcon,
   FolderOpenIcon,
   GlobeSimpleIcon,
   LinkSimpleIcon,
@@ -19,7 +23,7 @@ import {
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { TransferState } from "@/core/mesh/protocol";
 import { formatBytes } from "@/core/workspace/files";
-import type { MeshSnapshot, MeshState, PreparedView, Result } from "../shared/api";
+import type { ArrivalDetail, ArrivalsView, MeshSnapshot, MeshState, PreparedView, ReceivedView, Result } from "../shared/api";
 import { Alert, SectionTitle, StatusBadge, type Status } from "./status";
 
 const mesh = window.farbaek.mesh;
@@ -33,7 +37,8 @@ const STATE: Record<TransferState, { label: string; kind: Status }> = {
   sending: { label: "Sending", kind: "working" },
   receiving: { label: "Receiving", kind: "working" },
   finishing: { label: "Checking", kind: "working" },
-  done: { label: "Checked", kind: "verified" },
+  // A received transfer that's done shows as an arrival, "Saved"; in the list, done is a send that was delivered.
+  done: { label: "Delivered", kind: "verified" },
   declined: { label: "Declined", kind: "off" },
   cancelled: { label: "Cancelled", kind: "off" },
   interrupted: { label: "Interrupted", kind: "paused" },
@@ -51,6 +56,15 @@ const REASONS: Record<string, string> = {
   too_large: "Larger than 2 GB",
   link: "Links",
 };
+
+/** Before the main process says where received files go: Downloads, as it does until the person chooses a folder. */
+const NO_ARRIVALS: ArrivalsView = { saveTo: { label: "Downloads", chosen: false }, received: [] };
+
+/** A name as it may be shown: without invisible characters that can disguise it (ADR 0196). */
+const shown = (name: string) => name.replace(/[\p{Cf}\p{Cc}]/gu, "");
+
+/** The last part of a place, for a button: "Downloads", or the chosen folder's own name. */
+const lastPart = (place: string) => place.split(/ › |[\\/]/).filter(Boolean).pop() ?? place;
 
 /** Which system's permission prompt to describe. The window's user agent names it in Electron. */
 const IS_MAC = typeof navigator !== "undefined" && /Macintosh|Mac OS X/.test(navigator.userAgent);
@@ -110,7 +124,12 @@ export function NearbyView({ intro }: { intro?: ReactNode }) {
 
   useEffect(() => {
     void mesh.state().then(setState);
-    return mesh.onUpdate((snapshot) => setState({ available: true, snapshot }));
+    const offUpdate = mesh.onUpdate((snapshot) => setState((prev) => ({ available: true, snapshot, arrivals: prev?.available ? prev.arrivals : NO_ARRIVALS })));
+    const offArrivals = mesh.onArrivals((arrivals) => setState((prev) => (prev?.available ? { ...prev, arrivals } : prev)));
+    return () => {
+      offUpdate();
+      offArrivals();
+    };
   }, []);
 
   async function act<T>(label: string, run: () => Promise<Result<T>>): Promise<T | undefined> {
@@ -141,7 +160,7 @@ export function NearbyView({ intro }: { intro?: ReactNode }) {
       {!state.available ? (
         <Alert>{state.reason}</Alert>
       ) : (
-        <Nearby snapshot={state.snapshot} busy={busy} act={act} />
+        <Nearby snapshot={state.snapshot} arrivals={state.arrivals} busy={busy} act={act} />
       )}
       {error ? <Alert>{error}</Alert> : null}
     </section>
@@ -150,11 +169,14 @@ export function NearbyView({ intro }: { intro?: ReactNode }) {
 
 type Act = <T>(label: string, run: () => Promise<Result<T>>) => Promise<T | undefined>;
 
-function Nearby({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: string | null; act: Act }) {
+function Nearby({ snapshot: s, arrivals, busy, act }: { snapshot: MeshSnapshot; arrivals: ArrivalsView; busy: string | null; act: Act }) {
   const now = useNow(Boolean(s.visible || s.pairing || (s.relay.available && s.relay.pairingUntil)));
   const visibleLeft = s.visible ? timeLeft(s.visible.until, now) : null;
   const incoming = s.transfers.filter((t) => t.direction === "in" && t.state === "offered");
-  const others = s.transfers.filter((t) => !(t.direction === "in" && t.state === "offered"));
+  // What has just arrived gets its own card at the top, the moment people came for; the list keeps everything else.
+  const arrived = s.transfers.filter((t) => t.direction === "in" && t.state === "done" && t.destination);
+  const others = s.transfers.filter((t) => !(t.direction === "in" && (t.state === "offered" || (t.state === "done" && t.destination))));
+  const saveTo = arrivals.saveTo.label;
 
   return (
     <>
@@ -162,22 +184,21 @@ function Nearby({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: stri
         <div key={t.id} className="card stack-sm offer" aria-live="polite">
           <div className="row">
             <SectionTitle icon={TrayArrowDownIcon}>
-              {t.peer.name} wants to send {t.name}
+              {shown(t.peer.name)} wants to send {shown(t.name)}
             </SectionTitle>
             <StatusBadge kind="approval">Waiting for you</StatusBadge>
           </div>
           <p className="muted">
-            {t.files.toLocaleString("en-US")} {t.files === 1 ? "file" : "files"}, {formatBytes(t.bytes)}. It&apos;s saved into a new folder in the place you choose, and nothing
-            in it runs.
+            {t.files.toLocaleString("en-US")} {t.files === 1 ? "file" : "files"}, {formatBytes(t.bytes)}. It goes into a new folder in <strong className="place">{saveTo}</strong>, and
+            nothing in it runs.
           </p>
           <Excluded items={t.excluded} count={t.excludedCount} />
-          <p className="small muted">
-            Already have an earlier copy of it on this computer? Choose Update an earlier copy: only what changed is sent, the new copy is saved beside the earlier one, and the
-            earlier one isn&apos;t changed.
-          </p>
           <div className="row-start">
-            <button className="btn btn-primary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("accept", () => mesh.accept(t.id))}>
-              <FolderOpenIcon size={16} weight="bold" aria-hidden /> Accept and choose folder
+            <button className="btn btn-primary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("accept", () => mesh.accept(t.id, "default"))}>
+              <DownloadSimpleIcon size={16} weight="bold" aria-hidden /> Save to {lastPart(saveTo)}
+            </button>
+            <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("accept-choose", () => mesh.accept(t.id, "choose"))}>
+              <FolderOpenIcon size={16} weight="bold" aria-hidden /> Choose folder…
             </button>
             <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("accept-update", () => mesh.acceptUpdate(t.id))}>
               <ArrowsClockwiseIcon size={16} weight="bold" aria-hidden /> Update an earlier copy
@@ -186,7 +207,14 @@ function Nearby({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: stri
               Decline
             </button>
           </div>
+          <p className="small muted">
+            Already have an earlier copy of it on this computer? Update an earlier copy sends only what changed, saves the new copy beside it, and leaves the earlier one as it is.
+          </p>
         </div>
+      ))}
+
+      {arrived.map((t) => (
+        <ArrivalCard key={t.id} transfer={t} received={arrivals.received.find((r) => r.id === t.id) ?? null} busy={busy} act={act} />
       ))}
 
       {/* Keyed by pairing: a new pairing gets a new card, never the last one's buttons. */}
@@ -254,8 +282,149 @@ function Nearby({ snapshot: s, busy, act }: { snapshot: MeshSnapshot; busy: stri
         </div>
       ) : null}
 
+      <RecentlyReceived received={arrivals.received.filter((r) => !arrived.some((t) => t.id === r.id))} busy={busy} act={act} />
+
       <ComputersCard snapshot={s} busy={busy} act={act} />
     </>
+  );
+}
+
+/** The words for opening an arrival: what Open will open. */
+function openLabel(opens: ReceivedView["opens"], detail: ArrivalDetail | null): string {
+  if (opens !== "file") return "Open folder";
+  const kind = detail?.files[0]?.kind;
+  return kind === "photo" ? "Open photo" : kind === "video" ? "Open video" : "Open file";
+}
+
+/**
+ * What just arrived (stage 188): the moment the person came for. What it is, a look at it, where it is in the words
+ * their file manager uses, and one click to open it or show it there. Calm and brief, then out of the way.
+ */
+function ArrivalCard({
+  transfer: t,
+  received,
+  busy,
+  act,
+}: {
+  transfer: MeshSnapshot["transfers"][number];
+  received: ReceivedView | null;
+  busy: string | null;
+  act: Act;
+}) {
+  const [detail, setDetail] = useState<ArrivalDetail | null>(null);
+  useEffect(() => {
+    let live = true;
+    void mesh.arrival(t.id).then((r) => {
+      if (live && r.ok) setDetail(r.value);
+    });
+    return () => {
+      live = false;
+    };
+  }, [t.id]);
+  const opens = received?.opens ?? "folder";
+  const gone = received !== null && !received.exists;
+  return (
+    <div className="card stack-sm arrival" aria-live="polite">
+      <div className="row">
+        <p className="arrival-title">
+          <CheckCircleIcon size={24} weight="fill" className="arrival-check" aria-hidden />
+          <span>Arrived from {shown(t.peer.name)}</span>
+        </p>
+        <StatusBadge kind="verified">Saved</StatusBadge>
+      </div>
+      <p className="muted">
+        {received?.summary || `${t.files.toLocaleString("en-US")} ${t.files === 1 ? "file" : "files"}`}, {formatBytes(t.bytes)}. Every file matched what was sent.
+      </p>
+      {detail && detail.thumbnails.length > 0 ? (
+        <ul className="thumbs" aria-label="A look at what arrived">
+          {detail.thumbnails.map((src, i) => (
+            <li key={src.slice(-24) + i}>
+              <img src={src} alt="" />
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {gone ? (
+        <p className="small muted">It&apos;s no longer in {received.place}. It may have been moved or deleted.</p>
+      ) : (
+        <p className="small">
+          Saved in{" "}
+          <span className="place" title={received?.folder ?? t.destination ?? undefined}>
+            {received?.place ?? shown(t.destination ?? "")}
+          </span>
+        </p>
+      )}
+      <div className="row-start">
+        {opens !== null && !gone ? (
+          <button className="btn btn-primary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("open-received", () => mesh.openReceived(t.id))}>
+            <ArrowSquareOutIcon size={16} weight="bold" aria-hidden /> {openLabel(opens, detail)}
+          </button>
+        ) : null}
+        {!gone ? (
+          <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("show", () => mesh.showInFolder(t.id))}>
+            <FolderOpenIcon size={16} weight="bold" aria-hidden /> Show in folder
+          </button>
+        ) : null}
+        <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("dismiss", () => mesh.dismiss(t.id))}>
+          Done
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Recently received: the last arrivals, kept across restarts, so a folder can be found again. */
+function RecentlyReceived({ received, busy, act }: { received: ReceivedView[]; busy: string | null; act: Act }) {
+  if (received.length === 0) return null;
+  return (
+    <div className="card stack-sm">
+      <SectionTitle icon={ClockCounterClockwiseIcon}>Recently received</SectionTitle>
+      <ul className="transfers">
+        {received.map((r) => (
+          <li key={r.id} className="transfer">
+            <div className="row">
+              <p className="transfer-title">
+                <ArrowDownLeftIcon size={16} weight="bold" aria-hidden />
+                <span>
+                  {r.name} from {r.from}
+                </span>
+              </p>
+              <time className="small muted" dateTime={r.at}>
+                {new Date(r.at).toLocaleString()}
+              </time>
+            </div>
+            <p className="small muted">
+              {r.summary}, {formatBytes(r.bytes)}.
+            </p>
+            {r.exists ? (
+              <p className="small">
+                In{" "}
+                <span className="place" title={r.folder}>
+                  {r.place}
+                </span>
+              </p>
+            ) : (
+              <p className="small muted">It&apos;s no longer in {r.place}. It may have been moved or deleted.</p>
+            )}
+            <div className="row-start">
+              {r.opens ? (
+                <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("open-received", () => mesh.openReceived(r.id))}>
+                  <ArrowSquareOutIcon size={16} weight="bold" aria-hidden /> {r.opens === "file" ? "Open" : "Open folder"}
+                </button>
+              ) : null}
+              {r.exists ? (
+                <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("show", () => mesh.showInFolder(r.id))}>
+                  <FolderOpenIcon size={16} weight="bold" aria-hidden /> Show in folder
+                </button>
+              ) : null}
+              <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("forget-received", () => mesh.forgetReceived(r.id))}>
+                Remove from list
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -504,12 +673,6 @@ function TransferRow({ transfer: t, busy, act }: { transfer: MeshSnapshot["trans
         </p>
       ) : null}
       {t.message ? <p className="small">{t.message}</p> : null}
-      {/* Where it went, in full: the owner's first send landed in their user folder and looked lost. */}
-      {t.direction === "in" && t.state === "done" && t.destination ? (
-        <p className="small muted">
-          Saved in <span className="mono">{t.destination}</span>
-        </p>
-      ) : null}
       <div className="row-start">
         {t.direction === "out" && t.state === "interrupted" && t.queuedUntil ? (
           <>
@@ -524,11 +687,6 @@ function TransferRow({ transfer: t, busy, act }: { transfer: MeshSnapshot["trans
         {t.direction === "out" && t.state === "interrupted" && !t.queuedUntil && !t.canUseRelay ? (
           <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("queue", () => mesh.queue(t.id))}>
             <ClockCountdownIcon size={16} weight="bold" aria-hidden /> Send when it&apos;s back
-          </button>
-        ) : null}
-        {t.direction === "in" && t.state === "done" ? (
-          <button className="btn btn-secondary btn-sm" type="button" onClick={() => void act("open", () => mesh.openFolder(t.id))}>
-            <FolderOpenIcon size={16} weight="bold" aria-hidden /> Open folder
           </button>
         ) : null}
         {t.direction === "out" && t.state === "interrupted" && t.canUseRelay ? (
