@@ -183,6 +183,9 @@ final class NearbyUi {
         thumb.addState(any, new android.graphics.drawable.InsetDrawable(oval(R.color.ink_3, 16), px(5), px(8), px(5), px(8)));
         s.setTrackDrawable(track);
         s.setThumbDrawable(thumb);
+        // A theme's own switch tints (some phone makers set them) would paint over these colours.
+        s.setTrackTintList(null);
+        s.setThumbTintList(null);
         s.setShowText(false);
     }
 
