@@ -29,12 +29,13 @@ public final class ReceivedLog {
         public final String path;
         public final long bytes;
         public final String mime;
+        // Written by the thread that saves, read by the screen: volatile, so the screen sees each change whole.
         /** The MediaStore item, once one was made for it; null before. */
-        public String uri;
+        public volatile String uri;
         /** Copied, read back, matched and visible in Gallery or Files. */
-        public boolean published;
+        public volatile boolean published;
         /** The name shared storage gave it, which may differ from the sender's (Android renames a clash). */
-        public String shown;
+        public volatile String shown;
 
         public FileRecord(String path, long bytes, String mime) {
             this.path = path;
@@ -54,12 +55,12 @@ public final class ReceivedLog {
         /** The folder's name in shared storage, made unique; or the private folder's full path when kept in Nearby. */
         public final String folder;
         public final List<FileRecord> files;
-        public State state;
+        public volatile State state;
         /** Why it was kept inside Nearby, when saving didn't happen or failed; null otherwise. */
-        public String note;
+        public volatile String note;
         /** The private folder the files arrived in, while any are still there; null once they've all been saved. */
-        public String source;
-        public boolean notified;
+        public volatile String source;
+        public volatile boolean notified;
 
         public Entry(String id, String name, String from, long at, SavePlan.Place place, String folder, List<FileRecord> files, State state) {
             this.id = id;
@@ -127,9 +128,20 @@ public final class ReceivedLog {
         save();
     }
 
-    /** Writes the log after an entry it holds was changed in place. */
-    public synchronized void update(Entry entry) throws IOException {
-        put(entry);
+    /**
+     * Writes the log after an entry it holds was changed in place. An entry taken off the list in the meantime stays
+     * off: it isn't put back.
+     */
+    public synchronized boolean update(Entry entry) throws IOException {
+        load();
+        for (int i = 0; i < entries.size(); i++) {
+            if (entries.get(i).id.equals(entry.id)) {
+                entries.set(i, entry);
+                save();
+                return true;
+            }
+        }
+        return false;
     }
 
     public synchronized void remove(String id) throws IOException {

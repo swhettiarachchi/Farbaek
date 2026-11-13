@@ -676,7 +676,10 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
             }
             if (in && t.state == TransferState.OFFERED) {
                 item.addView(offerPlace());
-                item.addView(ui.pair(action("Accept", R.drawable.ph_check_bold, NearbyUi.PRIMARY, () -> hub.node().accept(t.id, hub.inbox(), null)),
+                item.addView(ui.pair(action("Accept", R.drawable.ph_check_bold, NearbyUi.PRIMARY, () -> {
+                    hub.rememberChoice(t.id);
+                    hub.node().accept(t.id, hub.inbox(), null);
+                }),
                         action("Decline", R.drawable.ph_x_bold, NearbyUi.SECONDARY, () -> hub.node().decline(t.id))));
             } else if (!t.state.isFinal() && t.state != TransferState.INTERRUPTED) {
                 item.addView(ui.inline(action("Cancel", 0, NearbyUi.QUIET, () -> hub.node().cancel(t.id))));
@@ -912,6 +915,7 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         words.addView(where);
         row.addView(words, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         final Switch toggle = new Switch(this);
+        toggle.setMinimumHeight(ui.px(48));
         toggle.setChecked(on);
         toggle.setContentDescription("Save to Gallery and Downloads");
         ui.styleSwitch(toggle);
@@ -1008,7 +1012,7 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
             String name = SavePlan.display(f.shown != null ? f.shown : SavePlan.fileName(f.path, shown));
             boolean opens = f.published && f.uri != null && SavePlan.canOpen(f.path);
             TextView row = ui.text(name + "  ·  " + bytes(f.bytes), 14, false, opens ? R.color.accent : R.color.ink_2);
-            row.setMinHeight(ui.px(40));
+            row.setMinHeight(ui.px(48));
             row.setGravity(android.view.Gravity.CENTER_VERTICAL);
             row.setSingleLine(true);
             row.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
@@ -1051,12 +1055,11 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
             share.setOnClickListener(v -> share(new File(live.destination), live.name));
             buttons.add(share);
         }
-        LinearLayout done = action(awayLabel, 0, NearbyUi.QUIET, away);
         LinearLayout box = ui.column();
         if (buttons.size() >= 2) box.addView(ui.pair(buttons.get(0), buttons.get(1)));
         else if (buttons.size() == 1) box.addView(ui.stack(buttons.get(0)));
         if (buttons.size() > 2) box.addView(ui.stack(buttons.get(2)));
-        box.addView(ui.inline(done));
+        if (away != null) box.addView(ui.inline(action(awayLabel, 0, NearbyUi.QUIET, away)));
         return box;
     }
 
@@ -1081,7 +1084,7 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         if (look != null) item.addView(look);
         item.addView(placeLine(e));
         if (e.state == ReceivedLog.State.SAVED) checkStillThere(e);
-        item.addView(arrivalActions(e, () -> forgetEntry(e.id), "Remove from list", null));
+        item.addView(arrivalActions(e, e.state == ReceivedLog.State.SAVING ? null : () -> forgetEntry(e.id), "Remove from list", null));
         return item;
     }
 
@@ -1128,8 +1131,8 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
             try {
                 if (uri.startsWith("sample:")) b = sampleThumb(uri);
                 else if (Build.VERSION.SDK_INT >= 29) b = getContentResolver().loadThumbnail(Uri.parse(uri), new Size(256, 256), null);
-            } catch (IOException | RuntimeException notThere) {
-                missing.add(uri);
+            } catch (IOException | RuntimeException cantDraw) {
+                // No picture for it; whether it's still there is checked on its own.
             }
             if (b == null) return;
             thumbCache.put(uri, b);
@@ -1193,12 +1196,9 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
             say("A sample screen: nothing is shared.");
             return;
         }
-        if (e.state == ReceivedLog.State.KEPT && e.source != null) {
-            share(new File(e.source), e.name);
-            return;
-        }
         ArrayList<Uri> uris = new ArrayList<>();
         for (ReceivedLog.FileRecord f : e.files) if (f.published && f.uri != null && uris.size() < MAX_SHARED) uris.add(Uri.parse(f.uri));
+        if (e.state == ReceivedLog.State.KEPT && e.source != null) collect(new File(e.source), uris);
         if (uris.isEmpty()) {
             say("Nothing from it is on this phone any more.");
             return;

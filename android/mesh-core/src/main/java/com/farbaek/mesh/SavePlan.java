@@ -127,7 +127,12 @@ public final class SavePlan {
 
     /** RELATIVE_PATH for a file: the place, the transfer's folder, then the file's own subfolders, ending in "/". */
     public static String relativeDir(Place place, String folder, String relativePath) {
-        StringBuilder b = new StringBuilder(place.root).append(folder).append('/');
+        return relativeDir(place.root, folder, relativePath);
+    }
+
+    /** The same, from a given root, such as "DCIM/Farbaek/" where Android 10 wants videos. */
+    public static String relativeDir(String root, String folder, String relativePath) {
+        StringBuilder b = new StringBuilder(root).append(folder).append('/');
         String[] parts = relativePath.replace('\\', '/').split("/");
         for (int i = 0; i < parts.length - 1; i++) {
             if (parts[i].isEmpty() || parts[i].equals(".") || parts[i].equals("..")) continue;

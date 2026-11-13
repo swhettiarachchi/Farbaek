@@ -93,6 +93,18 @@ public class ReceivedLogTest {
     }
 
     @Test
+    public void anEntryTakenOffTheListIsntPutBackByTheSaver() throws Exception {
+        File file = new File(tmp.getRoot(), "received.json");
+        ReceivedLog log = new ReceivedLog(file);
+        ReceivedLog.Entry e = entry("t1", ReceivedLog.State.SAVED);
+        log.put(e);
+        log.remove("t1");
+        e.files.get(0).published = true;
+        assertFalse(log.update(e));
+        assertNull(new ReceivedLog(file).get("t1"));
+    }
+
+    @Test
     public void keptInNearbyHasNoPlaceAndRemovesById() throws Exception {
         File file = new File(tmp.getRoot(), "received.json");
         ReceivedLog log = new ReceivedLog(file);

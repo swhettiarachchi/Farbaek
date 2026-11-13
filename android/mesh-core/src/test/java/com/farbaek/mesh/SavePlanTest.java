@@ -46,6 +46,7 @@ public class SavePlanTest {
         assertEquals("Pictures/Farbaek/Site photos/", SavePlan.relativeDir(SavePlan.Place.GALLERY, "Site photos", "IMG_1.jpg"));
         assertEquals("Download/Farbaek/Brand kit/fonts/web/", SavePlan.relativeDir(SavePlan.Place.DOWNLOADS, "Brand kit", "fonts/web/a.woff2"));
         assertEquals("Download/Farbaek/Kit/a/", SavePlan.relativeDir(SavePlan.Place.DOWNLOADS, "Kit", "../a/./x.txt"));
+        assertEquals("DCIM/Farbaek/Trip/", SavePlan.relativeDir("DCIM/Farbaek/", "Trip", "clip.mp4"));
         assertEquals("a.woff2", SavePlan.fileName("fonts/web/a.woff2", 1));
         assertEquals("file-3", SavePlan.fileName("fonts/", 3));
     }
