@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { KeyboardMark } from "@/components/app/keyboard-mark";
 import { AndroidAppMarker } from "@/components/billing/web-purchase-only";
+import { siteUrl } from "@/server/supabase/config";
 import "./globals.css";
 
 // next/font downloads these at build time and serves them from our own origin.
@@ -9,6 +10,8 @@ const sans = Geist({ subsets: ["latin"], variable: "--font-geist", display: "swa
 const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono", display: "swap", preload: false });
 
 export const metadata: Metadata = {
+  // Absolute addresses for canonical links and sharing tags (stage 186).
+  metadataBase: new URL(siteUrl()),
   title: { default: "Farbaek: from idea to verified software", template: "%s | Farbaek" },
   description:
     "Farbaek plans each change, runs the real checks, keeps the evidence and waits for your approval before anything ships.",

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { FeatureFilmsSection, ProductFilmSection, ProofFilmSection } from "@/components/films/film-sections";
 import { AnchorLayout } from "@/components/marketing/anchor-layout";
@@ -10,6 +11,17 @@ import { PricingTeaser } from "@/components/marketing/pricing-teaser";
 import { StatementSection } from "@/components/marketing/statement-section";
 import { StatusSection } from "@/components/marketing/status-section";
 import { ShowcaseSection } from "@/components/showcase/showcase-section";
+import { HOME_DESCRIPTION, HOME_TITLE, homeStructuredData, jsonLdText } from "@/core/seo/structured-data";
+import { siteUrl } from "@/server/supabase/config";
+
+/** Search and sharing lead with "vibe coding", what people search for (stage 186, src/core/seo/structured-data.ts). */
+export const metadata: Metadata = {
+  title: { absolute: `${HOME_TITLE} | Farbaek` },
+  description: HOME_DESCRIPTION,
+  alternates: { canonical: "/" },
+  openGraph: { type: "website", url: "/", siteName: "Farbaek", title: HOME_TITLE, description: HOME_DESCRIPTION },
+  twitter: { card: "summary", title: HOME_TITLE, description: HOME_DESCRIPTION },
+};
 
 /**
  * Below the first screen, each section is laid out only as it nears the
@@ -25,6 +37,8 @@ function Later({ children }: { children: ReactNode }) {
 export default function HomePage() {
   return (
     <>
+      {/* Facts for search engines, from a fixed object; jsonLdText escapes "<" so it can't close the tag. */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdText(homeStructuredData(siteUrl())) }} />
       <AnchorLayout />
       <Hero />
       <ProductFilmSection />

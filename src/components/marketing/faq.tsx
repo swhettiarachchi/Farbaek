@@ -32,6 +32,10 @@ export function FaqList({ items }: { items: FaqItem[] }) {
 
 const HOME_FAQ: FaqItem[] = [
   {
+    q: "Is Farbaek a vibe coding tool?",
+    a: "Yes. You describe the app or website you want in your own words, and an AI agent builds it, as in other vibe coding tools. Farbaek adds what makes it safe to ship: a plan you approve before anything is built, the real checks run in an isolated test space, and proof of what changed. Unless you choose to let small checked changes apply on their own, nothing goes into your project until you approve it, and nothing goes live until you publish it.",
+  },
+  {
     q: "Can I sign up today?",
     a: `Yes. Sign in with your email and your workspace starts a ${TRIAL.lengthDays}-day ${getPlan(TRIAL.basePlan).name} trial, with no card. When the trial ends you move to Free, and nothing is charged unless you choose a paid plan.`,
   },
