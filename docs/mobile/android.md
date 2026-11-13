@@ -135,7 +135,8 @@ Before releasing it:
 2. **Foreground service declaration.** Play Console → **App content → Foreground service permissions**:
    - **Type:** Data sync.
    - **What it does:** "Moves files the person chose between this phone and their own paired computer on the same Wi-Fi, with progress in a notification, so a transfer finishes with the screen off."
-   - **Video:** Play asks for a short screen recording of a transfer, made on your phone.
+   - **Task:** under Network processing, Other.
+   - **Video:** `https://www.farbaek.com/media/play/nearby-foreground-service.mp4`. It's the Android launch check's own recording (run 24, Android 14): Nearby opens, Visible is turned on, and the ongoing "Visible to your computers on this Wi-Fi" notification shows. If Google asks for a transfer too, record one on your phone once 1.3.1 is installed.
 3. **Data safety:** nothing new is collected. The files go from the phone to the person's own computer, and nothing about them reaches Farbaek.
 4. **The first real check,** with your phone and your computer on the same Wi-Fi:
    1. In the desktop app, open Nearby and choose **Be visible**.
