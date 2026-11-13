@@ -106,6 +106,10 @@ jobs:
           # Nearby (ADR 0193): the link the Mesh page uses opens the native screen; turning on "Visible to your
           # computers" starts the dataSync foreground service, the step Android 14 and 15's rules can stop.
           adb shell pm grant com.farbaek.app android.permission.POST_NOTIFICATIONS || true
+          # A screen recording of what follows (Nearby opening, Visible turned on, its notification) is kept as
+          # out/nearby.mp4: Google Play's foreground service declaration asks for a video of the service in use.
+          adb shell screenrecord --time-limit 180 /sdcard/nearby.mp4 > /dev/null 2>&1 &
+          recording=$!
           adb shell am start -W -a android.intent.action.VIEW -d "farbaek-mesh://nearby" com.farbaek.app | tee out/nearby-start.txt
           # Nearby opens at once and shows "Starting Nearby…" while its key loads, which is slow on an emulator with
           # software graphics, and uiautomator fails while the screen is busy. Run 18 dumped once, at 8 s, and got
@@ -129,6 +133,19 @@ jobs:
             sleep 6
           fi
           adb exec-out screencap -p > out/nearby.png
+          # The ongoing notification the service shows while visible, for the recording and as a picture.
+          if [ -n "$bounds" ]; then
+            adb shell cmd statusbar expand-notifications || true
+            sleep 5
+            adb exec-out screencap -p > out/nearby-notification.png
+            adb shell cmd statusbar collapse || true
+            sleep 2
+          fi
+          # SIGINT lets screenrecord finish the file properly.
+          adb shell pkill -INT screenrecord || true
+          wait "$recording" 2>/dev/null || true
+          sleep 2
+          adb pull /sdcard/nearby.mp4 out/nearby.mp4 > /dev/null 2>&1 || true
           adb shell dumpsys activity services com.farbaek.app | grep -E "ServiceRecord|isForeground|foregroundServiceType" | tee out/nearby-service.txt || true
           service_foreground=$(grep -c 'isForeground=true' out/nearby-service.txt || true)
 
