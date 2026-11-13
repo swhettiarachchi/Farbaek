@@ -2,6 +2,7 @@ package com.farbaek.app.mesh;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Handler;
@@ -15,12 +16,21 @@ import androidx.core.content.ContextCompat;
 import com.farbaek.mesh.Discovery;
 import com.farbaek.mesh.MeshListener;
 import com.farbaek.mesh.MeshNode;
+import com.farbaek.mesh.ReceivedLog;
+import com.farbaek.mesh.SavePlan;
 import com.farbaek.mesh.TransferState;
 import com.farbaek.mesh.TransferView;
 
 import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -70,11 +80,27 @@ final class MeshHub implements MeshListener {
     /** Set when Android ended the service at its daily limit; cleared when the person is back on the screen. */
     private volatile boolean limitReached;
 
+    /**
+     * Arrivals (stage 188, ADR 0196): what came, and how far each copy into Gallery or Downloads has got. Copies run on
+     * their own thread, so a large one never holds up sending or pairing, and count as busy work, so the service keeps
+     * the app alive until they're done.
+     */
+    private final ReceivedLog received;
+    private final ExecutorService saver = Executors.newSingleThreadExecutor();
+    private final AtomicInteger saving = new AtomicInteger();
+    private final SharedPreferences prefs;
+    /** Whether Nearby is on screen: notifications aren't needed while it is. */
+    private volatile boolean onScreen;
+    /** Offers already announced, so progress updates don't announce them again. */
+    private final Set<String> offersAnnounced = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
+
     private final long createdAt = SystemClock.elapsedRealtime();
 
     private MeshHub(final Context app) {
         this.app = app;
         dir = new File(app.getFilesDir(), "mesh");
+        received = new ReceivedLog(new File(app.getFilesDir(), "nearby-received.json"));
+        prefs = app.getSharedPreferences("nearby", Context.MODE_PRIVATE);
         final KeystoreVault vault = new KeystoreVault(new File(dir, "identity.sealed"));
         MeshNode.Options options = new MeshNode.Options();
         options.dataDir = dir;
@@ -106,6 +132,7 @@ final class MeshHub implements MeshListener {
                     node.init();
                     ready = true;
                     Log.i(TAG, "Nearby started after " + startingFor() + " ms");
+                    resumeSaves();
                 } catch (Exception e) {
                     startProblem = e.getMessage() != null ? e.getMessage() : "Nearby couldn't start on this phone.";
                     Log.w(TAG, "Nearby couldn't start: " + e.getClass().getSimpleName());
@@ -209,6 +236,14 @@ final class MeshHub implements MeshListener {
 
     @Override
     public void onTransfer(TransferView transfer) {
+        if ("in".equals(transfer.direction)) {
+            if (transfer.state == TransferState.OFFERED) {
+                if (!onScreen && offersAnnounced.add(transfer.id)) NearbyNotices.offer(app, transfer);
+            } else if (offersAnnounced.remove(transfer.id)) {
+                NearbyNotices.cancelOffer(app, transfer.id);
+            }
+            if (transfer.state == TransferState.DONE && transfer.destination != null) arrived(transfer);
+        }
         changed();
     }
 
@@ -274,7 +309,7 @@ final class MeshHub implements MeshListener {
         boolean network = visible || s.looking;
         if (network) acquireLock();
         else releaseLock();
-        boolean busy = visible || activeTransfers(s) > 0;
+        boolean busy = visible || activeTransfers(s) > 0 || saving.get() > 0;
         if (busy && !serviceWanted && !limitReached) {
             serviceWanted = true;
             try {
@@ -311,6 +346,173 @@ final class MeshHub implements MeshListener {
                 } catch (Exception ignored) {
                     // Already hidden.
                 }
+            }
+        });
+    }
+
+    // Arrivals
+
+    ReceivedLog received() {
+        return received;
+    }
+
+    /** Whether checked arrivals are saved into Gallery and Downloads (Android 10 and later; on by default). */
+    boolean saveShared() {
+        return MediaSaver.available() && prefs.getBoolean("saveShared", true);
+    }
+
+    void setSaveShared(boolean on) {
+        prefs.edit().putBoolean("saveShared", on).apply();
+        changed();
+    }
+
+    /** Nearby came on screen, or left it. While it's on screen, an offer's notification isn't needed. */
+    void setOnScreen(boolean on) {
+        onScreen = on;
+        if (on) for (String id : new ArrayList<>(offersAnnounced)) NearbyNotices.cancelOffer(app, id);
+    }
+
+    /** Whether copies into shared storage are still running. */
+    boolean saving() {
+        return saving.get() > 0;
+    }
+
+    /**
+     * A transfer was checked and is done: recorded once, then saved where people look, or kept in Nearby when the
+     * switch is off or this Android is older. Called on Mesh's threads, as often as the transfer reports.
+     */
+    private synchronized void arrived(TransferView t) {
+        if (received.get(t.id) != null) return;
+        File folder = new File(t.destination);
+        List<ReceivedLog.FileRecord> files = new ArrayList<>();
+        List<String> paths = new ArrayList<>();
+        try {
+            list(folder.getCanonicalFile(), "", files, 0);
+        } catch (IOException e) {
+            Log.w(TAG, "An arrival couldn't be listed: " + e.getClass().getSimpleName());
+        }
+        for (ReceivedLog.FileRecord f : files) paths.add(f.path);
+        boolean share = saveShared() && !files.isEmpty();
+        SavePlan.Place place = share ? SavePlan.placeFor(paths) : null;
+        String name = SavePlan.display(t.name);
+        String where = share ? SavePlan.uniqueFolder(t.name, usedFolders(place)) : folder.getAbsolutePath();
+        ReceivedLog.Entry e = new ReceivedLog.Entry(t.id, name, SavePlan.display(t.peerName), System.currentTimeMillis(), place, where, files,
+                share ? ReceivedLog.State.SAVING : ReceivedLog.State.KEPT);
+        e.source = folder.getAbsolutePath();
+        if (!share) e.note = MediaSaver.available() ? "Saving to Gallery and Downloads is off, so it stays in Nearby." : "On this version of Android, files stay in Nearby. Share them from here.";
+        try {
+            received.put(e);
+        } catch (IOException ex) {
+            Log.w(TAG, "An arrival couldn't be recorded: " + ex.getClass().getSimpleName());
+            return;
+        }
+        if (share) save(e);
+        else announce(e);
+    }
+
+    /** The folder names already used in a place, so a new arrival gets its own. */
+    private Set<String> usedFolders(SavePlan.Place place) {
+        Set<String> used = new HashSet<>();
+        for (ReceivedLog.Entry e : received.list()) if (e.place == place) used.add(e.folder);
+        return used;
+    }
+
+    /** The files in a received folder, with paths inside it: no links followed, at most 10,000, 24 levels down. */
+    private static void list(File dir, String prefix, List<ReceivedLog.FileRecord> into, int depth) throws IOException {
+        File[] kids = dir.listFiles();
+        if (kids == null || depth > 24) return;
+        java.util.Arrays.sort(kids);
+        String root = dir.getCanonicalPath() + File.separator;
+        for (File k : kids) {
+            if (into.size() >= 10_000) return;
+            if (k.getName().startsWith(".farbaek-")) continue;
+            File real = k.getCanonicalFile();
+            if (!real.getPath().startsWith(root)) continue;
+            String rel = prefix + k.getName();
+            if (real.isDirectory()) list(real, rel + "/", into, depth + 1);
+            else if (real.isFile()) into.add(new ReceivedLog.FileRecord(rel, real.length(), SavePlan.mime(rel)));
+        }
+    }
+
+    /** Copies an arrival into shared storage on the saver's thread. If it can't, the files stay in Nearby and it says why. */
+    private void save(final ReceivedLog.Entry e) {
+        saving.incrementAndGet();
+        changed();
+        saver.execute(guard(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    if (Build.VERSION.SDK_INT < 29) throw new IOException("This version of Android keeps files in Nearby.");
+                    new MediaSaver(app).save(received, e, new File(e.source));
+                    e.source = null;
+                    received.update(e);
+                } catch (IOException | RuntimeException ex) {
+                    e.state = ReceivedLog.State.KEPT;
+                    String why = ex.getMessage() != null ? ex.getMessage() : "This phone stopped the copy.";
+                    e.note = "Couldn't save it to " + (e.place == null ? "shared storage" : e.place.label) + ". " + why + " It's kept in Nearby, and Share still works.";
+                    try {
+                        received.update(e);
+                    } catch (IOException ignored) {
+                        // The note is on screen until the app restarts.
+                    }
+                } finally {
+                    saving.decrementAndGet();
+                    announce(e);
+                    changed();
+                }
+            }
+        }));
+    }
+
+    /** Tries saving a kept arrival again: what was already saved stays saved, and the rest is copied. */
+    void retrySave(final String id) {
+        run(new Runnable() {
+            @Override
+            public void run() {
+                ReceivedLog.Entry e = received.get(id);
+                if (e == null || e.state != ReceivedLog.State.KEPT || e.place == null || e.source == null || !MediaSaver.available()) return;
+                e.state = ReceivedLog.State.SAVING;
+                e.note = null;
+                try {
+                    received.update(e);
+                } catch (IOException ignored) {
+                    return;
+                }
+                save(e);
+            }
+        });
+    }
+
+    /** Copies that were cut short when Android stopped the app carry on where they were. */
+    private void resumeSaves() {
+        for (ReceivedLog.Entry e : received.list()) {
+            if (e.state == ReceivedLog.State.SAVING && e.place != null && e.source != null && MediaSaver.available()) save(e);
+        }
+    }
+
+    /** Tells the person once, with a notification when Nearby isn't on screen. */
+    private void announce(ReceivedLog.Entry e) {
+        if (e.notified) return;
+        e.notified = true;
+        try {
+            received.update(e);
+        } catch (IOException ignored) {
+            // Told again after a restart at worst.
+        }
+        if (!onScreen) NearbyNotices.arrived(app, e);
+    }
+
+    /** Takes an arrival off the list. Files saved in Gallery or Downloads stay there. */
+    void forgetReceived(final String id) {
+        run(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    received.remove(id);
+                } catch (IOException ignored) {
+                    // Still listed; the person can try again.
+                }
+                changed();
             }
         });
     }

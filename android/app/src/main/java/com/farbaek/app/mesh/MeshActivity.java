@@ -3,6 +3,15 @@ package com.farbaek.app.mesh;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.DownloadManager;
+import android.content.ActivityNotFoundException;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.LinearGradient;
+import android.graphics.Paint;
+import android.graphics.Shader;
+import android.util.LruCache;
+import android.util.Size;
 import android.content.ClipData;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -41,6 +50,8 @@ import com.farbaek.app.R;
 import com.farbaek.mesh.Discovery;
 import com.farbaek.mesh.MeshNode;
 import com.farbaek.mesh.NearbySamples;
+import com.farbaek.mesh.ReceivedLog;
+import com.farbaek.mesh.SavePlan;
 import com.farbaek.mesh.TransferState;
 import com.farbaek.mesh.TransferView;
 import com.farbaek.mesh.TrustStore;
@@ -57,6 +68,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Nearby (ADR 0193): this phone and the person's computers on the same Wi-Fi,
@@ -118,6 +132,11 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
     /** Each moving transfer's bar and amount, by transfer, for those in-place updates. */
     private final java.util.Map<String, android.widget.ProgressBar> bars = new java.util.HashMap<>();
     private final java.util.Map<String, TextView> amounts = new java.util.HashMap<>();
+    /** Thumbnails of saved photos and videos, loaded off the main thread and kept for a while. */
+    private final ExecutorService thumbs = Executors.newSingleThreadExecutor();
+    private final LruCache<String, Bitmap> thumbCache = new LruCache<>(32);
+    /** Saved items the person has since deleted in Gallery or Files, found while loading their thumbnails. */
+    private final Set<String> missing = java.util.Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
     /** Received folders' sizes, by path and time, so a folder is walked once, not on every drawing. */
     private final java.util.Map<String, long[]> sizes = new java.util.HashMap<>();
 
@@ -126,6 +145,13 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         super.onCreate(state);
         ui = new NearbyUi(this);
         sample = NearbySamples.available() ? getIntent().getStringExtra("sample") : null;
+        // Debug builds only: the launch check photographs Nearby's notifications, drawn from the samples.
+        if (sample != null && getIntent().getBooleanExtra("notify", false)) {
+            MeshNode.Snapshot offer = NearbySamples.snapshot("offer");
+            if (offer != null && !offer.transfers.isEmpty()) NearbyNotices.offer(this, offer.transfers.get(0));
+            List<ReceivedLog.Entry> arrived = NearbySamples.entries("arrived");
+            if (!arrived.isEmpty()) NearbyNotices.arrived(this, arrived.get(0));
+        }
         if (sample == null) {
             hub = MeshHub.get(this);
             MeshService.channel(this);
@@ -154,7 +180,7 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         dynamic = ui.column();
         page.addView(dynamic);
         page.addView(addressCard());
-        TextView foot = ui.caption("Received folders stay in this app's private storage until you share or delete them. Nearby only works with computers you paired, and every file is checked against what was sent.");
+        TextView foot = ui.caption("Received files go to Gallery or Downloads when Save to Gallery and Downloads is on, where your other apps can see them; otherwise they stay in this app's private storage until you share or delete them. Nearby only works with computers you paired, and every file is checked against what was sent.");
         NearbyUi.top(foot, 24);
         page.addView(foot);
 
@@ -274,6 +300,18 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        if (hub != null) hub.setOnScreen(true);
+    }
+
+    @Override
+    protected void onPause() {
+        if (hub != null) hub.setOnScreen(false);
+        super.onPause();
+    }
+
+    @Override
     public void onMeshChanged() {
         render();
     }
@@ -302,8 +340,9 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         dynamic.removeCallbacks(whileStarting);
         MeshNode.Snapshot s = sample != null ? NearbySamples.snapshot(sample) : hub.ready() ? hub.snapshot() : null;
         String reset = s != null && hub != null ? hub.resetNotice() : null;
-        List<Received> received = s == null ? null : sample != null ? NearbySamples.received(sample) : receivedFolders(s);
-        String now = s == null ? null : signature(s, reset, received);
+        List<ReceivedLog.Entry> entries = s == null ? null : sample != null ? NearbySamples.entries(sample) : hub.received().list();
+        List<Received> received = s == null ? null : sample != null ? NearbySamples.received(sample) : receivedFolders(s, entries);
+        String now = s == null ? null : signature(s, reset, received) + arrivalsSignature(entries);
         if (now != null && now.equals(drawn)) {
             moveBars(s);
             return;
@@ -348,12 +387,12 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         for (TrustStore.TrustedDevice d : s.devices) if (!"farbaek".equals(d.via)) computers.add(d);
 
         if (s.pairing != null) show(pairingCard(s.pairing), "pairing:" + s.pairing.id + ":" + s.pairing.state);
-        if (!s.transfers.isEmpty()) show(transfersCard(s.transfers), "transfers");
+        if (!s.transfers.isEmpty()) show(transfersCard(s.transfers, entries), "transfers");
         show(computersCard(s, computers), null);
         View nearby = nearbyCard(s, computers.isEmpty());
         if (nearby != null) show(nearby, "nearby");
         show(phoneCard(s), null);
-        View receivedCard = receivedCard(received);
+        View receivedCard = receivedCard(received, entries, s.transfers);
         if (receivedCard != null) show(receivedCard, "received");
         firstRender = false;
     }
@@ -372,6 +411,23 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         }
         for (Received r : received) b.append("|r:").append(r.name).append(',').append(r.files).append(',').append(r.bytes).append(',').append(r.when);
         return b.toString();
+    }
+
+    /** What the arrivals show: each one's state and how much is saved, the switch, and what was found deleted. */
+    private String arrivalsSignature(List<ReceivedLog.Entry> entries) {
+        StringBuilder b = new StringBuilder("|save:").append(saveShared()).append("|missing:").append(missing.size()).append("|notify:").append(NearbyNotices.allowed(this));
+        for (ReceivedLog.Entry e : entries) {
+            int published = 0;
+            for (ReceivedLog.FileRecord f : e.files) if (f.published) published++;
+            b.append("|e:").append(e.id).append(',').append(e.state).append(',').append(published).append(',').append(e.note);
+        }
+        return b.toString();
+    }
+
+    /** Whether arrivals are saved to Gallery and Downloads: the switch, on by default, from Android 10. */
+    private boolean saveShared() {
+        if (sample != null) return MediaSaver.available() && !"kept".equals(sample);
+        return hub.saveShared();
     }
 
     /** Only progress changed: each bar slides to its new place, and its amount follows. */
@@ -569,7 +625,7 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         }
     }
 
-    private View transfersCard(List<TransferView> transfers) {
+    private View transfersCard(List<TransferView> transfers, List<ReceivedLog.Entry> entries) {
         LinearLayout c = ui.card();
         c.addView(ui.title(R.drawable.ph_arrows_down_up_regular, "Transfers"));
         boolean first = true;
@@ -577,6 +633,10 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
             if (!first) c.addView(ui.divider());
             first = false;
             boolean in = "in".equals(t.direction);
+            if (in && t.state == TransferState.DONE) {
+                c.addView(arrival(t, entryFor(entries, t.id)));
+                continue;
+            }
             LinearLayout item = ui.column();
             NearbyUi.top(item, 16);
             View badge = ui.badge(kind(t), label(t));
@@ -615,6 +675,7 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
                 item.addView(spaced(ui.text(t.message, 13, false, t.state == TransferState.FAILED ? R.color.failed : R.color.ink_2)));
             }
             if (in && t.state == TransferState.OFFERED) {
+                item.addView(offerPlace());
                 item.addView(ui.pair(action("Accept", R.drawable.ph_check_bold, NearbyUi.PRIMARY, () -> hub.node().accept(t.id, hub.inbox(), null)),
                         action("Decline", R.drawable.ph_x_bold, NearbyUi.SECONDARY, () -> hub.node().decline(t.id))));
             } else if (!t.state.isFinal() && t.state != TransferState.INTERRUPTED) {
@@ -664,6 +725,14 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         sl.leftMargin = ui.px(12);
         row.addView(visible, sl);
         c.addView(row);
+        if (sample == null && !NearbyNotices.allowed(this)) {
+            TextView off = ui.caption("Notifications are off for Farbaek, so offers and arrivals show only on this screen.");
+            NearbyUi.top(off, 8);
+            c.addView(off);
+            LinearLayout turnOn = ui.button("Turn on notifications", 0, NearbyUi.QUIET);
+            turnOn.setOnClickListener(v -> notificationSettings());
+            c.addView(ui.inline(turnOn));
+        }
         c.addView(ui.divider());
         TextView name = ui.text("This phone is " + s.name, 15, false, R.color.ink_2);
         NearbyUi.top(name, 14);
@@ -675,10 +744,23 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
     }
 
     /** Every folder received here, still on this phone after the transfer is gone from the list or the app was closed. */
-    private View receivedCard(List<Received> shownFolders) {
-        if (shownFolders.isEmpty()) return null;
+    private View receivedCard(List<Received> shownFolders, List<ReceivedLog.Entry> entries, List<TransferView> transfers) {
+        List<ReceivedLog.Entry> listedEntries = new ArrayList<>();
+        for (ReceivedLog.Entry e : entries) {
+            boolean live = false;
+            for (TransferView t : transfers) if (t.id.equals(e.id)) live = true;
+            if (!live) listedEntries.add(e);
+        }
+        if (shownFolders.isEmpty() && listedEntries.isEmpty()) return null;
         LinearLayout c = ui.card();
         c.addView(ui.title(R.drawable.ph_tray_arrow_down_regular, "Received"));
+        boolean firstEntry = true;
+        for (ReceivedLog.Entry e : listedEntries) {
+            if (!firstEntry) c.addView(ui.divider());
+            firstEntry = false;
+            c.addView(receivedEntry(e));
+        }
+        if (!listedEntries.isEmpty() && !shownFolders.isEmpty()) c.addView(ui.divider());
         int listed = 0;
         for (final Received r : shownFolders) {
             if (++listed > 30) {
@@ -702,9 +784,11 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         return c;
     }
 
-    private List<Received> receivedFolders(MeshNode.Snapshot s) {
+    private List<Received> receivedFolders(MeshNode.Snapshot s, List<ReceivedLog.Entry> entries) {
         Set<String> live = new HashSet<>();
-        for (TransferView t : s.transfers) if (t.destination != null && !t.state.isFinal()) live.add(new File(t.destination).getName());
+        for (TransferView t : s.transfers) if (t.destination != null) live.add(new File(t.destination).getName());
+        // Arrivals in the log are listed from it, whether they were saved out or kept here.
+        for (ReceivedLog.Entry e : entries) if (e.source != null) live.add(new File(e.source).getName());
         File[] folders = hub.inbox().listFiles();
         List<File> kept = new ArrayList<>();
         if (folders != null) {
@@ -800,6 +884,345 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
             if (addressOpen) NearbyUi.riseIn(body, getResources().getDisplayMetrics().density);
         });
         return c;
+    }
+
+    // Arrivals (stage 188, ADR 0196): what came, a look at it, where it is, and one tap to open it.
+
+    private static ReceivedLog.Entry entryFor(List<ReceivedLog.Entry> entries, String id) {
+        for (ReceivedLog.Entry e : entries) if (e.id.equals(id)) return e;
+        return null;
+    }
+
+    /** Where an offer's files will go, said before Accept, with the switch beside it: Accept is consent to that place. */
+    private View offerPlace() {
+        LinearLayout box = ui.column();
+        NearbyUi.top(box, 12);
+        if (!MediaSaver.available()) {
+            box.addView(ui.text("It stays in Nearby, and you can share it from here.", 14, false, R.color.ink_2));
+            return box;
+        }
+        final boolean on = saveShared();
+        LinearLayout row = ui.row();
+        row.setMinimumHeight(ui.px(48));
+        LinearLayout words = ui.column();
+        words.addView(ui.text("Save to Gallery and Downloads", 15, true, R.color.ink));
+        TextView where = ui.caption(on ? "Photos and videos go to Gallery › Farbaek, other files to Downloads › Farbaek, where your other apps can see them."
+                : "Off: it stays in Nearby, and you can share it from here.");
+        NearbyUi.top(where, 2);
+        words.addView(where);
+        row.addView(words, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        final Switch toggle = new Switch(this);
+        toggle.setChecked(on);
+        toggle.setContentDescription("Save to Gallery and Downloads");
+        ui.styleSwitch(toggle);
+        toggle.setOnCheckedChangeListener((b, checked) -> {
+            if (hub != null) hub.setSaveShared(checked);
+        });
+        LinearLayout.LayoutParams tl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        tl.leftMargin = ui.px(12);
+        row.addView(toggle, tl);
+        box.addView(row);
+        return box;
+    }
+
+    /** The arrival: the moment people came for. Calm, brief, then out of the way. */
+    private View arrival(final TransferView t, final ReceivedLog.Entry e) {
+        LinearLayout item = ui.column();
+        NearbyUi.top(item, 16);
+        View badge = e == null || e.state == ReceivedLog.State.SAVING ? ui.badge(NearbyUi.Kind.WORKING, e != null && e.place == SavePlan.Place.GALLERY ? "Saving to Gallery" : "Saving")
+                : e.state == ReceivedLog.State.SAVED ? ui.badge(NearbyUi.Kind.VERIFIED, "Saved")
+                : e.note != null && e.note.startsWith("Couldn't") ? ui.badge(NearbyUi.Kind.ATTENTION, "Not saved") : ui.badge(NearbyUi.Kind.INFO, "Kept in Nearby");
+        LinearLayout head = ui.row();
+        ImageView check = ui.icon(R.drawable.ph_check_circle_fill, 28, R.color.verified);
+        head.addView(check, new LinearLayout.LayoutParams(ui.px(28), ui.px(28)));
+        TextView title = ui.text("Arrived from " + SavePlan.display(t.peerName), 17, true, R.color.ink);
+        LinearLayout.LayoutParams hl = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        hl.leftMargin = ui.px(10);
+        head.addView(title, hl);
+        item.addView(head);
+        NearbyUi.top(badge, 10);
+        item.addView(badge);
+        if (celebrated.add("transfer:" + t.id) && !firstRender) {
+            NearbyUi.pop(check);
+            tap();
+        }
+        List<String> paths = e == null ? new ArrayList<String>() : e.paths();
+        TextView what = ui.text(SavePlan.summary(paths, t.files) + ", " + bytes(t.bytes) + ". Every file matched what was sent.", 15, false, R.color.ink_2);
+        NearbyUi.top(what, 10);
+        item.addView(what);
+        if (e != null) {
+            View look = thumbsRow(e);
+            if (look != null) item.addView(look);
+            item.addView(placeLine(e));
+            item.addView(fileRows(e, 4));
+        }
+        item.addView(arrivalActions(e, () -> hub.node().dismiss(t.id), "Done", t));
+        return item;
+    }
+
+    /** Where it is: "Saved in Gallery › Farbaek › Site photos", "Saving to …", or why it stayed in Nearby. */
+    private View placeLine(ReceivedLog.Entry e) {
+        String words = e.state == ReceivedLog.State.SAVED ? "Saved in " + e.placeLabel() + "."
+                : e.state == ReceivedLog.State.SAVING ? "Saving to " + e.placeLabel() + "…"
+                : e.note != null ? e.note : "It's in Nearby. Share it to keep it elsewhere.";
+        TextView t = ui.text(words, 14, e.state == ReceivedLog.State.SAVED, e.state == ReceivedLog.State.SAVED ? R.color.ink : R.color.ink_2);
+        NearbyUi.top(t, 10);
+        return t;
+    }
+
+    /** Up to four photos or videos, each opening in the phone's own viewer. */
+    private View thumbsRow(final ReceivedLog.Entry e) {
+        LinearLayout row = ui.row();
+        int shown = 0;
+        for (final ReceivedLog.FileRecord f : e.files) {
+            if (shown >= 4) break;
+            String kind = SavePlan.kind(f.path);
+            if (!f.published || f.uri == null || !(kind.equals("photo") || kind.equals("video"))) continue;
+            final ImageView img = new ImageView(this);
+            img.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            img.setBackground(ui.rounded(R.color.surface_sunken, 12, R.color.line, 1));
+            img.setClipToOutline(true);
+            img.setContentDescription("Open " + SavePlan.display(f.shown != null ? f.shown : SavePlan.fileName(f.path, 0)));
+            img.setFocusable(true);
+            img.setClickable(true);
+            img.setOnClickListener(v -> openFile(f));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ui.px(72), ui.px(72));
+            if (shown > 0) lp.leftMargin = ui.px(8);
+            row.addView(img, lp);
+            loadThumb(img, f.uri);
+            shown++;
+        }
+        if (shown == 0) return null;
+        NearbyUi.top(row, 12);
+        return row;
+    }
+
+    /** The files that came, each with its size; a tap opens it when it's a kind that opens in a viewer. */
+    private View fileRows(ReceivedLog.Entry e, int max) {
+        LinearLayout list = ui.column();
+        NearbyUi.top(list, 6);
+        int shown = 0;
+        for (final ReceivedLog.FileRecord f : e.files) {
+            if (shown >= max) break;
+            shown++;
+            String name = SavePlan.display(f.shown != null ? f.shown : SavePlan.fileName(f.path, shown));
+            boolean opens = f.published && f.uri != null && SavePlan.canOpen(f.path);
+            TextView row = ui.text(name + "  ·  " + bytes(f.bytes), 14, false, opens ? R.color.accent : R.color.ink_2);
+            row.setMinHeight(ui.px(40));
+            row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            row.setSingleLine(true);
+            row.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
+            if (opens) {
+                row.setClickable(true);
+                row.setFocusable(true);
+                row.setContentDescription("Open " + name);
+                row.setOnClickListener(v -> openFile(f));
+            }
+            list.addView(row);
+        }
+        if (e.files.size() > max) list.addView(ui.caption("And " + (e.files.size() - max) + " more."));
+        return list;
+    }
+
+    /** What to do with an arrival: open or show where it is, share it, try saving again, or put it away. */
+    private View arrivalActions(final ReceivedLog.Entry e, final MeshCall away, String awayLabel, final TransferView live) {
+        List<View> buttons = new ArrayList<>();
+        if (e != null && e.state == ReceivedLog.State.SAVED && e.place == SavePlan.Place.DOWNLOADS) {
+            LinearLayout downloads = ui.button("Open Downloads", R.drawable.ph_tray_arrow_down_regular, NearbyUi.PRIMARY);
+            downloads.setOnClickListener(v -> openDownloads());
+            buttons.add(downloads);
+        }
+        if (e != null && e.state != ReceivedLog.State.SAVING) {
+            LinearLayout share = ui.button("Share", R.drawable.ph_share_network_bold, buttons.isEmpty() ? NearbyUi.PRIMARY : NearbyUi.SECONDARY);
+            share.setOnClickListener(v -> shareEntry(e));
+            buttons.add(share);
+        }
+        if (e != null && e.state == ReceivedLog.State.KEPT && e.place != null && e.source != null && MediaSaver.available()) {
+            LinearLayout retry = ui.button("Try again", R.drawable.ph_arrow_counter_clockwise_bold, NearbyUi.SECONDARY);
+            retry.setOnClickListener(v -> {
+                NearbyUi.enable(v, false);
+                if (hub != null) hub.retrySave(e.id);
+                else say("A sample screen: nothing is saved.");
+            });
+            buttons.add(retry);
+        }
+        if (e == null && live != null && live.destination != null) {
+            LinearLayout share = ui.button("Share", R.drawable.ph_share_network_bold, NearbyUi.SECONDARY);
+            share.setOnClickListener(v -> share(new File(live.destination), live.name));
+            buttons.add(share);
+        }
+        LinearLayout done = action(awayLabel, 0, NearbyUi.QUIET, away);
+        LinearLayout box = ui.column();
+        if (buttons.size() >= 2) box.addView(ui.pair(buttons.get(0), buttons.get(1)));
+        else if (buttons.size() == 1) box.addView(ui.stack(buttons.get(0)));
+        if (buttons.size() > 2) box.addView(ui.stack(buttons.get(2)));
+        box.addView(ui.inline(done));
+        return box;
+    }
+
+    /** One arrival in the Received list, saved out or kept here, saying where it is now. */
+    private View receivedEntry(final ReceivedLog.Entry e) {
+        LinearLayout item = ui.column();
+        NearbyUi.top(item, 16);
+        item.addView(ui.text(SavePlan.display(e.name), 16, true, R.color.ink));
+        TextView about = ui.caption("From " + e.from + ". " + SavePlan.summary(e.paths(), e.files.size()) + ", " + bytes(e.bytes()) + ". "
+                + DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(new Date(e.at)) + ".");
+        NearbyUi.top(about, 4);
+        item.addView(about);
+        boolean gone = e.state == ReceivedLog.State.SAVED && !e.files.isEmpty() && missingAll(e);
+        if (gone) {
+            TextView t = ui.text("Removed from this phone. It was in " + e.placeLabel() + ".", 14, false, R.color.ink_2);
+            NearbyUi.top(t, 8);
+            item.addView(t);
+            item.addView(ui.inline(action("Remove from list", 0, NearbyUi.QUIET, () -> forgetEntry(e.id))));
+            return item;
+        }
+        View look = e.state == ReceivedLog.State.SAVED ? thumbsRow(e) : null;
+        if (look != null) item.addView(look);
+        item.addView(placeLine(e));
+        if (e.state == ReceivedLog.State.SAVED) checkStillThere(e);
+        item.addView(arrivalActions(e, () -> forgetEntry(e.id), "Remove from list", null));
+        return item;
+    }
+
+    private void forgetEntry(String id) {
+        if (sample != null) {
+            say("A sample screen: nothing is removed.");
+            return;
+        }
+        hub.forgetReceived(id);
+    }
+
+    private boolean missingAll(ReceivedLog.Entry e) {
+        for (ReceivedLog.FileRecord f : e.files) if (f.uri == null || !missing.contains(f.uri)) return false;
+        return true;
+    }
+
+    /** Off the main thread: finds saved items deleted since in Gallery or Files, and draws the list again if any are. */
+    private void checkStillThere(final ReceivedLog.Entry e) {
+        final List<String> uris = new ArrayList<>();
+        for (ReceivedLog.FileRecord f : e.files) if (f.uri != null && !missing.contains(f.uri)) uris.add(f.uri);
+        if (uris.isEmpty()) return;
+        thumbs.execute(() -> {
+            boolean changed = false;
+            for (String uri : uris) {
+                boolean there = uri.startsWith("sample:") ? !uri.equals("sample:gone") : MediaSaver.exists(getContentResolver(), uri);
+                if (!there && missing.add(uri)) changed = true;
+            }
+            if (changed) runOnUiThread(() -> {
+                drawn = null;
+                render();
+            });
+        });
+    }
+
+    /** A thumbnail from the phone's own media store, off the main thread; samples draw a labelled stand-in. */
+    private void loadThumb(final ImageView into, final String uri) {
+        Bitmap cached = thumbCache.get(uri);
+        if (cached != null) {
+            into.setImageBitmap(cached);
+            return;
+        }
+        thumbs.execute(() -> {
+            Bitmap b = null;
+            try {
+                if (uri.startsWith("sample:")) b = sampleThumb(uri);
+                else if (Build.VERSION.SDK_INT >= 29) b = getContentResolver().loadThumbnail(Uri.parse(uri), new Size(256, 256), null);
+            } catch (IOException | RuntimeException notThere) {
+                missing.add(uri);
+            }
+            if (b == null) return;
+            thumbCache.put(uri, b);
+            final Bitmap ready = b;
+            runOnUiThread(() -> into.setImageBitmap(ready));
+        });
+    }
+
+    /** For the launch check's sample screens: a soft gradient tile that says it's a sample, never a real photo. */
+    private Bitmap sampleThumb(String uri) {
+        int size = 256;
+        Bitmap b = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(b);
+        int[][] tones = {{R.color.accent, R.color.info}, {R.color.verified, R.color.accent}, {R.color.info, R.color.verified}, {R.color.caution, R.color.accent}};
+        int[] pick = tones[Math.abs(uri.hashCode()) % tones.length];
+        Paint fill = new Paint();
+        fill.setShader(new LinearGradient(0, 0, size, size, ui.over(pick[0], 0.35f), ui.over(pick[1], 0.6f), Shader.TileMode.CLAMP));
+        canvas.drawRect(0, 0, size, size, fill);
+        Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
+        text.setColor(ui.color(R.color.ink));
+        text.setTextSize(30);
+        text.setTextAlign(Paint.Align.CENTER);
+        canvas.drawText("Sample", size / 2f, size / 2f + 10, text);
+        return b;
+    }
+
+    /** Opens one saved file in the phone's own viewer, only when it's a kind that opens in one: nothing received runs. */
+    private void openFile(ReceivedLog.FileRecord f) {
+        if (sample != null) {
+            say("A sample screen: nothing opens.");
+            return;
+        }
+        if (f.uri == null || !f.published || !SavePlan.canOpen(f.path)) {
+            say("This kind of file doesn't open from here. Share it instead.");
+            return;
+        }
+        Intent view = new Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse(f.uri), f.mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        try {
+            startActivity(view);
+        } catch (ActivityNotFoundException | SecurityException e) {
+            say("No app on this phone opens this kind of file. Share it instead.");
+        }
+    }
+
+    /** The phone's Downloads, where other files went. */
+    private void openDownloads() {
+        if (sample != null) {
+            say("A sample screen: nothing opens.");
+            return;
+        }
+        try {
+            startActivity(new Intent(DownloadManager.ACTION_VIEW_DOWNLOADS));
+        } catch (ActivityNotFoundException e) {
+            say("This phone has no Downloads app to open. Look in Files, under Download › Farbaek.");
+        }
+    }
+
+    /** Shares what's saved (from Gallery or Downloads), or what's kept in Nearby. */
+    private void shareEntry(ReceivedLog.Entry e) {
+        if (sample != null) {
+            say("A sample screen: nothing is shared.");
+            return;
+        }
+        if (e.state == ReceivedLog.State.KEPT && e.source != null) {
+            share(new File(e.source), e.name);
+            return;
+        }
+        ArrayList<Uri> uris = new ArrayList<>();
+        for (ReceivedLog.FileRecord f : e.files) if (f.published && f.uri != null && uris.size() < MAX_SHARED) uris.add(Uri.parse(f.uri));
+        if (uris.isEmpty()) {
+            say("Nothing from it is on this phone any more.");
+            return;
+        }
+        Intent send = new Intent(uris.size() == 1 ? Intent.ACTION_SEND : Intent.ACTION_SEND_MULTIPLE).setType("*/*").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        if (uris.size() == 1) send.putExtra(Intent.EXTRA_STREAM, uris.get(0));
+        else send.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
+        startActivity(Intent.createChooser(send, "Share " + SavePlan.display(e.name)));
+    }
+
+    /** Where the person can turn Farbaek's notifications back on. */
+    private void notificationSettings() {
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED && !shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+            askToNotify();
+            return;
+        }
+        Intent settings = new Intent(Build.VERSION.SDK_INT >= 26 ? android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS : android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+        if (Build.VERSION.SDK_INT >= 26) settings.putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, getPackageName());
+        else settings.setData(Uri.parse("package:" + getPackageName()));
+        try {
+            startActivity(settings);
+        } catch (ActivityNotFoundException ignored) {
+            say("Open Settings, then Apps, then Farbaek, then Notifications.");
+        }
     }
 
     // Actions
@@ -1117,7 +1540,7 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         boolean in = "in".equals(t.direction);
         switch (t.state) {
             case WAITING: return in ? null : "Accept it on " + t.peerName + ", in Nearby.";
-            case OFFERED: return "Accept to save it on this phone. Nothing in it runs.";
+            case OFFERED: return "Nothing in it runs.";
             case DONE: return in ? "Every file matched what was sent." : "Every file was checked when it arrived. On the computer, Open folder shows it.";
             case INTERRUPTED: return in ? "The computer can resume it." : "You can resume it from where it stopped.";
             default: return null;

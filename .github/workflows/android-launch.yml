@@ -213,6 +213,7 @@ jobs:
           # The debug build is signed with another key, so the release app goes first.
           adb uninstall com.farbaek.app > /dev/null || true
           adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+          adb shell pm grant com.farbaek.app android.permission.POST_NOTIFICATIONS || true
           adb logcat -c
           adb shell wm size | tee out/screens/size.txt
           shoot() {
@@ -226,14 +227,23 @@ jobs:
             sleep 2
             adb exec-out screencap -p > "out/screens/$2-scrolled.png"
           }
-          for s in empty found confirming waiting paired ready away transfers done; do shoot "$s" "$s"; done
+          for s in empty found confirming waiting paired ready away transfers done offer kept saving arrived received; do shoot "$s" "$s"; done
           # The largest text most people use: words wrap, nothing is cut off.
           adb shell settings put system font_scale 1.3
-          for s in confirming transfers; do shoot "$s" "$s-text-130"; done
+          for s in confirming transfers arrived; do shoot "$s" "$s-text-130"; done
           # The largest Android offers: the six digits stop growing at 130%, so both tiles still fit side by side.
           adb shell settings put system font_scale 2.0
           shoot confirming confirming-text-200
           adb shell settings put system font_scale 1.0
+          # Stage 188: an offer's and an arrival's notifications, as the shade shows them.
+          adb shell am start -W -S -n com.farbaek.app/.mesh.MeshActivity --es sample offer --ez notify true > /dev/null
+          sleep 3
+          adb shell input keyevent KEYCODE_HOME
+          sleep 2
+          adb shell cmd statusbar expand-notifications || true
+          sleep 4
+          adb exec-out screencap -p > out/screens/notifications.png
+          adb shell cmd statusbar collapse || true
           adb logcat -d -b crash > out/screens/crash.txt || true
           echo "Nearby's sample screens: $(ls out/screens/*.png | wc -l) screenshots, in the run's artifact under screens/." >> "$GITHUB_STEP_SUMMARY"
           if grep -q 'Process: com.farbaek.app' out/screens/crash.txt; then

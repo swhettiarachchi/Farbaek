@@ -64,9 +64,79 @@ public final class NearbySamples {
                         transfer("t4", "out", TransferState.DONE, "From Redmi A5 13 Nov 17.38", 1, 3_400_000, 3_400_000, "Delivered."),
                         transfer("t5", "in", TransferState.DONE, "Brand kit", 6, 21_700_000, 21_700_000, "/data/sample/Brand kit"),
                         transfer("t6", "out", TransferState.INTERRUPTED, "From Redmi A5 13 Nov 17.02", 4, 12_000_000, 4_100_000, null)));
+            // Stage 188: arrivals, from an offer that says where it will go to what's saved where people look.
+            case "offer":
+            case "kept":
+                return snap(visible, list(desktopHere), list(desktop), null, list(
+                        transfer("t1", "in", TransferState.OFFERED, "Site photos", 12, 48_200_000, 0, null)));
+            case "saving":
+                return snap(visible, list(desktopHere), list(desktop), null, list(
+                        transfer("a1", "in", TransferState.DONE, "Site photos", 12, 48_200_000, 48_200_000, "/data/sample/Site photos")));
+            case "arrived":
+                return snap(visible, list(desktopHere), list(desktop), null, list(
+                        transfer("a2", "in", TransferState.DONE, "Site photos", 6, 24_100_000, 24_100_000, "/data/sample/Site photos"),
+                        transfer("a3", "in", TransferState.DONE, "Brand kit", 4, 3_900_000, 3_900_000, "/data/sample/Brand kit")));
+            case "received":
+                return snap(0, none, list(desktop), null, quiet);
             default:
                 return null;
         }
+    }
+
+    /** The phone's record of arrivals for a sample: saving, saved where people look, kept in Nearby, or since deleted. */
+    public static List<ReceivedLog.Entry> entries(String name) {
+        long now = System.currentTimeMillis();
+        switch (name) {
+            case "saving": {
+                ReceivedLog.Entry e = photos("a1", "Site photos", 12, now, ReceivedLog.State.SAVING);
+                for (int i = 0; i < 5; i++) e.files.get(i).published = true;
+                return list(e);
+            }
+            case "arrived":
+                return list(photos("a2", "Site photos", 6, now, ReceivedLog.State.SAVED), brandKit("a3", now, ReceivedLog.State.SAVED));
+            case "received": {
+                ReceivedLog.Entry kept = brandKit("r3", now - 3 * 86_400_000L, ReceivedLog.State.KEPT);
+                kept.note = "Saving to Gallery and Downloads is off, so it stays in Nearby.";
+                kept.source = "/data/sample/Old notes";
+                ReceivedLog.Entry gone = photos("r4", "Holiday", 2, now - 9 * 86_400_000L, ReceivedLog.State.SAVED);
+                for (ReceivedLog.FileRecord f : gone.files) f.uri = "sample:gone";
+                return list(photos("r1", "Site photos", 6, now - 20 * 60_000, ReceivedLog.State.SAVED), brandKit("r2", now - 26 * 3_600_000L, ReceivedLog.State.SAVED), kept, gone);
+            }
+            default:
+                return Collections.emptyList();
+        }
+    }
+
+    private static ReceivedLog.Entry photos(String id, String name, int count, long at, ReceivedLog.State state) {
+        List<ReceivedLog.FileRecord> files = new ArrayList<>();
+        for (int i = 1; i <= count; i++) {
+            ReceivedLog.FileRecord f = new ReceivedLog.FileRecord("IMG_20" + (40 + i) + ".jpg", 4_000_000 + i * 17_000, "image/jpeg");
+            f.uri = "sample:" + id + ":" + i;
+            f.published = state == ReceivedLog.State.SAVED;
+            f.shown = f.path;
+            files.add(f);
+        }
+        ReceivedLog.Entry e = new ReceivedLog.Entry(id, name, DESKTOP, at, SavePlan.Place.GALLERY, name, files, state);
+        e.notified = true;
+        return e;
+    }
+
+    private static ReceivedLog.Entry brandKit(String id, long at, ReceivedLog.State state) {
+        String[][] items = {{"Brand guide.pdf", "application/pdf", "2400000"}, {"logo.svg", "application/octet-stream", "18000"}, {"fonts/Display.woff2", "application/octet-stream", "96000"},
+            {"readme.txt", "text/plain", "2100"}};
+        List<ReceivedLog.FileRecord> files = new ArrayList<>();
+        for (String[] it : items) {
+            ReceivedLog.FileRecord f = new ReceivedLog.FileRecord(it[0], Long.parseLong(it[2]), it[1]);
+            if (state == ReceivedLog.State.SAVED) {
+                f.uri = "sample:" + id + ":" + it[0];
+                f.published = true;
+            }
+            files.add(f);
+        }
+        ReceivedLog.Entry e = new ReceivedLog.Entry(id, "Brand kit", "Studio laptop", at, state == ReceivedLog.State.KEPT ? null : SavePlan.Place.DOWNLOADS,
+                state == ReceivedLog.State.KEPT ? "/data/sample/Old notes" : "Brand kit", files, state);
+        e.notified = true;
+        return e;
     }
 
     /** The Received card's folders for a sample. */
