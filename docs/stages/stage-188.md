@@ -79,6 +79,16 @@ An independent planning review changed the first draft in six places:
     - the file list marked the `.exe` as not openable;
     - one offer and one arrival notification again.
   - **History:** after both were dismissed and the app restarted, Recently received still listed both. After one received folder was deleted, it said "It's no longer in … It may have been moved or deleted." and offered only Remove from list.
+- **An independent review of the desktop change** found these, and all are fixed in the second commit:
+  - **Windows notifications:** they stayed in the notification centre, because Windows says "close" when a notification moves there. They now stay referenced until Nearby takes them back.
+  - **One-click save's boundary:** it now also needs a real click or key press in the last five seconds, input the page can't make up. There's one accept per offer, in the main process and in `IncomingTransfer.accept`.
+  - **Thumbnails:** at most six tries, photos up to 20 MB.
+  - **A stale snapshot:** the state is built arrivals first.
+  - **The history:** one that can't be read just now is never overwritten, and an arrival is still announced if its history can't be written.
+  - **Names:** received folder names lose invisible characters, and a name ending like a package or shell location (`.app`, `.pkg`, `.{CLSID}`) gets a hyphen, so Open folder opens a folder. Names on the page and in notifications are shown without disguising characters.
+  - **The closed window:** it's let go, and the timer checks it's still there.
+  - **Screen readers:** the Nearby count is read out.
+  - **Tests:** `pnpm typecheck` and lint pass, and the desktop, design and mesh tests pass (284).
 - **Not checked here:**
   - **Real Windows notifications:** they need the installed app (NSIS or Store), so the check used the notification log instead.
   - **One-click save's focus rule:** it's bypassed when testing with a fixed save folder.
