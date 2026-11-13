@@ -60,6 +60,9 @@ export default async function MeshPage() {
         description="Send a project to another computer or workspace as one file, called a Capsule. Farbaek checks every part of it when it arrives, so you'll know if anything changed on the way."
       />
 
+      {/* On an Android phone, sending to a computer nearby is the likeliest job here, so it comes first. Nothing shows elsewhere. */}
+      <OpenNearby />
+
       <ol className="grid gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-3">
         {ROUTE.map((step, i) => (
           <li key={step.label} className="grid content-start gap-1.5 bg-surface px-5 py-4">
@@ -95,7 +98,6 @@ export default async function MeshPage() {
           Pair this device once with one of your computers, then send it photos and files from here. They go directly between the two when the networks allow it, encrypted end to end, and the computer checks every piece.
           Pairing starts on the computer, in Nearby, the desktop app&apos;s page for sending files between your devices.
         </p>
-        <OpenNearby />
         <PhoneMesh
           computers={relayAgents.map((a) => ({ id: a.id, name: a.name, fingerprint: a.meshFingerprint!, reachableNow: hub?.isReachable(a.id) ?? false }))}
           unavailable={ctx.mode === "demo" ? "The demo workspace has no computers to reach. Sign in to your own workspace." : null}
