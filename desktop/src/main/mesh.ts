@@ -34,6 +34,15 @@ export interface MeshDeps {
 
 const NOT_PAIRED = "Pair this app with your Farbaek workspace first, under Farbaek. The relay goes through that workspace.";
 
+/** The person's Downloads folder, or their home folder if the system can't say where it is. */
+function downloadsFolder(): string {
+  try {
+    return app.getPath("downloads");
+  } catch {
+    return os.homedir();
+  }
+}
+
 const Fingerprint = z.string().regex(/^[0-9a-f]{16}$/);
 const Id = z.string().min(1).max(64);
 const Address = z.object({ address: z.union([z.ipv4(), z.ipv6()]), port: z.number().int().min(1).max(65_535) });
@@ -113,7 +122,8 @@ export class DesktopMesh {
     const fixed = app.isPackaged ? undefined : process.env[purpose === "send" ? "FARBAEK_AGENT_TEST_SEND_FOLDER" : purpose === "earlier" ? "FARBAEK_AGENT_TEST_EARLIER_FOLDER" : "FARBAEK_AGENT_TEST_SAVE_FOLDER"];
     if (fixed) return fixed;
     const window = this.deps.window();
-    const options = { title, buttonLabel, defaultPath: os.homedir(), properties: ["openDirectory", "createDirectory"] as ("openDirectory" | "createDirectory")[] };
+    // Received files start in Downloads, where people look for them; folders to send start at home.
+    const options = { title, buttonLabel, defaultPath: purpose === "send" ? os.homedir() : downloadsFolder(), properties: ["openDirectory", "createDirectory"] as ("openDirectory" | "createDirectory")[] };
     const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options);
     return result.canceled ? null : (result.filePaths[0] ?? null);
   }

@@ -145,12 +145,12 @@ Before releasing it:
    4. Send a photo.
    5. Then turn off mobile data and the router's internet (Wi-Fi still on), and send another. It should arrive just the same.
 
-### Nearby redesigned: 1.3.2 (versionCode 7)
+### Nearby redesigned: 1.3.2 (versionCode 8)
 
 Stage 187 redesigned the Nearby screen. The node and its protocol are unchanged, so it pairs and sends exactly as 1.3.1 does.
 
 1. **Check:** before uploading, open the **Android launch check** run for the merge. Its artifact has `screens/`, one picture of each state from the debug build's samples.
-2. **Your phone first:** upload the bundle from the "Android app" workflow run for the merge (versionCode 7) to **Internal testing**. The "UVelsi internal" list gets it with no review wait, so your phone can update within minutes.
+2. **Your phone first:** upload the bundle from the "Android app" workflow run for the merge (versionCode 8; 7 was built but never uploaded, so skip it) to **Internal testing**. The "UVelsi internal" list gets it with no review wait, so your phone can update within minutes.
 3. **Testers:** after that, add the same bundle to **Closed testing - Alpha** and send it for review.
 
 ## Updating the app

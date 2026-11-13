@@ -504,6 +504,12 @@ function TransferRow({ transfer: t, busy, act }: { transfer: MeshSnapshot["trans
         </p>
       ) : null}
       {t.message ? <p className="small">{t.message}</p> : null}
+      {/* Where it went, in full: the owner's first send landed in their user folder and looked lost. */}
+      {t.direction === "in" && t.state === "done" && t.destination ? (
+        <p className="small muted">
+          Saved in <span className="mono">{t.destination}</span>
+        </p>
+      ) : null}
       <div className="row-start">
         {t.direction === "out" && t.state === "interrupted" && t.queuedUntil ? (
           <>

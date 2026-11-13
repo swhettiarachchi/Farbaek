@@ -424,12 +424,14 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
             NearbyUi.top(item, 16);
             TextView name = ui.text(d.name, 16, true, R.color.ink);
             item.addView(name);
-            View badge = seen != null ? ui.badge(NearbyUi.Kind.VERIFIED, "On this Wi-Fi") : ui.badge(NearbyUi.Kind.OFF, "Not on this Wi-Fi");
+            // Seen means it is visible on this network right now, so it can take a send. Not seen is usually a computer
+            // whose 5 minutes of Be visible ran out, not one on another network, so the words say what to do about it.
+            View badge = seen != null ? ui.badge(NearbyUi.Kind.VERIFIED, "Ready to receive") : ui.badge(NearbyUi.Kind.OFF, "Not visible now");
             NearbyUi.top(badge, 8);
             ((LinearLayout.LayoutParams) badge.getLayoutParams()).width = ViewGroup.LayoutParams.WRAP_CONTENT;
             item.addView(badge);
             if (seen == null) {
-                TextView how = ui.caption("To send to it, open Nearby on " + d.name + " and choose Be visible, on the same Wi-Fi as this phone.");
+                TextView how = ui.caption("To send to it, open Nearby on " + d.name + " and choose Be visible. It stays visible for 5 minutes. It needs to be on the same Wi-Fi as this phone, or on this phone's hotspot.");
                 NearbyUi.top(how, 8);
                 item.addView(how);
             }
