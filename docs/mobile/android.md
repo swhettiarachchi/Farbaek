@@ -153,6 +153,21 @@ Stage 187 redesigned the Nearby screen. The node and its protocol are unchanged,
 2. **Your phone first:** upload the bundle from the "Android app" workflow run for the merge (versionCode 8; 7 was built but never uploaded, so skip it) to **Internal testing**. The "UVelsi internal" list gets it with no review wait, so your phone can update within minutes.
 3. **Testers:** after that, add the same bundle to **Closed testing - Alpha** and send it for review.
 
+### Arrivals go where people look: 1.4.0 (versionCode 9)
+
+Stage 188 (ADR 0196). Received files are copied into Gallery (`Pictures/Farbaek`) or Downloads (`Download/Farbaek`) after they're checked, when **Save to Gallery and Downloads** is on (the default, Android 10 and later). The offer says where they will go before Accept. Offers and arrivals get notifications on a new channel, "Files from your computers".
+
+1. **Check:** the **Android launch check** run for the merge, with its `screens/` pictures, including `offer`, `kept`, `saving`, `arrived`, `received` and `notifications.png`.
+2. **Your phone first:** upload the "Android app" bundle (versionCode 9) to **Internal testing**. Then try it:
+   - send three photos and a PDF from the computer to the phone;
+   - the photos should land in Gallery › Farbaek, and the PDF in Downloads › Farbaek;
+   - a notification should say where each went;
+   - force-stop the app during a large copy, open it again, and check nothing is doubled.
+3. **Play Console, before the closed test:**
+   - **Data safety:** nothing changes. Files still go only from your computer to your phone and are saved on the phone; nothing reaches Farbaek.
+   - **Permissions:** the app asks for none for storage, because Android 10 and later let an app save its own files into Gallery and Downloads.
+4. **Testers:** add the same bundle to **Closed testing - Alpha** and send it for review.
+
 ## Updating the app
 
 Most changes need no app update: the app is the website. Only change `android/` for the app shell, and raise `versionCode` in `android/version.properties` for each upload.
