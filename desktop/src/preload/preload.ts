@@ -4,7 +4,7 @@
  * page, and the main process validates every call again.
  */
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
-import type { FarbaekAgentBridge, MeshSnapshot, RunDetail } from "../shared/api";
+import type { ArrivalsView, FarbaekAgentBridge, MeshSnapshot, RunDetail } from "../shared/api";
 
 const invoke = (channel: string, input?: unknown) => ipcRenderer.invoke(channel, input);
 
@@ -51,7 +51,7 @@ const bridge: FarbaekAgentBridge = {
     sendOverInternet: (input) => invoke("mesh:send-internet", input),
     useRelay: (id) => invoke("mesh:use-relay", id),
     pairRemote: (open) => invoke("mesh:pair-remote", open),
-    accept: (id) => invoke("mesh:accept", id),
+    accept: (id, where) => invoke("mesh:accept", { id, where }),
     acceptUpdate: (id) => invoke("mesh:accept-update", id),
     decline: (id) => invoke("mesh:decline", id),
     cancel: (id) => invoke("mesh:cancel", id),
@@ -61,11 +61,25 @@ const bridge: FarbaekAgentBridge = {
     retryQueued: () => invoke("mesh:retry-queued"),
     dismiss: (id) => invoke("mesh:dismiss", id),
     openFolder: (id) => invoke("mesh:open-folder", id),
+    showInFolder: (id) => invoke("mesh:show-in-folder", id),
+    openReceived: (id) => invoke("mesh:open-received", id),
+    arrival: (id) => invoke("mesh:arrival", id),
+    forgetReceived: (id) => invoke("mesh:forget-received", id),
     onUpdate(listener) {
       const wrapped = (_event: IpcRendererEvent, snapshot: MeshSnapshot) => listener(snapshot);
       ipcRenderer.on("mesh:update", wrapped);
       return () => ipcRenderer.removeListener("mesh:update", wrapped);
     },
+    onArrivals(listener) {
+      const wrapped = (_event: IpcRendererEvent, arrivals: ArrivalsView) => listener(arrivals);
+      ipcRenderer.on("mesh:arrivals", wrapped);
+      return () => ipcRenderer.removeListener("mesh:arrivals", wrapped);
+    },
+  },
+  onShowNearby(listener) {
+    const wrapped = () => listener();
+    ipcRenderer.on("app:show-nearby", wrapped);
+    return () => ipcRenderer.removeListener("app:show-nearby", wrapped);
   },
 };
 

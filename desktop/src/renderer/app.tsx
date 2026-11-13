@@ -1174,11 +1174,25 @@ export function App() {
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [selectedRun, setSelectedRun] = useState<string | null>(null);
   const [nearbyOnly, setNearbyOnly] = useState(false);
+  /** Offers waiting for the person in Nearby, counted on its nav item so they're seen from any page. */
+  const [offers, setOffers] = useState(0);
 
   useEffect(() => {
     void api.state().then(setState);
     void api.runs().then(setRuns);
     return api.onRunUpdate(() => void api.runs().then(setRuns));
+  }, []);
+
+  useEffect(() => {
+    const offStage = api.onShowNearby(() => {
+      setView("nearby");
+      setNearbyOnly(true);
+    });
+    const offMesh = api.mesh.onUpdate((snapshot) => setOffers(snapshot.transfers.filter((t) => t.direction === "in" && t.state === "offered").length));
+    return () => {
+      offStage();
+      offMesh();
+    };
   }, []);
 
   if (!state) return <main className="pair muted">Loading…</main>;
@@ -1213,6 +1227,14 @@ export function App() {
                 <button type="button" className={`nav-item ${view === n.id ? "is-active" : ""}`} aria-current={view === n.id ? "page" : undefined} onClick={() => setView(n.id)}>
                   <n.icon size={20} weight={view === n.id ? "fill" : "regular"} aria-hidden /> {n.label}
                   {n.id === "runs" && waiting > 0 ? <span className="count">{waiting}</span> : null}
+                  {n.id === "nearby" && offers > 0 ? (
+                    <>
+                      <span className="count" aria-hidden="true">
+                        {offers}
+                      </span>
+                      <span className="sr-only">, {offers} waiting for you</span>
+                    </>
+                  ) : null}
                 </button>
               </li>
             ))}

@@ -40,6 +40,9 @@ if (fromStore) app.setPath("userData", fromStore);
 // Development only: a separate data folder, so a test run never touches the real one.
 if (!app.isPackaged && process.env.FARBAEK_AGENT_DATA_DIR) app.setPath("userData", process.env.FARBAEK_AGENT_DATA_DIR);
 if (!app.requestSingleInstanceLock()) app.quit();
+// Windows shows a notification only for an app it can name: the installer's shortcut carries this id (the Store build
+// has its package's own). In development, the Electron binary's path.
+if (process.platform === "win32" && !process.windowsStore) app.setAppUserModelId(app.isPackaged ? "dev.farbaek.agent" : process.execPath);
 
 const RENDERER = path.join(__dirname, "renderer", "index.html");
 const RENDERER_URL = pathToFileURL(RENDERER).href;
@@ -53,6 +56,8 @@ interface Settings {
 }
 
 let window: BrowserWindow | null = null;
+/** When a person last clicked or typed in the window: input from the system, which the page can't make up. */
+let lastInputAt = 0;
 let settings: Settings = { paired: null };
 const dataDir = () => app.getPath("userData");
 const secrets = () => new SecretStore(path.join(dataDir(), "secrets"));
@@ -85,6 +90,14 @@ const mesh = new DesktopMesh({
   window: () => window,
   relay: relayAccess,
   direct: (signal, role) => direct.open(signal, role),
+  recentInput: () => Date.now() - lastInputAt < 5_000,
+  showNearby: () => {
+    if (!window || window.isDestroyed()) return;
+    if (window.isMinimized()) window.restore();
+    window.show();
+    window.focus();
+    window.webContents.send("app:show-nearby");
+  },
 });
 
 async function loadSettings(): Promise<void> {
@@ -349,8 +362,16 @@ function createWindow(): void {
     },
   });
   window.once("ready-to-show", () => window?.show());
+  // A flashing taskbar button asked for attention; looking at the window answers it.
+  window.on("focus", () => window?.flashFrame(false));
+  window.webContents.on("input-event", (_event, input) => {
+    if (input.type === "mouseDown" || input.type === "keyDown" || input.type === "rawKeyDown" || input.type === "gestureTap") lastInputAt = Date.now();
+  });
   // The hidden direct-link window would otherwise keep the app open after this one closes.
-  window.on("closed", () => direct.close());
+  window.on("closed", () => {
+    window = null;
+    direct.close();
+  });
   void window.loadFile(RENDERER);
 }
 
