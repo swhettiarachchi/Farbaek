@@ -17,7 +17,9 @@ permissions:
 
 jobs:
   launch:
-    runs-on: ubuntu-latest
+    # Pinned: run 11 passed and run 12, on the same app, failed with "The emulator didn't start" on ubuntu-latest,
+    # which GitHub has been moving to a newer image. 24.04 keeps the image the check passed on.
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -67,15 +69,19 @@ jobs:
           "$ANDROID_HOME/emulator/emulator" -list-avds | grep -qx launch || { echo "::error::avdmanager didn't make the AVD."; ls -la "$ANDROID_AVD_HOME"; exit 1; }
           ls -l /dev/kvm || echo "::warning::No /dev/kvm on this runner: the emulator can't use hardware acceleration."
           nohup "$ANDROID_HOME/emulator/emulator" -avd launch -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -accel on > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          # The job log is hard to read from a browser, so a failure also puts the emulator's log in the run's summary.
+          emulator_failed() {
+            echo "::error::$1 The emulator's log is in the run's summary."
+            { echo "### $1"; echo; echo "Runner: $(lsb_release -ds 2>/dev/null). KVM: $(ls -l /dev/kvm 2>&1)."; echo; echo '```'; tail -n 60 "$RUNNER_TEMP/emulator.log"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          }
           # Give up after 6 minutes rather than waiting for the job's limit, and say why.
-          if ! timeout 360 adb wait-for-device; then
-            echo "::error::The emulator didn't start. Its log:"; tail -n 60 "$RUNNER_TEMP/emulator.log"; exit 1
-          fi
+          timeout 360 adb wait-for-device || emulator_failed "The emulator didn't start."
           for i in $(seq 1 90); do
             [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && break
             sleep 5
           done
-          [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] || { echo "::error::Android didn't finish booting. The emulator's log:"; tail -n 60 "$RUNNER_TEMP/emulator.log"; exit 1; }
+          [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] || emulator_failed "Android didn't finish booting."
           adb shell input keyevent 82 || true
 
       - name: Install and open Farbaek
