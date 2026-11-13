@@ -23,4 +23,8 @@ public final class NearbySamples {
     public static List<MeshActivity.Received> received(String name) {
         return Collections.emptyList();
     }
+
+    public static List<ReceivedLog.Entry> entries(String name) {
+        return Collections.emptyList();
+    }
 }

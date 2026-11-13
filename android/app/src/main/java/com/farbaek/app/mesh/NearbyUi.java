@@ -178,15 +178,27 @@ final class NearbyUi {
         trackOff.setSize(px(52), px(32));
         track.addState(on, trackOn);
         track.addState(any, trackOff);
+        // The thumb is a layer with the circle inset in it, not an InsetDrawable: Android's switch takes an
+        // InsetDrawable's insets as padding and narrows itself by them, which cut the track off on the right.
         android.graphics.drawable.StateListDrawable thumb = new android.graphics.drawable.StateListDrawable();
-        thumb.addState(on, new android.graphics.drawable.InsetDrawable(oval(R.color.surface, 24), px(1), px(4), px(1), px(4)));
-        thumb.addState(any, new android.graphics.drawable.InsetDrawable(oval(R.color.ink_3, 16), px(5), px(8), px(5), px(8)));
+        thumb.addState(on, knob(R.color.surface, 24));
+        thumb.addState(any, knob(R.color.ink_3, 16));
         s.setTrackDrawable(track);
         s.setThumbDrawable(thumb);
+        s.setSwitchMinWidth(px(52));
         // A theme's own switch tints (some phone makers set them) would paint over these colours.
         s.setTrackTintList(null);
         s.setThumbTintList(null);
         s.setShowText(false);
+    }
+
+    /** A 26 by 32dp thumb with a circle of the given size centred in it, and no padding of its own. */
+    private Drawable knob(int fillRes, int circleDp) {
+        LayerDrawable layer = new LayerDrawable(new Drawable[] {oval(fillRes, circleDp)});
+        int side = (26 - circleDp) / 2;
+        int top = (32 - circleDp) / 2;
+        layer.setLayerInset(0, px(side), px(top), px(side), px(top));
+        return layer;
     }
 
     private GradientDrawable oval(int fillRes, int sizeDp) {
