@@ -8,11 +8,16 @@
     <!-- The Nearby screen (ADR 0193) uses the web app's own tokens, so it reads as the same product. -->
     <color name="surface">#FFFFFF</color>
     <color name="surface_raised">#F2F4F7</color>
+    <color name="surface_sunken">#ECEFF3</color>
+    <color name="canvas_2">#F5F6F8</color>
     <color name="line">#E4E7EC</color>
+    <color name="line_2">#D0D5DD</color>
     <color name="ink">#121317</color>
     <color name="ink_2">#474C56</color>
     <color name="ink_3">#636975</color>
     <color name="accent">#2450F0</color>
+    <!-- Your turn (ADR 0183): the accent's blue, named for what it means. -->
+    <color name="approval">#2450F0</color>
     <color name="primary">#121317</color>
     <color name="on_primary">#FBFBFC</color>
     <color name="verified">#0B6E4F</color>

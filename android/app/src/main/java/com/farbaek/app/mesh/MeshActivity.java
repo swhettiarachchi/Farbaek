@@ -8,9 +8,8 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.database.Cursor;
+import android.graphics.Color;
 import android.graphics.Typeface;
-import android.graphics.drawable.GradientDrawable;
-import android.graphics.drawable.RippleDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -18,23 +17,30 @@ import android.provider.OpenableColumns;
 import android.text.InputType;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.HapticFeedbackConstants;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
-import android.widget.Button;
 import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.Switch;
 import android.widget.TextView;
 
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.farbaek.app.R;
 import com.farbaek.mesh.Discovery;
 import com.farbaek.mesh.MeshNode;
+import com.farbaek.mesh.NearbySamples;
 import com.farbaek.mesh.TransferState;
 import com.farbaek.mesh.TransferView;
 import com.farbaek.mesh.TrustStore;
@@ -58,76 +64,189 @@ import java.util.Set;
  * between. The Mesh page opens it with an intent link; the screen takes no
  * action from that link. Pairing needs the same six digits on both screens,
  * and nothing is received until the person accepts it.
+ *
+ * The screen leads with what people come for: sending to a paired computer.
+ * What needs them (a code to check, a file to accept) rises in above it, and
+ * pairing by address waits behind a disclosure until it's needed.
  */
 public final class MeshActivity extends Activity implements MeshHub.Observer {
     private static final int PICK_FILES = 41;
     private static final int ASK_NOTIFY = 42;
     private static final int MAX_SHARED = 200;
+    private static final int TOP_BAR_DP = 56;
+
+    /** A folder received on this phone, as the Received card lists it. */
+    public static final class Received {
+        public final String name;
+        public final long files;
+        public final long bytes;
+        public final long when;
+        public final File folder;
+
+        public Received(String name, long files, long bytes, long when, File folder) {
+            this.name = name;
+            this.files = files;
+            this.bytes = bytes;
+            this.when = when;
+            this.folder = folder;
+        }
+    }
 
     private MeshHub hub;
-    private float dp;
+    private NearbyUi ui;
+    /** In debug builds only, a named sample to draw instead of the real node, for screenshots of every state. */
+    private String sample;
+    private LinearLayout page;
     private LinearLayout dynamic;
-    private TextView notice;
+    private TextView largeTitle;
+    private TextView barTitle;
+    private View barLine;
+    private TextView toast;
     private EditText address;
     private String sendTo;
+    private boolean addressOpen;
+    /** Cards already shown, by what they're about, so only something new rises in. */
+    private final Set<String> shown = new HashSet<>();
+    /** Pairings and transfers whose success was already marked with the check and a tap. */
+    private final Set<String> celebrated = new HashSet<>();
+    private boolean firstRender = true;
 
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
-        dp = getResources().getDisplayMetrics().density;
-        hub = MeshHub.get(this);
-        MeshService.channel(this);
-        if (state != null) sendTo = state.getString("sendTo");
+        ui = new NearbyUi(this);
+        sample = NearbySamples.available() ? getIntent().getStringExtra("sample") : null;
+        if (sample == null) {
+            hub = MeshHub.get(this);
+            MeshService.channel(this);
+        }
+        if (state != null) {
+            sendTo = state.getString("sendTo");
+            addressOpen = state.getBoolean("addressOpen");
+        }
 
-        LinearLayout page = column();
-        page.setPadding(px(20), px(24), px(20), px(40));
-        page.addView(text(getString(R.string.nearby_title), 28, true, R.color.ink));
-        TextView intro = text("Send files between this phone and your computers on the same Wi-Fi, with no internet. Encrypted end to end, and every piece is checked when it arrives.", 15, false, R.color.ink_2);
-        margin(intro, 8);
+        // Edge to edge on every version, as Android 15 does by itself: the screen draws behind the bars, and the
+        // insets below keep every word and button clear of them and of the keyboard.
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        getWindow().setStatusBarColor(Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(Color.TRANSPARENT);
+
+        FrameLayout root = new FrameLayout(this);
+        root.setBackgroundColor(ui.color(R.color.canvas));
+
+        page = ui.column();
+        largeTitle = ui.text(getString(R.string.nearby_title), 30, true, R.color.ink);
+        if (Build.VERSION.SDK_INT >= 28) largeTitle.setAccessibilityHeading(true);
+        page.addView(largeTitle);
+        TextView intro = ui.text("Send photos and files between this phone and your computers on the same Wi-Fi, even with no internet. Encrypted end to end, and checked when they arrive.", 15, false, R.color.ink_2);
+        NearbyUi.top(intro, 10);
         page.addView(intro);
-
-        notice = text("", 14, false, R.color.ink);
-        notice.setVisibility(View.GONE);
-        notice.setBackground(rounded(R.color.surface_raised, 12, R.color.line));
-        notice.setPadding(px(16), px(12), px(16), px(12));
-        margin(notice, 16);
-        page.addView(notice);
-
-        dynamic = column();
+        dynamic = ui.column();
         page.addView(dynamic);
         page.addView(addressCard());
-
-        TextView foot = text("Received folders stay in this app's private storage until you share or delete them. Nearby only works with computers you paired, and the computer checks every file against what was sent.", 13, false, R.color.ink_3);
-        margin(foot, 24);
+        TextView foot = ui.caption("Received folders stay in this app's private storage until you share or delete them. Nearby only works with computers you paired, and every file is checked against what was sent.");
+        NearbyUi.top(foot, 24);
         page.addView(foot);
 
-        ScrollView scroll = new ScrollView(this);
+        final ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
+        scroll.setClipToPadding(false);
         scroll.addView(page);
-        setContentView(scroll);
+        root.addView(scroll, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        final LinearLayout bar = topBar();
+        root.addView(bar, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP));
+        // Once the large title has scrolled under the bar, the bar says where you are, with a hairline under it.
+        scroll.setOnScrollChangeListener((v, x, y, oldX, oldY) -> {
+            boolean under = y > largeTitle.getBottom() - ui.px(8);
+            barTitle.animate().alpha(under ? 1f : 0f).setDuration(160).start();
+            barLine.animate().alpha(y > 0 ? 1f : 0f).setDuration(160).start();
+        });
+
+        toast = ui.text("", 14, false, R.color.on_primary);
+        toast.setBackground(ui.rounded(R.color.primary, 16, 0, 0));
+        toast.setPadding(ui.px(18), ui.px(14), ui.px(18), ui.px(14));
+        toast.setElevation(ui.px(6));
+        toast.setVisibility(View.GONE);
+        toast.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        FrameLayout.LayoutParams toastAt = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM);
+        root.addView(toast, toastAt);
+
+        ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
+            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            int keyboard = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom;
+            int bottom = Math.max(bars.bottom, keyboard);
+            bar.setPadding(bars.left + ui.px(4), bars.top, bars.right + ui.px(16), 0);
+            page.setPadding(bars.left + ui.px(20), bars.top + ui.px(TOP_BAR_DP + 8), bars.right + ui.px(20), bottom + ui.px(40));
+            toastAt.setMargins(bars.left + ui.px(16), 0, bars.right + ui.px(16), bottom + ui.px(16));
+            toast.setLayoutParams(toastAt);
+            return WindowInsetsCompat.CONSUMED;
+        });
+        setContentView(root);
+        WindowInsetsControllerCompat bars = WindowCompat.getInsetsController(getWindow(), root);
+        bars.setAppearanceLightStatusBars(true);
+        bars.setAppearanceLightNavigationBars(true);
+    }
+
+    /** The bar at the top: back to Farbaek, and the screen's name once the large title has scrolled away. */
+    private LinearLayout topBar() {
+        LinearLayout bar = ui.row();
+        bar.setBackgroundColor(ui.color(R.color.canvas));
+        bar.setMinimumHeight(ui.px(TOP_BAR_DP));
+        LinearLayout inner = ui.row();
+        ImageView back = ui.icon(R.drawable.ph_arrow_left_regular, 24, R.color.ink);
+        back.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        back.setPadding(ui.px(12), ui.px(12), ui.px(12), ui.px(12));
+        back.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
+        back.setContentDescription("Back to Farbaek");
+        back.setBackground(new android.graphics.drawable.RippleDrawable(ColorStateList.valueOf(Color.argb(24, 18, 19, 23)), null, ui.rounded(R.color.ink, 999, 0, 0)));
+        back.setClickable(true);
+        back.setFocusable(true);
+        back.setOnClickListener(v -> finish());
+        inner.addView(back, new LinearLayout.LayoutParams(ui.px(48), ui.px(48)));
+        barTitle = ui.text(getString(R.string.nearby_title), 17, true, R.color.ink);
+        barTitle.setAlpha(0f);
+        barTitle.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        LinearLayout.LayoutParams tl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        tl.leftMargin = ui.px(4);
+        inner.addView(barTitle, tl);
+
+        LinearLayout column = ui.column();
+        column.addView(inner, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ui.px(TOP_BAR_DP)));
+        barLine = new View(this);
+        barLine.setBackgroundColor(ui.color(R.color.line));
+        barLine.setAlpha(0f);
+        column.addView(barLine, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, ui.px(1))));
+        bar.addView(column, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        return bar;
     }
 
     @Override
     protected void onSaveInstanceState(Bundle out) {
         super.onSaveInstanceState(out);
         out.putString("sendTo", sendTo);
+        out.putBoolean("addressOpen", addressOpen);
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-        hub.personPresent();
-        hub.observe(this);
-        looking(true);
+        if (hub != null) {
+            hub.personPresent();
+            hub.observe(this);
+            looking(true);
+        }
         render();
-        hub.refresh();
+        if (hub != null) hub.refresh();
     }
 
     @Override
     protected void onStop() {
         // Listening for computers only while the screen is open; being visible is its own switch.
-        looking(false);
-        hub.forget(this);
+        if (hub != null) {
+            looking(false);
+            hub.forget(this);
+        }
         dynamic.removeCallbacks(whileStarting);
         super.onStop();
     }
@@ -160,72 +279,381 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
     private void render() {
         dynamic.removeAllViews();
         dynamic.removeCallbacks(whileStarting);
-        MeshNode.Snapshot s = hub.ready() ? hub.snapshot() : null;
+        MeshNode.Snapshot s = sample != null ? NearbySamples.snapshot(sample) : hub.ready() ? hub.snapshot() : null;
         if (s == null) {
-            String problem = hub.startProblem();
-            String words = problem != null ? problem
-                    : hub.startingFor() > 15_000
-                    ? "Still starting. Opening this phone's Nearby key is taking longer than usual, and Nearby opens as soon as it's ready. You can leave this screen and come back."
-                    : "Starting Nearby…";
-            dynamic.addView(card(text(words, 15, false, problem != null ? R.color.failed : R.color.ink_2)));
-            if (problem == null) dynamic.postDelayed(whileStarting, 5_000);
+            String problem = hub != null ? hub.startProblem() : "There's no sample called " + sample + ".";
+            LinearLayout c = ui.card();
+            if (problem != null) {
+                c.addView(ui.badge(NearbyUi.Kind.FAILED, "Couldn't start"));
+                TextView t = ui.body(problem);
+                NearbyUi.top(t, 12);
+                c.addView(t);
+            } else {
+                c.addView(ui.badge(NearbyUi.Kind.WORKING, "Starting Nearby"));
+                String words = hub.startingFor() > 15_000
+                        ? "Still starting. Opening this phone's Nearby key is taking longer than usual, and Nearby opens as soon as it's ready. You can leave this screen and come back."
+                        : "Opening this phone's Nearby key. It takes a moment the first time.";
+                TextView t = ui.body(words);
+                NearbyUi.top(t, 12);
+                c.addView(t);
+                dynamic.postDelayed(whileStarting, 5_000);
+            }
+            dynamic.addView(c);
             return;
         }
-        String reset = hub.resetNotice();
+        String reset = hub != null ? hub.resetNotice() : null;
         if (reset != null) {
-            LinearLayout c = cardColumn();
-            c.addView(text(reset, 15, false, R.color.ink));
-            LinearLayout actions = buttons();
-            Button ok = button("OK", false);
+            LinearLayout c = ui.card();
+            c.addView(ui.badge(NearbyUi.Kind.INFO, "Nearby was reset"));
+            TextView t = ui.body(reset);
+            NearbyUi.top(t, 12);
+            c.addView(t);
+            LinearLayout ok = ui.button("OK", 0, NearbyUi.SECONDARY);
             ok.setOnClickListener(v -> hub.dismissResetNotice());
-            actions.addView(ok);
-            c.addView(actions);
+            c.addView(ui.stack(ok));
             dynamic.addView(c);
         }
-        if (s.pairing != null) dynamic.addView(pairingCard(s.pairing));
-        if (!s.transfers.isEmpty()) dynamic.addView(transfersCard(s.transfers));
-        dynamic.addView(phoneCard(s));
-        dynamic.addView(computersCard(s));
-        View nearby = nearbyCard(s);
-        if (nearby != null) dynamic.addView(nearby);
+        List<TrustStore.TrustedDevice> computers = new ArrayList<>();
+        for (TrustStore.TrustedDevice d : s.devices) if (!"farbaek".equals(d.via)) computers.add(d);
+
+        if (s.pairing != null) show(pairingCard(s.pairing), "pairing:" + s.pairing.id + ":" + s.pairing.state);
+        if (!s.transfers.isEmpty()) show(transfersCard(s.transfers), "transfers");
+        show(computersCard(s, computers), null);
+        View nearby = nearbyCard(s, computers.isEmpty());
+        if (nearby != null) show(nearby, "nearby");
+        show(phoneCard(s), null);
         View received = receivedCard(s);
-        if (received != null) dynamic.addView(received);
+        if (received != null) show(received, "received");
+        firstRender = false;
+    }
+
+    /** Adds a card; one that wasn't there before rises in, except on the screen's first drawing. */
+    private void show(View card, String key) {
+        dynamic.addView(card);
+        if (key != null && shown.add(key) && !firstRender) NearbyUi.riseIn(card, getResources().getDisplayMetrics().density);
+    }
+
+    // Cards
+
+    private View computersCard(MeshNode.Snapshot s, List<TrustStore.TrustedDevice> computers) {
+        LinearLayout c = ui.card();
+        c.addView(ui.title(R.drawable.ph_desktop_regular, computers.size() == 1 ? "Your computer" : "Your computers"));
+        if (computers.isEmpty()) {
+            TextView intro = ui.body("Pair a computer once, then send it photos and files from here.");
+            NearbyUi.top(intro, 8);
+            c.addView(intro);
+            String[] steps = {
+                "On your computer, open the Farbaek desktop app and go to Nearby.",
+                "Choose Be visible. Your computer appears on this screen.",
+                "Tap Pair, and check both screens show the same six digits.",
+            };
+            for (int i = 0; i < steps.length; i++) c.addView(step(i + 1, steps[i]));
+            return c;
+        }
+        boolean first = true;
+        for (final TrustStore.TrustedDevice d : computers) {
+            if (!first) c.addView(ui.divider());
+            first = false;
+            Discovery.NearbyDevice seen = find(s.nearby, d.fingerprint);
+            LinearLayout item = ui.column();
+            NearbyUi.top(item, 16);
+            TextView name = ui.text(d.name, 16, true, R.color.ink);
+            item.addView(name);
+            View badge = seen != null ? ui.badge(NearbyUi.Kind.VERIFIED, "On this Wi-Fi") : ui.badge(NearbyUi.Kind.OFF, "Not on this Wi-Fi");
+            NearbyUi.top(badge, 8);
+            ((LinearLayout.LayoutParams) badge.getLayoutParams()).width = ViewGroup.LayoutParams.WRAP_CONTENT;
+            item.addView(badge);
+            if (seen == null) {
+                TextView how = ui.caption("To send to it, open Nearby on " + d.name + " and choose Be visible, on the same Wi-Fi as this phone.");
+                NearbyUi.top(how, 8);
+                item.addView(how);
+            }
+            LinearLayout send = ui.button("Send photos and files", R.drawable.ph_paper_plane_tilt_bold, NearbyUi.PRIMARY);
+            NearbyUi.enable(send, seen != null);
+            send.setOnClickListener(v -> pickFiles(d.fingerprint));
+            LinearLayout forget = ui.button("Forget this computer", 0, NearbyUi.QUIET);
+            forget.setOnClickListener(v -> confirmForget(d));
+            item.addView(ui.stack(send, forget));
+            c.addView(item);
+        }
+        return c;
+    }
+
+    /** One step of how to pair, with its number on a small quiet tile. */
+    private View step(int n, String words) {
+        LinearLayout row = ui.row();
+        row.setGravity(Gravity.TOP);
+        TextView number = ui.text(String.valueOf(n), 13, true, R.color.ink_2);
+        number.setGravity(Gravity.CENTER);
+        number.setBackground(ui.rounded(R.color.surface_raised, 999, R.color.line, 1));
+        number.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        row.addView(number, new LinearLayout.LayoutParams(ui.px(26), ui.px(26)));
+        TextView t = ui.text(words, 15, false, R.color.ink);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        lp.leftMargin = ui.px(12);
+        lp.topMargin = ui.px(2);
+        row.addView(t, lp);
+        row.setContentDescription("Step " + n + ". " + words);
+        NearbyUi.top(row, 14);
+        return row;
+    }
+
+    private View nearbyCard(MeshNode.Snapshot s, boolean noneYet) {
+        Set<String> paired = new HashSet<>();
+        for (TrustStore.TrustedDevice d : s.devices) paired.add(d.fingerprint);
+        List<Discovery.NearbyDevice> fresh = new ArrayList<>();
+        for (Discovery.NearbyDevice n : s.nearby) if (!paired.contains(n.fingerprint)) fresh.add(n);
+        if (fresh.isEmpty()) return null;
+        LinearLayout c = ui.card();
+        c.addView(ui.title(R.drawable.ph_wifi_high_regular, "On this Wi-Fi, not paired"));
+        boolean first = true;
+        for (final Discovery.NearbyDevice n : fresh) {
+            if (!first) c.addView(ui.divider());
+            first = false;
+            LinearLayout item = ui.column();
+            NearbyUi.top(item, 16);
+            item.addView(ui.text(n.name, 16, true, R.color.ink));
+            TextView key = ui.mono("Key " + groups(n.fingerprint), 13, R.color.ink_3);
+            NearbyUi.top(key, 4);
+            item.addView(key);
+            LinearLayout pair = ui.button("Pair with " + n.name, R.drawable.ph_link_simple_bold, noneYet ? NearbyUi.PRIMARY : NearbyUi.SECONDARY);
+            pair.setOnClickListener(v -> pair(n.address, n.port));
+            item.addView(ui.stack(pair));
+            c.addView(item);
+        }
+        return c;
+    }
+
+    private View pairingCard(final MeshNode.PairingView p) {
+        String peer = p.peerName != null ? p.peerName : "that computer";
+        switch (p.state) {
+            case "confirming": {
+                LinearLayout c = ui.turnCard();
+                c.addView(ui.badge(NearbyUi.Kind.APPROVAL, "Your turn"));
+                TextView h = ui.text("Pair with " + peer + "?", 18, true, R.color.ink);
+                NearbyUi.top(h, 12);
+                c.addView(h);
+                c.addView(ui.code(p.code));
+                TextView how = ui.body("Check that " + peer + " shows the same six digits. Pair only if they match.");
+                NearbyUi.top(how, 14);
+                c.addView(how);
+                LinearLayout yes = ui.button("They match", R.drawable.ph_check_bold, NearbyUi.PRIMARY);
+                LinearLayout no = ui.button("They don't match", R.drawable.ph_x_bold, NearbyUi.SECONDARY);
+                yes.setOnClickListener(v -> {
+                    NearbyUi.enable(yes, false);
+                    NearbyUi.enable(no, false);
+                    act(() -> hub.node().confirmPairing(p.id, true));
+                });
+                no.setOnClickListener(v -> {
+                    NearbyUi.enable(yes, false);
+                    NearbyUi.enable(no, false);
+                    act(() -> hub.node().confirmPairing(p.id, false));
+                });
+                c.addView(ui.stack(yes, no));
+                return c;
+            }
+            case "waiting": {
+                LinearLayout c = ui.turnCard();
+                c.addView(ui.badge(NearbyUi.Kind.PENDING, "Waiting for " + shortName(peer)));
+                TextView h = ui.text("Confirm on " + peer, 18, true, R.color.ink);
+                NearbyUi.top(h, 12);
+                c.addView(h);
+                c.addView(ui.code(p.code));
+                TextView how = ui.body("You confirmed these digits. Now confirm the same six on " + peer + ".");
+                NearbyUi.top(how, 14);
+                c.addView(how);
+                LinearLayout cancel = ui.button("Cancel pairing", 0, NearbyUi.QUIET);
+                cancel.setOnClickListener(v -> act(() -> hub.node().dismissPairing(p.id)));
+                c.addView(ui.stack(cancel));
+                return c;
+            }
+            default: {
+                boolean paired = "paired".equals(p.state);
+                LinearLayout c = ui.card();
+                if (paired) {
+                    ImageView check = ui.icon(R.drawable.ph_check_circle_fill, 44, R.color.verified);
+                    c.addView(check, new LinearLayout.LayoutParams(ui.px(44), ui.px(44)));
+                    if (celebrated.add("pairing:" + p.id)) {
+                        NearbyUi.pop(check);
+                        tap();
+                    }
+                    TextView h = ui.text("Paired with " + peer, 18, true, R.color.ink);
+                    NearbyUi.top(h, 14);
+                    c.addView(h);
+                    TextView how = ui.body("Send it a photo to try it. " + peer + " asks to accept it, then shows Open folder. While this phone is visible, " + peer + " can send to it too.");
+                    NearbyUi.top(how, 8);
+                    c.addView(how);
+                    LinearLayout send = ui.button("Send photos and files", R.drawable.ph_paper_plane_tilt_bold, NearbyUi.PRIMARY);
+                    send.setOnClickListener(v -> {
+                        act(() -> hub.node().dismissPairing(p.id));
+                        if (p.peerFingerprint != null) pickFiles(p.peerFingerprint);
+                    });
+                    LinearLayout done = ui.button("Done", 0, NearbyUi.QUIET);
+                    done.setOnClickListener(v -> act(() -> hub.node().dismissPairing(p.id)));
+                    c.addView(p.peerFingerprint != null ? ui.stack(send, done) : ui.stack(done));
+                } else {
+                    c.addView(ui.badge(NearbyUi.Kind.OFF, "Not paired"));
+                    TextView why = ui.body(p.message != null ? p.message : "Nothing was paired. Try again when both screens are open.");
+                    NearbyUi.top(why, 12);
+                    c.addView(why);
+                    LinearLayout close = ui.button("Close", 0, NearbyUi.SECONDARY);
+                    close.setOnClickListener(v -> act(() -> hub.node().dismissPairing(p.id)));
+                    c.addView(ui.stack(close));
+                }
+                return c;
+            }
+        }
+    }
+
+    private View transfersCard(List<TransferView> transfers) {
+        LinearLayout c = ui.card();
+        c.addView(ui.title(R.drawable.ph_arrows_down_up_regular, "Transfers"));
+        boolean first = true;
+        for (final TransferView t : transfers) {
+            if (!first) c.addView(ui.divider());
+            first = false;
+            boolean in = "in".equals(t.direction);
+            LinearLayout item = ui.column();
+            NearbyUi.top(item, 16);
+            View badge = ui.badge(kind(t), label(t));
+            item.addView(badge);
+            if (t.state == TransferState.DONE && celebrated.add("transfer:" + t.id)) {
+                if (!firstRender) {
+                    NearbyUi.pop(badge);
+                    tap();
+                }
+            }
+            TextView name = ui.text(t.name, 16, true, R.color.ink);
+            NearbyUi.top(name, 10);
+            item.addView(name);
+            String who = (in ? "From " : "To ") + t.peerName + ". " + t.files + (t.files == 1 ? " file, " : " files, ") + bytes(t.bytes) + ".";
+            TextView whoText = ui.caption(who);
+            NearbyUi.top(whoText, 4);
+            item.addView(whoText);
+            boolean moving = t.bytes > 0 && (t.state == TransferState.SENDING || t.state == TransferState.RECEIVING || t.state == TransferState.FINISHING);
+            if (moving) {
+                item.addView(ui.progress(t.bytesDone, t.bytes, bytes(t.bytesDone) + " of " + bytes(t.bytes)));
+                TextView amount = ui.caption(bytes(t.bytesDone) + " of " + bytes(t.bytes));
+                NearbyUi.top(amount, 6);
+                item.addView(amount);
+            }
+            String next = next(t);
+            if (next != null) {
+                TextView n = ui.text(next, 14, false, R.color.ink_2);
+                NearbyUi.top(n, 8);
+                item.addView(n);
+            }
+            if (in && t.reusedFiles > 0) item.addView(spaced(ui.caption(t.reusedFiles + (t.reusedFiles == 1 ? " file" : " files") + " came from the earlier copy, so they weren't sent again.")));
+            if (t.excludedCount > 0) item.addView(spaced(ui.caption(t.excludedCount + (t.excludedCount == 1 ? " file was" : " files were") + " left out.")));
+            if (t.message != null && !t.message.isEmpty() && t.state != TransferState.DONE) {
+                item.addView(spaced(ui.text(t.message, 13, false, t.state == TransferState.FAILED ? R.color.failed : R.color.ink_2)));
+            }
+            if (in && t.state == TransferState.OFFERED) {
+                item.addView(ui.pair(action("Accept", R.drawable.ph_check_bold, NearbyUi.PRIMARY, () -> hub.node().accept(t.id, hub.inbox(), null)),
+                        action("Decline", R.drawable.ph_x_bold, NearbyUi.SECONDARY, () -> hub.node().decline(t.id))));
+            } else if (!t.state.isFinal() && t.state != TransferState.INTERRUPTED) {
+                item.addView(ui.stack(action("Cancel", 0, NearbyUi.QUIET, () -> hub.node().cancel(t.id))));
+            } else if (!in && t.state == TransferState.INTERRUPTED) {
+                item.addView(ui.stack(action("Resume", R.drawable.ph_arrow_counter_clockwise_bold, NearbyUi.PRIMARY, () -> hub.node().resume(t.id)),
+                        action("Dismiss", 0, NearbyUi.QUIET, () -> hub.node().dismiss(t.id))));
+            } else if (in && t.state == TransferState.DONE && t.destination != null) {
+                LinearLayout share = ui.button("Share", R.drawable.ph_share_network_bold, NearbyUi.SECONDARY);
+                share.setOnClickListener(v -> share(new File(t.destination), t.name));
+                item.addView(ui.pair(share, action("Dismiss", 0, NearbyUi.QUIET, () -> hub.node().dismiss(t.id))));
+            } else {
+                item.addView(ui.stack(action(in && t.state == TransferState.INTERRUPTED ? "Give up" : "Dismiss", 0, NearbyUi.QUIET, () -> hub.node().dismiss(t.id))));
+            }
+            c.addView(item);
+        }
+        return c;
+    }
+
+    private View spaced(TextView t) {
+        NearbyUi.top(t, 6);
+        return t;
+    }
+
+    private View phoneCard(MeshNode.Snapshot s) {
+        LinearLayout c = ui.card();
+        c.addView(ui.title(R.drawable.ph_device_mobile_regular, "Receive on this phone"));
+        LinearLayout row = ui.row();
+        row.setMinimumHeight(ui.px(56));
+        NearbyUi.top(row, 12);
+        final boolean on = s.visibleUntil > System.currentTimeMillis();
+        LinearLayout words = ui.column();
+        words.addView(ui.text("Visible to your computers", 16, true, R.color.ink));
+        TextView caption = ui.caption(on
+                ? "Until " + DateFormat.getTimeInstance(DateFormat.SHORT).format(new Date(s.visibleUntil)) + ". Your paired computers can find this phone and send to it."
+                : "Off. Turn it on so a paired computer can send to this phone. It turns itself off after five minutes.");
+        NearbyUi.top(caption, 4);
+        words.addView(caption);
+        row.addView(words, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        final Switch visible = new Switch(this);
+        visible.setChecked(on);
+        visible.setContentDescription("Visible to your computers");
+        int[][] states = {{android.R.attr.state_checked}, {}};
+        visible.setThumbTintList(new ColorStateList(states, new int[] {ui.color(R.color.accent), ui.color(R.color.surface)}));
+        visible.setTrackTintList(new ColorStateList(states, new int[] {ui.over(R.color.accent, 0.45f), ui.color(R.color.line_2)}));
+        visible.setOnCheckedChangeListener((button, checked) -> beVisible(checked));
+        visible.setMinimumHeight(ui.px(48));
+        LinearLayout.LayoutParams sl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        sl.leftMargin = ui.px(12);
+        row.addView(visible, sl);
+        c.addView(row);
+        c.addView(ui.divider());
+        TextView name = ui.text("This phone is " + s.name, 15, false, R.color.ink_2);
+        NearbyUi.top(name, 14);
+        c.addView(name);
+        TextView key = ui.mono("Key " + groups(s.fingerprint), 13, R.color.ink_3);
+        NearbyUi.top(key, 4);
+        c.addView(key);
+        return c;
     }
 
     /** Every folder received here, still on this phone after the transfer is gone from the list or the app was closed. */
     private View receivedCard(MeshNode.Snapshot s) {
-        Set<String> live = new HashSet<>();
-        for (TransferView t : s.transfers) if (t.destination != null && !t.state.isFinal()) live.add(new File(t.destination).getName());
-        File[] folders = hub.inbox().listFiles();
-        List<File> shown = new ArrayList<>();
-        if (folders != null) for (File f : folders) if (f.isDirectory() && !f.getName().startsWith(".farbaek-") && !live.contains(f.getName())) shown.add(f);
-        if (shown.isEmpty()) return null;
-        java.util.Collections.sort(shown, (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
-        LinearLayout c = cardColumn();
-        c.addView(heading("Received"));
+        List<Received> shownFolders = sample != null ? NearbySamples.received(sample) : receivedFolders(s);
+        if (shownFolders.isEmpty()) return null;
+        LinearLayout c = ui.card();
+        c.addView(ui.title(R.drawable.ph_tray_arrow_down_regular, "Received"));
         int listed = 0;
-        for (final File folder : shown) {
+        for (final Received r : shownFolders) {
             if (++listed > 30) {
-                c.addView(text("The oldest " + (shown.size() - 30) + " aren't listed. Delete some to see them.", 13, false, R.color.ink_3));
+                c.addView(spaced(ui.caption("The oldest " + (shownFolders.size() - 30) + " aren't listed. Delete some to see them.")));
                 break;
             }
-            long[] size = new long[2];
-            measure(folder, size, 0);
-            LinearLayout item = column();
-            margin(item, 12);
-            item.addView(text(folder.getName(), 16, true, R.color.ink));
-            item.addView(text(size[0] + (size[0] == 1 ? " file, " : " files, ") + bytes(size[1]) + ". Received " + DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(new Date(folder.lastModified())) + ".", 13, false, R.color.ink_3));
-            LinearLayout actions = buttons();
-            Button share = button("Share", true);
-            share.setOnClickListener(v -> share(folder, folder.getName()));
-            actions.addView(share);
-            Button remove = button("Delete", false);
-            remove.setOnClickListener(v -> confirmDelete(folder));
-            actions.addView(remove);
-            item.addView(actions);
+            if (listed > 1) c.addView(ui.divider());
+            LinearLayout item = ui.column();
+            NearbyUi.top(item, 16);
+            item.addView(ui.text(r.name, 16, true, R.color.ink));
+            TextView about = ui.caption(r.files + (r.files == 1 ? " file, " : " files, ") + bytes(r.bytes) + ". Received " + DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(new Date(r.when)) + ".");
+            NearbyUi.top(about, 4);
+            item.addView(about);
+            LinearLayout share = ui.button("Share", R.drawable.ph_share_network_bold, NearbyUi.SECONDARY);
+            share.setOnClickListener(v -> share(r.folder, r.name));
+            LinearLayout remove = ui.button("Delete", R.drawable.ph_trash_bold, NearbyUi.QUIET);
+            remove.setOnClickListener(v -> confirmDelete(r.folder));
+            item.addView(ui.pair(share, remove));
             c.addView(item);
         }
         return c;
+    }
+
+    private List<Received> receivedFolders(MeshNode.Snapshot s) {
+        Set<String> live = new HashSet<>();
+        for (TransferView t : s.transfers) if (t.destination != null && !t.state.isFinal()) live.add(new File(t.destination).getName());
+        File[] folders = hub.inbox().listFiles();
+        List<Received> found = new ArrayList<>();
+        if (folders != null) {
+            for (File f : folders) {
+                if (!f.isDirectory() || f.getName().startsWith(".farbaek-") || live.contains(f.getName())) continue;
+                long[] size = new long[2];
+                measure(f, size, 0);
+                found.add(new Received(f.getName(), size[0], size[1], f.lastModified(), f));
+            }
+        }
+        java.util.Collections.sort(found, (a, b) -> Long.compare(b.when, a.when));
+        return found;
     }
 
     /** Files and bytes in a folder, without following links, stopping early in a very large one. */
@@ -241,7 +669,71 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         }
     }
 
+    /** Pairing by address, folded away until someone needs it: most computers appear on their own. */
+    private View addressCard() {
+        final LinearLayout c = ui.card();
+        LinearLayout head = ui.row();
+        head.setMinimumHeight(ui.px(48));
+        head.setClickable(true);
+        head.setFocusable(true);
+        head.setBackground(new android.graphics.drawable.RippleDrawable(ColorStateList.valueOf(Color.argb(16, 18, 19, 23)), null, ui.rounded(R.color.ink, 12, 0, 0)));
+        LinearLayout title = ui.title(R.drawable.ph_link_simple_regular, "Pair by address");
+        head.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        final ImageView caret = ui.icon(R.drawable.ph_caret_down_regular, 20, R.color.ink_3);
+        head.addView(caret);
+        c.addView(head);
+        TextView hint = ui.caption("If your computer doesn't appear on its own.");
+        NearbyUi.top(hint, 2);
+        c.addView(hint);
+
+        final LinearLayout body = ui.column();
+        TextView how = ui.body("Type the address its Nearby page shows, such as 192.168.1.20:53367.");
+        NearbyUi.top(how, 12);
+        body.addView(how);
+        address = new EditText(this);
+        address.setSingleLine(true);
+        address.setHint("Address and port");
+        address.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+        address.setImeOptions(EditorInfo.IME_ACTION_GO);
+        address.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        address.setTypeface(ui.monoTypeface());
+        address.setTextColor(ui.color(R.color.ink));
+        address.setHintTextColor(ui.color(R.color.ink_3));
+        address.setBackground(ui.rounded(R.color.surface, 12, R.color.line_2, 1));
+        address.setOnFocusChangeListener((v, focused) -> v.setBackground(ui.rounded(R.color.surface, 12, focused ? R.color.accent : R.color.line_2, focused ? 1.5f : 1)));
+        address.setPadding(ui.px(14), ui.px(12), ui.px(14), ui.px(12));
+        address.setMinHeight(ui.px(52));
+        address.setContentDescription("Address and port");
+        NearbyUi.top(address, 12);
+        body.addView(address);
+        LinearLayout pair = ui.button("Pair", R.drawable.ph_link_simple_bold, NearbyUi.SECONDARY);
+        pair.setOnClickListener(v -> pairTyped());
+        address.setOnEditorActionListener((v, id, e) -> {
+            pairTyped();
+            return true;
+        });
+        body.addView(ui.stack(pair));
+        body.setVisibility(addressOpen ? View.VISIBLE : View.GONE);
+        caret.setRotation(addressOpen ? 180f : 0f);
+        c.addView(body);
+        head.setContentDescription("Pair by address. " + (addressOpen ? "Open" : "Closed"));
+        head.setOnClickListener(v -> {
+            addressOpen = !addressOpen;
+            body.setVisibility(addressOpen ? View.VISIBLE : View.GONE);
+            caret.animate().rotation(addressOpen ? 180f : 0f).setDuration(200).start();
+            head.setContentDescription("Pair by address. " + (addressOpen ? "Open" : "Closed"));
+            if (addressOpen) NearbyUi.riseIn(body, getResources().getDisplayMetrics().density);
+        });
+        return c;
+    }
+
+    // Actions
+
     private void confirmDelete(final File folder) {
+        if (sample != null) {
+            say("A sample screen: nothing is deleted.");
+            return;
+        }
         new AlertDialog.Builder(this)
                 .setTitle("Delete " + folder.getName() + "?")
                 .setMessage("It's removed from this phone. The computer that sent it still has its copy.")
@@ -253,223 +745,8 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
                 .show();
     }
 
-    private View phoneCard(MeshNode.Snapshot s) {
-        LinearLayout c = cardColumn();
-        c.addView(heading("This phone"));
-        TextView name = text(s.name, 16, true, R.color.ink);
-        margin(name, 8);
-        c.addView(name);
-        TextView key = mono("Key " + groups(s.fingerprint), 13, R.color.ink_3);
-        margin(key, 2);
-        c.addView(key);
-
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setMinimumHeight(px(48));
-        TextView label = text("Visible to your computers", 15, false, R.color.ink);
-        row.addView(label, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        final Switch visible = new Switch(this);
-        final boolean on = s.visibleUntil > System.currentTimeMillis();
-        visible.setChecked(on);
-        visible.setContentDescription("Visible to your computers");
-        visible.setOnCheckedChangeListener((button, checked) -> beVisible(checked));
-        row.addView(visible);
-        margin(row, 12);
-        c.addView(row);
-        String caption = on
-                ? "Your paired computers can find this phone until " + DateFormat.getTimeInstance(DateFormat.SHORT).format(new Date(s.visibleUntil)) + "."
-                : "Turn this on so a paired computer can find this phone and send to it. It turns itself off after five minutes.";
-        c.addView(text(caption, 13, false, R.color.ink_3));
-        return c;
-    }
-
-    private View computersCard(MeshNode.Snapshot s) {
-        LinearLayout c = cardColumn();
-        c.addView(heading("Your computers"));
-        List<TrustStore.TrustedDevice> computers = new ArrayList<>();
-        for (TrustStore.TrustedDevice d : s.devices) if (!"farbaek".equals(d.via)) computers.add(d);
-        if (computers.isEmpty()) {
-            TextView none = text("None paired yet. On your computer, open Farbaek's desktop app, go to Nearby and choose Be visible. It appears below, ready to pair. Or pair by its address.", 14, false, R.color.ink_2);
-            margin(none, 8);
-            c.addView(none);
-            return c;
-        }
-        for (final TrustStore.TrustedDevice d : computers) {
-            Discovery.NearbyDevice seen = find(s.nearby, d.fingerprint);
-            LinearLayout item = column();
-            margin(item, 12);
-            item.addView(text(d.name, 16, true, R.color.ink));
-            item.addView(text(seen != null ? "On this Wi-Fi now." : "Not seen on this Wi-Fi. On the computer, choose Be visible in Nearby.", 13, false, seen != null ? R.color.verified : R.color.ink_3));
-            LinearLayout actions = buttons();
-            Button send = button("Send files", true);
-            send.setEnabled(seen != null);
-            send.setOnClickListener(v -> pickFiles(d.fingerprint));
-            actions.addView(send);
-            Button forget = button("Forget", false);
-            forget.setOnClickListener(v -> confirmForget(d));
-            actions.addView(forget);
-            item.addView(actions);
-            c.addView(item);
-        }
-        return c;
-    }
-
-    private View nearbyCard(MeshNode.Snapshot s) {
-        Set<String> paired = new HashSet<>();
-        for (TrustStore.TrustedDevice d : s.devices) paired.add(d.fingerprint);
-        List<Discovery.NearbyDevice> fresh = new ArrayList<>();
-        for (Discovery.NearbyDevice n : s.nearby) if (!paired.contains(n.fingerprint)) fresh.add(n);
-        if (fresh.isEmpty()) return null;
-        LinearLayout c = cardColumn();
-        c.addView(heading("On this Wi-Fi, not paired"));
-        for (final Discovery.NearbyDevice n : fresh) {
-            LinearLayout item = column();
-            margin(item, 12);
-            item.addView(text(n.name, 16, true, R.color.ink));
-            item.addView(mono("Key " + groups(n.fingerprint), 13, R.color.ink_3));
-            LinearLayout actions = buttons();
-            Button pair = button("Pair", true);
-            pair.setOnClickListener(v -> pair(n.address, n.port));
-            actions.addView(pair);
-            item.addView(actions);
-            c.addView(item);
-        }
-        return c;
-    }
-
-    private View pairingCard(MeshNode.PairingView p) {
-        LinearLayout c = cardColumn();
-        c.setBackground(rounded(R.color.surface, 20, R.color.accent));
-        String peer = p.peerName != null ? p.peerName : "that computer";
-        switch (p.state) {
-            case "confirming": {
-                c.addView(heading("Pair with " + peer + "?"));
-                c.addView(code(p.code));
-                c.addView(text("Check that " + peer + " shows the same six digits. Pair only if they match.", 14, false, R.color.ink_2));
-                LinearLayout actions = buttons();
-                Button yes = button("They match", true);
-                yes.setOnClickListener(v -> {
-                    v.setEnabled(false);
-                    hub.runQuick(() -> hub.node().confirmPairing(p.id, true));
-                });
-                actions.addView(yes);
-                Button no = button("They don't match", false);
-                no.setOnClickListener(v -> {
-                    v.setEnabled(false);
-                    hub.runQuick(() -> hub.node().confirmPairing(p.id, false));
-                });
-                actions.addView(no);
-                c.addView(actions);
-                break;
-            }
-            case "waiting": {
-                c.addView(heading("Waiting for " + peer));
-                c.addView(code(p.code));
-                c.addView(text("Confirm the code on " + peer + " too.", 14, false, R.color.ink_2));
-                LinearLayout actions = buttons();
-                Button cancel = button("Cancel", false);
-                cancel.setOnClickListener(v -> hub.runQuick(() -> hub.node().dismissPairing(p.id)));
-                actions.addView(cancel);
-                c.addView(actions);
-                break;
-            }
-            default: {
-                boolean paired = "paired".equals(p.state);
-                c.addView(heading(paired ? "Paired with " + peer : "Not paired"));
-                String why = p.message != null ? p.message : paired ? "You can send files to it now." : "Nothing was paired. Try again when both screens are open.";
-                c.addView(text(why, 14, false, paired ? R.color.verified : R.color.ink_2));
-                LinearLayout actions = buttons();
-                Button done = button(paired ? "Done" : "Close", !paired);
-                done.setOnClickListener(v -> hub.runQuick(() -> hub.node().dismissPairing(p.id)));
-                actions.addView(done);
-                c.addView(actions);
-            }
-        }
-        return c;
-    }
-
-    private View transfersCard(List<TransferView> transfers) {
-        LinearLayout c = cardColumn();
-        c.addView(heading("Transfers"));
-        for (final TransferView t : transfers) {
-            boolean in = "in".equals(t.direction);
-            LinearLayout item = column();
-            margin(item, 12);
-            item.addView(text(t.name, 16, true, R.color.ink));
-            String who = (in ? "From " : "To ") + t.peerName + ". " + t.files + (t.files == 1 ? " file, " : " files, ") + bytes(t.bytes) + ".";
-            item.addView(text(who, 13, false, R.color.ink_3));
-            item.addView(text(label(t), 14, true, tone(t)));
-            if (!t.state.isFinal() && t.bytes > 0 && (t.state == TransferState.SENDING || t.state == TransferState.RECEIVING || t.state == TransferState.FINISHING)) {
-                ProgressBar bar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-                bar.setMax(1000);
-                bar.setProgress((int) Math.min(1000, t.bytesDone * 1000 / Math.max(1, t.bytes)));
-                bar.setProgressTintList(ColorStateList.valueOf(color(R.color.accent)));
-                bar.setContentDescription(bytes(t.bytesDone) + " of " + bytes(t.bytes));
-                margin(bar, 6);
-                item.addView(bar);
-                item.addView(text(bytes(t.bytesDone) + " of " + bytes(t.bytes), 13, false, R.color.ink_3));
-            }
-            if (in && t.reusedFiles > 0) item.addView(text(t.reusedFiles + (t.reusedFiles == 1 ? " file" : " files") + " came from the earlier copy, so they weren't sent again.", 13, false, R.color.ink_3));
-            if (t.excludedCount > 0) item.addView(text(t.excludedCount + (t.excludedCount == 1 ? " file was" : " files were") + " left out.", 13, false, R.color.ink_3));
-            if (t.message != null && !t.message.isEmpty()) item.addView(text(t.message, 13, false, t.state == TransferState.FAILED ? R.color.failed : R.color.ink_2));
-            LinearLayout actions = buttons();
-            if (in && t.state == TransferState.OFFERED) {
-                actions.addView(action("Accept", true, () -> hub.node().accept(t.id, hub.inbox(), null)));
-                actions.addView(action("Decline", false, () -> hub.node().decline(t.id)));
-            } else if (!t.state.isFinal() && t.state != TransferState.INTERRUPTED) {
-                actions.addView(action("Cancel", false, () -> hub.node().cancel(t.id)));
-            } else if (!in && t.state == TransferState.INTERRUPTED) {
-                actions.addView(action("Resume", true, () -> hub.node().resume(t.id)));
-                actions.addView(action("Dismiss", false, () -> hub.node().dismiss(t.id)));
-            } else {
-                if (in && t.state == TransferState.DONE && t.destination != null) {
-                    Button share = button("Share", true);
-                    share.setOnClickListener(v -> share(new File(t.destination), t.name));
-                    actions.addView(share);
-                }
-                actions.addView(action(in && t.state == TransferState.INTERRUPTED ? "Give up" : "Dismiss", false, () -> hub.node().dismiss(t.id)));
-            }
-            item.addView(actions);
-            c.addView(item);
-        }
-        return c;
-    }
-
-    private View addressCard() {
-        LinearLayout c = cardColumn();
-        c.addView(heading("Pair by address"));
-        TextView how = text("If the computer doesn't appear, type the address its Nearby page shows, such as 192.168.1.20:53367.", 14, false, R.color.ink_2);
-        margin(how, 6);
-        c.addView(how);
-        address = new EditText(this);
-        address.setSingleLine(true);
-        address.setHint("Address and port");
-        address.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
-        address.setImeOptions(EditorInfo.IME_ACTION_GO);
-        address.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        address.setTypeface(Typeface.MONOSPACE);
-        address.setTextColor(color(R.color.ink));
-        address.setBackground(rounded(R.color.surface, 12, R.color.line));
-        address.setPadding(px(14), px(12), px(14), px(12));
-        address.setMinHeight(px(48));
-        margin(address, 12);
-        c.addView(address);
-        LinearLayout actions = buttons();
-        Button pair = button("Pair", false);
-        pair.setOnClickListener(v -> pairTyped());
-        address.setOnEditorActionListener((v, id, e) -> {
-            pairTyped();
-            return true;
-        });
-        actions.addView(pair);
-        c.addView(actions);
-        return c;
-    }
-
-    // Actions
-
     private void beVisible(final boolean on) {
+        if (sample != null) return;
         if (on) askToNotify();
         hub.run(() -> {
             try {
@@ -498,6 +775,10 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
     }
 
     private void pair(final String host, final int port) {
+        if (sample != null) {
+            say("A sample screen: nothing is paired.");
+            return;
+        }
         say("Calling " + host + "…");
         hub.run(() -> {
             try {
@@ -510,6 +791,10 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
     }
 
     private void confirmForget(final TrustStore.TrustedDevice d) {
+        if (sample != null) {
+            say("A sample screen: nothing is forgotten.");
+            return;
+        }
         new AlertDialog.Builder(this)
                 .setTitle("Forget " + d.name + "?")
                 .setMessage("It can't send to this phone, or receive from it, until you pair again.")
@@ -525,6 +810,10 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
     }
 
     private void pickFiles(String fingerprint) {
+        if (sample != null) {
+            say("A sample screen: nothing is sent.");
+            return;
+        }
         sendTo = fingerprint;
         askToNotify();
         Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT)
@@ -537,14 +826,14 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
     @Override
     protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
-        if (request != PICK_FILES || result != RESULT_OK || data == null || sendTo == null) return;
+        if (hub == null || request != PICK_FILES || result != RESULT_OK || data == null || sendTo == null) return;
         final List<Uri> picked = new ArrayList<>();
         ClipData clip = data.getClipData();
         if (clip != null) for (int i = 0; i < clip.getItemCount(); i++) picked.add(clip.getItemAt(i).getUri());
         else if (data.getData() != null) picked.add(data.getData());
         if (picked.isEmpty()) return;
         final String to = sendTo;
-        say("Checking " + picked.size() + (picked.size() == 1 ? " file…" : " files…"));
+        say("Getting " + picked.size() + (picked.size() == 1 ? " file" : " files") + " ready to send…");
         hub.run(() -> {
             try {
                 File folder = copyPicked(picked);
@@ -615,6 +904,10 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
     }
 
     private void share(File folder, String name) {
+        if (sample != null) {
+            say("A sample screen: nothing is shared.");
+            return;
+        }
         ArrayList<Uri> uris = new ArrayList<>();
         collect(folder, uris);
         if (uris.isEmpty()) {
@@ -648,28 +941,57 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         void run() throws Exception;
     }
 
-    private Button action(String label, boolean primary, final MeshCall call) {
-        Button b = button(label, primary);
-        b.setOnClickListener(v -> {
-            v.setEnabled(false);
-            hub.runQuick(() -> {
+    /** Runs a call on the node off the main thread; if it fails, says why and draws the screen again. */
+    private void act(final MeshCall call) {
+        if (sample != null) {
+            say("A sample screen: nothing happens.");
+            return;
+        }
+        hub.runQuick(() -> {
             try {
                 call.run();
             } catch (Exception e) {
                 say(e.getMessage() != null ? e.getMessage() : "That didn't work. Try again.");
                 hub.post(this::render);
             }
-            });
+        });
+    }
+
+    private LinearLayout action(String label, int icon, int style, final MeshCall call) {
+        LinearLayout b = ui.button(label, icon, style);
+        b.setOnClickListener(v -> {
+            NearbyUi.enable(v, false);
+            act(call);
         });
         return b;
     }
 
-    /** Shows a line at the top of the screen, from any thread; null clears it. */
+    /** The phone's own short confirmation, for the moments it worked. */
+    private void tap() {
+        page.performHapticFeedback(Build.VERSION.SDK_INT >= 30 ? HapticFeedbackConstants.CONFIRM : HapticFeedbackConstants.VIRTUAL_KEY);
+    }
+
+    private final Runnable hideToast = () -> toast.animate().alpha(0f).translationY(ui.px(8)).setDuration(160).withEndAction(() -> toast.setVisibility(View.GONE)).start();
+
+    /** Shows a message at the bottom of the screen, above the bars and the keyboard, from any thread; null clears it. */
     private void say(final String message) {
-        hub.post(() -> {
-            notice.setText(message == null ? "" : message);
-            notice.setVisibility(message == null || message.isEmpty() ? View.GONE : View.VISIBLE);
-        });
+        Runnable show = () -> {
+            toast.removeCallbacks(hideToast);
+            if (message == null || message.isEmpty()) {
+                hideToast.run();
+                return;
+            }
+            toast.setText(message);
+            if (toast.getVisibility() != View.VISIBLE) {
+                toast.setVisibility(View.VISIBLE);
+                toast.setAlpha(0f);
+                toast.setTranslationY(ui.px(8));
+            }
+            toast.animate().alpha(1f).translationY(0f).setDuration(200).start();
+            toast.postDelayed(hideToast, Math.max(4_000, Math.min(10_000, message.length() * 70L)));
+        };
+        if (hub != null) hub.post(show);
+        else toast.post(show);
     }
 
     // Words
@@ -677,9 +999,9 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
     private static String label(TransferView t) {
         boolean in = "in".equals(t.direction);
         switch (t.state) {
-            case PACKING: return "Checking files";
+            case PACKING: return "Getting ready";
             case CONNECTING: return "Connecting";
-            case WAITING: return in ? "Waiting" : "Waiting for them to accept";
+            case WAITING: return in ? "Waiting" : "Waiting to be accepted";
             case OFFERED: return "Waiting for you";
             case SENDING: return "Sending";
             case RECEIVING: return "Receiving";
@@ -687,21 +1009,39 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
             case DONE: return in ? "Received and checked" : "Delivered";
             case DECLINED: return "Declined";
             case CANCELLED: return "Cancelled";
-            case INTERRUPTED: return in ? "Stopped. The computer can resume it." : "Stopped. You can resume it.";
-            default: return "Stopped";
+            case INTERRUPTED: return "Stopped";
+            default: return "Failed";
         }
     }
 
-    private static int tone(TransferView t) {
+    private static NearbyUi.Kind kind(TransferView t) {
         switch (t.state) {
-            case OFFERED: return R.color.accent;
-            case DONE: return R.color.verified;
-            case FAILED: return R.color.failed;
-            case INTERRUPTED: return R.color.caution;
+            case OFFERED: return NearbyUi.Kind.APPROVAL;
+            case WAITING: return NearbyUi.Kind.PENDING;
+            case DONE: return NearbyUi.Kind.VERIFIED;
+            case FAILED: return NearbyUi.Kind.FAILED;
+            case INTERRUPTED: return NearbyUi.Kind.ATTENTION;
             case DECLINED:
-            case CANCELLED: return R.color.ink_3;
-            default: return R.color.info;
+            case CANCELLED: return NearbyUi.Kind.OFF;
+            default: return NearbyUi.Kind.WORKING;
         }
+    }
+
+    /** What happens next, in a sentence, where the badge alone doesn't say it. */
+    private static String next(TransferView t) {
+        boolean in = "in".equals(t.direction);
+        switch (t.state) {
+            case WAITING: return in ? null : "Accept it on " + t.peerName + ", in Nearby.";
+            case OFFERED: return "Accept to save it on this phone. Nothing in it runs.";
+            case DONE: return in ? "Every file matched what was sent." : t.peerName + " checked every file when it arrived. Open folder on " + t.peerName + " shows it.";
+            case INTERRUPTED: return in ? "The computer can resume it." : "You can resume it from where it stopped.";
+            default: return null;
+        }
+    }
+
+    /** A long computer name, cut for a badge. */
+    private static String shortName(String name) {
+        return name.length() > 18 ? name.substring(0, 17) + "…" : name;
     }
 
     private static Discovery.NearbyDevice find(List<Discovery.NearbyDevice> nearby, String fingerprint) {
@@ -731,109 +1071,5 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         File[] kids = f.listFiles();
         if (kids != null) for (File k : kids) delete(k);
         f.delete();
-    }
-
-    // Views, in the web app's tokens: pills for buttons, 20dp cards, 12dp inputs.
-
-    private LinearLayout column() {
-        LinearLayout l = new LinearLayout(this);
-        l.setOrientation(LinearLayout.VERTICAL);
-        return l;
-    }
-
-    private LinearLayout cardColumn() {
-        LinearLayout c = column();
-        c.setBackground(rounded(R.color.surface, 20, R.color.line));
-        c.setPadding(px(20), px(18), px(20), px(20));
-        margin(c, 16);
-        return c;
-    }
-
-    private View card(View inside) {
-        LinearLayout c = cardColumn();
-        c.addView(inside);
-        return c;
-    }
-
-    private LinearLayout buttons() {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        margin(row, 12);
-        return row;
-    }
-
-    private TextView heading(String s) {
-        TextView t = text(s, 18, true, R.color.ink);
-        if (Build.VERSION.SDK_INT >= 28) t.setAccessibilityHeading(true);
-        return t;
-    }
-
-    private TextView code(String digits) {
-        String shown = digits != null && digits.length() == 6 ? digits.substring(0, 3) + " " + digits.substring(3) : String.valueOf(digits);
-        TextView t = mono(shown, 34, R.color.ink);
-        t.setLetterSpacing(0.08f);
-        t.setContentDescription("Code " + (digits == null ? "" : digits.replace("", " ").trim()));
-        margin(t, 12);
-        return t;
-    }
-
-    private TextView text(String s, int sp, boolean medium, int colorRes) {
-        TextView t = new TextView(this);
-        t.setText(s);
-        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
-        t.setTextColor(color(colorRes));
-        t.setLineSpacing(0, sp >= 24 ? 1.1f : 1.35f);
-        if (medium) t.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        if (sp >= 24) t.setLetterSpacing(-0.02f);
-        return t;
-    }
-
-    private TextView mono(String s, int sp, int colorRes) {
-        TextView t = text(s, sp, false, colorRes);
-        t.setTypeface(Typeface.MONOSPACE);
-        return t;
-    }
-
-    private Button button(String label, boolean primary) {
-        Button b = new Button(this);
-        b.setText(label);
-        b.setAllCaps(false);
-        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-        b.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        b.setTextColor(color(primary ? R.color.on_primary : R.color.ink));
-        b.setStateListAnimator(null);
-        b.setMinHeight(px(48));
-        b.setMinimumHeight(px(48));
-        b.setPadding(px(20), 0, px(20), 0);
-        GradientDrawable shape = rounded(primary ? R.color.primary : R.color.surface, 999, primary ? R.color.primary : R.color.line);
-        b.setBackground(new RippleDrawable(ColorStateList.valueOf(color(R.color.line)), shape, null));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.rightMargin = px(10);
-        b.setLayoutParams(lp);
-        return b;
-    }
-
-    private GradientDrawable rounded(int fillRes, int radiusDp, int strokeRes) {
-        GradientDrawable g = new GradientDrawable();
-        g.setColor(color(fillRes));
-        g.setCornerRadius(px(radiusDp));
-        g.setStroke(Math.max(1, px(1)), color(strokeRes));
-        return g;
-    }
-
-    private void margin(View v, int topDp) {
-        LinearLayout.LayoutParams lp = v.getLayoutParams() instanceof LinearLayout.LayoutParams
-                ? (LinearLayout.LayoutParams) v.getLayoutParams()
-                : new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.topMargin = px(topDp);
-        v.setLayoutParams(lp);
-    }
-
-    private int color(int res) {
-        return getColor(res);
-    }
-
-    private int px(int dps) {
-        return Math.round(dps * dp);
     }
 }
