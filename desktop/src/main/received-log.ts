@@ -30,6 +30,8 @@ export type ReceivedEntry = z.infer<typeof ReceivedEntrySchema>;
 export class ReceivedLog {
   private entries: ReceivedEntry[] = [];
   private loading: Promise<void> | null = null;
+  /** The file is there but couldn't be read just now (another program has it open): it's read again, and never overwritten. */
+  private unreadable = false;
   private writing: Promise<void> = Promise.resolve();
 
   constructor(private readonly file: string) {}
@@ -47,12 +49,24 @@ export class ReceivedLog {
           if (kept.length === MAX_RECEIVED) break;
         }
         this.entries = kept;
-      } catch {
+      } catch (error) {
         this.entries = [];
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code !== "ENOENT" && !(error instanceof SyntaxError)) {
+          this.unreadable = true;
+          this.loading = null;
+        }
       }
     })();
-    await this.loading;
+    const loading = this.loading;
+    this.unreadable = false;
+    await loading;
     return this.entries;
+  }
+
+  private async writable(): Promise<void> {
+    await this.load();
+    if (this.unreadable) throw new Error("The list of received folders couldn't be read just now, so it wasn't changed.");
   }
 
   list(): ReceivedEntry[] {
@@ -65,14 +79,14 @@ export class ReceivedLog {
 
   /** Adds an arrival at the top; the same transfer again replaces its entry, and the oldest beyond 30 drop off. */
   async add(entry: ReceivedEntry): Promise<void> {
-    await this.load();
+    await this.writable();
     const valid = ReceivedEntrySchema.parse(entry);
     this.entries = [valid, ...this.entries.filter((e) => e.id !== valid.id)].slice(0, MAX_RECEIVED);
     await this.save();
   }
 
   async remove(id: string): Promise<void> {
-    await this.load();
+    await this.writable();
     const before = this.entries.length;
     this.entries = this.entries.filter((e) => e.id !== id);
     if (this.entries.length !== before) await this.save();

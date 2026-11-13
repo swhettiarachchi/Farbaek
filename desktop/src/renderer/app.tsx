@@ -1228,9 +1228,12 @@ export function App() {
                   <n.icon size={20} weight={view === n.id ? "fill" : "regular"} aria-hidden /> {n.label}
                   {n.id === "runs" && waiting > 0 ? <span className="count">{waiting}</span> : null}
                   {n.id === "nearby" && offers > 0 ? (
-                    <span className="count" aria-label={`${offers} waiting for you`}>
-                      {offers}
-                    </span>
+                    <>
+                      <span className="count" aria-hidden="true">
+                        {offers}
+                      </span>
+                      <span className="sr-only">, {offers} waiting for you</span>
+                    </>
                   ) : null}
                 </button>
               </li>

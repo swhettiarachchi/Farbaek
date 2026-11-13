@@ -93,7 +93,7 @@ export function placeLabel(dest: string, known: KnownFolder[], platform: NodeJS.
     if (!base.every((segment, i) => fold(segment) === fold(target[i]!))) continue;
     if (!best || base.length > best.depth) best = { label: k.label, depth: base.length };
   }
-  if (!best) return dest;
+  if (!best) return displayName(dest);
   const rest = target.slice(best.depth).map(displayName);
   return [best.label, ...rest].join(" › ");
 }

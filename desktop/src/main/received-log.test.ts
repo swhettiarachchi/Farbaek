@@ -66,6 +66,16 @@ describe("Recently received (stage 188)", () => {
     await expect(log.add(entry("c", { folder: "relative/path" }))).rejects.toThrow();
   });
 
+  it("never overwrites a history it couldn't read just now", async () => {
+    // A folder where the file should be: reading fails with something other than "not there".
+    const file = path.join(dir, "busy.json");
+    await fs.mkdir(file);
+    const log = new ReceivedLog(file);
+    expect(await log.load()).toEqual([]);
+    await expect(log.add(entry("a"))).rejects.toThrow(/couldn't be read/);
+    expect((await fs.stat(file)).isDirectory()).toBe(true);
+  });
+
   it("writes one at a time, so quick arrivals all survive", async () => {
     const file = path.join(dir, "received.json");
     const log = new ReceivedLog(file);

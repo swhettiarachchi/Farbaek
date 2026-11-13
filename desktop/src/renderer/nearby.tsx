@@ -60,6 +60,9 @@ const REASONS: Record<string, string> = {
 /** Before the main process says where received files go: Downloads, as it does until the person chooses a folder. */
 const NO_ARRIVALS: ArrivalsView = { saveTo: { label: "Downloads", chosen: false }, received: [] };
 
+/** A name as it may be shown: without invisible characters that can disguise it (ADR 0196). */
+const shown = (name: string) => name.replace(/[\p{Cf}\p{Cc}]/gu, "");
+
 /** The last part of a place, for a button: "Downloads", or the chosen folder's own name. */
 const lastPart = (place: string) => place.split(/ › |[\\/]/).filter(Boolean).pop() ?? place;
 
@@ -181,7 +184,7 @@ function Nearby({ snapshot: s, arrivals, busy, act }: { snapshot: MeshSnapshot; 
         <div key={t.id} className="card stack-sm offer" aria-live="polite">
           <div className="row">
             <SectionTitle icon={TrayArrowDownIcon}>
-              {t.peer.name} wants to send {t.name}
+              {shown(t.peer.name)} wants to send {shown(t.name)}
             </SectionTitle>
             <StatusBadge kind="approval">Waiting for you</StatusBadge>
           </div>
@@ -319,12 +322,13 @@ function ArrivalCard({
     };
   }, [t.id]);
   const opens = received?.opens ?? "folder";
+  const gone = received !== null && !received.exists;
   return (
     <div className="card stack-sm arrival" aria-live="polite">
       <div className="row">
         <p className="arrival-title">
           <CheckCircleIcon size={24} weight="fill" className="arrival-check" aria-hidden />
-          <span>Arrived from {t.peer.name}</span>
+          <span>Arrived from {shown(t.peer.name)}</span>
         </p>
         <StatusBadge kind="verified">Saved</StatusBadge>
       </div>
@@ -340,19 +344,27 @@ function ArrivalCard({
           ))}
         </ul>
       ) : null}
-      <p className="small">
-        Saved in{" "}
-        <span className="place" title={received?.folder ?? t.destination ?? undefined}>
-          {received?.place ?? t.destination}
-        </span>
-      </p>
+      {gone ? (
+        <p className="small muted">It&apos;s no longer in {received.place}. It may have been moved or deleted.</p>
+      ) : (
+        <p className="small">
+          Saved in{" "}
+          <span className="place" title={received?.folder ?? t.destination ?? undefined}>
+            {received?.place ?? shown(t.destination ?? "")}
+          </span>
+        </p>
+      )}
       <div className="row-start">
-        <button className="btn btn-primary btn-sm" type="button" disabled={busy !== null || opens === null} onClick={() => void act("open-received", () => mesh.openReceived(t.id))}>
-          <ArrowSquareOutIcon size={16} weight="bold" aria-hidden /> {openLabel(opens, detail)}
-        </button>
-        <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("show", () => mesh.showInFolder(t.id))}>
-          <FolderOpenIcon size={16} weight="bold" aria-hidden /> Show in folder
-        </button>
+        {opens !== null && !gone ? (
+          <button className="btn btn-primary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("open-received", () => mesh.openReceived(t.id))}>
+            <ArrowSquareOutIcon size={16} weight="bold" aria-hidden /> {openLabel(opens, detail)}
+          </button>
+        ) : null}
+        {!gone ? (
+          <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("show", () => mesh.showInFolder(t.id))}>
+            <FolderOpenIcon size={16} weight="bold" aria-hidden /> Show in folder
+          </button>
+        ) : null}
         <button className="btn btn-secondary btn-sm" type="button" disabled={busy !== null} onClick={() => void act("dismiss", () => mesh.dismiss(t.id))}>
           Done
         </button>

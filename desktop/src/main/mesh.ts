@@ -43,6 +43,11 @@ export interface MeshDeps {
   direct: (signal: Duplex, role: "offer" | "answer") => Promise<Duplex>;
   /** Brings the window to the front on Nearby: a notification was clicked. */
   showNearby: () => void;
+  /**
+   * Whether a person clicked or typed in the window in the last few seconds: real input from the system, which the page
+   * can't make up. One-click save needs it, so a page acting on its own can't accept files.
+   */
+  recentInput: () => boolean;
 }
 
 /** Shows and closes system notifications by a key, so an offer's notification can be taken back when it stops waiting. */
@@ -63,10 +68,9 @@ class SystemNotifier implements NearbyNotifier {
       note.onClick();
       this.close(note.key);
     });
-    n.on("close", () => {
-      if (this.open.get(note.key) === n) this.open.delete(note.key);
-    });
     this.open.set(note.key, n);
+    // The oldest are let go beyond 50, so a long session doesn't hold every notification it ever showed.
+    while (this.open.size > 50) this.open.delete(this.open.keys().next().value!);
     n.show();
   }
 
@@ -176,6 +180,8 @@ export class DesktopMesh {
   /** The folder the person last chose to save into; received files go there with one click until they choose again. */
   private saveFolder: string | null = null;
   private readonly previews = new Map<string, ArrivalDetail>();
+  /** Offers being accepted: a second click before the transfer leaves "offered" does nothing. */
+  private readonly accepting = new Set<string>();
 
   constructor(private readonly deps: MeshDeps) {
     this.received = new ReceivedLog(path.join(deps.dataDir, "nearby-received.json"));
@@ -226,7 +232,8 @@ export class DesktopMesh {
     const reason = this.unavailable();
     if (reason) return { available: false, reason };
     const node = await this.ready();
-    return { available: true, snapshot: node.snapshot(), arrivals: await this.arrivals() };
+    const arrivals = await this.arrivals();
+    return { available: true, snapshot: node.snapshot(), arrivals };
   }
 
   /**
@@ -248,7 +255,9 @@ export class DesktopMesh {
   /** Notifications, the taskbar and the history, from what changed since the last look. */
   private observe(snapshot: MeshSnapshot): void {
     const events = transferEvents(this.seen, snapshot.transfers);
-    const window = this.deps.window();
+    for (const id of events.ended) this.accepting.delete(id);
+    const found = this.deps.window();
+    const window = found && !found.isDestroyed() ? found : null;
     const away = !window || !window.isFocused();
     for (const id of events.offered) {
       const t = snapshot.transfers.find((x) => x.id === id);
@@ -261,7 +270,7 @@ export class DesktopMesh {
       const t = snapshot.transfers.find((x) => x.id === id);
       if (t?.direction === "in" && t.destination) void this.arrived(t, away).catch(() => undefined);
     }
-    if (window && !window.isDestroyed()) {
+    if (window) {
       if (events.progress) window.setProgressBar(events.progress.fraction, { mode: events.progress.mode });
       else window.setProgressBar(-1);
     }
@@ -283,12 +292,13 @@ export class DesktopMesh {
       summary: summarise(files, t.files),
       single,
     };
-    await this.received.add(entry);
-    await this.sendArrivals();
+    await this.received.add(entry).catch(() => undefined);
+    await this.sendArrivals().catch(() => undefined);
     if (!away) return;
     const words = arrivalWords(t.peer.name, files, t.files, placeLabel(t.destination, knownFolders()));
     this.notifier.show({ key: `arrived:${t.id}`, ...words, onClick: () => void this.reveal(entry).catch(() => this.deps.showNearby()) });
-    this.deps.window()?.flashFrame(true);
+    const window = this.deps.window();
+    if (window && !window.isDestroyed()) window.flashFrame(true);
   }
 
   /** What the window shows about arrivals: where received files go now, and the recent ones, with what's still there. */
@@ -387,9 +397,11 @@ export class DesktopMesh {
     const files = await listFiles(entry.folder);
     const thumbnails: string[] = [];
     if (process.platform === "win32" || process.platform === "darwin") {
+      let tries = 0;
       for (const f of files) {
-        if (thumbnails.length >= 4) break;
-        if (!canPreview(f.path, f.bytes)) continue;
+        if (thumbnails.length >= 4 || tries >= 6) break;
+        if (!canPreview(f.path, f.bytes) || f.bytes > 20 * 1024 * 1024) continue;
+        tries += 1;
         const full = inside(entry.folder, f.path);
         if (!full) continue;
         const image = await nativeImage.createThumbnailFromPath(full, { width: 192, height: 192 }).catch(() => null);
@@ -452,10 +464,11 @@ export class DesktopMesh {
     // click needs this window in front: a person is looking at the offer, not a page acting on its own.
     handle("mesh:accept", z.object({ id: Id, where: z.enum(["default", "choose"]) }), (input) =>
       this.attempt(async (n) => {
+        if (this.accepting.has(input.id)) return true;
         let parent: string;
         if (input.where === "default") {
           const testing = !app.isPackaged && Boolean(process.env.FARBAEK_AGENT_TEST_SAVE_FOLDER);
-          if (!testing && !this.deps.window()?.isFocused()) throw new MeshError("Bring Farbaek Agent to the front, then choose Save again.");
+          if (!testing && (!this.deps.window()?.isFocused() || !this.deps.recentInput())) throw new MeshError("Bring Farbaek Agent to the front, then choose Save again.");
           parent = await this.defaultSaveFolder();
         } else {
           const chosen = await this.chooseFolder("Choose where to save it", "Save here", "save");
@@ -463,7 +476,13 @@ export class DesktopMesh {
           await this.rememberSaveFolder(chosen);
           parent = chosen;
         }
-        await n.accept(input.id, parent);
+        this.accepting.add(input.id);
+        try {
+          await n.accept(input.id, parent);
+        } catch (error) {
+          this.accepting.delete(input.id);
+          throw error;
+        }
         void this.sendArrivals();
         return true;
       }),

@@ -56,6 +56,8 @@ interface Settings {
 }
 
 let window: BrowserWindow | null = null;
+/** When a person last clicked or typed in the window: input from the system, which the page can't make up. */
+let lastInputAt = 0;
 let settings: Settings = { paired: null };
 const dataDir = () => app.getPath("userData");
 const secrets = () => new SecretStore(path.join(dataDir(), "secrets"));
@@ -88,6 +90,7 @@ const mesh = new DesktopMesh({
   window: () => window,
   relay: relayAccess,
   direct: (signal, role) => direct.open(signal, role),
+  recentInput: () => Date.now() - lastInputAt < 5_000,
   showNearby: () => {
     if (!window || window.isDestroyed()) return;
     if (window.isMinimized()) window.restore();
@@ -361,8 +364,14 @@ function createWindow(): void {
   window.once("ready-to-show", () => window?.show());
   // A flashing taskbar button asked for attention; looking at the window answers it.
   window.on("focus", () => window?.flashFrame(false));
+  window.webContents.on("input-event", (_event, input) => {
+    if (input.type === "mouseDown" || input.type === "keyDown" || input.type === "rawKeyDown" || input.type === "gestureTap") lastInputAt = Date.now();
+  });
   // The hidden direct-link window would otherwise keep the app open after this one closes.
-  window.on("closed", () => direct.close());
+  window.on("closed", () => {
+    window = null;
+    direct.close();
+  });
   void window.loadFile(RENDERER);
 }
 
