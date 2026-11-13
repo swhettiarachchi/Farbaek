@@ -93,3 +93,68 @@ An independent planning review changed the first draft in six places:
   - **Real Windows notifications:** they need the installed app (NSIS or Store), so the check used the notification log instead.
   - **One-click save's focus rule:** it's bypassed when testing with a fixed save folder.
   - **Show in folder and Open:** they call Windows itself, and weren't clicked here.
+
+## The phone (Farbaek for Android 1.4.0), done
+
+**Plain Java in the mesh core, with JUnit tests:**
+- **`SavePlan`:** where a transfer goes, as one place so a folder stays whole: Gallery (`Pictures/Farbaek`) when every file is a photo or a video, otherwise Downloads (`Download/Farbaek`). It also:
+  - gives MIME types from real extensions;
+  - cleans names (no invisible characters, nothing that reads as a path);
+  - decides which kinds open with a tap;
+  - makes folder names unique;
+  - writes the words for offers and arrivals.
+- **`ReceivedLog`:** what arrived and how far each copy has got. It's written whole, a damaged file reads as empty, and an entry taken off the list is never put back.
+
+**`MediaSaver` makes each copy exactly once:**
+- each item is made hidden (IS_PENDING), copied while hashed, flushed to disk, read back and compared, then shown;
+- progress is written in batches, and a private copy goes only after the batch that published it is written;
+- after a stop, it deletes our hidden items in that folder and takes over items already shown (same folder, name and size);
+- on Android 10, a Gallery transfer with a video goes to `DCIM/Farbaek`, where Android allows videos.
+
+**`MeshHub`:**
+- offers and arrivals are found in each snapshot, off every lock, and arrivals are handed once to a saver thread of their own;
+- saving counts as busy work for the foreground service;
+- the switch is read when the person presses Accept;
+- copies resume after a restart.
+
+**`NearbyNotices`:** a new "Files from your computers" channel for offers and arrivals. Notifications are private on the lock screen, one per transfer, and not posted while Nearby is on screen.
+
+**The screen:**
+- **The offer:** it says where the files will go, with the "Save to Gallery and Downloads" switch beside Accept.
+- **The arrival:** a check that pops once, "Arrived from …", Saved, Saving or Kept in Nearby, thumbnails, "Saved in Gallery › Farbaek › …", file rows that open (safe kinds only), and Open Downloads, Share, Try again and Done.
+- **Received:** saved arrivals, and ones since deleted in Gallery ("Removed from this phone").
+- **The Receive card:** it says when notifications are off, with a way to turn them on.
+
+**Samples and version:** new debug samples (`offer`, `kept`, `saving`, `arrived`, `received`) and a notification screenshot in the launch check. Version 1.4.0, versionCode 9.
+
+## Verified (the phone)
+
+- **Build and tests:**
+  - mesh-core JUnit: the new `SavePlanTest` and `ReceivedLogTest` pass, and so do all earlier tests;
+  - `:app:assembleDebug`, the release compile, `:app:assembleRelease` locally, and Android lint pass, with no errors and no new-API, accessibility or unused warnings.
+- **The launch check** (run 43443941741, Android 14 emulator):
+  - the release app opens, Nearby opens, Visible starts the service, and nothing crashed;
+  - 39 screenshots, looked at by eye:
+    - **the offer:** where it goes, with the switch;
+    - **the arrival:** "6 photos, 23.0 MB", sample thumbnails, "Saved in Gallery › Farbaek › Site photos", file rows, Share and Done;
+    - **Received**, and **the not-visible computer** ("Not visible now");
+    - **the notification shade:** "DESKTOP-9OIQ8KS wants to send…" with "12 files, 46.0 MB. Open Nearby to accept…", and "6 photos from DESKTOP-9OIQ8KS arrived" with "In Gallery › Farbaek › Site photos."
+- **The switch:** the screenshots showed the "on" switch cut off on the right, because Android's switch counted the thumb's insets as padding. The thumb is now a layer with no padding.
+- **An independent review of the phone change** found these, and all are fixed:
+  - offer notifications never fired (a new offer only says "changed");
+  - the log was rewritten two or three times per file, while the main thread waited on it;
+  - Android 10 doesn't allow videos in Pictures;
+  - Remove from list while saving was undone;
+  - a thumbnail that couldn't be drawn read as "deleted";
+  - Share after a partial save sent only part of it;
+  - a private folder could be removed when not fully listed;
+  - folder names were checked only against the log;
+  - the switch was read at the wrong moment;
+  - two targets were under 48dp.
+- **Two launch check runs failed** for GitHub's own reasons: once packaging, once a DNS lookup when uploading. Neither was in the app. The next run passed.
+- **Not checked here:**
+  - a real copy into MediaStore, which needs a real phone or an Android 10+ emulator with files sent to it;
+  - the resume after a stop;
+  - Android 10's DCIM route.
+  
+  These are the owner's checks on their phone through Internal testing, listed in `docs/mobile/android.md`.
