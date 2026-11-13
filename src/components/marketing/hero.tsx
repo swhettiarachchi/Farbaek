@@ -16,12 +16,13 @@ export function Hero() {
             id="hero-title"
             className="max-w-[12ch] text-balance text-[2.9rem] font-medium leading-[1.02] tracking-[-0.045em] sm:text-[4.2rem] lg:text-[5.2rem]"
           >
-            <span className="sr-only">From idea to verified software, websites and apps.</span>
-            <span aria-hidden>From idea to verified </span>
+            {/* "Vibe coding" leads: it's what people search for. "Verified" is what Farbaek adds (stage 186). */}
+            <span className="sr-only">Vibe coding for verified software, websites and apps.</span>
+            <span aria-hidden>Vibe coding for verified </span>
             <HeroWord />
           </h1>
           <p className="mt-6 max-w-[34rem] text-lg leading-relaxed text-ink-2 sm:text-xl">
-            Describe what you want. Farbaek plans it, builds it with an agent, runs the real checks and waits for your approval before anything ships.
+            Describe the app or website you want. Farbaek&apos;s AI agent plans and builds it, runs the real checks, and waits for your approval before anything ships.
           </p>
           <div className="aurora mt-8 max-w-[36rem]">
             <PromptComposer mode="public" size="compact" />

@@ -2,7 +2,7 @@
 
 /**
  * The hero's last word, which cycles through what Farbaek builds: software,
- * a website, an app. Each word slides up into place inside a box sized to
+ * websites, apps. Each word slides up into place inside a box sized to
  * the widest one, so nothing around it moves. Screen readers get the whole
  * sentence once (the h1 carries it); this part is hidden from them. Under
  * reduced motion it stays on the first word, and it pauses while the tab is
@@ -10,7 +10,7 @@
  */
 import { useEffect, useState, useSyncExternalStore } from "react";
 
-export const HERO_WORDS = ["software", "website", "app"] as const;
+export const HERO_WORDS = ["software", "websites", "apps"] as const;
 
 const STEP_MS = 2600;
 const QUERY = "(prefers-reduced-motion: reduce)";
@@ -41,7 +41,7 @@ export function HeroWord() {
   const leaving = (shown - 1 + HERO_WORDS.length) % HERO_WORDS.length;
 
   return (
-    // Padding gives "app" room for its descenders inside the clipped box; the negative margin keeps the line where it was.
+    // Padding gives "apps" room for its descenders inside the clipped box; the negative margin keeps the line where it was.
     <span aria-hidden className="relative -mb-[0.16em] inline-grid overflow-hidden pb-[0.16em] align-baseline text-accent">
       {HERO_WORDS.map((word, i) => (
         <span
