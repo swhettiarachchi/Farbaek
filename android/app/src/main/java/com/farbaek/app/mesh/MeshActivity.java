@@ -120,6 +120,7 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         hub.observe(this);
         looking(true);
         render();
+        hub.refresh();
     }
 
     @Override
@@ -149,16 +150,17 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         });
     }
 
-    // The screen, drawn again from the node's snapshot whenever something changes.
+    // The screen, drawn again from the node's latest snapshot whenever something changes. The snapshot is taken on the
+    // hub's view thread: the main thread never waits for the node.
 
     private void render() {
         dynamic.removeAllViews();
-        if (!hub.ready()) {
+        MeshNode.Snapshot s = hub.ready() ? hub.snapshot() : null;
+        if (s == null) {
             String problem = hub.startProblem();
             dynamic.addView(card(text(problem != null ? problem : "Starting Nearby…", 15, false, problem != null ? R.color.failed : R.color.ink_2)));
             return;
         }
-        MeshNode.Snapshot s = hub.node().snapshot();
         String reset = hub.resetNotice();
         if (reset != null) {
             LinearLayout c = cardColumn();

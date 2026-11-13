@@ -52,6 +52,13 @@ final class MeshHub implements MeshListener {
     private final ExecutorService work = Executors.newSingleThreadExecutor();
     /** Short answers that must never wait behind long work: confirming a code, cancelling. */
     private final ExecutorService quick = Executors.newSingleThreadExecutor();
+    /**
+     * Takes the node's snapshot for the screen. The node holds its lock while it opens sockets, so the main thread
+     * never takes a snapshot itself: on a slow phone that wait reached Android's five seconds ("isn't responding").
+     */
+    private final ExecutorService view = Executors.newSingleThreadExecutor();
+    /** The latest snapshot, for the screen and the notification; null until Nearby has started. */
+    private volatile MeshNode.Snapshot latest;
     private final List<Observer> observers = new CopyOnWriteArrayList<>();
     private WifiManager.MulticastLock lock;
     private volatile boolean ready;
@@ -209,27 +216,47 @@ final class MeshHub implements MeshListener {
         changed();
     }
 
+    /** The latest snapshot of the node, or null until Nearby has started. Never waits: safe on the main thread. */
+    MeshNode.Snapshot snapshot() {
+        return latest;
+    }
+
+    /** Asks for a fresh snapshot, for example when the screen comes back. */
+    void refresh() {
+        changed();
+    }
+
+    /**
+     * Many changes in a row make one snapshot: it's taken on the view thread, then the main thread gets it whole.
+     * The flag is cleared before the snapshot is taken, so a change during it brings another.
+     */
     private void changed() {
         synchronized (this) {
             if (updatePosted) return;
             updatePosted = true;
         }
-        main.post(new Runnable() {
+        view.execute(guard(new Runnable() {
             @Override
             public void run() {
                 synchronized (MeshHub.this) {
                     updatePosted = false;
                 }
-                settle();
-                for (Observer o : observers) o.onMeshChanged();
+                final MeshNode.Snapshot s = ready ? node.snapshot() : null;
+                if (s != null) latest = s;
+                main.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        settle(s);
+                        for (Observer o : observers) o.onMeshChanged();
+                    }
+                });
             }
-        });
+        }));
     }
 
     /** On the main thread: the multicast lock and the service follow what the node is doing. */
-    private void settle() {
-        if (!ready) return;
-        MeshNode.Snapshot s = node.snapshot();
+    private void settle(MeshNode.Snapshot s) {
+        if (!ready || s == null) return;
         boolean visible = s.visibleUntil > System.currentTimeMillis();
         boolean network = visible || s.looking;
         if (network) acquireLock();

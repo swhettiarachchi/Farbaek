@@ -131,6 +131,9 @@ jobs:
           adb shell dumpsys activity services com.farbaek.app | grep -E "ServiceRecord|isForeground|foregroundServiceType" | tee out/nearby-service.txt || true
           service_foreground=$(grep -c 'isForeground=true' out/nearby-service.txt || true)
 
+          # An "isn't responding" report keeps every thread's stack in the dropbox, readable without root.
+          adb shell dumpsys dropbox --print data_app_anr > out/anr.txt 2>/dev/null || true
+          farbaek_anr=$(grep -c 'Process: com.farbaek.app' out/anr.txt || true)
           adb logcat -d > out/logcat.txt
           adb logcat -d -b crash > out/crash.txt || true
           grep -E "AndroidRuntime|FATAL|com.farbaek.app|androidbrowserhelper|TrustedWebActivity|TwaLauncher|cr_" out/logcat.txt | tail -n 300 > out/logcat-farbaek.txt || true
@@ -148,6 +151,14 @@ jobs:
             echo
             echo "Nearby's screen said: ${screen_words:-nothing uiautomator could read}."
             echo
+            echo "Farbaek \"isn't responding\" reports: ${farbaek_anr:-0}."
+            if [ "${farbaek_anr:-0}" != "0" ]; then
+              # The main thread's stack from the first report: where it was waiting.
+              echo '```'
+              awk '/Process: com.farbaek.app/{f=1} f&&/^"main"/{p=1} p{print} p&&/^$/{exit}' out/anr.txt | head -n 40
+              echo '```'
+            fi
+            echo
             # Farbaek's crash, on the run's page. Addresses are left out: a stack trace doesn't need them.
             echo '```'
             grep -B1 -A60 'Process: com.farbaek.app' out/crash.txt | grep -v -E 'https?://' | head -n 80 || true
@@ -155,6 +166,9 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           if grep -q 'Process: com.farbaek.app' out/crash.txt; then
             echo "::error::Farbaek stopped at launch. Its stack trace is in the run's summary."; exit 1
+          fi
+          if [ "${farbaek_anr:-0}" != "0" ]; then
+            echo "::error::Android reported Farbaek \"isn't responding\". The main thread's stack is in the run's summary."; exit 1
           fi
           if ! grep -q 'mesh.MeshActivity' out/nearby-start.txt; then
             echo "::error::Nearby didn't open from its link. The screenshot is out/nearby.png in the run's artifact."; exit 1
