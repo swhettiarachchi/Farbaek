@@ -13,7 +13,7 @@
 #
 # A file that's missing from desktop\release is skipped, and it says so.
 param(
-  [string]$Version = "0.10.0",
+  [string]$Version = "0.11.0",
   [string]$Server = "2.25.88.188",
   [string]$Key = "$HOME\.ssh\farbaek_vps",
   [int]$Tries = 60,
