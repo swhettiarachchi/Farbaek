@@ -107,10 +107,21 @@ jobs:
           # computers" starts the dataSync foreground service, the step Android 14 and 15's rules can stop.
           adb shell pm grant com.farbaek.app android.permission.POST_NOTIFICATIONS || true
           adb shell am start -W -a android.intent.action.VIEW -d "farbaek-mesh://nearby" com.farbaek.app | tee out/nearby-start.txt
-          sleep 8
-          adb shell uiautomator dump /sdcard/nearby.xml > /dev/null && adb pull /sdcard/nearby.xml out/nearby.xml > /dev/null || true
-          nearby_shown=$(grep -c 'text="Nearby"' out/nearby.xml 2>/dev/null || true)
-          bounds=$(grep -o 'content-desc="Visible to your computers"[^>]*bounds="[^"]*"' out/nearby.xml 2>/dev/null | grep -o 'bounds="[^"]*"' | head -n 1 || true)
+          # Nearby opens at once and shows "Starting Nearby…" while its key loads, which is slow on an emulator with
+          # software graphics, and uiautomator fails while the screen is busy. Run 18 dumped once, at 8 s, and got
+          # nothing. So look every 3 seconds for up to 90, until the Visible switch is there.
+          nearby_shown=0
+          bounds=""
+          for i in $(seq 1 30); do
+            sleep 3
+            adb shell uiautomator dump /sdcard/nearby.xml > /dev/null 2>&1 && adb pull /sdcard/nearby.xml out/nearby.xml > /dev/null 2>&1 || continue
+            nearby_shown=$(grep -c 'text="Nearby"' out/nearby.xml || true)
+            bounds=$(grep -o 'content-desc="Visible to your computers"[^>]*bounds="[^"]*"' out/nearby.xml | grep -o 'bounds="[^"]*"' | head -n 1 || true)
+            [ -n "$bounds" ] && break
+          done
+          nearby_seconds=$(( i * 3 ))
+          # What the screen said at the end, for the summary: its words only.
+          screen_words=$(grep -o 'text="[^"]\+"' out/nearby.xml 2>/dev/null | sed 's/^text="//; s/"$//' | head -n 12 | paste -sd '|' - || true)
           if [ -n "$bounds" ]; then
             read -r x1 y1 x2 y2 <<<"$(grep -o '[0-9]\+' <<<"$bounds" | tr '\n' ' ')"
             adb shell input tap $(( (x1 + x2) / 2 )) $(( (y1 + y2) / 2 ))
@@ -133,7 +144,9 @@ jobs:
             echo
             echo "Farbaek crashes: $(grep -c 'Process: com.farbaek.app' out/crash.txt || true). Other apps' crashes on the emulator: $(grep -v -c 'Process: com.farbaek.app' <(grep 'Process: ' out/crash.txt) || true)."
             echo
-            echo "Nearby: the screen showed its title $nearby_shown time(s); the Visible switch was ${bounds:+found and tapped}${bounds:-not found}; the transfer service in the foreground: $service_foreground."
+            echo "Nearby: the screen showed its title $nearby_shown time(s); the Visible switch was ${bounds:+found and tapped}${bounds:-not found} after ${nearby_seconds} s; the transfer service in the foreground: $service_foreground."
+            echo
+            echo "Nearby's screen said: ${screen_words:-nothing uiautomator could read}."
             echo
             # Farbaek's crash, on the run's page. Addresses are left out: a stack trace doesn't need them.
             echo '```'
@@ -143,8 +156,11 @@ jobs:
           if grep -q 'Process: com.farbaek.app' out/crash.txt; then
             echo "::error::Farbaek stopped at launch. Its stack trace is in the run's summary."; exit 1
           fi
-          if [ "${nearby_shown:-0}" = "0" ]; then
+          if ! grep -q 'mesh.MeshActivity' out/nearby-start.txt; then
             echo "::error::Nearby didn't open from its link. The screenshot is out/nearby.png in the run's artifact."; exit 1
+          fi
+          if [ -z "$bounds" ]; then
+            echo "::error::Nearby opened, but its Visible switch didn't appear within 90 seconds. What the screen said is in the run's summary, and the screenshot is out/nearby.png."; exit 1
           fi
           if [ -n "$bounds" ] && [ "${service_foreground:-0}" = "0" ]; then
             echo "::error::Turning on Visible didn't start the Nearby service in the foreground."; exit 1
