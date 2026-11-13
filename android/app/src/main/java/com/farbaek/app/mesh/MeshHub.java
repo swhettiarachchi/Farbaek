@@ -6,6 +6,7 @@ import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.provider.Settings;
 import android.util.Log;
 
@@ -69,6 +70,8 @@ final class MeshHub implements MeshListener {
     /** Set when Android ended the service at its daily limit; cleared when the person is back on the screen. */
     private volatile boolean limitReached;
 
+    private final long createdAt = SystemClock.elapsedRealtime();
+
     private MeshHub(final Context app) {
         this.app = app;
         dir = new File(app.getFilesDir(), "mesh");
@@ -86,25 +89,35 @@ final class MeshHub implements MeshListener {
         options.discovery = true;
         options.probe = new LstatProbe();
         node = new MeshNode(options);
-        // Loading the key touches the Keystore and the disk: off the main thread.
+        // Loading the key touches the Keystore and the disk: off the main thread. Each stage's time is logged (no paths
+        // or contents), so a phone whose Keystore is slow shows where the wait was.
         run(new Runnable() {
             @Override
             public void run() {
+                Log.i(TAG, "Starting Nearby");
                 // A key that can't be unsealed (moved to a new phone, or the Keystore was reset) would stop Nearby for
                 // good: start fresh instead, with nothing trusted, and say so.
                 if (!vault.canOpen()) {
                     delete(dir);
                     resetNotice = "This phone's Nearby key couldn't be opened, for example after moving to a new phone, so Nearby started fresh. Pair your computers again.";
                 }
+                Log.i(TAG, "Checked the sealed key after " + startingFor() + " ms");
                 try {
                     node.init();
                     ready = true;
+                    Log.i(TAG, "Nearby started after " + startingFor() + " ms");
                 } catch (Exception e) {
                     startProblem = e.getMessage() != null ? e.getMessage() : "Nearby couldn't start on this phone.";
+                    Log.w(TAG, "Nearby couldn't start: " + e.getClass().getSimpleName());
                 }
                 changed();
             }
         });
+    }
+
+    /** How long since this hub was made: while Nearby is still starting, how long it has been starting. */
+    long startingFor() {
+        return SystemClock.elapsedRealtime() - createdAt;
     }
 
     MeshNode node() {

@@ -128,6 +128,7 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
         // Listening for computers only while the screen is open; being visible is its own switch.
         looking(false);
         hub.forget(this);
+        dynamic.removeCallbacks(whileStarting);
         super.onStop();
     }
 
@@ -153,12 +154,21 @@ public final class MeshActivity extends Activity implements MeshHub.Observer {
     // The screen, drawn again from the node's latest snapshot whenever something changes. The snapshot is taken on the
     // hub's view thread: the main thread never waits for the node.
 
+    /** While Nearby is starting, the screen is drawn again every few seconds, so a slow start is said in words. */
+    private final Runnable whileStarting = this::render;
+
     private void render() {
         dynamic.removeAllViews();
+        dynamic.removeCallbacks(whileStarting);
         MeshNode.Snapshot s = hub.ready() ? hub.snapshot() : null;
         if (s == null) {
             String problem = hub.startProblem();
-            dynamic.addView(card(text(problem != null ? problem : "Starting Nearby…", 15, false, problem != null ? R.color.failed : R.color.ink_2)));
+            String words = problem != null ? problem
+                    : hub.startingFor() > 15_000
+                    ? "Still starting. Opening this phone's Nearby key is taking longer than usual, and Nearby opens as soon as it's ready. You can leave this screen and come back."
+                    : "Starting Nearby…";
+            dynamic.addView(card(text(words, 15, false, problem != null ? R.color.failed : R.color.ink_2)));
+            if (problem == null) dynamic.postDelayed(whileStarting, 5_000);
             return;
         }
         String reset = hub.resetNotice();

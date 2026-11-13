@@ -109,10 +109,11 @@ jobs:
           adb shell am start -W -a android.intent.action.VIEW -d "farbaek-mesh://nearby" com.farbaek.app | tee out/nearby-start.txt
           # Nearby opens at once and shows "Starting Nearby…" while its key loads, which is slow on an emulator with
           # software graphics, and uiautomator fails while the screen is busy. Run 18 dumped once, at 8 s, and got
-          # nothing. So look every 3 seconds for up to 90, until the Visible switch is there.
+          # nothing, and run 20 still said "Starting Nearby…" at 90 s while the emulator's key store was busy. So look
+          # every 3 seconds for up to 3 minutes, until the Visible switch is there.
           nearby_shown=0
           bounds=""
-          for i in $(seq 1 30); do
+          for i in $(seq 1 60); do
             sleep 3
             adb shell uiautomator dump /sdcard/nearby.xml > /dev/null 2>&1 && adb pull /sdcard/nearby.xml out/nearby.xml > /dev/null 2>&1 || continue
             nearby_shown=$(grep -c 'text="Nearby"' out/nearby.xml || true)
@@ -151,6 +152,11 @@ jobs:
             echo
             echo "Nearby's screen said: ${screen_words:-nothing uiautomator could read}."
             echo
+            echo "Nearby's own log (how long each step of starting took):"
+            echo '```'
+            grep 'FarbaekNearby' out/logcat.txt | sed 's/^[0-9-]* //' | head -n 20 || true
+            echo '```'
+            echo
             echo "Farbaek \"isn't responding\" reports: ${farbaek_anr:-0}."
             if [ "${farbaek_anr:-0}" != "0" ]; then
               # The main thread's stack from the first report: where it was waiting.
@@ -174,7 +180,7 @@ jobs:
             echo "::error::Nearby didn't open from its link. The screenshot is out/nearby.png in the run's artifact."; exit 1
           fi
           if [ -z "$bounds" ]; then
-            echo "::error::Nearby opened, but its Visible switch didn't appear within 90 seconds. What the screen said is in the run's summary, and the screenshot is out/nearby.png."; exit 1
+            echo "::error::Nearby opened, but its Visible switch didn't appear within 3 minutes. What the screen said is in the run's summary, and the screenshot is out/nearby.png."; exit 1
           fi
           if [ -n "$bounds" ] && [ "${service_foreground:-0}" = "0" ]; then
             echo "::error::Turning on Visible didn't start the Nearby service in the foreground."; exit 1
