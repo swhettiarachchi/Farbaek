@@ -136,4 +136,46 @@ public class DiscoveryTest {
         d.devices();
         assertEquals(2, d.sorts);
     }
+
+    /**
+     * On Android, DatagramSocket.receive() holds the socket's own lock while it waits for a packet (Java 21's doesn't,
+     * so the tests against Node never showed it). Sending mustn't take that lock: when it did, starting Nearby on a
+     * quiet Wi-Fi waited for a packet that never came, holding the node's lock, and the screen stayed on "Starting
+     * Nearby…" (the emulator launch check, run 21). This holds the socket's lock as receive() does and sends.
+     */
+    @Test
+    public void sendingNeverWaitsForTheSocketsOwnLockAsAndroidsReceiveHoldsIt() throws Exception {
+        Discovery real = new Discovery(MeshProtocol.DISCOVERY_GROUP, 53_398, () -> new MeshProtocol.Announcement("here", "Me", "eeeeeeeeeeeeeeee", 4242), () -> { });
+        try {
+            real.start();
+        } catch (java.io.IOException e) {
+            org.junit.Assume.assumeTrue("No multicast on this machine: " + e.getMessage(), false);
+        }
+        try {
+            java.lang.reflect.Field field = Discovery.class.getDeclaredField("socket");
+            field.setAccessible(true);
+            final Object socket = field.get(real);
+            final java.util.concurrent.CountDownLatch held = new java.util.concurrent.CountDownLatch(1);
+            Thread receiving = new Thread(() -> {
+                synchronized (socket) {
+                    held.countDown();
+                    try {
+                        Thread.sleep(3_000);
+                    } catch (InterruptedException ignored) {
+                        // Done holding.
+                    }
+                }
+            });
+            receiving.start();
+            held.await();
+            long started = System.nanoTime();
+            real.announce();
+            long ms = (System.nanoTime() - started) / 1_000_000;
+            receiving.interrupt();
+            receiving.join();
+            assertTrue("announcing waited " + ms + " ms for the socket's lock", ms < 1_000);
+        } finally {
+            real.stop();
+        }
+    }
 }

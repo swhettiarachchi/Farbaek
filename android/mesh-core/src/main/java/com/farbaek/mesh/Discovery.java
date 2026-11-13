@@ -97,6 +97,12 @@ public final class Discovery {
     int sorts;
     private boolean testing;
     private MulticastSocket socket;
+    /**
+     * Keeps one send's choice of interface and the send together. Never the socket itself: Android's
+     * DatagramSocket.receive() holds the socket's lock while it waits for a packet, so on a quiet network a send
+     * locked on the socket would wait for ever (DiscoveryTest).
+     */
+    private final Object sendLock = new Object();
     private ScheduledExecutorService timer;
     private Thread receiver;
 
@@ -258,7 +264,7 @@ public final class Discovery {
             }
             for (Inet4Address address : interfaces) {
                 try {
-                    synchronized (s) {
+                    synchronized (sendLock) {
                         s.setInterface(address);
                         s.send(new DatagramPacket(data, data.length, groupAddress, port));
                     }

@@ -90,8 +90,9 @@ public final class MeshService extends Service implements MeshHub.Observer {
         String text = getString(R.string.nearby_ongoing_visible);
         int max = 0;
         int progress = 0;
-        if (hub.ready()) {
-            MeshNode.Snapshot s = hub.node().snapshot();
+        // The hub's latest snapshot: this runs on the main thread, which never waits for the node.
+        MeshNode.Snapshot s = hub.snapshot();
+        if (s != null) {
             TransferView moving = null;
             for (TransferView t : s.transfers) {
                 if (!t.state.isFinal() && t.bytes > 0 && t.bytesDone < t.bytes) {

@@ -17,7 +17,8 @@ permissions:
 
 jobs:
   launch:
-    runs-on: ubuntu-latest
+    # A fixed image, so ubuntu-latest moving to a newer one can't change the emulator's setup between runs.
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -66,16 +67,25 @@ jobs:
           echo no | "$sdk/avdmanager" create avd -n launch -k "$image" -d pixel_6
           "$ANDROID_HOME/emulator/emulator" -list-avds | grep -qx launch || { echo "::error::avdmanager didn't make the AVD."; ls -la "$ANDROID_AVD_HOME"; exit 1; }
           ls -l /dev/kvm || echo "::warning::No /dev/kvm on this runner: the emulator can't use hardware acceleration."
-          nohup "$ANDROID_HOME/emulator/emulator" -avd launch -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -accel on > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          # A Google Play image only lets in an adb key it was given at boot. Run 17 showed the emulator up but "device
+          # unauthorized": adb made its key only after the emulator had started. So the key is made first, and the
+          # emulator is also told to skip the authorization prompt.
+          adb start-server
+          ls ~/.android/adbkey.pub >/dev/null || { echo "::error::adb didn't make its key."; exit 1; }
+          nohup "$ANDROID_HOME/emulator/emulator" -avd launch -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -accel on -skip-adb-auth > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          # The job log is hard to read from a browser, so a failure also puts what adb sees and the emulator's log in the run's summary.
+          emulator_failed() {
+            echo "::error::$1 The emulator's log is in the run's summary."
+            { echo "### $1"; echo; echo "Runner: $(lsb_release -ds 2>/dev/null). KVM: $(ls -l /dev/kvm 2>&1)."; echo; echo '```'; adb devices -l 2>&1; echo; tail -n 60 "$RUNNER_TEMP/emulator.log"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          }
           # Give up after 6 minutes rather than waiting for the job's limit, and say why.
-          if ! timeout 360 adb wait-for-device; then
-            echo "::error::The emulator didn't start. Its log:"; tail -n 60 "$RUNNER_TEMP/emulator.log"; exit 1
-          fi
+          timeout 360 adb wait-for-device || emulator_failed "adb couldn't reach the emulator within 6 minutes."
           for i in $(seq 1 90); do
             [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && break
             sleep 5
           done
-          [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] || { echo "::error::Android didn't finish booting. The emulator's log:"; tail -n 60 "$RUNNER_TEMP/emulator.log"; exit 1; }
+          [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] || emulator_failed "Android didn't finish booting."
           adb shell input keyevent 82 || true
 
       - name: Install and open Farbaek
@@ -97,10 +107,22 @@ jobs:
           # computers" starts the dataSync foreground service, the step Android 14 and 15's rules can stop.
           adb shell pm grant com.farbaek.app android.permission.POST_NOTIFICATIONS || true
           adb shell am start -W -a android.intent.action.VIEW -d "farbaek-mesh://nearby" com.farbaek.app | tee out/nearby-start.txt
-          sleep 8
-          adb shell uiautomator dump /sdcard/nearby.xml > /dev/null && adb pull /sdcard/nearby.xml out/nearby.xml > /dev/null || true
-          nearby_shown=$(grep -c 'text="Nearby"' out/nearby.xml 2>/dev/null || true)
-          bounds=$(grep -o 'content-desc="Visible to your computers"[^>]*bounds="[^"]*"' out/nearby.xml 2>/dev/null | grep -o 'bounds="[^"]*"' | head -n 1 || true)
+          # Nearby opens at once and shows "Starting Nearby…" while its key loads, which is slow on an emulator with
+          # software graphics, and uiautomator fails while the screen is busy. Run 18 dumped once, at 8 s, and got
+          # nothing, and run 20 still said "Starting Nearby…" at 90 s while the emulator's key store was busy. So look
+          # every 3 seconds for up to 3 minutes, until the Visible switch is there.
+          nearby_shown=0
+          bounds=""
+          for i in $(seq 1 60); do
+            sleep 3
+            adb shell uiautomator dump /sdcard/nearby.xml > /dev/null 2>&1 && adb pull /sdcard/nearby.xml out/nearby.xml > /dev/null 2>&1 || continue
+            nearby_shown=$(grep -c 'text="Nearby"' out/nearby.xml || true)
+            bounds=$(grep -o 'content-desc="Visible to your computers"[^>]*bounds="[^"]*"' out/nearby.xml | grep -o 'bounds="[^"]*"' | head -n 1 || true)
+            [ -n "$bounds" ] && break
+          done
+          nearby_seconds=$(( i * 3 ))
+          # What the screen said at the end, for the summary: its words only.
+          screen_words=$(grep -o 'text="[^"]\+"' out/nearby.xml 2>/dev/null | sed 's/^text="//; s/"$//' | head -n 12 | paste -sd '|' - || true)
           if [ -n "$bounds" ]; then
             read -r x1 y1 x2 y2 <<<"$(grep -o '[0-9]\+' <<<"$bounds" | tr '\n' ' ')"
             adb shell input tap $(( (x1 + x2) / 2 )) $(( (y1 + y2) / 2 ))
@@ -110,6 +132,9 @@ jobs:
           adb shell dumpsys activity services com.farbaek.app | grep -E "ServiceRecord|isForeground|foregroundServiceType" | tee out/nearby-service.txt || true
           service_foreground=$(grep -c 'isForeground=true' out/nearby-service.txt || true)
 
+          # An "isn't responding" report keeps every thread's stack in the dropbox, readable without root.
+          adb shell dumpsys dropbox --print data_app_anr > out/anr.txt 2>/dev/null || true
+          farbaek_anr=$(grep -c 'Process: com.farbaek.app' out/anr.txt || true)
           adb logcat -d > out/logcat.txt
           adb logcat -d -b crash > out/crash.txt || true
           grep -E "AndroidRuntime|FATAL|com.farbaek.app|androidbrowserhelper|TrustedWebActivity|TwaLauncher|cr_" out/logcat.txt | tail -n 300 > out/logcat-farbaek.txt || true
@@ -123,7 +148,22 @@ jobs:
             echo
             echo "Farbaek crashes: $(grep -c 'Process: com.farbaek.app' out/crash.txt || true). Other apps' crashes on the emulator: $(grep -v -c 'Process: com.farbaek.app' <(grep 'Process: ' out/crash.txt) || true)."
             echo
-            echo "Nearby: the screen showed its title $nearby_shown time(s); the Visible switch was ${bounds:+found and tapped}${bounds:-not found}; the transfer service in the foreground: $service_foreground."
+            echo "Nearby: the screen showed its title $nearby_shown time(s); the Visible switch was $( [ -n "$bounds" ] && echo "found and tapped" || echo "not found" ) after ${nearby_seconds} s; the transfer service in the foreground: $service_foreground."
+            echo
+            echo "Nearby's screen said: ${screen_words:-nothing uiautomator could read}."
+            echo
+            echo "Nearby's own log (how long each step of starting took):"
+            echo '```'
+            grep 'FarbaekNearby' out/logcat.txt | sed 's/^[0-9-]* //' | head -n 20 || true
+            echo '```'
+            echo
+            echo "Farbaek \"isn't responding\" reports: ${farbaek_anr:-0}."
+            if [ "${farbaek_anr:-0}" != "0" ]; then
+              # The main thread's stack from the first report: where it was waiting.
+              echo '```'
+              awk '/Process: com.farbaek.app/{f=1} f&&/^"main"/{p=1} p{print} p&&/^$/{exit}' out/anr.txt | head -n 40
+              echo '```'
+            fi
             echo
             # Farbaek's crash, on the run's page. Addresses are left out: a stack trace doesn't need them.
             echo '```'
@@ -133,8 +173,14 @@ jobs:
           if grep -q 'Process: com.farbaek.app' out/crash.txt; then
             echo "::error::Farbaek stopped at launch. Its stack trace is in the run's summary."; exit 1
           fi
-          if [ "${nearby_shown:-0}" = "0" ]; then
+          if [ "${farbaek_anr:-0}" != "0" ]; then
+            echo "::error::Android reported Farbaek \"isn't responding\". The main thread's stack is in the run's summary."; exit 1
+          fi
+          if ! grep -q 'mesh.MeshActivity' out/nearby-start.txt; then
             echo "::error::Nearby didn't open from its link. The screenshot is out/nearby.png in the run's artifact."; exit 1
+          fi
+          if [ -z "$bounds" ]; then
+            echo "::error::Nearby opened, but its Visible switch didn't appear within 3 minutes. What the screen said is in the run's summary, and the screenshot is out/nearby.png."; exit 1
           fi
           if [ -n "$bounds" ] && [ "${service_foreground:-0}" = "0" ]; then
             echo "::error::Turning on Visible didn't start the Nearby service in the foreground."; exit 1
