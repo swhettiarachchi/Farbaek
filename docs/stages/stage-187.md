@@ -110,6 +110,8 @@ The review found no defects in the font converter after checking it against the 
 - **What happened:** the owner tapped Send files on 1.3.1 and nothing arrived. The cause was the desktop's Be visible window. The desktop app accepts a connection only while Be visible is on, and it turns off after 5 minutes. The owner's computer (DESKTOP-9OIQ8KS, on the phone's hotspot) wasn't listening on any port, and the Windows firewall allowed the app on that network.
 - **The fix:** the computer's badge now says what the phone actually knows. It says "Ready to receive" when the computer is visible, and "Not visible now" (not "Not on this Wi-Fi") when it isn't, with how to fix it: choose Be visible, for 5 minutes, on the same Wi-Fi or this phone's hotspot.
 
+- **Where the photo went:** the owner accepted the photo on the computer, then couldn't find it. The desktop app's folder picker opened in the user folder (C:Users<name>), and the received card didn't say where it had saved, so it looked lost. Now the picker starts in **Downloads** for received files, and the card says **Saved in** the full path, beside Open folder. This reaches people in the next desktop release. The photo itself arrived intact: a 130 KB PNG, every piece checked.
+
 ## Not done
 
 - **A real phone:** the owner's Redmi A5 gets 1.3.2 through Internal testing, which has no review wait.
