@@ -147,7 +147,8 @@ async function appRequest(request: NextRequest) {
 const ADMIN_PATH = /^\/admin(?:\/|$)/;
 
 // Where the customer app's session cookie is refreshed; every other page passes straight through.
-const SESSION_PATH = /^\/(?:app|admin|auth|invite|shared)(?:\/|$)|^\/sign-in(?:\/|$)/;
+// /subscribe reads the session to decide where a Subscribe button leads (ADR 0197).
+const SESSION_PATH = /^\/(?:app|admin|auth|invite|shared|subscribe)(?:\/|$)|^\/sign-in(?:\/|$)/;
 
 export const config = {
   matcher: [

@@ -12,6 +12,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { StatusGlyph, type Status } from "@/components/ui/status-badge";
 import { chargeCents, chargeLine, formatUsd, getPlan, isYearly } from "@/core/billing/catalog";
 import { checkoutConsentText, formatMinorUnits } from "@/core/billing/provider-state";
+import { baseName, billingChoosePath, billingPeriods } from "@/core/billing/subscribe";
 import type { PaidPlanId } from "@/core/billing/provider";
 import type { PlanChangePreview } from "@/server/billing/use-cases";
 import type { BillingView } from "@/server/billing/view";
@@ -37,12 +38,40 @@ const backLink = (
   </Link>
 );
 
-export function ChoosePlanStep({ planId, onTrial, error }: { planId: PaidPlanId; onTrial: boolean; error: string | null }) {
+/** Monthly or yearly, for the plans sold both ways (ADR 0105): two pills that reopen this step on the other version. */
+function PeriodSwitch({ planId }: { planId: PaidPlanId }) {
+  const periods = billingPeriods(planId);
+  if (!periods) return null;
+  const options = [
+    { id: periods.monthly, label: "Monthly" },
+    { id: periods.yearly, label: "Yearly" },
+  ];
+  return (
+    <nav aria-label="How often to pay" className="mt-4 inline-flex rounded-full bg-canvas-2 p-1 ring-1 ring-line">
+      {options.map((o) => (
+        <Link
+          key={o.id}
+          href={billingChoosePath(o.id)}
+          aria-current={o.id === planId ? "true" : undefined}
+          className={`inline-flex min-h-11 items-center rounded-full px-4 text-sm font-medium transition-colors duration-150 ${o.id === planId ? "bg-surface text-ink shadow-e1" : "text-ink-2 hover:text-ink"}`}
+        >
+          {o.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+export function ChoosePlanStep({ planId, onTrial, error, workspace }: { planId: PaidPlanId; onTrial: boolean; error: string | null; workspace: { name: string; others: boolean } }) {
   const plan = getPlan(planId);
   if (plan.pricing.kind !== "paid") return null;
   return (
-    <StepShell title={`Choose ${plan.name}`}>
-      <p className="mt-2 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+    <StepShell title={`Subscribe to ${baseName(plan)}`}>
+      <p className="mt-2 text-sm text-ink-2">
+        For the workspace <span className="font-medium text-ink">{workspace.name}</span>.{workspace.others ? " To subscribe a different one, switch to it first." : ""}
+      </p>
+      <PeriodSwitch planId={planId} />
+      <p className="mt-4 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
         <span className="text-2xl font-medium tracking-[-0.02em] tabular">{formatUsd(chargeCents(plan))}</span>
         <span className="text-sm text-ink-3">
           {plan.pricing.interval === "year" ? `a year (${formatUsd(plan.pricing.monthlyCents)} a month), plus applicable tax, calculated at checkout` : "a month, plus applicable tax, calculated at checkout"}
