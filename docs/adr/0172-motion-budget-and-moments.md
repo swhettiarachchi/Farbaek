@@ -52,3 +52,10 @@ Meanwhile:
 - New motion has to fit the budget, or name why it doesn't.
 - Publishing and a real run's end can't be reached in the read-only demo, so they get their first real look on production in normal use.
 - The research's runtime 3D checks on a mid-range phone remain open: nothing here measures a Helio G99-class device.
+
+## Update (2026-11-14): the hero's pause control is out of sight
+
+The owner asked for the Pause motion chip under the hero to go. It's no longer drawn. It works like the Skip to content link: it stays in the page, comes into view when someone moves to it with Tab, and screen readers still find it.
+- **Who it still serves:** anyone on a keyboard can pause the float, the shadow and the Loom, and the choice is still remembered in this browser.
+- **Who it no longer serves:** someone using only a mouse or touch can't find it. For them, the system's reduced-motion setting is the way, and it stops all of the hero's motion, as before.
+- **The trade:** this meets WCAG 2.2.2 less plainly than a visible control. It's the owner's choice, made for a cleaner first screen.
