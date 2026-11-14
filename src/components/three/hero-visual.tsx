@@ -126,13 +126,15 @@ export function HeroVisual() {
       ) : null}
 
       {mounted && reduce === false ? (
+        // Out of sight until someone tabs to it, like the skip link (ADR 0172, 2026-11-14 update): the owner wanted no
+        // chip on the hero. People who want it still get it from the keyboard, and reduced motion stops everything.
         <button
           type="button"
           onClick={() => {
             setChosenHold(!held);
             writeHold(!held);
           }}
-          className="absolute bottom-0 right-0 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-surface/80 px-3.5 text-label text-ink-2 ring-1 ring-line backdrop-blur-xl transition-colors duration-150 hover:text-ink"
+          className="sr-only text-label text-ink-2 focus:not-sr-only focus:absolute focus:bottom-0 focus:right-0 focus:inline-flex focus:min-h-11 focus:items-center focus:gap-1.5 focus:rounded-full focus:bg-surface/80 focus:px-3.5 focus:ring-1 focus:ring-line focus:backdrop-blur-xl"
         >
           {held ? <PlayIcon size={14} weight="fill" aria-hidden /> : <PauseIcon size={14} weight="fill" aria-hidden />}
           {held ? "Play motion" : "Pause motion"}

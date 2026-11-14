@@ -45,7 +45,8 @@ export function SiteFooter() {
           </ul>
         </nav>
       </Container>
-      <Container>
+      {/* The footer ends with the legal links (the oversized wordmark under them went at the owner's request, 2026-11-14). */}
+      <Container className="pb-6">
         <nav aria-label="Legal" className="border-t border-line py-3">
           <ul className="flex flex-wrap gap-x-6 text-sm">
             {LEGAL_DOCS.map((link) => (
@@ -59,14 +60,6 @@ export function SiteFooter() {
           </ul>
         </nav>
       </Container>
-
-      {/* Oversized wordmark, cropped by the footer edge. Decorative: the name is already above. */}
-      <p
-        aria-hidden
-        className="pointer-events-none select-none px-4 text-center text-[22vw] font-semibold leading-[0.78] tracking-[-0.06em] text-surface-raised sm:text-[19vw]"
-      >
-        Farbaek
-      </p>
     </footer>
   );
 }
