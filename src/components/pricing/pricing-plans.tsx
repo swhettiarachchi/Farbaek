@@ -6,6 +6,9 @@ import { buttonClasses } from "@/components/ui/button";
 import { WebPurchaseOnly } from "@/components/billing/web-purchase-only";
 import { PlayPrice } from "@/components/billing/play-billing";
 import { googlePlayProductForPlan } from "@/core/billing/google-play";
+import { isPaidPlanId } from "@/core/billing/provider-state";
+import { subscribePath } from "@/core/billing/subscribe";
+import { PlanCardLink } from "./plan-card-link";
 
 const number = new Intl.NumberFormat("en-US");
 
@@ -24,8 +27,6 @@ export function sessionsLine(plan: Plan): string {
 /** How much more AI usage the yearly version has than the monthly plan, as a whole percent. */
 const moreUsagePercent = (monthly: Plan, yearly: Plan) => Math.round(((yearly.limits.aiUnitsPerMonth ?? 0) / (monthly.limits.aiUnitsPerMonth ?? 1) - 1) * 100);
 
-/** Sign in first, then straight to the plan's step in Billing. */
-const choosePath = (id: string) => `/sign-in?next=${encodeURIComponent(`/app/billing?choose=${id}#billing-step`)}`;
 
 function Feature({ feature }: { feature: FeatureKey }) {
   const coming = FEATURE_STATUS[feature] === "coming";
@@ -44,8 +45,9 @@ function Feature({ feature }: { feature: FeatureKey }) {
 /**
  * The self-serve plans, from the catalog. Every number shown is derived from
  * it: the price, the agent-session guidance (rate card), sandbox hours, seats
- * and projects. Free starts with sign-in; a paid plan goes on to Billing,
- * where checkout runs after sign-in.
+ * and projects. Free starts with sign-in. A paid plan's whole card leads to
+ * /subscribe/<plan>, which signs in, makes a first workspace if needed, and
+ * ends at the plan's review step in Billing before checkout (ADR 0197).
  */
 export function PricingPlans() {
   return (
@@ -65,6 +67,7 @@ export function PricingPlans() {
         const yearlyId = yearlyVersionOf(plan.id);
         const yearly = yearlyId ? getPlan(yearlyId) : null;
         const added = newFeatures(plan, i).filter((f) => f !== "usage_rollover");
+        const paidId = plan.pricing.kind === "paid" && isPaidPlanId(plan.id) ? plan.id : null;
         return (
           <li
             key={plan.id}
@@ -73,7 +76,7 @@ export function PricingPlans() {
             }`}
           >
             <div
-              className={`flex w-full flex-col rounded-md bg-surface p-6 transition-[transform,box-shadow] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 ${
+              className={`group relative flex w-full flex-col rounded-md bg-surface p-6 transition-[transform,box-shadow] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 ${
                 featured ? "shadow-e2 ring-1 ring-ink" : "shadow-e1 hover:shadow-e2"
               }`}
             >
@@ -113,27 +116,24 @@ export function PricingPlans() {
             </ul>
 
             <div className="mt-auto grid gap-2 pt-8">
-              {plan.pricing.kind === "paid" ? (
+              {paidId ? (
                 // Inside Farbaek for Android, Google Play's Payments policy rules out selling plans (ADR 0150).
                 <WebPurchaseOnly fallback={null}>
-                  <Link href={choosePath(plan.id)} className={buttonClasses(featured ? "primary" : "secondary", "md", "min-h-11 w-full")}>
-                    Choose {plan.name}
-                  </Link>
-                  {yearly ? (
+                  <PlanCardLink href={subscribePath(paidId)} featured={featured} label="Subscribe" planName={plan.name} size="md" />
+                  {yearly && isPaidPlanId(yearly.id) ? (
                     <>
-                      <Link href={choosePath(yearly.id)} className={buttonClasses("ghost", "md", "min-h-11 w-full")}>
+                      {/* Above the card's stretched link, so it stays its own target. */}
+                      <Link href={subscribePath(yearly.id)} className={buttonClasses("ghost", "md", "relative z-10 min-h-11 w-full")}>
                         Pay yearly instead
                       </Link>
-                      <p className="text-center text-xs leading-relaxed text-ink-3">
+                      <p className="relative z-10 text-center text-xs leading-relaxed text-ink-3">
                         Paid yearly ({formatUsd(chargeCents(yearly))} a year): about {moreUsagePercent(plan, yearly)}% more AI usage, everything else the same.
                       </p>
                     </>
                   ) : null}
                 </WebPurchaseOnly>
               ) : (
-                <Link href="/sign-in" className={buttonClasses(featured ? "primary" : "secondary", "md", "min-h-11 w-full")}>
-                  Start free
-                </Link>
+                <PlanCardLink href="/sign-in" featured={featured} label="Start free" size="md" />
               )}
             </div>
             </div>

@@ -29,6 +29,8 @@ import { createAgentPairing, revokeAgent, setAgentLease, type AgentAdminDeps } f
 import { loadUsageMeters } from "@/server/workspace/usage-summary";
 import { STARTERS, getStarter } from "@/content/starters";
 import type { UsageMeter } from "@/core/billing/usage-view";
+import { isPaidPlanId } from "@/core/billing/provider-state";
+import { billingChoosePath } from "@/core/billing/subscribe";
 import { siteUrl } from "@/server/supabase/config";
 import { resolveAiProvider } from "@/server/ai/config";
 import { currentExecutionMode } from "@/server/execution/sandbox";
@@ -97,7 +99,9 @@ export async function createOrganization(_previous: FormState, form: FormData): 
   const id = z.string().safeParse(data);
   if (id.success) (await cookies()).set(WORKSPACE_COOKIE, id.data, COOKIE_OPTIONS);
   revalidatePath("/app", "layout");
-  redirect("/app");
+  // Made on the way to subscribing (ADR 0197): straight on to that plan's review step. Only a real paid plan id is followed.
+  const plan = form.get("plan");
+  redirect(isPaidPlanId(plan) ? billingChoosePath(plan) : "/app");
 }
 
 export async function switchWorkspace(form: FormData) {

@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 import { Container } from "@/components/ui/container";
 import { CONTACT } from "@/config/contact";
 import { TRIAL, getPlan } from "@/core/billing/catalog";
+import { baseName, planFromSubscribeNext } from "@/core/billing/subscribe";
+import { SubscribeSummary } from "@/components/pricing/subscribe-summary";
 import { oauthAvailable } from "@/server/auth/oauth-wiring";
 import { turnstileSiteKey } from "@/server/auth/captcha";
 import { readSupabaseConfig, safeNextPath, siteUrl } from "@/server/supabase/config";
@@ -60,13 +62,19 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
     if (data?.claims) redirect(next);
   }
   const [google, apple] = supabase ? await Promise.all([oauthAvailable("google"), oauthAvailable("apple")]) : [false, false];
+  // On the way to subscribing (ADR 0197): the plan stays in view, and signing in carries on to it.
+  const subscribing = planFromSubscribeNext(next);
+  const planName = subscribing ? baseName(getPlan(subscribing)) : null;
 
   return (
     <Container className="grid min-h-[calc(100dvh-4rem)] items-center gap-12 py-12 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-16 lg:py-16">
       <div className="w-full max-w-[440px] justify-self-center lg:justify-self-start">
-        <h1 className={FOCUSED_TITLE}>Sign in to Farbaek</h1>
+        <h1 className={FOCUSED_TITLE}>{planName ? `Sign in to subscribe to ${planName}` : "Sign in to Farbaek"}</h1>
         <p className="mt-3 text-body leading-relaxed text-ink-2">
-          {intro(google, apple)} New workspaces start with a {TRIAL.lengthDays}-day {getPlan(TRIAL.basePlan).name} trial, with no card.
+          {intro(google, apple)}{" "}
+          {planName
+            ? `Then you see ${planName}'s price and what's included, and agree, before anything is charged.`
+            : `New workspaces start with a ${TRIAL.lengthDays}-day ${getPlan(TRIAL.basePlan).name} trial, with no card.`}
         </p>
         <div className="mt-8 rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
           <div className="rounded-md bg-surface p-5 shadow-e1 sm:p-6">
@@ -101,6 +109,11 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
         ) : null}
       </div>
 
+      {subscribing ? (
+        <div className="w-full max-w-[440px] justify-self-center lg:max-w-none lg:justify-self-stretch">
+          <SubscribeSummary planId={subscribing} stage="sign-in" />
+        </div>
+      ) : (
       <section aria-labelledby="next-title" className="aurora hidden lg:block">
         <div className="rounded-lg bg-surface-raised/60 p-2 ring-1 ring-line">
           <div className="rounded-md bg-surface p-8 shadow-e2">
@@ -131,6 +144,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
           </div>
         </div>
       </section>
+      )}
     </Container>
   );
 }

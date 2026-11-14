@@ -71,14 +71,16 @@ function DisabledReason({ reason }: { reason: string | null }) {
   return reason ? <p className="text-sm text-ink-3">{reason}</p> : null;
 }
 
-export function CreateOrganizationForm() {
+/** Makes a workspace. With a plan, it's the step on the way to subscribing (ADR 0197): the action then goes on to that plan's review step. */
+export function CreateOrganizationForm({ plan, submitLabel = "Create workspace", defaultName }: { plan?: string; submitLabel?: string; defaultName?: string } = {}) {
   const [state, action, pending] = useActionState(createOrganization, IDLE);
   const error = state.status === "error" ? state.message : null;
   return (
     <form action={action} className="grid gap-5">
-      <Field label="Workspace name" name="name" maxLength={80} required error={error} defaultValue={state.status === "error" ? state.values?.name : undefined} />
+      {plan ? <input type="hidden" name="plan" value={plan} /> : null}
+      <Field label="Workspace name" name="name" maxLength={80} required error={error} defaultValue={state.status === "error" ? state.values?.name : defaultName} />
       <button type="submit" disabled={pending} className={buttonClasses("primary", "md", "w-full sm:w-auto")}>
-        {pending ? "Creating…" : "Create workspace"}
+        {pending ? "Creating…" : submitLabel}
       </button>
     </form>
   );

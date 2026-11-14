@@ -27,6 +27,7 @@ export type BillingErrorCode =
   | "NO_PRODUCT"
   | "PRICE_MISMATCH"
   | "SAME_PLAN"
+  | "CANCELLING"
   | "YEARLY_SWITCH"
   | "MANAGED_BY_APPLE"
   | "MANAGED_BY_GOOGLE"
@@ -57,6 +58,7 @@ export const BILLING_MESSAGES: Record<Exclude<BillingErrorCode, "PROVIDER">, str
   NO_PRODUCT: "This plan isn't set up for checkout yet. Nothing was charged.",
   PRICE_MISMATCH: "Checkout for this plan is paused for a moment while we fix it. Nothing was charged.",
   SAME_PLAN: "That's already your plan.",
+  CANCELLING: "This plan is set to end. Keep it on this page first, then switch to another.",
   YEARLY_SWITCH: `Dodo Payments couldn't move this yearly plan to a monthly one, and nothing was charged. Write to ${LEGAL.support} and we'll switch it for you.`,
   MANAGED_BY_APPLE: "This workspace's plan is billed through the App Store, so it's changed or cancelled on the iPhone: Settings, your name, Subscriptions. Nothing was charged here.",
   MANAGED_BY_GOOGLE: "This workspace's plan is billed through Google Play, so it's changed in Farbaek for Android or cancelled in Google Play: Play Store, your profile, Payments and subscriptions. Nothing was charged here.",
@@ -223,6 +225,8 @@ export async function previewPlanChange(deps: BillingDeps | null, ws: BillingWor
   if (!isPaidPlanId(to)) return fail("INVALID_PLAN");
   const s = await subscribed(g.value, ws.id);
   if (!s.ok) return s;
+  // A plan set to end is kept first, then changed (ADR 0197): a switch would otherwise read as moving to a plan that never starts.
+  if (s.value.state === "cancellation_scheduled") return fail("CANCELLING");
   const direction = planChangeDirection(s.value.planId, to);
   if (direction === "same") return fail("SAME_PLAN");
   const product = await g.value.productFor(to);

@@ -19,6 +19,8 @@ import { isTopupPack } from "@/core/billing/topups";
 import { topupErrorMessage } from "@/server/billing/topups";
 import { SELF_SERVE_PLANS, TRIAL, getPlan, priceWords, yearlyVersionOf } from "@/core/billing/catalog";
 import { isPaidPlanId, planChangeDirection } from "@/core/billing/provider-state";
+import { baseName, subscribePath, subscribeStep, type SubscribeStep } from "@/core/billing/subscribe";
+import type { ReactNode } from "react";
 import { billingDeps } from "@/server/billing/wiring";
 import { billingErrorMessage, previewPlanChange } from "@/server/billing/use-cases";
 import { loadBillingView } from "@/server/billing/view";
@@ -56,7 +58,8 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         : "Hosting accounts connected for launches. GitHub doesn't count toward this. Manage them on the Connections page.";
   const plan = getPlan(ws.plan.planId);
   const limits = ws.plan.limits;
-  const canManage = Boolean(ctx.role && MANAGER_ROLES.includes(ctx.role)) && ctx.writes.enabled;
+  const manager = Boolean(ctx.role && MANAGER_ROLES.includes(ctx.role));
+  const canManage = manager && ctx.writes.enabled;
   const onTrial = ws.plan.source === "trial";
   const sub = billing.subscription;
   // The plan the Android app's list marks (ADR 0150): Lite and Maker yearly mark their monthly plan.
@@ -73,14 +76,21 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   const donePlan = one(sp.plan);
 
   // The one step in progress, from the address: choosing a plan, switching, or cancelling.
-  const choose = one(sp.choose);
+  // A plan picked anywhere (`choose`, ADR 0197) always gets an answer: the review step, a change for someone already paying, or why not.
+  const picked = subscribeStep(one(sp.choose), {
+    open: billing.open,
+    manager,
+    blocked: ctx.writes.enabled ? null : ctx.writes.reason,
+    subscription: sub ? { planId: sub.planId, provider: sub.provider, state: sub.state } : null,
+  });
   const change = one(sp.change);
+  const changeTo = picked?.kind === "change" ? picked.planId : sub && isPaidPlanId(change) && change !== sub.planId ? change : null;
   const step =
     billing.open && canManage
-      ? !sub && isPaidPlanId(choose)
-        ? { kind: "choose" as const, planId: choose }
-        : sub && isPaidPlanId(change) && change !== sub.planId
-          ? { kind: "change" as const, preview: await previewPlanChange(billingDeps(), { id: ws.id, onTrial }, { userId: ctx.user.id, email: ctx.user.email, role: ctx.role }, change) }
+      ? picked?.kind === "choose"
+        ? { kind: "choose" as const, planId: picked.planId }
+        : sub && changeTo
+          ? { kind: "change" as const, preview: await previewPlanChange(billingDeps(), { id: ws.id, onTrial }, { userId: ctx.user.id, email: ctx.user.email, role: ctx.role }, changeTo) }
           : sub && one(sp.cancel) === "1" && sub.state !== "cancellation_scheduled"
             ? { kind: "cancel" as const }
             : sub && billing.topups && isTopupPack(Number(one(sp.topup)))
@@ -108,6 +118,14 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       ) : null}
 
       {error && !step ? <Notice tone="warning">{error}</Notice> : null}
+      {picked && picked.kind !== "choose" && picked.kind !== "change" && picked.kind !== "closed" ? (
+        // Why a chosen plan didn't open a step. Purchases are web-only (ADR 0150); the anchor is the step's when there is one.
+        <WebPurchaseOnly fallback={null}>
+          <div id={step ? undefined : "billing-step"} className="scroll-mt-24">
+            <Notice>{pickedNotice(picked, sub, ws.name)}</Notice>
+          </div>
+        </WebPurchaseOnly>
+      ) : null}
       {done === "cancelled" && sub ? (
         <Notice>
           {sub.planName} is cancelled. It keeps working until {sub.paidThrough ? <LocalTime iso={sub.paidThrough} /> : "the end of the period"}, then this workspace moves to Free.
@@ -136,7 +154,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
             </Notice>
           }
         >
-          {step.kind === "choose" ? <ChoosePlanStep planId={step.planId} onTrial={onTrial} error={error} /> : null}
+          {step.kind === "choose" ? <ChoosePlanStep planId={step.planId} onTrial={onTrial} error={error} workspace={{ name: ws.name, others: ctx.workspaces.length > 1 }} /> : null}
           {step.kind === "change" ? <ChangePlanStep preview={step.preview.ok ? step.preview.value : null} error={step.preview.ok ? error : step.preview.message} /> : null}
           {step.kind === "topup" && sub ? <TopupStep planId={sub.planId} pack={step.pack} error={topupError} /> : null}
         </WebPurchaseOnly>
@@ -313,6 +331,45 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       </section>
     </div>
   );
+}
+
+/** Why a plan picked elsewhere doesn't open the review step, in the person's words. */
+function pickedNotice(
+  picked: Exclude<SubscribeStep, { kind: "choose" | "change" | "closed" }>,
+  sub: { planId: string; planName: string; paidThrough: string | null } | null,
+  workspace: string,
+): ReactNode {
+  const name = baseName(getPlan(picked.planId));
+  const current = sub?.planName ?? "Your plan";
+  switch (picked.kind) {
+    case "current":
+      return `This workspace is already on ${getPlan(picked.planId).name}. Its usage and renewal date are below.`;
+    case "blocked":
+      return picked.reason;
+    case "not_manager":
+      return (
+        <>
+          Only owners and admins can subscribe {workspace} to {name}.{" "}
+          <Link href={`${subscribePath(picked.planId)}?new=1`} className="font-medium text-accent underline-offset-4 hover:underline">
+            Subscribe a workspace of your own
+          </Link>{" "}
+          instead.
+        </>
+      );
+    case "cancelling":
+      return (
+        <>
+          {current} is set to end{sub?.paidThrough ? <> on <LocalTime iso={sub.paidThrough} date /></> : null}.{" "}
+          {sub?.planId === picked.planId
+            ? `To carry on with it, press Keep ${current} below.`
+            : `To switch to ${name}, press Keep ${current} below first, then choose ${name} again.`}
+        </>
+      );
+    case "store":
+      return picked.store === "apple"
+        ? `${current} is billed through the App Store, so a change to ${name} happens on the iPhone, in Subscriptions.`
+        : `${current} is billed through Google Play, so a change to ${name} happens in Farbaek for Android.`;
+  }
 }
 
 /** Why a plan card has no button, as a plain sentence. */

@@ -395,6 +395,13 @@ describe("billing use cases (mock provider)", () => {
     expect(up.applied.at(-1)).toMatchObject({ state: "active", paidPlanId: "max" });
   });
 
+  it("refuses to change a plan that is set to end, until it is kept (ADR 0197)", async () => {
+    const { deps, calls } = billingDeps({ ...active, state: "cancellation_scheduled" });
+    expect(await previewPlanChange(deps, ws, owner, "max")).toMatchObject({ ok: false, code: "CANCELLING" });
+    expect(await changePlan(deps, ws, owner, "starter")).toMatchObject({ ok: false, code: "CANCELLING" });
+    expect(calls).toHaveLength(0);
+  });
+
   it("charges Lite and Maker their yearly price, and says what to do when Dodo won't move a yearly plan to a monthly one (ADR 0105)", async () => {
     const fresh = billingDeps(null);
     expect(await startCheckout(fresh.deps, ws, owner, "lite", true)).toMatchObject({ ok: true });
