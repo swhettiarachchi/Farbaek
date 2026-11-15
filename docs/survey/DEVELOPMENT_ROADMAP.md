@@ -49,6 +49,20 @@ Stage 190 built the foundation and one complete workflow; stage 191 added severa
 
   Every inference waits for the surveyor's check before approval, and the Plan step lists what's left.
 
+## Stage 195: talk or type to the plan (done)
+
+The drafting assistant ([ASSISTANT.md](ASSISTANT.md), ADR 0210): a bar on the Plan step's sheet that takes spoken or typed instructions.
+- **Two readers:** a local reader for frequent instructions; Claude's fast tier for the rest.
+- **Values come from words:** every value is read by code from the surveyor's own words and checked.
+- **Applying:** changes are shown on the sheet and applied as one undo step; answers come from the engine.
+- **Hand-overs:** divisions and dictated measurements are handed to the divide panel and the typed tables.
+- **Voice:** push to talk and live talk, through the browser's own recogniser, in English and Sinhala.
+- **Next for it:**
+  - recordings from surveyors to measure accuracy, deciding whether a self-hosted Sinhala recogniser is worth running;
+  - Sinhala number words;
+  - Tamil;
+  - the native apps' microphone permissions.
+
 ## Next: subdivision with roads (planned)
 
 Still to come: a whole land laid out at once, with its access road and its lots and a feasibility report, never presenting a layout that breaks a hard rule as feasible.
@@ -67,11 +81,11 @@ Still to come: a whole land laid out at once, with its access road and its lots 
 
 Alignments, chainage, long sections and cross-sections, with curve elements from tested formulas. Never assume design speeds, gradients, radii or widths.
 
-## Stage 194: the assistant answers questions (planned)
+## Later: the assistant answers more questions (planned)
 
-Drafting from the surveyor's words came in stage 191. This stage lets the surveyor ask about a plan ("show lot B2's marks", "which lots are under 6 perches"): the model calls engine functions and the screen selects or zooms, with every number from code. It also checks the brief against the plan: a lot count, road width or deed extent the surveyor stated becomes a claim the engine compares with what it computed. Red-pen markup on a printed draft, read into suggested changes, comes after. The model never calculates (skill rule 1) and never edits on its own.
+Drafting from the surveyor's words came in stage 191, and stage 195's assistant answers the area, perimeters, checks and what's missing. This stage lets the surveyor ask about a plan ("show lot B2's marks", "which lots are under 6 perches"): the model calls engine functions and the screen selects or zooms, with every number from code. It also checks the brief against the plan: a lot count, road width or deed extent the surveyor stated becomes a claim the engine compares with what it computed. Red-pen markup on a printed draft, read into suggested changes, comes after. The model never calculates (skill rule 1) and never edits on its own.
 
-## Stage 195: full CAD tools (planned)
+## Later: full CAD tools (planned)
 
 The editing that [CAD_ENGINE.md](CAD_ENGINE.md) lists as not built:
 - drawing and editing on the canvas, choosing boundary points by tapping, snapping and measuring;
@@ -97,7 +111,7 @@ These are needed but have no stage number yet.
 | **A plan-standard profile** | The sheet checks as named, versioned rules, each citing its source (the classic layout as observed practice, UDA regulation 9 as official text) |
 | **Field codes** | Curves and join-to-point after the curve engine; a code library per office |
 | **DXF in ZWCAD and AutoCAD LT** | Open the exports in both by hand before a release: the likeliest desktops a Sri Lankan surveyor uses |
-| **Dictating the description** | Speech to text for the Draft step, with its own privacy note |
+| **Dictating the description** | Speech to text for the Draft step's long description, through the same browser recogniser and privacy note as the stage 195 assistant |
 | **The surveyor's record** | A licence year and accreditation status on the surveyor profile, and plan numbering that exports cleanly to the Plan Issuing Register (format still unverified) |
 | **Traverse adjustment** | Bowditch or transit, only with the surveyor's authorisation and an explicit method choice, keeping the unadjusted observations and reporting residuals before and after |
 | **More import formats** | In the research's order: GNSS CSV in WGS 84 (after transformations), Leica GSI coordinate words, Trimble JobXML reductions, SDR33 coordinate records |

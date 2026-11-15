@@ -98,6 +98,19 @@ Fields `fullName` (required), `designation`, `registration`, `address` and `cont
 
 Field `projectId` (UUID). Calls `app_survey_archive_project` and redirects to `/app/survey`. It returns nothing: an invalid id or a refused write returns without a message, and the result of the archive call isn't checked before the redirect.
 
+### `POST /app/survey/{projectId}/assist` (stage 195)
+
+One instruction to the drafting assistant's model ([ASSISTANT.md](ASSISTANT.md), ADR 0210). A route rather than a server action, so Stop in the browser aborts the model call and the turn is refunded.
+- **Who:** same-origin requests only (it's a cookie write), from a contributor of a live workspace with changes on. The demo is refused with the reason.
+- **Body** (JSON, at most 1.5 MB): `words` (1 to 2,000 characters), `lang` (`en` or `si`), `inputMethod` (`voice` or `typed`), `document` (the editor's plan, unsaved edits included), `selection` (picked entity ids, in order), `recent` (up to 6 one-line summaries).
+- **Checks:** the document must pass the document schema and use only this project's points; the points and everything else come from the database. 20 turns a minute per person.
+- **Answer:** `{ ok: true, turnId, output, model }`, where `output` is the model's operations, checked again in the browser by the same code; or `{ ok: false, message }` with 400, 401, 403, 404, 413, 429, 502 or 503.
+- **Saves nothing to the plan.**
+
+### `decideAssistTurnAction({ turnId, outcome, appliedSha256 })`
+
+Records what became of a model turn (applied with the SHA-256 of what was applied, discarded, or taken back), through `app_survey_decide_assistant_turn`. A record only: a failure never stops the work.
+
 ## Reads
 
 [`src/server/survey/read.ts`](../../src/server/survey/read.ts), as the signed-in person:

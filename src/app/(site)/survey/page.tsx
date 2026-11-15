@@ -4,7 +4,7 @@ import {
   FileArrowUpIcon,
   GlobeHemisphereEastIcon,
   LayoutIcon,
-  ListChecksIcon,
+  ListChecksIcon, MicrophoneIcon,
   PenNibIcon,
   SignatureIcon,
 } from "@phosphor-icons/react/ssr";
@@ -44,6 +44,11 @@ const STEPS: { icon: Icon; title: string; body: string }[] = [
     icon: LayoutIcon,
     title: "Lay out the sheet",
     body: "The classic Sri Lankan layout: surveyor's block, plan number, north point, lots with raised labels, roads with their width in feet, adjoining lands, the Reference of codes used, the title, bounded as follows and the extent, with the boundaries schedule overleaf. Paper and scale are picked for you, and you can drag labels and undo anything.",
+  },
+  {
+    icon: MicrophoneIcon,
+    title: "Talk or type to the plan",
+    body: "With the sheet in front of you, say or type what you want: lot B4 from points 1 to 4, A3 landscape, show the dimensions, what is the total area. Hold to talk in the field, or talk hands-free in the office, in English or Sinhala where your browser hears it. The assistant never writes a value of its own: every number and point is read from your words and checked, the change is shown on the sheet, and nothing is kept until you apply it, one step you can undo. Areas come from the survey engine, not the AI.",
   },
   {
     icon: ListChecksIcon,
