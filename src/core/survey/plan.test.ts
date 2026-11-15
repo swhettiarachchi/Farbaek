@@ -9,6 +9,7 @@ import { commonCodes } from "./codes";
 import { regionLine, runsText, titleSentence } from "./description";
 import { emptyDocument, parseSurveyDocument, surveyDocumentSchema, unreviewed } from "./document";
 import { writeDxf } from "./export/dxf";
+import { lotScheduleCsv } from "./export/schedule";
 import { pointsCsv, surveyGeoJson } from "./export/points";
 import { suggestFeatures } from "./fieldToFinish";
 import { SAMPLE_AREA_M2, SAMPLE_LOT_AREAS_M2, SAMPLE_POINTS, sampleDocument } from "./fixtures";
@@ -605,5 +606,71 @@ describe("the second review's re-check (synthetic)", () => {
     const right = Math.min(...xs.filter((x) => x > 150));
     const labels = front.filter((i) => i.kind === "text" && i.layer === "ADJOINING") as { x: number }[];
     expect(labels.every((t) => t.x < right)).toBe(true);
+  });
+});
+
+describe("near misses and the stated extent (stage 192, synthetic)", () => {
+  const grid = (rows: [string, number, number][]): SurveyPoint[] => rows.map(([n, e, nn]) => ({ id: `00000000-0000-4000-a000-${n.padStart(12, "0")}`, pointId: n, e: 500_000 + e, n: 600_000 + nn, z: null, code: null }));
+  const lot = (pts: SurveyPoint[], label: string, numbers: string[]) => ({ id: `lot-${label}`, label, sup: "", note: "", points: numbers.map((n) => pts.find((p) => p.pointId === n)!.id) });
+  const check = (pts: SurveyPoint[], d: ReturnType<typeof emptyDocument>) => checkSurvey({ points: pts, crs: SLD99, crsConfirmed: true, document: d, lots: computeLots(pts, d.lots), surveyorProfile: false });
+
+  it("names a corner a few centimetres off a neighbour's leg, and lets the surveyor keep it as surveyed", () => {
+    // Lot B's corner 5 is 3 cm east of lot A's leg 2-3: the lots nearly meet.
+    const pts = grid([["1", 0, 0], ["2", 10, 0], ["3", 10, 10], ["4", 0, 10], ["5", 10.03, 5], ["6", 20, 5], ["7", 20, 10]]);
+    const d = { ...emptyDocument(), lots: [lot(pts, "A", ["1", "2", "3", "4"]), lot(pts, "B", ["5", "6", "7", "3"])] };
+    const near = check(pts, d).find((f) => f.code === "CORNER_NEAR_LEG")!;
+    expect(near.message).toBe("The lots nearly meet: corner 5 is 3.0 cm off lot A's leg 2 to 3.");
+    expect(near.blocks).toEqual(["approval"]);
+    expect(near.keep).toEqual({ key: expect.stringMatching(/^leg:/), kept: false });
+    const kept = { ...d, kept: [near.keep!.key] };
+    const after = check(pts, kept);
+    expect(after.map((f) => f.code)).not.toContain("CORNER_NEAR_LEG");
+    expect(after.find((f) => f.code === "CORNER_NEAR_LEG_KEPT")!.blocks).toEqual([]);
+    // A corner exactly on the leg is a T-junction, not a near miss; one 10 cm off isn't near.
+    for (const e of [10, 10.1]) {
+      const p2 = pts.map((p) => (p.pointId === "5" ? { ...p, e: 500_000 + e } : p));
+      expect(check(p2, d).map((f) => f.code)).not.toContain("CORNER_NEAR_LEG");
+    }
+  });
+
+  it("keeps two marks a few millimetres apart only on the surveyor's word", () => {
+    const pts = grid([["1", 0, 0], ["2", 10, 0], ["3", 10, 10], ["4", 0, 10], ["20", 10.002, 0], ["30", 10.002, 10], ["5", 20, 0], ["6", 20, 10]]);
+    const d = { ...emptyDocument(), lots: [lot(pts, "A", ["1", "2", "3", "4"]), lot(pts, "B", ["20", "5", "6", "30"])] };
+    const dups = check(pts, d).filter((f) => f.code === "POINTS_NEAR_DUPLICATE");
+    expect(dups.map((f) => f.message)).toEqual(["Corner points 2 and 20 are 2.0 mm apart: probably one mark observed twice.", "Corner points 3 and 30 are 2.0 mm apart: probably one mark observed twice."]);
+    const after = check(pts, { ...d, kept: [dups[0]!.keep!.key] }).map((f) => f.code);
+    expect(after.filter((c) => c === "POINTS_NEAR_DUPLICATE")).toHaveLength(1);
+    expect(after).toContain("POINTS_NEAR_DUPLICATE_KEPT");
+  });
+
+  it("sets the stated extent beside the computed land, in the deed's own units, and never in its place", () => {
+    const d = sampleDocument();
+    // The Sample's land is 2,267.41 m² = 89.6459... perches = 0 A. 2 R. 09.65 P.
+    d.sheet.statedExtent = "0 A. 2 R. 09.65 P.";
+    const agree = checkSurvey({ points: SAMPLE_POINTS, crs: SLD99, crsConfirmed: true, document: d, lots: computeLots(SAMPLE_POINTS, d.lots), surveyorProfile: false });
+    expect(agree.find((f) => f.code === "STATED_EXTENT_AGREES")).toBeDefined();
+    d.sheet.statedExtent = "0 A. 2 R. 20 P.";
+    const differ = checkSurvey({ points: SAMPLE_POINTS, crs: SLD99, crsConfirmed: true, document: d, lots: computeLots(SAMPLE_POINTS, d.lots), surveyorProfile: false }).find((f) => f.code === "STATED_EXTENT_DIFFERS")!;
+    // 100 P = 2,529.29 m²; the difference is 10.35 P (261.88 m², 11.5%).
+    expect(differ.detail).toBe("Stated 2,529.29 m², computed 2,267.41 m²: the deed says 10.35 perches (11.5%) more.");
+    expect(differ.blocks).toEqual([]);
+    d.sheet.statedExtent = "about half an acre";
+    expect(checkSurvey({ points: SAMPLE_POINTS, crs: SLD99, crsConfirmed: true, document: d, lots: computeLots(SAMPLE_POINTS, d.lots), surveyorProfile: false }).map((f) => f.code)).toContain("STATED_EXTENT_UNREAD");
+  });
+});
+
+describe("the lot schedule CSV (stage 192, synthetic)", () => {
+  it("lists every lot, the sum and the entire land, in plain numbers, from the engine's own areas", () => {
+    const d = sampleDocument();
+    const csv = lotScheduleCsv(computeLots(SAMPLE_POINTS, d.lots), 2);
+    expect(csv.split("\r\n")).toEqual([
+      "lot,corners,area_m2,hectares,acres_roods_perches",
+      "Lot B1,1 2 3 8 7,1057.380,0.10574,0 A. 1 R. 01.81 P.",
+      "Lot B2,7 8 5 6,585.025,0.05850,0 A. 0 R. 23.13 P.",
+      "Lot B3,8 3 4 5,625.005,0.06250,0 A. 0 R. 24.71 P.",
+      "Sum of the lots,,2267.410,0.22674,0 A. 2 R. 09.65 P.",
+      expect.stringMatching(/^Entire land,[\d ]+,2267\.410,0\.22674,0 A\. 2 R\. 09\.65 P\.$/),
+      "",
+    ]);
   });
 });

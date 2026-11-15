@@ -9,9 +9,10 @@ import type { CrsRecord } from "./crs";
 import { implausiblePoints, looksSwapped } from "./crs";
 import { legIndex, lotName, unreviewed, type SurveyDocument } from "./document";
 import { TOUCH_TOLERANCE_M, distance, orient, type Point } from "./geometry";
-import type { PlanLots } from "./lots";
+import { nearKey, type PlanLots } from "./lots";
+import { readStatedExtent } from "./extent";
 import type { SurveyPoint } from "./parcel";
-import { fmt } from "./units";
+import { fmt, PERCH_M2 } from "./units";
 
 export type Severity = "error" | "warning" | "information" | "professional_review";
 
@@ -27,6 +28,8 @@ export interface Finding {
   action: string;
   /** Operations this finding stops until it is resolved. */
   blocks: ("plan" | "export" | "approval")[];
+  /** For a near miss: the key the surveyor's "keep as surveyed" answer is stored under, and whether it's kept. */
+  keep?: { key: string; kept: boolean };
 }
 
 export interface QcInput {
@@ -133,9 +136,36 @@ export function checkSurvey(input: QcInput): Finding[] {
   if (input.lots.holes > 0) {
     add({ code: "LOTS_GAP", severity: "error", message: `There ${input.lots.holes === 1 ? "is a gap" : `are ${input.lots.holes} gaps`} between the lots that no lot covers.`, target: { kind: "lot" }, action: "Check the shared legs: neighbouring lots must use the same corners along the leg they share.", blocks: ["export", "approval"] });
   }
-  if (input.lots.nearDuplicates.length > 0) {
-    const d = input.lots.nearDuplicates[0]!;
-    add({ code: "POINTS_NEAR_DUPLICATE", severity: "professional_review", message: `Corner points ${d.a.pointId} and ${d.b.pointId} are ${fmt(d.distanceM * 1000, 1)} mm apart${input.lots.nearDuplicates.length > 1 ? `, and ${input.lots.nearDuplicates.length - 1} more pairs` : ""}: probably one mark observed twice.`, target: { kind: "lot" }, detail: input.lots.nearDuplicates.map((x) => `${x.a.pointId} and ${x.b.pointId}`).join(", "), action: "Use one point number for the mark in every lot that shares it, so their legs meet.", blocks: ["approval"] });
+  // Near misses: each one the surveyor either fixes or answers "keep as surveyed", which is recorded in the version.
+  const kept = new Set(doc.kept);
+  for (const d of input.lots.nearDuplicates) {
+    const key = nearKey.duplicate(d.a.id, d.b.id);
+    const mm = fmt(d.distanceM * 1000, 1);
+    if (kept.has(key)) add({ code: "POINTS_NEAR_DUPLICATE_KEPT", severity: "information", message: `Corner points ${d.a.pointId} and ${d.b.pointId}, ${mm} mm apart, are kept as surveyed.`, target: { kind: "point", id: d.a.id }, action: "Nothing to do, unless you want to check it again.", blocks: [], keep: { key, kept: true } });
+    else add({ code: "POINTS_NEAR_DUPLICATE", severity: "professional_review", message: `Corner points ${d.a.pointId} and ${d.b.pointId} are ${mm} mm apart: probably one mark observed twice.`, target: { kind: "point", id: d.a.id }, action: "Use one point number for the mark in every lot that shares it, so their legs meet. If they really are two marks, keep them as surveyed.", blocks: ["approval"], keep: { key, kept: false } });
+  }
+  for (const nl of input.lots.nearLegs) {
+    const key = nearKey.leg(nl.corner.id, nl.from.id, nl.to.id);
+    const cm = fmt(nl.distanceM * 100, 1);
+    const where = `corner ${nl.corner.pointId} is ${cm} cm off lot ${lotName(nl.lot) || "without a label"}'s leg ${nl.from.pointId} to ${nl.to.pointId}`;
+    if (kept.has(key)) add({ code: "CORNER_NEAR_LEG_KEPT", severity: "information", message: `Kept as surveyed: ${where}.`, target: { kind: "point", id: nl.corner.id }, action: "Nothing to do, unless you want to check it again.", blocks: [], keep: { key, kept: true } });
+    else add({ code: "CORNER_NEAR_LEG", severity: "professional_review", message: `The lots nearly meet: ${where}.`, target: { kind: "point", id: nl.corner.id }, detail: "It leaves a sliver between the lots, or a slight overlap. Nothing has been moved.", action: `If the lots share that line, add point ${nl.corner.pointId} as a corner of lot ${lotName(nl.lot) || "without a label"} too, or use the same marks. If the marks really are apart, keep it as surveyed.`, blocks: ["approval"], keep: { key, kept: false } });
+  }
+  // The extent a deed or earlier plan states, beside the land computed from the points (never in place of it).
+  const statedText = doc.sheet.statedExtent.trim();
+  const computed = input.lots.outlineAreaM2;
+  if (statedText && computed !== null && computed > 0) {
+    const stated = readStatedExtent(statedText);
+    if (!stated) {
+      add({ code: "STATED_EXTENT_UNREAD", severity: "information", message: `The stated extent "${statedText.slice(0, 40)}" isn't written in units Farbaek can read, so it isn't compared with the land.`, target: { kind: "field", id: "statedExtent" }, action: "Write it as on the deed, for example 0 A. 2 R. 04.60 P., 0.21398 Hectares, 34.5 perches or 2,267 m².", blocks: [] });
+    } else {
+      const diff = stated.m2 - computed;
+      const pct = (Math.abs(diff) / computed) * 100;
+      const words = stated.as === "ha" ? `${fmt(Math.abs(diff) / 10_000, 5)} ha` : stated.as === "m2" ? `${fmt(Math.abs(diff), 2)} m²` : `${fmt(Math.abs(diff) / PERCH_M2, 2)} perches`;
+      const detail = `Stated ${fmt(stated.m2, 2)} m², computed ${fmt(computed, 2)} m²: ${diff >= 0 ? "the deed says" : "the survey finds"} ${words} (${fmt(pct, 1)}%) more.`;
+      if (pct <= 1) add({ code: "STATED_EXTENT_AGREES", severity: "information", message: "The stated extent agrees with the land computed from your points, within 1%.", target: { kind: "field", id: "statedExtent" }, detail, action: "Nothing to do.", blocks: [] });
+      else add({ code: "STATED_EXTENT_DIFFERS", severity: "warning", message: `The stated extent differs from the land computed from your points by ${fmt(pct, 1)}%.`, target: { kind: "field", id: "statedExtent" }, detail, action: "Deeds are often older than the survey. Check the stated extent is copied right, and mention the difference in the plan's notes if it matters. The plan shows the computed extent.", blocks: [] });
+    }
   }
   if (input.lots.pieces > 1) {
     add({ code: "LOTS_APART", severity: "warning", message: `The lots form ${input.lots.pieces} separate pieces of land.`, target: { kind: "lot" }, action: "If this plan really shows separate lands, describe each in the title; otherwise check the shared corners.", blocks: [] });

@@ -142,6 +142,31 @@ export async function saveSurveyDrawingAction(input: { projectId: string; baseVe
   return { status: "done", message: `Saved as version ${r.value}.`, version: r.value };
 }
 
+/**
+ * "Keep as surveyed": the surveyor's answer to a near miss (two corner numbers
+ * a few millimetres apart, or a corner a few centimetres off a neighbouring
+ * lot's leg), saved as a new version so the approval covers it. Nothing moves.
+ * Only a near miss the plan has now can be kept.
+ */
+export async function setKeptAsSurveyedAction(input: { projectId: string; baseVersion: number; key: string; keep: boolean }): Promise<SurveyFormState> {
+  if (!uuid.safeParse(input.projectId).success || !Number.isInteger(input.baseVersion) || typeof input.key !== "string" || !/^(dup|leg):[0-9a-f:|-]{36,120}$/.test(input.key)) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const g = await writer();
+  if (!g.ok) return { status: "error", message: g.message };
+  const data = await loadSurveyProject(g.w.user, g.w.actor.orgId, input.projectId);
+  if (!data) return { status: "error", message: SURVEY_MESSAGES.NOT_FOUND };
+  if (data.drawing.version !== input.baseVersion) return { status: "error", message: SURVEY_MESSAGES.VERSION_CONFLICT };
+  const view = buildPlan({ points: data.points, document: data.drawing.document, crsId: data.project.crsId, crsConfirmation: data.project.crsConfirmedAt ? "confirmed" : null, surveyor: null, approval: null });
+  const finding = view.findings.find((f) => f.keep?.key === input.key);
+  if (!finding) return { status: "error", message: "That near miss isn't on the plan any more. Reload to see the checks as they are now." };
+  const doc = structuredClone(data.drawing.document);
+  doc.kept = input.keep ? [...new Set([...doc.kept, input.key])] : doc.kept.filter((k) => k !== input.key);
+  const note = `${input.keep ? "Kept as surveyed" : "To check again"}: ${finding.message}`.slice(0, 200);
+  const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: input.projectId, baseVersion: input.baseVersion, document: pruneProvenance(doc), note });
+  if (!r.ok) return { status: "error", message: r.message };
+  revalidatePath(`/app/survey/${input.projectId}`);
+  return { status: "done", message: `Saved as version ${r.value}.`, version: r.value };
+}
+
 export async function setSurveyorProfileAction(_prev: SurveyFormState, form: FormData): Promise<SurveyFormState> {
   const field = (k: string, max: number) => String(form.get(k) ?? "").trim().slice(0, max);
   const fullName = field("fullName", 120);

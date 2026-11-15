@@ -47,6 +47,19 @@ export interface ComposeInput {
   surveyor: SurveyorDetails | null;
   /** Set when this exact version was approved by its surveyor. */
   approval: { by: string; at: string } | null;
+  /** The drawing version, for the plot stamp. */
+  version?: number;
+}
+
+/**
+ * The plot stamp under the frame: which version this sheet is, whether it's
+ * approved, and the engine that drew it, so a paper copy found years later can
+ * be traced to its exact record (as CAD plot stamps do).
+ */
+export function plotStamp(input: ComposeInput, w: number, h: number, m: number, size: number): SceneText {
+  const state = input.approval ? `approved by the surveyor on ${input.approval.at}` : "draft, not approved";
+  const which = input.version ? `version ${input.version}` : "not saved as a version yet";
+  return { kind: "text", x: w - m, y: h - m * 0.35, text: `Farbaek Survey Studio, ${which}, ${state}. ${SURVEY_ENGINE_VERSION}.`, size, weight: "regular", anchor: "end", font: "sans", rotate: 0, color: "muted", layer: "SHEET", entity: "plot-stamp" };
 }
 
 export interface ComposedSheet {
@@ -82,7 +95,7 @@ export function commonFindings(pages: SheetPage[], drawing: SceneItem[], scale: 
   if (frame) {
     // Nothing may run past the sheet's border: what's cut off on paper is missing from a legal document.
     const [x0, y0, x1, y1] = frame.inner;
-    const off = pages[0]!.items.filter((i): i is SceneText => i.kind === "text").filter((t) => textQuad(t).some(([x, y]) => x < x0 - 0.2 || x > x1 + 0.2 || y < y0 - 0.2 || y > y1 + 0.2));
+    const off = pages[0]!.items.filter((i): i is SceneText => i.kind === "text" && i.entity !== "plot-stamp").filter((t) => textQuad(t).some(([x, y]) => x < x0 - 0.2 || x > x1 + 0.2 || y < y0 - 0.2 || y > y1 + 0.2));
     const outside = [...new Set([...(frame.ctx?.outside ?? []), ...off.map((t) => t.text)])];
     if (outside.length > 0) {
       findings.push({ code: "TEXT_OFF_SHEET", severity: "error", message: "Some text runs past the sheet's border, so it would be cut off.", target: { kind: "sheet" }, detail: outside.slice(0, 4).map((t) => `"${t.slice(0, 40)}"`).join(", "), action: "Shorten it, choose a larger sheet or scale, or drag the label inside the border.", blocks: ["export"] });
@@ -292,6 +305,7 @@ function composePanel(input: ComposeInput): ComposedSheet {
     findings.push({ code: "TEXT_OVERFLOW", severity: "error", message: "The sheet's text doesn't all fit in its panel.", target: { kind: "sheet" }, action: "Choose a larger sheet or landscape, or shorten the longest fields.", blocks: ["export"] });
   }
 
+  front.push(plotStamp(input, w, h, m, 1.6));
   const pages: SheetPage[] = [{ widthMm: w, heightMm: h, role: "front", items: front }];
   if (doc.settings.overleaf) pages.push(...overleafPages(input, { w, h, m, text: t.text, frame: t.lines.frame, thin: t.lines.thin, planCaption: t.captions.planNumber }));
   commonFindings(pages, drawing, scale, findings, { inner: [m, m, w - m, h - m], ctx: drawingCtx });

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { writeDxf } from "@/core/survey/export/dxf";
 import { pointsCsv, surveyGeoJson } from "@/core/survey/export/points";
+import { lotScheduleCsv } from "@/core/survey/export/schedule";
 import { buildPlan } from "@/core/survey/view";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
@@ -12,7 +13,7 @@ import { surveyStore } from "@/server/survey/store";
 import { loadAppContext } from "@/server/workspace/context";
 
 /**
- * GET /app/survey/<project>/export/<pdf|dxf|csv|geojson>[?version=N][&inline=1]
+ * GET /app/survey/<project>/export/<pdf|dxf|csv|geojson|lots>[?version=N][&inline=1]
  *
  * Builds the file from one drawing version, the immutable points and the
  * tested engine, records it (kind, version, SHA-256, size) in the project's
@@ -27,6 +28,8 @@ const KINDS = {
   dxf: { type: "application/dxf", ext: "dxf" },
   csv: { type: "text/csv; charset=utf-8", ext: "csv" },
   geojson: { type: "application/geo+json", ext: "geojson" },
+  // The lot schedule: a CSV, recorded as one with what it holds in its options.
+  lots: { type: "text/csv; charset=utf-8", ext: "csv" },
 } as const;
 type Kind = keyof typeof KINDS;
 
@@ -62,7 +65,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ proj
   const view = buildPlan(input);
   // The CSV is the points exactly as imported. The GeoJSON waits for checks on the coordinates and the parcel;
   // the PDF and DXF also wait for the sheet's.
-  const blockers = kind === "csv" ? [] : kind === "geojson" ? view.blocksData : view.blocksExport;
+  const blockers = kind === "csv" ? [] : kind === "geojson" || kind === "lots" ? view.blocksData : view.blocksExport;
   if (blockers.length > 0) {
     return plain(409, `This plan can't be exported yet:\n${blockers.map((f) => `- ${f.message} ${f.action}`).join("\n")}`);
   }
@@ -82,6 +85,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ proj
     body = Buffer.from(writeDxf({ document: data.drawing.document, points: data.points, lots: view.lots, crs: view.crs, scale: view.sheet.scale ?? 500, projectName: data.project.name, status: `${status} ${crsStatus}` }), "ascii");
   } else if (kind === "csv") {
     body = Buffer.from(pointsCsv(data.points), "utf8");
+  } else if (kind === "lots") {
+    body = Buffer.from(lotScheduleCsv(view.lots, data.drawing.document.settings.perchDecimals), "utf8");
   } else {
     body = Buffer.from(surveyGeoJson({ points: data.points, lots: view.lots, crs: view.crs, crsConfirmed: input.crsConfirmation !== null, status, projectName: data.project.name }), "utf8");
   }
@@ -93,15 +98,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ proj
     const recorded = await surveyStore.recordExport(admin, { orgId: ctx.current.id, userId: ctx.user.id }, {
       projectId,
       version: data.drawing.version,
-      kind,
+      kind: kind === "lots" ? "csv" : kind,
       sha256,
       size: body.length,
-      options: { paper: data.drawing.document.settings.paper, orientation: data.drawing.document.settings.orientation, scale: view.sheet.scale },
+      options: { paper: data.drawing.document.settings.paper, orientation: data.drawing.document.settings.orientation, scale: view.sheet.scale, ...(kind === "lots" ? { content: "lots" } : {}) },
     });
     if (!recorded.ok) return plain(recorded.code === "FORBIDDEN" ? 403 : 500, recorded.message);
   }
 
-  const name = `${fileStem(data, input.approval !== null)}.${KINDS[kind].ext}`;
+  const name = `${fileStem(data, input.approval !== null)}${kind === "lots" ? "-lots" : ""}.${KINDS[kind].ext}`;
   const inline = kind === "pdf" && url.searchParams.get("inline") === "1";
   return new Response(new Uint8Array(body), {
     headers: {

@@ -102,8 +102,8 @@ export function PlanEditor(props: PlanEditorProps) {
 
   // An approved, unedited version shows the surveyor's details as they approved them, as the PDF does.
   const plan = useMemo(
-    () => buildPlan({ points: props.points, document: doc, crsId: props.crsId, crsConfirmation: props.crsConfirmation, surveyor: !dirty && props.approval && props.approvedSurveyor ? props.approvedSurveyor : (props.surveyors.find((s) => s.userId === doc.surveyorUserId) ?? null), approval: dirty ? null : props.approval }),
-    [doc, props.points, props.crsId, props.crsConfirmation, props.surveyors, props.approval, props.approvedSurveyor, dirty],
+    () => buildPlan({ points: props.points, document: doc, crsId: props.crsId, crsConfirmation: props.crsConfirmation, surveyor: !dirty && props.approval && props.approvedSurveyor ? props.approvedSurveyor : (props.surveyors.find((s) => s.userId === doc.surveyorUserId) ?? null), approval: dirty ? null : props.approval, version: dirty ? undefined : baseVersion }),
+    [doc, props.points, props.crsId, props.crsConfirmation, props.surveyors, props.approval, props.approvedSurveyor, dirty, baseVersion],
   );
   const page = plan.sheet.pages[0]!;
   const fullView: View = [0, 0, page.widthMm, page.heightMm];

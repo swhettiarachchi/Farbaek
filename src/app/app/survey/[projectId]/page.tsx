@@ -244,7 +244,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
           <CardTitle icon={ListChecksIcon}>Checks</CardTitle>
           <p className="mt-1 text-sm text-ink-2">Every check on version {data.drawing.version}, most serious first. Passing them doesn&apos;t certify a plan: the surveyor reviews it and signs it.</p>
           <div className="mt-5">
-            <FindingsList findings={view.findings} />
+            <FindingsList findings={view.findings} keep={{ projectId, baseVersion: data.drawing.version, readOnly }} />
           </div>
         </Card>
       ) : null}
@@ -284,10 +284,16 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
                 Points as CSV
               </a>
               {view.blocksData.length === 0 ? (
-                <a href={`${base}/export/geojson`} className={buttonClasses("ghost", "md", "justify-start")}>
-                  <DownloadSimpleIcon size={20} aria-hidden />
-                  Points and parcel as GeoJSON
-                </a>
+                <>
+                  <a href={`${base}/export/lots`} className={buttonClasses("ghost", "md", "justify-start")}>
+                    <DownloadSimpleIcon size={20} aria-hidden />
+                    Lot schedule as CSV (areas, hectares, A-R-P)
+                  </a>
+                  <a href={`${base}/export/geojson`} className={buttonClasses("ghost", "md", "justify-start")}>
+                    <DownloadSimpleIcon size={20} aria-hidden />
+                    Points and lots as GeoJSON
+                  </a>
+                </>
               ) : null}
             </div>
             <p className="mt-4 text-sm text-ink-3">
@@ -407,7 +413,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
               <ul className="mt-3 grid gap-2">
                 {data.exports.map((x, i) => (
                   <li key={i} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
-                    <span className="font-medium uppercase text-ink">{x.kind}</span>
+                    <span className="font-medium text-ink">{x.options["content"] === "lots" ? "Lot schedule" : x.kind.toUpperCase()}</span>
                     <span className="text-ink-2">version {x.drawing_version}</span>
                     <span className="text-ink-3">
                       {isoDate(x.created_at)}, by {personName(x.created_by, data.profiles, me)}
