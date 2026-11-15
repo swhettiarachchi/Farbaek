@@ -37,7 +37,9 @@ The research (`reports/Survey instrument export formats.md`, notes in `research_
 
 **The table reads the file itself and says why.**
 - **Column roles:** column names decide first. Without them, the values decide: distinct numbers or names make the point number, words make the code, and the coordinates form a pair plus an elevation.
-- **Easting or northing:** the project's grid settles which is which only when exactly one order puts every point inside it. Otherwise the pair is read northing first, as PNEZC has it, and the screen asks the surveyor to check.
+- **Easting or northing:** the project's grid settles which is which only when exactly one order puts every point inside it. Across most of SLD99 both orders fit, so otherwise the file's shape decides, and the screen asks the surveyor to check:
+  - a code in the second column is the CASS `.dat` layout that Hi-Target and South write (name, code, easting, northing, height), read easting first;
+  - anything else is read northing first, as PNEZC has it.
 - **The preview shows:**
   - a small map of the points, with the lot that would be drawn and the lines from the codes;
   - each code with its meaning;
@@ -83,5 +85,5 @@ Approval remains a separate act.
 - **Lots that can't be inferred.** A plan whose lots can't be found from the marks (sub divisions, an unordered set of marks) still needs the Lots step or a sentence on the Draft step. A later stage could build lots from closed boundary linework, as Carlson and Civil 3D do.
 - **Points can't be fixed in Farbaek.** Points are immutable, so a code fixed in the field book means importing again under a new number. Lines can be redrawn on the Lots step.
 - **No real instrument files yet.** The readers were built from vendor documentation and synthetic files. Real files from Sri Lankan surveyors (Leica, Sokkia, South, Hi-Target) are the next test.
-- **Text encoding.** Files are read as UTF-8. Codes in other encodings may show replacement characters, and the screen shows them.
+- **Text encoding.** Files are read as strict UTF-8, and otherwise as GB18030 (CASS often writes the Chinese GBK code page), with a notice to check the codes.
 - **Schema v95** widens the stored source's format list to the readers above.

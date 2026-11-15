@@ -32,7 +32,10 @@ Files are untrusted input (skill rule 11). Nothing is guessed: not the column or
 **Reading the columns** ([`columns.ts`](../../src/core/survey/import/columns.ts), stage 194):
 - **Column names decide first.** X and Y are settled by the grid, since some instruments write X as the northing.
 - **Without names, the values decide.** Distinct numbers or names make the point number, words make the code, the first two coordinate columns are the horizontal pair, and a third is the elevation.
-- **Easting or northing.** The project's grid settles which is which only when exactly one order puts every point inside it. Otherwise the pair is read northing first, as the Survey Department's PNEZC file has it (DSR Chapter XXII §22.3), and the panel says so.
+- **Easting or northing.** The project's grid settles which is which only when exactly one order puts every point inside it. Across most of SLD99 both orders fit, so otherwise the file's shape decides, and the panel says so:
+  - a code in the second column is the CASS `.dat` layout (name, code, easting, northing, height), read easting first;
+  - anything else is read northing first, as the Survey Department's PNEZC file has it (DSR Chapter XXII §22.3).
+- **Text.** Full-width commas are read as commas. A file that isn't UTF-8 is read as GB18030, with a notice.
 - **Reasons shown.** Every choice is shown with its reason and can be changed.
 - **Latitude and longitude** are recognised and refused.
 

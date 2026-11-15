@@ -33,7 +33,8 @@
   - It runs straight after an import when the plan has no lots, and from "Draw the plan from the points" for older projects.
   - Inferences carry the new provenance `auto` and raise `AUTO_ITEMS_UNREVIEWED` until checked.
 - **The import table** ([`import-panel.tsx`](../../src/components/survey/import-panel.tsx), [`columns.ts`](../../src/core/survey/import/columns.ts)):
-  - **Column reading:** column names first, then the values. Easting or northing is settled by the grid only when exactly one order fits; otherwise the pair is read northing first, as in PNEZC, and the screen says so.
+  - **Column reading:** column names first, then the values. Easting or northing is settled by the grid only when exactly one order fits. Otherwise the file's shape decides: code second means CASS, easting first; anything else is PNEZC, northing first. The screen says so either way.
+  - **Encodings:** UTF-8, or GB18030 with a notice.
   - **Rejected input:** latitude and longitude are refused.
   - **Preview:** the map shows the points, the lot that would be drawn, the lines and the road. The codes are listed with their meanings, and RD codes read as road edges.
   - **Drawing:** one checkbox draws the plan with the import. When the file uses the Survey Department's codes, their list is offered.
