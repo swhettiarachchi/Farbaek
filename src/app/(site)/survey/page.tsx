@@ -27,8 +27,8 @@ export const metadata: Metadata = {
 const STEPS: { icon: Icon; title: string; body: string }[] = [
   {
     icon: FileArrowUpIcon,
-    title: "Import the field points",
-    body: "CSV or text from a total station or GNSS controller, in PNEZD, PENZD or your own column order, or GeoJSON. You map the columns and see every row that can't be read. Nothing imports half way, and the points never change after.",
+    title: "Upload the field data",
+    body: "The file from your total station or GNSS controller: CSV or DAT in PNEZC or any column order, Leica GSI, Sokkia SDR, LandXML or Trimble JobXML. No file? Type the coordinates, or the bearings and distances from your field book: a leg that closes on a known point shows its misclosure, never adjusted. Farbaek reads the columns itself and says why, shows the points and the lot on a small map, and draws the plan as it imports: the lot through the boundary marks, the walls and buildings from their codes, and the road. Everything it draws waits for your check. Nothing imports half way, and the points never change after.",
   },
   {
     icon: GlobeHemisphereEastIcon,

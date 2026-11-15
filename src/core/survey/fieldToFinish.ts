@@ -27,7 +27,29 @@ export interface SuggestedFeature extends Omit<DrawingFeature, "id"> {
   meaning: string;
 }
 
-const LAYER_BY_CODE: Record<string, DrawingFeature["layer"]> = { MW: "WALLS", RW: "WALLS", BFDn: "WALLS", LF: "FENCES", NF: "FENCES", EDn: "DRAINS", MDn: "DRAINS", B: "WALLS", U: "WALLS" };
+/** Layers by code: the common list's, then the Survey Department's (DSR Chapter XXII annex 10) fences, walls, drains and tar edges. */
+const LAYER_BY_CODE: Record<string, DrawingFeature["layer"]> = {
+  MW: "WALLS",
+  RW: "WALLS",
+  BFDn: "WALLS",
+  LF: "FENCES",
+  NF: "FENCES",
+  EDn: "DRAINS",
+  MDn: "DRAINS",
+  B: "WALLS",
+  U: "WALLS",
+  WF: "FENCES",
+  WLF: "FENCES",
+  WNF: "FENCES",
+  DF: "FENCES",
+  IF: "FENCES",
+  Hg: "FENCES",
+  SF: "WALLS",
+  BW: "WALLS",
+  Dh: "DRAINS",
+  Dn: "DRAINS",
+  TE: "ROADS",
+};
 
 /**
  * "CP MW2 CLO" is code "CP", then code "MW" in string "2" with control "CLO".

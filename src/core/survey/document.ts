@@ -179,7 +179,12 @@ export const settingsSchema = z.object({
 });
 export type DrawingSettings = z.infer<typeof settingsSchema>;
 
-export const PROVENANCE_SOURCES = ["ai_brief", "ai_photo", "engine"] as const;
+/**
+ * ai_brief and ai_photo: read by the AI from the surveyor's words or a photo. engine: suggested by tested code and accepted by the
+ * surveyor. auto: drawn by tested code from the field data on import (an inference, such as which marks make the lot), waiting for the
+ * surveyor's check like an AI item.
+ */
+export const PROVENANCE_SOURCES = ["ai_brief", "ai_photo", "engine", "auto"] as const;
 export type ProvenanceSource = (typeof PROVENANCE_SOURCES)[number];
 
 /** Who filled an item, when it wasn't the surveyor, and whether they've reviewed it. Keys name the item: "lot:<id>", "road:<id>", "adjoining:<id>", "feature:<id>", "sheet.<field>". */

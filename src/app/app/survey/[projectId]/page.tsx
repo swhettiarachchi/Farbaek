@@ -27,6 +27,8 @@ import { ApproveForm, SurveyProjectSettingsForm } from "@/components/survey/form
 import { ImportPanel } from "@/components/survey/import-panel";
 import { InverseTool } from "@/components/survey/inverse-tool";
 import { PartitionPanel } from "@/components/survey/partition-panel";
+import { DrawFromPoints } from "@/components/survey/draw-from-points";
+import { ReviewChecklist } from "@/components/survey/review-checklist";
 import { PlanEditor } from "@/components/survey/plan-editor";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
@@ -140,7 +142,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
             <CardTitle icon={FileArrowUpIcon}>Import points</CardTitle>
             <p className="mt-1 text-sm text-ink-2">Imported points are kept exactly as given and never edited. A corrected point is a new import with a new number.</p>
             <div className="mt-5">
-              <ImportPanel projectId={projectId} crsId={data.project.crsId} crsEpsg={crs?.epsg ?? null} crsName={crs?.name ?? data.project.crsId} readOnly={readOnly} />
+              <ImportPanel projectId={projectId} crsId={data.project.crsId} crsName={crs?.name ?? data.project.crsId} codes={doc.codes} planHasLots={doc.lots.length > 0} known={data.points.map((p) => ({ pointId: p.pointId, e: p.e, n: p.n }))} readOnly={readOnly} />
             </div>
           </Card>
           <Card>
@@ -212,6 +214,18 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
         </div>
       ) : null}
 
+      {(step === "draft" || step === "boundary") && data.points.length > 0 && doc.lots.length === 0 ? (
+        <Card>
+          <CardTitle icon={PolygonIcon}>Draw the plan from the points</CardTitle>
+          <p className="mt-1 text-sm text-ink-2">
+            Farbaek draws the lot through the boundary marks (CP, St and the other marks in your code list) in the order they were observed, the walls, fences and buildings from their field codes, and the road from edges coded RD1 and RD2. Everything it draws is marked for you to check before approval; no point moves.
+          </p>
+          <div className="mt-4">
+            <DrawFromPoints projectId={projectId} readOnly={readOnly} />
+          </div>
+        </Card>
+      ) : null}
+
       {step === "draft" ? (
         <DraftPanel
           key={data.drawing.version}
@@ -254,6 +268,8 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
           </div>
         </Card>
       ) : null}
+
+      {step === "plan" && (doc.lots.length > 0 || doc.roads.length > 0 || doc.features.length > 0) ? <ReviewChecklist doc={doc} findings={view.findings} base={base} approved={Boolean(approval)} /> : null}
 
       {step === "plan" ? (
         <PlanEditor

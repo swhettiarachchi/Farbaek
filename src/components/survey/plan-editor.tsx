@@ -19,7 +19,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useMemo, useRef, useState, useTransition, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { formatDms, formatQuadrant, toDms } from "@/core/survey/angles";
-import { CODE_KINDS, LINE_STYLES, commonCodes, type CodeKind, type LineStyle } from "@/core/survey/codes";
+import { CODE_KINDS, LINE_STYLES, commonCodes, dsrCodes, type CodeKind, type LineStyle } from "@/core/survey/codes";
 import { runsText, titleSentence } from "@/core/survey/description";
 import { LAYER_IDS, STANDARD_SCALES, lotName, type LayerId, type SurveyDocument } from "@/core/survey/document";
 import { roadWidth } from "@/core/survey/roads";
@@ -532,7 +532,7 @@ function CheckMark({ doc, field, update, readOnly }: { doc: SurveyDocument; fiel
   if (!p || p.reviewed || p.source === "engine") return null;
   return (
     <span className="flex flex-wrap items-center gap-2">
-      <StatusBadge status="approval" label={p.source === "ai_photo" ? "Read from a photo, check" : "From your description, check"} />
+      <StatusBadge status="approval" label={p.source === "ai_photo" ? "Read from a photo, check" : p.source === "auto" ? "Drawn from the field data, check" : "From your description, check"} />
       <button type="button" disabled={readOnly} onClick={() => update((d) => touched(d, field))} className={buttonClasses("ghost", "sm")}>
         <CheckCircleIcon size={16} weight="bold" aria-hidden />
         Looks right
@@ -830,8 +830,11 @@ function CodesPanel({ doc, update, readOnly }: { doc: SurveyDocument; update: Up
           <PlusIcon size={16} weight="bold" aria-hidden />
           Add a code
         </button>
-        <button type="button" disabled={readOnly} onClick={() => update((d) => void (d.codes = commonCodes()))} className={buttonClasses("ghost", "sm")}>
+        <button type="button" disabled={readOnly} onClick={() => update((d) => ((d.codes = commonCodes()), void (d.provenance["codes"] = { source: "engine", reviewed: false })))} className={buttonClasses("ghost", "sm")}>
           Reset to the common list
+        </button>
+        <button type="button" disabled={readOnly} onClick={() => update((d) => ((d.codes = dsrCodes()), void (d.provenance["codes"] = { source: "engine", reviewed: false })))} className={buttonClasses("ghost", "sm")}>
+          Use the Survey Department&apos;s codes
         </button>
       </div>
       <div className="flex flex-wrap items-center gap-3 border-t border-line pt-3">
