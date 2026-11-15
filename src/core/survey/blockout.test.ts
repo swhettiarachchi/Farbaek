@@ -1,8 +1,8 @@
 /** The block-out plan (stage 193): the SYNTHETIC Sample's lot B¹ divided and drawn, never a real plan. */
 import { describe, expect, it } from "vitest";
-import { blockOutDocument, blockOutSheet, divide, linesThroughBuildings, readDivision, type Division } from "./blockout";
+import { BLOCKOUT_WORK_LIMIT, blockOutDocument, blockOutSheet, divide, linesThroughBuildings, readDivision, type Division } from "./blockout";
 import { crsById } from "./crs";
-import { emptyDocument } from "./document";
+import { defaultLayers, emptyDocument } from "./document";
 import { SAMPLE_POINTS, sampleDocument } from "./fixtures";
 import { SRI_LANKA_CADASTRAL_V1 } from "./sheet/template";
 
@@ -39,10 +39,11 @@ describe("the block-out plan", () => {
     expect(fresh.every((p) => p.id.startsWith("b10c0000-") && p.code === null)).toBe(true);
     // Every corner of every lot is a real or a drawing-only point, and the lots add up to lot B¹.
     expect(d.lots.every((l) => l.points.every((id) => drawn.points.some((p) => p.id === id)))).toBe(true);
-    expect(d.sheet).toMatchObject({ planNumber: "", surveyDate: "", partitionDate: "", planDate: "", operation: "subdivision", parentLots: "B1", statedExtent: "" });
+    expect(d.sheet).toMatchObject({ planNumber: "", surveyDate: "", partitionDate: "", planDate: "", operation: "custom", customClause: "a planned sub division of lot B1 depicted in my Plan No.SAMPLE-1 dated 15.11.2026", parentLots: "B1", statedExtent: "", boundaries: { north: "", east: "", south: "", west: "" } });
+    expect(d.sheet.previousPlan.number).toBe("");
     expect(d.adjoining).toEqual([]);
     expect(d.settings).toMatchObject({ template: "classic", scale: null, faceDimensions: true });
-    expect(d.notes).toEqual(["Sub division of lot B1 planned by Farbaek Survey Studio (partition/1.1.0). Corners P1 to P4 are worked out from the surveyed corners and not yet pegged."]);
+    expect(d.notes).toEqual(["Sub division of lot B1 planned by Farbaek Survey Studio (partition/1.1.0). Corners P1, P2, P3 & P4 are worked out from the surveyed corners and not yet pegged."]);
     // A lot without a raised part gives B¹, B², B³.
     const plain = { ...made.lot, sup: "" };
     const p = blockOutDocument(sampleDocument(), SAMPLE_POINTS, plain, made.result);
@@ -69,5 +70,76 @@ describe("the block-out plan", () => {
     // The Sample's building lies across the line from P1 to P2 only.
     expect(linesThroughBuildings(sampleDocument().features, SAMPLE_POINTS, made.result.segments)).toEqual([0]);
     expect(linesThroughBuildings(emptyDocument().features, SAMPLE_POINTS, made.result.segments)).toEqual([]);
+  });
+});
+
+describe("the block-out review's cases", () => {
+  const made = () => {
+    const m = divide(sampleDocument(), SAMPLE_POINTS, division());
+    if (!m.ok) throw new Error(m.error);
+    return m;
+  };
+
+  it("names new corners apart from the project's own point numbers", () => {
+    const renamed = SAMPLE_POINTS.map((p, i) => ({ ...p, pointId: `P${i + 1}` }));
+    const m = divide(sampleDocument(), renamed, division());
+    if (!m.ok) throw new Error(m.error);
+    const taken = new Set(renamed.map((p) => p.pointId));
+    const fresh = m.result.corners.filter((c) => !c.existing).map((c) => c.name);
+    expect(fresh).toEqual(["P19", "P20", "P21", "P22"]);
+    expect(fresh.some((n) => taken.has(n))).toBe(false);
+  });
+
+  it("carries the surveyor's check of the code list, shows every layer, and leaves far roads out", () => {
+    const doc = sampleDocument();
+    doc.provenance["codes"] = { source: "engine", reviewed: true };
+    doc.layers = { ...doc.layers, DIMENSIONS: { visible: false, locked: false }, POINT_NUMBERS: { visible: false, locked: false } };
+    const far = [{ ...SAMPLE_POINTS[0]!, id: "00000000-0000-4000-8000-00000000f001", pointId: "F1", e: SAMPLE_POINTS[0]!.e + 1500, n: SAMPLE_POINTS[0]!.n }, { ...SAMPLE_POINTS[0]!, id: "00000000-0000-4000-8000-00000000f002", pointId: "F2", e: SAMPLE_POINTS[0]!.e + 1600, n: SAMPLE_POINTS[0]!.n }];
+    doc.roads = [...doc.roads, { id: "road-far", name: "Far Road", edgeA: [far[0]!.id, far[1]!.id], edgeB: [], width: "none", start: "", end: "" }];
+    const points = [...SAMPLE_POINTS, ...far];
+    const m = divide(doc, points, division());
+    if (!m.ok) throw new Error(m.error);
+    const drawn = blockOutDocument(doc, points, m.lot, m.result);
+    if (!drawn.ok) throw new Error(drawn.error);
+    expect(drawn.document.provenance).toEqual({ codes: { source: "engine", reviewed: true } });
+    expect(drawn.document.layers).toEqual(defaultLayers());
+    expect(drawn.document.roads.map((r) => r.id)).toEqual(sampleDocument().roads.map((r) => r.id));
+    const out = blockOutSheet(base, doc, points, division());
+    if (!out.ok) throw new Error(out.error);
+    const front = texts(out.sheet.pages[0]!).join(" ");
+    expect(front).not.toContain("not yet checked by the surveyor");
+    expect(out.sheet.scale).toBe(500);
+  });
+
+  it("says NOT YET SURVEYED on the overleaf too", () => {
+    const out = blockOutSheet(base, sampleDocument(), SAMPLE_POINTS, division());
+    if (!out.ok) throw new Error(out.error);
+    for (const page of out.sheet.pages.slice(1)) {
+      const t = texts(page).join(" ");
+      expect(t).not.toContain("DRAFT.");
+      expect(t).toContain("NOT YET SURVEYED.");
+    }
+  });
+
+  it("refuses text the database can't store, and a division too big to draw", () => {
+    const lone = JSON.stringify({ ...division(), rules: { id: "own", areaM2: 0, frontageM: 0, depthM: 0, source: "x\ud800" } });
+    expect(readDivision(lone)).toBeNull();
+    expect(readDivision(JSON.stringify({ ...division(), lot: "lot b1" }))).toBeNull();
+    // A round lot of 100 corners in 50 shares: 5,000 corner-shares, over the limit.
+    const circle = Array.from({ length: 100 }, (_, k) => ({ id: "00000000-0000-4000-8000-" + String(900 + k).padStart(12, "0"), pointId: "C" + (k + 1), e: 500_000 + 50 * Math.cos((k / 100) * 2 * Math.PI), n: 600_000 + 50 * Math.sin((k / 100) * 2 * Math.PI), z: null, code: null }));
+    const doc = emptyDocument();
+    doc.lots = [{ id: "lot-r", label: "R", sup: "", note: "", points: circle.map((p) => p.id) }];
+    expect(100 * 50).toBeGreaterThan(BLOCKOUT_WORK_LIMIT);
+    expect(divide(doc, circle, division({ lot: "lot-r", shares: [...Array.from({ length: 49 }, () => 100), null], rules: null }))).toEqual({ ok: false, error: "A lot of 100 corners in 50 shares is too much for one block-out sheet. Divide it in fewer shares, or in steps." });
+  });
+
+  it("doesn't call a line along a wall a line through the building", () => {
+    const m = made();
+    const b = sampleDocument().features.find((x) => x.layer === "BUILDINGS")!;
+    const byId = new Map(SAMPLE_POINTS.map((p) => [p.id, p]));
+    const w0 = byId.get(b.points[0]!)!;
+    const w1 = byId.get(b.points[1]!)!;
+    expect(linesThroughBuildings(sampleDocument().features, SAMPLE_POINTS, [{ cut: 5, a: { e: w0.e, n: w0.n }, b: { e: w1.e, n: w1.n } }])).toEqual([]);
+    expect(linesThroughBuildings(sampleDocument().features, SAMPLE_POINTS, m.result.segments)).toEqual([0]);
   });
 });

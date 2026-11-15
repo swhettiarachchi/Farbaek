@@ -50,6 +50,8 @@ export interface PartitionRequest {
   by?: "area" | "width";
   /** The planning rules each share is checked against (rules.ts), or null for none. */
   rules: RuleSet | null;
+  /** Point numbers the project already uses: new corners are named P1, P2… skipping these, so no name is taken twice. */
+  avoid?: readonly string[];
 }
 
 export interface ProposedCorner {
@@ -179,6 +181,7 @@ export function partitionLot(req: PartitionRequest): PartitionResult {
   const f = frame(req);
   if (typeof f === "string") return fail(f);
   const { o, ring, lotM2, a, b, len, u, across, n, lo, hi } = f;
+  const nextName = namer(req.avoid);
 
   const below = (s: number) => area(clip(ring, n, s, false));
   const rest = req.shares.some((x) => x === null);
@@ -272,7 +275,7 @@ export function partitionLot(req: PartitionRequest): PartitionResult {
     here.sort((x, y) => x.along - y.along);
     for (const c of here) {
       if (c.existing) c.name = c.existing.pointId;
-      else c.name = `P${corners.filter((k) => !k.existing).length + here.filter((h) => !h.existing && here.indexOf(h) <= here.indexOf(c)).length}`;
+      else c.name = nextName();
     }
     corners.push(...here);
     cutCorners.push(here);
@@ -330,6 +333,17 @@ function alongLeg(piece: readonly Point[], a: Point, b: Point): number {
     if (on(x) && on(y) && on({ e: (x.e + y.e) / 2, n: (x.n + y.n) / 2 })) total += distance(x, y);
   }
   return total;
+}
+
+/** P1, P2, P3… in turn, skipping any name in `avoid` (a project's own point numbers). */
+function namer(avoid: readonly string[] = []): () => string {
+  const taken = new Set(avoid.map((x) => x.trim().toUpperCase()));
+  let k = 0;
+  return () => {
+    do k++;
+    while (taken.has(`P${k}`));
+    return `P${k}`;
+  };
 }
 
 /** Whether a point lies on a ring's boundary (within 0.1 µm). */
@@ -442,6 +456,7 @@ function inside_(p: Point, ring: readonly Point[]): boolean {
  */
 function fan(req: PartitionRequest, f: Frame, targets: number[]): PartitionResult {
   const { o, ring, lotM2, a, b } = f;
+  const nextName = namer(req.avoid);
   const k = req.corner ?? -1;
   if (!Number.isInteger(k) || k < 0 || k >= ring.length) return { ok: false, error: "Choose the corner the lines pass through." };
   const m = ring.length;
@@ -495,7 +510,7 @@ function fan(req: PartitionRequest, f: Frame, targets: number[]): PartitionResul
     const p1 = path[x.j + 1]!;
     // Setting out runs along the leg in the ring's own order, from its first corner.
     const [first, second] = req.from === "start" ? [p0, p1] : [p1, p0];
-    const name = x.snap ? x.snap.src!.pointId : `P${ends.slice(0, ci + 1).filter((y) => !y.snap).length}`;
+    const name = x.snap ? x.snap.src!.pointId : nextName();
     return { name, e: x.q.e + o.e, n: x.q.n + o.n, cut: ci, along: distance(P, x.q), ...(x.snap ? { existing: x.snap.src! } : {}), from: first.src!, to: second.src!, distanceM: distance(first, x.q) };
   });
   const lineProblem = ends.map((x, ci) => (x.good ? null : `The line from corner ${P.src!.pointId} to ${corners[ci]!.name} leaves the lot or crosses its boundary, so a share would fall in pieces. Try going round the other way, another corner, or lines square to a leg.`));

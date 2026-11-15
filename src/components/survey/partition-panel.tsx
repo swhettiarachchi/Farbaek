@@ -75,7 +75,7 @@ export function PartitionPanel({
   const ownMin = { areaM2: readDecimal(own.areaM2), frontageM: readDecimal(own.frontageM), depthM: readDecimal(own.depthM) };
   const ownReady = Object.values(ownMin).every((v) => Number.isFinite(v)) && own.source.trim() !== "";
   const rules = ruleChoice === "uda" ? UDA_2020 : ruleChoice === "own" && ownReady ? ownRules(ownMin, own.source) : null;
-  const result = lot && !invalid ? partitionLot({ ring, leg: legAt, lines, corner: cornerAt, from, by, shares: parsed, rules }) : null;
+  const result = lot && !invalid ? partitionLot({ ring, leg: legAt, lines, corner: cornerAt, from, by, shares: parsed, rules, avoid: points.map((p) => p.pointId) }) : null;
   // The same choices, for the server to work the block-out plan out again from the saved version.
   const division = lot ? { lot: lot.id, leg: legAt, lines, corner: cornerAt, from, by, shares: parsed, rules: ruleChoice === "uda" ? { id: "uda-2020" as const } : ruleChoice === "own" && ownReady ? { id: "own" as const, ...ownMin, source: own.source } : null } : null;
   const throughBuildings = result?.ok ? linesThroughBuildings(features, points, result.segments) : [];

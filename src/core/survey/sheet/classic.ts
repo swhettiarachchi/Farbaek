@@ -379,7 +379,7 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
         thin: T.lines.thin,
         planCaption: T.captions.planNumber,
         slant,
-        banner: input.approval ? null : { text: "DRAFT. Not certified: the plan is certified only by the licensed surveyor's signature on the printed sheet.", color: "red" },
+        banner: input.approval ? null : { text: input.blockOut ? cap.blockOutNotice : "DRAFT. Not certified: the plan is certified only by the licensed surveyor's signature on the printed sheet.", color: "red" },
         notes: [crsLine, `${BEARING_CONVENTION} Distances are horizontal grid distances in metres.`, scale ? `Scale 1:${fmt(scale, 0)} on ${f.paper}. Print at 100% (actual size): fitting to the page changes the scale.` : "", `Prepared with Farbaek Survey Studio (${SURVEY_ENGINE_VERSION}).`].filter(Boolean),
       }),
     );

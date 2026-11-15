@@ -195,7 +195,8 @@ export function drawLots(ctx: DrawCtx, lots: PlanLots, opts: { legLabels: boolea
         const sides: [number, number][] = [outside, [-outside[0], -outside[1]]];
         const tries = sides.map((side) => besideSegment(x1, y1, x2, y2, side, ctx.sizes.label));
         const quadAt = (b: { x: number; y: number; theta: number }) => textQuad({ kind: "text", x: b.x, y: b.y, text: value, size: ctx.sizes.label, weight: "regular", font: "sans", anchor: "middle", rotate: b.theta, color: "ink", layer: "DIMENSIONS" });
-        const b = tries.find((x) => ctx.placer.free(quadAt(x))) ?? tries[0]!;
+        // A label the surveyor nudged keeps the side the nudge was made from.
+        const b = ctx.doc.labelOffsets["leg:" + r.lot.id + ":" + i] ? tries[0]! : (tries.find((x) => ctx.placer.free(quadAt(x))) ?? tries[0]!);
         const t = text(ctx, "DIMENSIONS", `leg:${r.lot.id}:${i}`, b.x, b.y, value, ctx.sizes.label, { rotate: b.theta });
         ctx.placer.add(textQuad(t));
       });
