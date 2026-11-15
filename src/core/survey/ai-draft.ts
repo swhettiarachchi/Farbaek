@@ -315,7 +315,7 @@ export function acceptDraft(output: DraftOutput, input: { document: SurveyDocume
   }
   if (roads.length > 0) {
     doc.roads = roads;
-    for (const r of roads) mark(`road:${r.id}`, `Road ${r.name}`);
+    for (const r of roads) mark(`road:${r.id}`, `${r.name || "A road"}, along ${[r.edgeA, r.edgeB].filter((e) => e.length > 0).map((e) => e.map((id) => input.points.find((p) => p.id === id)!.pointId).join(" ")).join(" and ")}`);
   }
 
   // Adjoining lands: beside a leg of a drafted (or existing) lot.
@@ -343,7 +343,11 @@ export function acceptDraft(output: DraftOutput, input: { document: SurveyDocume
   }
   if (adjoining.length > 0) {
     doc.adjoining = adjoining;
-    for (const a of adjoining) mark(`adjoining:${a.id}`, `Adjoining: ${a.text}`);
+    for (const a of adjoining) {
+      const lot = doc.lots.find((l) => l.id === a.lot)!;
+      const at = (k: number) => input.points.find((p) => p.id === lot.points[k % lot.points.length])!.pointId;
+      mark(`adjoining:${a.id}`, `${a.text}, beside lot ${lot.label}${lot.sup} between ${at(a.leg)} and ${at(a.leg + 1)}`);
+    }
   }
 
   // Title fields: the value must come from its quote (for a brief), and fit.
@@ -422,7 +426,7 @@ export function acceptDraft(output: DraftOutput, input: { document: SurveyDocume
     }
     if (doc.notes.length < 10 && !doc.notes.includes(n.text.trim())) {
       doc.notes.push(n.text.trim().slice(0, 300));
-      accepted.push({ key: "notes", label: `Note: ${n.text.trim()}` });
+      accepted.push({ key: "notes", label: n.text.trim() });
       doc.provenance["notes"] = { source: input.source, reviewed: false };
     }
   }

@@ -524,27 +524,42 @@ const touched = (d: SurveyDocument, key: string) => {
   if (p) d.provenance[key] = { ...p, reviewed: true };
 };
 
-function CheckMark({ doc, field }: { doc: SurveyDocument; field: string }) {
+/** An AI-filled field waiting for the surveyor: they confirm it as it is, or change it (which counts as checking it). */
+function CheckMark({ doc, field, update, readOnly }: { doc: SurveyDocument; field: string; update: Update; readOnly: boolean }) {
   const p = doc.provenance[field];
   if (!p || p.reviewed || p.source === "engine") return null;
-  return <StatusBadge status="approval" label={p.source === "ai_photo" ? "Read from a photo, check" : "From your description, check"} />;
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      <StatusBadge status="approval" label={p.source === "ai_photo" ? "Read from a photo, check" : "From your description, check"} />
+      <button type="button" disabled={readOnly} onClick={() => update((d) => touched(d, field))} className={buttonClasses("ghost", "sm")}>
+        <CheckCircleIcon size={16} weight="bold" aria-hidden />
+        Looks right
+      </button>
+    </span>
+  );
 }
 
 function SheetFields({ doc, update, readOnly, surveyors, suggested, paper }: { doc: SurveyDocument; update: Update; readOnly: boolean; surveyors: SurveyorOption[]; suggested: number | null; paper: string }) {
-  const field = (label: string, value: string, key: string, set: (d: SurveyDocument, v: string) => void, max: number, opts: { long?: boolean; hint?: string; type?: string } = {}) => (
-    <label className="grid gap-1.5">
-      <span className="flex flex-wrap items-center gap-2">
-        <span className={LABEL_CLASSES}>{label}</span>
-        <CheckMark doc={doc} field={`sheet.${key}`} />
-      </span>
-      {opts.long ? (
-        <textarea value={value} maxLength={max} rows={3} disabled={readOnly} onChange={(e) => update((d) => (set(d, e.target.value), touched(d, `sheet.${key}`)), key)} className={textareaClasses()} />
-      ) : (
-        <input type={opts.type ?? "text"} value={value} maxLength={max} disabled={readOnly} onChange={(e) => update((d) => (set(d, e.target.value), touched(d, `sheet.${key}`)), key)} className={inputClasses()} />
-      )}
-      {opts.hint ? <span className="text-sm text-ink-3">{opts.hint}</span> : null}
-    </label>
-  );
+  // The label names the input by id, so the "Looks right" button beside it stays outside the label.
+  const field = (label: string, value: string, key: string, set: (d: SurveyDocument, v: string) => void, max: number, opts: { long?: boolean; hint?: string; type?: string; mark?: boolean } = {}) => {
+    const id = `sheet-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+    return (
+      <div className="grid gap-1.5">
+        <span className="flex flex-wrap items-center gap-2">
+          <label htmlFor={id} className={LABEL_CLASSES}>
+            {label}
+          </label>
+          {opts.mark === false ? null : <CheckMark doc={doc} field={`sheet.${key}`} update={update} readOnly={readOnly} />}
+        </span>
+        {opts.long ? (
+          <textarea id={id} value={value} maxLength={max} rows={3} disabled={readOnly} onChange={(e) => update((d) => (set(d, e.target.value), touched(d, `sheet.${key}`)), key)} className={textareaClasses()} />
+        ) : (
+          <input id={id} type={opts.type ?? "text"} value={value} maxLength={max} disabled={readOnly} onChange={(e) => update((d) => (set(d, e.target.value), touched(d, `sheet.${key}`)), key)} className={inputClasses()} />
+        )}
+        {opts.hint ? <span className="text-sm text-ink-3">{opts.hint}</span> : null}
+      </div>
+    );
+  };
   const check = (label: string, checked: boolean, set: (d: SurveyDocument, v: boolean) => void) => (
     <label className="flex min-h-11 items-center gap-3 text-sm text-ink">
       <input type="checkbox" checked={checked} disabled={readOnly} onChange={(e) => update((d) => set(d, e.target.checked))} className="size-5 accent-[var(--color-accent)]" />
@@ -620,30 +635,35 @@ function SheetFields({ doc, update, readOnly, surveyors, suggested, paper }: { d
           {field("Now called and known as", s.nowKnownAs, "nowKnownAs", (d, v) => void (d.sheet.nowKnownAs = v), 120)}
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <label className="grid gap-1.5">
-            <span className={LABEL_CLASSES}>The survey</span>
-            <select value={s.operation} disabled={readOnly} onChange={(e) => update((d) => (void (d.sheet.operation = e.target.value as SurveyDocument["sheet"]["operation"]), touched(d, "sheet.operation")))} className={inputClasses()}>
+          <div className="grid gap-1.5">
+            <span className="flex flex-wrap items-center gap-2">
+              <label htmlFor="sheet-operation" className={LABEL_CLASSES}>
+                The survey
+              </label>
+              <CheckMark doc={doc} field="sheet.operation" update={update} readOnly={readOnly} />
+            </span>
+            <select id="sheet-operation" value={s.operation} disabled={readOnly} onChange={(e) => update((d) => (void (d.sheet.operation = e.target.value as SurveyDocument["sheet"]["operation"]), touched(d, "sheet.operation")))} className={inputClasses()}>
               <option value="resurvey">Resurvey of the existing boundaries</option>
               <option value="subdivision">Resurvey and sub division</option>
               <option value="amalgamation">Resurvey and amalgamation</option>
               <option value="custom">My own wording</option>
             </select>
-          </label>
+          </div>
           {field(s.operation === "amalgamation" ? "Of lots" : "Of lot", s.parentLots, "parentLots", (d, v) => void (d.sheet.parentLots = v), 60)}
         </div>
         {s.operation === "custom" ? field("After “being”", s.customClause, "customClause", (d, v) => void (d.sheet.customClause = v), 800, { long: true }) : null}
         <div className="grid grid-cols-2 gap-3">
           {field("Depicted in Plan No.", s.previousPlan.number, "previousPlan", (d, v) => void (d.sheet.previousPlan.number = v), 40)}
-          {field("Dated", s.previousPlan.date, "previousPlan", (d, v) => void (d.sheet.previousPlan.date = v), 20, { type: "date" })}
+          {field("Dated", s.previousPlan.date, "previousPlan", (d, v) => void (d.sheet.previousPlan.date = v), 20, { type: "date", mark: false })}
         </div>
         {check("It's my own earlier plan (“my Plan No.”)", s.previousPlan.mine, (d, v) => (void (d.sheet.previousPlan.mine = v), touched(d, "sheet.previousPlan")))}
         {s.previousPlan.mine ? null : (
           <div className="grid grid-cols-2 gap-3">
-            {field("Made by", s.previousPlan.by, "previousPlan", (d, v) => void (d.sheet.previousPlan.by = v), 80)}
-            {field("Their designation", s.previousPlan.byDesignation, "previousPlan", (d, v) => void (d.sheet.previousPlan.byDesignation = v), 60)}
+            {field("Made by", s.previousPlan.by, "previousPlan", (d, v) => void (d.sheet.previousPlan.by = v), 80, { mark: false })}
+            {field("Their designation", s.previousPlan.byDesignation, "previousPlan", (d, v) => void (d.sheet.previousPlan.byDesignation = v), 60, { mark: false })}
           </div>
         )}
-        {field("Filed of record in (optional)", s.previousPlan.filing, "previousPlan", (d, v) => void (d.sheet.previousPlan.filing = v), 160, { hint: "A court and case number, when the plan was filed." })}
+        {field("Filed of record in (optional)", s.previousPlan.filing, "previousPlan", (d, v) => void (d.sheet.previousPlan.filing = v), 160, { hint: "A court and case number, when the plan was filed.", mark: false })}
         <div className="grid grid-cols-2 gap-3">
           {field("Village", s.village, "village", (d, v) => void (d.sheet.village = v), 60)}
           {field("Pattu", s.pattu, "pattu", (d, v) => void (d.sheet.pattu = v), 60, { hint: "As written, ending in “Pattu”." })}
@@ -675,11 +695,16 @@ function SheetFields({ doc, update, readOnly, surveyors, suggested, paper }: { d
         </div>
         {field("Statement", s.statement, "statement", (d, v) => void (d.sheet.statement = v), 200, { hint: "Printed bottom left, as surveyors write how the boundaries were found." })}
         {field("Stated extent (from the deed or an earlier plan)", s.statedExtent, "statedExtent", (d, v) => void (d.sheet.statedExtent = v), 80, { hint: "Kept apart from the computed extent, in the schedule overleaf." })}
-        <label className="grid gap-1.5">
-          <span className={LABEL_CLASSES}>Notes on the plan</span>
-          <textarea value={doc.notes.join("\n")} rows={3} maxLength={3000} disabled={readOnly} onChange={(e) => update((d) => void (d.notes = e.target.value.split("\n").map((x) => x.slice(0, 300)).filter((x, i, a) => x.trim() || i < a.length - 1).slice(0, 10)), "notes")} className={textareaClasses()} />
+        <div className="grid gap-1.5">
+          <span className="flex flex-wrap items-center gap-2">
+            <label htmlFor="sheet-notes" className={LABEL_CLASSES}>
+              Notes on the plan
+            </label>
+            <CheckMark doc={doc} field="notes" update={update} readOnly={readOnly} />
+          </span>
+          <textarea id="sheet-notes" value={doc.notes.join("\n")} rows={3} maxLength={3000} disabled={readOnly} onChange={(e) => update((d) => (void (d.notes = e.target.value.split("\n").map((x) => x.slice(0, 300)).filter((x, i, a) => x.trim() || i < a.length - 1).slice(0, 10)), touched(d, "notes")), "notes")} className={textareaClasses()} />
           <span className="text-sm text-ink-3">One per line, printed as “Note:- …” under the Reference.</span>
-        </label>
+        </div>
       </fieldset>
 
       <fieldset className="grid gap-3">

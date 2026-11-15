@@ -130,6 +130,14 @@ async function readPoints(client: SupabaseClient, projectId: string): Promise<Su
   return out;
 }
 
+/** One saved version of a project's drawing, read as the person (row security keeps it to their workspace), or null. */
+export async function loadSurveyDrawing(client: SupabaseClient, projectId: string, version: number): Promise<SurveyDrawing | null> {
+  if (!z.string().uuid().safeParse(projectId).success || !Number.isInteger(version) || version < 1) return null;
+  const { data } = await client.from("survey_drawings").select("id, version, document, note, created_by, created_at").eq("project_id", projectId).eq("version", version).maybeSingle();
+  const d = drawingRow.safeParse(data);
+  return d.success ? toDrawing(d.data) : null;
+}
+
 /** A project with everything its screens need, or null when it isn't this workspace's or can't be read. */
 export async function loadSurveyProject(client: SupabaseClient, orgId: string, projectId: string, version?: number): Promise<SurveyProjectData | null> {
   if (!z.string().uuid().safeParse(projectId).success) return null;
