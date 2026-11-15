@@ -8,7 +8,8 @@ import { lotName, type Lot } from "@/core/survey/document";
 import { cell } from "@/core/survey/export/schedule";
 import { arpClassic, hectares } from "@/core/survey/formats";
 import type { SurveyPoint } from "@/core/survey/parcel";
-import { partitionLot, UDA_MINIMUMS, widthRoom } from "@/core/survey/partition";
+import { partitionLot, widthRoom } from "@/core/survey/partition";
+import { UDA_2020, ownRules, reviewNote } from "@/core/survey/rules";
 import { PERCH_M2, fmt, toArp } from "@/core/survey/units";
 import { buttonClasses } from "@/components/ui/button";
 import { LABEL_CLASSES, inputClasses } from "@/components/ui/field";
@@ -36,7 +37,8 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
   const [by, setBy] = useState<By>("area");
   const [unit, setUnit] = useState<Unit>("perch");
   const [shares, setShares] = useState<string[]>(["", ""]);
-  const [uda, setUda] = useState(false);
+  const [ruleChoice, setRuleChoice] = useState<"none" | "uda" | "own">("none");
+  const [own, setOwn] = useState({ areaM2: "", frontageM: "", depthM: "", source: "" });
 
   const lot = usable.find((l) => l.id === lotId) ?? usable[0];
   const ring = lot ? lot.points.map((id) => byId.get(id)!) : [];
@@ -44,7 +46,11 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
   const cornerAt = Math.min(corner, Math.max(ring.length - 1, 0));
   const parsed = shares.map((v) => (v.trim() === "" ? null : Number(v) * FACTOR[unit]));
   const invalid = parsed.some((x) => x !== null && !Number.isFinite(x));
-  const result = lot && !invalid ? partitionLot({ ring, leg: legAt, lines, corner: cornerAt, from, by, shares: parsed, uda }) : null;
+  // The surveyor's own minimums count once all three are numbers and they've said where they come from.
+  const ownMin = { areaM2: Number(own.areaM2), frontageM: Number(own.frontageM), depthM: Number(own.depthM) };
+  const ownReady = [own.areaM2, own.frontageM, own.depthM].every((v) => v.trim() !== "" && Number.isFinite(Number(v)) && Number(v) >= 0) && own.source.trim() !== "";
+  const rules = ruleChoice === "uda" ? UDA_2020 : ruleChoice === "own" && ownReady ? ownRules(ownMin, own.source) : null;
+  const result = lot && !invalid ? partitionLot({ ring, leg: legAt, lines, corner: cornerAt, from, by, shares: parsed, rules }) : null;
   // What the shares divide: the lot's area, or for widths the leg's length (square lines) or the lot's depth from the leg (parallel lines).
   const total = !lot ? null : by === "area" ? area(ring) : widthRoom({ ring, leg: legAt, lines, from });
   const pointAt = (k: number) => ring[((k % ring.length) + ring.length) % ring.length]?.pointId ?? "";
@@ -198,10 +204,6 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
           <button type="button" disabled={shares.length >= 50} onClick={() => setShares((s) => [...s, ""])} className={buttonClasses("secondary", "sm")}>
             Add a share
           </button>
-          <label className="flex min-h-11 items-center gap-3 text-sm text-ink">
-            <input type="checkbox" checked={uda} onChange={(e) => setUda(e.target.checked)} className="size-5 accent-[var(--color-accent)]" />
-            Check the UDA minimums ({UDA_MINIMUMS.areaM2} m², {UDA_MINIMUMS.frontageM} m frontage, {UDA_MINIMUMS.depthM} m depth)
-          </label>
         </div>
         <p className="text-sm text-ink-3">
           {lines === "through"
@@ -211,8 +213,49 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
               ? `Each width runs along the leg from corner ${ring[from === "start" ? legAt : (legAt + 1) % ring.length]?.pointId ?? ""}, in order. Where the lot reaches past the leg, the end shares take that part too. `
               : "Each width runs back from the leg, in order: a strip for an access road first, for example. "
             : ""}
-          Leave one share empty for what&apos;s left. The UDA figures apply in UDA-declared areas unless a Development Plan says otherwise.
+          Leave one share empty for what&apos;s left.
         </p>
+      </fieldset>
+
+      <fieldset className="grid gap-3">
+        <legend className="mb-1 text-sm font-medium text-ink">Minimums</legend>
+        <label className="grid gap-1.5 sm:max-w-xl">
+          <span className={LABEL_CLASSES}>Check each share against</span>
+          <select value={ruleChoice} onChange={(e) => setRuleChoice(e.target.value as "none" | "uda" | "own")} className={inputClasses()}>
+            <option value="none">No minimums</option>
+            <option value="uda">
+              UDA regulations: {UDA_2020.minimums.areaM2} m², {UDA_2020.minimums.frontageM} m frontage, {UDA_2020.minimums.depthM} m depth
+            </option>
+            <option value="own">Minimums I enter, from a Development Plan or other rule</option>
+          </select>
+        </label>
+        {ruleChoice === "own" ? (
+          <div className="grid gap-3 sm:grid-cols-3">
+            {(
+              [
+                ["areaM2", "Least area (m²)"],
+                ["frontageM", "Least frontage (m)"],
+                ["depthM", "Least depth (m)"],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key} className="grid gap-1.5">
+                <span className={LABEL_CLASSES}>{label}</span>
+                <input value={own[key]} inputMode="decimal" onChange={(e) => setOwn((o) => ({ ...o, [key]: e.target.value.slice(0, 12) }))} className={inputClasses()} />
+              </label>
+            ))}
+            <label className="grid gap-1.5 sm:col-span-3">
+              <span className={LABEL_CLASSES}>Where they come from</span>
+              <input value={own.source} maxLength={200} placeholder="The Development Plan and zone, for example" onChange={(e) => setOwn((o) => ({ ...o, source: e.target.value }))} className={inputClasses()} />
+            </label>
+            {!ownReady ? <p className="text-sm text-ink-2 sm:col-span-3">Give all three minimums, using 0 for one that doesn&apos;t apply, and say where they come from.</p> : null}
+          </div>
+        ) : null}
+        {ruleChoice === "uda" ? (
+          <p className="text-sm text-ink-3">
+            From the {UDA_2020.title}, regs. 9(a) and 14(1), for {UDA_2020.appliesTo}. {reviewNote(UDA_2020, new Date().toISOString().slice(0, 10))}
+          </p>
+        ) : null}
+        {ruleChoice === "own" && rules ? <p className="text-sm text-ink-3">Your figures, from {rules.source}. Farbaek hasn&apos;t checked them against that source.</p> : null}
       </fieldset>
 
       {invalid ? <p className="text-sm text-failed">Write each share as a number.</p> : null}
@@ -294,6 +337,16 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
                 Setting-out table as CSV
               </button>
             </div>
+            {result.reminders.length > 0 ? (
+              <div className="grid gap-2">
+                <h3 className="text-sm font-medium text-ink">Before going ahead</h3>
+                <ul className="grid list-disc gap-1 pl-5 text-sm text-ink-2">
+                  {result.reminders.map((r) => (
+                    <li key={r}>{r}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             <p className="text-sm text-ink-3">
               Not part of the plan yet. Peg the new corners, observe and import them, then draw the shares as lots on this step. Worked out by {result.engine} from the surveyed corners; nothing is moved.
             </p>

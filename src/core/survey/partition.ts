@@ -22,11 +22,10 @@
 import { bearingFromDeltas } from "./angles";
 import { area, distance, orient, pointSegmentDistance, segmentsIntersect, selfIntersections, signedArea, type Point } from "./geometry";
 import type { SurveyPoint } from "./parcel";
+import { remindersFor, type RuleSet } from "./rules";
 
 export const PARTITION_ENGINE = "partition/1.1.0";
 
-/** UDA regulations 9(a) and 14(1), for UDA-declared areas, unless a Development Plan says otherwise (docs/survey/STANDARDS_RESEARCH.md). */
-export const UDA_MINIMUMS = { areaM2: 150, frontageM: 6, depthM: 12 } as const;
 
 export interface PartitionRequest {
   /** The lot's corners in order. */
@@ -49,8 +48,8 @@ export interface PartitionRequest {
    * the road"); for parallel lines, the distance from the leg (a strip, "Res. for Access, 10 ft wide").
    */
   by?: "area" | "width";
-  /** Check the UDA minimums. */
-  uda: boolean;
+  /** The planning rules each share is checked against (rules.ts), or null for none. */
+  rules: RuleSet | null;
 }
 
 export interface ProposedCorner {
@@ -84,7 +83,7 @@ export interface Share {
   alongLegM: number;
   /** Its least depth: square lines, the least of its dividing lines' lengths and its mean depth (area over frontage); parallel lines, the distance between its two dividing lines. */
   depthM: number;
-  /** What stops it being made as asked, and the UDA minimums it doesn't meet. */
+  /** What stops it being made as asked, and the rules' minimums it doesn't meet. */
   problems: string[];
 }
 
@@ -92,7 +91,7 @@ export type PartitionResult =
   | { ok: false; error: string }
   | {
       ok: true;
-      /** True when every share can be made as asked (and meets the UDA minimums, when checked). */
+      /** True when every share can be made as asked (and meets the rules' minimums, when checked). */
       feasible: boolean;
       lotM2: number;
       shares: Share[];
@@ -105,6 +104,8 @@ export type PartitionResult =
       rays?: { from: string; to: string; bearing: number; lengthM: number }[];
       sumM2: number;
       residualM2: number;
+      /** The rule set's reminders that apply to this division, each with its section. */
+      reminders: string[];
       engine: string;
     };
 
@@ -174,6 +175,7 @@ export function partitionLot(req: PartitionRequest): PartitionResult {
   if (req.shares.filter((x) => x === null).length > 1) return fail("Only one share can take what's left.");
   if (req.shares.some((x) => x !== null && !(Number.isFinite(x) && x > 0))) return fail(width ? "Every stated share needs a width above zero." : "Every stated share needs an area above zero.");
   if (width && req.lines === "through") return fail("Lines through a corner divide by area. Give the shares as areas.");
+  if (req.rules && !Object.values(req.rules.minimums).every((x) => Number.isFinite(x) && x >= 0)) return fail("Give each minimum as a number of zero or more.");
   const f = frame(req);
   if (typeof f === "string") return fail(f);
   const { o, ring, lotM2, a, b, len, u, across, n, lo, hi } = f;
@@ -272,25 +274,26 @@ export function partitionLot(req: PartitionRequest): PartitionResult {
     const sides = [i > 0 ? chord(ring, n, s0) : Infinity, i < targets.length - 1 ? chord(ring, n, s1) : Infinity];
     const mean = alongLegM > 0 ? areaM2 / alongLegM : Infinity;
     const depthM = req.lines === "square" ? Math.min(...sides, mean) : s1 - s0;
-    const problems = judge(areaM2, target, alongLegM, depthM, [cutProblem[i - 1], cutProblem[i]], req.uda);
+    const problems = judge(areaM2, target, alongLegM, depthM, [cutProblem[i - 1], cutProblem[i]], req.rules);
     return { targetM2: target, areaM2, corners: piece.map((p) => nameCorner(p, [...(cutCorners[i - 1] ?? []), ...(cutCorners[i] ?? [])], o)), alongLegM, depthM, problems };
   });
   const sumM2 = shares.reduce((s, x) => s + x.areaM2, 0);
   const bearing = bearingFromDeltas(lineDir.e, lineDir.n)!;
   // Each line's corners in order along it: the line runs inside the lot between the first and second, the third and fourth.
   const segments = cutCorners.flatMap((here) => here.flatMap((c, k) => (k % 2 === 0 && here[k + 1] ? [{ cut: c.cut, a: { e: c.e, n: c.n }, b: { e: here[k + 1]!.e, n: here[k + 1]!.n } }] : [])));
-  return { ok: true, feasible: shares.every((s) => s.problems.length === 0), lotM2, shares, corners, segments, bearing: bearing >= 180 ? bearing - 180 : bearing, sumM2, residualM2: lotM2 - sumM2, engine: PARTITION_ENGINE };
+  return { ok: true, feasible: shares.every((s) => s.problems.length === 0), lotM2, shares, corners, segments, bearing: bearing >= 180 ? bearing - 180 : bearing, sumM2, residualM2: lotM2 - sumM2, reminders: req.rules ? remindersFor(req.rules, lotM2, shares.length) : [], engine: PARTITION_ENGINE };
 }
 
-/** What stops a share being made as asked: its dividing lines' problems, an area it can't be given, and the UDA minimums when checked. */
-function judge(areaM2: number, targetM2: number, alongLegM: number, depthM: number, lineProblems: (string | null | undefined)[], uda: boolean): string[] {
+/** What stops a share being made as asked: its dividing lines' problems, an area it can't be given, and the rules' minimums when checked. */
+function judge(areaM2: number, targetM2: number, alongLegM: number, depthM: number, lineProblems: (string | null | undefined)[], rules: RuleSet | null): string[] {
   const problems = [...new Set(lineProblems.filter((x): x is string => Boolean(x)))];
   if (Math.abs(areaM2 - targetM2) > 0.01) problems.push(`Its lines give it ${areaM2.toFixed(2)} m², not the ${targetM2.toFixed(2)} m² asked for.`);
-  if (uda) {
-    if (areaM2 < UDA_MINIMUMS.areaM2) problems.push(`It's ${areaM2.toFixed(2)} m², under the UDA minimum of ${UDA_MINIMUMS.areaM2} m².`);
-    if (alongLegM === 0) problems.push("It doesn't touch the chosen leg, so it has no frontage on it.");
-    else if (alongLegM < UDA_MINIMUMS.frontageM) problems.push(`Its frontage is ${alongLegM.toFixed(2)} m, under the UDA minimum of 6.0 m.`);
-    if (depthM < UDA_MINIMUMS.depthM) problems.push(`Its depth is ${depthM.toFixed(2)} m, under the UDA minimum of 12.0 m.`);
+  if (rules) {
+    const min = rules.minimums;
+    if (areaM2 < min.areaM2) problems.push(`It's ${areaM2.toFixed(2)} m², under ${rules.label} of ${Number(min.areaM2.toFixed(2))} m².`);
+    if (min.frontageM > 0 && alongLegM === 0) problems.push("It doesn't touch the chosen leg, so it has no frontage on it.");
+    else if (alongLegM < min.frontageM) problems.push(`Its frontage is ${alongLegM.toFixed(2)} m, under ${rules.label} of ${min.frontageM.toFixed(1)} m.`);
+    if (depthM < min.depthM) problems.push(`Its depth is ${depthM.toFixed(2)} m, under ${rules.label} of ${min.depthM.toFixed(1)} m.`);
   }
   return problems;
 }
@@ -393,7 +396,7 @@ function fan(req: PartitionRequest, f: Frame, targets: number[]): PartitionResul
     const sides = [i > 0 ? distance(P, start) : Infinity, i < ends.length ? distance(P, end) : Infinity];
     const depthM = Math.min(...sides, alongLegM > 0 ? areaM2 / alongLegM : Infinity);
     const near = [corners[i - 1], corners[i]].filter((c): c is ProposedCorner => Boolean(c));
-    return { targetM2: target, areaM2, corners: piece.map((p) => nameCorner(p, near, o)), alongLegM, depthM: Number.isFinite(depthM) ? depthM : 0, problems: judge(areaM2, target, alongLegM, depthM, [lineProblem[i - 1], lineProblem[i]], req.uda) };
+    return { targetM2: target, areaM2, corners: piece.map((p) => nameCorner(p, near, o)), alongLegM, depthM: Number.isFinite(depthM) ? depthM : 0, problems: judge(areaM2, target, alongLegM, depthM, [lineProblem[i - 1], lineProblem[i]], req.rules) };
   });
   const sumM2 = shares.reduce((s, x) => s + x.areaM2, 0);
   const from = { e: P.e + o.e, n: P.n + o.n };
@@ -408,6 +411,7 @@ function fan(req: PartitionRequest, f: Frame, targets: number[]): PartitionResul
     rays: ends.map((x, ci) => ({ from: P.src!.pointId, to: corners[ci]!.name, bearing: bearingFromDeltas(x.q.e - P.e, x.q.n - P.n) ?? 0, lengthM: distance(P, x.q) })),
     sumM2,
     residualM2: lotM2 - sumM2,
+    reminders: req.rules ? remindersFor(req.rules, lotM2, shares.length) : [],
     engine: PARTITION_ENGINE,
   };
 }

@@ -2,12 +2,13 @@
 import { describe, expect, it } from "vitest";
 import { partitionLot, widthRoom, type PartitionRequest } from "./partition";
 import type { SurveyPoint } from "./parcel";
+import { UDA_2020, ownRules, remindersFor, reviewNote } from "./rules";
 
 const E0 = 500_000;
 const N0 = 600_000;
 const ring = (pts: [number, number][]): SurveyPoint[] => pts.map(([e, n], i) => ({ id: `00000000-0000-4000-c000-${String(i + 1).padStart(12, "0")}`, pointId: String(i + 1), e: E0 + e, n: N0 + n, z: null, code: null }));
 const rect = ring([[0, 0], [40, 0], [40, 20], [0, 20]]);
-const run = (r: Partial<PartitionRequest>) => partitionLot({ ring: rect, leg: 0, lines: "square", from: "start", shares: [null, null], uda: false, ...r });
+const run = (r: Partial<PartitionRequest>) => partitionLot({ ring: rect, leg: 0, lines: "square", from: "start", shares: [null, null], rules: null, ...r });
 const ok = (r: ReturnType<typeof partitionLot>) => {
   if (!r.ok) throw new Error(r.error);
   return r;
@@ -41,7 +42,7 @@ describe("partitioning a lot into shares", () => {
 
   it("puts a triangle's dividing line where the algebra says: 30 - √450 m from the corner", () => {
     const tri = ring([[0, 0], [30, 0], [0, 30]]);
-    const r = ok(partitionLot({ ring: tri, leg: 0, lines: "square", from: "start", shares: [225, null], uda: false }));
+    const r = ok(partitionLot({ ring: tri, leg: 0, lines: "square", from: "start", shares: [225, null], rules: null }));
     expect(r.corners.find((c) => c.from.pointId === "1")!.distanceM).toBeCloseTo(30 - Math.sqrt(450), 6);
     // The other end of the line is exactly 30 m from corner 2 along the long side.
     expect(r.corners.find((c) => c.from.pointId === "2")!.distanceM).toBeCloseTo(30, 6);
@@ -49,7 +50,7 @@ describe("partitioning a lot into shares", () => {
   });
 
   it("stacks shares away from the leg with parallel lines, and checks the UDA minimums when asked", () => {
-    const r = ok(run({ lines: "parallel", shares: [400, null], uda: true }));
+    const r = ok(run({ lines: "parallel", shares: [400, null], rules: UDA_2020 }));
     // Named along the line, west to east: P1 on the west side 4-1, P2 on the east side 2-3, each 10 m from its corner.
     expect(r.corners.map((c) => [c.name, c.from.pointId, c.distanceM])).toEqual([
       ["P1", "4", expect.closeTo(10, 6)],
@@ -59,14 +60,14 @@ describe("partitioning a lot into shares", () => {
     expect(r.feasible).toBe(false);
     expect(r.shares[0]!.problems).toEqual(["Its depth is 10.00 m, under the UDA minimum of 12.0 m."]);
     expect(r.shares[1]!.problems).toEqual(["It doesn't touch the chosen leg, so it has no frontage on it.", "Its depth is 10.00 m, under the UDA minimum of 12.0 m."]);
-    const small = ok(run({ shares: [100, null], uda: true }));
+    const small = ok(run({ shares: [100, null], rules: UDA_2020 }));
     expect(small.shares[0]!.problems).toEqual(["It's 100.00 m², under the UDA minimum of 150 m².", "Its frontage is 5.00 m, under the UDA minimum of 6.0 m."]);
   });
 
   it("says when a line would cut a share in two, and never calls it feasible", () => {
     // A U: two arms joined along the south. Lines parallel to the south road, above the join, cross the U's arms twice each.
     const u = ring([[0, 0], [30, 0], [30, 30], [20, 30], [20, 10], [10, 10], [10, 30], [0, 30]]);
-    const r = ok(partitionLot({ ring: u, leg: 0, lines: "parallel", from: "start", shares: [500, null], uda: false }));
+    const r = ok(partitionLot({ ring: u, leg: 0, lines: "parallel", from: "start", shares: [500, null], rules: null }));
     expect(r.feasible).toBe(false);
     expect(r.shares[1]!.problems[0]).toMatch(/crosses the lot's boundary 4 times/);
   });
@@ -83,19 +84,19 @@ describe("partitioning a lot into shares", () => {
 describe("the re-check's cases", () => {
   it("refuses to stack shares from a leg the lot reaches behind", () => {
     const l = ring([[0, 0], [10, 0], [10, -20], [20, -20], [20, 10], [0, 10]]);
-    expect(partitionLot({ ring: l, leg: 0, lines: "parallel", from: "start", shares: [50, null], uda: false })).toEqual({ ok: false, error: "The lot reaches behind that leg's line, so the shares can't be stacked from it. Choose another leg, or lines square to it." });
+    expect(partitionLot({ ring: l, leg: 0, lines: "parallel", from: "start", shares: [50, null], rules: null })).toEqual({ ok: false, error: "The lot reaches behind that leg's line, so the shares can't be stacked from it. Choose another leg, or lines square to it." });
   });
 
   it("refuses a lot whose boundary crosses itself", () => {
     const bow = ring([[0, 0], [10, 10], [10, 0], [0, 10]]);
-    expect(partitionLot({ ring: bow, leg: 0, lines: "square", from: "start", shares: [null, 20], uda: false }).ok).toBe(false);
+    expect(partitionLot({ ring: bow, leg: 0, lines: "square", from: "start", shares: [null, 20], rules: null }).ok).toBe(false);
   });
 
   it("doesn't let a tapering share pass on its deepest side", () => {
     // A trapezoid 40 m along the road, 20 m deep at the west end and 4 m at the east (480 m²). The east share of 240 m²
     // starts at x = 50 - √1300 = 13.9445 m: its dividing line is 14.42 m long, but its mean depth is 240 / 26.0555 = 9.21 m.
     const t = ring([[0, 0], [40, 0], [40, 4], [0, 20]]);
-    const r = ok(partitionLot({ ring: t, leg: 0, lines: "square", from: "start", shares: [null, 240], uda: true }));
+    const r = ok(partitionLot({ ring: t, leg: 0, lines: "square", from: "start", shares: [null, 240], rules: UDA_2020 }));
     const east = r.shares[1]!;
     expect(east.alongLegM).toBeCloseTo(40 - (50 - Math.sqrt(1300)), 6);
     expect(east.depthM).toBeCloseTo(240 / (40 - (50 - Math.sqrt(1300))), 6);
@@ -105,14 +106,14 @@ describe("the re-check's cases", () => {
 
   it("gives an end share with a slanted end its mean depth, not a sliver", () => {
     const s = ring([[0, 0], [40, 0], [40, 20], [-1, 20]]);
-    const r = ok(partitionLot({ ring: s, leg: 0, lines: "square", from: "start", shares: [405, null], uda: false }));
+    const r = ok(partitionLot({ ring: s, leg: 0, lines: "square", from: "start", shares: [405, null], rules: null }));
     expect(r.shares[0]!.depthM).toBeGreaterThan(19);
   });
 
   it("ends a line at a surveyed corner it passes through, instead of a new corner on top of it", () => {
     // Five corners; the dividing line for two equal shares runs through corner 4 at (20, 20).
     const five = ring([[0, 0], [40, 0], [40, 20], [20, 20], [0, 20]]);
-    const r = ok(partitionLot({ ring: five, leg: 0, lines: "square", from: "start", shares: [400, null], uda: false }));
+    const r = ok(partitionLot({ ring: five, leg: 0, lines: "square", from: "start", shares: [400, null], rules: null }));
     expect(r.corners.map((c) => [c.name, Boolean(c.existing)])).toEqual([
       ["P1", false],
       ["4", true],
@@ -123,7 +124,7 @@ describe("the re-check's cases", () => {
   it("names the road end P1 whichever way the lot's corners run", () => {
     const cw = ring([[0, 0], [0, 20], [40, 20], [40, 0]]);
     // Leg 3 runs from (40, 0) to (0, 0): the road, on a clockwise ring.
-    const r = ok(partitionLot({ ring: cw, leg: 3, lines: "square", from: "start", shares: [400, null], uda: false }));
+    const r = ok(partitionLot({ ring: cw, leg: 3, lines: "square", from: "start", shares: [400, null], rules: null }));
     const p1 = r.corners.find((c) => c.name === "P1")!;
     expect(p1.n).toBeCloseTo(N0, 6);
   });
@@ -161,7 +162,7 @@ describe("shares by width", () => {
   it("shares the leg, with a lot reaching past its end adding to the last share", () => {
     // 30 m along the road, 40 m along the back: the east side slants out from (30, 0) to (40, 20). The lot is 700 m².
     const t = ring([[0, 0], [30, 0], [40, 20], [0, 20]]);
-    const r = ok(partitionLot({ ring: t, leg: 0, lines: "square", from: "start", by: "width", shares: [10, 10, 10], uda: false }));
+    const r = ok(partitionLot({ ring: t, leg: 0, lines: "square", from: "start", by: "width", shares: [10, 10, 10], rules: null }));
     expect(r.shares.map((x) => x.areaM2)).toEqual([200, 200, 300].map((x) => expect.closeTo(x, 9)));
     expect(r.shares.map((x) => x.alongLegM)).toEqual([10, 10, 10].map((x) => expect.closeTo(x, 9)));
     expect(widthRoom({ ring: t, leg: 0, lines: "square", from: "start" })).toBeCloseTo(30, 9);
@@ -184,7 +185,7 @@ describe("shares by width", () => {
   });
 
   it("still checks the UDA minimums on width shares", () => {
-    const r = ok(run({ by: "width", shares: [5, null], uda: true }));
+    const r = ok(run({ by: "width", shares: [5, null], rules: UDA_2020 }));
     expect(r.shares[0]!.problems).toContain("Its frontage is 5.00 m, under the UDA minimum of 6.0 m.");
     expect(r.shares[0]!.problems).toContain("It's 100.00 m², under the UDA minimum of 150 m².");
     expect(r.feasible).toBe(false);
@@ -194,7 +195,7 @@ describe("shares by width", () => {
 describe("lines through a corner", () => {
   // A 20 m square, corners 1 (0, 0), 2 (20, 0), 3 (20, 20), 4 (0, 20): 400 m².
   const sq = ring([[0, 0], [20, 0], [20, 20], [0, 20]]);
-  const fanRun = (r: Partial<PartitionRequest>) => partitionLot({ ring: sq, leg: 0, lines: "through", corner: 0, from: "start", shares: [null, null], uda: false, ...r });
+  const fanRun = (r: Partial<PartitionRequest>) => partitionLot({ ring: sq, leg: 0, lines: "through", corner: 0, from: "start", shares: [null, null], rules: null, ...r });
 
   it("cuts off a triangle with a line from the corner to the far leg", () => {
     // Triangle 1-2-Q with Q = (20, y): 20y / 2 = 100, so y = 10: Q is 10 m from corner 2 towards 3.
@@ -239,7 +240,7 @@ describe("lines through a corner", () => {
   it("finds a line that stays inside an L-shaped lot, and says when none does", () => {
     // Corners 1 (0, 0), 2 (20, 0), 3 (20, 10), 4 (10, 10), 5 (10, 20), 6 (0, 20): 300 m². Lines through corner 2.
     const l = ring([[0, 0], [20, 0], [20, 10], [10, 10], [10, 20], [0, 20]]);
-    const run2 = (shares: (number | null)[]) => partitionLot({ ring: l, leg: 0, lines: "through", corner: 1, from: "start", shares, uda: false });
+    const run2 = (shares: (number | null)[]) => partitionLot({ ring: l, leg: 0, lines: "through", corner: 1, from: "start", shares, rules: null });
     // 40 m²: the triangle 2-3-Q along 3 to 4 is 5 (20 - x), so x = 12, 8 m from corner 3. (The line to (6, 20) also cuts off 40 m² as signed area, but leaves the lot.)
     const r = ok(run2([40, null]));
     expect(r.feasible).toBe(true);
@@ -261,8 +262,41 @@ describe("lines through a corner", () => {
   });
 
   it("checks the UDA minimums on the fan's shares", () => {
-    const r = ok(fanRun({ shares: [100, null], uda: true }));
+    const r = ok(fanRun({ shares: [100, null], rules: UDA_2020 }));
     expect(r.shares[0]!.problems).toContain("It's 100.00 m², under the UDA minimum of 150 m².");
     expect(r.shares[1]!.problems).toContain("It doesn't touch the chosen leg, so it has no frontage on it.");
+  });
+});
+
+describe("planning rules as versioned data", () => {
+  it("names the UDA set, its sections and its review date", () => {
+    expect(UDA_2020.minimums).toEqual({ areaM2: 150, frontageM: 6, depthM: 12 });
+    expect(UDA_2020.status).toBe("verified_official");
+    expect(reviewNote(UDA_2020, "2026-11-15")).toBe("New regulations are due by 31 December 2026; these figures may change then.");
+    expect(reviewNote(UDA_2020, "2027-01-01")).toBe("These regulations were due to be replaced on 31 December 2026. Check for newer ones before relying on these figures.");
+  });
+
+  it("reminds of consent always, and of the declaration and open space for large land or many lots", () => {
+    expect(remindersFor(UDA_2020, 800, 4)).toEqual(["Dividing land in a UDA-declared area needs prior written consent from the UDA and the local authority. (reg. 4(1))"]);
+    expect(remindersFor(UDA_2020, 800, 8)).toHaveLength(3);
+    expect(remindersFor(UDA_2020, 10_000, 2)).toHaveLength(3);
+    const r = ok(run({ shares: [400, null], rules: UDA_2020 }));
+    expect(r.reminders).toEqual(remindersFor(UDA_2020, 800, 2));
+    expect(ok(run({ shares: [400, null] })).reminders).toEqual([]);
+  });
+
+  it("checks the surveyor's own minimums, saying they're the surveyor's", () => {
+    const mine = ownRules({ areaM2: 250, frontageM: 0, depthM: 15 }, "  Development Plan, zone R2  ");
+    expect(mine.source).toBe("Development Plan, zone R2");
+    expect(mine.status).toBe("professional_configuration_required");
+    expect(remindersFor(mine, 50_000, 40)).toEqual([]);
+    // Two shares of 200 and 600 m², square to the 40 m road: share 1 is 10 m wide and 20 m deep.
+    const r = ok(run({ shares: [200, null], rules: mine }));
+    expect(r.shares[0]!.problems).toEqual(["It's 200.00 m², under the minimum you entered of 250 m²."]);
+    expect(r.shares[1]!.problems).toEqual([]);
+    // A frontage minimum of 0 doesn't ask a share to touch the leg.
+    const back = ok(run({ lines: "parallel", shares: [200, null], rules: mine }));
+    expect(back.shares[1]!.problems).not.toContain("It doesn't touch the chosen leg, so it has no frontage on it.");
+    expect(run({ shares: [200, null], rules: ownRules({ areaM2: Number.NaN, frontageM: 0, depthM: 0 }, "x") })).toEqual({ ok: false, error: "Give each minimum as a number of zero or more." });
   });
 });
