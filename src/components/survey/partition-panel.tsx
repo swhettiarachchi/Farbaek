@@ -1,0 +1,262 @@
+"use client";
+
+import { DownloadSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { useMemo, useState } from "react";
+import { formatDms, toDms } from "@/core/survey/angles";
+import { area } from "@/core/survey/geometry";
+import { lotName, type Lot } from "@/core/survey/document";
+import { arpClassic, hectares } from "@/core/survey/formats";
+import type { SurveyPoint } from "@/core/survey/parcel";
+import { partitionLot, UDA_MINIMUMS } from "@/core/survey/partition";
+import { PERCH_M2, fmt, toArp } from "@/core/survey/units";
+import { buttonClasses } from "@/components/ui/button";
+import { LABEL_CLASSES, inputClasses } from "@/components/ui/field";
+import { StatusBadge } from "@/components/ui/status-badge";
+
+type Unit = "perch" | "m2";
+
+/**
+ * Divide a lot into shares (stage 193): the surveyor's choices in, the
+ * engine's dividing lines out, as a proposal to peg. Nothing here changes the
+ * plan: the proposed corners join it only once pegged, observed and imported.
+ */
+export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; points: SurveyPoint[]; perchDecimals: number }) {
+  const byId = useMemo(() => new Map(points.map((p) => [p.id, p])), [points]);
+  const usable = lots.filter((l) => l.points.length >= 3 && l.points.every((id) => byId.has(id)));
+  const [lotId, setLotId] = useState(usable[0]?.id ?? "");
+  const [leg, setLeg] = useState(0);
+  const [lines, setLines] = useState<"square" | "parallel">("square");
+  const [from, setFrom] = useState<"start" | "end">("start");
+  const [unit, setUnit] = useState<Unit>("perch");
+  const [shares, setShares] = useState<string[]>(["", ""]);
+  const [uda, setUda] = useState(false);
+
+  const lot = usable.find((l) => l.id === lotId) ?? usable[0];
+  const ring = lot ? lot.points.map((id) => byId.get(id)!) : [];
+  const parsed = shares.map((v) => (v.trim() === "" ? null : Number(v) * (unit === "perch" ? PERCH_M2 : 1)));
+  const invalid = parsed.some((x) => x !== null && !Number.isFinite(x));
+  const result = lot && !invalid ? partitionLot({ ring, leg: Math.min(leg, ring.length - 1), lines, from, shares: parsed, uda }) : null;
+
+  if (usable.length === 0) return <p className="text-sm text-ink-2">Add a lot with at least three corners first.</p>;
+
+  const equal = (k: number) => {
+    // Every share but the last gets the equal part, to the hundredth; the last takes what's left, so nothing is lost to rounding.
+    const each = area(ring) / k / (unit === "perch" ? PERCH_M2 : 1);
+    setShares([...Array.from({ length: k - 1 }, () => (Math.floor(each * 100) / 100).toFixed(2)), ""]);
+  };
+  const shown = (m2: number) => (unit === "perch" ? `${fmt(m2 / PERCH_M2, 2)} P` : `${fmt(m2, 2)} m²`);
+
+  const download = () => {
+    if (!result || !result.ok) return;
+    const rows = ["corner,easting,northing,on_leg,from_corner_m", ...result.corners.map((c) => [c.name, c.e.toFixed(3), c.n.toFixed(3), `${c.from.pointId}-${c.to.pointId}`, c.distanceM.toFixed(3)].join(","))];
+    const blob = new Blob([`${rows.join("\r\n")}\r\n`], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `setting-out-lot-${lot ? lotName(lot).replace(/[^A-Za-z0-9]+/g, "") || "x" : "x"}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  return (
+    <div className="grid gap-5">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="grid gap-1.5">
+          <span className={LABEL_CLASSES}>Lot to divide</span>
+          <select value={lot?.id ?? ""} onChange={(e) => (setLotId(e.target.value), setLeg(0))} className={inputClasses()}>
+            {usable.map((l) => (
+              <option key={l.id} value={l.id}>
+                Lot {lotName(l) || "without a label"}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="grid gap-1.5">
+          <span className={LABEL_CLASSES}>Dividing lines refer to the leg</span>
+          <select value={Math.min(leg, ring.length - 1)} onChange={(e) => setLeg(Number(e.target.value))} className={inputClasses()}>
+            {ring.map((p, k) => (
+              <option key={k} value={k}>
+                {p.pointId} to {ring[(k + 1) % ring.length]!.pointId}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="grid gap-1.5">
+          <span className={LABEL_CLASSES}>Lines</span>
+          <select value={lines} onChange={(e) => setLines(e.target.value as "square" | "parallel")} className={inputClasses()}>
+            <option value="square">Square to it: shares side by side along it</option>
+            <option value="parallel">Parallel to it: shares one behind another</option>
+          </select>
+        </label>
+        {lines === "square" ? (
+          <label className="grid gap-1.5">
+            <span className={LABEL_CLASSES}>First share starts at</span>
+            <select value={from} onChange={(e) => setFrom(e.target.value as "start" | "end")} className={inputClasses()}>
+              <option value="start">Corner {ring[Math.min(leg, ring.length - 1)]?.pointId}</option>
+              <option value="end">Corner {ring[(Math.min(leg, ring.length - 1) + 1) % ring.length]?.pointId}</option>
+            </select>
+          </label>
+        ) : null}
+      </div>
+
+      <fieldset className="grid gap-3">
+        <legend className="mb-1 text-sm font-medium text-ink">Shares</legend>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-ink-2">Areas in</span>
+          <select aria-label="Area unit" value={unit} onChange={(e) => (setUnit(e.target.value as Unit), setShares((s) => s.map(() => "")))} className={inputClasses("w-auto")}>
+            <option value="perch">perches</option>
+            <option value="m2">square metres</option>
+          </select>
+          {[2, 3, 4, 5].map((k) => (
+            <button key={k} type="button" onClick={() => equal(k)} className={buttonClasses("ghost", "sm")}>
+              {k} equal
+            </button>
+          ))}
+        </div>
+        <ol className="grid gap-2">
+          {shares.map((v, i) => (
+            <li key={i} className="flex flex-wrap items-center gap-2">
+              <label className="flex items-center gap-2 text-sm text-ink">
+                <span className="w-16">Share {i + 1}</span>
+                <input value={v} inputMode="decimal" placeholder="What's left" onChange={(e) => setShares((s) => s.map((x, j) => (j === i ? e.target.value.slice(0, 12) : x)))} className={inputClasses("w-36")} />
+              </label>
+              {shares.length > 2 ? (
+                <button type="button" onClick={() => setShares((s) => s.filter((_, j) => j !== i))} className={buttonClasses("ghost", "sm")}>
+                  Remove
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ol>
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="button" disabled={shares.length >= 50} onClick={() => setShares((s) => [...s, ""])} className={buttonClasses("secondary", "sm")}>
+            Add a share
+          </button>
+          <label className="flex min-h-11 items-center gap-3 text-sm text-ink">
+            <input type="checkbox" checked={uda} onChange={(e) => setUda(e.target.checked)} className="size-5 accent-[var(--color-accent)]" />
+            Check the UDA minimums ({UDA_MINIMUMS.areaM2} m², {UDA_MINIMUMS.frontageM} m frontage, {UDA_MINIMUMS.depthM} m depth)
+          </label>
+        </div>
+        <p className="text-sm text-ink-3">Leave one share empty for what&apos;s left. The UDA figures apply in UDA-declared areas unless a Development Plan says otherwise.</p>
+      </fieldset>
+
+      {invalid ? <p className="text-sm text-failed">Write each share as a number.</p> : null}
+      {result && !result.ok ? (
+        <p role="alert" className="flex items-start gap-2 text-sm text-failed">
+          <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0" aria-hidden />
+          {result.error}
+        </p>
+      ) : null}
+      {result && result.ok ? (
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+          <Preview ring={ring} result={result} />
+          <div className="grid content-start gap-4">
+            <div className="flex flex-wrap items-center gap-2">
+              {result.feasible ? <StatusBadge status="done" label="Every share can be made" /> : <StatusBadge status="attention" label="Not every share can be made as asked" />}
+              <span className="text-sm text-ink-2">Lines at {formatDms(toDms(result.bearing, 0))} from grid north.</span>
+            </div>
+            <div className="overflow-x-auto rounded-md ring-1 ring-line">
+              <table className="w-full min-w-[30rem] text-left text-sm">
+                <thead className="bg-canvas-2 text-ink-2">
+                  <tr>
+                    <th scope="col" className="p-2 font-medium">Share</th>
+                    <th scope="col" className="p-2 text-right font-medium">Area</th>
+                    <th scope="col" className="p-2 font-medium">Extent</th>
+                    <th scope="col" className="p-2 text-right font-medium">Along the leg</th>
+                    <th scope="col" className="p-2 text-right font-medium">Depth</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.shares.map((s, i) => (
+                    <tr key={i} className="border-t border-line align-top">
+                      <td className="p-2 font-medium text-ink">
+                        {i + 1}
+                        {s.problems.map((p) => (
+                          <span key={p} className="mt-1 block font-normal text-failed">
+                            {p}
+                          </span>
+                        ))}
+                      </td>
+                      <td className="p-2 text-right tabular">{shown(s.areaM2)}</td>
+                      <td className="p-2 tabular">
+                        {hectares(s.areaM2)} ha, {arpClassic(toArp(s.areaM2, perchDecimals))}
+                      </td>
+                      <td className="p-2 text-right tabular">{fmt(s.alongLegM, 2)} m</td>
+                      <td className="p-2 text-right tabular">{fmt(s.depthM, 2)} m</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-sm text-ink-2">
+              The lot is <span className="tabular font-medium text-ink">{shown(result.lotM2)}</span>; the shares come to <span className="tabular font-medium text-ink">{shown(result.sumM2)}</span>, leaving{" "}
+              <span className="tabular font-medium text-ink">{fmt(Math.abs(result.residualM2), 4)} m²</span> by rounding.
+            </p>
+            <div className="grid gap-2">
+              <h3 className="text-sm font-medium text-ink">Setting out the new corners</h3>
+              <ul className="grid gap-1 text-sm text-ink-2">
+                {result.corners.map((c) => (
+                  <li key={c.name}>
+                    <span className="font-medium text-ink">{c.name}</span>: {fmt(c.distanceM, 3)} m from corner {c.from.pointId} towards {c.to.pointId} <span className="font-mono text-xs text-ink-3">E {fmt(c.e, 3)} N {fmt(c.n, 3)}</span>
+                  </li>
+                ))}
+              </ul>
+              <button type="button" onClick={download} className={buttonClasses("secondary", "sm", "w-fit")}>
+                <DownloadSimpleIcon size={16} weight="bold" aria-hidden />
+                Setting-out table as CSV
+              </button>
+            </div>
+            <p className="text-sm text-ink-3">
+              Not part of the plan yet. Peg the new corners, observe and import them, then draw the shares as lots on this step. Worked out by {result.engine} from the surveyed corners; nothing is moved.
+            </p>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** The lot with its new dividing lines, north up. */
+function Preview({ ring, result }: { ring: SurveyPoint[]; result: Extract<ReturnType<typeof partitionLot>, { ok: true }> }) {
+  const es = ring.map((p) => p.e);
+  const ns = ring.map((p) => p.n);
+  const [minE, maxE, minN, maxN] = [Math.min(...es), Math.max(...es), Math.min(...ns), Math.max(...ns)];
+  const w = Math.max(maxE - minE, 1e-6);
+  const h = Math.max(maxN - minN, 1e-6);
+  const pad = Math.max(w, h) * 0.08;
+  const x = (e: number) => e - minE + pad;
+  const y = (n: number) => maxN - n + pad;
+  // Each line's corners in order along it: the line runs inside the lot between the first and second, the third and fourth.
+  const cuts: { a: { e: number; n: number }; b: { e: number; n: number } }[] = [];
+  for (const c of new Set(result.corners.map((x) => x.cut))) {
+    const on = result.corners.filter((x) => x.cut === c);
+    for (let i = 0; i + 1 < on.length; i += 2) cuts.push({ a: on[i]!, b: on[i + 1]! });
+  }
+  const centre = (cs: { e: number; n: number }[]) => ({ e: cs.reduce((s, c) => s + c.e, 0) / cs.length, n: cs.reduce((s, c) => s + c.n, 0) / cs.length });
+  const stroke = Math.max(w, h) / 250;
+  return (
+    <svg viewBox={`0 0 ${w + 2 * pad} ${h + 2 * pad}`} role="img" aria-label="The lot with its new dividing lines" className="h-auto w-full rounded-md bg-surface ring-1 ring-line">
+      <polygon points={ring.map((p) => `${x(p.e)},${y(p.n)}`).join(" ")} fill="none" stroke="var(--color-ink)" strokeWidth={stroke * 1.4} />
+      {cuts.map((c, i) => (
+        <line key={i} x1={x(c.a.e)} y1={y(c.a.n)} x2={x(c.b.e)} y2={y(c.b.n)} stroke="var(--color-accent)" strokeWidth={stroke} strokeDasharray={`${stroke * 4} ${stroke * 3}`} />
+      ))}
+      {result.shares.map((s, i) => {
+        const c = centre(s.corners);
+        return (
+          <text key={i} x={x(c.e)} y={y(c.n)} fontSize={Math.max(w, h) / 22} textAnchor="middle" dominantBaseline="middle" fill="var(--color-ink-2)">
+            {i + 1}
+          </text>
+        );
+      })}
+      {ring.map((p) => (
+        <text key={p.id} x={x(p.e)} y={y(p.n)} dx={stroke * 3} dy={-stroke * 3} fontSize={Math.max(w, h) / 32} fill="var(--color-ink-3)">
+          {p.pointId}
+        </text>
+      ))}
+      {result.corners.map((c) => (
+        <text key={c.name} x={x(c.e)} y={y(c.n)} dx={stroke * 3} dy={stroke * 6} fontSize={Math.max(w, h) / 32} fill="var(--color-accent)">
+          {c.name}
+        </text>
+      ))}
+    </svg>
+  );
+}

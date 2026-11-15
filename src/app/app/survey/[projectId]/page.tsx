@@ -11,6 +11,7 @@ import {
   PolygonIcon,
   PrinterIcon,
   RulerIcon,
+  ScissorsIcon,
   SealCheckIcon,
 } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
@@ -25,6 +26,7 @@ import { DraftPanel } from "@/components/survey/draft-panel";
 import { ApproveForm, SurveyProjectSettingsForm } from "@/components/survey/forms";
 import { ImportPanel } from "@/components/survey/import-panel";
 import { InverseTool } from "@/components/survey/inverse-tool";
+import { PartitionPanel } from "@/components/survey/partition-panel";
 import { PlanEditor } from "@/components/survey/plan-editor";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
@@ -231,6 +233,15 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
           <p className="mt-1 text-sm text-ink-2">Type each lot&apos;s corner numbers in order. Areas, extents and road widths are computed from the coordinates as you type.</p>
           <div className="mt-5">
             {data.points.length === 0 ? <p className="text-sm text-ink-2">Import points first.</p> : <LotsEditor projectId={projectId} baseVersion={data.drawing.version} document={doc} points={data.points} readOnly={readOnly} />}
+          </div>
+        </Card>
+      ) : null}
+      {step === "boundary" && doc.lots.length > 0 ? (
+        <Card>
+          <CardTitle icon={ScissorsIcon}>Divide a lot into shares</CardTitle>
+          <p className="mt-1 text-sm text-ink-2">For a sub division: where the dividing lines fall for the shares you give, and how far along the boundary to peg each new corner, worked out from your surveyed corners. Nothing here changes the plan.</p>
+          <div className="mt-5">
+            <PartitionPanel lots={doc.lots} points={data.points} perchDecimals={doc.settings.perchDecimals} />
           </div>
         </Card>
       ) : null}

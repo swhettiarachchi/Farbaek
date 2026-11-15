@@ -12,6 +12,8 @@
 5. **Inverse between any two points.** On the Points step, pick two point numbers and get the bearing and distance between them, from the tested engine. It's a reviewer's check, the COGO inverse that every CAD survey tool has.
 6. **Richer field codes.** A point can carry two codes ("CP MW": a post that also ends a wall), and a note after a slash ("St / found") stays a note. Both are suggested lines, never applied silently.
 
+7. **Dividing a lot into shares** (added while building, ADR 0206): the dividing lines for stated or equal shares, square or parallel to a chosen leg, with the area balance, the setting-out distances for each new corner and, when asked, the UDA minimums. It's a proposal to peg in the field: it never changes the plan.
+
 Each milestone gets tests with hand-worked answers, a look in the browser, and a commit. Then come a fresh review, the docs and the PR.
 
 ## Done
