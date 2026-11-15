@@ -45,8 +45,8 @@ export const nearKey = {
   leg: (corner: string, from: string, to: string) => `leg:${corner}:${[from, to].sort().join("|")}`,
 };
 
-/** Two different corner numbers closer than this are reported as possibly one mark (1 cm). */
-export const NEAR_DUPLICATE_M = 0.01;
+/** Two different corner numbers of different lots closer than this are reported as possibly one mark (5 cm). */
+export const NEAR_DUPLICATE_M = 0.05;
 
 type Edge = { a: SurveyPoint; b: SurveyPoint };
 
@@ -188,21 +188,33 @@ export function computeLots(points: readonly SurveyPoint[], lots: readonly Lot[]
     }
   }
 
-  // Two different numbers on (nearly) the same spot, used as corners: probably one mark observed twice.
+  // Two different numbers a few centimetres apart, used as corners of different lots: perhaps one mark observed twice.
+  // All of them, found through a grid of 5 cm cells so a large plan stays quick.
+  const lotsOf = new Map<string, Set<string>>();
+  for (const x of usable) for (const v of x.r.parcel.vertices) (lotsOf.get(v.id) ?? lotsOf.set(v.id, new Set()).get(v.id)!).add(x.r.lot.id);
   const cornerList = [...new Map(usable.flatMap((x) => x.r.parcel.vertices).map((p) => [p.id, p])).values()];
+  const cell = (v: number) => Math.floor(v / NEAR_DUPLICATE_M);
+  const grid = new Map<string, SurveyPoint[]>();
+  for (const p of cornerList) (grid.get(`${cell(p.e)}|${cell(p.n)}`) ?? grid.set(`${cell(p.e)}|${cell(p.n)}`, []).get(`${cell(p.e)}|${cell(p.n)}`)!).push(p);
   const nearDuplicates: PlanLots["nearDuplicates"] = [];
-  for (let a = 0; a < cornerList.length && nearDuplicates.length < 20; a++) {
-    for (let b = a + 1; b < cornerList.length; b++) {
-      const d = distance(cornerList[a]!, cornerList[b]!);
-      if (d < NEAR_DUPLICATE_M) nearDuplicates.push({ a: cornerList[a]!, b: cornerList[b]!, distanceM: d });
+  for (const p of cornerList) {
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        for (const q of grid.get(`${cell(p.e) + dx}|${cell(p.n) + dy}`) ?? []) {
+          if (q.id <= p.id) continue;
+          const d = distance(p, q);
+          const shareALot = [...lotsOf.get(p.id)!].some((l) => lotsOf.get(q.id)!.has(l));
+          if (d < NEAR_DUPLICATE_M && !shareALot) nearDuplicates.push({ a: p, b: q, distanceM: d });
+        }
+      }
     }
   }
+  nearDuplicates.sort((x, y) => x.distanceM - y.distanceM);
 
   // Corners a few centimetres off another lot's leg: the lots nearly meet there, and leave a sliver or an overlap.
   const nearLegs: PlanLots["nearLegs"] = [];
   for (const x of usable) {
     for (const c of x.r.parcel.vertices) {
-      if (nearLegs.length >= 20) break;
       for (const y of usable) {
         if (y === x) continue;
         const ring = y.r.parcel.vertices;
@@ -213,8 +225,10 @@ export function computeLots(points: readonly SurveyPoint[], lots: readonly Lot[]
           const d = pointSegmentDistance(c, a, b);
           const len = distance(a, b);
           const t = len > 0 ? ((c.e - a.e) * (b.e - a.e) + (c.n - a.n) * (b.n - a.n)) / (len * len) : 0;
-          if (d > TOUCH_TOLERANCE_M && d < NEAR_LEG_M && t > 0 && t < 1 && distance(c, a) >= NEAR_LEG_M && distance(c, b) >= NEAR_LEG_M) {
-            if (!nearLegs.some((n) => n.corner.id === c.id && n.lot.id === y.r.lot.id)) nearLegs.push({ corner: c, lot: y.r.lot, from: a, to: b, distanceM: d });
+          // Near a leg's end it's a corner near a corner, reported above.
+          if (d > TOUCH_TOLERANCE_M && d < NEAR_LEG_M && t > 0 && t < 1 && distance(c, a) >= NEAR_DUPLICATE_M && distance(c, b) >= NEAR_DUPLICATE_M) {
+            // One finding per corner and leg, even when two lots share the leg.
+            if (!nearLegs.some((n) => n.corner.id === c.id && ((n.from.id === a.id && n.to.id === b.id) || (n.from.id === b.id && n.to.id === a.id)))) nearLegs.push({ corner: c, lot: y.r.lot, from: a, to: b, distanceM: d });
           }
         }
       }

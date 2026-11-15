@@ -142,7 +142,7 @@ export function checkSurvey(input: QcInput): Finding[] {
     const key = nearKey.duplicate(d.a.id, d.b.id);
     const mm = fmt(d.distanceM * 1000, 1);
     if (kept.has(key)) add({ code: "POINTS_NEAR_DUPLICATE_KEPT", severity: "information", message: `Corner points ${d.a.pointId} and ${d.b.pointId}, ${mm} mm apart, are kept as surveyed.`, target: { kind: "point", id: d.a.id }, action: "Nothing to do, unless you want to check it again.", blocks: [], keep: { key, kept: true } });
-    else add({ code: "POINTS_NEAR_DUPLICATE", severity: "professional_review", message: `Corner points ${d.a.pointId} and ${d.b.pointId} are ${mm} mm apart: probably one mark observed twice.`, target: { kind: "point", id: d.a.id }, action: "Use one point number for the mark in every lot that shares it, so their legs meet. If they really are two marks, keep them as surveyed.", blocks: ["approval"], keep: { key, kept: false } });
+    else add({ code: "POINTS_NEAR_DUPLICATE", severity: "professional_review", message: `Corner points ${d.a.pointId} and ${d.b.pointId} are ${mm} mm apart: ${d.distanceM < 0.01 ? "probably" : "perhaps"} one mark observed twice.`, target: { kind: "point", id: d.a.id }, action: "Use one point number for the mark in every lot that shares it, so their legs meet. If they really are two marks, keep them as surveyed.", blocks: ["approval"], keep: { key, kept: false } });
   }
   for (const nl of input.lots.nearLegs) {
     const key = nearKey.leg(nl.corner.id, nl.from.id, nl.to.id);
@@ -153,7 +153,11 @@ export function checkSurvey(input: QcInput): Finding[] {
   }
   // The extent a deed or earlier plan states, beside the land computed from the points (never in place of it).
   const statedText = doc.sheet.statedExtent.trim();
-  const computed = input.lots.outlineAreaM2;
+  // The land the plan computes: its outline, or the lots' sum when they form separate pieces without gaps or overlaps.
+  const computed = input.lots.outlineAreaM2 ?? (input.lots.overlaps.length === 0 && input.lots.holes === 0 && input.lots.sumAreaM2 > 0 ? input.lots.sumAreaM2 : null);
+  if (statedText && computed === null && input.lots.lots.length > 0) {
+    add({ code: "STATED_EXTENT_UNREAD", severity: "information", message: "The stated extent isn't compared with the land, because the lots don't fit together yet.", target: { kind: "field", id: "statedExtent" }, action: "Fix the overlaps or gaps between the lots first.", blocks: [] });
+  }
   if (statedText && computed !== null && computed > 0) {
     const stated = readStatedExtent(statedText);
     if (!stated) {
@@ -162,7 +166,7 @@ export function checkSurvey(input: QcInput): Finding[] {
       const diff = stated.m2 - computed;
       const pct = (Math.abs(diff) / computed) * 100;
       const words = stated.as === "ha" ? `${fmt(Math.abs(diff) / 10_000, 5)} ha` : stated.as === "m2" ? `${fmt(Math.abs(diff), 2)} m²` : `${fmt(Math.abs(diff) / PERCH_M2, 2)} perches`;
-      const detail = `Stated ${fmt(stated.m2, 2)} m², computed ${fmt(computed, 2)} m²: ${diff >= 0 ? "the deed says" : "the survey finds"} ${words} (${fmt(pct, 1)}%) more.`;
+      const detail = `Stated ${fmt(stated.m2, 2)} m², computed ${fmt(computed, 2)} m²: the stated extent is ${words} (${fmt(pct, 1)}%) ${diff >= 0 ? "more" : "less"}.`;
       if (pct <= 1) add({ code: "STATED_EXTENT_AGREES", severity: "information", message: "The stated extent agrees with the land computed from your points, within 1%.", target: { kind: "field", id: "statedExtent" }, detail, action: "Nothing to do.", blocks: [] });
       else add({ code: "STATED_EXTENT_DIFFERS", severity: "warning", message: `The stated extent differs from the land computed from your points by ${fmt(pct, 1)}%.`, target: { kind: "field", id: "statedExtent" }, detail, action: "Deeds are often older than the survey. Check the stated extent is copied right, and mention the difference in the plan's notes if it matters. The plan shows the computed extent.", blocks: [] });
     }

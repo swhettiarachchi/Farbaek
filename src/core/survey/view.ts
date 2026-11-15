@@ -66,5 +66,8 @@ export async function approvalHash(input: { document: SurveyDocument; crsId: str
     .filter((p) => used.has(p.id))
     .map((p) => ({ id: p.id, point: p.pointId, e: p.e, n: p.n, z: p.z, code: p.code }))
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  return sha256Hex(canonicalize({ engine: SURVEY_ENGINE_VERSION, crs: input.crsId, document: input.document, points }));
+  // A document with no kept near misses hashes as one saved before the field existed, so earlier approvals still match.
+  const { kept, ...rest } = input.document;
+  const document = kept.length > 0 ? input.document : rest;
+  return sha256Hex(canonicalize({ engine: SURVEY_ENGINE_VERSION, crs: input.crsId, document, points }));
 }

@@ -29,17 +29,28 @@ export interface SuggestedFeature extends Omit<DrawingFeature, "id"> {
 
 const LAYER_BY_CODE: Record<string, DrawingFeature["layer"]> = { MW: "WALLS", RW: "WALLS", BFDn: "WALLS", LF: "FENCES", NF: "FENCES", EDn: "DRAINS", MDn: "DRAINS", B: "WALLS", U: "WALLS" };
 
-/** "CP MW2 CLO" is code "CP", then code "MW" in string "2" with control "CLO". */
-function codesIn(raw: string | null): { base: string; string: string; control: string }[] {
-  const out: { base: string; string: string; control: string }[] = [];
-  for (const w of codeText(raw).split(/\s+/).filter(Boolean)) {
+/**
+ * "CP MW2 CLO" is code "CP", then code "MW" in string "2" with control "CLO".
+ * The first word is the point's code, as always. A later word is a second
+ * code only when it is a line or outline code of the library written exactly
+ * (same letters, same case), so a description ("MW t junction") never turns
+ * into codes. END and CLO go with the last line code before them.
+ */
+function codesIn(raw: string | null, codes: readonly CodeEntry[]): { base: string; string: string; control: string }[] {
+  const out: { base: string; string: string; control: string; line: boolean }[] = [];
+  const words = codeText(raw).split(/\s+/).filter(Boolean);
+  words.forEach((w, i) => {
     if (/^(END|CLO)$/i.test(w)) {
-      if (out.length > 0) out[out.length - 1]!.control = w.toUpperCase();
-      continue;
+      const last = [...out].reverse().find((c) => c.line);
+      if (last) last.control = w.toUpperCase();
+      return;
     }
     const m = /^([A-Za-z]+)(\d*)$/.exec(w);
-    out.push(m ? { base: m[1]!, string: m[2]!, control: "" } : { base: w, string: "", control: "" });
-  }
+    const base = m ? m[1]! : w;
+    const entry = i === 0 ? lookupCode(codes, base) : codes.find((c) => c.code === base);
+    if (i > 0 && !(entry && (entry.kind === "line" || entry.kind === "outline"))) return;
+    out.push({ base, string: m ? m[2]! : "", control: "", line: Boolean(entry && (entry.kind === "line" || entry.kind === "outline")) });
+  });
   return out;
 }
 
@@ -65,7 +76,7 @@ export function suggestFeatures(points: readonly SurveyPoint[], codes: readonly 
     }
   };
   for (const p of points) {
-    const here = codesIn(p.code).flatMap((c) => {
+    const here = codesIn(p.code, codes).flatMap((c) => {
       const entry = lookupCode(codes, c.base);
       return entry && (entry.kind === "line" || entry.kind === "outline") ? [{ entry, tag: `${entry.code}#${c.string}`, control: c.control }] : [];
     });

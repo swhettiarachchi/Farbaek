@@ -43,7 +43,7 @@ function fileStem(data: SurveyProjectData, approved: boolean): string {
 
 export async function GET(request: Request, { params }: { params: Promise<{ projectId: string; kind: string }> }) {
   const { projectId, kind: rawKind } = await params;
-  if (!(rawKind in KINDS)) return plain(404, "There's no such export.");
+  if (!Object.hasOwn(KINDS, rawKind)) return plain(404, "There's no such export.");
   const kind = rawKind as Kind;
   const url = new URL(request.url);
   const versionParam = url.searchParams.get("version");

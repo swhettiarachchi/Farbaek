@@ -25,6 +25,7 @@ import { roadWidth } from "./roads";
 import { blocked, checkSurvey } from "./qc";
 import { composeSheet, fmt, overlappingLabels, suggestScale } from "./sheet/compose";
 import { toModel, toPage } from "./sheet/scene";
+import { approvalHash } from "./view";
 import { SRI_LANKA_CADASTRAL_V1 } from "./sheet/template";
 import { computeTraverse } from "./traverse";
 import { formatArp, toArp } from "./units";
@@ -654,7 +655,7 @@ describe("near misses and the stated extent (stage 192, synthetic)", () => {
     d.sheet.statedExtent = "0 A. 2 R. 20 P.";
     const differ = checkSurvey({ points: SAMPLE_POINTS, crs: SLD99, crsConfirmed: true, document: d, lots: computeLots(SAMPLE_POINTS, d.lots), surveyorProfile: false }).find((f) => f.code === "STATED_EXTENT_DIFFERS")!;
     // 100 P = 2,529.29 m²; the difference is 10.35 P (261.88 m², 11.5%).
-    expect(differ.detail).toBe("Stated 2,529.29 m², computed 2,267.41 m²: the deed says 10.35 perches (11.5%) more.");
+    expect(differ.detail).toBe("Stated 2,529.29 m², computed 2,267.41 m²: the stated extent is 10.35 perches (11.5%) more.");
     expect(differ.blocks).toEqual([]);
     d.sheet.statedExtent = "about half an acre";
     expect(checkSurvey({ points: SAMPLE_POINTS, crs: SLD99, crsConfirmed: true, document: d, lots: computeLots(SAMPLE_POINTS, d.lots), surveyorProfile: false }).map((f) => f.code)).toContain("STATED_EXTENT_UNREAD");
@@ -699,5 +700,59 @@ describe("field codes with two codes and a note, and the inverse (stage 192, syn
     expect(formatDms(toDms(r.bearing!, 0))).toBe("036°52′12″");
     expect([r.dE, r.dN, r.dZ]).toEqual([3, 4, 0.5]);
     expect(inverse(p("1", 1, 1, null), p("2", 1, 1, null)).bearing).toBeNull();
+  });
+});
+
+describe("the stage 192 review's cases (synthetic)", () => {
+  const p = (n: string, e: number, nn: number, code: string | null): SurveyPoint => ({ id: `00000000-0000-4000-d000-${n.padStart(12, "0")}`, pointId: n, e, n: nn, z: null, code });
+
+  it("keeps END and CLO with their line code, and never reads description words as codes", () => {
+    const pts = [p("1", 0, 0, "MW"), p("2", 10, 0, "MW wall END"), p("3", 20, 0, "MW"), p("4", 30, 0, "MW"), p("5", 40, 0, "MW t junction"), p("6", 50, 0, "LF b")];
+    const s = suggestFeatures(pts, commonCodes());
+    expect(s.map((f) => [f.code, f.pointNumbers.join(" ")])).toEqual([
+      ["MW", "1 2"],
+      ["MW", "3 4 5"],
+    ]);
+  });
+
+  it("finds a corner a few centimetres from a neighbour's corner, and every near miss however many", () => {
+    const grid = (rows: [string, number, number][]) => rows.map(([n, e, nn]) => p(n, 500_000 + e, 600_000 + nn, null));
+    const pts = grid([["1", 0, 0], ["2", 10, 0], ["3", 10, 10], ["4", 0, 10], ["30", 10.03, 10], ["5", 20, 10], ["6", 20, 20], ["7", 10, 20]]);
+    const lot = (label: string, ns: string[]) => ({ id: `lot-${label}`, label, sup: "", note: "", points: ns.map((n) => pts.find((x) => x.pointId === n)!.id) });
+    const d = { ...emptyDocument(), lots: [lot("A", ["1", "2", "3", "4"]), lot("B", ["30", "5", "6", "7"])] };
+    const codes = checkSurvey({ points: pts, crs: SLD99, crsConfirmed: true, document: d, lots: computeLots(pts, d.lots), surveyorProfile: false });
+    expect(codes.find((f) => f.code === "POINTS_NEAR_DUPLICATE")!.message).toBe("Corner points 3 and 30 are 30.0 mm apart: perhaps one mark observed twice.");
+    // Thirty separate pairs, all reported.
+    const many: SurveyPoint[] = [];
+    const lots = [];
+    for (let i = 0; i < 30; i++) {
+      const x = i * 100;
+      const a = grid([[`a${i}`, x, 0], [`b${i}`, x + 10, 0], [`c${i}`, x + 10, 10], [`d${i}`, x, 10]]);
+      const b = grid([[`e${i}`, x + 10.002, 0], [`f${i}`, x + 20, 0], [`g${i}`, x + 20, 10], [`h${i}`, x + 10.002, 10]]);
+      many.push(...a, ...b);
+      lots.push({ id: `A${i}`, label: `A${i}`, sup: "", note: "", points: a.map((q) => q.id) }, { id: `B${i}`, label: `B${i}`, sup: "", note: "", points: b.map((q) => q.id) });
+    }
+    expect(computeLots(many, lots).nearDuplicates).toHaveLength(60);
+  });
+
+  it("keeps earlier approvals valid: a document with no kept near misses hashes as before the field existed", async () => {
+    const d = sampleDocument();
+    const withField = await approvalHash({ document: d, crsId: "EPSG:5235", points: SAMPLE_POINTS });
+    const { kept: _kept, ...older } = d;
+    void _kept;
+    const withoutField = await approvalHash({ document: parseSurveyDocument(older)!, crsId: "EPSG:5235", points: SAMPLE_POINTS });
+    expect(withoutField).toBe(withField);
+    const keptOne = await approvalHash({ document: { ...d, kept: ["dup:a|b"] }, crsId: "EPSG:5235", points: SAMPLE_POINTS });
+    expect(keptOne).not.toBe(withField);
+  });
+
+  it("compares the stated extent with separate pieces of land too", () => {
+    const grid = (rows: [string, number, number][]) => rows.map(([n, e, nn]) => p(n, 500_000 + e, 600_000 + nn, null));
+    const pts = grid([["1", 0, 0], ["2", 10, 0], ["3", 10, 10], ["4", 0, 10], ["5", 50, 0], ["6", 60, 0], ["7", 60, 10], ["8", 50, 10]]);
+    const lot = (label: string, ns: string[]) => ({ id: `lot-${label}`, label, sup: "", note: "", points: ns.map((n) => pts.find((x) => x.pointId === n)!.id) });
+    const d = { ...emptyDocument(), lots: [lot("A", ["1", "2", "3", "4"]), lot("B", ["5", "6", "7", "8"])] };
+    d.sheet.statedExtent = "200 m²";
+    const f = checkSurvey({ points: pts, crs: SLD99, crsConfirmed: true, document: d, lots: computeLots(pts, d.lots), surveyorProfile: false });
+    expect(f.map((x) => x.code)).toContain("STATED_EXTENT_AGREES");
   });
 });

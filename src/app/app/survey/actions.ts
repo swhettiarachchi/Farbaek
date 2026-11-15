@@ -10,7 +10,7 @@ import { parseGeoJsonPoints } from "@/core/survey/import/geojson";
 import { approvalHash, buildPlan } from "@/core/survey/view";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
-import { loadSurveyProject } from "@/server/survey/read";
+import { loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
 import { SURVEY_MESSAGES, surveyStore, type Actor } from "@/server/survey/store";
 import { loadAppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
@@ -117,6 +117,18 @@ export async function importSurveyPointsAction(input: z.input<typeof importInput
   return { status: "done", message: `Imported ${r.value.added} ${r.value.added === 1 ? "point" : "points"}${r.value.skipped ? `; ${r.value.skipped} already here, unchanged` : ""}${warnings ? `; ${warnings} repeated ${warnings === 1 ? "row" : "rows"} kept once` : ""}.` };
 }
 
+/**
+ * A document as it's saved: "keep as surveyed" answers only for near misses
+ * the plan has now (none can be added from outside, and none outlives its
+ * near miss), so the list stays short and every entry means something.
+ */
+function tidy(doc: SurveyDocument, data: { points: SurveyProjectData["points"]; project: { crsId: string } }): SurveyDocument {
+  if (doc.kept.length === 0) return doc;
+  const view = buildPlan({ points: data.points, document: doc, crsId: data.project.crsId, crsConfirmation: null, surveyor: null, approval: null });
+  const live = new Set(view.findings.flatMap((f) => (f.keep ? [f.keep.key] : [])));
+  return { ...doc, kept: doc.kept.filter((k) => live.has(k)).slice(0, 200) };
+}
+
 /** Checks that every point a document names is in the project. */
 function unknownPoints(doc: SurveyDocument, known: Set<string>): string[] {
   return [...usedPointIds(doc)].filter((id) => !known.has(id));
@@ -136,7 +148,7 @@ export async function saveSurveyDrawingAction(input: { projectId: string; baseVe
     return { status: "error", message: "The chosen surveyor hasn't entered their details in this workspace yet." };
   }
   // Marks for items no longer on the plan are dropped, so none can hold an approval with nothing to check.
-  const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: input.projectId, baseVersion: input.baseVersion, document: pruneProvenance(doc.data), note: input.note?.slice(0, 200) ?? null });
+  const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: input.projectId, baseVersion: input.baseVersion, document: tidy(pruneProvenance(doc.data), data), note: input.note?.slice(0, 200) ?? null });
   if (!r.ok) return { status: "error", message: r.message };
   revalidatePath(`/app/survey/${input.projectId}`);
   return { status: "done", message: `Saved as version ${r.value}.`, version: r.value };
@@ -161,7 +173,9 @@ export async function setKeptAsSurveyedAction(input: { projectId: string; baseVe
   const doc = structuredClone(data.drawing.document);
   doc.kept = input.keep ? [...new Set([...doc.kept, input.key])] : doc.kept.filter((k) => k !== input.key);
   const note = `${input.keep ? "Kept as surveyed" : "To check again"}: ${finding.message}`.slice(0, 200);
-  const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: input.projectId, baseVersion: input.baseVersion, document: pruneProvenance(doc), note });
+  const next = tidy(pruneProvenance(doc), data);
+  if (!surveyDocumentSchema.safeParse(next).success) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: input.projectId, baseVersion: input.baseVersion, document: next, note });
   if (!r.ok) return { status: "error", message: r.message };
   revalidatePath(`/app/survey/${input.projectId}`);
   return { status: "done", message: `Saved as version ${r.value}.`, version: r.value };

@@ -59,7 +59,8 @@ export interface ComposeInput {
 export function plotStamp(input: ComposeInput, w: number, h: number, m: number, size: number): SceneText {
   const state = input.approval ? `approved by the surveyor on ${input.approval.at}` : "draft, not approved";
   const which = input.version ? `version ${input.version}` : "not saved as a version yet";
-  return { kind: "text", x: w - m, y: h - m * 0.35, text: `Farbaek Survey Studio, ${which}, ${state}. ${SURVEY_ENGINE_VERSION}.`, size, weight: "regular", anchor: "end", font: "sans", rotate: 0, color: "muted", layer: "SHEET", entity: "plot-stamp" };
+  // Just under the frame, and at least 5 mm from the paper's edge, where printers still print.
+  return { kind: "text", x: w - m, y: Math.min(h - m + 0.6 + size * 0.72, h - 5), text: `Farbaek Survey Studio, ${which}, ${state}. ${SURVEY_ENGINE_VERSION}.`, size, weight: "regular", anchor: "end", font: "sans", rotate: 0, color: "muted", layer: "SHEET", entity: "plot-stamp" };
 }
 
 export interface ComposedSheet {
