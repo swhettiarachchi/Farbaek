@@ -20,7 +20,9 @@ Talk or type to the plan (stage 195, [ADR 0210](../adr/0210-survey-drafting-assi
    English, plus Sinhala command words awaiting review by Sinhala-speaking surveyors.
 3. **The model** ([`survey-assistant.ts`](../../src/server/ai/survey-assistant.ts)), for anything else: Claude's fast tier at low effort, one request, structured output against the operation set ([`ops.ts`](../../src/core/survey/assistant/ops.ts)). It is told the plan as refs (L1, R1, A1, F1, N1, P:12), names and point numbers ([`context.ts`](../../src/core/survey/assistant/context.ts)): never a coordinate or an area. It writes the surveyor's own words for every value, never a value.
 4. **The checks** ([`check.ts`](../../src/core/survey/assistant/check.ts)), in the browser and again on the server:
-   - every quote must be in the instruction, and code reads the value from it ([`spoken.ts`](../../src/core/survey/assistant/spoken.ts), [`measure.ts`](../../src/core/survey/assistant/measure.ts));
+   - every quote must be in the instruction as written, punctuation included ("1-5" is a range, "1, 5" two points), and code reads the value from it ([`spoken.ts`](../../src/core/survey/assistant/spoken.ts), [`measure.ts`](../../src/core/survey/assistant/measure.ts));
+   - each change must be named by its own words: a layer by its name, the paper by A3, a sheet switch by what it is, a lot by its name (or "this" with it picked), a side by north, east, south or west, a scale as a scale, decimals by which ones; units come from the words (feet or metres, perches or square metres), never from the model;
+   - English instructions are held to this word by word; in Sinhala, where the words for layers and sides aren't all known yet, the card is the check;
    - points must be the project's, and lots, roads, adjoining lands, lines and notes must be on the plan;
    - the model's own sentence may hold no digit or number word;
    - at most 12 steps a spoken instruction, 30 a typed one;
@@ -30,7 +32,7 @@ Talk or type to the plan (stage 195, [ADR 0210](../adr/0210-survey-drafting-assi
 | Kind | Operations | What happens |
 | --- | --- | --- |
 | View | zoom, focus, select, undo, redo | At once |
-| Now | layers, labels, paper, orientation, layout, sheet switches | At once, one undo step, Undo beside it; on a read-only plan, shown in a card |
+| Now | layers, labels, paper, orientation, layout, sheet switches | Read by the local reader: at once, one undo step, Undo beside it. From the model, or on a read-only plan: in a card. The model's undo and redo never run |
 | Confirm | lots, roads, adjoining lands, lines, title fields, notes, scale and decimals | A card: the change marked on the sheet, each value large with its role, a tick to leave any out; Apply is one undo step |
 | Caution | removing a lot, road, adjoining land, line or note | As confirm, named in full; a lot goes with the adjoining lands written beside it |
 | Answer | total area, lot areas, perimeters, checks, what's missing, the scale | Computed by the engine ([`answer.ts`](../../src/core/survey/assistant/answer.ts)); the computed area beside, never instead of, a stated extent |
@@ -44,11 +46,19 @@ Talk or type to the plan (stage 195, [ADR 0210](../adr/0210-survey-drafting-assi
 - single digits in a row are one number, except in a list of points, where each is its own;
 - cardinal runs with lakhs and thousands read as one number;
 - ranges ("1 to 5", "101 through 104") expand only over the project's points;
-- lot names ("lot B one" is B¹);
-- bearings, including "forty five thirty fifteen" said without words between the parts;
-- scales ("one to five hundred") and dates ("the twelfth of November twenty twenty six").
+- lot names ("lot B one" is B¹, "lot 1 superscript 2" is 1²);
+- bearings, including "forty five thirty fifteen" said without words between the parts, and quadrant bearings with their letters ("S 45 30 E", "N45°30'E");
+- scales ("one to five hundred", "set the scale to 1:500") and dates ("the twelfth of November twenty twenty six").
 
-Anything that reads two ways is refused, never guessed: "four fifty thousand", "twenty one twenty two" as one number. "to", "too", "for" and "won" are never digits.
+Anything that reads two ways is refused, never guessed:
+- "four fifty thousand", or "twenty one twenty two" as one number;
+- a leading "point" ("point five": the survey point, or 0.5);
+- "lot 12 34" and "lot 2 1" (a number, or a number and its superscript);
+- "450,012" (one number, or two): thousands separators join only with a decimal part, a first group of one or two digits, or groups of 000;
+- a quadrant with one letter, or a stray word inside a bearing;
+- a number alone as a scale, unless the word scale or a ratio is said ("500 perch lots" is not a scale).
+
+"to", "too", "for" and "won" are never digits. In dictated coordinates, "point" after a number is a decimal point; a row that says the same value twice ran into the next one, and is stopped with a request to say "then" between points.
 
 Read-backs go the other way: digit by digit, "decimal" for the point, degrees, minutes and seconds in words.
 
@@ -71,7 +81,10 @@ Read-backs go the other way: digit by digit, "decimal" for the point, degrees, m
   - one tap opens a conversation, and each pause (1.2 s, a setting) ends an instruction, sent after a short countdown that typing or a tap stops;
   - it listens again after each reply;
   - "apply", "discard", "undo" and "stop listening" work by voice;
-  - a minute of silence closes it.
+  - a minute of silence closes it, and so does a recogniser that keeps ending with nothing heard;
+  - a microphone error (blocked, no connection) ends it without sending anything;
+  - saving carries the conversation on; going to another step ends it.
+- **Each listen is a session:** a recogniser from an earlier one can't restart or send. A newer instruction replaces one still being worked out, and a reply is checked and applied against the plan as it is when it arrives.
 - **Chrome on Android** hears one phrase at a time, so recognition restarts and the words carry on.
 - **The level** shown while listening is the microphone's real level, on computers only. Phones show the growing caption instead.
 - **Spoken replies** are opt-in and use local voices only, so plan text doesn't go to a network voice. They're never spoken over the microphone, and they're off on iOS 27.0 to 27.2. Where there's no voice for a language, the reply stays text and says so.
@@ -102,6 +115,7 @@ Shift, Ctrl or Cmd plus a tap, or "Select several" on phones, picks items in ord
 
 - [`spoken.test.ts`](../../src/core/survey/assistant/spoken.test.ts): every spoken form and refusal.
 - [`assistant.test.ts`](../../src/core/survey/assistant/assistant.test.ts): checks, applying, patches, answers, the reader, the conversation states and the languages.
+- [`review195.test.ts`](../../src/core/survey/assistant/review195.test.ts): what the stage's reviews found, each as a test of its fix.
 - [`assistant.test.ts`](../../src/server/survey/assistant.test.ts) (server): metering, refunds, roles and what the model is sent, with a labelled fake model.
 - [`survey-studio.test.ts`](../../tests/db/survey-studio.test.ts): v96's constraint, grants, roles, decisions, retention and cascade.
 - [`permissions-policy.test.ts`](../../tests/security/permissions-policy.test.ts): where the microphone is allowed.

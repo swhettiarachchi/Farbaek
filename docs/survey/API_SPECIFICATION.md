@@ -102,9 +102,9 @@ Field `projectId` (UUID). Calls `app_survey_archive_project` and redirects to `/
 
 One instruction to the drafting assistant's model ([ASSISTANT.md](ASSISTANT.md), ADR 0210). A route rather than a server action, so Stop in the browser aborts the model call and the turn is refunded.
 - **Who:** same-origin requests only (it's a cookie write), from a contributor of a live workspace with changes on. The demo is refused with the reason.
-- **Body** (JSON, at most 1.5 MB): `words` (1 to 2,000 characters), `lang` (`en` or `si`), `inputMethod` (`voice` or `typed`), `document` (the editor's plan, unsaved edits included), `selection` (picked entity ids, in order), `recent` (up to 6 one-line summaries).
+- **Body** (JSON, at most 1.5 MB): `words` (1 to 2,000 characters), `lang` (`en`, `si` or `ta`; Tamil is typed only for now), `inputMethod` (`voice` or `typed`), `document` (the editor's plan, unsaved edits included), `selection` (picked entity ids, in order), `recent` (up to 6 one-line summaries).
 - **Checks:** the document must pass the document schema and use only this project's points; the points and everything else come from the database. 20 turns a minute per person.
-- **Answer:** `{ ok: true, turnId, output, model }`, where `output` is the model's operations, checked again in the browser by the same code; or `{ ok: false, message }` with 400, 401, 403, 404, 413, 429, 502 or 503.
+- **Answer:** `{ ok: true, turnId, output, model }`, where `output` is the model's operations, checked again in the browser by the same code; or `{ ok: false, message }` with 400, 401, 402 (out of AI usage), 403, 404, 413, 429, 502 or 503.
 - **Saves nothing to the plan.**
 
 ### `decideAssistTurnAction({ turnId, outcome, appliedSha256 })`

@@ -57,12 +57,35 @@
 - **Microphone:** `next.config.ts` allows it on `/app/survey/*` on Farbaek's own host only.
 - **Docs and copy:** ADR 0210, ASSISTANT.md, DATA_MODEL, API_SPECIFICATION, ROADMAP, usage.md, the Privacy page's speech paragraph, and the public `/survey` page's new step.
 
+- **The owner's example instructions without AI:** "Create the boundary using these survey points" (it asks for the lot's name, and a spoken or typed answer carries on the instruction), "Divide this land into four lots" and "Add an access road along the eastern boundary" (handed to the divide panel; a width without its unit is asked).
+
+## Reviews
+
+Two fresh reviewers read the finished stage: one on the core, server and migration, one on the bar, speech and accessibility. They found 35 real problems (5 high and 13 more on the core and server, 3 high and 14 more on the bar). All are fixed, each core one with a test (`src/core/survey/assistant/review195.test.ts`); the bar's were traced in the code and checked in the browser. The SQL, RLS and grants had no defects.
+- **Values read differently from what was said:**
+  - quadrant bearings lost their letters;
+  - a spoken decimal "point" split coordinate rows;
+  - quotes matched folded, so "1-5" matched "1, 5";
+  - "lot 1 superscript 2" read as 12, and "point five" as 5.
+- **Changes not tied to the words:** the model's layer, paper, label and undo changes passed on any words, and units came from the model. Now each change must be named by its own words, units come from the words, and the model's changes always wait in a card.
+- **The bar:**
+  - a speech error still sent the words, and could restart in a loop;
+  - an old recogniser could start a second one;
+  - a late model reply was applied to the plan as it was when sent;
+  - nothing was cleaned up when the editor remounted on save;
+  - live talk could show "Listening" with the microphone closed;
+  - ticks were lost on save;
+  - menus didn't work by keyboard;
+  - the card stack could go off the top of a phone screen.
+- **Smaller:** a slow point-list reader on the server, the turn record's size, 402 for usage, typed Tamil, the iOS version check, "Clear them".
+
 ## Verified
 
 - **Unit tests:**
   - spoken reading: 11;
   - the assistant's core: 21, including the owner's example instructions read without AI;
-  - the server turn with a fake model: 3;
+  - the reviews' fixes: 15;
+  - the server turn with a fake model, and the record's size: 4;
   - where the microphone is allowed: 2.
 - **DB tests:** v96's constraint, grants, roles, decisions, retention and cascade (19 in the file).
 - **Gates:** typecheck, lint and the design tests passed. The design tests caught one banned word and one off-scale icon, both fixed.

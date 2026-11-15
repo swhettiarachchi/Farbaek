@@ -18,13 +18,13 @@ Research (`reports/Voice drafting assistant technology.md`, five researchers, 20
 
 ## Decision
 
-**One closed set of operations, and no value from the model.** The model (Claude's fast tier, through the metered pipeline) turns an instruction into operations from a fixed list (`src/core/survey/assistant/ops.ts`). It never writes a number, a point number or a name: it writes the surveyor's words it read them from, and code reads the value (`spoken.ts`, `measure.ts`) and checks it (`check.ts`): the quote must be in the instruction, points must be the project's, items must be on the plan. What doesn't read cleanly is left out with the reason, or asked. The model's own sentence may carry no figures at all, so every number on screen came from the surveyor or the engine. It sees the plan as refs, names and point numbers (`context.ts`), never a coordinate or an area.
+**One closed set of operations, and no value from the model.** The model (Claude's fast tier, through the metered pipeline) turns an instruction into operations from a fixed list (`src/core/survey/assistant/ops.ts`). It never writes a number, a point number or a name: it writes the surveyor's words it read them from, and code reads the value (`spoken.ts`, `measure.ts`) and checks it (`check.ts`): the quote must be in the instruction as written (punctuation included, since "1-5" and "1, 5" read differently), each change must be named by its own words (a layer by its name, the paper by A3, a lot by its name, a side by north or east, a unit by feet or metres), points must be the project's, items must be on the plan. What doesn't read cleanly is left out with the reason, or asked. The model's own sentence may carry no figures at all, so every number on screen came from the surveyor or the engine. It sees the plan as refs, names and point numbers (`context.ts`), never a coordinate or an area.
 
 **A local reader first.** Frequent, unambiguous instructions (zoom, layers, paper, scale, labels, the area, what's missing; apply, discard, stop listening) are read by fixed rules (`reader.ts`): instant, free, offline, in the demo. It returns the same shape as the model, so the same checks apply.
 
 **Tiers by what could go wrong.**
 - Views apply at once.
-- Layers, labels, paper, orientation and layout apply at once, as one undo step, with Undo beside them.
+- Layers, labels, paper, orientation and layout apply at once, as one undo step, with Undo beside them, when the local reader read them from the surveyor's own words. From the model they wait in a card like any other change, and the model's undo or redo is never run.
 - Anything with a value (a lot's corners, a road's edges, a title field, a scale) waits in a card: the sheet shows the change marked, every value large beside its role, a tick to leave any out, then Apply as one undo step.
 - Removals are named in full.
 - Questions about the plan are answered by the engine (`answer.ts`).
