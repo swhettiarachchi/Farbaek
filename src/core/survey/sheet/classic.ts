@@ -151,7 +151,7 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
       headerBottom = Math.max(headerBottom, pnY + z.planNumber * 1.25 + z.body * 0.8);
     }
     if (!input.approval) {
-      const draft = wrap("DRAFT. Not certified: the plan is certified only by the licensed surveyor's signature on the printed sheet.", z.small, f.fw * 0.3);
+      const draft = wrap(input.blockOut ? cap.blockOutNotice : "DRAFT. Not certified: the plan is certified only by the licensed surveyor's signature on the printed sheet.", z.small, f.fw * 0.3);
       let dy = f.y0 + f.fh * 0.012;
       for (const l of draft) {
         dy += z.small * 1.3;
@@ -179,7 +179,8 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
     // Survey dates, centre right, above the signature.
     const surveyed = s.surveyDate.trim();
     const parted = s.partitionDate.trim();
-    const dates = surveyed && parted && dotDate(surveyed) === dotDate(parted) ? [`${cap.surveyedAndPartitioned} ${dotDate(surveyed)}`] : [surveyed ? `${cap.surveyedOn} ${dotDate(surveyed)}` : `${cap.surveyedOn} ${BLANK}`, ...(parted ? [`${cap.partitionedOn} ${dotDate(parted)}`] : [])];
+    // A block-out plan isn't surveyed yet, so it has no survey dates.
+    const dates = input.blockOut ? [] : surveyed && parted && dotDate(surveyed) === dotDate(parted) ? [`${cap.surveyedAndPartitioned} ${dotDate(surveyed)}`] : [surveyed ? `${cap.surveyedOn} ${dotDate(surveyed)}` : `${cap.surveyedOn} ${BLANK}`, ...(parted ? [`${cap.partitionedOn} ${dotDate(parted)}`] : [])];
     for (let i = dates.length - 1; i >= 0; i--) {
       ft(f.x0 + f.fw * 0.56, y, dates[i]!, z.body, { anchor: "start", entity: "dates" });
       y -= z.body * 1.35;
@@ -229,7 +230,7 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
     const sentenceTop = y - sentence.height;
     for (const it of sentence.items) footer.push({ ...it, y: it.y + sentenceTop, entity: "title" });
     y = sentenceTop - z.heading * 0.3;
-    ft(f.x0 + f.fw * 0.5, y, cap.heading, z.heading, { anchor: "middle", weight: "bold", entity: "heading", upright: true });
+    ft(f.x0 + f.fw * 0.5, y, input.blockOut ? cap.blockOutHeading : cap.heading, z.heading, { anchor: "middle", weight: "bold", entity: "heading", upright: true });
     y -= z.heading * 1.25;
     const scaleY = y;
     y -= z.body * 1.6;

@@ -49,6 +49,8 @@ export interface ComposeInput {
   approval: { by: string; at: string } | null;
   /** The drawing version, for the plot stamp. */
   version?: number;
+  /** Set for a block-out plan: a planned division drawn from this version, worked out by the named engine (blockout.ts). */
+  blockOut?: { engine: string };
 }
 
 /**
@@ -57,8 +59,8 @@ export interface ComposeInput {
  * be traced to its exact record (as CAD plot stamps do).
  */
 export function plotStamp(input: ComposeInput, w: number, h: number, m: number, size: number): SceneText {
-  const state = input.approval ? `approved by the surveyor on ${input.approval.at}` : "draft, not approved";
-  const which = input.version ? `version ${input.version}` : "not saved as a version yet";
+  const state = input.blockOut ? `a planned division worked out by ${input.blockOut.engine}, not a survey` : input.approval ? `approved by the surveyor on ${input.approval.at}` : "draft, not approved";
+  const which = input.blockOut ? `block-out plan from version ${input.version ?? "unsaved"}` : input.version ? `version ${input.version}` : "not saved as a version yet";
   // Just under the frame, and at least 5 mm from the paper's edge, where printers still print.
   return { kind: "text", x: w - m, y: Math.min(h - m + 0.6 + size * 0.72, h - 5), text: `Farbaek Survey Studio, ${which}, ${state}. ${SURVEY_ENGINE_VERSION}.`, size, weight: "regular", anchor: "end", font: "sans", rotate: 0, color: "muted", layer: "SHEET", entity: "plot-stamp" };
 }

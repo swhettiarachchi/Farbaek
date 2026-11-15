@@ -1,10 +1,11 @@
 "use client";
 
-import { DownloadSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { DownloadSimpleIcon, FilePdfIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { formatDms, toDms } from "@/core/survey/angles";
 import { area, selfIntersections, zeroLengthLegs } from "@/core/survey/geometry";
-import { lotName, type Lot, type SurveyDocument } from "@/core/survey/document";
+import { linesThroughBuildings } from "@/core/survey/blockout";
+import { lotName, type DrawingFeature, type Lot, type SurveyDocument } from "@/core/survey/document";
 import { cell } from "@/core/survey/export/schedule";
 import { arpClassic, hectares } from "@/core/survey/formats";
 import type { SurveyPoint } from "@/core/survey/parcel";
@@ -25,7 +26,26 @@ const FACTOR: Record<Unit, number> = { perch: PERCH_M2, m2: 1, m: 1, ft: 0.3048 
  * engine's dividing lines out, as a proposal to peg. Nothing here changes the
  * plan: the proposed corners join it only once pegged, observed and imported.
  */
-export function PartitionPanel({ lots, points, perchDecimals, planRules = null }: { lots: Lot[]; points: SurveyPoint[]; perchDecimals: number; planRules?: SurveyDocument["rules"] }) {
+export function PartitionPanel({
+  lots,
+  points,
+  features = [],
+  perchDecimals,
+  planRules = null,
+  blockOutHref = null,
+  blockOutUnavailable = null,
+}: {
+  lots: Lot[];
+  points: SurveyPoint[];
+  /** The plan's drawn features, to say when a dividing line runs through a building. */
+  features?: DrawingFeature[];
+  perchDecimals: number;
+  planRules?: SurveyDocument["rules"];
+  /** Where this version's block-out plan is made, or null where there's none (an unsaved preview). */
+  blockOutHref?: string | null;
+  /** Why the plan can't have a block-out sheet yet, from its own checks. */
+  blockOutUnavailable?: string | null;
+}) {
   const byId = useMemo(() => new Map(points.map((p) => [p.id, p])), [points]);
   // Lots that can be divided: three or more known corners, no leg without length, and a boundary that doesn't cross itself.
   const usable = lots.filter((l) => {
@@ -56,6 +76,10 @@ export function PartitionPanel({ lots, points, perchDecimals, planRules = null }
   const ownReady = Object.values(ownMin).every((v) => Number.isFinite(v)) && own.source.trim() !== "";
   const rules = ruleChoice === "uda" ? UDA_2020 : ruleChoice === "own" && ownReady ? ownRules(ownMin, own.source) : null;
   const result = lot && !invalid ? partitionLot({ ring, leg: legAt, lines, corner: cornerAt, from, by, shares: parsed, rules }) : null;
+  // The same choices, for the server to work the block-out plan out again from the saved version.
+  const division = lot ? { lot: lot.id, leg: legAt, lines, corner: cornerAt, from, by, shares: parsed, rules: ruleChoice === "uda" ? { id: "uda-2020" as const } : ruleChoice === "own" && ownReady ? { id: "own" as const, ...ownMin, source: own.source } : null } : null;
+  const throughBuildings = result?.ok ? linesThroughBuildings(features, points, result.segments) : [];
+  const blockOutWhy = !blockOutHref ? null : blockOutUnavailable ? blockOutUnavailable : result?.ok && !result.feasible ? "A block-out plan needs every share made as asked." : null;
   // What the shares divide: the lot's area, or for widths the leg's length (square lines) or the lot's depth from the leg (parallel lines).
   const total = !lot ? null : by === "area" ? area(ring) : widthRoom({ ring, leg: legAt, lines, from });
   const pointAt = (k: number) => ring[((k % ring.length) + ring.length) % ring.length]?.pointId ?? "";
@@ -337,11 +361,31 @@ export function PartitionPanel({ lots, points, perchDecimals, planRules = null }
                   ),
                 )}
               </ul>
-              <button type="button" onClick={download} className={buttonClasses("secondary", "sm", "w-fit")}>
-                <DownloadSimpleIcon size={16} weight="bold" aria-hidden />
-                Setting-out table as CSV
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={download} className={buttonClasses("secondary", "sm", "w-fit")}>
+                  <DownloadSimpleIcon size={16} weight="bold" aria-hidden />
+                  Setting-out table as CSV
+                </button>
+                {blockOutHref && division && !blockOutWhy ? (
+                  <a href={`${blockOutHref}&inline=1&division=${encodeURIComponent(JSON.stringify(division))}`} target="_blank" rel="noopener" className={buttonClasses("secondary", "sm", "w-fit")}>
+                    <FilePdfIcon size={16} weight="bold" aria-hidden />
+                    Block-out plan as PDF
+                  </a>
+                ) : null}
+              </div>
+              {blockOutHref && blockOutWhy ? <p className="text-sm text-ink-2">No block-out plan yet: {blockOutWhy}</p> : null}
             </div>
+            {throughBuildings.length > 0 ? (
+              <ul className="grid gap-1 text-sm text-ink">
+                {throughBuildings.map((cut) => (
+                  <li key={cut} className="flex items-start gap-2">
+                    <WarningCircleIcon size={16} weight="fill" className="mt-0.5 shrink-0 text-caution" aria-hidden />
+                    The line from {result.ok ? (result.rays?.[cut]?.from ?? result.corners.filter((c) => c.cut === cut)[0]?.name) : ""} to{" "}
+                    {result.ok ? (result.rays?.[cut]?.to ?? result.corners.filter((c) => c.cut === cut).at(-1)?.name) : ""} runs through a building. Check it with the owners, or change the shares.
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             {result.reminders.length > 0 ? (
               <div className="grid gap-2">
                 <h3 className="text-sm font-medium text-ink">Before going ahead</h3>
