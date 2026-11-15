@@ -8,13 +8,16 @@ import { lotName, type Lot } from "@/core/survey/document";
 import { cell } from "@/core/survey/export/schedule";
 import { arpClassic, hectares } from "@/core/survey/formats";
 import type { SurveyPoint } from "@/core/survey/parcel";
-import { partitionLot, UDA_MINIMUMS } from "@/core/survey/partition";
+import { partitionLot, UDA_MINIMUMS, widthRoom } from "@/core/survey/partition";
 import { PERCH_M2, fmt, toArp } from "@/core/survey/units";
 import { buttonClasses } from "@/components/ui/button";
 import { LABEL_CLASSES, inputClasses } from "@/components/ui/field";
 import { StatusBadge } from "@/components/ui/status-badge";
 
-type Unit = "perch" | "m2";
+type By = "area" | "width";
+type Unit = "perch" | "m2" | "m" | "ft";
+
+const FACTOR: Record<Unit, number> = { perch: PERCH_M2, m2: 1, m: 1, ft: 0.3048 };
 
 /**
  * Divide a lot into shares (stage 193): the surveyor's choices in, the
@@ -29,22 +32,32 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
   const [leg, setLeg] = useState(0);
   const [lines, setLines] = useState<"square" | "parallel">("square");
   const [from, setFrom] = useState<"start" | "end">("start");
+  const [by, setBy] = useState<By>("area");
   const [unit, setUnit] = useState<Unit>("perch");
   const [shares, setShares] = useState<string[]>(["", ""]);
   const [uda, setUda] = useState(false);
 
   const lot = usable.find((l) => l.id === lotId) ?? usable[0];
   const ring = lot ? lot.points.map((id) => byId.get(id)!) : [];
-  const parsed = shares.map((v) => (v.trim() === "" ? null : Number(v) * (unit === "perch" ? PERCH_M2 : 1)));
+  const legAt = Math.min(leg, Math.max(ring.length - 1, 0));
+  const parsed = shares.map((v) => (v.trim() === "" ? null : Number(v) * FACTOR[unit]));
   const invalid = parsed.some((x) => x !== null && !Number.isFinite(x));
-  const result = lot && !invalid ? partitionLot({ ring, leg: Math.min(leg, ring.length - 1), lines, from, shares: parsed, uda }) : null;
+  const result = lot && !invalid ? partitionLot({ ring, leg: legAt, lines, from, by, shares: parsed, uda }) : null;
+  // What the shares divide: the lot's area, or for widths the leg's length (square lines) or the lot's depth from the leg (parallel lines).
+  const total = !lot ? null : by === "area" ? area(ring) : widthRoom({ ring, leg: legAt, lines, from });
 
   if (usable.length === 0) return <p className="text-sm text-ink-2">Add a lot with at least three corners first.</p>;
 
   const equal = (k: number) => {
+    if (!total) return;
     // Every share but the last gets the equal part, to the hundredth; the last takes what's left, so nothing is lost to rounding.
-    const each = area(ring) / k / (unit === "perch" ? PERCH_M2 : 1);
+    const each = total / k / FACTOR[unit];
     setShares([...Array.from({ length: k - 1 }, () => (Math.floor(each * 100) / 100).toFixed(2)), ""]);
+  };
+  const chooseBy = (next: By) => {
+    setBy(next);
+    setUnit(next === "area" ? "perch" : "m");
+    setShares((s) => s.map(() => ""));
   };
   const shown = (m2: number) => (unit === "perch" ? `${fmt(m2 / PERCH_M2, 2)} P` : `${fmt(m2, 2)} m²`);
 
@@ -77,7 +90,7 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
         </label>
         <label className="grid gap-1.5">
           <span className={LABEL_CLASSES}>Dividing lines refer to the leg</span>
-          <select value={Math.min(leg, ring.length - 1)} onChange={(e) => setLeg(Number(e.target.value))} className={inputClasses()}>
+          <select value={legAt} onChange={(e) => setLeg(Number(e.target.value))} className={inputClasses()}>
             {ring.map((p, k) => (
               <option key={k} value={k}>
                 {p.pointId} to {ring[(k + 1) % ring.length]!.pointId}
@@ -96,8 +109,8 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
           <label className="grid gap-1.5">
             <span className={LABEL_CLASSES}>First share starts at</span>
             <select value={from} onChange={(e) => setFrom(e.target.value as "start" | "end")} className={inputClasses()}>
-              <option value="start">Corner {ring[Math.min(leg, ring.length - 1)]?.pointId}</option>
-              <option value="end">Corner {ring[(Math.min(leg, ring.length - 1) + 1) % ring.length]?.pointId}</option>
+              <option value="start">Corner {ring[legAt]?.pointId}</option>
+              <option value="end">Corner {ring[(legAt + 1) % ring.length]?.pointId}</option>
             </select>
           </label>
         ) : null}
@@ -106,13 +119,27 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
       <fieldset className="grid gap-3">
         <legend className="mb-1 text-sm font-medium text-ink">Shares</legend>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-ink-2">Areas in</span>
-          <select aria-label="Area unit" value={unit} onChange={(e) => (setUnit(e.target.value as Unit), setShares((s) => s.map(() => "")))} className={inputClasses("w-auto")}>
-            <option value="perch">perches</option>
-            <option value="m2">square metres</option>
+          <span className="text-sm text-ink-2">By</span>
+          <select aria-label="Shares by" value={by} onChange={(e) => chooseBy(e.target.value as By)} className={inputClasses("w-auto")}>
+            <option value="area">area</option>
+            <option value="width">width</option>
+          </select>
+          <span className="text-sm text-ink-2">in</span>
+          <select aria-label={by === "area" ? "Area unit" : "Width unit"} value={unit} onChange={(e) => (setUnit(e.target.value as Unit), setShares((s) => s.map(() => "")))} className={inputClasses("w-auto")}>
+            {by === "area" ? (
+              <>
+                <option value="perch">perches</option>
+                <option value="m2">square metres</option>
+              </>
+            ) : (
+              <>
+                <option value="m">metres</option>
+                <option value="ft">feet</option>
+              </>
+            )}
           </select>
           {[2, 3, 4, 5].map((k) => (
-            <button key={k} type="button" onClick={() => equal(k)} className={buttonClasses("ghost", "sm")}>
+            <button key={k} type="button" disabled={!total} onClick={() => equal(k)} className={buttonClasses("ghost", "sm")}>
               {k} equal
             </button>
           ))}
@@ -141,7 +168,14 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
             Check the UDA minimums ({UDA_MINIMUMS.areaM2} m², {UDA_MINIMUMS.frontageM} m frontage, {UDA_MINIMUMS.depthM} m depth)
           </label>
         </div>
-        <p className="text-sm text-ink-3">Leave one share empty for what&apos;s left. The UDA figures apply in UDA-declared areas unless a Development Plan says otherwise.</p>
+        <p className="text-sm text-ink-3">
+          {by === "width"
+            ? lines === "square"
+              ? `Each width runs along the leg from corner ${ring[from === "start" ? legAt : (legAt + 1) % ring.length]?.pointId ?? ""}, in order. Where the lot reaches past the leg, the end shares take that part too. `
+              : "Each width runs back from the leg, in order: a strip for an access road first, for example. "
+            : ""}
+          Leave one share empty for what&apos;s left. The UDA figures apply in UDA-declared areas unless a Development Plan says otherwise.
+        </p>
       </fieldset>
 
       {invalid ? <p className="text-sm text-failed">Write each share as a number.</p> : null}
@@ -181,12 +215,12 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
                           </span>
                         ))}
                       </td>
-                      <td className="p-2 text-right tabular">{shown(s.areaM2)}</td>
+                      <td className="whitespace-nowrap p-2 text-right tabular">{shown(s.areaM2)}</td>
                       <td className="p-2 tabular">
                         {hectares(s.areaM2)} ha, {arpClassic(toArp(s.areaM2, perchDecimals))}
                       </td>
-                      <td className="p-2 text-right tabular">{fmt(s.alongLegM, 2)} m</td>
-                      <td className="p-2 text-right tabular">{fmt(s.depthM, 2)} m</td>
+                      <td className="whitespace-nowrap p-2 text-right tabular">{fmt(s.alongLegM, 2)} m</td>
+                      <td className="whitespace-nowrap p-2 text-right tabular">{fmt(s.depthM, 2)} m</td>
                     </tr>
                   ))}
                 </tbody>

@@ -1,6 +1,6 @@
 /** Partitioning a lot (stage 193): hand-worked answers on SYNTHETIC lots, at grid-sized coordinates. */
 import { describe, expect, it } from "vitest";
-import { partitionLot, type PartitionRequest } from "./partition";
+import { partitionLot, widthRoom, type PartitionRequest } from "./partition";
 import type { SurveyPoint } from "./parcel";
 
 const E0 = 500_000;
@@ -126,5 +126,67 @@ describe("the re-check's cases", () => {
     const r = ok(partitionLot({ ring: cw, leg: 3, lines: "square", from: "start", shares: [400, null], uda: false }));
     const p1 = r.corners.find((c) => c.name === "P1")!;
     expect(p1.n).toBeCloseTo(N0, 6);
+  });
+});
+
+describe("shares by width", () => {
+  const FT = 0.3048;
+
+  it("sets frontages along the road from the starting corner, the last taking what's left", () => {
+    const r = ok(run({ by: "width", shares: [10, 10, null] }));
+    expect(r.shares.map((x) => x.areaM2)).toEqual([200, 200, 400].map((x) => expect.closeTo(x, 6)));
+    expect(r.shares.map((x) => x.alongLegM)).toEqual([10, 10, 20].map((x) => expect.closeTo(x, 6)));
+    expect(r.corners.filter((c) => c.from.pointId === "1").map((c) => c.distanceM)).toEqual([10, 20].map((x) => expect.closeTo(x, 9)));
+    expect(Math.abs(r.residualM2)).toBeLessThan(1e-6);
+    expect(r.engine).toBe("partition/1.1.0");
+  });
+
+  it("measures from the other end when asked", () => {
+    const r = ok(run({ by: "width", from: "end", shares: [7.5, null] }));
+    expect(r.shares[0]!.areaM2).toBeCloseTo(150, 9);
+    expect(r.corners.find((c) => c.from.pointId === "1")!.distanceM).toBeCloseTo(32.5, 9);
+  });
+
+  it("reserves a 10 ft access strip along a side, or behind the road", () => {
+    // Square to the road: a strip 10 ft wide running back 20 m along corner 1's side.
+    const side = ok(run({ by: "width", shares: [10 * FT, null] }));
+    expect(side.shares[0]!.areaM2).toBeCloseTo(3.048 * 20, 9);
+    expect(side.shares[0]!.alongLegM).toBeCloseTo(3.048, 9);
+    // Parallel to the road: a strip 10 ft deep along its whole 40 m.
+    const front = ok(run({ by: "width", lines: "parallel", shares: [10 * FT, null] }));
+    expect(front.shares.map((x) => x.areaM2)).toEqual([121.92, 800 - 121.92].map((x) => expect.closeTo(x, 9)));
+    expect(front.shares.map((x) => x.depthM)).toEqual([3.048, 20 - 3.048].map((x) => expect.closeTo(x, 9)));
+  });
+
+  it("shares the leg, with a lot reaching past its end adding to the last share", () => {
+    // 30 m along the road, 40 m along the back: the east side slants out from (30, 0) to (40, 20). The lot is 700 m².
+    const t = ring([[0, 0], [30, 0], [40, 20], [0, 20]]);
+    const r = ok(partitionLot({ ring: t, leg: 0, lines: "square", from: "start", by: "width", shares: [10, 10, 10], uda: false }));
+    expect(r.shares.map((x) => x.areaM2)).toEqual([200, 200, 300].map((x) => expect.closeTo(x, 9)));
+    expect(r.shares.map((x) => x.alongLegM)).toEqual([10, 10, 10].map((x) => expect.closeTo(x, 9)));
+    expect(widthRoom({ ring: t, leg: 0, lines: "square", from: "start" })).toBeCloseTo(30, 9);
+  });
+
+  it("refuses widths that don't fit, with the room in the message", () => {
+    expect(run({ by: "width", shares: [25, 20] })).toEqual({ ok: false, error: "The stated widths come to 45.000 m, more than the leg's 40.000 m." });
+    expect(run({ by: "width", shares: [10, 10] })).toEqual({ ok: false, error: "The widths come to 20.000 m, not the leg's 40.000 m. Let one share take what's left." });
+    expect(run({ by: "width", shares: [40, null] })).toEqual({ ok: false, error: "The stated widths take all of the leg's 40.000 m, so nothing is left for the last share." });
+    expect(run({ by: "width", lines: "parallel", shares: [25, null] })).toEqual({ ok: false, error: "The stated widths come to 25.000 m, more than the lot's depth of 20.000 m from that leg." });
+    expect(run({ by: "width", shares: [0, null] })).toEqual({ ok: false, error: "Every stated share needs a width above zero." });
+  });
+
+  it("says how much room the widths share", () => {
+    expect(widthRoom({ ring: rect, leg: 0, lines: "square", from: "start" })).toBeCloseTo(40, 9);
+    expect(widthRoom({ ring: rect, leg: 1, lines: "square", from: "end" })).toBeCloseTo(20, 9);
+    expect(widthRoom({ ring: rect, leg: 0, lines: "parallel", from: "start" })).toBeCloseTo(20, 9);
+    const l = ring([[0, 0], [10, 0], [10, -20], [20, -20], [20, 10], [0, 10]]);
+    expect(widthRoom({ ring: l, leg: 0, lines: "parallel", from: "start" })).toBeNull();
+  });
+
+  it("still checks the UDA minimums on width shares", () => {
+    const r = ok(run({ by: "width", shares: [5, null], uda: true }));
+    expect(r.shares[0]!.problems).toContain("Its frontage is 5.00 m, under the UDA minimum of 6.0 m.");
+    expect(r.shares[0]!.problems).toContain("It's 100.00 m², under the UDA minimum of 150 m².");
+    expect(r.feasible).toBe(false);
   });
 });

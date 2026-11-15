@@ -2,8 +2,9 @@
  * Partitioning a lot into shares (stage 193): where the dividing lines of a
  * sub division fall, computed by tested code, never by AI. The surveyor
  * chooses the lot, a leg the lines run parallel or square to, which end the
- * first share starts from, and the shares (stated areas, one of which may take
- * what's left). The engine finds each dividing line by bisection and reports:
+ * first share starts from, and the shares (stated areas or widths, one of
+ * which may take what's left). The engine finds each dividing line (by
+ * bisection for areas, at the stated distance for widths) and reports:
  * - each share's area, its length along the chosen leg (its frontage when
  *   that leg is the road) and its extent across the dividing lines;
  * - the proposed corners where each line meets the lot's boundary, with the
@@ -20,7 +21,7 @@ import { bearingFromDeltas } from "./angles";
 import { area, distance, selfIntersections, signedArea, type Point } from "./geometry";
 import type { SurveyPoint } from "./parcel";
 
-export const PARTITION_ENGINE = "partition/1.0.0";
+export const PARTITION_ENGINE = "partition/1.1.0";
 
 /** UDA regulations 9(a) and 14(1), for UDA-declared areas, unless a Development Plan says otherwise (docs/survey/STANDARDS_RESEARCH.md). */
 export const UDA_MINIMUMS = { areaM2: 150, frontageM: 6, depthM: 12 } as const;
@@ -34,8 +35,13 @@ export interface PartitionRequest {
   lines: "parallel" | "square";
   /** For square lines: the first share starts at the leg's first corner, or its second. */
   from: "start" | "end";
-  /** Each share's area in m², in order. One share may be null: it takes what's left. */
+  /** Each share's area in m² (or width in metres, with `by: "width"`), in order. One share may be null: it takes what's left. */
   shares: (number | null)[];
+  /**
+   * Shares by area (the default), or by width: for square lines, the width along the leg from its starting corner (a frontage, "30 ft along
+   * the road"); for parallel lines, the distance from the leg (a strip, "Res. for Access, 10 ft wide").
+   */
+  by?: "area" | "width";
   /** Check the UDA minimums. */
   uda: boolean;
 }
@@ -113,58 +119,91 @@ function clip(ring: readonly Local[], n: Point, s: number, high: boolean): Local
   return out;
 }
 
-export function partitionLot(req: PartitionRequest): PartitionResult {
-  const fail = (error: string): PartitionResult => ({ ok: false, error });
-  if (req.ring.length < 3) return fail("The lot needs at least three corners.");
-  if (!Number.isInteger(req.leg) || req.leg < 0 || req.leg >= req.ring.length) return fail("Choose a leg of the lot.");
-  if (req.shares.length < 2 || req.shares.length > 50) return fail("Divide the lot into 2 to 50 shares.");
-  if (req.shares.filter((x) => x === null).length > 1) return fail("Only one share can take what's left.");
-  if (req.shares.some((x) => x !== null && !(Number.isFinite(x) && x > 0))) return fail("Every stated share needs an area above zero.");
+type Frame = { o: SurveyPoint; ring: Local[]; lotM2: number; a: Local; b: Local; len: number; u: Point; across: Point; n: Point; lo: number; hi: number };
 
+/** The lot in local metres, its chosen leg, and the direction the shares follow one another in; or why it can't be divided that way. */
+function frame(req: Pick<PartitionRequest, "ring" | "leg" | "lines" | "from">): Frame | string {
+  if (req.ring.length < 3) return "The lot needs at least three corners.";
+  if (!Number.isInteger(req.leg) || req.leg < 0 || req.leg >= req.ring.length) return "Choose a leg of the lot.";
   // Work in metres from the first corner, so grid-sized coordinates keep their precision.
   const o = req.ring[0]!;
   const ring: Local[] = req.ring.map((p) => ({ e: p.e - o.e, n: p.n - o.n, src: p }));
   const lotM2 = area(ring);
-  if (!(lotM2 > 0)) return fail("The lot has no area.");
-  if (selfIntersections(ring).length > 0) return fail("The lot's boundary crosses itself, so it can't be divided. Check the order of its corners.");
-
+  if (!(lotM2 > 0)) return "The lot has no area.";
+  if (selfIntersections(ring).length > 0) return "The lot's boundary crosses itself, so it can't be divided. Check the order of its corners.";
   const a = ring[req.leg]!;
   const b = ring[(req.leg + 1) % ring.length]!;
   const len = distance(a, b);
-  if (len === 0) return fail("That leg has no length.");
+  if (len === 0) return "That leg has no length.";
   const u: Point = { e: (b.e - a.e) / len, n: (b.n - a.n) / len };
   // Square to the leg, pointing into the lot (left of the leg on an anticlockwise ring, right on a clockwise one).
   const across: Point = signedArea(ring) > 0 ? { e: -u.n, n: u.e } : { e: u.n, n: -u.e };
   // n: the direction the shares follow one another in.
   const n: Point = req.lines === "parallel" ? across : req.from === "start" ? u : { e: -u.e, n: -u.n };
   if (req.lines === "parallel" && Math.min(...ring.map((p) => dot(p, across))) < dot(a, across) - 0.001) {
-    return fail("The lot reaches behind that leg's line, so the shares can't be stacked from it. Choose another leg, or lines square to it.");
+    return "The lot reaches behind that leg's line, so the shares can't be stacked from it. Choose another leg, or lines square to it.";
   }
-
-  const stated = req.shares.reduce<number>((s, x) => s + (x ?? 0), 0);
-  const rest = req.shares.some((x) => x === null);
-  if (stated > lotM2 + 0.005) return fail(`The stated shares come to ${stated.toFixed(2)} m², more than the lot's ${lotM2.toFixed(2)} m².`);
-  if (!rest && Math.abs(stated - lotM2) > 0.01) return fail(`The shares come to ${stated.toFixed(2)} m², not the lot's ${lotM2.toFixed(2)} m². Let one share take what's left.`);
-  if (rest && lotM2 - stated < 0.01) return fail("The stated shares take the whole lot, so nothing is left for the last share.");
-  const targets = req.shares.map((x) => x ?? lotM2 - stated);
-
   const proj = ring.map((p) => dot(p, n));
-  const lo = Math.min(...proj);
-  const hi = Math.max(...proj);
+  return { o, ring, lotM2, a, b, len, u, across, n, lo: Math.min(...proj), hi: Math.max(...proj) };
+}
+
+/**
+ * What shares by width divide: the leg's length for square lines (frontages along it, from the starting corner), or the lot's depth from
+ * the leg for parallel lines. Null when the lot can't be divided that way.
+ */
+export function widthRoom(req: Pick<PartitionRequest, "ring" | "leg" | "lines" | "from">): number | null {
+  const f = frame(req);
+  return typeof f === "string" ? null : req.lines === "square" ? f.len : f.hi - f.lo;
+}
+
+export function partitionLot(req: PartitionRequest): PartitionResult {
+  const fail = (error: string): PartitionResult => ({ ok: false, error });
+  const width = req.by === "width";
+  if (req.shares.length < 2 || req.shares.length > 50) return fail("Divide the lot into 2 to 50 shares.");
+  if (req.shares.filter((x) => x === null).length > 1) return fail("Only one share can take what's left.");
+  if (req.shares.some((x) => x !== null && !(Number.isFinite(x) && x > 0))) return fail(width ? "Every stated share needs a width above zero." : "Every stated share needs an area above zero.");
+  const f = frame(req);
+  if (typeof f === "string") return fail(f);
+  const { o, ring, lotM2, a, b, len, u, across, n, lo, hi } = f;
+
   const below = (s: number) => area(clip(ring, n, s, false));
-  // Each dividing line by bisection on its offset: the area below it grows steadily from 0 to the whole lot.
+  const rest = req.shares.some((x) => x === null);
+  const stated = req.shares.reduce<number>((s, x) => s + (x ?? 0), 0);
   const cuts: number[] = [];
-  let cum = 0;
-  for (let i = 0; i < targets.length - 1; i++) {
-    cum += targets[i]!;
-    let l = lo;
-    let h = hi;
-    for (let k = 0; k < 100; k++) {
-      const m = (l + h) / 2;
-      if (below(m) < cum) l = m;
-      else h = m;
+  let targets: number[];
+  if (width) {
+    // By width: each line at its stated distance. Square lines measure along the leg from the starting corner, so the widths share the
+    // leg (a lot reaching past either end of it adds to the end shares); parallel lines measure from the leg, so they share the depth.
+    const square = req.lines === "square";
+    const base = square ? dot(req.from === "start" ? a : b, n) : lo;
+    const room = square ? len : hi - lo;
+    const what = square ? `the leg's ${room.toFixed(3)} m` : `the lot's depth of ${room.toFixed(3)} m from that leg`;
+    if (stated > room + 0.0005) return fail(`The stated widths come to ${stated.toFixed(3)} m, more than ${what}.`);
+    if (!rest && Math.abs(stated - room) > 0.005) return fail(`The widths come to ${stated.toFixed(3)} m, not ${what}. Let one share take what's left.`);
+    if (rest && room - stated < 0.001) return fail(`The stated widths take all of ${what}, so nothing is left for the last share.`);
+    const widths = req.shares.map((x) => x ?? room - stated);
+    let at = base;
+    for (let i = 0; i < widths.length - 1; i++) cuts.push((at += widths[i]!));
+    const edges = [lo, ...cuts, hi];
+    targets = widths.map((_, i) => below(edges[i + 1]!) - below(edges[i]!));
+  } else {
+    if (stated > lotM2 + 0.005) return fail(`The stated shares come to ${stated.toFixed(2)} m², more than the lot's ${lotM2.toFixed(2)} m².`);
+    if (!rest && Math.abs(stated - lotM2) > 0.01) return fail(`The shares come to ${stated.toFixed(2)} m², not the lot's ${lotM2.toFixed(2)} m². Let one share take what's left.`);
+    if (rest && lotM2 - stated < 0.01) return fail("The stated shares take the whole lot, so nothing is left for the last share.");
+    targets = req.shares.map((x) => x ?? lotM2 - stated);
+    // Each dividing line by bisection on its offset: the area below it grows steadily from 0 to the whole lot.
+    let cum = 0;
+    for (let i = 0; i < targets.length - 1; i++) {
+      cum += targets[i]!;
+      let l = lo;
+      let h = hi;
+      for (let k = 0; k < 100; k++) {
+        const m = (l + h) / 2;
+        if (below(m) < cum) l = m;
+        else h = m;
+      }
+      cuts.push((l + h) / 2);
     }
-    cuts.push((l + h) / 2);
   }
 
   // Where each line meets the boundary: the proposed corners.
