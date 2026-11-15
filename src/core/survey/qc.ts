@@ -393,9 +393,14 @@ export function checkSurvey(input: QcInput): Finding[] {
   }
 
   // What the AI filled in, until the surveyor has looked at each item.
-  const open = unreviewed(doc);
+  const pending = unreviewed(doc);
+  const open = pending.filter((k) => doc.provenance[k]?.source !== "auto");
+  const drawn = pending.filter((k) => doc.provenance[k]?.source === "auto");
   if (open.length > 0) {
     add({ code: "AI_ITEMS_UNREVIEWED", severity: "professional_review", message: `${open.length} ${open.length === 1 ? "item" : "items"} filled in from your description or a photo ${open.length === 1 ? "hasn't" : "haven't"} been checked yet.`, target: { kind: "field", id: "review" }, detail: open.slice(0, 6).join(", ") + (open.length > 6 ? ", and more" : ""), action: "Mark each one as right, or change it: on the Lots step for lots, roads and adjoining lands, on the Plan step for the title and notes.", blocks: ["approval"] });
+  }
+  if (drawn.length > 0) {
+    add({ code: "AUTO_ITEMS_UNREVIEWED", severity: "professional_review", message: `${drawn.length} ${drawn.length === 1 ? "item" : "items"} drawn from the field data ${drawn.length === 1 ? "hasn't" : "haven't"} been checked yet.`, target: { kind: "field", id: "review" }, detail: drawn.slice(0, 6).join(", ") + (drawn.length > 6 ? ", and more" : ""), action: "Check each one against your field notes and mark it as right, or change it: on the Lots step for the lot and road, on the Plan step for the survey date.", blocks: ["approval"] });
   }
 
   if (!doc.surveyorUserId) {

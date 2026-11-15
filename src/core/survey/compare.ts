@@ -204,13 +204,17 @@ export function compareDocuments(before: SurveyDocument, after: SurveyDocument, 
     );
   }
   // Items filled in by the AI: new ones, ones checked since, and ones that need checking again.
-  const ai = (p: { source: string }) => p.source !== "engine";
+  const ai = (p: { source: string }) => p.source === "ai_brief" || p.source === "ai_photo";
+  const auto = Object.entries(after.provenance).filter(([k, p]) => p.source === "auto" && !before.provenance[k]).length;
+  if (auto > 0) add("Checks", `${auto} ${auto === 1 ? "item was" : "items were"} drawn from the field data, waiting to be checked.`);
   const arrived = Object.entries(after.provenance).filter(([k, p]) => ai(p) && !before.provenance[k]);
   const arrivedChecked = arrived.filter(([, p]) => p.reviewed).length;
-  const checkedNow = Object.entries(after.provenance).filter(([k, p]) => p.reviewed && before.provenance[k] && !before.provenance[k]!.reviewed).length;
+  const checkedNow = Object.entries(after.provenance).filter(([k, p]) => ai(p) && p.reviewed && before.provenance[k] && !before.provenance[k]!.reviewed).length;
+  const autoChecked = Object.entries(after.provenance).filter(([k, p]) => p.source === "auto" && p.reviewed && before.provenance[k] && !before.provenance[k]!.reviewed).length;
   const again = Object.entries(after.provenance).filter(([k, p]) => ai(p) && !p.reviewed && before.provenance[k]?.reviewed).length;
   if (arrived.length > 0) add("Checks", `${arrived.length} ${arrived.length === 1 ? "item was" : "items were"} filled in by the AI${arrivedChecked === arrived.length ? ", all checked" : arrivedChecked > 0 ? `, ${arrivedChecked} of them checked` : ", waiting to be checked"}.`);
   if (checkedNow > 0) add("Checks", `${checkedNow} ${checkedNow === 1 ? "item filled in by the AI was" : "items filled in by the AI were"} checked.`);
+  if (autoChecked > 0) add("Checks", `${autoChecked} ${autoChecked === 1 ? "item drawn from the field data was" : "items drawn from the field data were"} checked.`);
   if (again > 0) add("Checks", `${again} ${again === 1 ? "item needs" : "items need"} checking again.`);
   return out;
 }

@@ -57,7 +57,7 @@ function Provenanced({ provenance, k, onAccept, readOnly }: { provenance: Proven
   if (p.reviewed) return <StatusBadge status="done" label="Checked" />;
   return (
     <span className="flex flex-wrap items-center gap-2">
-      <StatusBadge status="approval" label={p.source === "ai_photo" ? "Read from a photo, check" : "From your description, check"} />
+      <StatusBadge status="approval" label={p.source === "ai_photo" ? "Read from a photo, check" : p.source === "auto" ? "Drawn from the field data, check" : "From your description, check"} />
       <button type="button" disabled={readOnly} onClick={onAccept} className={buttonClasses("ghost", "sm")}>
         <CheckCircleIcon size={16} weight="bold" aria-hidden />
         Looks right

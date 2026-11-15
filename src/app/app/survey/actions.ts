@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { autoDraft } from "@/core/survey/autodraft";
 import { crsById } from "@/core/survey/crs";
 import { emptyDocument, pruneProvenance, surveyDocumentSchema, usedPointIds, type SurveyDocument } from "@/core/survey/document";
 import { IMPORT_LIMITS, parseDelimited, type ColumnRole, type Delimiter, type ImportIssue } from "@/core/survey/import/delimited";
@@ -16,7 +17,10 @@ import { loadAppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type SurveyFormState = { status: "idle" } | { status: "error"; message: string; issues?: ImportIssue[] } | { status: "done"; message: string; version?: number };
+export type SurveyFormState =
+  | { status: "idle" }
+  | { status: "error"; message: string; issues?: ImportIssue[] }
+  | { status: "done"; message: string; version?: number; drawn?: string[]; notDrawn?: string[] };
 
 interface Writer {
   admin: SupabaseClient;
@@ -80,6 +84,8 @@ const importInput = z.object({
   units: z.literal("metre"),
   /** The grid the page showed when the person confirmed the units. */
   crsId: z.string().max(40),
+  /** Draw the plan from the points straight after the import, when the plan has no lots yet (stage 194). */
+  drawPlan: z.boolean().default(true),
 });
 
 /**
@@ -112,9 +118,44 @@ export async function importSurveyPointsAction(input: z.input<typeof importInput
     points: result.points.map((p) => ({ point_id: p.pointId, e: p.e, n: p.n, z: p.z, code: p.code ?? "", line: p.line })),
   });
   if (!r.ok) return { status: "error", message: r.message };
-  revalidatePath(`/app/survey/${i.projectId}`);
   const warnings = result.issues.filter((x) => x.severity === "warning").length;
-  return { status: "done", message: `Imported ${r.value.added} ${r.value.added === 1 ? "point" : "points"}${r.value.skipped ? `; ${r.value.skipped} already here, unchanged` : ""}${warnings ? `; ${warnings} repeated ${warnings === 1 ? "row" : "rows"} kept once` : ""}.` };
+  const imported = `Imported ${r.value.added} ${r.value.added === 1 ? "point" : "points"}${r.value.skipped ? `; ${r.value.skipped} already here, unchanged` : ""}${warnings ? `; ${warnings} repeated ${warnings === 1 ? "row" : "rows"} kept once` : ""}.`;
+  // The plan draws itself from the points, when it has no lots yet. The import stands either way.
+  const drawing = i.drawPlan ? await drawFromPoints(g.w, i.projectId, `Drawn from ${i.fileName}`) : null;
+  revalidatePath(`/app/survey/${i.projectId}`);
+  if (!drawing) return { status: "done", message: imported };
+  if (!drawing.ok) return { status: "done", message: `${imported} The plan wasn't drawn: ${drawing.message}` };
+  return { status: "done", message: drawing.version ? `${imported} The plan is drawn as version ${drawing.version}: check it, then approve.` : imported, version: drawing.version ?? undefined, drawn: drawing.drawn, notDrawn: drawing.notDrawn };
+}
+
+/**
+ * The automatic draft (autodraft.ts, ADR 0209) saved as a new version: the lot through the boundary marks, the lines from the field
+ * codes, the road, the stated survey date and the importing surveyor, each inference marked for checking. Only onto a plan with no
+ * lots; nothing is saved when there's nothing to draw.
+ */
+async function drawFromPoints(w: Writer, projectId: string, note: string): Promise<{ ok: true; version: number | null; drawn: string[]; notDrawn: string[] } | { ok: false; message: string }> {
+  const data = await loadSurveyProject(w.user, w.actor.orgId, projectId);
+  if (!data) return { ok: false, message: SURVEY_MESSAGES.NOT_FOUND };
+  const mine = data.profiles.some((p) => p.user_id === w.actor.userId) ? w.actor.userId : null;
+  const r = autoDraft({ points: data.points, document: data.drawing.document, surveyorUserId: mine });
+  if (r.drawn.length === 0 || r.document === data.drawing.document) return { ok: true, version: null, drawn: [], notDrawn: r.notDrawn };
+  const parsed = surveyDocumentSchema.safeParse(r.document);
+  if (!parsed.success) return { ok: false, message: "the drawn plan didn't pass its own checks, so nothing was saved." };
+  const saved = await surveyStore.saveDrawing(w.admin, w.actor, { projectId, baseVersion: data.drawing.version, document: tidy(pruneProvenance(parsed.data), data), note: note.slice(0, 200) });
+  if (!saved.ok) return { ok: false, message: saved.message };
+  return { ok: true, version: saved.value, drawn: r.drawn, notDrawn: r.notDrawn };
+}
+
+/** "Draw the plan from the points": the same automatic draft for a project whose points are in and whose plan has no lots. */
+export async function drawPlanFromPointsAction(input: { projectId: string }): Promise<SurveyFormState> {
+  if (!uuid.safeParse(input.projectId).success) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const g = await writer();
+  if (!g.ok) return { status: "error", message: g.message };
+  const r = await drawFromPoints(g.w, input.projectId, "Drawn from the points");
+  revalidatePath(`/app/survey/${input.projectId}`);
+  if (!r.ok) return { status: "error", message: `The plan wasn't drawn: ${r.message}` };
+  if (!r.version) return { status: "error", message: r.notDrawn[0] ?? "There was nothing to draw from the points.", issues: [] };
+  return { status: "done", message: `The plan is drawn as version ${r.version}: check it, then approve.`, version: r.version, drawn: r.drawn, notDrawn: r.notDrawn };
 }
 
 /**
