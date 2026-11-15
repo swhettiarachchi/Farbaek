@@ -70,6 +70,21 @@ export function ownRules(minimums: RuleMinimums, source: string): RuleSet {
   };
 }
 
+/** The rules a plan's lots are checked against, as stored in the drawing (document.ts). */
+export type PlanRulesChoice = { id: "uda-2020" } | { id: "own"; areaM2: number; frontageM: number; depthM: number; source: string };
+
+/** The set a plan's choice names: null for none, and for the surveyor's own minimums until they've said where those come from. */
+export function ruleSetFrom(choice: PlanRulesChoice | null): RuleSet | null {
+  if (!choice) return null;
+  if (choice.id === "uda-2020") return UDA_2020;
+  return choice.source.trim() ? ownRules({ areaM2: choice.areaM2, frontageM: choice.frontageM, depthM: choice.depthM }, choice.source) : null;
+}
+
+/** A lot whose note marks it reserved ("(Res. for Access, 10ft. wide)"): not a building lot, so not held to the minimums. */
+export const RESERVED_NOTE = /^\(?\s*res(?:\.|erved\b|ervation\b)/i;
+/** A reserved lot that gives access: its legs count as road frontage for the lots beside it. */
+export const ACCESS_NOTE = /\b(?:access|road|lane|path|way)\b/i;
+
 /** The reminders that apply to dividing land of this area into this many lots. */
 export function remindersFor(rules: RuleSet, landM2: number, lots: number): string[] {
   const large = rules.large !== null && (landM2 >= rules.large.areaM2 || lots >= rules.large.lots);

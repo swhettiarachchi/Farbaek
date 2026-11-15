@@ -4,7 +4,7 @@ import { DownloadSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { formatDms, toDms } from "@/core/survey/angles";
 import { area, selfIntersections } from "@/core/survey/geometry";
-import { lotName, type Lot } from "@/core/survey/document";
+import { lotName, type Lot, type SurveyDocument } from "@/core/survey/document";
 import { cell } from "@/core/survey/export/schedule";
 import { arpClassic, hectares } from "@/core/survey/formats";
 import type { SurveyPoint } from "@/core/survey/parcel";
@@ -25,7 +25,7 @@ const FACTOR: Record<Unit, number> = { perch: PERCH_M2, m2: 1, m: 1, ft: 0.3048 
  * engine's dividing lines out, as a proposal to peg. Nothing here changes the
  * plan: the proposed corners join it only once pegged, observed and imported.
  */
-export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; points: SurveyPoint[]; perchDecimals: number }) {
+export function PartitionPanel({ lots, points, perchDecimals, planRules = null }: { lots: Lot[]; points: SurveyPoint[]; perchDecimals: number; planRules?: SurveyDocument["rules"] }) {
   const byId = useMemo(() => new Map(points.map((p) => [p.id, p])), [points]);
   // Lots that can be divided: three or more known corners, and a boundary that doesn't cross itself.
   const usable = lots.filter((l) => l.points.length >= 3 && l.points.every((id) => byId.has(id)) && selfIntersections(l.points.map((id) => byId.get(id)!)).length === 0);
@@ -37,8 +37,9 @@ export function PartitionPanel({ lots, points, perchDecimals }: { lots: Lot[]; p
   const [by, setBy] = useState<By>("area");
   const [unit, setUnit] = useState<Unit>("perch");
   const [shares, setShares] = useState<string[]>(["", ""]);
-  const [ruleChoice, setRuleChoice] = useState<"none" | "uda" | "own">("none");
-  const [own, setOwn] = useState({ areaM2: "", frontageM: "", depthM: "", source: "" });
+  // Starts from the minimums chosen for the plan, if any.
+  const [ruleChoice, setRuleChoice] = useState<"none" | "uda" | "own">(planRules?.id === "uda-2020" ? "uda" : planRules?.id === "own" ? "own" : "none");
+  const [own, setOwn] = useState(planRules?.id === "own" ? { areaM2: String(planRules.areaM2), frontageM: String(planRules.frontageM), depthM: String(planRules.depthM), source: planRules.source } : { areaM2: "", frontageM: "", depthM: "", source: "" });
 
   const lot = usable.find((l) => l.id === lotId) ?? usable[0];
   const ring = lot ? lot.points.map((id) => byId.get(id)!) : [];

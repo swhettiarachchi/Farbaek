@@ -186,6 +186,12 @@ export type ProvenanceSource = (typeof PROVENANCE_SOURCES)[number];
 export const provenanceSchema = z.record(z.string().min(1).max(80), z.object({ source: z.enum(PROVENANCE_SOURCES), reviewed: z.boolean() }));
 export type Provenance = z.infer<typeof provenanceSchema>;
 
+/** The planning rules the plan's lots are checked against (rules.ts, ADR 0207). The surveyor's own minimums carry their source in their words. */
+export const planRulesSchema = z.discriminatedUnion("id", [
+  z.object({ id: z.literal("uda-2020") }),
+  z.object({ id: z.literal("own"), areaM2: z.number().min(0).max(10_000_000), frontageM: z.number().min(0).max(10_000), depthM: z.number().min(0).max(10_000), source: text(200) }),
+]);
+
 export const surveyDocumentSchema = z.object({
   schema: z.literal(2),
   lots: z.array(lotSchema).max(60),
@@ -203,6 +209,8 @@ export const surveyDocumentSchema = z.object({
   provenance: provenanceSchema,
   /** Near misses the surveyor answered "keep as surveyed" (keys from `nearKey` in lots.ts). Part of the version, so the approval covers the answer. */
   kept: z.array(z.string().min(1).max(120)).max(200).default([]),
+  /** The planning rules the lots are checked against, or null. Left out of the approval hash while null, so earlier approvals stand. */
+  rules: planRulesSchema.nullable().default(null),
   /** Which member's surveyor profile fills the surveyor block. */
   surveyorUserId: z.string().uuid().nullable(),
 });
@@ -263,6 +271,7 @@ export function emptyDocument(): SurveyDocument {
     settings: defaultSettings(),
     provenance: {},
     kept: [],
+    rules: null,
     surveyorUserId: null,
   };
 }
@@ -418,6 +427,7 @@ export function parseSurveyDocument(raw: unknown): SurveyDocument | null {
     settings: { ...defaultSettings(), ...d.settings, template: "panel", slant: false, faceDimensions: true },
     provenance: {},
     kept: [],
+    rules: null,
     surveyorUserId: d.surveyorUserId,
   };
 }

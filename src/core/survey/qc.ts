@@ -8,8 +8,9 @@ import { codeOf, codesAreCommonList, lookupCode } from "./codes";
 import type { CrsRecord } from "./crs";
 import { implausiblePoints, looksSwapped } from "./crs";
 import { legIndex, lotName, unreviewed, type SurveyDocument } from "./document";
-import { TOUCH_TOLERANCE_M, distance, orient, type Point } from "./geometry";
-import { nearKey, type PlanLots } from "./lots";
+import { TOUCH_TOLERANCE_M, distance, orient, pointSegmentDistance, type Point } from "./geometry";
+import { NEAR_LEG_M, nearKey, type PlanLots } from "./lots";
+import { ACCESS_NOTE, RESERVED_NOTE, remindersFor, ruleSetFrom, type RuleSet } from "./rules";
 import { readStatedExtent } from "./extent";
 import type { SurveyPoint } from "./parcel";
 import { fmt, PERCH_M2 } from "./units";
@@ -51,6 +52,86 @@ function collinear(points: readonly Point[]): boolean {
   const len = distance(a, b);
   if (len <= TOUCH_TOLERANCE_M) return true;
   return points.every((p) => Math.abs(orient(a, b, p)) / len <= TOUCH_TOLERANCE_M);
+}
+
+/**
+ * Each building lot against the chosen minimums. Reserved lots ("(Res. for Access, 10ft. wide)") aren't held to them. Frontage is the
+ * length of the lot's legs along one road or reserved access lot (within NEAR_LEG_M), taking the longest where a corner lot has two;
+ * depth is the mean depth, its area over that frontage.
+ */
+function checkRules(set: RuleSet, input: QcInput, add: (f: Finding) => void): void {
+  const { document: doc, points } = input;
+  const min = set.minimums;
+  const byId = new Map(points.map((p) => [p.id, p]));
+  // Each road (both edges) and each reserved access lot, as its own set of segments.
+  const accesses: [Point, Point][][] = [];
+  const polyline = (into: [Point, Point][], ids: readonly string[], closed: boolean) => {
+    const ps = ids.map((id) => byId.get(id)).filter((p): p is SurveyPoint => Boolean(p));
+    for (let i = 0; i + 1 < ps.length; i++) into.push([ps[i]!, ps[i + 1]!]);
+    if (closed && ps.length > 2) into.push([ps[ps.length - 1]!, ps[0]!]);
+  };
+  for (const r of doc.roads) {
+    const segs: [Point, Point][] = [];
+    polyline(segs, r.edgeA, false);
+    polyline(segs, r.edgeB, false);
+    if (segs.length > 0) accesses.push(segs);
+  }
+  const reserved = (note: string) => RESERVED_NOTE.test(note.trim());
+  for (const l of doc.lots) {
+    if (!reserved(l.note) || !ACCESS_NOTE.test(l.note)) continue;
+    const segs: [Point, Point][] = [];
+    polyline(segs, l.points, true);
+    if (segs.length > 0) accesses.push(segs);
+  }
+  const edges = accesses.flat();
+  const along = (segs: [Point, Point][], p: Point) => segs.some(([a, b]) => pointSegmentDistance(p, a, b) <= NEAR_LEG_M);
+  const cite = set.id === "own" ? `From the minimums you entered: ${set.source}.` : `${set.title}, ${set.source.replace(/^.*?(regs?\.)/, "$1")}, for ${set.appliesTo}.`;
+  const weigh = "Check the lot against the rule that applies here. A Development Plan or an approved exception may allow it; say so in the lot's note or the plan's notes.";
+  let checked = 0;
+  let short = 0;
+  let skipped = 0;
+  for (const r of input.lots.lots) {
+    const p = r.parcel;
+    if (!p || p.crossings.length > 0 || p.repeatedPoints.length > 0 || p.areaM2 <= 0) continue;
+    if (reserved(r.lot.note)) {
+      skipped++;
+      continue;
+    }
+    checked++;
+    const name = `Lot ${lotName(r.lot) || "without a label"}`;
+    const target = { kind: "lot" as const, id: r.lot.id };
+    let ok = true;
+    if (p.areaM2 < min.areaM2) {
+      ok = false;
+      add({ code: "LOT_UNDER_MINIMUM_AREA", severity: "warning", message: `${name} is ${fmt(p.areaM2, 2)} m², under ${set.label} of ${fmt(min.areaM2, 2)} m².`, target, detail: cite, action: weigh, blocks: [] });
+    }
+    if (edges.length > 0 && (min.frontageM > 0 || min.depthM > 0)) {
+      const frontage = Math.max(0, ...accesses.map((segs) => p.legs.filter((l) => along(segs, l.from) && along(segs, l.to) && along(segs, { e: (l.from.e + l.to.e) / 2, n: (l.from.n + l.to.n) / 2 })).reduce((s, l) => s + l.distance, 0)));
+      if (frontage === 0 && min.frontageM === 0) {
+        // No frontage asked for, and no depth can be measured without one.
+      } else if (frontage === 0) {
+        ok = false;
+        add({ code: "LOT_NO_ROAD_FRONTAGE", severity: "warning", message: `${name} has no leg along a road or an access strip on this plan.`, target, detail: cite, action: "If it's reached by a right of way not drawn here, say so in its note. A reserved access lot counts when its note starts \"Res.\" and names the access.", blocks: [] });
+      } else {
+        if (frontage < min.frontageM) {
+          ok = false;
+          add({ code: "LOT_UNDER_MINIMUM_FRONTAGE", severity: "warning", message: `${name}'s frontage is ${fmt(frontage, 2)} m, under ${set.label} of ${fmt(min.frontageM, 1)} m.`, target, detail: cite, action: weigh, blocks: [] });
+        }
+        const depth = p.areaM2 / frontage;
+        if (depth < min.depthM) {
+          ok = false;
+          add({ code: "LOT_UNDER_MINIMUM_DEPTH", severity: "warning", message: `${name}'s mean depth (its area over its frontage) is ${fmt(depth, 2)} m, under ${set.label} of ${fmt(min.depthM, 1)} m.`, target, detail: cite, action: weigh, blocks: [] });
+        }
+      }
+    }
+    if (!ok) short++;
+  }
+  const minimums = `${fmt(min.areaM2, 2)} m², ${fmt(min.frontageM, 1)} m frontage and ${fmt(min.depthM, 1)} m depth`;
+  const leftOut = skipped > 0 ? ` ${skipped} reserved ${skipped === 1 ? "lot wasn't" : "lots weren't"} checked.` : "";
+  if (checked > 0 && short === 0) add({ code: "RULES_LOTS_MEET", severity: "information", message: `${checked === 1 ? "The lot meets" : `All ${checked} lots meet`} ${set.id === "own" ? "your minimums" : "the UDA minimums"} (${minimums}).`, target: { kind: "lot" }, detail: `${cite}${leftOut}`, action: "Nothing to do.", blocks: [] });
+  if (checked > 0 && edges.length === 0 && (min.frontageM > 0 || min.depthM > 0)) add({ code: "RULES_FRONTAGE_UNCHECKED", severity: "information", message: "Frontages and depths weren't checked: the plan has no roads or reserved access lots.", target: { kind: "lot" }, action: "Add the road on the Lots step, or a reserved access lot, to check them.", blocks: [] });
+  const land = input.lots.outlineAreaM2 ?? input.lots.sumAreaM2;
+  for (const text of remindersFor(set, land, doc.lots.length)) add({ code: "RULES_REMINDER", severity: "information", message: text, target: { kind: "project" }, action: "Nothing for Farbaek to check: a reminder from the regulations.", blocks: [] });
 }
 
 export function checkSurvey(input: QcInput): Finding[] {
@@ -170,6 +251,12 @@ export function checkSurvey(input: QcInput): Finding[] {
       if (pct <= 1) add({ code: "STATED_EXTENT_AGREES", severity: "information", message: "The stated extent agrees with the land computed from your points, within 1%.", target: { kind: "field", id: "statedExtent" }, detail, action: "Nothing to do.", blocks: [] });
       else add({ code: "STATED_EXTENT_DIFFERS", severity: "warning", message: `The stated extent differs from the land computed from your points by ${fmt(pct, 1)}%.`, target: { kind: "field", id: "statedExtent" }, detail, action: "Deeds are often older than the survey. Check the stated extent is copied right, and mention the difference in the plan's notes if it matters. The plan shows the computed extent.", blocks: [] });
     }
+  }
+  // The planning rules the surveyor chose for the lots (ADR 0207): warnings to weigh, never a pass or a fail of the plan.
+  if (doc.rules) {
+    const set = ruleSetFrom(doc.rules);
+    if (set) checkRules(set, input, add);
+    else add({ code: "RULES_SOURCE_MISSING", severity: "information", message: "Your own minimums aren't checked until you say where they come from.", target: { kind: "sheet" }, action: "Name the Development Plan or other rule beside the minimums in the plan settings.", blocks: [] });
   }
   if (input.lots.pieces > 1) {
     add({ code: "LOTS_APART", severity: "warning", message: `The lots form ${input.lots.pieces} separate pieces of land.`, target: { kind: "lot" }, action: "If this plan really shows separate lands, describe each in the title; otherwise check the shared corners.", blocks: [] });

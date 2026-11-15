@@ -23,6 +23,7 @@ import { CODE_KINDS, LINE_STYLES, commonCodes, type CodeKind, type LineStyle } f
 import { runsText, titleSentence } from "@/core/survey/description";
 import { LAYER_IDS, STANDARD_SCALES, lotName, type LayerId, type SurveyDocument } from "@/core/survey/document";
 import { roadWidth } from "@/core/survey/roads";
+import { UDA_2020, reviewNote } from "@/core/survey/rules";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { fmt, type SurveyorDetails } from "@/core/survey/sheet/compose";
 import type { SceneItem } from "@/core/survey/sheet/scene";
@@ -628,6 +629,45 @@ function SheetFields({ doc, update, readOnly, surveyors, suggested, paper }: { d
       </fieldset>
 
       <fieldset className="grid gap-3">
+        <legend className="mb-2 text-sm font-medium text-ink">Planning minimums</legend>
+        <label className="grid gap-1.5">
+          <span className={LABEL_CLASSES}>Check the lots against</span>
+          <select
+            value={doc.rules?.id ?? ""}
+            disabled={readOnly}
+            onChange={(e) => {
+              const v = e.target.value;
+              update((d) => void (d.rules = v === "uda-2020" ? { id: "uda-2020" } : v === "own" ? { id: "own", areaM2: 0, frontageM: 0, depthM: 0, source: "" } : null));
+            }}
+            className={inputClasses()}
+          >
+            <option value="">No minimums</option>
+            <option value="uda-2020">
+              UDA regulations: {UDA_2020.minimums.areaM2} m², {UDA_2020.minimums.frontageM} m frontage, {UDA_2020.minimums.depthM} m depth
+            </option>
+            <option value="own">Minimums I enter, from a Development Plan or other rule</option>
+          </select>
+        </label>
+        {doc.rules?.id === "own" ? (
+          <>
+            <div className="grid grid-cols-3 gap-3">
+              <MinimumField label="Least area (m²)" value={doc.rules.areaM2} disabled={readOnly} onCommit={(v) => update((d) => void (d.rules?.id === "own" && (d.rules.areaM2 = v)))} />
+              <MinimumField label="Frontage (m)" value={doc.rules.frontageM} disabled={readOnly} onCommit={(v) => update((d) => void (d.rules?.id === "own" && (d.rules.frontageM = v)))} />
+              <MinimumField label="Depth (m)" value={doc.rules.depthM} disabled={readOnly} onCommit={(v) => update((d) => void (d.rules?.id === "own" && (d.rules.depthM = v)))} />
+            </div>
+            <label className="grid gap-1.5">
+              <span className={LABEL_CLASSES}>Where they come from</span>
+              <input value={doc.rules.source} maxLength={200} disabled={readOnly} placeholder="The Development Plan and zone, for example" onChange={(e) => update((d) => void (d.rules?.id === "own" && (d.rules.source = e.target.value)))} className={inputClasses()} />
+            </label>
+          </>
+        ) : null}
+        <p className="text-sm text-ink-3">
+          {doc.rules?.id === "uda-2020" ? `For ${UDA_2020.appliesTo}. ${reviewNote(UDA_2020, new Date().toISOString().slice(0, 10)) ?? ""} ` : doc.rules?.id === "own" ? "Use 0 for a minimum that doesn't apply. " : ""}
+          Lots whose note starts &ldquo;Res.&rdquo; aren&apos;t checked, and frontage runs along a road or a reserved access lot. What&apos;s short shows on the Check step as a warning.
+        </p>
+      </fieldset>
+
+      <fieldset className="grid gap-3">
         <legend className="mb-2 text-sm font-medium text-ink">Title</legend>
         {field("Plan number", s.planNumber, "planNumber", (d, v) => void (d.sheet.planNumber = v), 40)}
         {field("Land called", s.landName, "landName", (d, v) => void (d.sheet.landName = v), 120)}
@@ -805,5 +845,33 @@ function CodesPanel({ doc, update, readOnly }: { doc: SurveyDocument; update: Up
         )}
       </div>
     </div>
+  );
+}
+
+/** A minimum typed as text and committed only while it reads as a number of zero or more, so a half-typed "1." isn't lost. */
+function MinimumField({ label, value, disabled, onCommit }: { label: string; value: number; disabled: boolean; onCommit: (v: number) => void }) {
+  const [text, setText] = useState(String(value));
+  const [seen, setSeen] = useState(value);
+  // Undo or another change from outside: show the stored value again.
+  if (value !== seen) {
+    setSeen(value);
+    if (Number(text) !== value) setText(String(value));
+  }
+  return (
+    <label className="grid gap-1.5">
+      <span className={LABEL_CLASSES}>{label}</span>
+      <input
+        value={text}
+        inputMode="decimal"
+        disabled={disabled}
+        onChange={(e) => {
+          const t = e.target.value.slice(0, 12);
+          setText(t);
+          const v = Number(t);
+          if (t.trim() !== "" && Number.isFinite(v) && v >= 0) onCommit(v);
+        }}
+        className={inputClasses()}
+      />
+    </label>
   );
 }
