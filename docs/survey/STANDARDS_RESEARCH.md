@@ -96,7 +96,7 @@ UDA regulation 9 covers "the Survey Plan for the proposed sub-division, amalgama
 | S10 | Geo-coordinates of at least four meeting points of main boundaries | UDA reg. 9(n) | verified_official, UDA plans | The overleaf lists grid coordinates of every boundary point. Whether grid coordinates meet "Geo coordinates" is not_verified |
 | S11 | A 7½ cm × 5 cm space on the front page for the development permit | UDA reg. 9(p) | verified_official, UDA plans | Optional 75 × 50 mm permit box (`settings.permitBox`) |
 | S12 | International A-series metric sheets; the original plus five certified copies | UDA reg. 9(q) | verified_official, UDA plans | A4, A3, A2. Copies are not Farbaek's concern. The UDA's online instructions ask for the original plus four copies, or six hard copies in the Colombo Municipal Council area: the sources conflict |
-| S13 | Block-out plan at not less than 1:1000 (1:4000 for very large sites) | UDA reg. 8 | verified_official, UDA subdivisions | Not built (subdivision, stage 191) |
+| S13 | Block-out plan at not less than 1:1000 (1:4000 for very large sites) | UDA reg. 8 | verified_official, UDA subdivisions | The block-out plan from a division (stage 193, ADR 0208), at 1:1000 or larger where it fits on A4 to A2; otherwise at the automatic scale |
 | S14 | Plan number, survey date, surveyor's name and registration, lot count, schedule of lots, extent in A-R-P | UDA Form B, items 3.1 to 3.7 | verified_official as application data, not as a sheet rule | Plan number, survey date and the surveyor block are on the sheet. The form's own example extent, "2A 5R 3P", is impossible (four roods make an acre) |
 | S15 | Schedule of boundaries ("North by", "East by" and so on) | LSC guideline, ch. 2 | A convention in non-binding guidance; the exact wording not_verified | **professional_configuration_required**: template captions; the surveyor types each side; `SHEET_BOUNDARY_DESCRIPTION` warns when one is empty |
 | S16 | Building notation (P) permanent, (Ty) temporary | LSC guideline, ch. 2 | Convention in non-binding guidance | "P Permanent building" is one of the legend's starting examples |
@@ -111,7 +111,7 @@ UDA regulation 9 covers "the Survey Plan for the proposed sub-division, amalgama
 
 ## Subdivision rules (for stage 191)
 
-All from the UDA regulations, verified_official, for UDA-declared areas, and due for replacement: the UDA review page schedules "Minister's approval and gazetting" of new regulations for **31 December 2026**. They must be loaded as versioned data citing this document, with a Development Plan override. None is built yet.
+All from the UDA regulations, verified_official, for UDA-declared areas, and due for replacement: the UDA review page schedules "Minister's approval and gazetting" of new regulations for **31 December 2026**. They must be loaded as versioned data citing this document, with a Development Plan override. Stage 193 built the minimums (regs. 9(a), 14(1)) and the reminders for regs. 4(1), 7 and 23 as the set `uda-2020`, with the surveyor's own minimums as the override (`src/core/survey/rules.ts`, ADR 0207). The others are not built yet.
 
 | Rule | Section |
 | --- | --- |

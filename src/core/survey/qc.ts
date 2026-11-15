@@ -9,7 +9,8 @@ import type { CrsRecord } from "./crs";
 import { implausiblePoints, looksSwapped } from "./crs";
 import { legIndex, lotName, unreviewed, type SurveyDocument } from "./document";
 import { TOUCH_TOLERANCE_M, distance, orient, type Point } from "./geometry";
-import { nearKey, type PlanLots } from "./lots";
+import { NEAR_LEG_M, nearKey, type PlanLots } from "./lots";
+import { ACCESS_NOTE, RESERVED_NOTE, minimumText, remindersFor, ruleSetFrom, shortOf, type RuleSet } from "./rules";
 import { readStatedExtent } from "./extent";
 import type { SurveyPoint } from "./parcel";
 import { fmt, PERCH_M2 } from "./units";
@@ -51,6 +52,158 @@ function collinear(points: readonly Point[]): boolean {
   const len = distance(a, b);
   if (len <= TOUCH_TOLERANCE_M) return true;
   return points.every((p) => Math.abs(orient(a, b, p)) / len <= TOUCH_TOLERANCE_M);
+}
+
+/** How far under a minimum a figure must be to count as under it: the rounding it's shown with (0.01 m², 1 mm). */
+const RULE_AREA_TOLERANCE_M2 = 0.005;
+const RULE_LENGTH_TOLERANCE_M = 0.0005;
+
+/**
+ * A lot's frontage on one road or access lot: how much of its legs lies along the access's segments (a segment counts where both its
+ * ends are within NEAR_LEG_M of the leg's line, for the stretch the two overlap), so a road that ends part way along a leg gives that
+ * part. Counted in straight runs: a run ends where the boundary turns by more than 45 degrees, so a corner lot on a road that turns
+ * the corner takes its longer side, not both.
+ */
+export function frontageOn(legs: readonly { from: Point; to: Point; distance: number }[], segs: readonly (readonly [Point, Point])[]): number {
+  const dirs = legs.map((l) => (l.distance > 0 ? { e: (l.to.e - l.from.e) / l.distance, n: (l.to.n - l.from.n) / l.distance } : { e: 0, n: 0 }));
+  const covered = legs.map((l, i) => {
+    if (l.distance <= 0) return 0;
+    const u = dirs[i]!;
+    const off = (p: Point) => Math.abs((p.e - l.from.e) * u.n - (p.n - l.from.n) * u.e);
+    const t = (p: Point) => (p.e - l.from.e) * u.e + (p.n - l.from.n) * u.n;
+    const spans: [number, number][] = [];
+    for (const [a, b] of segs) {
+      if (off(a) > NEAR_LEG_M || off(b) > NEAR_LEG_M) continue;
+      const lo = Math.max(0, Math.min(t(a), t(b)));
+      const hi = Math.min(l.distance, Math.max(t(a), t(b)));
+      if (hi > lo) spans.push([lo, hi]);
+    }
+    spans.sort((x, y) => x[0] - y[0]);
+    let total = 0;
+    let reach = 0;
+    for (const [lo, hi] of spans) {
+      const from = Math.max(lo, reach);
+      if (hi > from) total += hi - from;
+      reach = Math.max(reach, hi);
+    }
+    return total;
+  });
+  const n = legs.length;
+  const joins = (i: number) => covered[i]! > 0 && covered[(i + 1) % n]! > 0 && dirs[i]!.e * dirs[(i + 1) % n]!.e + dirs[i]!.n * dirs[(i + 1) % n]!.n >= Math.SQRT1_2;
+  // Start just after a break, so a run that wraps past the ring's first corner is counted whole.
+  const startAt = Array.from({ length: n }, (_, i) => i).find((i) => !joins((i - 1 + n) % n));
+  if (startAt === undefined) return covered.reduce((x, y) => x + y, 0);
+  let best = 0;
+  let run = 0;
+  for (let k = 0; k < n; k++) {
+    const i = (startAt + k) % n;
+    run += covered[i]!;
+    best = Math.max(best, run);
+    if (!joins(i)) run = 0;
+  }
+  return best;
+}
+
+/**
+ * Each building lot against the chosen minimums. Reserved lots ("(Res. for Access, 10ft. wide)") aren't held to them. Frontage is the
+ * longest straight run along one road (its edges and its ends) or one reserved access lot (frontageOn); depth is the mean depth, the
+ * lot's area over that frontage. Only what was measured is said to be met.
+ */
+function checkRules(set: RuleSet, input: QcInput, add: (f: Finding) => void): void {
+  const { document: doc, points } = input;
+  const min = set.minimums;
+  const byId = new Map(points.map((p) => [p.id, p]));
+  // Each road (both edges, and across its ends) and each reserved access lot, as its own set of segments.
+  const accesses: [Point, Point][][] = [];
+  const polyline = (into: [Point, Point][], ids: readonly string[], closed: boolean) => {
+    const ps = ids.map((id) => byId.get(id)).filter((p): p is SurveyPoint => Boolean(p));
+    for (let i = 0; i + 1 < ps.length; i++) into.push([ps[i]!, ps[i + 1]!]);
+    if (closed && ps.length > 2) into.push([ps[ps.length - 1]!, ps[0]!]);
+    return ps;
+  };
+  for (const r of doc.roads) {
+    const segs: [Point, Point][] = [];
+    const a = polyline(segs, r.edgeA, false);
+    const b = polyline(segs, r.edgeB, false);
+    if (a.length > 0 && b.length > 0) segs.push([a[0]!, b[0]!], [a[a.length - 1]!, b[b.length - 1]!]);
+    if (segs.length > 0) accesses.push(segs);
+  }
+  const reserved = (note: string) => RESERVED_NOTE.test(note.trim());
+  for (const l of doc.lots) {
+    if (!reserved(l.note) || !ACCESS_NOTE.test(l.note)) continue;
+    const segs: [Point, Point][] = [];
+    polyline(segs, l.points, true);
+    if (segs.length > 0) accesses.push(segs);
+  }
+  const cite = set.id === "own" ? `From the minimums you entered: ${set.source}.` : `${set.title}, ${set.source.replace(/^.*?(regs?\.)/, "$1")}, for ${set.appliesTo}.`;
+  const weigh = "Check the lot against the rule that applies here. A Development Plan or an approved exception may allow it; say so in the lot's note or the plan's notes.";
+  const wantsFrontage = min.frontageM > 0 || min.depthM > 0;
+  let checked = 0;
+  let short = 0;
+  let reservedCount = 0;
+  let broken = 0;
+  let unmeasured = 0;
+  for (const r of input.lots.lots) {
+    if (reserved(r.lot.note)) {
+      reservedCount++;
+      continue;
+    }
+    const p = r.parcel;
+    if (!p || p.crossings.length > 0 || p.repeatedPoints.length > 0 || p.areaM2 <= 0) {
+      broken++;
+      continue;
+    }
+    checked++;
+    const name = `Lot ${lotName(r.lot) || "without a label"}`;
+    const target = { kind: "lot" as const, id: r.lot.id };
+    let ok = true;
+    if (p.areaM2 < min.areaM2 - RULE_AREA_TOLERANCE_M2) {
+      ok = false;
+      add({ code: "LOT_UNDER_MINIMUM_AREA", severity: "warning", message: `${name} is ${shortOf(p.areaM2, min.areaM2)} m², under ${set.label} of ${minimumText(min.areaM2, false)} m².`, target, detail: cite, action: weigh, blocks: [] });
+    }
+    if (wantsFrontage && accesses.length > 0) {
+      const frontage = Math.max(0, ...accesses.map((segs) => frontageOn(p.legs, segs)));
+      if (frontage < RULE_LENGTH_TOLERANCE_M) {
+        if (min.frontageM > 0) {
+          ok = false;
+          add({ code: "LOT_NO_ROAD_FRONTAGE", severity: "warning", message: `${name} has no leg along a road or an access strip on this plan.`, target, detail: cite, action: "If it's reached by a right of way not drawn here, say so in its note. A reserved access lot counts when its note starts \"Res.\" and names the access.", blocks: [] });
+        } else unmeasured++;
+      } else {
+        if (frontage < min.frontageM - RULE_LENGTH_TOLERANCE_M) {
+          ok = false;
+          add({ code: "LOT_UNDER_MINIMUM_FRONTAGE", severity: "warning", message: `${name}'s frontage is ${shortOf(frontage, min.frontageM)} m, under ${set.label} of ${minimumText(min.frontageM, true)} m.`, target, detail: cite, action: weigh, blocks: [] });
+        }
+        const depth = p.areaM2 / frontage;
+        if (depth < min.depthM - RULE_LENGTH_TOLERANCE_M) {
+          ok = false;
+          add({ code: "LOT_UNDER_MINIMUM_DEPTH", severity: "warning", message: `${name}'s mean depth (its area over its frontage) is ${shortOf(depth, min.depthM)} m, under ${set.label} of ${minimumText(min.depthM, true)} m.`, target, detail: cite, action: weigh, blocks: [] });
+        }
+      }
+    }
+    if (!ok) short++;
+  }
+  const leftOut = [
+    reservedCount > 0 ? `${reservedCount} reserved ${reservedCount === 1 ? "lot wasn't" : "lots weren't"} checked.` : "",
+    broken > 0 ? `${broken} ${broken === 1 ? "lot wasn't checked because its boundary crosses itself or a corner is missing" : "lots weren't checked because their boundaries cross themselves or corners are missing"}.` : "",
+  ].filter(Boolean);
+  // What was measured for every lot checked: the area always; frontage and depth only where each lot has one.
+  const measuredAll = !wantsFrontage || (accesses.length > 0 && unmeasured === 0);
+  const met = [
+    min.areaM2 > 0 ? `${minimumText(min.areaM2, false)} m²` : "",
+    measuredAll && min.frontageM > 0 ? `${minimumText(min.frontageM, true)} m frontage` : "",
+    measuredAll && min.depthM > 0 ? `${minimumText(min.depthM, true)} m depth` : "",
+  ].filter(Boolean);
+  const listed = met.length <= 1 ? met.join("") : `${met.slice(0, -1).join(", ")} and ${met[met.length - 1]}`;
+  if (checked > 0 && short === 0 && met.length > 0) {
+    const who = checked === 1 ? "The lot checked meets" : `All ${checked} lots checked meet`;
+    add({ code: "RULES_LOTS_MEET", severity: "information", message: `${who} ${measuredAll ? (set.id === "own" ? "your minimums" : "the UDA minimums") : "the minimum area"} (${listed}).`, target: { kind: "lot" }, detail: [cite, ...leftOut].join(" "), action: "Nothing to do.", blocks: [] });
+  } else if (leftOut.length > 0) {
+    add({ code: "RULES_LOTS_LEFT_OUT", severity: "information", message: leftOut.join(" "), target: { kind: "lot" }, action: "Reserved lots aren't building lots. Fix a lot's boundary to have it checked.", blocks: [] });
+  }
+  if (checked > 0 && wantsFrontage && accesses.length === 0) add({ code: "RULES_FRONTAGE_UNCHECKED", severity: "information", message: "Frontages and depths weren't checked: the plan has no roads or reserved access lots.", target: { kind: "lot" }, action: "Add the road on the Lots step, or a reserved access lot, to check them.", blocks: [] });
+  if (unmeasured > 0) add({ code: "RULES_DEPTH_UNMEASURED", severity: "information", message: `Depth wasn't measured for ${unmeasured} ${unmeasured === 1 ? "lot" : "lots"}: ${unmeasured === 1 ? "it has" : "they have"} no leg along a road or reserved access lot.`, target: { kind: "lot" }, action: "Add the road or access it fronts to measure its depth.", blocks: [] });
+  const land = input.lots.outlineAreaM2 ?? input.lots.sumAreaM2;
+  for (const text of remindersFor(set, land, doc.lots.length - reservedCount)) add({ code: "RULES_REMINDER", severity: "information", message: text, target: { kind: "project" }, action: "Nothing for Farbaek to check: a reminder from the regulations.", blocks: [] });
 }
 
 export function checkSurvey(input: QcInput): Finding[] {
@@ -170,6 +323,12 @@ export function checkSurvey(input: QcInput): Finding[] {
       if (pct <= 1) add({ code: "STATED_EXTENT_AGREES", severity: "information", message: "The stated extent agrees with the land computed from your points, within 1%.", target: { kind: "field", id: "statedExtent" }, detail, action: "Nothing to do.", blocks: [] });
       else add({ code: "STATED_EXTENT_DIFFERS", severity: "warning", message: `The stated extent differs from the land computed from your points by ${fmt(pct, 1)}%.`, target: { kind: "field", id: "statedExtent" }, detail, action: "Deeds are often older than the survey. Check the stated extent is copied right, and mention the difference in the plan's notes if it matters. The plan shows the computed extent.", blocks: [] });
     }
+  }
+  // The planning rules the surveyor chose for the lots (ADR 0207): warnings to weigh, never a pass or a fail of the plan.
+  if (doc.rules) {
+    const set = ruleSetFrom(doc.rules);
+    if (set) checkRules(set, input, add);
+    else add({ code: "RULES_SOURCE_MISSING", severity: "information", message: "Your own minimums aren't checked until you say where they come from.", target: { kind: "sheet" }, action: "Name the Development Plan or other rule beside the minimums in the plan settings.", blocks: [] });
   }
   if (input.lots.pieces > 1) {
     add({ code: "LOTS_APART", severity: "warning", message: `The lots form ${input.lots.pieces} separate pieces of land.`, target: { kind: "lot" }, action: "If this plan really shows separate lands, describe each in the title; otherwise check the shared corners.", blocks: [] });

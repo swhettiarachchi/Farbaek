@@ -17,12 +17,13 @@ import {
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, useTransition, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { formatDms, formatQuadrant, toDms } from "@/core/survey/angles";
 import { CODE_KINDS, LINE_STYLES, commonCodes, type CodeKind, type LineStyle } from "@/core/survey/codes";
 import { runsText, titleSentence } from "@/core/survey/description";
 import { LAYER_IDS, STANDARD_SCALES, lotName, type LayerId, type SurveyDocument } from "@/core/survey/document";
 import { roadWidth } from "@/core/survey/roads";
+import { UDA_2020, readDecimal, reviewNote } from "@/core/survey/rules";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { fmt, type SurveyorDetails } from "@/core/survey/sheet/compose";
 import type { SceneItem } from "@/core/survey/sheet/scene";
@@ -628,6 +629,45 @@ function SheetFields({ doc, update, readOnly, surveyors, suggested, paper }: { d
       </fieldset>
 
       <fieldset className="grid gap-3">
+        <legend className="mb-2 text-sm font-medium text-ink">Planning minimums</legend>
+        <label className="grid gap-1.5">
+          <span className={LABEL_CLASSES}>Check the lots against</span>
+          <select
+            value={doc.rules?.id ?? ""}
+            disabled={readOnly}
+            onChange={(e) => {
+              const v = e.target.value;
+              update((d) => void (d.rules = v === "uda-2020" ? { id: "uda-2020" } : v === "own" ? { id: "own", areaM2: 0, frontageM: 0, depthM: 0, source: "" } : null));
+            }}
+            className={inputClasses()}
+          >
+            <option value="">No minimums</option>
+            <option value="uda-2020">
+              UDA regulations: {UDA_2020.minimums.areaM2} m², {UDA_2020.minimums.frontageM} m frontage, {UDA_2020.minimums.depthM} m depth
+            </option>
+            <option value="own">Minimums I enter, from a Development Plan or other rule</option>
+          </select>
+        </label>
+        {doc.rules?.id === "own" ? (
+          <>
+            <div className="grid grid-cols-3 gap-3">
+              <MinimumField label="Least area (m²)" value={doc.rules.areaM2} max={10_000_000} disabled={readOnly} onCommit={(v) => update((d) => void (d.rules?.id === "own" && (d.rules.areaM2 = v)), "rules.areaM2")} />
+              <MinimumField label="Frontage (m)" value={doc.rules.frontageM} max={10_000} disabled={readOnly} onCommit={(v) => update((d) => void (d.rules?.id === "own" && (d.rules.frontageM = v)), "rules.frontageM")} />
+              <MinimumField label="Depth (m)" value={doc.rules.depthM} max={10_000} disabled={readOnly} onCommit={(v) => update((d) => void (d.rules?.id === "own" && (d.rules.depthM = v)), "rules.depthM")} />
+            </div>
+            <label className="grid gap-1.5">
+              <span className={LABEL_CLASSES}>Where they come from</span>
+              <input value={doc.rules.source} maxLength={200} disabled={readOnly} placeholder="The Development Plan and zone, for example" onChange={(e) => update((d) => void (d.rules?.id === "own" && (d.rules.source = e.target.value)), "rules.source")} className={inputClasses()} />
+            </label>
+          </>
+        ) : null}
+        <p className="text-sm text-ink-3">
+          {doc.rules?.id === "uda-2020" ? `For ${UDA_2020.appliesTo}. ${reviewNote(UDA_2020, new Date().toISOString().slice(0, 10)) ?? ""} ` : doc.rules?.id === "own" ? "Use 0 for a minimum that doesn't apply. " : ""}
+          Lots whose note starts &ldquo;Res.&rdquo; aren&apos;t checked, and frontage runs along a road or a reserved access lot. What&apos;s short shows on the Check step as a warning.
+        </p>
+      </fieldset>
+
+      <fieldset className="grid gap-3">
         <legend className="mb-2 text-sm font-medium text-ink">Title</legend>
         {field("Plan number", s.planNumber, "planNumber", (d, v) => void (d.sheet.planNumber = v), 40)}
         {field("Land called", s.landName, "landName", (d, v) => void (d.sheet.landName = v), 120)}
@@ -805,5 +845,50 @@ function CodesPanel({ doc, update, readOnly }: { doc: SurveyDocument; update: Up
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * A minimum typed as text and committed only while it reads as a number from 0 to `max` (what the drawing can store), so a half-typed
+ * "1." isn't lost. Anything else is said beside the field, and the stored minimum stays as it was until the field reads right.
+ */
+function MinimumField({ label, value, max, disabled, onCommit }: { label: string; value: number; max: number; disabled: boolean; onCommit: (v: number) => void }) {
+  const id = useId();
+  const [text, setText] = useState(String(value));
+  const [seen, setSeen] = useState(value);
+  // Undo or another change from outside: show the stored value again.
+  if (value !== seen) {
+    setSeen(value);
+    if (readDecimal(text) !== value) setText(String(value));
+  }
+  const typed = readDecimal(text);
+  const problem = !Number.isFinite(typed)
+    ? `Use a number, or 0 if it doesn't apply. The last one, ${value}, is kept until then.`
+    : typed > max
+      ? `At most ${max.toLocaleString("en-GB")}.`
+      : null;
+  return (
+    <label className="grid gap-1.5">
+      <span className={LABEL_CLASSES}>{label}</span>
+      <input
+        value={text}
+        inputMode="decimal"
+        disabled={disabled}
+        aria-invalid={problem ? true : undefined}
+        aria-describedby={problem ? id : undefined}
+        onChange={(e) => {
+          const t = e.target.value.slice(0, 12);
+          setText(t);
+          const v = readDecimal(t);
+          if (Number.isFinite(v) && v <= max) onCommit(v);
+        }}
+        className={inputClasses()}
+      />
+      {problem ? (
+        <span id={id} className="text-sm text-failed">
+          {problem}
+        </span>
+      ) : null}
+    </label>
   );
 }

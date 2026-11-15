@@ -241,7 +241,16 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
           <CardTitle icon={ScissorsIcon}>Divide a lot into shares</CardTitle>
           <p className="mt-1 text-sm text-ink-2">For a sub division: where the dividing lines fall for the shares you give, and how far along the boundary to peg each new corner, worked out from your surveyed corners. Nothing here changes the plan.</p>
           <div className="mt-5">
-            <PartitionPanel lots={doc.lots} points={data.points} perchDecimals={doc.settings.perchDecimals} />
+            <PartitionPanel
+              key={JSON.stringify(doc.rules)}
+              lots={doc.lots}
+              points={data.points}
+              features={doc.features}
+              perchDecimals={doc.settings.perchDecimals}
+              planRules={doc.rules}
+              blockOutHref={`${base}/export/blockout?version=${data.drawing.version}`}
+              blockOutUnavailable={view.blocksData.length > 0 ? `${view.blocksData[0]!.message} ${view.blocksData[0]!.action}` : null}
+            />
           </div>
         </Card>
       ) : null}
@@ -436,7 +445,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
               <ul className="mt-3 grid gap-2">
                 {data.exports.map((x, i) => (
                   <li key={i} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
-                    <span className="font-medium text-ink">{x.options["content"] === "lots" ? "Lot schedule" : x.kind.toUpperCase()}</span>
+                    <span className="font-medium text-ink">{x.options["content"] === "lots" ? "Lot schedule" : x.options["content"] === "blockout" ? "Block-out plan" : x.kind.toUpperCase()}</span>
                     <span className="text-ink-2">version {x.drawing_version}</span>
                     <span className="text-ink-3">
                       {isoDate(x.created_at)}, by {personName(x.created_by, data.profiles, me)}

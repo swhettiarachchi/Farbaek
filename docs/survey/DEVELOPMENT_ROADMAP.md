@@ -28,12 +28,18 @@ Stage 190 built the foundation and one complete workflow; stage 191 added severa
 - The lot schedule as CSV, a plot stamp under the frame, the inverse between any two points, and two codes on one point with notes after a slash.
 - Dividing a lot into shares (ADR 0206): dividing lines square or parallel to a leg for stated or equal shares, the area balance, setting-out distances, and the UDA minimums when asked. A proposal to peg, never a change to the plan.
 
-## Next: subdivision with roads and rules (planned)
+## Stage 193: dividing land by width, through a corner, under cited rules (done)
 
-Stage 192 divides one lot into shares. Still to come: access roads and strips cut out first, lines through a fixed point, layouts for a whole land with a feasibility report, never presenting a layout that breaks a hard rule as feasible.
-- **Rules as versioned data.** The UDA figures in [STANDARDS_RESEARCH.md](STANDARDS_RESEARCH.md) (minimum lot 150 m², 6.0 m frontage, 12.0 m depth, access rules, turning circles, open space), each citing the regulation, with a Development Plan override, and flagged as due for replacement on 31 December 2026. Schedule 4's width-to-lots pairing must not be encoded until a clean copy is found.
+- **Shares by width:** frontages along a road from a starting corner, or strips such as a 10 ft access reserve behind it, in metres or feet.
+- **Lines through one corner:** shares fan out from a corner, each line solved exactly, with bearings and lengths for setting out. A line that would leave a concave lot is reported, never shown as feasible.
+- **Rules as versioned data** (ADR 0207): the UDA minimums with their document, sections and review date (31 December 2026), cited reminders for consent, the RQP declaration and open space, and the surveyor's own minimums for a Development Plan or other rule. A plan's own lots are checked against the chosen set.
+- **The block-out plan** (ADR 0208): a division printed as a classic sheet headed BLOCK OUT PLAN, worked out again on the server, with the new corners as drawing-only points and a warning when a dividing line runs through a building.
+
+## Next: subdivision with roads (planned)
+
+Still to come: a whole land laid out at once, with its access road and its lots and a feasibility report, never presenting a layout that breaks a hard rule as feasible.
+- **More rules as data.** Access widths, turning circles and splays (regs. 18, 21, 22) join the `uda-2020` set as checks on a layout's road. Schedule 4's width-to-lots pairing must not be encoded until a clean copy is found.
 - **Area conservation**: parent area, roads and reservations, the sum of the lots, the residual, and the tolerance.
-- **Block-out plans** at not less than 1:1000 (UDA reg. 8).
 - **Libraries.** Polygon clipping is the riskiest choice and the research couldn't settle it (clipper2-ts and martinez were both days old on 15 November 2026). Every clip needs a JSTS validity check, an area-sum check and vertex snapping to the parcel's own vertices, with a fuzz suite.
 - Reproducible seeds for any optimiser; never assume a road width or reservation.
 

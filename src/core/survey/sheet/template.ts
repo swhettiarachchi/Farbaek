@@ -115,6 +115,8 @@ export const SRI_LANKA_CLASSIC_V1 = {
     note: "Note:-",
     scale: "Scale:-",
     heading: "PLAN",
+    blockOutHeading: "BLOCK OUT PLAN",
+    blockOutNotice: "NOT YET SURVEYED. The new corners are worked out from the surveyed ones and are not yet pegged.",
     entireBounded: "Entire land bounded as follows",
     lotBounded: "Lot {lot} bounded as follows",
     north: "North by",

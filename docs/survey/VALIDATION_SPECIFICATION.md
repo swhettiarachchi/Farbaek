@@ -92,6 +92,25 @@ Each per-lot boundary check above runs for every lot, its message starting "Lot 
 | `STATED_EXTENT_UNREAD` | information | none | The stated extent isn't written in a way Farbaek reads for sure ([`extent.ts`](../../src/core/survey/extent.ts): every number must pair with a unit; anything ambiguous is unread), or the lots don't fit together yet |
 | `SHEET_PARENT_LOTS`, `SHEET_EXTRACT_LOT` | warning | none | A sub division or amalgamation names no parent lot; an extract names a lot the plan doesn't have |
 | `AI_ITEMS_UNREVIEWED` | professional_review | approval | Items the drafting assistant filled, still on the plan, not yet marked right or changed ([AI_DRAFTING.md](AI_DRAFTING.md)) |
+| `LOT_UNDER_MINIMUM_AREA`, `LOT_UNDER_MINIMUM_FRONTAGE`, `LOT_UNDER_MINIMUM_DEPTH` | warning | none | Stage 193, only when the plan names planning rules (ADR 0207). A building lot under the set's minimum area, frontage, or mean depth (its area over its frontage). The detail cites the set, or the surveyor's own source |
+| `LOT_NO_ROAD_FRONTAGE` | warning | none | A building lot with no leg along a road or a reserved access lot, when the set asks for a frontage |
+| `RULES_LOTS_MEET` | information | none | Every building lot checked meets the set's minimums; the detail says how many reserved lots were left out |
+| `RULES_FRONTAGE_UNCHECKED` | information | none | The plan has no roads or reserved access lots, so frontages and depths weren't checked |
+| `RULES_DEPTH_UNMEASURED` | information | none | Lots without a leg along a road or reserved access lot, whose depth couldn't be measured (when no frontage minimum is set) |
+| `RULES_LOTS_LEFT_OUT` | information | none | Reserved lots, and lots whose boundary crosses itself or misses a corner, that weren't checked (said in `RULES_LOTS_MEET`'s detail when that one is shown) |
+| `RULES_SOURCE_MISSING` | information | none | The surveyor's own minimums don't yet say where they come from, so they aren't checked |
+| `RULES_REMINDER` | information | none | One of the set's reminders that applies to this land (consent, the RQP declaration, open space), with its section |
+
+**Planning minimums** (stage 193, ADR 0207):
+- **Which lots.** Lots whose note starts "Res." (as in "(Res. for Access, 10ft. wide)") are reservations, not building lots, and aren't checked.
+- **Frontage.** It's how much of a lot's legs lies along one road or one reserved access lot whose note names the access.
+  - A road counts by its edges and across its two ends.
+  - A segment counts where both its ends are within 5 cm of the leg's line, for the stretch the two overlap, so a road that ends part way along a leg gives that part.
+  - Frontage is counted in straight runs that end where the boundary turns by more than 45°, so a corner lot takes its longer side, on one road or two.
+- **Depth.** It's the mean depth: the lot's area over that frontage.
+- **Tolerance.** A figure at a minimum, to the rounding it's shown with (0.01 m², 1 mm), meets it.
+- **What "meets" says.** The `RULES_LOTS_MEET` line names only what was measured for every lot checked.
+- **Weight.** These are warnings to weigh: a Development Plan or an approved exception may allow a smaller lot, so none blocks anything.
 
 "Keep as surveyed" (ADR 0205) saves a new version with the near miss's key in the document's `kept` list, so the approval covers the answer and History shows it. Every save trims `kept` to near misses the plan has, so no answer outlives its near miss or arrives from outside. A document with an empty `kept` hashes as one saved before the field existed, so earlier approvals still stand. Nothing moves.
 
