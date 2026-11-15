@@ -12,7 +12,7 @@
  * live talk (one tap, then talk: each pause ends an instruction, and "apply", "undo" or "stop listening" answer by voice).
  */
 import { ClockCounterClockwiseIcon, MicrophoneIcon, MicrophoneSlashIcon, PaperPlaneRightIcon, SpeakerHighIcon, SpeakerSlashIcon, StopIcon, TranslateIcon } from "@phosphor-icons/react";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
 import { answer as engineAnswer } from "@/core/survey/assistant/answer";
 import type { Applied, Patch } from "@/core/survey/assistant/apply";
 import { checkTurn } from "@/core/survey/assistant/check";
@@ -76,6 +76,12 @@ const CANNOT: Record<NonNullable<CheckedTurn["cannot"]>, string> = {
 };
 
 const noSubscribe = () => () => {};
+const MODES = [
+  ["push", "Push to talk"],
+  ["live", "Live talk"],
+] as const;
+/** When the last bar went away: a save starts the editor afresh, and a live conversation carries on only across that. */
+let leftAt = 0;
 const newId = () => `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const recent = (turns: readonly Turn[]) => turns.slice(-6).map((t) => `${t.words.slice(0, 120)} (${t.outcome})`);
 
@@ -105,21 +111,32 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
   const [drawer, setDrawer] = useState(false);
   const [langMenu, setLangMenu] = useState(false);
   const [privacy, setPrivacy] = useState(false);
-  const [ticked, setTicked] = useState<boolean[]>([]);
   const [comparing, setComparing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const inFlight = useRef<AbortController | null>(null);
   const pauseTimer = useRef<number | undefined>(undefined);
   const countdownTimer = useRef<number | undefined>(undefined);
   const silenceTimer = useRef<number | undefined>(undefined);
+  const tailTimer = useRef<number | undefined>(undefined);
+  const restartTimer = useRef<number | undefined>(undefined);
+  const emptyRuns = useRef(0);
   const pressedAt = useRef(0);
   const holding = useRef(false);
   const input = useRef<HTMLTextAreaElement>(null);
   const startRef = useRef<() => void>(() => {});
   const runRef = useRef<(words: string, method: "voice" | "typed") => void>(() => {});
+  // The latest plan, settings and conversation, for work that finishes later (a model reply, a spoken reply ending): it acts on the
+  // plan as it is then, never as it was when the instruction was sent.
+  const latest = useRef({ bridge, settings, session, listening: speech.listening });
+  useLayoutEffect(() => {
+    latest.current = { bridge, settings, session, listening: speech.listening };
+  });
 
   const active = useMemo(() => [...turns].reverse().find((t) => t.open) ?? null, [turns]);
   const pending = active && active.outcome === "suggested" && active.ops.some((o) => tierOf(o) === "confirm" || tierOf(o) === "caution" || tierOf(o) === "now") ? active : null;
+  // The ticks live on the turn, so a save (which starts the editor afresh) keeps the items left out, out.
+  const ticked = useMemo(() => pending?.ticked ?? [], [pending]);
+  const setTicked = (next: boolean[]) => pending && updateTurn(pending.id, { ticked: next });
   const lastUndoable = useMemo(() => [...turns].reverse().find((t) => (t.outcome === "applied" || t.outcome === "done") && t.patch) ?? null, [turns]);
   const ctx = useMemo(() => ({ doc: bridge.doc, points: bridge.points }), [bridge.doc, bridge.points]);
   const changeOps = useMemo(() => (pending ? pending.ops.filter((o) => ["now", "confirm", "caution"].includes(tierOf(o))) : []), [pending]);
@@ -132,37 +149,54 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending, comparing, shownOps]);
 
+  /** Says a reply when spoken replies are on, never over an open microphone: listening stops first and starts again after. */
   const say = useCallback(
     (sentences: string[], lang: AssistLanguage, spoken: boolean, then?: () => void) => {
-      if (settings.speak && spoken && sentences.length && !voice.unavailable(lang)) voice.speak(sentences, lang, then);
-      else then?.();
+      if (latest.current.settings.speak && spoken && sentences.length && !voice.unavailable(lang)) {
+        if (latest.current.listening) speech.abort();
+        voice.speak(sentences, lang, then);
+      } else then?.();
     },
-    [settings.speak, voice],
+    [speech, voice],
   );
 
+  /** Live talk listens again after a reply, if the conversation is still open in live mode now. */
   const resumeLive = useCallback(() => {
-    if (settings.mode === "live" && session.live) startRef.current();
-  }, [settings.mode, session.live]);
+    const { settings: s, session: c } = latest.current;
+    if (s.mode === "live" && c.live) startRef.current();
+  }, []);
+
+  /** A card is done with. In live talk the microphone opens again, unless the surveyor is turning to type. */
+  const decided = (resume: boolean) => {
+    dispatch({ type: "decided" });
+    if (resume) resumeLive();
+  };
 
   /** What came of a checked turn: views at once; layers, labels and paper at once with Undo; values wait in a card; tools are handed over. */
   const finish = useCallback(
-    (words: string, method: "voice" | "typed", engine: Turn["engine"], checked: CheckedTurn, serverId: string | null) => {
+    (words: string, method: "voice" | "typed", engine: Turn["engine"], raw: CheckedTurn, serverId: string | null) => {
+      const bridge = latest.current.bridge;
+      const settings = latest.current.settings;
       const lang = method === "voice" ? settings.lang : scriptOf(words);
+      // Undo and redo run only from the surveyor's own word, read by the local rules, never from the model.
+      const fromModelHistory = engine === "model" && raw.ops.some((o) => o.kind === "history");
+      const checked: CheckedTurn = fromModelHistory ? { ...raw, ops: raw.ops.filter((o) => o.kind !== "history"), dropped: [...raw.dropped, { what: "Undo or redo", why: 'Say "undo" or "redo" on its own, or use Undo.' }] } : raw;
       const views = checked.ops.filter((o) => tierOf(o) === "view");
       for (const v of views) {
         if (v.kind === "view") bridge.view(v);
         else if (v.kind === "history") bridge.history(v.action);
       }
       const changes = checked.ops.filter((o) => ["now", "confirm", "caution"].includes(tierOf(o)));
-      const needsLook = changes.some((o) => tierOf(o) !== "now");
+      // Changes from the model always wait in a card, even layers and paper: only the surveyor's own words, read by the local rules,
+      // change the plan at once.
+      const needsLook = engine === "model" || changes.some((o) => tierOf(o) !== "now");
       const answers = checked.ops.filter((o): o is Extract<PlanOp, { kind: "answer" }> => o.kind === "answer").map((o) => engineAnswer(o, { doc: bridge.doc, points: bridge.points, findings: bridge.plan.findings, scale: bridge.plan.sheet.scale, suggestedScale: bridge.plan.sheet.suggestedScale }));
       const handoffs = checked.ops.filter((o) => tierOf(o) === "handoff");
       const base: Turn = { id: newId(), at: Date.now(), words, inputMethod: method, lang, engine, say: checked.say, ops: checked.ops, dropped: checked.dropped, question: checked.question, answers, outcome: "failed", patch: null, serverId, message: "", open: false };
       const spoken = method === "voice" || settings.mode === "live";
       if (changes.length && (needsLook || bridge.readOnly)) {
-        setTicked(changes.map(() => true));
         setComparing(false);
-        addTurn({ ...base, outcome: "suggested", open: true });
+        addTurn({ ...base, outcome: "suggested", open: true, ticked: changes.map(() => true) });
         dispatch({ type: "result", phase: "suggested" });
         say([checked.say || `${changes.length === 1 ? "One change" : `${changes.length} changes`} to check.`, ...readBack(changes, { doc: bridge.doc, points: bridge.points })].filter(Boolean), lang, spoken, resumeLive);
         return;
@@ -211,7 +245,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
       dispatch({ type: "failed", message: why });
       say([why], lang, spoken, resumeLive);
     },
-    [addTurn, bridge, ctx, dispatch, resumeLive, say, settings.lang, settings.mode],
+    [addTurn, ctx, dispatch, resumeLive, say],
   );
 
   const control = useCallback(
@@ -224,23 +258,34 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
         if (active?.outcome === "suggested") decide(active, "discarded");
         if (active) close(active.id, active.outcome === "suggested" ? "discarded" : active.outcome);
         bridge.setPreview(null);
-        dispatch({ type: "decided" });
+        decided(true);
       } else if (c.control === "stop") {
         stopLive();
-      } else if (c.control === "save") bridge.save();
-      else if (c.control === "goto" && c.step) bridge.goto(c.step);
-      else if (c.control === "readback") {
-        const lines = pending ? readBack(changeOps, ctx) : [];
-        if (lines.length && !voice.unavailable(settings.lang)) voice.speak(lines, settings.lang);
-        else setNotice(lines.length ? "This device can't read it back; the values are in the card." : "Nothing to read back.");
+      } else if (c.control === "goto" && c.step) {
+        // Going to another step ends the conversation here.
+        stopLive();
+        bridge.goto(c.step);
+      } else {
+        if (c.control === "save") bridge.save();
+        dispatch({ type: "result", phase: "applied" });
+        if (c.control === "readback") {
+          const lines = pending ? readBack(changeOps, ctx) : [];
+          if (lines.length && !voice.unavailable(settings.lang)) {
+            if (latest.current.listening) speech.abort();
+            voice.speak(lines, settings.lang, resumeLive);
+            return;
+          }
+          setNotice(lines.length ? "This device can't read it back; the values are in the card." : "Nothing to read back.");
+        }
+        resumeLive();
       }
-      if (c.control !== "apply" && c.control !== "discard") dispatch({ type: "result", phase: "applied" });
+      if (c.control === "stop" || c.control === "goto") dispatch({ type: "result", phase: "applied" });
       void words;
       void method;
     },
-    // applyTurn and stopLive are declared below and read through the latest closure on each render.
+    // applyTurn, decided and stopLive are declared below and read through the latest closure on each render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [active, pending, changeOps, ctx, settings.lang, voice],
+    [active, pending, changeOps, ctx, settings.lang, voice, speech, resumeLive],
   );
 
   /** Sends an instruction. */
@@ -253,9 +298,17 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
       const alone = readCommand(said);
       const combined = asked && (answering || !alone) ? `${asked.words.replace(/[.\s]+$/, "")}. ${said}` : said;
       const instruction = combined.length <= 2_000 ? combined : said;
+      // A newer instruction replaces one still being worked out: its reply never lands on top of this one.
+      inFlight.current?.abort();
+      inFlight.current = null;
       voice.cancel();
       bridge.setMarks([]);
       setNotice(null);
+      // Sending something is activity: live talk's minute of silence starts again.
+      if (latest.current.session.live) {
+        window.clearTimeout(silenceTimer.current);
+        silenceTimer.current = window.setTimeout(() => stopLiveRef.current(), 60_000);
+      }
       if (active?.open && active.outcome !== "suggested") updateTurn(active.id, { open: false });
       dispatch({ type: "edit", text: instruction });
       dispatch({ type: "send" });
@@ -276,13 +329,15 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
         finish(instruction, method, "reader", check(read.output), null);
         return;
       }
-      if (bridge.aiOff) {
-        const why = `${bridge.aiOff} Without AI the assistant still zooms, shows and hides layers, sets the paper and scale, moves labels, and answers the area, the checks and what's missing.`;
-        addTurn({ id: newId(), at: Date.now(), words: instruction, inputMethod: method, lang: settings.lang, engine: "reader", say: "", ops: [], dropped: [], question: null, answers: [], outcome: "failed", patch: null, serverId: null, message: why, open: true });
+      const failed = (why: string, engine: Turn["engine"]) => {
+        addTurn({ id: newId(), at: Date.now(), words: instruction, inputMethod: method, lang: settings.lang, engine, say: "", ops: [], dropped: [], question: null, answers: [], outcome: "failed", patch: null, serverId: null, message: why, open: true });
         dispatch({ type: "failed", message: why });
+        say([why], settings.lang, method === "voice" || latest.current.settings.mode === "live", resumeLive);
+      };
+      if (bridge.aiOff) {
+        failed(`${bridge.aiOff} Without AI the assistant still zooms, shows and hides layers, sets the paper and scale, moves labels, makes lots from picked points, and answers the area, the checks and what's missing.`, "reader");
         return;
       }
-      inFlight.current?.abort();
       const ac = new AbortController();
       inFlight.current = ac;
       const timeout = window.setTimeout(() => ac.abort("timeout"), 15_000);
@@ -296,45 +351,47 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
         const body = (await res.json().catch(() => null)) as { ok: true; turnId: string; output: AssistOutput } | { ok: false; message: string } | null;
         if (ac.signal.aborted) return;
         if (!body || !body.ok) {
-          const why = body && !body.ok ? body.message : "The assistant didn't answer. Try again, or use the tools on the Lots and Plan steps.";
-          addTurn({ id: newId(), at: Date.now(), words: instruction, inputMethod: method, lang: settings.lang, engine: "model", say: "", ops: [], dropped: [], question: null, answers: [], outcome: "failed", patch: null, serverId: null, message: why, open: true });
-          dispatch({ type: "failed", message: why });
+          failed(body && !body.ok ? body.message : "The assistant didn't answer. Try again, or use the tools on the Lots and Plan steps.", "model");
           return;
         }
-        finish(instruction, method, "model", check(body.output), body.turnId);
+        // Checked again against the plan as it is now, edits made while waiting included; "these points" are still the ones picked
+        // when it was said.
+        // The model's refs (L1, P:12) are the ones it was sent; they name items by id, so an item removed meanwhile is left out.
+        const now = latest.current.bridge;
+        finish(instruction, method, "model", checkTurn({ instruction, output: body.output, doc: now.doc, points: now.points, selection: bridge.selection, refs: context.refs, inputMethod: method }), body.turnId);
       } catch {
-        if (ac.signal.reason === "timeout") {
-          const why = "The assistant took too long, so it was stopped and nothing was charged. Try again, or say it more simply.";
-          addTurn({ id: newId(), at: Date.now(), words: instruction, inputMethod: method, lang: settings.lang, engine: "model", say: "", ops: [], dropped: [], question: null, answers: [], outcome: "failed", patch: null, serverId: null, message: why, open: true });
-          dispatch({ type: "failed", message: why });
-        } else dispatch({ type: "cancel" });
+        if (ac.signal.reason === "timeout") failed("The assistant took too long, so it was stopped and nothing was charged. Try again, or say it more simply.", "model");
+        else if (!ac.signal.aborted) failed("The answer didn't arrive: the connection may have dropped. Try again.", "model");
+        // Otherwise it was stopped on purpose (Stop, the microphone, a newer instruction, leaving the page), and that already said so.
       } finally {
         window.clearTimeout(timeout);
         if (inFlight.current === ac) inFlight.current = null;
       }
     },
-    [active, addTurn, bridge, control, dispatch, finish, pending, settings.lang, turns, updateTurn, voice],
+    [active, addTurn, bridge, control, dispatch, finish, pending, resumeLive, say, settings.lang, turns, updateTurn, voice],
   );
   useEffect(() => {
     runRef.current = (w, m) => void run(w, m);
   }, [run]);
 
   function applyTurn(t: Turn) {
+    const b = latest.current.bridge;
     const ops = changeOps.filter((_, i) => ticked[i] !== false);
-    const r = bridge.apply(ops);
-    bridge.setPreview(null);
+    const r = b.apply(ops);
+    b.setPreview(null);
     if (!r.ok) {
       updateTurn(t.id, { open: false, outcome: "failed", message: r.error });
       setNotice(r.error);
-      dispatch({ type: "decided" });
+      decided(true);
       return;
     }
-    bridge.setMarks(r.touched);
+    b.setMarks(r.touched);
     decide(t, "applied", ops);
     const skipped = r.skipped.length ? ` ${r.skipped.map((s) => `${s.what}: ${s.why}`).join(" ")}` : "";
     updateTurn(t.id, { open: false, outcome: "applied", patch: r.patch, message: `${ops.length === 1 ? "One change" : `${ops.length} changes`} applied.${skipped}` });
     setNotice(`${ops.length === 1 ? "One change" : `${ops.length} changes`} applied.${skipped}`);
-    dispatch({ type: "decided" });
+    decided(false);
+    // The reply is spoken with the microphone closed, then live talk listens again.
     say(["Applied."], t.lang, t.inputMethod === "voice" || settings.mode === "live", resumeLive);
   }
 
@@ -352,6 +409,8 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
   const clearTimers = () => {
     window.clearTimeout(pauseTimer.current);
     window.clearTimeout(countdownTimer.current);
+    window.clearTimeout(tailTimer.current);
+    window.clearTimeout(restartTimer.current);
   };
 
   const onHeard = useCallback(
@@ -360,9 +419,20 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
       const w = words.trim();
       if (!w) {
         dispatch({ type: "no_speech" });
-        if (settings.mode === "live") window.setTimeout(() => startRef.current(), 150);
+        // Live talk listens again after a silence, but a recogniser that keeps ending at once with nothing heard stops it, rather
+        // than flicker on and off.
+        if (latest.current.settings.mode === "live" && latest.current.session.live) {
+          emptyRuns.current++;
+          if (emptyRuns.current >= 4) {
+            stopLiveRef.current();
+            setNotice("Nothing was heard for a while, so live talk stopped. Tap the microphone to start again.");
+            return;
+          }
+          restartTimer.current = window.setTimeout(() => startRef.current(), 150);
+        }
         return;
       }
+      emptyRuns.current = 0;
       const hold = settings.review || ambiguousNumbers(w);
       dispatch({ type: "final", text: w, review: settings.review });
       setText(w);
@@ -390,33 +460,36 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
     }
     voice.cancel();
     inFlight.current?.abort();
+    inFlight.current = null;
     clearTimers();
     setText("");
     dispatch({ type: "listen", live: settings.mode === "live" });
-    window.clearTimeout(silenceTimer.current);
-    if (settings.mode === "live") silenceTimer.current = window.setTimeout(() => stopLive(), 60_000);
+    // A new live conversation starts its minute of silence; listening again after a reply carries the same one on.
+    if (settings.mode === "live" && silenceTimer.current === undefined) silenceTimer.current = window.setTimeout(() => stopLiveRef.current(), 60_000);
     speech.start({
       lang: availability.tag,
       continuous: true,
       onWords: (w) => {
         dispatch({ type: "interim", text: w });
-        if (settings.mode === "live") {
+        if (latest.current.settings.mode === "live") {
           window.clearTimeout(pauseTimer.current);
           window.clearTimeout(silenceTimer.current);
-          silenceTimer.current = window.setTimeout(() => stopLive(), 60_000);
-          pauseTimer.current = window.setTimeout(() => speech.stop(), settings.pauseMs);
+          silenceTimer.current = window.setTimeout(() => stopLiveRef.current(), 60_000);
+          pauseTimer.current = window.setTimeout(() => speech.stop(), latest.current.settings.pauseMs);
         }
       },
       onFinal: (w) => onHeard(w),
       onError: (code) => {
-        const msg = speechErrorMessage(code, languageOf(settings.lang).name);
+        // The recogniser has ended without sending anything; a live conversation ends with it.
+        const msg = speechErrorMessage(code, languageOf(latest.current.settings.lang).name);
+        clearTimers();
+        window.clearTimeout(silenceTimer.current);
+        silenceTimer.current = undefined;
         dispatch({ type: "cancel" });
         if (msg) setNotice(msg);
       },
     });
-    // stopLive is declared below; the latest one is used.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [availability, dispatch, onHeard, settings.lang, settings.mode, settings.pauseMs, settings.privacyNoted, speech, voice]);
+  }, [availability, dispatch, onHeard, settings.mode, settings.privacyNoted, speech, voice]);
   useEffect(() => {
     startRef.current = startListening;
   }, [startListening]);
@@ -424,19 +497,48 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
   function stopLive() {
     clearTimers();
     window.clearTimeout(silenceTimer.current);
+    silenceTimer.current = undefined;
+    emptyRuns.current = 0;
+    holding.current = false;
     speech.abort();
     dispatch({ type: "stop_live" });
   }
+  const stopLiveRef = useRef(stopLive);
+  useLayoutEffect(() => {
+    stopLiveRef.current = stopLive;
+  });
 
-  /** Stops everything at once: listening, a turn in flight, speech and the countdown. */
+  /** Stops everything at once: listening, a turn in flight, speech, the countdown and the tail after a release. */
   const cancelAll = useCallback(() => {
     clearTimers();
     window.clearTimeout(silenceTimer.current);
+    silenceTimer.current = undefined;
+    emptyRuns.current = 0;
+    holding.current = false;
     speech.abort();
     inFlight.current?.abort();
+    inFlight.current = null;
     voice.cancel();
     dispatch({ type: "cancel" });
   }, [dispatch, speech, voice]);
+
+  // Leaving (another step, or the editor starting afresh after a save) stops every timer and any turn in flight. A live conversation
+  // carries on in the new editor; anything half-heard in push to talk is dropped.
+  useEffect(() => {
+    const s = latest.current.session;
+    // Only a save brings the editor straight back; coming back to the step later starts quiet.
+    if (s.live && Date.now() - leftAt < 5_000) startRef.current();
+    else if (s.live) dispatch({ type: "stop_live" });
+    else if (s.phase === "listening" || s.phase === "countdown" || s.phase === "working") dispatch({ type: "cancel" });
+    return () => {
+      leftAt = Date.now();
+      for (const t of [pauseTimer, countdownTimer, silenceTimer, tailTimer, restartTimer]) window.clearTimeout(t.current);
+      inFlight.current?.abort("unmount");
+      inFlight.current = null;
+    };
+    // Once per editor: on mount and unmount only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Push to talk: hold and let go to send, or tap to start and tap again to send. Hold Space on the sheet too.
   const micDown = () => {
@@ -452,23 +554,24 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
   const micUp = () => {
     if (!holding.current) return;
     holding.current = false;
-    // A hold (not a tap) ends on release, with a short tail so the last word isn't cut off.
-    if (settings.mode === "push" && Date.now() - pressedAt.current > 350) window.setTimeout(() => speech.stop(), 400);
+    // A hold (not a tap) ends on release, with a short tail so the last word isn't cut off. Esc in the tail drops it all.
+    if (settings.mode === "push" && Date.now() - pressedAt.current > 350) tailTimer.current = window.setTimeout(() => speech.stop(), 400);
   };
   useEffect(() => {
     const onCanvas = () => (document.activeElement as HTMLElement | null)?.dataset?.planCanvas === "true";
     const down = (e: globalThis.KeyboardEvent) => {
-      if (e.code === "Space" && !e.repeat && onCanvas() && settings.mode === "push") {
+      if (e.code === "Space" && !e.repeat && onCanvas() && settings.mode === "push" && !latest.current.listening) {
         e.preventDefault();
         pressedAt.current = Date.now();
         holding.current = true;
         startRef.current();
       } else if (e.key === "Escape") cancelAll();
     };
+    // Letting go of Space sends wherever the focus has moved meanwhile, so a hold never sticks on.
     const up = (e: globalThis.KeyboardEvent) => {
-      if (e.code === "Space" && holding.current && onCanvas()) {
+      if (e.code === "Space" && holding.current) {
         holding.current = false;
-        window.setTimeout(() => speech.stop(), 400);
+        tailTimer.current = window.setTimeout(() => speech.stop(), 400);
       }
     };
     window.addEventListener("keydown", down);
@@ -485,12 +588,98 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
     setText(v);
     dispatch({ type: "edit", text: v });
   };
+  /** Tapping the words during the countdown keeps them to edit, as the status line says. */
+  const keepWords = () => {
+    if (session.phase !== "countdown") return;
+    window.clearTimeout(countdownTimer.current);
+    dispatch({ type: "edit", text });
+  };
+  /** Turning to type ends live talk, so the words aren't overwritten by the next ones heard. */
+  const toTyping = (words: string) => {
+    if (session.live) stopLive();
+    setText(words);
+    window.setTimeout(() => input.current?.focus(), 0);
+  };
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       void run(text, session.phase === "heard" ? "voice" : "typed");
     }
   };
+
+  // ---- The language menu: arrows, Home and End move, Esc or a tap outside closes it, and the focus goes back to its button ------------
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuOpener = useRef<HTMLButtonElement | null>(null);
+  const items = () => [...(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]') ?? [])];
+  const openMenu = (from: HTMLButtonElement) => {
+    menuOpener.current = from;
+    setLangMenu(true);
+    window.setTimeout(() => (items().find((b) => b.getAttribute("aria-checked") === "true") ?? items()[0])?.focus(), 0);
+  };
+  const closeMenu = (refocus = true) => {
+    setLangMenu(false);
+    if (refocus) menuOpener.current?.focus();
+  };
+  const onMenuKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const list = items();
+    const at = list.indexOf(document.activeElement as HTMLButtonElement);
+    const go = (i: number) => {
+      e.preventDefault();
+      list[(i + list.length) % list.length]?.focus();
+    };
+    if (e.key === "ArrowDown") go(at + 1);
+    else if (e.key === "ArrowUp") go(at - 1);
+    else if (e.key === "Home") go(0);
+    else if (e.key === "End") go(list.length - 1);
+    else if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      closeMenu();
+    } else if (e.key === "Tab") closeMenu(false);
+  };
+  useEffect(() => {
+    if (!langMenu) return;
+    const outside = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (!menuRef.current?.contains(t) && !menuOpener.current?.contains(t)) setLangMenu(false);
+    };
+    document.addEventListener("pointerdown", outside);
+    return () => document.removeEventListener("pointerdown", outside);
+  }, [langMenu]);
+
+  // ---- The voice mode: a radio group, with arrows moving between the two (one tab stop) ----------------------------------------------
+  const chooseMode = (m: "push" | "live") => {
+    if (m === settings.mode) return;
+    // Changing how you talk ends whatever was being heard, and a live conversation.
+    if (listening || session.live) cancelAll();
+    setSettings({ mode: m });
+    dispatch({ type: "mode", mode: m });
+  };
+  const onModeKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return;
+    e.preventDefault();
+    const group = e.currentTarget;
+    chooseMode(settings.mode === "push" ? "live" : "push");
+    window.setTimeout(() => group.querySelector<HTMLButtonElement>('[aria-checked="true"]')?.focus(), 0);
+  };
+
+  // ---- The drawer and the cards take turns: a new card closes the drawer, and the drawer, while open, sits where the card was ------
+  const [drawerAt, setDrawerAt] = useState(0);
+  const showDrawer = drawer && (!active || drawerAt >= active.at);
+
+  // The bar's height, for the page's padding below the side panels on phones, so nothing ends up under it.
+  const barRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = barRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const root = document.documentElement;
+    const ro = new ResizeObserver(() => root.style.setProperty("--assist-bar", `${Math.ceil(el.getBoundingClientRect().height)}px`));
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      root.style.removeProperty("--assist-bar");
+    };
+  }, []);
 
   // ---- What it shows -------------------------------------------------------------------------------------------------------------
   const phase = session.phase;
@@ -502,7 +691,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
       ? `Listening in ${langName}. Pause to send; say "stop listening" to end.`
       : `Listening in ${langName}. Let go, or tap again, to send.`
     : phase === "countdown"
-      ? "Sending… Type or tap to keep the words."
+      ? "Sending… Tap the words to keep them and edit."
       : phase === "working"
         ? "Working out the change…"
         : phase === "heard"
@@ -511,8 +700,12 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
             ? "Your turn: check the change, then apply it."
             : phase === "asking"
               ? "Your turn: answer the question."
-              : notice
-                ? notice
+              : phase === "handoff"
+                ? "Your turn: open it in its tool to check, or leave it."
+              : phase === "failed" && session.message
+                ? `Not done. ${session.message}`
+                : notice
+                  ? notice
                 : !availability.ok
                   ? availability.reason
                   : settings.mode === "live"
@@ -523,16 +716,18 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
   const micLabel = listening ? (session.live ? "Stop live talk" : "Stop and send") : settings.mode === "live" ? "Start live talk" : "Hold to talk";
   const langCode = settings.lang === "en" ? "EN" : languageOf(settings.lang).native;
   // The visible code is part of the button's name, so speech control can say what's shown (WCAG 2.5.3).
-  const languageButton = (size: string) => (
-    <button type="button" aria-haspopup="menu" aria-expanded={langMenu} onClick={() => setLangMenu((v) => !v)} className={buttonClasses("ghost", "sm", size)}>
-      <TranslateIcon size={16} weight="bold" aria-hidden />
+  const languageButton = (size: string, icon = true) => (
+    <button type="button" aria-haspopup="menu" aria-expanded={langMenu} onClick={(e) => (langMenu ? closeMenu() : openMenu(e.currentTarget))} className={buttonClasses("ghost", "sm", size)}>
+      {icon ? <TranslateIcon size={16} weight="bold" aria-hidden /> : null}
       <span className="sr-only">Language: </span>
       <span className="text-sm">{langCode}</span>
     </button>
   );
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-[var(--tab-bar)] z-30 flex flex-col items-center gap-2 px-3 pb-3 lg:absolute lg:bottom-0 lg:px-4 lg:pb-4">
+    <div className="pointer-events-none fixed inset-x-0 bottom-[var(--tab-bar)] z-30 flex max-h-[calc(100dvh-var(--tab-bar)-4.5rem)] flex-col items-center gap-2 px-3 pb-3 lg:absolute lg:bottom-0 lg:max-h-full lg:px-4 lg:pb-4">
+      {/* Cards stack above the bar and scroll as one when the screen is short; they never reach the page's header. */}
+      <div className="pointer-events-none flex min-h-0 w-full flex-col items-center gap-2 overflow-y-auto overscroll-contain">
       {privacy ? (
         <NoteCard
           tone="info"
@@ -564,14 +759,14 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
         </NoteCard>
       ) : null}
 
-      {pending ? (
+      {pending && !showDrawer ? (
         <ChangeCard
           words={pending.words}
           say={pending.say}
           ops={changeOps}
           described={describedChanges}
           ticked={changeOps.map((_, i) => ticked[i] !== false)}
-          onTick={(i, on) => setTicked((t) => Object.assign([...t], { [i]: on }))}
+          onTick={(i, on) => setTicked(Object.assign(changeOps.map((_, j) => ticked[j] !== false), { [i]: on }))}
           dropped={pending.dropped}
           approvedVersion={bridge.approved && !bridge.dirty}
           comparing={comparing}
@@ -581,21 +776,20 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
             decide(pending, "discarded");
             updateTurn(pending.id, { open: false, outcome: "discarded", message: "Changed the words." });
             bridge.setPreview(null);
-            setText(pending.words);
-            dispatch({ type: "decided" });
-            window.setTimeout(() => input.current?.focus(), 0);
+            decided(false);
+            toTyping(pending.words);
           }}
           onDiscard={() => {
             decide(pending, "discarded");
             updateTurn(pending.id, { open: false, outcome: "discarded" });
             bridge.setPreview(null);
-            dispatch({ type: "decided" });
+            decided(true);
           }}
           readOnly={bridge.readOnly}
         />
       ) : null}
 
-      {!pending && handoff ? (
+      {!pending && handoff && !showDrawer ? (
         <HandoffCard
           words={active!.words}
           described={describeOp(handoff, ctx)}
@@ -603,40 +797,42 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
           why={handoff.kind === "divide" ? "The divide panel shows the dividing lines and every share's area before anything is kept. New corners stay on paper until they're pegged." : "Measurements go into the plan only through the Import step's table, where you check every value and confirm the units and grid."}
           onOpen={() => {
             updateTurn(active!.id, { open: false, outcome: "handed_off" });
+            // The tool takes over: the conversation ends here.
+            if (session.live) stopLive();
+            decided(false);
             if (handoff.kind === "divide") bridge.openDivide(handoff);
             else bridge.openEntry(handoff);
-            dispatch({ type: "decided" });
           }}
           onDismiss={() => {
             updateTurn(active!.id, { open: false, outcome: "discarded" });
-            dispatch({ type: "decided" });
+            decided(true);
           }}
         />
       ) : null}
 
-      {!pending && !handoff && active?.outcome === "asked" && active.question ? (
+      {!pending && !handoff && !showDrawer && active?.outcome === "asked" && active.question ? (
         <QuestionCard
           question={active.question}
           onChoose={(c) => void run(c, "typed", true)}
           onDismiss={() => {
             updateTurn(active.id, { open: false });
-            dispatch({ type: "decided" });
+            decided(true);
           }}
         />
       ) : null}
 
-      {!pending && !handoff && active?.outcome === "answered" ? (
+      {!pending && !handoff && !showDrawer && active?.outcome === "answered" ? (
         <AnswerCard
           words={active.words}
           answers={active.answers}
           onDone={() => {
             updateTurn(active.id, { open: false });
-            dispatch({ type: "decided" });
+            decided(true);
           }}
         />
       ) : null}
 
-      {!pending && !handoff && active?.outcome === "failed" ? (
+      {!pending && !handoff && !showDrawer && active?.outcome === "failed" ? (
         <NoteCard
           tone={session.failures >= 3 ? "attention" : "info"}
           title={session.failures >= 3 ? "Try another way" : "Not done"}
@@ -645,9 +841,8 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
               type="button"
               onClick={() => {
                 updateTurn(active.id, { open: false });
-                setText(active.words);
-                dispatch({ type: "decided" });
-                window.setTimeout(() => input.current?.focus(), 0);
+                decided(false);
+                toTyping(active.words);
               }}
               className={buttonClasses("secondary", "sm")}
             >
@@ -669,22 +864,27 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
         </NoteCard>
       ) : null}
 
-      {drawer ? (
+      {showDrawer ? (
         <TurnsDrawer
           turns={turns}
           readOnly={Boolean(bridge.readOnly)}
           onClose={() => setDrawer(false)}
           onUseAgain={(w) => {
-            setText(w);
             setDrawer(false);
-            window.setTimeout(() => input.current?.focus(), 0);
+            toTyping(w);
           }}
           onTakeBack={takeBack}
         />
       ) : null}
 
       {langMenu ? (
-        <div role="menu" aria-label="Language" className="pointer-events-auto w-full max-w-3xl rounded-md bg-surface p-2 shadow-e2 ring-1 ring-line">
+        <div
+          ref={menuRef}
+          role="menu"
+          aria-label="Language"
+          onKeyDown={onMenuKey}
+          className="pointer-events-auto w-full max-w-3xl rounded-md bg-surface p-2 shadow-e2 ring-1 ring-line"
+        >
           {LANGUAGES.map((l) => {
             const ok = voiceAvailability(l.id, family, speech.supported === true);
             return (
@@ -693,12 +893,14 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
                 type="button"
                 role="menuitemradio"
                 aria-checked={settings.lang === l.id}
-                disabled={!l.enabled}
+                aria-disabled={!l.enabled || undefined}
+                tabIndex={-1}
                 onClick={() => {
+                  if (!l.enabled) return;
                   setSettings({ lang: l.id });
-                  setLangMenu(false);
+                  closeMenu();
                 }}
-                className="flex min-h-11 w-full items-center justify-between gap-3 rounded-sm px-3 text-left text-sm text-ink hover:bg-canvas-2 disabled:cursor-not-allowed disabled:text-ink-3"
+                className="flex min-h-11 w-full items-center justify-between gap-3 rounded-sm px-3 text-left text-sm text-ink hover:bg-canvas-2 focus-visible:bg-canvas-2 focus-visible:outline-2 focus-visible:outline-accent aria-disabled:cursor-not-allowed aria-disabled:text-ink-3"
               >
                 <span>
                   {l.native}
@@ -710,8 +912,9 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
           })}
         </div>
       ) : null}
+      </div>
 
-      <div className="pointer-events-auto w-full max-w-3xl rounded-[1.75rem] bg-surface/90 shadow-e2 ring-1 ring-line backdrop-blur-md">
+      <div ref={barRef} className="pointer-events-auto w-full max-w-3xl shrink-0 rounded-[1.75rem] bg-surface/90 shadow-e2 ring-1 ring-line backdrop-blur-md">
         <div className="flex items-end gap-1.5 p-1.5 sm:gap-2 sm:p-2">
           <span className="flex h-12 items-center pl-1 sm:hidden">
             <VoiceCore state={core} level={level} size="sm" />
@@ -734,6 +937,8 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
                   maxLength={2000}
                   onChange={(e) => onType(e.target.value)}
                   onKeyDown={onKey}
+                  onFocus={keepWords}
+                  onPointerDown={keepWords}
                   placeholder="Say or type an instruction"
                   className="block max-h-36 min-h-11 w-full resize-none bg-transparent px-1 py-2.5 text-base text-ink placeholder:text-ink-3 focus:outline-none [field-sizing:content]"
                 />
@@ -744,7 +949,6 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
           <button
             type="button"
             aria-label={availability.ok ? micLabel : `Talking is off: ${availability.reason}`}
-            aria-pressed={listening}
             aria-disabled={!availability.ok || undefined}
             onPointerDown={(e) => {
               if (e.button !== 0 || !availability.ok) return;
@@ -772,24 +976,17 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
             <PaperPlaneRightIcon size={20} weight="fill" aria-hidden />
           </button>
         </div>
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-line px-3 py-1.5">
-          <div role="radiogroup" aria-label="How you talk" className="inline-flex rounded-full bg-canvas-2 p-0.5 ring-1 ring-line">
-            {(
-              [
-                ["push", "Push to talk"],
-                ["live", "Live talk"],
-              ] as const
-            ).map(([m, label]) => (
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 border-t border-line px-2 py-1.5 sm:gap-x-2 sm:px-3">
+          <div role="radiogroup" aria-label="How you talk" onKeyDown={onModeKey} className="inline-flex rounded-full bg-canvas-2 p-0.5 ring-1 ring-line">
+            {MODES.map(([m, label]) => (
               <button
                 key={m}
                 type="button"
                 role="radio"
                 aria-checked={settings.mode === m}
-                onClick={() => {
-                  if (listening) cancelAll();
-                  setSettings({ mode: m });
-                }}
-                className={`min-h-11 rounded-full px-3 text-xs font-medium transition-colors duration-150 ${settings.mode === m ? "bg-surface text-ink shadow-e1" : "text-ink-2 hover:text-ink"}`}
+                tabIndex={settings.mode === m ? 0 : -1}
+                onClick={() => chooseMode(m)}
+                className={`min-h-11 rounded-full px-2.5 text-xs font-medium sm:px-3 transition-colors duration-150 ${settings.mode === m ? "bg-surface text-ink shadow-e1" : "text-ink-2 hover:text-ink"}`}
               >
                 {label}
               </button>
@@ -799,7 +996,8 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
           <p role="status" className="order-last min-w-0 basis-full px-1 pb-1 text-xs text-ink-3 sm:order-none sm:basis-auto sm:flex-1 sm:pb-0">
             {status}
           </p>
-          <span className="ml-auto sm:hidden">{languageButton("min-h-11 px-3")}</span>
+          {/* On phones the code alone, so the row fits at 375 px; its name still says it's the language. */}
+          <span className="ml-auto sm:hidden">{languageButton("min-h-11 min-w-11 px-2", false)}</span>
           {lastUndoable && !bridge.readOnly ? (
             <button type="button" onClick={() => takeBack(lastUndoable)} className={buttonClasses("ghost", "sm", "text-xs")}>
               Undo
@@ -808,7 +1006,7 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
           <button
             type="button"
             aria-pressed={settings.speak}
-            aria-label={settings.speak ? "Spoken replies on" : "Spoken replies off"}
+            aria-label="Spoken replies"
             title={voice.unavailable(settings.lang) ?? undefined}
             onClick={() => {
               if (settings.speak) voice.cancel();
@@ -818,7 +1016,16 @@ function Dock({ bridge, a }: { bridge: EditorBridge; a: NonNullable<ReturnType<t
           >
             {settings.speak ? <SpeakerHighIcon size={16} weight="bold" aria-hidden /> : <SpeakerSlashIcon size={16} weight="bold" aria-hidden />}
           </button>
-          <button type="button" aria-expanded={drawer} aria-label="Earlier instructions" onClick={() => setDrawer((v) => !v)} className={buttonClasses("ghost", "sm", "size-11 !px-0")}>
+          <button
+            type="button"
+            aria-expanded={showDrawer}
+            aria-label="Earlier instructions"
+            onClick={() => {
+              if (!showDrawer) setDrawerAt(Date.now());
+              setDrawer(!showDrawer);
+            }}
+            className={buttonClasses("ghost", "sm", "size-11 !px-0")}
+          >
             <ClockCounterClockwiseIcon size={16} weight="bold" aria-hidden />
           </button>
         </div>

@@ -38,6 +38,8 @@ export interface Turn {
   message: string;
   /** Its card is showing, waiting for the surveyor. */
   open: boolean;
+  /** Which of a waiting change's items are ticked, kept with the turn so a save doesn't tick them all again. */
+  ticked?: boolean[];
 }
 
 export interface AssistantSettings {
@@ -57,8 +59,11 @@ const KEY = "farbaek.survey.assistant";
 // A tiny store over localStorage, so the settings read the same in every component and never mismatch the server's render.
 let cachedRaw: string | null | undefined;
 let cached: AssistantSettings = DEFAULTS;
+// Set once storage refuses a write: from then on this visit's choices live here only, and a read never falls back to the old value.
+let memoryOnly = false;
 const listeners = new Set<() => void>();
 function readSettings(): AssistantSettings {
+  if (memoryOnly) return cached;
   let raw: string | null = null;
   try {
     raw = window.localStorage.getItem(KEY);
@@ -88,7 +93,7 @@ function writeSettings(next: AssistantSettings) {
     window.localStorage.setItem(KEY, JSON.stringify(next));
   } catch {
     // Storage off: the choice lasts this visit.
-    cachedRaw = JSON.stringify(next);
+    memoryOnly = true;
     cached = next;
   }
   listeners.forEach((l) => l());

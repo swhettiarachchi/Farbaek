@@ -9,6 +9,10 @@
  *   digits from a field book isn't cut off by the recogniser's shorter one.
  * - Chrome on Android hears one phrase at a time whatever is asked: when it stops early while the surveyor still wants it, it starts again
  *   and the words carry on in the same instruction.
+ *
+ * Each listen is a session with its own number. A recogniser from an earlier session is cut off from its callbacks before it's stopped,
+ * so its late events can neither restart it nor send its words. A real error (a blocked microphone, no connection) ends the session
+ * without sending anything, and it never restarts by itself.
  */
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
@@ -77,38 +81,61 @@ export interface ListenOptions {
 
 const noSubscribe = () => () => {};
 
+/** Cuts a recogniser off from its callbacks, then stops it, so nothing it does later reaches the page. */
+function detach(r: Recogniser | null) {
+  if (!r) return;
+  r.onresult = null;
+  r.onerror = null;
+  r.onend = null;
+  try {
+    r.abort();
+  } catch {
+    // Already stopped.
+  }
+}
+
 export function useSpeech() {
   // Known only in the browser: null on the server's render.
   const supported = useSyncExternalStore(noSubscribe, () => recogniserClass() !== null, () => null);
   const rec = useRef<Recogniser | null>(null);
   const beginRef = useRef<() => void>(() => {});
   const opts = useRef<ListenOptions | null>(null);
+  const session = useRef(0);
   const wanted = useRef(false);
-  const discard = useRef(false);
+  const live = useRef(false);
   const heard = useRef("");
   const [listening, setListening] = useState(false);
 
-  useEffect(
-    () => () => {
-      wanted.current = false;
-      rec.current?.abort();
-    },
-    [],
-  );
+  /** Ends the current session: no callback of its recogniser runs after this. */
+  const end = useCallback(() => {
+    session.current++;
+    wanted.current = false;
+    live.current = false;
+    const r = rec.current;
+    rec.current = null;
+    detach(r);
+    setListening(false);
+  }, []);
+
+  // Leaving the page drops what was being heard: nothing is sent after the surveyor has gone.
+  useEffect(() => end, [end]);
 
   const begin = useCallback(() => {
     const C = recogniserClass();
     const o = opts.current;
     if (!C || !o) return;
+    const id = session.current;
     const r = new C();
     r.lang = o.lang;
     r.continuous = o.continuous;
     r.interimResults = true;
     r.maxAlternatives = 1;
+    const mine = () => session.current === id && rec.current === r;
     // Words already final from an earlier phrase of the same instruction stay at the front.
     const before = heard.current;
     let finals = "";
     r.onresult = (e) => {
+      if (!mine()) return;
       let interim = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const res = e.results[i]!;
@@ -120,12 +147,13 @@ export function useSpeech() {
       o.onWords(`${heard.current} ${interim}`.replace(/\s+/g, " ").trim());
     };
     r.onerror = (e) => {
-      if (e.error !== "no-speech" && e.error !== "aborted") {
-        wanted.current = false;
-        o.onError(e.error);
-      }
+      if (!mine() || e.error === "no-speech" || e.error === "aborted") return;
+      // A real error ends the instruction: what was heard isn't sent, and it doesn't start again by itself.
+      end();
+      o.onError(e.error);
     };
     r.onend = () => {
+      if (!mine()) return;
       if (wanted.current) {
         // Ended on its own (Android hears one phrase at a time): carry on with the same instruction.
         try {
@@ -135,55 +163,51 @@ export function useSpeech() {
           wanted.current = false;
         }
       }
-      rec.current = null;
-      setListening(false);
-      if (!discard.current) o.onFinal(heard.current);
+      const words = heard.current;
+      end();
+      o.onFinal(words);
     };
     rec.current = r;
     r.start();
-  }, []);
+  }, [end]);
   useEffect(() => {
     beginRef.current = begin;
   }, [begin]);
 
-  /** Starts listening; any listening before is dropped. */
+  /** Starts listening; any listening before is dropped, unsent. */
   const start = useCallback(
     (o: ListenOptions) => {
-      rec.current?.abort();
+      end();
       opts.current = o;
       heard.current = "";
-      discard.current = false;
       wanted.current = true;
+      live.current = true;
       setListening(true);
       try {
         begin();
       } catch {
-        wanted.current = false;
-        setListening(false);
+        end();
         o.onError("start-failed");
       }
     },
-    [begin],
+    [begin, end],
   );
 
-  /** Stops and hands over the words heard (onFinal). */
+  /** Stops and hands over the words heard (onFinal). Does nothing once the session has ended or been dropped. */
   const stop = useCallback(() => {
+    if (!live.current) return;
     wanted.current = false;
     if (rec.current) rec.current.stop();
-    else if (listening && opts.current) {
-      setListening(false);
-      opts.current.onFinal(heard.current);
+    else {
+      const words = heard.current;
+      const o = opts.current;
+      end();
+      o?.onFinal(words);
     }
-  }, [listening]);
+  }, [end]);
 
   /** Stops and drops the words. */
-  const abort = useCallback(() => {
-    wanted.current = false;
-    discard.current = true;
-    rec.current?.abort();
-    rec.current = null;
-    setListening(false);
-  }, []);
+  const abort = end;
 
   return { supported, listening, start, stop, abort };
 }

@@ -239,7 +239,8 @@ export function ImportPanel({
           <p className="min-w-0 flex-1 text-sm text-ink-2">
             {handed.rows.length} {handed.rows.length === 1 ? "row" : "rows"} read from what you said. Check every value against your field book, then confirm the units and grid and import, as for anything typed.
           </p>
-          <button type="button" onClick={clearHandoff} className={buttonClasses("ghost", "sm")}>
+          {/* Starts the same table afresh: the dictated rows go, from the table and from what would be imported. */}
+          <button type="button" onClick={() => chooseEntry(shownEntry)} className={buttonClasses("ghost", "sm")}>
             Clear them
           </button>
         </div>

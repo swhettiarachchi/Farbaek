@@ -72,7 +72,7 @@ export function useMicLevel(active: boolean): number {
 }
 
 /** iOS 27.0 to 27.2, where speaking mutes an open microphone. */
-export const iosMutesMicrophone = (ua: string) => /(?:iPhone|iPad|iPod).* OS 27_[0-2]\b/.test(ua);
+export const iosMutesMicrophone = (ua: string) => /(?:iPhone|iPad|iPod).* OS 27_[0-2](?!\d)/.test(ua);
 
 const voicesNow = (): SpeechSynthesisVoice[] => (typeof window !== "undefined" && "speechSynthesis" in window ? window.speechSynthesis.getVoices() : []);
 
@@ -99,6 +99,8 @@ export function useVoiceReply() {
     return () => {
       synth.removeEventListener("voiceschanged", load);
       window.clearTimeout(t);
+      // Emptied first, so the cancelled utterances' error events don't call back into a page that's gone.
+      queue.current = [];
       synth.cancel();
     };
   }, [supported]);

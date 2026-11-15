@@ -16,7 +16,7 @@ import {
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { LAYER_IDS, type LayerId, type SurveyDocument } from "@/core/survey/document";
 import type { SurveyPoint } from "@/core/survey/parcel";
 import { fmt, type SurveyorDetails } from "@/core/survey/sheet/compose";
@@ -71,6 +71,11 @@ export function PlanEditor(props: PlanEditorProps) {
   const router = useRouter();
   const [history, setHistory] = useState<History>({ stack: [props.initialDocument], index: 0, saved: 0, coalesce: null });
   const doc = history.stack[history.index]!;
+  // The plan as it stands now, for the assistant's changes, which can arrive after the render that sent them.
+  const docRef = useRef(doc);
+  useLayoutEffect(() => {
+    docRef.current = doc;
+  });
   const dirty = history.index !== history.saved;
   const [baseVersion, setBaseVersion] = useState(props.baseVersion);
   const [tab, setTab] = useState<Tab>("sheet");
@@ -353,8 +358,9 @@ export function PlanEditor(props: PlanEditorProps) {
     setPreview: setPreviewOps,
     apply: (ops): Applied => {
       if (props.readOnly) return { ok: false, error: props.readOnly };
-      const r = applyOps(doc, ops, props.points);
+      const r = applyOps(docRef.current, ops, props.points);
       if (r.ok) {
+        docRef.current = r.doc;
         pushDocument(r.doc);
         setMessage(null);
       }
@@ -362,8 +368,11 @@ export function PlanEditor(props: PlanEditorProps) {
     },
     revert: (patch: Patch) => {
       if (props.readOnly) return { ok: false, changedSince: [] };
-      const r = revertPatch(doc, patch);
-      if (r.ok) pushDocument(r.doc);
+      const r = revertPatch(docRef.current, patch);
+      if (r.ok) {
+        docRef.current = r.doc;
+        pushDocument(r.doc);
+      }
       return r.ok ? { ok: true } : r;
     },
     view: (op) => {
@@ -396,7 +405,7 @@ export function PlanEditor(props: PlanEditorProps) {
   };
 
   return (
-    <div className={`grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem] ${props.assistantAiOff !== undefined ? "pb-44 lg:pb-0" : ""}`}>
+    <div className={`grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem] ${props.assistantAiOff !== undefined ? "pb-[calc(var(--assist-bar,10rem)+2rem)] lg:pb-0" : ""}`}>
       <div className="grid min-w-0 content-start gap-3 xl:sticky xl:top-4 xl:self-start">
         <div role="toolbar" aria-label="Plan tools" className="flex flex-wrap items-center gap-2">
           <ToolButton label="Undo" onClick={undo} disabled={history.index === 0} icon={<ArrowArcLeftIcon size={16} weight="bold" aria-hidden />} />
