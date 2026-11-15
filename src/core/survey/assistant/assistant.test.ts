@@ -231,7 +231,7 @@ describe("sides, measurements, languages and the conversation", () => {
 
   it("runs push to talk, live talk and review through one set of states", () => {
     let s = initialSession("push");
-    s = sessionReducer(s, { type: "listen" });
+    s = sessionReducer(s, { type: "listen", live: false });
     s = sessionReducer(s, { type: "interim", text: "add lot" });
     expect(s.interim).toBe("add lot");
     s = sessionReducer(s, { type: "final", text: "add lot B4 from points 1 2 3", review: false });
@@ -239,14 +239,14 @@ describe("sides, measurements, languages and the conversation", () => {
     s = sessionReducer(s, { type: "result", phase: "suggested" });
     s = sessionReducer(s, { type: "decided" });
     expect(s.phase).toBe("idle");
-    let live = sessionReducer(initialSession("live"), { type: "listen" });
+    let live = sessionReducer(initialSession("live"), { type: "listen", live: true });
     live = sessionReducer(live, { type: "final", text: "zoom in", review: false });
     expect(live.phase).toBe("countdown");
     live = sessionReducer(sessionReducer(live, { type: "countdown_done" }), { type: "result", phase: "applied" });
     live = sessionReducer(live, { type: "decided" });
     expect(live).toMatchObject({ phase: "listening", live: true });
     expect(sessionReducer(live, { type: "stop_live" })).toMatchObject({ phase: "idle", live: false });
-    const unclear = sessionReducer(sessionReducer(initialSession(), { type: "listen" }), { type: "final", text: "points 2 to 4", review: false });
+    const unclear = sessionReducer(sessionReducer(initialSession(), { type: "listen", live: false }), { type: "final", text: "points 2 to 4", review: false });
     expect(unclear.phase).toBe("heard");
     expect(ambiguousNumbers("zoom in")).toBe(false);
   });

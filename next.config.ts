@@ -80,6 +80,11 @@ const nextConfig: NextConfig = {
       ...(APP_HOST
         ? [{ source: NOT_PREVIEW_FRAME, has: [{ type: "host" as const, value: APP_HOST }], headers: [{ key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(self)" }, { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" }] }]
         : []),
+      // Survey Studio's drafting assistant listens (stage 195, ADR 0210): the microphone on Farbaek's own Survey Studio pages, nowhere
+      // else. The whole header is repeated because a later rule replaces it, so payment stays as above.
+      ...(APP_HOST
+        ? [{ source: "/app/survey/:path*", has: [{ type: "host" as const, value: APP_HOST }], headers: [{ key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=(), payment=(self)" }] }]
+        : []),
       // Farbaek Scenes and the media library (ADR 0156) load into people's published sites and
       // previews, from other origins: module scripts and WebGL textures need CORS. Library files
       // never change under their versioned path; the kit may get fixes, so it's cached for a day.

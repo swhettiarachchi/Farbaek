@@ -1,4 +1,5 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
+import { entityGroup } from "@/core/survey/sheet/entities";
 import type { SceneColor, SceneItem, SheetPage } from "@/core/survey/sheet/scene";
 
 /**
@@ -22,6 +23,13 @@ export interface SheetSvgProps {
   /** Layers to leave out. */
   hidden?: ReadonlySet<string>;
   selected?: string | null;
+  /**
+   * Items picked on the sheet, in the order picked (stage 195): each shows as selected, and picked points carry their order, so "these
+   * points" reads as a ring before anything is drawn through them.
+   */
+  picked?: readonly string[];
+  /** What a change adds or alters, by item (lot:<id>, road:<id>...): shown with the accent while it's looked at, and for a turn after. */
+  marks?: ReadonlySet<string>;
   /** Whether an item can be dragged (a label on an unlocked layer), so it shows a move cursor. */
   draggable?: (item: SceneItem) => boolean;
   onEntityPointerDown?: (item: SceneItem, event: ReactPointerEvent<SVGElement>) => void;
@@ -31,14 +39,16 @@ export interface SheetSvgProps {
   draw?: boolean;
 }
 
-function itemProps(item: SceneItem, props: SheetSvgProps) {
+function itemProps(item: SceneItem, props: SheetSvgProps, picked: ReadonlySet<string>) {
   const entity = item.entity;
-  const selected = entity !== undefined && entity === props.selected;
+  const selected = entity !== undefined && (entity === props.selected || picked.has(entity));
+  const marked = entity !== undefined && props.marks !== undefined && (props.marks.has(entity) || props.marks.has(entityGroup(entity)));
   return {
     "data-entity": entity,
     style: entity && props.draggable?.(item) ? { cursor: "move" } : entity && props.onEntityPointerDown ? { cursor: "pointer" } : undefined,
     onPointerDown: entity && props.onEntityPointerDown ? (e: ReactPointerEvent<SVGElement>) => props.onEntityPointerDown!(item, e) : undefined,
     selected,
+    marked,
   };
 }
 
@@ -57,16 +67,27 @@ function textTransform(item: { x: number; y: number; rotate: number; slant?: num
 export function SheetSvg(props: SheetSvgProps) {
   const { page } = props;
   const [vx, vy, vw, vh] = props.viewBox ?? [0, 0, page.widthMm, page.heightMm];
+  const picked = new Set(props.picked ?? []);
+  // Where each picked point sits, for its order number: the point's own circle on the sheet.
+  const order = (props.picked ?? [])
+    .map((e, i) => {
+      const id = entityGroup(e);
+      const circle = id.startsWith("pt:") ? page.items.find((it): it is Extract<SceneItem, { kind: "circle" }> => it.kind === "circle" && it.entity !== undefined && entityGroup(it.entity) === id) : undefined;
+      return circle ? { n: i + 1, x: circle.cx, y: circle.cy, r: circle.r } : null;
+    })
+    .filter((o): o is { n: number; x: number; y: number; r: number } => o !== null);
+  const badge = Math.max(1.6, vw / 120);
   return (
     <svg viewBox={`${vx} ${vy} ${vw} ${vh}`} role="img" aria-label={props.label} className={props.className} preserveAspectRatio="xMidYMid meet">
       <rect x={0} y={0} width={page.widthMm} height={page.heightMm} fill="var(--color-surface)" />
       {page.items.map((item, i) => {
         if (props.hidden?.has(item.layer)) return null;
-        const { selected, ...p } = itemProps(item, props);
+        const { selected, marked, ...p } = itemProps(item, props, picked);
         if (item.kind === "path") {
           const d = item.points.map(([x, y], j) => `${j === 0 ? "M" : "L"}${x.toFixed(3)} ${y.toFixed(3)}`).join(" ") + (item.closed ? " Z" : "");
           return (
             <g key={i}>
+              {marked ? <path d={d} fill={item.closed ? "color-mix(in oklab, var(--color-accent) 7%, transparent)" : "none"} stroke="var(--color-accent)" strokeWidth={item.width + 2.2} strokeOpacity={0.22} strokeLinejoin="round" /> : null}
               {selected ? <path d={d} fill="none" stroke="var(--color-accent)" strokeWidth={item.width + 1.2} strokeOpacity={0.35} strokeLinejoin="round" /> : null}
               <path
                 {...p}
@@ -84,7 +105,7 @@ export function SheetSvg(props: SheetSvgProps) {
           );
         }
         if (item.kind === "circle") {
-          return <circle key={i} {...p} className={props.draw ? "survey-fade" : undefined} cx={item.cx} cy={item.cy} r={selected ? item.r * 1.8 : item.r} fill={item.fill ? COLOR[item.fill] : "none"} stroke={selected ? "var(--color-accent)" : COLOR[item.color]} strokeWidth={item.width} />;
+          return <circle key={i} {...p} className={props.draw ? "survey-fade" : undefined} cx={item.cx} cy={item.cy} r={selected ? item.r * 1.8 : item.r} fill={item.fill ? COLOR[item.fill] : "none"} stroke={selected || marked ? "var(--color-accent)" : COLOR[item.color]} strokeWidth={item.width} />;
         }
         return (
           <text
@@ -97,7 +118,7 @@ export function SheetSvg(props: SheetSvgProps) {
             fontFamily={item.font === "mono" ? "var(--font-geist-mono), monospace" : "var(--font-geist), sans-serif"}
             textAnchor={item.anchor}
             transform={textTransform(item)}
-            fill={selected ? "var(--color-accent)" : COLOR[item.color]}
+            fill={selected || marked ? "var(--color-accent)" : COLOR[item.color]}
             style={{ ...p.style, userSelect: "none" }}
             className={props.draw ? "survey-fade" : undefined}
           >
@@ -105,6 +126,14 @@ export function SheetSvg(props: SheetSvgProps) {
           </text>
         );
       })}
+      {order.map((o) => (
+        <g key={`order-${o.n}`} aria-hidden pointerEvents="none">
+          <circle cx={o.x + o.r + badge * 0.9} cy={o.y - o.r - badge * 0.9} r={badge} fill="var(--color-accent)" />
+          <text x={o.x + o.r + badge * 0.9} y={o.y - o.r - badge * 0.9} fontSize={badge * 1.15} fontWeight={600} fill="var(--color-surface)" textAnchor="middle" dominantBaseline="central" fontFamily="var(--font-geist), sans-serif">
+            {o.n}
+          </text>
+        </g>
+      ))}
     </svg>
   );
 }

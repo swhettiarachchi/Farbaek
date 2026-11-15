@@ -12,6 +12,7 @@ import {
   LockSimpleOpenIcon,
   MagnifyingGlassMinusIcon,
   MagnifyingGlassPlusIcon,
+  SelectionPlusIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
@@ -22,8 +23,14 @@ import { fmt, type SurveyorDetails } from "@/core/survey/sheet/compose";
 import type { SceneItem } from "@/core/survey/sheet/scene";
 import { buildPlan } from "@/core/survey/view";
 import { LAYER_NAMES } from "@/core/survey/assistant/describe";
+import { applyOps, revertPatch, type Applied, type Patch } from "@/core/survey/assistant/apply";
+import type { PlanOp } from "@/core/survey/assistant/ops";
+import type { StepId } from "@/core/survey/assistant/reader";
+import { entityBounds, viewAround } from "@/core/survey/sheet/entities";
 import { saveSurveyDrawingAction } from "@/app/app/survey/actions";
 import { buttonClasses } from "@/components/ui/button";
+import { AssistantDock, type EditorBridge } from "./assistant/assistant-dock";
+import { handoffKey } from "./assistant/handoff";
 import { CodesPanel, SheetFields, describeSelection, type SurveyorOption } from "./plan-panels";
 import { SheetSvg } from "./sheet-svg";
 
@@ -42,7 +49,10 @@ export interface PlanEditorProps {
   approvedSurveyor: SurveyorDetails | null;
   /** Why this person can't save here (the sample, the demo, a viewer), or null when they can. */
   readOnly: string | null;
+  /** Why the drafting assistant can't ask the model here (the demo, no AI), or null; undefined leaves the assistant out. */
+  assistantAiOff?: string | null;
 }
+
 
 type Tab = "sheet" | "codes" | "layers" | "selection";
 type View = [number, number, number, number];
@@ -65,13 +75,22 @@ export function PlanEditor(props: PlanEditorProps) {
   const [baseVersion, setBaseVersion] = useState(props.baseVersion);
   const [tab, setTab] = useState<Tab>("sheet");
   const [selected, setSelected] = useState<string | null>(null);
+  // Items picked in order (shift, ctrl or cmd plus a tap, or "Select several" on phones), for "these points".
+  const [picked, setPicked] = useState<string[]>([]);
+  const [several, setSeveral] = useState(false);
   const [message, setMessage] = useState<{ tone: "done" | "error"; text: string } | null>(null);
   const [saving, startSaving] = useTransition();
+  // The assistant's change while it waits for Apply, shown on the sheet, and what the last turn changed, marked until the next.
+  const [previewOps, setPreviewOps] = useState<PlanOp[] | null>(null);
+  const [marks, setMarks] = useState<string[]>([]);
+  const preview = useMemo(() => (previewOps ? applyOps(doc, previewOps, props.points) : null), [doc, previewOps, props.points]);
+  const shown = preview?.ok ? preview.doc : doc;
+  const markSet = useMemo(() => new Set(preview?.ok ? preview.touched : marks), [preview, marks]);
 
   // An approved, unedited version shows the surveyor's details as they approved them, as the PDF does.
   const plan = useMemo(
-    () => buildPlan({ points: props.points, document: doc, crsId: props.crsId, crsConfirmation: props.crsConfirmation, surveyor: !dirty && props.approval && props.approvedSurveyor ? props.approvedSurveyor : (props.surveyors.find((s) => s.userId === doc.surveyorUserId) ?? null), approval: dirty ? null : props.approval, version: dirty ? undefined : baseVersion }),
-    [doc, props.points, props.crsId, props.crsConfirmation, props.surveyors, props.approval, props.approvedSurveyor, dirty, baseVersion],
+    () => buildPlan({ points: props.points, document: shown, crsId: props.crsId, crsConfirmation: props.crsConfirmation, surveyor: !dirty && props.approval && props.approvedSurveyor ? props.approvedSurveyor : (props.surveyors.find((s) => s.userId === doc.surveyorUserId) ?? null), approval: dirty ? null : props.approval, version: dirty ? undefined : baseVersion }),
+    [shown, doc.surveyorUserId, props.points, props.crsId, props.crsConfirmation, props.surveyors, props.approval, props.approvedSurveyor, dirty, baseVersion],
   );
   const page = plan.sheet.pages[0]!;
   const fullView: View = [0, 0, page.widthMm, page.heightMm];
@@ -104,8 +123,13 @@ export function PlanEditor(props: PlanEditorProps) {
   const undo = useCallback(() => setHistory((h) => (h.index > 0 ? { ...h, index: h.index - 1, coalesce: null } : h)), []);
   const redo = useCallback(() => setHistory((h) => (h.index < h.stack.length - 1 ? { ...h, index: h.index + 1, coalesce: null } : h)), []);
 
-  const save = () => {
-    if (props.readOnly || !dirty) return;
+  /** Saves a version; `after` runs once it's saved (or at once when nothing needs saving). */
+  const save = (after?: () => void) => {
+    // Nothing can be saved here (the sample, a viewer), so there's nothing unsaved either: go on.
+    if (props.readOnly || !dirty) {
+      after?.();
+      return;
+    }
     const target = history.index;
     startSaving(async () => {
       const r = await saveSurveyDrawingAction({ projectId: props.projectId, baseVersion, document: doc });
@@ -113,10 +137,18 @@ export function PlanEditor(props: PlanEditorProps) {
         setBaseVersion(r.version);
         setHistory((h) => ({ ...h, saved: target, coalesce: null }));
         setMessage({ tone: "done", text: r.message });
-        router.refresh();
+        if (after) after();
+        else router.refresh();
       } else if (r.status === "error") setMessage({ tone: "error", text: r.message });
     });
   };
+
+  /** One change from the assistant, as one undo step. */
+  const pushDocument = (next: SurveyDocument) =>
+    setHistory((h) => {
+      const stack = [...h.stack.slice(0, h.index + 1), next];
+      return { stack, index: stack.length - 1, saved: h.saved > stack.length - 1 ? -1 : h.saved, coalesce: null };
+    });
 
   // Leaving with unsaved edits asks first.
   useEffect(() => {
@@ -253,8 +285,15 @@ export function PlanEditor(props: PlanEditorProps) {
     const d = drag.current;
     drag.current = null;
     if (!d || d.moved) return;
-    // A tap without movement selects what was tapped, or clears the selection.
+    // A tap without movement selects what was tapped, or clears the selection. With shift, ctrl or cmd, or "Select several", it adds
+    // the item to the picked ones, in order, or takes it out again.
     const entity = d.kind === "label" ? d.entity : d.entity;
+    if ((several || e.shiftKey || e.ctrlKey || e.metaKey) && entity) {
+      setPicked((p) => (p.includes(entity) ? p.filter((x) => x !== entity) : [...p, entity]));
+      setSelected(entity);
+      return;
+    }
+    setPicked([]);
     setSelected(entity);
     if (entity) setTab("selection");
   };
@@ -274,7 +313,10 @@ export function PlanEditor(props: PlanEditorProps) {
     } else if (e.key === "+" || e.key === "=") zoomAt(1.25);
     else if (e.key === "-") zoomAt(0.8);
     else if (e.key === "0") setView(fullView);
-    else if (e.key === "Escape") setSelected(null);
+    else if (e.key === "Escape") {
+      setSelected(null);
+      setPicked([]);
+    }
     else if (e.key.startsWith("Arrow")) {
       e.preventDefault();
       const step = view[2] * 0.08;
@@ -283,12 +325,78 @@ export function PlanEditor(props: PlanEditorProps) {
     }
   };
 
-  const hidden = useMemo(() => new Set(LAYER_IDS.filter((l) => l !== "TITLE" && doc.layers[l]?.visible === false)), [doc.layers]);
+  const hidden = useMemo(() => new Set(LAYER_IDS.filter((l) => l !== "TITLE" && shown.layers[l]?.visible === false)), [shown.layers]);
   const selection = describeSelection(selected, plan, props.points, doc);
   const blocking = plan.findings.filter((f) => f.severity === "error");
 
+  // What the drafting assistant can see and do: the plan as it stands, through the editor's own history and view.
+  const go = (step: StepId) => save(() => router.push(`/app/survey/${props.projectId}?step=${step}`));
+  const handOver = (value: unknown, step: StepId) => {
+    try {
+      window.sessionStorage.setItem(handoffKey(props.projectId), JSON.stringify(value));
+    } catch {
+      setMessage({ tone: "error", text: "This browser won't keep the values for the next step. Type them there instead." });
+      return;
+    }
+    go(step);
+  };
+  const bridge: EditorBridge = {
+    projectId: props.projectId,
+    doc,
+    points: props.points,
+    plan,
+    selection: picked.length ? picked : selected ? [selected] : [],
+    readOnly: props.readOnly,
+    aiOff: props.assistantAiOff ?? null,
+    approved: Boolean(props.approval),
+    dirty,
+    setPreview: setPreviewOps,
+    apply: (ops): Applied => {
+      if (props.readOnly) return { ok: false, error: props.readOnly };
+      const r = applyOps(doc, ops, props.points);
+      if (r.ok) {
+        pushDocument(r.doc);
+        setMessage(null);
+      }
+      return r;
+    },
+    revert: (patch: Patch) => {
+      if (props.readOnly) return { ok: false, changedSince: [] };
+      const r = revertPatch(doc, patch);
+      if (r.ok) pushDocument(r.doc);
+      return r.ok ? { ok: true } : r;
+    },
+    view: (op) => {
+      if (op.action === "zoom_in") zoomAt(1.25);
+      else if (op.action === "zoom_out") zoomAt(0.8);
+      else if (op.action === "whole_sheet") setView(fullView);
+      else if (op.action === "clear_selection") {
+        setSelected(null);
+        setPicked([]);
+      } else {
+        const boxes = op.entities.map((e) => entityBounds(page, e)).filter((b): b is [number, number, number, number] => b !== null);
+        if (boxes.length) {
+          const [x0, y0] = [Math.min(...boxes.map((b) => b[0])), Math.min(...boxes.map((b) => b[1]))];
+          const [x1, y1] = [Math.max(...boxes.map((b) => b[0] + b[2])), Math.max(...boxes.map((b) => b[1] + b[3]))];
+          setView(viewAround([x0, y0, x1 - x0, y1 - y0], page));
+        }
+        if (op.action === "select") {
+          setPicked(op.entities.length > 1 ? op.entities : []);
+          setSelected(op.entities[0] ?? null);
+          if (op.entities.length === 1) setTab("selection");
+        }
+      }
+    },
+    history: (action) => (action === "undo" ? undo() : redo()),
+    setMarks,
+    save: () => save(),
+    openDivide: (op) => handOver({ kind: "divide", op }, "boundary"),
+    openEntry: (op) => handOver({ kind: "entry", op }, "import"),
+    goto: go,
+  };
+
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+    <div className={`grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem] ${props.assistantAiOff !== undefined ? "pb-44 lg:pb-0" : ""}`}>
       <div className="grid min-w-0 content-start gap-3 xl:sticky xl:top-4 xl:self-start">
         <div role="toolbar" aria-label="Plan tools" className="flex flex-wrap items-center gap-2">
           <ToolButton label="Undo" onClick={undo} disabled={history.index === 0} icon={<ArrowArcLeftIcon size={16} weight="bold" aria-hidden />} />
@@ -297,12 +405,16 @@ export function PlanEditor(props: PlanEditorProps) {
           <ToolButton label="Zoom out" onClick={() => zoomAt(0.8)} icon={<MagnifyingGlassMinusIcon size={16} weight="bold" aria-hidden />} />
           <ToolButton label="Whole sheet" onClick={() => setView(fullView)} icon={<ArrowsInIcon size={16} weight="bold" aria-hidden />} />
           <ToolButton label="Zoom in" onClick={() => zoomAt(1.25)} icon={<MagnifyingGlassPlusIcon size={16} weight="bold" aria-hidden />} />
+          <button type="button" aria-pressed={several} aria-label="Select several" title="Select several: tap points in order. Shift, Ctrl or Cmd and a click do the same." onClick={() => setSeveral((v) => !v)} className={buttonClasses(several ? "primary" : "secondary", "sm", "size-11 !px-0")}>
+            <SelectionPlusIcon size={16} weight="bold" aria-hidden />
+          </button>
+          {picked.length > 1 ? <span className="text-sm text-ink-2">{picked.length} picked, in order</span> : null}
           <div className="ml-auto flex items-center gap-3">
             <span className="text-sm text-ink-3" aria-live="polite">
               {props.readOnly ? props.readOnly : saving ? "Saving…" : dirty ? "Unsaved changes" : `Version ${baseVersion}`}
             </span>
             {props.readOnly ? null : (
-              <button type="button" onClick={save} disabled={!dirty || saving} className={buttonClasses("primary", "sm")}>
+              <button type="button" onClick={() => save()} disabled={!dirty || saving} className={buttonClasses("primary", "sm")}>
                 <FloppyDiskIcon size={16} weight="bold" aria-hidden />
                 Save version
               </button>
@@ -315,10 +427,12 @@ export function PlanEditor(props: PlanEditorProps) {
             {message.text}
           </p>
         ) : null}
+        <div className="relative">
         <div
           ref={svgWrap}
           tabIndex={0}
           role="application"
+          data-plan-canvas="true"
           aria-label="Plan sheet. Drag to move around, scroll or pinch to zoom, drag a label to move it. Plus and minus zoom, 0 shows the whole sheet, arrow keys move."
           onPointerDown={onDown}
           onPointerMove={onMove}
@@ -327,10 +441,13 @@ export function PlanEditor(props: PlanEditorProps) {
           onKeyDown={onKey}
           className="relative h-[62vh] min-h-[22rem] touch-none select-none overflow-hidden rounded-lg bg-canvas-2 ring-1 ring-line focus-visible:outline-2 focus-visible:outline-accent lg:h-[70vh]"
         >
-          <SheetSvg page={page} viewBox={view} hidden={hidden} selected={selected} draggable={canDrag} onEntityPointerDown={onEntityDown} label={`Plan sheet, ${plan.sheet.paper} ${doc.settings.orientation}, scale 1:${plan.sheet.scale ?? "not set"}`} className="h-full w-full" />
+          <SheetSvg page={page} viewBox={view} hidden={hidden} selected={selected} picked={picked} marks={markSet} draggable={canDrag} onEntityPointerDown={onEntityDown} label={`Plan sheet, ${plan.sheet.paper} ${shown.settings.orientation}, scale 1:${plan.sheet.scale ?? "not set"}${preview?.ok ? ", showing the assistant's change before it's applied" : ""}`} className="h-full w-full" />
+          {preview?.ok ? <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-surface/90 px-3 py-1 text-xs font-medium text-ink shadow-e1 ring-1 ring-line">Showing the change before it&apos;s applied</span> : null}
+        </div>
+        {props.assistantAiOff !== undefined ? <AssistantDock bridge={bridge} /> : null}
         </div>
         <p className="text-sm text-ink-3">
-          {plan.sheet.scale ? `Scale 1:${fmt(plan.sheet.scale, 0)}${doc.settings.scale === null ? " (automatic)" : ""} on ${plan.sheet.paper} ${doc.settings.orientation}.` : "Set the lots to see the plan at scale."}{" "}
+          {plan.sheet.scale ? `Scale 1:${fmt(plan.sheet.scale, 0)}${shown.settings.scale === null ? " (automatic)" : ""} on ${plan.sheet.paper} ${shown.settings.orientation}.` : "Set the lots to see the plan at scale."}{" "}
           {blocking.length > 0 ? `${blocking.length} ${blocking.length === 1 ? "check stops" : "checks stop"} export: see the Check step.` : "Labels move on paper only: no coordinate changes."}
         </p>
       </div>
@@ -399,7 +516,7 @@ export function PlanEditor(props: PlanEditorProps) {
 
 function ToolButton({ label, onClick, icon, disabled = false }: { label: string; onClick: () => void; icon: ReactNode; disabled?: boolean }) {
   return (
-    <button type="button" aria-label={label} title={label} onClick={onClick} disabled={disabled} className={buttonClasses("secondary", "sm", "size-11 px-0")}>
+    <button type="button" aria-label={label} title={label} onClick={onClick} disabled={disabled} className={buttonClasses("secondary", "sm", "size-11 !px-0")}>
       {icon}
     </button>
   );

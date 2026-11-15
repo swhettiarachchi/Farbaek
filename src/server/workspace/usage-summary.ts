@@ -18,7 +18,9 @@ import { FAILURE_TEST_MAX_OUTPUT_TOKENS } from "@/server/ai/failure-test-writer"
 import { MANUAL_FAILURE_TEST } from "@/core/realityloop/failure-futures";
 import { OPENAI_SECOND_CHECK_MODEL, openAiKey } from "@/server/ai/openai-second-checker";
 import { SECOND_CHECK_MAX_OUTPUT_TOKENS } from "@/server/ai/second-checker";
+import { SURVEY_ASSIST_MAX_OUTPUT_TOKENS } from "@/server/ai/survey-assistant";
 import { SURVEY_DRAFT_MAX_OUTPUT_TOKENS } from "@/server/ai/survey-drafter";
+import { MANUAL_SURVEY_ASSIST } from "@/server/survey/assistant";
 import { MANUAL_SURVEY_DRAFT, MANUAL_SURVEY_READ } from "@/server/survey/drafting";
 import type { AppContext } from "./context";
 import { workspaceGrant, type WorkspaceSummary } from "./organizations";
@@ -64,6 +66,7 @@ const MANUAL: Record<ButtonOperation, string> = {
   failure_test: MANUAL_FAILURE_TEST,
   survey_draft: MANUAL_SURVEY_DRAFT,
   survey_read: MANUAL_SURVEY_READ,
+  survey_assist: MANUAL_SURVEY_ASSIST,
 };
 
 /** Whether an AI action works for this person in this workspace, and the share of usage used. */
@@ -73,7 +76,7 @@ export async function loadAiAvailability(ctx: AppContext, ws: WorkspaceSummary, 
   const wallet = await loadWallet(ctx, ws, now);
   // The AI mapping in the Intent Diff Lens (ADR 0044) and rule drafting (ADR 0082) run on Claude only.
   // Survey Studio's drafting assistant (ADR 0202) too.
-  const claudeOnly = operation === "lens_mapping" || operation === "policy_draft" || operation === "task_note" || operation === "failure_test" || operation === "survey_draft" || operation === "survey_read";
+  const claudeOnly = operation === "lens_mapping" || operation === "policy_draft" || operation === "task_note" || operation === "failure_test" || operation === "survey_draft" || operation === "survey_read" || operation === "survey_assist";
   // The second check (ADR 0121) runs on OpenAI when this server has its key, otherwise on Claude.
   const secondOnOpenAi = operation === "second_check" && openAiKey() !== null;
   const usable = secondOnOpenAi ? "anthropic" : (claudeOnly || operation === "second_check") && provider.provider !== "anthropic" ? null : provider.provider;
@@ -91,6 +94,9 @@ export async function loadAiAvailability(ctx: AppContext, ws: WorkspaceSummary, 
     } else if (operation === "failure_test") {
       const choice = routeModel({ plan: ws.plan, family: "anthropic", step: "write", effort: "balanced" });
       needs = typicalUnits(operation, choice.model, FAILURE_TEST_MAX_OUTPUT_TOKENS);
+    } else if (operation === "survey_assist") {
+      const choice = routeModel({ plan: ws.plan, family: "anthropic", step: "plan", effort: "fast" });
+      needs = typicalUnits(operation, choice.model, SURVEY_ASSIST_MAX_OUTPUT_TOKENS);
     } else if (operation === "survey_draft" || operation === "survey_read") {
       const choice = routeModel({ plan: ws.plan, family: "anthropic", step: "review", effort: "balanced" });
       needs = typicalUnits(operation, choice.model, SURVEY_DRAFT_MAX_OUTPUT_TOKENS);
@@ -111,7 +117,7 @@ export async function loadAiAvailability(ctx: AppContext, ws: WorkspaceSummary, 
     notConnectedReason: usable
       ? undefined
       : provider.provider
-        ? `${operation === "policy_draft" ? "Drafting rules" : operation === "second_check" ? "The second check" : operation === "task_note" ? "Notes" : operation === "failure_test" ? "Failure trials" : operation === "survey_draft" ? "Drafting survey plans" : operation === "survey_read" ? "Reading old plans" : "Linking changes to the plan"} isn't available with this server's AI setup.`
+        ? `${operation === "policy_draft" ? "Drafting rules" : operation === "second_check" ? "The second check" : operation === "task_note" ? "Notes" : operation === "failure_test" ? "Failure trials" : operation === "survey_draft" ? "Drafting survey plans" : operation === "survey_read" ? "Reading old plans" : operation === "survey_assist" ? "The drafting assistant's AI" : "Linking changes to the plan"} isn't available with this server's AI setup.`
         : provider.reason,
     plan: ws.billingUnknown ? null : ws.plan,
     wallet,

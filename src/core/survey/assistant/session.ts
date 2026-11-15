@@ -35,7 +35,7 @@ export interface SessionState {
 
 export type SessionEvent =
   | { type: "mode"; mode: VoiceMode }
-  | { type: "listen" }
+  | { type: "listen"; live: boolean }
   | { type: "interim"; text: string }
   | { type: "final"; text: string; review: boolean }
   | { type: "no_speech" }
@@ -61,7 +61,7 @@ export function sessionReducer(s: SessionState, e: SessionEvent): SessionState {
       return s.phase === "listening" || s.phase === "working" ? s : { ...initialSession(e.mode), text: s.text };
     case "listen":
       // Pressing the microphone interrupts whatever was happening: a reply being spoken, a turn in flight.
-      return { ...s, phase: "listening", live: s.mode === "live", interim: "", message: "" };
+      return { ...s, phase: "listening", live: e.live, mode: e.live ? "live" : "push", interim: "", message: "" };
     case "interim":
       return s.phase === "listening" ? { ...s, interim: e.text } : s;
     case "final": {

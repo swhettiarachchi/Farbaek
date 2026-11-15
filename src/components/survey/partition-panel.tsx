@@ -15,6 +15,7 @@ import { PERCH_M2, fmt, toArp } from "@/core/survey/units";
 import { buttonClasses } from "@/components/ui/button";
 import { LABEL_CLASSES, inputClasses } from "@/components/ui/field";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { useHandoff } from "./assistant/handoff";
 
 type By = "area" | "width";
 type Unit = "perch" | "m2" | "m" | "ft";
@@ -26,7 +27,67 @@ const FACTOR: Record<Unit, number> = { perch: PERCH_M2, m2: 1, m: 1, ft: 0.3048 
  * engine's dividing lines out, as a proposal to peg. Nothing here changes the
  * plan: the proposed corners join it only once pegged, observed and imported.
  */
-export function PartitionPanel({
+/** How the drafting assistant set the panel up (stage 195): the lot, the lines, the leg and the shares, for the surveyor to check. */
+interface DivideStart {
+  lotId: string;
+  leg: number;
+  lines: "square" | "parallel" | "through";
+  by: By;
+  unit: Unit;
+  shares: string[];
+  said: string;
+}
+
+type PanelProps = {
+  lots: Lot[];
+  points: SurveyPoint[];
+  features?: DrawingFeature[];
+  perchDecimals: number;
+  planRules?: SurveyDocument["rules"];
+  blockOutHref?: string | null;
+  blockOutUnavailable?: string | null;
+};
+
+/**
+ * The divide panel, started by hand or from the drafting assistant (stage 195). The assistant's division is shown for checking, never
+ * kept: equal lots split the lot's computed area by code, the last share taking exactly what's left.
+ */
+export function PartitionPanel(props: PanelProps & { projectId?: string }) {
+  const { handoff, clear } = useHandoff(props.projectId ?? "");
+  const op = props.projectId && handoff?.kind === "divide" ? handoff.op : null;
+  const lot = op ? props.lots.find((l) => l.id === op.lotId) : undefined;
+  let start: DivideStart | null = null;
+  if (op && lot) {
+    const byId = new Map(props.points.map((p) => [p.id, p]));
+    const ring = lot.points.map((id) => byId.get(id)).filter((p): p is SurveyPoint => Boolean(p));
+    const unit: Unit = op.unit;
+    let shares: string[] = [];
+    if (op.by === "width") shares = [String(op.values[0] ?? ""), ""];
+    else if (op.count && ring.length >= 3) {
+      const each = area(ring) / op.count / FACTOR[unit];
+      shares = [...Array.from({ length: op.count - 1 }, () => each.toFixed(4)), ""];
+    } else shares = [...op.values.map(String), ""];
+    start = { lotId: lot.id, leg: op.leg ?? 0, lines: op.lines ?? (op.by === "width" ? "parallel" : "square"), by: op.by, unit, shares: shares.length >= 2 ? shares : ["", ""], said: op.quote };
+  }
+  return (
+    <>
+      {start ? (
+        <div className="mb-4 flex flex-wrap items-start gap-3 rounded-sm bg-canvas-2 p-3 ring-1 ring-line">
+          <StatusBadge status="approval" label="From the assistant" />
+          <p className="min-w-0 flex-1 text-sm text-ink-2">
+            Set up from &ldquo;{start.said}&rdquo;. Check the lot, the leg and every share below: the lines and areas are worked out from your corners, and nothing is kept until you make the block-out plan.
+          </p>
+          <button type="button" onClick={clear} className={buttonClasses("ghost", "sm")}>
+            Start afresh
+          </button>
+        </div>
+      ) : null}
+      <PartitionBody key={start ? "assistant" : "plain"} {...props} start={start} />
+    </>
+  );
+}
+
+function PartitionBody({
   lots,
   points,
   features = [],
@@ -34,7 +95,9 @@ export function PartitionPanel({
   planRules = null,
   blockOutHref = null,
   blockOutUnavailable = null,
+  start = null,
 }: {
+  start?: DivideStart | null;
   lots: Lot[];
   points: SurveyPoint[];
   /** The plan's drawn features, to say when a dividing line runs through a building. */
@@ -53,14 +116,14 @@ export function PartitionPanel({
     const r = l.points.map((id) => byId.get(id)!);
     return zeroLengthLegs(r).length === 0 && selfIntersections(r).length === 0;
   });
-  const [lotId, setLotId] = useState(usable[0]?.id ?? "");
-  const [leg, setLeg] = useState(0);
-  const [lines, setLines] = useState<"square" | "parallel" | "through">("square");
+  const [lotId, setLotId] = useState(start?.lotId ?? usable[0]?.id ?? "");
+  const [leg, setLeg] = useState(start?.leg ?? 0);
+  const [lines, setLines] = useState<"square" | "parallel" | "through">(start?.lines ?? "square");
   const [corner, setCorner] = useState(0);
   const [from, setFrom] = useState<"start" | "end">("start");
-  const [by, setBy] = useState<By>("area");
-  const [unit, setUnit] = useState<Unit>("perch");
-  const [shares, setShares] = useState<string[]>(["", ""]);
+  const [by, setBy] = useState<By>(start?.by ?? "area");
+  const [unit, setUnit] = useState<Unit>(start?.unit ?? "perch");
+  const [shares, setShares] = useState<string[]>(start?.shares ?? ["", ""]);
   // Starts from the minimums chosen for the plan, if any.
   const [ruleChoice, setRuleChoice] = useState<"none" | "uda" | "own">(planRules?.id === "uda-2020" ? "uda" : planRules?.id === "own" ? "own" : "none");
   const [own, setOwn] = useState(planRules?.id === "own" ? { areaM2: String(planRules.areaM2), frontageM: String(planRules.frontageM), depthM: String(planRules.depthM), source: planRules.source } : { areaM2: "", frontageM: "", depthM: "", source: "" });
