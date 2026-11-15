@@ -14,7 +14,7 @@ import { buildPlan } from "@/core/survey/view";
  */
 export function samplePlan() {
   const document = sampleDocument();
-  const view = buildPlan({ points: SAMPLE_POINTS, document, crsId: "EPSG:5235", crsConfirmation: "Sample data: no real survey", surveyor: null, approval: null });
+  const view = buildPlan({ points: SAMPLE_POINTS, document, crsId: "EPSG:5235", crsConfirmation: "Sample data: no real survey", surveyor: null, approval: null, version: 1 });
   const page = view.sheet.pages[0]!;
   const { secondDecimals, distanceDecimals, perchDecimals } = document.settings;
   const lots = view.lots.lots

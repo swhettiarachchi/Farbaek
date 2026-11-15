@@ -193,6 +193,10 @@ The route serves the PDF as a download, or inline with `?inline=1` for "Open the
 - A cell with a comma, quote or line break is quoted, with quotes doubled.
 - Served as `text/csv; charset=utf-8`. A CSV can't name its coordinate system, and neither the file nor its name does; the project's PDF, DXF and GeoJSON name it.
 
+### Lot schedule (CSV)
+
+`/export/lots` (stage 192, [`schedule.ts`](../../src/core/survey/export/schedule.ts)): one row per lot (its label, corner numbers, area in m² to 3 decimals, hectares to 5 decimals and acres, roods and perches as on the sheet), then the sum of the lots and the entire land with its outline's corners. Plain numbers, text cells guarded against formulas. It waits for the checks on the coordinates and the lots, like the GeoJSON, and is recorded as a CSV export with `options.content = "lots"`; History calls it "Lot schedule".
+
 ### GeoJSON
 
 `surveyGeoJson({ points, parcel, crs, projectName, lot })`:

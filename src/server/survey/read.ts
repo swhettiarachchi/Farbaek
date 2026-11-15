@@ -79,7 +79,7 @@ const pointRow = z.object({ id: z.string(), point_id: z.string(), e: z.coerce.nu
 const sourceRow = z.object({ id: z.string(), file_name: z.string(), format: z.string(), sha256: z.string(), size_bytes: z.number(), point_count: z.number(), settings: z.record(z.string(), z.unknown()).catch({}), created_by: z.string().nullable(), created_at: z.string() });
 const drawingRow = z.object({ id: z.string(), version: z.number(), document: z.unknown(), note: z.string().nullable(), created_by: z.string().nullable(), created_at: z.string() });
 const approvalRow = z.object({ drawing_version: z.number(), approved_by: z.string().nullable(), approved_at: z.string(), content_sha256: z.string(), surveyor: z.record(z.string(), z.unknown()).catch({}), withdrawn_at: z.string().nullable() });
-const exportRow = z.object({ kind: z.string(), drawing_version: z.number(), sha256: z.string(), size_bytes: z.number(), created_by: z.string().nullable(), created_at: z.string() });
+const exportRow = z.object({ kind: z.string(), drawing_version: z.number(), sha256: z.string(), size_bytes: z.number(), created_by: z.string().nullable(), created_at: z.string(), options: z.record(z.string(), z.unknown()).catch({}).default({}) });
 const profileRow = z.object({ user_id: z.string(), full_name: z.string(), designation: z.string(), registration: z.string(), address: z.string(), contact: z.string(), updated_at: z.string() });
 
 export type SurveySource = Omit<z.infer<typeof sourceRow>, "settings"> & { settings: Record<string, unknown> };
@@ -151,7 +151,7 @@ export async function loadSurveyProject(client: SupabaseClient, orgId: string, p
     (version ? drawingQuery.eq("version", version) : drawingQuery.order("version", { ascending: false }).limit(1)).maybeSingle(),
     client.from("survey_drawings").select("version, note, created_by, created_at").eq("project_id", projectId).order("version", { ascending: false }).limit(100),
     client.from("survey_approvals").select("drawing_version, approved_by, approved_at, content_sha256, surveyor, withdrawn_at").eq("project_id", projectId).order("approved_at", { ascending: false }),
-    client.from("survey_exports").select("kind, drawing_version, sha256, size_bytes, created_by, created_at").eq("project_id", projectId).order("created_at", { ascending: false }).limit(50),
+    client.from("survey_exports").select("kind, drawing_version, sha256, size_bytes, created_by, created_at, options").eq("project_id", projectId).order("created_at", { ascending: false }).limit(50),
     client.from("survey_surveyor_profiles").select("user_id, full_name, designation, registration, address, contact, updated_at").eq("org_id", orgId),
   ]);
   const d = drawingRow.safeParse(drawing.data);

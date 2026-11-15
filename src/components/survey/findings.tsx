@@ -1,5 +1,6 @@
 import type { Finding, Severity } from "@/core/survey/qc";
 import { StatusBadge, type Status } from "@/components/ui/status-badge";
+import { KeepAsSurveyed } from "./keep-as-surveyed";
 
 /** Survey states as StatusBadge kinds (farbaek-survey-studio skill, "Status in the app"). */
 export const SEVERITY_BADGE: Record<Severity, { status: Status; label: string }> = {
@@ -11,7 +12,8 @@ export const SEVERITY_BADGE: Record<Severity, { status: Status; label: string }>
 
 const BLOCKS: Record<Finding["blocks"][number], string> = { plan: "the plan", export: "export", approval: "approval" };
 
-export function FindingsList({ findings }: { findings: readonly Finding[] }) {
+/** The findings, most serious first. With `keep`, near misses get the surveyor's "Keep as surveyed" control. */
+export function FindingsList({ findings, keep }: { findings: readonly Finding[]; keep?: { projectId: string; baseVersion: number; readOnly: string | null } }) {
   if (findings.length === 0) return <p className="text-sm text-ink-2">No findings. Checks passing is not certification: the surveyor still reviews and signs the plan.</p>;
   return (
     <ul className="grid gap-3">
@@ -25,6 +27,7 @@ export function FindingsList({ findings }: { findings: readonly Finding[] }) {
           {f.detail ? <p className="text-sm text-ink-2">{f.detail}</p> : null}
           <p className="text-sm text-ink-2">{f.action}</p>
           {f.blocks.length > 0 ? <p className="text-sm text-ink-3">Stops {f.blocks.map((b) => BLOCKS[b]).join(" and ")} until it is resolved.</p> : null}
+          {keep && f.keep ? <KeepAsSurveyed projectId={keep.projectId} baseVersion={keep.baseVersion} keyId={f.keep.key} kept={f.keep.kept} readOnly={keep.readOnly} /> : null}
         </li>
       ))}
     </ul>

@@ -183,6 +183,11 @@ export function compareDocuments(before: SurveyDocument, after: SurveyDocument, 
   for (const n of after.notes) if (!before.notes.includes(n)) add("Notes", `Added: ${short(n)}`);
   for (const n of before.notes) if (!after.notes.includes(n)) add("Notes", `Removed: ${short(n)}`);
 
+  // The surveyor's answers to near misses.
+  const keptNow = after.kept.filter((k) => !before.kept.includes(k)).length;
+  const unkept = before.kept.filter((k) => !after.kept.includes(k)).length;
+  if (keptNow > 0) add("Checks", `${keptNow} ${keptNow === 1 ? "near miss was" : "near misses were"} kept as surveyed.`);
+  if (unkept > 0) add("Checks", `${unkept} ${unkept === 1 ? "near miss is" : "near misses are"} to be checked again.`);
   // Items filled in by the AI: new ones, ones checked since, and ones that need checking again.
   const ai = (p: { source: string }) => p.source !== "engine";
   const arrived = Object.entries(after.provenance).filter(([k, p]) => ai(p) && !before.provenance[k]);

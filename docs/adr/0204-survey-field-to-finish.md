@@ -25,5 +25,5 @@ They appear on the Lots step as suggestions ("Suggest lines from the field codes
 ## Consequences
 
 - Out-of-order observations give visibly wrong suggestions the surveyor can skip, never silent linework.
-- Two codes on one point, notes after a separator, curves and join-to-point are not supported yet ([DEVELOPMENT_ROADMAP.md](../survey/DEVELOPMENT_ROADMAP.md)).
+- Since stage 192, a point can carry two codes ("CP MW": a post that also ends a wall), each with its own END or CLO, and joins every line its codes name; anything after a slash is the crew's note ("St / found"). Curves and join-to-point are not supported yet ([DEVELOPMENT_ROADMAP.md](../survey/DEVELOPMENT_ROADMAP.md)).
 - An office-wide code library needs a schema change and comes later.

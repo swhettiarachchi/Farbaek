@@ -10,7 +10,7 @@ import { parseGeoJsonPoints } from "@/core/survey/import/geojson";
 import { approvalHash, buildPlan } from "@/core/survey/view";
 import { createSupabaseAdminClient } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
-import { loadSurveyProject } from "@/server/survey/read";
+import { loadSurveyProject, type SurveyProjectData } from "@/server/survey/read";
 import { SURVEY_MESSAGES, surveyStore, type Actor } from "@/server/survey/store";
 import { loadAppContext } from "@/server/workspace/context";
 import { CONTRIBUTOR_ROLES } from "@/server/workspace/types";
@@ -117,6 +117,18 @@ export async function importSurveyPointsAction(input: z.input<typeof importInput
   return { status: "done", message: `Imported ${r.value.added} ${r.value.added === 1 ? "point" : "points"}${r.value.skipped ? `; ${r.value.skipped} already here, unchanged` : ""}${warnings ? `; ${warnings} repeated ${warnings === 1 ? "row" : "rows"} kept once` : ""}.` };
 }
 
+/**
+ * A document as it's saved: "keep as surveyed" answers only for near misses
+ * the plan has now (none can be added from outside, and none outlives its
+ * near miss), so the list stays short and every entry means something.
+ */
+function tidy(doc: SurveyDocument, data: { points: SurveyProjectData["points"]; project: { crsId: string } }): SurveyDocument {
+  if (doc.kept.length === 0) return doc;
+  const view = buildPlan({ points: data.points, document: doc, crsId: data.project.crsId, crsConfirmation: null, surveyor: null, approval: null });
+  const live = new Set(view.findings.flatMap((f) => (f.keep ? [f.keep.key] : [])));
+  return { ...doc, kept: doc.kept.filter((k) => live.has(k)).slice(0, 200) };
+}
+
 /** Checks that every point a document names is in the project. */
 function unknownPoints(doc: SurveyDocument, known: Set<string>): string[] {
   return [...usedPointIds(doc)].filter((id) => !known.has(id));
@@ -136,7 +148,34 @@ export async function saveSurveyDrawingAction(input: { projectId: string; baseVe
     return { status: "error", message: "The chosen surveyor hasn't entered their details in this workspace yet." };
   }
   // Marks for items no longer on the plan are dropped, so none can hold an approval with nothing to check.
-  const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: input.projectId, baseVersion: input.baseVersion, document: pruneProvenance(doc.data), note: input.note?.slice(0, 200) ?? null });
+  const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: input.projectId, baseVersion: input.baseVersion, document: tidy(pruneProvenance(doc.data), data), note: input.note?.slice(0, 200) ?? null });
+  if (!r.ok) return { status: "error", message: r.message };
+  revalidatePath(`/app/survey/${input.projectId}`);
+  return { status: "done", message: `Saved as version ${r.value}.`, version: r.value };
+}
+
+/**
+ * "Keep as surveyed": the surveyor's answer to a near miss (two corner numbers
+ * a few millimetres apart, or a corner a few centimetres off a neighbouring
+ * lot's leg), saved as a new version so the approval covers it. Nothing moves.
+ * Only a near miss the plan has now can be kept.
+ */
+export async function setKeptAsSurveyedAction(input: { projectId: string; baseVersion: number; key: string; keep: boolean }): Promise<SurveyFormState> {
+  if (!uuid.safeParse(input.projectId).success || !Number.isInteger(input.baseVersion) || typeof input.key !== "string" || !/^(dup|leg):[0-9a-f:|-]{36,120}$/.test(input.key)) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const g = await writer();
+  if (!g.ok) return { status: "error", message: g.message };
+  const data = await loadSurveyProject(g.w.user, g.w.actor.orgId, input.projectId);
+  if (!data) return { status: "error", message: SURVEY_MESSAGES.NOT_FOUND };
+  if (data.drawing.version !== input.baseVersion) return { status: "error", message: SURVEY_MESSAGES.VERSION_CONFLICT };
+  const view = buildPlan({ points: data.points, document: data.drawing.document, crsId: data.project.crsId, crsConfirmation: data.project.crsConfirmedAt ? "confirmed" : null, surveyor: null, approval: null });
+  const finding = view.findings.find((f) => f.keep?.key === input.key);
+  if (!finding) return { status: "error", message: "That near miss isn't on the plan any more. Reload to see the checks as they are now." };
+  const doc = structuredClone(data.drawing.document);
+  doc.kept = input.keep ? [...new Set([...doc.kept, input.key])] : doc.kept.filter((k) => k !== input.key);
+  const note = `${input.keep ? "Kept as surveyed" : "To check again"}: ${finding.message}`.slice(0, 200);
+  const next = tidy(pruneProvenance(doc), data);
+  if (!surveyDocumentSchema.safeParse(next).success) return { status: "error", message: SURVEY_MESSAGES.INVALID_REQUEST };
+  const r = await surveyStore.saveDrawing(g.w.admin, g.w.actor, { projectId: input.projectId, baseVersion: input.baseVersion, document: next, note });
   if (!r.ok) return { status: "error", message: r.message };
   revalidatePath(`/app/survey/${input.projectId}`);
   return { status: "done", message: `Saved as version ${r.value}.`, version: r.value };

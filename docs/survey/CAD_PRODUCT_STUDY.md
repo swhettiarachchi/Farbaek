@@ -25,14 +25,14 @@ A study of the AutoCAD and ZWCAD product sites and their help pages, made on 15 
 | Schedules that can't go stale | AutoCAD data extraction | Overleaf composed from the lots every time | **Kept** |
 | Problems reported, not repaired | Map 3D cleanup markers | Overlaps, gaps and area mismatch reported | **Kept** |
 | Photo capture advice | Markup Import | "Photograph the title and the boundaries close up" | **Done**; flat, even light could be added |
-| Plot stamp | AutoCAD plot stamp | DRAFT notice; engine version only in PDF metadata | **Later, soon**: drawing version, approval state, engine version, date in the margin |
-| Lot schedule CSV with a total | ZWCAD Area Table, data extraction | Points CSV only | **Later, soon** |
-| Near-miss findings and "keep as surveyed" | Geometry Cleanup tolerances | 0.5 mm T-junctions; other gaps reported without a cause | **Later, soon**; the answer stored in the hashed version, never a moved point |
+| Plot stamp | AutoCAD plot stamp | Version, approval state and engine under the frame | **Done** (stage 192); the export date stays in the PDF's metadata |
+| Lot schedule CSV with a total | ZWCAD Area Table, data extraction | Lots, sum and entire land in m², ha and A-R-P | **Done** (stage 192) |
+| Near-miss findings and "keep as surveyed" | Geometry Cleanup tolerances | Corners within 5 cm of a leg and marks within 1 cm, kept as surveyed in the version | **Done** (stage 192, ADR 0205); never a moved point |
 | Plan-standard profile | CAD Standards Checker | Checks fixed in `qc.ts` | **Later**: versioned rules, each citing its source |
-| Description-to-plan reconciliation | Count, unit-aware reports | Not yet | **Later** (stage 194): stated counts, widths and extents checked against computed ones |
+| Description-to-plan reconciliation | Count, unit-aware reports | The stated extent against the computed land | **Started** (stage 192); stated lot counts and widths later |
 | Questions answered by the engine | Assistant select, query, navigate | Not yet | **Later** (stage 194) |
-| Inverse between any two points | Map 3D COGO inverse | Lot legs only | **Later** |
-| Multi-code points, note separators, curves | Carlson | Single codes, END, CLO | **Later** |
+| Inverse between any two points | Map 3D COGO inverse | Points step | **Done** (stage 192) |
+| Multi-code points, note separators, curves | Carlson | Two codes on a point and notes after a slash | **Done** (stage 192); curves later |
 | Office code library and standards | Connected Support Files | Per drawing | **Later** (schema change) |
 | Red-pen markup into changes | Markup Import | None | **Later**, after stage 194 |
 | Review links, overlays, revision clouds | Shared views, Trace, revision clouds | None | **Later**; plans carry owners' names, so access rules first |

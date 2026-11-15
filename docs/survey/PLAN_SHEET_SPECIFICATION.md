@@ -19,6 +19,8 @@ A drawing's `settings.template` picks one: `classic` (the default since stage 19
 - **Title block.** "Scale:- 1:N", "PLAN", the title sentence (`titleSentence`: land names in capitals, lot suffixes raised, blanks for anything missing), the DISTRICT and PROVINCE lines, the bounded-as-follows lines with a ":-" column ("Entire land" for several lots, the lot itself on an extract), and "Containing in Extent X Hectares ( a A. r R. pp.pp P. )".
 - **Footer.** The dates ("Surveyed & partitioned on", or either alone), the statement and the overleaf pointer bottom left, the signature block bottom right.
 
+**The plot stamp** (stage 192), under the frame at the bottom right of both layouts, in grey: "Farbaek Survey Studio, version N, draft, not approved" (or "approved by the surveyor on …") and the engine version, so a paper copy can be traced to its exact record. Unsaved edits in the editor say "not saved as a version yet".
+
 **Bearings and distances** go overleaf unless `faceDimensions` is on. The overleaf **boundaries schedule** lists each lot's legs (from, to, bearing, distance) and area, the corner coordinates, the entire extent, the grid and the notes, with headers repeated across pages.
 
 **Paper and scale.** With `paper: "auto"` and no fixed scale, the composer tries 1:500 then the next standard scale (1:1000, 1:1250 …) in the outer loop and A4 then A3 in the inner loop, and A2 only when nothing smaller fits. A fixed scale that doesn't fit is a finding that blocks export; the drawing is never shrunk.

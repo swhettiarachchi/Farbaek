@@ -23,6 +23,8 @@ export interface PlanInput {
   crsConfirmation: string | null;
   surveyor: SurveyorDetails | null;
   approval: { by: string; at: string } | null;
+  /** The drawing version this plan is, for the plot stamp; absent for previews of unsaved edits. */
+  version?: number;
 }
 
 export interface PlanView {
@@ -48,7 +50,7 @@ export function buildPlan(input: PlanInput): PlanView {
   const lots = computeLots(input.points, doc.lots);
   const single = doc.sheet.extractOf ? lots.lots.find((r) => r.lot.id === doc.sheet.extractOf) : lots.lots.length === 1 ? lots.lots[0] : undefined;
   const parcel = single?.parcel ?? null;
-  const sheet = composeSheet({ template: SRI_LANKA_CADASTRAL_V1, document: doc, points: input.points, lots, crs, crsConfirmation: input.crsConfirmation, surveyor: input.surveyor, approval: input.approval });
+  const sheet = composeSheet({ template: SRI_LANKA_CADASTRAL_V1, document: doc, points: input.points, lots, crs, crsConfirmation: input.crsConfirmation, surveyor: input.surveyor, approval: input.approval, version: input.version });
   const findings = [...checkSurvey({ points: input.points, crs, crsConfirmed: input.crsConfirmation !== null, document: doc, lots, surveyorProfile: input.surveyor !== null }), ...sheet.findings].sort(
     (x, y) => SEVERITY_ORDER.indexOf(x.severity) - SEVERITY_ORDER.indexOf(y.severity),
   );
@@ -64,5 +66,8 @@ export async function approvalHash(input: { document: SurveyDocument; crsId: str
     .filter((p) => used.has(p.id))
     .map((p) => ({ id: p.id, point: p.pointId, e: p.e, n: p.n, z: p.z, code: p.code }))
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  return sha256Hex(canonicalize({ engine: SURVEY_ENGINE_VERSION, crs: input.crsId, document: input.document, points }));
+  // A document with no kept near misses hashes as one saved before the field existed, so earlier approvals still match.
+  const { kept, ...rest } = input.document;
+  const document = kept.length > 0 ? input.document : rest;
+  return sha256Hex(canonicalize({ engine: SURVEY_ENGINE_VERSION, crs: input.crsId, document, points }));
 }

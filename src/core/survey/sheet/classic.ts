@@ -21,7 +21,7 @@ import { bounds } from "../geometry";
 import type { Finding } from "../qc";
 import { fmt, toArp } from "../units";
 import { SURVEY_ENGINE_VERSION } from "../version";
-import { BLANK, commonFindings, drawCtx, drawnPoints, entireAreaM2, overleafPages, usedCodes, type ComposeInput, type ComposedSheet } from "./compose";
+import { BLANK, commonFindings, drawCtx, drawnPoints, entireAreaM2, overleafPages, plotStamp, usedCodes, type ComposeInput, type ComposedSheet } from "./compose";
 import { atPage, drawAdjoining, drawCheckLine, drawCorners, drawFeatures, drawLoosePoints, drawLotLabels, drawLots, drawNeedleNorth, drawRoads, quadsOverlap, textQuad, type DrawCtx } from "./draw";
 import { advanceWidth, textWidth, wrap, type SceneColor, type SceneItem, type SceneText, type SheetPage, type Viewport } from "./scene";
 import { SRI_LANKA_CLASSIC_V1 as T } from "./template";
@@ -364,6 +364,7 @@ export function composeClassic(input: ComposeInput): ComposedSheet {
     : input.crs.kind === "local"
       ? `Coordinates: ${input.crs.name}.${input.crsConfirmation ? ` ${input.crsConfirmation}.` : ""}`
       : `Grid: ${input.crs.name}${input.crs.epsg ? ` (EPSG:${input.crs.epsg})` : ""}. ${input.crsConfirmation ? `${input.crsConfirmation}.` : "Not confirmed by a person."}`;
+  front.push(plotStamp(input, f.w, f.h, f.m, Math.max(1.5, z.small * 0.8)));
   const pages: SheetPage[] = [{ widthMm: f.w, heightMm: f.h, role: "front", items: front }];
   if (doc.settings.overleaf) {
     pages.push(

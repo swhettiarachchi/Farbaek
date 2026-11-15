@@ -63,6 +63,7 @@ export async function planInputFor(data: SurveyProjectData): Promise<PlanInput &
           : null,
     surveyor,
     approval: approval ? { by: text(approval.surveyor.name) || "the surveyor", at: isoDate(approval.approved_at) } : null,
+    version: data.drawing.version,
     approvalStatus: status,
   };
 }

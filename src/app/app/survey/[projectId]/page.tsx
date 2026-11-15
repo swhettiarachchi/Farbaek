@@ -11,6 +11,7 @@ import {
   PolygonIcon,
   PrinterIcon,
   RulerIcon,
+  ScissorsIcon,
   SealCheckIcon,
 } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
@@ -24,6 +25,8 @@ import { FindingsList } from "@/components/survey/findings";
 import { DraftPanel } from "@/components/survey/draft-panel";
 import { ApproveForm, SurveyProjectSettingsForm } from "@/components/survey/forms";
 import { ImportPanel } from "@/components/survey/import-panel";
+import { InverseTool } from "@/components/survey/inverse-tool";
+import { PartitionPanel } from "@/components/survey/partition-panel";
 import { PlanEditor } from "@/components/survey/plan-editor";
 import { buttonClasses } from "@/components/ui/button";
 import { LocalTime } from "@/components/ui/local-time";
@@ -162,6 +165,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
       ) : null}
 
       {step === "points" ? (
+        <div className="grid gap-6">
         <Card>
           <CardTitle icon={MapPinSimpleIcon}>Points</CardTitle>
           <p className="mt-1 text-sm text-ink-2">
@@ -196,6 +200,16 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
             </div>
           )}
         </Card>
+        {data.points.length >= 2 ? (
+          <Card>
+            <CardTitle icon={RulerIcon}>Bearing and distance between two points</CardTitle>
+            <p className="mt-1 text-sm text-ink-2">A check by hand on any two points, such as a tie to a control mark or across a lot.</p>
+            <div className="mt-4">
+              <InverseTool points={data.points} />
+            </div>
+          </Card>
+        ) : null}
+        </div>
       ) : null}
 
       {step === "draft" ? (
@@ -222,6 +236,15 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
           </div>
         </Card>
       ) : null}
+      {step === "boundary" && doc.lots.length > 0 ? (
+        <Card>
+          <CardTitle icon={ScissorsIcon}>Divide a lot into shares</CardTitle>
+          <p className="mt-1 text-sm text-ink-2">For a sub division: where the dividing lines fall for the shares you give, and how far along the boundary to peg each new corner, worked out from your surveyed corners. Nothing here changes the plan.</p>
+          <div className="mt-5">
+            <PartitionPanel lots={doc.lots} points={data.points} perchDecimals={doc.settings.perchDecimals} />
+          </div>
+        </Card>
+      ) : null}
 
       {step === "plan" ? (
         <PlanEditor
@@ -244,7 +267,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
           <CardTitle icon={ListChecksIcon}>Checks</CardTitle>
           <p className="mt-1 text-sm text-ink-2">Every check on version {data.drawing.version}, most serious first. Passing them doesn&apos;t certify a plan: the surveyor reviews it and signs it.</p>
           <div className="mt-5">
-            <FindingsList findings={view.findings} />
+            <FindingsList findings={view.findings} keep={{ projectId, baseVersion: data.drawing.version, readOnly }} />
           </div>
         </Card>
       ) : null}
@@ -284,10 +307,16 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
                 Points as CSV
               </a>
               {view.blocksData.length === 0 ? (
-                <a href={`${base}/export/geojson`} className={buttonClasses("ghost", "md", "justify-start")}>
-                  <DownloadSimpleIcon size={20} aria-hidden />
-                  Points and parcel as GeoJSON
-                </a>
+                <>
+                  <a href={`${base}/export/lots`} className={buttonClasses("ghost", "md", "justify-start")}>
+                    <DownloadSimpleIcon size={20} aria-hidden />
+                    Lot schedule as CSV (areas, hectares, A-R-P)
+                  </a>
+                  <a href={`${base}/export/geojson`} className={buttonClasses("ghost", "md", "justify-start")}>
+                    <DownloadSimpleIcon size={20} aria-hidden />
+                    Points and lots as GeoJSON
+                  </a>
+                </>
               ) : null}
             </div>
             <p className="mt-4 text-sm text-ink-3">
@@ -407,7 +436,7 @@ export default async function SurveyProjectPage({ params, searchParams }: { para
               <ul className="mt-3 grid gap-2">
                 {data.exports.map((x, i) => (
                   <li key={i} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
-                    <span className="font-medium uppercase text-ink">{x.kind}</span>
+                    <span className="font-medium text-ink">{x.options["content"] === "lots" ? "Lot schedule" : x.kind.toUpperCase()}</span>
                     <span className="text-ink-2">version {x.drawing_version}</span>
                     <span className="text-ink-3">
                       {isoDate(x.created_at)}, by {personName(x.created_by, data.profiles, me)}

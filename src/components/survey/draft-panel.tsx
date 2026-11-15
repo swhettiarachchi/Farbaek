@@ -46,7 +46,9 @@ interface Photo {
 
 /** A photo shrunk in the browser to what the model reads, as JPEG: smaller to send, and its original never leaves the device. */
 async function shrink(file: File): Promise<Blob> {
-  const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+  // A large photo (a 50 MP phone camera) is decoded straight to a smaller width where the browser can, so it doesn't fill a phone's memory.
+  const big = file.size > 4_000_000;
+  const bitmap = await createImageBitmap(file, big ? { imageOrientation: "from-image", resizeWidth: 2 * PHOTO_SIDE, resizeQuality: "high" } : { imageOrientation: "from-image" }).catch(() => createImageBitmap(file, { imageOrientation: "from-image" }));
   const scale = Math.min(1, PHOTO_SIDE / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, Math.round(bitmap.width * scale));

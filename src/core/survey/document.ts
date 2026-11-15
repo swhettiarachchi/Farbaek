@@ -201,6 +201,8 @@ export const surveyDocumentSchema = z.object({
   sheet: sheetFieldsSchema,
   settings: settingsSchema,
   provenance: provenanceSchema,
+  /** Near misses the surveyor answered "keep as surveyed" (keys from `nearKey` in lots.ts). Part of the version, so the approval covers the answer. */
+  kept: z.array(z.string().min(1).max(120)).max(200).default([]),
   /** Which member's surveyor profile fills the surveyor block. */
   surveyorUserId: z.string().uuid().nullable(),
 });
@@ -260,6 +262,7 @@ export function emptyDocument(): SurveyDocument {
     sheet: emptySheetFields(),
     settings: defaultSettings(),
     provenance: {},
+    kept: [],
     surveyorUserId: null,
   };
 }
@@ -414,6 +417,7 @@ export function parseSurveyDocument(raw: unknown): SurveyDocument | null {
     sheet: { ...emptySheetFields(), ...sheet, statement: "" },
     settings: { ...defaultSettings(), ...d.settings, template: "panel", slant: false, faceDimensions: true },
     provenance: {},
+    kept: [],
     surveyorUserId: d.surveyorUserId,
   };
 }
