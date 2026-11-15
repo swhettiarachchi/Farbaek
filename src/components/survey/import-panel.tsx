@@ -24,6 +24,9 @@ const DELIMITERS: { id: Delimiter; label: string }[] = [
   { id: "whitespace", label: "Spaces" },
 ];
 
+/** A coordinate as read, to the millimetre at least: 450000 shows as 450000.000, 450012.3456 keeps its tenth of a millimetre. */
+const metres = (v: number) => v.toFixed(Math.max(3, String(v).split(".")[1]?.length ?? 0));
+
 /** The imported rows as survey points for the preview: ids from their line numbers, never saved. */
 const asPoints = (pts: readonly ImportedPoint[]): SurveyPoint[] => pts.map((p) => ({ id: `line-${p.line}`, pointId: p.pointId, e: p.e, n: p.n, z: p.z, code: p.code }));
 
@@ -83,7 +86,7 @@ export function ImportPanel({ projectId, crsId, crsName, codes, planHasLots, rea
     if (format !== "delimited") {
       // Formats that say what each value is (GeoJSON, GSI): no columns to map, the points as read.
       const r = readPoints(format, text, { delimiter, hasHeader, columns, crs });
-      return { rows: r.points.slice(0, 8).map((p) => [p.pointId, String(p.e), String(p.n), p.z === null ? "" : String(p.z), p.code ?? ""]), header: ["Point", "Easting", "Northing", "Elevation", "Code"], parsed: r };
+      return { rows: r.points.slice(0, 8).map((p) => [p.pointId, metres(p.e), metres(p.n), p.z === null ? "" : metres(p.z), p.code ?? ""]), header: ["Point", "Easting", "Northing", "Elevation", "Code"], parsed: r };
     }
     const p = previewDelimited(text);
     if ("error" in p) return { rows: [], header: [], parsed: { points: [] as ImportedPoint[], issues: [p.error] } };
@@ -294,7 +297,7 @@ export function ImportPanel({ projectId, crsId, crsName, codes, planHasLots, rea
           <div className="grid gap-2">
             <label className="flex min-h-11 items-start gap-3 rounded-sm border border-line bg-canvas-2 p-3 text-sm text-ink">
               <input type="checkbox" checked={confirmUnits} onChange={(e) => setConfirmUnits(e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-[var(--color-accent)]" />
-              <span>These coordinates are in metres, in {crsName}, and the columns are read right. Farbaek stores them exactly as written and never converts, moves or rounds them.</span>
+              <span>These coordinates are in metres, in {crsName}{format === "delimited" ? ", and the columns are read right" : ""}. Farbaek stores them exactly as written and never converts, moves or rounds them.</span>
             </label>
             {dsrOffered ? (
               <label className="flex min-h-11 items-start gap-3 p-3 text-sm text-ink">
